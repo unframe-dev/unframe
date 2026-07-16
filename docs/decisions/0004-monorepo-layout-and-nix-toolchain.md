@@ -66,9 +66,9 @@
 
 ## Follow-ups
 
-- [ ] `app/backend` → `app/server` のリネームと、参照（CI / README / scripts）の追従。
-- [ ] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
-- [ ] `packages/config` を新設し、共有 tsconfig / oxc / git hooks を集約。
+- [x] `app/backend` → `app/server` のリネームと、参照（README / scripts）の追従。
+- [x] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
+- [x] `packages/config` を新設し、共有 tsconfig / Vite+ staged hook を集約。
 - [x] `tools/notion-sync` を `scripts/docs/notion-sync` へ移設（完了）。
 - [ ] `flake.lock` を生成し、`nix flake check` をローカルと CI で検証。
-- [ ] `app/web`（React 編集エディタ）の新規実装。
+- [x] `app/web`（React 編集エディタ）のワークスペースを新設。

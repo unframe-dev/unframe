@@ -16,7 +16,7 @@
 nix develop            # 開発環境に入る
 nix run .#gen          # 契約・クライアント・sqlc 生成
 nix run .#check        # 品質ゲート集約
-nix run .#dev          # backend + lp 並走
+nix run .#dev          # server + lp 並走
 nix run .#migrate      # DB マイグレーション
 nix run .#notion-sync  # Notion 同期
 nix flake check        # CI 検証
@@ -24,4 +24,4 @@ nix flake check        # CI 検証
 
 ## パスについて
 
-`lib/paths.sh` が目標構成（ADR-0004）と現行ディレクトリの対応を保持する。物理移行（`app/backend` → `app/server` 等）が完了したら右辺を更新する。スクリプト本体はパス定数のみに依存し、移行後も変更不要。
+`lib/paths.sh` がリポジトリ内の共有パスを定義する。スクリプト本体はパス定数のみに依存し、ディレクトリ構成の変更はここに集約する。

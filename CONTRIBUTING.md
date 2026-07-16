@@ -38,12 +38,12 @@ KPI やカバレッジ目標がチケット側で指定された場合、**達�
 | 層                    | フレームワーク                          | 主に書くテスト                                       | 例                                                          |
 | --------------------- | --------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
 | `app/server/`         | Go `testing` (modernc in-memory SQLite) | ルートのリクエスト→レスポンス契約、service/DB シナリオ | `/health` の応答が OpenAPI 契約と一致、presigner 単体      |
-| `packages/contracts/` | tsx `--test`                            | 生成 OpenAPI の整合、クライアントラッパの境界         | 生成 schema がコンパイルでき、fetch ラッパが型で縛られる   |
+| `packages/api-client-ts/` | tsx `--test`                       | 生成 OpenAPI の整合、クライアントラッパの境界         | 生成 schema がコンパイルでき、fetch ラッパが型で縛られる   |
 | `app/web/` (React)    | Vitest + Testing Library                | コンポーネントの振る舞い、フォーム検証、状態遷移      | フォーム送信時に生成クライアントのエラーを正しく表示       |
 | `lp/` (Svelte)        | tsx `--test` / svelte-check             | コンテンツレジストリ、ルーティング整合               | `content-registry` が想定の一覧を返す                      |
 | `app/unity/` (Unity)  | Unity Test Framework                    | C# 側のロジック (`PlayMode`/`EditMode`)              | マニフェストパース、座標変換                                |
 
-**契約は `app/server` の Huma 定義が唯一の編集点。** 契約を変えたら `nix run .#gen` で `openapi.yaml` と各クライアントを再生成し、影響先 (backend テスト / web / unity) を同時に更新する。生成物の drift は CI が検出する。
+**契約は `app/server` の Huma 定義が唯一の編集点。** 契約を変えたら `nix run .#gen` で `openapi.yaml` と各クライアントを再生成し、影響先 (server テスト / web / unity) を同時に更新する。生成物の drift は CI が検出する。
 
 ---
 
@@ -57,7 +57,7 @@ nix run .#migrate  # Turso/libSQL に goose マイグレーションを適用
 
 > ツールチェインは `flake.nix` が固定します (ADR-0004、旧 `mise` を置換)。DB は Turso/libSQL、アセットは Cloudflare R2 (ADR-0002 / ADR-0003)。
 
-詳細は [`ARCHITECTURE.md`](./ARCHITECTURE.md) と [`app/backend/README.md`](./app/backend/README.md) を参照。
+詳細は [`ARCHITECTURE.md`](./ARCHITECTURE.md) と [`app/server/README.md`](./app/server/README.md) を参照。
 
 ---
 

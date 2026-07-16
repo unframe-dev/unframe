@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# packages/contracts (+ api-client-ts) の品質処理。
+# packages/contracts / packages/api-client-ts の品質処理。
 #   check (既定): typecheck / test
 #   fix         : vp fmt (format)
 # fix の結果は autofix.yml が commit する。
@@ -12,7 +12,7 @@ mode="${1:-check}"
 case "${mode}" in
   fix)
     log "contracts(fix): vp fmt"
-    pnpm --config.verify-deps-before-run=false exec vp fmt "${CONTRACTS_DIR}"
+    pnpm --config.verify-deps-before-run=false exec vp fmt "${API_CLIENT_TS_DIR}"
     ;;
   check)
     log "contracts(check): typecheck / test"

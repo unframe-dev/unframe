@@ -60,7 +60,7 @@ unframe/
 - **責務**: API 契約の唯一の編集点。Huma の操作定義から OpenAPI を決定的に生成する。`service` / `db` / `storage` の境界を明確に分離し、in-memory SQLite と fake storage で統合テスト可能に保つ。
 - **エラー包絡**: `{ error: { code, message, details? } }` を全エンドポイントで統一する。
 
-> 詳細は [`app/server/README.md`](./app/server/README.md)（現行は `app/backend/README.md`）を参照。
+> 詳細は [`app/server/README.md`](./app/server/README.md) を参照。
 
 ### `app/web` — React 編集エディタ
 
@@ -118,7 +118,7 @@ CI はオーケストレーション用の `ci.yml` が変更領域を検出し�
 | -------------------- | ------------------------------------------------------------- |
 | `ci.yml`             | オーケストレーション（変更検出・呼び分け・集約ゲート）        |
 | `server.yml`         | `app/server` … `nix run .#server`                             |
-| `web.yml`            | `app/web` … `nix run .#web`（未実装時はスキップ）              |
+| `web.yml`            | `app/web` … `nix run .#web`                                   |
 | `lp.yml`             | `lp` … `nix run .#lp`                                          |
 | `openapi.yml`        | 契約 drift + TS クライアント … `nix run .#drift` / `.#contracts` |
 | `unity.yml`          | `app/unity` の静的チェック（dotnet format / PSScriptAnalyzer / .meta） |
@@ -129,15 +129,13 @@ CI はオーケストレーション用の `ci.yml` が変更領域を検出し�
 
 チェックの棲み分け: format は autofix が適用・commit するため gate では検査しない（Go の gofmt は `golangci-lint run` が lint として検査しつつ autofix が修正）。lint / typecheck / test / build / 生成 drift は各 gate が検証する。
 
-## 移行状況（follow-up）
+## 移行状況
 
-本ドキュメントは目標構成を示す。次の物理移行は ADR-0004 の follow-up として順次実施する。
+ADR-0004 で定めた物理レイアウトへの移行は完了しています。
 
-- [ ] `app/backend` → `app/server` へのリネーム。
-- [ ] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
-- [ ] `packages/config` の新設（共有 tsconfig / oxc / git hooks の集約）。
+- [x] `app/backend` → `app/server` へのリネーム。
+- [x] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
+- [x] `packages/config` を新設し、共有 tsconfig / Vite+ staged hook を集約。
 - [x] `tools/notion-sync` → `scripts/docs/notion-sync` へ集約（完了）。
-- [ ] `app/web`（React 編集エディタ）の新規実装。
-- [ ] `flake.lock` の生成と `nix flake check` のローカル検証。
-
-移行が完了するまでは、`scripts/` 内のパス定数が現行ディレクトリ（`app/backend` など）を指す。
+- [x] `app/web`（React 編集エディタ）のワークスペースを新設。
+- [x] `flake.lock` を生成済み。

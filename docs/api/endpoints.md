@@ -1,7 +1,7 @@
 # Unframe Backend — エンドポイント一覧
 
-`apps/backend/` が提供する HTTP API の一覧。リクエスト / レスポンスの詳細スキーマは
-[`packages/contracts/`](../../packages/contracts/) の Zod スキーマと
+`app/server/` が提供する HTTP API の一覧。リクエスト / レスポンスの詳細スキーマは
+[`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml) と
 [`docs/api/openapi.json`](./openapi.json) を正本とする。設計判断は
 [ADR-0001](../decisions/0001-backend-mvp-design.md) /
 [ADR-0002](../decisions/0002-supabase-storage-and-db.md) を参照。
