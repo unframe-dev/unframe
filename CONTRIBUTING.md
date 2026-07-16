@@ -1,196 +1,346 @@
 # Contributing to Unframe
 
-このプロジェクトに変更を加える前に、必ずこのドキュメントを読んでください。
+このドキュメントは、Unframe の開発、検証、コミット、Pull Request に関する
+現行のルールを定義します。プロダクトの概要は [README.md](./README.md) を、
+目標アーキテクチャは [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
 
----
+## 開発の前提
 
-## 開発スタイル: TDD (テスト駆動開発)
+Unframe は次のコンポーネントからなるモノレポです。
 
-**Unframe ではすべての機能追加・バグ修正を TDD で進めます。** 例外は「実装が試行錯誤の調査フェーズに留まっている」「Unity (C#) 側で MR の見た目を試している」など、テストを書く前提が成立していない場合のみです。
+| パス                          | 役割                                     |
+| ----------------------------- | ---------------------------------------- |
+| `app/web/`                    | React 19 Web Editor（WIP）               |
+| `app/server/`                 | Go / Huma / Chi Backend API（WIP）       |
+| `app/unity/`                  | Unity MR Application（WIP）              |
+| `lp/`                         | SvelteKit Landing Page（WIP）            |
+| `packages/contracts/`         | 生成済み OpenAPI 契約と生成設定          |
+| `packages/api-client-ts/`     | 生成 TypeScript client                   |
+| `packages/api-client-csharp/` | C# client の成果物置き場（現在は未接続） |
+| `packages/config/`            | 共有 TypeScript、Vite+、Git hook 設定    |
+| `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理 |
 
-### サイクル
+現在の Backend は API、プレゼンテーションとアセットの永続化、manifest の
+組み立て、Cloudflare R2 の署名 URL 発行を担当します。認証・認可、リアルタイム
+同期、変換パイプライン、バックグラウンドジョブは未実装です。
 
+## 開発スタイル: TDD
+
+機能追加とバグ修正は、原則として次のサイクルで進めます。
+
+```text
+探索 -> Red -> Green -> Refactoring
 ```
-[探索] → [Red] → [Green] → [Refactoring]
-```
 
-| Phase           | やること                                                              | やってはいけないこと                                  |
-| --------------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
-| **探索**        | 既存コード・契約 (`packages/contracts/`) を読む。型と入出力を把握する | いきなり実装を書く                                    |
-| **Red**         | 失敗するテストを 1 つ書く。期待する振る舞いを明確化する               | 1 つの PR で大量のテストを先出しする (反復が遅くなる) |
-| **Green**       | テストが通る**最小限**の実装を書く                                    | テストの想定外の機能まで盛り込む                      |
-| **Refactoring** | テストを緑のまま、設計と命名を整える                                  | 振る舞いを変える (それは別サイクル)                   |
+1. 既存コード、契約、テストを読み、変更範囲と期待する振る舞いを把握する。
+2. 期待する振る舞いを表す失敗テストを書く。
+3. テストを通す最小限の実装を書く。
+4. テストを緑に保ったまま、設計と命名を整理する。
 
-### サイクルが回らないときの戒律
+テストを書く前提が成立しない探索的作業や、Unity 側の見た目・デバイス検証は
+例外とします。例外にした場合は、完了報告に理由と代替検証を記載してください。
 
-- **テストが書けない = 設計が悪い** のサイン。型 / 関数シグネチャを切り直す
-- **モックを書いた瞬間に詰まる = 関心の分離ができていない**。状態とロジックを分離する
-- **「全部書いてからテスト」は TDD ではない**。コミットを切る前に必ず Red → Green の足跡が残ること
+チケットで KPI やカバレッジ目標が指定されている場合は、達成するまで試行します。
 
-### KPI / カバレッジ
+## リポジトリの責務境界
 
-KPI やカバレッジ目標がチケット側で指定された場合、**達成するまで試行する**こと。途中で諦めてマージしない。
+アプリケーション固有のコードは、それを所有するディレクトリに置きます。
 
----
+- React 固有のコードは `app/web/` に置く。
+- Go Backend のコードは `app/server/` に置く。
+- Unity / C# のコードは `app/unity/` に置く。
+- Landing Page のコードは `lp/` に置く。
+- API 契約と生成設定は `packages/contracts/` に置く。
+- 生成 TypeScript client は `packages/api-client-ts/` に置く。
+- 共有設定は `packages/config/` に置く。
+- 再利用するタスク処理は `scripts/` に置き、`flake.nix` から公開する。
 
-## 各層でのテスト粒度
+`app/server/` 内では次の境界を維持します。
 
-| 層                    | フレームワーク                          | 主に書くテスト                                       | 例                                                          |
-| --------------------- | --------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| `app/server/`         | Go `testing` (modernc in-memory SQLite) | ルートのリクエスト→レスポンス契約、service/DB シナリオ | `/health` の応答が OpenAPI 契約と一致、presigner 単体      |
-| `packages/api-client-ts/` | tsx `--test`                       | 生成 OpenAPI の整合、クライアントラッパの境界         | 生成 schema がコンパイルでき、fetch ラッパが型で縛られる   |
-| `app/web/` (React)    | Vitest + Testing Library                | コンポーネントの振る舞い、フォーム検証、状態遷移      | フォーム送信時に生成クライアントのエラーを正しく表示       |
-| `lp/` (Svelte)        | tsx `--test` / svelte-check             | コンテンツレジストリ、ルーティング整合               | `content-registry` が想定の一覧を返す                      |
-| `app/unity/` (Unity)  | Unity Test Framework                    | C# 側のロジック (`PlayMode`/`EditMode`)              | マニフェストパース、座標変換                                |
-
-**契約は `app/server` の Huma 定義が唯一の編集点。** 契約を変えたら `nix run .#gen` で `openapi.yaml` と各クライアントを再生成し、影響先 (server テスト / web / unity) を同時に更新する。生成物の drift は CI が検出する。
-
----
+- `internal/api/`: HTTP と Huma API の登録
+- `internal/service/`: アプリケーションとドメインロジック
+- `internal/db/`: DB adapter と migration
+- `internal/db/sqlcgen/`: sqlc 生成コード。手編集禁止
+- `internal/storage/`: object storage の抽象化と R2 adapter
 
 ## 環境セットアップ
 
+ツールチェインは `flake.nix` と `flake.lock` で管理します。JavaScript の依存関係は
+pnpm workspace で管理し、Node.js は 22 以上を使用します。
+
 ```bash
-nix develop        # ツールチェイン (Go / Node / pnpm / sqlc / goose 等) が入った shell に入る
-nix run .#setup    # pnpm 依存をインストール
-nix run .#migrate  # Turso/libSQL に goose マイグレーションを適用
+nix develop
+nix run .#setup
 ```
 
-> ツールチェインは `flake.nix` が固定します (ADR-0004、旧 `mise` を置換)。DB は Turso/libSQL、アセットは Cloudflare R2 (ADR-0002 / ADR-0003)。
+`nix develop` は repository-local Git hook も有効化します。DB を使用する場合は
+`app/server/.env.example` を確認し、実際の値を ignored な環境ファイルまたは secret
+管理機構から読み込んでください。
 
-詳細は [`ARCHITECTURE.md`](./ARCHITECTURE.md) と [`app/server/README.md`](./app/server/README.md) を参照。
+詳細な server 環境変数、migration、smoke test は
+[`app/server/README.md`](./app/server/README.md) を参照してください。
 
----
+## 公式タスク入口
 
-## 日々のコマンド
+公式のタスク入口は Nix flake apps です。複雑な処理の実体は `scripts/` にあり、
+通常は内部スクリプトを直接実行せず、次の入口を使用します。
 
-公式の実行入口は flake apps / flake checks (ADR-0004)。実処理は `scripts/` にある。
+| 用途                                    | コマンド                |
+| --------------------------------------- | ----------------------- |
+| 開発環境                                | `nix develop`           |
+| 依存関係と hook のセットアップ          | `nix run .#setup`       |
+| OpenAPI / TypeScript client / sqlc 生成 | `nix run .#gen`         |
+| 生成物 drift 検査                       | `nix run .#drift`       |
+| 全体品質ゲート                          | `nix run .#check`       |
+| Backend check / test / build            | `nix run .#server`      |
+| Web check / test / build                | `nix run .#web`         |
+| LP test と条件付き check / build        | `nix run .#lp`          |
+| TypeScript client typecheck / test      | `nix run .#contracts`   |
+| Backend + LP の開発起動                 | `nix run .#dev`         |
+| DB migration                            | `nix run .#migrate`     |
+| Notion 同期                             | `nix run .#notion-sync` |
+| flake の評価と formatter 検証           | `nix flake check`       |
 
-| 用途                                     | コマンド                |
-| ---------------------------------------- | ----------------------- |
-| 開発環境に入る                           | `nix develop`           |
-| backend + lp 並走                        | `nix run .#dev`         |
-| 契約・クライアント・sqlc 生成            | `nix run .#gen`         |
-| **品質ゲート (drift + lint + test + build)** | `nix run .#check`   |
-| 生成物の drift 検査のみ                  | `nix run .#drift`       |
-| DB マイグレーション適用                  | `nix run .#migrate`     |
-| Notion 同期                              | `nix run .#notion-sync` |
-| CI 検証 (flake 自体の評価)               | `nix flake check`       |
+`nix flake check` は flake の評価と formatter を検証します。アプリケーションの
+品質ゲートではありません。コード変更時の全体品質ゲートは
+`nix run .#check` です。
 
----
+`nix run .#dev` が起動するのは Go server と LP だけです。`app/web` は Web package
+の `dev` script から別途起動します。
 
-## 品質ゲート
+Just、Make、Task、mise、その他の repository-wide task runner は、明示的な設計判断
+なしに追加しません。
 
-**`nix run .#check` (drift + lint + test + build) が緑であることをマージの最低条件**とします。
+## API 契約と生成コード
 
-- ローカルで `nix run .#check` を流して通すこと
-- pre-commit hook (`packages/config/` の共有 git hooks) がコミット時に format を自動で走らせます
-- CI は `ci.yml` が変更領域を検出し、`server` / `web` / `lp` / `openapi` / `unity` の各 workflow を呼び分けます。必須チェックは集約 job `CI`
-- format / lint の自動修正は `autofix.yml` が PR ブランチへ commit します（同一リポジトリの PR 限定）。手元では領域別に `nix run .#server -- fix` 等、または pre-commit hook で修正できます
+HTTP API の編集点は `app/server/` の Huma operation 定義、入出力型、validation です。
+`packages/contracts/openapi.yaml` は生成された成果物であり、手編集しません。
 
-**赤を放置して別の作業に進まない。** 赤いまま push しない。
+API を変更する場合は次の順序で進めます。
 
----
+1. `app/server/` の Huma 定義と関連する Go 型を変更する。
+2. `nix run .#gen` を実行する。
+3. OpenAPI と生成 TypeScript client の差分を確認する。
+4. `app/web/`、Unity の手書き manifest model など影響を受ける consumer を更新する。
+5. server、client、consumer のテストを追加または更新する。
+6. `nix run .#drift` または `nix run .#check` で生成物の整合性を確認する。
 
-## コミット規約
+現在 `nix run .#gen` が生成するものは次のとおりです。
 
-### Conventional Commits + 日本語 + gitmoji 自動付与
+- `packages/contracts/openapi.yaml`
+- `packages/api-client-ts/src/generated/schema.d.ts`
+- `app/server/internal/db/sqlcgen/`
 
+C# client の生成処理はまだ接続されていません。`packages/api-client-csharp/` や
+Unity が自動更新されるとは扱わないでください。C# generator を導入する場合は、
+生成 script と drift 検査を同じ変更で追加します。
+
+`docs/api/openapi.json` は現在の `nix run .#gen` では生成されません。Go API と同期
+していると仮定せず、更新する場合はその更新手順を明確にしてください。
+
+生成ファイルは手編集しません。sqlc や `openapi-typescript` が付与する generated-file
+notice も保持します。
+
+## Database と migration
+
+Backend は本番で Turso/libSQL、テストで `modernc.org/sqlite` の in-memory database
+を使用します。migration は goose で管理し、`app/server/db/migrations/` から embed
+されます。
+
+- 適用済み migration は書き換えず、新しい migration を追加する。
+- SQL を変更した場合は `nix run .#gen` で sqlc 生成コードを更新する。
+- `nix run .#migrate` は documented な Turso 環境変数を必要とする。
+- migration、repository、service、API、テストを一貫して更新する。
+
+## テストと品質ゲート
+
+各 package の `package.json` にある script を JavaScript の実行方法の正とします。
+テストフレームワークを推測してコマンドを追加しません。
+
+| 対象                      | 現在のテスト                                 | 今後の方針                          |
+| ------------------------- | -------------------------------------------- | ----------------------------------- |
+| `app/server/`             | Go `testing`、in-memory SQLite、fake storage | 維持                                |
+| `packages/api-client-ts/` | `tsx --test`、TypeScript typecheck           | 維持                                |
+| `app/web/`                | 現在は `tsx --test`                          | Vitest + Testing Library へ移行予定 |
+| `lp/`                     | `tsx --test`、条件付き `svelte-check`        | 実装整備後に拡張                    |
+| `app/unity/`              | Unity Test Framework の EditMode/PlayMode    | Unity Editor で実行                 |
+
+`nix run .#check` は生成物 drift、server、contracts、LP、Web の検証を実行します。
+現在は Unity Editor テストを実行せず、LP の check/build は設定ファイルが揃うまで
+skip されます。ドキュメント link check や security check も、この品質ゲートには
+含まれません。
+
+Unity の動作変更では、Unity `6000.3.14f1` の Editor で EditMode/PlayMode テストを
+実行します。GitHub-hosted runner の Unity workflow は `dotnet format`、PowerShell
+analysis、`.meta` 整合性の静的検査のみを行います。
+
+`nix run .#drift` と `nix run .#check` は drift 検査のため生成対象を index に staging
+します。実行前後に `git status`、`git diff`、`git diff --cached` を確認してください。
+
+チェックを実行できない場合は、実行できなかったコマンド、理由、代替検証を報告します。
+skip された検証を成功したとは報告しません。
+
+### 自動修正
+
+領域別の自動修正は次のコマンドで実行します。
+
+```bash
+nix run .#server -- fix
+nix run .#contracts -- fix
+nix run .#lp -- fix
+nix run .#web -- fix
 ```
+
+Pull Request では `autofix.yml` が format と lint の自動修正を行う場合があります。
+
+## Git hooks と commit
+
+`nix develop` または `nix run .#setup` により、repository-local の
+`core.hooksPath=packages/config/githooks` が有効になります。
+
+現在 tracked されている hook は `prepare-commit-msg` です。commit message を変換
+しますが、pre-commit の format や staged file の検証を保証するものではありません。
+Vite+ の staged 設定が存在していても、設定された `core.hooksPath` と hook file を
+確認せずに自動実行を前提にしません。
+
+現在の変換例は次のとおりです。
+
+```text
+feat(server): add endpoint       -> ✨ server: add endpoint
+gm feat(server): add endpoint    -> feat(server): ✨ add endpoint
+n feat(server): add endpoint     -> feat(server): add endpoint
+```
+
+hook は Conventional Commits、scope、日本語、release metadata を検証しません。
+既存の repository convention に従い、独自の convention を追加しません。
+
+commit message の入力形式は次のとおりです。
+
+```text
 <type>(<scope>): <概要を日本語で>
 
-<本文 (必要なら)>
+<本文（必要な場合）>
 ```
 
-- **言語: 原則として日本語**
-- **gitmoji は手動で付けない** — `~/.git_template/hooks/prepare-commit-msg` が type から自動で挿入する
-  - もし自動付与が効いていない場合は `core.hooksPath` を確認 (Vite+ の `.vite-hooks/_` が上書きしている可能性)
+scope は主な変更対象に合わせます。
 
-### scope
+| scope       | 対象                                             |
+| ----------- | ------------------------------------------------ |
+| `web`       | `app/web/`                                       |
+| `server`    | `app/server/`                                    |
+| `unity`     | `app/unity/`                                     |
+| `lp`        | `lp/`                                            |
+| `contracts` | `packages/contracts/` と `packages/api-client-*` |
+| `config`    | `packages/config/`                               |
+| `scripts`   | `scripts/`                                       |
+| `docs`      | `docs/`                                          |
+| `repo`      | repository 全体の設定                            |
 
-| scope       | 対象                                                                    |
-| ----------- | ----------------------------------------------------------------------- |
-| `web`       | `app/web/` 配下 (React 編集エディタ)                                    |
-| `server`    | `app/server/` 配下 (Go backend)                                         |
-| `unity`     | `app/unity/` 配下 (Unity MR)                                            |
-| `lp`        | `lp/` 配下 (SvelteKit)                                                   |
-| `contracts` | `packages/contracts/` / `packages/api-client-*` 配下                    |
-| `config`    | `packages/config/` 配下 (共有 tsconfig / oxc / git hooks)               |
-| `scripts`   | `scripts/` 配下 (dev / generate / ci / docs)                            |
-| `docs`      | `docs/` 配下                                                            |
-| `repo`      | リポジトリ全体 (`.gitignore` / `flake.nix` / `pnpm-workspace.yaml` 等) |
+対応する type は `feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、
+`ci`、`chore`、`remove`、`deploy`、`init` です。gitmoji は手動で付けず、hook に任せます。
 
-### type ↔ gitmoji 対応
+明示的に依頼されない限り commit や push を実行しません。commit を依頼された場合は、
+事前に worktree と staged diff を確認し、完了後にも commit、status、diff を確認します。
 
-| type       | gitmoji | 用途                            |
-| ---------- | ------- | ------------------------------- |
-| `feat`     | ✨      | 新機能                          |
-| `fix`      | 🐛      | バグ修正                        |
-| `docs`     | 📝      | ドキュメントのみ                |
-| `style`    | 💄      | フォーマット (意味に影響しない) |
-| `refactor` | ♻️      | 振る舞いを変えないコード変更    |
-| `perf`     | ⚡️      | パフォーマンス改善              |
-| `test`     | ✅      | テスト追加・修正                |
-| `build`    | 👷      | ビルドシステム / 依存変更       |
-| `ci`       | 🎡      | CI 設定                         |
-| `chore`    | 🔧      | 雑務                            |
-| `remove`   | 🔥      | コード・ファイル削除            |
+## ブランチ
 
-### 分割方針
+ブランチ名は次の形式を基本とします。
 
-- **作業終了時点の差分をそのまま残し、機能単位でグルーピング**してコミットする
-- `git checkout HEAD -- <file>` で巻き戻して再適用する手順は**取らない** (回帰リスク)
-- 同一ファイル内に複数関心が混在したら `git add -p` でハンク分割
-
-### 良い例
-
-```
-feat(server): GET /presentations を実装
-fix(web): スライド追加時に store が更新されない
-refactor(contracts): manifest スキーマを media/spatial に分離
-docs(decisions): ADR-0004 でモノレポ構成と Nix 移行を記録
-```
-
----
-
-## ブランチ規約
-
-```
+```text
 <type>/<scope>-<short-desc>
 ```
 
 例:
 
-```
+```text
 feat/web-fbx-upload
 feat/server-presentations-crud
 fix/unity-controller-input-deadzone
-refactor/contracts-manifest-split
 ```
 
-`main` 直 commit は基本しない (現時点では scaffold 期間中の例外あり)。
-ブランチ寿命は短く (1〜3 日目安)。長引いたら main を rebase する。
+`main` への直接 commit は原則として行いません。ブランチは短命に保ち、長期化した
+場合は main の変更を取り込みます。
 
----
+## 依存関係
+
+依存関係を追加する前に、既存の stack で解決できないか確認します。
+
+- JavaScript の依存関係は pnpm で追加し、`pnpm-lock.yaml` を更新する。
+- Go の依存関係は Go tooling で `app/server/go.mod` と `go.sum` を更新する。
+- Unity package は Unity Package Manager で `manifest.json` と `packages-lock.json` を更新する。
+- 1 つの application のために repository-wide dependency を追加しない。
+- 依存関係変更後は、関連する typecheck、test、lint、build を実行する。
+- Unity が生成する `.sln`、`.csproj`、cache、build directory は commit しない。
+
+## ドキュメント
+
+次の変更では関連ドキュメントも更新します。
+
+- アーキテクチャや責務境界
+- Public API や生成契約
+- DB schema や migration 手順
+- 環境変数
+- 開発セットアップや repository command
+- build、CI、deployment 手順
+- User-visible behavior
+
+現行の開発情報は次を参照します。
+
+- `ARCHITECTURE.md`: 目標アーキテクチャ
+- `app/server/README.md`: server 環境変数と smoke test
+- `scripts/README.md`: task entry point
+- `docs/decisions/`: accepted ADR
+
+`docs/plans/` は実装計画の履歴であり、現行仕様の根拠とは限りません。古い Hono、
+Cloudflare/Supabase、`apps/*` layout を参照している資料は、現行実装と照合してから
+使用します。
+
+`docs/notion/` は Notion sync による生成物です。同期動作そのものを変更する場合を
+除き、手編集しません。
+
+将来の機能を、現在実装済みの機能としてドキュメントに記載しません。
+
+## Security
+
+次の情報は commit しません。
+
+- Secrets
+- API keys
+- Tokens
+- Private certificates
+- Production credentials
+- 個人用 environment files
+
+Backend の環境変数は `app/server/.env.example` をテンプレートとして使用し、実際の
+値は ignored な環境ファイルまたは secret management に置きます。
+
+認証・認可、外部 URL、アップロードされた presentation data、file conversion、DB input
+を扱う場合は、trust boundary で validation します。現在の API には認証・認可 middleware
+がないため、user identity や access policy の存在を仮定しません。
+
+Secrets、credentials、signed URL、sensitive な presentation data をログに出しません。
+R2 signed URL の content type、content length、expiry、storage-key validation を維持します。
 
 ## Pull Request
 
-1. **タイトル**: コミットメッセージと同形式 (`<type>(<scope>): ...`)
-2. **本文**:
-   - 何をしたか・なぜか (背景)
-   - スクリーンショット / 動作確認手順 (UI 変更時)
-   - 関連 Issue / ADR
-3. **チェック**:
-   - [ ] `nix run .#check` が緑
-   - [ ] TDD で書いた (Red → Green のコミットがある or 同一 PR にテストが含まれる)
-   - [ ] 契約 (`app/server` の Huma 定義) を変えたなら `nix run .#gen` で再生成し、影響先 (server / web / unity) のテストも更新
-4. **レビュー**: 1 名以上のレビューを受けてから merge
+Pull Request には次を含めます。
 
----
+1. 何を変更したか、なぜ変更したか。
+2. UI 変更時のスクリーンショットと動作確認手順。
+3. 関連する Issue、ADR、設計判断。
+4. 実行したチェックと、実行できなかったチェックの理由。
 
-## 不明な点があれば
+最低限、次を確認します。
 
-- **要件が曖昧 / 仕様が分からない**: 実装に進む前に必ず質問する。**勘で実装しない**
-- **設計判断が必要**: ADR (`docs/decisions/`) を起こすか、PR の本文で根拠を明示する
-- **ライブラリの選定を変えたい**: ADR で議論する (`docs/decisions/0000-template.md` を踏襲)
+- `nix run .#check` が成功している。
+- TDD でテストを追加または更新している。
+- API 契約を変更した場合は `nix run .#gen` を実行している。
 
-> **設計の簡潔さと正確さを優先する。最小限の変更に固執しない。** (CLAUDE.md より)
+Pull Request のタイトルは commit message と同じ形式にします。レビューを受け、
+必要なチェックが通ってから merge します。
+
+契約を変更した場合は `nix run .#gen` の実行と、server / Web / Unity など影響先の
+更新を確認します。設計判断が必要な場合は `docs/decisions/` に ADR を追加するか、
+Pull Request の本文に根拠を記載します。
+
+要件が曖昧な場合は、推測で実装せず、実装前に確認します。
