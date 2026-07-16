@@ -1,0 +1,18 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
+name = "unframe-lp"
+compatibility_date = "2026-07-17"
+workers_dev = false
+
+[build]
+command = "pnpm run build"
+
+[assets]
+directory = "./build"
+not_found_handling = "404-page"
+
+# The LP owns the default route. More specific routes such as
+# un-fra.me/api/* can be assigned to separate Workers later.
+[[routes]]
+pattern = "un-fra.me/*"
+zone_name = "un-fra.me"
