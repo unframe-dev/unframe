@@ -18,26 +18,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      # ツールチェインは flake.nix が固定する (ADR-0004)。
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install dependencies (workspace root)
-        run: pnpm install --frozen-lockfile
+        run: nix develop --command pnpm install --frozen-lockfile
 
       - name: Sync Notion → docs/notion/
-        working-directory: tools/notion-sync
-        run: pnpm sync
+        run: nix run .#notion-sync
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_ROOT_PAGE_ID: ${{ secrets.NOTION_ROOT_PAGE_ID }}
 
       - name: Format synced Markdown
-        run: pnpm exec vp check --fix docs/notion/
+        run: nix develop --command pnpm exec vp check --fix docs/notion/
 
       - name: Commit if changed
         run: |

@@ -5,29 +5,20 @@ name: Unity CI (static)
 # Personal では実行不可能。本 workflow はライセンス不要な静的チェックのみ:
 #
 #   - csharp-format : dotnet format whitespace で Editor / ランタイム C# の整形チェック
-#   - powershell    : PSScriptAnalyzer で apps/mr/scripts/*.ps1 を lint
+#   - powershell    : PSScriptAnalyzer で app/unity/scripts/*.ps1 を lint
 #   - meta-check    : Unity プロジェクト初期化後のみ実行する .meta 整合性チェック
 #
-# Editor 起動を伴うテスト/ビルドはローカル (`just mr-test` / `just mr-build`)
-# で実行する。Self-hosted runner や Unity Student/Pro ライセンスが揃った時点で
+# Editor 起動を伴うテスト/ビルドはローカルの Unity Editor で実行する。
+# Self-hosted runner や Unity Student/Pro ライセンスが揃った時点で
 # 別 workflow として再導入する。
 
+# ci.yml から呼ばれる reusable workflow。変更検出とオーケストレーションは ci.yml が担う。
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/mr/**"
-      - ".github/workflows/unity.yml"
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "apps/mr/**"
-      - ".github/workflows/unity.yml"
+  workflow_call:
   workflow_dispatch:
 
-concurrency:
-  group: unity-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
   csharp-format:
@@ -43,11 +34,11 @@ jobs:
 
       - name: dotnet format whitespace (verify only)
         run: |
-          if find apps/mr/Assets -name '*.cs' -print -quit 2>/dev/null | grep -q .; then
+          if find app/unity/Assets -name '*.cs' -print -quit 2>/dev/null | grep -q .; then
             echo "Found C# sources. Running dotnet format whitespace --verify-no-changes."
-            dotnet format whitespace --folder apps/mr/Assets --verify-no-changes
+            dotnet format whitespace --folder app/unity/Assets --verify-no-changes
           else
-            echo "No C# sources under apps/mr/Assets/. Skipping."
+            echo "No C# sources under app/unity/Assets/. Skipping."
           fi
 
   powershell:
@@ -65,14 +56,14 @@ jobs:
       - name: Invoke-ScriptAnalyzer
         shell: pwsh
         run: |
-          if (-not (Test-Path 'apps/mr/scripts')) {
-            Write-Host 'No apps/mr/scripts/. Skipping.'
+          if (-not (Test-Path 'app/unity/scripts')) {
+            Write-Host 'No app/unity/scripts/. Skipping.'
             exit 0
           }
-          $settings = 'apps/mr/scripts/PSScriptAnalyzerSettings.psd1'
-          $targets = Get-ChildItem -Path apps/mr/scripts -Filter '*.ps1' -Recurse
+          $settings = 'app/unity/scripts/PSScriptAnalyzerSettings.psd1'
+          $targets = Get-ChildItem -Path app/unity/scripts -Filter '*.ps1' -Recurse
           if (-not $targets) {
-            Write-Host 'No .ps1 files under apps/mr/scripts/. Skipping.'
+            Write-Host 'No .ps1 files under app/unity/scripts/. Skipping.'
             exit 0
           }
           $results = $targets | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings }
@@ -91,8 +82,8 @@ jobs:
 
       - name: Unity .meta integrity
         run: |
-          if [ ! -f apps/mr/ProjectSettings/ProjectVersion.txt ]; then
-            echo "Unity project not initialized yet (apps/mr/ProjectSettings/ProjectVersion.txt missing). Skipping."
+          if [ ! -f app/unity/ProjectSettings/ProjectVersion.txt ]; then
+            echo "Unity project not initialized yet (app/unity/ProjectSettings/ProjectVersion.txt missing). Skipping."
             exit 0
           fi
 
@@ -104,7 +95,7 @@ jobs:
               echo "::error file=${f}::missing .meta for ${f}"
               issues=$((issues+1))
             fi
-          done < <(find apps/mr/Assets apps/mr/Packages -type f \
+          done < <(find app/unity/Assets app/unity/Packages -type f \
                    \( -name '*.cs' -o -name '*.asmdef' -o -name '*.shader' \
                       -o -name '*.prefab' -o -name '*.unity' -o -name '*.asset' \
                       -o -name '*.mat' -o -name '*.fbx' -o -name '*.png' \
@@ -119,7 +110,7 @@ jobs:
               echo "::error file=${m}::dangling .meta (source ${src} missing)"
               issues=$((issues+1))
             fi
-          done < <(find apps/mr/Assets apps/mr/Packages -type f -name '*.meta' 2>/dev/null)
+          done < <(find app/unity/Assets app/unity/Packages -type f -name '*.meta' 2>/dev/null)
 
           if [ "$issues" -gt 0 ]; then
             echo "Found ${issues} .meta integrity issue(s)."

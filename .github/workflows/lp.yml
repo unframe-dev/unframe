@@ -1,0 +1,26 @@
+name: LP
+
+# lp (SvelteKit SSG ランディングページ) の品質ゲート。ci.yml から呼ばれる reusable workflow。
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lp / check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: check / test / build
+        run: nix run .#check-lp

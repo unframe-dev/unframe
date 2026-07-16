@@ -1,0 +1,57 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "group:monorepos"
+  ],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 9am on monday"],
+  "labels": ["dependencies"],
+  "postUpdateOptions": ["pnpmDedupe"],
+  "nix": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 9am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "app/server (Go modules)",
+      "matchManagers": ["gomod"],
+      "commitMessageTopic": "Go module {{depName}}",
+      "semanticCommitScope": "server"
+    },
+    {
+      "description": "app/web / lp / packages (npm/pnpm)",
+      "matchManagers": ["npm"],
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "app/unity / api-client-csharp (NuGet)",
+      "matchManagers": ["nuget"],
+      "semanticCommitScope": "unity"
+    },
+    {
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "semanticCommitScope": "ci",
+      "groupName": "github-actions"
+    },
+    {
+      "description": "flake.nix / flake.lock (Nix)",
+      "matchManagers": ["nix"],
+      "semanticCommitScope": "repo",
+      "groupName": "nix flake"
+    },
+    {
+      "description": "非メジャーの devDependencies はまとめる",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm devDependencies"
+    }
+  ]
+}
