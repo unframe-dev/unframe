@@ -13,6 +13,8 @@ not_found_handling = "404-page"
 
 # The LP owns the default route. More specific routes such as
 # un-fra.me/api/* can be assigned to separate Workers later.
+# This route requires a proxied DNS record for un-fra.me.
 [[routes]]
 pattern = "un-fra.me/*"
 zone_name = "un-fra.me"
+custom_domain = false
