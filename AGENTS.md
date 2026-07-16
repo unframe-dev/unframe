@@ -35,9 +35,8 @@ not equally complete in every area:
   planned capabilities as existing behavior.
 - `app/web/` is currently a small editor scaffold. Do not assume that full
   presentation CRUD or upload workflows already exist.
-- `lp/` is intended to be a static SvelteKit site, but it is currently WIP.
-  Its CI script skips check/build while `svelte.config.js` and `tsconfig.json`
-  are absent.
+- `lp/` is a static SvelteKit site and remains WIP while product content is being
+  developed. Its CI task runs the LP test, check, and build commands.
 - `app/unity/` contains a Unity project and EditMode tests. The generated C#
   client is not currently wired into Unity; Unity uses handwritten manifest
   models under `app/unity/Assets/Scripts/ManifestDates/`.
@@ -216,7 +215,7 @@ nix run .#check                      # Full configured code quality gate
 nix run .#drift                      # Regenerate and check generated-file drift
 nix run .#server                     # Server check/test/build
 nix run .#web                        # Web check/test/build
-nix run .#lp                         # LP test and conditional check/build
+nix run .#lp                         # LP test/check/build
 nix run .#contracts                  # TS client typecheck/test
 nix run .#server -- fix               # Server formatter/linter autofix
 nix run .#web -- fix                 # Web formatter autofix

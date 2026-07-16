@@ -94,7 +94,7 @@ nix run .#setup
 | 全体品質ゲート                          | `nix run .#check`       |
 | Backend check / test / build            | `nix run .#server`      |
 | Web check / test / build                | `nix run .#web`         |
-| LP test と条件付き check / build        | `nix run .#lp`          |
+| LP test / check / build                | `nix run .#lp`          |
 | TypeScript client typecheck / test      | `nix run .#contracts`   |
 | Backend + LP の開発起動                 | `nix run .#dev`         |
 | DB migration                            | `nix run .#migrate`     |
@@ -162,13 +162,12 @@ Backend は本番で Turso/libSQL、テストで `modernc.org/sqlite` の in-mem
 | `app/server/`             | Go `testing`、in-memory SQLite、fake storage | 維持                                |
 | `packages/api-client-ts/` | `tsx --test`、TypeScript typecheck           | 維持                                |
 | `app/web/`                | 現在は `tsx --test`                          | Vitest + Testing Library へ移行予定 |
-| `lp/`                     | `tsx --test`、条件付き `svelte-check`        | 実装整備後に拡張                    |
+| `lp/`                     | `tsx --test`、`svelte-check`、静的 build     | ページ追加に合わせて拡張            |
 | `app/unity/`              | Unity Test Framework の EditMode/PlayMode    | Unity Editor で実行                 |
 
 `nix run .#check` は生成物 drift、server、contracts、LP、Web の検証を実行します。
-現在は Unity Editor テストを実行せず、LP の check/build は設定ファイルが揃うまで
-skip されます。ドキュメント link check や security check も、この品質ゲートには
-含まれません。
+現在は Unity Editor テストを実行しません。ドキュメント link check や security
+check も、この品質ゲートには含まれません。
 
 Unity の動作変更では、Unity `6000.3.14f1` の Editor で EditMode/PlayMode テストを
 実行します。GitHub-hosted runner の Unity workflow は `dotnet format`、PowerShell
