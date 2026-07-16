@@ -53,6 +53,13 @@
       {
         devShells.default = pkgs.mkShell {
           packages = toolchain;
+          # nix develop 突入時に git hooks を有効化する (実体は scripts/dev/install-hooks.sh)。
+          shellHook = ''
+            root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+            if [ -n "''${root}" ] && [ -x "''${root}/scripts/dev/install-hooks.sh" ]; then
+              "''${root}/scripts/dev/install-hooks.sh" || true
+            fi
+          '';
         };
 
         # 手動で叩く操作。実体は scripts/ にある。

@@ -21,5 +21,8 @@ export API_CLIENT_TS_DIR="${REPO_ROOT}/packages/api-client-ts"
 export API_CLIENT_TS_FILTER="@unframe/api-client-ts"
 # Notion 同期 (scripts/docs/notion-sync)
 export NOTION_SYNC_FILTER="unframe-notion-sync"
+# 共有 git hooks (packages/config/githooks)。core.hooksPath はリポジトリ相対で設定する。
+export GITHOOKS_REL="packages/config/githooks"
+export GITHOOKS_DIR="${REPO_ROOT}/${GITHOOKS_REL}"
 
 log() { printf '\033[1;34m[unframe]\033[0m %s\n' "$*"; }

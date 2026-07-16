@@ -7,3 +7,6 @@ source "${DIR}/../lib/paths.sh"
 
 log "pnpm 依存をインストール"
 pnpm install
+
+log "git hooks を有効化"
+"${DIR}/install-hooks.sh"
