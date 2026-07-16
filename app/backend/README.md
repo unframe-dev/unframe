@@ -18,7 +18,7 @@ Go 1.25、Huma v2、Chi で構成された API サーバーです。DB は Turso
 
 ```sh
 set -a
-source apps/backend/.env
+source app/backend/.env
 set +a
 ```
 
@@ -27,11 +27,11 @@ set +a
 リポジトリルートで Turso に migration を適用してから起動します。
 
 ```sh
-just migrate
-just be-dev
+nix run .#migrate
+nix run .#dev
 ```
 
-`just migrate` と server は同じ `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` を使用します。接続時には外部キー制約を有効化します。
+`nix run .#migrate` と server は同じ `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` を使用します。接続時には外部キー制約を有効化します。
 
 ## スモークテスト
 
@@ -62,6 +62,6 @@ curl --fail --silent http://localhost:8080/presentations/<id>/manifest
 backend directory を build context にします。runtime は distroless の nonroot user です。
 
 ```sh
-docker build --tag unframe-backend apps/backend
-docker run --rm --env-file apps/backend/.env --publish 8080:8080 unframe-backend
+docker build --tag unframe-backend app/backend
+docker run --rm --env-file app/backend/.env --publish 8080:8080 unframe-backend
 ```

@@ -1,9 +1,11 @@
 # ADR-0003: Unframe モノレポを Go backend と分離フロントエンドへ全面刷新する
 
-- **Status**: Accepted
+- **Status**: Accepted（レイアウト命名は [ADR-0004](./0004-monorepo-layout-and-nix-toolchain.md) で置換）
 - **Date**: 2026-07-13
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0001](./0001-backend-mvp-design.md), [ADR-0002](./0002-supabase-storage-and-db.md)
+- **関連**: [ADR-0001](./0001-backend-mvp-design.md), [ADR-0002](./0002-supabase-storage-and-db.md), [ADR-0004](./0004-monorepo-layout-and-nix-toolchain.md)
+
+> **注記**: 本 ADR の技術選定（Go / Huma / Chi / sqlc / Turso / R2 / OpenAPI 生成）は有効。ただしディレクトリ命名（`apps/backend` / `apps/app` / `apps/site` / `apps/mr`）は [ADR-0004](./0004-monorepo-layout-and-nix-toolchain.md) の `app/server` / `app/web` / `lp` / `app/unity` に置換され、ツールチェインは Nix flake へ移行した。現行の目標構成は [`ARCHITECTURE.md`](../../ARCHITECTURE.md) を参照。
 
 ## Context
 

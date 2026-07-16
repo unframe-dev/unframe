@@ -35,55 +35,56 @@ KPI やカバレッジ目標がチケット側で指定された場合、**達�
 
 ## 各層でのテスト粒度
 
-| 層                    | フレームワーク                               | 主に書くテスト                                         | 例                                                                    |
-| --------------------- | -------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- |
-| `packages/contracts/` | Vitest (`vp test`)                           | Zod スキーマの境界値、Drizzle 派生型の整合             | `HealthResponseSchema.safeParse(...)` が想定通り通る/落ちる           |
-| `apps/backend/`       | Vitest + Hono `app.request()`                | ルートのリクエスト→レスポンス契約、DB 経由のシナリオ   | `app.request('/health')` が `HealthResponseSchema` で parse できる    |
-| `apps/web/`           | Vitest + Testing Library + Vue/React Testing | コンポーネントの振る舞い、フォーム検証、ストア状態遷移 | フォーム送信時に `@unframe/contracts/api` の Zod がエラーを正しく表示 |
-| `apps/mr/` (Unity)    | Unity Test Framework                         | C# 側のロジック (`PlayMode`/`EditMode`)                | マニフェストパース、座標変換                                          |
+| 層                    | フレームワーク                          | 主に書くテスト                                       | 例                                                          |
+| --------------------- | --------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| `app/server/`         | Go `testing` (modernc in-memory SQLite) | ルートのリクエスト→レスポンス契約、service/DB シナリオ | `/health` の応答が OpenAPI 契約と一致、presigner 単体      |
+| `packages/contracts/` | tsx `--test`                            | 生成 OpenAPI の整合、クライアントラッパの境界         | 生成 schema がコンパイルでき、fetch ラッパが型で縛られる   |
+| `app/web/` (React)    | Vitest + Testing Library                | コンポーネントの振る舞い、フォーム検証、状態遷移      | フォーム送信時に生成クライアントのエラーを正しく表示       |
+| `lp/` (Svelte)        | tsx `--test` / svelte-check             | コンテンツレジストリ、ルーティング整合               | `content-registry` が想定の一覧を返す                      |
+| `app/unity/` (Unity)  | Unity Test Framework                    | C# 側のロジック (`PlayMode`/`EditMode`)              | マニフェストパース、座標変換                                |
 
-**契約 (`packages/contracts/`) のスキーマを変えたら、必ず最初にテストを書き換える。** スキーマは backend / web 双方を同時に縛るため、テストファーストで影響範囲を見える化することが死活的に重要です。
+**契約は `app/server` の Huma 定義が唯一の編集点。** 契約を変えたら `nix run .#gen` で `openapi.yaml` と各クライアントを再生成し、影響先 (backend テスト / web / unity) を同時に更新する。生成物の drift は CI が検出する。
 
 ---
 
 ## 環境セットアップ
 
 ```bash
-just bootstrap   # mise install + vp env off + vp install
-just db-migrate  # Supabase Postgres に apps/backend/drizzle/ のマイグレーションを適用
+nix develop        # ツールチェイン (Go / Node / pnpm / sqlc / goose 等) が入った shell に入る
+nix run .#setup    # pnpm 依存をインストール
+nix run .#migrate  # Turso/libSQL に goose マイグレーションを適用
 ```
 
-> DB 本体は Supabase Postgres を使用するため、ローカルで Postgres を立てる必要はありません (ADR-0002)。
+> ツールチェインは `flake.nix` が固定します (ADR-0004、旧 `mise` を置換)。DB は Turso/libSQL、アセットは Cloudflare R2 (ADR-0002 / ADR-0003)。
 
-詳細は [`README.md`](./README.md) を参照。
+詳細は [`ARCHITECTURE.md`](./ARCHITECTURE.md) と [`app/backend/README.md`](./app/backend/README.md) を参照。
 
 ---
 
 ## 日々のコマンド
 
-| 用途                                     | コマンド                    |
-| ---------------------------------------- | --------------------------- |
-| Backend dev (HMR)                        | `just dev-backend`          |
-| Web dev (HMR)                            | `just dev-web`              |
-| Web + Backend 並走                       | `just dev`                  |
-| **品質ゲート (typecheck + lint + test)** | `just check` (= `vp check`) |
-| テストのみ                               | `just test` (= `vp test`)   |
-| Lint のみ                                | `just lint`                 |
-| Format                                   | `just fmt`                  |
-| DB マイグレーション生成                  | `just db-generate`          |
-| DB マイグレーション適用                  | `just db-migrate`           |
-| Drizzle Studio                           | `just db-studio`            |
-| ライブラリビルド (`packages/contracts/`) | `just pack`                 |
+公式の実行入口は flake apps / flake checks (ADR-0004)。実処理は `scripts/` にある。
+
+| 用途                                     | コマンド                |
+| ---------------------------------------- | ----------------------- |
+| 開発環境に入る                           | `nix develop`           |
+| backend + lp 並走                        | `nix run .#dev`         |
+| 契約・クライアント・sqlc 生成            | `nix run .#gen`         |
+| **品質ゲート (drift + lint + test + build)** | `nix run .#check`   |
+| 生成物の drift 検査のみ                  | `nix run .#drift`       |
+| DB マイグレーション適用                  | `nix run .#migrate`     |
+| Notion 同期                              | `nix run .#notion-sync` |
+| CI 検証 (flake 自体の評価)               | `nix flake check`       |
 
 ---
 
 ## 品質ゲート
 
-**`vp check` (typecheck + lint + test) が緑であることをマージの最低条件**とします。
+**`nix run .#check` (drift + lint + test + build) が緑であることをマージの最低条件**とします。
 
-- ローカルで `just check` を流して通すこと
-- pre-commit hook (`vite.config.ts` の `staged: { "*": "vp check --fix" }`) がコミット時に自動で走ります
-- CI では PR ごとに `vp check` を実行する想定 (workflow は今後追加)
+- ローカルで `nix run .#check` を流して通すこと
+- pre-commit hook (`packages/config/` の共有 git hooks) がコミット時に format を自動で走らせます
+- CI は `ci.yml` が変更領域を検出し、`server` / `web` / `lp` / `openapi` / `unity` の各 workflow を呼び分けます。必須チェックは集約 job `CI`
 
 **赤を放置して別の作業に進まない。** 赤いまま push しない。
 
@@ -105,15 +106,17 @@ just db-migrate  # Supabase Postgres に apps/backend/drizzle/ のマイグレ�
 
 ### scope
 
-| scope       | 対象                                                                  |
-| ----------- | --------------------------------------------------------------------- |
-| `web`       | `apps/web/` 配下                                                      |
-| `backend`   | `apps/backend/` 配下                                                  |
-| `contracts` | `packages/contracts/` 配下                                            |
-| `mr`        | `apps/mr/` 配下 (Unity)                                               |
-| `docs`      | `docs/` 配下                                                          |
-| `tools`     | `tools/` 配下 (notion-sync 等)                                        |
-| `repo`      | リポジトリ全体 (`.gitignore` / `justfile` / `pnpm-workspace.yaml` 等) |
+| scope       | 対象                                                                    |
+| ----------- | ----------------------------------------------------------------------- |
+| `web`       | `app/web/` 配下 (React 編集エディタ)                                    |
+| `server`    | `app/server/` 配下 (Go backend)                                         |
+| `unity`     | `app/unity/` 配下 (Unity MR)                                            |
+| `lp`        | `lp/` 配下 (SvelteKit)                                                   |
+| `contracts` | `packages/contracts/` / `packages/api-client-*` 配下                    |
+| `config`    | `packages/config/` 配下 (共有 tsconfig / oxc / git hooks)               |
+| `scripts`   | `scripts/` 配下 (dev / generate / ci / docs)                            |
+| `docs`      | `docs/` 配下                                                            |
+| `repo`      | リポジトリ全体 (`.gitignore` / `flake.nix` / `pnpm-workspace.yaml` 等) |
 
 ### type ↔ gitmoji 対応
 
@@ -140,10 +143,10 @@ just db-migrate  # Supabase Postgres に apps/backend/drizzle/ のマイグレ�
 ### 良い例
 
 ```
-feat(backend): GET /presentations を実装
+feat(server): GET /presentations を実装
 fix(web): スライド追加時に store が更新されない
 refactor(contracts): manifest スキーマを media/spatial に分離
-docs(decisions): ADR-0002 で Backend スタックを記録
+docs(decisions): ADR-0004 でモノレポ構成と Nix 移行を記録
 ```
 
 ---
@@ -158,8 +161,8 @@ docs(decisions): ADR-0002 で Backend スタックを記録
 
 ```
 feat/web-fbx-upload
-feat/backend-presentations-crud
-fix/mr-controller-input-deadzone
+feat/server-presentations-crud
+fix/unity-controller-input-deadzone
 refactor/contracts-manifest-split
 ```
 
@@ -176,9 +179,9 @@ refactor/contracts-manifest-split
    - スクリーンショット / 動作確認手順 (UI 変更時)
    - 関連 Issue / ADR
 3. **チェック**:
-   - [ ] `just check` が緑
+   - [ ] `nix run .#check` が緑
    - [ ] TDD で書いた (Red → Green のコミットがある or 同一 PR にテストが含まれる)
-   - [ ] `packages/contracts/` のスキーマを変えたなら、影響先 (backend / web) のテストも更新
+   - [ ] 契約 (`app/server` の Huma 定義) を変えたなら `nix run .#gen` で再生成し、影響先 (server / web / unity) のテストも更新
 4. **レビュー**: 1 名以上のレビューを受けてから merge
 
 ---
