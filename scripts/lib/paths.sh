@@ -19,7 +19,7 @@ export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
 export OPENAPI_YAML="${CONTRACTS_DIR}/openapi.yaml"
 # TS クライアント成果物。現行は packages/contracts 同居、目標は packages/api-client-ts
 export API_CLIENT_TS_FILTER="@unframe/contracts"
-# Notion 同期。現行は tools/notion-sync、目標は scripts/docs
+# Notion 同期 (scripts/docs/notion-sync)
 export NOTION_SYNC_FILTER="unframe-notion-sync"
 
 log() { printf '\033[1;34m[unframe]\033[0m %s\n' "$*"; }
