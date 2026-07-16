@@ -19,6 +19,7 @@ nix run .#check        # 品質ゲート集約
 nix run .#dev          # server + lp 並走
 nix run .#migrate      # DB マイグレーション
 nix run .#notion-sync  # Notion 同期
+pnpm notion:list-pages # token で取得できる Notion ページ候補と ID を表示
 nix flake check        # CI 検証
 ```
 

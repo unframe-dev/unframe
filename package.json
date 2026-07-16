@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "vp config",
+    "notion:list-pages": "pnpm --filter unframe-notion-sync list-pages",
     "notion:sync": "pnpm --filter unframe-notion-sync sync"
   },
   "devDependencies": {

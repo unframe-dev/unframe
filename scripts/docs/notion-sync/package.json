@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "list-pages": "tsx --env-file-if-exists=.env list-pages.ts",
     "sync": "tsx --env-file-if-exists=.env sync-notion.ts",
     "typecheck": "tsc --noEmit"
   },
