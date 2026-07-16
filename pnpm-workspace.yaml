@@ -1,6 +1,8 @@
 packages:
-  - "apps/*"
+  - "app/*"
+  - "lp"
   - "packages/*"
+  # TODO(ADR-0004): tools/notion-sync を scripts/docs へ移設後に削除
   - "tools/*"
 
 # Vite+ catalog: vite / vitest を Vite+ バンドル版に固定し、ワークスペース全体で共有する
