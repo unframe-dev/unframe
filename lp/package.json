@@ -10,14 +10,19 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
     "@sveltejs/adapter-static": "3.0.10",
     "@sveltejs/kit": "2.69.2",
     "@sveltejs/vite-plugin-svelte": "7.2.0",
     "mdsvex": "0.12.7",
     "svelte": "5.56.4",
     "svelte-check": "4.7.2",
+    "tailwindcss": "^4.1.18",
     "tsx": "4.22.1",
     "typescript": "5.9.3",
     "vite": "catalog:"
+  },
+  "dependencies": {
+    "@lucide/svelte": "^1.24.0"
   }
 }
