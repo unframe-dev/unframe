@@ -1,0 +1,63 @@
+name: Autofix
+
+# PR ブランチに format / lint --fix を適用し、変更を commit して push する単一の書き込み job。
+# 領域別の修正コマンドは scripts/ci/<area>.sh の fix モードに同居する。
+# commit を 1 job に集約するのは、並列 job が同一ブランチへ push すると競合するため。
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    name: autofix / format + lint --fix
+    # 同一リポジトリの PR のみ (fork は head ブランチへ push 権限が無い)。
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          # PAT / GitHub App token (secrets.AUTOFIX_TOKEN) があれば、fix commit が CI を
+          # 再トリガーして各チェックが自動で緑になる。未設定なら既定 GITHUB_TOKEN を使い、
+          # fix は commit されるが、この push では CI は再実行されない。
+          token: ${{ secrets.AUTOFIX_TOKEN || github.token }}
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Cache Go build and module downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('app/backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Apply autofix (server / contracts / lp / web)
+        run: |
+          nix run .#server -- fix
+          nix run .#contracts -- fix
+          nix run .#lp -- fix
+          nix run .#web -- fix
+
+      - name: Commit and push fixes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: 自動整形と lint 修正を適用"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"

@@ -85,6 +85,7 @@ nix run .#migrate  # Turso/libSQL に goose マイグレーションを適用
 - ローカルで `nix run .#check` を流して通すこと
 - pre-commit hook (`packages/config/` の共有 git hooks) がコミット時に format を自動で走らせます
 - CI は `ci.yml` が変更領域を検出し、`server` / `web` / `lp` / `openapi` / `unity` の各 workflow を呼び分けます。必須チェックは集約 job `CI`
+- format / lint の自動修正は `autofix.yml` が PR ブランチへ commit します（同一リポジトリの PR 限定）。手元では領域別に `nix run .#server -- fix` 等、または pre-commit hook で修正できます
 
 **赤を放置して別の作業に進まない。** 赤いまま push しない。
 

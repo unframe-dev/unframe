@@ -105,8 +105,8 @@ API 契約は次の一方向フローで生成され、各段の成果物はコ�
 | Notion 同期                | `nix run .#notion-sync`         |
 | CI 検証                    | `nix flake check`               |
 
-- **flake apps** … 手動で叩く操作（生成・同期・セットアップ・migration・dev 統合起動）と、CI が領域別に呼ぶチェック（`check-server` / `check-web` / `check-lp` / `check-contracts` / `drift`）。
-- **`scripts/`** … apps から呼ばれる実処理。単純なファイル操作や複数コマンドから再利用する処理を置く。
+- **flake apps** … 手動で叩く操作（生成・同期・セットアップ・migration・dev 統合起動）と、領域別の品質処理（`server` / `web` / `lp` / `contracts` / `drift`）。領域別 app はモード引数を取り、既定は `check`、`-- fix` で format + lint 自動修正を適用する（例: `nix run .#server -- fix`）。
+- **`scripts/`** … apps から呼ばれる実処理。領域別スクリプト（`scripts/ci/<area>.sh`）は check と fix を同居させる。単純なファイル操作や複数コマンドから再利用する処理も置く。
 
 `flake.nix` は「依存関係・実行環境・公開コマンド名・スクリプトとの接続」に留め、ロジックは `scripts/` に置く。ローカルと CI の差を減らすため、CI も `nix run .#…` を入口にする。
 
@@ -117,14 +117,17 @@ CI はオーケストレーション用の `ci.yml` が変更領域を検出し�
 | workflow             | 対象 / 実体                                                    |
 | -------------------- | ------------------------------------------------------------- |
 | `ci.yml`             | オーケストレーション（変更検出・呼び分け・集約ゲート）        |
-| `server.yml`         | `app/server` … `nix run .#check-server`                       |
-| `web.yml`            | `app/web` … `nix run .#check-web`（未実装時はスキップ）        |
-| `lp.yml`             | `lp` … `nix run .#check-lp`                                    |
-| `openapi.yml`        | 契約 drift + TS クライアント … `nix run .#drift` / `.#check-contracts` |
+| `server.yml`         | `app/server` … `nix run .#server`                             |
+| `web.yml`            | `app/web` … `nix run .#web`（未実装時はスキップ）              |
+| `lp.yml`             | `lp` … `nix run .#lp`                                          |
+| `openapi.yml`        | 契約 drift + TS クライアント … `nix run .#drift` / `.#contracts` |
 | `unity.yml`          | `app/unity` の静的チェック（dotnet format / PSScriptAnalyzer / .meta） |
+| `autofix.yml`        | PR に format + lint --fix を適用し commit（`.#<area> -- fix`）。単一の書き込み job |
 | `.github/renovate.json` | 依存更新（Hosted Renovate App。npm/pnpm・gomod・nuget・github-actions・nix flake） |
 
-`server.yml` / `web.yml` / `lp.yml` / `openapi.yml` / `unity.yml` は `on: workflow_call`（+ `workflow_dispatch`）の再利用可能ワークフローで、単独では起動せず `ci.yml` から呼ばれる。運用系の `sync-notion.yml`（Notion 同期の cron）は CI オーケストレーションとは独立。
+`server.yml` / `web.yml` / `lp.yml` / `openapi.yml` / `unity.yml` は `on: workflow_call`（+ `workflow_dispatch`）の再利用可能ワークフローで、単独では起動せず `ci.yml` から呼ばれる。`autofix.yml` は `pull_request` で独立起動し、format / lint 自動修正を PR ブランチへ commit する（同一リポジトリの PR 限定。fix commit で CI を再トリガーして緑にするには `secrets.AUTOFIX_TOKEN` に PAT / GitHub App token を設定する）。運用系の `sync-notion.yml`（Notion 同期の cron）は CI オーケストレーションとは独立。
+
+チェックの棲み分け: format は autofix が適用・commit するため gate では検査しない（Go の gofmt は `golangci-lint run` が lint として検査しつつ autofix が修正）。lint / typecheck / test / build / 生成 drift は各 gate が検証する。
 
 ## 移行状況（follow-up）
 
@@ -133,7 +136,7 @@ CI はオーケストレーション用の `ci.yml` が変更領域を検出し�
 - [ ] `app/backend` → `app/server` へのリネーム。
 - [ ] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
 - [ ] `packages/config` の新設（共有 tsconfig / oxc / git hooks の集約）。
-- [ ] `tools/notion-sync` → `scripts/docs/` への集約。
+- [x] `tools/notion-sync` → `scripts/docs/notion-sync` へ集約（完了）。
 - [ ] `app/web`（React 編集エディタ）の新規実装。
 - [ ] `flake.lock` の生成と `nix flake check` のローカル検証。
 

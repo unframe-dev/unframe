@@ -65,21 +65,24 @@
             name = "check";
             script = "ci/check.sh";
           };
-          # 領域別チェック (ci.yml の各 workflow が呼ぶ)
-          check-server = mkApp {
-            name = "check-server";
+          # 領域別の品質処理。引数でモードを取る: 既定 check / `-- fix` で自動修正。
+          #   例) nix run .#server        (check)
+          #       nix run .#server -- fix (format + lint --fix)
+          # fix の結果は autofix.yml が commit する。
+          server = mkApp {
+            name = "server";
             script = "ci/server.sh";
           };
-          check-web = mkApp {
-            name = "check-web";
+          web = mkApp {
+            name = "web";
             script = "ci/web.sh";
           };
-          check-lp = mkApp {
-            name = "check-lp";
+          lp = mkApp {
+            name = "lp";
             script = "ci/lp.sh";
           };
-          check-contracts = mkApp {
-            name = "check-contracts";
+          contracts = mkApp {
+            name = "contracts";
             script = "ci/contracts.sh";
           };
           drift = mkApp {

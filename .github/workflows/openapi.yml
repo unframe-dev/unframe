@@ -38,5 +38,5 @@ jobs:
       - name: Check generated contract drift
         run: nix run .#drift
 
-      - name: Check contracts (fmt / typecheck / test)
-        run: nix run .#check-contracts
+      - name: Check contracts (typecheck / test)
+        run: nix run .#contracts

@@ -29,5 +29,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: fmt / vet / lint / test / build
-        run: nix run .#check-server
+      - name: vet / lint / test / build
+        run: nix run .#server

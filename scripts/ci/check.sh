@@ -7,9 +7,9 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${DIR}/../lib/paths.sh"
 
 "${DIR}/drift.sh"
-"${DIR}/server.sh"
-"${DIR}/contracts.sh"
-"${DIR}/lp.sh"
-"${DIR}/web.sh"
+"${DIR}/server.sh" check
+"${DIR}/contracts.sh" check
+"${DIR}/lp.sh" check
+"${DIR}/web.sh" check
 
 log "すべてのチェックが完了"

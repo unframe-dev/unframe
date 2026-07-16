@@ -1,7 +1,7 @@
 name: Web
 
 # app/web (React 動的編集エディタ) の品質ゲート。ci.yml から呼ばれる reusable workflow。
-# 現行は app/web 未実装のため check-web はスキップする (ADR-0004 follow-up)。
+# 現行は app/web 未実装のため nix run .#web はスキップする (ADR-0004 follow-up)。
 on:
   workflow_call:
   workflow_dispatch:
@@ -24,4 +24,4 @@ jobs:
         run: nix develop --command pnpm install --frozen-lockfile
 
       - name: check / test / build
-        run: nix run .#check-web
+        run: nix run .#web

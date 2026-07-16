@@ -23,4 +23,4 @@ jobs:
         run: nix develop --command pnpm install --frozen-lockfile
 
       - name: check / test / build
-        run: nix run .#check-lp
+        run: nix run .#lp
