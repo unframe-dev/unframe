@@ -3,19 +3,14 @@ name: CI
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
 # 各領域の実体: server.yml / web.yml / lp.yml / openapi.yml / unity.yml。
+#
+# paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
+# skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/notion/**"
-      - "docs/decisions/**"
-      - "**.md"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - "docs/notion/**"
-      - "docs/decisions/**"
-      - "**.md"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -24,6 +19,8 @@ concurrency:
 
 permissions:
   contents: read
+  # dorny/paths-filter が PR の変更ファイル取得に PR API を使う場合に必要。
+  pull-requests: read
 
 jobs:
   changes:
@@ -40,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
         id: filter
         with:
           filters: |
@@ -50,15 +47,18 @@ jobs:
               - 'scripts/**'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - 'packages/config/tsconfig.base.json'
+              - 'vite.config.ts'
               - '.github/workflows/ci.yml'
             server:
               - *shared
               - '.github/workflows/server.yml'
-              - 'app/backend/**'
+              - 'app/server/**'
             openapi:
               - *shared
               - '.github/workflows/openapi.yml'
-              - 'app/backend/**'
+              - 'app/server/**'
               - 'packages/contracts/**'
               - 'packages/api-client-ts/**'
               - 'packages/api-client-csharp/**'

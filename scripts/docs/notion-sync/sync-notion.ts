@@ -15,7 +15,8 @@ if (!TOKEN || !ROOT) {
 
 // 出力先 = リポジトリの docs/notion/ (Notion ミラー専用ディレクトリ)
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = resolve(SCRIPT_DIR, "../../docs/notion");
+// scripts/docs/notion-sync/ から リポジトリルートの docs/notion/ へ (3 階層上)
+const OUT_DIR = resolve(SCRIPT_DIR, "../../../docs/notion");
 const ASSETS_DIR = join(OUT_DIR, ".assets");
 // docs/notion/ 配下でクリーンアップ対象から除外するエントリ (ミラー専用なので通常は空)
 const PRESERVE_ENTRIES = new Set<string>();

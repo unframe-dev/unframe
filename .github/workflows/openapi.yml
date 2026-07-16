@@ -18,8 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
+      - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
 
       # drift 検査は go run ./cmd/openapi と go tool sqlc を通るため Go キャッシュを共有する。
       - name: Cache Go build and module downloads
@@ -28,7 +28,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('app/backend/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('app/server/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
