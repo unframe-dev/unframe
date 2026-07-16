@@ -35,3 +35,15 @@ LPは `un-fra.me/*` をデフォルトルートとして使用します。同じ
 
 本番のデプロイには、対象ゾーンへのアクセス権を持つCloudflare APIトークン、またはWranglerの
 ログインセッションが必要です。
+
+## DNS
+
+このWorkerはCustom DomainではなくRoute方式を使うため、DNSレコードは自動作成されません。
+Cloudflare DNSに次のレコードを作成し、Proxy statusをProxied（オレンジクラウド）にします。
+
+| Type | Name | IPv6 address | Proxy status | TTL |
+| ---- | ---- | ------------ | ------------ | --- |
+| AAAA | `@` | `100::` | Proxied | Auto |
+
+`100::` はWorkerをオリジンとして使うための予約済みアドレスです。DNSレコード作成後に
+`un-fra.me` が解決できることを確認し、必要なら `cf:deploy` を再実行します。
