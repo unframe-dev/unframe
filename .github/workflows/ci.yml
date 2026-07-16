@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/notion/**"
+      - "docs/decisions/**"
+      - "**.md"
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - "docs/notion/**"
+      - "docs/decisions/**"
+      - "**.md"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # PR では後続 push で古い実行を打ち切る。main では各コミットを確実に検証するため打ち切らない。
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # draft PR ではスキップ (ready にした時点で ready_for_review により実行される)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      - name: Cache Go build and module downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('apps/backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Check, test, and build backend
+        run: just be-lint be-test be-build
+
+  contracts:
+    name: Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      # drift 検査は go run ./cmd/openapi と go tool sqlc を通るため Go キャッシュを共有する。
+      - name: Cache Go build and module downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('apps/backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: "22"
+          cache: true
+
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Check generated contract drift
+        run: just check-drift
+
+      - name: Check contracts
+        run: just contracts-check

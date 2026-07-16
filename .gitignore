@@ -1,0 +1,69 @@
+# dependencies
+node_modules/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# Cloudflare Wrangler — `.dev.vars` はローカル Worker の秘密値
+# (DATABASE_URL / SUPABASE_SERVICE_ROLE_KEY) を保持する。絶対に commit しない。
+.dev.vars
+.dev.vars.local
+.wrangler/
+
+# logs
+.playwright-mcp/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# build artifacts
+dist/
+build/
+.svelte-kit/
+.cache/
+.turbo/
+.vite/
+.vite-hooks/
+.pnpm/
+
+# テストカバレッジ (vitest --coverage の出力)
+coverage/
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Unity (apps/mr/) — Unity が生成する重い成果物は追跡しない
+apps/mr/Library/
+apps/mr/Temp/
+apps/mr/Obj/
+apps/mr/Build/
+apps/mr/Builds/
+apps/mr/Logs/
+apps/mr/UserSettings/
+apps/mr/MemoryCaptures/
+apps/mr/[Bb]ootstrap/
+apps/mr/*.csproj
+apps/mr/*.sln
+apps/mr/*.user
+apps/mr/*.suo
+apps/mr/*.userprefs
+apps/mr/*.pidb
+apps/mr/*.booproj
+apps/mr/*.svd
+apps/mr/*.unityproj
+apps/mr/sysinfo.txt
+# Unity Licensing — Manual Activation File (機密性は低いが追跡不要)
+apps/mr/*.alf
+
+# backend — ローカルアセット (.fbx) 置き場 (将来 R2 移行)
+apps/backend/storage/
+
+# accidental (PowerShell の `2>$null` 取り違えで生まれる)
+nul

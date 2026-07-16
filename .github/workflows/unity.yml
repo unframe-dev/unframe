@@ -1,0 +1,128 @@
+name: Unity CI (static)
+
+# Unity 公式が Personal ライセンスの Manual Activation を 2024 年に廃止した
+# ため、GitHub-hosted runner で Unity Editor を起動するテスト/ビルドは
+# Personal では実行不可能。本 workflow はライセンス不要な静的チェックのみ:
+#
+#   - csharp-format : dotnet format whitespace で Editor / ランタイム C# の整形チェック
+#   - powershell    : PSScriptAnalyzer で apps/mr/scripts/*.ps1 を lint
+#   - meta-check    : Unity プロジェクト初期化後のみ実行する .meta 整合性チェック
+#
+# Editor 起動を伴うテスト/ビルドはローカル (`just mr-test` / `just mr-build`)
+# で実行する。Self-hosted runner や Unity Student/Pro ライセンスが揃った時点で
+# 別 workflow として再導入する。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mr/**"
+      - ".github/workflows/unity.yml"
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "apps/mr/**"
+      - ".github/workflows/unity.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: unity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  csharp-format:
+    name: MR / csharp-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: dotnet format whitespace (verify only)
+        run: |
+          if find apps/mr/Assets -name '*.cs' -print -quit 2>/dev/null | grep -q .; then
+            echo "Found C# sources. Running dotnet format whitespace --verify-no-changes."
+            dotnet format whitespace --folder apps/mr/Assets --verify-no-changes
+          else
+            echo "No C# sources under apps/mr/Assets/. Skipping."
+          fi
+
+  powershell:
+    name: MR / powershell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Invoke-ScriptAnalyzer
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'apps/mr/scripts')) {
+            Write-Host 'No apps/mr/scripts/. Skipping.'
+            exit 0
+          }
+          $settings = 'apps/mr/scripts/PSScriptAnalyzerSettings.psd1'
+          $targets = Get-ChildItem -Path apps/mr/scripts -Filter '*.ps1' -Recurse
+          if (-not $targets) {
+            Write-Host 'No .ps1 files under apps/mr/scripts/. Skipping.'
+            exit 0
+          }
+          $results = $targets | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings }
+          if ($results) {
+            $results | Format-Table -AutoSize | Out-String | Write-Host
+            Write-Host ("PSScriptAnalyzer found {0} issue(s)." -f $results.Count)
+            exit 1
+          }
+          Write-Host 'PSScriptAnalyzer: clean.'
+
+  meta-check:
+    name: MR / meta-integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unity .meta integrity
+        run: |
+          if [ ! -f apps/mr/ProjectSettings/ProjectVersion.txt ]; then
+            echo "Unity project not initialized yet (apps/mr/ProjectSettings/ProjectVersion.txt missing). Skipping."
+            exit 0
+          fi
+
+          issues=0
+
+          # 1. ソースファイルに対応する .meta が無い
+          while IFS= read -r f; do
+            if [ ! -f "${f}.meta" ]; then
+              echo "::error file=${f}::missing .meta for ${f}"
+              issues=$((issues+1))
+            fi
+          done < <(find apps/mr/Assets apps/mr/Packages -type f \
+                   \( -name '*.cs' -o -name '*.asmdef' -o -name '*.shader' \
+                      -o -name '*.prefab' -o -name '*.unity' -o -name '*.asset' \
+                      -o -name '*.mat' -o -name '*.fbx' -o -name '*.png' \
+                      -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.tga' \
+                      -o -name '*.wav' -o -name '*.mp3' -o -name '*.ogg' \) \
+                   2>/dev/null)
+
+          # 2. dangling .meta (対応するソースが無い)
+          while IFS= read -r m; do
+            src="${m%.meta}"
+            if [ ! -e "$src" ]; then
+              echo "::error file=${m}::dangling .meta (source ${src} missing)"
+              issues=$((issues+1))
+            fi
+          done < <(find apps/mr/Assets apps/mr/Packages -type f -name '*.meta' 2>/dev/null)
+
+          if [ "$issues" -gt 0 ]; then
+            echo "Found ${issues} .meta integrity issue(s)."
+            exit 1
+          fi
+          echo ".meta integrity OK."

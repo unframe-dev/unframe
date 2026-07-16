@@ -1,0 +1,15 @@
+{
+  "name": "unframe",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "vp config",
+    "notion:sync": "pnpm --filter unframe-notion-sync sync"
+  },
+  "devDependencies": {
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

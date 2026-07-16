@@ -1,0 +1,91 @@
+{
+  "presentationId": "00000000-0000-4000-8000-000000000001",
+  "title": "Local Test Presentation",
+  "slides": [
+    {
+      "id": "22222222-1111-4111-8111-111111111111",
+      "orderIndex": 0,
+      "elements": [
+        {
+          "type": "image",
+          "id": "22222222-3333-4333-8333-333333333333",
+          "transform": {
+            "position": { "x": 0, "y": 1, "z": 1.2 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "scale": { "x": 1.7, "y": 1, "z": 1 }
+          },
+          "asset": {
+            "assetId": "cccccccc-1111-4222-8333-444455556666",
+            "url": "",
+            "filename": "slide-2-panel.png",
+            "mimeType": "image/png",
+            "sizeBytes": 2048
+          }
+        },
+        {
+          "type": "model",
+          "id": "22222222-4444-4444-8444-444444444444",
+          "transform": {
+            "position": { "x": 0.35, "y": 0.95, "z": 1.02 },
+            "rotation": { "x": 0, "y": 35, "z": 0 },
+            "scale": { "x": 0.22, "y": 0.22, "z": 0.22 }
+          },
+          "asset": {
+            "assetId": "bbbbbbbb-1111-4222-8333-444455556666",
+            "url": "",
+            "filename": "sample.fbx",
+            "mimeType": "application/octet-stream",
+            "sizeBytes": 4096
+          }
+        },
+        {
+          "type": "text",
+          "id": "22222222-5555-4555-8555-555555555555",
+          "transform": {
+            "position": { "x": -0.45, "y": 1.18, "z": 1.1 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "scale": { "x": 0.65, "y": 0.65, "z": 1 }
+          },
+          "text": "Local Test Model"
+        },
+        {
+          "type": "text",
+          "id": "22222222-6666-4666-8666-666666666666",
+          "transform": {
+            "position": { "x": -0.38, "y": 0.95, "z": 1.1 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "scale": { "x": 0.45, "y": 0.45, "z": 1 }
+          },
+          "text": "The model is placed slightly in front of the panel."
+        }
+      ]
+    },
+    {
+      "id": "33333333-1111-4111-8111-111111111111",
+      "orderIndex": 1,
+      "elements": [
+        {
+          "type": "text",
+          "id": "33333333-5555-4555-8555-555555555555",
+          "transform": {
+            "position": { "x": 0, "y": 1.12, "z": 1.1 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "scale": { "x": 0.7, "y": 0.7, "z": 1 }
+          },
+          "text": "Slide 2"
+        },
+        {
+          "type": "text",
+          "id": "33333333-6666-4666-8666-666666666666",
+          "transform": {
+            "position": { "x": 0, "y": 0.92, "z": 1.1 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "scale": { "x": 0.45, "y": 0.45, "z": 1 }
+          },
+          "text": "Controller input can advance from the first slide."
+        }
+      ]
+    }
+  ],
+  "updatedAt": "2026-05-29T00:00:00.000Z"
+}
