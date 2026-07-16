@@ -1,7 +1,1 @@
-import { defineConfig } from "vite-plus";
-
-export default defineConfig({
-  staged: {
-    "*": "vp check --fix",
-  },
-});
+export { default } from "./packages/config/vite.config";

@@ -1,0 +1,6 @@
+{
+  "name": "@unframe/api-client-csharp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generated C# client artifact for the Unframe OpenAPI contract"
+}

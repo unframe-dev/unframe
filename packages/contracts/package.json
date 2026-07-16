@@ -2,28 +2,13 @@
   "name": "@unframe/contracts",
   "version": "0.1.0",
   "private": true,
-  "description": "Generated OpenAPI types and typed client for Unframe",
+  "description": "Committed OpenAPI contract and code generation configuration",
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    },
     "./openapi.yaml": "./openapi.yaml"
   },
-  "scripts": {
-    "gen": "openapi-typescript openapi.yaml -o src/generated/schema.d.ts && vp fmt src/generated/schema.d.ts",
-    "test": "tsx --test src/**/*.test.ts",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "openapi-fetch": "^0.17.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.19.19",
-    "openapi-typescript": "^7.13.0",
-    "tsx": "^4.22.1",
-    "typescript": "^5.9.3",
-    "vite-plus": "catalog:"
-  }
+  "files": [
+    "openapi.yaml",
+    "codegen"
+  ]
 }

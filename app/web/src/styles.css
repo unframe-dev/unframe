@@ -1,0 +1,87 @@
+:root {
+  color: #e8edf7;
+  background: #10131a;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.editor-shell {
+  box-sizing: border-box;
+  display: grid;
+  gap: 2rem;
+  min-height: 100vh;
+  padding: clamp(1.5rem, 5vw, 5rem);
+  margin: auto;
+  max-width: 72rem;
+}
+
+.editor-header {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.editor-header h1,
+.editor-header p {
+  margin: 0;
+}
+
+.eyebrow {
+  color: #8ca6ff;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status {
+  color: #9ca8bb;
+}
+
+.editor-panel {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid #293248;
+  border-radius: 1rem;
+  background: #171c28;
+}
+
+label {
+  display: grid;
+  gap: 0.5rem;
+  color: #aeb9cc;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #39445e;
+  border-radius: 0.5rem;
+  color: #e8edf7;
+  background: #10131a;
+}
+
+.slide-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+button {
+  padding: 0.65rem 0.9rem;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #10131a;
+  background: #8ca6ff;
+  cursor: pointer;
+}
