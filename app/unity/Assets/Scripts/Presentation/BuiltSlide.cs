@@ -5,6 +5,7 @@ public class BuiltSlide
 {
     public string slideId;
     public int orderIndex;
+    public float viewAngle;
     public GameObject slideRoot;
     public GameObject planeAnchor;
     public GameObject backgroundPanel;

@@ -7,12 +7,12 @@ public class ImageElementFactory : MonoBehaviour
     [SerializeField] private float defaultWidth = 1.6f;
     [SerializeField] private float defaultHeight = 0.9f;
 
-    public GameObject Create(ManifestElement element, Transform parent)
+    public GameObject Create(ManifestElement element, Transform parent, int elementOrder = 0)
     {
-        if (element == null)
+
+        if (element.type == "shape")
         {
-            Debug.LogError("ImageElementFactory: element is null");
-            return null;
+            return CreateShape(element, parent, elementOrder);
         }
 
         GameObject imageObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -22,7 +22,7 @@ public class ImageElementFactory : MonoBehaviour
         imageObject.transform.localScale = new Vector3(defaultWidth, defaultHeight, 1f);
         SetSolidColor(imageObject, Color.white);
 
-        TransformApplier.Apply(imageObject, element.transform);
+        TransformApplier.ApplyFlatPlane(imageObject, element.transform, elementOrder);
 
         if (element.asset != null && !string.IsNullOrEmpty(element.asset.url))
         {
@@ -34,6 +34,26 @@ public class ImageElementFactory : MonoBehaviour
         }
 
         return imageObject;
+    }
+
+    private GameObject CreateShape(
+        ManifestElement element,
+        Transform parent,
+        int elementOrder
+    )
+    {
+        if (!string.IsNullOrEmpty(element.shape) && element.shape != "rectangle")
+        {
+            Debug.LogWarning($"ImageElementFactory: unsupported shape '{element.shape}'. Using rectangle: {element.id}");
+        }
+
+        GameObject shapeObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        shapeObject.name = $"Shape_{element.id}";
+        shapeObject.transform.SetParent(parent, false);
+
+        SetSolidColor(shapeObject, ParseColor(element.fillColor, Color.white));
+        TransformApplier.ApplyFlatPlane(shapeObject, element.transform, elementOrder);
+        return shapeObject;
     }
 
     private IEnumerator LoadTexture(string url, GameObject target)
@@ -71,11 +91,6 @@ public class ImageElementFactory : MonoBehaviour
     private void SetSolidColor(GameObject target, Color color)
     {
         Renderer renderer = target.GetComponent<Renderer>();
-        if (renderer == null)
-        {
-            Debug.LogError("ImageElementFactory: Renderer not found");
-            return;
-        }
 
         Material material = PresentationPlaneMaterialFactory.CreateSolid(color);
         if (material == null)
@@ -84,5 +99,22 @@ public class ImageElementFactory : MonoBehaviour
         }
 
         renderer.material = material;
+    }
+
+    private static Color ParseColor(string value, Color fallback)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return fallback;
+        }
+
+        if (value == "transparent")
+        {
+            return Color.clear;
+        }
+
+        return ColorUtility.TryParseHtmlString(value, out Color color)
+            ? color
+            : fallback;
     }
 }

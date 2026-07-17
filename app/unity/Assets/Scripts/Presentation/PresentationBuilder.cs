@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PresentationBuilder : MonoBehaviour
@@ -10,7 +11,7 @@ public class PresentationBuilder : MonoBehaviour
     [SerializeField] private SlideController slideController;
     [SerializeField] private float backgroundPanelBackOffset = 0.01f;
     [SerializeField] private Vector3 defaultBackgroundPanelPosition = new Vector3(0f, 1f, 1.2f);
-    [SerializeField] private Vector3 defaultBackgroundPanelScale = new Vector3(1.8f, 1.1f, 1f);
+    [SerializeField] private Vector3 defaultBackgroundPanelScale = new Vector3(1.92f, 1.08f, 1f);
 
     private BuiltPresentation currentBuiltPresentation;
     private ManifestResponse currentManifest;
@@ -49,19 +50,27 @@ public class PresentationBuilder : MonoBehaviour
         ResolveElementFactories();
         ClearCurrentPresentation();
 
-        GameObject presentationRoot = new GameObject($"Presentation_{manifest.presentationId}");
+        string presentationId = ResolvePresentationId(manifest);
+        GameObject presentationRoot = new GameObject($"Presentation_{presentationId}");
+        presentationRoot.transform.localPosition = ResolvePresentationRootPosition(manifest);
+
 
         BuiltPresentation built = new BuiltPresentation
         {
-            presentationId = manifest.presentationId,
+            presentationId = presentationId,
             title = manifest.title,
-            presentationRoot = presentationRoot
+            presentationRoot = presentationRoot,
+            usesCircularView = UsesCircularView(manifest),
+            circularView = manifest.circularView
         };
 
         foreach (ManifestSlide slide in manifest.slides)
         {
             GameObject slideRoot = new GameObject($"Slide_{slide.orderIndex}_{slide.id}");
             slideRoot.transform.SetParent(presentationRoot.transform, false);
+            slideRoot.SetActive(false);
+            float slideViewAngle = ApplyCircularViewToSlideRoot(slideRoot, manifest, slide);
+            LogCircularSlidePlacement(manifest, slide, slideRoot, slideViewAngle);
 
             ManifestElement backgroundPanelElement = FindBackgroundPanelElement(slide);
             Vector3 backgroundPanelPosition = ResolveBackgroundPanelPosition(slide, backgroundPanelElement);
@@ -72,20 +81,32 @@ public class PresentationBuilder : MonoBehaviour
             {
                 slideId = slide.id,
                 orderIndex = slide.orderIndex,
+                viewAngle = slideViewAngle,
                 slideRoot = slideRoot,
                 planeAnchor = planeAnchor
             };
 
-            foreach (ManifestElement element in slide.elements)
+            List<ManifestElement> elements = ResolveElements(slide);
+            if (elements == null)
             {
+                built.slides.Add(builtSlide);
+                continue;
+            }
+
+            for (int i = 0; i < elements.Count; i++)
+            {
+                ManifestElement element = elements[i];
+
                 bool isPlaneElement = IsPlaneElement(element);
                 bool isBackgroundPanelElement = element == backgroundPanelElement;
+                ManifestElement buildElement = CreateBuildElement(element);
 
                 GameObject createdObject = CreateElementObject(
                     manifest,
                     slide,
-                    element,
-                    isPlaneElement ? planeAnchor.transform : slideRoot.transform
+                    buildElement,
+                    slideRoot.transform,
+                    i
                 );
 
                 if (createdObject == null)
@@ -93,29 +114,32 @@ public class PresentationBuilder : MonoBehaviour
                     continue;
                 }
 
+                LogCircularElementPlacement(slide, element, createdObject);
+            /*
                 if (isPlaneElement)
                 {
-                    ApplyPlaneElementTransform(createdObject, element.transform, planeAnchorPosition, isBackgroundPanelElement);
+                    ApplyPlaneElementTransform(createdObject, buildElement, planeAnchorPosition, isBackgroundPanelElement);
                 }
-
+            */
                 if (isBackgroundPanelElement)
                 {
                     builtSlide.backgroundPanel = createdObject;
                 }
 
                 AddMetaData(createdObject, manifest, slide, element);
+                PresentationElementAnimationFactory.Attach(createdObject, element.animation);
 
                 builtSlide.elementIds.Add(element.id);
                 builtSlide.objectsByElementId[element.id] = createdObject;
             }
 
-            if (builtSlide.backgroundPanel == null)
+            if (builtSlide.backgroundPanel == null && !ContainsModelElement(slide))
             {
                 builtSlide.backgroundPanel = CreateDefaultBackgroundPanel(
                     slide,
-                    planeAnchor.transform,
-                    backgroundPanelPosition,
-                    planeAnchorPosition
+                    slideRoot.transform,
+                    Vector3.zero,
+                    Vector3.zero
                 );
             }
 
@@ -140,42 +164,71 @@ public class PresentationBuilder : MonoBehaviour
         return built;
     }
 
+    private static void LogCircularSlidePlacement(
+        ManifestResponse manifest,
+        ManifestSlide slide,
+        GameObject slideRoot,
+        float viewAngle
+    )
+    {
+        if (!UsesCircularView(manifest) || slideRoot == null)
+        {
+            return;
+        }
+
+        ManifestCircularView circularView = manifest.circularView;
+        Debug.Log(
+            "[CircularView] " +
+            $"slide={slide.id} orderIndex={slide.orderIndex} " +
+            $"startAngle={circularView.startAngle:F2} angleStep={circularView.angleStep:F2} viewAngle={viewAngle:F2} " +
+            $"startPosition={FormatVector3(circularView.startPosition)} viewpointPosition={FormatVector3(circularView.viewpointPosition)} " +
+            $"radius={circularView.radius:F2} faceViewpoint={circularView.faceViewpoint} " +
+            $"localPosition={FormatVector3(slideRoot.transform.localPosition)} localEuler={FormatVector3(slideRoot.transform.localEulerAngles)}"
+        );
+    }
+
+    private static void LogCircularElementPlacement(
+        ManifestSlide slide,
+        ManifestElement element,
+        GameObject createdObject
+    )
+    {
+        if (!TransformApplier.HasCircularPlacement(element?.transform) || createdObject == null)
+        {
+            return;
+        }
+
+        ManifestCircularPlacement circular = element.transform.circular;
+        Debug.Log(
+            "[CircularElement] " +
+            $"slide={slide.id} element={element.id} type={element.type} " +
+            $"angle={circular.angle:F2} startPosition={FormatVector3(circular.startPosition)} " +
+            $"viewpointPosition={FormatVector3(circular.viewpointPosition)} radius={circular.radius:F2} faceCenter={circular.faceCenter} " +
+            $"localPosition={FormatVector3(createdObject.transform.localPosition)} localEuler={FormatVector3(createdObject.transform.localEulerAngles)} " +
+            $"worldPosition={FormatVector3(createdObject.transform.position)} worldEuler={FormatVector3(createdObject.transform.eulerAngles)}"
+        );
+    }
+
     private GameObject CreateElementObject(
         ManifestResponse manifest,
         ManifestSlide slide,
         ManifestElement element,
-        Transform slideParent
+        Transform slideParent,
+        int elementOrder = 0
     )
     {
         switch (element.type)
         {
             case "text":
-                if (textElementFactory == null)
-                {
-                    Debug.LogError($"PresentationBuilder: textElementFactory is not assigned for element: {element.id}");
-                    return null;
-                }
-
-                return textElementFactory.Create(element, slideParent);
+                return textElementFactory.Create(element, slideParent, elementOrder);
 
             case "image":
             case "background":
-                if (imageElementFactory == null)
-                {
-                    Debug.LogError($"PresentationBuilder: imageElementFactory is not assigned for element: {element.id}");
-                    return null;
-                }
-
-                return imageElementFactory.Create(element, slideParent);
+            case "shape":
+                return imageElementFactory.Create(element, slideParent, elementOrder);
 
             case "model":
-                if (modelElementFactory == null)
-                {
-                    Debug.LogError($"PresentationBuilder: modelElementFactory is not assigned for element: {element.id}");
-                    return null;
-                }
-
-                return modelElementFactory.Create(element, slideParent);
+                return modelElementFactory.Create(element, slideParent, elementOrder);
 
             default:
                 Debug.LogWarning($"Unknown element type: {element.type}");
@@ -196,12 +249,13 @@ public class PresentationBuilder : MonoBehaviour
 
     private ManifestElement FindBackgroundPanelElement(ManifestSlide slide)
     {
-        if (slide?.elements == null)
+        List<ManifestElement> elements = ResolveElements(slide);
+        if (elements == null)
         {
             return null;
         }
 
-        foreach (ManifestElement element in slide.elements)
+        foreach (ManifestElement element in elements)
         {
             if (element != null && element.type == "background")
             {
@@ -209,7 +263,7 @@ public class PresentationBuilder : MonoBehaviour
             }
         }
 
-        foreach (ManifestElement element in slide.elements)
+        foreach (ManifestElement element in elements)
         {
             if (element != null && element.type == "image")
             {
@@ -222,30 +276,24 @@ public class PresentationBuilder : MonoBehaviour
 
     private Vector3 ResolveBackgroundPanelPosition(ManifestSlide slide, ManifestElement backgroundPanelElement)
     {
-        if (backgroundPanelElement?.transform?.position != null)
+        if (backgroundPanelElement?.transform != null)
         {
-            return ToVector3(backgroundPanelElement.transform.position);
+            return TransformApplier.ToUnityCenterPosition(backgroundPanelElement.transform);
         }
 
-        ManifestElement firstPlaneElement = FindFirstPlaneElement(slide);
-        if (firstPlaneElement?.transform?.position != null)
-        {
-            Vector3 firstPlaneElementPosition = ToVector3(firstPlaneElement.transform.position);
-            firstPlaneElementPosition.z += backgroundPanelBackOffset;
-            return firstPlaneElementPosition;
-        }
-
-        return defaultBackgroundPanelPosition;
+        // background要素がない場合でも、スライド面の中心はUnity原点にする
+        return Vector3.zero;
     }
 
     private ManifestElement FindFirstPlaneElement(ManifestSlide slide)
     {
-        if (slide?.elements == null)
+        List<ManifestElement> elements = ResolveElements(slide);
+        if (elements == null)
         {
             return null;
         }
 
-        foreach (ManifestElement element in slide.elements)
+        foreach (ManifestElement element in elements)
         {
             if (IsPlaneElement(element))
             {
@@ -256,6 +304,40 @@ public class PresentationBuilder : MonoBehaviour
         return null;
     }
 
+    private ManifestElement CreateBuildElement(ManifestElement element)
+    {
+        if (element == null)
+        {
+            return element;
+        }
+
+        return new ManifestElement
+        {
+            type = element.type,
+            id = element.id,
+            transform = element.transform,
+            animation = element.animation,
+
+            text = element.text,
+            fontSize = element.fontSize,
+            fontColor = element.fontColor,
+            textAlign = element.textAlign,
+            fontFamily = element.fontFamily,
+            fontWeight = element.fontWeight,
+
+            shape = element.shape,
+            fillColor = element.fillColor,
+            strokeColor = element.strokeColor,
+            strokeWidth = element.strokeWidth,
+
+            asset = element.asset,
+            assetId = element.assetId,
+            displayName = element.displayName,
+            src = element.src
+        };
+    }
+
+
     private Vector3 ResolvePlaneAnchorPosition(Vector3 backgroundPanelPosition)
     {
         return new Vector3(
@@ -265,23 +347,44 @@ public class PresentationBuilder : MonoBehaviour
         );
     }
 
+    /*
     private void ApplyPlaneElementTransform(
         GameObject createdObject,
-        ManifestTransform sourceTransform,
+        ManifestElement element,
         Vector3 planeAnchorPosition,
         bool isBackgroundPanelElement
     )
     {
-        TransformApplier.Apply(
-            createdObject,
-            CreatePlaneElementTransform(sourceTransform, planeAnchorPosition, isBackgroundPanelElement)
+        ManifestTransform planeTransform = CreatePlaneElementTransform(
+            element?.transform,
+            planeAnchorPosition,
+            isBackgroundPanelElement
         );
-    }
 
+        switch (element?.type)
+        {
+            case "text":
+                TransformApplier.ApplyUniformText(createdObject, planeTransform);
+                break;
+
+            case "image":
+            case "background":
+                TransformApplier.ApplyFlatPlane(createdObject, planeTransform);
+                break;
+
+            default:
+                TransformApplier.Apply(createdObject, planeTransform);
+                break;
+        }
+        }
+        */
+
+
+    /*
     private ManifestTransform CreatePlaneElementTransform(
-        ManifestTransform sourceTransform,
-        Vector3 planeAnchorPosition,
-        bool isBackgroundPanelElement
+    ManifestTransform sourceTransform,
+    Vector3 planeAnchorPosition,
+    bool isBackgroundPanelElement
     )
     {
         Vector3 sourcePosition = sourceTransform?.position != null
@@ -301,25 +404,40 @@ public class PresentationBuilder : MonoBehaviour
             scale = sourceTransform?.scale ?? ToManifestVector3(Vector3.one)
         };
     }
+    */
 
     private GameObject CreateDefaultBackgroundPanel(
         ManifestSlide slide,
-        Transform planeAnchor,
+        Transform parent,
         Vector3 backgroundPanelPosition,
         Vector3 planeAnchorPosition
     )
     {
         GameObject backgroundPanel = GameObject.CreatePrimitive(PrimitiveType.Quad);
         backgroundPanel.name = $"BackgroundPanel_{slide.id}";
-        backgroundPanel.transform.SetParent(planeAnchor, false);
+        backgroundPanel.transform.SetParent(parent, false);
+
+        // スライド中央をUnity原点に固定
         backgroundPanel.transform.localPosition = new Vector3(
-            backgroundPanelPosition.x - planeAnchorPosition.x,
-            backgroundPanelPosition.y - planeAnchorPosition.y,
+            0f,
+            0f,
             backgroundPanelBackOffset
         );
+
         backgroundPanel.transform.localRotation = Quaternion.identity;
-        backgroundPanel.transform.localScale = defaultBackgroundPanelScale;
-        SetSolidColor(backgroundPanel, Color.white);
+
+        // 1920px x 1080px を TransformApplier と同じ変換で背景サイズにする
+        backgroundPanel.transform.localScale = new Vector3(
+            TransformApplier.SlideWidthPx * TransformApplier.MeterPerPixel,
+            TransformApplier.SlideHeightPx * TransformApplier.MeterPerPixel,
+            1f
+        );
+
+        Renderer renderer = backgroundPanel.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.material = PresentationPlaneMaterialFactory.CreateBackground(Color.white);
+        }
 
         return backgroundPanel;
     }
@@ -327,13 +445,145 @@ public class PresentationBuilder : MonoBehaviour
     private static bool IsPlaneElement(ManifestElement element)
     {
         return element != null &&
-            (element.type == "text" || element.type == "image" || element.type == "background");
+            (
+                element.type == "text" ||
+                element.type == "image" ||
+                element.type == "background" ||
+                element.type == "shape"
+            );
+    }
+
+    private static bool ContainsModelElement(ManifestSlide slide)
+    {
+        List<ManifestElement> elements = ResolveElements(slide);
+        if (elements == null)
+        {
+            return false;
+        }
+
+        foreach (ManifestElement element in elements)
+        {
+            if (element != null && element.type == "model")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static List<ManifestElement> ResolveElements(ManifestSlide slide)
+    {
+        return slide?.content?.elements ?? slide?.elements;
+    }
+
+    private static Vector3 ResolvePresentationRootPosition(ManifestResponse manifest)
+    {
+        return UsesCircularView(manifest) || ContainsCircularPlacement(manifest)
+            ? Vector3.zero
+            : new Vector3(0f, 1.5f, 1f);
+    }
+
+    private static float ApplyCircularViewToSlideRoot(
+        GameObject slideRoot,
+        ManifestResponse manifest,
+        ManifestSlide slide
+    )
+    {
+        if (slideRoot == null || !UsesCircularView(manifest))
+        {
+            return 0f;
+        }
+
+        ManifestCircularView circularView = manifest.circularView;
+        float viewAngle = circularView.startAngle + slide.orderIndex * circularView.angleStep;
+        float placementAngle = -viewAngle;
+        float radius = circularView.radius + ResolveCircularViewOffset(circularView.radiusOffsets, slide.orderIndex);
+        ManifestVector3 startPosition = OffsetCircularViewStartPosition(
+            circularView.startPosition,
+            ResolveCircularViewOffset(circularView.verticalOffsets, slide.orderIndex)
+        );
+        ManifestTransform slideTransform = new ManifestTransform
+        {
+            position = ToManifestVector3(Vector3.zero),
+            rotation = ToManifestVector3(Vector3.zero),
+            scale = ToManifestVector3(Vector3.one),
+            circular = new ManifestCircularPlacement
+            {
+                enabled = true,
+                startPosition = startPosition,
+                viewpointPosition = circularView.viewpointPosition,
+                radius = radius,
+                angle = placementAngle,
+                faceCenter = circularView.faceViewpoint
+            }
+        };
+
+        slideRoot.transform.localPosition = TransformApplier.ToCircularPosition(slideTransform);
+        slideRoot.transform.localEulerAngles = TransformApplier.ToFlatEulerAngles(slideTransform);
+        return viewAngle;
+    }
+
+    private static float ResolveCircularViewOffset(List<float> offsets, int index)
+    {
+        if (offsets == null || index < 0 || index >= offsets.Count)
+        {
+            return 0f;
+        }
+
+        return offsets[index];
+    }
+
+    private static ManifestVector3 OffsetCircularViewStartPosition(
+        ManifestVector3 source,
+        float verticalOffset
+    )
+    {
+        return new ManifestVector3
+        {
+            x = source != null ? source.x : 0f,
+            y = (source != null ? source.y : 0f) + verticalOffset,
+            z = source != null ? source.z : 1f
+        };
+    }
+
+    private static bool UsesCircularView(ManifestResponse manifest)
+    {
+        return manifest?.circularView != null && manifest.circularView.enabled;
+    }
+
+    private static bool ContainsCircularPlacement(ManifestResponse manifest)
+    {
+        if (manifest?.slides == null)
+        {
+            return false;
+        }
+
+        foreach (ManifestSlide slide in manifest.slides)
+        {
+            List<ManifestElement> elements = ResolveElements(slide);
+            if (elements == null)
+            {
+                continue;
+            }
+
+            foreach (ManifestElement element in elements)
+            {
+                if (TransformApplier.HasCircularPlacement(element?.transform))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static Vector3 ToVector3(ManifestVector3 vector)
     {
         return new Vector3(vector.x, vector.y, vector.z);
     }
+
 
     private static ManifestVector3 ToManifestVector3(Vector3 vector)
     {
@@ -343,6 +593,21 @@ public class PresentationBuilder : MonoBehaviour
             y = vector.y,
             z = vector.z
         };
+    }
+
+    private static string FormatVector3(ManifestVector3 vector)
+    {
+        if (vector == null)
+        {
+            return "(null)";
+        }
+
+        return $"({vector.x:F3}, {vector.y:F3}, {vector.z:F3})";
+    }
+
+    private static string FormatVector3(Vector3 vector)
+    {
+        return $"({vector.x:F3}, {vector.y:F3}, {vector.z:F3})";
     }
 
     private static void SetSolidColor(GameObject target, Color color)
@@ -372,7 +637,7 @@ public class PresentationBuilder : MonoBehaviour
     {
         PresentationElementObject meta = obj.AddComponent<PresentationElementObject>();
 
-        meta.presentationId = manifest.presentationId;
+        meta.presentationId = ResolvePresentationId(manifest);
         meta.slideId = slide.id;
         meta.slideIndex = slide.orderIndex;
         meta.elementId = element.id;
@@ -410,5 +675,15 @@ public class PresentationBuilder : MonoBehaviour
         {
             modelElementFactory = GetComponent<ModelElementFactory>();
         }
+    }
+
+    private static string ResolvePresentationId(ManifestResponse manifest)
+    {
+        if (!string.IsNullOrEmpty(manifest?.presentationId))
+        {
+            return manifest.presentationId;
+        }
+
+        return manifest?.id;
     }
 }

@@ -7,11 +7,11 @@ public static class PresentationPlaneMaterialFactory
 
     private static readonly string[] CutoutShaderNames =
     {
-        "Unlit/Transparent Cutout",
         "Universal Render Pipeline/Unlit",
-        "Unlit/Texture",
         "Unlit/Color",
-        "Sprites/Default"
+        "Unlit/Texture",
+        "Sprites/Default",
+        "Unlit/Transparent Cutout"
     };
 
     public static Material Create(Texture texture, Color color)
@@ -33,7 +33,31 @@ public static class PresentationPlaneMaterialFactory
 
     public static Material CreateSolid(Color color)
     {
-        return Create(null, color);
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Color");
+        }
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Sprites/Default");
+        }
+
+        if (shader == null)
+        {
+            Debug.LogError("PresentationPlaneMaterialFactory: solid shader not found");
+            return null;
+        }
+
+        Material material = new Material(shader);
+        ApplyColor(material, color);
+
+        // URP Unlit用
+        SetFloatIfPresent(material, "_Surface", 0f);
+        SetFloatIfPresent(material, "_ZWrite", 1f);
+
+        return material;
     }
 
     private static Shader FindShader()
@@ -103,5 +127,33 @@ public static class PresentationPlaneMaterialFactory
         {
             material.SetFloat(propertyName, value);
         }
+    }
+
+    public static Material CreateBackground(Color color)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Color");
+        }
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Sprites/Default");
+        }
+
+        if (shader == null)
+        {
+            Debug.LogError("PresentationPlaneMaterialFactory: background shader not found");
+            return null;
+        }
+
+        Material material = new Material(shader);
+        ApplyColor(material, color);
+        material.renderQueue = 1000;
+        SetFloatIfPresent(material, "_ZWrite", 0f);
+        SetFloatIfPresent(material, "_AlphaClip", 0f);
+
+        return material;
     }
 }

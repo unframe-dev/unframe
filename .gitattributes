@@ -1,3 +1,4 @@
 *.fbx filter=lfs diff=lfs merge=lfs -text
 app/unity/Assets/font/** filter=lfs diff=lfs merge=lfs -text
 app/unity/Assets/font/**/*.meta -filter -diff -merge text
+app/unity/Assets/font/SawarabiGothic-Regular[[:space:]]SDF.asset filter=lfs diff=lfs merge=lfs -text
