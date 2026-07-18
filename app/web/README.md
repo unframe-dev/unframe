@@ -70,7 +70,7 @@ nix run .#check
 
 ## Cloudflare 配信
 
-`wrangler.jsonc` は次の path contract を持ちます。
+`wrangler.toml` は次の path contract を持ちます。
 
 ```text
 /editor/assets/...  -> /assets/...
