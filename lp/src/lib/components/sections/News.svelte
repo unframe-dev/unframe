@@ -32,7 +32,7 @@
         {#each latestEntries as entry}
           <a
             class="group grid gap-3 border-b border-line py-5 transition hover:border-brand-purple/45 sm:grid-cols-[8rem_1fr_auto] sm:items-center sm:gap-8"
-            href={`/news/${entry.slug}/`}
+            href={`/news/${entry.slug}/?from=home`}
           >
             <div class="flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.16em] text-night/40 sm:flex-col sm:items-start sm:gap-1">
               <span class="inline-flex items-center gap-2">

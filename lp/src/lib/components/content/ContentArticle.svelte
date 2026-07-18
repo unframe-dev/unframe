@@ -2,18 +2,26 @@
   import { ArrowLeft, ArrowUpRight, CalendarDays } from "@lucide/svelte";
   import type { Component } from "svelte";
   import type { ContentEntry } from "$lib/content-registry";
+  import { getNewsBackNavigation, type NewsSource } from "$lib/news-navigation";
   import Header from "../layout/Header.svelte";
   import Footer from "../layout/Footer.svelte";
 
   type ContentKind = "News" | "Docs";
 
-  let { entry, kind } = $props<{
+  let { entry, kind, source = "news" } = $props<{
     entry: ContentEntry<Component>;
     kind: ContentKind;
+    source?: NewsSource;
   }>();
 
   const Content = $derived(entry.component);
   const basePath = $derived(kind.toLowerCase());
+  const newsBackNavigation = $derived(
+    kind === "News" ? getNewsBackNavigation(source) : undefined,
+  );
+  const backHref = $derived(newsBackNavigation?.href ?? `/${basePath}/`);
+  const backLabel = $derived(newsBackNavigation?.label ?? `${kind} index`);
+  const bottomBackLabel = $derived(newsBackNavigation?.label ?? "一覧に戻る");
 </script>
 
 <svelte:head>
@@ -25,9 +33,9 @@
 
 <main class="min-h-screen bg-background px-6 pb-32 pt-36 text-night sm:px-10 sm:pt-44 lg:px-14">
   <article class="mx-auto max-w-[820px]">
-    <a class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-night/45 transition hover:text-night" href={`/${basePath}/`}>
+    <a class="inline-flex items-center gap-2 text-xs uppercase tracking-[0.12em] text-night/45 transition hover:text-night" href={backHref}>
       <ArrowLeft size={14} strokeWidth={1.5} />
-      {kind} index
+      {backLabel}
     </a>
     <header class="mt-14 border-b border-night/10 pb-12">
       <div class="eyebrow flex items-center gap-3 text-night/50">
@@ -51,9 +59,9 @@
       <Content />
     </div>
 
-    <a class="group mt-16 inline-flex items-center gap-3 border-b border-night/20 pb-3 text-sm text-night/60 transition hover:border-night hover:text-night" href={`/${basePath}/`}>
+    <a class="group mt-16 inline-flex items-center gap-3 border-b border-night/20 pb-3 text-sm text-night/60 transition hover:border-night hover:text-night" href={backHref}>
       <ArrowLeft size={15} strokeWidth={1.5} />
-      一覧に戻る
+      {bottomBackLabel}
       <ArrowUpRight size={14} strokeWidth={1.5} class="ml-2 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
     </a>
   </article>

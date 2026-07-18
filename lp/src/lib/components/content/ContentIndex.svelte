@@ -20,6 +20,7 @@
   }>();
 
   const basePath = $derived(kind.toLowerCase());
+  const sourceQuery = $derived(kind === "News" ? "?from=news" : "");
 </script>
 
 <svelte:head>
@@ -50,7 +51,7 @@
           {#each entries as entry}
             <a
               class="group flex min-h-64 flex-col justify-between rounded-3xl border border-night/10 bg-white/45 p-7 transition duration-300 hover:-translate-y-1 hover:border-brand-purple/45 hover:bg-white sm:p-9"
-              href={`/${basePath}/${entry.slug}/`}
+              href={`/${basePath}/${entry.slug}/${sourceQuery}`}
             >
               <div>
                 <div class="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.16em] text-night/40">
