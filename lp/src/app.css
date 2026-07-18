@@ -46,14 +46,24 @@ a {
 }
 
 .text-gradient {
-  background: linear-gradient(100deg, var(--color-brand-blue), var(--color-brand-purple) 48%, var(--color-brand-red));
+  background: linear-gradient(
+    100deg,
+    var(--color-brand-blue),
+    var(--color-brand-purple) 48%,
+    var(--color-brand-red)
+  );
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
 }
 
 .gradient-rule {
-  background: linear-gradient(90deg, var(--color-brand-blue), var(--color-brand-purple) 48%, var(--color-brand-red));
+  background: linear-gradient(
+    90deg,
+    var(--color-brand-blue),
+    var(--color-brand-purple) 48%,
+    var(--color-brand-red)
+  );
 }
 
 .eyebrow {

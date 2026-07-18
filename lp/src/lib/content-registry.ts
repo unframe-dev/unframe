@@ -25,11 +25,17 @@ export function buildContentRegistry<TComponent>(
   const entries = Object.entries(modules).map(([path, module]) => {
     const extension = path.endsWith(".mdx") ? ".mdx" : path.endsWith(".md") ? ".md" : undefined;
     if (!extension) {
-      throw new Error(`Unsupported content file: ${path}. Only Markdown or MDX files are supported.`);
+      throw new Error(
+        `Unsupported content file: ${path}. Only Markdown or MDX files are supported.`,
+      );
     }
 
     const metadata = module.metadata;
-    if (!metadata || typeof metadata.title !== "string" || typeof metadata.description !== "string") {
+    if (
+      !metadata ||
+      typeof metadata.title !== "string" ||
+      typeof metadata.description !== "string"
+    ) {
       throw new Error(`Content metadata for ${path} must include title and description.`);
     }
     if (typeof metadata.order !== "number" || !Number.isFinite(metadata.order)) {
