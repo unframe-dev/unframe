@@ -3,9 +3,9 @@
 SvelteKit と `adapter-static` で生成する Unframe のランディングページです。
 生成した `build/` を Cloudflare Workers Static Assets として `un-fra.me` へ配信します。
 
-## Blog / Docs
+## News / Docs
 
-`src/content/blog/` と `src/content/docs/` に `.mdx` ファイルを追加すると、対応する一覧ページと詳細ページが静的に生成されます。
+`src/content/news/` と `src/content/docs/` に `.mdx` ファイルを追加すると、対応する一覧ページと詳細ページが静的に生成されます。
 各ファイルには次のfrontmatterを記述してください。
 
 ```mdx
@@ -19,7 +19,7 @@ publishedAt: "2026-07-18"
 本文をMarkdownで記述します。
 ```
 
-`publishedAt` は任意で、Blogでは日付表示に使われます。URLはファイル名から拡張子を除いた `/blog/<slug>/` または `/docs/<slug>/` になります。
+`publishedAt` は任意で、Newsでは日付表示に使われます。URLはファイル名から拡張子を除いた `/news/<slug>/` または `/docs/<slug>/` になります。
 
 ## 開発
 

@@ -3,6 +3,7 @@
   import Concept from "$lib/components/sections/Concept.svelte";
   import Features from "$lib/components/sections/Features.svelte";
   import Hero from "$lib/components/sections/Hero.svelte";
+  import News from "$lib/components/sections/News.svelte";
   import ProductDemo from "$lib/components/sections/ProductDemo.svelte";
   import UseCases from "$lib/components/sections/UseCases.svelte";
   import Vision from "$lib/components/sections/Vision.svelte";
@@ -20,6 +21,7 @@
 
 <main>
   <Hero />
+  <News />
   <Concept />
   <Features />
   <ProductDemo />

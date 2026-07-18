@@ -5,7 +5,7 @@
   import Header from "../layout/Header.svelte";
   import Footer from "../layout/Footer.svelte";
 
-  type ContentKind = "Blog" | "Docs";
+  type ContentKind = "News" | "Docs";
 
   let { entry, kind } = $props<{
     entry: ContentEntry<Component>;
@@ -31,7 +31,7 @@
     </a>
     <header class="mt-14 border-b border-night/10 pb-12">
       <div class="eyebrow flex items-center gap-3 text-night/50">
-        <span class="text-gradient">{kind === "Blog" ? "01" : "00"}</span>
+        <span class="text-gradient">{kind === "News" ? "01" : "00"}</span>
         <span class="h-px w-8 bg-night/20"></span>
         <span>{kind}</span>
       </div>

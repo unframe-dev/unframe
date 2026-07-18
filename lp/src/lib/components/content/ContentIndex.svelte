@@ -5,7 +5,7 @@
   import Footer from "../layout/Footer.svelte";
   import type { ContentEntry } from "$lib/content-registry";
 
-  type ContentKind = "Blog" | "Docs";
+  type ContentKind = "News" | "Docs";
 
   let {
     entries,
@@ -55,7 +55,7 @@
               <div>
                 <div class="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.16em] text-night/40">
                   <span class="inline-flex items-center gap-2">
-                    {#if kind === "Blog"}
+                    {#if kind === "News"}
                       <CalendarDays size={13} strokeWidth={1.5} />
                     {:else}
                       <BookOpen size={13} strokeWidth={1.5} />
@@ -70,7 +70,7 @@
                 <p class="mt-4 max-w-md text-sm leading-7 text-night/50">{entry.description}</p>
               </div>
               <div class="mt-10 flex items-center justify-between border-t border-night/10 pt-4 text-sm text-night/45 transition group-hover:text-night">
-                <span>{kind === "Blog" ? "記事を読む" : "ドキュメントを読む"}</span>
+                <span>{kind === "News" ? "記事を読む" : "ドキュメントを読む"}</span>
                 <ArrowUpRight size={17} strokeWidth={1.5} class="transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </div>
             </a>

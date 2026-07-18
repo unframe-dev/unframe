@@ -4,7 +4,7 @@ import { buildContentRegistry, type ContentEntry, type ContentModule } from "./c
 type ContentComponent = Component;
 type ContentFile = ContentModule<ContentComponent>;
 
-const blogModules = import.meta.glob("/src/content/blog/*.mdx", { eager: true }) as Record<
+const newsModules = import.meta.glob("/src/content/news/*.mdx", { eager: true }) as Record<
   string,
   ContentFile
 >;
@@ -13,5 +13,5 @@ const docsModules = import.meta.glob("/src/content/docs/*.mdx", { eager: true })
   ContentFile
 >;
 
-export const blogEntries: ContentEntry<ContentComponent>[] = buildContentRegistry(blogModules);
+export const newsEntries: ContentEntry<ContentComponent>[] = buildContentRegistry(newsModules);
 export const docsEntries: ContentEntry<ContentComponent>[] = buildContentRegistry(docsModules);

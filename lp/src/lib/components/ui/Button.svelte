@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
 
-  type Variant = "primary" | "outline" | "quiet";
+  type Variant = "primary" | "accent" | "outline" | "quiet";
   type Size = "sm" | "md" | "lg";
 
   type ButtonProps = {
@@ -25,6 +25,8 @@
   const variants: Record<Variant, string> = {
     primary:
       "border-transparent bg-night text-white hover:-translate-y-0.5 hover:bg-brand-red",
+    accent:
+      "border-transparent bg-brand-red text-white hover:-translate-y-0.5 hover:bg-brand-red",
     outline:
       "border-current/25 bg-transparent text-current hover:-translate-y-0.5 hover:border-brand-purple hover:text-brand-purple",
     quiet:

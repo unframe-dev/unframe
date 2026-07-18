@@ -80,7 +80,11 @@
             class="absolute inset-6 rounded-full border border-brand-blue/30"
         ></div>
         <div
-            class="absolute -left-1 top-1/2 h-2 w-2 rounded-full bg-brand-blue shadow-[0_0_20px_4px_rgba(113,135,245,0.5)]"
-        ></div>
+            class="absolute inset-0 motion-safe:animate-[spin_24s_linear_infinite]"
+        >
+            <div
+                class="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-brand-blue shadow-[0_0_20px_4px_rgba(113,135,245,0.5)]"
+            ></div>
+        </div>
     </div>
 </section>
