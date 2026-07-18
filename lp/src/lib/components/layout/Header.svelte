@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ArrowUpRight, Menu, X } from "@lucide/svelte";
+  import AnimatedIcon from "../AnimatedIcon.svelte";
   import Button from "../ui/Button.svelte";
-  import Logo from "../brand/Logo.svelte";
 
   let menuOpen = $state(false);
 
