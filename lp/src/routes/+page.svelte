@@ -1,5 +1,5 @@
 <script lang="ts">
-  import CTA from "$lib/components/sections/CTA.svelte";
+  // import CTA from "$lib/components/sections/CTA.svelte";
   import Concept from "$lib/components/sections/Concept.svelte";
   import Features from "$lib/components/sections/Features.svelte";
   import Hero from "$lib/components/sections/Hero.svelte";
@@ -27,7 +27,7 @@
   <ProductDemo />
   <UseCases />
   <Vision />
-  <CTA />
+  <!-- <CTA /> -->
 </main>
 
 <Footer />
