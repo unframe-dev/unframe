@@ -2,6 +2,7 @@ export type ContentMetadata = {
   title: string;
   description: string;
   order: number;
+  publishedAt?: string;
 };
 
 type ContentModuleMetadata = Omit<ContentMetadata, "description"> & {
@@ -22,8 +23,9 @@ export function buildContentRegistry<TComponent>(
   modules: Record<string, ContentModule<TComponent>>,
 ): ContentEntry<TComponent>[] {
   const entries = Object.entries(modules).map(([path, module]) => {
-    if (!path.endsWith(".md")) {
-      throw new Error(`Unsupported content file: ${path}. Only Markdown files are supported.`);
+    const extension = path.endsWith(".mdx") ? ".mdx" : path.endsWith(".md") ? ".md" : undefined;
+    if (!extension) {
+      throw new Error(`Unsupported content file: ${path}. Only Markdown or MDX files are supported.`);
     }
 
     const metadata = module.metadata;
@@ -35,12 +37,12 @@ export function buildContentRegistry<TComponent>(
     }
 
     const filename = path.split("/").at(-1) ?? "";
-    const slug = filename.slice(0, -3);
     return {
       title: metadata.title,
       description: metadata.description,
       order: metadata.order,
-      slug,
+      ...(metadata.publishedAt ? { publishedAt: metadata.publishedAt } : {}),
+      slug: filename.slice(0, -extension.length),
       component: module.default,
     };
   });

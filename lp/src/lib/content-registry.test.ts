@@ -6,7 +6,7 @@ const component = {} as never;
 
 test("buildContentRegistry derives slugs and sorts validated metadata", () => {
   const registry = buildContentRegistry({
-    "/src/content/editor-guide.md": {
+    "/src/content/editor-guide.mdx": {
       default: component,
       metadata: { title: "Editor guide", description: "Edit spatial slides", order: 2 },
     },
@@ -23,6 +23,17 @@ test("buildContentRegistry derives slugs and sorts validated metadata", () => {
       { slug: "editor-guide", title: "Editor guide", order: 2 },
     ],
   );
+});
+
+test("buildContentRegistry accepts MDX files and removes the MDX extension", () => {
+  const registry = buildContentRegistry({
+    "/src/content/welcome.mdx": {
+      default: component,
+      metadata: { title: "Welcome", description: "Start here", order: 1 },
+    },
+  });
+
+  assert.equal(registry[0]?.slug, "welcome");
 });
 
 test("buildContentRegistry rejects invalid, duplicate, and unsupported content", () => {
@@ -58,6 +69,6 @@ test("buildContentRegistry rejects invalid, duplicate, and unsupported content",
           metadata: { title: "Text", description: "Text", order: 1 },
         },
       }),
-    /Markdown/,
+    /Markdown or MDX/,
   );
 });
