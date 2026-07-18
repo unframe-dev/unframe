@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "noEmit": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client", "@cloudflare/workers-types"]
   },
-  "include": ["src", "worker", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "worker", "worker-configuration.d.ts", "vite.config.ts", "vitest.config.ts"]
 }

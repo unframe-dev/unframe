@@ -11,7 +11,7 @@
     "test:e2e": "playwright test",
     "preview": "vp preview",
     "cf:dev": "wrangler dev",
-    "cf:types": "wrangler types"
+    "cf:types": "wrangler types --include-runtime=false --env-interface CloudflareBindings"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.45.1",
-    "@cloudflare/workers-types": "5.20260714.1",
+    "@cloudflare/workers-types": "5.20260718.1",
     "@playwright/test": "1.61.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
