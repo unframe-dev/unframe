@@ -16,19 +16,19 @@
         <span class="text-gradient text-xs font-medium">/ 01</span>
         <h3 class="mt-24 text-2xl font-medium tracking-[-0.045em]">空間で語る</h3>
         <p class="mt-4 max-w-xs text-sm leading-7 text-muted">複雑なシステムに余白を与え、要素同士のつながりを見せる。</p>
-        <a class="mt-8 inline-flex items-center gap-2 text-xs font-medium text-night/55 transition group-hover:text-brand-purple" href="#contact">クリエイター向け <ArrowUpRight size={14} strokeWidth={1.4} /></a>
+        <a class="mt-8 inline-flex items-center gap-2 text-xs font-medium text-night/55 transition group-hover:text-brand-purple" aria-disabled="true">クリエイター向け <ArrowUpRight size={14} strokeWidth={1.4} /></a>
       </article>
       <article class="group border-b border-line py-8 md:border-b-0 md:border-r md:px-10">
         <span class="text-gradient text-xs font-medium">/ 02</span>
         <h3 class="mt-24 text-2xl font-medium tracking-[-0.045em]">リアルタイムの協働</h3>
         <p class="mt-4 max-w-xs text-sm leading-7 text-muted">同じ視点を共有することから、よりよい対話を始める。</p>
-        <a class="mt-8 inline-flex items-center gap-2 text-xs font-medium text-night/55 transition group-hover:text-brand-purple" href="#contact">チーム向け <ArrowUpRight size={14} strokeWidth={1.4} /></a>
+        <a class="mt-8 inline-flex items-center gap-2 text-xs font-medium text-night/55 transition group-hover:text-brand-purple" aria-disabled="true">チーム向け <ArrowUpRight size={14} strokeWidth={1.4} /></a>
       </article>
       <article class="group py-8 md:pl-10">
         <span class="text-gradient text-xs font-medium">/ 03</span>
         <h3 class="mt-24 text-2xl font-medium tracking-[-0.045em]">没入型の学び</h3>
         <p class="mt-4 max-w-xs text-sm leading-7 text-muted">抽象的な情報を、人が歩き回り、記憶できるものへ変える。</p>
-        <a class="mt-8 inline-flex items-center gap-2 text-xs font-medium text-night/55 transition group-hover:text-brand-purple" href="#contact">教育向け <ArrowUpRight size={14} strokeWidth={1.4} /></a>
+        <a class="mt-8 inline-flex items-center gap-2 text-xs font-medium text-night/55 transition group-hover:text-brand-purple" aria-disabled="true">教育向け <ArrowUpRight size={14} strokeWidth={1.4} /></a>
       </article>
     </div>
   </div>
