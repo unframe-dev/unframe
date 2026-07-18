@@ -25,6 +25,51 @@ body {
   transform: translateY(0);
 }
 
+.viewport-loading,
+.viewport-error,
+.viewport-text {
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
+  color: #fff;
+  background: rgb(18 20 29 / 88%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
+  font:
+    600 13px/1.4 Inter,
+    system-ui,
+    sans-serif;
+  white-space: nowrap;
+}
+
+.viewport-loading,
+.viewport-text {
+  padding: 8px 12px;
+}
+
+.viewport-error {
+  display: grid;
+  gap: 6px;
+  min-width: 240px;
+  padding: 14px;
+  white-space: normal;
+}
+
+.viewport-error span {
+  color: #c9ccda;
+  font-weight: 400;
+}
+
+.viewport-error button {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #8c86ff;
+  border-radius: 6px;
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

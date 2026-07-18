@@ -1,5 +1,6 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
+import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "../providers/app-providers";
@@ -54,6 +55,23 @@ describe("web editor routes", () => {
         name: "Unframe sculpture のプロパティ",
       }),
     ).toBeInTheDocument();
+
+    const properties = screen.getByRole("complementary", {
+      name: "プロパティ",
+    });
+    const positionX = within(properties).getAllByRole("spinbutton", {
+      name: "X",
+    })[0];
+    if (!positionX) throw new Error("Position X input is missing");
+    await user.clear(positionX);
+    await user.type(positionX, "2");
+    await user.click(within(properties).getByRole("button", { name: "変形を適用" }));
+
+    expect(screen.getByText("Revision 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "元に戻す" })).toBeEnabled();
+
+    await user.keyboard("{Control>}z{/Control}");
+    expect(screen.getByText("Revision 2")).toBeInTheDocument();
   });
 
   it("keeps the viewer read-only on a direct route", async () => {

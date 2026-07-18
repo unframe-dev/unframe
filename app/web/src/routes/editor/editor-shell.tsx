@@ -27,6 +27,7 @@ import { PropertiesPanel } from "../../editor/panels/properties-panel";
 import { SlideNavigator } from "../../editor/panels/slide-navigator";
 import { useEditorSession } from "../../editor/session/editor-session-context";
 import type { EditorTool } from "../../editor/session/editor-session";
+import { useEditorShortcuts } from "../../editor/shortcuts/use-editor-shortcuts";
 import { EditorViewport } from "../../editor/viewport/editor-viewport";
 
 const toolOptions: Array<{ value: EditorTool; label: string; icon: React.ReactNode }> = [
@@ -42,6 +43,7 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
   const setTool = useEditorSession((state) => state.setTool);
   const showGrid = useEditorSession((state) => state.showGrid);
   const setShowGrid = useEditorSession((state) => state.setShowGrid);
+  useEditorShortcuts();
   const syncLabel =
     syncStatus === "ready"
       ? "ブラウザ内共有: 待機中"

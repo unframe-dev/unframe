@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
 import {
   Link,
   Outlet,
@@ -8,10 +8,31 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 import { z } from "zod";
+import { lazy, Suspense } from "react";
 import { loadPresentationSnapshot } from "../runtime/document-runtime";
-import { EditorPage } from "../../routes/editor/editor-page";
 import { HomePage } from "../../routes/home/home-page";
-import { ViewerPage } from "../../routes/viewer/viewer-page";
+
+const EditorPage = lazy(() =>
+  import("../../routes/editor/editor-page").then((module) => ({
+    default: module.EditorPage,
+  })),
+);
+const ViewerPage = lazy(() =>
+  import("../../routes/viewer/viewer-page").then((module) => ({
+    default: module.ViewerPage,
+  })),
+);
+
+function RoutePending() {
+  return (
+    <Box sx={{ minHeight: "100dvh", display: "grid", placeItems: "center" }}>
+      <Stack spacing={1.5} sx={{ alignItems: "center" }}>
+        <CircularProgress size={28} />
+        <Typography color="text.secondary">プレゼンテーションを準備中…</Typography>
+      </Stack>
+    </Box>
+  );
+}
 
 function RootLayout() {
   return (
@@ -90,7 +111,11 @@ const editorRoute = createRoute({
 function EditorRouteComponent() {
   const document = editorRoute.useLoaderData();
   const { panel } = editorRoute.useSearch();
-  return <EditorPage document={document} panel={panel} />;
+  return (
+    <Suspense fallback={<RoutePending />}>
+      <EditorPage document={document} panel={panel} />
+    </Suspense>
+  );
 }
 
 const viewerRoute = createRoute({
@@ -101,7 +126,11 @@ const viewerRoute = createRoute({
 });
 
 function ViewerRouteComponent() {
-  return <ViewerPage document={viewerRoute.useLoaderData()} />;
+  return (
+    <Suspense fallback={<RoutePending />}>
+      <ViewerPage document={viewerRoute.useLoaderData()} />
+    </Suspense>
+  );
 }
 
 const routeTree = rootRoute.addChildren([indexRoute, editorRoute, viewerRoute]);

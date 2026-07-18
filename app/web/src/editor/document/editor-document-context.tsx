@@ -40,15 +40,28 @@ export function EditorDocumentProvider({
 }>) {
   const [history, setHistory] = useState(() => createHistoryState(initialDocument));
   const historyRef = useRef(history);
+  const publishQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingPublicationsRef = useRef(0);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("ready");
 
   const publish = useCallback(
     (before: PresentationDocument, command: EditorCommand) => {
       setSyncStatus("publishing");
-      void stream
-        .publish(createDocumentEvent(before, command))
-        .then(() => setSyncStatus("ready"))
-        .catch(() => setSyncStatus("error"));
+      pendingPublicationsRef.current += 1;
+      const event = createDocumentEvent(before, command);
+      const publication = publishQueueRef.current
+        .catch(() => undefined)
+        .then(() => stream.publish(event));
+      publishQueueRef.current = publication;
+      void publication
+        .then(() => {
+          pendingPublicationsRef.current -= 1;
+          if (pendingPublicationsRef.current === 0) setSyncStatus("ready");
+        })
+        .catch(() => {
+          pendingPublicationsRef.current -= 1;
+          setSyncStatus("error");
+        });
     },
     [stream],
   );
