@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
+    "dev:e2e": "vite --mode e2e --host 127.0.0.1 --port 4173",
     "build": "vp build",
     "check": "tsc --noEmit",
     "test": "vp test run",

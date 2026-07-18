@@ -5,5 +5,13 @@
     "noEmit": true,
     "types": ["node", "vite/client", "@cloudflare/workers-types"]
   },
-  "include": ["src", "worker", "worker-configuration.d.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "e2e",
+    "worker",
+    "worker-configuration.d.ts",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

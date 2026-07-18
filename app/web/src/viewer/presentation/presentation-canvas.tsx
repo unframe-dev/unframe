@@ -151,7 +151,7 @@ function ModelObject({
   editor: EditorCanvasProps | null;
   onDraggingChange: (dragging: boolean) => void;
 }) {
-  const group = useRef<Group>(null);
+  const group = useRef<Group>(null!);
   const dragStart = useRef<Transform | null>(null);
   const [dragging, setDragging] = useState(false);
   const url = resolver.resolve(element.assetId);
@@ -227,16 +227,18 @@ function ModelObject({
   }
 
   return (
-    <TransformControls
-      mode={editor.tool}
-      translationSnap={editor.snap.enabled ? editor.snap.translation : null}
-      rotationSnap={editor.snap.enabled ? MathUtils.degToRad(editor.snap.rotationDegrees) : null}
-      scaleSnap={editor.snap.enabled ? editor.snap.scale : null}
-      onMouseDown={beginDrag}
-      onMouseUp={finishDrag}
-    >
+    <>
       {object}
-    </TransformControls>
+      <TransformControls
+        object={group}
+        mode={editor.tool}
+        translationSnap={editor.snap.enabled ? editor.snap.translation : null}
+        rotationSnap={editor.snap.enabled ? MathUtils.degToRad(editor.snap.rotationDegrees) : null}
+        scaleSnap={editor.snap.enabled ? editor.snap.scale : null}
+        onMouseDown={beginDrag}
+        onMouseUp={finishDrag}
+      />
+    </>
   );
 }
 

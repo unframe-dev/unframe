@@ -1,7 +1,7 @@
 name: Web
 
 # app/web (React 動的編集エディタ) の品質ゲート。ci.yml から呼ばれる reusable workflow。
-# 現行は app/web 未実装のため nix run .#web はスキップする (ADR-0004 follow-up)。
+# unit/build gate と Playwright E2E を分けて実行する。
 on:
   workflow_call:
   workflow_dispatch:
@@ -23,5 +23,11 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium
+        run: nix develop --command pnpm --filter @unframe/web exec playwright install --with-deps chromium
+
       - name: check / test / build
         run: nix run .#web
+
+      - name: Playwright E2E
+        run: nix develop --command pnpm --filter @unframe/web run test:e2e
