@@ -31,8 +31,9 @@
           {link.label}
         </a>
       {/each}
-      <Button href="/signup" size="sm" variant="primary">
-          試してみる
+      <!-- href="/signup" -->
+      <Button size="sm" variant="primary">
+        試してみる
         <ArrowUpRight size={14} strokeWidth={1.8} />
       </Button>
     </nav>
@@ -61,8 +62,9 @@
           onclick={() => (menuOpen = false)}
         >{link.label}</a>
       {/each}
-      <Button href="/signup" size="sm" variant="accent" class="mt-2 w-full">
-          試してみる
+      <!-- href="/signup" -->
+      <Button size="sm" variant="accent" class="mt-2 w-full">
+        試してみる
         <ArrowUpRight size={14} strokeWidth={1.8} />
       </Button>
     </nav>
