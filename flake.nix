@@ -7,7 +7,11 @@
   };
 
   outputs =
-    { self, nixpkgs, flake-utils }:
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -31,6 +35,18 @@
           pkgs.bash
         ];
 
+        # Vite+ の管理ランタイムは NixOS 用にパッチされていないため、
+        # Linux では nix-ld 経由で GNU 動的リンカーを使用する。
+        # /lib64 の shim 自体は NixOS 側の programs.nix-ld.enable で有効化する。
+        nixLdPackages = pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.nix-ld ];
+        nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
+          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+            pkgs.glibc
+            pkgs.stdenv.cc.cc
+          ];
+        };
+
         # scripts/ の実処理を flake app としてラップする。
         # flake.nix は依存・公開名・接続のみを持ち、ロジックは scripts/ 側にある。
         mkApp =
@@ -51,16 +67,19 @@
           };
       in
       {
-        devShells.default = pkgs.mkShell {
-          packages = toolchain;
-          # nix develop 突入時に git hooks を有効化する (実体は scripts/dev/install-hooks.sh)。
-          shellHook = ''
-            root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-            if [ -n "''${root}" ] && [ -x "''${root}/scripts/dev/install-hooks.sh" ]; then
-              "''${root}/scripts/dev/install-hooks.sh" || true
-            fi
-          '';
-        };
+        devShells.default = pkgs.mkShell (
+          {
+            packages = toolchain ++ nixLdPackages;
+            # nix develop 突入時に git hooks を有効化する (実体は scripts/dev/install-hooks.sh)。
+            shellHook = ''
+              root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+              if [ -n "''${root}" ] && [ -x "''${root}/scripts/dev/install-hooks.sh" ]; then
+                "''${root}/scripts/dev/install-hooks.sh" || true
+              fi
+            '';
+          }
+          // nixLdEnvironment
+        );
 
         # 手動で叩く操作。実体は scripts/ にある。
         apps = {
