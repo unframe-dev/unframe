@@ -15,9 +15,11 @@
         </p>
       </div>
       <div class="flex flex-wrap gap-x-10 gap-y-4 text-xs tracking-[0.08em] text-night/55">
-        <a class="transition hover:text-night" href="#concept">Concept</a>
-        <a class="transition hover:text-night" href="#features">Features</a>
-        <a class="transition hover:text-night" href="#vision">Vision</a>
+        <a class="transition hover:text-night" href="/#concept">Concept</a>
+        <a class="transition hover:text-night" href="/#features">Features</a>
+        <a class="transition hover:text-night" href="/#vision">Vision</a>
+        <a class="transition hover:text-night" href="/blog/">Blog</a>
+        <a class="transition hover:text-night" href="/docs/">Docs</a>
         <a class="inline-flex items-center gap-2 transition hover:text-night" href="mailto:hello@unframe.dev">
           <Mail size={14} strokeWidth={1.5} /> お問い合わせ
         </a>

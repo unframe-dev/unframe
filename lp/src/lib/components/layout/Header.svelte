@@ -6,9 +6,11 @@
   let menuOpen = $state(false);
 
   const links = [
-    { label: "コンセプト", href: "#concept" },
-    { label: "特徴", href: "#features" },
-    { label: "ビジョン", href: "#vision" },
+    { label: "コンセプト", href: "/#concept" },
+    { label: "特徴", href: "/#features" },
+    { label: "ビジョン", href: "/#vision" },
+    { label: "Blog", href: "/blog/" },
+    { label: "Docs", href: "/docs/" },
   ];
 </script>
 
@@ -22,7 +24,7 @@
           {link.label}
         </a>
       {/each}
-      <Button href="#contact" size="sm" variant="primary">
+      <Button href="/#contact" size="sm" variant="primary">
         話してみる
         <ArrowUpRight size={14} strokeWidth={1.8} />
       </Button>
@@ -52,7 +54,7 @@
           onclick={() => (menuOpen = false)}
         >{link.label}</a>
       {/each}
-      <Button href="#contact" size="sm" class="mt-2 w-full">
+      <Button href="/#contact" size="sm" class="mt-2 w-full">
         話してみる
         <ArrowUpRight size={14} strokeWidth={1.8} />
       </Button>

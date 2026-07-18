@@ -78,6 +78,40 @@ a {
   pointer-events: none;
 }
 
+.article-prose {
+  color: color-mix(in srgb, var(--color-night) 72%, transparent);
+  font-size: 1.05rem;
+  line-height: 2;
+}
+
+.article-prose h2 {
+  color: var(--color-night);
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  margin: 3.5rem 0 1rem;
+}
+
+.article-prose p {
+  margin: 1.25rem 0;
+}
+
+.article-prose strong {
+  color: var(--color-night);
+  font-weight: 600;
+}
+
+.article-prose ol,
+.article-prose ul {
+  margin: 1.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.article-prose li {
+  padding-left: 0.4rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
