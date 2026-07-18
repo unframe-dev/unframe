@@ -49,6 +49,9 @@ claims against the implementation, scripts, and CI before relying on them.
 ## General Principles
 
 - Make the smallest change necessary to satisfy the task.
+- The project is under active development. Do not avoid necessary breaking
+  changes solely to preserve compatibility with unfinished behavior; prefer a
+  clean and correct design.
 - Preserve existing architecture and naming conventions.
 - Do not introduce new abstractions without a concrete current use case.
 - Do not perform unrelated refactoring while implementing a requested change.
@@ -304,9 +307,9 @@ hook does not itself enforce Conventional Commits, commit scopes, Japanese
 descriptions, or release metadata.
 
 Unless the user explicitly asks for a commit, leave changes uncommitted. Before
-any requested commit, inspect the worktree and staged diff. After committing,
-inspect the resulting commit and status because hooks or automation may alter
-the commit message.
+any requested commit, run the relevant lint checks and ensure they pass, then
+inspect the worktree and staged diff. After committing, inspect the resulting
+commit and status because hooks or automation may alter the commit message.
 
 ## Dependencies
 
