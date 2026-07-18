@@ -1,16 +1,17 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { describe, expect, it } from "vitest";
 import { addSlide, createInitialEditorState } from "./editor";
 
-test("editor starts with one slide", () => {
-  assert.deepEqual(createInitialEditorState(), {
-    title: "Untitled presentation",
-    slideCount: 1,
+describe("editor scaffold", () => {
+  it("starts with one slide", () => {
+    expect(createInitialEditorState()).toEqual({
+      title: "Untitled presentation",
+      slideCount: 1,
+    });
   });
-});
 
-test("adding a slide preserves the current title", () => {
-  const state = { title: "Demo", slideCount: 2 };
+  it("preserves the current title when adding a slide", () => {
+    const state = { title: "Demo", slideCount: 2 };
 
-  assert.deepEqual(addSlide(state), { title: "Demo", slideCount: 3 });
+    expect(addSlide(state)).toEqual({ title: "Demo", slideCount: 3 });
+  });
 });

@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "unframe-web-editor",
+  "compatibility_date": "2026-07-19",
+  "assets": {
+    "not_found_handling": "single-page-application"
+  }
+}
