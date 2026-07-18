@@ -38,23 +38,23 @@ API接続までは、インメモリfixtureとブラウザ内のadapterを利用
 
 ## 採用技術
 
-| 領域 | 技術 | 方針 |
-| --- | --- | --- |
-| UI | React 19.2 + TypeScript | `strict`、`noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`を維持する |
-| Component | Material UI v9 | toolbar、panel、dialog、formなどEditor shellに使用する |
-| Styling | MUI Theme + `sx` + `styled()` | Tailwindは導入しない |
-| Development | Vite+ | dev、build、format、lint、testの統合を進める |
-| Routing | TanStack Router | route paramsとsearch paramsを型安全に管理する |
-| Server state | TanStack Query | 将来のAPI取得、保存、cache、再取得に限定する |
-| Editor session | Zustand | selection、tool、panel、snap、viewport設定を管理する |
-| Document validation | Zod 4 | document schema、serializer、migration境界を検証する |
-| Form | React Hook Form | property panelと設定画面に使用する |
-| Immutable update | Immer | command reducerの実装に使用する |
-| 3D | Three.js + React Three Fiber | GLBを正規3D形式として表示・編集する |
-| 3D helpers | `@react-three/drei` | controls、loader、gizmoなど必要な機能に限定して利用する |
-| Unit / Component test | Vitest + Testing Library | pure domain logicとReact UIを検証する |
-| E2E | Playwright | 実際の編集操作、Undo / Redo、閲覧同期、deep linkを検証する |
-| Hosting | Cloudflare Workers Static Assets | `un-fra.me/editor`配下にSPAとして配信する |
+| 領域                  | 技術                             | 方針                                                                         |
+| --------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
+| UI                    | React 19.2 + TypeScript          | `strict`、`noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`を維持する |
+| Component             | Material UI v9                   | toolbar、panel、dialog、formなどEditor shellに使用する                       |
+| Styling               | MUI Theme + `sx` + `styled()`    | Tailwindは導入しない                                                         |
+| Development           | Vite+                            | dev、build、format、lint、testの統合を進める                                 |
+| Routing               | TanStack Router                  | route paramsとsearch paramsを型安全に管理する                                |
+| Server state          | TanStack Query                   | 将来のAPI取得、保存、cache、再取得に限定する                                 |
+| Editor session        | Zustand                          | selection、tool、panel、snap、viewport設定を管理する                         |
+| Document validation   | Zod 4                            | document schema、serializer、migration境界を検証する                         |
+| Form                  | React Hook Form                  | property panelと設定画面に使用する                                           |
+| Immutable update      | Immer                            | command reducerの実装に使用する                                              |
+| 3D                    | Three.js + React Three Fiber     | GLBを正規3D形式として表示・編集する                                          |
+| 3D helpers            | `@react-three/drei`              | controls、loader、gizmoなど必要な機能に限定して利用する                      |
+| Unit / Component test | Vitest + Testing Library         | pure domain logicとReact UIを検証する                                        |
+| E2E                   | Playwright                       | 実際の編集操作、Undo / Redo、閲覧同期、deep linkを検証する                   |
+| Hosting               | Cloudflare Workers Static Assets | `un-fra.me/editor`配下にSPAとして配信する                                    |
 
 ## 依存関係の導入方針
 
@@ -137,13 +137,13 @@ Web側にAPI DTOから独立したドメインモデルを定義する。
 
 ```ts
 type PresentationDocument = {
-  version: 1
-  id: string
-  revision: number
-  metadata: PresentationMetadata
-  slides: Slide[]
-  assets: AssetReference[]
-}
+  version: 1;
+  id: string;
+  revision: number;
+  metadata: PresentationMetadata;
+  slides: Slide[];
+  assets: AssetReference[];
+};
 ```
 
 ### モデル規約
@@ -198,7 +198,7 @@ type EditorCommand =
   | { type: "element.remove"; slideId: string; elementId: string }
   | { type: "element.transform"; elementId: string; transform: Transform }
   | { type: "element.update"; elementId: string; changes: ElementChanges }
-  | { type: "slide.reorder"; slideId: string; toIndex: number }
+  | { type: "slide.reorder"; slideId: string; toIndex: number };
 ```
 
 ### Command適用規則
@@ -239,9 +239,9 @@ Viewer reducer
 
 ```ts
 interface DocumentStream {
-  loadSnapshot(id: string): Promise<DocumentSnapshot>
-  publish(event: DocumentEvent): Promise<void>
-  subscribe(id: string, listener: Listener): Unsubscribe
+  loadSnapshot(id: string): Promise<DocumentSnapshot>;
+  publish(event: DocumentEvent): Promise<void>;
+  subscribe(id: string, listener: Listener): Unsubscribe;
 }
 ```
 

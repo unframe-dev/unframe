@@ -62,22 +62,22 @@ LP はブランドの思想を伝える編集的な紙面です。Web は長時�
 
 合意済みの構成は次のとおりです。
 
-| 領域 | 採用技術 |
-| --- | --- |
-| UI runtime | React 19.2 |
-| 言語 | TypeScript strict |
-| Component library | MUI v9 |
-| Build tool | Vite+ |
-| Routing | TanStack Router |
-| Server state | TanStack Query |
-| Editor session | Zustand vanilla store |
-| Validation | Zod 4 |
-| Form | React Hook Form |
-| Immutable update | Immer |
-| 3D | Three.js、React Three Fiber、drei |
-| Unit / Component test | Vitest、Testing Library |
-| E2E | Playwright |
-| Canonical 3D format | GLB |
+| 領域                  | 採用技術                          |
+| --------------------- | --------------------------------- |
+| UI runtime            | React 19.2                        |
+| 言語                  | TypeScript strict                 |
+| Component library     | MUI v9                            |
+| Build tool            | Vite+                             |
+| Routing               | TanStack Router                   |
+| Server state          | TanStack Query                    |
+| Editor session        | Zustand vanilla store             |
+| Validation            | Zod 4                             |
+| Form                  | React Hook Form                   |
+| Immutable update      | Immer                             |
+| 3D                    | Three.js、React Three Fiber、drei |
+| Unit / Component test | Vitest、Testing Library           |
+| E2E                   | Playwright                        |
+| Canonical 3D format   | GLB                               |
 
 React 19.2 と MUI v9 は明示的に指定します。依存パッケージは基盤工程でまとめて導入し、Cloudflare Vite plugin は Vite+ との互換性を build で確認します。互換性に問題がある場合は plugin を外し、Wrangler Static Assets を使用します。
 
@@ -170,11 +170,11 @@ app/web/src/
 
 Web は `un-fra.me/editor` 配下に SPA として配信します。
 
-| Route | 役割 |
-| --- | --- |
-| `/editor/` | Home またはプレゼンテーション選択への入口 |
-| `/editor/presentations/$presentationId/edit` | 編集者向け Editor |
-| `/editor/presentations/$presentationId/view` | 読み取り専用 Viewer |
+| Route                                        | 役割                                      |
+| -------------------------------------------- | ----------------------------------------- |
+| `/editor/`                                   | Home またはプレゼンテーション選択への入口 |
+| `/editor/presentations/$presentationId/edit` | 編集者向け Editor                         |
+| `/editor/presentations/$presentationId/view` | 読み取り専用 Viewer                       |
 
 - TanStack Router に `basepath: "/editor"` を設定する
 - Vite に `base: "/editor/"` を設定する
@@ -188,13 +188,13 @@ Web は `un-fra.me/editor` 配下に SPA として配信します。
 
 状態は次の所有境界に分けます。
 
-| 状態 | 所有者 | 主な内容 |
-| --- | --- | --- |
-| Server State | TanStack Query | 将来の API 接続、保存状態、asset metadata |
-| Editor Document | React reducer + pure command functions | presentation、slides、elements、assets、revision、history |
-| Editor Session | Zustand vanilla store | selection、tool、panel、snap、preview、viewport 設定 |
-| Transient 3D State | Three.js refs / component local state | ドラッグ中 transform、hover、camera 操作、gizmo |
-| Temporary UI | React local state / React Hook Form | dialog、menu、未確定フォーム入力 |
+| 状態               | 所有者                                 | 主な内容                                                  |
+| ------------------ | -------------------------------------- | --------------------------------------------------------- |
+| Server State       | TanStack Query                         | 将来の API 接続、保存状態、asset metadata                 |
+| Editor Document    | React reducer + pure command functions | presentation、slides、elements、assets、revision、history |
+| Editor Session     | Zustand vanilla store                  | selection、tool、panel、snap、preview、viewport 設定      |
+| Transient 3D State | Three.js refs / component local state  | ドラッグ中 transform、hover、camera 操作、gizmo           |
+| Temporary UI       | React local state / React Hook Form    | dialog、menu、未確定フォーム入力                          |
 
 ### Server State
 
@@ -331,13 +331,13 @@ Home は Editor への入口です。API 統合前は、実装済み fixture ま
 
 Editor は次の領域で構成します。
 
-| 領域 | 役割 |
-| --- | --- |
+| 領域              | 役割                                                             |
+| ----------------- | ---------------------------------------------------------------- |
 | App bar / Toolbar | presentation 名、主要 tool、Undo / Redo、preview、保存・同期状態 |
-| Slide navigator | slide の選択、追加、並べ替え |
-| 3D Viewport | scene 表示、選択、camera、gizmo 操作 |
-| Properties panel | 選択対象の検証付き属性編集 |
-| Status / Feedback | loading、error、同期、ショートカット結果の通知 |
+| Slide navigator   | slide の選択、追加、並べ替え                                     |
+| 3D Viewport       | scene 表示、選択、camera、gizmo 操作                             |
+| Properties panel  | 選択対象の検証付き属性編集                                       |
+| Status / Feedback | loading、error、同期、ショートカット結果の通知                   |
 
 領域の具体的な幅、色、spacing は MUI theme と Editor のプロトタイプ検証後にトークンとして定義します。初期 scaffold のハードコード値を正式トークンとして引き継ぎません。
 
@@ -510,15 +510,15 @@ Viewer は mobile viewport を正式な対象とします。
 
 エラーは発生元と回復方法に応じて表示場所を分けます。
 
-| エラー | 表示と回復 |
-| --- | --- |
-| Route / presentation 不明 | page-level error と有効な戻り先 |
-| Snapshot 読み込み失敗 | main content 内の retry |
-| revision 欠番 | 再同期中表示後に snapshot 再取得 |
-| GLB 読み込み失敗 | Viewport 内 fallback と retry / replace |
-| WebGL 利用不可 | Viewport の代替説明 |
-| Property validation | field 単位の error と未確定値保持 |
-| Publish 失敗 | Editor の同期状態と再試行方針 |
+| エラー                    | 表示と回復                              |
+| ------------------------- | --------------------------------------- |
+| Route / presentation 不明 | page-level error と有効な戻り先         |
+| Snapshot 読み込み失敗     | main content 内の retry                 |
+| revision 欠番             | 再同期中表示後に snapshot 再取得        |
+| GLB 読み込み失敗          | Viewport 内 fallback と retry / replace |
+| WebGL 利用不可            | Viewport の代替説明                     |
+| Property validation       | field 単位の error と未確定値保持       |
+| Publish 失敗              | Editor の同期状態と再試行方針           |
 
 予期しない例外は route または主要領域の error boundary で捕捉します。エラー時に document を初期値で上書きせず、保存されていない変更がある場合はその状態を明示します。
 
