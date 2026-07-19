@@ -1,5 +1,6 @@
 import LayersRounded from "@mui/icons-material/LayersRounded";
 import { Box, Divider, List, ListItemButton, ListItemText, Stack, Typography } from "@mui/material";
+import { brandColors } from "../../app/theme/theme";
 import { useEditorDocument } from "../document/editor-document-context";
 import { useEditorSession } from "../session/editor-session-context";
 
@@ -13,9 +14,9 @@ export function SlideNavigator() {
   return (
     <Box component="nav" aria-label="スライドと要素" sx={{ minWidth: 0 }}>
       <Stack direction="row" spacing={1} sx={{ px: 2, py: 1.75, alignItems: "center" }}>
-        <LayersRounded fontSize="small" color="action" />
-        <Typography component="h2" variant="h2">
-          スライド
+        <LayersRounded fontSize="small" sx={{ color: brandColors.blue }} />
+        <Typography component="h2" variant="h2" sx={{ fontSize: 12, letterSpacing: "0.08em" }}>
+          スライド / SCENES
         </Typography>
       </Stack>
       <Divider />
@@ -25,7 +26,15 @@ export function SlideNavigator() {
             <ListItemButton
               selected={slide.id === activeSlideId}
               onClick={() => setActiveSlide(slide.id)}
-              sx={{ py: 1.5 }}
+              sx={{
+                py: 1.5,
+                borderLeft: "3px solid transparent",
+                "&.Mui-selected": {
+                  borderLeftColor: brandColors.purple,
+                  bgcolor: "rgba(154, 128, 208, 0.11)",
+                },
+                "&.Mui-selected:hover": { bgcolor: "rgba(154, 128, 208, 0.16)" },
+              }}
             >
               <ListItemText
                 primary={`${String(index + 1).padStart(2, "0")}  ${slide.name}`}
@@ -44,7 +53,16 @@ export function SlideNavigator() {
                     selected={element.id === selectedElementId}
                     onClick={() => selectElement(element.id)}
                     aria-label={`${element.name}を選択`}
-                    sx={{ pl: 4, minHeight: 40 }}
+                    sx={{
+                      pl: 4,
+                      minHeight: 40,
+                      borderLeft: "3px solid transparent",
+                      "&.Mui-selected": {
+                        borderLeftColor: brandColors.blue,
+                        bgcolor: "rgba(113, 135, 245, 0.1)",
+                      },
+                      "&.Mui-selected:hover": { bgcolor: "rgba(113, 135, 245, 0.15)" },
+                    }}
                   >
                     <ListItemText
                       primary={element.name}

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { findDocumentElement } from "../../document/model/find-element";
 import type { Transform } from "../../document/schema/transform";
+import { brandColors } from "../../app/theme/theme";
 import { useEditorDocument } from "../document/editor-document-context";
 import { useEditorSession } from "../session/editor-session-context";
 
@@ -83,7 +84,7 @@ export function PropertiesPanel() {
   if (!location) {
     return (
       <Box component="aside" aria-label="プロパティ" sx={{ p: 2 }}>
-        <Typography component="h2" variant="h2">
+        <Typography component="h2" variant="h2" sx={{ fontSize: 12, letterSpacing: "0.08em" }}>
           プロパティ
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, fontSize: 13 }}>
@@ -105,7 +106,7 @@ export function PropertiesPanel() {
   return (
     <Box component="aside" aria-label="プロパティ" sx={{ minWidth: 0 }}>
       <Box sx={{ px: 2, py: 1.75 }}>
-        <Typography component="h2" variant="h2">
+        <Typography component="h2" variant="h2" sx={{ fontSize: 12, letterSpacing: "0.06em" }}>
           {element.name} のプロパティ
         </Typography>
         <Typography color="text.secondary" sx={{ fontSize: 12 }}>
@@ -126,7 +127,10 @@ export function PropertiesPanel() {
         <Stack spacing={2.25}>
           {(["position", "rotation", "scale"] as const).map((group) => (
             <Box key={group}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: brandColors.purple, fontWeight: 700, letterSpacing: "0.08em" }}
+              >
                 {group === "position"
                   ? "位置（m）"
                   : group === "rotation"

@@ -4,6 +4,7 @@ import EditRounded from "@mui/icons-material/EditRounded";
 import { Box, Button, Chip, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { brandColors } from "../../app/theme/theme";
 import type { PresentationDocument } from "../../document/schema/presentation-document";
 import { browserDocumentStream } from "../../app/runtime/document-runtime";
 import { applyDocumentEvent, RevisionGapError } from "../../viewer/stream/document-event";
@@ -57,14 +58,20 @@ export function ViewerPage({ document: initialDocument }: { document: Presentati
     <Box
       component="main"
       id="main-content"
-      sx={{ minHeight: "100dvh", p: { xs: 1, md: 2 }, bgcolor: "#11131a", color: "#f8f8fb" }}
+      sx={{
+        minHeight: "100dvh",
+        p: { xs: 1, md: 2 },
+        bgcolor: brandColors.night,
+        color: "#f8f8fb",
+        backgroundImage: "radial-gradient(circle at 85% 0%, rgba(154, 128, 208, 0.16), transparent 32%)",
+      }}
     >
       <Stack sx={{ minHeight: "calc(100dvh - 32px)" }} spacing={1}>
         <Stack
           component="header"
           direction="row"
           spacing={1.5}
-          sx={{ px: 1, minHeight: 56, alignItems: "center" }}
+          sx={{ px: { xs: 1, md: 2 }, minHeight: { xs: 56, md: 68 }, alignItems: "center" }}
         >
           <Box sx={{ mr: "auto", minWidth: 0 }}>
             <Typography component="h1" variant="h1" color="inherit" noWrap>
@@ -78,6 +85,7 @@ export function ViewerPage({ document: initialDocument }: { document: Presentati
             label={statusLabel}
             size="small"
             color={syncStatus === "error" ? "error" : "default"}
+            sx={{ bgcolor: syncStatus === "error" ? undefined : "rgba(255,255,255,.08)", color: "inherit" }}
           />
           <Link
             to="/presentations/$presentationId/edit"
@@ -96,7 +104,10 @@ export function ViewerPage({ document: initialDocument }: { document: Presentati
             flex: 1,
             minHeight: { xs: 480, md: 0 },
             overflow: "hidden",
-            bgcolor: "#171923",
+            borderRadius: 3,
+            border: "1px solid rgba(255,255,255,.1)",
+            bgcolor: brandColors.nightSoft,
+            boxShadow: "0 20px 70px rgba(0,0,0,.24)",
           }}
         >
           {activeSlide ? (

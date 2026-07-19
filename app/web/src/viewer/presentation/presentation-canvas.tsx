@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { MathUtils, type Group } from "three";
+import { brandColors } from "../../app/theme/theme";
 import { createDemoAssetResolver } from "../../document/fixtures/demo-glb";
 import type { AssetResolver } from "../../document/model/asset-resolver";
 import type { Element, ModelElement, TextElement } from "../../document/schema/element";
@@ -105,7 +106,7 @@ function WebGLUnavailable() {
         display: "grid",
         placeItems: "center",
         p: 3,
-        bgcolor: "#171923",
+        bgcolor: brandColors.nightSoft,
       }}
     >
       <Alert severity="warning" sx={{ maxWidth: 520 }}>
@@ -293,12 +294,12 @@ function PresentationScene({
 
   return (
     <>
-      <color attach="background" args={["#171923"]} />
+      <color attach="background" args={[brandColors.nightSoft]} />
       <ambientLight intensity={1.2} />
       <directionalLight position={[4, 6, 3]} intensity={2.4} />
       <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#9ca8ff" />
       {editor?.showGrid ? (
-        <gridHelper args={[12, 24, "#5b52f2", "#323645"]} position={[0, -0.72, 0]} />
+        <gridHelper args={[12, 24, brandColors.blue, "#2b303c"]} position={[0, -0.72, 0]} />
       ) : null}
       {slide?.elements.map((element) => (
         <SceneElement

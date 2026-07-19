@@ -22,6 +22,8 @@ import {
   Typography,
 } from "@mui/material";
 import { Link } from "@tanstack/react-router";
+import { BrandMark } from "../../app/brand/brand-mark";
+import { brandColors } from "../../app/theme/theme";
 import { useEditorDocument } from "../../editor/document/editor-document-context";
 import { PropertiesPanel } from "../../editor/panels/properties-panel";
 import { SlideNavigator } from "../../editor/panels/slide-navigator";
@@ -57,9 +59,15 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
         position="static"
         color="inherit"
         elevation={0}
-        sx={{ borderBottom: 1, borderColor: "divider" }}
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "rgba(247, 247, 245, 0.92)",
+          backdropFilter: "blur(18px)",
+        }}
       >
-        <Toolbar sx={{ gap: 1.5, minHeight: { xs: 64, md: 68 } }}>
+        <Toolbar sx={{ gap: { xs: 1, md: 1.5 }, minHeight: { xs: 64, md: 72 }, px: { xs: 1.5, md: 3 } }}>
+          <BrandMark size={30} />
           <Box sx={{ minWidth: 0, mr: "auto" }}>
             <Typography component="h1" variant="h1" noWrap>
               {history.document.metadata.title}
@@ -133,7 +141,13 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
             rel="noreferrer"
             style={{ textDecoration: "none" }}
           >
-            <Button component="span" endIcon={<OpenInNewRounded />} variant="outlined" size="small">
+            <Button
+              component="span"
+              endIcon={<OpenInNewRounded />}
+              variant="outlined"
+              size="small"
+              sx={{ borderColor: "rgba(21, 23, 29, 0.2)", color: "text.primary" }}
+            >
               閲覧
             </Button>
           </Link>
@@ -146,21 +160,43 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", md: "220px minmax(0, 1fr) 300px" },
-          gridTemplateRows: { xs: "auto minmax(420px, 1fr) auto", md: "calc(100dvh - 69px)" },
-          gap: 1,
-          p: 1,
+          gridTemplateRows: { xs: "auto minmax(420px, 1fr) auto", md: "calc(100dvh - 73px)" },
+          gap: { xs: 1, md: 1.5 },
+          p: { xs: 1, md: 1.5 },
         }}
       >
-        <Paper variant="outlined" sx={{ overflow: "auto" }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            overflow: "auto",
+            borderRadius: 3,
+            bgcolor: "rgba(255, 255, 255, 0.82)",
+            boxShadow: "0 12px 32px rgba(21, 23, 29, 0.035)",
+          }}
+        >
           <SlideNavigator />
         </Paper>
         <Paper
           variant="outlined"
-          sx={{ minHeight: { xs: 420, md: 0 }, overflow: "hidden", bgcolor: "#171923" }}
+          sx={{
+            minHeight: { xs: 420, md: 0 },
+            overflow: "hidden",
+            borderRadius: 3,
+            bgcolor: brandColors.night,
+            boxShadow: "0 18px 48px rgba(11, 14, 20, 0.12)",
+          }}
         >
           <EditorViewport />
         </Paper>
-        <Paper variant="outlined" sx={{ overflow: "auto" }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            overflow: "auto",
+            borderRadius: 3,
+            bgcolor: "rgba(255, 255, 255, 0.82)",
+            boxShadow: "0 12px 32px rgba(21, 23, 29, 0.035)",
+          }}
+        >
           <PropertiesPanel />
         </Paper>
       </Box>

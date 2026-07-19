@@ -4,8 +4,27 @@ body,
   min-height: 100%;
 }
 
+html {
+  background: #0b0e14;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
+  overflow-x: hidden;
+  background: #f7f7f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: #fff;
+  background: #9a80d0;
 }
 
 .skip-link {
@@ -16,7 +35,7 @@ body {
   padding: 10px 14px;
   border-radius: 8px;
   color: #fff;
-  background: #4037c9;
+  background: #0b0e14;
   transform: translateY(-160%);
   transition: transform 120ms ease;
 }
@@ -31,7 +50,7 @@ body {
   border: 1px solid rgb(255 255 255 / 20%);
   border-radius: 8px;
   color: #fff;
-  background: rgb(18 20 29 / 88%);
+  background: rgb(17 21 29 / 92%);
   box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
   font:
     600 13px/1.4 Inter,
@@ -62,12 +81,17 @@ body {
   justify-self: start;
   min-height: 36px;
   padding: 0 12px;
-  border: 1px solid #8c86ff;
+  border: 1px solid #a9b5ff;
   border-radius: 6px;
   color: #fff;
   background: transparent;
   font: inherit;
   cursor: pointer;
+}
+
+.viewport-error button:focus-visible {
+  outline: 2px solid #df7b80;
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
