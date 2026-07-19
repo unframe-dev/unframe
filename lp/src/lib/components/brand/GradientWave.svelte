@@ -37,7 +37,7 @@
 <svg
   class={`absolute h-full w-full ${flip ? "scale-y-[-1]" : ""} ${className}`}
   viewBox="0 0 1600 800"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid slice"
   fill="none"
   xmlns="http://www.w3.org/2000/svg"
   aria-hidden="true"
