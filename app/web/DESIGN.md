@@ -1,653 +1,288 @@
-# Unframe Web Editor Design Guide
+# Unframe Application Design Guide
 
-## 目的
+## 目的と対象
 
-この文書は、`app/web/` に実装する Web エディターと閲覧画面のプロダクト設計、情報設計、状態境界、インタラクション、視覚原則を定義するデザインガイドです。
+`app/web/` は Unframe のアプリケーション層である。LP のようにプロダクトを説明する場所ではなく、ユーザーがログインし、プレゼンテーションを選び、編集し、閲覧するための状態を持つ React アプリケーションとして設計する。
 
-- 対象: `app/web/src/` の Home、Editor、Viewer
-- 技術構成と開発手順: 今後作成する `app/web/README.md`
-- プロダクト全体の構成: `ARCHITECTURE.md`
-- API 契約: `app/server/` の Huma 定義と `packages/contracts/openapi.yaml`
-- LP のデザイン: `lp/DESIGN.md`
+| 領域 | URL の責務 | 役割 |
+| --- | --- | --- |
+| LP / Site | `un-fra.me/`、`/news`、`/docs` | ブランド、価値、更新情報、ドキュメントを伝える |
+| Application | `un-fra.me/signup`、`/signin`、`/home`、`/editor` など | 認証後の作業、資料管理、編集、閲覧を提供する |
 
-この文書では、合意済みの目標設計を規範として扱います。現行コードは最小限の scaffold であり、目標との差分は「現行実装との差分」に分離して記載します。
+LP の詳細は `lp/DESIGN.md` に定義する。LP とアプリはロゴ、ブランドカラー、文章の温度を共有するが、視覚的な役割は分ける。
 
-API、Go server、DB、OpenAPI 生成物の変更は、この設計を最初に実装する工程の対象外です。将来 API を再設計するときは、Web のドキュメントモデルを基準に Go/Huma 契約と Unity 向け projection を検討します。
+- LP: 余白、大きな display heading、波形、非対称グリッドを使う編集的な紙面
+- Application: MUI の明確な境界、情報密度、状態表示、キーボード操作を優先する作業環境
 
-## プロダクトの役割
+### 現在の実装範囲
 
-Web エディターは、空間的なプレゼンテーションを作成し、その結果を閲覧者へほぼリアルタイムに反映するための SPA です。
+ルートの対象範囲と現在利用できる機能を混同しない。
 
-最初の成果物は、次の縦スライスを成立させます。
+- `app/web/` は現在、fixture を使った Home、Editor、read-only Viewer の WIP scaffold である。
+- `/signup`、`/signin`、本格的な `/home`、presentation CRUD、upload、認証、認可は対象範囲だが、現在は未実装である。
+- 現在の router は `/editor/` を basepath とし、`/editor/`、`/editor/presentations/$presentationId/edit`、`/editor/presentations/$presentationId/view` を提供する。
+- 未実装の機能を利用可能な CTA、保存済み状態、接続済み状態として表示しない。
 
-- GLB fixture を読み込み、3D Viewport に表示する
+## プロダクトモデル
+
+Web アプリは空間的なプレゼンテーションを作成し、確定した変更を read-only Viewer へ反映する SPA である。
+
+最初の縦スライスは次を満たす。
+
+- GLB fixture を 3D Viewport に表示する
 - 要素を選択し、移動、回転、拡縮する
 - 確定した操作を Undo / Redo する
-- 確定した操作を同一 origin の別タブにある Viewer へ反映する
-- GLB の読み込み失敗と WebGL の利用不可を明確に表示する
+- 確定した操作を同一 origin の別 Viewer へ反映する
+- GLB 読み込み失敗と WebGL 利用不可を復旧可能な状態で表示する
 
-対象とする編集モデルは単一編集者です。閲覧者は読み取り専用であり、編集者の確定操作を受信します。複数編集者間の競合解決は行わず、Yjs や CRDT は導入しません。
+編集者は単一 writer とし、Viewer は read-only とする。複数編集者の競合解決は現在の対象外である。
 
 ## 設計原則
 
-### 作業対象を中心に置く
+### 作業を最短距離にする
 
-Editor の主役は 3D Viewport とプレゼンテーション本体です。ツールバー、スライド一覧、プロパティパネルは操作を支える領域として配置し、Canvas を不必要に狭めません。
+アプリの Home は marketing page ではなく、次に開く資料を選ぶ workspace である。Editor は 3D Viewport を主役にし、ツールバー、スライド一覧、プロパティは操作を支える。
 
-### 状態の所有者を明確にする
+### 情報密度を制御する
 
-資料本体、編集セッション、サーバー状態、一時的な 3D 状態、未確定 UI 状態を一つの store に集約しません。更新頻度、永続性、共有範囲に応じて所有者を分けます。
+アプリは LP より高い情報密度を許容する。ただしすべての機能を常時表示せず、現在の資料、選択対象、tool、同期状態に必要な情報を優先する。
 
-### 確定操作をコマンドにする
+### 状態を隠さない
 
-資料本体への変更は、直列化可能な `EditorCommand` として document reducer に dispatch します。R3F、プロパティ入力、ショートカットは資料本体を直接変更しません。
+loading、empty、saving、saved、syncing、error、disabled、selected を文字、形、境界、アイコン、領域の変化で示す。色だけで状態を伝えない。
 
-### ドラッグと永続状態を分離する
+### 既存の操作モデルを守る
 
-3D ドラッグ中は Three.js object の transient state だけを更新します。pointer up で一度だけ transform command を確定し、履歴、revision、Viewer 配信の単位を一致させます。
+React、MUI、TanStack Router、Zustand、React Hook Form、Three.js の責務を維持する。LP の Svelte コンポーネントや LP 専用の装飾を React UI の抽象へ持ち込まない。
 
-### 編集状態を隠さない
+### 実装済みの実態だけを表示する
 
-選択、保存、同期、読み込み、エラー、無効状態を、色だけに依存せず文字、形、アイコン、領域の変化で示します。実行できない操作は disabled にし、必要に応じて理由を説明します。
+保存、認証、変換、公開、クラウド同期など未実装の機能を、見た目だけ先に実装しない。fixture、local preview、BroadcastChannel など、実際の仕組みをラベルにも反映する。
 
-### LP と役割を混同しない
+## アプリケーションシェル
 
-LP はブランドの思想を伝える編集的な紙面です。Web は長時間の作業と精密な操作を支えるプロダクト UI です。ブランド上の連続性は保ちますが、LP の巨大見出し、大きな余白、装飾的な波形を Editor shell にそのまま持ち込みません。
+### Header / App bar
 
-### 実態と表現を一致させる
+- デスクトップはおおむね `64〜72px`、モバイルは `56〜64px` とする。
+- 左にブランドマークと現在のページまたはドキュメント名を置く。
+- 右に undo / redo、tool、grid、同期状態、viewer への導線を置く。
+- ドキュメント名が省略されても revision や同期状態を隠さない。
+- LP の絶対配置 Header を流用せず、scroll と画面状態に対して安定した位置にする。
 
-未実装の保存、同期、変換、公開機能を利用可能として表示しません。接続確認を行っていない状態を `connected` と表現せず、Viewer に反映されるのは確定済み command だけであることを UI と実装で一致させます。
+### Home / Dashboard
 
-## 技術構成
+Home はアプリの入口であり、次の作業を選ぶ画面である。
 
-合意済みの構成は次のとおりです。
-
-| 領域                  | 採用技術                          |
-| --------------------- | --------------------------------- |
-| UI runtime            | React 19.2                        |
-| 言語                  | TypeScript strict                 |
-| Component library     | MUI v9                            |
-| Build tool            | Vite+                             |
-| Routing               | TanStack Router                   |
-| Server state          | TanStack Query                    |
-| Editor session        | Zustand vanilla store             |
-| Validation            | Zod 4                             |
-| Form                  | React Hook Form                   |
-| Immutable update      | Immer                             |
-| 3D                    | Three.js、React Three Fiber、drei |
-| Unit / Component test | Vitest、Testing Library           |
-| E2E                   | Playwright                        |
-| Canonical 3D format   | GLB                               |
-
-React 19.2 と MUI v9 は明示的に指定します。依存パッケージは基盤工程でまとめて導入し、Cloudflare Vite plugin は Vite+ との互換性を build で確認します。互換性に問題がある場合は plugin を外し、Wrangler Static Assets を使用します。
-
-### 依存パッケージ
-
-基盤工程では、次の候補をまとめて追加します。
-
-Runtime:
-
-- `@mui/material`
-- `@mui/icons-material`
-- `@emotion/react`
-- `@emotion/styled`
-- `@tanstack/react-router`
-- `@tanstack/react-query`
-- `zustand`
-- `zod`
-- `react-hook-form`
-- `@hookform/resolvers`
-- `immer`
-- `three`
-- `@react-three/fiber`
-- `@react-three/drei`
-
-Development:
-
-- `@vitejs/plugin-react`
-- `vitest`
-- `jsdom`
-- `@testing-library/react`
-- `@testing-library/user-event`
-- `@testing-library/jest-dom`
-- `@playwright/test`
-- `wrangler`
-- `@cloudflare/vite-plugin`
-- `@cloudflare/workers-types`
-
-依存は実際に利用する `app/web/` にだけ追加します。既存技術で解決できる機能のために、重複する状態管理、フォーム、3D、テストライブラリを追加しません。
-
-## アプリケーション構造
-
-目標とする責務分離は次のとおりです。
-
-```text
-app/web/src/
-├── app/
-│   ├── router/
-│   ├── providers/
-│   └── theme/
-├── routes/
-│   ├── home/
-│   ├── editor/
-│   └── viewer/
-├── document/
-│   ├── schema/
-│   ├── model/
-│   ├── migrations/
-│   ├── serializer/
-│   └── fixtures/
-├── editor/
-│   ├── commands/
-│   ├── history/
-│   ├── session/
-│   ├── viewport/
-│   ├── panels/
-│   └── shortcuts/
-├── viewer/
-│   ├── stream/
-│   └── presentation/
-├── features/
-│   ├── asset-library/
-│   ├── properties/
-│   └── export/
-└── shared/
-    ├── ui/
-    └── utils/
-```
-
-ディレクトリは責務が実装される時点で追加します。将来の利用だけを理由に空の抽象や barrel file を先に作りません。
-
-- `document/` は React、Three.js、通信方式から独立したドメインモデルを所有する
-- `editor/` は command、history、session、編集専用 UI を所有する
-- `viewer/` は read-only reducer と表示専用 UI を所有する
-- `features/` は複数画面から利用される具体的な機能単位を所有する
-- `shared/ui/` は現に複数箇所で再利用する UI に限定する
-- API 接続開始までは `shared/api/` を拡張しない
-- 既存 `src/api.ts` は利用を停止するか、将来接続用の境界に限定する
-
-## Routing
-
-Web は `un-fra.me/editor` 配下に SPA として配信します。
-
-| Route                                        | 役割                                      |
-| -------------------------------------------- | ----------------------------------------- |
-| `/editor/`                                   | Home またはプレゼンテーション選択への入口 |
-| `/editor/presentations/$presentationId/edit` | 編集者向け Editor                         |
-| `/editor/presentations/$presentationId/view` | 読み取り専用 Viewer                       |
-
-- TanStack Router に `basepath: "/editor"` を設定する
-- Vite に `base: "/editor/"` を設定する
-- 現在ドメインに存在しない `projectId` を URL に先回りして追加しない
-- panel など、共有や再読み込みに意味がある状態だけを search params に入れる
-- selection、hover、ドラッグ中の transform は URL に入れない
-- edit と view は route と権限の意味を分離し、Viewer に編集用 UI を描画しない
-- 直接アクセスと再読み込みでも各 route を表示できる SPA fallback を提供する
-
-## 状態設計
-
-状態は次の所有境界に分けます。
-
-| 状態               | 所有者                                 | 主な内容                                                  |
-| ------------------ | -------------------------------------- | --------------------------------------------------------- |
-| Server State       | TanStack Query                         | 将来の API 接続、保存状態、asset metadata                 |
-| Editor Document    | React reducer + pure command functions | presentation、slides、elements、assets、revision、history |
-| Editor Session     | Zustand vanilla store                  | selection、tool、panel、snap、preview、viewport 設定      |
-| Transient 3D State | Three.js refs / component local state  | ドラッグ中 transform、hover、camera 操作、gizmo           |
-| Temporary UI       | React local state / React Hook Form    | dialog、menu、未確定フォーム入力                          |
-
-### Server State
-
-API 接続後に TanStack Query が remote snapshot、保存処理、asset metadata を管理します。Editor Document の編集中データを Query cache の直接編集だけで表現しません。
-
-### Editor Document
-
-資料本体は React Context 配下の document reducer が所有します。巨大な Zustand store には入れません。reducer と command 適用関数は UI から独立した純粋なロジックとしてテストします。
-
-### Editor Session
-
-Zustand は頻繁に参照される一時的な編集セッションを管理します。Document に保存しない selection、現在の tool、panel の開閉、snap、preview、viewport 設定を扱います。
-
-### Transient 3D State
-
-毎フレーム変化する camera やドラッグ中 transform は React の document state に反映しません。Three.js refs または局所 state で保持し、確定境界だけを command に変換します。
-
-### Temporary UI
-
-dialog、menu、未確定入力は利用箇所に近い local state で所有します。検証を伴うフォームは React Hook Form と Zod schema を使用し、blur、submit、または debounce 境界で document command にまとめます。
-
-## ドキュメントモデル
-
-`PresentationDocument` は Web 側の独立したドメインモデルとして定義します。
-
-```ts
-type PresentationDocument = {
-  version: 1;
-  id: string;
-  revision: number;
-  metadata: PresentationMetadata;
-  slides: Slide[];
-  assets: AssetReference[];
-};
-```
-
-型の正本は Zod schema とし、TypeScript 型は schema から推論します。ネットワーク response、fixture、保存データ、BroadcastChannel の snapshot は同じ trust boundary validation を通します。
-
-### 座標と Transform
-
-- 正規 3D 形式は GLB とする
-- 単位はメートルとする
-- 座標系は右手系とする
-- up axis は Y とする
-- 永続 transform は `position`、quaternion `rotation`、`scale` とする
-- UI で Euler 角を表示しても、保存時は quaternion に変換する
-- quaternion の成分順、角度の表示単位、軸ごとの編集規約を schema と実装で統一する
-
-### Asset Reference
-
-- document には asset の永続 ID を保存する
-- 署名 URL、Object URL、Three.js object、loader の runtime state を保存しない
-- 読み込み URL は `AssetResolver` から取得する
-- GLB の読み込み状態と失敗理由は document ではなく runtime state として扱う
-
-### Versioning と Serialization
-
-- document は必ず `version` を持つ
-- version ごとの migration chain を用意する
-- parser は validation 後に現在 version へ migration する
-- serializer は runtime 値を排除してから保存する
-- migration は入力を破壊せず、fixture を使って単体テストする
-- 未知の新しい version を暗黙に読み込まず、回復可能なエラーとして扱う
-
-## Command と履歴
-
-command は関数ではなく、直列化可能な discriminated union とします。
-
-```ts
-type EditorCommand =
-  | { type: "element.add"; slideId: string; element: Element }
-  | { type: "element.remove"; slideId: string; elementId: string }
-  | { type: "element.transform"; elementId: string; transform: Transform }
-  | { type: "element.update"; elementId: string; changes: ElementChanges }
-  | { type: "slide.reorder"; slideId: string; toIndex: number };
-```
-
-`applyCommand(document, command)` は新しい document と inverse command を返します。
-
-- Undo は inverse command を適用する
-- Redo は元 command を再適用する
-- Undo / Redo も新しい revision として扱う
-- Immer は reducer 実装の簡略化に使用する
-- Immer patch 自体を保存形式や外部配信形式にしない
-- command は履歴、操作ログ、Viewer 配信で共通利用する
-- command は対象 ID と適用条件を検証し、不正な対象へ部分適用しない
-- property 入力は blur または debounce 境界で一つの command にまとめる
-- 3D drag は pointer up で一つの transform command にまとめる
-
-履歴には document 全体の runtime object や closure を保存しません。履歴上限と保存済み revision との関係は、永続化を実装する工程で定義します。
-
-## リアルタイム閲覧
-
-単一 writer を前提とし、Editor の確定 command と revision を Viewer の read-only reducer へ配信します。
-
-```text
-Editor
-  committed command + revision
-            |
-            v
-DocumentStream
-            |
-            v
-Viewer reducer
-```
-
-Web 側は通信方式から UI を分離するため、次の抽象を持ちます。
-
-```ts
-interface DocumentStream {
-  loadSnapshot(id: string): Promise<DocumentSnapshot>;
-  publish(event: DocumentEvent): Promise<void>;
-  subscribe(id: string, listener: Listener): Unsubscribe;
-}
-```
-
-最初の実装は BroadcastChannel adapter を使用します。
-
-- 同一 origin の別タブ間で同期する
-- Editor は確定 command だけを publish する
-- Viewer は selection、gizmo、editor panel を持たない
-- Viewer は受信 event を read-only reducer に適用する
-- revision が連続しない場合は event を推測適用せず snapshot を再取得する
-- snapshot 取得中、再同期中、復旧失敗を Viewer 上で区別する
-- adapter の交換で WebSocket または SSE に移行できる境界を保つ
-
-## 画面構成
-
-### Home
-
-Home は Editor への入口です。API 統合前は、実装済み fixture または明示的な開発用導線だけを表示します。存在しない presentation 一覧やクラウド保存を模倣しません。
+- ページタイトルと workspace の文脈を最初に示す。
+- 最近使った資料、資料数、revision、保存や同期の状態を優先する。
+- 新規作成、検索、filter は機能が実装された後に追加する。
+- 一覧が未実装の段階では fixture / preview と明示し、存在しない資料を表示しない。
+- LP の抽象的なメッセージや巨大な Hero は、Home の作業導線を置き換えない。
 
 ### Editor
 
-Editor は次の領域で構成します。
+デスクトップの基本構成は次の 3 ペインである。
 
-| 領域              | 役割                                                             |
-| ----------------- | ---------------------------------------------------------------- |
-| App bar / Toolbar | presentation 名、主要 tool、Undo / Redo、preview、保存・同期状態 |
-| Slide navigator   | slide の選択、追加、並べ替え                                     |
-| 3D Viewport       | scene 表示、選択、camera、gizmo 操作                             |
-| Properties panel  | 選択対象の検証付き属性編集                                       |
-| Status / Feedback | loading、error、同期、ショートカット結果の通知                   |
+| 領域 | 役割 |
+| --- | --- |
+| 左 panel | slide、layer、asset のナビゲーション |
+| 中央 | 最も広い 3D Viewport |
+| 右 panel | 選択対象の property、transform、状態 |
 
-領域の具体的な幅、色、spacing は MUI theme と Editor のプロトタイプ検証後にトークンとして定義します。初期 scaffold のハードコード値を正式トークンとして引き継ぎません。
+上部の toolbar は presentation 名、Undo / Redo、select / translate / rotate / scale、grid、同期状態、Viewer 導線を持つ。
+
+- 3D Viewport は `night` または `night-soft` の暗色面にする。
+- 左右 panel は `Paper`、`Divider`、`List`、`TextField` など MUI の意味のある部品で作る。
+- panel をカードの連続にせず、surface、divider、見出し階層、余白で分ける。
+- selected は薄い背景だけに頼らず、左線、境界線、focus、名前で示す。
+- editor の主役は canvas だが、canvas だけを唯一の選択・編集手段にしない。
 
 ### Viewer
 
-Viewer は presentation の閲覧に必要な Canvas と最小限のナビゲーションだけを表示します。
+Viewer は Editor と明確に区別する read-only surface である。
 
-- editor tool、selection outline、gizmo、properties panel を表示しない
-- mobile viewport でも閲覧可能にする
-- 同期中断時に古い内容を無言で最新として扱わない
-- WebGL または asset の失敗時に復旧方法を示す
-- presentation 操作に必要なキーボードとタッチ操作を提供する
+- `night` を基底にし、presentation 名、revision、同期状態、slide 移動を表示する。
+- selection、gizmo、editor tool、property panel を表示しない。
+- Viewer から Editor へ戻る導線を持つ。
+- 古い内容を無言で最新として表示せず、再同期中と復旧失敗を区別する。
+- mobile viewport、touch 操作、WebGL / asset failure を対象にする。
 
-## 視覚デザイン原則
+## 視覚デザイン
 
-### 情報密度
+### 共通ブランドトークン
 
-Editor は LP より高い情報密度を許容します。ただし、すべての機能を常時表示せず、現在の selection と tool に必要な操作を優先します。パネルの区切りはカードの乱用ではなく、surface、divider、余白、見出し階層で表します。
+LP とアプリで値を共有する。ただしアプリではブランド色の意味を限定し、作業性を優先する。
 
-### ブランドとの連続性
+| トークン | 値 | アプリでの用途 |
+| --- | --- | --- |
+| `background` | `#f7f7f5` | ページの基底 |
+| `foreground` | `#15171d` | 主要文字 |
+| `muted` | `#747780` | 補助文字、meta |
+| `line` | `#dedfe2` | panel、input、list の境界 |
+| `night` | `#0b0e14` | Viewport、Viewer |
+| `night-soft` | `#11151d` | Viewport 補助面、fallback |
+| `brand-blue` | `#7187f5` | primary、selection、focus |
+| `brand-purple` | `#9a80d0` | secondary、panel の強調 |
+| `brand-red` | `#df7b80` | error、限定的な注意 |
 
-ブランドカラーは選択、focus、主要 action、同期状態など意味のある箇所に限定します。Blue、Purple、Red のグラデーションを大面積の Editor 背景や多数の control に適用しません。
+実装上の共通値は `app/web/src/app/theme/theme.ts` の `brandColors` を正本とする。`lp/src/app.css` の値と変更時に同期する。
 
-色、タイポグラフィ、shape、elevation の具体値は MUI theme に集約します。コンポーネント内で理由なく色値をハードコードしません。
+### MUI の表現
 
-### Theme
+- MUI の component feeling を保つ。Google 系 UI のような予測可能な control、入力、focus、disabled を優先する。
+- shape は小〜中程度（おおむね `8〜14px`）とし、全要素を pill にしない。
+- 主要 action は solid button、補助 action は outlined / text button とする。
+- 通常の control に Blue -> Purple -> Red のグラデーションを使わない。
+- elevation は弱い影、または divider で表現し、影だけに情報階層を依存しない。
+- brand-blue / purple / red は選択、focus、primary、error など意味のある状態に使う。
+- グラデーション、noise、波形、大きな装飾モチーフはアプリ shell に常設しない。
 
-- MUI `ThemeProvider` と `CssBaseline` をアプリケーション境界で適用する
-- palette は背景、surface、divider、text、primary、error、warning、success、selection を区別する
-- light / dark mode の採否は未決定とし、現行 scaffold の dark theme を既定方針にしない
-- Canvas 背景と HTML UI のコントラストを別々に検証する
-- status は success 色だけで表現せず、明示的な label を添える
+### タイポグラフィ
 
-### Typography
+```css
+"Inter", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif
+```
 
-- UI label、数値入力、階層名は長時間読めるサイズと行間を優先する
-- presentation title と panel heading の階層を明確にする
-- 小さな label に過度な letter spacing や低コントラスト色を使用しない
-- 数値、単位、軸名は桁と符号を比較しやすく表示する
-- フォントを配信する場合は、ライセンス、読み込みコスト、日本語 glyph を確認する
+- page title: `20〜32px`、weight `600〜700`
+- section title: `14〜18px`、weight `600`
+- UI label: `12〜14px`、weight `500〜600`
+- meta / helper: `11〜13px`。コントラストを下げすぎない
+- 長い marketing heading 用の `clamp()` を toolbar、panel、form に使わない
+- 日本語の操作ラベルを簡潔にし、英語の meta は意味がある場合だけ使う
 
-### Icon
+## 色と状態
 
-MUI Icons は toolbar、panel、dialog など HTML UI に限定して使います。
+| 状態 / 対象 | 表現 |
+| --- | --- |
+| primary action | `brand-blue` の solid button + 明確なラベル |
+| selected | Blue / Purple の薄い surface、左線または境界線、名前 |
+| focus | 3px 程度の focus ring と offset |
+| disabled | MUI の disabled style + 実行できない状態 |
+| loading | 対象領域内の progress / skeleton + 説明 |
+| empty | 空である理由と実行可能な次の導線 |
+| syncing | `syncing` などの明示的な label |
+| error | error 色、説明、retry / recovery |
+| read-only | Viewer の表示と編集導線の分離 |
 
-- icon-only button には accessible name と tooltip を付ける
-- active、disabled、destructive の状態を icon の形だけに依存させない
-- 3D gizmo と toolbar icon で同じ軸色・操作概念を使う
-- Canvas 内の制御には MUI component を配置しない
+`success` の色だけで保存済みや同期済みを表現しない。API や同期を確認していない場合は `connected`、`saved` と表示しない。
 
-## MUI と Canvas の境界
+## 技術境界
 
-MUI は app bar、toolbar、drawer、panel、form、dialog、menu、feedback に使用します。Canvas 内の scene object、selection、TransformControls、camera controls には使用しません。
+| 領域 | 責務 |
+| --- | --- |
+| `app/` | providers、router、theme、application-wide UI |
+| `routes/` | Home、Editor、Viewer の route composition |
+| `document/` | presentation、slide、element、asset の domain model |
+| `editor/` | command、history、session、editor-only UI |
+| `viewer/` | read-only reducer、stream、presentation canvas |
+| `features/` | 複数画面で利用する具体的な機能 |
+| `shared/` | 現に複数箇所で使う最小限の UI / utility |
 
-- MUI component の状態は Editor Session または local state を更新する
-- document 更新が必要な操作は command に変換する
-- Canvas overlay を使う場合も、DOM と WebGL の focus / pointer event 境界を明示する
-- dialog や menu を閉じた後は起点となった control へ focus を戻す
-- panel の開閉で Canvas の描画サイズを再計算する
+MUI は app bar、toolbar、panel、form、dialog、menu、feedback に使う。Canvas 内の scene object、selection、TransformControls、camera controls には使わない。
 
-## 3D Viewport
+### 状態の所有
 
-最初の Viewport は GLB 表示、OrbitControls、selection、TransformControls を提供します。
+| 状態 | 所有者 |
+| --- | --- |
+| Server state | TanStack Query（API 接続後） |
+| Editor document | React Context + reducer + pure command |
+| Editor session | Zustand vanilla store |
+| transient 3D | Three.js ref / component local state |
+| temporary UI | React local state / React Hook Form |
 
-### Selection
+資料本体への変更は serializable な `EditorCommand` に変換する。drag 中は transient state だけを更新し、pointer up で一つの command として確定する。
 
-- pointer 選択とキーボードでの代替選択を同じ Editor Session に反映する
-- selected、hovered、locked、hidden を区別する
-- selection outline は scene の色や明るさだけに依存しない
-- 空領域の操作と object の操作が競合しない event priority を定義する
+## ルーティングと hosting
 
-### Transform
+アプリケーションの将来の URL 責務は次のとおりである。
 
-- translate、rotate、scale の現在 tool を明示する
-- drag 中は Three.js object だけを更新する
-- pointer up で document の現在値と比較し、変更がある場合だけ command を dispatch する
-- Escape による drag cancel と開始値への復帰を提供する
-- property panel と gizmo は同じ transform 変換関数を利用する
-- snap の有効状態と刻みを視覚的に示す
+| Route | 役割 | 状態 |
+| --- | --- | --- |
+| `/signup` | アカウント作成 | 未実装 |
+| `/signin` | サインイン | 未実装 |
+| `/home` | 資料を選ぶ workspace | 対象。現在は `/editor/` の fixture Home |
+| `/editor` | プレゼンテーション編集 | 実装中 |
+| `/editor/presentations/:id/view` | read-only 閲覧 | 実装中 |
 
-### Camera
-
-- OrbitControls と object transform の pointer 操作を競合させない
-- Editor の camera 設定と presentation に保存する camera を混同しない
-- Viewer の初期 camera は document から再現可能にする
-- camera 操作だけで document revision を増やさない
-
-### Failure State
-
-- GLB 読み込み中は対象領域に progress または skeleton を表示する
-- GLB 読み込み失敗時は asset 名、失敗状態、再試行または置換導線を示す
-- WebGL 利用不可時は空白 Canvas にせず、要件と復旧方法を説明する
-- runtime error の詳細を presentation 本文や signed URL とともにログ出力しない
-
-## インタラクション
-
-### Keyboard
-
-Editor は最低限、次の操作体系を持ちます。ブラウザや OS の標準操作と競合する組み合わせは避け、実装時にプラットフォーム差を確認します。
-
-- Undo / Redo
-- selection の移動または解除
-- tool の切り替え
-- 選択要素の削除
-- drag または未確定入力の cancel
-- dialog、menu、panel 内の focus 移動
-
-ショートカットは input、textarea、contenteditable での文字編集を妨げません。操作一覧を確認できる UI を提供し、shortcut だけを唯一の実行手段にしません。
-
-### Property Input
-
-- 入力中の文字列と確定済み document 値を分離する
-- Zod と React Hook Form で範囲、形式、必須値を検証する
-- 不正値を無言で丸めたり `NaN` として document に保存しない
-- blur、Enter、または debounce で一つの command に確定する
-- Escape で未確定値を破棄し、確定値へ戻せるようにする
-- quaternion は UI 上で必要に応じて Euler 角へ変換する
-
-### Feedback
-
-- hover で示す状態は focus-visible または選択状態でも認識できるようにする
-- command 完了ごとに toast を乱発しない
-- 保存、再同期、破壊的操作など、注意が必要な結果だけを明示的に通知する
-- motion は状態遷移の理解を補助する短いものに限定する
-- `prefers-reduced-motion: reduce` では不要な transition と camera animation を停止する
+現在の Vite `base` と TanStack Router `basepath` は `/editor/` である。route、asset、worker の prefix を二重化しない。hosting の最終構成は実装と Cloudflare 設定を確認して更新する。
 
 ## レスポンシブ
 
-Editor と Viewer は同じ responsive 戦略を持ちません。
-
-### Editor
-
-デスクトップでは Viewport を中心に navigation と properties を並べます。狭い画面では補助 panel を drawer または切り替え表示にし、Viewport の最小操作領域を守ります。
-
-- DOM の意味的な順序を visual positioning のために崩さない
-- panel を閉じても選択や未確定入力を意図せず失わない
-- pointer、touch、keyboard の各入力方法を区別して検証する
-- 狭い画面で編集機能を限定する場合は、非表示にするだけでなく理由を示す
-
-### Viewer
-
-Viewer は mobile viewport を正式な対象とします。
-
-- Canvas を利用可能な viewport 高に合わせる
-- browser chrome と safe area を考慮する
-- touch gesture とページ scroll の競合を避ける
-- orientation change 後に camera と Canvas size を更新する
-- overlay が presentation の主要内容を覆い続けないようにする
-
-具体的な breakpoint と panel 寸法は MUI theme の設計時に決定します。最低でも 320px、375px、768px、1024px、1440px で確認します。
+- 1024px 以上: 左 navigator、viewport、右 properties の 3 ペイン
+- 768px 以上: viewport を優先し、左右 panel の幅を固定・制限
+- 768px 未満: panel を縦積み、drawer、または明示的な切り替えへ移行
+- viewport の最小操作領域を守り、入力欄を無理に潰さない
+- panel を閉じても selection や未確定 input を意図せず失わない
+- 320px、375px、768px、1024px、1440px で title、toolbar、CTA、form、canvas が欠けないことを確認する
+- touch target は原則 `44px` 四方以上とする
 
 ## アクセシビリティ
 
-- route ごとに一意な `h1` を持ち、landmark と見出し順序を保つ
-- Editor shell の前に本文または Viewport へ移動する skip link を提供する
-- すべての HTML control に accessible name と明確な focus indicator を付ける
-- 通常文字は WCAG AA の `4.5:1`、大きな文字と UI 境界は `3:1` を最低基準にする
-- touch target は原則 44px 四方以上にする
-- selection、tool、保存、同期、error を色だけで伝えない
-- dialog、menu、drawer は focus trap、Escape、focus 復帰を正しく扱う
-- Canvas だけを唯一の操作手段にせず、slide navigator と properties panel から対象を選択・編集できるようにする
-- 3D scene の意味ある内容には、少なくとも要素名、階層、選択状態へアクセスできる DOM 表現を用意する
-- status 更新は重要度に応じて `aria-live` を使い、drag 中の連続値を読み上げ続けない
-- `forced-colors` でも focus、selection、control の境界を認識できるようにする
-- 自動回転、速い点滅、大きな視差効果を使用しない
-
-完全な 3D 編集操作のアクセシブルな代替は、縦スライスの実装と同時に検証します。未検証の Canvas 操作をアクセシブルと断定しません。
-
-## エラーと回復
-
-エラーは発生元と回復方法に応じて表示場所を分けます。
-
-| エラー                    | 表示と回復                              |
-| ------------------------- | --------------------------------------- |
-| Route / presentation 不明 | page-level error と有効な戻り先         |
-| Snapshot 読み込み失敗     | main content 内の retry                 |
-| revision 欠番             | 再同期中表示後に snapshot 再取得        |
-| GLB 読み込み失敗          | Viewport 内 fallback と retry / replace |
-| WebGL 利用不可            | Viewport の代替説明                     |
-| Property validation       | field 単位の error と未確定値保持       |
-| Publish 失敗              | Editor の同期状態と再試行方針           |
-
-予期しない例外は route または主要領域の error boundary で捕捉します。エラー時に document を初期値で上書きせず、保存されていない変更がある場合はその状態を明示します。
-
-## Hosting
-
-Web は `/editor` prefix を所有する独立 SPA として配信します。
-
-- `un-fra.me/editor` と `un-fra.me/editor/*` は LP より具体的な Worker route とする
-- Worker が `/editor` prefix を除去して Assets binding へ渡す
-- `/editor/assets/...` は `/assets/...` として asset を解決する
-- `/editor/foo` は `/foo` として解決し、見つからない場合は SPA index fallback を返す
-- asset URL、router basepath、Vite base の prefix を二重化しない
-- local preview で deep link と静的 asset の両方を確認する
-
-Cloudflare plugin を利用する場合も、この path contract を build と preview で検証します。デプロイ構成そのものは、互換性スパイクと hosting 工程で確定します。
-
-## テスト戦略
-
-機能追加と不具合修正は Explore、Red、Green、Refactor の順で進めます。
-
-### Unit Test
-
-- Zod schema の valid / invalid data
-- parser、serializer、version migration
-- `applyCommand` と inverse command
-- Undo / Redo と revision
-- quaternion と Euler の変換
-- revision 欠番の判定
-- AssetResolver の URL 非永続化
-
-### Component Test
-
-- provider と route の初期化
-- toolbar、panel、dialog の keyboard 操作
-- selection と properties の連動
-- validation と command 確定境界
-- loading、empty、error、retry
-- WebGL / GLB fallback UI
-
-Vitest と Testing Library は DOM 上の利用者操作を基準にします。Three.js の内部実装を過度に mock して、実際の pointer event や Canvas lifecycle の問題を隠しません。
-
-### E2E
-
-Playwright Chromium で最低限、次を確認します。
-
-- presentation を開き、要素を選択して transform する
-- transform を Undo / Redo する
-- Editor と Viewer の二つの page 間で確定 command が同期される
-- revision 欠番から snapshot へ復旧する
-- `/editor/presentations/$presentationId/view` へ直接アクセスする
-- mobile viewport で Viewer を操作する
-- GLB 読み込み失敗と WebGL 利用不可の fallback を表示する
-
-WebGL に依存する E2E は実行環境を固定し、利用できない環境で無言の skip にしません。
-
-## 実装順序
-
-1. 基盤と互換性スパイク
-2. Document Core
-3. Command / History
-4. App Shell
-5. 3D Vertical Slice
-6. 閲覧同期
-7. Hosting
-8. E2E と CI
-
-各工程は後続の UI を先に模倣せず、成立した機能だけを画面に表示します。依存関係は最初の工程でまとめて導入し、基盤の互換性を確認してからドメイン実装へ進みます。
+- route ごとに意味のある `h1` を一つ持つ。
+- `header`、`nav`、`main`、`aside`、`section` の landmark を情報構造に合わせる。
+- skip link と明確な `focus-visible` indicator を提供する。
+- 通常文字は `4.5:1`、大きな文字と UI 境界は `3:1` を最低基準にする。
+- selection、tool、saving、sync、error を色だけで伝えない。
+- icon-only control に accessible name と tooltip を付ける。
+- dialog、menu、drawer は Escape、focus 移動、focus 復帰を扱う。
+- Canvas 以外に slide navigator と properties panel から同じ対象を操作できる経路を持つ。
+- `forced-colors` でも focus、selection、control の境界を認識できるようにする。
+- `prefers-reduced-motion` では不要な transition、camera animation、常時アニメーションを停止する。
 
 ## 禁止事項
 
-- 資料本体を巨大な Zustand store に入れること
-- R3F や UI component から document を直接書き換えること
-- ドラッグ中に毎フレーム command や revision を生成すること
-- 関数、closure、Immer patch を履歴や配信形式にすること
-- 署名 URL、Object URL、Three.js object を document に保存すること
-- UI 表示用 Euler 角を永続 rotation の正本にすること
-- Viewer に selection、gizmo、editor panel を持たせること
-- selection、hover、drag state を URL に入れること
-- 存在しない `projectId` や将来機能を先回りしてモデルへ追加すること
-- MUI component を Canvas 内の scene object として扱うこと
-- API 接続前に保存済み、同期済み、connected と表示すること
-- 未実装機能を利用可能な CTA として表示すること
-- focus、selection、error、同期状態を色だけで伝えること
-- Canvas だけを唯一の選択・編集手段にすること
-- 初期 scaffold の色や寸法を検証なしに正式 token とすること
-- API、Go server、DB、OpenAPI 生成物を最初の Web 実装に合わせて変更すること
+- LP の Hero、巨大 display heading、GradientWave、noise、大きな marketing spacing を app shell にコピーする。
+- アプリの通常操作をグラデーション、pill、hover animation だけで表現する。
+- 実装されていない signup、signin、CRUD、upload、cloud save を利用可能な CTA として見せる。
+- `#` だけのリンク、処理のないボタン、存在しない anchor を作る。
+- 資料本体を巨大な Zustand store に入れる。
+- R3F や UI component から document を直接書き換える。
+- drag 中に毎フレーム command や revision を生成する。
+- 署名 URL、Object URL、Three.js object、runtime state を document に保存する。
+- Viewer に selection、gizmo、editor panel を持たせる。
+- Canvas だけを唯一の選択・編集手段にする。
+- status、focus、selection、error を色だけで伝える。
 
 ## 現行実装との差分
 
-以下はガイドの推奨事項ではなく、確認時点の `app/web/` scaffold と目標設計との差分です。
+確認時点での `app/web/` は WIP である。
 
-1. React と React DOM は package 上 `^19.1.0` であり、React 19.2 を明示していません。
-2. MUI、TanStack Router / Query、Zustand、Zod、React Hook Form、Immer、Three.js、R3F、drei は未導入です。
-3. Router と `/editor/` basepath は未設定です。
-4. Vite の `base: "/editor/"` と React plugin は未設定です。
-5. 画面は単一 `App` で、Home、Editor、Viewer route に分離されていません。
-6. editor state は `title` と `slideCount` の `useState` だけで、document model、command、history、revision は未実装です。
-7. slide は件数だけで、ID、要素、asset、transform を持ちません。
-8. 3D Viewport、GLB 読み込み、selection、TransformControls は未実装です。
-9. BroadcastChannel と `DocumentStream` は未実装です。
-10. `src/api.ts` は localhost の client object を生成するだけで、接続確認をせず `API: connected` と表示しています。
-11. 現行 CSS は色と寸法をハードコードしており、MUI theme や正式な design token ではありません。
-12. hover、focus-visible、disabled、error、loading、reduced motion の UI state は未定義です。
-13. 明示的な responsive layout と mobile Viewer は未実装です。
-14. テストは `node:test` による純粋関数の 2 件だけで、Vitest、Testing Library、Playwright は未導入です。
-15. `app/web/README.md` は未作成です。
+- Home は fixture の `Spatial story` を開く入口で、資料一覧や新規作成は未実装である。
+- Editor は GLB fixture、slide navigator、properties panel、transform command、Undo / Redo を持つ。
+- Viewer は read-only で、BroadcastChannel による同一 origin の確定操作同期を持つ。
+- API 接続、認証、認可、永続保存、複数ユーザー編集は未実装である。
+- signup / signin の画面はまだ存在しない。
+- `app/web/src/app/theme/theme.ts` は LP と共通するブランド値を定義するが、control はアプリ向けの solid、compact、MUI 表現を採用する。
+- `app/web/src/styles.css` はアプリ全体の reset、focus、viewport fallback の基礎だけを持つ。画面固有の見た目は route / component と MUI theme で管理する。
 
-## QA チェックリスト
+## テストと QA
 
-- [ ] React 19.2、MUI v9、Vite+ の組み合わせで development と production build が動作する
-- [ ] TypeScript strict、`noUncheckedIndexedAccess`、`exactOptionalPropertyTypes` を維持する
-- [ ] `/editor/` base と各 deep link が直接アクセス、再読み込みで表示できる
-- [ ] document が Zod schema で検証され、serializer に runtime 値が混入しない
-- [ ] GLB、メートル、右手系、Y-up、quaternion の規約が実装と fixture で一致する
-- [ ] drag 中は document が更新されず、pointer up で一つの command が生成される
-- [ ] Undo / Redo ごとに revision が進み、Viewer に反映される
-- [ ] revision 欠番時に snapshot を再取得し、不連続な event を推測適用しない
-- [ ] Viewer に editor 専用 state と UI が表示されない
-- [ ] GLB 読み込み失敗と WebGL 利用不可に回復可能な fallback がある
-- [ ] 320px、375px、768px、1024px、1440px で主要領域が操作可能である
-- [ ] Viewer が mobile viewport と touch 操作で利用できる
-- [ ] Tab、Shift+Tab、Enter、Space、Escape と定義済み shortcut で操作できる
-- [ ] input 編集中に editor shortcut が文字操作を妨げない
-- [ ] hover、focus、selection、disabled、error、同期状態を色以外でも識別できる
-- [ ] `prefers-reduced-motion` と `forced-colors` で操作情報が失われない
-- [ ] Vitest unit / component tests が成功する
-- [ ] Playwright Chromium E2E が成功する
-- [ ] `nix run .#web` が成功する
-- [ ] `nix run .#check` が成功する
-- [ ] production build が `/editor/` base で asset を解決する
-- [ ] Wrangler local preview で deep link と SPA fallback が動作する
-- [ ] API、server、DB、generated contract に意図しない差分がない
+機能追加と不具合修正は Explore、Red、Green、Refactor の順で進める。
+
+### Unit / Component
+
+- schema、parser、serializer、migration
+- `applyCommand`、inverse command、Undo / Redo、revision
+- quaternion / Euler 変換
+- router の Home / Editor / Viewer 表示
+- toolbar、panel、properties、keyboard 操作
+- loading、empty、error、retry、WebGL / GLB fallback
+
+### E2E
+
+- presentation を開いて要素を選択、transform、Undo / Redo する
+- Editor と Viewer の間で確定 command を同期する
+- revision 欠番から snapshot へ復旧する
+- Viewer を mobile viewport で操作する
+- GLB 読み込み失敗と WebGL 利用不可の fallback を表示する
+- deep link と `/editor/` の直接アクセスを確認する
+
+画面変更では、デスクトップとモバイルの実表示、Tab / Shift+Tab / Enter / Space / Escape、focus、loading / error / empty state を確認する。Three.js の変更では WebGL が利用できない場合も確認する。
+
+```bash
+pnpm --filter @unframe/web check
+pnpm --filter @unframe/web test
+pnpm --filter @unframe/web build
+```
+
+リポジトリ全体の gate は `nix run .#check` を使う。LP 側の確認は `lp/DESIGN.md` に記載したコマンドを使う。
