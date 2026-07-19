@@ -30,6 +30,9 @@ build/
 
 # テストカバレッジ (vitest --coverage の出力)
 coverage/
+playwright-report/
+test-results/
+blob-report/
 
 # editor / OS
 .DS_Store
