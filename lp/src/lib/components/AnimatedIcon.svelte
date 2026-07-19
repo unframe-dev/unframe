@@ -63,6 +63,10 @@
     pointer-events: none;
   }
 
+  .icon-bottom img {
+    bottom: 0;
+  }
+
   .icon-top {
     top: 0;
     animation: reveal-from-top var(--animation-duration) cubic-bezier(0.65, 0, 0.35, 1)
