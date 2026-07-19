@@ -12,7 +12,9 @@
     "test:e2e": "playwright test",
     "preview": "vp preview",
     "cf:dev": "wrangler dev",
-    "cf:types": "wrangler types --include-runtime=false --env-interface CloudflareBindings"
+    "cf:types": "wrangler types --include-runtime=false --env-interface CloudflareBindings",
+    "cf:deploy": "wrangler deploy",
+    "cf:deploy:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
