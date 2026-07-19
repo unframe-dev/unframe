@@ -17,6 +17,12 @@
     <div
         class="absolute -right-32 top-24 h-80 w-80 rounded-full bg-brand-purple/8 blur-3xl"
     ></div>
+    <img
+        src="/brand/hero.png"
+        alt=""
+        aria-hidden="true"
+        class="pointer-events-none absolute right-0 top-[14%] hidden w-[min(78vw,960px)] opacity-70 mix-blend-multiply lg:block"
+    />
 
     <Header />
 
@@ -24,7 +30,7 @@
         class="relative mx-auto flex min-h-[760px] max-w-[1440px] flex-col justify-center px-6 pb-20 pt-36 sm:min-h-screen sm:px-10 sm:pt-32 lg:px-14"
     >
         <div class="max-w-4xl">
-            <SectionLabel index="00">2次元に囚われない</SectionLabel>
+            <SectionLabel index="00">Mixed Reality Presentation Platform</SectionLabel>
             <h1
                 class="display-heading mt-8 max-w-4xl text-[clamp(4.1rem,10.8vw,10.5rem)]"
             >

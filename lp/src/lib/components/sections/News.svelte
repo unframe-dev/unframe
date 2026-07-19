@@ -16,7 +16,6 @@
   <div class="mx-auto max-w-[1440px]">
     <div class="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
       <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
-        <SectionLabel index="">最新情報</SectionLabel>
         <h2 class="display-heading text-[clamp(2.2rem,4vw,3.8rem)]">
           <span class="text-gradient">News.</span>
         </h2>

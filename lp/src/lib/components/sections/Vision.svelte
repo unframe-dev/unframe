@@ -4,7 +4,7 @@
   import SectionLabel from "../brand/SectionLabel.svelte";
 </script>
 
-<section id="vision" class="relative overflow-hidden bg-[#ececf0] px-6 pb-16 pt-32 sm:px-10 sm:pb-24 sm:pt-44 lg:px-14">
+<section id="vision" class="relative overflow-hidden bg-[#ececf0] px-6 pb-8 pt-32 sm:px-10 sm:pb-12 sm:pt-44 lg:px-14">
   <GradientWave id="vision-wave" class="-bottom-16 left-0 h-96 opacity-25" />
   <div class="relative mx-auto max-w-[1440px]">
     <div class="grid gap-16 lg:grid-cols-[0.7fr_1.3fr] lg:gap-24">

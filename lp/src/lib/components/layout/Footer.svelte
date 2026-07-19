@@ -5,7 +5,7 @@
   import GradientWave from "../brand/GradientWave.svelte";
 </script>
 
-<footer class="relative overflow-hidden bg-[#ececf0] px-6 pb-8 pt-24 text-night sm:px-10 lg:px-14">
+<footer class="relative overflow-hidden bg-[#ececf0] px-6 pb-8 pt-8 text-night sm:px-10 sm:pt-12 lg:px-14">
   <GradientWave id="footer-wave" class="bottom-0 left-0 h-[22rem] opacity-45" />
   <div class="relative mx-auto max-w-[1440px]">
     <div class="flex flex-col justify-between gap-14 border-b border-night/10 pb-16 md:flex-row md:items-end">
