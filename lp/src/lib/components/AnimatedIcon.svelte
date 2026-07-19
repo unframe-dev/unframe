@@ -25,8 +25,12 @@
   aria-label={alt || undefined}
   aria-hidden={alt ? undefined : "true"}
 >
-  <img class="icon-half icon-top" src={iconUrl} alt="" />
-  <img class="icon-half icon-bottom" src={iconUrl} alt="" />
+  <span class="icon-half icon-top">
+    <img src={iconUrl} alt="" />
+  </span>
+  <span class="icon-half icon-bottom">
+    <img src={iconUrl} alt="" />
+  </span>
 </span>
 
 <style>
@@ -40,42 +44,52 @@
 
   .icon-half {
     position: absolute;
-    inset: 0;
+    left: 0;
     display: block;
     width: 100%;
-    height: 100%;
+    height: 50%;
+    overflow: hidden;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .icon-half img {
+    position: absolute;
+    display: block;
+    width: 100%;
+    height: var(--icon-size);
     object-fit: contain;
     user-select: none;
     pointer-events: none;
   }
 
   .icon-top {
-    clip-path: inset(0 0 50% 0);
+    top: 0;
     animation: reveal-from-top var(--animation-duration) cubic-bezier(0.65, 0, 0.35, 1)
       var(--animation-delay) both;
   }
 
   .icon-bottom {
-    clip-path: inset(50% 0 0 0);
+    bottom: 0;
     animation: reveal-from-bottom var(--animation-duration) cubic-bezier(0.65, 0, 0.35, 1)
       var(--animation-delay) both;
   }
 
   @keyframes reveal-from-top {
     from {
-      clip-path: inset(0 0 100% 0);
+      height: 0;
     }
     to {
-      clip-path: inset(0 0 50% 0);
+      height: 50%;
     }
   }
 
   @keyframes reveal-from-bottom {
     from {
-      clip-path: inset(100% 0 0 0);
+      height: 0;
     }
     to {
-      clip-path: inset(50% 0 0 0);
+      height: 50%;
     }
   }
 
