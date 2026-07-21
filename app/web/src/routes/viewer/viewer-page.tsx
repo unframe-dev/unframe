@@ -63,7 +63,8 @@ export function ViewerPage({ document: initialDocument }: { document: Presentati
         p: { xs: 1, md: 2 },
         bgcolor: brandColors.night,
         color: "#f8f8fb",
-        backgroundImage: "radial-gradient(circle at 85% 0%, rgba(154, 128, 208, 0.16), transparent 32%)",
+        backgroundImage:
+          "radial-gradient(circle at 85% 0%, rgba(154, 128, 208, 0.16), transparent 32%)",
       }}
     >
       <Stack sx={{ minHeight: "calc(100dvh - 32px)" }} spacing={1}>
@@ -85,7 +86,10 @@ export function ViewerPage({ document: initialDocument }: { document: Presentati
             label={statusLabel}
             size="small"
             color={syncStatus === "error" ? "error" : "default"}
-            sx={{ bgcolor: syncStatus === "error" ? undefined : "rgba(255,255,255,.08)", color: "inherit" }}
+            sx={{
+              bgcolor: syncStatus === "error" ? undefined : "rgba(255,255,255,.08)",
+              color: "inherit",
+            }}
           />
           <Link
             to="/presentations/$presentationId/edit"

@@ -1,22 +1,17 @@
 import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
 import ViewInArRounded from "@mui/icons-material/ViewInArRounded";
-import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  Divider,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Chip, Container, Divider, Paper, Stack, Typography } from "@mui/material";
 import { Link } from "@tanstack/react-router";
 import { BrandMark } from "../../app/brand/brand-mark";
 import { brandColors } from "../../app/theme/theme";
 
 export function HomePage() {
   return (
-    <Box component="main" id="main-content" sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
+    <Box
+      component="main"
+      id="main-content"
+      sx={{ minHeight: "100dvh", bgcolor: "background.default" }}
+    >
       <Box
         component="header"
         sx={{
@@ -37,7 +32,10 @@ export function HomePage() {
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-          <Typography color="text.secondary" sx={{ display: { xs: "none", sm: "block" }, fontSize: 12 }}>
+          <Typography
+            color="text.secondary"
+            sx={{ display: { xs: "none", sm: "block" }, fontSize: 12 }}
+          >
             Workspace / Preview
           </Typography>
           <Chip label="Preview" size="small" variant="outlined" />
@@ -49,14 +47,25 @@ export function HomePage() {
           <Box>
             <Typography
               variant="overline"
-              sx={{ color: brandColors.purple, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}
+              sx={{
+                color: brandColors.purple,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+              }}
             >
               WORKSPACE / HOME
             </Typography>
             <Typography
               component="h1"
               variant="h1"
-              sx={{ mt: 1, maxWidth: 720, fontSize: { xs: 34, md: 52 }, fontWeight: 650, lineHeight: 1.18 }}
+              sx={{
+                mt: 1,
+                maxWidth: 720,
+                fontSize: { xs: 34, md: 52 },
+                fontWeight: 650,
+                lineHeight: 1.18,
+              }}
             >
               空間を、プレゼンテーションに。
             </Typography>
@@ -103,7 +112,11 @@ export function HomePage() {
                 </Box>
               </Stack>
               <Divider />
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ px: { xs: 2, md: 3 }, py: 2.5, alignItems: { sm: "center" } }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{ px: { xs: 2, md: 3 }, py: 2.5, alignItems: { sm: "center" } }}
+              >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{ fontSize: 15, fontWeight: 650 }}>Spatial story</Typography>
                   <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
@@ -124,21 +137,37 @@ export function HomePage() {
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 2.5, bgcolor: "background.paper" }}>
-              <Typography variant="overline" sx={{ color: brandColors.purple, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em" }}>
+              <Typography
+                variant="overline"
+                sx={{
+                  color: brandColors.purple,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                }}
+              >
                 WORKSPACE STATUS
               </Typography>
               <Stack spacing={1.5} sx={{ mt: 2 }}>
                 <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}>
-                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>同期</Typography>
+                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                    同期
+                  </Typography>
                   <Typography sx={{ fontSize: 13, fontWeight: 600 }}>ブラウザ内共有</Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}>
-                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>編集対象</Typography>
+                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                    編集対象
+                  </Typography>
                   <Typography sx={{ fontSize: 13, fontWeight: 600 }}>2 slides</Typography>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}>
-                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>状態</Typography>
-                  <Typography sx={{ color: "success.main", fontSize: 13, fontWeight: 600 }}>待機中</Typography>
+                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                    状態
+                  </Typography>
+                  <Typography sx={{ color: "success.main", fontSize: 13, fontWeight: 600 }}>
+                    待機中
+                  </Typography>
                 </Stack>
               </Stack>
             </Paper>

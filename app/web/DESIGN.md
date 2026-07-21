@@ -4,10 +4,10 @@
 
 `app/web/` は Unframe のアプリケーション層である。LP のようにプロダクトを説明する場所ではなく、ユーザーがログインし、プレゼンテーションを選び、編集し、閲覧するための状態を持つ React アプリケーションとして設計する。
 
-| 領域 | URL の責務 | 役割 |
-| --- | --- | --- |
-| LP / Site | `un-fra.me/`、`/news`、`/docs` | ブランド、価値、更新情報、ドキュメントを伝える |
-| Application | `un-fra.me/signup`、`/signin`、`/home`、`/editor` など | 認証後の作業、資料管理、編集、閲覧を提供する |
+| 領域        | URL の責務                                             | 役割                                           |
+| ----------- | ------------------------------------------------------ | ---------------------------------------------- |
+| LP / Site   | `un-fra.me/`、`/news`、`/docs`                         | ブランド、価値、更新情報、ドキュメントを伝える |
+| Application | `un-fra.me/signup`、`/signin`、`/home`、`/editor` など | 認証後の作業、資料管理、編集、閲覧を提供する   |
 
 LP の詳細は `lp/DESIGN.md` に定義する。LP とアプリはロゴ、ブランドカラー、文章の温度を共有するが、視覚的な役割は分ける。
 
@@ -83,10 +83,10 @@ Home はアプリの入口であり、次の作業を選ぶ画面である。
 
 デスクトップの基本構成は次の 3 ペインである。
 
-| 領域 | 役割 |
-| --- | --- |
+| 領域     | 役割                                 |
+| -------- | ------------------------------------ |
 | 左 panel | slide、layer、asset のナビゲーション |
-| 中央 | 最も広い 3D Viewport |
+| 中央     | 最も広い 3D Viewport                 |
 | 右 panel | 選択対象の property、transform、状態 |
 
 上部の toolbar は presentation 名、Undo / Redo、select / translate / rotate / scale、grid、同期状態、Viewer 導線を持つ。
@@ -113,17 +113,17 @@ Viewer は Editor と明確に区別する read-only surface である。
 
 LP とアプリで値を共有する。ただしアプリではブランド色の意味を限定し、作業性を優先する。
 
-| トークン | 値 | アプリでの用途 |
-| --- | --- | --- |
-| `background` | `#f7f7f5` | ページの基底 |
-| `foreground` | `#15171d` | 主要文字 |
-| `muted` | `#747780` | 補助文字、meta |
-| `line` | `#dedfe2` | panel、input、list の境界 |
-| `night` | `#0b0e14` | Viewport、Viewer |
-| `night-soft` | `#11151d` | Viewport 補助面、fallback |
-| `brand-blue` | `#7187f5` | primary、selection、focus |
-| `brand-purple` | `#9a80d0` | secondary、panel の強調 |
-| `brand-red` | `#df7b80` | error、限定的な注意 |
+| トークン       | 値        | アプリでの用途            |
+| -------------- | --------- | ------------------------- |
+| `background`   | `#f7f7f5` | ページの基底              |
+| `foreground`   | `#15171d` | 主要文字                  |
+| `muted`        | `#747780` | 補助文字、meta            |
+| `line`         | `#dedfe2` | panel、input、list の境界 |
+| `night`        | `#0b0e14` | Viewport、Viewer          |
+| `night-soft`   | `#11151d` | Viewport 補助面、fallback |
+| `brand-blue`   | `#7187f5` | primary、selection、focus |
+| `brand-purple` | `#9a80d0` | secondary、panel の強調   |
+| `brand-red`    | `#df7b80` | error、限定的な注意       |
 
 実装上の共通値は `app/web/src/app/theme/theme.ts` の `brandColors` を正本とする。`lp/src/app.css` の値と変更時に同期する。
 
@@ -152,43 +152,43 @@ LP とアプリで値を共有する。ただしアプリではブランド色�
 
 ## 色と状態
 
-| 状態 / 対象 | 表現 |
-| --- | --- |
-| primary action | `brand-blue` の solid button + 明確なラベル |
-| selected | Blue / Purple の薄い surface、左線または境界線、名前 |
-| focus | 3px 程度の focus ring と offset |
-| disabled | MUI の disabled style + 実行できない状態 |
-| loading | 対象領域内の progress / skeleton + 説明 |
-| empty | 空である理由と実行可能な次の導線 |
-| syncing | `syncing` などの明示的な label |
-| error | error 色、説明、retry / recovery |
-| read-only | Viewer の表示と編集導線の分離 |
+| 状態 / 対象    | 表現                                                 |
+| -------------- | ---------------------------------------------------- |
+| primary action | `brand-blue` の solid button + 明確なラベル          |
+| selected       | Blue / Purple の薄い surface、左線または境界線、名前 |
+| focus          | 3px 程度の focus ring と offset                      |
+| disabled       | MUI の disabled style + 実行できない状態             |
+| loading        | 対象領域内の progress / skeleton + 説明              |
+| empty          | 空である理由と実行可能な次の導線                     |
+| syncing        | `syncing` などの明示的な label                       |
+| error          | error 色、説明、retry / recovery                     |
+| read-only      | Viewer の表示と編集導線の分離                        |
 
 `success` の色だけで保存済みや同期済みを表現しない。API や同期を確認していない場合は `connected`、`saved` と表示しない。
 
 ## 技術境界
 
-| 領域 | 責務 |
-| --- | --- |
-| `app/` | providers、router、theme、application-wide UI |
-| `routes/` | Home、Editor、Viewer の route composition |
+| 領域        | 責務                                                |
+| ----------- | --------------------------------------------------- |
+| `app/`      | providers、router、theme、application-wide UI       |
+| `routes/`   | Home、Editor、Viewer の route composition           |
 | `document/` | presentation、slide、element、asset の domain model |
-| `editor/` | command、history、session、editor-only UI |
-| `viewer/` | read-only reducer、stream、presentation canvas |
-| `features/` | 複数画面で利用する具体的な機能 |
-| `shared/` | 現に複数箇所で使う最小限の UI / utility |
+| `editor/`   | command、history、session、editor-only UI           |
+| `viewer/`   | read-only reducer、stream、presentation canvas      |
+| `features/` | 複数画面で利用する具体的な機能                      |
+| `shared/`   | 現に複数箇所で使う最小限の UI / utility             |
 
 MUI は app bar、toolbar、panel、form、dialog、menu、feedback に使う。Canvas 内の scene object、selection、TransformControls、camera controls には使わない。
 
 ### 状態の所有
 
-| 状態 | 所有者 |
-| --- | --- |
-| Server state | TanStack Query（API 接続後） |
+| 状態            | 所有者                                 |
+| --------------- | -------------------------------------- |
+| Server state    | TanStack Query（API 接続後）           |
 | Editor document | React Context + reducer + pure command |
-| Editor session | Zustand vanilla store |
-| transient 3D | Three.js ref / component local state |
-| temporary UI | React local state / React Hook Form |
+| Editor session  | Zustand vanilla store                  |
+| transient 3D    | Three.js ref / component local state   |
+| temporary UI    | React local state / React Hook Form    |
 
 資料本体への変更は serializable な `EditorCommand` に変換する。drag 中は transient state だけを更新し、pointer up で一つの command として確定する。
 
@@ -196,13 +196,13 @@ MUI は app bar、toolbar、panel、form、dialog、menu、feedback に使う。
 
 アプリケーションの将来の URL 責務は次のとおりである。
 
-| Route | 役割 | 状態 |
-| --- | --- | --- |
-| `/signup` | アカウント作成 | 未実装 |
-| `/signin` | サインイン | 未実装 |
-| `/home` | 資料を選ぶ workspace | 対象。現在は `/editor/` の fixture Home |
-| `/editor` | プレゼンテーション編集 | 実装中 |
-| `/editor/presentations/:id/view` | read-only 閲覧 | 実装中 |
+| Route                            | 役割                   | 状態                                    |
+| -------------------------------- | ---------------------- | --------------------------------------- |
+| `/signup`                        | アカウント作成         | 未実装                                  |
+| `/signin`                        | サインイン             | 未実装                                  |
+| `/home`                          | 資料を選ぶ workspace   | 対象。現在は `/editor/` の fixture Home |
+| `/editor`                        | プレゼンテーション編集 | 実装中                                  |
+| `/editor/presentations/:id/view` | read-only 閲覧         | 実装中                                  |
 
 現在の Vite `base` と TanStack Router `basepath` は `/editor/` である。route、asset、worker の prefix を二重化しない。hosting の最終構成は実装と Cloudflare 設定を確認して更新する。
 

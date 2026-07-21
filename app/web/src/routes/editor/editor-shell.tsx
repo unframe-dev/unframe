@@ -66,7 +66,9 @@ export function EditorShell({ presentationId }: { presentationId: string }) {
           backdropFilter: "blur(18px)",
         }}
       >
-        <Toolbar sx={{ gap: { xs: 1, md: 1.5 }, minHeight: { xs: 64, md: 72 }, px: { xs: 1.5, md: 3 } }}>
+        <Toolbar
+          sx={{ gap: { xs: 1, md: 1.5 }, minHeight: { xs: 64, md: 72 }, px: { xs: 1.5, md: 3 } }}
+        >
           <BrandMark size={30} />
           <Box sx={{ minWidth: 0, mr: "auto" }}>
             <Typography component="h1" variant="h1" noWrap>
