@@ -352,7 +352,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9efb5cb69c56477d9c03aca86ab6c66d, type: 3}
   m_EditorClassIdentifier: Assembly-CSharp::LocalPresentationJsonSource
   jsonFile: {fileID: 0}
-  resourcesPath: PresentationSamples/LocalSample
+  resourcesPath: PresentationSamples/LocalExtendedSample
 --- !u!114 &4004
 MonoBehaviour:
   m_ObjectHideFlags: 0
