@@ -74,7 +74,53 @@
           }
         ],
         "dynamicGroups": [],
-        "steps": []
+        "steps": [
+          {
+            "id": "step_01",
+            "cues": [
+              {
+                "id": "cue_hide_title",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "primary",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "sample_title",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ],
+                "nextStep": "step_02"
+              }
+            ]
+          },
+          {
+            "id": "step_02",
+            "cues": [
+              {
+                "id": "cue_hide_cube",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "next",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "sample_cube",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     ]
   }

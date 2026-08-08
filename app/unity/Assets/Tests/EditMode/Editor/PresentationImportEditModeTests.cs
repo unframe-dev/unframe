@@ -153,6 +153,21 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void LocalSample_ContainsControllerDrivenSteps()
+    {
+        TextAsset sample = Resources.Load<TextAsset>("PresentationSamples/LocalSample");
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+
+        Assert.That(sample, Is.Not.Null);
+        Assert.That(parser.TryParse(sample.text, out PresentationDocument document, out string error), Is.True, error);
+
+        PresentationStep firstStep = document.presentation.groups[0].steps[0];
+        Assert.That(firstStep.cues[0].trigger.condition.input, Is.EqualTo("primary"));
+        Assert.That(firstStep.cues[0].actions[0].boolValue, Is.False);
+        Assert.That(firstStep.cues[0].nextStep, Is.EqualTo("step_02"));
+    }
+
+    [Test]
     public void ActionExecutor_AppliesVisibilityAndTransformActions()
     {
         GameObject target = new GameObject("element");
