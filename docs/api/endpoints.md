@@ -1,10 +1,11 @@
 # Unframe Backend — エンドポイント一覧
 
+> **注意**: この文書は旧Hono / Supabase実装の記述を含む歴史資料であり、現行APIの正本ではありません。現行契約は [`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml) を参照してください。
+
 `app/server/` が提供する HTTP API の一覧。リクエスト / レスポンスの詳細スキーマは
-[`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml) と
-[`docs/api/openapi.json`](./openapi.json) を正本とする。設計判断は
-[ADR-0001](../decisions/0001-backend-mvp-design.md) /
-[ADR-0002](../decisions/0002-supabase-storage-and-db.md) を参照。
+[`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml) を正本とする。旧MVPの判断履歴は
+[ADR-0001](../decisions/archived/0001-backend-mvp-design.md) /
+[ADR-0002](../decisions/archived/0002-supabase-storage-and-db.md) を参照。
 
 実行中ドキュメント (Scalar UI / OpenAPI) は `wrangler dev` 起動後:
 

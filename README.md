@@ -4,9 +4,9 @@ Unframe は、MR（Mixed Reality）空間で利用するプレゼンテーショ
 
 ## プロダクト概要
 
-従来のスライド資料では表現しにくい 3D モデルや画像、テキストをプレゼンテーションの要素として配置し、MR デバイス上の空間で表示します。
+従来のスライド資料では表現しにくい 3D モデルや画像、テキストをプレゼンテーションの要素として配置し、MR デバイス上の空間で表示します。発表者の位置移動や身体動作、コントローラー入力をきっかけに要素を表示・移動・変形させることで、ページを順番に切り替えるのではなく、一つの MR 空間の中で発表内容を段階的に展開できます。
 
-Unframe は次の流れで利用します。
+目標とする利用の流れは次のとおりです。
 
 ```text
 Web Editor
@@ -37,7 +37,7 @@ MR デバイス上でプレゼンテーションを表示
 
 - Backend API はプレゼンテーション、アセット、MR 用 manifest の基本処理を提供します。
 - Web Editor は編集機能の scaffold を実装しています。
-- Unity アプリケーションは manifest の取得とプレゼンテーション要素の描画を実装しています。
+- Unity アプリケーションはローカル JSON importer とプレゼンテーション要素 loader の scaffold を実装しています。Backend API の manifest や生成 C# client とは未接続です。
 - 認証、リアルタイム同期、変換パイプライン、バックグラウンド処理は未実装です。
 - Landing Page は開発中です。
 
@@ -60,3 +60,4 @@ docs/          アーキテクチャ、API、設計判断、ドキュメント
 - [開発・コントリビューションガイド](./CONTRIBUTING.md)
 - [API 契約](./packages/contracts/openapi.yaml)
 - [設計判断（ADR）](./docs/decisions/)
+- [空間プレゼンテーションのドメインモデル（ADR-0005）](./docs/decisions/0005-spatial-presentation-domain-model.md)

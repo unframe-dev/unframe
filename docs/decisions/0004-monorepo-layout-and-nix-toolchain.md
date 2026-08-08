@@ -3,11 +3,11 @@
 - **Status**: Accepted
 - **Date**: 2026-07-16
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0003](./0003-full-renewal.md)（構成刷新の親決定）, [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- **関連**: [ADR-0003（アーカイブ）](./archived/0003-full-renewal.md)（構成刷新の親決定）, [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
 
 ## Context
 
-[ADR-0003](./0003-full-renewal.md) で Go backend と分離フロントエンドへの全面刷新を決めたが、具体的なディレクトリ命名（`apps/backend` / `apps/app` / `apps/site` / `apps/mr`）と、各言語クライアントの成果物配置、共有 config の置き場は確定していなかった。実装が進むにつれ、次の点を明確にする必要が生じた。
+[ADR-0003（アーカイブ）](./archived/0003-full-renewal.md) で Go backend と分離フロントエンドへの全面刷新を決めたが、具体的なディレクトリ命名（`apps/backend` / `apps/app` / `apps/site` / `apps/mr`）と、各言語クライアントの成果物配置、共有 config の置き場は確定していなかった。実装が進むにつれ、次の点を明確にする必要が生じた。
 
 - 動的編集エディタ（React）と MR クライアント（Unity）、LP（Svelte）の置き場と命名。
 - OpenAPI から生成する TypeScript / C# クライアントを、契約成果物（`openapi.yaml` と生成設定）とどう分離するか。

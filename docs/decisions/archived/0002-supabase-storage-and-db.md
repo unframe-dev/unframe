@@ -1,9 +1,11 @@
 # ADR-0002: DB / Storage を Supabase、Runtime を Cloudflare Workers に乗せる
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0003
 - **Date**: 2026-05-19
 - **Deciders**: 颯士（Backend / WebApp 担当）
-- **関連**: [ADR-0001](./0001-backend-mvp-design.md)（API 契約・slide-as-document・FK 設計は ADR-0001 に従う。本 ADR は **ストレージ実装・DB ホスト・runtime・アップロード経路** を確定する）
+- **関連**: [ADR-0001](./0001-backend-mvp-design.md), [ADR-0003](./0003-full-renewal.md)
+
+> **アーカイブ**: 本ADRは旧Supabase / Cloudflare Workers構成の歴史資料です。現在の設計・実装には使用しません。刷新履歴は [ADR-0003](./0003-full-renewal.md)、現行構成は [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md)、[`ARCHITECTURE.md`](../../../ARCHITECTURE.md) を参照してください。
 
 ---
 
@@ -213,7 +215,7 @@ ADR-0001 の「URL は相対で返す」決定はここで覆る。理由: Supab
 
 ## ADR-0001 への反映済み変更（追跡用）
 
-ADR-0001 (Accepted) は本 ADR の決定を反映済み。主な反映点:
+ADR-0001（当時の Status は Accepted）には本 ADR の決定を反映していた。主な反映点:
 
 | ADR-0001 の箇所               | 反映内容                                                                                                    |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |

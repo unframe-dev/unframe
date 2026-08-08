@@ -1,9 +1,11 @@
 # ADR-0001: Backend MVP（6/7 発表会版）の要件と設計
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0003
 - **Date**: 2026-05-19
 - **Deciders**: 颯士（Backend / WebApp 担当）
-- **関連**: [`docs/notion/6月MVP.md`](../notion/6月MVP.md), [`docs/notion/Unframe.md`](../notion/Unframe.md), [ADR-0002](./0002-supabase-storage-and-db.md)（ストレージ層・DB ホスト・runtime・アップロード経路を本 ADR とセットで読む）
+- **関連**: [`docs/notion/6月MVP.md`](../../notion/6月MVP.md), [`docs/notion/Unframe.md`](../../notion/Unframe.md), [ADR-0002](./0002-supabase-storage-and-db.md), [ADR-0003](./0003-full-renewal.md)
+
+> **アーカイブ**: 本ADRは旧TypeScript/Hono Backend MVPの歴史資料です。現在の設計・実装には使用しません。刷新履歴は [ADR-0003](./0003-full-renewal.md)、現行構成は [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md)、[`ARCHITECTURE.md`](../../../ARCHITECTURE.md) を参照してください。
 
 ---
 
@@ -13,7 +15,7 @@
 
 既存 scaffold: Hono + `@hono/zod-openapi` + Drizzle ORM + Scalar (`/docs`) + pino + 共有契約 (`packages/contracts/`) は導入済み。`/health` のみ実装され、`presentations` テーブルは `(id, title, createdAt, updatedAt)` の最小形のみ。
 
-確定済みの上位判断（[`memory/mr_presen_overview.md`](../../memory/mr_presen_overview.md) 参照）:
+確定済みの上位判断（当時の資料 `memory/mr_presen_overview.md` 参照）:
 
 | 項目 | 決定 |
 | --- | --- |

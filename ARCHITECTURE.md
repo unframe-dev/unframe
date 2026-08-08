@@ -1,6 +1,6 @@
 # Unframe アーキテクチャ
 
-このドキュメントは Unframe モノレポの**現行の目標構成**を示す一次資料です。個別の意思決定の背景は [`docs/decisions/`](./docs/decisions/) の ADR を、開発フローは [`CONTRIBUTING.md`](./CONTRIBUTING.md) を参照してください。構成の刷新経緯は [ADR-0003](./docs/decisions/0003-full-renewal.md)、レイアウト命名と Nix ツールチェインへの移行は [ADR-0004](./docs/decisions/0004-monorepo-layout-and-nix-toolchain.md) が正です。
+このドキュメントは Unframe モノレポの**現行の目標構成**を示す一次資料です。個別の意思決定の背景は [`docs/decisions/`](./docs/decisions/) の ADR を、開発フローは [`CONTRIBUTING.md`](./CONTRIBUTING.md) を参照してください。構成の刷新経緯は [ADR-0003（アーカイブ）](./docs/decisions/archived/0003-full-renewal.md)、レイアウト命名と Nix ツールチェインへの移行は [ADR-0004](./docs/decisions/0004-monorepo-layout-and-nix-toolchain.md) が正です。
 
 ## 全体像
 
