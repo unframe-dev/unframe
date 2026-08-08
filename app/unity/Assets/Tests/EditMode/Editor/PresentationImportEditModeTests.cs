@@ -30,15 +30,17 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
-    public void JsonUtility_IgnoresPolymorphicActionValueUntilActionImportIsAdded()
+    public void Parser_ConvertsPolymorphicActionValues()
     {
-        const string json = "{\"actions\":[{\"targetId\":\"earth\",\"type\":\"setVisible\",\"value\":true},{\"targetId\":\"earth\",\"type\":\"setPosition\",\"value\":[1,2,3]}]}";
+        const string json = "{\"schemaVersion\":\"1.0.0\",\"presentation\":{\"groups\":[{\"id\":\"group_01\",\"steps\":[{\"id\":\"step_01\",\"cues\":[{\"id\":\"cue_01\",\"actions\":[{\"targetId\":\"earth\",\"type\":\"setVisible\",\"value\":true},{\"targetId\":\"earth\",\"type\":\"setPosition\",\"value\":[1,2,3]}]}]}]}]}}";
 
-        PresentationActionContainer container = JsonUtility.FromJson<PresentationActionContainer>(json);
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+        Assert.That(parser.TryParse(json, out PresentationDocument document, out string error), Is.True, error);
 
-        Assert.That(container.actions, Has.Length.EqualTo(2));
-        Assert.That(container.actions[0].type, Is.EqualTo("setVisible"));
-        Assert.That(container.actions[1].type, Is.EqualTo("setPosition"));
+        PresentationAction[] actions = document.presentation.groups[0].steps[0].cues[0].actions;
+        Assert.That(actions, Has.Length.EqualTo(2));
+        Assert.That(actions[0].boolValue, Is.True);
+        Assert.That(actions[1].vectorValue, Is.EqualTo(new[] { 1f, 2f, 3f }));
     }
 
     [Test]
@@ -178,9 +180,4 @@ public sealed class PresentationImportEditModeTests
         Object.DestroyImmediate(target);
     }
 
-    [System.Serializable]
-    private sealed class PresentationActionContainer
-    {
-        public PresentationAction[] actions;
-    }
 }

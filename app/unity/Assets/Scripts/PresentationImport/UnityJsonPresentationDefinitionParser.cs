@@ -29,6 +29,7 @@ public sealed class UnityJsonPresentationDefinitionParser : IPresentationDefinit
             return false;
         }
 
+        PresentationActionValueParser.Apply(json, document);
         return true;
     }
 }
