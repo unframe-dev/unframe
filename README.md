@@ -4,60 +4,56 @@ Unframe は、MR（Mixed Reality）空間で利用するプレゼンテーショ
 
 ## プロダクト概要
 
-従来のスライド資料では表現しにくい 3D モデルや画像、テキストをプレゼンテーションの要素として配置し、MR デバイス上の空間で表示します。発表者の位置移動や身体動作、コントローラー入力をきっかけに要素を表示・移動・変形させることで、ページを順番に切り替えるのではなく、一つの MR 空間の中で発表内容を段階的に展開できます。
-
-目標とする利用の流れは次のとおりです。
+3D モデルや画像、テキストをプレゼンテーションの要素として MR 空間へ配置し、発表者の位置移動、身体動作、コントローラー入力に応じて表示・移動・変形させます。一つの MR 空間の中で発表内容を段階的に展開することを目指します。
 
 ```text
 Web Editor
     │ プレゼンテーションを作成・編集
     ▼
-Backend API
-    │ プレゼンテーションとアセットを保存し、MR 用 manifest を提供
+Control Plane
+    │ durable data、asset、session bootstrap
     ▼
 Unity MR Application
-    │ manifest とアセットを取得して MR 空間に描画
+    │ asset を取得し、Realtime session へ参加
     ▼
 MR デバイス上でプレゼンテーションを表示
 ```
 
 ## 構成要素
 
-| コンポーネント              | 役割                                                           | 技術            |
-| --------------------------- | -------------------------------------------------------------- | --------------- |
-| Web Editor（WIP）           | プレゼンテーションの作成・編集                                 | React 19        |
-| Backend API（WIP）          | プレゼンテーション、スライド、アセットの保存と manifest の提供 | Go / Huma / Chi |
-| Unity MR Application（WIP） | manifest をもとにしたプレゼンテーションの MR 表示              | Unity / C#      |
-| Landing Page（WIP）         | プロダクト紹介とドキュメント                                   | SvelteKit       |
+| コンポーネント | 役割 | 技術 |
+| --- | --- | --- |
+| Web Editor（WIP） | プレゼンテーションの作成・編集 | React 19 |
+| Control Plane（WIP） | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
+| Realtime Backend（WIP） | session 中の低遅延状態同期 | Go / gRPC / container |
+| Unity MR Application（WIP） | MR 表示と realtime session 参加 | Unity / C# |
+| Landing Page（WIP） | プロダクト紹介とドキュメント | SvelteKit |
+
+`app/server/` は Control Plane と Realtime Backend の親ディレクトリです。旧 Go/Huma/Turso/R2 HTTP API は削除済みで、各 component の実装は独立して追加されます。設計の正本は [app/server/ARCHITECTURE.md](./app/server/ARCHITECTURE.md) を参照してください。
+
+旧 OpenAPI contract と TypeScript client は削除済みです。新しい Control Plane と Realtime の contract は、それぞれの実装と同時に定義します。
 
 ## 現在のステータス
 
-`app/` 配下のすべてのアプリケーションと `lp/` は WIP です。現在は MVP の基盤を
-構築している段階です。
-
-- Backend API はプレゼンテーション、アセット、MR 用 manifest の基本処理を提供します。
-- Web Editor は編集機能の scaffold を実装しています。
-- Unity アプリケーションはローカル JSON importer とプレゼンテーション要素 loader の scaffold を実装しています。Backend API の manifest や生成 C# client とは未接続です。
-- 認証、リアルタイム同期、変換パイプライン、バックグラウンド処理は未実装です。
-- Landing Page は開発中です。
+`app/` 配下のアプリケーションと `lp/` は WIP です。Web Editor は編集機能の scaffold、Unity はローカル JSON importer と presentation element loader の scaffold を実装しています。認証、認可、realtime 同期、変換 pipeline、background job は未実装です。
 
 ## リポジトリ
 
 ```text
 app/
 ├── web/       React ベースの Web Editor
-├── server/    Go ベースの Backend API
+├── server/    Control Plane / Realtime Backend
 └── unity/     Unity ベースの MR Application
 
 lp/            Landing Page
-packages/      API 契約、生成クライアント、共有設定
-docs/          アーキテクチャ、API、設計判断、ドキュメント
+packages/      契約境界、C# client placeholder、共有設定
+docs/          アーキテクチャ、設計判断、ドキュメント
 ```
 
 ## ドキュメント
 
 - [アーキテクチャ](./ARCHITECTURE.md)
+- [Backend アーキテクチャ](./app/server/ARCHITECTURE.md)
 - [開発・コントリビューションガイド](./CONTRIBUTING.md)
-- [API 契約](./packages/contracts/openapi.yaml)
 - [設計判断（ADR）](./docs/decisions/)
 - [空間プレゼンテーションのドメインモデル（ADR-0005）](./docs/decisions/0005-spatial-presentation-domain-model.md)

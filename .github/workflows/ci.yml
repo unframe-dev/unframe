@@ -2,7 +2,7 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: server.yml / web.yml / lp.yml / openapi.yml / unity.yml。
+# 各領域の実体: web.yml / lp.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
@@ -29,10 +29,8 @@ jobs:
     # draft PR ではスキップ (ready にした時点で ready_for_review により実行される)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     outputs:
-      server: ${{ steps.filter.outputs.server }}
       web: ${{ steps.filter.outputs.web }}
       lp: ${{ steps.filter.outputs.lp }}
-      openapi: ${{ steps.filter.outputs.openapi }}
       unity: ${{ steps.filter.outputs.unity }}
     steps:
       - uses: actions/checkout@v4
@@ -51,23 +49,10 @@ jobs:
               - 'packages/config/tsconfig.base.json'
               - 'vite.config.ts'
               - '.github/workflows/ci.yml'
-            server:
-              - *shared
-              - '.github/workflows/server.yml'
-              - 'app/server/**'
-            openapi:
-              - *shared
-              - '.github/workflows/openapi.yml'
-              - 'app/server/**'
-              - 'packages/contracts/**'
-              - 'packages/api-client-ts/**'
-              - 'packages/api-client-csharp/**'
             web:
               - *shared
               - '.github/workflows/web.yml'
               - 'app/web/**'
-              - 'packages/api-client-ts/**'
-              - 'packages/contracts/**'
             lp:
               - *shared
               - '.github/workflows/lp.yml'
@@ -75,18 +60,6 @@ jobs:
             unity:
               - '.github/workflows/unity.yml'
               - 'app/unity/**'
-
-  server:
-    name: Server
-    needs: changes
-    if: needs.changes.outputs.server == 'true'
-    uses: ./.github/workflows/server.yml
-
-  openapi:
-    name: OpenAPI
-    needs: changes
-    if: needs.changes.outputs.openapi == 'true'
-    uses: ./.github/workflows/openapi.yml
 
   web:
     name: Web
@@ -109,7 +82,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, server, openapi, web, lp, unity]
+    needs: [changes, web, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:
