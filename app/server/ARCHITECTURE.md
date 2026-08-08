@@ -257,42 +257,62 @@ HTTP handler から D1 binding や R2 binding を直接操作し続けず、appl
 
 ### 8.7 Physical Directory Layout
 
-Main BackendとRealtime Backendはruntime、言語、dependency、deployment単位が異なるため、`app/server/`配下で明確に分離する。
+Main BackendとRealtime Backendはruntime、言語、dependency、deployment単位が異なるため、`app/server/`配下で明確に分離する。物理directory名は、Main Backendをその役割に合わせて`control-plane/`、Realtime Backendを`realtime/`とする。
 
 ```text
 app/server/
 ├── ARCHITECTURE.md
-├── main/                         # Cloudflare Workers / TypeScript / Hono
+├── README.md
+├── control-plane/                # Main Backend: Cloudflare Workers / TypeScript / Hono
 │   ├── package.json
+│   ├── tsconfig.json
 │   ├── wrangler.jsonc
 │   ├── migrations/              # D1 migrations
 │   ├── src/
-│   │   ├── index.ts             # Worker entrypoint / composition root
-│   │   ├── api/                 # Hono routes and HTTP mapping
-│   │   ├── auth/                # Better Auth / Google / authorization
-│   │   ├── service/             # application logic
-│   │   ├── repository/          # D1 adapters
-│   │   ├── storage/             # R2 adapter and asset lifecycle
-│   │   └── realtime/            # session bootstrap / credential / callback
+│   │   ├── index.ts             # Worker entrypoint
+│   │   ├── app.ts               # Hono application composition root
+│   │   ├── env.ts               # Workers bindings types
+│   │   ├── http/                # middleware and HTTP error mapping
+│   │   ├── modules/             # use cases, models, and ports by feature
+│   │   │   ├── auth/
+│   │   │   ├── users/
+│   │   │   ├── presentations/
+│   │   │   ├── assets/
+│   │   │   ├── sessions/
+│   │   │   ├── realtime-bootstrap/
+│   │   │   └── persistence-callback/
+│   │   ├── adapters/            # Better Auth, D1, R2, routing, and signing
+│   │   ├── jobs/                # orphan collection and scheduled work
+│   │   └── observability/
 │   └── test/
+│       ├── integration/
+│       └── support/
 ├── realtime/                     # Go / gRPC / container
 │   ├── go.mod
 │   ├── go.sum
 │   ├── Dockerfile
 │   ├── cmd/server/               # process entrypoint
 │   └── internal/
-│       ├── transport/grpc/       # generated service adapter
+│       ├── gen/realtime/v1/     # generated Go protobuf code
+│       ├── transport/grpc/       # handwritten gRPC adapter
 │       ├── auth/                 # JWT verification / service identity
 │       ├── session/              # coordinator and state
 │       ├── protocol/             # message validation / mapping
-│       └── persistence/          # Main Backend client
-└── integration/                  # Main + Realtime end-to-end tests
+│       ├── persistence/http/     # Main Backend client
+│       └── observability/
+└── integration/                  # Control Plane + Realtime end-to-end tests
+    ├── fixtures/
+    └── tests/
 
 packages/contracts/
 ├── openapi.yaml                  # Main Backend HTTP contract artifact
 └── proto/unframe/realtime/v1/    # Realtime source contract
     └── realtime.proto
 ```
+
+`control-plane/src/modules/`は機能ごとのuse case、model、port interfaceを所有し、Cloudflare bindingや外部serviceの実装は`adapters/`へ置く。Hono handlerからD1やR2を直接操作せず、`index.ts`と`app.ts`はdependencyの組み立てとHTTP applicationの構築に限定する。
+
+`realtime/internal/session/`はgRPC、generated Protobuf type、Cloudflare Containers、Fly.io固有APIへ依存させない。generated typeは`transport/grpc/`と`protocol/`の境界でcore typeへ変換する。deployment環境固有packageは具体的なintegrationが必要になった時点で追加し、空の抽象化directoryは作成しない。
 
 TypeScriptとGoの実装codeを直接共有しない。共有境界はOpenAPI、Protocol Buffers、stable identifiersとする。現行`app/server/`のGo HTTP codeはそのまま新layoutへ移動せず、再利用価値のあるvalidation、domain rule、test caseだけをtarget contractに合わせて移植する。
 

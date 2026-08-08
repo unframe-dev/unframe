@@ -2,6 +2,44 @@
 
 Go 1.25、Huma v2、Chi で構成された API サーバーです。DB は Turso/libSQL、アセットは Cloudflare R2 に保存します。
 
+このGo HTTPサーバーは目標アーキテクチャへの移行元である。目標構成では、Control PlaneとRealtime Backendを別のruntime、dependency、deployment単位として分離する。設計の詳細と移行方針は[`ARCHITECTURE.md`](./ARCHITECTURE.md)を参照する。
+
+## 目標ディレクトリ構成
+
+```text
+app/server/
+├── ARCHITECTURE.md
+├── README.md
+├── control-plane/                # Workers / TypeScript / Hono / D1 / R2
+│   ├── migrations/              # D1 migrations
+│   ├── src/
+│   │   ├── index.ts             # Worker entrypoint
+│   │   ├── app.ts               # composition root
+│   │   ├── env.ts               # Workers bindings types
+│   │   ├── http/                # middleware and HTTP mapping
+│   │   ├── modules/             # feature use cases, models, and ports
+│   │   ├── adapters/            # Better Auth, D1, R2, routing, signing
+│   │   ├── jobs/                # scheduled work
+│   │   └── observability/
+│   └── test/
+├── realtime/                     # Go / gRPC / container
+│   ├── cmd/server/               # process entrypoint
+│   └── internal/
+│       ├── gen/realtime/v1/     # generated Go protobuf code
+│       ├── transport/grpc/       # gRPC adapter
+│       ├── auth/                 # JWT and service identity
+│       ├── protocol/             # wire/core mapping and validation
+│       ├── session/              # coordinator and transient state
+│       ├── persistence/http/     # Control Plane client
+│       └── observability/
+└── integration/                  # cross-component end-to-end tests
+```
+
+- `control-plane/`は認証・認可、durable resource、D1/R2、session bootstrapのauthorityである。
+- `realtime/`はgRPC connectionとsession中の一時状態、fan-out、backpressureを担当する。
+- component間の共有境界は`packages/contracts/openapi.yaml`と`packages/contracts/proto/`であり、TypeScriptとGoの実装codeは共有しない。
+- 現行Go HTTP実装は移行完了まで`app/server/`直下に残し、`control-plane/`や`realtime/`へそのまま移動しない。
+
 ## 必要な環境変数
 
 `.env.example` を参考に、実行環境へ次を設定してください。
