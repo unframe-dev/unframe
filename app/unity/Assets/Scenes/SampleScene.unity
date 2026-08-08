@@ -120,7 +120,8 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
+  m_Children:
+  - {fileID: 4011}
   m_Father: {fileID: 0}
 --- !u!114 &1002
 MonoBehaviour:
@@ -306,9 +307,103 @@ MonoBehaviour:
   m_LightEstimation: 0
   m_FacingDirection: 1
   m_RenderMode: 0
+--- !u!1 &4000
+GameObject:
+  m_ObjectHideFlags: 0
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4001}
+  - component: {fileID: 4002}
+  - component: {fileID: 4003}
+  - component: {fileID: 4004}
+  - component: {fileID: 4005}
+  - component: {fileID: 4006}
+  m_Layer: 0
+  m_Name: Local Presentation Demo
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &4001
+Transform:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 4011}
+  m_Father: {fileID: 0}
+--- !u!114 &4002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: 5f21e73f46b24423a7a65e6bbde09c8d, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::PresentationSourceRunner
+  source: {fileID: 4003}
+  importer: {fileID: 4004}
+  localAssetResolver: {fileID: 4005}
+--- !u!114 &4003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: 9efb5cb69c56477d9c03aca86ab6c66d, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::LocalPresentationJsonSource
+  jsonFile: {fileID: 0}
+  resourcesPath: PresentationSamples/LocalSample
+--- !u!114 &4004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: e0f16b66d15e4d9c9d87d991e9c33b51, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::PresentationJsonImporter
+  presentationJson: {fileID: 0}
+  importOnStart: 0
+  importRoot: {fileID: 4011}
+--- !u!114 &4005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: 0bb9cb4106574b8aa92e2f17514ee89a, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::LocalAssetResolverComponent
+  assets:
+  - assetId: asset_cube
+    asset: {fileID: 2908490333506851192, guid: c25abe97f6a3845ce85eee2f4aaf9489, type: 3}
+--- !u!114 &4006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: 2a51fcdbf07346c2aaab354ae2b34553, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::PresentationRuntimeSession
+  importer: {fileID: 4004}
+--- !u!1 &4010
+GameObject:
+  m_ObjectHideFlags: 0
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4011}
+  m_Layer: 0
+  m_Name: Presentation Root
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &4011
+Transform:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4010}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 4001}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1001}
   - {fileID: 2001}
+  - {fileID: 4001}

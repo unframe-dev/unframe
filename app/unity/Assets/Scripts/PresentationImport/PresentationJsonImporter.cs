@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public sealed class PresentationJsonImporter : MonoBehaviour
@@ -8,8 +9,10 @@ public sealed class PresentationJsonImporter : MonoBehaviour
 
     private readonly ElementLoaderRegistry registry = new ElementLoaderRegistry();
     private IAssetResolver assetResolver = new ResourcesAssetResolver();
+    private IPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
 
     public PresentationDocument Document { get; private set; }
+    public event Action<PresentationDocument> Imported;
 
     private void Start()
     {
@@ -29,6 +32,11 @@ public sealed class PresentationJsonImporter : MonoBehaviour
         assetResolver = resolver ?? new ResourcesAssetResolver();
     }
 
+    public void SetParser(IPresentationDefinitionParser definitionParser)
+    {
+        parser = definitionParser ?? new UnityJsonPresentationDefinitionParser();
+    }
+
     public PresentationDocument Import(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -37,26 +45,16 @@ public sealed class PresentationJsonImporter : MonoBehaviour
             return null;
         }
 
-        PresentationDocument document;
-        try
+        if (!parser.TryParse(json, out PresentationDocument document, out string error))
         {
-            document = JsonUtility.FromJson<PresentationDocument>(json);
-        }
-        catch (System.ArgumentException exception)
-        {
-            Debug.LogError($"PresentationJsonImporter: invalid JSON. {exception.Message}");
-            return null;
-        }
-
-        if (document == null || document.presentation == null)
-        {
-            Debug.LogError("PresentationJsonImporter: presentation is missing.");
+            Debug.LogError($"PresentationJsonImporter: invalid definition. {error}");
             return null;
         }
 
         Document = document;
         Transform root = importRoot != null ? importRoot : transform;
         ImportGroups(document.presentation, root);
+        Imported?.Invoke(document);
         return document;
     }
 
@@ -80,6 +78,10 @@ public sealed class PresentationJsonImporter : MonoBehaviour
             );
             groupObject.transform.SetParent(root, false);
             groupObject.SetActive(i == 0);
+
+            ImportedGroup importedGroup = groupObject.AddComponent<ImportedGroup>();
+            importedGroup.GroupId = group.id;
+            importedGroup.GroupIndex = i;
 
             ElementLoadContext context = new ElementLoadContext(
                 groupObject.transform,

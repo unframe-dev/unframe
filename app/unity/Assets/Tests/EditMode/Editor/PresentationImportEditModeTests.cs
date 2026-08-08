@@ -41,6 +41,28 @@ public sealed class PresentationImportEditModeTests
         Assert.That(container.actions[1].type, Is.EqualTo("setPosition"));
     }
 
+    [Test]
+    public void RuntimeState_StartsAtFirstGroupAndStep()
+    {
+        PresentationGroup group = new PresentationGroup
+        {
+            id = "group_01",
+            steps = new[]
+            {
+                new PresentationStep { id = "step_01" },
+                new PresentationStep { id = "step_02" }
+            }
+        };
+        PresentationRuntimeState state = new PresentationRuntimeState();
+
+        state.Reset(new PresentationData { groups = new[] { group } });
+
+        Assert.That(state.CurrentGroupId, Is.EqualTo("group_01"));
+        Assert.That(state.CurrentStepId, Is.EqualTo("step_01"));
+        Assert.That(state.SetStep(group, "step_02"), Is.True);
+        Assert.That(state.CurrentStepId, Is.EqualTo("step_02"));
+    }
+
     [System.Serializable]
     private sealed class PresentationActionContainer
     {
