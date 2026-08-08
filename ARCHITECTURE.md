@@ -1,141 +1,117 @@
 # Unframe アーキテクチャ
 
-このドキュメントは Unframe モノレポの**現行の目標構成**を示す一次資料です。個別の意思決定の背景は [`docs/decisions/`](./docs/decisions/) の ADR を、開発フローは [`CONTRIBUTING.md`](./CONTRIBUTING.md) を参照してください。構成の刷新経緯は [ADR-0003（アーカイブ）](./docs/decisions/archived/0003-full-renewal.md)、レイアウト命名と Nix ツールチェインへの移行は [ADR-0004](./docs/decisions/0004-monorepo-layout-and-nix-toolchain.md) が正です。
+このドキュメントは Unframe モノレポの目標構成を示す一次資料です。Backend の詳細は [`app/server/ARCHITECTURE.md`](./app/server/ARCHITECTURE.md)、開発フローは [`CONTRIBUTING.md`](./CONTRIBUTING.md)、個別の判断背景は [`docs/decisions/`](./docs/decisions/) を参照してください。
 
 ## 全体像
 
-Unframe は「MR プレゼンテーションを Web で編集し、Unity クライアントで表示する」プロダクトです。API 契約を Go backend の型定義から一意に生成し、各言語クライアントと Web/Unity/LP がそれを消費します。
+Unframe は、MR プレゼンテーションを Web で編集し、Unity クライアントで表示するプロダクトです。Backend は durable state を扱う Control Plane と、低遅延の session state を扱う Realtime Backend に分離します。
 
-```text
-                       ┌──────────────────────────────┐
-                       │  app/server (Go / Huma+Chi)  │  ← API 契約の唯一の編集点
-                       └───────────────┬──────────────┘
-                                       │ generate
-                                       ▼
-                     packages/contracts/openapi.yaml   ← コミット済み契約成果物
-                                       │
-                        ┌──────────────┴───────────────┐
-                        ▼                              ▼
-        packages/api-client-ts (TS)     packages/api-client-csharp (C#)
-                        │                              │
-        ┌───────────────┼──────────────┐              ▼
-        ▼               ▼              ▼        app/unity (MR クライアント)
-   app/web (React)   lp (Svelte)   その他 TS 利用側
+```mermaid
+flowchart LR
+  Web["Web Editor"] -->|HTTPS| CP["Control Plane\nWorkers / TypeScript / Hono"]
+  Unity["Unity MR Application"] -->|HTTPS| CP
+  Unity <-->|gRPC bidi| RT["Realtime Backend\nGo / gRPC"]
+  CP --> D1[(D1)]
+  CP --> R2[(R2)]
+  Web <-->|signed HTTPS| R2
+  Unity <-->|signed HTTPS| R2
+  RT -->|checkpoint / completion| CP
 ```
 
 ## ディレクトリ構成
 
 ```text
 unframe/
-├── flake.nix / flake.lock        # ツールチェイン・タスク入口 (mise/just を置換)
-├── ARCHITECTURE.md               # このドキュメント
 ├── app/
-│   ├── web/                      # React 19 SPA。3D プレゼンテーションの動的編集エディタ
-│   ├── server/                   # Go backend。API 契約・DB・ストレージ境界の実装
-│   └── unity/                    # Unity MR アプリケーション (C#)
-├── lp/                           # SvelteKit SSG。ランディングページ / ドキュメントサイト
+│   ├── web/                      # React 19 Web Editor
+│   ├── server/
+│   │   ├── control-plane/        # Workers / TypeScript / Hono / D1 / R2
+│   │   ├── realtime/             # Go / gRPC / container
+│   │   └── integration/          # Backend component 間 E2E
+│   └── unity/                    # Unity MR Application
+├── lp/                           # SvelteKit Landing Page
 ├── packages/
-│   ├── contracts/                # openapi.yaml (契約成果物) と codegen/ (生成設定)
-│   ├── config/                   # tsconfig / oxc / git hooks 等の共有 config
-│   ├── api-client-ts/            # OpenAPI から生成した TypeScript クライアント成果物
-│   └── api-client-csharp/        # OpenAPI から生成した C# クライアント成果物
-├── scripts/                      # dev / generate / ci / docs(notion sync) の実処理
-│   ├── generate/                 # OpenAPI・クライアント・sqlc 生成
-│   ├── ci/                       # CI 補助 (drift 検査・チェック集約)
-│   ├── docs/                     # Notion → docs/ 同期
-│   └── dev/                      # ローカル開発セットアップ・並走起動
-└── docs/
-    ├── decisions/                # ADR
-    ├── api/                      # API ドキュメント
-    ├── notion/                   # Notion 同期成果物 (自動生成)
-    └── plans/                    # 実装計画の記録
+│   ├── contracts/                # 将来の API / protocol contract 境界
+│   ├── api-client-csharp/        # C# client 成果物の配置予定地
+│   └── config/                   # 共有 TypeScript / Git hook 設定
+├── scripts/                      # 開発・CI・ドキュメント同期の実処理
+└── docs/                         # ADR・計画・同期ドキュメント
 ```
 
 ## 各コンポーネントの責務
 
-### `app/server` — Go backend
+### `app/server/control-plane`
 
-- **技術**: Go 1.25、Huma v2、Chi、sqlc。DB は Turso/libSQL（テストは `modernc.org/sqlite` の in-memory）、マイグレーションは goose。
-- **ストレージ**: Cloudflare R2。S3 互換の署名 URL を backend から発行する。
-- **責務**: API 契約の唯一の編集点。Huma の操作定義から OpenAPI を決定的に生成する。`service` / `db` / `storage` の境界を明確に分離し、in-memory SQLite と fake storage で統合テスト可能に保つ。
-- **エラー包絡**: `{ error: { code, message, details? } }` を全エンドポイントで統一する。
+- Cloudflare Workers / TypeScript / Hono を使用する。
+- 認証・認可、durable resource、D1/R2、asset lifecycle、session bootstrap の authority を持つ。
+- HTTP handler から D1/R2 binding を直接操作せず、application service と adapter を分離する。
 
-> 詳細は [`app/server/README.md`](./app/server/README.md) を参照。
+### `app/server/realtime`
 
-### `app/web` — React 編集エディタ
+- Go / gRPC の独立した container application とする。
+- Unity との bidirectional stream、session 中の canonical state、fan-out、backpressure を担当する。
+- hot path は Control Plane、D1、R2 に依存せず、checkpoint と completion のみを Control Plane へ永続化する。
 
-- **技術**: React 19 SPA。3D プレゼンテーションの動的編集を担う。状態量が多く、ビルド・ルーティング・テスト戦略を LP と分離する。
-- **契約消費**: `packages/api-client-ts` の生成クライアント経由で backend と通信する。API 型を手書きしない。
+### `app/web`
 
-### `app/unity` — MR クライアント
+- React 19 SPA としてプレゼンテーションの編集を担当する。
+- Backend 契約が定義されるまでは fixture と browser adapter を使用する。
 
-- **技術**: Unity / C#。MR デバイス上でプレゼンテーション manifest を描画する。
-- **契約消費**: `packages/api-client-csharp` の生成クライアント経由で manifest API を消費する。
-- **CI**: ライセンス制約により GitHub-hosted runner では静的チェック（`dotnet format`、PSScriptAnalyzer、`.meta` 整合性）のみ。Editor 起動テストはローカル/self-hosted。
+### `app/unity`
 
-### `lp` — ランディングページ
+- Unity / C# で MR 表示と realtime session 参加を担当する。
+- 生成 C# client は未接続であり、契約と generator は Backend 実装と同時に定義する。
 
-- **技術**: SvelteKit + `adapter-static` による SSG。静的配信中心のマーケティング / ドキュメントサイト。
-- 編集エディタ（`app/web`）とはデプロイ単位・依存関係を分離する。
+### `lp`
+
+- SvelteKit + `adapter-static` による静的 Landing Page とする。
+- Web Editor とは deployment と依存関係を分離する。
 
 ## 契約生成パイプライン
 
-API 契約は次の一方向フローで生成され、各段の成果物はコミットされる。CI が全段の drift を検出する。
+旧 Go/Huma HTTP API の OpenAPI、生成 TypeScript client、sqlc 生成物は削除済みです。`packages/contracts/` は次の Control Plane OpenAPI と Realtime Protocol Buffers の共有境界として残します。
 
-1. **編集点**: `app/server` の Huma 操作定義（Go の型 + バリデーション）。
-2. **OpenAPI 生成**: `app/server` から `packages/contracts/openapi.yaml` を生成（`nix run .#gen`）。YAML は手編集しない。
-3. **クライアント生成**: `packages/contracts/codegen/` の設定に基づき、`openapi.yaml` から
-   - `packages/api-client-ts`（TypeScript、`openapi-typescript` + `openapi-fetch` の薄いラッパ）
-   - `packages/api-client-csharp`（C#）
-   を生成する。
-4. **DB コード生成**: `app/server` の sqlc が SQL から Go の型付きクエリを生成する。
-5. **drift 検査**: CI で再生成し、`openapi.yaml` / 各クライアント / sqlc 生成物に差分が無いことを保証する。
+新しい契約を導入する変更では、同時に次を定義します。
+
+1. source of truth と versioning
+2. TypeScript / Go / C# の生成先
+3. 手書き adapter との境界
+4. consumer の更新手順
+5. CI の生成 drift 検査
+
+生成物は手編集せず、実装コードは Backend component 間で共有しません。
 
 ## ツールチェインとタスク実行
 
-ツールチェインは **Nix flake** で固定し（旧 `mise` を置換）、タスクの公式な実行入口は **flake apps** と **flake checks** とする。複雑な処理の実装は `scripts/` に配置し、`flake.nix` からラップして実行する（`justfile` を置換）。
+ツールチェインは Nix flake で固定し、JavaScript workspace は pnpm で管理します。現在の repository-wide entrypoint は次のとおりです。
 
-| 用途                       | コマンド                        |
-| -------------------------- | ------------------------------- |
-| 開発環境に入る             | `nix develop`                   |
-| OpenAPI / クライアント生成 | `nix run .#gen`                 |
-| 品質ゲート（集約）         | `nix run .#check`               |
-| 開発サーバ並走             | `nix run .#dev`                 |
-| DB マイグレーション        | `nix run .#migrate`             |
-| Notion 同期                | `nix run .#notion-sync`         |
-| CI 検証                    | `nix flake check`               |
+| 用途 | コマンド |
+| --- | --- |
+| 開発環境 | `nix develop` |
+| 依存関係と Git hook のセットアップ | `nix run .#setup` |
+| 全体品質ゲート | `nix run .#check` |
+| Web の検査・修正 | `nix run .#web` / `nix run .#web -- fix` |
+| LP の検査・修正 | `nix run .#lp` / `nix run .#lp -- fix` |
+| Notion 同期 | `nix run .#notion-sync` |
+| flake の評価と formatter 検証 | `nix flake check` |
 
-- **flake apps** … 手動で叩く操作（生成・同期・セットアップ・migration・dev 統合起動）と、領域別の品質処理（`server` / `web` / `lp` / `contracts` / `drift`）。領域別 app はモード引数を取り、既定は `check`、`-- fix` で format + lint 自動修正を適用する（例: `nix run .#server -- fix`）。
-- **`scripts/`** … apps から呼ばれる実処理。領域別スクリプト（`scripts/ci/<area>.sh`）は check と fix を同居させる。単純なファイル操作や複数コマンドから再利用する処理も置く。
-
-`flake.nix` は「依存関係・実行環境・公開コマンド名・スクリプトとの接続」に留め、ロジックは `scripts/` に置く。ローカルと CI の差を減らすため、CI も `nix run .#…` を入口にする。
+Backend 固有の check、development、migration、deployment entrypoint は、各 component の実装とともに追加します。
 
 ### GitHub Actions
 
-CI はオーケストレーション用の `ci.yml` が変更領域を検出し（`dorny/paths-filter`）、変更のあった領域の再利用可能ワークフローだけを呼び分ける。必須ステータスチェックは全結果を集約する job `CI`。
-
-| workflow             | 対象 / 実体                                                    |
-| -------------------- | ------------------------------------------------------------- |
-| `ci.yml`             | オーケストレーション（変更検出・呼び分け・集約ゲート）        |
-| `server.yml`         | `app/server` … `nix run .#server`                             |
-| `web.yml`            | `app/web` … `nix run .#web`                                   |
-| `lp.yml`             | `lp` … `nix run .#lp`                                          |
-| `openapi.yml`        | 契約 drift + TS クライアント … `nix run .#drift` / `.#contracts` |
-| `unity.yml`          | `app/unity` の静的チェック（dotnet format / PSScriptAnalyzer / .meta） |
-| `autofix.yml`        | PR に format + lint --fix を適用し commit（`.#<area> -- fix`）。単一の書き込み job |
-| `.github/renovate.json` | 依存更新（Hosted Renovate App。npm/pnpm・gomod・nuget・github-actions・nix flake） |
-
-`server.yml` / `web.yml` / `lp.yml` / `openapi.yml` / `unity.yml` は `on: workflow_call`（+ `workflow_dispatch`）の再利用可能ワークフローで、単独では起動せず `ci.yml` から呼ばれる。`autofix.yml` は `pull_request` で独立起動し、format / lint 自動修正を PR ブランチへ commit する（同一リポジトリの PR 限定。fix commit で CI を再トリガーして緑にするには `secrets.AUTOFIX_TOKEN` に PAT / GitHub App token を設定する）。運用系の `sync-notion.yml`（Notion 同期の cron）は CI オーケストレーションとは独立。
-
-チェックの棲み分け: format は autofix が適用・commit するため gate では検査しない（Go の gofmt は `golangci-lint run` が lint として検査しつつ autofix が修正）。lint / typecheck / test / build / 生成 drift は各 gate が検証する。
+- `ci.yml`: 変更領域の検出と必須チェックの集約
+- `web.yml`: Web の check / test / build
+- `lp.yml`: LP の test / check / build
+- `unity.yml`: Unity の静的検査
+- `autofix.yml`: Web / LP の format と lint fix
+- `sync-notion.yml`: Notion 同期
 
 ## 移行状況
 
-ADR-0004 で定めた物理レイアウトへの移行は完了しています。
-
-- [x] `app/backend` → `app/server` へのリネーム。
-- [x] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
-- [x] `packages/config` を新設し、共有 tsconfig / Vite+ staged hook を集約。
-- [x] `tools/notion-sync` → `scripts/docs/notion-sync` へ集約（完了）。
-- [x] `app/web`（React 編集エディタ）のワークスペースを新設。
-- [x] `flake.lock` を生成済み。
+- [x] 旧 Go/Huma/Turso/R2 HTTP Backend を削除
+- [x] 旧 OpenAPI、生成 TypeScript client、sqlc、旧 API ドキュメントを削除
+- [x] 旧 Backend 専用の CI・生成・migration・dev entrypoint を削除
+- [x] `packages/contracts/` を次の contract を定義するための境界として保持
+- [ ] Control Plane を `app/server/control-plane/` に実装
+- [ ] Realtime Backend を `app/server/realtime/` に実装
+- [ ] component 間 E2E を `app/server/integration/` に実装

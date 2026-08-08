@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # 品質ゲートの集約 (ローカル用の nix run .#check)。
-# CI は ci.yml が領域別 workflow (server/web/lp/openapi/unity) に分割して実行する。
+# ローカルでは LP と Web の品質処理を集約する。CI は ci.yml が領域別 workflow を呼び分ける。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh
 source "${DIR}/../lib/paths.sh"
 
-"${DIR}/drift.sh"
-"${DIR}/server.sh" check
-"${DIR}/contracts.sh" check
 "${DIR}/lp.sh" check
 "${DIR}/web.sh" check
 

@@ -28,7 +28,7 @@ nix run .#setup
 pnpm --filter @unframe/web run dev
 ```
 
-開発 URL は `http://localhost:5173/editor/` です。root の `nix run .#dev` は server と LP だけを起動し、Web Editor は起動しません。
+開発 URL は `http://localhost:5173/editor/` です。Web Editor は package の `dev` script から起動します。
 
 利用できる fixture route は次のとおりです。
 

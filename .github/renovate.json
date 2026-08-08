@@ -19,7 +19,7 @@
   },
   "packageRules": [
     {
-      "description": "app/server (Go modules)",
+      "description": "app/server/realtime (Go modules)",
       "matchManagers": ["gomod"],
       "commitMessageTopic": "Go module {{depName}}",
       "semanticCommitScope": "server"
