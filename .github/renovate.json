@@ -21,8 +21,9 @@
     {
       "description": "app/server/realtime (Go modules)",
       "matchManagers": ["gomod"],
+      "matchFileNames": ["app/server/realtime/go.mod"],
       "commitMessageTopic": "Go module {{depName}}",
-      "semanticCommitScope": "server"
+      "semanticCommitScope": "realtime"
     },
     {
       "description": "control-plane / app/web / lp / packages (npm/pnpm)",
