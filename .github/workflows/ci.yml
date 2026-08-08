@@ -2,7 +2,7 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: server.yml / web.yml / lp.yml / openapi.yml / unity.yml。
+# 各領域の実体: server.yml / control-plane.yml / web.yml / lp.yml / openapi.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
@@ -30,6 +30,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     outputs:
       server: ${{ steps.filter.outputs.server }}
+      control-plane: ${{ steps.filter.outputs.control-plane }}
       web: ${{ steps.filter.outputs.web }}
       lp: ${{ steps.filter.outputs.lp }}
       openapi: ${{ steps.filter.outputs.openapi }}
@@ -55,10 +56,18 @@ jobs:
               - *shared
               - '.github/workflows/server.yml'
               - 'app/server/**'
+              - '!app/server/control-plane/**'
+              - '!app/server/realtime/**'
+            control-plane:
+              - *shared
+              - '.github/workflows/control-plane.yml'
+              - 'app/server/control-plane/**'
             openapi:
               - *shared
               - '.github/workflows/openapi.yml'
               - 'app/server/**'
+              - '!app/server/control-plane/**'
+              - '!app/server/realtime/**'
               - 'packages/contracts/**'
               - 'packages/api-client-ts/**'
               - 'packages/api-client-csharp/**'
@@ -81,6 +90,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.server == 'true'
     uses: ./.github/workflows/server.yml
+
+  control-plane:
+    name: Control Plane
+    needs: changes
+    if: needs.changes.outputs.control-plane == 'true'
+    uses: ./.github/workflows/control-plane.yml
 
   openapi:
     name: OpenAPI
@@ -109,7 +124,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, server, openapi, web, lp, unity]
+    needs: [changes, server, control-plane, openapi, web, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:

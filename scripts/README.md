@@ -16,6 +16,7 @@
 nix develop            # 開発環境に入る
 nix run .#gen          # 契約・クライアント・sqlc 生成
 nix run .#check        # 品質ゲート集約
+nix run .#control-plane  # Control Plane の typecheck / test / build
 nix run .#dev          # server + lp 並走
 nix run .#migrate      # DB マイグレーション
 nix run .#notion-sync  # Notion 同期

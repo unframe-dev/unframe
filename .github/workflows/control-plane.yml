@@ -1,0 +1,26 @@
+name: Control Plane
+
+# Cloudflare Workers / Hono Control Plane の品質ゲート。ci.yml から呼ばれる reusable workflow。
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: control-plane / check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
+      - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: typecheck / test / deploy dry-run
+        run: nix run .#control-plane

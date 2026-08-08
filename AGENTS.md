@@ -217,10 +217,12 @@ nix run .#gen                        # Generate OpenAPI, TS client, and sqlc cod
 nix run .#check                      # Full configured code quality gate
 nix run .#drift                      # Regenerate and check generated-file drift
 nix run .#server                     # Server check/test/build
+nix run .#control-plane              # Control Plane typecheck/test/build
 nix run .#web                        # Web check/test/build
 nix run .#lp                         # LP test/check/build
 nix run .#contracts                  # TS client typecheck/test
 nix run .#server -- fix               # Server formatter/linter autofix
+nix run .#control-plane -- fix        # Control Plane formatter autofix
 nix run .#web -- fix                 # Web formatter autofix
 nix run .#lp -- fix                  # LP formatter autofix
 nix run .#contracts -- fix           # Client formatter autofix

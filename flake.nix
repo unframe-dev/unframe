@@ -99,6 +99,10 @@
             name = "server";
             script = "ci/server.sh";
           };
+          control-plane = mkApp {
+            name = "control-plane";
+            script = "ci/control-plane.sh";
+          };
           web = mkApp {
             name = "web";
             script = "ci/web.sh";

@@ -1,8 +1,8 @@
 # Unframe Backend
 
-Go 1.25、Huma v2、Chi で構成された API サーバーです。DB は Turso/libSQL、アセットは Cloudflare R2 に保存します。
+目標backendと移行元を管理するdirectoryです。移行元はGo 1.25、Huma v2、Chi、Turso/libSQL、Cloudflare R2で構成し、移行先のControl PlaneはCloudflare Workers、TypeScript、Honoを使用します。
 
-このGo HTTPサーバーは目標アーキテクチャへの移行元である。目標構成では、Control PlaneとRealtime Backendを別のruntime、dependency、deployment単位として分離する。設計の詳細と移行方針は[`ARCHITECTURE.md`](./ARCHITECTURE.md)を参照する。
+このGo HTTPサーバーは目標アーキテクチャへの移行元である。`control-plane/`ではCloudflare Workers / TypeScript / Honoによる移行先の基盤実装を開始している。Control PlaneとRealtime Backendは別のruntime、dependency、deployment単位として分離する。設計の詳細と移行方針は[`ARCHITECTURE.md`](./ARCHITECTURE.md)を参照する。
 
 ## 目標ディレクトリ構成
 
@@ -39,6 +39,17 @@ app/server/
 - `realtime/`はgRPC connectionとsession中の一時状態、fan-out、backpressureを担当する。
 - component間の共有境界は`packages/contracts/openapi.yaml`と`packages/contracts/proto/`であり、TypeScriptとGoの実装codeは共有しない。
 - 現行Go HTTP実装は移行完了まで`app/server/`直下に残し、`control-plane/`や`realtime/`へそのまま移動しない。
+
+## Control Plane
+
+`control-plane/`は独立したpnpm packageとして、Worker entrypoint、Hono application、HTTP error boundary、Workers runtime testを所有する。現時点で公開するのは`GET /health`のみであり、D1/R2 binding、認証、resource API、OpenAPI生成は未実装である。
+
+```sh
+nix run .#control-plane
+pnpm --filter @unframe/control-plane run dev
+```
+
+`nix run .#control-plane`はbinding型のdrift、TypeScript、lint、Workers runtime test、`wrangler deploy --dry-run`を検証する。Cloudflare resource IDやsecretはrepositoryへ記録せず、bindingを追加した際は`wrangler types`で型を再生成する。
 
 ## 必要な環境変数
 

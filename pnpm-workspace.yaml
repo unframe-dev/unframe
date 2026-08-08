@@ -1,5 +1,6 @@
 packages:
   - "app/*"
+  - "app/server/control-plane"
   - "lp"
   - "packages/*"
   - "scripts/docs/notion-sync"

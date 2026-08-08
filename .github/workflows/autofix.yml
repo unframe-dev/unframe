@@ -49,9 +49,10 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Apply autofix (server / contracts / lp / web)
+      - name: Apply autofix (server / control-plane / contracts / lp / web)
         run: |
           nix run .#server -- fix
+          nix run .#control-plane -- fix
           nix run .#contracts -- fix
           nix run .#lp -- fix
           nix run .#web -- fix

@@ -7,6 +7,9 @@ export REPO_ROOT
 
 # app/server (Go backend)
 export SERVER_DIR="${REPO_ROOT}/app/server"
+# app/server/control-plane (Cloudflare Workers / Hono)
+export CONTROL_PLANE_DIR="${REPO_ROOT}/app/server/control-plane"
+export CONTROL_PLANE_FILTER="@unframe/control-plane"
 # app/web (React 編集エディタ)
 export WEB_DIR="${REPO_ROOT}/app/web"
 export WEB_FILTER="@unframe/web"

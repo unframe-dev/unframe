@@ -92,7 +92,8 @@ nix run .#setup
 | OpenAPI / TypeScript client / sqlc 生成 | `nix run .#gen`         |
 | 生成物 drift 検査                       | `nix run .#drift`       |
 | 全体品質ゲート                          | `nix run .#check`       |
-| Backend check / test / build            | `nix run .#server`      |
+| Legacy Backend check / test / build     | `nix run .#server`        |
+| Control Plane check / test / build      | `nix run .#control-plane` |
 | Web check / test / build                | `nix run .#web`         |
 | LP test / check / build                | `nix run .#lp`          |
 | TypeScript client typecheck / test      | `nix run .#contracts`   |
