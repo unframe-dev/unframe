@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class PresentationImportEditModeTests
@@ -176,7 +177,8 @@ public sealed class PresentationImportEditModeTests
         imported.ElementId = "element_01";
         registry.Register(target);
 
-        PresentationActionExecutor executor = new PresentationActionExecutor(registry);
+        RecordingPresentationRuntimeLogger logger = new RecordingPresentationRuntimeLogger();
+        PresentationActionExecutor executor = new PresentationActionExecutor(registry, logger);
         executor.Execute(new PresentationAction
         {
             targetId = "element_01",
@@ -192,7 +194,20 @@ public sealed class PresentationImportEditModeTests
 
         Assert.That(target.activeSelf, Is.True);
         Assert.That(target.transform.localPosition, Is.EqualTo(new Vector3(1f, 2f, 3f)));
+        Assert.That(logger.Messages, Has.Some.EqualTo("Action: setVisible -> element_01 = True."));
+        Assert.That(logger.Messages, Has.Some.EqualTo("Action: setPosition -> element_01."));
         Object.DestroyImmediate(target);
+    }
+
+    private sealed class RecordingPresentationRuntimeLogger : IPresentationRuntimeLogger
+    {
+        public readonly List<string> Messages = new List<string>();
+
+        public void Info(string message) => Messages.Add(message);
+
+        public void Warning(string message) => Messages.Add(message);
+
+        public void Error(string message) => Messages.Add(message);
     }
 
 }

@@ -10,6 +10,7 @@ public sealed class PresentationJsonImporter : MonoBehaviour
     private readonly ElementLoaderRegistry registry = new ElementLoaderRegistry();
     private IAssetResolver assetResolver = new ResourcesAssetResolver();
     private IPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+    private IPresentationRuntimeLogger runtimeLogger = new UnityPresentationRuntimeLogger(false);
 
     public PresentationDocument Document { get; private set; }
     public ElementRuntimeRegistry Elements { get; } = new ElementRuntimeRegistry();
@@ -38,22 +39,30 @@ public sealed class PresentationJsonImporter : MonoBehaviour
         parser = definitionParser ?? new UnityJsonPresentationDefinitionParser();
     }
 
+    public void SetRuntimeLogger(IPresentationRuntimeLogger logger)
+    {
+        runtimeLogger = logger ?? new UnityPresentationRuntimeLogger(false);
+    }
+
     public PresentationDocument Import(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            Debug.LogError("PresentationJsonImporter: JSON is empty.");
+            runtimeLogger.Error("JSON is empty.");
             return null;
         }
 
         if (!parser.TryParse(json, out PresentationDocument document, out string error))
         {
-            Debug.LogError($"PresentationJsonImporter: invalid definition. {error}");
+            runtimeLogger.Error($"Invalid definition: {error}");
             return null;
         }
 
         Document = document;
         Elements.Clear();
+        runtimeLogger.Info(
+            $"Imported presentation '{document.presentation.id}' (schema {document.schemaVersion ?? "unknown"})."
+        );
         Transform root = importRoot != null ? importRoot : transform;
         ImportGroups(document.presentation, root);
         Imported?.Invoke(document);
@@ -84,6 +93,7 @@ public sealed class PresentationJsonImporter : MonoBehaviour
             ImportedGroup importedGroup = groupObject.AddComponent<ImportedGroup>();
             importedGroup.GroupId = group.id;
             importedGroup.GroupIndex = i;
+            runtimeLogger.Info($"Group ready: {group.id} (active: {i == 0}).");
 
             ElementLoadContext context = new ElementLoadContext(
                 groupObject.transform,
