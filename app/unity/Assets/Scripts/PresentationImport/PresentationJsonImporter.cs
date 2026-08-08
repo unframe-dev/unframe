@@ -12,6 +12,7 @@ public sealed class PresentationJsonImporter : MonoBehaviour
     private IPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
 
     public PresentationDocument Document { get; private set; }
+    public ElementRuntimeRegistry Elements { get; } = new ElementRuntimeRegistry();
     public event Action<PresentationDocument> Imported;
 
     private void Start()
@@ -52,6 +53,7 @@ public sealed class PresentationJsonImporter : MonoBehaviour
         }
 
         Document = document;
+        Elements.Clear();
         Transform root = importRoot != null ? importRoot : transform;
         ImportGroups(document.presentation, root);
         Imported?.Invoke(document);
@@ -134,7 +136,8 @@ public sealed class PresentationJsonImporter : MonoBehaviour
 
         foreach (PresentationElement element in elements)
         {
-            registry.Load(element, context);
+            GameObject elementObject = registry.Load(element, context);
+            Elements.Register(elementObject);
         }
     }
 }
