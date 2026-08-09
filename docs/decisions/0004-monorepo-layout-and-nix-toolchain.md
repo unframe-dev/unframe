@@ -1,6 +1,6 @@
 # ADR-0004: モノレポのレイアウトを確定し、ツールチェインを Nix flake へ移行する
 
-- **Status**: Accepted (backend layout amended by `app/server/ARCHITECTURE.md`)
+- **Status**: Accepted
 - **Date**: 2026-07-16
 - **Deciders**: Unframe 開発チーム
 - **関連**: [ADR-0003（アーカイブ）](./archived/0003-full-renewal.md)（構成刷新の親決定）, [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
@@ -10,7 +10,7 @@
 [ADR-0003（アーカイブ）](./archived/0003-full-renewal.md) で Go backend と分離フロントエンドへの全面刷新を決めたが、具体的なディレクトリ命名（`apps/backend` / `apps/app` / `apps/site` / `apps/mr`）と、各言語クライアントの成果物配置、共有 config の置き場は確定していなかった。実装が進むにつれ、次の点を明確にする必要が生じた。
 
 - 動的編集エディタ（React）と MR クライアント（Unity）、LP（Svelte）の置き場と命名。
-- Control Plane と Realtime の共有 contract をどこに置くか。
+- OpenAPI から生成する TypeScript / C# クライアントを、契約成果物（`openapi.yaml` と生成設定）とどう分離するか。
 - `tsconfig` / oxc / git hooks など複数レイヤーで共有する config の集約先。
 - ツールチェイン管理（現行は `mise`）とタスク実行（現行は `justfile`）を、ローカルと CI で再現性高く一元化する方法。
 
@@ -23,21 +23,22 @@
 ### ディレクトリレイアウト
 
 - `app/web` … React 19 SPA。3D プレゼンテーションの動的編集エディタ。
-- `app/server/control-plane` … Workers / TypeScript / Hono の Control Plane。
-- `app/server/realtime` … Go / gRPC の Realtime Backend。
+- `app/server` … Go backend（Huma v2 + Chi + sqlc）。API 契約の唯一の編集点。
 - `app/unity` … Unity MR アプリケーション（C#）。
 - `lp/` … SvelteKit SSG のランディングページ。
-- `packages/contracts` … 今後の OpenAPI / Protocol Buffers の共有境界。
+- `packages/contracts` … `openapi.yaml`（契約成果物）と `codegen/`（生成設定）。
 - `packages/config` … `tsconfig` / oxc config / git hooks 等の共有 config。
+- `packages/api-client-ts` … OpenAPI から生成した TypeScript クライアント成果物。
+- `packages/api-client-csharp` … OpenAPI から生成した C# クライアント成果物。
 - `scripts/` … dev / generate / ci / docs(notion sync) の実処理を配置する。
 
 ### ツールチェインとタスク実行
 
 - ツールチェインは `flake.nix` / `flake.lock` で固定し、`mise.toml` を廃止する。
-- タスクの公式な実行入口は **flake apps**（`nix run .#check` / `.#web` / `.#lp` / `.#notion-sync`）と **flake checks**（`nix flake check`）とする。component 固有の入口は component 実装とともに追加する。`justfile` は廃止する。
+- タスクの公式な実行入口は **flake apps**（`nix run .#gen` / `.#check` / `.#dev` / `.#migrate` / `.#notion-sync`）と **flake checks**（`nix flake check`）とする。`justfile` は廃止する。
 - 複雑な処理の実装は `scripts/` に配置し、`flake.nix` からラップして実行する。`flake.nix` は依存関係・実行環境・公開コマンド名・スクリプト接続に留め、ロジックは持たせない。
 - CI もローカルとの差を減らすため `nix run .#…` を入口にする。
-- GitHub Actions は `ci.yml`（オーケストレーション）が変更領域を検出し、`web.yml` / `lp.yml` / `unity.yml`（いずれも `workflow_call` の再利用可能ワークフロー）を呼び分ける。backend component の workflow は component 実装とともに追加する。必須チェックは集約 job。依存更新は Hosted Renovate（`.github/renovate.json`）に委ねる。
+- GitHub Actions は `ci.yml`（オーケストレーション）が変更領域を検出し、`server.yml` / `web.yml` / `lp.yml` / `openapi.yml` / `unity.yml`（いずれも `workflow_call` の再利用可能ワークフロー）を呼び分ける。必須チェックは集約 job。依存更新は Hosted Renovate（`.github/renovate.json`）に委ねる。
 
 ## Alternatives Considered
 
@@ -49,24 +50,24 @@
 
 却下した。生成・CI・同期の実処理を flake に埋めると数十〜数百行の shell が flake に集中し、可読性と差分レビュー性が落ちる。`flake.nix` は「公開名と接続」に留め、ロジックは `scripts/` に置いて役割を分離する。
 
-### Option C: TypeScript クライアントを `packages/contracts` に同居させる
+### Option C: TypeScript クライアントを `packages/contracts` に同居させ続ける
 
-却下した。今後の契約 source of truth と生成物の配置は、各 backend component の実装と同時に定義する。未定義の契約や client を先行して保持しない。
+却下した。`openapi.yaml`（契約の源泉）と、そこから決定的に生成される各言語クライアント（再生成可能な成果物）を同一パッケージに混ぜると、源泉と成果物の境界が曖昧になる。`packages/contracts` を契約 + 生成設定に限定し、`api-client-ts` / `api-client-csharp` を成果物パッケージとして分離する。
 
 ## Consequences
 
 - **Positive**: レイアウトと命名が一意に定まり、`ARCHITECTURE.md` を一次資料として参照できる。
 - **Positive**: `nix develop` / `nix run .#…` / `nix flake check` でローカルと CI の入口が一致し、実行方法のばらつきが消える。
-- **Positive**: runtime ごとの backend 実装を分離し、未定義の契約・生成物を残さない。
+- **Positive**: 契約の源泉（`packages/contracts`）と成果物（`api-client-*`）の境界が明確になり、再生成方針を保てる。
 - **Negative**: 既存ディレクトリのリネーム（`app/backend` → `app/server` など）とパッケージ分割の物理移行コストが発生する。移行完了までは `scripts/` のパス定数が現行ディレクトリを指す。
 - **Negative**: Nix の学習コストと、`flake.lock` / `nix flake check` の維持コストが増える。
 - **Neutral**: `app/unity` とその Unity CI は命名変更のみで、刷新対象外である。
-- **Neutral**: 旧 Go/Huma/Turso/R2 HTTP backend と旧 OpenAPI client 生成は削除済みである。
+- **Neutral**: ADR-0003 の「レイアウト命名」に関する記述（`apps/backend` / `apps/app` / `apps/site` / `apps/mr`）は本 ADR で置換される。ADR-0003 の技術選定（Go / Huma / Turso / R2 / OpenAPI 生成）は有効なまま。
 
 ## Follow-ups
 
 - [x] `app/backend` → `app/server` のリネームと、参照（README / scripts）の追従。
-- [x] 旧 OpenAPI contract と生成 client を削除し、`packages/contracts` を将来の共有境界として残す。
+- [x] `packages/contracts` から TS クライアントを切り出し、`packages/api-client-ts` / `packages/api-client-csharp` を新設。
 - [x] `packages/config` を新設し、共有 tsconfig / Vite+ staged hook を集約。
 - [x] `tools/notion-sync` を `scripts/docs/notion-sync` へ移設（完了）。
 - [ ] `flake.lock` を生成し、`nix flake check` をローカルと CI で検証。

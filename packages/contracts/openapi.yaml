@@ -1,0 +1,918 @@
+components:
+  schemas:
+    CreatePresentationInput:
+      additionalProperties: false
+      properties:
+        slides:
+          items:
+            $ref: "#/components/schemas/SlidePayload"
+          minItems: 1
+          type: array
+        thumbnailAssetId:
+          format: uuid
+          type:
+            - string
+            - "null"
+        title:
+          maxLength: 255
+          minLength: 1
+          type: string
+      required:
+        - title
+      type: object
+    ErrorBody:
+      additionalProperties: false
+      properties:
+        code:
+          description: Stable machine-readable error code
+          enum:
+            - validation_error
+            - not_found
+            - conflict
+            - payload_too_large
+            - unsupported_media_type
+            - internal_error
+          type: string
+        details:
+          description: Error-specific structured details
+        message:
+          description: Human-readable error message
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    ErrorResponse:
+      additionalProperties: false
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      required:
+        - error
+      type: object
+    HealthResponse:
+      additionalProperties: false
+      properties:
+        status:
+          description: Service liveness status
+          enum:
+            - ok
+          type: string
+        timestamp:
+          description: Current server time
+          format: date-time
+          type: string
+        uptime:
+          description: Seconds since process start
+          format: double
+          minimum: 0
+          type: number
+      required:
+        - status
+        - uptime
+        - timestamp
+      type: object
+    ImageElement:
+      additionalProperties: false
+      properties:
+        alt:
+          type: string
+        assetId:
+          format: uuid
+          type: string
+        id:
+          format: uuid
+          type: string
+        src:
+          format: uri
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - image
+          type: string
+      required:
+        - id
+        - type
+        - transform
+        - assetId
+        - src
+      type: object
+    InitAssetInput:
+      additionalProperties: false
+      properties:
+        contentType:
+          enum:
+            - application/octet-stream
+            - image/png
+            - image/jpeg
+            - image/webp
+          minLength: 1
+          type: string
+        filename:
+          maxLength: 255
+          minLength: 1
+          type: string
+        sizeBytes:
+          format: int64
+          maximum: 52428800
+          minimum: 1
+          type: integer
+      required:
+        - filename
+        - contentType
+        - sizeBytes
+      type: object
+    InitAssetOutput:
+      additionalProperties: false
+      properties:
+        assetId:
+          format: uuid
+          type: string
+        expiresAt:
+          format: date-time
+          type: string
+        storageKey:
+          pattern: ^assets/[0-9a-f-]{36}\.(fbx|png|jpg|webp)$
+          type: string
+        uploadUrl:
+          format: uri
+          type: string
+      required:
+        - assetId
+        - uploadUrl
+        - expiresAt
+        - storageKey
+      type: object
+    Manifest:
+      additionalProperties: false
+      properties:
+        presentationId:
+          format: uuid
+          type: string
+        slides:
+          items:
+            $ref: "#/components/schemas/ManifestSlide"
+          type: array
+        title:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - presentationId
+        - title
+        - slides
+        - updatedAt
+      type: object
+    ManifestAsset:
+      additionalProperties: false
+      properties:
+        assetId:
+          format: uuid
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          format: int64
+          minimum: 0
+          type: integer
+        url:
+          format: uri
+          type: string
+      required:
+        - assetId
+        - url
+        - filename
+        - mimeType
+        - sizeBytes
+      type: object
+    ManifestImageElement:
+      additionalProperties: false
+      properties:
+        asset:
+          $ref: "#/components/schemas/ManifestAsset"
+        id:
+          format: uuid
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - image
+          type: string
+      required:
+        - type
+        - id
+        - transform
+        - asset
+      type: object
+    ManifestModelElement:
+      additionalProperties: false
+      properties:
+        asset:
+          $ref: "#/components/schemas/ManifestAsset"
+        id:
+          format: uuid
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - model
+          type: string
+      required:
+        - type
+        - id
+        - transform
+        - asset
+      type: object
+    ManifestShapeElement:
+      additionalProperties: false
+      properties:
+        fillColor:
+          type: string
+        id:
+          format: uuid
+          type: string
+        shape:
+          enum:
+            - rectangle
+            - ellipse
+          type: string
+        strokeColor:
+          type: string
+        strokeWidth:
+          format: double
+          type: number
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - shape
+          type: string
+      required:
+        - type
+        - id
+        - transform
+        - shape
+        - fillColor
+        - strokeColor
+        - strokeWidth
+      type: object
+    ManifestSlide:
+      additionalProperties: false
+      properties:
+        elements:
+          items:
+            discriminator:
+              mapping:
+                image: "#/components/schemas/ManifestImageElement"
+                model: "#/components/schemas/ManifestModelElement"
+                shape: "#/components/schemas/ManifestShapeElement"
+                text: "#/components/schemas/ManifestTextElement"
+              propertyName: type
+            oneOf:
+              - $ref: "#/components/schemas/ManifestTextElement"
+              - $ref: "#/components/schemas/ManifestModelElement"
+              - $ref: "#/components/schemas/ManifestImageElement"
+              - $ref: "#/components/schemas/ManifestShapeElement"
+          type: array
+        id:
+          format: uuid
+          type: string
+        orderIndex:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - orderIndex
+        - elements
+      type: object
+    ManifestTextElement:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          type: string
+        text:
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - text
+          type: string
+      required:
+        - type
+        - id
+        - transform
+        - text
+      type: object
+    ModelElement:
+      additionalProperties: false
+      properties:
+        assetId:
+          format: uuid
+          type: string
+        displayName:
+          type: string
+        id:
+          format: uuid
+          type: string
+        src:
+          format: uri
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - model
+          type: string
+      required:
+        - id
+        - type
+        - transform
+        - assetId
+        - displayName
+        - src
+      type: object
+    Presentation:
+      additionalProperties: false
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        slides:
+          items:
+            $ref: "#/components/schemas/PresentationSlide"
+          minItems: 1
+          type: array
+        thumbnailUrl:
+          format: uri
+          type:
+            - string
+            - "null"
+        title:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - title
+        - thumbnailUrl
+        - slides
+        - createdAt
+        - updatedAt
+      type: object
+    PresentationCreated:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          type: string
+      required:
+        - id
+      type: object
+    PresentationList:
+      additionalProperties: false
+      properties:
+        presentations:
+          items:
+            $ref: "#/components/schemas/PresentationSummary"
+          type: array
+      required:
+        - presentations
+      type: object
+    PresentationSlide:
+      additionalProperties: false
+      properties:
+        content:
+          $ref: "#/components/schemas/SlideContent"
+        id:
+          format: uuid
+          type: string
+        orderIndex:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - orderIndex
+        - content
+      type: object
+    PresentationSummary:
+      additionalProperties: false
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        thumbnailUrl:
+          format: uri
+          type:
+            - string
+            - "null"
+        title:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - title
+        - thumbnailUrl
+        - createdAt
+        - updatedAt
+      type: object
+    ShapeElement:
+      additionalProperties: false
+      properties:
+        fillColor:
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        shape:
+          enum:
+            - rectangle
+            - ellipse
+          type: string
+        strokeColor:
+          minLength: 1
+          type: string
+        strokeWidth:
+          format: double
+          minimum: 0
+          type: number
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - shape
+          type: string
+      required:
+        - id
+        - type
+        - transform
+        - shape
+        - fillColor
+        - strokeColor
+        - strokeWidth
+      type: object
+    SlideContent:
+      additionalProperties: false
+      properties:
+        background:
+          minLength: 1
+          type: string
+        elements:
+          items:
+            discriminator:
+              mapping:
+                image: "#/components/schemas/ImageElement"
+                model: "#/components/schemas/ModelElement"
+                shape: "#/components/schemas/ShapeElement"
+                text: "#/components/schemas/TextElement"
+              propertyName: type
+            oneOf:
+              - $ref: "#/components/schemas/TextElement"
+              - $ref: "#/components/schemas/ModelElement"
+              - $ref: "#/components/schemas/ImageElement"
+              - $ref: "#/components/schemas/ShapeElement"
+          type: array
+        notes:
+          type: string
+      required:
+        - elements
+        - background
+        - notes
+      type: object
+    SlidePayload:
+      additionalProperties: false
+      properties:
+        content:
+          $ref: "#/components/schemas/StoredSlideContent"
+      required:
+        - content
+      type: object
+    StoredImageElement:
+      additionalProperties: false
+      properties:
+        alt:
+          type: string
+        assetId:
+          format: uuid
+          type: string
+        id:
+          format: uuid
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - image
+          type: string
+      required:
+        - id
+        - type
+        - transform
+        - assetId
+      type: object
+    StoredModelElement:
+      additionalProperties: false
+      properties:
+        assetId:
+          format: uuid
+          type: string
+        displayName:
+          type: string
+        id:
+          format: uuid
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - model
+          type: string
+      required:
+        - id
+        - type
+        - transform
+        - assetId
+        - displayName
+      type: object
+    StoredSlideContent:
+      additionalProperties: false
+      properties:
+        background:
+          minLength: 1
+          type: string
+        elements:
+          items:
+            discriminator:
+              mapping:
+                image: "#/components/schemas/StoredImageElement"
+                model: "#/components/schemas/StoredModelElement"
+                shape: "#/components/schemas/ShapeElement"
+                text: "#/components/schemas/TextElement"
+              propertyName: type
+            oneOf:
+              - $ref: "#/components/schemas/TextElement"
+              - $ref: "#/components/schemas/StoredModelElement"
+              - $ref: "#/components/schemas/StoredImageElement"
+              - $ref: "#/components/schemas/ShapeElement"
+          type: array
+        notes:
+          type: string
+      required:
+        - elements
+        - background
+        - notes
+      type: object
+    TextElement:
+      additionalProperties: false
+      properties:
+        fontColor:
+          minLength: 1
+          type: string
+        fontFamily:
+          minLength: 1
+          type: string
+        fontSize:
+          exclusiveMinimum: 0
+          format: double
+          type: number
+        fontWeight:
+          enum:
+            - normal
+            - bold
+          type: string
+        id:
+          format: uuid
+          type: string
+        text:
+          type: string
+        textAlign:
+          enum:
+            - left
+            - center
+            - right
+          type: string
+        transform:
+          $ref: "#/components/schemas/Transform"
+        type:
+          enum:
+            - text
+          type: string
+      required:
+        - id
+        - type
+        - transform
+        - text
+        - fontSize
+        - fontColor
+        - fontFamily
+        - fontWeight
+        - textAlign
+      type: object
+    Transform:
+      additionalProperties: false
+      properties:
+        position:
+          $ref: "#/components/schemas/Vec3"
+        rotation:
+          $ref: "#/components/schemas/Vec3"
+        scale:
+          $ref: "#/components/schemas/Vec3"
+      required:
+        - position
+        - rotation
+        - scale
+      type: object
+    UpdatePresentationInput:
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        slides:
+          items:
+            $ref: "#/components/schemas/SlidePayload"
+          minItems: 1
+          type: array
+        thumbnailAssetId:
+          format: uuid
+          type:
+            - string
+            - "null"
+        title:
+          maxLength: 255
+          minLength: 1
+          type: string
+      type: object
+    Vec3:
+      additionalProperties: false
+      properties:
+        x:
+          format: double
+          type: number
+        "y":
+          format: double
+          type: number
+        z:
+          format: double
+          type: number
+      required:
+        - x
+        - "y"
+        - z
+      type: object
+info:
+  title: Unframe API
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /assets/init:
+    post:
+      description: Persists asset metadata and returns a presigned Cloudflare R2 upload URL.
+      operationId: init-asset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitAssetInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitAssetOutput"
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request Entity Too Large
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported Media Type
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Initialize an asset upload
+      tags:
+        - assets
+  /health:
+    get:
+      description: Reports process liveness without checking database or storage connectivity.
+      operationId: get-health
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Error
+      summary: Liveness probe
+      tags:
+        - system
+  /presentations:
+    get:
+      operationId: list-presentations
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresentationList"
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: List presentations newest first
+      tags:
+        - presentations
+    post:
+      operationId: create-presentation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePresentationInput"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresentationCreated"
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Create the singleton presentation
+      tags:
+        - presentations
+  /presentations/{id}:
+    get:
+      operationId: get-presentation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Presentation"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Get a presentation with ordered slides and signed asset URLs
+      tags:
+        - presentations
+    put:
+      operationId: update-presentation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePresentationInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Presentation"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Update a presentation and optionally replace all slides
+      tags:
+        - presentations
+  /presentations/{id}/manifest:
+    get:
+      description: Returns ordered slides with image and model asset references expanded to signed download URLs.
+      operationId: get-presentation-manifest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Manifest"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Internal Server Error
+      summary: Get the presentation manifest consumed by MR clients
+      tags:
+        - manifest

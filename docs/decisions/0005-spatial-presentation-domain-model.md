@@ -9,7 +9,7 @@
 
 Unframe では、従来のスライド送りに加えて、発表者の位置移動、身体動作、コントローラー入力を空間内の演出へ結び付けたい。単純なページ列だけでは、一つの空間を保ったまま段階的に要素を変化させる進行や、身体に追従する要素群を表現しにくい。
 
-Unity には `stage`、`groups`、`steps`、`cues` などを持つローカル JSON importer の型と Element loader が存在する。旧 Go HTTP API、OpenAPI、DB、MR manifest は削除済みであり、同じ形式ではない。Trigger、Cue、Action、Transition、身体 Anchor の実行系も未実装である。このため、試作 JSON を契約として固定せず、まずアプリケーション間で共有するドメイン上の境界を定める必要がある。
+Unity には `stage`、`groups`、`steps`、`cues` などを持つローカル JSON importer の型と Element loader が存在する。一方、現行の Go API、OpenAPI、DB、MR manifest は `slides` を発表単位とし、同じ形式ではない。Trigger、Cue、Action、Transition、身体 Anchor の実行系も未実装である。このため、試作 JSON を現行契約として固定せず、まずアプリケーション間で共有するドメイン上の境界を定める必要がある。
 
 ## Decision
 
@@ -67,9 +67,9 @@ Web が編集して保存する Presentation Definition には、次を含める
 
 ### 現行契約との関係
 
-この ADR は目標ドメインモデルの提案であり、現時点で外部契約は未定義である。旧 Slide ベースの API、DB、manifest 契約は削除済みである。
+この ADR は目標ドメインモデルの提案であり、現行の Slide ベースの API、DB、manifest 契約を置換しない。現時点の外部契約の正は、[ADR-0003（アーカイブ）](./archived/0003-full-renewal.md) に従い Go の Huma 定義から生成される `packages/contracts/openapi.yaml` である。
 
-Group ベースの定義を外部契約へ採用する場合は、Control Plane OpenAPI または Realtime Protocol Buffers の source of truth、Unity model、各 consumer、テストを同じ変更で同期する。手書き JSON 文書を別の契約一次資料にはしない。
+Group ベースの定義を外部契約へ採用する場合は、Huma の型と操作定義を更新し、OpenAPI、TypeScript client、手書きの Unity model、各 consumer、テストを同じ変更で同期する。手書き JSON 文書を別の契約一次資料にはしない。
 
 ## Alternatives Considered
 
@@ -85,9 +85,9 @@ Group ベースの定義を外部契約へ採用する場合は、Control Plane 
 
 却下した。一回の入力で複数 Element を同時に変更しにくくなり、表示内容、進行条件、演出の責務が結合する。Cue、Action、Transition を Element から分離する。
 
-### Option D: Unity 用 JSON を component contract とは独立した共通契約にする
+### Option D: Unity 用 JSON を OpenAPI とは独立した共通契約にする
 
-却下した。Web、backend、Unity の型が別々に進化して drift する。外部契約へ昇格させる場合は、対応する Control Plane または Realtime component の契約生成経路へ統合する。
+却下した。Web、backend、Unity の型が別々に進化して drift する。外部契約へ昇格させる場合は、既存の Huma からの生成経路へ統合する。
 
 ## Consequences
 
@@ -107,4 +107,4 @@ Group ベースの定義を外部契約へ採用する場合は、Control Plane 
 - [ ] 同一 Step で複数 Cue が成立した場合の優先度、排他、再発火、debounce を決定する。
 - [ ] Step 遷移の表現と、Action / Transition の完了に対する遷移タイミングを決定する。
 - [ ] Dynamic Anchor の追従方法と、追跡対象を失った場合の挙動を決定する。
-- [ ] Element 種別ごとの Content と Action を component contract で定義し、consumer を同期する。
+- [ ] Element 種別ごとの Content と Action を Huma 契約で定義し、生成物と consumer を同期する。

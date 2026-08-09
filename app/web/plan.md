@@ -23,9 +23,9 @@
 
 ### 今回の対象外
 
-- Control Plane APIの変更
-- Control Plane の D1 schema と migration の変更
-- Control Plane / Realtime contract の変更
+- Go/Huma APIの変更
+- DB schemaとmigrationの変更
+- OpenAPI契約と生成TypeScript clientの変更
 - 認証・認可
 - 複数編集者による同時編集
 - YjsなどのCRDT
@@ -34,7 +34,7 @@
 - Unity側のGLB対応
 - deployment workflow
 
-API接続までは、インメモリfixtureとブラウザ内のadapterを利用する。将来のAPI変更では、本計画で定義するWebドメインモデルを入力として、Control Plane contract、D1、Unity向けprojectionを別途設計する。
+API接続までは、インメモリfixtureとブラウザ内のadapterを利用する。将来のAPI変更では、本計画で定義するWebドメインモデルを入力として、Go/Huma契約、DB、Unity向けprojectionを別途設計する。
 
 ## 採用技術
 
@@ -535,11 +535,11 @@ Cloudflare設定を追加した後は、Wrangler local previewで`/editor`、Edi
 - `/editor`配下のdeep linkがCloudflare SPA配信で機能する。
 - Vitest、Testing Library、Playwrightの関連testが通る。
 - `nix run .#web`と`nix run .#check`が通る。
-- API、Control Plane、D1、contract に意図しない差分がない。
+- API、server、DB、生成contractに意図しない差分がない。
 
 ## 後続検討事項
 
-- Webドメインモデルを基準としたControl Plane APIの再設計
+- Webドメインモデルを基準としたGo/Huma APIの再設計
 - optimistic concurrencyとserver-side revision
 - autosaveとsnapshot保存
 - WebSocketまたはSSEによるViewer配信

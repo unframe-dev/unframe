@@ -4,14 +4,15 @@
 
 この文書は、Unframe の backend を大幅に更新する際の**目標アーキテクチャ**を定義する。対象は、Mixed Reality プレゼンテーションを提供する Main Backend と Realtime Backend の全体である。
 
-本書では記述の状態を次の2種類に分ける。
+本書では記述の状態を次の3種類に分ける。
 
 - **目標**: 今後の backend 更新で実現する正規の設計
+- **現行**: 現在の `app/server/` に存在する実装
 - **未決定**: 実装前に追加の設計判断が必要な事項
 
-特に断りがない限り、2章から22章までは**目標アーキテクチャ**を記述する。23章以降で実装状況と移行方針を整理する。
+特に断りがない限り、2章から22章までは**目標アーキテクチャ**を記述する。23章以降で現行実装との差分と移行方針を整理する。
 
-旧 Go + Huma/Chi + Turso/libSQL HTTP API は削除済みである。目標構成では次の2 backend に責務を分割する。
+現在の `app/server/` は Go + Huma/Chi + Turso/libSQL の HTTP API サーバーであるが、これは移行元の実装である。目標構成では次の2 backend に責務を分割する。
 
 - Main Backend: Cloudflare Workers / TypeScript / Hono / D1 / R2
 - Realtime Backend: Go / gRPC Bidirectional Streaming / Container
@@ -47,7 +48,7 @@ Main Backend は Control Plane、Realtime Backend は Data Plane として扱う
 | Realtime authority | 共有状態、sequence、duplicate/gap判定はserver authoritative |
 | Realtime credential | session-boundの署名JWT。有効期間は1週間。`EdDSA` / Ed25519で署名 |
 | Asset lifecycle | finalize、存在確認、checksum、MIME検査、削除、孤児回収を実装する |
-| Migration | 旧 Turso data と HTTP API の互換性は維持せず、target architecture で置換する |
+| Migration | Turso dataと現行Go HTTP APIの互換性は維持せず、target architectureで置換する |
 
 ## 3. Goals
 
@@ -304,8 +305,8 @@ app/server/
     └── tests/
 
 packages/contracts/
-├── openapi/                       # Control Plane HTTP contract source
-└── proto/unframe/realtime/v1/     # Realtime source contract
+├── openapi.yaml                  # Main Backend HTTP contract artifact
+└── proto/unframe/realtime/v1/    # Realtime source contract
     └── realtime.proto
 ```
 
@@ -313,7 +314,7 @@ packages/contracts/
 
 `realtime/internal/session/`はgRPC、generated Protobuf type、Cloudflare Containers、Fly.io固有APIへ依存させない。generated typeは`transport/grpc/`と`protocol/`の境界でcore typeへ変換する。deployment環境固有packageは具体的なintegrationが必要になった時点で追加し、空の抽象化directoryは作成しない。
 
-TypeScriptとGoの実装codeを直接共有しない。共有境界はOpenAPI、Protocol Buffers、stable identifiersとする。旧 Go HTTP codeは新layoutへ移動せず、必要な validation、domain rule、test caseだけをtarget contractに合わせて再実装する。
+TypeScriptとGoの実装codeを直接共有しない。共有境界はOpenAPI、Protocol Buffers、stable identifiersとする。現行`app/server/`のGo HTTP codeはそのまま新layoutへ移動せず、再利用価値のあるvalidation、domain rule、test caseだけをtarget contractに合わせて移植する。
 
 ## 9. Realtime Backend
 
@@ -796,7 +797,7 @@ Main Backendはasset IDに加えてchecksumまたはimmutable revisionを返す�
 - presentation取得時に参照assetのrevisionを比較し、更新を検知する
 - 削除済み・参照されなくなったcache entryはlocal policyに従って回収する
 
-旧実装は upload URL 発行と metadata insert までだった。target component では finalize、verification、status、delete、orphan collection、cache revision contract を設計・実装する。
+現行実装はupload URL発行とmetadata insertまでで、finalize、verification、status、delete、orphan collection、cache revision contractは未実装である。
 
 ## 17. Backpressure and Flow Control
 
@@ -1006,45 +1007,78 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 ## 23. 現行実装
 
-旧 Go/Huma/Turso/R2 HTTP backend、migration、生成、専用 CI は削除済みである。Control Plane と Realtime Backend は、それぞれ独立した runtime・dependency・deployment 単位として追加する。
+現在の `app/server/` は、目標アーキテクチャへの移行前に存在する Go HTTP backend である。
 
-### 23.1 実装状況
+### 23.1 Current Technology
 
-- Control Plane: 未実装
-- Realtime Backend: 未実装
-- 旧 HTTP OpenAPI contract と generated TypeScript client: 削除済み
+- Go 1.25.7
+- Huma v2 + Chi
+- Turso/libSQL
+- sqlc + goose
+- Cloudflare R2 S3-compatible presigned URL
+- distroless container
 
-### 23.2 移行上の注意
+### 23.2 Current Responsibilities
 
-- 旧 Turso data の移行と旧 HTTP API compatibility layer は作らない。
-- `packages/contracts/` は次の Control Plane OpenAPI と Realtime Protocol Buffers の共有境界として残す。
-- contract の source of truth と生成手順は、対応する component 実装と同時に定義する。
+- singleton presentation の作成、取得、一覧、更新
+- slide JSON の永続化
+- MR manifest の生成
+- asset upload 用 presigned URL 発行
+- asset metadata の保存
+- asset download 用 presigned URL 展開
+- Huma からの OpenAPI 生成
 
-## 24. Target / Implementation Matrix
+### 23.3 Current API
 
-| Area | Target | 現在の状態 | 次の作業 |
+| Method | Path | 現行責務 |
+| --- | --- | --- |
+| GET | `/health` | process liveness |
+| POST | `/assets/init` | R2 upload URL と metadata 作成 |
+| POST | `/presentations` | singleton presentation 作成 |
+| GET | `/presentations` | summary 一覧 |
+| GET | `/presentations/{id}` | authoring model 取得 |
+| PUT | `/presentations/{id}` | metadata patch / slide 全置換 |
+| GET | `/presentations/{id}/manifest` | MR projection 取得 |
+
+### 23.4 Current Constraints
+
+- DB 全体で presentation は最大1件
+- user、tenant、owner、permission がない
+- authentication / authorization がない
+- session と realtime credential がない
+- gRPC / WebSocket / realtime state がない
+- upload finalize / object verification がない
+- asset/presentation delete がない
+- structured logging、metrics、tracing、readiness がない
+- migration は server 起動とは別に実行する
+
+現行 API の詳細は実装と生成済み OpenAPI を参照する。これらは移行中の current contract であり、目標 architecture の最終 contract ではない。
+
+## 24. Target / Current Gap Matrix
+
+| Area | Target | Current | Migration |
 | --- | --- | --- | --- |
-| Main runtime | Workers | 未実装 | Control Plane を構築 |
-| Main language | TypeScript | 未実装 | Control Plane を構築 |
-| Main framework | Hono | 未実装 | Control Plane を構築 |
-| Durable DB | D1 | 未実装 | 新規 schema を設計 |
-| Object storage | R2 | 未実装 | adapter / 権限を設計 |
+| Main runtime | Workers | Go HTTP server | 再実装が必要 |
+| Main language | TypeScript | Go | 再実装が必要 |
+| Main framework | Hono | Huma + Chi | 再実装が必要 |
+| Durable DB | D1 | Turso/libSQL | 新規schema。既存dataは移行しない |
+| Object storage | R2 | R2 | adapter/権限設計を移行 |
 | Authentication | Better Auth Device Authorization + Google OAuth | なし | 新規実装 |
 | Authorization | `admin/editor/presenter/viewer` | なし | 新規実装 |
-| Presentation model | 複数件、slide/contentは個別resource | 未実装 | 新規設計 |
-| Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | 未実装 | target lifecycle を実装 |
+| Presentation model | 複数件、slide/contentは個別resource | global singleton | 互換性なしで再設計 |
+| Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | init + metadata のみ | target lifecycleで置換 |
 | Session management | Main Backend | なし | 新規設計・実装 |
 | Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | なし | 新規実装 |
 | Realtime server | Go gRPC container | なし | 新規 component |
 | Protocol | Protobuf gRPC bidi | なし | `.proto` 設計・生成 |
 | Realtime state | in-memory session state | なし | 新規実装 |
 | Persistence bridge | checkpoint/completion | なし | 双方に新規実装 |
-| Deployment | CF Containers / Fly.io | 未実装 | component ごとに定義 |
-| Observability | logs/metrics/traces | 未実装 | 新規基盤 |
+| Deployment | CF Containers / Fly.io | Dockerfileのみ | 今回の詳細検討対象外 |
+| Observability | logs/metrics/traces | minimal log | 新規基盤 |
 
 ## 25. Migration Strategy
 
-旧 Go HTTP API は削除済みである。Turso data の移行と旧 API compatibility layer は作らない。target component は契約とテストを先に定義し、それぞれ独立して実装する。
+大幅更新では現行Go HTTP APIをtarget architectureで全面置換する。Turso dataの移行とcurrent API compatibility layerは作らない。再利用はtarget設計に適合するpure logic、validation、test caseに限定する。
 
 ### Phase 1: Domain and Contract Definition
 
@@ -1112,14 +1146,14 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - load / soak / reconnect test を実施する
 - observability dashboard と alert を準備する
 - Web EditorとUnityをtarget APIへ切り替える
-- 旧 endpoint の利用を解消する
-- 空の D1 を authority として運用開始する
+- current Go HTTP APIを削除する
+- Tursoを停止し、空のD1をauthorityとして運用開始する
 
 完了条件:
 
 - target SLO と capacity を満たす
 - application rollback手順がある。Turso dataへのrollbackは行わない
-- 旧 endpoint の利用が解消されている
+- current endpoint の利用が解消されている
 
 ## 26. Contract and Code Generation
 

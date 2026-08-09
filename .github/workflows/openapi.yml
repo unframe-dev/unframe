@@ -1,0 +1,42 @@
+name: OpenAPI
+
+# 契約 (packages/contracts) と生成物の整合を検証する reusable workflow。
+# app/server の Huma 定義から OpenAPI・各言語クライアント・sqlc を再生成し、
+# コミット済み成果物との drift が無いことを保証する。ci.yml から呼ばれる。
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: openapi / drift + contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
+      - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
+
+      # drift 検査は go run ./cmd/openapi と go tool sqlc を通るため Go キャッシュを共有する。
+      - name: Cache Go build and module downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('app/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Check generated contract drift
+        run: nix run .#drift
+
+      - name: Check contracts (typecheck / test)
+        run: nix run .#contracts
