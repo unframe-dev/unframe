@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { paths } from "@unframe/contracts/control-plane";
-import { createControlPlaneClient } from "../src";
+import { createControlPlaneAuthClient, createControlPlaneClient } from "../src";
 
 type CreatePresentationRequest = NonNullable<
   paths["/presentations"]["post"]["requestBody"]
@@ -128,5 +128,28 @@ describe("createControlPlaneClient", () => {
       initializedUpload.data;
     expect(typedPresentation.id).toBe("presentation-1");
     expect(typedAsset.asset.id).toBe("asset-1");
+  });
+});
+
+describe("createControlPlaneAuthClient", () => {
+  it("exposes typed Google sign-in, session, and device authorization actions", () => {
+    const auth = createControlPlaneAuthClient({ baseUrl: "https://control-plane.example" });
+
+    const typedActions = () => {
+      const googleSignIn = auth.signIn.social({ provider: "google" });
+      const session = auth.getSession();
+      const deviceCode = auth.device.code({ client_id: "unframe-unity" });
+      const deviceToken = auth.device.token({
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+        client_id: "unframe-unity",
+        device_code: "device-code",
+      });
+
+      void googleSignIn;
+      void session;
+      void deviceCode;
+      void deviceToken;
+    };
+    expect(typedActions).toBeTypeOf("function");
   });
 });
