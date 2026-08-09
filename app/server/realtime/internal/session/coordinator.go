@@ -49,11 +49,18 @@ type ReliableEvent struct {
 type Connection struct {
 	identity       Identity
 	events         chan ReliableEvent
+	overflowed     chan struct{}
 	disconnectOnce sync.Once
 }
 
 func (c *Connection) Events() <-chan ReliableEvent {
 	return c.events
+}
+
+// Overflowed is closed when the reliable event queue fills before the
+// connection can consume an event.
+func (c *Connection) Overflowed() <-chan struct{} {
+	return c.overflowed
 }
 
 // Coordinator owns transient, session-local canonical state and is independent
@@ -94,8 +101,9 @@ func (c *Coordinator) Connect(identity Identity) (*Connection, error) {
 	}
 
 	connection := &Connection{
-		identity: identity,
-		events:   make(chan ReliableEvent, reliableQueueCapacity),
+		identity:   identity,
+		events:     make(chan ReliableEvent, reliableQueueCapacity),
+		overflowed: make(chan struct{}),
 	}
 	state.participants[identity.ParticipantID] = connection
 	return connection, nil
@@ -136,8 +144,7 @@ func (c *Coordinator) ChangePage(connection *Connection, command PageChangeComma
 		select {
 		case recipient.events <- event:
 		default:
-			delete(state.participants, participantID)
-			close(recipient.events)
+			c.disconnectLocked(state, participantID, recipient, true)
 		}
 	}
 	if len(state.participants) == 0 {
@@ -158,12 +165,19 @@ func (c *Coordinator) Disconnect(connection *Connection) {
 		if state == nil || state.participants[identity.ParticipantID] != connection {
 			return
 		}
-		delete(state.participants, identity.ParticipantID)
-		close(connection.events)
+		c.disconnectLocked(state, identity.ParticipantID, connection, false)
 		if len(state.participants) == 0 {
 			delete(c.sessions, identity.SessionID)
 		}
 	})
+}
+
+func (c *Coordinator) disconnectLocked(state *activeSession, participantID string, connection *Connection, overflow bool) {
+	delete(state.participants, participantID)
+	if overflow {
+		close(connection.overflowed)
+	}
+	close(connection.events)
 }
 
 func validIdentity(identity Identity) bool {

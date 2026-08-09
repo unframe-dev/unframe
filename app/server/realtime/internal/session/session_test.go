@@ -148,6 +148,16 @@ func TestCoordinatorDisconnectsSlowParticipantWithoutBlockingSessionProgress(t *
 	if _, ok := <-viewerConnection.Events(); ok {
 		t.Error("slow viewer remained connected after reliable queue filled")
 	}
+	select {
+	case <-viewerConnection.Overflowed():
+	default:
+		t.Error("slow viewer overflow was not signaled")
+	}
+	if replacement, err := coordinator.Connect(viewer); err != nil {
+		t.Errorf("reconnect overflowed viewer: %v", err)
+	} else {
+		coordinator.Disconnect(replacement)
+	}
 }
 
 func TestCoordinatorRejectsCommandFromBackpressureDisconnectedPresenter(t *testing.T) {
