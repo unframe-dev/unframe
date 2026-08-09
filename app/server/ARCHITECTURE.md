@@ -265,7 +265,7 @@ app/server/
 ├── control-plane/                # Main Backend: Cloudflare Workers / TypeScript / Hono
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── wrangler.jsonc
+│   ├── wrangler.toml
 │   ├── migrations/              # D1 migrations
 │   ├── src/
 │   │   ├── index.ts             # Worker entrypoint
