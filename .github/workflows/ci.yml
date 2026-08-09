@@ -61,6 +61,7 @@ jobs:
               - *shared
               - '.github/workflows/realtime.yml'
               - 'app/server/realtime/**'
+              - 'packages/contracts/proto/**'
             web:
               - *shared
               - '.github/workflows/web.yml'

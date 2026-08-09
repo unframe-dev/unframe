@@ -1009,13 +1009,14 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 ### 23.1 実装状況
 
 - Control Plane: Phase 2を実装済み。Workers / Hono、Better Auth、D1 migration / repository、Presentation / Asset API、R2 adapter、OpenAPI、TypeScript clientがある
-- Realtime Backend: 独立Go module、gRPC process、container buildの基盤を実装済み。gRPC service、Realtime protocol、認証、session coordinator、persistence bridgeは未実装
+- Realtime Backend: gRPC process、初期 Protobuf bidi service、page-change の session 内 sequence/fan-out を実装済み。JWT、snapshot/replay、ephemeral state、persistence は未実装
 - Control Plane OpenAPI 3.0.3とTypeScript path型を`packages/contracts/`へ決定的に生成し、`packages/api-client-typescript/`がtyped runtime clientを提供する
+- Realtime Protocol Buffers は `packages/contracts/` を生成元とし、Go generated code と drift check を提供する
 
 ### 23.2 移行上の注意
 
 - 旧 Turso data の移行と旧 HTTP API compatibility layer は作らない。
-- `packages/contracts/` はControl Plane OpenAPIと今後のRealtime Protocol Buffersの共有境界とする。
+- `packages/contracts/` はControl Plane OpenAPIとRealtime Protocol Buffersの共有境界とする。
 - Control Planeは共有Zod schemaとOpenAPI document builderを生成元とし、実HTTP routeとのmethod/path整合、committed OpenAPI / TypeScript型のdriftをCIで検査する。
 
 ## 24. Target / Implementation Matrix
@@ -1033,9 +1034,9 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 | Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | intent expiry、metadata-less object照合、削除監査logを含め実装済み | staging smoke testと運用値の実測調整 |
 | Session management | Main Backend | なし | 新規設計・実装 |
 | Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | なし | 新規実装 |
-| Realtime server | Go gRPC container | processとcontainer build基盤を実装済み（service未登録） | protocol、認証、session coordinatorを追加 |
-| Protocol | Protobuf gRPC bidi | なし | `.proto` 設計・生成 |
-| Realtime state | in-memory session state | なし | 新規実装 |
+| Realtime server | Go gRPC container | process lifecycle と初期 bidi service | JWT interceptor と session lifecycle を追加 |
+| Protocol | Protobuf gRPC bidi | page-change の初期 `.proto` と Go 生成/drift check | snapshot/replay、ephemeral、C# 生成を追加 |
+| Realtime state | in-memory session state | session 単位 sequence、bounded duplicate window、fan-out | canonical state、snapshot/replay、ephemeral state を追加 |
 | Persistence bridge | checkpoint/completion | なし | 双方に新規実装 |
 | Deployment | CF Containers / Fly.io | 未実装 | component ごとに定義 |
 | Observability | logs/metrics/traces | Control Planeの秘匿化した構造化logを実装済み。auth query秘匿のため自動invocation log/traceは無効 | domain metrics、query redaction可能なtrace、Realtime telemetry、dashboard/alertを追加 |

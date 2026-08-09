@@ -17,6 +17,7 @@ case "${mode}" in
     ;;
   check)
     log "realtime(check): vet / lint / test / build / race"
+    "${DIR}/../contracts/generate-proto.sh" check
     (cd "${REALTIME_SERVER_DIR}" && go vet ./...)
     (cd "${REALTIME_SERVER_DIR}" && golangci-lint run)
     (cd "${REALTIME_SERVER_DIR}" && go test ./...)

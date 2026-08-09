@@ -82,3 +82,16 @@ func TestServerShutdownBeforeStartSucceeds(t *testing.T) {
 		t.Fatalf("shutdown before start: %v", err)
 	}
 }
+
+func TestNewServerRegistersRealtimeBidiService(t *testing.T) {
+	t.Parallel()
+
+	server := NewServer(nil)
+	service, ok := server.GRPCServer().GetServiceInfo()["unframe.realtime.v1.RealtimeService"]
+	if !ok {
+		t.Fatal("RealtimeService is not registered")
+	}
+	if len(service.Methods) != 1 || service.Methods[0].Name != "Connect" || !service.Methods[0].IsClientStream || !service.Methods[0].IsServerStream {
+		t.Errorf("registered methods = %#v, want one bidi Connect method", service.Methods)
+	}
+}
