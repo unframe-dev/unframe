@@ -55,6 +55,8 @@ jobs:
               - *shared
               - '.github/workflows/control-plane.yml'
               - 'app/server/control-plane/**'
+              - 'packages/contracts/**'
+              - 'packages/api-client-typescript/**'
             realtime:
               - *shared
               - '.github/workflows/realtime.yml'
