@@ -2,7 +2,7 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: web.yml / lp.yml / unity.yml。
+# 各領域の実体: control-plane.yml / web.yml / lp.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
@@ -29,6 +29,7 @@ jobs:
     # draft PR ではスキップ (ready にした時点で ready_for_review により実行される)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     outputs:
+      control-plane: ${{ steps.filter.outputs.control-plane }}
       web: ${{ steps.filter.outputs.web }}
       lp: ${{ steps.filter.outputs.lp }}
       unity: ${{ steps.filter.outputs.unity }}
@@ -46,9 +47,13 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'package.json'
-              - 'packages/config/tsconfig.base.json'
+              - 'packages/config/**'
               - 'vite.config.ts'
               - '.github/workflows/ci.yml'
+            control-plane:
+              - *shared
+              - '.github/workflows/control-plane.yml'
+              - 'app/server/control-plane/**'
             web:
               - *shared
               - '.github/workflows/web.yml'
@@ -60,6 +65,12 @@ jobs:
             unity:
               - '.github/workflows/unity.yml'
               - 'app/unity/**'
+
+  control-plane:
+    name: Control Plane
+    needs: changes
+    if: needs.changes.outputs.control-plane == 'true'
+    uses: ./.github/workflows/control-plane.yml
 
   web:
     name: Web
@@ -82,7 +93,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, web, lp, unity]
+    needs: [changes, control-plane, web, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:

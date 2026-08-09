@@ -80,6 +80,7 @@ nix run .#setup
 | 開発環境 | `nix develop` |
 | 依存関係と hook のセットアップ | `nix run .#setup` |
 | 全体品質ゲート | `nix run .#check` |
+| Control Plane check / test / build | `nix run .#control-plane` |
 | Web check / test / build | `nix run .#web` |
 | LP test / check / build | `nix run .#lp` |
 | Notion 同期 | `nix run .#notion-sync` |
@@ -89,8 +90,8 @@ nix run .#setup
 品質ゲートではありません。コード変更時の全体品質ゲートは
 `nix run .#check` です。
 
-Backend component 固有の check、development、migration、deployment entrypoint は、
-各 component の実装とともに追加します。
+Control Plane の check entrypoint は実装済みです。Realtime や、各 component 固有の
+development、migration、deployment entrypoint は必要な実装とともに追加します。
 
 Just、Make、Task、mise、その他の repository-wide task runner は、明示的な設計判断
 なしに追加しません。

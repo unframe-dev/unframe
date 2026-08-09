@@ -26,8 +26,8 @@ scripts/              Development, generation, CI, and documentation scripts
 All applications under `app/` and `lp/` are WIP. The current implementation is
 not equally complete in every area:
 
-- The legacy Go/Huma/Turso/R2 HTTP backend has been removed. `app/server/` is
-  reserved for the planned Control Plane and Realtime Backend components.
+- The legacy Go/Huma/Turso/R2 HTTP backend has been removed. `app/server/`
+  contains the Control Plane foundation; the Realtime Backend remains planned.
 - Authentication, authorization, realtime synchronization, conversion
   pipelines, and background jobs are not currently implemented. Do not treat
   planned capabilities as existing behavior.
@@ -172,8 +172,10 @@ Use the following commands from the repository root:
 nix develop                         # Enter the pinned toolchain
 nix run .#setup                      # Install pnpm dependencies and enable hooks
 nix run .#check                      # Full configured code quality gate
+nix run .#control-plane              # Control Plane typecheck/test/build
 nix run .#web                        # Web check/test/build
 nix run .#lp                         # LP test/check/build
+nix run .#control-plane -- fix       # Control Plane formatter autofix
 nix run .#web -- fix                 # Web formatter autofix
 nix run .#lp -- fix                  # LP formatter autofix
 nix run .#notion-sync                # Synchronize Notion to docs/notion/
@@ -269,7 +271,7 @@ Before adding a dependency:
 - Add it only to the package or application that uses it.
 - Use pnpm for JavaScript dependencies and update `pnpm-lock.yaml` through the
   package manager.
-- Update the owning component's `go.mod` and `go.sum` through Go tooling for Go dependencies.
+- Update `app/server/go.mod` and `go.sum` through Go tooling for Go dependencies.
 - Update `app/unity/Packages/manifest.json` and `packages-lock.json` through the
   Unity Package Manager for Unity dependencies.
 - Run the relevant type, test, lint, and build checks.
@@ -294,7 +296,7 @@ For current repository guidance, prefer:
 
 - `ARCHITECTURE.md` for the intended target architecture
 - `CONTRIBUTING.md` for project workflow and collaboration rules
-- `app/server/ARCHITECTURE.md` and component READMEs for backend guidance
+- `app/server/README.md` for server environment and smoke tests
 - `scripts/README.md` for task entry points
 - `docs/decisions/` for accepted architectural decisions
 
@@ -319,7 +321,7 @@ Never commit:
 
 When handling authentication, authorization, file conversion, external URLs,
 uploaded presentation data, or database input, validate data at trust
-boundaries. Until a new API boundary implements authentication and authorization,
+boundaries. The current API has no authentication or authorization middleware;
 do not assume that a user identity or access policy exists.
 
 Do not log secrets, credentials, signed URLs, or sensitive user presentation

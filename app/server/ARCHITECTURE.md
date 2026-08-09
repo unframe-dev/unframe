@@ -270,7 +270,7 @@ app/server/
 │   ├── src/
 │   │   ├── index.ts             # Worker entrypoint
 │   │   ├── app.ts               # Hono application composition root
-│   │   ├── env.ts               # Workers bindings types
+│   │   ├── worker-configuration.d.ts # Wrangler-generated binding types
 │   │   ├── http/                # middleware and HTTP error mapping
 │   │   ├── modules/             # use cases, models, and ports by feature
 │   │   │   ├── auth/
@@ -1010,7 +1010,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 ### 23.1 実装状況
 
-- Control Plane: 未実装
+- Control Plane: Workers / Hono の HTTP 境界と `GET /health` を実装済み
 - Realtime Backend: 未実装
 - 旧 HTTP OpenAPI contract と generated TypeScript client: 削除済み
 
@@ -1024,9 +1024,9 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 | Area | Target | 現在の状態 | 次の作業 |
 | --- | --- | --- | --- |
-| Main runtime | Workers | 未実装 | Control Plane を構築 |
-| Main language | TypeScript | 未実装 | Control Plane を構築 |
-| Main framework | Hono | 未実装 | Control Plane を構築 |
+| Main runtime | Workers | 基盤実装済み | D1/R2 binding と運用設定を追加 |
+| Main language | TypeScript | 基盤実装済み | resource module を追加 |
+| Main framework | Hono | `/health` と HTTP error boundary | target contract に沿う route を追加 |
 | Durable DB | D1 | 未実装 | 新規 schema を設計 |
 | Object storage | R2 | 未実装 | adapter / 権限を設計 |
 | Authentication | Better Auth Device Authorization + Google OAuth | なし | 新規実装 |
