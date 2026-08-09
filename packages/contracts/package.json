@@ -1,0 +1,17 @@
+{
+  "name": "@unframe/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./control-plane": "./src/control-plane.openapi.ts"
+  },
+  "scripts": {
+    "generate:control-plane": "tsx scripts/generate-control-plane.ts",
+    "check:control-plane": "tsx scripts/generate-control-plane.ts --check"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.12.0",
+    "tsx": "^4.22.1"
+  }
+}

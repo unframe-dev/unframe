@@ -1,0 +1,25 @@
+{
+  "name": "@unframe/api-client-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
+    "lint": "vp lint",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "dependencies": {
+    "@unframe/contracts": "workspace:*",
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@unframe/config": "workspace:*",
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

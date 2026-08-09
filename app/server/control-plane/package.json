@@ -11,7 +11,14 @@
     "build": "wrangler deploy --dry-run",
     "types": "wrangler types ./src/worker-configuration.d.ts --include-runtime=false --env-interface CloudflareBindings",
     "types:check": "wrangler types ./src/worker-configuration.d.ts --include-runtime=false --env-interface CloudflareBindings --check",
-    "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "auth:schema:generate": "pnpm exec auth generate --config ./auth.cli.ts --output ./.generated/better-auth.sql --yes",
+    "db:migrate:local": "wrangler d1 migrations apply unframe-control-plane --local",
+    "db:migrate:remote": "wrangler d1 migrations apply unframe-control-plane --remote",
+    "r2:cors:apply": "wrangler r2 bucket cors set unframe-assets --file ./r2-cors.json",
+    "r2:cors:list": "wrangler r2 bucket cors list unframe-assets",
+    "contracts:check": "pnpm --filter @unframe/contracts check:control-plane",
+    "client:check": "pnpm --filter @unframe/api-client-typescript check",
+    "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm contracts:check && pnpm client:check && pnpm build"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.5.2",
