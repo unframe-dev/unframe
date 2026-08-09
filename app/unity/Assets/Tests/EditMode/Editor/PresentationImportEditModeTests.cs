@@ -45,6 +45,21 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void Parser_HandlesActionPropertyOrderAndTransition()
+    {
+        const string json = "{\"presentation\":{\"groups\":[{\"steps\":[{\"cues\":[{\"actions\":[{\"value\":[4,5,6],\"transition\":{\"easing\":\"easeInOut\",\"duration\":0.5},\"type\":\"setPosition\",\"targetId\":\"model\"}]}]}]}]}}";
+
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+        Assert.That(parser.TryParse(json, out PresentationDocument document, out string error), Is.True, error);
+
+        PresentationAction action = document.presentation.groups[0].steps[0].cues[0].actions[0];
+        Assert.That(action.targetId, Is.EqualTo("model"));
+        Assert.That(action.vectorValue, Is.EqualTo(new[] { 4f, 5f, 6f }));
+        Assert.That(action.transition.duration, Is.EqualTo(0.5f));
+        Assert.That(action.transition.easing, Is.EqualTo("easeInOut"));
+    }
+
+    [Test]
     public void RuntimeState_StartsAtFirstGroupAndStep()
     {
         PresentationGroup group = new PresentationGroup

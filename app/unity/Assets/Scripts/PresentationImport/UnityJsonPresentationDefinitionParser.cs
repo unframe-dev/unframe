@@ -1,4 +1,4 @@
-using UnityEngine;
+using Newtonsoft.Json;
 
 public sealed class UnityJsonPresentationDefinitionParser : IPresentationDefinitionParser
 {
@@ -15,9 +15,15 @@ public sealed class UnityJsonPresentationDefinitionParser : IPresentationDefinit
 
         try
         {
-            document = JsonUtility.FromJson<PresentationDocument>(json);
+            document = JsonConvert.DeserializeObject<PresentationDocument>(
+                json,
+                new JsonSerializerSettings
+                {
+                    Converters = { new PresentationActionJsonConverter() }
+                }
+            );
         }
-        catch (System.ArgumentException exception)
+        catch (JsonException exception)
         {
             error = exception.Message;
             return false;
@@ -29,7 +35,6 @@ public sealed class UnityJsonPresentationDefinitionParser : IPresentationDefinit
             return false;
         }
 
-        PresentationActionValueParser.Apply(json, document);
         return true;
     }
 }
