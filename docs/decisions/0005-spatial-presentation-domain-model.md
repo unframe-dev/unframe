@@ -71,6 +71,10 @@ Control Plane OpenAPIはこのADRを採用し、Presentation Resourceの`definit
 
 外部契約artifactは生成済みControl Plane OpenAPIとし、手書きJSON文書を別の契約一次資料にはしない。生成元はControl Planeの共有Zod schemaとOpenAPI document builderである。Web EditorとUnityはまだtarget contractへ接続していないため、consumer移行時に生成型またはadapterと互換性テストを追加する。
 
+PresentationとAssetのResource IDはserver生成UUIDとするが、外部契約ではopaqueな文字列として扱う。clientはUUIDの構造へ依存せず、Group、Step、Cue、ElementなどDefinition内部の安定IDとResource IDを区別する。UUIDの推測困難性を認可の代わりにはしない。
+
+Presentation取得、Asset URL解決、一括delivery APIの実装状況と目標境界は、[`app/server/ARCHITECTURE.md`](../../app/server/ARCHITECTURE.md)の「Presentation Delivery」に記載する。
+
 ## Alternatives Considered
 
 ### Option A: Slide または Page の列だけで進行を表す
@@ -103,6 +107,10 @@ Control Plane OpenAPIはこのADRを採用し、Presentation Resourceの`definit
 - [x] Control Planeの保存APIはGroupベースのDefinition aggregateとし、旧Slide APIを引き継がない。
 - [x] IDのスコープ、参照整合性、Asset参照位置をControl Plane schemaで定義する。
 - [x] 座標系はmeter、right-handed、Y-up、forward -Z、Rotationは正規化QuaternionとしてControl Plane schemaへ固定する。
+- [x] PresentationとAssetのResource IDをserver生成UUIDとし、外部契約ではopaque IDとして扱う。
+- [x] Presentation Resource取得とAsset単体の期限付きdownload URL発行を実装する。
+- [ ] Presentation Resourceと参照Assetの配信情報を返す一括delivery APIをOpenAPIへ追加する。具体的な境界は`app/server/ARCHITECTURE.md`に従う。
+- [ ] Web Editorをdirect delivery APIへ、Unity runtimeをSession bootstrapが返すdelivery projectionへ接続する。
 - [ ] `active`と`visible`のUnity runtime上の適用差を実装する。
 - [ ] Group Trigger の監視範囲、Group の切り替えと再入場時の初期化規則を決定する。
 - [ ] 同一 Step で複数 Cue が成立した場合の優先度、排他、再発火、debounce を決定する。
