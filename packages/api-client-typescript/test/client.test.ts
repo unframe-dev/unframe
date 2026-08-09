@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { paths } from "@unframe/contracts/control-plane";
-import { createControlPlaneAuthClient, createControlPlaneClient } from "../src";
+import {
+  authTokenFromResponse,
+  createControlPlaneAuthClient,
+  createControlPlaneClient,
+} from "../src";
 
 type CreatePresentationRequest = NonNullable<
   paths["/presentations"]["post"]["requestBody"]
@@ -132,7 +136,32 @@ describe("createControlPlaneClient", () => {
 });
 
 describe("createControlPlaneAuthClient", () => {
-  it("exposes typed Google sign-in, session, and device authorization actions", () => {
+  it("extracts the bearer credential from Better Auth responses", () => {
+    expect(
+      authTokenFromResponse(new Response(null, { headers: { "set-auth-token": "token" } })),
+    ).toBe("token");
+  });
+
+  it("delivers bearer credentials emitted by auth actions", async () => {
+    const onAuthToken = vi.fn();
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ token: "session-token", user: { id: "user-1" } }), {
+        status: 200,
+        headers: { "content-type": "application/json", "set-auth-token": "bearer-token" },
+      }),
+    );
+    const auth = createControlPlaneAuthClient({
+      baseUrl: "https://control-plane.example",
+      fetch,
+      onAuthToken,
+    });
+
+    await auth.twoFactor.verifyTotp({ code: "123456" });
+
+    expect(onAuthToken).toHaveBeenCalledWith("bearer-token");
+  });
+
+  it("exposes typed Google sign-in, session, device authorization, and two-factor actions", () => {
     const auth = createControlPlaneAuthClient({ baseUrl: "https://control-plane.example" });
 
     const typedActions = () => {
@@ -144,11 +173,18 @@ describe("createControlPlaneAuthClient", () => {
         client_id: "unframe-unity",
         device_code: "device-code",
       });
+      const verifyTotp = auth.twoFactor.verifyTotp({ code: "123456", trustDevice: true });
+      const backupCode = auth.twoFactor.verifyBackupCode({
+        code: "backup-code",
+        trustDevice: true,
+      });
 
       void googleSignIn;
       void session;
       void deviceCode;
       void deviceToken;
+      void verifyTotp;
+      void backupCode;
     };
     expect(typedActions).toBeTypeOf("function");
   });

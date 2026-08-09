@@ -36,7 +36,7 @@ Main Backend は Control Plane、Realtime Backend は Data Plane として扱う
 | --- | --- |
 | Web Editor | account操作、asset登録、presentation CRUDを行う。session中の操作は行わない |
 | Unity | login/logout、presentation CRUD/read、session作成・参加・終了、Realtime接続を行う |
-| Authentication | Better Auth Device Authorization Flow。browser側のidentity providerはGoogle OAuth |
+| Authentication | Better Auth Google OAuth、email/password（メール確認とTOTP MFA必須）、Device Authorization Flow |
 | Device authorization | polling intervalは3秒、device/user codeの有効期限はBetter Auth標準値の30分 |
 | Roles | global `admin`、presentation単位`editor`、session単位`presenter/viewer` |
 | Organization | organization / team modelは導入しない |
@@ -144,7 +144,7 @@ Realtime client は Unity native application のみである。Web Editor は Re
 
 ### 7.2 Web Editor の責務
 
-- Google OAuth / Better Authを使うbrowser login、logout、account関連操作
+- Better Authを使うGoogle OAuth / email-password browser login、logout、account関連操作
 - presentation definition / group / step / cue / content の作成・編集・保存
 - asset upload の初期化、R2 への直接 upload、finalize
 - asset preview/download
@@ -196,7 +196,7 @@ Main Backend は Web Editor と Unity が共有するシステムの Control Pla
 ### 8.3 Responsibilities
 
 - ユーザー認証
-- Better AuthによるGoogle認証、Device Authorization Grant、application session管理
+- Better AuthによるGoogle認証、email/password認証（Resendによる確認・reset、TOTP MFA）、Device Authorization Grant、application session管理
 - resource と session の認可
 - user / presentation / asset / session の CRUD
 - durable metadata の D1 永続化
@@ -243,7 +243,7 @@ HTTP handler から D1 binding や R2 binding を直接操作し続けず、appl
 
 | Category | 主な利用者 | 目的 |
 | --- | --- | --- |
-| Authentication | Web Editor | Google OAuth browser login、Better Auth cookie session、logout |
+| Authentication | Web Editor | Google OAuth / email-password browser login、MFA、Better Auth cookie session、logout |
 | Device Authorization | Unity | device/user code発行、browser承認、token polling、Bearer session |
 | Users | Web Editor / Unity | user profile と account data |
 | Presentations | Web Editor / Unity | Group/Step/Cueを含むpresentation definitionのdurable CRUD / read |
@@ -545,7 +545,7 @@ Main Backend への永続化失敗時の retry 上限と local buffer の扱い�
 
 ### 13.1 Authority
 
-Main Backendを認証・認可のauthorityとする。user authenticationはGoogleをupstream identity providerとし、Better Authでlogin、application session、logoutを管理する。organization / team modelは導入しない。
+Main Backendを認証・認可のauthorityとする。Better AuthでGoogle OAuthとemail/passwordのlogin、application session、logoutを管理する。email/password accountはメール確認とTOTP MFAを完了するまで通常APIを利用できない。Google OAuth sessionはMFAを要求しない。organization / team modelは導入しない。
 
 roleは次の4種類に固定する。
 
@@ -560,22 +560,21 @@ presentationに対する`editor` accessはsession開始前に決定し、active 
 
 ### 13.2 Unity Device Authorization Flow
 
-UnityのloginにはBetter Auth Device Authorization pluginによるOAuth 2.0 Device Authorization Grantを使用する。Googleはbrowser側のupstream loginに使用し、UnityがGoogleのID tokenを直接取得・保持する方式は採用しない。
+UnityのloginにはBetter Auth Device Authorization pluginによるOAuth 2.0 Device Authorization Grantを使用する。browser側はGoogle OAuthまたは確認済みemail/password + MFAで認証でき、UnityがGoogleのID tokenを直接取得・保持する方式は採用しない。
 
 ```mermaid
 sequenceDiagram
     participant U as Unity
     participant M as Main Backend / Better Auth
     participant B as Browser
-    participant G as Google OAuth
 
     U->>M: Request device_code / user_code
     M-->>U: user_code, verification_uri, expires_in, interval
     U->>U: Display code and URL
     U->>M: Poll token endpoint at interval
     B->>M: Open verification URI and enter code
-    M->>G: Google OAuth login
-    G-->>M: Authenticated identity
+    B->>M: Google OAuthまたはemail/password + MFAでlogin
+    M-->>B: Authenticated identity
     M->>B: Approve device authorization
     U->>M: Poll token endpoint
     M-->>U: Better Auth access/session token
@@ -588,7 +587,7 @@ sequenceDiagram
 - `slow_down`を受けた場合は3秒へ固定せず、serverの指示に従ってpolling間隔を増やす
 - device codeとuser codeの有効期限はBetter Auth標準値の30分とする
 - user/device codeの期限切れ、deny、invalid grantを明示的に処理する
-- verification pageでGoogle loginが未完了ならlogin後に同じ承認flowへ戻す
+- verification pageでbrowser loginが未完了ならlogin後に同じ承認flowへ戻す
 - Unityが受け取るのはBetter Authのapplication credentialであり、Google access/refresh/ID tokenではない
 - Main Backend APIではBearer plugin等を使い、Unity credentialをbrowser cookieと分離して検証する
 - Device Authorizationが返すBearer credentialはBetter Authのopaque application session tokenであり、13.3のEd25519 realtime JWTとは別credentialとする
@@ -1028,7 +1027,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 | Main framework | Hono | health、auth mount、Presentation / Asset route、HTTP error boundaryを実装済み | session / callback routeをPhase 4で追加 |
 | Durable DB | D1 | Better Auth、Presentation、Asset migration / repositoryを実装済み | session / checkpoint schemaをPhase 4で追加 |
 | Object storage | R2 | direct upload署名、finalize検証、download、delete、GCを実装済み | stagingでSigV4 / CORS / checksumを検証 |
-| Authentication | Better Auth Device Authorization + Google OAuth | cookie / Bearer、3秒poll、30分expiryを実装済み | account linking方針を確定 |
+| Authentication | Better Auth Google OAuth + email/password MFA + Device Authorization | メール確認/reset、TOTP/backup code、cookie/Bearer、3秒poll、30分expiryを実装済み | Web / Unity consumerを接続 |
 | Authorization | `admin/editor/presenter/viewer` | global adminとpresentation owner/editorを実装済み | presenter/viewerをsession実装時に追加 |
 | Presentation model | 複数件、Group/Step/Cue Definition aggregate | schema、参照整合性、revision CRUDを実装済み | Web / Unity consumerをtarget contractへ移行 |
 | Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | intent expiry、metadata-less object照合、削除監査logを含め実装済み | staging smoke testと運用値の実測調整 |
@@ -1065,7 +1064,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 - Workers / TypeScript / Hono project を構築する
 - D1 migration と repository を実装する
-- Better Auth、Google OAuth、Device Authorization、Bearer、authorization boundaryを実装する
+- Better Auth、Google OAuth、email/password MFA、Device Authorization、Bearer、authorization boundaryを実装する
 - presentation / asset durable API を実装する
 - R2 upload finalize と asset status を実装する
 - target OpenAPI と TypeScript client を生成する
@@ -1146,7 +1145,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 ### 27.1 Main Backend
 
 - Hono route / schema validation test
-- Better Auth Google login / Device Authorization approval flow
+- Better Auth Google OAuth / email-password MFA / Device Authorization approval flow
 - device tokenの3秒polling、30分expiry、deny、slow_down
 - global admin / presentation editor authorization policy
 - D1 repository / migration test
@@ -1172,7 +1171,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - Web Editor / TypeScript generated client と Main Backend の互換性
 - Web Editor の presentation CRUD と R2 upload/finalize
 - Unity/C# generated client compatibility
-- Unity device code login → Google browser approval → session bootstrap → gRPC join
+- Unity device code login → browser approval → session bootstrap → gRPC join
 - `xxxx-xxxx` join codeのexpiry、rate limit、Waiting/Presenting join
 - multiple client synchronization
 - R2 asset download independent of gRPC

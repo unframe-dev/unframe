@@ -32,6 +32,8 @@ const runtimeConfigSchema = z.object({
   DEVICE_CLIENT_ID: requiredString("DEVICE_CLIENT_ID"),
   GOOGLE_CLIENT_ID: requiredString("GOOGLE_CLIENT_ID"),
   GOOGLE_CLIENT_SECRET: requiredString("GOOGLE_CLIENT_SECRET"),
+  RESEND_API_KEY: requiredString("RESEND_API_KEY"),
+  AUTH_EMAIL_FROM: requiredString("AUTH_EMAIL_FROM").email("AUTH_EMAIL_FROM must be an email"),
   WEB_ORIGIN: originUrl("WEB_ORIGIN"),
   R2_ACCOUNT_ID: requiredString("R2_ACCOUNT_ID").refine(
     (value) => value !== "replace-with-r2-account-id",

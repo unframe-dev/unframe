@@ -13,6 +13,8 @@ export const auth = betterAuth(
       DEVICE_CLIENT_ID: process.env.DEVICE_CLIENT_ID ?? "unframe-unity",
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "schema-generation-client",
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "schema-generation-secret",
+      RESEND_API_KEY: process.env.RESEND_API_KEY ?? "re_schema_generation_key",
+      AUTH_EMAIL_FROM: process.env.AUTH_EMAIL_FROM ?? "auth@example.com",
       WEB_ORIGIN: process.env.WEB_ORIGIN ?? "http://localhost:5173",
     },
     database,

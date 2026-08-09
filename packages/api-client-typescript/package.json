@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "lint": "vp lint",
-    "test": "vitest run",
+    "test": "vp test run",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {

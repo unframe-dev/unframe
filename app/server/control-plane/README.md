@@ -4,12 +4,13 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 
 現在は次を実装しています。
 
-- Better Auth の Google OAuth、Device Authorization、cookie / Bearer session
+- Better Auth の Google OAuth、email/password、TOTP MFA、Device Authorization、cookie / Bearer session
 - owner / editor / global admin による Presentation 認可（editorは定義更新、削除はowner/adminのみ）
 - `Group → Step → Cue` を持つ Presentation Definition の CRUD と revision 競合検知
 - R2 直接uploadの初期化、署名済みContent-Length / MIME / SHA-256制約、finalize時のsize / magic bytes検証、download、監査log付き削除、metadata-less objectを含む孤児回収
 - OpenAPI と TypeScript client の生成・drift check
 
+認証endpointとserver-side policyまでが実装済みです。Web / Unityのemail/password UIはこのcomponentの対象外で、まだ接続していません。
 Session、Realtime credential、checkpoint / completion callback は Phase 4 の対象で、まだ実装していません。
 R2 objectを孤児化させないため、Asset metadataが残るPresentationは削除できません。先に各Assetの削除APIを完了させてください。
 
@@ -19,6 +20,7 @@ R2 objectを孤児化させないため、Asset metadataが残るPresentationは
 
 ```sh
 pnpm db:migrate:local
+pnpm db:migrate:remote # remote D1を変更するため、対象を確認してから実行
 pnpm r2:cors:apply
 pnpm r2:cors:list
 ```
@@ -37,6 +39,8 @@ pnpm --filter @unframe/contracts generate:control-plane
 ```
 
 `pnpm types` は Wrangler binding 型を再生成します。`auth:schema:generate` は Better Auth の参照用 SQL を ignored の `.generated/` へ出力し、review 済み migration を直接上書きしません。
+
+email/password はメール確認後に利用でき、TOTP または backup code の MFA を必要とします。確認・password reset メールは Resend を使うため、`RESEND_API_KEY` と表示名なしの送信元メールアドレス `AUTH_EMAIL_FROM` を設定してください。password reset は既存 session と未消費の認証grantを失効させます。MFA の trusted device は Better Auth 標準どおり30日間有効です。
 
 Worker起動時に全設定を検証するため、`pnpm deploy` または直接 `wrangler deploy` を実行した際に不足・不正な設定があればデプロイは失敗します。エラーには設定名だけを出し、値は出力しません。
 
