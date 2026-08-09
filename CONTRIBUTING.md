@@ -12,6 +12,7 @@ Unframe は次のコンポーネントからなるモノレポです。
 | ----------------------------- | ---------------------------------------- |
 | `app/web/`                    | React 19 Web Editor（WIP）               |
 | `app/server/`                 | Control Plane / Realtime Backend（WIP）  |
+| `app/server/realtime/`        | Go / gRPC Realtime Backend（WIP）        |
 | `app/unity/`                  | Unity MR Application（WIP）              |
 | `lp/`                         | SvelteKit Landing Page（WIP）            |
 | `packages/contracts/`         | 将来の API / protocol contract 境界      |
@@ -20,7 +21,9 @@ Unframe は次のコンポーネントからなるモノレポです。
 | `scripts/`                    | 開発、生成、CI、ドキュメント同期の実処理 |
 
 旧 Go/Huma/Turso/R2 HTTP backend は削除済みです。Control Plane と Realtime は
-それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。
+それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。Realtime
+には独立した Go module と gRPC process があり、Protobuf service、認証、session 同期、
+永続化 bridge は未実装です。
 
 ## 開発スタイル: TDD
 
@@ -56,6 +59,15 @@ Unframe は次のコンポーネントからなるモノレポです。
 Control Plane と Realtime は runtime、dependency、deployment を分離し、実装コード
 ではなく contract を共有します。
 
+`app/server/realtime/`では次の境界を維持します。
+
+- `internal/transport/grpc/`: 手書きgRPC transportとprocess lifecycle
+- `internal/auth/`: connection credentialとservice identityの検証
+- `internal/protocol/`: generated wire typeとcore inputの変換・検証
+- `internal/session/`: infrastructure-independentなsession stateとlogic
+- `internal/persistence/http/`: Control Plane HTTP adapter
+- `internal/gen/`: generator専用。手書きGo codeは禁止
+
 ## 環境セットアップ
 
 ツールチェインは `flake.nix` と `flake.lock` で管理します。JavaScript の依存関係は
@@ -81,6 +93,7 @@ nix run .#setup
 | 依存関係と hook のセットアップ | `nix run .#setup` |
 | 全体品質ゲート | `nix run .#check` |
 | Control Plane check / test / build | `nix run .#control-plane` |
+| Realtime check / test / build / race | `nix run .#realtime` |
 | Web check / test / build | `nix run .#web` |
 | LP test / check / build | `nix run .#lp` |
 | Notion 同期 | `nix run .#notion-sync` |
@@ -90,7 +103,7 @@ nix run .#setup
 品質ゲートではありません。コード変更時の全体品質ゲートは
 `nix run .#check` です。
 
-Control Plane の check entrypoint は実装済みです。Realtime や、各 component 固有の
+Control Plane と Realtime の check entrypoint は実装済みです。各 component 固有の
 development、migration、deployment entrypoint は必要な実装とともに追加します。
 
 Just、Make、Task、mise、その他の repository-wide task runner は、明示的な設計判断
@@ -120,10 +133,11 @@ generated-file notice を保持します。C# generator は未接続のため、
 | 対象 | 現在のテスト | 今後の方針 |
 | --- | --- | --- |
 | `app/web/` | package script で実行 | 機能追加に合わせて拡張 |
+| `app/server/realtime/` | Go `testing`、race detector | gRPC contract と session 実装に合わせて拡張 |
 | `lp/` | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張 |
 | `app/unity/` | Unity Test Framework の EditMode/PlayMode | Unity Editor で実行 |
 
-`nix run .#check` は現在、LP と Web の検証を実行します。
+`nix run .#check` は現在、Control Plane、Realtime、LP、Web の検証を実行します。
 現在は Unity Editor テストを実行しません。ドキュメント link check や security
 check も、この品質ゲートには含まれません。
 
@@ -141,6 +155,7 @@ skip された検証を成功したとは報告しません。
 領域別の自動修正は次のコマンドで実行します。
 
 ```bash
+nix run .#realtime -- fix
 nix run .#lp -- fix
 nix run .#web -- fix
 ```
@@ -182,6 +197,7 @@ scope は主な変更対象に合わせます。
 | ----------- | ------------------------------------------------ |
 | `web`       | `app/web/`                                       |
 | `server`    | `app/server/`                                    |
+| `realtime`  | `app/server/realtime/`                           |
 | `unity`     | `app/unity/`                                     |
 | `lp`        | `lp/`                                            |
 | `contracts` | `packages/contracts/` と `packages/api-client-*` |
@@ -220,7 +236,7 @@ fix/unity-controller-input-deadzone
 依存関係を追加する前に、既存の stack で解決できないか確認します。
 
 - JavaScript の依存関係は pnpm で追加し、`pnpm-lock.yaml` を更新する。
-- Go の依存関係は Go tooling で `app/server/go.mod` と `go.sum` を更新する。
+- Go の依存関係は、利用するmoduleのdirectoryでGo toolingを実行し、対応する`go.mod`と`go.sum`を更新する。現在は`app/server/`と`app/server/realtime/`が独立したmoduleである。
 - Unity package は Unity Package Manager で `manifest.json` と `packages-lock.json` を更新する。
 - 1 つの application のために repository-wide dependency を追加しない。
 - 依存関係変更後は、関連する typecheck、test、lint、build を実行する。

@@ -287,6 +287,9 @@ app/server/
 │       ├── integration/
 │       └── support/
 ├── realtime/                     # Go / gRPC / container
+│   ├── .dockerignore
+│   ├── .env.example
+│   ├── .golangci.yml
 │   ├── go.mod
 │   ├── go.sum
 │   ├── Dockerfile

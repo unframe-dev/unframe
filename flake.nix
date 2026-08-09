@@ -89,6 +89,10 @@
             name = "control-plane";
             script = "ci/control-plane.sh";
           };
+          realtime = mkApp {
+            name = "realtime";
+            script = "ci/realtime.sh";
+          };
           web = mkApp {
             name = "web";
             script = "ci/web.sh";

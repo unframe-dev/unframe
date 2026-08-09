@@ -27,7 +27,9 @@ All applications under `app/` and `lp/` are WIP. The current implementation is
 not equally complete in every area:
 
 - The legacy Go/Huma/Turso/R2 HTTP backend has been removed. `app/server/`
-  contains the Control Plane foundation; the Realtime Backend remains planned.
+  contains the Control Plane foundation. `app/server/realtime/` contains the
+  initial independent Go module and gRPC process; its Protobuf service,
+  authentication, session coordination, and persistence behavior remain planned.
 - Authentication, authorization, realtime synchronization, conversion
   pipelines, and background jobs are not currently implemented. Do not treat
   planned capabilities as existing behavior.
@@ -142,6 +144,15 @@ Within `app/server/`, keep Control Plane (`control-plane/`) and Realtime
 (`realtime/`) as independent runtime, dependency, and deployment units. Share
 contracts, not implementation code.
 
+Within `app/server/realtime/`, preserve the target Realtime Backend boundaries:
+
+- `internal/transport/grpc/` contains the handwritten gRPC transport adapter.
+- `internal/auth/` contains connection and service identity verification.
+- `internal/protocol/` maps generated wire types to validated core inputs.
+- `internal/session/` contains infrastructure-independent session state and logic.
+- `internal/persistence/http/` contains the Control Plane HTTP adapter.
+- `internal/gen/` is reserved for generated code and must not contain handwritten Go code.
+
 ## API Contracts and Generated Code
 
 The legacy OpenAPI contract and generated TypeScript client have been removed.
@@ -173,9 +184,11 @@ nix develop                         # Enter the pinned toolchain
 nix run .#setup                      # Install pnpm dependencies and enable hooks
 nix run .#check                      # Full configured code quality gate
 nix run .#control-plane              # Control Plane typecheck/test/build
+nix run .#realtime                   # Realtime vet/lint/test/build/race
 nix run .#web                        # Web check/test/build
 nix run .#lp                         # LP test/check/build
 nix run .#control-plane -- fix       # Control Plane formatter autofix
+nix run .#realtime -- fix             # Realtime formatter/linter autofix
 nix run .#web -- fix                 # Web formatter autofix
 nix run .#lp -- fix                  # LP formatter autofix
 nix run .#notion-sync                # Synchronize Notion to docs/notion/
@@ -271,7 +284,8 @@ Before adding a dependency:
 - Add it only to the package or application that uses it.
 - Use pnpm for JavaScript dependencies and update `pnpm-lock.yaml` through the
   package manager.
-- Update `app/server/go.mod` and `go.sum` through Go tooling for Go dependencies.
+- Update the owning Go module's `go.mod` and `go.sum` through Go tooling. The
+  current modules are `app/server/` and `app/server/realtime/`.
 - Update `app/unity/Packages/manifest.json` and `packages-lock.json` through the
   Unity Package Manager for Unity dependencies.
 - Run the relevant type, test, lint, and build checks.
