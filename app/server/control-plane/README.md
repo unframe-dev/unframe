@@ -15,7 +15,7 @@ R2 objectを孤児化させないため、Asset metadataが残るPresentationは
 
 ## Setup
 
-`wrangler.jsonc` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。
+`wrangler.toml` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。
 
 ```sh
 pnpm db:migrate:local
@@ -31,11 +31,14 @@ pnpm r2:cors:list
 pnpm check
 pnpm types
 pnpm test
+pnpm deploy
 pnpm auth:schema:generate
 pnpm --filter @unframe/contracts generate:control-plane
 ```
 
 `pnpm types` は Wrangler binding 型を再生成します。`auth:schema:generate` は Better Auth の参照用 SQL を ignored の `.generated/` へ出力し、review 済み migration を直接上書きしません。
+
+Worker起動時に全設定を検証するため、`pnpm deploy` または直接 `wrangler deploy` を実行した際に不足・不正な設定があればデプロイは失敗します。エラーには設定名だけを出し、値は出力しません。
 
 OpenAPI 3.0.3 と生成 TypeScript 型は `packages/contracts/`、typed runtime client は `packages/api-client-typescript/` にあります。Better Auth が所有するendpointは`better-auth@1.6.26`へ固定した認証clientから型付きで利用でき、参照用OpenAPI 3.1.1は`GET /api/auth/open-api/generate-schema`で取得できます。
 

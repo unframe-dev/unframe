@@ -2,19 +2,20 @@ import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { bearer } from "better-auth/plugins/bearer";
 import { deviceAuthorization } from "better-auth/plugins/device-authorization";
 import { openAPI } from "better-auth/plugins";
+import type { RuntimeConfig } from "../config";
 
-export type AuthEnvironment = {
-  DB: D1Database;
-  BETTER_AUTH_SECRET: string;
-  BETTER_AUTH_URL: string;
-  DEVICE_CLIENT_ID: string;
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
-  WEB_ORIGIN: string;
-};
+export type AuthConfiguration = Pick<
+  RuntimeConfig,
+  | "BETTER_AUTH_SECRET"
+  | "BETTER_AUTH_URL"
+  | "DEVICE_CLIENT_ID"
+  | "GOOGLE_CLIENT_ID"
+  | "GOOGLE_CLIENT_SECRET"
+  | "WEB_ORIGIN"
+>;
 
 export function createAuthOptions(
-  env: Omit<AuthEnvironment, "DB">,
+  env: AuthConfiguration,
   database: BetterAuthOptions["database"],
 ) {
   return {
@@ -50,7 +51,7 @@ export function createAuthOptions(
   };
 }
 
-export function createAuth(env: AuthEnvironment) {
+export function createAuth(env: Pick<RuntimeConfig, "DB"> & AuthConfiguration) {
   const { DB, ...configuration } = env;
   return betterAuth(createAuthOptions(configuration, DB));
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../../src/app";
+import { runtimeEnvironment } from "../../runtime-environment";
 import type {
   AssetRecord,
   AssetRepository,
@@ -105,7 +106,7 @@ const setup = () => {
   return { app, repository, storage };
 };
 const request = (app: ReturnType<typeof createApp>, path: string, init?: RequestInit) =>
-  app.fetch(new Request(`https://example.test${path}`, init));
+  app.fetch(new Request(`https://example.test${path}`, init), runtimeEnvironment());
 
 describe("asset HTTP API", () => {
   it.each([

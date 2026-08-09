@@ -2,6 +2,7 @@ import { SELF } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app";
+import { runtimeEnvironment } from "./runtime-environment";
 
 describe("control plane HTTP boundary", () => {
   afterEach(() => {
@@ -55,7 +56,7 @@ describe("control plane HTTP boundary", () => {
         },
         body: "cross-site form body",
       }),
-      { WEB_ORIGIN: "https://app.un-fra.me" } as CloudflareBindings,
+      { ...runtimeEnvironment(), WEB_ORIGIN: "https://app.un-fra.me" },
     );
 
     expect(response.status).toBe(403);
@@ -74,7 +75,7 @@ describe("control plane HTTP boundary", () => {
         headers: { authorization: "Bearer session", "content-type": "text/plain" },
         body: "device request",
       }),
-      { WEB_ORIGIN: "https://app.un-fra.me" } as CloudflareBindings,
+      { ...runtimeEnvironment(), WEB_ORIGIN: "https://app.un-fra.me" },
     );
 
     expect(response.status).toBe(200);
@@ -98,6 +99,7 @@ describe("control plane HTTP boundary", () => {
 
     const response = await app.fetch(
       new Request("https://example.com/throw/sensitive-reset-token"),
+      runtimeEnvironment(),
     );
 
     expect(response.status).toBe(500);

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createScheduledHandler } from "../../../src/index";
 import type { AssetRecord, AssetServices } from "../../../src/modules/assets/service";
+import { runtimeEnvironment } from "../../runtime-environment";
 
 const now = new Date("2026-01-02T00:00:00.000Z");
 const asset = (id: string, status: AssetRecord["status"], createdAt: Date): AssetRecord => ({
@@ -30,6 +31,23 @@ const execution = () => {
 };
 
 describe("scheduled asset orphan collection", () => {
+  it("rejects invalid configuration before scheduling or constructing services", async () => {
+    const services = vi.fn();
+    const waitUntil = vi.fn();
+    const handler = createScheduledHandler(services);
+
+    await expect(
+      handler(
+        {} as ScheduledEvent,
+        { ...runtimeEnvironment(), R2_BUCKET_NAME: "" } as unknown as CloudflareBindings,
+        { waitUntil } as unknown as ExecutionContext,
+      ),
+    ).rejects.toThrow("R2_BUCKET_NAME");
+
+    expect(services).not.toHaveBeenCalled();
+    expect(waitUntil).not.toHaveBeenCalled();
+  });
+
   it("collects only expired pending and failed assets and logs aggregate counts without secrets", async () => {
     const records = [
       asset("old-pending", "pending", new Date("2025-12-31T23:59:59.999Z")),
@@ -86,7 +104,7 @@ describe("scheduled asset orphan collection", () => {
     await createScheduledHandler(
       () => services,
       (entry) => logs.push(entry),
-    )({} as ScheduledEvent, {} as CloudflareBindings, context);
+    )({} as ScheduledEvent, runtimeEnvironment(), context);
     await wait();
     expect(deleted).toEqual(["assets/old-pending/private-key", "old-pending"]);
     expect(logs).toEqual([
@@ -137,7 +155,7 @@ describe("scheduled asset orphan collection", () => {
     await createScheduledHandler(
       () => services,
       (entry) => logs.push(entry),
-    )({} as ScheduledEvent, {} as CloudflareBindings, context);
+    )({} as ScheduledEvent, runtimeEnvironment(), context);
     await wait();
     expect(logs).toEqual([
       JSON.stringify({ event: "asset_orphan_collection_failed", error: "collection_failed" }),

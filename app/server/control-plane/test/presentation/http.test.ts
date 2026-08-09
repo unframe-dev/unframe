@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../src/app";
+import { runtimeEnvironment } from "../runtime-environment";
 import type { PresentationRecord, PresentationRepository } from "../../src/presentation/repository";
 import { definition } from "./schema.test";
 import type { PresentationDefinition } from "../../src/presentation/schema";
@@ -61,7 +62,7 @@ class Repository implements PresentationRepository {
   }
 }
 const request = (app: ReturnType<typeof createApp>, path: string, init?: RequestInit) =>
-  app.fetch(new Request(`https://example.com${path}`, init));
+  app.fetch(new Request(`https://example.com${path}`, init), runtimeEnvironment());
 
 describe("presentation HTTP API", () => {
   it("requires an injected identity instead of allowing anonymous access", async () => {

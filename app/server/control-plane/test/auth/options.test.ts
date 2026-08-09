@@ -11,6 +11,11 @@ const testEnvironment = () => ({
   GOOGLE_CLIENT_ID: "google-client-id",
   GOOGLE_CLIENT_SECRET: "google-client-secret",
   WEB_ORIGIN: "https://app.example.com",
+  ASSETS: { head: () => {}, get: () => {}, put: () => {}, delete: () => {}, list: () => {} },
+  R2_ACCOUNT_ID: "test-r2-account-id",
+  R2_BUCKET_NAME: "assets",
+  R2_ACCESS_KEY_ID: "test-r2-access-key",
+  R2_SECRET_ACCESS_KEY: "test-r2-secret-access-key",
 });
 
 const auth = () => createAuth(testEnvironment());

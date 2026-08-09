@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { routePath } from "hono/route";
+import { type AppEnvironment, validateConfig } from "./config";
 import { identityFromSession } from "./auth/identity";
-import { createAuth, type AuthEnvironment } from "./auth/options";
+import { createAuth } from "./auth/options";
 import { registerPresentationRoutes, type PresentationRouteOptions } from "./presentation/routes";
 import { registerAssetRoutes, type AssetRouteOptions } from "./modules/assets/routes";
 
@@ -30,7 +31,7 @@ const forbidden = {
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export function createApp(options: Partial<PresentationRouteOptions & AssetRouteOptions> = {}) {
-  const app = new Hono<{ Bindings: CloudflareBindings }>();
+  const app = new Hono<AppEnvironment>();
 
   app.onError((error, context) => {
     const incidentId = crypto.randomUUID();
@@ -50,18 +51,19 @@ export function createApp(options: Partial<PresentationRouteOptions & AssetRoute
   app.notFound((context) => context.json(notFound, 404));
 
   app.use("*", async (context, next) => {
+    context.set("config", validateConfig(context.env));
+    const config = context.get("config");
     const origin = context.req.header("origin");
-    const env = context.env as unknown as AuthEnvironment;
     if (
       unsafeMethods.has(context.req.method) &&
       context.req.header("cookie") &&
-      origin !== env?.WEB_ORIGIN
+      origin !== config.WEB_ORIGIN
     ) {
       return context.json(forbidden, 403);
     }
-    if (origin && origin === env?.WEB_ORIGIN) {
+    if (origin && origin === config.WEB_ORIGIN) {
       return cors({
-        origin: env.WEB_ORIGIN,
+        origin: config.WEB_ORIGIN,
         credentials: true,
         allowHeaders: ["Content-Type", "Authorization"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -72,7 +74,7 @@ export function createApp(options: Partial<PresentationRouteOptions & AssetRoute
   });
   app.get("/health", (context) => context.json({ status: "ok" }));
   app.all("/api/auth/*", (context) =>
-    createAuth(context.env as unknown as AuthEnvironment).handler(context.req.raw),
+    createAuth(context.get("config")).handler(context.req.raw),
   );
   registerPresentationRoutes(app, {
     identityProvider: options.identityProvider ?? identityFromSession,

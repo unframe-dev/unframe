@@ -1,15 +1,18 @@
 import type { Context } from "hono";
+import type { AppEnvironment } from "../config";
 import type { Identity } from "../presentation/service";
-import { createAuth, type AuthEnvironment } from "./options";
+import { createAuth } from "./options";
 
 export async function identityFromSession(
-  context: Context<{ Bindings: CloudflareBindings }>,
+  context: Context<AppEnvironment>,
 ): Promise<Identity | undefined> {
-  if (!context.env || !("DB" in context.env)) return undefined;
-  const session = await createAuth(context.env as unknown as AuthEnvironment).api.getSession({
+  const config = context.get("config");
+  const session = await createAuth(config).api.getSession({
     headers: context.req.raw.headers,
   });
-  if (!session) return undefined;
+  if (!session) {
+    return undefined;
+  }
   return {
     userId: session.user.id,
     globalRole:

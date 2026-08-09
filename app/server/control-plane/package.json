@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "lint": "vp lint",
     "test": "vitest run",
