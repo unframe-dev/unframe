@@ -13,7 +13,9 @@ export class D1PresentationPermission implements PresentationPermission {
   }
 
   async canEdit(identity: Identity, presentationId: string) {
-    if (identity.globalRole === "admin") return true;
+    if (identity.globalRole === "admin") {
+      return true;
+    }
     return Boolean(
       await this.db
         .select({ userId: presentationMembers.userId })
@@ -31,7 +33,9 @@ export class D1PresentationPermission implements PresentationPermission {
   }
 
   async canRead(identity: Identity, presentationId: string) {
-    if (identity.globalRole === "admin") return true;
+    if (identity.globalRole === "admin") {
+      return true;
+    }
     return Boolean(
       await this.db
         .select({ userId: presentationMembers.userId })

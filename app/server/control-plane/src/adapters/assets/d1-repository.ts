@@ -46,17 +46,17 @@ export class D1AssetRepository implements AssetRepository {
   }
 
   async findByObjectKey(objectKey: string) {
-    const value = await this.db
-      .select()
-      .from(assets)
-      .where(eq(assets.objectKey, objectKey))
-      .get();
+    const value = await this.db.select().from(assets).where(eq(assets.objectKey, objectKey)).get();
     return value ? record(value) : null;
   }
 
   async save(value: AssetRecord) {
     const result = await this.database
-      .prepare("UPDATE assets SET status = ?, updated_at = ? WHERE id = ? AND status = 'pending'")
+      .prepare(`
+        UPDATE assets
+        SET status = ?, updated_at = ?
+        WHERE id = ? AND status = 'pending'
+      `)
       .bind(value.status, value.updatedAt.toISOString(), value.id)
       .run();
     return result.meta.changes === 1;
@@ -70,11 +70,36 @@ export class D1AssetRepository implements AssetRepository {
   }
 
   async claimDeletion(id: string, statuses: readonly AssetRecord["status"][]) {
-    if (statuses.length === 0) return null;
+    if (statuses.length === 0) {
+      return null;
+    }
     const placeholders = statuses.map(() => "?").join(", ");
     const value = await this.database
       .prepare(
-        `UPDATE assets SET status = 'deleting' WHERE id = ? AND status IN (${placeholders}) AND NOT EXISTS (SELECT 1 FROM presentation_asset_refs WHERE asset_id = assets.id) RETURNING id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type AS mediaType, size_bytes AS sizeBytes, sha256_hex AS sha256Hex, object_key AS objectKey, status, expires_at AS expiresAt, created_at AS createdAt, updated_at AS updatedAt`,
+        `
+          UPDATE assets
+          SET status = 'deleting'
+          WHERE id = ?
+            AND status IN (${placeholders})
+            AND NOT EXISTS (
+              SELECT 1
+              FROM presentation_asset_refs
+              WHERE asset_id = assets.id
+            )
+          RETURNING
+            id,
+            owner_id AS ownerId,
+            presentation_id AS presentationId,
+            name,
+            media_type AS mediaType,
+            size_bytes AS sizeBytes,
+            sha256_hex AS sha256Hex,
+            object_key AS objectKey,
+            status,
+            expires_at AS expiresAt,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        `,
       )
       .bind(id, ...statuses)
       .first<Row>();

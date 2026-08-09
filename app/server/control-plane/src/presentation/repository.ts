@@ -58,10 +58,7 @@ export class D1PresentationRepository implements PresentationRepository {
         updatedAt: presentations.updatedAt,
       })
       .from(presentations)
-      .innerJoin(
-        presentationMembers,
-        eq(presentationMembers.presentationId, presentations.id),
-      )
+      .innerJoin(presentationMembers, eq(presentationMembers.presentationId, presentations.id))
       .where(eq(presentationMembers.userId, userId))
       .orderBy(desc(presentations.createdAt));
   }
@@ -71,7 +68,9 @@ export class D1PresentationRepository implements PresentationRepository {
   }
 
   async findById(id: string) {
-    return (await this.db.select().from(presentations).where(eq(presentations.id, id)).get()) ?? null;
+    return (
+      (await this.db.select().from(presentations).where(eq(presentations.id, id)).get()) ?? null
+    );
   }
 
   async roleFor(id: string, userId: string) {
@@ -86,7 +85,9 @@ export class D1PresentationRepository implements PresentationRepository {
   }
 
   async hasValidAssetReferences(id: string, assetIds: readonly string[]) {
-    if (assetIds.length === 0) return true;
+    if (assetIds.length === 0) {
+      return true;
+    }
     const uniqueIds = [...new Set(assetIds)];
     const row = await this.db
       .select({ value: count() })
@@ -110,7 +111,22 @@ export class D1PresentationRepository implements PresentationRepository {
   ) {
     const result = await this.database
       .prepare(
-        "UPDATE presentations SET definition = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND NOT EXISTS (SELECT 1 FROM json_each(?, '$.assets') refs LEFT JOIN assets ON assets.id = json_extract(refs.value, '$.assetId') AND assets.presentation_id = ? AND assets.status = 'ready' WHERE assets.id IS NULL) RETURNING id",
+        `
+          UPDATE presentations
+          SET definition = ?, revision = revision + 1, updated_at = ?
+          WHERE id = ?
+            AND revision = ?
+            AND NOT EXISTS (
+              SELECT 1
+              FROM json_each(?, '$.assets') refs
+              LEFT JOIN assets
+                ON assets.id = json_extract(refs.value, '$.assetId')
+                AND assets.presentation_id = ?
+                AND assets.status = 'ready'
+              WHERE assets.id IS NULL
+            )
+          RETURNING id
+        `,
       )
       .bind(
         JSON.stringify(definition),
@@ -127,7 +143,16 @@ export class D1PresentationRepository implements PresentationRepository {
   async delete(id: string, expectedRevision: number) {
     const result = await this.database
       .prepare(
-        "DELETE FROM presentations WHERE id = ? AND revision = ? AND NOT EXISTS (SELECT 1 FROM assets WHERE presentation_id = ?)",
+        `
+          DELETE FROM presentations
+          WHERE id = ?
+            AND revision = ?
+            AND NOT EXISTS (
+              SELECT 1
+              FROM assets
+              WHERE presentation_id = ?
+            )
+        `,
       )
       .bind(id, expectedRevision, id)
       .run();

@@ -160,7 +160,9 @@ export const presentationDefinitionSchema = z
     const unique = (values: string[], path: (string | number)[], label: string) => {
       const seen = new Set<string>();
       values.forEach((value, index) => {
-        if (seen.has(value)) issue([...path, index], `duplicate ${label}: ${value}`);
+        if (seen.has(value)) {
+          issue([...path, index], `duplicate ${label}: ${value}`);
+        }
         seen.add(value);
       });
     };
@@ -209,15 +211,16 @@ export const presentationDefinitionSchema = z
     definition.groups.forEach((entry, groupIndex) => {
       const stepIds = new Set(entry.steps.map((value) => value.id));
       entry.elements.forEach((value, elementIndex) => {
-        if ("assetId" in value.content && !assets.has(value.content.assetId))
+        if ("assetId" in value.content && !assets.has(value.content.assetId)) {
           issue(
             ["groups", groupIndex, "elements", elementIndex, "content", "assetId"],
             "unknown asset",
           );
+        }
       });
       entry.anchoredElementGroups.forEach((anchor, anchorIndex) =>
         anchor.elementIds.forEach((elementId, elementIndex) => {
-          if (!elements.has(elementId))
+          if (!elements.has(elementId)) {
             issue(
               [
                 "groups",
@@ -229,6 +232,7 @@ export const presentationDefinitionSchema = z
               ],
               "unknown element",
             );
+          }
         }),
       );
       entry.steps.forEach((stepEntry, stepIndex) => {
@@ -238,13 +242,14 @@ export const presentationDefinitionSchema = z
           "cue id",
         );
         stepEntry.cues.forEach((cueEntry, cueIndex) => {
-          if (cueEntry.trigger.kind === "enterZone" && !zones.has(cueEntry.trigger.zoneId))
+          if (cueEntry.trigger.kind === "enterZone" && !zones.has(cueEntry.trigger.zoneId)) {
             issue(
               ["groups", groupIndex, "steps", stepIndex, "cues", cueIndex, "trigger", "zoneId"],
               "unknown zone",
             );
+          }
           cueEntry.actions.forEach((actionEntry, actionIndex) => {
-            if (!elements.has(actionEntry.targetElementId))
+            if (!elements.has(actionEntry.targetElementId)) {
               issue(
                 [
                   "groups",
@@ -259,17 +264,20 @@ export const presentationDefinitionSchema = z
                 ],
                 "unknown element",
               );
+            }
           });
-          if (cueEntry.next.kind === "step" && !stepIds.has(cueEntry.next.stepId))
+          if (cueEntry.next.kind === "step" && !stepIds.has(cueEntry.next.stepId)) {
             issue(
               ["groups", groupIndex, "steps", stepIndex, "cues", cueIndex, "next", "stepId"],
               "next step must belong to this group",
             );
-          if (cueEntry.next.kind === "group" && !groups.has(cueEntry.next.groupId))
+          }
+          if (cueEntry.next.kind === "group" && !groups.has(cueEntry.next.groupId)) {
             issue(
               ["groups", groupIndex, "steps", stepIndex, "cues", cueIndex, "next", "groupId"],
               "unknown group",
             );
+          }
         });
       });
     });
@@ -277,7 +285,9 @@ export const presentationDefinitionSchema = z
   .describe(
     "Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries.",
   );
+
 export const presentationCreateDefinitionSchema = presentationDefinitionSchema.and(
   z.object({ assets: z.array(z.object({ assetId: id }).strict()).max(0) }),
 );
+
 export type PresentationDefinition = z.infer<typeof presentationDefinitionSchema>;

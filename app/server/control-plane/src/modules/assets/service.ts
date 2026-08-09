@@ -33,6 +33,7 @@ export type PresentationPermission = {
   canEdit(identity: Identity, presentationId: string): Promise<boolean>;
   canRead(identity: Identity, presentationId: string): Promise<boolean>;
 };
+
 export type ObjectStorage = {
   head(
     objectKey: string,
@@ -41,6 +42,7 @@ export type ObjectStorage = {
   delete(objectKey: string): Promise<void>;
   list(prefix: string): Promise<{ objectKey: string; uploadedAt: Date }[]>;
 };
+
 export type PutAccess = {
   method: "PUT";
   url: string;
@@ -51,7 +53,9 @@ export type PutAccess = {
     "x-amz-checksum-sha256": string;
   };
 };
+
 export type DownloadAccess = { method: "GET"; url: string; expiresAt: Date };
+
 export type SignedAccess = {
   issuePut(input: {
     objectKey: string;
@@ -62,8 +66,11 @@ export type SignedAccess = {
   }): Promise<PutAccess>;
   issueDownload(input: { objectKey: string; expiresAt: Date }): Promise<DownloadAccess>;
 };
+
 export type Clock = { now(): Date };
+
 export type AssetId = { next(): string; random(): string };
+
 export type AssetServices = {
   repository: AssetRepository;
   permission: PresentationPermission;
@@ -73,6 +80,7 @@ export type AssetServices = {
   id: AssetId;
   audit?: (entry: Record<string, string>) => void;
 };
+
 export class AssetError extends Error {
   constructor(
     readonly code:
@@ -93,8 +101,9 @@ export class AssetService {
   constructor(private readonly services: AssetServices) {}
 
   async init(identity: Identity, input: AssetInitInput) {
-    if (!(await this.services.permission.canEdit(identity, input.presentationId)))
+    if (!(await this.services.permission.canEdit(identity, input.presentationId))) {
       throw new AssetError("forbidden");
+    }
     const createdAt = this.services.clock.now();
     const expiresAt = new Date(createdAt.getTime() + putAccessDurationMs);
     const id = this.services.id.next();
@@ -130,10 +139,14 @@ export class AssetService {
 
   async finalize(identity: Identity, id: string): Promise<AssetRecord> {
     const record = await this.requireEditable(identity, id);
-    if (record.status === "ready") return record;
+    if (record.status === "ready") {
+      return record;
+    }
     if (this.services.clock.now() >= new Date(record.expiresAt)) {
       const ready = await this.failVerification(record);
-      if (ready) return ready;
+      if (ready) {
+        return ready;
+      }
       throw new AssetError("verification_failed");
     }
     const stored = await this.services.storage.head(record.objectKey);
@@ -147,31 +160,44 @@ export class AssetService {
       !matchesMagicBytes(record.mediaType, prefix)
     ) {
       const ready = await this.failVerification(record);
-      if (ready) return ready;
+      if (ready) {
+        return ready;
+      }
       throw new AssetError("verification_failed");
     }
     const ready = { ...record, status: "ready" as const, updatedAt: this.services.clock.now() };
-    if (await this.services.repository.save(ready)) return ready;
+    if (await this.services.repository.save(ready)) {
+      return ready;
+    }
     const current = await this.services.repository.findById(id);
-    if (current?.status === "ready") return current;
+    if (current?.status === "ready") {
+      return current;
+    }
     throw new AssetError("verification_failed");
   }
 
   async get(identity: Identity, id: string): Promise<AssetRecord> {
     const record = await this.services.repository.findById(id);
-    if (!record) throw new AssetError("not_found");
-    if (!(await this.services.permission.canRead(identity, record.presentationId)))
+    if (!record) {
+      throw new AssetError("not_found");
+    }
+    if (!(await this.services.permission.canRead(identity, record.presentationId))) {
       throw new AssetError("forbidden");
+    }
     return record;
   }
 
   async download(identity: Identity, id: string): Promise<DownloadAccess> {
     const record = await this.services.repository.findById(id);
-    if (!record) throw new AssetError("not_found");
-    if (!(await this.services.permission.canRead(identity, record.presentationId)))
+    if (!record) {
+      throw new AssetError("not_found");
+    }
+    if (!(await this.services.permission.canRead(identity, record.presentationId))) {
       throw new AssetError("forbidden");
-    if (record.status !== "ready" || !(await this.services.repository.isReferenced(id)))
+    }
+    if (record.status !== "ready" || !(await this.services.repository.isReferenced(id))) {
       throw new AssetError("access_unavailable");
+    }
     try {
       return await this.services.signedAccess.issueDownload({
         objectKey: record.objectKey,
@@ -184,9 +210,12 @@ export class AssetService {
 
   async delete(identity: Identity, id: string): Promise<void> {
     const record = await this.services.repository.findById(id);
-    if (!record) return;
-    if (!(await this.services.permission.canEdit(identity, record.presentationId)))
+    if (!record) {
+      return;
+    }
+    if (!(await this.services.permission.canEdit(identity, record.presentationId))) {
       throw new AssetError("forbidden");
+    }
     const claimed = await this.services.repository.claimDeletion(id, [
       "pending",
       "ready",
@@ -194,7 +223,9 @@ export class AssetService {
       "deleting",
     ]);
     if (!claimed) {
-      if (await this.services.repository.isReferenced(id)) throw new AssetError("referenced");
+      if (await this.services.repository.isReferenced(id)) {
+        throw new AssetError("referenced");
+      }
       return;
     }
     await this.services.storage.delete(claimed.objectKey);
@@ -218,7 +249,9 @@ export class AssetService {
         "deleting",
       ]);
       if (!claimed) {
-        if (await this.services.repository.isReferenced(record.id)) skippedReferenced += 1;
+        if (await this.services.repository.isReferenced(record.id)) {
+          skippedReferenced += 1;
+        }
         continue;
       }
       await this.services.storage.delete(claimed.objectKey);
@@ -230,8 +263,9 @@ export class AssetService {
       if (
         object.uploadedAt >= before ||
         (await this.services.repository.findByObjectKey(object.objectKey))
-      )
+      ) {
         continue;
+      }
       await this.services.storage.delete(object.objectKey);
       this.audit({
         event: "asset_gc",
@@ -245,15 +279,20 @@ export class AssetService {
 
   private async requireEditable(identity: Identity, id: string) {
     const record = await this.services.repository.findById(id);
-    if (!record) throw new AssetError("not_found");
-    if (!(await this.services.permission.canEdit(identity, record.presentationId)))
+    if (!record) {
+      throw new AssetError("not_found");
+    }
+    if (!(await this.services.permission.canEdit(identity, record.presentationId))) {
       throw new AssetError("forbidden");
+    }
     return record;
   }
 
   private async failVerification(record: AssetRecord): Promise<AssetRecord | null> {
     const failed = { ...record, status: "failed" as const, updatedAt: this.services.clock.now() };
-    if (await this.services.repository.save(failed)) return null;
+    if (await this.services.repository.save(failed)) {
+      return null;
+    }
     const current = await this.services.repository.findById(record.id);
     return current?.status === "ready" ? current : null;
   }
