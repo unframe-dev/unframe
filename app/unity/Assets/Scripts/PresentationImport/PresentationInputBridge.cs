@@ -30,8 +30,8 @@ public sealed class PresentationInputBridge : MonoBehaviour
         primaryAction = FindAction(actions, primaryActionName);
         nextAction = FindAction(actions, nextActionName);
         motionTriggerAction = FindAction(actions, motionTriggerActionName);
-        motionPositionAction = FindAction(actions, motionPositionActionName);
-        motionRotationAction = FindAction(actions, motionRotationActionName);
+        motionPositionAction = FindAction(actions, "UI", motionPositionActionName);
+        motionRotationAction = FindAction(actions, "UI", motionRotationActionName);
 
         if (primaryAction == null || nextAction == null ||
             motionTriggerAction == null || motionPositionAction == null ||
@@ -39,6 +39,7 @@ public sealed class PresentationInputBridge : MonoBehaviour
         {
             CreateFallbackActions();
         }
+
     }
 
     private void OnEnable()
@@ -114,10 +115,11 @@ public sealed class PresentationInputBridge : MonoBehaviour
             return;
         }
 
+        bool motionTriggerHeld = motionTriggerAction.IsPressed();
         Vector3 currentPosition = motionPositionAction.ReadValue<Vector3>();
         Quaternion currentRotation = motionRotationAction.ReadValue<Quaternion>();
         if (!motionTracker.TryUpdate(
-                motionTriggerAction.IsPressed(),
+                motionTriggerHeld,
                 currentPosition,
                 currentRotation,
                 Time.deltaTime,
@@ -142,6 +144,15 @@ public sealed class PresentationInputBridge : MonoBehaviour
         return actions?.FindAction($"{actionMapName}/{actionName}", false);
     }
 
+    private static InputAction FindAction(
+        InputActionAsset actions,
+        string mapName,
+        string actionName
+    )
+    {
+        return actions?.FindAction($"{mapName}/{actionName}", false);
+    }
+
     private static void Enable(InputAction action)
     {
         action?.Enable();
@@ -158,11 +169,11 @@ public sealed class PresentationInputBridge : MonoBehaviour
         InputActionMap map = new InputActionMap(actionMapName);
 
         primaryAction = map.AddAction(primaryActionName, InputActionType.Button);
-        primaryAction.AddBinding("<XRController>/{PrimaryAction}");
+        primaryAction.AddBinding("<XRController>/primaryButton");
         primaryAction.AddBinding("<Keyboard>/enter");
 
         nextAction = map.AddAction(nextActionName, InputActionType.Button);
-        nextAction.AddBinding("<XRController>/{SecondaryAction}");
+        nextAction.AddBinding("<XRController>/secondaryButton");
         nextAction.AddBinding("<Keyboard>/2");
 
         motionTriggerAction = map.AddAction(motionTriggerActionName, InputActionType.Button);

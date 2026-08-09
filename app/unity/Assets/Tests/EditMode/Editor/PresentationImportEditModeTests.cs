@@ -18,6 +18,29 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void LocalSamples_ContainNoModelElements()
+    {
+        foreach (string resourceName in new[]
+        {
+            "PresentationSamples/LocalSample",
+            "PresentationSamples/LocalExtendedSample"
+        })
+        {
+            TextAsset asset = Resources.Load<TextAsset>(resourceName);
+            Assert.That(asset, Is.Not.Null, resourceName);
+
+            PresentationDocument document = JsonUtility.FromJson<PresentationDocument>(asset.text);
+            foreach (PresentationGroup group in document.presentation.groups)
+            {
+                foreach (PresentationElement element in group.elements)
+                {
+                    Assert.That(element.type, Is.Not.EqualTo("model"), resourceName);
+                }
+            }
+        }
+    }
+
+    [Test]
     public void DefaultRegistrySupportsAllInitialElementTypes()
     {
         ElementLoaderRegistry registry = new ElementLoaderRegistry();

@@ -120,8 +120,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children:
-  - {fileID: 4011}
+  m_Children: []
   m_Father: {fileID: 0}
 --- !u!114 &1002
 MonoBehaviour:
@@ -157,8 +156,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2001}
   - component: {fileID: 2002}
-  - component: {fileID: 2004}
-  - component: {fileID: 2005}
   m_Layer: 0
   m_Name: XR Origin
   m_TagString: Untagged

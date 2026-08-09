@@ -64,7 +64,11 @@ public sealed class PresentationRuntimeSession : MonoBehaviour
             return false;
         }
 
-        runtimeLogger.Info($"Cue triggered: {cue.id}.");
+        runtimeLogger.Info(
+            $"Cue triggered: {cue.id}, " +
+            $"actions={cue.actions?.Length ?? 0}, " +
+            $"nextStep={cue.nextStep ?? "none"}."
+        );
         PresentationActionExecutor executor = new PresentationActionExecutor(
             importer.Elements,
             runtimeLogger

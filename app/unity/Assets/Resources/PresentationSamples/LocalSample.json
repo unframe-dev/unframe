@@ -3,13 +3,7 @@
   "presentation": {
     "id": "local_sample",
     "title": "Local MR Sample",
-    "assets": [
-      {
-        "id": "asset_cube",
-        "type": "model",
-        "src": "Cube.prefab"
-      }
-    ],
+    "assets": [],
     "groups": [
       {
         "id": "group_local_sample",
@@ -58,19 +52,6 @@
                 "scale": [1.0, 1.0, 1.0]
               }
             }
-          },
-          {
-            "id": "sample_cube",
-            "type": "model",
-            "assetId": "asset_cube",
-            "initialState": {
-              "visible": true,
-              "transform": {
-                "position": [0.0, 0.9, 2.0],
-                "rotation": [0.0, 25.0, 0.0],
-                "scale": [0.35, 0.35, 0.35]
-              }
-            }
           }
         ],
         "dynamicGroups": [],
@@ -102,7 +83,7 @@
             "id": "step_02",
             "cues": [
               {
-                "id": "cue_hide_cube",
+                "id": "cue_expand_panel",
                 "trigger": {
                   "type": "input",
                   "condition": {
@@ -112,9 +93,9 @@
                 },
                 "actions": [
                   {
-                    "targetId": "sample_cube",
-                    "type": "setVisible",
-                    "value": false
+                    "targetId": "sample_panel",
+                    "type": "setScale",
+                    "value": [1.15, 1.1, 1.0]
                   }
                 ]
               }
