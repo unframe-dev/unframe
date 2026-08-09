@@ -1,5 +1,5 @@
 # Generated protobuf package
 
-This directory is created and populated by the protobuf generation task. Do not add handwritten Go files here.
+This directory is populated by `scripts/contracts/generate-proto.sh`. Do not add or edit generated Go files here.
 
-The source `.proto` files are owned by `packages/contracts/proto/`; generated Go code will be added here when that generation pipeline is introduced.
+The source `.proto` files are owned by `packages/contracts/proto/`. Run the generation command from the repository root; `nix run .#realtime` checks for drift.

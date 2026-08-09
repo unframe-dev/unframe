@@ -26,6 +26,9 @@
           pkgs.pnpm
           pkgs.go
           pkgs.golangci-lint
+          pkgs.protobuf
+          pkgs.protoc-gen-go
+          pkgs.protoc-gen-go-grpc
           pkgs.dotnet-sdk_8
           pkgs.powershell
           pkgs.git
