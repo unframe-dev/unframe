@@ -100,10 +100,11 @@ Backend 固有の check、development、migration、deployment entrypoint は、
 ### GitHub Actions
 
 - `ci.yml`: 変更領域の検出と必須チェックの集約
+- `control-plane.yml`: Control Plane の typecheck / test / deploy dry-run
 - `web.yml`: Web の check / test / build
 - `lp.yml`: LP の test / check / build
 - `unity.yml`: Unity の静的検査
-- `autofix.yml`: Web / LP の format と lint fix
+- `autofix.yml`: Control Plane / Web / LP の format と lint fix
 - `sync-notion.yml`: Notion 同期
 
 ## 移行状況
@@ -112,6 +113,7 @@ Backend 固有の check、development、migration、deployment entrypoint は、
 - [x] 旧 OpenAPI、生成 TypeScript client、sqlc、旧 API ドキュメントを削除
 - [x] 旧 Backend 専用の CI・生成・migration・dev entrypoint を削除
 - [x] `packages/contracts/` を次の contract を定義するための境界として保持
-- [ ] Control Plane を `app/server/control-plane/` に実装
+- [x] Control Plane の HTTP 基盤を `app/server/control-plane/` に実装
+- [ ] Control Plane の contract、認証、D1/R2、resource API を実装
 - [ ] Realtime Backend を `app/server/realtime/` に実装
 - [ ] component 間 E2E を `app/server/integration/` に実装

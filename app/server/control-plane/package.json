@@ -1,0 +1,27 @@
+{
+  "name": "@unframe/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
+    "lint": "vp lint",
+    "test": "vitest run",
+    "build": "wrangler deploy --dry-run",
+    "types": "wrangler types ./src/worker-configuration.d.ts --include-runtime=false --env-interface CloudflareBindings",
+    "types:check": "wrangler types ./src/worker-configuration.d.ts --include-runtime=false --env-interface CloudflareBindings --check",
+    "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "hono": "^4.13.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.20.3",
+    "@cloudflare/workers-types": "5.20260804.1",
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.120.0"
+  }
+}

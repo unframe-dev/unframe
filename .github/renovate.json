@@ -25,7 +25,7 @@
       "semanticCommitScope": "server"
     },
     {
-      "description": "app/web / lp / packages (npm/pnpm)",
+      "description": "control-plane / app/web / lp / packages (npm/pnpm)",
       "matchManagers": ["npm"],
       "semanticCommitScope": "deps"
     },

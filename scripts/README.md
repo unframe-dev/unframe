@@ -13,6 +13,7 @@
 nix develop
 nix run .#setup
 nix run .#check
+nix run .#control-plane
 nix run .#notion-sync
 nix flake check
 ```

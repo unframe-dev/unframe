@@ -39,18 +39,19 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Apply autofix (lp / web)
+      - name: Apply autofix (control-plane / lp / web)
         run: |
+          nix run .#control-plane -- fix
           nix run .#lp -- fix
           nix run .#web -- fix
 
       # トークンはここ (PR 制御コードの実行後) でのみ環境に入れる。
-      # PAT / GitHub App token (secrets.AUTOFIX_TOKEN) があれば fix commit が CI を
-      # 再トリガーして各チェックが自動で緑になる。未設定なら既定 GITHUB_TOKEN を使い、
-      # fix は commit されるが、この push では CI は再実行されない。
+      # GitHub App token または PAT を使い、fix commit 後の CI を必ず再トリガーする。
+      # GITHUB_TOKEN に fallback すると bot push の workflow が実行されず、未検証の
+      # head が残るため、変更がある場合は AUTOFIX_TOKEN を必須とする。
       - name: Commit and push fixes
         env:
-          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
           HEAD_REF: ${{ github.head_ref }}
           REPO: ${{ github.repository }}
         run: |
@@ -58,8 +59,12 @@ jobs:
             echo "変更なし"
             exit 0
           fi
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::Autofixで変更が発生しましたが、AUTOFIX_TOKENが設定されていません。"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "💄 自動整形と lint 修正を適用"
+          git commit -m "style: 自動整形と lint 修正を適用"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:${HEAD_REF}"

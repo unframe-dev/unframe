@@ -1,5 +1,6 @@
 packages:
   - "app/*"
+  - "app/server/control-plane"
   - "lp"
   - "packages/*"
   - "scripts/docs/notion-sync"
@@ -17,6 +18,13 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
+
+# @hookform/resolvers/zod imports zod but the package does not declare it as a peer.
+# Declare the missing edge so pnpm's strict linker connects the Web-owned dependency.
+packageExtensions:
+  "@hookform/resolvers@*":
+    peerDependencies:
+      zod: ">=3.25.0"
 
 allowBuilds:
   esbuild: true

@@ -35,7 +35,7 @@ MR デバイス上でプレゼンテーションを表示
 
 ## 現在のステータス
 
-`app/` 配下のアプリケーションと `lp/` は WIP です。Web Editor は編集機能の scaffold、Unity はローカル JSON importer と presentation element loader の scaffold を実装しています。認証、認可、realtime 同期、変換 pipeline、background job は未実装です。
+`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は Workers / Hono の HTTP 境界と `GET /health`、Web Editor は編集機能の scaffold、Unity はローカル JSON importer と presentation element loader の scaffold を実装しています。認証、認可、resource API、realtime 同期、変換 pipeline、background job は未実装です。
 
 ## リポジトリ
 
