@@ -1,6 +1,0 @@
-{
-  "generator": "csharp",
-  "input": "../openapi.yaml",
-  "output": "../../api-client-csharp",
-  "namespace": "Unframe.ApiClient"
-}
