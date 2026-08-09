@@ -7,6 +7,12 @@ name: CI
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
 on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base branch used to detect changed areas
+        required: true
+        type: string
   push:
     branches: [main]
   pull_request:
@@ -40,6 +46,9 @@ jobs:
       - uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
         id: filter
         with:
+          # workflow_dispatch は PR イベント情報を持たないため、Autofix から渡した base を使う。
+          # PR では従来どおり PR API、main への push では直前 commit と比較する。
+          base: ${{ github.event_name == 'workflow_dispatch' && inputs.base_ref || github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch }}
           filters: |
             shared: &shared
               - 'flake.nix'

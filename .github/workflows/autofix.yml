@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   autofix:
@@ -56,14 +57,13 @@ jobs:
           nix run .#lp -- fix
           nix run .#web -- fix
 
-      # トークンはここ (PR 制御コードの実行後) でのみ環境に入れる。
-      # GitHub App token または PAT を使い、fix commit 後の CI を必ず再トリガーする。
-      # GITHUB_TOKEN に fallback すると bot push の workflow が実行されず、未検証の
-      # head が残るため、変更がある場合は AUTOFIX_TOKEN を必須とする。
-      - name: Commit and push fixes
+      # GH_TOKEN 環境変数は PR 制御コードの実行後、この step でのみ設定する。
+      # GITHUB_TOKEN による push は workflow を起動しないため、push 後に CI を明示的に起動する。
+      - name: Commit, push, and dispatch CI
         env:
-          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
           REPO: ${{ github.repository }}
         run: |
           if [ -z "$(git status --porcelain)" ]; then
@@ -79,3 +79,6 @@ jobs:
           git add -A
           git commit -m "style: 自動整形と lint 修正を適用"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:${HEAD_REF}"
+          gh api --method POST "repos/${REPO}/actions/workflows/ci.yml/dispatches" \
+            -f "ref=${HEAD_REF}" \
+            -f "inputs[base_ref]=${BASE_REF}"

@@ -1,0 +1,79 @@
+using UnityEngine;
+
+public sealed class PresentationRuntimeSession : MonoBehaviour
+{
+    [SerializeField] private PresentationJsonImporter importer;
+    [SerializeField] private bool enableRuntimeLogs = true;
+
+    public PresentationRuntimeState State { get; } = new PresentationRuntimeState();
+
+    private IPresentationRuntimeLogger runtimeLogger;
+
+    private void Awake()
+    {
+        importer ??= GetComponent<PresentationJsonImporter>();
+        runtimeLogger = new UnityPresentationRuntimeLogger(enableRuntimeLogs);
+        if (importer != null)
+        {
+            importer.SetRuntimeLogger(runtimeLogger);
+            importer.Imported += HandleImported;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (importer != null)
+        {
+            importer.Imported -= HandleImported;
+        }
+    }
+
+    private void HandleImported(PresentationDocument document)
+    {
+        State.Reset(document.presentation);
+        runtimeLogger.Info(
+            $"State: group={State.CurrentGroupId}, step={State.CurrentStepId ?? "none"}."
+        );
+    }
+
+    public bool ProcessInput(string input)
+    {
+        if (importer == null || importer.Document?.presentation == null)
+        {
+            runtimeLogger?.Warning("Input ignored because no presentation is loaded.");
+            return false;
+        }
+
+        runtimeLogger.Info($"Input: {input}.");
+        string previousStepId = State.CurrentStepId;
+        if (!State.TryProcessInput(importer.Document.presentation, input, out PresentationCue cue))
+        {
+            runtimeLogger.Info($"Input ignored at step={State.CurrentStepId ?? "none"}.");
+            return false;
+        }
+
+        runtimeLogger.Info($"Cue triggered: {cue.id}.");
+        PresentationActionExecutor executor = new PresentationActionExecutor(
+            importer.Elements,
+            runtimeLogger
+        );
+        if (cue.actions == null)
+        {
+            return true;
+        }
+
+        foreach (PresentationAction action in cue.actions)
+        {
+            executor.Execute(action);
+        }
+
+        if (previousStepId != State.CurrentStepId)
+        {
+            runtimeLogger.Info(
+                $"State changed: {previousStepId ?? "none"} -> {State.CurrentStepId ?? "none"}."
+            );
+        }
+
+        return true;
+    }
+}

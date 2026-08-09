@@ -123,7 +123,9 @@ public sealed class PresentationAction
 {
     public string targetId;
     public string type;
+    public bool boolValue;
     public float[] vectorValue;
+    public float floatValue;
     public string stringValue;
     public PresentationTransition transition;
 }

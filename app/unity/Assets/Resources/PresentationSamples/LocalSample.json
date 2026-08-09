@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0.0",
+  "presentation": {
+    "id": "local_sample",
+    "title": "Local MR Sample",
+    "assets": [
+      {
+        "id": "asset_cube",
+        "type": "model",
+        "src": "Cube.prefab"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group_local_sample",
+        "name": "Local Sample",
+        "trigger": {
+          "type": "presentationStart"
+        },
+        "elements": [
+          {
+            "id": "sample_panel",
+            "type": "shape",
+            "content": {
+              "shape": "rectangle",
+              "size": {
+                "width": 1.8,
+                "height": 1.0
+              },
+              "fill": {
+                "color": [0.04, 0.08, 0.14, 0.9]
+              }
+            },
+            "initialState": {
+              "visible": true,
+              "opacity": 0.9,
+              "transform": {
+                "position": [0.0, 1.4, 2.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "sample_title",
+            "type": "text",
+            "content": {
+              "text": "ローカルMRプレゼンテーション",
+              "fontSize": 0.12,
+              "alignment": "center",
+              "color": [1.0, 1.0, 1.0, 1.0]
+            },
+            "initialState": {
+              "visible": true,
+              "transform": {
+                "position": [0.0, 1.55, 1.95],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "sample_cube",
+            "type": "model",
+            "assetId": "asset_cube",
+            "initialState": {
+              "visible": true,
+              "transform": {
+                "position": [0.0, 0.9, 2.0],
+                "rotation": [0.0, 25.0, 0.0],
+                "scale": [0.35, 0.35, 0.35]
+              }
+            }
+          }
+        ],
+        "dynamicGroups": [],
+        "steps": [
+          {
+            "id": "step_01",
+            "cues": [
+              {
+                "id": "cue_hide_title",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "primary",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "sample_title",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ],
+                "nextStep": "step_02"
+              }
+            ]
+          },
+          {
+            "id": "step_02",
+            "cues": [
+              {
+                "id": "cue_hide_cube",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "next",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "sample_cube",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
