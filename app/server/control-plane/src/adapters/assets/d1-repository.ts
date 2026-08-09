@@ -1,75 +1,59 @@
-import type { AssetMediaType } from "../../modules/assets/schema";
+import { and, eq, inArray, lt } from "drizzle-orm";
+
+import { createD1Database } from "../d1/database";
+import { assets, presentationAssetRefs } from "../d1/schema";
 import type { AssetRecord, AssetRepository } from "../../modules/assets/service";
 
-type Row = Omit<
-  AssetRecord,
-  "mediaType" | "sizeBytes" | "sha256Hex" | "objectKey" | "expiresAt" | "createdAt" | "updatedAt"
-> & {
-  media_type: AssetMediaType;
-  size_bytes: number;
-  sha256_hex: string;
-  object_key: string;
-  expires_at: string;
-  created_at: string;
-  updated_at: string;
-};
+type Row = typeof assets.$inferSelect;
 
 const record = (row: Row): AssetRecord => ({
   id: row.id,
   ownerId: row.ownerId,
   presentationId: row.presentationId,
   name: row.name,
-  mediaType: row.media_type,
-  sizeBytes: row.size_bytes,
-  sha256Hex: row.sha256_hex,
-  objectKey: row.object_key,
+  mediaType: row.mediaType,
+  sizeBytes: row.sizeBytes,
+  sha256Hex: row.sha256Hex,
+  objectKey: row.objectKey,
   status: row.status,
-  expiresAt: row.expires_at,
-  createdAt: new Date(row.created_at),
-  updatedAt: new Date(row.updated_at),
+  expiresAt: row.expiresAt,
+  createdAt: new Date(row.createdAt),
+  updatedAt: new Date(row.updatedAt),
 });
 
 export class D1AssetRepository implements AssetRepository {
-  constructor(private readonly database: D1Database) {}
+  private readonly db;
+
+  constructor(private readonly database: D1Database) {
+    this.db = createD1Database(database);
+  }
+
   async create(value: AssetRecord) {
-    await this.database
-      .prepare(
-        "INSERT INTO assets (id, owner_id, presentation_id, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
-        value.id,
-        value.ownerId,
-        value.presentationId,
-        value.name,
-        value.mediaType,
-        value.sizeBytes,
-        value.sha256Hex,
-        value.objectKey,
-        value.status,
-        value.expiresAt,
-        value.createdAt.toISOString(),
-        value.updatedAt.toISOString(),
-      )
+    await this.db
+      .insert(assets)
+      .values({
+        ...value,
+        expiresAt: value.expiresAt,
+        createdAt: value.createdAt.toISOString(),
+        updatedAt: value.updatedAt.toISOString(),
+      })
       .run();
   }
+
   async findById(id: string) {
-    const value = await this.database
-      .prepare(
-        "SELECT id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at FROM assets WHERE id = ?",
-      )
-      .bind(id)
-      .first<Row>();
+    const value = await this.db.select().from(assets).where(eq(assets.id, id)).get();
     return value ? record(value) : null;
   }
+
   async findByObjectKey(objectKey: string) {
-    const value = await this.database
-      .prepare(
-        "SELECT id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at FROM assets WHERE object_key = ?",
-      )
-      .bind(objectKey)
-      .first<Row>();
+    const value = await this.db
+      .select()
+      .from(assets)
+      .where(eq(assets.objectKey, objectKey))
+      .get();
     return value ? record(value) : null;
   }
+
   async save(value: AssetRecord) {
     const result = await this.database
       .prepare("UPDATE assets SET status = ?, updated_at = ? WHERE id = ? AND status = 'pending'")
@@ -77,38 +61,47 @@ export class D1AssetRepository implements AssetRepository {
       .run();
     return result.meta.changes === 1;
   }
+
   async deleteClaimed(id: string) {
-    await this.database
-      .prepare("DELETE FROM assets WHERE id = ? AND status = 'deleting'")
-      .bind(id)
+    await this.db
+      .delete(assets)
+      .where(and(eq(assets.id, id), eq(assets.status, "deleting")))
       .run();
   }
+
   async claimDeletion(id: string, statuses: readonly AssetRecord["status"][]) {
     if (statuses.length === 0) return null;
     const placeholders = statuses.map(() => "?").join(", ");
     const value = await this.database
       .prepare(
-        `UPDATE assets SET status = 'deleting' WHERE id = ? AND status IN (${placeholders}) AND NOT EXISTS (SELECT 1 FROM presentation_asset_refs WHERE asset_id = assets.id) RETURNING id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at`,
+        `UPDATE assets SET status = 'deleting' WHERE id = ? AND status IN (${placeholders}) AND NOT EXISTS (SELECT 1 FROM presentation_asset_refs WHERE asset_id = assets.id) RETURNING id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type AS mediaType, size_bytes AS sizeBytes, sha256_hex AS sha256Hex, object_key AS objectKey, status, expires_at AS expiresAt, created_at AS createdAt, updated_at AS updatedAt`,
       )
       .bind(id, ...statuses)
       .first<Row>();
     return value ? record(value) : null;
   }
+
   async isReferenced(id: string) {
     return Boolean(
-      await this.database
-        .prepare("SELECT 1 AS present FROM presentation_asset_refs WHERE asset_id = ? LIMIT 1")
-        .bind(id)
-        .first<{ present: number }>(),
+      await this.db
+        .select({ assetId: presentationAssetRefs.assetId })
+        .from(presentationAssetRefs)
+        .where(eq(presentationAssetRefs.assetId, id))
+        .limit(1)
+        .get(),
     );
   }
+
   async findExpiredUnfinalized(before: Date) {
-    const values = await this.database
-      .prepare(
-        "SELECT id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at FROM assets WHERE status IN ('pending', 'failed', 'deleting') AND expires_at < ?",
-      )
-      .bind(before.toISOString())
-      .all<Row>();
-    return values.results.map(record);
+    const values = await this.db
+      .select()
+      .from(assets)
+      .where(
+        and(
+          inArray(assets.status, ["pending", "failed", "deleting"]),
+          lt(assets.expiresAt, before.toISOString()),
+        ),
+      );
+    return values.map(record);
   }
 }

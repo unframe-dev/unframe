@@ -1,28 +1,49 @@
+import { and, eq, inArray } from "drizzle-orm";
+
+import { createD1Database } from "../d1/database";
+import { presentationMembers } from "../d1/schema";
 import type { Identity } from "../../presentation/service";
 import type { PresentationPermission } from "../../modules/assets/service";
 
 export class D1PresentationPermission implements PresentationPermission {
-  constructor(private readonly database: D1Database) {}
+  private readonly db;
+
+  constructor(database: D1Database) {
+    this.db = createD1Database(database);
+  }
+
   async canEdit(identity: Identity, presentationId: string) {
     if (identity.globalRole === "admin") return true;
     return Boolean(
-      await this.database
-        .prepare(
-          "SELECT 1 AS present FROM presentation_members WHERE presentation_id = ? AND user_id = ? AND role IN ('owner', 'editor') LIMIT 1",
+      await this.db
+        .select({ userId: presentationMembers.userId })
+        .from(presentationMembers)
+        .where(
+          and(
+            eq(presentationMembers.presentationId, presentationId),
+            eq(presentationMembers.userId, identity.userId),
+            inArray(presentationMembers.role, ["owner", "editor"]),
+          ),
         )
-        .bind(presentationId, identity.userId)
-        .first<{ present: number }>(),
+        .limit(1)
+        .get(),
     );
   }
+
   async canRead(identity: Identity, presentationId: string) {
     if (identity.globalRole === "admin") return true;
     return Boolean(
-      await this.database
-        .prepare(
-          "SELECT 1 AS present FROM presentation_members WHERE presentation_id = ? AND user_id = ? LIMIT 1",
+      await this.db
+        .select({ userId: presentationMembers.userId })
+        .from(presentationMembers)
+        .where(
+          and(
+            eq(presentationMembers.presentationId, presentationId),
+            eq(presentationMembers.userId, identity.userId),
+          ),
         )
-        .bind(presentationId, identity.userId)
-        .first<{ present: number }>(),
+        .limit(1)
+        .get(),
     );
   }
 }
