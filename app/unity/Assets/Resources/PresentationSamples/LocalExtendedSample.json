@@ -1,0 +1,331 @@
+{
+  "schemaVersion": "1.0.0",
+  "presentation": {
+    "id": "local_extended_sample",
+    "title": "Extended Local MR Sample",
+    "stage": {
+      "size": {
+        "width": 6.0,
+        "height": 3.0,
+        "depth": 6.0
+      },
+      "coordinateSystem": {
+        "unit": "meter",
+        "upAxis": "y",
+        "horizontalAxis": "x",
+        "audienceDirection": "positiveZ"
+      },
+      "zones": []
+    },
+    "assets": [
+      {
+        "id": "asset_cube",
+        "type": "model",
+        "src": "Cube.prefab"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group_extended_demo",
+        "name": "Extended Local Demo",
+        "trigger": {
+          "type": "presentationStart"
+        },
+        "elements": [
+          {
+            "id": "extended_panel",
+            "type": "shape",
+            "content": {
+              "shape": "rectangle",
+              "size": {
+                "width": 2.4,
+                "height": 1.5
+              },
+              "fill": {
+                "color": [0.03, 0.07, 0.15, 0.92]
+              }
+            },
+            "initialState": {
+              "visible": true,
+              "transform": {
+                "position": [0.0, 1.35, 2.2],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "extended_title",
+            "type": "text",
+            "content": {
+              "text": "空間プレゼンテーション",
+              "fontSize": 0.13,
+              "alignment": "center",
+              "color": [1.0, 1.0, 1.0, 1.0]
+            },
+            "initialState": {
+              "visible": true,
+              "transform": {
+                "position": [0.0, 1.82, 2.15],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "extended_subtitle",
+            "type": "text",
+            "content": {
+              "text": "Group / Step / Cue / Action",
+              "fontSize": 0.07,
+              "alignment": "center",
+              "color": [0.55, 0.75, 1.0, 1.0]
+            },
+            "initialState": {
+              "visible": false,
+              "transform": {
+                "position": [0.0, 1.62, 2.14],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "extended_chapter",
+            "type": "text",
+            "content": {
+              "text": "01  空間を準備する",
+              "fontSize": 0.08,
+              "alignment": "center",
+              "color": [0.9, 0.9, 0.95, 1.0]
+            },
+            "initialState": {
+              "visible": false,
+              "transform": {
+                "position": [0.0, 1.42, 2.13],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "extended_note",
+            "type": "text",
+            "content": {
+              "text": "primary: 進行 / next: 次の演出",
+              "fontSize": 0.055,
+              "alignment": "center",
+              "color": [0.7, 0.75, 0.82, 1.0]
+            },
+            "initialState": {
+              "visible": false,
+              "transform": {
+                "position": [0.0, 1.18, 2.12],
+                "rotation": [0.0, 0.0, 0.0],
+                "scale": [1.0, 1.0, 1.0]
+              }
+            }
+          },
+          {
+            "id": "extended_cube",
+            "type": "model",
+            "assetId": "asset_cube",
+            "initialState": {
+              "visible": false,
+              "transform": {
+                "position": [-0.85, 0.72, 2.0],
+                "rotation": [0.0, 25.0, 0.0],
+                "scale": [0.28, 0.28, 0.28]
+              }
+            }
+          },
+          {
+            "id": "extended_cube_copy",
+            "type": "model",
+            "assetId": "asset_cube",
+            "initialState": {
+              "visible": false,
+              "transform": {
+                "position": [0.85, 0.72, 2.0],
+                "rotation": [0.0, 335.0, 0.0],
+                "scale": [0.22, 0.22, 0.22]
+              }
+            }
+          }
+        ],
+        "dynamicGroups": [],
+        "steps": [
+          {
+            "id": "step_01",
+            "cues": [
+              {
+                "id": "cue_show_structure",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "primary",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "extended_subtitle",
+                    "type": "setVisible",
+                    "value": true
+                  },
+                  {
+                    "targetId": "extended_chapter",
+                    "type": "setVisible",
+                    "value": true
+                  },
+                  {
+                    "targetId": "extended_note",
+                    "type": "setVisible",
+                    "value": true
+                  },
+                  {
+                    "targetId": "extended_cube",
+                    "type": "setVisible",
+                    "value": true
+                  },
+                  {
+                    "targetId": "extended_cube_copy",
+                    "type": "setVisible",
+                    "value": true
+                  },
+                  {
+                    "targetId": "extended_cube",
+                    "type": "setPosition",
+                    "value": [-0.55, 0.72, 2.0]
+                  },
+                  {
+                    "targetId": "extended_cube_copy",
+                    "type": "setPosition",
+                    "value": [0.55, 0.72, 2.0]
+                  }
+                ],
+                "nextStep": "step_02"
+              }
+            ]
+          },
+          {
+            "id": "step_02",
+            "cues": [
+              {
+                "id": "cue_expand_panel",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "next",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "extended_panel",
+                    "type": "setScale",
+                    "value": [1.15, 1.1, 1.0]
+                  },
+                  {
+                    "targetId": "extended_subtitle",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ],
+                "nextStep": "step_03"
+              }
+            ]
+          },
+          {
+            "id": "step_03",
+            "cues": [
+              {
+                "id": "cue_focus_left_model",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "primary",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "extended_cube",
+                    "type": "setScale",
+                    "value": [0.42, 0.42, 0.42]
+                  },
+                  {
+                    "targetId": "extended_cube_copy",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ],
+                "nextStep": "step_04"
+              }
+            ]
+          },
+          {
+            "id": "step_04",
+            "cues": [
+              {
+                "id": "cue_reset_layout",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "next",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "extended_cube",
+                    "type": "setPosition",
+                    "value": [0.0, 0.72, 2.0]
+                  },
+                  {
+                    "targetId": "extended_panel",
+                    "type": "setScale",
+                    "value": [1.0, 1.0, 1.0]
+                  },
+                  {
+                    "targetId": "extended_note",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ],
+                "nextStep": "step_05"
+              }
+            ]
+          },
+          {
+            "id": "step_05",
+            "cues": [
+              {
+                "id": "cue_finish_demo",
+                "trigger": {
+                  "type": "input",
+                  "condition": {
+                    "input": "primary",
+                    "state": "pressed"
+                  }
+                },
+                "actions": [
+                  {
+                    "targetId": "extended_title",
+                    "type": "setVisible",
+                    "value": false
+                  },
+                  {
+                    "targetId": "extended_cube",
+                    "type": "setVisible",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

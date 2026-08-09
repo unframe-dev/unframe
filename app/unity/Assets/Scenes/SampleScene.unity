@@ -318,6 +318,7 @@ GameObject:
   - component: {fileID: 4004}
   - component: {fileID: 4005}
   - component: {fileID: 4006}
+  - component: {fileID: 4007}
   m_Layer: 0
   m_Name: Local Presentation Demo
   m_TagString: Untagged
@@ -351,7 +352,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9efb5cb69c56477d9c03aca86ab6c66d, type: 3}
   m_EditorClassIdentifier: Assembly-CSharp::LocalPresentationJsonSource
   jsonFile: {fileID: 0}
-  resourcesPath: PresentationSamples/LocalSample
+  resourcesPath: PresentationSamples/LocalExtendedSample
 --- !u!114 &4004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -380,6 +381,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a51fcdbf07346c2aaab354ae2b34553, type: 3}
   m_EditorClassIdentifier: Assembly-CSharp::PresentationRuntimeSession
   importer: {fileID: 4004}
+--- !u!114 &4007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: 8e2a6c4d1f0b4a79b3c5d7e9f1a2b4c6, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::PresentationInputBridge
+  session: {fileID: 4006}
+  actionMapName: Player
+  primaryActionName: Attack
+  nextActionName: Next
 --- !u!1 &4010
 GameObject:
   m_ObjectHideFlags: 0
