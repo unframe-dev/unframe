@@ -1,6 +1,6 @@
 # Unframe Web Editor
 
-`app/web` は、3D モデルとテキストをスライド上で編集し、同じブラウザの読み取り専用 Viewer へ確定操作を共有する React SPA です。現在は `demo` fixture の vertical slice であり、API、認証、アップロード、永続サーバー保存は接続していません。
+`app/web` は、3D モデルとテキストをスライド上で編集し、同じブラウザの読み取り専用 Viewer へ確定操作を共有する React SPA です。現在は `demo` fixture の vertical slice です。Device Authorization のブラウザ承認画面は Control Plane の Better Auth に接続しますが、Presentation API、アップロード、永続サーバー保存は接続していません。
 
 ## 現在の実装
 
@@ -9,12 +9,13 @@
 - serializable command と revision に基づく Undo / Redo
 - `BroadcastChannel` と `localStorage` snapshot による同一ブラウザ内の Editor / Viewer 同期
 - `/editor` basepath と Cloudflare Workers Static Assets の SPA fallback
+- `/editor/device` の Device Authorization 検証・承認・拒否と Google ログインへの復帰 URL 保持
 - Vitest、Testing Library、Playwright Chromium による unit / component / E2E test
 
 次の機能は未実装です。
 
 - Presentation API とサーバー永続化
-- 認証、認可、共同編集、競合解決
+- editor の認証、認可、共同編集、競合解決
 - asset upload、変換、R2 配信 URL の解決
 - 複数ブラウザや複数端末へのリアルタイム配信
 - Cloudflare への自動デプロイ workflow
@@ -37,6 +38,7 @@ pnpm --filter @unframe/web run dev
 | `/editor/`                                         | fixture の入口      |
 | `/editor/presentations/demo/edit?panel=properties` | Editor              |
 | `/editor/presentations/demo/view`                  | 読み取り専用 Viewer |
+| `/editor/device?user_code=ABCD-EFGH`               | Device Authorization のブラウザ承認 |
 
 ## 構成
 
@@ -91,3 +93,7 @@ pnpm --dir app/web exec wrangler dev --config dist/unframe_web_editor/wrangler.j
 ```
 
 NixOS で配布版 `workerd` を実行するには、host 側で `programs.nix-ld.enable` が必要です。このリポジトリにはデプロイ workflow がないため、公開操作は品質ゲートに含めていません。
+
+## Device Authorization の接続先
+
+Device Authorization 画面は `VITE_CONTROL_PLANE_URL` を Control Plane API の origin として使い、未設定時は production の `https://api.un-fra.me` を使います。cookie session を送るため、認証 request は `credentials: "include"` です。

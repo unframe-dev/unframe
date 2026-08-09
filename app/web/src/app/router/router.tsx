@@ -11,6 +11,7 @@ import { z } from "zod";
 import { lazy, Suspense } from "react";
 import { loadPresentationSnapshot } from "../runtime/document-runtime";
 import { HomePage } from "../../routes/home/home-page";
+import { DeviceAuthorizationPage } from "../../routes/device/device-authorization-page";
 
 const EditorPage = lazy(() =>
   import("../../routes/editor/editor-page").then((module) => ({
@@ -100,6 +101,22 @@ const editorSearchSchema = z.object({
   panel: z.enum(["properties", "assets", "none"]).catch("properties").default("properties"),
 });
 
+const deviceSearchSchema = z.object({
+  user_code: z.string().catch("").default(""),
+});
+
+const deviceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "device",
+  validateSearch: deviceSearchSchema,
+  component: DeviceRouteComponent,
+});
+
+function DeviceRouteComponent() {
+  const { user_code: userCode } = deviceRoute.useSearch();
+  return <DeviceAuthorizationPage initialUserCode={userCode} />;
+}
+
 const editorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "presentations/$presentationId/edit",
@@ -133,7 +150,7 @@ function ViewerRouteComponent() {
   );
 }
 
-const routeTree = rootRoute.addChildren([indexRoute, editorRoute, viewerRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, deviceRoute, editorRoute, viewerRoute]);
 
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({
