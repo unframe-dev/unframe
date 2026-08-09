@@ -22,4 +22,16 @@ describe("R2ObjectStorage", () => {
     await storage.delete(key);
     await expect(storage.head(key)).resolves.toBeNull();
   });
+
+  it("lists objects below an R2 prefix with their upload timestamps", async () => {
+    const key = `assets/r2-list-${crypto.randomUUID()}`;
+    await env.ASSETS.put(key, png);
+    const storage = new R2ObjectStorage(env.ASSETS);
+    await expect(storage.list("assets/")).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ objectKey: key, uploadedAt: expect.any(Date) }),
+      ]),
+    );
+    await env.ASSETS.delete(key);
+  });
 });

@@ -41,6 +41,7 @@ const defaultServices = (context: Context<{ Bindings: CloudflareBindings }>): As
   ),
   clock: { now: () => new Date() },
   id: { next: crypto.randomUUID, random: crypto.randomUUID },
+  audit: (entry) => console.log(JSON.stringify(entry)),
 });
 
 export function registerAssetRoutes(

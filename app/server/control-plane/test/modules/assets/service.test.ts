@@ -28,6 +28,9 @@ class Repository implements AssetRepository {
   async findById(id: string) {
     return this.records.get(id) ?? null;
   }
+  async findByObjectKey(objectKey: string) {
+    return [...this.records.values()].find((record) => record.objectKey === objectKey) ?? null;
+  }
   async save(record: AssetRecord) {
     if (this.records.get(record.id)?.status !== "pending") return false;
     this.records.set(record.id, record);
@@ -52,7 +55,7 @@ class Repository implements AssetRepository {
         (record.status === "pending" ||
           record.status === "failed" ||
           record.status === "deleting") &&
-        record.createdAt < before,
+        new Date(record.expiresAt) < before,
     );
   }
 }
@@ -74,6 +77,9 @@ class Storage implements ObjectStorage {
   async delete(objectKey: string) {
     this.deleted.push(objectKey);
     this.objects.delete(objectKey);
+  }
+  async list(_prefix: string) {
+    return [...this.objects.entries()].map(([objectKey]) => ({ objectKey, uploadedAt: now }));
   }
 }
 const setup = () => {
@@ -200,8 +206,24 @@ describe("AssetService", () => {
     expect(repository.records.get("asset-1")?.status).toBe("failed");
   });
 
-  it("rejects referenced asset deletion and otherwise removes object and metadata idempotently", async () => {
+  it("fails finalization at the PUT expiry boundary before reading object storage", async () => {
     const { repository, storage, service } = setup();
+    const initialized = await service.init(editor, input);
+    repository.records.set(initialized.asset.id, {
+      ...initialized.asset,
+      expiresAt: now.toISOString(),
+    });
+    storage.objects.set(initialized.asset.objectKey, { ...input, prefix: png });
+    await expect(service.finalize(editor, initialized.asset.id)).rejects.toMatchObject({
+      code: "verification_failed",
+    } satisfies Partial<AssetError>);
+    expect(repository.records.get(initialized.asset.id)?.status).toBe("failed");
+  });
+
+  it("rejects referenced asset deletion and otherwise removes object and metadata idempotently", async () => {
+    const { repository, services, storage, service } = setup();
+    const audit: Record<string, string>[] = [];
+    services.audit = (entry) => audit.push(entry);
     const initialized = await service.init(editor, input);
     repository.references.add("asset-1");
     await expect(service.delete(editor, "asset-1")).rejects.toMatchObject({
@@ -212,6 +234,9 @@ describe("AssetService", () => {
     await service.delete(editor, "asset-1");
     expect(storage.deleted).toEqual([initialized.asset.objectKey]);
     expect(repository.records.has("asset-1")).toBe(false);
+    expect(audit).toEqual([
+      { event: "asset_delete", actorId: "editor", assetId: "asset-1", result: "deleted" },
+    ]);
   });
 
   it("does not delete an object when a reference is added before deletion is claimed", async () => {
@@ -274,7 +299,7 @@ describe("AssetService", () => {
     });
   });
 
-  it("collects unreferenced pending or failed assets older than 24 hours", async () => {
+  it("collects unreferenced pending or failed assets 24 hours after expiry", async () => {
     const { repository, storage, service } = setup();
     repository.records.set("old-pending", {
       id: "old-pending",
@@ -286,8 +311,8 @@ describe("AssetService", () => {
       sha256Hex: "a".repeat(64),
       objectKey: "assets/old",
       status: "pending",
-      expiresAt: now.toISOString(),
-      createdAt: new Date("2025-12-30T23:59:59.999Z"),
+      expiresAt: new Date("2025-12-30T23:59:59.999Z").toISOString(),
+      createdAt: now,
       updatedAt: now,
     });
     repository.records.set("old-failed", {
@@ -300,10 +325,14 @@ describe("AssetService", () => {
       ...repository.records.get("old-pending")!,
       id: "recent",
       objectKey: "assets/recent",
-      createdAt: now,
+      expiresAt: now.toISOString(),
     });
     repository.references.add("old-failed");
-    await expect(service.collectOrphans()).resolves.toEqual({ deleted: 1, skippedReferenced: 1 });
+    await expect(service.collectOrphans()).resolves.toEqual({
+      deleted: 1,
+      deletedMetadataLess: 0,
+      skippedReferenced: 1,
+    });
     expect(storage.deleted).toEqual(["assets/old"]);
   });
 
@@ -319,8 +348,8 @@ describe("AssetService", () => {
       sha256Hex: "a".repeat(64),
       objectKey: "assets/old",
       status: "pending" as const,
-      expiresAt: now.toISOString(),
-      createdAt: new Date("2025-12-30T23:59:59.999Z"),
+      expiresAt: new Date("2025-12-30T23:59:59.999Z").toISOString(),
+      createdAt: now,
       updatedAt: now,
     };
     repository.records.set(candidate.id, candidate);
@@ -329,8 +358,31 @@ describe("AssetService", () => {
       repository.records.set(id, { ...candidate, status: "ready" });
       return originalClaim(id, statuses);
     };
-    await expect(service.collectOrphans()).resolves.toEqual({ deleted: 0, skippedReferenced: 0 });
+    await expect(service.collectOrphans()).resolves.toEqual({
+      deleted: 0,
+      deletedMetadataLess: 0,
+      skippedReferenced: 0,
+    });
     expect(storage.deleted).toEqual([]);
     expect(repository.records.get(candidate.id)?.status).toBe("ready");
+  });
+
+  it("collects metadata-less R2 objects older than 24 hours and records auditable deletion", async () => {
+    const { services, storage, service } = setup();
+    const audit: Record<string, string>[] = [];
+    services.audit = (entry) => audit.push(entry);
+    storage.objects.set("assets/untracked", { ...input, prefix: png });
+    storage.list = async () => [
+      { objectKey: "assets/untracked", uploadedAt: new Date("2025-12-30T23:59:59.999Z") },
+    ];
+    await expect(service.collectOrphans()).resolves.toEqual({
+      deleted: 0,
+      deletedMetadataLess: 1,
+      skippedReferenced: 0,
+    });
+    expect(storage.deleted).toEqual(["assets/untracked"]);
+    expect(audit).toEqual([
+      { event: "asset_gc", objectKey: "assets/untracked", result: "deleted_metadata_less" },
+    ]);
   });
 });

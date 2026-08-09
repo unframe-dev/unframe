@@ -1031,7 +1031,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 | Authentication | Better Auth Device Authorization + Google OAuth | cookie / Bearer、3秒poll、30分expiryを実装済み | account linking方針を確定 |
 | Authorization | `admin/editor/presenter/viewer` | global adminとpresentation owner/editorを実装済み | presenter/viewerをsession実装時に追加 |
 | Presentation model | 複数件、Group/Step/Cue Definition aggregate | schema、参照整合性、revision CRUDを実装済み | Web / Unity consumerをtarget contractへ移行 |
-| Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | 実装済み | staging smoke testと運用値の実測調整 |
+| Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | intent expiry、metadata-less object照合、削除監査logを含め実装済み | staging smoke testと運用値の実測調整 |
 | Session management | Main Backend | なし | 新規設計・実装 |
 | Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | なし | 新規実装 |
 | Realtime server | Go gRPC container | processとcontainer build基盤を実装済み（service未登録） | protocol、認証、session coordinatorを追加 |

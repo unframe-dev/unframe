@@ -13,6 +13,7 @@ const createAssetServices = (env: CloudflareBindings): AssetServices => ({
   signedAccess: new R2Presigner(env as unknown as R2PresignerEnvironment),
   clock: { now: () => new Date() },
   id: { next: crypto.randomUUID, random: crypto.randomUUID },
+  audit: (entry) => console.log(JSON.stringify(entry)),
 });
 
 export const createScheduledHandler =

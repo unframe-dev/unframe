@@ -21,6 +21,7 @@ export type AssetRecord = {
 export type AssetRepository = {
   create(record: AssetRecord): Promise<void>;
   findById(id: string): Promise<AssetRecord | null>;
+  findByObjectKey(objectKey: string): Promise<AssetRecord | null>;
   save(record: AssetRecord): Promise<boolean>;
   deleteClaimed(id: string): Promise<void>;
   claimDeletion(id: string, statuses: readonly AssetStatus[]): Promise<AssetRecord | null>;
@@ -38,6 +39,7 @@ export type ObjectStorage = {
   ): Promise<{ sizeBytes: number; mediaType: string; sha256Hex: string } | null>;
   prefix(objectKey: string): Promise<Uint8Array | null>;
   delete(objectKey: string): Promise<void>;
+  list(prefix: string): Promise<{ objectKey: string; uploadedAt: Date }[]>;
 };
 export type PutAccess = {
   method: "PUT";
@@ -69,6 +71,7 @@ export type AssetServices = {
   signedAccess: SignedAccess;
   clock: Clock;
   id: AssetId;
+  audit?: (entry: Record<string, string>) => void;
 };
 export class AssetError extends Error {
   constructor(
@@ -128,6 +131,11 @@ export class AssetService {
   async finalize(identity: Identity, id: string): Promise<AssetRecord> {
     const record = await this.requireEditable(identity, id);
     if (record.status === "ready") return record;
+    if (this.services.clock.now() >= new Date(record.expiresAt)) {
+      const ready = await this.failVerification(record);
+      if (ready) return ready;
+      throw new AssetError("verification_failed");
+    }
     const stored = await this.services.storage.head(record.objectKey);
     const prefix = stored ? await this.services.storage.prefix(record.objectKey) : null;
     if (
@@ -138,11 +146,8 @@ export class AssetService {
       stored.sha256Hex !== record.sha256Hex ||
       !matchesMagicBytes(record.mediaType, prefix)
     ) {
-      const failed = { ...record, status: "failed" as const, updatedAt: this.services.clock.now() };
-      if (!(await this.services.repository.save(failed))) {
-        const current = await this.services.repository.findById(id);
-        if (current?.status === "ready") return current;
-      }
+      const ready = await this.failVerification(record);
+      if (ready) return ready;
       throw new AssetError("verification_failed");
     }
     const ready = { ...record, status: "ready" as const, updatedAt: this.services.clock.now() };
@@ -194,11 +199,17 @@ export class AssetService {
     }
     await this.services.storage.delete(claimed.objectKey);
     await this.services.repository.deleteClaimed(id);
+    this.audit({ event: "asset_delete", actorId: identity.userId, assetId: id, result: "deleted" });
   }
 
-  async collectOrphans(): Promise<{ deleted: number; skippedReferenced: number }> {
+  async collectOrphans(): Promise<{
+    deleted: number;
+    deletedMetadataLess: number;
+    skippedReferenced: number;
+  }> {
     const before = new Date(this.services.clock.now().getTime() - orphanAgeMs);
     let deleted = 0;
+    let deletedMetadataLess = 0;
     let skippedReferenced = 0;
     for (const record of await this.services.repository.findExpiredUnfinalized(before)) {
       const claimed = await this.services.repository.claimDeletion(record.id, [
@@ -212,9 +223,24 @@ export class AssetService {
       }
       await this.services.storage.delete(claimed.objectKey);
       await this.services.repository.deleteClaimed(record.id);
+      this.audit({ event: "asset_gc", assetId: record.id, result: "deleted" });
       deleted += 1;
     }
-    return { deleted, skippedReferenced };
+    for (const object of await this.services.storage.list("assets/")) {
+      if (
+        object.uploadedAt >= before ||
+        (await this.services.repository.findByObjectKey(object.objectKey))
+      )
+        continue;
+      await this.services.storage.delete(object.objectKey);
+      this.audit({
+        event: "asset_gc",
+        objectKey: object.objectKey,
+        result: "deleted_metadata_less",
+      });
+      deletedMetadataLess += 1;
+    }
+    return { deleted, deletedMetadataLess, skippedReferenced };
   }
 
   private async requireEditable(identity: Identity, id: string) {
@@ -223,5 +249,16 @@ export class AssetService {
     if (!(await this.services.permission.canEdit(identity, record.presentationId)))
       throw new AssetError("forbidden");
     return record;
+  }
+
+  private async failVerification(record: AssetRecord): Promise<AssetRecord | null> {
+    const failed = { ...record, status: "failed" as const, updatedAt: this.services.clock.now() };
+    if (await this.services.repository.save(failed)) return null;
+    const current = await this.services.repository.findById(record.id);
+    return current?.status === "ready" ? current : null;
+  }
+
+  private audit(entry: Record<string, string>) {
+    this.services.audit?.(entry);
   }
 }

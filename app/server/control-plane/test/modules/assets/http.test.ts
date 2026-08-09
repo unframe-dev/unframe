@@ -26,6 +26,9 @@ class Repository implements AssetRepository {
   async findById(id: string) {
     return this.records.get(id) ?? null;
   }
+  async findByObjectKey(objectKey: string) {
+    return [...this.records.values()].find((record) => record.objectKey === objectKey) ?? null;
+  }
   async save(record: AssetRecord) {
     if (this.records.get(record.id)?.status !== "pending") return false;
     this.records.set(record.id, record);
@@ -65,6 +68,9 @@ class Storage implements ObjectStorage {
   }
   async delete(key: string) {
     this.objects.delete(key);
+  }
+  async list() {
+    return [];
   }
 }
 

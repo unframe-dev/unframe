@@ -22,4 +22,16 @@ export class R2ObjectStorage implements ObjectStorage {
   async delete(objectKey: string) {
     await this.bucket.delete(objectKey);
   }
+  async list(prefix: string) {
+    const objects: { objectKey: string; uploadedAt: Date }[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await this.bucket.list({ prefix, ...(cursor ? { cursor } : {}) });
+      objects.push(
+        ...page.objects.map((object) => ({ objectKey: object.key, uploadedAt: object.uploaded })),
+      );
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+    return objects;
+  }
 }

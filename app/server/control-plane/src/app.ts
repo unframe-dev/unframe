@@ -20,6 +20,15 @@ const notFound = {
   },
 } as const;
 
+const forbidden = {
+  error: {
+    code: "forbidden",
+    message: "Forbidden",
+  },
+} as const;
+
+const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 export function createApp(options: Partial<PresentationRouteOptions & AssetRouteOptions> = {}) {
   const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -43,6 +52,13 @@ export function createApp(options: Partial<PresentationRouteOptions & AssetRoute
   app.use("*", async (context, next) => {
     const origin = context.req.header("origin");
     const env = context.env as unknown as AuthEnvironment;
+    if (
+      unsafeMethods.has(context.req.method) &&
+      context.req.header("cookie") &&
+      origin !== env?.WEB_ORIGIN
+    ) {
+      return context.json(forbidden, 403);
+    }
     if (origin && origin === env?.WEB_ORIGIN) {
       return cors({
         origin: env.WEB_ORIGIN,

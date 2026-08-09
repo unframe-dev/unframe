@@ -61,6 +61,15 @@ export class D1AssetRepository implements AssetRepository {
       .first<Row>();
     return value ? record(value) : null;
   }
+  async findByObjectKey(objectKey: string) {
+    const value = await this.database
+      .prepare(
+        "SELECT id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at FROM assets WHERE object_key = ?",
+      )
+      .bind(objectKey)
+      .first<Row>();
+    return value ? record(value) : null;
+  }
   async save(value: AssetRecord) {
     const result = await this.database
       .prepare("UPDATE assets SET status = ?, updated_at = ? WHERE id = ? AND status = 'pending'")
@@ -96,7 +105,7 @@ export class D1AssetRepository implements AssetRepository {
   async findExpiredUnfinalized(before: Date) {
     const values = await this.database
       .prepare(
-        "SELECT id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at FROM assets WHERE status IN ('pending', 'failed', 'deleting') AND created_at < ?",
+        "SELECT id, owner_id AS ownerId, presentation_id AS presentationId, name, media_type, size_bytes, sha256_hex, object_key, status, expires_at, created_at, updated_at FROM assets WHERE status IN ('pending', 'failed', 'deleting') AND expires_at < ?",
       )
       .bind(before.toISOString())
       .all<Row>();

@@ -41,6 +41,45 @@ describe("control plane HTTP boundary", () => {
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
+  it("rejects cookie-authenticated unsafe requests without the configured origin", async () => {
+    const app = createApp();
+    app.post("/cookie-write", (context) => context.json({ ok: true }));
+
+    const response = await app.fetch(
+      new Request("https://api.un-fra.me/cookie-write", {
+        method: "POST",
+        headers: {
+          cookie: "better-auth.session_token=session",
+          origin: "https://evil.un-fra.me",
+          "content-type": "text/plain",
+        },
+        body: "cross-site form body",
+      }),
+      { WEB_ORIGIN: "https://app.un-fra.me" } as CloudflareBindings,
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "forbidden", message: "Forbidden" },
+    });
+  });
+
+  it("allows bearer requests without cookies outside browser origins", async () => {
+    const app = createApp();
+    app.post("/bearer-write", (context) => context.json({ ok: true }));
+
+    const response = await app.fetch(
+      new Request("https://api.un-fra.me/bearer-write", {
+        method: "POST",
+        headers: { authorization: "Bearer session", "content-type": "text/plain" },
+        body: "device request",
+      }),
+      { WEB_ORIGIN: "https://app.un-fra.me" } as CloudflareBindings,
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("returns a JSON 404 response", async () => {
     const response = await SELF.fetch("https://example.com/missing");
 

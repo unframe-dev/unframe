@@ -13,7 +13,7 @@ const asset = (id: string, status: AssetRecord["status"], createdAt: Date): Asse
   sha256Hex: "a".repeat(64),
   objectKey: `assets/${id}/private-key`,
   status,
-  expiresAt: now.toISOString(),
+  expiresAt: createdAt.toISOString(),
   createdAt,
   updatedAt: now,
 });
@@ -43,6 +43,7 @@ describe("scheduled asset orphan collection", () => {
       repository: {
         create: async () => {},
         findById: async () => null,
+        findByObjectKey: async () => null,
         save: async () => false,
         deleteClaimed: async (id) => {
           deleted.push(id);
@@ -57,7 +58,8 @@ describe("scheduled asset orphan collection", () => {
         findExpiredUnfinalized: async (before) =>
           records.filter(
             (value) =>
-              (value.status === "pending" || value.status === "failed") && value.createdAt < before,
+              (value.status === "pending" || value.status === "failed") &&
+              new Date(value.expiresAt) < before,
           ),
       },
       permission: { canEdit: async () => false, canRead: async () => false },
@@ -67,6 +69,7 @@ describe("scheduled asset orphan collection", () => {
         delete: async (key) => {
           deleted.push(key);
         },
+        list: async () => [],
       },
       signedAccess: {
         issuePut: async () => {
@@ -87,7 +90,12 @@ describe("scheduled asset orphan collection", () => {
     await wait();
     expect(deleted).toEqual(["assets/old-pending/private-key", "old-pending"]);
     expect(logs).toEqual([
-      JSON.stringify({ event: "asset_orphan_collection", deleted: 1, skippedReferenced: 1 }),
+      JSON.stringify({
+        event: "asset_orphan_collection",
+        deleted: 1,
+        deletedMetadataLess: 0,
+        skippedReferenced: 1,
+      }),
     ]);
     expect(logs.join()).not.toMatch(/private|assets\//);
   });
@@ -99,6 +107,7 @@ describe("scheduled asset orphan collection", () => {
       repository: {
         create: async () => {},
         findById: async () => null,
+        findByObjectKey: async () => null,
         save: async () => false,
         deleteClaimed: async () => {},
         claimDeletion: async () => null,
@@ -108,7 +117,12 @@ describe("scheduled asset orphan collection", () => {
         },
       },
       permission: { canEdit: async () => false, canRead: async () => false },
-      storage: { head: async () => null, prefix: async () => null, delete: async () => {} },
+      storage: {
+        head: async () => null,
+        prefix: async () => null,
+        delete: async () => {},
+        list: async () => [],
+      },
       signedAccess: {
         issuePut: async () => {
           throw new Error("unused");

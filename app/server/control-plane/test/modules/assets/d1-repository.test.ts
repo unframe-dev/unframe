@@ -101,8 +101,14 @@ describe("D1AssetRepository", () => {
 
   it("deletes records, reports references, and finds only expired unfinalized assets", async () => {
     const suffix = crypto.randomUUID();
-    const oldPending = asset(`${suffix}-pending`, "pending", "2025-12-31T23:59:59.999Z");
-    const oldFailed = asset(`${suffix}-failed`, "failed", "2025-12-31T23:59:59.999Z");
+    const oldPending = {
+      ...asset(`${suffix}-pending`, "pending", "2026-01-01T00:00:00.000Z"),
+      expiresAt: "2025-12-31T23:59:59.999Z",
+    };
+    const oldFailed = {
+      ...asset(`${suffix}-failed`, "failed", "2025-12-31T23:59:59.999Z"),
+      expiresAt: "2025-12-31T23:59:59.999Z",
+    };
     const ready = asset(`${suffix}-ready`, "ready", "2025-12-31T23:59:59.999Z");
     for (const value of [oldPending, oldFailed, ready]) {
       await persistOwnerAndPresentation(value);
@@ -115,6 +121,7 @@ describe("D1AssetRepository", () => {
       .bind(ready.presentationId, ready.id)
       .run();
     await expect(repository.isReferenced(ready.id)).resolves.toBe(true);
+    await expect(repository.findByObjectKey(oldPending.objectKey)).resolves.toEqual(oldPending);
     await expect(
       repository.findExpiredUnfinalized(new Date("2026-01-01T00:00:00.000Z")),
     ).resolves.toEqual(expect.arrayContaining([oldPending, oldFailed]));
