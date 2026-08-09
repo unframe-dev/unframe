@@ -145,6 +145,33 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void TriggerEvaluator_RejectsInputTriggerWithoutLogicalInput()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "input",
+            condition = new TriggerCondition { state = "pressed" }
+        };
+
+        Assert.That(
+            evaluator.Evaluate(
+                trigger,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0.2f, 0f, 0f),
+                        0.2f,
+                        true
+                    )
+                )
+            ),
+            Is.False
+        );
+    }
+
+    [Test]
     public void MotionTrigger_RequiresHeldButtonAndMatchesBuiltInPresets()
     {
         PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();

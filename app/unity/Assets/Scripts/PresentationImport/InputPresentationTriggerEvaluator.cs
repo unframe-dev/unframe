@@ -13,6 +13,11 @@ public sealed class InputPresentationTriggerEvaluator : IPresentationTriggerEval
         }
 
         TriggerCondition condition = trigger.condition;
+        if (string.IsNullOrEmpty(condition.input))
+        {
+            return false;
+        }
+
         bool stateMatches = string.IsNullOrEmpty(condition.state) ||
             condition.state == context.State ||
             (condition.state == "down" && context.State == "pressed");

@@ -49,10 +49,14 @@ public sealed class PresentationRuntimeSession : MonoBehaviour
             return false;
         }
 
-        runtimeLogger.Info(
-            $"Trigger context: input={context.Input ?? "none"}, " +
-            $"motion={(context.Motion == null ? "none" : "available")}."
-        );
+        bool hasLogicalInput = !string.IsNullOrEmpty(context.Input);
+        if (hasLogicalInput)
+        {
+            runtimeLogger.Info(
+                $"Trigger context: input={context.Input}, " +
+                $"motion={(context.Motion == null ? "none" : "available")}."
+            );
+        }
         string previousStepId = State.CurrentStepId;
         if (!State.TryProcessTrigger(
                 importer.Document.presentation,
@@ -60,7 +64,10 @@ public sealed class PresentationRuntimeSession : MonoBehaviour
                 out PresentationCue cue
             ))
         {
-            runtimeLogger.Info($"Input ignored at step={State.CurrentStepId ?? "none"}.");
+            if (hasLogicalInput)
+            {
+                runtimeLogger.Info($"Input ignored at step={State.CurrentStepId ?? "none"}.");
+            }
             return false;
         }
 
