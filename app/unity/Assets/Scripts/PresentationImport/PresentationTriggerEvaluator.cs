@@ -9,7 +9,9 @@ public sealed class PresentationTriggerEvaluator
         {
             new InputPresentationTriggerEvaluator(),
             new MotionPresentationTriggerEvaluator()
-        }) { }
+        })
+    {
+    }
 
     public PresentationTriggerEvaluator(IReadOnlyList<IPresentationTriggerEvaluator> evaluators)
     {

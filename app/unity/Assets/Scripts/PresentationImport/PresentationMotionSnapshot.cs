@@ -15,7 +15,9 @@ public sealed class PresentationMotionSnapshot
             Quaternion.identity,
             duration,
             triggerButtonHeld
-        ) { }
+        )
+    {
+    }
 
     public PresentationMotionSnapshot(
         Vector3 startPosition,
