@@ -15,7 +15,7 @@ app/server/
 - `realtime/` は gRPC 接続、session 中の一時状態、fan-out、backpressure を担当します。
 - 共有境界は `packages/contracts/` の contract です。TypeScript と Go の実装コードは直接共有しません。
 
-旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Realtime は独立した Go module、gRPC process、lint 設定、Docker build context、品質 task を所有します。Protobuf service、認証、session logic、persistence bridge は未実装です。
+旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Realtime は独立した Go module、gRPC process、lint 設定、Docker build context、品質 task を所有します。Protobuf bidi service と page-change の in-memory fan-out は実装済みです。JWT 検証、snapshot/replay、ephemeral state、persistence bridge は未実装です。
 
 ## Control Plane
 

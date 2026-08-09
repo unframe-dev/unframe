@@ -6,6 +6,9 @@ import (
 	"net"
 	"sync"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
+	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
 )
 
@@ -22,12 +25,13 @@ type Server struct {
 	serveErr  error
 }
 
-// NewServer creates a server using listener. Service registration belongs to
-// the composition root before Start is called.
+// NewServer creates a server using listener and registers the realtime bidi service.
 func NewServer(listener net.Listener, options ...grpcgo.ServerOption) *Server {
+	grpcServer := grpcgo.NewServer(options...)
+	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}))
 	return &Server{
 		listener:  listener,
-		server:    grpcgo.NewServer(options...),
+		server:    grpcServer,
 		serveDone: make(chan struct{}),
 	}
 }

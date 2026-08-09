@@ -1014,7 +1014,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 ### 23.1 実装状況
 
 - Control Plane: Workers / Hono の HTTP 境界と `GET /health` を実装済み
-- Realtime Backend: 未実装
+- Realtime Backend: gRPC process、初期 Protobuf bidi service、page-change の session 内 sequence/fan-out を実装済み。JWT、snapshot/replay、ephemeral state、persistence は未実装
 - 旧 HTTP OpenAPI contract と generated TypeScript client: 削除済み
 
 ### 23.2 移行上の注意
@@ -1038,9 +1038,9 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 | Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | 未実装 | target lifecycle を実装 |
 | Session management | Main Backend | なし | 新規設計・実装 |
 | Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | なし | 新規実装 |
-| Realtime server | Go gRPC container | なし | 新規 component |
-| Protocol | Protobuf gRPC bidi | なし | `.proto` 設計・生成 |
-| Realtime state | in-memory session state | なし | 新規実装 |
+| Realtime server | Go gRPC container | process lifecycle と初期 bidi service | JWT interceptor と session lifecycle を追加 |
+| Protocol | Protobuf gRPC bidi | page-change の初期 `.proto` と Go 生成/drift check | snapshot/replay、ephemeral、C# 生成を追加 |
+| Realtime state | in-memory session state | session 単位 sequence、bounded duplicate window、fan-out | canonical state、snapshot/replay、ephemeral state を追加 |
 | Persistence bridge | checkpoint/completion | なし | 双方に新規実装 |
 | Deployment | CF Containers / Fly.io | 未実装 | component ごとに定義 |
 | Observability | logs/metrics/traces | 未実装 | 新規基盤 |
