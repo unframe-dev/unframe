@@ -27,6 +27,7 @@ packageExtensions:
       zod: ">=3.25.0"
 
 allowBuilds:
+  better-sqlite3: false
   esbuild: true
   sharp: true
   workerd: true

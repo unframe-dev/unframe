@@ -14,11 +14,16 @@
     "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "hono": "^4.13.1"
+    "@hono/zod-openapi": "^1.5.2",
+    "aws4fetch": "1.0.20",
+    "better-auth": "1.6.26",
+    "hono": "^4.13.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.3",
     "@cloudflare/workers-types": "5.20260804.1",
+    "auth": "1.6.26",
     "typescript": "^5.9.3",
     "vite-plus": "catalog:",
     "vitest": "^4.1.10",

@@ -27,6 +27,7 @@ build/
 .vite/
 .vite-hooks/
 .pnpm/
+app/server/control-plane/.generated/
 
 # テストカバレッジ (vitest --coverage の出力)
 coverage/

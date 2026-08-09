@@ -1,0 +1,6 @@
+# Set these with `wrangler secret put` in deployed environments.
+BETTER_AUTH_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=

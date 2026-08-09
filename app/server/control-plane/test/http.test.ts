@@ -16,6 +16,31 @@ describe("control plane HTTP boundary", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok" });
   });
 
+  it("allows credentialed browser requests from the configured web origin", async () => {
+    const response = await SELF.fetch("https://api.un-fra.me/presentations", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://app.un-fra.me",
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://app.un-fra.me");
+    expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+    expect(response.headers.get("access-control-allow-methods")).toContain("DELETE");
+  });
+
+  it("does not grant CORS access to an untrusted origin", async () => {
+    const response = await SELF.fetch("https://api.un-fra.me/presentations", {
+      method: "OPTIONS",
+      headers: { origin: "https://attacker.example", "access-control-request-method": "GET" },
+    });
+
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("returns a JSON 404 response", async () => {
     const response = await SELF.fetch("https://example.com/missing");
 
