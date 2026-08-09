@@ -3,6 +3,7 @@ package grpc
 import (
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
@@ -48,12 +49,13 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 		return status.Error(codes.Unauthenticated, "realtime connection identity is invalid")
 	}
 	defer s.coordinator.Disconnect(connection)
-	if err := stream.Send(protocol.ConnectedMessage(identity)); err != nil {
-		return err
-	}
+	deliveries := newDeliveryTracker()
+	defer deliveries.cancelAll()
 
 	commands := make(chan error, 1)
-	go s.receiveCommands(stream, connection, commands)
+	sendResults := make(chan error, 1)
+	go s.sendEvents(stream, connection, identity, deliveries, sendResults)
+	go s.receiveCommands(stream, connection, deliveries, commands)
 	for {
 		select {
 		case err := <-commands:
@@ -61,37 +63,37 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 				commands = nil
 				continue
 			}
-			return flushPendingEvents(stream, connection.Events(), err)
-		case event, ok := <-connection.Events():
-			if !ok {
+			select {
+			case <-connection.Overflowed():
 				return status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
+			default:
 			}
-			if err := stream.Send(protocol.ReliableEventMessage(event)); err != nil {
-				return err
-			}
+			return err
+		case err := <-sendResults:
+			return err
+		case <-connection.Overflowed():
+			return status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		}
 	}
 }
 
-func flushPendingEvents(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], events <-chan session.ReliableEvent, terminalError error) error {
-	for {
-		select {
-		case event, ok := <-events:
-			if !ok {
-				return status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
-			}
-			if err := stream.Send(protocol.ReliableEventMessage(event)); err != nil {
-				return err
-			}
-		default:
-			return terminalError
+func (s *RealtimeService) sendEvents(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], connection *session.Connection, identity session.Identity, deliveries *deliveryTracker, results chan<- error) {
+	if err := stream.Send(protocol.ConnectedMessage(identity)); err != nil {
+		results <- err
+		return
+	}
+	for event := range connection.Events() {
+		if err := stream.Send(protocol.ReliableEventMessage(event)); err != nil {
+			results <- err
+			return
 		}
+		deliveries.acknowledge(event.CommandMessageID)
 	}
 }
 
-func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], connection *session.Connection, results chan<- error) {
+func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], connection *session.Connection, deliveries *deliveryTracker, results chan<- error) {
 	for {
 		message, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -112,10 +114,82 @@ func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[real
 			results <- status.Error(codes.InvalidArgument, err.Error())
 			return
 		}
-		if _, err := s.coordinator.ChangePage(connection, input); err != nil {
+		delivery := deliveries.expect(input.MessageID)
+		_, err = s.coordinator.ChangePage(connection, input)
+		if err != nil {
+			deliveries.cancel(input.MessageID)
 			results <- commandError(err)
 			return
 		}
+		if !deliveries.wait(input.MessageID, delivery) {
+			results <- status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
+			return
+		}
+	}
+}
+
+type deliveryTracker struct {
+	mu         sync.Mutex
+	deliveries map[string]*pendingDelivery
+}
+
+type pendingDelivery struct {
+	done      chan struct{}
+	completed bool
+	delivered bool
+}
+
+func newDeliveryTracker() *deliveryTracker {
+	return &deliveryTracker{deliveries: make(map[string]*pendingDelivery)}
+}
+
+func (t *deliveryTracker) expect(messageID string) *pendingDelivery {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delivery := &pendingDelivery{done: make(chan struct{})}
+	t.deliveries[messageID] = delivery
+	return delivery
+}
+
+func (t *deliveryTracker) acknowledge(messageID string) {
+	t.complete(messageID, true)
+}
+
+func (t *deliveryTracker) cancel(messageID string) {
+	t.complete(messageID, false)
+}
+
+func (t *deliveryTracker) complete(messageID string, delivered bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delivery := t.deliveries[messageID]
+	if delivery == nil || delivery.completed {
+		return
+	}
+	delivery.completed = true
+	delivery.delivered = delivered
+	close(delivery.done)
+}
+
+func (t *deliveryTracker) wait(messageID string, delivery *pendingDelivery) bool {
+	<-delivery.done
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.deliveries[messageID] == delivery {
+		delete(t.deliveries, messageID)
+	}
+	return delivery.delivered
+}
+
+func (t *deliveryTracker) cancelAll() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, delivery := range t.deliveries {
+		if delivery.completed {
+			continue
+		}
+		delivery.completed = true
+		close(delivery.done)
 	}
 }
 

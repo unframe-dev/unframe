@@ -2,7 +2,9 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -145,6 +147,148 @@ func TestRealtimeServiceSendsAcceptedEventBeforeLaterCommandError(t *testing.T) 
 	if status.Code(err) != codes.InvalidArgument {
 		t.Errorf("later invalid command code = %s, want %s (error: %v)", status.Code(err), codes.InvalidArgument, err)
 	}
+}
+
+func TestRealtimeServiceReturnsQueueOverflowWhileSendIsBlocked(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	coordinator := session.NewCoordinator()
+	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := newBlockingSendStream(ctx)
+	stream.received <- &realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_Handshake{Handshake: &realtimev1.Handshake{ProtocolVersion: protocol.Version}}}
+	result := make(chan error, 1)
+	go func() { result <- service.Connect(stream) }()
+
+	waitForSignal(t, stream.connected, "connected message")
+	presenter, err := coordinator.Connect(session.Identity{SessionID: identity.SessionID, ParticipantID: "presenter-1", Role: session.RolePresenter})
+	if err != nil {
+		t.Fatalf("connect presenter: %v", err)
+	}
+	defer coordinator.Disconnect(presenter)
+	if _, err := coordinator.ChangePage(presenter, session.PageChangeCommand{MessageID: "command-1", PageIndex: 1}); err != nil {
+		t.Fatalf("send first command: %v", err)
+	}
+	waitForSignal(t, stream.blocked, "blocked reliable event send")
+	receiveSessionEvent(t, presenter.Events())
+	for index := 2; index <= 65; index++ {
+		if _, err := coordinator.ChangePage(presenter, session.PageChangeCommand{MessageID: "command-" + strconv.Itoa(index), PageIndex: uint32(index)}); err != nil {
+			t.Fatalf("fill queue at %d: %v", index, err)
+		}
+		receiveSessionEvent(t, presenter.Events())
+	}
+	if _, err := coordinator.ChangePage(presenter, session.PageChangeCommand{MessageID: "overflow", PageIndex: 66}); err != nil {
+		t.Fatalf("overflow command: %v", err)
+	}
+	receiveSessionEvent(t, presenter.Events())
+
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.ResourceExhausted {
+			t.Fatalf("Connect error code = %s, want %s (error: %v)", status.Code(err), codes.ResourceExhausted, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Connect waited for blocked Send after queue overflow")
+	}
+	if replacement, err := coordinator.Connect(identity); err != nil {
+		t.Errorf("reconnect same identity after overflow: %v", err)
+	} else {
+		coordinator.Disconnect(replacement)
+	}
+
+	cancel()
+	select {
+	case <-stream.sendDone:
+	case <-time.After(time.Second):
+		t.Fatal("blocked sender goroutine did not exit after context cancellation")
+	}
+}
+
+func TestDeliveryTrackerIgnoresAcknowledgementAfterCancellation(t *testing.T) {
+	t.Parallel()
+
+	tracker := newDeliveryTracker()
+	delivery := tracker.expect("command-1")
+	tracker.cancelAll()
+	tracker.acknowledge("command-1")
+	if tracker.wait("command-1", delivery) {
+		t.Fatal("cancelled delivery was acknowledged")
+	}
+}
+
+func waitForSignal(t *testing.T, signal <-chan struct{}, description string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for %s", description)
+	}
+}
+
+func receiveSessionEvent(t *testing.T, events <-chan session.ReliableEvent) session.ReliableEvent {
+	t.Helper()
+	select {
+	case event, ok := <-events:
+		if !ok {
+			t.Fatal("session event channel closed")
+		}
+		return event
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for session event")
+		return session.ReliableEvent{}
+	}
+}
+
+type testIdentityResolver struct{ identity session.Identity }
+
+func (r testIdentityResolver) Resolve(context.Context) (session.Identity, error) {
+	return r.identity, nil
+}
+
+type blockingSendStream struct {
+	grpcgo.ServerStream
+	ctx       context.Context
+	received  chan *realtimev1.ClientEnvelope
+	connected chan struct{}
+	blocked   chan struct{}
+	sendDone  chan struct{}
+}
+
+func newBlockingSendStream(ctx context.Context) *blockingSendStream {
+	return &blockingSendStream{
+		ctx:       ctx,
+		received:  make(chan *realtimev1.ClientEnvelope, 1),
+		connected: make(chan struct{}),
+		blocked:   make(chan struct{}),
+		sendDone:  make(chan struct{}),
+	}
+}
+
+func (s *blockingSendStream) Context() context.Context { return s.ctx }
+
+func (s *blockingSendStream) Recv() (*realtimev1.ClientEnvelope, error) {
+	select {
+	case message := <-s.received:
+		return message, nil
+	case <-s.ctx.Done():
+		return nil, s.ctx.Err()
+	}
+}
+
+func (s *blockingSendStream) Send(message *realtimev1.ServerEnvelope) error {
+	if message.GetConnected() != nil {
+		close(s.connected)
+		return nil
+	}
+	if message.GetReliableEvent() == nil {
+		return errors.New("unexpected server message")
+	}
+	close(s.blocked)
+	<-s.ctx.Done()
+	close(s.sendDone)
+	return s.ctx.Err()
 }
 
 func startRealtimeService(t *testing.T, identities ...session.Identity) (*bufconn.Listener, func()) {
