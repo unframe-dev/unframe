@@ -27,7 +27,8 @@ public sealed class PresentationActionJsonConverter : JsonConverter
         };
 
         JToken value = actionObject["value"];
-        if (value == null)
+        ValidateValue(action.type, value);
+        if (value == null || value.Type == JTokenType.Null)
         {
             return action;
         }
@@ -50,6 +51,43 @@ public sealed class PresentationActionJsonConverter : JsonConverter
         }
 
         return action;
+    }
+
+    private static void ValidateValue(string actionType, JToken value)
+    {
+        switch (actionType)
+        {
+            case "setVisible":
+            case "setActive":
+                RequireValueType(actionType, value, JTokenType.Boolean, "boolean");
+                break;
+            case "setPosition":
+            case "setRotation":
+            case "setScale":
+                RequireValueType(actionType, value, JTokenType.Array, "three-number array");
+                if (value.ToObject<float[]>().Length != 3)
+                {
+                    throw new JsonSerializationException(
+                        $"Action '{actionType}' requires a three-number array value."
+                    );
+                }
+                break;
+        }
+    }
+
+    private static void RequireValueType(
+        string actionType,
+        JToken value,
+        JTokenType expectedType,
+        string expectedDescription
+    )
+    {
+        if (value == null || value.Type != expectedType)
+        {
+            throw new JsonSerializationException(
+                $"Action '{actionType}' requires a {expectedDescription} value."
+            );
+        }
     }
 
     public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)

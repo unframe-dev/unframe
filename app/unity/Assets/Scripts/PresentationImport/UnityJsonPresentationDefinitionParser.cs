@@ -35,6 +35,46 @@ public sealed class UnityJsonPresentationDefinitionParser : IPresentationDefinit
             return false;
         }
 
+        if (!TryValidateCueIds(document.presentation, out error))
+        {
+            document = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateCueIds(PresentationData presentation, out string error)
+    {
+        if (presentation.groups != null)
+        {
+            foreach (PresentationGroup group in presentation.groups)
+            {
+                if (group?.steps == null)
+                {
+                    continue;
+                }
+
+                foreach (PresentationStep step in group.steps)
+                {
+                    if (step?.cues == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (PresentationCue cue in step.cues)
+                    {
+                        if (cue == null || string.IsNullOrWhiteSpace(cue.id))
+                        {
+                            error = "Every cue requires a non-empty id.";
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        error = null;
         return true;
     }
 }

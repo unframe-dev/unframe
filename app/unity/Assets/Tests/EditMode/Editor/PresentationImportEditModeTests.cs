@@ -48,7 +48,7 @@ public sealed class PresentationImportEditModeTests
     [Test]
     public void Parser_HandlesActionPropertyOrderAndTransition()
     {
-        const string json = "{\"presentation\":{\"groups\":[{\"steps\":[{\"cues\":[{\"actions\":[{\"value\":[4,5,6],\"transition\":{\"easing\":\"easeInOut\",\"duration\":0.5},\"type\":\"setPosition\",\"targetId\":\"model\"}]}]}]}]}}";
+        const string json = "{\"presentation\":{\"groups\":[{\"steps\":[{\"cues\":[{\"id\":\"cue_01\",\"actions\":[{\"value\":[4,5,6],\"transition\":{\"easing\":\"easeInOut\",\"duration\":0.5},\"type\":\"setPosition\",\"targetId\":\"model\"}]}]}]}]}}";
 
         UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
         Assert.That(parser.TryParse(json, out PresentationDocument document, out string error), Is.True, error);
@@ -58,6 +58,39 @@ public sealed class PresentationImportEditModeTests
         Assert.That(action.vectorValue, Is.EqualTo(new[] { 4f, 5f, 6f }));
         Assert.That(action.transition.duration, Is.EqualTo(0.5f));
         Assert.That(action.transition.easing, Is.EqualTo("easeInOut"));
+    }
+
+    [Test]
+    public void Parser_RejectsSupportedActionWithoutRequiredValue()
+    {
+        const string json = "{\"presentation\":{\"groups\":[{\"steps\":[{\"cues\":[{\"id\":\"cue_01\",\"actions\":[{\"targetId\":\"title\",\"type\":\"setVisible\"}]}]}]}]}}";
+
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+        Assert.That(parser.TryParse(json, out _, out string error), Is.False);
+        Assert.That(error, Does.Contain("setVisible"));
+        Assert.That(error, Does.Contain("boolean"));
+    }
+
+    [Test]
+    public void Parser_RejectsSupportedActionWithWrongValueType()
+    {
+        const string json = "{\"presentation\":{\"groups\":[{\"steps\":[{\"cues\":[{\"id\":\"cue_01\",\"actions\":[{\"targetId\":\"title\",\"type\":\"setPosition\",\"value\":true}]}]}]}]}}";
+
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+        Assert.That(parser.TryParse(json, out _, out string error), Is.False);
+        Assert.That(error, Does.Contain("setPosition"));
+        Assert.That(error, Does.Contain("three-number array"));
+    }
+
+    [Test]
+    public void Parser_RejectsCueWithoutIdentifier()
+    {
+        const string json = "{\"presentation\":{\"groups\":[{\"steps\":[{\"cues\":[{\"trigger\":{\"type\":\"input\"}}]}]}]}}";
+
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+        Assert.That(parser.TryParse(json, out _, out string error), Is.False);
+        Assert.That(error, Does.Contain("cue"));
+        Assert.That(error, Does.Contain("id"));
     }
 
     [Test]
