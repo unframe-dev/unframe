@@ -41,6 +41,51 @@ describe("D1 presentation migration", () => {
     ).resolves.toMatchObject({ revision: 2 });
   });
 
+  it("lists only presentations available to a member in newest-first order", async () => {
+    const suffix = crypto.randomUUID();
+    const ownerId = `owner-${suffix}`;
+    const memberId = `member-${suffix}`;
+    const repository = new D1PresentationRepository(env.DB);
+    const value = { ...definition, assets: [] } as unknown as PresentationDefinition;
+    for (const id of [ownerId, memberId]) {
+      await env.DB.prepare(
+        "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+        .bind(id, "User", `${id}@example.test`, 1, "2026-01-01", "2026-01-01")
+        .run();
+    }
+    await repository.create({
+      id: `older-${suffix}`,
+      ownerId,
+      revision: 1,
+      definition: value,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    await repository.create({
+      id: `newer-${suffix}`,
+      ownerId,
+      revision: 1,
+      definition: value,
+      createdAt: "2026-01-02T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    });
+    await env.DB.prepare(
+      "INSERT INTO presentation_members (presentation_id, user_id, role) VALUES (?, ?, 'editor')",
+    )
+      .bind(`older-${suffix}`, memberId)
+      .run();
+
+    await expect(repository.listByUser(memberId)).resolves.toEqual([
+      expect.objectContaining({ id: `older-${suffix}`, ownerId }),
+    ]);
+    const listed = await repository.listAll();
+    expect(listed.filter(({ id }) => id.endsWith(suffix)).map(({ id }) => id)).toEqual([
+      `newer-${suffix}`,
+      `older-${suffix}`,
+    ]);
+  });
+
   it("rejects owners and members that do not exist in the auth user table", async () => {
     const repository = new D1PresentationRepository(env.DB);
     const value = { ...definition, assets: [] } as unknown as PresentationDefinition;
