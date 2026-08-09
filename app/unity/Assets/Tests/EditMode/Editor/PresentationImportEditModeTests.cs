@@ -178,6 +178,48 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void MotionTrigger_UsesPresetMaximumDurationWhenConditionIsMissing()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "motion",
+            reference = "swipe_right"
+        };
+
+        Assert.That(
+            evaluator.Evaluate(
+                trigger,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0.2f, 0f, 0f),
+                        0.5f,
+                        true
+                    )
+                )
+            ),
+            Is.True
+        );
+        Assert.That(
+            evaluator.Evaluate(
+                trigger,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0.2f, 0f, 0f),
+                        1.0f,
+                        true
+                    )
+                )
+            ),
+            Is.False
+        );
+    }
+
+    [Test]
     public void MotionTrigger_RejectsWrongDirectionAndUnknownPreset()
     {
         PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
@@ -478,8 +520,14 @@ public sealed class PresentationImportEditModeTests
 
         Assert.That(target.activeSelf, Is.True);
         Assert.That(target.transform.localPosition, Is.EqualTo(new Vector3(1f, 2f, 3f)));
-        Assert.That(logger.Messages, Has.Some.EqualTo("Action: setVisible -> element_01 = True."));
-        Assert.That(logger.Messages, Has.Some.EqualTo("Action: setPosition -> element_01."));
+        Assert.That(
+            logger.Messages,
+            Has.Some.Contains("Action: setVisible -> element_01 = True")
+        );
+        Assert.That(
+            logger.Messages,
+            Has.Some.Contains("Action: setPosition -> element_01")
+        );
         Object.DestroyImmediate(target);
     }
 

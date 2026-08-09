@@ -29,8 +29,8 @@ public sealed class MotionPresentationTriggerEvaluator : IPresentationTriggerEva
             return false;
         }
 
-        if (condition != null && condition.maximumDuration > 0f &&
-            motion.Duration > condition.maximumDuration)
+        float maximumDuration = ResolveMaximumDuration(condition, preset);
+        if (maximumDuration > 0f && motion.Duration > maximumDuration)
         {
             return false;
         }
@@ -75,5 +75,15 @@ public sealed class MotionPresentationTriggerEvaluator : IPresentationTriggerEva
         return condition != null && condition.minimumSpeed > 0f
             ? condition.minimumSpeed
             : preset?.MinimumSpeed ?? 0f;
+    }
+
+    private static float ResolveMaximumDuration(
+        TriggerCondition condition,
+        PresentationMotionPreset preset
+    )
+    {
+        return condition != null && condition.maximumDuration > 0f
+            ? condition.maximumDuration
+            : preset?.MaximumDuration ?? 0f;
     }
 }
