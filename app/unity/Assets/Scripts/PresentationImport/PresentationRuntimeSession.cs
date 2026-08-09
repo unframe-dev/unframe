@@ -38,15 +38,27 @@ public sealed class PresentationRuntimeSession : MonoBehaviour
 
     public bool ProcessInput(string input)
     {
-        if (importer == null || importer.Document?.presentation == null)
+        return ProcessTrigger(new PresentationTriggerContext(input));
+    }
+
+    public bool ProcessTrigger(PresentationTriggerContext context)
+    {
+        if (importer == null || importer.Document?.presentation == null || context == null)
         {
             runtimeLogger?.Warning("Input ignored because no presentation is loaded.");
             return false;
         }
 
-        runtimeLogger.Info($"Input: {input}.");
+        runtimeLogger.Info(
+            $"Trigger context: input={context.Input ?? "none"}, " +
+            $"motion={(context.Motion == null ? "none" : "available")}."
+        );
         string previousStepId = State.CurrentStepId;
-        if (!State.TryProcessInput(importer.Document.presentation, input, out PresentationCue cue))
+        if (!State.TryProcessTrigger(
+                importer.Document.presentation,
+                context,
+                out PresentationCue cue
+            ))
         {
             runtimeLogger.Info($"Input ignored at step={State.CurrentStepId ?? "none"}.");
             return false;

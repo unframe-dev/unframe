@@ -6,6 +6,12 @@ public sealed class PresentationRuntimeState
     public string CurrentStepId { get; private set; }
 
     private readonly HashSet<string> consumedCueIds = new HashSet<string>();
+    private readonly PresentationTriggerEvaluator triggerEvaluator;
+
+    public PresentationRuntimeState(PresentationTriggerEvaluator triggerEvaluator = null)
+    {
+        this.triggerEvaluator = triggerEvaluator ?? new PresentationTriggerEvaluator();
+    }
 
     public void Reset(PresentationData presentation)
     {
@@ -63,9 +69,22 @@ public sealed class PresentationRuntimeState
         out PresentationCue triggeredCue
     )
     {
+        return TryProcessTrigger(
+            presentation,
+            new PresentationTriggerContext(input),
+            out triggeredCue
+        );
+    }
+
+    public bool TryProcessTrigger(
+        PresentationData presentation,
+        PresentationTriggerContext context,
+        out PresentationCue triggeredCue
+    )
+    {
         triggeredCue = null;
         if (presentation?.groups == null || string.IsNullOrEmpty(CurrentGroupId) ||
-            string.IsNullOrEmpty(CurrentStepId) || string.IsNullOrEmpty(input))
+            string.IsNullOrEmpty(CurrentStepId) || context == null)
         {
             return false;
         }
@@ -79,7 +98,10 @@ public sealed class PresentationRuntimeState
 
         foreach (PresentationCue cue in step.cues)
         {
-            if (!MatchesInput(cue, input) || IsConsumed(cue))
+            if (!triggerEvaluator.Evaluate(
+                    cue?.trigger,
+                    context
+                ) || IsConsumed(cue))
             {
                 continue;
             }
@@ -105,15 +127,6 @@ public sealed class PresentationRuntimeState
     private bool IsConsumed(PresentationCue cue)
     {
         return cue != null && !string.IsNullOrEmpty(cue.id) && consumedCueIds.Contains(cue.id);
-    }
-
-    private static bool MatchesInput(PresentationCue cue, string input)
-    {
-        return cue != null && cue.trigger != null && cue.trigger.type == "input" &&
-               cue.trigger.condition != null && cue.trigger.condition.input == input &&
-               (string.IsNullOrEmpty(cue.trigger.condition.state) ||
-                cue.trigger.condition.state == "pressed" ||
-                cue.trigger.condition.state == "down");
     }
 
     private static PresentationGroup FindGroup(PresentationData presentation, string groupId)

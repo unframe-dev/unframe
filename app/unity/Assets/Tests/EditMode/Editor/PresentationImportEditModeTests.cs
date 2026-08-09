@@ -94,6 +94,143 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void TriggerEvaluator_MatchesOnlyTheRequestedLogicalInputAndState()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "input",
+            condition = new TriggerCondition
+            {
+                input = "primary",
+                state = "pressed"
+            }
+        };
+
+        Assert.That(
+            evaluator.Evaluate(trigger, new PresentationTriggerContext("primary", "pressed")),
+            Is.True
+        );
+        Assert.That(
+            evaluator.Evaluate(trigger, new PresentationTriggerContext("secondary", "pressed")),
+            Is.False
+        );
+        Assert.That(
+            evaluator.Evaluate(trigger, new PresentationTriggerContext("primary", "released")),
+            Is.False
+        );
+    }
+
+    [Test]
+    public void MotionTrigger_RequiresHeldButtonAndMatchesBuiltInPresets()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "motion",
+            reference = "swipe_right"
+        };
+
+        PresentationTriggerContext releasedContext = new PresentationTriggerContext(
+            null,
+            motion: new PresentationMotionSnapshot(
+                Vector3.zero,
+                new Vector3(0.2f, 0f, 0f),
+                0.2f,
+                false
+            )
+        );
+        PresentationTriggerContext heldContext = new PresentationTriggerContext(
+            null,
+            motion: new PresentationMotionSnapshot(
+                Vector3.zero,
+                new Vector3(0.2f, 0f, 0f),
+                0.2f,
+                true
+            )
+        );
+
+        Assert.That(evaluator.Evaluate(trigger, releasedContext), Is.False);
+        Assert.That(evaluator.Evaluate(trigger, heldContext), Is.True);
+    }
+
+    [Test]
+    public void MotionTrigger_RejectsWrongDirectionAndUnknownPreset()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationMotionSnapshot motion = new PresentationMotionSnapshot(
+            Vector3.zero,
+            new Vector3(0f, 0f, 0.2f),
+            0.2f,
+            true
+        );
+
+        Assert.That(
+            evaluator.Evaluate(
+                new PresentationTrigger { type = "motion", reference = "swipe_right" },
+                new PresentationTriggerContext(null, motion: motion)
+            ),
+            Is.False
+        );
+        Assert.That(
+            evaluator.Evaluate(
+                new PresentationTrigger { type = "motion", reference = "unknown" },
+                new PresentationTriggerContext(null, motion: motion)
+            ),
+            Is.False
+        );
+    }
+
+    [Test]
+    public void RuntimeState_ProcessesMotionTriggerThroughTriggerContext()
+    {
+        PresentationGroup group = new PresentationGroup
+        {
+            id = "group_01",
+            steps = new[]
+            {
+                new PresentationStep
+                {
+                    id = "step_01",
+                    cues = new[]
+                    {
+                        new PresentationCue
+                        {
+                            id = "cue_motion",
+                            trigger = new PresentationTrigger
+                            {
+                                type = "motion",
+                                reference = "push_forward"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        PresentationData presentation = new PresentationData { groups = new[] { group } };
+        PresentationRuntimeState state = new PresentationRuntimeState();
+        state.Reset(presentation);
+
+        Assert.That(
+            state.TryProcessTrigger(
+                presentation,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0f, 0f, 0.2f),
+                        0.2f,
+                        true
+                    )
+                ),
+                out PresentationCue cue
+            ),
+            Is.True
+        );
+        Assert.That(cue.id, Is.EqualTo("cue_motion"));
+    }
+
+    [Test]
     public void RuntimeState_StartsAtFirstGroupAndStep()
     {
         PresentationGroup group = new PresentationGroup
