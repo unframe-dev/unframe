@@ -231,6 +231,33 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void MotionTracker_AccumulatesWhileHeldAndResetsOnRelease()
+    {
+        PresentationMotionTracker tracker = new PresentationMotionTracker();
+        PresentationMotionSnapshot snapshot;
+
+        Assert.That(
+            tracker.TryUpdate(true, Vector3.zero, 0.1f, out snapshot),
+            Is.False
+        );
+        Assert.That(
+            tracker.TryUpdate(true, new Vector3(0.2f, 0f, 0f), 0.2f, out snapshot),
+            Is.True
+        );
+        Assert.That(snapshot.Distance, Is.EqualTo(0.2f));
+        Assert.That(snapshot.Duration, Is.EqualTo(0.2f));
+
+        Assert.That(
+            tracker.TryUpdate(false, new Vector3(0.3f, 0f, 0f), 0.2f, out snapshot),
+            Is.False
+        );
+        Assert.That(
+            tracker.TryUpdate(true, new Vector3(0.4f, 0f, 0f), 0.1f, out snapshot),
+            Is.False
+        );
+    }
+
+    [Test]
     public void RuntimeState_StartsAtFirstGroupAndStep()
     {
         PresentationGroup group = new PresentationGroup
