@@ -13,13 +13,10 @@ const binding = <T>(name: string, methods: readonly string[]) =>
 const originUrl = (name: string) =>
   requiredString(name)
     .url(`${name} must be a URL`)
-    .refine(
-      (value) => {
-        const url = new URL(value);
-        return url.origin === value;
-      },
-      `${name} must be an origin URL`,
-    );
+    .refine((value) => {
+      const url = new URL(value);
+      return url.origin === value;
+    }, `${name} must be an origin URL`);
 
 const runtimeConfigSchema = z.object({
   DB: binding<D1Database>("DB", ["prepare", "batch", "exec"]),
@@ -63,5 +60,7 @@ export function validateConfig(environment: unknown): RuntimeConfig {
     return parsed.data;
   }
 
-  throw new ConfigurationError([...new Set(parsed.error.issues.map((issue) => String(issue.path[0])))]);
+  throw new ConfigurationError([
+    ...new Set(parsed.error.issues.map((issue) => String(issue.path[0]))),
+  ]);
 }

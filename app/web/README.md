@@ -33,11 +33,11 @@ pnpm --filter @unframe/web run dev
 
 利用できる fixture route は次のとおりです。
 
-| URL                                                | 用途                |
-| -------------------------------------------------- | ------------------- |
-| `/editor/`                                         | fixture の入口      |
-| `/editor/presentations/demo/edit?panel=properties` | Editor              |
-| `/editor/presentations/demo/view`                  | 読み取り専用 Viewer |
+| URL                                                | 用途                                |
+| -------------------------------------------------- | ----------------------------------- |
+| `/editor/`                                         | fixture の入口                      |
+| `/editor/presentations/demo/edit?panel=properties` | Editor                              |
+| `/editor/presentations/demo/view`                  | 読み取り専用 Viewer                 |
 | `/editor/device?user_code=ABCD-EFGH`               | Device Authorization のブラウザ承認 |
 
 ## 構成

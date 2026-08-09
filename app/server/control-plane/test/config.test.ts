@@ -35,9 +35,7 @@ describe("runtime configuration", () => {
         BETTER_AUTH_SECRET: "do-not-report-this-value",
         GOOGLE_CLIENT_ID: "",
       }),
-    ).toThrow(
-      "Invalid Worker configuration: BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID",
-    );
+    ).toThrow("Invalid Worker configuration: BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID");
   });
 
   it.each([
@@ -81,17 +79,18 @@ describe("runtime configuration", () => {
 
   it("rejects an invalid environment while creating the worker", () => {
     expect(() =>
-      createWorker(
-        { ...config(), R2_ACCOUNT_ID: "replace-with-r2-account-id" } as unknown as CloudflareBindings,
-      ),
+      createWorker({
+        ...config(),
+        R2_ACCOUNT_ID: "replace-with-r2-account-id",
+      } as unknown as CloudflareBindings),
     ).toThrow(ConfigurationError);
   });
 
   it("rejects an invalid environment before handling a request", async () => {
-    const response = await createApp().fetch(
-      new Request("https://api.example.com/health"),
-      { ...config(), BETTER_AUTH_SECRET: "short" } as unknown as CloudflareBindings,
-    );
+    const response = await createApp().fetch(new Request("https://api.example.com/health"), {
+      ...config(),
+      BETTER_AUTH_SECRET: "short",
+    } as unknown as CloudflareBindings);
 
     expect(response.status).toBe(500);
   });

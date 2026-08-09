@@ -55,10 +55,7 @@ const defaultServices = (context: Context<AppEnvironment>): AssetServices => {
   };
 };
 
-export function registerAssetRoutes(
-  app: Hono<AppEnvironment>,
-  options: AssetRouteOptions,
-) {
+export function registerAssetRoutes(app: Hono<AppEnvironment>, options: AssetRouteOptions) {
   const execute = async <T>(
     context: Context<AppEnvironment>,
     operation: (identity: Identity, service: AssetService) => Promise<T>,
