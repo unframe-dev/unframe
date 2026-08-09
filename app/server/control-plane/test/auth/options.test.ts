@@ -13,7 +13,7 @@ const testEnvironment = () => ({
   GOOGLE_CLIENT_SECRET: "google-client-secret",
   RESEND_API_KEY: "re_test_key",
   AUTH_EMAIL_FROM: "auth@example.com",
-  WEB_ORIGIN: "https://app.example.com",
+  WEB_ORIGIN: "https://un-fra.me",
   ASSETS: { head: () => {}, get: () => {}, put: () => {}, delete: () => {}, list: () => {} },
   R2_ACCOUNT_ID: "test-r2-account-id",
   R2_BUCKET_NAME: "assets",
@@ -153,7 +153,7 @@ async function decideDeviceCode(
 ) {
   return requestAuth(path, {
     method: "POST",
-    headers: { "content-type": "application/json", cookie, origin: "https://app.example.com" },
+    headers: { "content-type": "application/json", cookie, origin: "https://un-fra.me" },
     body: JSON.stringify({ userCode }),
   });
 }
@@ -171,7 +171,7 @@ describe("Better Auth device authorization", () => {
     const verification = new URL(test.messages.shift()!.text.match(/https:\/\/[^\s]+/)![0]);
     await requestWithAuth(
       test.auth,
-      `/verify-email?token=${encodeURIComponent(verification.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fapp.example.com`,
+      `/verify-email?token=${encodeURIComponent(verification.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fun-fra.me`,
     );
     const signIn = await requestWithAuth(test.auth, "/sign-in/email", {
       method: "POST",
@@ -184,7 +184,7 @@ describe("Better Auth device authorization", () => {
       headers: {
         "content-type": "application/json",
         cookie: sessionCookie,
-        origin: "https://app.example.com",
+        origin: "https://un-fra.me",
       },
       body: JSON.stringify({ password }),
     });
@@ -199,7 +199,7 @@ describe("Better Auth device authorization", () => {
           headers: {
             "content-type": "application/json",
             cookie: sessionCookie,
-            origin: "https://app.example.com",
+            origin: "https://un-fra.me",
           },
           body: JSON.stringify({ code: enrollmentCode }),
         })
@@ -221,7 +221,7 @@ describe("Better Auth device authorization", () => {
       headers: {
         "content-type": "application/json",
         cookie: challengeCookie,
-        origin: "https://app.example.com",
+        origin: "https://un-fra.me",
       },
       body: JSON.stringify({ code: await totpCode(enrollment.totpURI), trustDevice: true }),
     });
@@ -262,7 +262,7 @@ describe("Better Auth device authorization", () => {
         headers: {
           "content-type": "application/json",
           cookie: backupCookie,
-          origin: "https://app.example.com",
+          origin: "https://un-fra.me",
         },
         body: JSON.stringify({ code: enrollment.backupCodes[0] }),
       });
@@ -285,7 +285,7 @@ describe("Better Auth device authorization", () => {
         headers: {
           "content-type": "application/json",
           cookie: lockoutCookie,
-          origin: "https://app.example.com",
+          origin: "https://un-fra.me",
         },
         body: JSON.stringify({ code: "000000" }),
       });
@@ -305,7 +305,7 @@ describe("Better Auth device authorization", () => {
       headers: {
         "content-type": "application/json",
         cookie: lockedCookie,
-        origin: "https://app.example.com",
+        origin: "https://un-fra.me",
       },
       body: JSON.stringify({ code: "000000" }),
     });
@@ -339,7 +339,7 @@ describe("Better Auth device authorization", () => {
     const verificationUrl = new URL(test.messages[0]!.text.match(/https:\/\/[^\s]+/)![0]);
     const verified = await requestWithAuth(
       test.auth,
-      `/verify-email?token=${encodeURIComponent(verificationUrl.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fapp.example.com`,
+      `/verify-email?token=${encodeURIComponent(verificationUrl.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fun-fra.me`,
     );
     expect(verified.status).toBe(302);
 
@@ -363,7 +363,7 @@ describe("Better Auth device authorization", () => {
     const verificationUrl = new URL(test.messages.shift()!.text.match(/https:\/\/[^\s]+/)![0]);
     await requestWithAuth(
       test.auth,
-      `/verify-email?token=${encodeURIComponent(verificationUrl.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fapp.example.com`,
+      `/verify-email?token=${encodeURIComponent(verificationUrl.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fun-fra.me`,
     );
     const user = await env.DB.prepare("SELECT id FROM user WHERE email = ?")
       .bind(email)
@@ -412,7 +412,7 @@ describe("Better Auth device authorization", () => {
         await requestWithAuth(test.auth, "/request-password-reset", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, redirectTo: "https://app.example.com/reset" }),
+          body: JSON.stringify({ email, redirectTo: "https://un-fra.me/reset" }),
         })
       ).status,
     ).toBe(200);
@@ -433,7 +433,7 @@ describe("Better Auth device authorization", () => {
         await requestWithAuth(test.auth, "/request-password-reset", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, redirectTo: "https://app.example.com/reset" }),
+          body: JSON.stringify({ email, redirectTo: "https://un-fra.me/reset" }),
         })
       ).status,
     ).toBe(200);
@@ -526,7 +526,7 @@ describe("Better Auth device authorization", () => {
     expect(reference.status).toBe(404);
   });
 
-  it("issues a code with the configured expiry, polling interval, and verification URI", async () => {
+  it("issues a code with the configured expiry, polling interval, and verification URIs", async () => {
     const response = await auth().handler(
       new Request("https://example.com/api/auth/device/code", {
         method: "POST",
@@ -536,11 +536,21 @@ describe("Better Auth device authorization", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      verification_uri: "https://app.example.com/device",
+    const body = (await response.json()) as {
+      expires_in: number;
+      interval: number;
+      user_code: string;
+      verification_uri: string;
+      verification_uri_complete: string;
+    };
+    expect(body).toMatchObject({
+      verification_uri: "https://un-fra.me/editor/device",
       expires_in: 1800,
       interval: 3,
     });
+    expect(body.verification_uri_complete).toBe(
+      `https://un-fra.me/editor/device?user_code=${encodeURIComponent(body.user_code)}`,
+    );
   });
 
   it("rejects an unrecognized device client", async () => {
@@ -604,8 +614,8 @@ describe("Better Auth device authorization", () => {
         testEnvironment() as unknown as CloudflareBindings,
       );
 
-    const allowed = await request("https://app.example.com");
-    expect(allowed.headers.get("access-control-allow-origin")).toBe("https://app.example.com");
+    const allowed = await request("https://un-fra.me");
+    expect(allowed.headers.get("access-control-allow-origin")).toBe("https://un-fra.me");
     expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
     expect(allowed.headers.get("access-control-expose-headers")).toBe("set-auth-token");
 

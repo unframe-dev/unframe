@@ -2,7 +2,11 @@ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  test: { setupFiles: ["./test/setup.ts"] },
+  test: {
+    setupFiles: ["./test/setup.ts"],
+    include: ["./test/**/*.test.ts"],
+    exclude: ["./test/startup.test.ts"],
+  },
   plugins: [
     cloudflareTest({
       wrangler: {

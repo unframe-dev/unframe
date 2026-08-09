@@ -9,7 +9,7 @@ workers_dev = false
 [vars]
 BETTER_AUTH_URL = "https://api.un-fra.me"
 DEVICE_CLIENT_ID = "unframe-unity"
-WEB_ORIGIN = "https://app.un-fra.me"
+WEB_ORIGIN = "https://un-fra.me"
 R2_ACCOUNT_ID = "replace-with-r2-account-id"
 R2_BUCKET_NAME = "unframe-assets"
 

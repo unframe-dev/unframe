@@ -2,7 +2,7 @@
   "rules": [
     {
       "allowed": {
-        "origins": ["https://app.un-fra.me"],
+        "origins": ["https://un-fra.me"],
         "methods": ["GET", "PUT"],
         "headers": ["content-type", "content-length", "x-amz-checksum-sha256"]
       },
