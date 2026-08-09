@@ -11,7 +11,9 @@ mode="${1:-check}"
 case "${mode}" in
   fix)
     log "control-plane(fix): vp fmt"
-    pnpm --config.verify-deps-before-run=false exec vp fmt "${CONTROL_PLANE_DIR}"
+    pnpm --config.verify-deps-before-run=false exec vp fmt \
+      --config "${CONTROL_PLANE_DIR}/.oxfmtrc.json" \
+      "${CONTROL_PLANE_DIR}"
     ;;
   check)
     log "control-plane(check): typecheck / test / deploy dry-run"

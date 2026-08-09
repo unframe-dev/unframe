@@ -1,0 +1,42 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
+name = "unframe-control-plane"
+main = "./src/index.ts"
+compatibility_date = "2026-08-09"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[vars]
+BETTER_AUTH_URL = "https://api.un-fra.me"
+DEVICE_CLIENT_ID = "unframe-unity"
+WEB_ORIGIN = "https://un-fra.me"
+R2_ACCOUNT_ID = "replace-with-r2-account-id"
+R2_BUCKET_NAME = "unframe-assets"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "unframe-control-plane"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "unframe-assets"
+
+[triggers]
+crons = ["0 3 * * *"]
+
+[[routes]]
+pattern = "api.un-fra.me"
+custom_domain = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = false
+
+[observability.traces]
+enabled = false

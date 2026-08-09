@@ -5,20 +5,34 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "lint": "vp lint",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config vitest.startup.config.ts",
     "build": "wrangler deploy --dry-run",
     "types": "wrangler types ./src/worker-configuration.d.ts --include-runtime=false --env-interface CloudflareBindings",
     "types:check": "wrangler types ./src/worker-configuration.d.ts --include-runtime=false --env-interface CloudflareBindings --check",
-    "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "auth:schema:generate": "pnpm exec auth generate --config ./auth.cli.ts --output ./.generated/better-auth.sql --yes",
+    "db:migrate:local": "wrangler d1 migrations apply unframe-control-plane --local",
+    "db:migrate:remote": "wrangler d1 migrations apply unframe-control-plane --remote",
+    "r2:cors:apply": "wrangler r2 bucket cors set unframe-assets --file ./r2-cors.json",
+    "r2:cors:list": "wrangler r2 bucket cors list unframe-assets",
+    "contracts:check": "pnpm --filter @unframe/contracts check:control-plane",
+    "client:check": "pnpm --filter @unframe/api-client-typescript check",
+    "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm contracts:check && pnpm client:check && pnpm build"
   },
   "dependencies": {
-    "hono": "^4.13.1"
+    "@hono/zod-openapi": "^1.5.2",
+    "aws4fetch": "1.0.20",
+    "better-auth": "1.6.26",
+    "drizzle-orm": "0.45.2",
+    "hono": "^4.13.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.3",
     "@cloudflare/workers-types": "5.20260804.1",
+    "auth": "1.6.26",
     "typescript": "^5.9.3",
     "vite-plus": "catalog:",
     "vitest": "^4.1.10",

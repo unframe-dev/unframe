@@ -8,22 +8,22 @@ app/server/
 ├── README.md
 ├── control-plane/  # Cloudflare Workers / TypeScript / Hono / D1 / R2
 ├── realtime/       # Go / gRPC / container
-└── integration/    # component 間 E2E テスト
+└── integration/    # planned: component 間 E2E テスト
 ```
 
-- `control-plane/` は認証・認可、durable resource、D1/R2、session bootstrap の authority です。
-- `realtime/` は gRPC 接続、session 中の一時状態、fan-out、backpressure を担当します。
+- `control-plane/` の目標責務は認証・認可、durable resource、D1/R2、session bootstrap のauthorityです。
+- `realtime/` の目標責務はgRPC接続、session中の一時状態、fan-out、backpressureです。
 - 共有境界は `packages/contracts/` の contract です。TypeScript と Go の実装コードは直接共有しません。
 
-旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Realtime は独立した Go module、gRPC process、lint 設定、Docker build context、品質 task を所有します。Protobuf bidi service と page-change の in-memory fan-out は実装済みです。JWT 検証、snapshot/replay、ephemeral state、persistence bridge は未実装です。
+旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Planeは認証とPresentation / Asset APIまで実装済みで、session bootstrapは未実装です。Realtimeは独立したGo module、gRPC process、lint設定、Docker build context、品質taskを所有します。Protobuf bidi serviceとpage-changeのin-memory fan-outは実装済みです。JWT検証、snapshot/replay、ephemeral state、persistence bridgeは未実装です。
 
 ## Control Plane
 
-`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、HTTP error boundary、Workers runtime test を所有します。現在公開する endpoint は `GET /health` のみです。
+`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
 
 ```sh
 nix run .#control-plane
 pnpm --filter @unframe/control-plane run dev
 ```
 
-`nix run .#control-plane` は binding 型の drift、TypeScript、lint、Workers runtime test、deploy dry-run を検証します。Cloudflare resource ID や secret は repository へ記録せず、binding を追加した際は `wrangler types` で型を再生成します。
+`nix run .#control-plane` は binding 型、TypeScript、lint、Workers runtime test、OpenAPI / TypeScript client drift、deploy dry-runを検証します。実環境の resource ID と secret を設定する手順は [`control-plane/README.md`](./control-plane/README.md) を参照してください。
