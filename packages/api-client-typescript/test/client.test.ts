@@ -144,12 +144,56 @@ describe("createControlPlaneAuthClient", () => {
         client_id: "unframe-unity",
         device_code: "device-code",
       });
+      const approve = auth.device.approve({ userCode: "ABCD-EFGH" });
+      const deny = auth.device.deny({ userCode: "ABCD-EFGH" });
+      const verification = auth.verifyDeviceAuthorization("ABCD-EFGH");
 
       void googleSignIn;
       void session;
       void deviceCode;
       void deviceToken;
+      void approve;
+      void deny;
+      void verification;
     };
     expect(typedActions).toBeTypeOf("function");
+  });
+
+  it("verifies a device code with the configured fetch and credentials", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ user_code: "ABCD-EFGH", status: "pending" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const auth = createControlPlaneAuthClient({
+      baseUrl: "https://control-plane.example",
+      fetch,
+      credentials: "include",
+    });
+
+    await expect(auth.verifyDeviceAuthorization("A+B C")).resolves.toEqual({
+      data: { user_code: "ABCD-EFGH", status: "pending" },
+      error: null,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "https://control-plane.example/api/auth/device?user_code=A%2BB+C",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("returns the typed API error when device verification is rejected", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: "expired_token", error_description: "The user code has expired" }),
+        { status: 400, headers: { "content-type": "application/json" } },
+      ),
+    );
+    const auth = createControlPlaneAuthClient({ baseUrl: "https://control-plane.example", fetch });
+
+    await expect(auth.verifyDeviceAuthorization("ABCD-EFGH")).resolves.toEqual({
+      data: null,
+      error: { error: "expired_token", error_description: "The user code has expired" },
+    });
   });
 });

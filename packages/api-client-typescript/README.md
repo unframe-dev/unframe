@@ -34,4 +34,11 @@ const token = await auth.device.token({
   client_id: "unframe-unity",
   device_code: device.data!.device_code,
 });
+
+const verification = await auth.verifyDeviceAuthorization("ABCD-EFGH");
+if (verification.data?.status === "pending") {
+  await auth.device.approve({ userCode: verification.data.user_code });
+}
 ```
+
+`verifyDeviceAuthorization` は Better Auth の動的 client の代わりに、`GET /api/auth/device?user_code=` を明示的に呼び出します。custom fetch と `credentials` の設定を引き継ぎ、成功と API error を判別可能な型で返します。
