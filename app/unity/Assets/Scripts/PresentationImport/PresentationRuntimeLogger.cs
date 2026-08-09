@@ -11,16 +11,16 @@ public interface IPresentationRuntimeLogger
 
 public sealed class UnityPresentationRuntimeLogger : IPresentationRuntimeLogger
 {
-    public UnityPresentationRuntimeLogger(bool enabled)
+    public UnityPresentationRuntimeLogger(bool enableInfo)
     {
-        Enabled = enabled;
+        InfoEnabled = enableInfo;
     }
 
-    public bool Enabled { get; }
+    public bool InfoEnabled { get; }
 
     public void Info(string message)
     {
-        if (Enabled)
+        if (InfoEnabled)
         {
             Debug.Log($"[Presentation] {message}");
         }
@@ -28,17 +28,11 @@ public sealed class UnityPresentationRuntimeLogger : IPresentationRuntimeLogger
 
     public void Warning(string message)
     {
-        if (Enabled)
-        {
-            Debug.LogWarning($"[Presentation] {message}");
-        }
+        Debug.LogWarning($"[Presentation] {message}");
     }
 
     public void Error(string message)
     {
-        if (Enabled)
-        {
-            Debug.LogError($"[Presentation] {message}");
-        }
+        Debug.LogError($"[Presentation] {message}");
     }
 }

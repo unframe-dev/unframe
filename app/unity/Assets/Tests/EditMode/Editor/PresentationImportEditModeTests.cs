@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public sealed class PresentationImportEditModeTests
 {
@@ -166,6 +167,54 @@ public sealed class PresentationImportEditModeTests
 
         Assert.That(state.TryProcessInput(presentation, "primary", out _), Is.True);
         Assert.That(state.TryProcessInput(presentation, "primary", out _), Is.False);
+    }
+
+    [Test]
+    public void RuntimeState_RejectsUnknownNextStepWithoutConsumingCue()
+    {
+        PresentationCue cue = new PresentationCue
+        {
+            id = "cue_01",
+            trigger = new PresentationTrigger
+            {
+                type = "input",
+                condition = new TriggerCondition { input = "primary" }
+            },
+            nextStep = "missing_step"
+        };
+        PresentationGroup group = new PresentationGroup
+        {
+            id = "group_01",
+            steps = new[]
+            {
+                new PresentationStep { id = "step_01", cues = new[] { cue } }
+            }
+        };
+        PresentationData presentation = new PresentationData { groups = new[] { group } };
+        PresentationRuntimeState state = new PresentationRuntimeState();
+        state.Reset(presentation);
+
+        Assert.That(state.TryProcessInput(presentation, "primary", out _), Is.False);
+        Assert.That(state.CurrentStepId, Is.EqualTo("step_01"));
+
+        group.steps = new[]
+        {
+            group.steps[0],
+            new PresentationStep { id = "missing_step" }
+        };
+        Assert.That(state.TryProcessInput(presentation, "primary", out _), Is.True);
+        Assert.That(state.CurrentStepId, Is.EqualTo("missing_step"));
+    }
+
+    [Test]
+    public void RuntimeLogger_EmitsWarningsAndErrorsWhenInfoIsDisabled()
+    {
+        UnityPresentationRuntimeLogger logger = new UnityPresentationRuntimeLogger(false);
+        LogAssert.Expect(LogType.Warning, "[Presentation] warning");
+        LogAssert.Expect(LogType.Error, "[Presentation] error");
+
+        logger.Warning("warning");
+        logger.Error("error");
     }
 
     [Test]

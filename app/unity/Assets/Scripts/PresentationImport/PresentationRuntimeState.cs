@@ -84,6 +84,11 @@ public sealed class PresentationRuntimeState
                 continue;
             }
 
+            if (!string.IsNullOrEmpty(cue.nextStep) && FindStep(group, cue.nextStep) == null)
+            {
+                return false;
+            }
+
             consumedCueIds.Add(cue.id);
             triggeredCue = cue;
             if (!string.IsNullOrEmpty(cue.nextStep))
