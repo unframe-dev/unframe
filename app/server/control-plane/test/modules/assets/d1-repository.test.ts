@@ -87,7 +87,7 @@ describe("D1AssetRepository", () => {
       .run();
     await expect(
       repository.claimDeletion(pending.id, ["pending", "failed", "deleting"]),
-    ).resolves.toMatchObject({ id: pending.id, status: "deleting" });
+    ).resolves.toEqual({ ...pending, status: "deleting" });
     await expect(
       env.DB.prepare(
         "INSERT INTO presentation_asset_refs (presentation_id, asset_id) VALUES (?, ?)",

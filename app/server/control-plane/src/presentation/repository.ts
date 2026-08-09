@@ -1,3 +1,7 @@
+import { and, count, desc, eq, inArray } from "drizzle-orm";
+
+import { createD1Database } from "../adapters/d1/database";
+import { assets, presentationMembers, presentations } from "../adapters/d1/schema";
 import type { PresentationDefinition } from "./schema";
 
 export type PresentationRecord = {
@@ -26,77 +30,76 @@ export type PresentationRepository = {
 };
 
 export class D1PresentationRepository implements PresentationRepository {
-  constructor(private readonly database: D1Database) {}
+  private readonly db;
+
+  constructor(private readonly database: D1Database) {
+    this.db = createD1Database(database);
+  }
 
   async create(record: PresentationRecord) {
-    await this.database.batch([
-      this.database
-        .prepare(
-          "INSERT INTO presentations (id, owner_id, revision, definition, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          record.id,
-          record.ownerId,
-          record.revision,
-          JSON.stringify(record.definition),
-          record.createdAt,
-          record.updatedAt,
-        ),
-      this.database
-        .prepare(
-          "INSERT INTO presentation_members (presentation_id, user_id, role) VALUES (?, ?, 'owner')",
-        )
-        .bind(record.id, record.ownerId),
+    await this.db.batch([
+      this.db.insert(presentations).values(record),
+      this.db.insert(presentationMembers).values({
+        presentationId: record.id,
+        userId: record.ownerId,
+        role: "owner",
+      }),
     ]);
   }
 
   async listByUser(userId: string) {
-    const result = await this.database
-      .prepare(
-        "SELECT p.id, p.owner_id, p.revision, p.definition, p.created_at, p.updated_at FROM presentations p JOIN presentation_members m ON m.presentation_id = p.id WHERE m.user_id = ? ORDER BY p.created_at DESC",
+    return this.db
+      .select({
+        id: presentations.id,
+        ownerId: presentations.ownerId,
+        revision: presentations.revision,
+        definition: presentations.definition,
+        createdAt: presentations.createdAt,
+        updatedAt: presentations.updatedAt,
+      })
+      .from(presentations)
+      .innerJoin(
+        presentationMembers,
+        eq(presentationMembers.presentationId, presentations.id),
       )
-      .bind(userId)
-      .all<StoredPresentation>();
-    return result.results.map(toRecord);
+      .where(eq(presentationMembers.userId, userId))
+      .orderBy(desc(presentations.createdAt));
   }
 
   async listAll() {
-    const result = await this.database
-      .prepare(
-        "SELECT id, owner_id, revision, definition, created_at, updated_at FROM presentations ORDER BY created_at DESC",
-      )
-      .all<StoredPresentation>();
-    return result.results.map(toRecord);
+    return this.db.select().from(presentations).orderBy(desc(presentations.createdAt));
   }
 
   async findById(id: string) {
-    const row = await this.database
-      .prepare(
-        "SELECT id, owner_id, revision, definition, created_at, updated_at FROM presentations WHERE id = ?",
-      )
-      .bind(id)
-      .first<StoredPresentation>();
-    return row ? toRecord(row) : null;
+    return (await this.db.select().from(presentations).where(eq(presentations.id, id)).get()) ?? null;
   }
 
   async roleFor(id: string, userId: string) {
-    const row = await this.database
-      .prepare("SELECT role FROM presentation_members WHERE presentation_id = ? AND user_id = ?")
-      .bind(id, userId)
-      .first<{ role: "owner" | "editor" }>();
+    const row = await this.db
+      .select({ role: presentationMembers.role })
+      .from(presentationMembers)
+      .where(
+        and(eq(presentationMembers.presentationId, id), eq(presentationMembers.userId, userId)),
+      )
+      .get();
     return row?.role ?? null;
   }
 
   async hasValidAssetReferences(id: string, assetIds: readonly string[]) {
     if (assetIds.length === 0) return true;
-    const placeholders = assetIds.map(() => "?").join(", ");
-    const row = await this.database
-      .prepare(
-        `SELECT COUNT(*) AS count FROM assets WHERE presentation_id = ? AND status = 'ready' AND id IN (${placeholders})`,
+    const uniqueIds = [...new Set(assetIds)];
+    const row = await this.db
+      .select({ value: count() })
+      .from(assets)
+      .where(
+        and(
+          eq(assets.presentationId, id),
+          eq(assets.status, "ready"),
+          inArray(assets.id, uniqueIds),
+        ),
       )
-      .bind(id, ...assetIds)
-      .first<{ count: number }>();
-    return row?.count === new Set(assetIds).size;
+      .get();
+    return row?.value === uniqueIds.length;
   }
 
   async replace(
@@ -131,20 +134,3 @@ export class D1PresentationRepository implements PresentationRepository {
     return result.meta.changes === 1;
   }
 }
-
-type StoredPresentation = {
-  id: string;
-  owner_id: string;
-  revision: number;
-  definition: string;
-  created_at: string;
-  updated_at: string;
-};
-const toRecord = (row: StoredPresentation): PresentationRecord => ({
-  id: row.id,
-  ownerId: row.owner_id,
-  revision: row.revision,
-  definition: JSON.parse(row.definition) as PresentationDefinition,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
