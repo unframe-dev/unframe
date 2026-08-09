@@ -73,8 +73,22 @@ export function createApp(options: Partial<PresentationRouteOptions & AssetRoute
     await next();
   });
   app.get("/health", (context) => context.json({ status: "ok" }));
+  const requireEstablishedDeviceApprover = async (
+    context: Parameters<typeof identityFromSession>[0],
+    next: () => Promise<void>,
+  ) => {
+    if (!(await identityFromSession(context))) {
+      return context.json({ error: { code: "unauthorized", message: "Unauthorized" } }, 401);
+    }
+    await next();
+  };
+  app.use("/api/auth/device", requireEstablishedDeviceApprover);
+  app.use("/api/auth/device/approve", requireEstablishedDeviceApprover);
+  app.use("/api/auth/device/deny", requireEstablishedDeviceApprover);
   app.all("/api/auth/*", (context) =>
-    createAuth(context.get("config")).handler(context.req.raw),
+    createAuth(context.get("config"), {
+      backgroundTaskHandler: (task) => context.executionCtx.waitUntil(task),
+    }).handler(context.req.raw),
   );
   registerPresentationRoutes(app, {
     identityProvider: options.identityProvider ?? identityFromSession,

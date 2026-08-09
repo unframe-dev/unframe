@@ -13,6 +13,16 @@ export async function identityFromSession(
   if (!session) {
     return undefined;
   }
+  const user = session.user as typeof session.user & { twoFactorEnabled?: boolean };
+  const authSession = session.session as typeof session.session & { assurance?: string };
+  const assurance = authSession.assurance;
+  if (
+    !user.emailVerified ||
+    (assurance !== "google" && assurance !== "device" && assurance !== "password_mfa") ||
+    (assurance === "password_mfa" && !user.twoFactorEnabled)
+  ) {
+    return undefined;
+  }
   return {
     userId: session.user.id,
     globalRole:

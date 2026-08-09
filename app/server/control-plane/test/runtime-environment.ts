@@ -9,6 +9,8 @@ export const runtimeEnvironment = () =>
     DEVICE_CLIENT_ID: "unity-client",
     GOOGLE_CLIENT_ID: "google-client",
     GOOGLE_CLIENT_SECRET: "google-secret",
+    RESEND_API_KEY: "re_test_key",
+    AUTH_EMAIL_FROM: "auth@example.com",
     WEB_ORIGIN: "https://app.example.com",
     R2_ACCOUNT_ID: "account-id",
     R2_BUCKET_NAME: "assets",
