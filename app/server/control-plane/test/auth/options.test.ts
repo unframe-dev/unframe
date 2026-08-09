@@ -10,7 +10,7 @@ const testEnvironment = () => ({
   DEVICE_CLIENT_ID: "unframe-unity",
   GOOGLE_CLIENT_ID: "google-client-id",
   GOOGLE_CLIENT_SECRET: "google-client-secret",
-  WEB_ORIGIN: "https://app.example.com",
+  WEB_ORIGIN: "https://un-fra.me",
   ASSETS: { head: () => {}, get: () => {}, put: () => {}, delete: () => {}, list: () => {} },
   R2_ACCOUNT_ID: "test-r2-account-id",
   R2_BUCKET_NAME: "assets",
@@ -81,7 +81,7 @@ async function decideDeviceCode(
 ) {
   return requestAuth(path, {
     method: "POST",
-    headers: { "content-type": "application/json", cookie, origin: "https://app.example.com" },
+    headers: { "content-type": "application/json", cookie, origin: "https://un-fra.me" },
     body: JSON.stringify({ userCode }),
   });
 }
@@ -101,7 +101,7 @@ describe("Better Auth device authorization", () => {
     expect(reference.status).toBe(404);
   });
 
-  it("issues a code with the configured expiry, polling interval, and verification URI", async () => {
+  it("issues a code with the configured expiry, polling interval, and verification URIs", async () => {
     const response = await auth().handler(
       new Request("https://example.com/api/auth/device/code", {
         method: "POST",
@@ -111,11 +111,21 @@ describe("Better Auth device authorization", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      verification_uri: "https://app.example.com/device",
+    const body = (await response.json()) as {
+      expires_in: number;
+      interval: number;
+      user_code: string;
+      verification_uri: string;
+      verification_uri_complete: string;
+    };
+    expect(body).toMatchObject({
+      verification_uri: "https://un-fra.me/editor/device",
       expires_in: 1800,
       interval: 3,
     });
+    expect(body.verification_uri_complete).toBe(
+      `https://un-fra.me/editor/device?user_code=${encodeURIComponent(body.user_code)}`,
+    );
   });
 
   it("rejects an unrecognized device client", async () => {
@@ -162,8 +172,8 @@ describe("Better Auth device authorization", () => {
         testEnvironment() as unknown as CloudflareBindings,
       );
 
-    const allowed = await request("https://app.example.com");
-    expect(allowed.headers.get("access-control-allow-origin")).toBe("https://app.example.com");
+    const allowed = await request("https://un-fra.me");
+    expect(allowed.headers.get("access-control-allow-origin")).toBe("https://un-fra.me");
     expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
     expect(allowed.headers.get("access-control-expose-headers")).toBe("set-auth-token");
 

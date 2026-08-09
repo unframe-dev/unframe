@@ -21,14 +21,14 @@ describe("control plane HTTP boundary", () => {
     const response = await SELF.fetch("https://api.un-fra.me/presentations", {
       method: "OPTIONS",
       headers: {
-        origin: "https://app.un-fra.me",
+        origin: "https://un-fra.me",
         "access-control-request-method": "GET",
         "access-control-request-headers": "authorization,content-type",
       },
     });
 
     expect(response.status).toBe(204);
-    expect(response.headers.get("access-control-allow-origin")).toBe("https://app.un-fra.me");
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://un-fra.me");
     expect(response.headers.get("access-control-allow-credentials")).toBe("true");
     expect(response.headers.get("access-control-allow-methods")).toContain("DELETE");
   });
@@ -56,7 +56,7 @@ describe("control plane HTTP boundary", () => {
         },
         body: "cross-site form body",
       }),
-      { ...runtimeEnvironment(), WEB_ORIGIN: "https://app.un-fra.me" },
+      { ...runtimeEnvironment(), WEB_ORIGIN: "https://un-fra.me" },
     );
 
     expect(response.status).toBe(403);
@@ -75,7 +75,7 @@ describe("control plane HTTP boundary", () => {
         headers: { authorization: "Bearer session", "content-type": "text/plain" },
         body: "device request",
       }),
-      { ...runtimeEnvironment(), WEB_ORIGIN: "https://app.un-fra.me" },
+      { ...runtimeEnvironment(), WEB_ORIGIN: "https://un-fra.me" },
     );
 
     expect(response.status).toBe(200);

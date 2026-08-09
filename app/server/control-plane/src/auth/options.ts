@@ -43,7 +43,7 @@ export function createAuthOptions(
       deviceAuthorization({
         expiresIn: "30m",
         interval: "3s",
-        verificationUri: `${env.WEB_ORIGIN}/device`,
+        verificationUri: `${env.WEB_ORIGIN}/editor/device`,
         validateClient: (clientId) => clientId === env.DEVICE_CLIENT_ID,
       }),
       openAPI({ disableDefaultReference: true }),
