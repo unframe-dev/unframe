@@ -42,6 +42,8 @@ OpenAPI 3.0.3 と生成 TypeScript 型は `packages/contracts/`、typed runtime 
 未処理例外は route pattern、例外名、incident ID だけを構造化ログへ記録し、message、credential、signed URL を response やログへ出しません。
 OAuth codeやDevice Authorization user codeをqueryに含むため、Workers invocation logsと自動traceは無効化しています。
 
+Product-owned D1 tables の通常の CRUD・一覧・lookup は Drizzle ORM を使います。migration DDL / trigger、Better Auth の D1 接続、revision・status の比較更新と JSON1 / `NOT EXISTS` を含む競合安全な単一 statement は D1 SQL のまま維持しています。
+
 ## Validation boundary
 
 通常 CI は Miniflare の D1 / R2 binding を使って migration、repository、HTTP、asset finalize を検証します。R2 S3 endpoint の SigV4、browser CORS、実 bucket の checksum metadata は local runtime と完全には同一ではないため、remote 設定後に staging bucket で upload / finalize / download の smoke test が必要です。
