@@ -185,7 +185,7 @@ public sealed class PresentationImportEditModeTests
             null,
             motion: new PresentationMotionSnapshot(
                 Vector3.zero,
-                new Vector3(0.2f, 0f, 0f),
+                new Vector3(-0.2f, 0f, 0f),
                 0.2f,
                 false
             )
@@ -194,7 +194,7 @@ public sealed class PresentationImportEditModeTests
             null,
             motion: new PresentationMotionSnapshot(
                 Vector3.zero,
-                new Vector3(0.2f, 0f, 0f),
+                new Vector3(-0.2f, 0f, 0f),
                 0.2f,
                 true
             )
@@ -221,7 +221,7 @@ public sealed class PresentationImportEditModeTests
                     null,
                     motion: new PresentationMotionSnapshot(
                         Vector3.zero,
-                        new Vector3(0.2f, 0f, 0f),
+                        new Vector3(-0.2f, 0f, 0f),
                         0.5f,
                         true
                     )
@@ -236,7 +236,7 @@ public sealed class PresentationImportEditModeTests
                     null,
                     motion: new PresentationMotionSnapshot(
                         Vector3.zero,
-                        new Vector3(0.2f, 0f, 0f),
+                        new Vector3(-0.2f, 0f, 0f),
                         1.0f,
                         true
                     )

@@ -9,7 +9,7 @@ public static class PresentationMotionPresets
             case "swipe_right":
                 preset = new PresentationMotionPreset(
                     "swipe_right",
-                    Vector3.right,
+                    Vector3.left,
                     0.15f,
                     0.75f,
                     0.2f
