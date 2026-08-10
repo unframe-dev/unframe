@@ -95,29 +95,19 @@ public static class ElementLoaderUtility
         }
 
         renderer.material = material;
-        Debug.Log(
-            $"[Presentation/Material] Assigned: object={target.name}, " +
-            $"renderer={renderer.GetType().Name}, shader={material.shader?.name ?? "missing"}, " +
-            $"supported={material.shader?.isSupported ?? false}, " +
-            $"baseColor={material.HasProperty("_BaseColor")}, " +
-            $"material={material.name}, opacity={opacity:F2}."
-        );
     }
 
     public static Material CreateUnlitMaterial(Color color, Texture texture = null)
     {
         Shader shader = Resources.Load<Shader>(PresentationUnlitShaderPath);
-        string source = "Resources";
         if (shader == null)
         {
             shader = Shader.Find("Universal Render Pipeline/Unlit");
-            source = "URP Shader.Find";
         }
 
         if (shader == null)
         {
             shader = Shader.Find("Unlit/Texture");
-            source = "Legacy Shader.Find";
         }
 
         if (shader == null)
@@ -128,12 +118,6 @@ public static class ElementLoaderUtility
             );
             return null;
         }
-
-        Debug.Log(
-            $"[Presentation/Material] Shader resolved: source={source}, " +
-            $"shader={shader.name}, supported={shader.isSupported}, " +
-            $"color={color}, texture={(texture == null ? "none" : texture.name)}."
-        );
 
         Material material = new Material(shader);
         material.name = "Presentation Runtime Unlit";

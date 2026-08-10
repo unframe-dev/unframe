@@ -389,6 +389,7 @@ MonoBehaviour:
   actionMapName: Player
   primaryActionName: Attack
   nextActionName: Next
+  motionReference: {fileID: 4011}
 --- !u!1 &4010
 GameObject:
   m_ObjectHideFlags: 0
