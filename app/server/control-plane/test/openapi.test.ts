@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createApp } from "../src/app";
-import { createOpenAPIDocument } from "../src/openapi";
+import { createApp, createOpenAPIDocument } from "../src/app";
 
 const normalizePath = (path: string) => path.replace(/:([^/]+)/g, "{$1}");
 
@@ -10,11 +9,12 @@ describe("Control Plane OpenAPI", () => {
       createApp()
         .routes.filter(
           (route) =>
-            route.path.startsWith("/presentations") ||
-            route.path.startsWith("/assets") ||
-            route.path.startsWith("/sessions") ||
-            route.path.startsWith("/callbacks") ||
-            route.path === "/.well-known/jwks.json",
+            route.method !== "ALL" &&
+            (route.path.startsWith("/presentations") ||
+              route.path.startsWith("/assets") ||
+              route.path.startsWith("/sessions") ||
+              route.path.startsWith("/callbacks") ||
+              route.path === "/.well-known/jwks.json"),
         )
         .map((route) => `${route.method.toLowerCase()} ${normalizePath(route.path)}`),
     );
@@ -39,5 +39,21 @@ describe("Control Plane OpenAPI", () => {
       },
       serviceBearer: { type: "http", scheme: "bearer" },
     });
+  });
+
+  it("marks every JSON request body as required", () => {
+    const document = createOpenAPIDocument();
+    const requestBodies = Object.values(document.paths).flatMap((methods) =>
+      Object.values(methods ?? {}).flatMap((operation) =>
+        operation && typeof operation === "object" && "requestBody" in operation
+          ? [operation.requestBody]
+          : [],
+      ),
+    );
+
+    expect(requestBodies.length).toBeGreaterThan(0);
+    expect(requestBodies).toEqual(
+      expect.arrayContaining(requestBodies.map(() => expect.objectContaining({ required: true }))),
+    );
   });
 });

@@ -132,6 +132,24 @@ describe("presentation HTTP API", () => {
       await expect(response.json()).resolves.toMatchObject({ error: { code: "validation_error" } });
     }
   });
+  it("requires JSON content type and rejects unknown write fields", async () => {
+    const app = createApp({
+      repository: new Repository(),
+      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
+    });
+    const missingContentType = await request(app, "/presentations", {
+      method: "POST",
+      body: JSON.stringify(createDefinition),
+    });
+    const unknownField = await request(app, "/presentations/presentation-1", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedRevision: 1, unexpected: true }),
+    });
+
+    expect(missingContentType.status).toBe(400);
+    expect(unknownField.status).toBe(400);
+  });
   it("requires an empty asset list when creating a presentation", async () => {
     const app = createApp({
       repository: new Repository(),

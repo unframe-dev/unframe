@@ -1,14 +1,28 @@
-import { describe, expect, it, vi } from "vitest";
-import type { paths } from "@unframe/contracts/control-plane";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import type { InferRequestType, InferResponseType } from "hono/client";
 import {
   authTokenFromResponse,
+  type ControlPlaneClient,
   createControlPlaneAuthClient,
   createControlPlaneClient,
 } from "../src";
 
-type CreatePresentationRequest = NonNullable<
-  paths["/presentations"]["post"]["requestBody"]
->["content"]["application/json"];
+type CreatePresentationRequest = InferRequestType<
+  ControlPlaneClient["presentations"]["$post"]
+>["json"];
+
+type CreatePresentationResponse = InferResponseType<
+  ControlPlaneClient["presentations"]["$post"],
+  201
+>;
+
+type InitAssetUploadResponse = InferResponseType<
+  ControlPlaneClient["assets"]["uploads"]["$post"],
+  201
+>;
+
+type IsAny<T> = 0 extends 1 & T ? true : false;
+type AssertFalse<T extends false> = T;
 
 const presentation: CreatePresentationRequest = {
   schemaVersion: 1,
@@ -54,6 +68,20 @@ const presentation: CreatePresentationRequest = {
 };
 
 describe("createControlPlaneClient", () => {
+  it("exposes inferred Hono RPC request and response types", () => {
+    type GetPresentationRequest = InferRequestType<
+      ControlPlaneClient["presentations"][":id"]["$get"]
+    >;
+
+    type RequestIsTyped = AssertFalse<IsAny<CreatePresentationRequest>>;
+    type ResponseIsTyped = AssertFalse<IsAny<CreatePresentationResponse>>;
+
+    expectTypeOf<RequestIsTyped>().toEqualTypeOf<false>();
+    expectTypeOf<ResponseIsTyped>().toEqualTypeOf<false>();
+    expectTypeOf<CreatePresentationResponse["id"]>().toEqualTypeOf<string>();
+    expectTypeOf<GetPresentationRequest>().toEqualTypeOf<{ param: { id: string } }>();
+  });
+
   it("sends typed presentation and asset requests through the injected fetch", async () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
@@ -75,9 +103,9 @@ describe("createControlPlaneClient", () => {
       credentials: "include",
     });
 
-    const createdPresentation = await client.POST("/presentations", { body: presentation });
-    const initializedUpload = await client.POST("/assets/uploads", {
-      body: {
+    const createdPresentation = await client.presentations.$post({ json: presentation });
+    const initializedUpload = await client.assets.uploads.$post({
+      json: {
         presentationId: "presentation-1",
         name: "image.png",
         mediaType: "image/png",
@@ -86,19 +114,16 @@ describe("createControlPlaneClient", () => {
       },
     });
 
-    const presentationRequest = fetch.mock.calls[0]?.[0];
-    const assetRequest = fetch.mock.calls[1]?.[0];
-    expect(presentationRequest).toBeInstanceOf(Request);
-    expect(assetRequest).toBeInstanceOf(Request);
-    if (!(presentationRequest instanceof Request) || !(assetRequest instanceof Request))
-      throw new Error("Expected requests");
+    const [presentationUrl, presentationInit] = fetch.mock.calls[0] ?? [];
+    const [assetUrl, assetInit] = fetch.mock.calls[1] ?? [];
+    if (!presentationInit || !assetInit) throw new Error("Expected request options");
 
     expect({
-      url: presentationRequest.url,
-      method: presentationRequest.method,
-      credentials: presentationRequest.credentials,
-      body: await presentationRequest.json(),
-      authorization: presentationRequest.headers.get("authorization"),
+      url: presentationUrl,
+      method: presentationInit.method,
+      credentials: presentationInit.credentials,
+      body: JSON.parse(String(presentationInit.body)),
+      authorization: new Headers(presentationInit.headers).get("authorization"),
     }).toEqual({
       url: "https://control-plane.example/presentations",
       method: "POST",
@@ -107,10 +132,10 @@ describe("createControlPlaneClient", () => {
       authorization: null,
     });
     expect({
-      url: assetRequest.url,
-      method: assetRequest.method,
-      body: await assetRequest.json(),
-      authorization: assetRequest.headers.get("authorization"),
+      url: assetUrl,
+      method: assetInit.method,
+      body: JSON.parse(String(assetInit.body)),
+      authorization: new Headers(assetInit.headers).get("authorization"),
     }).toEqual({
       url: "https://control-plane.example/assets/uploads",
       method: "POST",
@@ -124,12 +149,8 @@ describe("createControlPlaneClient", () => {
       authorization: null,
     });
 
-    if (!createdPresentation.data || !initializedUpload.data)
-      throw new Error("Expected successful responses");
-    const typedPresentation: paths["/presentations"]["post"]["responses"][201]["content"]["application/json"] =
-      createdPresentation.data;
-    const typedAsset: paths["/assets/uploads"]["post"]["responses"][201]["content"]["application/json"] =
-      initializedUpload.data;
+    const typedPresentation: CreatePresentationResponse = await createdPresentation.json();
+    const typedAsset: InitAssetUploadResponse = await initializedUpload.json();
     expect(typedPresentation.id).toBe("presentation-1");
     expect(typedAsset.asset.id).toBe("asset-1");
   });

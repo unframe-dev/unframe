@@ -1,9 +1,9 @@
-import createClient from "openapi-fetch";
-import type { paths } from "@unframe/contracts/control-plane";
+import type { AppType } from "@unframe/control-plane/rpc";
 import { createAuthClient } from "better-auth/client";
 import { deviceAuthorizationClient, twoFactorClient } from "better-auth/client/plugins";
+import { hc } from "hono/client";
 
-export type ControlPlaneClient = ReturnType<typeof createClient<paths>>;
+export type ControlPlaneClient = ReturnType<typeof hc<AppType>>;
 
 export type ControlPlaneClientOptions = {
   baseUrl: string;
@@ -16,10 +16,9 @@ export const createControlPlaneClient = ({
   fetch,
   credentials,
 }: ControlPlaneClientOptions): ControlPlaneClient =>
-  createClient<paths>({
-    baseUrl,
+  hc<AppType>(baseUrl, {
     ...(fetch ? { fetch } : {}),
-    ...(credentials ? { credentials } : {}),
+    ...(credentials ? { init: { credentials } } : {}),
   });
 
 export type ControlPlaneAuthClientOptions = {

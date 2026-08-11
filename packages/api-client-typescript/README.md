@@ -1,6 +1,6 @@
 # Control Plane TypeScript Client
 
-`packages/contracts/openapi/control-plane.openapi.json` から生成した path 型を `openapi-fetch` へ適用する薄い client です。
+Control Plane の型付き `OpenAPIHono` application から公開した `AppType` を `hono/client` に適用する Hono RPC client です。入力、path parameter、status 別 response は実行ルートと同じ Zod / OpenAPI 定義から推論されます。
 
 ```ts
 import { createControlPlaneClient } from "@unframe/api-client-typescript";
@@ -9,7 +9,10 @@ const client = createControlPlaneClient({
   baseUrl: "https://api.un-fra.me",
   credentials: "include",
 });
-const result = await client.GET("/presentations");
+const response = await client.presentations.$get();
+if (response.ok) {
+  const { presentations } = await response.json();
+}
 ```
 
 認証情報の保存は行いません。Web の cookie session では `credentials: "include"` を指定します。Unity の Bearer session は consumer が安全に保存し、各 request の `Authorization` header に設定します。

@@ -35,6 +35,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -5474,6 +5475,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -6744,7 +6746,8 @@
                 "required": [
                   "expectedRevision",
                   "definition"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -8242,6 +8245,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -8255,7 +8259,8 @@
                 },
                 "required": [
                   "expectedRevision"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -8428,6 +8433,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -9581,18 +9587,23 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "presentationId": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_-]+$"
                   }
                 },
                 "required": [
                   "presentationId"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -9804,6 +9815,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -9816,7 +9828,8 @@
                 },
                 "required": [
                   "joinCode"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -10049,7 +10062,8 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 128
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
             },
             "required": true,
             "name": "id",
@@ -10254,7 +10268,8 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 128
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
             },
             "required": true,
             "name": "id",
@@ -10489,7 +10504,8 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 128
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
             },
             "required": true,
             "name": "id",
@@ -10724,7 +10740,8 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 128
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
             },
             "required": true,
             "name": "id",
@@ -10913,85 +10930,6 @@
         }
       }
     },
-    "/.well-known/jwks.json": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Realtime signing keys",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "keys": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "kty": {
-                            "type": "string",
-                            "enum": [
-                              "OKP"
-                            ]
-                          },
-                          "crv": {
-                            "type": "string",
-                            "enum": [
-                              "Ed25519"
-                            ]
-                          },
-                          "x": {
-                            "type": "string"
-                          },
-                          "kid": {
-                            "type": "string"
-                          },
-                          "alg": {
-                            "type": "string",
-                            "enum": [
-                              "EdDSA"
-                            ]
-                          },
-                          "use": {
-                            "type": "string",
-                            "enum": [
-                              "sig"
-                            ]
-                          },
-                          "key_ops": {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "enum": [
-                                "verify"
-                              ]
-                            },
-                            "minItems": 1,
-                            "maxItems": 1
-                          }
-                        },
-                        "required": [
-                          "kty",
-                          "crv",
-                          "x",
-                          "kid",
-                          "alg",
-                          "use",
-                          "key_ops"
-                        ]
-                      }
-                    }
-                  },
-                  "required": [
-                    "keys"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/callbacks/checkpoints": {
       "post": {
         "security": [
@@ -11000,6 +10938,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -11160,6 +11099,7 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -11346,6 +11286,85 @@
                   },
                   "required": [
                     "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Realtime signing keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kty": {
+                            "type": "string",
+                            "enum": [
+                              "OKP"
+                            ]
+                          },
+                          "crv": {
+                            "type": "string",
+                            "enum": [
+                              "Ed25519"
+                            ]
+                          },
+                          "x": {
+                            "type": "string"
+                          },
+                          "kid": {
+                            "type": "string"
+                          },
+                          "alg": {
+                            "type": "string",
+                            "enum": [
+                              "EdDSA"
+                            ]
+                          },
+                          "use": {
+                            "type": "string",
+                            "enum": [
+                              "sig"
+                            ]
+                          },
+                          "key_ops": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "verify"
+                              ]
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                          }
+                        },
+                        "required": [
+                          "kty",
+                          "crv",
+                          "x",
+                          "kid",
+                          "alg",
+                          "use",
+                          "key_ops"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "keys"
                   ]
                 }
               }
