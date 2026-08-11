@@ -27,6 +27,7 @@ build/
 .vite/
 .vite-hooks/
 .pnpm/
+app/server/control-plane/.generated/
 
 # テストカバレッジ (vitest --coverage の出力)
 coverage/
@@ -64,9 +65,6 @@ app/unity/*.unityproj
 app/unity/sysinfo.txt
 # Unity Licensing — Manual Activation File (機密性は低いが追跡不要)
 app/unity/*.alf
-
-# server — ローカルアセット (.fbx) 置き場 (将来 R2 移行)
-app/server/storage/
 
 # accidental (PowerShell の `2>$null` 取り違えで生まれる)
 nul

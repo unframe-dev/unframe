@@ -25,9 +25,10 @@
           pkgs.nodejs_22
           pkgs.pnpm
           pkgs.go
-          pkgs.sqlc
           pkgs.golangci-lint
-          pkgs.goose
+          pkgs.protobuf
+          pkgs.protoc-gen-go
+          pkgs.protoc-gen-go-grpc
           pkgs.dotnet-sdk_8
           pkgs.powershell
           pkgs.git
@@ -83,21 +84,17 @@
 
         # 手動で叩く操作。実体は scripts/ にある。
         apps = {
-          gen = mkApp {
-            name = "gen";
-            script = "generate/all.sh";
-          };
           check = mkApp {
             name = "check";
             script = "ci/check.sh";
           };
-          # 領域別の品質処理。引数でモードを取る: 既定 check / `-- fix` で自動修正。
-          #   例) nix run .#server        (check)
-          #       nix run .#server -- fix (format + lint --fix)
-          # fix の結果は autofix.yml が commit する。
-          server = mkApp {
-            name = "server";
-            script = "ci/server.sh";
+          control-plane = mkApp {
+            name = "control-plane";
+            script = "ci/control-plane.sh";
+          };
+          realtime = mkApp {
+            name = "realtime";
+            script = "ci/realtime.sh";
           };
           web = mkApp {
             name = "web";
@@ -107,25 +104,9 @@
             name = "lp";
             script = "ci/lp.sh";
           };
-          contracts = mkApp {
-            name = "contracts";
-            script = "ci/contracts.sh";
-          };
-          drift = mkApp {
-            name = "drift";
-            script = "ci/drift.sh";
-          };
-          dev = mkApp {
-            name = "dev";
-            script = "dev/dev.sh";
-          };
           setup = mkApp {
             name = "setup";
             script = "dev/setup.sh";
-          };
-          migrate = mkApp {
-            name = "migrate";
-            script = "dev/migrate.sh";
           };
           notion-sync = mkApp {
             name = "notion-sync";

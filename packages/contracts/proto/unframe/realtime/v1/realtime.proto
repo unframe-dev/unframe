@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package unframe.realtime.v1;
+
+option go_package = "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1;realtimev1";
+
+service RealtimeService {
+  // Connect starts with one Handshake. The first server message is Connected;
+  // later messages are server-authoritative events and include the sender.
+  // Protocol violations end the RPC with a gRPC status. A participant that
+  // cannot keep up with reliable events is disconnected with RESOURCE_EXHAUSTED.
+  rpc Connect(stream ClientEnvelope) returns (stream ServerEnvelope);
+}
+
+message ClientEnvelope {
+  oneof payload {
+    Handshake handshake = 1;
+    PageChangeCommand page_change = 2;
+  }
+}
+
+// Handshake must be the first client message. Session identity and role are
+// derived from the authenticated connection context, never this payload.
+message Handshake {
+  // The current and only accepted value is "v1". A mismatch ends the RPC with
+  // FAILED_PRECONDITION.
+  string protocol_version = 1;
+}
+
+message PageChangeCommand {
+  // Only the presenter may send this command.
+  // Use a non-empty ID of at most 128 UTF-8 bytes. The server rejects IDs that
+  // are still present in its bounded recent-ID window with ALREADY_EXISTS.
+  string message_id = 1;
+  // Zero-based page index within the session presentation.
+  uint32 page_index = 2;
+}
+
+message ServerEnvelope {
+  oneof payload {
+    Connected connected = 1;
+    ReliableEvent reliable_event = 2;
+  }
+}
+
+message Connected {
+  string protocol_version = 1;
+  string session_id = 2;
+  string participant_id = 3;
+  SessionRole role = 4;
+}
+
+message ReliableEvent {
+  // Monotonically increasing within the lifetime of the in-memory session.
+  uint64 sequence = 1;
+  string command_message_id = 2;
+  oneof payload {
+    PageChanged page_changed = 3;
+  }
+}
+
+message PageChanged {
+  uint32 page_index = 1;
+}
+
+enum SessionRole {
+  SESSION_ROLE_UNSPECIFIED = 0;
+  SESSION_ROLE_PRESENTER = 1;
+  SESSION_ROLE_VIEWER = 2;
+}

@@ -4,20 +4,42 @@
 
 この文書は、Unframe の backend を大幅に更新する際の**目標アーキテクチャ**を定義する。対象は、Mixed Reality プレゼンテーションを提供する Main Backend と Realtime Backend の全体である。
 
-本書では記述の状態を次の3種類に分ける。
+本書では記述の状態を次の4種類に分ける。
 
-- **目標**: 今後の backend 更新で実現する正規の設計
-- **現行**: 現在の `app/server/` に存在する実装
-- **未決定**: 実装前に追加の設計判断が必要な事項
+- **Current**: repositoryに存在し、品質ゲートで検証している現行実装
+- **Partial**: 目標の一部だけを実装済みで、残りの境界が未接続または未実装
+- **Target**: 今後のbackend更新で実現する正規の設計
+- **Open**: 実装前に追加の設計判断が必要な事項
 
-特に断りがない限り、2章から22章までは**目標アーキテクチャ**を記述する。23章以降で現行実装との差分と移行方針を整理する。
+章ごとの状態は次のとおりである。Partialの章では、実装済みの事実を`現行`、未実装の設計を`目標`または`今後`と明記する。機能単位の正本は24章のTarget / Implementation Matrixとする。
 
-現在の `app/server/` は Go + Huma/Chi + Turso/libSQL の HTTP API サーバーであるが、これは移行元の実装である。目標構成では次の2 backend に責務を分割する。
+| 章 | 状態 | 読み方 |
+| --- | --- | --- |
+| 2 | Partial | 全体像はTarget。Control Planeと初期Realtime基盤だけCurrent |
+| 3–5 | Target | goal、non-goal、設計原則 |
+| 6–10 | Partial | componentと初期protocolはCurrent。session連携、完全なrealtime stateはTarget |
+| 11–12 | Target | update modelとsession lifecycleは未実装 |
+| 13–14 | Partial | Control Plane認証・認可・D1/R2はCurrent。Realtime credentialとsession dataはTarget |
+| 15 | Target | checkpointとpersistence bridgeは未実装 |
+| 16–17 | Partial | Asset lifecycleと初期reliable queueはCurrent。delivery consumerと完全なflow controlはTarget |
+| 18 | Target | reconnect、resume、failure recoveryは未実装 |
+| 19 | Partial | Go processとcontainer imageはCurrent。deployment integrationはTarget |
+| 20 | Target | routingとscale-outは未実装 |
+| 21–22 | Partial | 限定的なControl Plane logとsecurity boundaryはCurrent。telemetryとsession/realtime securityはTarget |
+| 23 | Current | 現行実装と既知の制約のsnapshot |
+| 24 | Current / Target | 機能単位の実装状況と次の作業の正本 |
+| 25 | Partial | phaseごとにCurrentの進捗と残りのTargetを示すroadmap |
+| 26–27 | Partial | contract / testのCurrent coverageと完了までのTarget |
+| 28 | Open | 未決定のcontractと運用parameter |
+
+旧 Go + Huma/Chi + Turso/libSQL HTTP API は削除済みである。目標構成では次の2 backend に責務を分割する。
 
 - Main Backend: Cloudflare Workers / TypeScript / Hono / D1 / R2
 - Realtime Backend: Go / gRPC Bidirectional Streaming / Container
 
 この文書は目標設計を現行機能として見せない。実装状況を判断する際は、23章の現行実装、24章の移行マトリクス、実際のコードを確認すること。
+
+> **Status boundary — 2章から22章:** Target architectureを記述する。Partialとした章の現行事実は明示された範囲だけであり、章全体の実装完了を意味しない。
 
 ## 2. システム概要
 
@@ -37,18 +59,18 @@ Main Backend は Control Plane、Realtime Backend は Data Plane として扱う
 | --- | --- |
 | Web Editor | account操作、asset登録、presentation CRUDを行う。session中の操作は行わない |
 | Unity | login/logout、presentation CRUD/read、session作成・参加・終了、Realtime接続を行う |
-| Authentication | Better Auth Device Authorization Flow。browser側のidentity providerはGoogle OAuth |
-| Device authorization | polling intervalは3秒、device/user codeの有効期限はBetter Auth標準値の30分 |
+| Authentication | Better Auth Google OAuth、email/password（メール確認とTOTP MFA必須）、Device Authorization Flow |
+| Device authorization | polling intervalは3秒、device/user codeの有効期限はControl Planeで30分に設定する |
 | Roles | global `admin`、presentation単位`editor`、session単位`presenter/viewer` |
 | Organization | organization / team modelは導入しない |
-| Presentation | 複数件、slide/contentは個別resource。同時編集、version、draft/public分離は導入しない |
+| Presentation | 複数件。`Group → Step → Cue`を持つDefinitionをaggregateとして原子的に保存する。同時編集、履歴version、draft/public分離は導入しない |
 | Session | RoomとSessionは同一。Unityから作成し、`xxxx-xxxx`形式の参加コードでjoinする |
 | Session capacity | 最大50 participant |
 | Presenter | session creatorを固定presenterとし、途中交代しない |
 | Realtime authority | 共有状態、sequence、duplicate/gap判定はserver authoritative |
 | Realtime credential | session-boundの署名JWT。有効期間は1週間。`EdDSA` / Ed25519で署名 |
 | Asset lifecycle | finalize、存在確認、checksum、MIME検査、削除、孤児回収を実装する |
-| Migration | Turso dataと現行Go HTTP APIの互換性は維持せず、target architectureで置換する |
+| Migration | 旧 Turso data と HTTP API の互換性は維持せず、target architecture で置換する |
 
 ## 3. Goals
 
@@ -145,13 +167,13 @@ Realtime client は Unity native application のみである。Web Editor は Re
 
 ### 7.2 Web Editor の責務
 
-- Google OAuth / Better Authを使うbrowser login、logout、account関連操作
-- presentation / slide / content の作成・編集・保存
+- Better Authを使うGoogle OAuth / email-password browser login、logout、account関連操作
+- presentation definition / group / step / cue / content の作成・編集・保存
 - asset upload の初期化、R2 への直接 upload、finalize
 - asset preview/download
 - Main Backend の HTTP/OpenAPI contract への追従
 
-Web Editor はsessionの作成、参加、開始、終了、発表中のslide切り替えを行わず、pointer、pose、transform、presence等のrealtime stateも送受信しない。将来Web Editorにrealtime collaborationが必要になった場合も、本書のUnity用gRPCへ暗黙に接続せず、browser transportを別途設計する。
+Web Editor はsessionの作成、参加、開始、終了、発表中のgroup/step切り替えを行わず、pointer、pose、transform、presence等のrealtime stateも送受信しない。将来Web Editorにrealtime collaborationが必要になった場合も、本書のUnity用gRPCへ暗黙に接続せず、browser transportを別途設計する。
 
 ### 7.3 Unity の責務
 
@@ -197,7 +219,7 @@ Main Backend は Web Editor と Unity が共有するシステムの Control Pla
 ### 8.3 Responsibilities
 
 - ユーザー認証
-- Better AuthによるGoogle認証、Device Authorization Grant、application session管理
+- Better AuthによるGoogle認証、email/password認証（Resendによる確認・reset、TOTP MFA）、Device Authorization Grant、application session管理
 - resource と session の認可
 - user / presentation / asset / session の CRUD
 - durable metadata の D1 永続化
@@ -219,7 +241,7 @@ Main Backend は Web Editor と Unity が共有するシステムの Control Pla
 
 ### 8.5 Logical Layers
 
-物理 directory は移行計画で決定するが、Main Backend は少なくとも次の論理境界を持つ。
+Main Backend は少なくとも次の論理境界を持つ。
 
 ```text
 HTTP / Hono routes
@@ -244,10 +266,10 @@ HTTP handler から D1 binding や R2 binding を直接操作し続けず、appl
 
 | Category | 主な利用者 | 目的 |
 | --- | --- | --- |
-| Authentication | Web Editor | Google OAuth browser login、Better Auth cookie session、logout |
+| Authentication | Web Editor | Google OAuth / email-password browser login、MFA、Better Auth cookie session、logout |
 | Device Authorization | Unity | device/user code発行、browser承認、token polling、Bearer session |
 | Users | Web Editor / Unity | user profile と account data |
-| Presentations | Web Editor / Unity | presentation と slide/content の durable CRUD / read |
+| Presentations | Web Editor / Unity | Group/Step/Cueを含むpresentation definitionのdurable CRUD / read |
 | Assets | Web Editor / Unity | metadata、upload init/finalize、download access |
 | Sessions | Unity | session作成、参加コードによる参加、終了、状態照会 |
 | Realtime Bootstrap | Unity | endpoint、credential、expiry、resume 情報 |
@@ -255,46 +277,60 @@ HTTP handler から D1 binding や R2 binding を直接操作し続けず、appl
 
 既存の Go HTTP API contract をそのまま目標 contract とみなさない。移行時に resource model、ownership、session lifecycle を含めて再設計する。
 
-### 8.7 Physical Directory Layout
+### 8.7 Current and Target Directory Layout
 
-Main BackendとRealtime Backendはruntime、言語、dependency、deployment単位が異なるため、`app/server/`配下で明確に分離する。
+Main BackendとRealtime Backendはruntime、言語、dependency、deployment単位が異なるため、`app/server/`配下で明確に分離する。物理directory名は、Main Backendをその役割に合わせて`control-plane/`、Realtime Backendを`realtime/`とする。
 
 ```text
 app/server/
 ├── ARCHITECTURE.md
-├── main/                         # Cloudflare Workers / TypeScript / Hono
+├── README.md
+├── control-plane/                # Main Backend: Cloudflare Workers / TypeScript / Hono
 │   ├── package.json
-│   ├── wrangler.jsonc
+│   ├── tsconfig.json
+│   ├── wrangler.toml
 │   ├── migrations/              # D1 migrations
 │   ├── src/
-│   │   ├── index.ts             # Worker entrypoint / composition root
-│   │   ├── api/                 # Hono routes and HTTP mapping
-│   │   ├── auth/                # Better Auth / Google / authorization
-│   │   ├── service/             # application logic
-│   │   ├── repository/          # D1 adapters
-│   │   ├── storage/             # R2 adapter and asset lifecycle
-│   │   └── realtime/            # session bootstrap / credential / callback
-│   └── test/
+│   │   ├── index.ts             # Worker entrypoint
+│   │   ├── app.ts               # Hono application composition root
+│   │   ├── worker-configuration.d.ts # Wrangler-generated binding types
+│   │   ├── auth/                # Better Auth configuration and identity boundary
+│   │   ├── presentation/        # Presentation service, schema, routes, D1 repository
+│   │   ├── modules/assets/      # Asset use cases, models, ports, routes
+│   │   ├── adapters/assets/     # D1 and R2 adapters
+│   │   └── openapi.ts           # OpenAPI document builder
+│   └── test/                    # Workers runtime and module tests
 ├── realtime/                     # Go / gRPC / container
+│   ├── .dockerignore
+│   ├── .env.example
+│   ├── .golangci.yml
 │   ├── go.mod
 │   ├── go.sum
 │   ├── Dockerfile
 │   ├── cmd/server/               # process entrypoint
 │   └── internal/
-│       ├── transport/grpc/       # generated service adapter
+│       ├── gen/realtime/v1/     # generated Go protobuf code
+│       ├── transport/grpc/       # handwritten gRPC adapter
 │       ├── auth/                 # JWT verification / service identity
 │       ├── session/              # coordinator and state
 │       ├── protocol/             # message validation / mapping
-│       └── persistence/          # Main Backend client
-└── integration/                  # Main + Realtime end-to-end tests
+│       ├── persistence/http/     # Main Backend client
+│       └── observability/
+└── integration/                  # planned: Control Plane + Realtime end-to-end tests
+    ├── fixtures/
+    └── tests/
 
 packages/contracts/
-├── openapi.yaml                  # Main Backend HTTP contract artifact
-└── proto/unframe/realtime/v1/    # Realtime source contract
-    └── realtime.proto
+├── openapi/                       # generated Control Plane HTTP contract
+├── src/                           # generated TypeScript path types
+└── proto/unframe/realtime/v1/     # Realtime Protocol Buffers source of truth
 ```
 
-TypeScriptとGoの実装codeを直接共有しない。共有境界はOpenAPI、Protocol Buffers、stable identifiersとする。現行`app/server/`のGo HTTP codeはそのまま新layoutへ移動せず、再利用価値のあるvalidation、domain rule、test caseだけをtarget contractに合わせて移植する。
+現行のPresentationとAssetでdirectory粒度は異なるが、use case、model、port interfaceと外部adapterの論理境界を保つ。Hono handlerからD1やR2を直接操作せず、`index.ts`と`app.ts`はdependencyの組み立てとHTTP applicationの構築に限定する。Realtime Protocol BuffersとGo生成物は実装済みである。Session、Realtime bootstrap、persistence callbackは未実装であり、必要になった時点で同じ境界に沿って追加する。
+
+`realtime/internal/session/`はgRPC、generated Protobuf type、Cloudflare Containers、Fly.io固有APIへ依存させない。generated typeは`transport/grpc/`と`protocol/`の境界でcore typeへ変換する。deployment環境固有packageは具体的なintegrationが必要になった時点で追加し、空の抽象化directoryは作成しない。
+
+TypeScriptとGoの実装codeを直接共有しない。共有境界はOpenAPI、Protocol Buffers、stable identifiersとする。旧 Go HTTP codeは新layoutへ移動せず、必要な validation、domain rule、test caseだけをtarget contractに合わせて再実装する。
 
 ## 9. Realtime Backend
 
@@ -390,7 +426,7 @@ token や secret を通常 message payload として繰り返し送信しない�
 
 例:
 
-- slide / presentation 遷移
+- group / step / presentation 遷移
 - object の表示・非表示
 - participant の join / leave
 - animation 開始
@@ -445,7 +481,7 @@ exactly-once delivery は前提にしない。再送されても安全に処理�
 
 | 操作・状態 | Authority | 実行可能者 | 同期 |
 | --- | --- | --- | --- |
-| current presentation/page | Server | presenter | 全participant |
+| current presentation/group/step | Server | presenter | 全participant |
 | active content / visible objects | Server | presenter | 全participant |
 | shared object final transform | Server | presenter | 全participant |
 | presentation-specific session settings | Server | presenter | 全participant |
@@ -490,7 +526,7 @@ stateDiagram-v2
 ### 12.1 Session Creation
 
 1. authenticated Unity clientがMain Backendにsession作成を要求する。
-2. Main Backendが対象presentationへのaccessを検証する。sessionは認証済みuserであれば作成できる。
+2. Main Backendが対象presentationへのwrite accessを検証する。sessionを作成できるのはglobal adminまたは対象presentationのowner/editorとする。
 3. 作成者をそのsessionの固定`presenter`として割り当てる。
 4. 8文字の参加コードを生成し、`xxxx-xxxx`形式で表示する。D1には検証に必要なhash等を保存する。
 5. D1にsession durable metadataを`Waiting`状態で保存し、session開始時刻を記録する。
@@ -533,7 +569,7 @@ Main Backend への永続化失敗時の retry 上限と local buffer の扱い�
 
 ### 13.1 Authority
 
-Main Backendを認証・認可のauthorityとする。user authenticationはGoogleをupstream identity providerとし、Better Authでlogin、application session、logoutを管理する。organization / team modelは導入しない。
+Main Backendを認証・認可のauthorityとする。Better AuthでGoogle OAuthとemail/passwordのlogin、application session、logoutを管理する。email/password accountはメール確認とTOTP MFAを完了するまで通常APIを利用できない。Google OAuth sessionはMFAを要求しない。organization / team modelは導入しない。
 
 roleは次の4種類に固定する。
 
@@ -548,22 +584,21 @@ presentationに対する`editor` accessはsession開始前に決定し、active 
 
 ### 13.2 Unity Device Authorization Flow
 
-UnityのloginにはBetter Auth Device Authorization pluginによるOAuth 2.0 Device Authorization Grantを使用する。Googleはbrowser側のupstream loginに使用し、UnityがGoogleのID tokenを直接取得・保持する方式は採用しない。
+UnityのloginにはBetter Auth Device Authorization pluginによるOAuth 2.0 Device Authorization Grantを使用する。browser側はGoogle OAuthまたは確認済みemail/password + MFAで認証でき、UnityがGoogleのID tokenを直接取得・保持する方式は採用しない。
 
 ```mermaid
 sequenceDiagram
     participant U as Unity
     participant M as Main Backend / Better Auth
     participant B as Browser
-    participant G as Google OAuth
 
     U->>M: Request device_code / user_code
     M-->>U: user_code, verification_uri, expires_in, interval
     U->>U: Display code and URL
     U->>M: Poll token endpoint at interval
     B->>M: Open verification URI and enter code
-    M->>G: Google OAuth login
-    G-->>M: Authenticated identity
+    B->>M: Google OAuthまたはemail/password + MFAでlogin
+    M-->>B: Authenticated identity
     M->>B: Approve device authorization
     U->>M: Poll token endpoint
     M-->>U: Better Auth access/session token
@@ -576,9 +611,10 @@ sequenceDiagram
 - `slow_down`を受けた場合は3秒へ固定せず、serverの指示に従ってpolling間隔を増やす
 - device codeとuser codeの有効期限はBetter Auth標準値の30分とする
 - user/device codeの期限切れ、deny、invalid grantを明示的に処理する
-- verification pageでGoogle loginが未完了ならlogin後に同じ承認flowへ戻す
+- verification pageでbrowser loginが未完了ならlogin後に同じ承認flowへ戻す
 - Unityが受け取るのはBetter Authのapplication credentialであり、Google access/refresh/ID tokenではない
 - Main Backend APIではBearer plugin等を使い、Unity credentialをbrowser cookieと分離して検証する
+- Device Authorizationが返すBearer credentialはBetter Authのopaque application session tokenであり、13.3のEd25519 realtime JWTとは別credentialとする
 - device authorization codeとpresentation session参加コードは別namespace・別table・別rate limitで管理する
 
 ### 13.3 Realtime Credential
@@ -624,7 +660,7 @@ D1 は構造化された durable data の authority とする。
 - users
 - Better Auth sessions/accountsとDevice Authorization code
 - presentations
-- slides / contents（presentation配下の個別resource）
+- presentation definitions（Group / Step / Cue / Elementを内部ID付きで含むaggregate）
 - assets metadata
 - ownership / permissions
 - sessions metadata
@@ -632,13 +668,13 @@ D1 は構造化された durable data の authority とする。
 - session participants または invitation
 - session completion summary
 - checkpoint metadata
-- audit に必要な control-plane record
+- durable audit に必要な control-plane record
 
 pointer、pose、transform などの高頻度な一時状態を update ごとに D1 へ保存しない。
 
-複数presentationを扱い、global singleton制約は設けない。slide/contentはpresentation document内の匿名JSONだけに閉じず、個別に識別・CRUDできるresourceとする。同時編集、revision history、version管理、draft/public状態は導入しない。
+複数presentationを扱い、global singleton制約は設けない。Group / Step / Cue / Element はDefinition内で安定したIDと参照整合性を持つ。Definitionはrevisionを条件にaggregate単位で原子的に更新し、内部要素ごとのHTTP CRUDは設けない。revisionは楽観的競合検知の値であり、履歴version、同時編集、draft/public状態は導入しない。
 
-具体的なtable、index、migrationはMain Backend contractの確定後に設計する。現行SQLite schemaをD1 target schemaとして再利用しない。
+Better Auth、Presentation、Assetのtable、index、migrationはControl Plane contractに合わせてD1用に定義済みである。Session、checkpoint、audit用schemaは各contractの確定時に追加する。
 
 ### 14.2 R2
 
@@ -658,7 +694,7 @@ Main Backend は metadata とアクセス権を管理する。client は署名�
 Realtime Backend は session ごとに次の一時状態を memory 上に保持する。
 
 - participant registry
-- current presentation/slide state
+- current presentation/group/step state
 - object state
 - pointer / presenter state
 - reliable sequence
@@ -675,15 +711,15 @@ instance 再起動時にこの memory state が失われることを前提とし
 
 | 種別 | 例 | 保存方針 |
 | --- | --- | --- |
-| Durable Configuration | presentation、slide、asset metadata | Main Backend → D1/R2 |
+| Durable Configuration | presentation definition、asset metadata | Main Backend → D1/R2 |
 | Durable Session Metadata | session owner、開始/終了、permission | Main Backend → D1 |
-| Reliable Session Event | slide change、visibility、final transform | memory log、必要分をbatch/checkpoint |
+| Reliable Session Event | group/step change、visibility、final transform | memory log、必要分をbatch/checkpoint |
 | Ephemeral State | pointer、pose、transform | memory latest-wins、原則非永続 |
 | Completion State | 最終状態、summary | session completion 時に Main Backendへ |
 
 checkpointには次を含める。
 
-- current presentation/page
+- current presentation/group/step
 - active content / visible objects
 - object final transforms
 - presenter / participant roles
@@ -747,7 +783,9 @@ sequenceDiagram
 
 ### 16.1 Upload Lifecycle
 
-目標の asset upload は少なくとも次を区別する。
+#### Current（server-side実装済み）
+
+現行Control Planeのasset upload contractは少なくとも次を区別する。
 
 1. metadata / upload intent 作成
 2. 制限付き upload URL 発行
@@ -759,13 +797,22 @@ sequenceDiagram
 
 FBX等のasset conversionは実施しない。uploadされた形式をそのまま配信する。
 
+Asset size上限は50 MiB、upload intentと署名URLの有効期間は10分とする。checksumはAPIでは小文字SHA-256 hex、R2 S3 checksum headerではbase64で表現する。署名はContent-Type、Content-Length、checksumを拘束する。許可MIMEは`image/png`、`image/jpeg`、`image/webp`、`video/mp4`、`audio/mpeg`、`model/gltf-binary`とし、finalize時にmetadataと先頭magic bytesを検査する。
+
+#### Target（consumer統合は未実装）
+
+Web EditorとUnityからupload intent作成、R2直接upload、finalizeまでを接続し、実R2 resourceを使うstaging smoke testで署名header、CORS、size、checksum、MIME検証を確認する。
+
 ### 16.2 Delete and Orphan Collection
 
 - asset削除は参照中presentationを確認し、参照中なら拒否または明示的なdetachを要求する
+- presentation削除は配下assetが残る間は拒否し、asset cleanup state machineを経由しないR2 objectの孤児化を防ぐ
 - metadata削除とR2 object削除の途中失敗をretry可能にする
 - upload intentの期限切れ、finalizeされないobject、metadataのないobjectを孤児候補とする
 - 孤児候補にはgrace periodを設け、定期jobで再確認してから削除する
 - 削除操作とgarbage collection結果をaudit可能にする
+
+現行Control Planeはpending / failed assetに24時間のgrace periodを設け、毎日03:00 UTCに孤児回収を実行する。Asset deleteとgarbage collectionはstructured operational logを出すが、durable audit tableへの記録は未実装である。
 
 ### 16.3 Unity Cache and Update Detection
 
@@ -777,7 +824,50 @@ Main Backendはasset IDに加えてchecksumまたはimmutable revisionを返す�
 - presentation取得時に参照assetのrevisionを比較し、更新を検知する
 - 削除済み・参照されなくなったcache entryはlocal policyに従って回収する
 
-現行実装はupload URL発行とmetadata insertまでで、finalize、verification、status、delete、orphan collection、cache revision contractは未実装である。
+Control Planeはfinalize、verification、status、delete、orphan collectionまで実装済みである。Unity cache revision contractとconsumer実装は未実装である。
+
+### 16.4 Presentation Delivery
+
+PresentationとAssetのResource IDはserverが`crypto.randomUUID()`で生成し、D1のprimary keyとして保存する。外部契約ではopaqueな文字列として扱い、clientはUUIDの構造へ依存しない。DBの一意制約を重複の最終防衛とし、UUIDの推測困難性を認可の代わりにはしない。
+
+#### Current（実装済み）
+
+現行Control Planeの取得境界は次のとおりである。
+
+| 項目 | 現在の状態 |
+| --- | --- |
+| Presentation取得 | `GET /presentations/{id}`が`id`、`revision`、`definition`、`createdAt`、`updatedAt`を返す |
+| Asset参照 | DefinitionにはAsset IDだけを保存し、URLやobject keyを含めない |
+| Asset取得 | `GET /assets/{id}/download`が、readyかつPresentationから参照中のAssetに期限付きURLを発行する |
+| Consumer | Web EditorとUnityはPresentation取得APIおよびAsset download APIへ未接続 |
+
+#### Target（未実装）
+
+Presentation実行時の複数往復を避けるため、`GET /presentations/{presentationId}/delivery`を追加し、Presentation Resourceと参照Assetの配信情報を一括取得できるようにする。これはPresentation Definitionとbinary取得情報のdelivery projectionであり、Realtime接続情報を返すSession bootstrapとは分離する。
+
+直接delivery APIはdurable Presentationのread policyを適用し、global adminまたは対象Presentationのowner/editorだけに許可する。sessionのpresenter/viewerはRealtime JWTでこのAPIを呼ばない。将来のSession bootstrapがjoin codeとsession roleを検証したうえで同じdelivery projectionをresponseへ組み込み、Unity runtimeへ渡す。Realtime JWTのaudienceはRealtime Backendに限定し、Control Planeの認証credentialとして流用しない。
+
+目標レスポンスの型は次の形とする。`PresentationResource`の`definition`には省略のないPresentation Definitionが入る。
+
+```ts
+type PresentationDelivery = {
+  presentation: PresentationResource;
+  assetBindings: Record<
+    string,
+    {
+      mediaType: AssetMediaType;
+      sizeBytes: number;
+      sha256Hex: string;
+      url: string;
+      expiresAt: string;
+    }
+  >;
+};
+```
+
+`assetBindings`は返却する`presentation.definition.assets`から導出し、そのAssetだけをAsset IDで引ける形にする。Presentation ResourceとAssetの所属・ready状態は、単一D1 statementまたは同等の一貫したsnapshotから読み、異なるrevisionの情報を混在させない。一件でも解決できない場合は部分的なdeliveryを返さず、再試行またはリクエスト全体の失敗とする。署名URLは永続化しない。
+
+実装時は共有schemaとOpenAPIを先に更新し、TypeScript client、Unity adapter、認可、Asset欠落、checksum検証、並行Presentation更新を含む境界テストを同期する。
 
 ## 17. Backpressure and Flow Control
 
@@ -985,85 +1075,60 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - secret、credential、signed URL を log しない
 - user/session/presentation ownership を D1 schema と policy の両方に反映する
 
+> **Status boundary — 23章から24章:** repositoryのCurrent snapshotと、Targetとの差分を記述する。実装状況を判断する際はこの範囲を正本とする。
+
 ## 23. 現行実装
 
-現在の `app/server/` は、目標アーキテクチャへの移行前に存在する Go HTTP backend である。
+旧 Go/Huma/Turso/R2 HTTP backend、migration、生成、専用 CI は削除済みである。Control Plane と Realtime Backend は、それぞれ独立した runtime・dependency・deployment 単位として追加する。
 
-### 23.1 Current Technology
+### 23.1 実装状況
 
-- Go 1.25.7
-- Huma v2 + Chi
-- Turso/libSQL
-- sqlc + goose
-- Cloudflare R2 S3-compatible presigned URL
-- distroless container
+- Control Plane: Phase 2とSession永続化境界を実装済み。Workers / Hono、Better Auth、D1 migration / repository、Presentation / Asset / Session API、Realtime credential / JWKS、persistence callback、OpenAPI、TypeScript clientがある
+- Realtime Backend: gRPC process、初期 Protobuf bidi service、page-change の session 内 sequence/fan-outを実装済み。test-only interceptorを使うTCP E2Eは通るが、通常processにはJWT interceptorがなくauthenticated identityをcontextへ設定できないため、現状のstream接続は`Unauthenticated`となる。JWT、snapshot/replay、ephemeral state、persistenceは未実装
+- Control Plane OpenAPI 3.0.3とTypeScript path型を`packages/contracts/`へ決定的に生成し、`packages/api-client-typescript/`がtyped runtime clientを提供する
+- Realtime Protocol Buffers は `packages/contracts/` を生成元とし、Go generated code と drift check を提供する
 
-### 23.2 Current Responsibilities
+### 23.2 移行上の注意
 
-- singleton presentation の作成、取得、一覧、更新
-- slide JSON の永続化
-- MR manifest の生成
-- asset upload 用 presigned URL 発行
-- asset metadata の保存
-- asset download 用 presigned URL 展開
-- Huma からの OpenAPI 生成
+- 旧 Turso data の移行と旧 HTTP API compatibility layer は作らない。
+- `packages/contracts/` はControl Plane OpenAPIとRealtime Protocol Buffersの共有境界とする。
+- Control Planeは共有Zod schemaとOpenAPI document builderを生成元とし、実HTTP routeとのmethod/path整合、committed OpenAPI / TypeScript型のdriftをCIで検査する。
 
-### 23.3 Current API
+## 24. Target / Implementation Matrix
 
-| Method | Path | 現行責務 |
-| --- | --- | --- |
-| GET | `/health` | process liveness |
-| POST | `/assets/init` | R2 upload URL と metadata 作成 |
-| POST | `/presentations` | singleton presentation 作成 |
-| GET | `/presentations` | summary 一覧 |
-| GET | `/presentations/{id}` | authoring model 取得 |
-| PUT | `/presentations/{id}` | metadata patch / slide 全置換 |
-| GET | `/presentations/{id}/manifest` | MR projection 取得 |
-
-### 23.4 Current Constraints
-
-- DB 全体で presentation は最大1件
-- user、tenant、owner、permission がない
-- authentication / authorization がない
-- session と realtime credential がない
-- gRPC / WebSocket / realtime state がない
-- upload finalize / object verification がない
-- asset/presentation delete がない
-- structured logging、metrics、tracing、readiness がない
-- migration は server 起動とは別に実行する
-
-現行 API の詳細は実装と生成済み OpenAPI を参照する。これらは移行中の current contract であり、目標 architecture の最終 contract ではない。
-
-## 24. Target / Current Gap Matrix
-
-| Area | Target | Current | Migration |
+| Area | Target | 現在の状態 | 次の作業 |
 | --- | --- | --- | --- |
-| Main runtime | Workers | Go HTTP server | 再実装が必要 |
-| Main language | TypeScript | Go | 再実装が必要 |
-| Main framework | Hono | Huma + Chi | 再実装が必要 |
-| Durable DB | D1 | Turso/libSQL | 新規schema。既存dataは移行しない |
-| Object storage | R2 | R2 | adapter/権限設計を移行 |
-| Authentication | Better Auth Device Authorization + Google OAuth | なし | 新規実装 |
-| Authorization | `admin/editor/presenter/viewer` | なし | 新規実装 |
-| Presentation model | 複数件、slide/contentは個別resource | global singleton | 互換性なしで再設計 |
-| Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | init + metadata のみ | target lifecycleで置換 |
-| Session management | Main Backend | なし | 新規設計・実装 |
-| Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | なし | 新規実装 |
-| Realtime server | Go gRPC container | なし | 新規 component |
-| Protocol | Protobuf gRPC bidi | なし | `.proto` 設計・生成 |
-| Realtime state | in-memory session state | なし | 新規実装 |
-| Persistence bridge | checkpoint/completion | なし | 双方に新規実装 |
-| Deployment | CF Containers / Fly.io | Dockerfileのみ | 今回の詳細検討対象外 |
-| Observability | logs/metrics/traces | minimal log | 新規基盤 |
+| Main runtime | Workers | D1/R2 binding、scheduled GC、運用設定を実装済み | 実resource ID / secretを環境へ設定してstaging smoke test |
+| Main language | TypeScript | auth / presentation / asset / session / persistence callback moduleを実装済み | consumer統合をPhase 4で追加 |
+| Main framework | Hono | health、auth mount、Presentation / Asset / Session / callback route、HTTP error boundaryを実装済み | consumer統合をPhase 4で追加 |
+| Durable DB | D1 | Better Auth、Presentation、Asset、Session、checkpoint / completion migration / repositoryを実装済み | 運用実測に基づくindex調整 |
+| Object storage | R2 | direct upload署名、finalize検証、download、delete、GCを実装済み | stagingでSigV4 / CORS / checksumを検証 |
+| Authentication | Better Auth Google OAuth + email/password MFA + Device Authorization | メール確認/reset、TOTP/backup code、cookie/Bearer、3秒poll、30分expiry、WebのGoogle login / Device承認画面を実装済み | Webのemail/password / MFA UIとUnity consumerを接続 |
+| Authorization | `admin/editor/presenter/viewer` | global admin、presentation owner/editorのrole storageと認可lookupを実装済み。editor管理APIは未実装 | editor管理APIとsession presenter/viewerを追加 |
+| Presentation model | 複数件、Group/Step/Cue Definition aggregate | schema、参照整合性、revision CRUDを実装済み | Web / Unity consumerをtarget contractへ移行 |
+| Presentation delivery | Definitionと参照Assetの配信情報を一括取得 | Presentation詳細とAsset単体download URLを実装済み | direct delivery API / Web consumerとSession bootstrap / Unity consumerを追加 |
+| Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | intent expiry、metadata-less object照合、削除のstructured operational logを含め実装済み | durable audit record、staging smoke test、運用値の実測調整 |
+| Session management | Main Backend | Waiting / Presenting / Ended、固定presenter、最大50人、join rate limitを実装済み | Realtime Backendとの終了状態照合 |
+| Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | 発行とJWKS公開を実装済み | Realtime Backendの検証とkey rotation運用 |
+| Realtime server | Go gRPC container | process lifecycle と初期 bidi service | JWT interceptor と session lifecycle を追加 |
+| Protocol | Protobuf gRPC bidi | page-change の初期 `.proto` と Go 生成/drift check | snapshot/replay、ephemeral、C# 生成を追加 |
+| Realtime state | in-memory session state | session 単位 sequence、bounded duplicate window、fan-out | canonical state、snapshot/replay、ephemeral state を追加 |
+| Persistence bridge | checkpoint/completion | Control Plane callback、service identity、D1重複排除を実装済み | Realtime Backendからの送信とbounded retry |
+| Deployment | CF Containers / Fly.io | 未実装 | component ごとに定義 |
+| Observability | logs/metrics/traces | Control Planeの秘匿化した構造化logを実装済み。auth query秘匿のため自動invocation log/traceは無効 | domain metrics、query redaction可能なtrace、Realtime telemetry、dashboard/alertを追加 |
+
+> **Status boundary — 25章から27章:** 実装順序、生成contract、完了までに必要なtestを記述するRoadmapである。各Phaseのstatus表示がCurrentの進捗を示す。
 
 ## 25. Migration Strategy
 
-大幅更新では現行Go HTTP APIをtarget architectureで全面置換する。Turso dataの移行とcurrent API compatibility layerは作らない。再利用はtarget設計に適合するpure logic、validation、test caseに限定する。
+旧 Go HTTP API は削除済みである。Turso data の移行と旧 API compatibility layer は作らない。target component は契約とテストを先に定義し、それぞれ独立して実装する。
 
-### Phase 1: Domain and Contract Definition
+### Phase 1: Domain and Contract Definition（一部実装済み）
+
+Presentation Definition、Asset lifecycle、Session lifecycle / join code、Realtime credential発行 / JWKS、Control Plane OpenAPI、初期Realtime Protocol Buffersは実装済みである。Realtime Backend側のcredential検証とsession authority照合は未実装である。
 
 - `admin/editor/presenter/viewer`のauthorization matrixをcontract化する
-- 複数presentationと個別slide/content resourceのtarget modelを定義する
+- 複数presentationとGroup/Step/Cue Definition aggregateのtarget modelを定義する
 - `xxxx-xxxx` join code、Waiting/Presenting、固定presenter、50人制限、終了規則をAPI contract化する
 - Main Backend OpenAPIのtarget contractを定義する
 - Realtime `.proto`、authority model、message semanticsを定義する
@@ -1076,11 +1141,11 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - durable / reliable / ephemeral state の分類が確定している
 - unresolved security boundary が列挙されている
 
-### Phase 2: Main Backend Foundation
+### Phase 2: Main Backend Foundation（実装済み）
 
 - Workers / TypeScript / Hono project を構築する
 - D1 migration と repository を実装する
-- Better Auth、Google OAuth、Device Authorization、Bearer、authorization boundaryを実装する
+- Better Auth、Google OAuth、email/password MFA、Device Authorization、Bearer、authorization boundaryを実装する
 - presentation / asset durable API を実装する
 - R2 upload finalize と asset status を実装する
 - target OpenAPI と TypeScript client を生成する
@@ -1091,7 +1156,9 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - D1/R2 binding を使う local/integration test がある
 - 空のD1 databaseからtarget schemaを構築できる
 
-### Phase 3: Realtime Backend Foundation
+### Phase 3: Realtime Backend Foundation（一部実装済み）
+
+Go gRPC process、生成済みProtobuf、初期single-instance coordinator、page-changeのsequence/fan-out、bounded reliable queue、overflow disconnect、TCP multi-client testは実装済みである。JWT/JWKS、snapshot/replay、ephemeral state、Unity client接続は未実装である。
 
 - Go gRPC server と generated Protobuf code を構築する
 - EdDSA/Ed25519 realtime JWT verificationとJWKS cacheを実装する
@@ -1106,7 +1173,9 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - sequence gap と snapshot resync をテストできる
 - slow client が session 全体を停止させない
 
-### Phase 4: Integration and Persistence
+### Phase 4: Integration and Persistence（一部着手）
+
+WebのGoogle loginとDevice Authorization承認画面、Control PlaneのSession bootstrapとcheckpoint / completion保存境界を実装済みである。Presentation/Asset consumer、Realtime接続、Realtime Backendからのcallback送信は未実装である。
 
 - Main Backend から session/credential を発行する
 - routing endpoint を client へ返す
@@ -1121,29 +1190,30 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - Main Backend 停止、Realtime 再起動、client 切断の failure test がある
 - secret/signed URL が log に出ない
 
-### Phase 5: Validation and Cutover
+### Phase 5: Validation and Cutover（未実装）
 
 - load / soak / reconnect test を実施する
 - observability dashboard と alert を準備する
-- Web EditorとUnityをtarget APIへ切り替える
-- current Go HTTP APIを削除する
-- Tursoを停止し、空のD1をauthorityとして運用開始する
+- Web EditorとUnityをtarget APIへ接続する
+- 空の D1 を authority として運用開始する
 
 完了条件:
 
 - target SLO と capacity を満たす
 - application rollback手順がある。Turso dataへのrollbackは行わない
-- current endpoint の利用が解消されている
+- Web EditorとUnityが旧ローカルmodelではなくtarget contractを利用している
 
 ## 26. Contract and Code Generation
 
 目標構成では contract を component 間 interface として明示的に管理する。
 
+Currentでは、Control PlaneのOpenAPI / TypeScript path型とruntime client、RealtimeのProtocol Buffers / Go生成物、双方のdrift checkまで実装済みである。Unity向けC# HTTP / gRPC生成、protocol compatibility policy、consumer接続はTargetである。
+
 ### 26.1 Main Backend
 
-- Hono route と schema validation の source of truth を決める
-- OpenAPI を決定的に生成する
-- Web Editor 用 TypeScript client を生成する
+- 共有Zod schemaとOpenAPI document builderをcontract sourceとする
+- OpenAPIとTypeScript path型を決定的に生成し、実routeのmethod/pathも検査する
+- Web Editor 用 TypeScript clientを提供する
 - Unity が使用する Main Backend HTTP client/model の生成方法を確立する
 
 ### 26.2 Realtime Backend
@@ -1158,10 +1228,16 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 ## 27. Testing Strategy
 
+この章はTarget architecture完了までに必要なtest catalogであり、列挙項目がすべて実装済みであることを意味しない。Current coverageと残りのtest境界を各項で分ける。
+
 ### 27.1 Main Backend
 
+CurrentではAuth、Presentation、Asset、Session、Realtime credential発行、persistence callback、OpenAPI、D1 migration / repository、R2 adapter、Worker起動境界をunit / Workers runtime testで検証している。
+
+完了までに必要なtest:
+
 - Hono route / schema validation test
-- Better Auth Google login / Device Authorization approval flow
+- Better Auth Google OAuth / email-password MFA / Device Authorization approval flow
 - device tokenの3秒polling、30分expiry、deny、slow_down
 - global admin / presentation editor authorization policy
 - D1 repository / migration test
@@ -1170,6 +1246,10 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - OpenAPI drift test
 
 ### 27.2 Realtime Backend
+
+Currentではprotocol mapping、初期session coordinator、page-change sequence/fan-out、duplicate window、queue overflow、slow participant切断、race detector、test-only identity interceptorを使うTCP E2Eを検証している。JWT/JWKS、snapshot/replay、ephemeral state、persistenceは未検証である。
+
+完了までに必要なtest:
 
 - protocol encode/decode compatibility
 - EdDSA/Ed25519 JWT、JWKS cache/rotation、claim validation
@@ -1184,10 +1264,14 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 ### 27.3 Integration
 
+CurrentではWebのDevice Authorization UIとControl Plane auth clientをcomponent内で検証している。Control Plane、Realtime、Unityを接続するrepository-level integration testは未実装である。
+
+完了までに必要なtest:
+
 - Web Editor / TypeScript generated client と Main Backend の互換性
 - Web Editor の presentation CRUD と R2 upload/finalize
 - Unity/C# generated client compatibility
-- Unity device code login → Google browser approval → session bootstrap → gRPC join
+- Unity device code login → browser approval → session bootstrap → gRPC join
 - `xxxx-xxxx` join codeのexpiry、rate limit、Waiting/Presenting join
 - multiple client synchronization
 - R2 asset download independent of gRPC
@@ -1196,6 +1280,8 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 - Realtime instance restart
 - credential expiryとsession終了後の再接続拒否
 - load / soak / network impairment
+
+> **Status boundary — 28章:** 未決定のcontractと運用parameterを記述する。決定後はADR、OpenAPI、Protocol Buffers、migrationなどの一次資料へ移す。
 
 ## 28. Open Questions
 
@@ -1247,11 +1333,6 @@ checkpoint対象と非対象のstate分類自体は15章で確定済みである
 
 ### 28.6 Asset Parameters
 
-- checksum algorithm
-- MIME sniffingの実装方式と許可MIME一覧
-- asset size上限
-- upload intentとsigned URLの有効期限
-- orphan collectionのgrace periodと実行間隔
 - Unity cacheの容量、LRU/TTL、disk pressure時の削除規則
 
 conversionは行わないため、converter runtimeは設計対象外である。

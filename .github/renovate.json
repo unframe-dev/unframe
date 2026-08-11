@@ -19,13 +19,14 @@
   },
   "packageRules": [
     {
-      "description": "app/server (Go modules)",
+      "description": "app/server/realtime (Go modules)",
       "matchManagers": ["gomod"],
+      "matchFileNames": ["app/server/realtime/go.mod"],
       "commitMessageTopic": "Go module {{depName}}",
-      "semanticCommitScope": "server"
+      "semanticCommitScope": "realtime"
     },
     {
-      "description": "app/web / lp / packages (npm/pnpm)",
+      "description": "control-plane / app/web / lp / packages (npm/pnpm)",
       "matchManagers": ["npm"],
       "semanticCommitScope": "deps"
     },

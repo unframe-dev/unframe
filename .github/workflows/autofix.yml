@@ -36,24 +36,24 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
       - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
 
-      - name: Cache Go build and module downloads
+      - name: Cache Realtime Go build and module downloads
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('app/server/go.sum') }}
+          key: ${{ runner.os }}-realtime-go-${{ hashFiles('app/server/realtime/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-realtime-go-
 
       # 依存の lifecycle script は実行しない (トークン非公開でも供給元コードの実行を避ける)。
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Apply autofix (server / contracts / lp / web)
+      - name: Apply autofix (control-plane / realtime / lp / web)
         run: |
-          nix run .#server -- fix
-          nix run .#contracts -- fix
+          nix run .#control-plane -- fix
+          nix run .#realtime -- fix
           nix run .#lp -- fix
           nix run .#web -- fix
 
@@ -69,6 +69,10 @@ jobs:
           if [ -z "$(git status --porcelain)" ]; then
             echo "変更なし"
             exit 0
+          fi
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::Autofixで変更が発生しましたが、AUTOFIX_TOKENが設定されていません。"
+            exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

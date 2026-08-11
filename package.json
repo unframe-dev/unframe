@@ -8,7 +8,8 @@
     "notion:sync": "pnpm --filter unframe-notion-sync sync"
   },
   "devDependencies": {
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "zod": "4.4.3"
   },
   "engines": {
     "node": ">=22"

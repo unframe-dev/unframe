@@ -1,14 +1,15 @@
 packages:
   - "app/*"
+  - "app/server/control-plane"
   - "lp"
   - "packages/*"
   - "scripts/docs/notion-sync"
 
 # Vite+ catalog: vite / vitest を Vite+ バンドル版に固定し、ワークスペース全体で共有する
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@latest
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.5
   vitest: npm:@voidzero-dev/vite-plus-test@latest
-  vite-plus: latest
+  vite-plus: 0.2.5
 
 peerDependencyRules:
   allowAny:
@@ -18,7 +19,15 @@ peerDependencyRules:
     vite: "*"
     vitest: "*"
 
+# @hookform/resolvers/zod imports zod but the package does not declare it as a peer.
+# Declare the missing edge so pnpm's strict linker connects the Web-owned dependency.
+packageExtensions:
+  "@hookform/resolvers@*":
+    peerDependencies:
+      zod: ">=3.25.0"
+
 allowBuilds:
+  better-sqlite3: false
   esbuild: true
   sharp: true
   workerd: true
