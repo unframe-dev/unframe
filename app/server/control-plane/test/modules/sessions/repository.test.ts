@@ -78,23 +78,19 @@ describe("D1SessionRepository", () => {
       { sessionId, userId: ownerId, role: "presenter", joinedAt: "2026-01-01" },
     );
     await env.DB.batch([
-      env.DB
-        .prepare(
-          `WITH RECURSIVE numbers(value) AS (VALUES(1) UNION ALL SELECT value + 1 FROM numbers WHERE value < 48)
+      env.DB.prepare(
+        `WITH RECURSIVE numbers(value) AS (VALUES(1) UNION ALL SELECT value + 1 FROM numbers WHERE value < 48)
            INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
            SELECT 'seed-' || value || ?, 'Viewer', 'seed-' || value || ? || '@example.test', 1, '2026-01-01', '2026-01-01' FROM numbers`,
-        )
-        .bind(suffix, suffix),
-      env.DB
-        .prepare(
-          `WITH RECURSIVE numbers(value) AS (VALUES(1) UNION ALL SELECT value + 1 FROM numbers WHERE value < 48)
+      ).bind(suffix, suffix),
+      env.DB.prepare(
+        `WITH RECURSIVE numbers(value) AS (VALUES(1) UNION ALL SELECT value + 1 FROM numbers WHERE value < 48)
            INSERT INTO session_participants (session_id, user_id, role, joined_at)
            SELECT ?, 'seed-' || value || ?, 'viewer', '2026-01-01' FROM numbers`,
-        )
-        .bind(sessionId, suffix),
-      env.DB
-        .prepare("UPDATE presentation_sessions SET participant_count = 49 WHERE id = ?")
-        .bind(sessionId),
+      ).bind(sessionId, suffix),
+      env.DB.prepare("UPDATE presentation_sessions SET participant_count = 49 WHERE id = ?").bind(
+        sessionId,
+      ),
     ]);
     const userIds = [`viewer-a-${suffix}`, `viewer-b-${suffix}`];
     await Promise.all(userIds.map(addUser));
