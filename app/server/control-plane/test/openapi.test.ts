@@ -5,11 +5,16 @@ import { createOpenAPIDocument } from "../src/openapi";
 const normalizePath = (path: string) => path.replace(/:([^/]+)/g, "{$1}");
 
 describe("Control Plane OpenAPI", () => {
-  it("documents every public presentation and asset route", () => {
+  it("documents every product-owned public route", () => {
     const actual = new Set(
       createApp()
         .routes.filter(
-          (route) => route.path.startsWith("/presentations") || route.path.startsWith("/assets"),
+          (route) =>
+            route.path.startsWith("/presentations") ||
+            route.path.startsWith("/assets") ||
+            route.path.startsWith("/sessions") ||
+            route.path.startsWith("/callbacks") ||
+            route.path === "/.well-known/jwks.json",
         )
         .map((route) => `${route.method.toLowerCase()} ${normalizePath(route.path)}`),
     );
@@ -32,6 +37,7 @@ describe("Control Plane OpenAPI", () => {
         in: "cookie",
         name: "__Secure-better-auth.session_token",
       },
+      serviceBearer: { type: "http", scheme: "bearer" },
     });
   });
 });
