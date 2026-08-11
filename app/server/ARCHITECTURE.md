@@ -1083,7 +1083,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 ### 23.1 実装状況
 
-- Control Plane: Phase 2を実装済み。Workers / Hono、Better Auth、D1 migration / repository、Presentation / Asset API、R2 adapter、OpenAPI、TypeScript clientがある
+- Control Plane: Phase 2とSession永続化境界を実装済み。Workers / Hono、Better Auth、D1 migration / repository、Presentation / Asset / Session API、Realtime credential / JWKS、persistence callback、OpenAPI、TypeScript clientがある
 - Realtime Backend: gRPC process、初期 Protobuf bidi service、page-change の session 内 sequence/fan-outを実装済み。test-only interceptorを使うTCP E2Eは通るが、通常processにはJWT interceptorがなくauthenticated identityをcontextへ設定できないため、現状のstream接続は`Unauthenticated`となる。JWT、snapshot/replay、ephemeral state、persistenceは未実装
 - Control Plane OpenAPI 3.0.3とTypeScript path型を`packages/contracts/`へ決定的に生成し、`packages/api-client-typescript/`がtyped runtime clientを提供する
 - Realtime Protocol Buffers は `packages/contracts/` を生成元とし、Go generated code と drift check を提供する
@@ -1099,21 +1099,21 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 | Area | Target | 現在の状態 | 次の作業 |
 | --- | --- | --- | --- |
 | Main runtime | Workers | D1/R2 binding、scheduled GC、運用設定を実装済み | 実resource ID / secretを環境へ設定してstaging smoke test |
-| Main language | TypeScript | auth / presentation / asset moduleを実装済み | session moduleをPhase 4で追加 |
-| Main framework | Hono | health、auth mount、Presentation / Asset route、HTTP error boundaryを実装済み | session / callback routeをPhase 4で追加 |
-| Durable DB | D1 | Better Auth、Presentation、Asset migration / repositoryを実装済み | session / checkpoint schemaをPhase 4で追加 |
+| Main language | TypeScript | auth / presentation / asset / session / persistence callback moduleを実装済み | consumer統合をPhase 4で追加 |
+| Main framework | Hono | health、auth mount、Presentation / Asset / Session / callback route、HTTP error boundaryを実装済み | consumer統合をPhase 4で追加 |
+| Durable DB | D1 | Better Auth、Presentation、Asset、Session、checkpoint / completion migration / repositoryを実装済み | 運用実測に基づくindex調整 |
 | Object storage | R2 | direct upload署名、finalize検証、download、delete、GCを実装済み | stagingでSigV4 / CORS / checksumを検証 |
 | Authentication | Better Auth Google OAuth + email/password MFA + Device Authorization | メール確認/reset、TOTP/backup code、cookie/Bearer、3秒poll、30分expiry、WebのGoogle login / Device承認画面を実装済み | Webのemail/password / MFA UIとUnity consumerを接続 |
 | Authorization | `admin/editor/presenter/viewer` | global admin、presentation owner/editorのrole storageと認可lookupを実装済み。editor管理APIは未実装 | editor管理APIとsession presenter/viewerを追加 |
 | Presentation model | 複数件、Group/Step/Cue Definition aggregate | schema、参照整合性、revision CRUDを実装済み | Web / Unity consumerをtarget contractへ移行 |
 | Presentation delivery | Definitionと参照Assetの配信情報を一括取得 | Presentation詳細とAsset単体download URLを実装済み | direct delivery API / Web consumerとSession bootstrap / Unity consumerを追加 |
 | Asset lifecycle | init/upload/finalize/verify/ready/delete/GC | intent expiry、metadata-less object照合、削除のstructured operational logを含め実装済み | durable audit record、staging smoke test、運用値の実測調整 |
-| Session management | Main Backend | なし | 新規設計・実装 |
-| Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | なし | 新規実装 |
+| Session management | Main Backend | Waiting / Presenting / Ended、固定presenter、最大50人、join rate limitを実装済み | Realtime Backendとの終了状態照合 |
+| Realtime credential | session-bound EdDSA/Ed25519 JWT、1週間 | 発行とJWKS公開を実装済み | Realtime Backendの検証とkey rotation運用 |
 | Realtime server | Go gRPC container | process lifecycle と初期 bidi service | JWT interceptor と session lifecycle を追加 |
 | Protocol | Protobuf gRPC bidi | page-change の初期 `.proto` と Go 生成/drift check | snapshot/replay、ephemeral、C# 生成を追加 |
 | Realtime state | in-memory session state | session 単位 sequence、bounded duplicate window、fan-out | canonical state、snapshot/replay、ephemeral state を追加 |
-| Persistence bridge | checkpoint/completion | なし | 双方に新規実装 |
+| Persistence bridge | checkpoint/completion | Control Plane callback、service identity、D1重複排除を実装済み | Realtime Backendからの送信とbounded retry |
 | Deployment | CF Containers / Fly.io | 未実装 | component ごとに定義 |
 | Observability | logs/metrics/traces | Control Planeの秘匿化した構造化logを実装済み。auth query秘匿のため自動invocation log/traceは無効 | domain metrics、query redaction可能なtrace、Realtime telemetry、dashboard/alertを追加 |
 
@@ -1125,7 +1125,7 @@ UDP / QUIC は gRPC/TCP が実際の user experience 上の bottleneck である
 
 ### Phase 1: Domain and Contract Definition（一部実装済み）
 
-Presentation Definition、Asset lifecycle、Control Plane OpenAPI、初期Realtime Protocol Buffersは実装済みである。Session lifecycle、join code、Realtime authorityの完全なcontractは未実装である。
+Presentation Definition、Asset lifecycle、Session lifecycle / join code、Realtime credential発行 / JWKS、Control Plane OpenAPI、初期Realtime Protocol Buffersは実装済みである。Realtime Backend側のcredential検証とsession authority照合は未実装である。
 
 - `admin/editor/presenter/viewer`のauthorization matrixをcontract化する
 - 複数presentationとGroup/Step/Cue Definition aggregateのtarget modelを定義する
@@ -1175,7 +1175,7 @@ Go gRPC process、生成済みProtobuf、初期single-instance coordinator、pag
 
 ### Phase 4: Integration and Persistence（一部着手）
 
-WebのGoogle loginとDevice Authorization承認画面だけを接続済みである。Session bootstrap、Presentation/Asset consumer、Realtime接続、checkpoint persistenceは未実装である。
+WebのGoogle loginとDevice Authorization承認画面、Control PlaneのSession bootstrapとcheckpoint / completion保存境界を実装済みである。Presentation/Asset consumer、Realtime接続、Realtime Backendからのcallback送信は未実装である。
 
 - Main Backend から session/credential を発行する
 - routing endpoint を client へ返す
@@ -1232,7 +1232,7 @@ Currentでは、Control PlaneのOpenAPI / TypeScript path型とruntime client、
 
 ### 27.1 Main Backend
 
-CurrentではAuth、Presentation、Asset、OpenAPI、D1 migration / repository、R2 adapter、Worker起動境界をunit / Workers runtime testで検証している。SessionとRealtime credential発行は未実装のためtestも存在しない。
+CurrentではAuth、Presentation、Asset、Session、Realtime credential発行、persistence callback、OpenAPI、D1 migration / repository、R2 adapter、Worker起動境界をunit / Workers runtime testで検証している。
 
 完了までに必要なtest:
 

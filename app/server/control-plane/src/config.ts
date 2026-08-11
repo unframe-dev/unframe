@@ -18,6 +18,20 @@ const originUrl = (name: string) =>
       return url.origin === value;
     }, `${name} must be an origin URL`);
 
+const privateEd25519Jwk = z.string().transform((value, context): JsonWebKey => {
+  try {
+    const jwk = JSON.parse(value) as JsonWebKey;
+    if (jwk.kty === "OKP" && jwk.crv === "Ed25519" && jwk.d && jwk.x) return jwk;
+  } catch {
+    // The validation issue below deliberately excludes secret material.
+  }
+  context.addIssue({
+    code: "custom",
+    message: "REALTIME_SIGNING_JWK must be an Ed25519 private JWK",
+  });
+  return z.NEVER;
+});
+
 const runtimeConfigSchema = z.object({
   DB: binding<D1Database>("DB", ["prepare", "batch", "exec"]),
   ASSETS: binding<R2Bucket>("ASSETS", ["head", "get", "put", "delete", "list"]),
@@ -39,6 +53,14 @@ const runtimeConfigSchema = z.object({
   R2_BUCKET_NAME: requiredString("R2_BUCKET_NAME"),
   R2_ACCESS_KEY_ID: requiredString("R2_ACCESS_KEY_ID"),
   R2_SECRET_ACCESS_KEY: requiredString("R2_SECRET_ACCESS_KEY"),
+  REALTIME_ENDPOINT: requiredString("REALTIME_ENDPOINT").url("REALTIME_ENDPOINT must be a URL"),
+  REALTIME_ISSUER: requiredString("REALTIME_ISSUER").url("REALTIME_ISSUER must be a URL"),
+  REALTIME_SIGNING_KID: requiredString("REALTIME_SIGNING_KID"),
+  REALTIME_SIGNING_JWK: privateEd25519Jwk,
+  SERVICE_IDENTITY_SECRET: requiredString("SERVICE_IDENTITY_SECRET").min(
+    32,
+    "SERVICE_IDENTITY_SECRET must be at least 32 characters",
+  ),
 });
 
 export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;
