@@ -18,6 +18,12 @@ const config = () => ({
   R2_BUCKET_NAME: "assets",
   R2_ACCESS_KEY_ID: "access-key",
   R2_SECRET_ACCESS_KEY: "secret-key",
+  REALTIME_ENDPOINT: "https://realtime.example.com",
+  REALTIME_ISSUER: "https://api.example.com",
+  REALTIME_SIGNING_KID: "test-realtime",
+  REALTIME_SIGNING_JWK:
+    '{"crv":"Ed25519","d":"NpZQSdEURSFKTVz6-pzQdlaclGrXKEU63J612Pbyycw","x":"TqLQxsPp47KvbpA1ZgokEIlJdEGV3qjSoYq9F1d5AN4","kty":"OKP"}',
+  SERVICE_IDENTITY_SECRET: "test-service-identity-secret-32-characters",
 });
 
 describe("runtime configuration", () => {
@@ -25,6 +31,7 @@ describe("runtime configuration", () => {
     expect(validateConfig(config())).toMatchObject({
       WEB_ORIGIN: "https://app.example.com",
       R2_BUCKET_NAME: "assets",
+      REALTIME_ENDPOINT: "https://realtime.example.com",
     });
   });
 
@@ -51,6 +58,11 @@ describe("runtime configuration", () => {
     ["R2_BUCKET_NAME", ""],
     ["R2_ACCESS_KEY_ID", ""],
     ["R2_SECRET_ACCESS_KEY", ""],
+    ["REALTIME_ENDPOINT", "not-a-url"],
+    ["REALTIME_ISSUER", "not-a-url"],
+    ["REALTIME_SIGNING_KID", ""],
+    ["REALTIME_SIGNING_JWK", "{}"],
+    ["SERVICE_IDENTITY_SECRET", "short"],
   ])("rejects an invalid %s", (field, value) => {
     const environment = { ...config(), [field]: value };
     expect(() => validateConfig(environment)).toThrow(ConfigurationError);

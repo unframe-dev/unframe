@@ -6,6 +6,9 @@ import { identityFromSession } from "./auth/identity";
 import { createAuth } from "./auth/options";
 import { registerPresentationRoutes, type PresentationRouteOptions } from "./presentation/routes";
 import { registerAssetRoutes, type AssetRouteOptions } from "./modules/assets/routes";
+import { registerPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
+import { RealtimeBootstrapCredentials } from "./modules/realtime-bootstrap/credential";
+import { registerSessionRoutes, type SessionRouteOptions } from "./modules/sessions/routes";
 
 const internalError = {
   error: {
@@ -30,7 +33,13 @@ const forbidden = {
 
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-export function createApp(options: Partial<PresentationRouteOptions & AssetRouteOptions> = {}) {
+type AppOptions = Partial<PresentationRouteOptions & AssetRouteOptions> &
+  Partial<Omit<SessionRouteOptions, "identityProvider" | "now" | "id">> & {
+    sessionNow?: () => Date;
+    sessionId?: () => string;
+  };
+
+export function createApp(options: AppOptions = {}) {
   const app = new Hono<AppEnvironment>();
 
   app.onError((error, context) => {
@@ -73,6 +82,15 @@ export function createApp(options: Partial<PresentationRouteOptions & AssetRoute
     await next();
   });
   app.get("/health", (context) => context.json({ status: "ok" }));
+  app.get("/.well-known/jwks.json", async (context) => {
+    const config = context.get("config");
+    return context.json(
+      await new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
+        issuer: config.REALTIME_ISSUER,
+        keyId: config.REALTIME_SIGNING_KID,
+      }).jwks(),
+    );
+  });
   const requireEstablishedDeviceApprover = async (
     context: Parameters<typeof identityFromSession>[0],
     next: () => Promise<void>,
@@ -100,6 +118,18 @@ export function createApp(options: Partial<PresentationRouteOptions & AssetRoute
     identityProvider: options.identityProvider ?? identityFromSession,
     services: options.services,
   });
+  registerSessionRoutes(app, {
+    identityProvider: options.identityProvider ?? identityFromSession,
+    ...(options.sessionRepository ? { sessionRepository: options.sessionRepository } : {}),
+    ...(options.presentationRepository
+      ? { presentationRepository: options.presentationRepository }
+      : {}),
+    ...(options.credentials ? { credentials: options.credentials } : {}),
+    ...(options.sessionNow ? { now: options.sessionNow } : {}),
+    ...(options.sessionId ? { id: options.sessionId } : {}),
+    ...(options.joinCode ? { joinCode: options.joinCode } : {}),
+  });
+  registerPersistenceCallbackRoutes(app);
 
   return app;
 }

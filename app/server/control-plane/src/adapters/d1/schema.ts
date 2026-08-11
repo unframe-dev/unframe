@@ -46,3 +46,33 @@ export const presentationAssetRefs = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.presentationId, table.assetId] })],
 );
+
+export const presentationSessions = sqliteTable("presentation_sessions", {
+  id: text().primaryKey(),
+  presentationId: text("presentation_id").notNull(),
+  presenterId: text("presenter_id").notNull(),
+  joinCodeHash: text("join_code_hash").notNull(),
+  state: text().$type<"Waiting" | "Presenting" | "Ended">().notNull(),
+  participantCount: integer("participant_count").notNull(),
+  maxParticipants: integer("max_participants").notNull(),
+  createdAt: text("created_at").notNull(),
+  endedAt: text("ended_at"),
+});
+
+export const sessionParticipants = sqliteTable(
+  "session_participants",
+  {
+    sessionId: text("session_id").notNull(),
+    userId: text("user_id").notNull(),
+    role: text().$type<"presenter" | "viewer">().notNull(),
+    joinedAt: text("joined_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.sessionId, table.userId] })],
+);
+
+export const sessionJoinAttempts = sqliteTable("session_join_attempts", {
+  codeHash: text("code_hash").notNull(),
+  userId: text("user_id").notNull(),
+  ipAddress: text("ip_address").notNull(),
+  attemptedAt: integer("attempted_at").notNull(),
+});

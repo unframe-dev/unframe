@@ -13,4 +13,10 @@ export const env = {
   R2_BUCKET_NAME: "assets",
   R2_ACCESS_KEY_ID: "access-key",
   R2_SECRET_ACCESS_KEY: "secret-key",
+  REALTIME_ENDPOINT: "https://realtime.example.com",
+  REALTIME_ISSUER: "https://api.example.com",
+  REALTIME_SIGNING_KID: "test-realtime",
+  REALTIME_SIGNING_JWK:
+    '{"crv":"Ed25519","d":"NpZQSdEURSFKTVz6-pzQdlaclGrXKEU63J612Pbyycw","x":"TqLQxsPp47KvbpA1ZgokEIlJdEGV3qjSoYq9F1d5AN4","kty":"OKP"}',
+  SERVICE_IDENTITY_SECRET: "test-service-identity-secret-32-characters",
 };
