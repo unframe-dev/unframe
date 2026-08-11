@@ -75,6 +75,7 @@ jobs:
               - *shared
               - '.github/workflows/web.yml'
               - 'app/web/**'
+              - 'packages/api-client-typescript/**'
             lp:
               - *shared
               - '.github/workflows/lp.yml'
