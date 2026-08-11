@@ -1,4 +1,4 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { assetInitInputSchema, assetMediaTypeSchema } from "./modules/assets/schema";
 import {
   checkpointInputSchema,
@@ -49,13 +49,12 @@ const uploadSchema = z.object({
     }),
   }),
 });
-const idParameter = z.object({
-  id: z
-    .string()
-    .min(1)
-    .max(128)
-    .regex(/^[A-Za-z0-9_-]+$/),
-});
+const identifierSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_-]+$/);
+const idParameter = z.object({ id: identifierSchema }).strict();
 const sessionResourceSchema = z.object({
   id: z.string(),
   presentationId: z.string(),
@@ -66,7 +65,7 @@ const sessionResourceSchema = z.object({
   createdAt: z.string().datetime(),
   endedAt: z.string().datetime().nullable(),
 });
-const sessionIdParameter = z.object({ id: z.string().min(1).max(128) });
+const sessionIdParameter = idParameter;
 const realtimeConnectionSchema = z.object({
   endpoint: z.string().url(),
   credential: z.string(),
@@ -79,7 +78,10 @@ export const publicRoutes = [
     path: "/presentations",
     security,
     request: {
-      body: { content: { "application/json": { schema: presentationCreateDefinitionSchema } } },
+      body: {
+        required: true,
+        content: { "application/json": { schema: presentationCreateDefinitionSchema } },
+      },
     },
     responses: {
       201: {
@@ -129,12 +131,15 @@ export const publicRoutes = [
     request: {
       params: idParameter,
       body: {
+        required: true,
         content: {
           "application/json": {
-            schema: z.object({
-              expectedRevision: z.number().int().positive(),
-              definition: presentationDefinitionSchema,
-            }),
+            schema: z
+              .object({
+                expectedRevision: z.number().int().positive(),
+                definition: presentationDefinitionSchema,
+              })
+              .strict(),
           },
         },
       },
@@ -159,9 +164,10 @@ export const publicRoutes = [
     request: {
       params: idParameter,
       body: {
+        required: true,
         content: {
           "application/json": {
-            schema: z.object({ expectedRevision: z.number().int().positive() }),
+            schema: z.object({ expectedRevision: z.number().int().positive() }).strict(),
           },
         },
       },
@@ -179,7 +185,12 @@ export const publicRoutes = [
     method: "post",
     path: "/assets/uploads",
     security,
-    request: { body: { content: { "application/json": { schema: assetInitInputSchema } } } },
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: assetInitInputSchema } },
+      },
+    },
     responses: {
       201: {
         description: "Upload initialized",
@@ -271,7 +282,12 @@ export const publicRoutes = [
     security,
     request: {
       body: {
-        content: { "application/json": { schema: z.object({ presentationId: z.string() }) } },
+        required: true,
+        content: {
+          "application/json": {
+            schema: z.object({ presentationId: identifierSchema }).strict(),
+          },
+        },
       },
     },
     responses: {
@@ -294,7 +310,12 @@ export const publicRoutes = [
     path: "/sessions/join",
     security,
     request: {
-      body: { content: { "application/json": { schema: z.object({ joinCode: joinCodeSchema }) } } },
+      body: {
+        required: true,
+        content: {
+          "application/json": { schema: z.object({ joinCode: joinCodeSchema }).strict() },
+        },
+      },
     },
     responses: {
       200: {
@@ -324,25 +345,40 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
     },
   }),
-  ...(["start", "end"] as const).map((action) =>
-    createRoute({
-      method: "post",
-      path: `/sessions/{id}/${action}`,
-      security,
-      request: { params: sessionIdParameter },
-      responses: {
-        200: {
-          description: action === "start" ? "Presenting" : "Ended",
-          content: { "application/json": { schema: sessionResourceSchema } },
-        },
-        400: errorResponse("Invalid id"),
-        401: errorResponse("Unauthorized"),
-        403: errorResponse("Forbidden"),
-        404: errorResponse("Not found"),
-        409: errorResponse("Invalid transition"),
+  createRoute({
+    method: "post",
+    path: "/sessions/{id}/start",
+    security,
+    request: { params: sessionIdParameter },
+    responses: {
+      200: {
+        description: "Presenting",
+        content: { "application/json": { schema: sessionResourceSchema } },
       },
-    }),
-  ),
+      400: errorResponse("Invalid id"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      404: errorResponse("Not found"),
+      409: errorResponse("Invalid transition"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/sessions/{id}/end",
+    security,
+    request: { params: sessionIdParameter },
+    responses: {
+      200: {
+        description: "Ended",
+        content: { "application/json": { schema: sessionResourceSchema } },
+      },
+      400: errorResponse("Invalid id"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      404: errorResponse("Not found"),
+      409: errorResponse("Invalid transition"),
+    },
+  }),
   createRoute({
     method: "post",
     path: "/sessions/{id}/bootstrap",
@@ -390,7 +426,12 @@ export const publicRoutes = [
     method: "post",
     path: "/callbacks/checkpoints",
     security: serviceSecurity,
-    request: { body: { content: { "application/json": { schema: checkpointInputSchema } } } },
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: checkpointInputSchema } },
+      },
+    },
     responses: {
       200: {
         description: "Persistence result",
@@ -405,7 +446,12 @@ export const publicRoutes = [
     method: "post",
     path: "/callbacks/completions",
     security: serviceSecurity,
-    request: { body: { content: { "application/json": { schema: completionInputSchema } } } },
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: completionInputSchema } },
+      },
+    },
     responses: {
       200: {
         description: "Persistence result",
@@ -418,24 +464,22 @@ export const publicRoutes = [
   }),
 ] as const;
 
-export const createOpenAPIDocument = () => {
-  const app = new OpenAPIHono();
-  app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
-    type: "http",
-    scheme: "bearer",
-  });
-  app.openAPIRegistry.registerComponent("securitySchemes", "cookieSession", {
-    type: "apiKey",
-    in: "cookie",
-    name: "__Secure-better-auth.session_token",
-  });
-  app.openAPIRegistry.registerComponent("securitySchemes", "serviceBearer", {
-    type: "http",
-    scheme: "bearer",
-  });
-  publicRoutes.forEach((route) => app.openapi(route, (context) => context.body(null)));
-  return app.getOpenAPIDocument({
-    openapi: "3.0.3",
-    info: { title: "Unframe Control Plane", version: "1.0.0" },
-  });
-};
+export const createPresentationRoute = publicRoutes[0];
+export const listPresentationsRoute = publicRoutes[1];
+export const getPresentationRoute = publicRoutes[2];
+export const replacePresentationRoute = publicRoutes[3];
+export const deletePresentationRoute = publicRoutes[4];
+export const initAssetUploadRoute = publicRoutes[5];
+export const getAssetRoute = publicRoutes[6];
+export const finalizeAssetRoute = publicRoutes[7];
+export const downloadAssetRoute = publicRoutes[8];
+export const deleteAssetRoute = publicRoutes[9];
+export const createSessionRoute = publicRoutes[10];
+export const joinSessionRoute = publicRoutes[11];
+export const getSessionRoute = publicRoutes[12];
+export const startSessionRoute = publicRoutes[13];
+export const endSessionRoute = publicRoutes[14];
+export const bootstrapSessionRoute = publicRoutes[15];
+export const jwksRoute = publicRoutes[16];
+export const checkpointRoute = publicRoutes[17];
+export const completionRoute = publicRoutes[18];

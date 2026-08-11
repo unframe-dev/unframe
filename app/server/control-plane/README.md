@@ -11,7 +11,7 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 - Waiting / Presenting / Ended のSession lifecycle、50人上限、固定presenter、hash化join codeとcode / user / IP別rate limit
 - session participant向けの1週間有効なEd25519 Realtime credentialと公開JWKS
 - Realtime service identity専用のidempotent checkpoint / completion callback
-- OpenAPI と TypeScript client の生成・drift check
+- 実行ルートと一体化した OpenAPI 生成、Hono RPC TypeScript client、契約 drift check
 
 認証endpointとserver-side policyまでが実装済みです。Web / Unityのemail/password UIはこのcomponentの対象外で、まだ接続していません。
 Realtime BackendでのJWT検証とsession終了状態の照合、Web / Unityからのconsumer接続は未実装です。
@@ -49,7 +49,7 @@ Realtime credential署名にはEd25519 private JWKのJSONを`REALTIME_SIGNING_JW
 
 Worker起動時に全設定を検証するため、`pnpm deploy` または直接 `wrangler deploy` を実行した際に不足・不正な設定があればデプロイは失敗します。エラーには設定名だけを出し、値は出力しません。
 
-OpenAPI 3.0.3 と生成 TypeScript 型は `packages/contracts/`、typed runtime client は `packages/api-client-typescript/` にあります。Better Auth が所有するendpointは`better-auth@1.6.26`へ固定した認証clientから型付きで利用でき、参照用OpenAPI 3.1.1は`GET /api/auth/open-api/generate-schema`で取得できます。
+Product-owned endpoint は `createRoute` と `OpenAPIHono` で実装・入力検証・OpenAPI・Hono RPC型を一元化しています。OpenAPI 3.0.3 と言語非依存の生成 TypeScript 型は `packages/contracts/`、Hono RPC client は `packages/api-client-typescript/` にあります。Better Auth が所有するendpointは`better-auth@1.6.26`へ固定した認証clientから型付きで利用でき、参照用OpenAPI 3.1.1は`GET /api/auth/open-api/generate-schema`で取得できます。
 
 未処理例外は route pattern、例外名、incident ID だけを構造化ログへ記録し、message、credential、signed URL を response やログへ出しません。
 OAuth codeやDevice Authorization user codeをqueryに含むため、Workers invocation logsと自動traceは無効化しています。

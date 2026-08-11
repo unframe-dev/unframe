@@ -13,9 +13,9 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
-    "@unframe/contracts": "workspace:*",
+    "@unframe/control-plane": "workspace:*",
     "better-auth": "1.6.26",
-    "openapi-fetch": "0.17.0"
+    "hono": "^4.13.1"
   },
   "devDependencies": {
     "@unframe/config": "workspace:*",

@@ -65,8 +65,12 @@ const runtimeConfigSchema = z.object({
 
 export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;
 export type AppEnvironment = {
-  Bindings: CloudflareBindings;
-  Variables: { config: RuntimeConfig };
+  // Route handlers consume RuntimeConfig, so generated Worker bindings must not leak into RPC consumers.
+  Bindings: object;
+  Variables: {
+    config: RuntimeConfig;
+    identity?: { userId: string; globalRole: "admin" | "user" };
+  };
 };
 
 export class ConfigurationError extends Error {

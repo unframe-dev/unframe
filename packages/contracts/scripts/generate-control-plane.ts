@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import openapiTS, { astToString } from "openapi-typescript";
-import { createOpenAPIDocument } from "../../../app/server/control-plane/src/openapi";
+import { createOpenAPIDocument } from "../../../app/server/control-plane/src/app";
 
 const root = resolve(import.meta.dirname, ".."); const specPath = resolve(root, "openapi/control-plane.openapi.json"); const typePath = resolve(root, "src/control-plane.openapi.ts");
 const document = `${JSON.stringify(createOpenAPIDocument(), null, 2)}\n`; const types = `// Generated from openapi/control-plane.openapi.json. Do not edit.\n${astToString(await openapiTS(JSON.parse(document)))}`;

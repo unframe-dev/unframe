@@ -286,7 +286,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         /** @enum {number} */
@@ -1133,7 +1133,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         expectedRevision: number;
@@ -1711,7 +1711,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         expectedRevision: number;
@@ -1819,7 +1819,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         presentationId: string;
@@ -2376,7 +2376,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         presentationId: string;
@@ -2489,7 +2489,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         joinCode: string;
@@ -3056,55 +3056,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/.well-known/jwks.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Realtime signing keys */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            keys: {
-                                /** @enum {string} */
-                                kty: "OKP";
-                                /** @enum {string} */
-                                crv: "Ed25519";
-                                x: string;
-                                kid: string;
-                                /** @enum {string} */
-                                alg: "EdDSA";
-                                /** @enum {string} */
-                                use: "sig";
-                                key_ops: "verify"[];
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/callbacks/checkpoints": {
         parameters: {
             query?: never;
@@ -3121,7 +3072,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         /** Format: uuid */
@@ -3213,7 +3164,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": {
                         /** Format: uuid */
@@ -3293,6 +3244,55 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/jwks.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Realtime signing keys */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            keys: {
+                                /** @enum {string} */
+                                kty: "OKP";
+                                /** @enum {string} */
+                                crv: "Ed25519";
+                                x: string;
+                                kid: string;
+                                /** @enum {string} */
+                                alg: "EdDSA";
+                                /** @enum {string} */
+                                use: "sig";
+                                key_ops: "verify"[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

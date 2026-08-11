@@ -1,14 +1,16 @@
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
 import { routePath } from "hono/route";
 import { type AppEnvironment, validateConfig } from "./config";
 import { identityFromSession } from "./auth/identity";
 import { createAuth } from "./auth/options";
-import { registerPresentationRoutes, type PresentationRouteOptions } from "./presentation/routes";
-import { registerAssetRoutes, type AssetRouteOptions } from "./modules/assets/routes";
-import { registerPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
+import { createPresentationRoutes, type PresentationRouteOptions } from "./presentation/routes";
+import { createAssetRoutes, type AssetRouteOptions } from "./modules/assets/routes";
+import { createPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
 import { RealtimeBootstrapCredentials } from "./modules/realtime-bootstrap/credential";
-import { registerSessionRoutes, type SessionRouteOptions } from "./modules/sessions/routes";
+import { createSessionRoutes, type SessionRouteOptions } from "./modules/sessions/routes";
+import { jwksRoute } from "./openapi";
 
 const internalError = {
   error: {
@@ -32,6 +34,7 @@ const forbidden = {
 } as const;
 
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const productRoutePrefixes = ["/presentations", "/assets", "/sessions", "/callbacks"];
 
 type AppOptions = Partial<PresentationRouteOptions & AssetRouteOptions> &
   Partial<Omit<SessionRouteOptions, "identityProvider" | "now" | "id">> & {
@@ -39,10 +42,73 @@ type AppOptions = Partial<PresentationRouteOptions & AssetRouteOptions> &
     sessionId?: () => string;
   };
 
+export function createProductApi(options: AppOptions = {}) {
+  const identityProvider = options.identityProvider ?? identityFromSession;
+  const presentations = createPresentationRoutes({
+    identityProvider,
+    repository: options.repository,
+    now: options.now,
+    id: options.id,
+  });
+  const assets = presentations.route(
+    "/",
+    createAssetRoutes({ identityProvider, services: options.services }),
+  );
+  const sessions = assets.route(
+    "/",
+    createSessionRoutes({
+      identityProvider,
+      ...(options.sessionRepository ? { sessionRepository: options.sessionRepository } : {}),
+      ...(options.presentationRepository
+        ? { presentationRepository: options.presentationRepository }
+        : {}),
+      ...(options.credentials ? { credentials: options.credentials } : {}),
+      ...(options.sessionNow ? { now: options.sessionNow } : {}),
+      ...(options.sessionId ? { id: options.sessionId } : {}),
+      ...(options.joinCode ? { joinCode: options.joinCode } : {}),
+    }),
+  );
+  const callbacks = sessions.route("/", createPersistenceCallbackRoutes());
+  return callbacks.openapi(jwksRoute, async (context) => {
+    const config = context.get("config");
+    return context.json(
+      await new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
+        issuer: config.REALTIME_ISSUER,
+        keyId: config.REALTIME_SIGNING_KID,
+      }).jwks(),
+      200,
+    );
+  });
+}
+
+export type AppType = ReturnType<typeof createProductApi>;
+
+export const createOpenAPIDocument = () => {
+  const app = createProductApi();
+  app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
+    type: "http",
+    scheme: "bearer",
+  });
+  app.openAPIRegistry.registerComponent("securitySchemes", "cookieSession", {
+    type: "apiKey",
+    in: "cookie",
+    name: "__Secure-better-auth.session_token",
+  });
+  app.openAPIRegistry.registerComponent("securitySchemes", "serviceBearer", {
+    type: "http",
+    scheme: "bearer",
+  });
+  return app.getOpenAPIDocument({
+    openapi: "3.0.3",
+    info: { title: "Unframe Control Plane", version: "1.0.0" },
+  });
+};
+
 export function createApp(options: AppOptions = {}) {
-  const app = new Hono<AppEnvironment>();
+  const app = new OpenAPIHono<AppEnvironment>();
 
   app.onError((error, context) => {
+    if (error instanceof HTTPException) return error.getResponse();
     const incidentId = crypto.randomUUID();
     console.error(
       JSON.stringify({
@@ -58,6 +124,21 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.notFound((context) => context.json(notFound, 404));
+
+  app.use("*", async (context, next) => {
+    await next();
+    if (
+      context.res.status === 400 &&
+      context.res.headers.get("content-type")?.startsWith("text/plain") &&
+      productRoutePrefixes.some((prefix) => context.req.path.startsWith(prefix)) &&
+      (await context.res.clone().text()).startsWith("Malformed JSON")
+    ) {
+      context.res = context.json(
+        { error: { code: "validation_error", message: "Invalid JSON body" } },
+        400,
+      );
+    }
+  });
 
   app.use("*", async (context, next) => {
     context.set("config", validateConfig(context.env));
@@ -82,15 +163,6 @@ export function createApp(options: AppOptions = {}) {
     await next();
   });
   app.get("/health", (context) => context.json({ status: "ok" }));
-  app.get("/.well-known/jwks.json", async (context) => {
-    const config = context.get("config");
-    return context.json(
-      await new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
-        issuer: config.REALTIME_ISSUER,
-        keyId: config.REALTIME_SIGNING_KID,
-      }).jwks(),
-    );
-  });
   const requireEstablishedDeviceApprover = async (
     context: Parameters<typeof identityFromSession>[0],
     next: () => Promise<void>,
@@ -108,28 +180,7 @@ export function createApp(options: AppOptions = {}) {
       backgroundTaskHandler: (task) => context.executionCtx.waitUntil(task),
     }).handler(context.req.raw),
   );
-  registerPresentationRoutes(app, {
-    identityProvider: options.identityProvider ?? identityFromSession,
-    repository: options.repository,
-    now: options.now,
-    id: options.id,
-  });
-  registerAssetRoutes(app, {
-    identityProvider: options.identityProvider ?? identityFromSession,
-    services: options.services,
-  });
-  registerSessionRoutes(app, {
-    identityProvider: options.identityProvider ?? identityFromSession,
-    ...(options.sessionRepository ? { sessionRepository: options.sessionRepository } : {}),
-    ...(options.presentationRepository
-      ? { presentationRepository: options.presentationRepository }
-      : {}),
-    ...(options.credentials ? { credentials: options.credentials } : {}),
-    ...(options.sessionNow ? { now: options.sessionNow } : {}),
-    ...(options.sessionId ? { id: options.sessionId } : {}),
-    ...(options.joinCode ? { joinCode: options.joinCode } : {}),
-  });
-  registerPersistenceCallbackRoutes(app);
+  app.route("/", createProductApi(options));
 
   return app;
 }

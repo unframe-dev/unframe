@@ -298,7 +298,8 @@ app/server/
 │   │   ├── presentation/        # Presentation service, schema, routes, D1 repository
 │   │   ├── modules/assets/      # Asset use cases, models, ports, routes
 │   │   ├── adapters/assets/     # D1 and R2 adapters
-│   │   └── openapi.ts           # OpenAPI document builder
+│   │   ├── openapi.ts           # Runtime validation / RPC / OpenAPI route contracts
+│   │   └── rpc.ts               # Hono RPC AppType export boundary
 │   └── test/                    # Workers runtime and module tests
 ├── realtime/                     # Go / gRPC / container
 │   ├── .dockerignore
