@@ -316,6 +316,7 @@ GameObject:
   - component: {fileID: 4005}
   - component: {fileID: 4006}
   - component: {fileID: 4007}
+  - component: {fileID: 4008}
   m_Layer: 0
   m_Name: Local Presentation Demo
   m_TagString: Untagged
@@ -390,6 +391,22 @@ MonoBehaviour:
   primaryActionName: Attack
   nextActionName: Next
   motionReference: {fileID: 4011}
+--- !u!114 &4008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_GameObject: {fileID: 4000}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: 1f7c5ab12a0c4d8f9e6b3c2a1d5f7089, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::DemoGestureController
+  effectRoot: {fileID: 4011}
+  headCamera: {fileID: 3000}
+  actionMapName: Player
+  triggerActionName: MotionTriggerRight
+  positionActionName: MotionPositionRight
+  rotationActionName: MotionRotationRight
+  downwardSpeedThreshold: 1.5
+  horizontalSpeedThreshold: 1.5
+  gestureCooldown: 0.8
 --- !u!1 &4010
 GameObject:
   m_ObjectHideFlags: 0
