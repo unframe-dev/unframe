@@ -28,28 +28,40 @@ public sealed class PresentationActionExecutor
             case "setVisible":
             case "setActive":
                 target.SetActive(action.boolValue);
-                logger.Info($"Action: {action.type} -> {action.targetId} = {action.boolValue}.");
+                logger.Info(
+                    $"Action: {action.type} -> {action.targetId} = {action.boolValue}, " +
+                    $"activeSelf={target.activeSelf}."
+                );
                 return true;
             case "setPosition":
                 target.transform.localPosition = ElementLoaderUtility.ToVector3(
                     action.vectorValue,
                     target.transform.localPosition
                 );
-                logger.Info($"Action: {action.type} -> {action.targetId}.");
+                logger.Info(
+                    $"Action: {action.type} -> {action.targetId}, " +
+                    $"position={target.transform.localPosition}."
+                );
                 return true;
             case "setRotation":
                 target.transform.localEulerAngles = ElementLoaderUtility.ToVector3(
                     action.vectorValue,
                     target.transform.localEulerAngles
                 );
-                logger.Info($"Action: {action.type} -> {action.targetId}.");
+                logger.Info(
+                    $"Action: {action.type} -> {action.targetId}, " +
+                    $"rotation={target.transform.localEulerAngles}."
+                );
                 return true;
             case "setScale":
                 target.transform.localScale = ElementLoaderUtility.ToVector3(
                     action.vectorValue,
                     target.transform.localScale
                 );
-                logger.Info($"Action: {action.type} -> {action.targetId}.");
+                logger.Info(
+                    $"Action: {action.type} -> {action.targetId}, " +
+                    $"scale={target.transform.localScale}."
+                );
                 return true;
             default:
                 logger.Warning($"Unsupported action type: {action.type}.");

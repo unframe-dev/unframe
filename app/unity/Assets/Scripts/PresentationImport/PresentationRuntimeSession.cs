@@ -38,21 +38,44 @@ public sealed class PresentationRuntimeSession : MonoBehaviour
 
     public bool ProcessInput(string input)
     {
-        if (importer == null || importer.Document?.presentation == null)
+        return ProcessTrigger(new PresentationTriggerContext(input));
+    }
+
+    public bool ProcessTrigger(PresentationTriggerContext context)
+    {
+        if (importer == null || importer.Document?.presentation == null || context == null)
         {
             runtimeLogger?.Warning("Input ignored because no presentation is loaded.");
             return false;
         }
 
-        runtimeLogger.Info($"Input: {input}.");
-        string previousStepId = State.CurrentStepId;
-        if (!State.TryProcessInput(importer.Document.presentation, input, out PresentationCue cue))
+        bool hasLogicalInput = !string.IsNullOrEmpty(context.Input);
+        if (hasLogicalInput)
         {
-            runtimeLogger.Info($"Input ignored at step={State.CurrentStepId ?? "none"}.");
+            runtimeLogger.Info(
+                $"Trigger context: input={context.Input}, " +
+                $"motion={(context.Motion == null ? "none" : "available")}."
+            );
+        }
+        string previousStepId = State.CurrentStepId;
+        if (!State.TryProcessTrigger(
+                importer.Document.presentation,
+                context,
+                out PresentationCue cue
+            ))
+        {
+            if (hasLogicalInput)
+            {
+                runtimeLogger.Info($"Input ignored at step={State.CurrentStepId ?? "none"}.");
+            }
             return false;
         }
 
-        runtimeLogger.Info($"Cue triggered: {cue.id}.");
+        runtimeLogger.Info(
+            $"Cue triggered: {cue.id}, " +
+            $"actions={cue.actions?.Length ?? 0}, " +
+            $"nextStep={cue.nextStep ?? "none"}."
+        );
         PresentationActionExecutor executor = new PresentationActionExecutor(
             importer.Elements,
             runtimeLogger

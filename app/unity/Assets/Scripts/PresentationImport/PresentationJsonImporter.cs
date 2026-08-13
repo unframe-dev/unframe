@@ -46,6 +46,7 @@ public sealed class PresentationJsonImporter : MonoBehaviour
 
     public PresentationDocument Import(string json)
     {
+        runtimeLogger.Info($"Import started (jsonLength={json?.Length ?? 0}).");
         if (string.IsNullOrWhiteSpace(json))
         {
             runtimeLogger.Error("JSON is empty.");
@@ -93,8 +94,6 @@ public sealed class PresentationJsonImporter : MonoBehaviour
             ImportedGroup importedGroup = groupObject.AddComponent<ImportedGroup>();
             importedGroup.GroupId = group.id;
             importedGroup.GroupIndex = i;
-            runtimeLogger.Info($"Group ready: {group.id} (active: {i == 0}).");
-
             ElementLoadContext context = new ElementLoadContext(
                 groupObject.transform,
                 presentation,
@@ -147,6 +146,10 @@ public sealed class PresentationJsonImporter : MonoBehaviour
         foreach (PresentationElement element in elements)
         {
             GameObject elementObject = registry.Load(element, context);
+            if (elementObject == null)
+            {
+                runtimeLogger.Error($"Element load failed: id={element?.id ?? "missing"}.");
+            }
             Elements.Register(elementObject);
         }
     }

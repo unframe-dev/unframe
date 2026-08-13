@@ -300,7 +300,7 @@
                 {
                     "name": "",
                     "id": "8255d333-5683-4943-a58a-ccb207ff1dce",
-                    "path": "<XRController>/{PrimaryAction}",
+                    "path": "<XRController>/primaryButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "XR",
@@ -344,7 +344,7 @@
                 {
                     "name": "",
                     "id": "f3cb5d0e-2d8f-4d19-a9f9-7b2e4d0e8c31",
-                    "path": "<XRController>/{SecondaryAction}",
+                    "path": "<XRController>/secondaryButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "XR",

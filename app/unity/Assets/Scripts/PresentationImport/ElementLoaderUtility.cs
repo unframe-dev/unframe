@@ -2,6 +2,9 @@ using UnityEngine;
 
 public static class ElementLoaderUtility
 {
+    private const string PresentationUnlitShaderPath =
+        "PresentationMaterials/PresentationUnlit";
+
     public static GameObject CreateRoot(PresentationElement element, ElementLoadContext context)
     {
         GameObject root = new GameObject(string.IsNullOrEmpty(element.id) ? element.type : element.id);
@@ -63,6 +66,9 @@ public static class ElementLoaderUtility
         Renderer renderer = target.GetComponent<Renderer>();
         if (renderer == null)
         {
+            Debug.LogError(
+                $"[Presentation/Material] Renderer missing: object={target.name}."
+            );
             return;
         }
 
@@ -80,18 +86,57 @@ public static class ElementLoaderUtility
             material.SetColor("_BaseColor", color);
         }
 
+        if (material == null)
+        {
+            Debug.LogError(
+                $"[Presentation/Material] Assignment skipped: object={target.name}."
+            );
+            return;
+        }
+
         renderer.material = material;
+        Debug.Log(
+            $"[Presentation/Material] Assigned: object={target.name}, " +
+            $"renderer={renderer.GetType().Name}, shader={material.shader?.name ?? "missing"}, " +
+            $"supported={material.shader?.isSupported ?? false}, " +
+            $"baseColor={material.HasProperty("_BaseColor")}, " +
+            $"material={material.name}, opacity={opacity:F2}."
+        );
     }
 
     public static Material CreateUnlitMaterial(Color color, Texture texture = null)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Texture");
+        Shader shader = Resources.Load<Shader>(PresentationUnlitShaderPath);
+        string source = "Resources";
         if (shader == null)
         {
+            shader = Shader.Find("Universal Render Pipeline/Unlit");
+            source = "URP Shader.Find";
+        }
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Unlit/Texture");
+            source = "Legacy Shader.Find";
+        }
+
+        if (shader == null)
+        {
+            Debug.LogError(
+                "[Presentation/Material] No compatible unlit shader found. " +
+                $"Resources path={PresentationUnlitShaderPath}."
+            );
             return null;
         }
 
+        Debug.Log(
+            $"[Presentation/Material] Shader resolved: source={source}, " +
+            $"shader={shader.name}, supported={shader.isSupported}, " +
+            $"color={color}, texture={(texture == null ? "none" : texture.name)}."
+        );
+
         Material material = new Material(shader);
+        material.name = "Presentation Runtime Unlit";
         if (material.HasProperty("_BaseColor"))
         {
             material.SetColor("_BaseColor", color);

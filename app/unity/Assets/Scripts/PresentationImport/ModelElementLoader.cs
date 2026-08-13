@@ -6,7 +6,14 @@ public sealed class ModelElementLoader : IElementLoader
 
     public GameObject Load(PresentationElement element, ElementLoadContext context)
     {
-        GameObject prefab = context.LoadResource<GameObject>(element.assetId ?? element.content?.assetId);
+        string assetId = element.assetId ?? element.content?.assetId;
+        GameObject prefab = context.LoadResource<GameObject>(assetId);
+        if (prefab == null)
+        {
+            Debug.LogError(
+                $"[Presentation/Model] Prefab not found: element={element.id}, asset={assetId ?? "missing"}."
+            );
+        }
         GameObject root = prefab != null
             ? Object.Instantiate(prefab, context.Parent)
             : new GameObject(string.IsNullOrEmpty(element.id) ? element.type : element.id);

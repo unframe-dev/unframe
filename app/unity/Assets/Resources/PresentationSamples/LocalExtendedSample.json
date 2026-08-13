@@ -17,13 +17,7 @@
       },
       "zones": []
     },
-    "assets": [
-      {
-        "id": "asset_cube",
-        "type": "model",
-        "src": "Cube.prefab"
-      }
-    ],
+    "assets": [],
     "groups": [
       {
         "id": "group_extended_demo",
@@ -125,32 +119,6 @@
                 "scale": [1.0, 1.0, 1.0]
               }
             }
-          },
-          {
-            "id": "extended_cube",
-            "type": "model",
-            "assetId": "asset_cube",
-            "initialState": {
-              "visible": false,
-              "transform": {
-                "position": [-0.85, 0.72, 2.0],
-                "rotation": [0.0, 25.0, 0.0],
-                "scale": [0.28, 0.28, 0.28]
-              }
-            }
-          },
-          {
-            "id": "extended_cube_copy",
-            "type": "model",
-            "assetId": "asset_cube",
-            "initialState": {
-              "visible": false,
-              "transform": {
-                "position": [0.85, 0.72, 2.0],
-                "rotation": [0.0, 335.0, 0.0],
-                "scale": [0.22, 0.22, 0.22]
-              }
-            }
           }
         ],
         "dynamicGroups": [],
@@ -182,26 +150,6 @@
                     "targetId": "extended_note",
                     "type": "setVisible",
                     "value": true
-                  },
-                  {
-                    "targetId": "extended_cube",
-                    "type": "setVisible",
-                    "value": true
-                  },
-                  {
-                    "targetId": "extended_cube_copy",
-                    "type": "setVisible",
-                    "value": true
-                  },
-                  {
-                    "targetId": "extended_cube",
-                    "type": "setPosition",
-                    "value": [-0.55, 0.72, 2.0]
-                  },
-                  {
-                    "targetId": "extended_cube_copy",
-                    "type": "setPosition",
-                    "value": [0.55, 0.72, 2.0]
                   }
                 ],
                 "nextStep": "step_02"
@@ -240,7 +188,7 @@
             "id": "step_03",
             "cues": [
               {
-                "id": "cue_focus_left_model",
+                "id": "cue_focus_text",
                 "trigger": {
                   "type": "input",
                   "condition": {
@@ -250,14 +198,14 @@
                 },
                 "actions": [
                   {
-                    "targetId": "extended_cube",
-                    "type": "setScale",
-                    "value": [0.42, 0.42, 0.42]
-                  },
-                  {
-                    "targetId": "extended_cube_copy",
+                    "targetId": "extended_chapter",
                     "type": "setVisible",
                     "value": false
+                  },
+                  {
+                    "targetId": "extended_note",
+                    "type": "setVisible",
+                    "value": true
                   }
                 ],
                 "nextStep": "step_04"
@@ -277,11 +225,6 @@
                   }
                 },
                 "actions": [
-                  {
-                    "targetId": "extended_cube",
-                    "type": "setPosition",
-                    "value": [0.0, 0.72, 2.0]
-                  },
                   {
                     "targetId": "extended_panel",
                     "type": "setScale",
@@ -312,11 +255,6 @@
                 "actions": [
                   {
                     "targetId": "extended_title",
-                    "type": "setVisible",
-                    "value": false
-                  },
-                  {
-                    "targetId": "extended_cube",
                     "type": "setVisible",
                     "value": false
                   }

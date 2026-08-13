@@ -18,6 +18,29 @@ public sealed class PresentationImportEditModeTests
     }
 
     [Test]
+    public void LocalSamples_ContainNoModelElements()
+    {
+        foreach (string resourceName in new[]
+        {
+            "PresentationSamples/LocalSample",
+            "PresentationSamples/LocalExtendedSample"
+        })
+        {
+            TextAsset asset = Resources.Load<TextAsset>(resourceName);
+            Assert.That(asset, Is.Not.Null, resourceName);
+
+            PresentationDocument document = JsonUtility.FromJson<PresentationDocument>(asset.text);
+            foreach (PresentationGroup group in document.presentation.groups)
+            {
+                foreach (PresentationElement element in group.elements)
+                {
+                    Assert.That(element.type, Is.Not.EqualTo("model"), resourceName);
+                }
+            }
+        }
+    }
+
+    [Test]
     public void DefaultRegistrySupportsAllInitialElementTypes()
     {
         ElementLoaderRegistry registry = new ElementLoaderRegistry();
@@ -91,6 +114,239 @@ public sealed class PresentationImportEditModeTests
         Assert.That(parser.TryParse(json, out _, out string error), Is.False);
         Assert.That(error, Does.Contain("cue"));
         Assert.That(error, Does.Contain("id"));
+    }
+
+    [Test]
+    public void TriggerEvaluator_MatchesOnlyTheRequestedLogicalInputAndState()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "input",
+            condition = new TriggerCondition
+            {
+                input = "primary",
+                state = "pressed"
+            }
+        };
+
+        Assert.That(
+            evaluator.Evaluate(trigger, new PresentationTriggerContext("primary", "pressed")),
+            Is.True
+        );
+        Assert.That(
+            evaluator.Evaluate(trigger, new PresentationTriggerContext("secondary", "pressed")),
+            Is.False
+        );
+        Assert.That(
+            evaluator.Evaluate(trigger, new PresentationTriggerContext("primary", "released")),
+            Is.False
+        );
+    }
+
+    [Test]
+    public void TriggerEvaluator_RejectsInputTriggerWithoutLogicalInput()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "input",
+            condition = new TriggerCondition { state = "pressed" }
+        };
+
+        Assert.That(
+            evaluator.Evaluate(
+                trigger,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0.2f, 0f, 0f),
+                        0.2f,
+                        true
+                    )
+                )
+            ),
+            Is.False
+        );
+    }
+
+    [Test]
+    public void MotionTrigger_RequiresHeldButtonAndMatchesBuiltInPresets()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "motion",
+            reference = "swipe_right"
+        };
+
+        PresentationTriggerContext releasedContext = new PresentationTriggerContext(
+            null,
+            motion: new PresentationMotionSnapshot(
+                Vector3.zero,
+                new Vector3(0.2f, 0f, 0f),
+                0.2f,
+                false
+            )
+        );
+        PresentationTriggerContext heldContext = new PresentationTriggerContext(
+            null,
+            motion: new PresentationMotionSnapshot(
+                Vector3.zero,
+                new Vector3(0.2f, 0f, 0f),
+                0.2f,
+                true
+            )
+        );
+
+        Assert.That(evaluator.Evaluate(trigger, releasedContext), Is.False);
+        Assert.That(evaluator.Evaluate(trigger, heldContext), Is.True);
+    }
+
+    [Test]
+    public void MotionTrigger_UsesPresetMaximumDurationWhenConditionIsMissing()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationTrigger trigger = new PresentationTrigger
+        {
+            type = "motion",
+            reference = "swipe_right"
+        };
+
+        Assert.That(
+            evaluator.Evaluate(
+                trigger,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0.2f, 0f, 0f),
+                        0.5f,
+                        true
+                    )
+                )
+            ),
+            Is.True
+        );
+        Assert.That(
+            evaluator.Evaluate(
+                trigger,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0.2f, 0f, 0f),
+                        1.0f,
+                        true
+                    )
+                )
+            ),
+            Is.False
+        );
+    }
+
+    [Test]
+    public void MotionTrigger_RejectsWrongDirectionAndUnknownPreset()
+    {
+        PresentationTriggerEvaluator evaluator = new PresentationTriggerEvaluator();
+        PresentationMotionSnapshot motion = new PresentationMotionSnapshot(
+            Vector3.zero,
+            new Vector3(0f, 0f, 0.2f),
+            0.2f,
+            true
+        );
+
+        Assert.That(
+            evaluator.Evaluate(
+                new PresentationTrigger { type = "motion", reference = "swipe_right" },
+                new PresentationTriggerContext(null, motion: motion)
+            ),
+            Is.False
+        );
+        Assert.That(
+            evaluator.Evaluate(
+                new PresentationTrigger { type = "motion", reference = "unknown" },
+                new PresentationTriggerContext(null, motion: motion)
+            ),
+            Is.False
+        );
+    }
+
+    [Test]
+    public void RuntimeState_ProcessesMotionTriggerThroughTriggerContext()
+    {
+        PresentationGroup group = new PresentationGroup
+        {
+            id = "group_01",
+            steps = new[]
+            {
+                new PresentationStep
+                {
+                    id = "step_01",
+                    cues = new[]
+                    {
+                        new PresentationCue
+                        {
+                            id = "cue_motion",
+                            trigger = new PresentationTrigger
+                            {
+                                type = "motion",
+                                reference = "push_forward"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        PresentationData presentation = new PresentationData { groups = new[] { group } };
+        PresentationRuntimeState state = new PresentationRuntimeState();
+        state.Reset(presentation);
+
+        Assert.That(
+            state.TryProcessTrigger(
+                presentation,
+                new PresentationTriggerContext(
+                    null,
+                    motion: new PresentationMotionSnapshot(
+                        Vector3.zero,
+                        new Vector3(0f, 0f, 0.2f),
+                        0.2f,
+                        true
+                    )
+                ),
+                out PresentationCue cue
+            ),
+            Is.True
+        );
+        Assert.That(cue.id, Is.EqualTo("cue_motion"));
+    }
+
+    [Test]
+    public void MotionTracker_AccumulatesWhileHeldAndResetsOnRelease()
+    {
+        PresentationMotionTracker tracker = new PresentationMotionTracker();
+        PresentationMotionSnapshot snapshot;
+
+        Assert.That(
+            tracker.TryUpdate(true, Vector3.zero, 0.1f, out snapshot),
+            Is.False
+        );
+        Assert.That(
+            tracker.TryUpdate(true, new Vector3(0.2f, 0f, 0f), 0.2f, out snapshot),
+            Is.True
+        );
+        Assert.That(snapshot.Distance, Is.EqualTo(0.2f));
+        Assert.That(snapshot.Duration, Is.EqualTo(0.2f));
+
+        Assert.That(
+            tracker.TryUpdate(false, new Vector3(0.3f, 0f, 0f), 0.2f, out snapshot),
+            Is.False
+        );
+        Assert.That(
+            tracker.TryUpdate(true, new Vector3(0.4f, 0f, 0f), 0.1f, out snapshot),
+            Is.False
+        );
     }
 
     [Test]
@@ -291,8 +547,14 @@ public sealed class PresentationImportEditModeTests
 
         Assert.That(target.activeSelf, Is.True);
         Assert.That(target.transform.localPosition, Is.EqualTo(new Vector3(1f, 2f, 3f)));
-        Assert.That(logger.Messages, Has.Some.EqualTo("Action: setVisible -> element_01 = True."));
-        Assert.That(logger.Messages, Has.Some.EqualTo("Action: setPosition -> element_01."));
+        Assert.That(
+            logger.Messages,
+            Has.Some.Contains("Action: setVisible -> element_01 = True")
+        );
+        Assert.That(
+            logger.Messages,
+            Has.Some.Contains("Action: setPosition -> element_01")
+        );
         Object.DestroyImmediate(target);
     }
 
