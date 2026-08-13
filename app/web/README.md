@@ -79,7 +79,7 @@ nix run .#check
 /editor/foo         -> /foo -> SPA index fallback
 ```
 
-`un-fra.me/editor` と `un-fra.me/editor/*` を LP より具体的な Worker route として設定し、Vite の `base` と Router の `basepath` も `/editor` に揃えています。設定変更後は binding 型を再生成してください。
+`un-fra.me/editor` と `un-fra.me/editor/*` は、LP の `un-fra.me/*` より具体的な Worker route として [../infra](../../../infra/README.md) の Terraform で管理します。Vite の `base` と Router の `basepath` は `/editor` に揃えています。Worker 設定変更後は binding 型を再生成してください。
 
 ```bash
 pnpm --filter @unframe/web run cf:types

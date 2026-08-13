@@ -30,6 +30,9 @@ pnpm r2:cors:list
 
 `db:migrate:remote` と `r2:cors:apply` は remote resource を変更するため、対象 account と resource を確認してから実行してください。R2 CORS は Web Editor からの signed `PUT` / `GET` に必要です。
 
+`api.un-fra.me` の Worker Custom Domain はリポジトリ外の [`infra`](../../../../infra/README.md)
+Terraform で管理します。Wrangler は Worker の build / deploy、secret、D1 migration を担当します。
+
 ## Commands
 
 ```sh

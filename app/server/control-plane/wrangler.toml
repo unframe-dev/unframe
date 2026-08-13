@@ -44,9 +44,7 @@ bucket_name = "unframe-assets"
 [triggers]
 crons = ["0 3 * * *"]
 
-[[routes]]
-pattern = "api.un-fra.me"
-custom_domain = true
+# The api.un-fra.me Custom Domain is managed in the sibling unframe-dev/infra repository.
 
 [observability]
 enabled = true
