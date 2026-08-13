@@ -1,4 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { dash } from "@better-auth/infra";
 import { bearer, twoFactor } from "better-auth/plugins";
 import { deviceAuthorization } from "better-auth/plugins/device-authorization";
 import { openAPI } from "better-auth/plugins";
@@ -9,6 +10,7 @@ export type AuthConfiguration = Pick<
   RuntimeConfig,
   | "BETTER_AUTH_SECRET"
   | "BETTER_AUTH_URL"
+  | "BETTER_AUTH_API_KEY"
   | "DEVICE_CLIENT_ID"
   | "GOOGLE_CLIENT_ID"
   | "GOOGLE_CLIENT_SECRET"
@@ -98,6 +100,7 @@ export function createAuthOptions(
       },
     },
     plugins: [
+      dash({ apiKey: env.BETTER_AUTH_API_KEY }),
       bearer(),
       deviceAuthorization({
         expiresIn: "30m",

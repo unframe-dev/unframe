@@ -18,7 +18,9 @@ export default defineConfig({
       miniflare: {
         compatibilityDate: "2026-08-01",
         bindings: {
+          WEB_ORIGIN: "https://un-fra.me",
           BETTER_AUTH_SECRET: "test-secret-with-at-least-thirty-two-characters",
+          BETTER_AUTH_API_KEY: "test-api-key",
           GOOGLE_CLIENT_ID: "google-client-id",
           GOOGLE_CLIENT_SECRET: "google-client-secret",
           RESEND_API_KEY: "re_test_key",

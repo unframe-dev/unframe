@@ -10,6 +10,7 @@ export const auth = betterAuth(
       BETTER_AUTH_SECRET:
         process.env.BETTER_AUTH_SECRET ?? "development-secret-with-at-least-thirty-two-characters",
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "http://localhost:8787",
+      BETTER_AUTH_API_KEY: process.env.BETTER_AUTH_API_KEY ?? "schema-generation-api-key",
       DEVICE_CLIENT_ID: process.env.DEVICE_CLIENT_ID ?? "unframe-unity",
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "schema-generation-client",
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "schema-generation-secret",

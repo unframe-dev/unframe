@@ -8,6 +8,7 @@ const testEnvironment = () => ({
   DB: env.DB,
   BETTER_AUTH_SECRET: "test-secret-with-at-least-thirty-two-characters",
   BETTER_AUTH_URL: "https://example.com",
+  BETTER_AUTH_API_KEY: "test-api-key",
   DEVICE_CLIENT_ID: "unframe-unity",
   GOOGLE_CLIENT_ID: "google-client-id",
   GOOGLE_CLIENT_SECRET: "google-client-secret",
@@ -502,7 +503,7 @@ describe("Better Auth device authorization", () => {
     expect(existing.status).toBe(200);
     expect(missing.status).toBe(200);
     await expect(existing.json()).resolves.toEqual(await missing.json());
-    expect(tasks).toHaveLength(1);
+    expect(tasks).toHaveLength(2);
     await Promise.allSettled(tasks);
   });
   it("enables password authentication, email verification, and encrypted TOTP backup codes", () => {
@@ -517,6 +518,13 @@ describe("Better Auth device authorization", () => {
       requireLocalEmailVerified: false,
     });
     expect(options.plugins.some((plugin) => plugin.id === "two-factor")).toBe(true);
+  });
+  it("configures Dash with the API key without enabling activity tracking", () => {
+    const options = createAuthOptions(testEnvironment(), env.DB);
+    const dashPlugin = options.plugins.find((plugin) => plugin.id === "dash");
+
+    expect(dashPlugin).toMatchObject({ options: { apiKey: "test-api-key" } });
+    expect(dashPlugin?.options.activityTracking).not.toMatchObject({ enabled: true });
   });
   it("publishes the Better Auth OpenAPI schema without enabling the reference UI", async () => {
     const schema = await auth().handler(

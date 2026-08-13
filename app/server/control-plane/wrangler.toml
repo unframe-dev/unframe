@@ -1,16 +1,31 @@
 "$schema" = "./node_modules/wrangler/config-schema.json"
 
 name = "unframe-control-plane"
+account_id = "5e51990fc7286bc6106950b1617361c9"
 main = "./src/index.ts"
 compatibility_date = "2026-08-09"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 
+[secrets]
+required = [
+  "BETTER_AUTH_SECRET",
+  "BETTER_AUTH_API_KEY",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "RESEND_API_KEY",
+  "AUTH_EMAIL_FROM",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "REALTIME_SIGNING_JWK",
+  "SERVICE_IDENTITY_SECRET",
+]
+
 [vars]
 BETTER_AUTH_URL = "https://api.un-fra.me"
 DEVICE_CLIENT_ID = "unframe-unity"
 WEB_ORIGIN = "https://un-fra.me"
-R2_ACCOUNT_ID = "replace-with-r2-account-id"
+R2_ACCOUNT_ID = "5e51990fc7286bc6106950b1617361c9"
 R2_BUCKET_NAME = "unframe-assets"
 REALTIME_ENDPOINT = "https://realtime.un-fra.me"
 REALTIME_ISSUER = "https://api.un-fra.me"
@@ -19,7 +34,7 @@ REALTIME_SIGNING_KID = "realtime-2026-08"
 [[d1_databases]]
 binding = "DB"
 database_name = "unframe-control-plane"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "ac5f8d8b-4563-489e-9419-4bfc7a8d1022"
 migrations_dir = "migrations"
 
 [[r2_buckets]]

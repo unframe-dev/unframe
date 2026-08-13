@@ -9,6 +9,7 @@ node_modules/
 # Cloudflare Wrangler — `.dev.vars` はローカル Worker の秘密値
 # (DATABASE_URL / SUPABASE_SERVICE_ROLE_KEY) を保持する。絶対に commit しない。
 .dev.vars
+.dev.vars.zwc
 .dev.vars.local
 .wrangler/
 

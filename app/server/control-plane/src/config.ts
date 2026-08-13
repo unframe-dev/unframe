@@ -40,6 +40,7 @@ const runtimeConfigSchema = z.object({
     "BETTER_AUTH_SECRET must be at least 32 characters",
   ),
   BETTER_AUTH_URL: requiredString("BETTER_AUTH_URL").url("BETTER_AUTH_URL must be a URL"),
+  BETTER_AUTH_API_KEY: requiredString("BETTER_AUTH_API_KEY"),
   DEVICE_CLIENT_ID: requiredString("DEVICE_CLIENT_ID"),
   GOOGLE_CLIENT_ID: requiredString("GOOGLE_CLIENT_ID"),
   GOOGLE_CLIENT_SECRET: requiredString("GOOGLE_CLIENT_SECRET"),

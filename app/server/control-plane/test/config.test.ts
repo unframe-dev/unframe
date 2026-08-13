@@ -8,6 +8,7 @@ const config = () => ({
   ASSETS: { head: () => {}, get: () => {}, put: () => {}, delete: () => {}, list: () => {} },
   BETTER_AUTH_SECRET: "a".repeat(32),
   BETTER_AUTH_URL: "https://api.example.com",
+  BETTER_AUTH_API_KEY: "test-api-key",
   DEVICE_CLIENT_ID: "unity-client",
   GOOGLE_CLIENT_ID: "google-client",
   GOOGLE_CLIENT_SECRET: "google-secret",
@@ -48,6 +49,7 @@ describe("runtime configuration", () => {
   it.each([
     ["BETTER_AUTH_SECRET", "short"],
     ["BETTER_AUTH_URL", "not-a-url"],
+    ["BETTER_AUTH_API_KEY", ""],
     ["DEVICE_CLIENT_ID", ""],
     ["GOOGLE_CLIENT_ID", ""],
     ["GOOGLE_CLIENT_SECRET", ""],

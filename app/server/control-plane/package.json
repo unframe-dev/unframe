@@ -25,6 +25,7 @@
     "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm contracts:check && pnpm client:check && pnpm build"
   },
   "dependencies": {
+    "@better-auth/infra": "0.3.7",
     "@hono/zod-openapi": "^1.5.2",
     "aws4fetch": "1.0.20",
     "better-auth": "1.6.26",

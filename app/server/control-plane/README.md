@@ -19,7 +19,7 @@ R2 objectを孤児化させないため、Asset metadataが残るPresentationは
 
 ## Setup
 
-`wrangler.toml` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。
+`wrangler.toml` の D1 `database_id` と `R2_ACCOUNT_ID` は環境の値へ置き換えてください。秘密値は `.dev.vars.example` を参照し、ローカルでは `.dev.vars`、remote 環境では `wrangler secret put` で設定します。Better Auth Infrastructure連携を使う場合は、Dashboardで発行した `BETTER_AUTH_API_KEY` も同じ方法で設定してください。
 
 ```sh
 pnpm db:migrate:local
