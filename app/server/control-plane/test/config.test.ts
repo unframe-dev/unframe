@@ -91,13 +91,8 @@ describe("runtime configuration", () => {
     expect(() => validateConfig({ ...config(), [field]: value })).toThrow(ConfigurationError);
   });
 
-  it("rejects an invalid environment while creating the worker", () => {
-    expect(() =>
-      createWorker({
-        ...config(),
-        R2_ACCOUNT_ID: "replace-with-r2-account-id",
-      } as unknown as CloudflareBindings),
-    ).toThrow(ConfigurationError);
+  it("defers environment validation until request handling", () => {
+    expect(() => createWorker()).not.toThrow();
   });
 
   it("rejects an invalid environment before handling a request", async () => {

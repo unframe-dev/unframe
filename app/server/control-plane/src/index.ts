@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { createApp } from "./app";
 import { validateConfig, type RuntimeConfig } from "./config";
 import { AssetService, type AssetServices } from "./modules/assets/service";
@@ -33,10 +32,9 @@ export const createScheduledHandler =
     );
   };
 
-export function createWorker(environment: CloudflareBindings) {
-  validateConfig(environment);
+export function createWorker() {
   const app = createApp();
   return { fetch: app.fetch, scheduled: createScheduledHandler() };
 }
 
-export default createWorker(env);
+export default createWorker();
