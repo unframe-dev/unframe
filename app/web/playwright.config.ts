@@ -21,7 +21,7 @@ export default defineConfig({
   },
   webServer: {
     command: "pnpm run dev:e2e",
-    url: `${baseURL}/editor/`,
+    url: `${baseURL}/`,
     reuseExistingServer: !isCI,
     timeout: 120_000,
   },

@@ -1,3 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --background: #f7f7f5;
+  --foreground: #15171d;
+  --muted: #747780;
+  --line: #dedfe2;
+  --border: #dedfe2;
+  --card: #fff;
+  --accent: #f0eef6;
+  --night: #0b0e14;
+  --night-soft: #11151d;
+  --brand-blue: #7187f5;
+  --brand-purple: #9a80d0;
+  --brand-red: #df7b80;
+  --primary: #7187f5;
+  --primary-hover: #5268d7;
+  --primary-foreground: #0b0e14;
+  --destructive: #c86f77;
+  --ring: #7187f5;
+}
+
 html,
 body,
 #root {
@@ -12,9 +38,19 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: #f7f7f5;
+  background: var(--background);
+  color: var(--foreground);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+* {
+  border-color: var(--border);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 button,

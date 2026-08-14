@@ -20,7 +20,7 @@ export function EditorPage({
   return (
     <EditorSessionProvider store={sessionStore}>
       <EditorDocumentProvider initialDocument={document} stream={browserDocumentStream}>
-        <EditorShell presentationId={document.id} />
+        <EditorShell />
       </EditorDocumentProvider>
     </EditorSessionProvider>
   );

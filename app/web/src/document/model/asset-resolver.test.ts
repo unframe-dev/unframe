@@ -4,9 +4,9 @@ import { AssetResolutionError, MapAssetResolver } from "./asset-resolver";
 
 describe("MapAssetResolver", () => {
   it("resolves a runtime URL without adding it to the document", () => {
-    const resolver = new MapAssetResolver(new Map([["demo-model", "/editor/fixtures/demo.glb"]]));
+    const resolver = new MapAssetResolver(new Map([["demo-model", "/fixtures/demo.glb"]]));
 
-    expect(resolver.resolve("demo-model")).toBe("/editor/fixtures/demo.glb");
+    expect(resolver.resolve("demo-model")).toBe("/fixtures/demo.glb");
     expect(JSON.stringify(demoDocument)).not.toContain("fixtures/demo.glb");
   });
 

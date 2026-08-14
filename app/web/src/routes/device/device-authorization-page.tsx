@@ -1,20 +1,7 @@
-import Google from "@mui/icons-material/Google";
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { createControlPlaneAuthClient } from "@unframe/api-client-typescript";
+import { GoogleLogoIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
-
-const controlPlaneUrl = import.meta.env["VITE_CONTROL_PLANE_URL"] || "https://api.un-fra.me";
-const auth = createControlPlaneAuthClient({ baseUrl: controlPlaneUrl, credentials: "include" });
+import { controlPlaneAuth as auth } from "../../app/auth/control-plane-auth";
+import { Button } from "../../components/ui/button";
 
 type PageState = "entry" | "pending" | "approved" | "denied";
 
@@ -36,7 +23,7 @@ function errorMessage(error?: { code?: string | undefined; error?: string | unde
 }
 
 function deviceCallbackUrl(userCode: string) {
-  const url = new URL("/editor/device", window.location.origin);
+  const url = new URL("/device", window.location.origin);
   if (userCode) url.searchParams.set("user_code", userCode);
   return url.toString();
 }
@@ -149,96 +136,88 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
         : undefined;
 
   return (
-    <Box component="main" id="main-content" sx={{ minHeight: "100dvh", py: { xs: 4, sm: 8 } }}>
-      <Container maxWidth="sm">
-        <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4 } }}>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="overline" color="primary">
-                UNFRAME DEVICE AUTHORIZATION
-              </Typography>
-              <Typography component="h1" variant="h4" sx={{ mt: 0.5 }}>
-                デバイスを接続
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1 }}>
-                デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
-              </Typography>
-            </Box>
+    <main id="main-content" className="min-h-dvh px-4 py-16">
+      <section className="mx-auto max-w-lg rounded-xl border bg-white p-6 shadow-sm sm:p-8">
+        <div className="grid gap-6">
+          <div>
+            <p className="text-xs font-bold tracking-[.12em] text-[var(--primary)]">
+              UNFRAME DEVICE AUTHORIZATION
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold">デバイスを接続</h1>
+            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+              デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
+            </p>
+          </div>
 
-            {message ? <Alert severity="error">{message}</Alert> : null}
-            {terminalMessage ? <Alert severity="success">{terminalMessage}</Alert> : null}
+          {message ? (
+            <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
+              {message}
+            </p>
+          ) : null}
+          {terminalMessage ? (
+            <p
+              role="alert"
+              className="rounded-md border border-emerald-700 p-3 text-sm text-emerald-800"
+            >
+              {terminalMessage}
+            </p>
+          ) : null}
 
-            {!sessionReady ? (
-              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                <CircularProgress size={20} />
-                <Typography color="text.secondary">ログイン状態を確認しています…</Typography>
-              </Stack>
-            ) : !signedIn ? (
-              <Stack spacing={1.5}>
-                <Alert severity="info">コードを確認するには Google でログインしてください。</Alert>
-                {sessionFailure ? (
-                  <Button variant="text" disabled={loading} onClick={retrySession}>
-                    ログイン状態を再確認
-                  </Button>
-                ) : null}
-                <Button
-                  variant="contained"
-                  startIcon={loading ? <CircularProgress color="inherit" size={18} /> : <Google />}
-                  disabled={loading}
-                  onClick={() => void signIn()}
-                >
-                  Google でログイン
+          {!sessionReady ? (
+            <p className="text-sm text-[var(--muted)]">ログイン状態を確認しています…</p>
+          ) : !signedIn ? (
+            <div className="grid gap-3">
+              <p className="rounded-md border p-3 text-sm">
+                コードを確認するには Google でログインしてください。
+              </p>
+              {sessionFailure ? (
+                <Button variant="ghost" disabled={loading} onClick={retrySession}>
+                  ログイン状態を再確認
                 </Button>
-              </Stack>
-            ) : (
-              <>
-                <TextField
-                  label="ユーザーコード"
+              ) : null}
+              <Button disabled={loading} onClick={() => void signIn()}>
+                <GoogleLogoIcon /> Google でログイン
+              </Button>
+            </div>
+          ) : (
+            <>
+              <label className="grid gap-2 text-sm font-medium">
+                ユーザーコード
+                <input
                   value={userCode}
                   disabled={loading || state !== "entry"}
                   onChange={(event) => setUserCode(event.target.value.toUpperCase())}
                   placeholder="ABCD-EFGH"
                   autoComplete="one-time-code"
-                  slotProps={{ htmlInput: { "aria-label": "ユーザーコード" } }}
+                  aria-label="ユーザーコード"
+                  className="h-10 rounded-md border bg-white px-3 font-normal outline-none focus:border-[var(--primary)]"
                 />
+              </label>
 
-                {state === "entry" ? (
-                  <Button
-                    variant="contained"
-                    disabled={loading}
-                    onClick={() => void verify()}
-                    startIcon={loading ? <CircularProgress color="inherit" size={18} /> : undefined}
-                  >
-                    コードを確認
+              {state === "entry" ? (
+                <Button disabled={loading} onClick={() => void verify()}>
+                  コードを確認
+                </Button>
+              ) : null}
+
+              {state === "pending" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button disabled={loading} onClick={() => void decide("approve")}>
+                    承認する
                   </Button>
-                ) : null}
-
-                {state === "pending" ? (
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                    <Button
-                      variant="contained"
-                      disabled={loading}
-                      onClick={() => void decide("approve")}
-                      sx={{ flex: 1 }}
-                    >
-                      承認する
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      disabled={loading}
-                      onClick={() => void decide("deny")}
-                      sx={{ flex: 1 }}
-                    >
-                      拒否する
-                    </Button>
-                  </Stack>
-                ) : null}
-              </>
-            )}
-          </Stack>
-        </Paper>
-      </Container>
-    </Box>
+                  <Button
+                    variant="destructive"
+                    disabled={loading}
+                    onClick={() => void decide("deny")}
+                  >
+                    拒否する
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </section>
+    </main>
   );
 }

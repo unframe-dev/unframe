@@ -1,14 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Button, Divider, Stack, TextField, Typography } from "@mui/material";
 import { Euler, MathUtils, Quaternion } from "three";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { findDocumentElement } from "../../document/model/find-element";
 import type { Transform } from "../../document/schema/transform";
-import { brandColors } from "../../app/theme/theme";
 import { useEditorDocument } from "../document/editor-document-context";
 import { useEditorSession } from "../session/editor-session-context";
+import { Button } from "../../components/ui/button";
 
 const TransformFieldsSchema = z.object({
   positionX: z.number().finite(),
@@ -83,14 +82,12 @@ export function PropertiesPanel() {
 
   if (!location) {
     return (
-      <Box component="aside" aria-label="プロパティ" sx={{ p: 2 }}>
-        <Typography component="h2" variant="h2" sx={{ fontSize: 12, letterSpacing: "0.08em" }}>
-          プロパティ
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1, fontSize: 13 }}>
+      <aside aria-label="プロパティ" className="p-4">
+        <h2 className="text-xs font-semibold tracking-[.08em]">プロパティ</h2>
+        <p className="mt-2 text-sm text-[var(--muted)]">
           Viewport またはスライド一覧から要素を選択してください。
-        </Typography>
-      </Box>
+        </p>
+      </aside>
     );
   }
 
@@ -104,62 +101,54 @@ export function PropertiesPanel() {
   });
 
   return (
-    <Box component="aside" aria-label="プロパティ" sx={{ minWidth: 0 }}>
-      <Box sx={{ px: 2, py: 1.75 }}>
-        <Typography component="h2" variant="h2" sx={{ fontSize: 12, letterSpacing: "0.06em" }}>
-          {element.name} のプロパティ
-        </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 12 }}>
-          {element.type}
-        </Typography>
-      </Box>
-      <Divider />
-      <Box
-        component="form"
+    <aside aria-label="プロパティ" className="min-w-0">
+      <div className="px-4 py-4">
+        <h2 className="text-xs font-semibold tracking-[.06em]">{element.name} のプロパティ</h2>
+        <p className="text-xs text-[var(--muted)]">{element.type}</p>
+      </div>
+      <div className="border-t" />
+      <form
         onSubmit={submit}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             form.reset(transformToFields(element.transform));
           }
         }}
-        sx={{ p: 2 }}
+        className="p-4"
       >
-        <Stack spacing={2.25}>
+        <div className="grid gap-5">
           {(["position", "rotation", "scale"] as const).map((group) => (
-            <Box key={group}>
-              <Typography
-                variant="caption"
-                sx={{ color: brandColors.purple, fontWeight: 700, letterSpacing: "0.08em" }}
-              >
+            <div key={group}>
+              <p className="text-xs font-bold tracking-[.08em] text-[#9a80d0]">
                 {group === "position"
                   ? "位置（m）"
                   : group === "rotation"
                     ? "回転（°）"
                     : "スケール"}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 0.75 }}>
+              </p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
                 {axes.map((axis) => {
                   const name = `${group}${axis}` as keyof TransformFields;
                   return (
-                    <TextField
-                      key={name}
-                      label={axis}
-                      type="number"
-                      size="small"
-                      slotProps={{ htmlInput: { step: group === "rotation" ? 1 : 0.1 } }}
-                      error={Boolean(form.formState.errors[name])}
-                      {...form.register(name, { valueAsNumber: true })}
-                    />
+                    <label key={name} className="grid gap-1 text-xs text-[var(--muted)]">
+                      {axis}
+                      <input
+                        key={name}
+                        type="number"
+                        step={group === "rotation" ? 1 : 0.1}
+                        aria-invalid={Boolean(form.formState.errors[name])}
+                        className="h-9 rounded-md border bg-white px-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)]"
+                        {...form.register(name, { valueAsNumber: true })}
+                      />
+                    </label>
                   );
                 })}
-              </Stack>
-            </Box>
+              </div>
+            </div>
           ))}
-          <Button type="submit" variant="contained">
-            変形を適用
-          </Button>
-        </Stack>
-      </Box>
-    </Box>
+          <Button type="submit">変形を適用</Button>
+        </div>
+      </form>
+    </aside>
   );
 }

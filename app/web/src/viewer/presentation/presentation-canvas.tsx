@@ -1,4 +1,3 @@
-import { Alert, AlertTitle, Box } from "@mui/material";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, TransformControls, useGLTF } from "@react-three/drei";
 import {
@@ -13,7 +12,6 @@ import {
   type ReactNode,
 } from "react";
 import { MathUtils, type Group } from "three";
-import { brandColors } from "../../app/theme/theme";
 import { createDemoAssetResolver } from "../../document/fixtures/demo-glb";
 import type { AssetResolver } from "../../document/model/asset-resolver";
 import type { Element, ModelElement, TextElement } from "../../document/schema/element";
@@ -96,24 +94,16 @@ class ModelErrorBoundary extends Component<
 
 function WebGLUnavailable() {
   return (
-    <Box
+    <div
       role="region"
       aria-label="3Dプレゼンテーション"
-      sx={{
-        width: "100%",
-        height: "100%",
-        minHeight: 320,
-        display: "grid",
-        placeItems: "center",
-        p: 3,
-        bgcolor: brandColors.nightSoft,
-      }}
+      className="grid size-full min-h-80 place-items-center bg-[#11151d] p-6"
     >
-      <Alert severity="warning" sx={{ maxWidth: 520 }}>
-        <AlertTitle>WebGLを利用できません</AlertTitle>
+      <div role="alert" className="max-w-lg rounded-md border border-amber-700 p-4">
+        <strong className="block">WebGLを利用できません</strong>
         ブラウザのハードウェアアクセラレーションを有効にして、ページを再読み込みしてください。
-      </Alert>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -294,12 +284,12 @@ function PresentationScene({
 
   return (
     <>
-      <color attach="background" args={[brandColors.nightSoft]} />
+      <color attach="background" args={["#11151d"]} />
       <ambientLight intensity={1.2} />
       <directionalLight position={[4, 6, 3]} intensity={2.4} />
       <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#9ca8ff" />
       {editor?.showGrid ? (
-        <gridHelper args={[12, 24, brandColors.blue, "#2b303c"]} position={[0, -0.72, 0]} />
+        <gridHelper args={[12, 24, "#7187f5", "#2b303c"]} position={[0, -0.72, 0]} />
       ) : null}
       {slide?.elements.map((element) => (
         <SceneElement
@@ -322,11 +312,7 @@ export function PresentationCanvas(props: PresentationCanvasProps) {
   if (!webGLAvailable) return <WebGLUnavailable />;
 
   return (
-    <Box
-      role="region"
-      aria-label="3Dプレゼンテーション"
-      sx={{ position: "relative", width: "100%", height: "100%", minHeight: 320 }}
-    >
+    <div role="region" aria-label="3Dプレゼンテーション" className="relative size-full min-h-80">
       <CanvasErrorBoundary>
         <Canvas
           camera={{ position: [3.2, 2.4, 4.2], fov: 42, near: 0.1, far: 100 }}
@@ -338,6 +324,6 @@ export function PresentationCanvas(props: PresentationCanvasProps) {
           <PresentationScene props={props} resolver={resolver} />
         </Canvas>
       </CanvasErrorBoundary>
-    </Box>
+    </div>
   );
 }

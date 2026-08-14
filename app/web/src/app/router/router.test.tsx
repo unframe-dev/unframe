@@ -4,6 +4,7 @@ import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "../providers/app-providers";
+import { requireSession } from "../auth/require-session";
 import { createAppRouter } from "./router";
 
 const auth = vi.hoisted(() => ({
@@ -43,7 +44,7 @@ describe("web editor routes", () => {
   });
 
   it("renders the fixture-only home route", async () => {
-    await renderRoute("/editor/");
+    await renderRoute("/home");
 
     expect(
       await screen.findByRole("heading", {
@@ -53,13 +54,13 @@ describe("web editor routes", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "デモを編集" })).toHaveAttribute(
       "href",
-      "/editor/presentations/demo/edit?panel=properties",
+      "/editor/demo?panel=properties",
     );
   });
 
   it("opens an editor deep link and exposes selection outside Canvas", async () => {
     const user = userEvent.setup();
-    await renderRoute("/editor/presentations/demo/edit?panel=properties");
+    await renderRoute("/editor/demo?panel=properties");
 
     expect(
       await screen.findByRole("heading", { level: 1, name: "Spatial story" }),
@@ -92,39 +93,36 @@ describe("web editor routes", () => {
     expect(screen.getByText("Revision 2")).toBeInTheDocument();
   });
 
-  it("keeps the viewer read-only on a direct route", async () => {
-    await renderRoute("/editor/presentations/demo/view");
-
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "Spatial story" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("3Dプレゼンテーション")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "元に戻す" })).not.toBeInTheDocument();
-  });
-
   it("renders the device authorization route and pre-fills its user code", async () => {
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     expect(await screen.findByRole("heading", { name: "デバイスを接続" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "ユーザーコード" })).toHaveValue("ABCD-EFGH");
   });
 
+  it("redirects an unauthenticated protected route to the root", async () => {
+    auth.getSession.mockResolvedValue({ data: null, error: null });
+    await expect(requireSession()).rejects.toMatchObject({
+      options: { href: "/", replace: true },
+    });
+  });
+
   it("keeps the device URL and code in the Google sign-in callback", async () => {
     const user = userEvent.setup();
     auth.getSession.mockResolvedValue({ data: null, error: null });
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     await user.click(await screen.findByRole("button", { name: "Google でログイン" }));
 
     expect(auth.signIn.social).toHaveBeenCalledWith({
       provider: "google",
-      callbackURL: `${window.location.origin}/editor/device?user_code=ABCD-EFGH`,
+      callbackURL: `${window.location.origin}/device?user_code=ABCD-EFGH`,
     });
   });
 
   it("shows a recoverable error when the session check fails", async () => {
     auth.getSession.mockRejectedValue(new Error("network unavailable"));
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     expect(
       await screen.findByText("処理中に問題が発生しました。時間をおいてもう一度お試しください。"),
@@ -136,7 +134,7 @@ describe("web editor routes", () => {
     const user = userEvent.setup();
     auth.getSession.mockResolvedValue({ data: null, error: null });
     auth.signIn.social.mockResolvedValue({ data: null, error: { error: "request_failed" } });
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     await user.click(await screen.findByRole("button", { name: "Google でログイン" }));
 
@@ -152,7 +150,7 @@ describe("web editor routes", () => {
       error: null,
     });
     auth.device.approve.mockResolvedValue({ data: { success: true }, error: null });
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     await user.click(await screen.findByRole("button", { name: "コードを確認" }));
     await user.click(await screen.findByRole("button", { name: "承認する" }));
@@ -175,7 +173,7 @@ describe("web editor routes", () => {
           resolveDeny = resolve;
         }),
     );
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     await user.click(await screen.findByRole("button", { name: "コードを確認" }));
     const deny = await screen.findByRole("button", { name: "拒否する" });
@@ -193,7 +191,7 @@ describe("web editor routes", () => {
       data: null,
       error: { error: "expired_token" },
     });
-    await renderRoute("/editor/device?user_code=ABCD-EFGH");
+    await renderRoute("/device?user_code=ABCD-EFGH");
 
     await user.click(await screen.findByRole("button", { name: "コードを確認" }));
 

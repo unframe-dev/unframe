@@ -1,4 +1,6 @@
-# Web Editor 技術・実装計画
+# Web Editor POC 実装記録
+
+> **Status: Historical.** この文書は Slide ベース POC の実装記録です。現在の Web architecture と route の正本には [`ARCHITECTURE.md`](./ARCHITECTURE.md) を使用してください。POC の互換性を今後の Group / Step / Cue Editor の制約にしません。
 
 ## 目的
 
@@ -17,7 +19,7 @@
 - MUIによるEditor shell
 - Three.js / React Three FiberによるGLB表示・編集
 - 単一編集者から閲覧者へのほぼリアルタイムな反映
-- TanStack Routerによる`/editor`配下のrouting
+- TanStack Routerによるroot-based routing
 - Vitest、Testing Library、Playwrightによるテスト基盤
 - Cloudflare Workers Static AssetsによるSPA配信
 
@@ -54,7 +56,7 @@ API接続までは、インメモリfixtureとブラウザ内のadapterを利用
 | 3D helpers            | `@react-three/drei`              | controls、loader、gizmoなど必要な機能に限定して利用する                      |
 | Unit / Component test | Vitest + Testing Library         | pure domain logicとReact UIを検証する                                        |
 | E2E                   | Playwright                       | 実際の編集操作、Undo / Redo、閲覧同期、deep linkを検証する                   |
-| Hosting               | Cloudflare Workers Static Assets | `un-fra.me/editor`配下にSPAとして配信する                                    |
+| Hosting               | Cloudflare Workers Static Assets | `un-fra.me/*`のLP予約外をroot-based SPAとして配信する                        |
 
 ## 依存関係の導入方針
 
@@ -63,10 +65,10 @@ API接続までは、インメモリfixtureとブラウザ内のadapterを利用
 ### Runtime dependencies
 
 ```text
-@mui/material
-@mui/icons-material
-@emotion/react
-@emotion/styled
+@base-ui/react
+@phosphor-icons/react
+tailwindcss
+@tailwindcss/vite
 @tanstack/react-router
 @tanstack/react-query
 zustand
@@ -312,15 +314,16 @@ GLBのloader cacheとresource disposalを考慮し、同じassetをslide切り�
 初期版では未定義のproject domainをURLへ先行導入しない。
 
 ```text
-/editor/
-/editor/presentations/$presentationId/edit
-/editor/presentations/$presentationId/view
+/
+/presentations/$presentationId/edit
+/presentations/$presentationId/view
+/device
 ```
 
 ### Routing規則
 
-- TanStack Routerに`basepath: "/editor"`を設定する。
-- Viteに`base: "/editor/"`を設定する。
+- TanStack Routerに`basepath`を設定しない。
+- Viteに`base: "/"`を設定する。
 - route paramsとsearch paramsはschemaで検証する。
 - panel表示など共有・再読み込みに意味がある状態だけをsearch paramsへ入れる。
 - selection、hover、drag状態はURLへ入れない。
@@ -367,20 +370,20 @@ API integrationが始まるまでは`shared/api`を拡張しない。現在の`s
 
 ## Cloudflare配信
 
-Editorは`un-fra.me/editor`と`un-fra.me/editor/*`を所有する別Workerとして配信する。LPは現在`un-fra.me/*`を所有しているが、Cloudflareではより具体的なrouteが優先される。
+Editorはroot-based Workerとして配信する。同一ホストの本番ではLPの明示的なパスをTerraformのRouteで先に確保し、それ以外のパスをEditor Workerが所有する。
 
 ### SPA routing
 
 - Wrangler Static Assetsの`not_found_handling`を`single-page-application`にする。
-- `/editor`と`/editor/*`の両方をrouteへ登録する。
+- root routeを登録する。
 - deep linkから直接開いても`index.html`を返す。
-- Viteが出力するasset URLは`/editor/`をbaseとする。
+- Viteが出力するasset URLは`/`をbaseとする。
 
-Worker routeはrequest pathからprefixを自動除去しないため、別Workerで配信する場合はWorker entryで`/editor` prefixを除去してAssets bindingへ渡す。
+Worker entryはroot-based requestをそのままAssets bindingへ渡す。LPの`/`、`/news/*`、`/docs/*`、静的アセットは同一ホスト上のより具体的なRouteでLP Workerへ渡される。
 
 ```text
-/editor/assets/...  -> /assets/...
-/editor/foo         -> /foo -> SPA index fallback
+/assets/... -> static asset
+/foo        -> SPA index fallback
 ```
 
 Cloudflare Vite pluginはVite+との最小構成でdev/buildを検証する。peer dependency、build、previewのいずれかに問題がある場合はpluginを使用せず、Vite+ buildとWrangler Static Assetsを分離する。
@@ -481,10 +484,10 @@ WebGLそのものはjsdom unit testで再現せず、R3F境界をmockする。�
 
 ### Phase 7: Hosting
 
-- Viteの`/editor/` baseを設定する。
+- Viteの`/` baseを設定する。
 - Wrangler Static Assetsを設定する。
-- `/editor` prefixを処理するWorker entryを追加する。
-- `un-fra.me/editor`と`un-fra.me/editor/*`のrouteを設定する。
+- root-based requestをAssets bindingへ渡すWorker entryを追加する。
+- LPの明示的なパスとEditorの`un-fra.me/*` fallback routeを設定する。
 - SPA fallbackとdeep linkをlocal previewで検証する。
 
 ### Phase 8: E2EとCI
@@ -499,13 +502,13 @@ WebGLそのものはjsdom unit testで再現せず、R3F境界をmockする。�
 
 最初の利用可能な成果物は、次の一連の操作を成立させる。
 
-1. `/editor/presentations/demo/edit`を開く。
+1. `/presentations/demo/edit`を開く。
 2. fixtureのGLB modelを表示する。
 3. modelを選択する。
 4. gizmoでmodelを移動する。
 5. pointer upでtransform commandを確定する。
 6. Undo / Redoする。
-7. `/editor/presentations/demo/view`を開いた別tabへ変更を反映する。
+7. `/presentations/demo/view`を開いた別tabへ変更を反映する。
 
 ## 検証コマンド
 
@@ -520,7 +523,7 @@ nix run .#web
 nix run .#check
 ```
 
-Cloudflare設定を追加した後は、Wrangler local previewで`/editor`、Editor deep link、Viewer deep link、static asset取得を確認する。
+Cloudflare設定を追加した後は、Wrangler local previewで`/`、Editor deep link、Viewer deep link、static asset取得を確認する。
 
 ## 完了条件
 
@@ -532,7 +535,7 @@ Cloudflare設定を追加した後は、Wrangler local previewで`/editor`、Edi
 - transformを1つのcommandとしてUndo / Redoできる。
 - Editorの確定操作が別tabのViewerへ反映される。
 - revision欠番からsnapshotへ復旧できる。
-- `/editor`配下のdeep linkがCloudflare SPA配信で機能する。
+- root-based deep linkがCloudflare SPA配信で機能する。
 - Vitest、Testing Library、Playwrightの関連testが通る。
 - `nix run .#web`と`nix run .#check`が通る。
 - API、Control Plane、D1、contract に意図しない差分がない。

@@ -1,104 +1,80 @@
-import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
 import {
-  Link,
   Outlet,
   createRootRoute,
   createRoute,
   createRouter,
   type RouterHistory,
 } from "@tanstack/react-router";
-import { z } from "zod";
 import { lazy, Suspense } from "react";
+import { z } from "zod";
+import { requireSession } from "../auth/require-session";
 import { loadPresentationSnapshot } from "../runtime/document-runtime";
-import { HomePage } from "../../routes/home/home-page";
+import { buttonVariants } from "../../components/ui/button";
 import { DeviceAuthorizationPage } from "../../routes/device/device-authorization-page";
+import { HomePage } from "../../routes/home/home-page";
 
 const EditorPage = lazy(() =>
   import("../../routes/editor/editor-page").then((module) => ({
     default: module.EditorPage,
   })),
 );
-const ViewerPage = lazy(() =>
-  import("../../routes/viewer/viewer-page").then((module) => ({
-    default: module.ViewerPage,
-  })),
-);
 
 function RoutePending() {
   return (
-    <Box sx={{ minHeight: "100dvh", display: "grid", placeItems: "center" }}>
-      <Stack spacing={1.5} sx={{ alignItems: "center" }}>
-        <CircularProgress size={28} />
-        <Typography color="text.secondary">プレゼンテーションを準備中…</Typography>
-      </Stack>
-    </Box>
+    <main className="grid min-h-dvh place-items-center">
+      <p className="text-sm text-[var(--muted)]">プレゼンテーションを準備中…</p>
+    </main>
   );
 }
 
 function RootLayout() {
   return (
     <>
-      <Box component="a" href="#main-content" className="skip-link">
+      <a href="#main-content" className="skip-link">
         本文へ移動
-      </Box>
+      </a>
       <Outlet />
     </>
   );
 }
 
-function RouteError({ error }: { error: Error }) {
+function LandingPageLink() {
   return (
-    <Box
-      component="main"
-      id="main-content"
-      sx={{ minHeight: "100dvh", display: "grid", placeItems: "center", p: 3 }}
-    >
-      <Stack spacing={2} sx={{ maxWidth: 560 }}>
-        <Typography component="h1" variant="h4">
-          プレゼンテーションを開けません
-        </Typography>
-        <Alert severity="error">{error.message}</Alert>
-        <Button component={Link} to="/" variant="contained">
-          ホームへ戻る
-        </Button>
-      </Stack>
-    </Box>
+    <a href="/" className={buttonVariants()}>
+      トップへ戻る
+    </a>
+  );
+}
+
+function RouteError() {
+  return (
+    <main id="main-content" className="grid min-h-dvh place-items-center p-6">
+      <div className="grid max-w-xl gap-4">
+        <h1 className="text-2xl font-semibold">プレゼンテーションを開けません</h1>
+        <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
+          読み込みに失敗しました。時間をおいてもう一度お試しください。
+        </p>
+        <LandingPageLink />
+      </div>
+    </main>
   );
 }
 
 function NotFound() {
   return (
-    <Box
-      component="main"
-      id="main-content"
-      sx={{ minHeight: "100dvh", display: "grid", placeItems: "center", p: 3 }}
-    >
-      <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-        <Typography component="h1" variant="h4">
-          ページが見つかりません
-        </Typography>
-        <Button component={Link} to="/" variant="contained">
-          ホームへ戻る
-        </Button>
-      </Stack>
-    </Box>
+    <main id="main-content" className="grid min-h-dvh place-items-center p-6">
+      <div className="grid gap-4">
+        <h1 className="text-2xl font-semibold">ページが見つかりません</h1>
+        <LandingPageLink />
+      </div>
+    </main>
   );
 }
 
 const rootRoute = createRootRoute({
   component: RootLayout,
-  errorComponent: ({ error }) => <RouteError error={error} />,
+  errorComponent: RouteError,
   notFoundComponent: NotFound,
-});
-
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/",
-  component: HomePage,
-});
-
-const editorSearchSchema = z.object({
-  panel: z.enum(["properties", "assets", "none"]).catch("properties").default("properties"),
 });
 
 const deviceSearchSchema = z.object({
@@ -117,9 +93,26 @@ function DeviceRouteComponent() {
   return <DeviceAuthorizationPage initialUserCode={userCode} />;
 }
 
-const editorRoute = createRoute({
+const authenticatedRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "presentations/$presentationId/edit",
+  id: "authenticated",
+  beforeLoad: requireSession,
+  component: Outlet,
+});
+
+const homeRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "home",
+  component: HomePage,
+});
+
+const editorSearchSchema = z.object({
+  panel: z.enum(["properties", "assets", "none"]).catch("properties").default("properties"),
+});
+
+const editorRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "editor/$presentationId",
   validateSearch: editorSearchSchema,
   loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
   component: EditorRouteComponent,
@@ -135,27 +128,14 @@ function EditorRouteComponent() {
   );
 }
 
-const viewerRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "presentations/$presentationId/view",
-  loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
-  component: ViewerRouteComponent,
-});
-
-function ViewerRouteComponent() {
-  return (
-    <Suspense fallback={<RoutePending />}>
-      <ViewerPage document={viewerRoute.useLoaderData()} />
-    </Suspense>
-  );
-}
-
-const routeTree = rootRoute.addChildren([indexRoute, deviceRoute, editorRoute, viewerRoute]);
+const routeTree = rootRoute.addChildren([
+  deviceRoute,
+  authenticatedRoute.addChildren([homeRoute, editorRoute]),
+]);
 
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({
     routeTree,
-    basepath: "/editor",
     ...(history ? { history } : {}),
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,

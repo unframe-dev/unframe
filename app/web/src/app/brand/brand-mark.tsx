@@ -1,12 +1,6 @@
-import { Box } from "@mui/material";
-
 export function BrandMark({ size = 32 }: { size?: number }) {
   return (
-    <Box
-      component="span"
-      aria-hidden="true"
-      sx={{ display: "inline-flex", width: size, height: size, flexShrink: 0 }}
-    >
+    <span aria-hidden="true" className="inline-flex shrink-0" style={{ width: size, height: size }}>
       <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none">
         <defs>
           <linearGradient id="unframe-brand-mark" x1="2" y1="5" x2="29" y2="28">
@@ -36,6 +30,6 @@ export function BrandMark({ size = 32 }: { size?: number }) {
           opacity="0.42"
         />
       </svg>
-    </Box>
+    </span>
   );
 }
