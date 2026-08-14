@@ -2,15 +2,13 @@
 node_modules/
 
 # env
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # Cloudflare Wrangler — `.dev.vars` はローカル Worker の秘密値
-# (DATABASE_URL / SUPABASE_SERVICE_ROLE_KEY) を保持する。絶対に commit しない。
-.dev.vars
-.dev.vars.zwc
-.dev.vars.local
+.dev.vars*
+!.dev.vars.example
+.prod.vars*
 .wrangler/
 
 # logs
@@ -66,6 +64,3 @@ app/unity/*.unityproj
 app/unity/sysinfo.txt
 # Unity Licensing — Manual Activation File (機密性は低いが追跡不要)
 app/unity/*.alf
-
-# accidental (PowerShell の `2>$null` 取り違えで生まれる)
-nul
