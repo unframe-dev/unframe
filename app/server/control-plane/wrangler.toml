@@ -52,7 +52,7 @@ enabled = true
 [observability.logs]
 enabled = true
 head_sampling_rate = 1
-invocation_logs = false
+invocation_logs = true
 
 [observability.traces]
-enabled = false
+enabled = true
