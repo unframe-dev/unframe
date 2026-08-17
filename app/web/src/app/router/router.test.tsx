@@ -13,9 +13,13 @@ const auth = vi.hoisted(() => ({
   verifyDeviceAuthorization: vi.fn(),
   device: { approve: vi.fn(), deny: vi.fn() },
 }));
+const product = vi.hoisted(() => ({
+  presentations: { $get: vi.fn() },
+}));
 
 vi.mock("@unframe/api-client-typescript", () => ({
   createControlPlaneAuthClient: vi.fn(() => auth),
+  createControlPlaneClient: vi.fn(() => product),
 }));
 
 vi.mock("../../viewer/presentation/presentation-canvas", () => ({
@@ -41,21 +45,88 @@ describe("web editor routes", () => {
     auth.verifyDeviceAuthorization.mockReset();
     auth.device.approve.mockReset();
     auth.device.deny.mockReset();
+    product.presentations.$get.mockReset();
+    product.presentations.$get.mockResolvedValue(
+      new Response(JSON.stringify({ presentations: [] }), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
   });
 
-  it("renders the fixture-only home route", async () => {
+  it("renders the mock-backed home route without a Presentation API request", async () => {
     await renderRoute("/home");
 
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: "空間を、プレゼンテーションに。",
-      }),
+      await screen.findByRole("heading", { level: 1, name: "Presentations." }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "デモを編集" })).toHaveAttribute(
-      "href",
-      "/editor/demo?panel=properties",
-    );
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Spatial product review" }),
+    ).toBeInTheDocument();
+    expect(product.presentations.$get).not.toHaveBeenCalled();
+
+    const navigation = screen.getByRole("navigation", {
+      name: "メインナビゲーション",
+    });
+    for (const label of ["ホーム", "設定", "デバイス", "ルーム"]) {
+      expect(within(navigation).getByRole("link", { name: label })).toBeVisible();
+    }
+    expect(within(navigation).queryByRole("link", { name: "プロフィール" })).toBeNull();
+  });
+
+  it("switches the sidebar to settings navigation on settings pages", async () => {
+    await renderRoute("/settings/profile");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "プロフィール" }),
+    ).toBeVisible();
+    const navigation = await screen.findByRole("navigation", {
+      name: "設定ナビゲーション",
+    });
+    expect(within(navigation).getByRole("link", { name: "プロフィール" })).toBeVisible();
+    expect(within(navigation).getByRole("link", { name: "セキュリティー" })).toBeVisible();
+    expect(within(navigation).queryByRole("link", { name: "デバイス" })).toBeNull();
+  });
+
+  it("collapses the sidebar while keeping its links accessible", async () => {
+    const user = userEvent.setup();
+    await renderRoute("/home");
+
+    const collapse = await screen.findByRole("button", {
+      name: "サイドバーを折り畳む",
+    });
+    expect(collapse).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(collapse);
+
+    expect(
+      screen.getByRole("button", { name: "サイドバーを展開" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("navigation", { name: "メインナビゲーション" }))
+      .toBeVisible();
+    expect(localStorage.getItem("unframe-sidebar-collapsed")).toBe("true");
+  });
+
+  it.each([
+    ["/devices", "デバイス"],
+    ["/rooms", "ルーム"],
+  ])("renders the %s application route", async (path, heading) => {
+    await renderRoute(path);
+    expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
+  });
+
+  it("keeps page scrolling enabled while the account menu is open", async () => {
+    const user = userEvent.setup();
+    await renderRoute("/home");
+
+    await user.click(await screen.findByRole("button", { name: "アカウントメニュー" }));
+
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe("hidden");
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "設定" })).toBeVisible();
+    expect(within(menu).getByRole("menuitem", { name: "ログアウト" })).toBeVisible();
+    expect(within(menu).queryByRole("menuitem", { name: "ホーム" })).toBeNull();
+    expect(within(menu).queryByRole("menuitem", { name: "プロフィール" })).toBeNull();
   });
 
   it("opens an editor deep link and exposes selection outside Canvas", async () => {
@@ -96,7 +167,9 @@ describe("web editor routes", () => {
   it("renders the device authorization route and pre-fills its user code", async () => {
     await renderRoute("/device?user_code=ABCD-EFGH");
 
-    expect(await screen.findByRole("heading", { name: "デバイスを接続" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Connect a device." }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "ユーザーコード" })).toHaveValue("ABCD-EFGH");
   });
 

@@ -1,11 +1,14 @@
 import { GoogleLogoIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { controlPlaneAuth as auth } from "../../app/auth/control-plane-auth";
+import { BrandLink } from "../../app/brand/brand-link";
 import { Button } from "../../components/ui/button";
 
 type PageState = "entry" | "pending" | "approved" | "denied";
 
-function errorMessage(error?: { code?: string | undefined; error?: string | undefined } | null) {
+function errorMessage(
+  error?: { code?: string | undefined; error?: string | undefined } | null,
+) {
   switch (error?.error ?? error?.code) {
     case "expired_token":
       return "このコードの有効期限が切れています。";
@@ -28,7 +31,11 @@ function deviceCallbackUrl(userCode: string) {
   return url.toString();
 }
 
-export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: string }) {
+export function DeviceAuthorizationPage({
+  initialUserCode,
+}: {
+  initialUserCode: string;
+}) {
   const [userCode, setUserCode] = useState(initialUserCode);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
@@ -136,21 +143,24 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
         : undefined;
 
   return (
-    <main id="main-content" className="min-h-dvh px-4 py-16">
-      <section className="mx-auto max-w-lg rounded-xl border bg-white p-6 shadow-sm sm:p-8">
-        <div className="grid gap-6">
-          <div>
-            <p className="text-xs font-bold tracking-[.12em] text-[var(--primary)]">
-              UNFRAME DEVICE AUTHORIZATION
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold">デバイスを接続</h1>
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-              デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
-            </p>
-          </div>
-
+    <main id="main-content" className="device-main">
+      <header className="public-header">
+        <BrandLink />
+        <a href="https://un-fra.me/docs/">Docs</a>
+      </header>
+      <section className="device-shell">
+        <header className="device-intro">
+          <h1>Connect a device.</h1>
+          <p className="device-lede">
+            デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
+          </p>
+        </header>
+        <div className="device-actions">
           {message ? (
-            <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
+            <p
+              role="alert"
+              className="rounded-md border border-[var(--destructive)] p-3 text-sm"
+            >
               {message}
             </p>
           ) : null}
@@ -164,14 +174,20 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
           ) : null}
 
           {!sessionReady ? (
-            <p className="text-sm text-[var(--muted)]">ログイン状態を確認しています…</p>
+            <p className="text-sm text-[var(--muted)]">
+              ログイン状態を確認しています…
+            </p>
           ) : !signedIn ? (
             <div className="grid gap-3">
               <p className="rounded-md border p-3 text-sm">
                 コードを確認するには Google でログインしてください。
               </p>
               {sessionFailure ? (
-                <Button variant="ghost" disabled={loading} onClick={retrySession}>
+                <Button
+                  variant="ghost"
+                  disabled={loading}
+                  onClick={retrySession}
+                >
                   ログイン状態を再確認
                 </Button>
               ) : null}
@@ -186,7 +202,9 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
                 <input
                   value={userCode}
                   disabled={loading || state !== "entry"}
-                  onChange={(event) => setUserCode(event.target.value.toUpperCase())}
+                  onChange={(event) =>
+                    setUserCode(event.target.value.toUpperCase())
+                  }
                   placeholder="ABCD-EFGH"
                   autoComplete="one-time-code"
                   aria-label="ユーザーコード"
@@ -202,7 +220,10 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
 
               {state === "pending" ? (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Button disabled={loading} onClick={() => void decide("approve")}>
+                  <Button
+                    disabled={loading}
+                    onClick={() => void decide("approve")}
+                  >
                     承認する
                   </Button>
                   <Button
