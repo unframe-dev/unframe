@@ -9,7 +9,7 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 - `Group → Step → Cue` を持つ Presentation Definition の CRUD と revision 競合検知
 - R2 直接uploadの初期化、署名済みContent-Length / MIME / SHA-256制約、finalize時のsize / magic bytes検証、download、監査log付き削除、metadata-less objectを含む孤児回収
 - Waiting / Presenting / Ended のSession lifecycle、50人上限、固定presenter、hash化join codeとcode / user / IP別rate limit
-- adminによるVenue Edge provisioning、hash化したEdge固有credential、rotation / revoke、registration、単一roomのlease付きassignment / epoch fencing
+- adminによるVenue Edge provisioning、hash化したEdge固有credential、rotation / revoke、registration、単一roomのlease付きassignment / epoch fencing。lease日時はcanonical ISOで保存し、Edgeからのrenewは5分以内に制限する
 - active assignmentのendpoint / certificate fingerprintと、lease期限に拘束したsession-bound Venue Edge JWTを返すbootstrap、公開JWKS
 - Realtime service identity専用のidempotent checkpoint / completion callback
 - 実行ルートと一体化した OpenAPI 生成、Hono RPC TypeScript client、契約 drift check

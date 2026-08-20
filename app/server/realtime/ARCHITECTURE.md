@@ -23,9 +23,9 @@ Target Architecture では、この Edge 固有の割り当てを Cloud Runtime 
 
 | 領域 | 状態 | 現在の境界・根拠 |
 | --- | --- | --- |
-| Venue Edge provisioning / credential / registration / assignment | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql` |
+| Venue Edge provisioning / credential / registration / assignment | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`。lease日時をcanonical ISOへ正規化し、Edgeによるrenewは5分以内に制限する |
 | Venue Edge bootstrap / JWT claims | 実装済み | `control-plane/src/modules/realtime-bootstrap/` と session bootstrap route。`edgeId`、assignment epoch、Presentation revision を拘束する |
-| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/edge/`、gRPC interceptor / service guard |
+| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/edge/`、gRPC interceptor / service guard。JWKS cacheは5分で失効し、refresh失敗時はstale keyを使用しない |
 | Manifest 検証、content-addressed cache、Range 対応 Asset handler | 部分実装 | `realtime/internal/asset/`。domain と `http.Handler` はあるが、実際の local HTTPS listener、証明書、Cloud Agent、runtime composition へ未接続 |
 | Runtime pause / resume state | 部分実装 | `realtime/internal/session/runtime.go`。状態遷移 primitive はあるが、Presenter 接続、Step / Cue、Snapshot / checkpoint へ未接続 |
 | Element State latest-wins mailbox | 部分実装 | `realtime/internal/state/mailbox.go`。field merge primitive はあるが、State gRPC fan-out へ未接続 |
@@ -273,6 +273,7 @@ RuntimeAssignment
 - `certificateFingerprint` は Venue Edge の local endpoint にだけ必要な profile 固有情報とし、共通 Assignment の必須 field にしない。
 - Control Plane は同じ session を別 Runtime へ割り当てるたびに `assignmentEpoch` を増やす。
 - Control Plane は旧 Runtime から明示的な lease 返却を受けるか、旧 lease の期限が切れるまで新しい active assignment を発行しない。強制切替時も旧 lease の期限まで session を停止し、二つの Runtime を同時に active authority にしない。
+- lease renewalの期限はControl Planeのpolicyで制限し、Runtimeのcredentialだけで任意の長期間へ延長できないようにする。現在のEdge固有実装は要求された絶対期限を5分以内に制限し、canonical ISO形式へ正規化する。
 - Runtime は接続、command、state 更新、checkpoint の処理前に、local assignment の `runtimeId`、`runtimeKind`、`assignmentEpoch`、Presentation revision、lease 有効期限を検証する。
 - Quest 用 JWT と bootstrap response は `runtimeId`、`runtimeKind`、`assignmentEpoch` を拘束する。古い世代または別配置先の credential を受け入れない。
 - lease を更新できない場合、既存 connection は `leaseExpiresAt` までだけ継続できる。期限後は Session Runtime を pause し、新規接続、command 受付、state 更新を停止する。
@@ -741,6 +742,8 @@ ViewerReadiness
 4. Quest が bootstrap で選択された Runtime へ JWT を提示する。
 5. Runtime Core が cached JWKS または Control Plane の JWKS で署名を検証する。
 
+JWKS cacheはbounded max ageを持ち、期限後は既知の`kid`でもControl Planeへrefreshする。refresh失敗時はstale keyで検証を継続せずfail closedとし、Control Planeから削除された鍵を予測可能な期間内で拒否する。現在の実装はmax ageを5分とし、未知の`kid`はcache期限前でもrefreshする。
+
 JWT は少なくとも次を拘束する。
 
 - issuer
@@ -1060,7 +1063,7 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - local HTTPS listenerのprocess / port構成、LAN bind、証明書保存・rotation、fingerprint形式、firewall / discovery
 - Cloud Agentのservice manager、credential store、update / rollback方式
 - Internet grace periodとsession停止policy
-- assignment lease durationとrenew interval
+- assignment lease durationとrenew interval。現在のEdge固有renew APIは安全上の暫定上限を5分とする
 - Edge tokenの有効期間、rotation interval、overlap期間
 - Asset cacheのhard capacity、low-disk threshold、eviction順、active session pin、partial download回収、session quota
 

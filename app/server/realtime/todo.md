@@ -34,6 +34,7 @@
 
 - [x] gRPC metadata から `Authorization: Bearer <token>` を取得する。
 - [x] `REALTIME_JWKS_URL` から JWKS を取得・cacheする。
+- [x] JWKS cacheを5分で失効させ、refresh失敗時はstale keyを使用しない。
 - [x] 未知の `kid` を受けた場合に JWKS をrefreshする。
 - [x] `alg = EdDSA`、`kid`、signatureを検証する。
 - [x] `iss = REALTIME_ISSUER` を検証する。
