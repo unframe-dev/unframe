@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 var (
@@ -21,6 +22,17 @@ var (
 type Cache struct {
 	root      string
 	transport http.RoundTripper
+
+	mu sync.RWMutex
+	// verified tracks atomically installed, read-only cache files so Range
+	// requests only need metadata checks after prefetch or readiness validation.
+	verified   map[string]cachedFileState
+	hashCached func(io.Reader) (string, error)
+}
+
+type cachedFileState struct {
+	size             int64
+	modificationNsec int64
 }
 
 func NewCache(root string, client *http.Client) (*Cache, error) {
@@ -34,7 +46,12 @@ func NewCache(root string, client *http.Client) (*Cache, error) {
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
-	return &Cache{root: root, transport: transport}, nil
+	return &Cache{
+		root:       root,
+		transport:  transport,
+		verified:   make(map[string]cachedFileState),
+		hashCached: sha256Checksum,
+	}, nil
 }
 
 func (c *Cache) Prefetch(ctx context.Context, manifest Manifest) error {
@@ -138,30 +155,93 @@ func (c *Cache) fetch(ctx context.Context, descriptor Descriptor) error {
 	if err := temporary.Close(); err != nil {
 		return err
 	}
-	return os.Rename(temporaryName, destination)
+	if err := os.Rename(temporaryName, destination); err != nil {
+		return err
+	}
+	return c.rememberVerified(descriptor)
 }
 
 func (c *Cache) verifyCached(descriptor Descriptor) error {
-	file, err := os.Open(c.path(descriptor.SHA256))
+	path := c.path(descriptor.SHA256)
+	info, err := os.Stat(path)
+	if err != nil {
+		c.forgetVerified(descriptor.SHA256)
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Size() != descriptor.Size {
+		c.forgetVerified(descriptor.SHA256)
+		return errors.New("cached size does not match manifest")
+	}
+	state := fileState(info)
+	if c.isVerified(descriptor.SHA256, state) {
+		return nil
+	}
+
+	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = file.Close() }()
-	info, err := file.Stat()
+	checksum, err := c.hashCached(file)
+	if err != nil {
+		return err
+	}
+	if checksum != descriptor.SHA256 {
+		return errors.New("cached checksum does not match manifest")
+	}
+	verifiedInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	verifiedState := fileState(verifiedInfo)
+	if verifiedState != state {
+		return errors.New("cached asset changed during verification")
+	}
+	c.markVerified(descriptor.SHA256, verifiedState)
+	return nil
+}
+
+func (c *Cache) rememberVerified(descriptor Descriptor) error {
+	info, err := os.Stat(c.path(descriptor.SHA256))
 	if err != nil {
 		return err
 	}
 	if !info.Mode().IsRegular() || info.Size() != descriptor.Size {
 		return errors.New("cached size does not match manifest")
 	}
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return err
-	}
-	if hex.EncodeToString(hash.Sum(nil)) != descriptor.SHA256 {
-		return errors.New("cached checksum does not match manifest")
-	}
+	c.markVerified(descriptor.SHA256, fileState(info))
 	return nil
+}
+
+func (c *Cache) isVerified(checksum string, state cachedFileState) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	verified, ok := c.verified[checksum]
+	return ok && verified == state
+}
+
+func (c *Cache) markVerified(checksum string, state cachedFileState) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.verified[checksum] = state
+}
+
+func (c *Cache) forgetVerified(checksum string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.verified, checksum)
+}
+
+func fileState(info os.FileInfo) cachedFileState {
+	return cachedFileState{size: info.Size(), modificationNsec: info.ModTime().UnixNano()}
+}
+
+func sha256Checksum(reader io.Reader) (string, error) {
+	hash := sha256.New()
+	if _, err := io.Copy(hash, reader); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func (c *Cache) path(checksum string) string {

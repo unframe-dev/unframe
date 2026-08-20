@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestManifestValidationRejectsInvalidAssets(t *testing.T) {
@@ -58,7 +59,8 @@ func TestCachePrefetchesVerifiedContentAndReusesIt(t *testing.T) {
 	defer source.Close()
 
 	manifest := testManifest(payload, source.URL)
-	cache, err := NewCache(t.TempDir(), source.Client())
+	root := t.TempDir()
+	cache, err := NewCache(root, source.Client())
 	if err != nil {
 		t.Fatalf("NewCache(): %v", err)
 	}
@@ -91,6 +93,99 @@ func TestCachePrefetchesVerifiedContentAndReusesIt(t *testing.T) {
 	}
 	if filepath.Base(path) != manifest.Assets[0].SHA256 {
 		t.Fatalf("cached path = %q, want content-addressed filename", path)
+	}
+}
+
+func TestCacheResolveReusesPrefetchVerification(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("asset payload")
+	source := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = response.Write(payload)
+	}))
+	defer source.Close()
+
+	manifest := testManifest(payload, source.URL)
+	root := t.TempDir()
+	cache, err := NewCache(root, source.Client())
+	if err != nil {
+		t.Fatalf("NewCache(): %v", err)
+	}
+	if err := cache.Prefetch(context.Background(), manifest); err != nil {
+		t.Fatalf("Prefetch(): %v", err)
+	}
+	originalHashCached := cache.hashCached
+	hashCalls := 0
+	cache.hashCached = func(reader io.Reader) (string, error) {
+		hashCalls++
+		return originalHashCached(reader)
+	}
+
+	for range 2 {
+		if _, _, err := cache.Resolve(manifest, manifest.Assets[0].ID); err != nil {
+			t.Fatalf("Resolve(): %v", err)
+		}
+	}
+	if hashCalls != 0 {
+		t.Fatalf("cached asset hash calls = %d, want 0", hashCalls)
+	}
+
+	restarted, err := NewCache(root, source.Client())
+	if err != nil {
+		t.Fatalf("NewCache() after restart: %v", err)
+	}
+	originalRestartHashCached := restarted.hashCached
+	restartHashCalls := 0
+	restarted.hashCached = func(reader io.Reader) (string, error) {
+		restartHashCalls++
+		return originalRestartHashCached(reader)
+	}
+	if err := restarted.Ready(manifest); err != nil {
+		t.Fatalf("Ready() after restart: %v", err)
+	}
+	for range 2 {
+		if _, _, err := restarted.Resolve(manifest, manifest.Assets[0].ID); err != nil {
+			t.Fatalf("Resolve() after restart: %v", err)
+		}
+	}
+	if restartHashCalls != 1 {
+		t.Fatalf("cached asset hash calls after restart = %d, want 1", restartHashCalls)
+	}
+}
+
+func TestCacheResolveRevalidatesChangedContent(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("asset payload")
+	source := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = response.Write(payload)
+	}))
+	defer source.Close()
+
+	manifest := testManifest(payload, source.URL)
+	cache, err := NewCache(t.TempDir(), source.Client())
+	if err != nil {
+		t.Fatalf("NewCache(): %v", err)
+	}
+	if err := cache.Prefetch(context.Background(), manifest); err != nil {
+		t.Fatalf("Prefetch(): %v", err)
+	}
+	path := cache.path(manifest.Assets[0].SHA256)
+	if err := os.Chmod(path, 0o640); err != nil {
+		t.Fatalf("make cached asset writable: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("wrong payload"), 0o640); err != nil {
+		t.Fatalf("replace cached asset: %v", err)
+	}
+	changedAt := time.Now().Add(time.Hour)
+	if err := os.Chtimes(path, changedAt, changedAt); err != nil {
+		t.Fatalf("change cached asset timestamp: %v", err)
+	}
+
+	if _, _, err := cache.Resolve(manifest, manifest.Assets[0].ID); !errors.Is(err, ErrNotReady) {
+		t.Fatalf("Resolve() error = %v, want %v", err, ErrNotReady)
 	}
 }
 
