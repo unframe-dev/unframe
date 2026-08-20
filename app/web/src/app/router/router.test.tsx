@@ -67,6 +67,12 @@ describe("web editor routes", () => {
     const navigation = screen.getByRole("navigation", {
       name: "メインナビゲーション",
     });
+    const sidebar = screen.getByRole("complementary", {
+      name: "アプリケーションサイドバー",
+    });
+    expect(document.querySelector(".app-header")).toBeNull();
+    expect(within(sidebar).getByRole("link", { name: "Unframe home" })).toBeVisible();
+    expect(within(sidebar).getByRole("button", { name: "アカウントメニュー" })).toBeVisible();
     for (const label of ["ホーム", "設定", "デバイス", "ルーム"]) {
       expect(within(navigation).getByRole("link", { name: label })).toBeVisible();
     }

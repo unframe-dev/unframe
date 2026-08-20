@@ -1,5 +1,10 @@
 import { Dialog } from "@base-ui/react/dialog";
-import { MagnifyingGlassIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
+import {
+  ClockIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "../../components/ui/button";
@@ -51,25 +56,22 @@ export function HomePage() {
           <div className="workspace-title">
             <h1>Presentations.</h1>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <PlusIcon aria-hidden="true" />
-            新規作成
-          </Button>
+          <div className="workspace-actions">
+            <label className="search">
+              <MagnifyingGlassIcon aria-hidden="true" />
+              <span className="sr-only">タイトルを検索</span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="タイトルを検索"
+              />
+            </label>
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon aria-hidden="true" />
+              新規作成
+            </Button>
+          </div>
         </header>
-        <div className="workspace-toolbar">
-          <p className="resource-count">
-            {items.length.toString().padStart(2, "0")} items
-          </p>
-          <label className="search">
-            <MagnifyingGlassIcon aria-hidden="true" />
-            <span className="sr-only">タイトルを検索</span>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="タイトルを検索"
-            />
-          </label>
-        </div>
         <div className="workspace-content">
           {presentations.isPending ? (
             <p role="status">プレゼンテーションを読み込み中…</p>
@@ -96,14 +98,26 @@ export function HomePage() {
               ) : null}
             </div>
           ) : (
-            <ul className="resource-list">
+            <ul className="presentation-grid">
               {items.map((presentation) => (
-                <li key={presentation.id}>
-                  <h2>{presentation.definition.metadata.title}</h2>
-                  <p>
-                    更新 {formatUpdatedAt(presentation.updatedAt)} · Revision{" "}
-                    {presentation.revision}
-                  </p>
+                <li className="presentation-card" key={presentation.id}>
+                  <div className="presentation-thumbnail">
+                    <img
+                      src={presentation.thumbnailUrl}
+                      alt={`${presentation.definition.metadata.title}のサムネイル`}
+                      loading="lazy"
+                    />
+                    <p
+                      className="presentation-updated"
+                      aria-label={`更新日時 ${formatUpdatedAt(presentation.updatedAt)}`}
+                    >
+                      <ClockIcon aria-hidden="true" />
+                      <time dateTime={presentation.updatedAt}>
+                        {formatUpdatedAt(presentation.updatedAt)}
+                      </time>
+                    </p>
+                    <h2>{presentation.definition.metadata.title}</h2>
+                  </div>
                 </li>
               ))}
             </ul>

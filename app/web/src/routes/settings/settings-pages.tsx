@@ -14,6 +14,7 @@ type DeviceSession = NonNullable<
 export function ProfilePage() {
   const [user, setUser] = useState<SessionUser>();
   const [name, setName] = useState("");
+  const [image, setImage] = useState("");
   const [state, setState] = useState("読み込み中…");
   useEffect(() => {
     void auth
@@ -21,6 +22,7 @@ export function ProfilePage() {
       .then((result) => {
         setUser(result.data?.user);
         setName(result.data?.user?.name ?? "");
+        setImage(result.data?.user?.image ?? "");
         setState("");
       })
       .catch(() => setState("プロフィールを読み込めませんでした。"));
@@ -28,11 +30,12 @@ export function ProfilePage() {
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setState("保存中…");
-    const result = await auth.updateUser({ name });
+    const nextImage = image.trim() || null;
+    const result = await auth.updateUser({ name: name.trim(), image: nextImage });
     setState(result.error ? "保存できませんでした。" : "保存しました。");
     if (!result.error)
       setUser((value: SessionUser | undefined) =>
-        value ? { ...value, name } : value,
+        value ? { ...value, name: name.trim(), image: nextImage } : value,
       );
   };
   return (
@@ -45,37 +48,77 @@ export function ProfilePage() {
       </header>
       <section className="workspace-section">
         <header className="section-heading">
-          <p className="section-number">01</p>
-          <div><h2>基本情報</h2><p>表示名とログイン中のメールアドレスを確認します。</p></div>
+          <h2>基本情報</h2>
         </header>
-        <form onSubmit={save}>
-          <label>
-            名前
-            <input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (state !== "保存中…") setState("未保存の変更があります。");
-              }}
-              disabled={!user}
-            />
-          </label>
-          <label>
-            メールアドレス
-            <input value={user?.email ?? ""} readOnly aria-readonly="true" />
-          </label>
-          <p role="status">{state}</p>
-          <Button
-            type="submit"
-            disabled={
-              !user || !name || name === user.name || state === "保存中…"
-            }
-          >
-            保存
-          </Button>
-        </form>
+        <div className="profile-editor">
+          <ProfileIcon image={image.trim()} name={name} />
+          <form onSubmit={save}>
+            <label>
+              名前
+              <input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (state !== "保存中…") setState("未保存の変更があります。");
+                }}
+                disabled={!user}
+                autoComplete="name"
+              />
+            </label>
+            <label>
+              アイコンURL
+              <input
+                type="url"
+                value={image}
+                onChange={(event) => {
+                  setImage(event.target.value);
+                  if (state !== "保存中…") setState("未保存の変更があります。");
+                }}
+                disabled={!user}
+                placeholder="https://example.com/avatar.png"
+                inputMode="url"
+              />
+            </label>
+            <p className="profile-image-help">空欄にするとアイコンを解除します。</p>
+            <p role="status">{state}</p>
+            <Button
+              type="submit"
+              disabled={
+                !user ||
+                !name.trim() ||
+                (name.trim() === user.name &&
+                  image.trim() === (user.image ?? "")) ||
+                state === "保存中…"
+              }
+            >
+              保存
+            </Button>
+          </form>
+        </div>
       </section>
     </main>
+  );
+}
+
+function ProfileIcon({ image, name }: { image: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => setFailed(false), [image]);
+
+  return (
+    <div className="profile-icon-preview">
+      {image && !failed ? (
+        <img
+          src={image}
+          alt="プロフィールアイコン"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-label="プロフィールアイコン">
+          {name.trim().charAt(0).toLocaleUpperCase() || "U"}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -134,11 +177,15 @@ export function SecurityPage() {
         </div>
       </header>
       <section className="workspace-section">
-        <header className="section-heading"><p className="section-number">01</p><div><h2>パスワード</h2><p>認証情報を更新し、他のセッションを終了します。</p></div></header>
+        <header className="section-heading">
+          <h2>パスワード</h2>
+        </header>
         <PasswordChange perform={perform} />
       </section>
       <section className="workspace-section">
-        <header className="section-heading"><p className="section-number">02</p><div><h2>二要素認証</h2><p>認証アプリを使用します。SMS やメール OTP は設定されていません。</p></div></header>
+        <header className="section-heading">
+          <h2>二要素認証</h2>
+        </header>
         <label>
           現在のパスワード
           <input
@@ -194,7 +241,9 @@ export function SecurityPage() {
         </Button>
       </section>
       <section className="workspace-section">
-        <header className="section-heading"><p className="section-number">03</p><div><h2>セッション</h2><p>ログイン中のデバイスを確認し、不要な接続を終了します。</p></div></header>
+        <header className="section-heading">
+          <h2>セッション</h2>
+        </header>
         <Button variant="outline" onClick={() => void loadSessions()}>
           セッションを更新
         </Button>

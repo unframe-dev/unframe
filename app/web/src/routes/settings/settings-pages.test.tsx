@@ -22,19 +22,42 @@ vi.mock("../../app/auth/control-plane-auth", () => ({
 }));
 
 describe("ProfilePage", () => {
-  it("loads a profile and persists a dirty name", async () => {
+  it("updates the name and profile icon without displaying the email address", async () => {
     auth.getSession.mockResolvedValue({
-      data: { user: { name: "旧名", email: "a@example.test" } },
+      data: {
+        user: {
+          name: "旧名",
+          email: "a@example.test",
+          image: "https://example.test/old.png",
+        },
+      },
     });
     auth.updateUser.mockResolvedValue({ error: null });
     render(<ProfilePage />);
     const user = userEvent.setup();
     const name = await screen.findByDisplayValue("旧名");
+    const image = screen.getByRole("textbox", { name: "アイコンURL" });
+
+    expect(screen.queryByText("01")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("表示名とプロフィールアイコンを設定します。"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("a@example.test")).not.toBeInTheDocument();
+    expect(screen.queryByText("メールアドレス")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "プロフィールアイコン" }),
+    ).toHaveAttribute("src", "https://example.test/old.png");
+
     await user.clear(name);
     await user.type(name, "新名");
+    await user.clear(image);
+    await user.type(image, "https://example.test/new.png");
     expect(screen.getByRole("status")).toHaveTextContent("未保存");
     await user.click(screen.getByRole("button", { name: "保存" }));
-    expect(auth.updateUser).toHaveBeenCalledWith({ name: "新名" });
+    expect(auth.updateUser).toHaveBeenCalledWith({
+      name: "新名",
+      image: "https://example.test/new.png",
+    });
   });
 });
 describe("SecurityPage", () => {
@@ -55,6 +78,10 @@ describe("SecurityPage", () => {
     });
     render(<SecurityPage />);
     const user = userEvent.setup();
+    for (const number of ["01", "02", "03"]) {
+      expect(screen.queryByText(number)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/SMS やメール OTP/)).not.toBeInTheDocument();
     await user.type(screen.getAllByLabelText("現在のパスワード")[1]!, "password");
     await user.click(
       screen.getByRole("button", { name: "二要素認証を有効化" }),

@@ -25,6 +25,7 @@ function presentation(title: string, revision = 1) {
   return {
     id: `mock-${title}`,
     revision,
+    thumbnailUrl: "/placeholder-thumbnail.svg",
     definition: { metadata: { title }, groups: [] },
     createdAt: "2026-08-17T01:00:00.000Z",
     updatedAt: "2026-08-17T02:30:00.000Z",
@@ -92,7 +93,18 @@ describe("HomePage", () => {
       name: "空間デザインレビュー",
     });
     expect(presentationTitle).toBeInTheDocument();
-    expect(presentationTitle.closest("li")).toHaveTextContent("更新 2026/08/17 · Revision 3");
+    expect(presentationTitle.parentElement).toHaveClass("presentation-thumbnail");
+    const card = presentationTitle.closest("li");
+    expect(card).toHaveTextContent("2026/08/17");
+    expect(card).not.toHaveTextContent("更新");
+    const updatedAt = screen.getByText("2026/08/17").closest("p");
+    expect(updatedAt).toHaveClass("presentation-updated");
+    expect(updatedAt?.parentElement).toHaveClass("presentation-thumbnail");
+    expect(card?.querySelector(".presentation-updated svg")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("Revision");
+    expect(
+      screen.getByRole("img", { name: "空間デザインレビューのサムネイル" }),
+    ).toHaveAttribute("src", "/placeholder-thumbnail.svg");
     expect(screen.queryByRole("link", { name: "編集を開く" })).not.toBeInTheDocument();
     expect(listMockPresentations).toHaveBeenCalledOnce();
   });
@@ -113,7 +125,17 @@ describe("HomePage", () => {
     expect(
       await screen.findByRole("region", { name: "プレゼンテーション" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("00 items")).toBeInTheDocument();
+    expect(screen.queryByText(/items/)).not.toBeInTheDocument();
+    const actions = screen.getByPlaceholderText("タイトルを検索").closest(
+      ".workspace-actions",
+    );
+    const createButton = screen.getByRole("button", { name: "新規作成" });
+    expect(actions).toBeInTheDocument();
+    expect(createButton.parentElement).toBe(actions);
+    expect(actions?.firstElementChild).toContainElement(
+      screen.getByPlaceholderText("タイトルを検索"),
+    );
+    expect(actions?.lastElementChild).toBe(createButton);
     expect(
       screen.queryByRole("heading", { level: 2, name: "プレゼンテーション" }),
     ).not.toBeInTheDocument();

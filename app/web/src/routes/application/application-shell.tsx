@@ -42,16 +42,25 @@ function SidebarNavigation({
   pathname,
   collapsed,
   onToggle,
+  onLogout,
 }: {
   pathname: string;
   collapsed: boolean;
   onToggle: () => void;
+  onLogout: () => void;
 }) {
   const isSettings = pathname.startsWith("/settings/");
   const links = isSettings ? settingsLinks : mainLinks;
 
   return (
-    <aside className="app-sidebar" data-collapsed={collapsed}>
+    <aside
+      className="app-sidebar"
+      data-collapsed={collapsed}
+      aria-label="アプリケーションサイドバー"
+    >
+      <div className="sidebar-brand">
+        <BrandLink application />
+      </div>
       <button
         className="sidebar-collapse"
         type="button"
@@ -99,32 +108,7 @@ function SidebarNavigation({
           })}
         </div>
       </nav>
-    </aside>
-  );
-}
-
-export function ApplicationShell() {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => window.localStorage.getItem(sidebarStorageKey) === "true",
-  );
-  const toggleSidebar = () => {
-    setSidebarCollapsed((current) => {
-      const next = !current;
-      window.localStorage.setItem(sidebarStorageKey, String(next));
-      return next;
-    });
-  };
-  const logout = async () => {
-    await controlPlaneAuth.signOut();
-    window.location.assign("/");
-  };
-  return (
-    <div className="app-shell">
-      <header className="app-header">
-        <BrandLink application />
+      <div className="sidebar-account">
         <Menu.Root modal={false}>
           <Menu.Trigger
             render={
@@ -156,7 +140,7 @@ export function ApplicationShell() {
                 <Menu.Separator className="account-menu-separator" />
                 <Menu.Item
                   className="account-menu-item account-menu-logout"
-                  onClick={() => void logout()}
+                  onClick={onLogout}
                 >
                   ログアウト
                   <ArrowUpRightIcon aria-hidden="true" />
@@ -165,12 +149,37 @@ export function ApplicationShell() {
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.Root>
-      </header>
+      </div>
+    </aside>
+  );
+}
+
+export function ApplicationShell() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.localStorage.getItem(sidebarStorageKey) === "true",
+  );
+  const toggleSidebar = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem(sidebarStorageKey, String(next));
+      return next;
+    });
+  };
+  const logout = async () => {
+    await controlPlaneAuth.signOut();
+    window.location.assign("/");
+  };
+  return (
+    <div className="app-shell">
       <div className="app-layout" data-sidebar-collapsed={sidebarCollapsed}>
         <SidebarNavigation
           pathname={pathname}
           collapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
+          onLogout={() => void logout()}
         />
         <div className="app-content">
           <Outlet />
