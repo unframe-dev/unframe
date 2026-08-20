@@ -8,9 +8,9 @@
 
 本書は、会話や過去の検討経緯を参照しなくても、対象要件、採用する構成、各 component の責務、通信方式、障害時挙動、実装・検証項目を理解できることを目的とする。
 
-現在の実装基盤では、Control Plane の Venue Edge provisioning / registration / assignment、Quest bootstrap、JWT / JWKS / scope 検証、Realtime 接続と command の assignment lease / epoch fencing を実装済みである。Manifest 検証、content-addressed Asset cache、Range 配信、runtime pause / resume、Element State field-merge mailbox は transport-independent な domain primitive まで実装済みである。
+現在の実装基盤では、Control Plane の Venue Edge provisioning identity と登録を Venue Edge profile に残しつつ、Cloud / Venue Edge 共通の `RuntimeAssignment` repository / API、Quest bootstrap、JWT / JWKS / scope 検証、Realtime 接続と command の assignment lease / epoch fencing を実装済みである。共通 Runtime Core composition、application readiness と gRPC health、stream observability、Control Plane callback client / bounded buffer、Fly.io service profile は foundation まで実装済みである。Manifest 検証、content-addressed Asset cache、Range 配信、runtime pause / resume、Element State field-merge mailbox は transport-independent な domain primitive まで実装済みである。
 
-Target Architecture では、この Edge 固有の割り当てを Cloud Runtime にも使える `RuntimeAssignment` へ一般化する。まず Fly.io 上の Cloud Realtime と Quest だけで成立する MVP を実装し、実機で latency、jitter、最大 50 台への fan-out を測定する。その後、同じ Runtime Core を Venue Edge 用バイナリとして起動し、session 開始前に配置先を選択できるようにする。Venue Edge の Cloud Agent、実際の local HTTPS listener、Unity の Control / State 接続、Presenter Pose、Step / Cue 実行、snapshot / replay、Asset cache の容量・退避方針は後続の設計・実装対象である。
+次の Target Architecture 段階では、foundation 上に Fly.io Machine の登録・起動と Quest の Cloud Realtime 接続を実装し、実機で latency、jitter、最大 50 台への fan-out を測定する。Venue Edge の Cloud Agent、実際の local HTTPS listener、Unity の Control / State 接続、Presenter Pose、Step / Cue 実行、snapshot / replay、Asset cache の容量・退避方針は後続の設計・実装対象である。
 
 ## 実装状況
 
@@ -23,16 +23,20 @@ Target Architecture では、この Edge 固有の割り当てを Cloud Runtime 
 
 | 領域 | 状態 | 現在の境界・根拠 |
 | --- | --- | --- |
-| Venue Edge provisioning / credential / registration / assignment | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`。lease日時をcanonical ISOへ正規化し、Edgeによるrenewは5分以内、割当・bootstrapに使えるhealthは直近60秒以内に制限する |
-| Venue Edge bootstrap / JWT claims | 実装済み | `control-plane/src/modules/realtime-bootstrap/` と session bootstrap route。`edgeId`、assignment epoch、Presentation revision を拘束する |
-| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/edge/`、gRPC interceptor / service guard。JWKS cacheは5分で失効し、未知のkey IDによるrefreshは30秒に1回へ制限する。lease失効時はblocked sendからも切断する |
-| Runtime persistence callback | 部分実装 | Control Planeのcheckpoint / completion handlerとD1保存を実装済み。completionは`edgeId`と`assignmentEpoch`でactive leaseをfencingするが、Runtimeからの送信、checkpointのepoch fencing、telemetryは未実装 |
+| Venue Edge provisioning identity / credential / registration | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`、`migrations/0009_runtime_assignments.sql`。Edge ID / Bearer token は profile 固有の provisioning にだけ使用する |
+| Runtime Assignment lifecycle / bootstrap | 部分実装 | `control-plane/src/modules/runtime-assignments/`、`realtime-bootstrap/` と session bootstrap route。Cloud / Venue Edge 共通の assign / read / bootstrap は `runtimeId`、`runtimeKind`、assignment epoch、Presentation revision を拘束する。renew / release API は Venue Edge profile だけにあり、Cloud lifecycle は未実装。lease 日時を canonical ISO へ正規化し、Venue Edge renew は5分以内、割当・bootstrapに使える Venue Edge heartbeat は直近60秒以内に制限する |
+| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/assignment/`、gRPC interceptor / service guard。audience は必須設定だが具体値は未決定。JWKS cache は5分で失効し、未知の key ID による refresh は30秒に1回へ制限し、refresh 失敗時は stale key を使用しない。lease 失効時は blocked send も終了する |
+| 共通 Runtime Core composition | 部分実装 | `realtime/internal/runtimecore/` と `cmd/server/`。Cloud / Venue Edge 共通の Coordinator / Guard / gRPC composition は接続済みだが、Step / Cue、State、Snapshot、profile agent は未接続 |
+| application readiness / gRPC health | 実装済み | local assignment lease と JWKS cache を期限付きで継続確認し、確認後だけ `SERVING` とすることで process 起動とは分離する。`NOT_SERVING` 遷移時の既存 idle stream 終了は Runtime lifecycle へ未接続 |
+| stream observability | 部分実装 | structured log と active / completed / auth failure / resource exhausted metrics は gRPC interceptor に接続済み。exporter、trace、alert は未実装 |
+| Control Plane checkpoint / completion | 部分実装 | assignment-fenced callback API と Realtime HTTP client / bounded buffer はあるが、Snapshot schema と session lifecycle へ未接続。現在の API 認証は既存 service identity で、Venue Edge credential / Cloud platform identity への profile 別接続は未実装 |
+| Runtime message / rate abuse protection | 未実装 | protocol 固有の message size、participant ごとの rate、invalid-message count による切断 policy は未接続 |
 | Manifest 検証、content-addressed cache、Range 対応 Asset handler | 部分実装 | `realtime/internal/asset/`。domain と `http.Handler` はあるが、実際の local HTTPS listener、証明書、Cloud Agent、runtime composition へ未接続 |
 | Runtime pause / resume state | 部分実装 | `realtime/internal/session/runtime.go`。状態遷移 primitive はあるが、Presenter 接続、Step / Cue、Snapshot / checkpoint へ未接続 |
 | Element State latest-wins mailbox | 部分実装 | `realtime/internal/state/mailbox.go`。field merge primitive はあるが、State gRPC fan-out へ未接続 |
-| `RuntimeAssignment` / `runtimeId` / `runtimeKind` 一般化 | 未実装 | 現在は `EdgeSessionAssignment` と `edgeId` を使用している |
-| Fly.io Cloud Runtime | 未実装 | 起動・登録、公開 endpoint、health、checkpoint、deployment profile は Target のみ |
-| session 作成時の `Cloud` / `VenueEdge` 選択 | 未実装 | Control Plane API / repository / UI / bootstrap は Edge 固有のまま |
+| `RuntimeAssignment` / `runtimeId` / `runtimeKind` 一般化 | 実装済み | Control Plane repository / API、bootstrap / JWT、Realtime Guard で共通 contract を使用する |
+| Fly.io Cloud Runtime | 部分実装 | Docker image、H2C service profile、共通 binary と application health はある。app / region / Machine / identity / autoscaling、登録・起動、公開 endpoint、deploy は未実装・未決定 |
+| session 作成時の `Cloud` / `VenueEdge` 選択 | 部分実装 | Control Plane の generic assignment API / repository / bootstrap は両 kind を扱う。session 作成 API と UI からの選択・Runtime 自動選定は未実装 |
 | Unity の Control / State gRPC 接続 | 未実装 | generated client の組み込み、2 connection lifecycle、nonce、再接続、State 適用は未着手 |
 | Presenter Tracking / Input protocol | 未実装 | Pose sample、clock、rate、Unity送信、Runtime受信は Target のみ |
 | Step / Cue / Action / Transition evaluator | 未実装 | canonical evaluation と Element State 生成は未着手 |
@@ -274,13 +278,13 @@ RuntimeAssignment
 - `certificateFingerprint` は Venue Edge の local endpoint にだけ必要な profile 固有情報とし、共通 Assignment の必須 field にしない。
 - Control Plane は同じ session を別 Runtime へ割り当てるたびに `assignmentEpoch` を増やす。
 - Control Plane は旧 Runtime から明示的な lease 返却を受けるか、旧 lease の期限が切れるまで新しい active assignment を発行しない。強制切替時も旧 lease の期限まで session を停止し、二つの Runtime を同時に active authority にしない。
-- lease renewalの期限はControl Planeのpolicyで制限し、Runtimeのcredentialだけで任意の長期間へ延長できないようにする。現在のEdge固有実装は要求された絶対期限を5分以内に制限し、canonical ISO形式へ正規化する。
+- lease renewalの期限はControl Planeのpolicyで制限し、Runtimeのcredentialだけで任意の長期間へ延長できないようにする。現在のVenue Edge renew APIは要求された絶対期限を5分以内に制限し、canonical ISO形式へ正規化する。
 - Runtime は接続、command、state 更新、checkpoint の処理前に、local assignment の `runtimeId`、`runtimeKind`、`assignmentEpoch`、Presentation revision、lease 有効期限を検証する。
 - Quest 用 JWT と bootstrap response は `runtimeId`、`runtimeKind`、`assignmentEpoch` を拘束する。古い世代または別配置先の credential を受け入れない。
 - lease を更新できない場合、既存 connection は `leaseExpiresAt` までだけ継続できる。期限後は Session Runtime を pause し、新規接続、command 受付、state 更新を停止する。
 - Control Plane は古い `assignmentEpoch` から届いた checkpoint、completion、telemetry を現行 session state へ適用しない。
 
-現在の実装は `EdgeSessionAssignment` と JWT の `edgeId` を使用している。Cloud Runtime を接続する前に、契約、repository、bootstrap、JWT、Runtime Guard を `RuntimeAssignment` と `runtimeId` へ移行する。Edge 固有 Bearer token と `edgeId` は Venue Edge の provisioning identity としてのみ残す。
+現在の実装は、契約、assign / read repository、bootstrap、JWT、Runtime Guard を `RuntimeAssignment` と `runtimeId` / `runtimeKind` へ移行済みである。Edge 固有 Bearer token と `edgeId` は Venue Edge の provisioning identity としてのみ残し、Quest 用 JWT や共通 Runtime Core の identity には使用しない。renew / release API は Venue Edge profile だけに接続済みで、Cloud lifecycle とその identity は未決定・未実装である。
 
 ### 5.2 割り当てと bootstrap
 
@@ -984,6 +988,8 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - assignment lease / epoch / fencingをCloud / Venue Edge共通化
 - Edge Bearer credentialをVenue Edge profileだけに分離
 
+この段階の code migration は実装済みである。Runtime 共通 audience は設定必須にしたが、具体値と旧 audience からの移行方法は Open Question のまま残す。
+
 ### Phase 2: Fly.io Cloud Realtime MVP
 
 - Fly.io Runtimeの起動、登録、公開TLS endpoint、health
@@ -996,6 +1002,8 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Quest向けR2 / CDN signed URLとreadiness
 
 この段階でVenue Edge用PCなしに、Presenter QuestとViewer Questだけでend-to-endの発表を成立させる。
+
+現在は共通 binary / Runtime Core composition、application health、Fly.io service profileまでの foundation を実装済みである。Machine lifecycle、公開 endpoint、Unity接続以降は未実装であり、この段階の MVP はまだ成立していない。
 
 ### Phase 3: Cloud 基準性能の計測
 
