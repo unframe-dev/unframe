@@ -2,8 +2,8 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AppProviders } from "../providers/app-providers";
-import { requireSession } from "../auth/require-session";
+import { AppProviders } from "@/app/providers/app-providers";
+import { requireSession } from "@/features/auth/require-session";
 import { createAppRouter } from "./router";
 
 const auth = vi.hoisted(() => ({
@@ -16,7 +16,7 @@ vi.mock("@unframe/api-client-typescript", () => ({
   createControlPlaneAuthClient: vi.fn(() => auth),
 }));
 
-vi.mock("../../viewer/presentation/presentation-canvas", () => ({
+vi.mock("@/features/editor/ui/presentation-canvas", () => ({
   PresentationCanvas: () => <div aria-label="3Dプレゼンテーション">3D viewport</div>,
 }));
 

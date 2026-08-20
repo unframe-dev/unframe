@@ -45,22 +45,24 @@ pnpm --filter @unframe/web run dev
 | `/login/`、`/signup/`、`/recover/`          | public authentication routes        |
 | `/settings/profile/`、`/settings/security/` | account settings                    |
 
-認証 guard はローカル session setup の調整中のため一時的に無効化しています。復帰時は application route の `beforeLoad` で、未認証を LP 所有の `/` へ外部遷移させます。
+application route の `beforeLoad` は未認証を LP 所有の `/` へ外部遷移させます。
 
 ## 構成
 
-| 領域                       | 責務                                                      |
-| -------------------------- | --------------------------------------------------------- |
-| `src/document/`            | versioned document schema、migration、serializer、fixture |
-| `src/editor/commands/`     | serializable command の検証と適用                         |
-| `src/editor/history/`      | inverse command による Undo / Redo                        |
-| `src/editor/session/`      | 選択、tool、panel、grid、snap などの一時 UI state         |
-| `src/viewer/presentation/` | POC Editor が利用する 3D scene と error fallback          |
-| `src/viewer/stream/`       | 移行前 POC の revision event と browser snapshot          |
-| `src/routes/`              | Home、Editor、Device Authorization の画面 shell           |
-| `worker/`                  | root-based request を Static Assets へ渡す Worker         |
+| 領域                          | 責務                                                          |
+| ----------------------------- | ------------------------------------------------------------- |
+| `src/app/`                    | router、provider、application shell の composition            |
+| `src/features/auth/`          | Better Auth browser flow と認証 guard                         |
+| `src/features/device/`        | Device Authorization の承認画面                               |
+| `src/features/presentations/` | Home の一覧・作成と mock repository                           |
+| `src/features/settings/`      | プロフィールとセキュリティー設定                              |
+| `src/features/editor/`        | POC document model、browser persistence、3D canvas、Editor UI |
+| `src/shared/`                 | brand、layout、shadcn/ui primitives、共通 utility             |
+| `worker/`                     | root-based request を Static Assets へ渡す Worker             |
 
 保存対象は `PresentationDocument` だけです。選択状態や gizmo の drag 中 state は保存しません。GLB の runtime URL も document へ保存せず、`AssetResolver` が asset ID から解決します。
+
+`@base-ui/react` は `src/shared/ui/` の shadcn/ui primitives 内に閉じ込めます。feature は `Button`、`Input`、`Label`、`Select`、`Dialog`、`DropdownMenu` を同じ境界から利用します。
 
 ## 検証
 

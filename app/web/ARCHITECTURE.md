@@ -29,7 +29,7 @@ Web は Unity 用 Session の作成・参加・開始・終了、Realtime Backen
 /settings/security/
 ```
 
-`/device/` は Device Authorization の公開 route です。`/home/`、`/editor/:presentationId/`、`/settings/*` は認証必須です。認証画面と Settings は未実装であり、実装されるまで利用可能な route として表示しません。
+`/device/` は Device Authorization の公開 route です。`/home/`、`/editor/:presentationId/`、`/settings/*` は認証必須です。
 
 ## API Boundaries
 
@@ -55,7 +55,7 @@ OpenAPI artifact は外部契約と Unity / C# のために維持しますが、
 | 3D object、camera、pointer の一時状態           | React Three Fiber / Three.js         |
 | form input と validation                        | React Hook Form / Zod                |
 
-保存は Control Plane の revision 条件付き aggregate update に従います。POC の Slide schema、`localStorage`、`BroadcastChannel` は target contract ではなく、移行中の fixture adapter としてのみ扱います。これらとの後方互換性を理由に Group / Step / Cue の設計を制約しません。
+保存は Control Plane の revision 条件付き aggregate update に従います。POC の Slide schema と `localStorage` persistence は target contract ではなく、移行中の fixture adapter としてのみ扱います。これらとの後方互換性を理由に Group / Step / Cue の設計を制約しません。
 
 ## UI Foundation
 
@@ -65,6 +65,8 @@ OpenAPI artifact は外部契約と Unity / C# のために維持しますが、
 - LP と同じ background、foreground、line、night、Blue / Purple / Red のブランド色
 
 shadcn/ui component は必要なものだけ source として追加し、アプリ側で所有します。別の一般 icon library を混在させません。Editor は LP の色とタイポグラフィを共有しますが、巨大見出し、広い marketing spacing、常設の波形を制作画面へ持ち込みません。
+
+`@base-ui/react` の import は `src/shared/ui/` に限定する。`src/app/` は起動と composition のみを持ち、route UI とそのロジックは `src/features/<feature>/` に置く。現行 Editor POC の model、browser persistence、3D canvas も `src/features/editor/` が所有する。
 
 ## Domain Boundary
 

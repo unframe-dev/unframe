@@ -144,7 +144,7 @@ motion は状態変化と空間関係の理解に使います。装飾のため�
 - Tailwind CSS v4 を token と layout の基盤にする
 - shadcn/ui の Base UI variant を使用する
 - icon は `@phosphor-icons/react` に統一する
-- shadcn/ui component は必要になった時点で source を追加し、`src/components/ui/` で所有する
+- shadcn/ui component は必要になった時点で source を追加し、`src/shared/ui/` で所有する
 - route 固有の component を汎用 primitive に昇格させない
 - LP の Svelte component を React 用 abstraction へ移植しない
 
