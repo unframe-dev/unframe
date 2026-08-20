@@ -1,11 +1,12 @@
 # Unframe Backend
 
-`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書を参照してください。
+`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書、現在確認されている不整合と完了条件は [todo.md](./todo.md) を参照してください。
 
 ```text
 app/server/
 ├── ARCHITECTURE.md
 ├── README.md
+├── todo.md           # component 間の不整合とArchitecture同期作業
 ├── control-plane/
 │   └── ARCHITECTURE.md  # Cloudflare Workers / TypeScript / Hono / D1 / R2
 ├── realtime/
