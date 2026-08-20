@@ -54,6 +54,11 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
           "UPDATE presentation_sessions SET state = 'Ended', ended_at = ? WHERE id = ? AND state != 'Ended'",
         )
         .bind(input.endedAt, input.sessionId),
+      this.database
+        .prepare(
+          "UPDATE session_edge_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
+        )
+        .bind(input.endedAt, input.sessionId),
     ]);
     return inserted?.meta.changes === 1 ? "applied" : "duplicate";
   }

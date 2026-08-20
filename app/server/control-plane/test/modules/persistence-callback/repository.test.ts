@@ -30,6 +30,23 @@ const seedSession = async () => {
   return id;
 };
 
+const seedAssignment = async (sessionId: string) => {
+  const edgeId = `edge-${sessionId}`;
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO venue_edges (id, status, last_seen_at, created_at) VALUES (?, 'active', ?, ?)",
+    ).bind(edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T00:00:00.000Z"),
+    env.DB.prepare(
+      "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 1, 1, ?, ?, NULL)",
+    ).bind(
+      sessionId,
+      edgeId,
+      "2026-08-11T00:00:00.000Z",
+      "2026-08-11T01:00:00.000Z",
+    ),
+  ]);
+};
+
 describe("D1PersistenceCallbackRepository", () => {
   let repository: D1PersistenceCallbackRepository;
 
@@ -55,6 +72,7 @@ describe("D1PersistenceCallbackRepository", () => {
 
   it("stores completion once and ends the session", async () => {
     const sessionId = await seedSession();
+    await seedAssignment(sessionId);
     const completion = {
       sessionId,
       checkpointVersion: 1,
@@ -73,6 +91,13 @@ describe("D1PersistenceCallbackRepository", () => {
         .bind(sessionId)
         .first(),
     ).resolves.toMatchObject({ state: "Ended", ended_at: completion.endedAt });
+    await expect(
+      env.DB.prepare(
+        "SELECT released_at FROM session_edge_assignments WHERE session_id = ? AND assignment_epoch = 1",
+      )
+        .bind(sessionId)
+        .first(),
+    ).resolves.toMatchObject({ released_at: completion.endedAt });
   });
 
   it("distinguishes an unknown session from a duplicate", async () => {
