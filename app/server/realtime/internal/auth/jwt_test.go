@@ -14,10 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
 
-func TestBearerTokenVerifierVerifiesVenueEdgeClaimsAndRequiredScope(t *testing.T) {
+func TestBearerTokenVerifierVerifiesRuntimeAssignmentClaimsAndRequiredScope(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
@@ -35,7 +36,8 @@ func TestBearerTokenVerifierVerifiesVenueEdgeClaimsAndRequiredScope(t *testing.T
 		SessionID:            "session-1",
 		ParticipantID:        "participant-1",
 		Role:                 session.RolePresenter,
-		EdgeID:               "edge-1",
+		RuntimeID:            "runtime-1",
+		RuntimeKind:          assignment.RuntimeKindCloud,
 		AssignmentEpoch:      3,
 		PresentationID:       "presentation-1",
 		PresentationRevision: 7,
@@ -54,14 +56,27 @@ func TestBearerTokenVerifierUsesBoundedDefaultJWKSCacheTTL(t *testing.T) {
 	t.Parallel()
 
 	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
-		Issuer:  "https://control-plane.example.test",
-		JWKSURL: "https://control-plane.example.test/.well-known/jwks.json",
+		Issuer:   "https://control-plane.example.test",
+		Audience: "runtime-audience",
+		JWKSURL:  "https://control-plane.example.test/.well-known/jwks.json",
 	})
 	if err != nil {
 		t.Fatalf("new verifier: %v", err)
 	}
 	if verifier.cacheTTL != 5*time.Minute {
 		t.Errorf("cache TTL = %s, want 5m", verifier.cacheTTL)
+	}
+}
+
+func TestNewBearerTokenVerifierRequiresAudience(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
+		Issuer:  "https://control-plane.example.test",
+		JWKSURL: "https://control-plane.example.test/.well-known/jwks.json",
+	})
+	if err != ErrInvalidVerifierConfig {
+		t.Errorf("new verifier error = %v, want %v", err, ErrInvalidVerifierConfig)
 	}
 }
 
@@ -234,6 +249,7 @@ func TestBearerTokenVerifierRejectsJWKSRedirectOutsideConfiguredOrigin(t *testin
 	defer configuredOrigin.Close()
 	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
 		Issuer:     "https://control-plane.example.test",
+		Audience:   "runtime-audience",
 		JWKSURL:    configuredOrigin.URL,
 		HTTPClient: configuredOrigin.Client(),
 		Clock:      func() time.Time { return now },
@@ -264,6 +280,7 @@ func TestBearerTokenVerifierAcceptsJWKSRedirectWithinConfiguredOrigin(t *testing
 	defer server.Close()
 	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
 		Issuer:     "https://control-plane.example.test",
+		Audience:   "runtime-audience",
 		JWKSURL:    server.URL + "/jwks",
 		HTTPClient: server.Client(),
 		Clock:      func() time.Time { return now },
@@ -275,6 +292,93 @@ func TestBearerTokenVerifierAcceptsJWKSRedirectWithinConfiguredOrigin(t *testing
 	token := issueToken(t, privateKey, "key-1", validClaims(now))
 	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != nil {
 		t.Fatalf("Verify(): %v", err)
+	}
+}
+
+func TestBearerTokenVerifierRateLimitsUnknownKeyIDRefresh(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_ = json.NewEncoder(response).Encode(jwks("known", publicKey))
+	}))
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	for _, keyID := range []string{"unknown-1", "unknown-2"} {
+		_, err := verifier.Verify(context.Background(), issueToken(t, privateKey, keyID, validClaims(now)), "realtime:connect")
+		if err != ErrInvalidTokenKeyID {
+			t.Fatalf("verify unknown key %q error = %v, want %v", keyID, err, ErrInvalidTokenKeyID)
+		}
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("JWKS requests = %d, want 1", got)
+	}
+}
+
+func TestBearerTokenVerifierReadyEnsuresValidJWKSCache(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	_, publicKey := testKey(t)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+	}))
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	if err := verifier.Ready(context.Background()); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	if err := verifier.Ready(context.Background()); err != nil {
+		t.Fatalf("ready from cache: %v", err)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("JWKS requests = %d, want 1", got)
+	}
+}
+
+func TestBearerTokenVerifierReadyRejectsUnavailableJWKS(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		http.Error(response, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	if err := newTestVerifier(t, server.URL, &now).Ready(context.Background()); err != ErrJWKSUnavailable {
+		t.Errorf("ready error = %v, want %v", err, ErrJWKSUnavailable)
+	}
+}
+
+func TestBearerTokenVerifierReadyRateLimitsFailedJWKSRefresh(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(response, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	for range 2 {
+		if err := verifier.Ready(context.Background()); err != ErrJWKSUnavailable {
+			t.Fatalf("ready error = %v, want %v", err, ErrJWKSUnavailable)
+		}
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("JWKS requests during cooldown = %d, want 1", got)
+	}
+	now = now.Add(30 * time.Second)
+	if err := verifier.Ready(context.Background()); err != ErrJWKSUnavailable {
+		t.Fatalf("ready after cooldown error = %v, want %v", err, ErrJWKSUnavailable)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Errorf("JWKS requests after cooldown = %d, want 2", got)
 	}
 }
 
@@ -296,12 +400,13 @@ func TestBearerTokenVerifierRejectsInvalidHeaderSignatureAndClaimsWithoutLeaking
 		{name: "missing key ID", token: issueTokenWithHeader(t, privateKey, map[string]any{"alg": "EdDSA"}, validClaims(now)), want: ErrInvalidTokenKeyID},
 		{name: "invalid signature", token: issueToken(t, privateKey, "key-1", validClaims(now)) + "x", want: ErrInvalidTokenSignature},
 		{name: "wrong issuer", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "iss", "other-issuer")), want: ErrInvalidTokenClaims},
-		{name: "wrong audience", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "aud", "unframe-realtime")), want: ErrInvalidTokenClaims},
+		{name: "wrong audience", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "aud", "another-runtime")), want: ErrInvalidTokenClaims},
 		{name: "expired", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "exp", now.Add(-time.Second).Unix())), want: ErrInvalidTokenClaims},
 		{name: "not yet valid", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "nbf", now.Add(time.Second).Unix())), want: ErrInvalidTokenClaims},
 		{name: "missing subject", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "sub")), want: ErrInvalidTokenClaims},
 		{name: "missing session", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "session_id")), want: ErrInvalidTokenClaims},
-		{name: "missing required claim", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "edge_id")), want: ErrInvalidTokenClaims},
+		{name: "missing runtime ID", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "runtime_id")), want: ErrInvalidTokenClaims},
+		{name: "unknown runtime kind", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "runtime_kind", "Unknown")), want: ErrInvalidTokenClaims},
 		{name: "zero assignment epoch", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "assignment_epoch", 0)), want: ErrInvalidTokenClaims},
 		{name: "missing presentation", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "presentation_id")), want: ErrInvalidTokenClaims},
 		{name: "zero presentation revision", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "presentation_revision", 0)), want: ErrInvalidTokenClaims},
@@ -314,7 +419,7 @@ func TestBearerTokenVerifierRejectsInvalidHeaderSignatureAndClaimsWithoutLeaking
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := verifier.Verify(context.Background(), test.token, "realtime:connect"); err != test.want {
 				t.Errorf("verify error = %v, want %v", err, test.want)
-			} else if err != nil && contains(err.Error(), test.token) {
+			} else if err != nil && strings.Contains(err.Error(), test.token) {
 				t.Errorf("error leaked token: %v", err)
 			}
 		})
@@ -329,6 +434,7 @@ func newTestVerifierWithTTL(t *testing.T, jwksURL string, now *time.Time, cacheT
 	t.Helper()
 	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
 		Issuer:   "https://control-plane.example.test",
+		Audience: "runtime-audience",
 		JWKSURL:  jwksURL,
 		Clock:    func() time.Time { return *now },
 		CacheTTL: cacheTTL,
@@ -357,17 +463,18 @@ func newJWKSServer(t *testing.T, keyID string, publicKey ed25519.PublicKey) *htt
 }
 
 func jwks(keyID string, publicKey ed25519.PublicKey) map[string]any {
-	return map[string]any{"keys": []map[string]any{{"kty": "OKP", "crv": "Ed25519", "kid": keyID, "alg": "EdDSA", "use": "sig", "x": base64.RawURLEncoding.EncodeToString(publicKey)}}}
+	return map[string]any{"keys": []map[string]any{{"kty": "OKP", "crv": "Ed25519", "kid": keyID, "alg": "EdDSA", "use": "sig", "key_ops": []string{"verify"}, "x": base64.RawURLEncoding.EncodeToString(publicKey)}}}
 }
 
 func validClaims(now time.Time) map[string]any {
 	return map[string]any{
 		"iss":                   "https://control-plane.example.test",
-		"aud":                   "unframe-venue-edge",
+		"aud":                   "runtime-audience",
 		"sub":                   "participant-1",
 		"session_id":            "session-1",
 		"role":                  "presenter",
-		"edge_id":               "edge-1",
+		"runtime_id":            "runtime-1",
+		"runtime_kind":          "Cloud",
 		"assignment_epoch":      3,
 		"presentation_id":       "presentation-1",
 		"presentation_revision": 7,
@@ -416,8 +523,4 @@ func mapsClone(input map[string]any) map[string]any {
 		copy[key] = value
 	}
 	return copy
-}
-
-func contains(value, substring string) bool {
-	return strings.Contains(value, substring)
 }

@@ -1,0 +1,24 @@
+kill_signal = "SIGTERM"
+kill_timeout = 15
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+REALTIME_LISTEN_ADDR = ":9090"
+
+# app, primary_region, Machine sizing, autoscaling, and Runtime identity are
+# intentionally supplied by the future Cloud Runtime provisioner rather than
+# fixed in this deployment profile.
+[[services]]
+internal_port = 9090
+protocol = "tcp"
+
+[[services.ports]]
+port = 443
+handlers = ["tls", "http"]
+tls_options = { alpn = ["h2"] }
+
+[services.ports.http_options]
+h2_backend = true
+idle_timeout = 600

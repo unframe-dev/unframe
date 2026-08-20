@@ -3,6 +3,8 @@ package session
 import (
 	"errors"
 	"sync"
+
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 )
 
 var (
@@ -31,7 +33,8 @@ type Identity struct {
 	SessionID            string
 	ParticipantID        string
 	Role                 Role
-	EdgeID               string
+	RuntimeID            string
+	RuntimeKind          assignment.RuntimeKind
 	AssignmentEpoch      uint64
 	PresentationID       string
 	PresentationRevision uint64

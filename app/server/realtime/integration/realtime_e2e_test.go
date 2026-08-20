@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -38,19 +38,20 @@ func TestRealtimePageChangeOverTCP(t *testing.T) {
 	jwks := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(response).Encode(map[string]any{"keys": []map[string]any{{
-			"kty": "OKP", "crv": "Ed25519", "kid": "e2e-key", "alg": "EdDSA", "use": "sig",
+			"kty": "OKP", "crv": "Ed25519", "kid": "e2e-key", "alg": "EdDSA", "use": "sig", "key_ops": []string{"verify"},
 			"x": base64.RawURLEncoding.EncodeToString(publicKey),
 		}}})
 	}))
 	defer jwks.Close()
 	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{
-		Issuer: "https://control-plane.example.test", JWKSURL: jwks.URL, Clock: func() time.Time { return now },
+		Issuer: "https://control-plane.example.test", Audience: "realtime-runtime-test", JWKSURL: jwks.URL, Clock: func() time.Time { return now },
 	})
 	if err != nil {
 		t.Fatalf("create verifier: %v", err)
 	}
-	guard, err := edge.NewAssignmentGuard(edge.EdgeSessionAssignment{
-		SessionID: "session-e2e", EdgeID: "edge-e2e", AssignmentEpoch: 1, PresentationRevision: 1,
+	guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{
+		SessionID: "session-e2e", RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud,
+		Endpoint: "127.0.0.1:9090", AssignmentEpoch: 1, PresentationRevision: 1,
 		IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour),
 	}, func() time.Time { return now })
 	if err != nil {
@@ -61,7 +62,7 @@ func TestRealtimePageChangeOverTCP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	server, err := transportgrpc.NewServer(listener, transportgrpc.Dependencies{Verifier: verifier, Guard: guard})
+	server, err := transportgrpc.NewServer(listener, transportgrpc.Dependencies{Verifier: verifier, Guard: guard, Coordinator: session.NewCoordinator()})
 	if err != nil {
 		t.Fatalf("create server: %v", err)
 	}
@@ -150,7 +151,7 @@ func assertPageChanged(t *testing.T, stream realtimev1.RealtimeService_ConnectCl
 func e2eIdentity(participantID string, role session.Role) session.Identity {
 	return session.Identity{
 		SessionID: "session-e2e", ParticipantID: participantID, Role: role,
-		EdgeID: "edge-e2e", AssignmentEpoch: 1, PresentationID: "presentation-e2e",
+		RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationID: "presentation-e2e",
 		PresentationRevision: 1, ProtocolVersion: 1,
 	}
 }
@@ -166,9 +167,9 @@ func issueToken(t *testing.T, privateKey ed25519.PrivateKey, identity session.Id
 		t.Fatalf("marshal JWT header: %v", err)
 	}
 	claims, err := json.Marshal(map[string]any{
-		"iss": "https://control-plane.example.test", "aud": "unframe-venue-edge",
+		"iss": "https://control-plane.example.test", "aud": "realtime-runtime-test",
 		"sub": identity.ParticipantID, "session_id": identity.SessionID, "role": role,
-		"edge_id": identity.EdgeID, "assignment_epoch": identity.AssignmentEpoch,
+		"runtime_id": identity.RuntimeID, "runtime_kind": identity.RuntimeKind, "assignment_epoch": identity.AssignmentEpoch,
 		"presentation_id": identity.PresentationID, "presentation_revision": identity.PresentationRevision,
 		"scope": "realtime:connect assets:read", "protocol_version": identity.ProtocolVersion,
 		"nbf": now.Add(-time.Minute).Unix(), "exp": now.Add(time.Hour).Unix(),
