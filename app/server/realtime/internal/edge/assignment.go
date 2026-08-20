@@ -97,6 +97,17 @@ func (g *AssignmentGuard) AllowReliableDelivery(claim AssignmentClaim) error {
 	return g.ValidateCurrent(claim)
 }
 
+// ReliableDeliveryDeadline returns the current lease boundary atomically with
+// assignment validation so transport sends cannot use a superseded lease.
+func (g *AssignmentGuard) ReliableDeliveryDeadline(claim AssignmentClaim) (time.Time, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if err := g.validateCurrentLocked(claim); err != nil {
+		return time.Time{}, err
+	}
+	return g.assignment.LeaseExpiresAt, nil
+}
+
 // AllowStateUpdate authorizes a state update from the current runtime.
 func (g *AssignmentGuard) AllowStateUpdate(claim AssignmentClaim) error {
 	return g.ValidateCurrent(claim)

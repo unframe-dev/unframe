@@ -254,6 +254,42 @@ func TestRealtimeServiceReturnsQueueOverflowWhileSendIsBlocked(t *testing.T) {
 	}
 }
 
+func TestRealtimeServiceStopsBlockedSendWhenAssignmentLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	coordinator := session.NewCoordinator()
+	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity}, deadlineAssignment{deadline: time.Now().Add(200 * time.Millisecond)})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := newBlockingSendStream(ctx)
+	stream.received <- &realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_Handshake{Handshake: &realtimev1.Handshake{ProtocolVersion: protocol.Version}}}
+	result := make(chan error, 1)
+	go func() { result <- service.Connect(stream) }()
+
+	waitForSignal(t, stream.connected, "connected message")
+	presenter, err := coordinator.Connect(session.Identity{SessionID: identity.SessionID, ParticipantID: "presenter-1", Role: session.RolePresenter})
+	if err != nil {
+		t.Fatalf("connect presenter: %v", err)
+	}
+	defer coordinator.Disconnect(presenter)
+	if _, err := coordinator.ChangePage(presenter, session.PageChangeCommand{MessageID: "command-1", PageIndex: 1}); err != nil {
+		t.Fatalf("send command: %v", err)
+	}
+	waitForSignal(t, stream.blocked, "blocked reliable event send")
+
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Fatalf("Connect error code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Connect waited for blocked Send after assignment lease expiry")
+	}
+	cancel()
+	waitForSignal(t, stream.sendDone, "blocked sender shutdown")
+}
+
 func TestDeliveryTrackerIgnoresAcknowledgementAfterCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -301,7 +337,19 @@ func (allowAllAssignment) AllowNewConnection(edge.AssignmentClaim) error { retur
 
 func (allowAllAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
 
-func (allowAllAssignment) AllowReliableDelivery(edge.AssignmentClaim) error { return nil }
+func (allowAllAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), nil
+}
+
+type deadlineAssignment struct{ deadline time.Time }
+
+func (deadlineAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
+
+func (deadlineAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
+
+func (a deadlineAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
+	return a.deadline, nil
+}
 
 type rejectingAssignment struct {
 	connection error
@@ -313,7 +361,9 @@ func (a rejectingAssignment) AllowNewConnection(edge.AssignmentClaim) error { re
 
 func (a rejectingAssignment) AllowCommand(edge.AssignmentClaim) error { return a.command }
 
-func (a rejectingAssignment) AllowReliableDelivery(edge.AssignmentClaim) error { return a.delivery }
+func (a rejectingAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), a.delivery
+}
 
 type blockingSendStream struct {
 	grpcgo.ServerStream

@@ -98,6 +98,9 @@ func TestAssignmentGuardRejectsEveryProtectedOperationAfterLeaseExpiry(t *testin
 		"checkpoint":     guard.AllowCheckpoint,
 	}
 	claim := AssignmentClaim{SessionID: "session-1", EdgeID: "edge-1", AssignmentEpoch: 1, PresentationRevision: 1}
+	if _, err := guard.ReliableDeliveryDeadline(claim); !errors.Is(err, ErrLeaseExpired) {
+		t.Errorf("reliable delivery deadline error = %v, want %v", err, ErrLeaseExpired)
+	}
 	for name, operation := range operations {
 		t.Run(name, func(t *testing.T) {
 			if err := operation(claim); !errors.Is(err, ErrLeaseExpired) {
@@ -141,6 +144,13 @@ func TestAssignmentGuardRenewsLeaseOnlyMonotonicallyForCurrentAssignment(t *test
 	renewal.LeaseExpiresAt = current.LeaseExpiresAt.Add(time.Minute)
 	if err := guard.Renew(renewal); err != nil {
 		t.Fatalf("renew lease: %v", err)
+	}
+	deadline, err := guard.ReliableDeliveryDeadline(AssignmentClaim{SessionID: "session-1", EdgeID: "edge-1", AssignmentEpoch: 1, PresentationRevision: 1})
+	if err != nil {
+		t.Fatalf("reliable delivery deadline after renewal: %v", err)
+	}
+	if !deadline.Equal(renewal.LeaseExpiresAt) {
+		t.Errorf("reliable delivery deadline = %s, want %s", deadline, renewal.LeaseExpiresAt)
 	}
 	now = current.LeaseExpiresAt
 	if err := guard.AllowCommand(AssignmentClaim{SessionID: "session-1", EdgeID: "edge-1", AssignmentEpoch: 1, PresentationRevision: 1}); err != nil {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
@@ -28,7 +29,7 @@ type RealtimeService struct {
 type AssignmentAuthorizer interface {
 	AllowNewConnection(edge.AssignmentClaim) error
 	AllowCommand(edge.AssignmentClaim) error
-	AllowReliableDelivery(edge.AssignmentClaim) error
+	ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error)
 }
 
 func NewRealtimeService(coordinator *session.Coordinator, identities auth.IdentityResolver, assignments AssignmentAuthorizer) *RealtimeService {
@@ -98,15 +99,40 @@ func (s *RealtimeService) sendEvents(stream grpcgo.BidiStreamingServer[realtimev
 		return
 	}
 	for event := range connection.Events() {
-		if err := s.assignments.AllowReliableDelivery(assignmentClaim(identity)); err != nil {
-			results <- assignmentError(err)
-			return
-		}
-		if err := stream.Send(protocol.ReliableEventMessage(event)); err != nil {
+		if err := s.sendBeforeLeaseExpiry(stream, identity, protocol.ReliableEventMessage(event)); err != nil {
 			results <- err
 			return
 		}
 		deliveries.acknowledge(event.CommandMessageID)
+	}
+}
+
+func (s *RealtimeService) sendBeforeLeaseExpiry(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], identity session.Identity, message *realtimev1.ServerEnvelope) error {
+	deadline, err := s.assignments.ReliableDeliveryDeadline(assignmentClaim(identity))
+	if err != nil {
+		return assignmentError(err)
+	}
+	sent := make(chan error, 1)
+	go func() { sent <- stream.Send(message) }()
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return assignmentError(edge.ErrLeaseExpired)
+		}
+		timer := time.NewTimer(remaining)
+		select {
+		case err := <-sent:
+			timer.Stop()
+			return err
+		case <-timer.C:
+			deadline, err = s.assignments.ReliableDeliveryDeadline(assignmentClaim(identity))
+			if err != nil {
+				return assignmentError(err)
+			}
+		case <-stream.Context().Done():
+			timer.Stop()
+			return stream.Context().Err()
+		}
 	}
 }
 
