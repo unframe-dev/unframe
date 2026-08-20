@@ -99,13 +99,7 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
              AND released_at IS NULL
              AND lease_expires_at > ?`,
         )
-        .bind(
-          input.endedAt,
-          input.sessionId,
-          input.edgeId,
-          input.assignmentEpoch,
-          receivedAt,
-        ),
+        .bind(input.endedAt, input.sessionId, input.edgeId, input.assignmentEpoch, receivedAt),
     ]);
     if (inserted?.meta.changes === 1) return "applied";
     return (await this.completionExists(input.sessionId)) ? "duplicate" : "conflict";

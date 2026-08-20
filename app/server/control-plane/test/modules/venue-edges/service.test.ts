@@ -15,7 +15,8 @@ class FakeRepository implements VenueEdgeRepository {
   credentials = new Map<string, VenueEdgeCredentialRecord>();
   assignments: AssignmentRequest[] = [];
   renewed: LeaseRequest | null = null;
-  activeAssignmentLookup: { sessionId: string; now: string; edgeHealthyAfter: string } | null = null;
+  activeAssignmentLookup: { sessionId: string; now: string; edgeHealthyAfter: string } | null =
+    null;
   async createEdge(edge: VenueEdgeRecord, credential: VenueEdgeCredentialRecord) {
     this.edges.set(edge.id, edge);
     this.credentials.set(`${edge.id}:${credential.tokenId}`, credential);
