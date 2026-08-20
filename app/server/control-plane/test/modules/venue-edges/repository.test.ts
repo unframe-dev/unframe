@@ -27,6 +27,7 @@ const credential = (edgeId: string, tokenId = "token") => ({
   lastUsedAt: null,
   revokedAt: null,
 });
+const edgeHealthyAfter = "2026-08-19T23:59:00.000Z";
 const registerEdge = (repository: D1VenueEdgeRepository, edgeId: string) =>
   repository.register(edgeId, {
     runtimeVersion: "1.0.0",
@@ -93,6 +94,7 @@ describe("D1VenueEdgeRepository", () => {
       presentationRevision: 1,
       issuedAt: "2026-08-20T00:00:00.000Z",
       leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+      edgeHealthyAfter,
     };
     await expect(repository.assign({ ...input, edgeId: first.id })).resolves.toBeNull();
     await Promise.all([registerEdge(repository, first.id), registerEdge(repository, second.id)]);
@@ -129,6 +131,7 @@ describe("D1VenueEdgeRepository", () => {
       presentationRevision: 1,
       issuedAt: "2026-08-20T00:00:00.000Z",
       leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+      edgeHealthyAfter,
     };
 
     await expect(
@@ -162,7 +165,55 @@ describe("D1VenueEdgeRepository", () => {
         presentationRevision: 1,
         issuedAt: "2026-08-20T00:00:00.000Z",
         leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+        edgeHealthyAfter,
       }),
+    ).resolves.toBeNull();
+  });
+  it("does not assign or expose an Edge whose health observation is stale", async () => {
+    const suffix = crypto.randomUUID();
+    const sessionId = `session-${suffix}`;
+    const repository = new D1VenueEdgeRepository(env.DB);
+    await addSession(sessionId);
+    const value = edge(`edge-${suffix}`);
+    await repository.createEdge(value, credential(value.id));
+    await registerEdge(repository, value.id);
+
+    await expect(
+      repository.assign({
+        sessionId,
+        edgeId: value.id,
+        presentationRevision: 1,
+        issuedAt: "2026-08-20T00:02:00.000Z",
+        leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+        edgeHealthyAfter: "2026-08-20T00:01:00.000Z",
+      }),
+    ).resolves.toBeNull();
+
+    await repository.register(value.id, {
+      runtimeVersion: "1.0.0",
+      protocolVersion: "v1",
+      capacity: 50,
+      localEndpoint: "https://edge.local",
+      certificateFingerprint: "sha256:abc",
+      health: "healthy",
+      observedAt: "2026-08-20T00:02:00.000Z",
+    });
+    await expect(
+      repository.assign({
+        sessionId,
+        edgeId: value.id,
+        presentationRevision: 1,
+        issuedAt: "2026-08-20T00:02:00.000Z",
+        leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+        edgeHealthyAfter: "2026-08-20T00:01:00.000Z",
+      }),
+    ).resolves.toMatchObject({ assignmentEpoch: 1 });
+    await expect(
+      repository.findActiveAssignment(
+        sessionId,
+        "2026-08-20T00:04:00.000Z",
+        "2026-08-20T00:03:00.000Z",
+      ),
     ).resolves.toBeNull();
   });
   it("requires exact edge and epoch to renew or release, and revocation releases leases", async () => {
@@ -179,6 +230,7 @@ describe("D1VenueEdgeRepository", () => {
       presentationRevision: 1,
       issuedAt: "2026-08-20T00:00:00.000Z",
       leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+      edgeHealthyAfter,
     });
     if (!assigned) throw new Error("assignment failed");
     await expect(
@@ -242,6 +294,7 @@ describe("D1VenueEdgeRepository", () => {
       presentationRevision: 1,
       issuedAt: "2026-08-20T00:00:00.000Z",
       leaseExpiresAt: "2026-08-20T01:00:00.000Z",
+      edgeHealthyAfter,
     });
     if (!assigned) throw new Error("assignment failed");
     await env.DB.prepare("UPDATE presentation_sessions SET state = 'Ended' WHERE id = ?")
@@ -258,7 +311,11 @@ describe("D1VenueEdgeRepository", () => {
       }),
     ).resolves.toBeNull();
     await expect(
-      repository.findActiveAssignment(sessionId, "2026-08-20T00:10:00.000Z"),
+      repository.findActiveAssignment(
+        sessionId,
+        "2026-08-20T00:10:00.000Z",
+        "2026-08-20T00:09:00.000Z",
+      ),
     ).resolves.toBeNull();
   });
 });

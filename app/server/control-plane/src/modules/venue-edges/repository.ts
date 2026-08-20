@@ -55,6 +55,7 @@ export type AssignmentRequest = {
   presentationRevision: number;
   issuedAt: string;
   leaseExpiresAt: string;
+  edgeHealthyAfter: string;
 };
 export type LeaseRequest = {
   sessionId: string;
@@ -78,7 +79,11 @@ export interface VenueEdgeRepository {
   assign(input: AssignmentRequest): Promise<EdgeSessionAssignment | null>;
   renew(input: LeaseRequest): Promise<EdgeSessionAssignment | null>;
   release(input: LeaseRequest): Promise<boolean>;
-  findActiveAssignment(sessionId: string, now: string): Promise<ActiveEdgeSessionAssignment | null>;
+  findActiveAssignment(
+    sessionId: string,
+    now: string,
+    edgeHealthyAfter: string,
+  ): Promise<ActiveEdgeSessionAssignment | null>;
 }
 
 export class D1VenueEdgeRepository implements VenueEdgeRepository {
@@ -185,7 +190,7 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
   async assign(input: AssignmentRequest) {
     const result = await this.database
       .prepare(
-        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, COALESCE((SELECT MAX(assignment_epoch) + 1 FROM session_edge_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM session_edge_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM session_edge_assignments WHERE edge_id = ? AND released_at IS NULL AND lease_expires_at > ?)",
+        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, COALESCE((SELECT MAX(assignment_epoch) + 1 FROM session_edge_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND last_seen_at >= ? AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM session_edge_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM session_edge_assignments WHERE edge_id = ? AND released_at IS NULL AND lease_expires_at > ?)",
       )
       .bind(
         input.sessionId,
@@ -197,6 +202,7 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
         input.sessionId,
         input.presentationRevision,
         input.edgeId,
+        input.edgeHealthyAfter,
         input.sessionId,
         input.issuedAt,
         input.edgeId,
@@ -232,13 +238,13 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
       .run();
     return result.meta.changes === 1;
   }
-  async findActiveAssignment(sessionId: string, now: string) {
+  async findActiveAssignment(sessionId: string, now: string, edgeHealthyAfter: string) {
     return (
       (await this.database
         .prepare(
-          "SELECT assignment.session_id AS sessionId, assignment.edge_id AS edgeId, assignment.assignment_epoch AS assignmentEpoch, assignment.presentation_revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt, edge.local_endpoint AS localEndpoint, edge.certificate_fingerprint AS certificateFingerprint FROM session_edge_assignments AS assignment JOIN venue_edges AS edge ON edge.id = assignment.edge_id JOIN presentation_sessions AS session ON session.id = assignment.session_id WHERE assignment.session_id = ? AND session.state != 'Ended' AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND edge.status = 'active' AND edge.protocol_version = 'v1' AND edge.health = 'healthy' AND edge.registered_at IS NOT NULL AND edge.local_endpoint IS NOT NULL AND edge.certificate_fingerprint IS NOT NULL ORDER BY assignment.assignment_epoch DESC LIMIT 1",
+          "SELECT assignment.session_id AS sessionId, assignment.edge_id AS edgeId, assignment.assignment_epoch AS assignmentEpoch, assignment.presentation_revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt, edge.local_endpoint AS localEndpoint, edge.certificate_fingerprint AS certificateFingerprint FROM session_edge_assignments AS assignment JOIN venue_edges AS edge ON edge.id = assignment.edge_id JOIN presentation_sessions AS session ON session.id = assignment.session_id WHERE assignment.session_id = ? AND session.state != 'Ended' AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND edge.status = 'active' AND edge.protocol_version = 'v1' AND edge.health = 'healthy' AND edge.registered_at IS NOT NULL AND edge.last_seen_at >= ? AND edge.local_endpoint IS NOT NULL AND edge.certificate_fingerprint IS NOT NULL ORDER BY assignment.assignment_epoch DESC LIMIT 1",
         )
-        .bind(sessionId, now)
+        .bind(sessionId, now, edgeHealthyAfter)
         .first<ActiveEdgeSessionAssignment>()) ?? null
     );
   }

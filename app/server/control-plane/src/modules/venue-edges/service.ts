@@ -17,6 +17,7 @@ export type ProvisionedVenueEdge = { edge: VenueEdgeRecord; token: string };
 export type CredentialGenerator = () => { tokenId: string; secret: Uint8Array };
 
 const maximumRenewedLeaseDurationMs = 5 * 60 * 1000;
+const maximumEdgeHeartbeatAgeMs = 60 * 1000;
 
 export class VenueEdgeService {
   constructor(
@@ -116,13 +117,14 @@ export class VenueEdgeService {
       throw new VenueEdgeError("not_found");
   }
 
-  async assign(input: Omit<AssignmentRequest, "issuedAt">) {
+  async assign(input: Omit<AssignmentRequest, "issuedAt" | "edgeHealthyAfter">) {
     const current = this.now();
     const leaseExpiresAt = canonicalFutureLeaseExpiry(input.leaseExpiresAt, current);
     const assignment = await this.repository.assign({
       ...input,
       leaseExpiresAt,
       issuedAt: current.toISOString(),
+      edgeHealthyAfter: new Date(current.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
     });
     if (!assignment) throw new VenueEdgeError("conflict");
     return assignment;
@@ -148,9 +150,11 @@ export class VenueEdgeService {
   }
 
   async activeAssignment(sessionId: string) {
+    const current = this.now();
     const assignment = await this.repository.findActiveAssignment(
       sessionId,
-      this.now().toISOString(),
+      current.toISOString(),
+      new Date(current.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
     );
     if (!assignment) throw new VenueEdgeError("conflict");
     return assignment;

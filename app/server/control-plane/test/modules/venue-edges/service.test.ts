@@ -15,6 +15,7 @@ class FakeRepository implements VenueEdgeRepository {
   credentials = new Map<string, VenueEdgeCredentialRecord>();
   assignments: AssignmentRequest[] = [];
   renewed: LeaseRequest | null = null;
+  activeAssignmentLookup: { sessionId: string; now: string; edgeHealthyAfter: string } | null = null;
   async createEdge(edge: VenueEdgeRecord, credential: VenueEdgeCredentialRecord) {
     this.edges.set(edge.id, edge);
     this.credentials.set(`${edge.id}:${credential.tokenId}`, credential);
@@ -72,7 +73,12 @@ class FakeRepository implements VenueEdgeRepository {
   async release() {
     return true;
   }
-  async findActiveAssignment(): Promise<ActiveEdgeSessionAssignment | null> {
+  async findActiveAssignment(
+    sessionId: string,
+    now: string,
+    edgeHealthyAfter: string,
+  ): Promise<ActiveEdgeSessionAssignment | null> {
+    this.activeAssignmentLookup = { sessionId, now, edgeHealthyAfter };
     return null;
   }
 }
@@ -180,6 +186,7 @@ describe("VenueEdgeService", () => {
       leaseExpiresAt: "2026-08-20T00:01:00+00:00",
     });
     expect(repository.assignments[0]?.leaseExpiresAt).toBe("2026-08-20T00:01:00.000Z");
+    expect(repository.assignments[0]?.edgeHealthyAfter).toBe("2026-08-19T23:59:00.000Z");
     await service.renew({
       sessionId: "session-1",
       edgeId: provisioned.edge.id,
@@ -195,6 +202,17 @@ describe("VenueEdgeService", () => {
         leaseExpiresAt: "2027-08-20T00:00:00.000Z",
       }),
     ).rejects.toMatchObject({ code: "conflict" } satisfies Partial<VenueEdgeError>);
+  });
+
+  it("uses the same heartbeat freshness window for active assignment lookup", async () => {
+    const { repository, service } = setup();
+
+    await expect(service.activeAssignment("session-1")).rejects.toMatchObject({ code: "conflict" });
+    expect(repository.activeAssignmentLookup).toEqual({
+      sessionId: "session-1",
+      now: "2026-08-20T00:00:00.000Z",
+      edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
+    });
   });
 
   it("compares lease expiries as instants instead of RFC3339 strings", async () => {
