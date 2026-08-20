@@ -1,14 +1,45 @@
-# 会場内 MR プレゼンテーション向け Cloud-managed Venue Edge アーキテクチャ
+# Quest 向け Cloud / Venue Edge Realtime Runtime アーキテクチャ
 
 ## 文書の位置付け
 
 - Status: Proposed
-- 対象: Meta Quest 3 を利用する会場内 MR プレゼンテーション
-- 目的: 発表中の高頻度な状態同期と Asset 配信を、Cloud で管理された会場内 Edge から提供する通信方式を定義する
+- 対象: Meta Quest 3 を利用する MR プレゼンテーション
+- 目的: 同じ Realtime Runtime Core を Fly.io と会場内 Venue Edge のどちらにも配置できる通信・割り当て方式を定義する
 
 本書は、会話や過去の検討経緯を参照しなくても、対象要件、採用する構成、各 component の責務、通信方式、障害時挙動、実装・検証項目を理解できることを目的とする。
 
-本書で説明する Venue Edge はまだ実装されていない。現行 Realtime Backend は Go / gRPC の初期 bidirectional stream と page-change の in-memory sequence / fan-out までを実装しているが、Venue Edge 登録、Presenter Pose、Step / Cue 実行、Element State streaming、Asset cache、snapshot / replay 等は今後の実装対象である。
+現在の実装基盤では、Control Plane の Venue Edge provisioning / registration / assignment、Quest bootstrap、JWT / JWKS / scope 検証、Realtime 接続と command の assignment lease / epoch fencing を実装済みである。Manifest 検証、content-addressed Asset cache、Range 配信、runtime pause / resume、Element State field-merge mailbox は transport-independent な domain primitive まで実装済みである。
+
+Target Architecture では、この Edge 固有の割り当てを Cloud Runtime にも使える `RuntimeAssignment` へ一般化する。まず Fly.io 上の Cloud Realtime と Quest だけで成立する MVP を実装し、実機で latency、jitter、最大 50 台への fan-out を測定する。その後、同じ Runtime Core を Venue Edge 用バイナリとして起動し、session 開始前に配置先を選択できるようにする。Venue Edge の Cloud Agent、実際の local HTTPS listener、Unity の Control / State 接続、Presenter Pose、Step / Cue 実行、snapshot / replay、Asset cache の容量・退避方針は後続の設計・実装対象である。
+
+## 実装状況
+
+この表は、この文書の更新時点における source code の状態を示す。以降の章は、明示的に「現在の実装」と書かれている箇所以外は Target Architecture の仕様として読む。実装変更時は、関連する設計記述とこの表を同時に更新する。
+
+- **実装済み**: production composition へ接続され、対象テストがある
+- **部分実装**: 独立した domain primitive または handler とテストはあるが、end-to-end の runtime へ未接続
+- **未実装**: Target Architecture または実装段階にだけ存在する
+- **未決定**: contract、運用値、構成方式の決定が残っている
+
+| 領域 | 状態 | 現在の境界・根拠 |
+| --- | --- | --- |
+| Venue Edge provisioning / credential / registration / assignment | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql` |
+| Venue Edge bootstrap / JWT claims | 実装済み | `control-plane/src/modules/realtime-bootstrap/` と session bootstrap route。`edgeId`、assignment epoch、Presentation revision を拘束する |
+| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/edge/`、gRPC interceptor / service guard |
+| Manifest 検証、content-addressed cache、Range 対応 Asset handler | 部分実装 | `realtime/internal/asset/`。domain と `http.Handler` はあるが、実際の local HTTPS listener、証明書、Cloud Agent、runtime composition へ未接続 |
+| Runtime pause / resume state | 部分実装 | `realtime/internal/session/runtime.go`。状態遷移 primitive はあるが、Presenter 接続、Step / Cue、Snapshot / checkpoint へ未接続 |
+| Element State latest-wins mailbox | 部分実装 | `realtime/internal/state/mailbox.go`。field merge primitive はあるが、State gRPC fan-out へ未接続 |
+| `RuntimeAssignment` / `runtimeId` / `runtimeKind` 一般化 | 未実装 | 現在は `EdgeSessionAssignment` と `edgeId` を使用している |
+| Fly.io Cloud Runtime | 未実装 | 起動・登録、公開 endpoint、health、checkpoint、deployment profile は Target のみ |
+| session 作成時の `Cloud` / `VenueEdge` 選択 | 未実装 | Control Plane API / repository / UI / bootstrap は Edge 固有のまま |
+| Unity の Control / State gRPC 接続 | 未実装 | generated client の組み込み、2 connection lifecycle、nonce、再接続、State 適用は未着手 |
+| Presenter Tracking / Input protocol | 未実装 | Pose sample、clock、rate、Unity送信、Runtime受信は Target のみ |
+| Step / Cue / Action / Transition evaluator | 未実装 | canonical evaluation と Element State 生成は未着手 |
+| Snapshot / Replay / Connection Resume | 未実装 | protocol、atomic cut、replay queue、Quest適用、durable / local checkpoint への配線は未着手 |
+| Venue Edge Cloud Agent / local HTTPS listener / update | 未実装 | service manager、LAN bind、証明書、fingerprint rotation、health、更新・rollbackは未着手 |
+| Cloud 配置の R2 / CDN signed URL 配信 | 未実装 | Manifest認可、signed URL発行、Quest download / readinessはTargetのみ |
+| Asset cache容量・eviction | 未決定 | hard limit、low-disk threshold、退避順、active session pin、quotaを実測後に決定する |
+| 1 / 10 / 25 / 50 Quest 実機計測 | 未実装 | latency、jitter、fan-out、Asset ready の基準値は未計測 |
 
 ## 1. 背景
 
@@ -25,7 +56,9 @@ Presentation は `Group -> Step -> Cue` の構造を持つ。
 
 Presenter の Pose や input によって Cue が発火し、Action / Transition の実行結果が複数の Quest へ継続的に配信される。複数 Element を 20–60 Hz で最大 50 台へ配信する可能性があるため、発表中の通信は高トラフィックになり得る。
 
-Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、snapshot / replay を担当させると、MR 描画や tracking と競合する。このため、Quest 同士の full-mesh P2P や presenter-host 方式ではなく、会場 LAN 内の Venue Edge が Realtime Runtime と Asset 配信を担当する。
+Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、snapshot / replay を担当させると、MR 描画や tracking と競合する。このため、Quest 同士の full-mesh P2P や presenter-host 方式ではなく、Cloud または Venue Edge 上の専用 Runtime が session の authority と fan-out を担当する。
+
+初期 MVP は Fly.io 上の Cloud Runtime を使用する。これにより Venue Edge 用 PC がなくても Quest だけで利用でき、開発、デモ、自動テストを先行できる。また、Venue Edge 導入前の基準性能を測定でき、小規模会場では Cloud だけで要件を満たす可能性も検証できる。Venue Edge は Cloud Runtime と同じ Core を会場 LAN 内で動かし、低遅延通信と local Asset 配信が必要な構成へ追加する。
 
 ## 2. 要件
 
@@ -40,9 +73,11 @@ Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、s
 - viewer の HMD / controller Pose は各端末のローカル描画にのみ使用し、共有しない
 - 全 Quest は同じ Presentation Origin を基準に仮想 Element を配置する
 - Step / Cue による Action / Transition の実行結果を同期する
-- Internet 接続を必須とし、認証、session 作成・参加、Edge 管理、Cloud Asset 取得に使用する
-- 発表中の高頻度通信と Quest 向け Asset 配信は Venue Edge を経由する
-- Cloud と Venue Edge の責務を分離し、Realtime hot path で D1 や R2 へ同期問い合わせしない
+- Internet 接続を必須とし、認証、session 作成・参加、Runtime 管理、Cloud Asset 取得に使用する
+- session 作成時に `Cloud` または `VenueEdge` の配置先を選択し、開始前に一つの Runtime へ割り当てる
+- Cloud Runtime では Realtime 通信を Cloud へ接続し、Asset は Quest が R2 / CDN の signed URL から直接取得する
+- Venue Edge Runtime では Realtime 通信と Quest 向け Asset 配信を会場 LAN 内で完結させる
+- Runtime Core と環境固有 adapter の責務を分離し、Realtime hot path で D1 や R2 へ同期問い合わせしない
 
 ### 2.2 Non-goals
 
@@ -56,21 +91,29 @@ Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、s
 - 高頻度 state の D1 永続化
 - 1 room を複数 Runtime へ分割する distributed consensus
 - 初期実装での host migration
+- 発表中の Cloud / Venue Edge 間の自動 fallback または live migration
 - Edge固有鍵、one-time enrollment、client certificate、mTLSによるEdge認証
 
 ## 3. 採用する構成
 
 ```mermaid
 flowchart LR
-    CP["Cloud Control Plane"] -->|"認証・Session・JWT・Manifest"| E["Venue Edge Runtime"]
-    R2["R2 / Cloud Asset Storage"] -->|"Asset prefetch"| E
+    CP["Cloud Control Plane"] -->|"RuntimeAssignment"| F["Fly.io Cloud Runtime"]
+    CP -->|"RuntimeAssignment"| E["Venue Edge Runtime"]
 
-    CP -->|"Login・Join・Edge endpoint"| P["Presenter Quest"]
-    CP -->|"Login・Join・Edge endpoint"| V["Viewer Quest x N"]
+    CP -->|"Login・Join・選択済みRuntime endpoint"| P["Presenter Quest"]
+    CP -->|"Login・Join・選択済みRuntime endpoint"| V["Viewer Quest x N"]
 
-    P -->|"Pose / Input"| E
-    E -->|"Control / Element State"| P
-    E -->|"Control / Element State"| V
+    P -->|"runtimeKind=Cloud: Pose / Input"| F
+    P -->|"runtimeKind=VenueEdge: Pose / Input"| E
+    F -->|"Cloud選択時: Control / Element State"| P
+    F -->|"Cloud選択時: Control / Element State"| V
+    E -->|"VenueEdge選択時: Control / Element State"| P
+    E -->|"VenueEdge選択時: Control / Element State"| V
+
+    R2["R2 / CDN"] -->|"Cloud選択時: signed URL"| P
+    R2 -->|"Cloud選択時: signed URL"| V
+    R2 -->|"Asset prefetch"| E
     E -->|"Local HTTPS Asset Delivery"| P
     E -->|"Local HTTPS Asset Delivery"| V
 
@@ -78,15 +121,18 @@ flowchart LR
     M --> V
 ```
 
+図中の Cloud と Venue Edge は代替経路であり、一つの session が同時に両方へ接続することはない。
+
 ### 3.1 基本方針
 
-1. Cloud Control Plane を認証、durable resource、session lifecycle、Edge 管理の authority とする。
-2. Venue Edge Runtime を active session 中の Group / Step / Cue、Action / Transition、Element State の authority とする。
+1. Cloud Control Plane を認証、durable resource、session lifecycle、Runtime 管理と割り当ての authority とする。
+2. session に割り当てられた Cloud または Venue Edge Runtime を、active session 中の Group / Step / Cue、Action / Transition、Element State の authority とする。
 3. Presenter Quest は Pose と input の source であり、room state や fan-out の authority にはしない。
 4. Viewer Quest は受信した Element State を、自端末で校正した Presentation Origin に対して描画する。
-5. Asset は Cloud から Venue Edge が一度取得し、会場 LAN 内で Quest へ配信する。
-6. Pose frame や Element State frame を Cloud へ中継しない。
-7. Realtime core は Cloud container と Venue Edge のどちらでも動かせる deployment-independent な構造を維持するが、本書の対象 session では Venue Edge を正規経路とする。
+5. Cloud 配置では Quest が R2 / CDN から signed URL で Asset を直接取得し、Venue Edge 配置では Edge が一度取得して会場 LAN 内で配信する。
+6. Realtime hot path は割り当て済み Runtime 内で完結させ、Control Plane へ Pose frame や Element State frame を中継しない。
+7. Realtime Runtime Core は Fly.io container と Venue Edge binary のどちらでも動かせる deployment-independent な構造を維持する。
+8. 配置先は session 開始前に確定する。発表中の Runtime 自動移行は行わない。
 
 ## 4. Component の責務
 
@@ -96,29 +142,24 @@ flowchart LR
 - Presentation / Asset の durable CRUD
 - R2 Asset lifecycle
 - session 作成、参加コード、participant、role、終了状態の管理
-- session-bound Venue Edge JWT の発行
+- session-bound Runtime JWT の発行
 - JWKS の公開と key rotation
-- Venue Edge の登録、health、capacity、version 管理
+- Fly.io Cloud Runtime と Venue Edge Runtime の登録、health、capacity、version 管理
 - Edge固有Bearer tokenの発行、rotation、失効
-- session と Venue Edge の lease付き割り当て、および割り当て世代による fencing
-- Quest への Venue Edge endpoint と certificate fingerprint の返却
+- session と Runtime の lease付き割り当て、および割り当て世代による fencing
+- Quest への Runtime endpoint と、Venue Edge 配置時の certificate fingerprint の返却
+- Cloud 配置時の Quest 用 Asset signed URL の発行
 - Venue Edge 用の短命な Asset 取得 URL の発行
-- Venue Edge からの checkpoint / completion / telemetry の受付
+- Runtime からの checkpoint / completion / telemetry の受付
 
 Cloud Control Plane は Pose、Transition frame、Element State frame を処理しない。
 
-### 4.2 Venue Edge Runtime
+### 4.2 共通 Runtime Core
 
-Venue Edge はノート PC、mini PC、または会場内の専用端末で動作し、専用 Wi-Fi router へ Ethernet で接続する。
+Fly.io と Venue Edge は、同じ Runtime Core と Realtime protocol を使用する。環境差は Runtime Core の外側にある deployment adapter と Asset adapter へ閉じ込める。
 
 ```text
-Venue Edge Runtime
-├─ Cloud Agent
-│  ├─ Edge registration
-│  ├─ health / capacity / version reporting
-│  ├─ session assignment
-│  ├─ Manifest / signed URL retrieval
-│  └─ checkpoint / telemetry upload
+Runtime Core
 ├─ Session Runtime
 │  ├─ participant registry
 │  ├─ Group / Step state
@@ -136,8 +177,42 @@ Venue Edge Runtime
 ├─ Recovery
 │  ├─ reliable event log
 │  ├─ snapshot
-│  ├─ replay
-│  └─ local checkpoint
+│  └─ replay
+└─ Runtime Assignment Guard
+   ├─ runtimeId / runtimeKind
+   ├─ assignmentEpoch / lease
+   ├─ presentation revision
+   └─ JWT / role / scope validation
+```
+
+Target の共通 Core が提供するのは Session Runtime、Cue / Action / Transition 評価、Snapshot / Replay、Control / State gRPC、JWT 検証である。起動・登録方法、公開 endpoint、Asset 配信、health、更新方法は環境固有 adapter の責務とする。
+
+### 4.3 Fly.io Cloud Runtime
+
+- Fly.io の release / Machine として起動する
+- 公開 TLS endpoint で Quest の Control / State gRPC を受ける
+- Control Plane が発行した Runtime JWT と `RuntimeAssignment` を検証する
+- Asset binary は中継せず、Quest が R2 / CDN の signed URL から直接取得する
+- Fly.io health check と Runtime application health を公開する
+- image version、Machine state、capacity を Control Plane へ報告する
+- checkpoint / completion / telemetry を Cloud へ送る
+
+Cloud Runtime は Venue Edge 用 PC がなくても利用できる既定の MVP 配置先とする。開発、デモ、自動テスト、基準性能測定を Cloud Runtime 上で先行する。
+
+### 4.4 Venue Edge Runtime
+
+Venue Edge はノート PC、mini PC、または会場内の専用端末で動作し、専用 Wi-Fi router へ Ethernet で接続する。
+
+```text
+Venue Edge Runtime
+├─ Runtime Core
+├─ Cloud Agent
+│  ├─ Edge credential による登録
+│  ├─ health / capacity / version reporting
+│  ├─ assignment / lease renewal
+│  ├─ Manifest / signed URL retrieval
+│  └─ checkpoint / telemetry upload
+├─ Local Checkpoint Store
 └─ Asset Gateway
    ├─ prefetch
    ├─ checksum / MIME / size verification
@@ -146,45 +221,83 @@ Venue Edge Runtime
    └─ eviction / readiness
 ```
 
-### 4.3 Presenter Quest
+Venue Edge 固有 Bearer token は Cloud Agent と Control Plane の通信だけに使用し、共通 Runtime Core や Quest へ公開しない。
+
+### 4.5 Presenter Quest
 
 - Cloud login
 - Presentation / session の選択と作成
 - Presentation Origin の calibration
 - HMD、controller、wrist Pose と logical input の取得
 - Pose を Presentation Space へ変換
-- Venue Edge への Tracking Frame 送信
-- Venue Edge への離散 Input Event 送信
+- 割り当て済み Runtime への Tracking Frame 送信
+- 割り当て済み Runtime への離散 Input Event 送信
 - Control / Element State の受信と描画
+- Cloud 配置時は R2 / CDN、Venue Edge 配置時は local HTTPS から Asset を取得
 - Asset の local cache
 
 Presenter Quest は viewer ごとの接続・送信 queue・fan-out を持たない。
 
-### 4.4 Viewer Quest
+### 4.6 Viewer Quest
 
 - Cloud login と参加コードによる session join
 - Presentation Origin の calibration
-- Venue Edge からの snapshot / live stream 受信
+- 割り当て済み Runtime からの snapshot / live stream 受信
 - Element State の local rendering / interpolation
 - 自端末の HMD Pose に基づく視点描画
+- Cloud 配置時は R2 / CDN、Venue Edge 配置時は local HTTPS から Asset を取得
 - Asset の local cache
 - readiness / heartbeat の報告
 
 Viewer Quest の HMD / controller Pose はネットワークへ送信しない。
 
-## 5. Venue Edge のprovisioning、登録、Session割り当て
+## 5. Runtime の登録と Session 割り当て
 
-1. `admin`がControl Planeの管理APIまたはCLIでVenue Edgeをprovisioningする。
-2. Control Planeが`edgeId`と256 bit以上のrandomなEdge固有Bearer tokenを生成し、token本体をこの応答で一度だけ返す。
-3. 管理者が`edgeId`とtokenをVenue Edgeのcredential storeへ配置する。source、image、command line、logへtokenを含めない。
-4. Venue EdgeがHTTPSでControl Planeへ接続し、Edge固有Bearer tokenで認証してruntime version、protocol version、capacity、local endpoint、certificate fingerprint、healthを登録する。
-5. Presenter が Cloud Control Plane で session を作成する。
-6. Control Plane が利用可能な Venue Edge を session へ割り当て、session ごとに単調増加する `assignmentEpoch` と期限付きの lease を発行する。
-7. Control Plane が `EdgeSessionAssignment` と Presentation Manifest を Venue Edge へ渡す。
-8. Venue Edge が必要な Asset を prefetch し、lease を定期的に更新する。
-9. Venue Edge が `assignmentEpoch` を含む Realtime Runtime と Asset の readiness を報告する。
-10. Quest が session へ join すると、Control Plane が endpoint、fingerprint、`edgeId`、`assignmentEpoch`、session-bound Venue Edge JWT、Presentation revision を返す。
-11. Quest は fingerprint を pinning し、JWTとbootstrap情報が示すEdgeへ接続する。
+### 5.1 RuntimeAssignment
+
+Presenter は session 作成時に `Cloud` または `VenueEdge` を選択する。Control Plane は指定された種類の healthy な Runtime を一つだけ割り当て、session ごとに単調増加する `assignmentEpoch` と期限付き lease を発行する。
+
+```text
+RuntimeAssignment
+├─ sessionId
+├─ runtimeId
+├─ runtimeKind: Cloud | VenueEdge
+├─ endpoint
+├─ assignmentEpoch
+├─ presentationRevision
+├─ issuedAt
+└─ leaseExpiresAt
+```
+
+- `runtimeId` は配置環境をまたいで Runtime instance を識別する。Fly.io Machine の再作成時に同じ ID を引き継ぐかは Runtime identity の永続化方針で決める。
+- `certificateFingerprint` は Venue Edge の local endpoint にだけ必要な profile 固有情報とし、共通 Assignment の必須 field にしない。
+- Control Plane は同じ session を別 Runtime へ割り当てるたびに `assignmentEpoch` を増やす。
+- Control Plane は旧 Runtime から明示的な lease 返却を受けるか、旧 lease の期限が切れるまで新しい active assignment を発行しない。強制切替時も旧 lease の期限まで session を停止し、二つの Runtime を同時に active authority にしない。
+- Runtime は接続、command、state 更新、checkpoint の処理前に、local assignment の `runtimeId`、`runtimeKind`、`assignmentEpoch`、Presentation revision、lease 有効期限を検証する。
+- Quest 用 JWT と bootstrap response は `runtimeId`、`runtimeKind`、`assignmentEpoch` を拘束する。古い世代または別配置先の credential を受け入れない。
+- lease を更新できない場合、既存 connection は `leaseExpiresAt` までだけ継続できる。期限後は Session Runtime を pause し、新規接続、command 受付、state 更新を停止する。
+- Control Plane は古い `assignmentEpoch` から届いた checkpoint、completion、telemetry を現行 session state へ適用しない。
+
+現在の実装は `EdgeSessionAssignment` と JWT の `edgeId` を使用している。Cloud Runtime を接続する前に、契約、repository、bootstrap、JWT、Runtime Guard を `RuntimeAssignment` と `runtimeId` へ移行する。Edge 固有 Bearer token と `edgeId` は Venue Edge の provisioning identity としてのみ残す。
+
+### 5.2 割り当てと bootstrap
+
+1. Presenter が Control Plane で session と `runtimeKind` を選択する。
+2. Control Plane が利用可能な Runtime を選び、`RuntimeAssignment` を作成する。
+3. Runtime が Assignment、Presentation Manifest、Runtime JWT 検証用 JWKS を取得し、lease を更新する。
+4. Cloud Runtime は Realtime readiness、Venue Edge は Realtime と Asset の readiness を `assignmentEpoch` とともに報告する。
+5. Quest が session へ join すると、Control Plane が endpoint、`runtimeId`、`runtimeKind`、`assignmentEpoch`、session-bound Runtime JWT、Presentation revision を返す。
+6. Venue Edge 配置では certificate fingerprint も返し、Quest は local endpoint を pinning する。Cloud 配置では公開 CA による TLS 検証を使用する。
+7. Quest は bootstrap と JWT が示す一つの Runtime へ Control / State connection を開く。
+
+配置先は `Waiting` 中だけ変更できる。`Presenting` へ移行した後は同じ Assignment を使い続け、障害時は pause または session 終了とする。発表中の自動 Cloud fallback は、Snapshot 転送、重複実行防止、Quest の再接続、split-brain 対策が揃うまで実装しない。
+
+### 5.3 Venue Edge provisioning identity
+
+1. `admin` が Control Plane の管理 API または CLI で Venue Edge を provisioning する。
+2. Control Plane が `edgeId` と 256 bit 以上の random な Edge 固有 Bearer token を生成し、token 本体をこの応答で一度だけ返す。
+3. 管理者が `edgeId` と token を Venue Edge の credential store へ配置する。source、image、command line、log へ token を含めない。
+4. Venue Edge が HTTPS で Control Plane へ接続し、Edge 固有 Bearer token で認証して runtime version、protocol version、capacity、local endpoint、certificate fingerprint、health を登録する。
 
 ```text
 VenueEdgeCredential
@@ -205,25 +318,7 @@ VenueEdgeCredential
 - 全Edgeで共通の`SERVICE_IDENTITY_SECRET`をVenue Edgeへ配布しない。
 - Edge固有鍵、one-time enrollment、mTLSへの移行は本設計の対象に含めず、Edge固有Bearer tokenを継続して使用する。
 
-```text
-EdgeSessionAssignment
-├─ sessionId
-├─ edgeId
-├─ assignmentEpoch
-├─ presentationRevision
-├─ issuedAt
-└─ leaseExpiresAt
-```
-
-- Control Plane は同じ session を別の Edge へ割り当てるたびに `assignmentEpoch` を増やす。
-- Control Plane は旧 Edge から明示的なlease返却を受けるか、旧leaseの期限が切れるまで、同じsessionの新しいactive assignmentを発行しない。強制切替時は旧lease期限までsessionを停止し、二つのEdgeを同時にactive authorityにしない。
-- Venue Edge は接続、command、state更新、checkpointの処理前に、local assignmentの`edgeId`、`assignmentEpoch`、lease有効期限を検証する。
-- Quest用JWTとbootstrap responseは`edgeId`と`assignmentEpoch`を拘束する。古い世代のcredentialを新しいEdgeで受け入れず、古いEdgeも新しい世代のconnectionを受け入れない。
-- leaseを更新できない場合、既存connectionは`leaseExpiresAt`までだけ継続できる。期限後はsession runtimeをpauseし、新規接続、command受付、state更新を停止する。
-- Control Planeは古い`assignmentEpoch`から届いたcheckpoint、completion、telemetryを現行session stateへ適用しない。
-- process再起動時はlocal checkpointに保存したassignmentを復元するが、lease期限切れの場合はCloudで更新が完了するまでsessionを再開しない。
-
-Edge の local endpoint を Cloud 経由で解決できない場合に備え、session QR code に同じ signed bootstrap 情報を格納できるようにする。signed bootstrap は少なくともsession ID、Edge ID、assignment epoch、endpoint、certificate fingerprint、有効期限を拘束する。
+Venue Edge の local endpoint を Cloud 経由で解決できない場合に備え、session QR code に同じ signed bootstrap 情報を格納できるようにする。signed bootstrap は少なくとも session ID、Runtime ID、runtime kind、assignment epoch、endpoint、certificate fingerprint、有効期限を拘束する。
 
 ## 6. Presentation Origin
 
@@ -253,9 +348,9 @@ ParticipantCalibration
 └─ calibrationQuality
 ```
 
-- `presentationOriginVersion` は session 全体で共有し、使用する marker や Presentation Space 自体を変更した場合だけ Venue Edge が増やす。
+- `presentationOriginVersion` は session 全体で共有し、使用する marker や Presentation Space 自体を変更した場合だけ割り当て済み Runtime が増やす。
 - Presenter Tracking Frame、Reliable Event、Element State Frame、Snapshot は `presentationOriginVersion` を持つ。
-- Quest と Venue Edge は、現在の `presentationOriginVersion` と一致しない frame を適用しない。
+- Quest と Runtime は、現在の `presentationOriginVersion` と一致しない frame を適用しない。
 - session 共通の Origin 変更は Reliable Event として配信し、全 Quest の再 calibration と新しい Snapshot を要求する。
 - `calibrationRevision` と `presentationFromQuestLocal` は participant ごとのローカル状態とする。1台の Quest の再 calibration はその端末の `calibrationRevision` だけを増やし、session 共通の `presentationOriginVersion` や他 participant の状態を変更しない。
 - Presenter Quest は最新の `presentationFromQuestLocal` を使って Pose を Presentation Space へ変換してから送信する。Viewer Quest は同じ変換の逆変換を使って Element State を自端末の tracking space へ配置する。
@@ -265,11 +360,11 @@ ParticipantCalibration
 
 ### 7.1 Runtime state
 
-Control Plane の durable session lifecycle は `Waiting -> Presenting -> Ended` のまま維持する。Venue Edge は、Control Plane 上で `Presenting` の session に対してだけ次の transient runtime state を持つ。
+Control Plane の durable session lifecycle は `Waiting -> Presenting -> Ended` のまま維持する。割り当て済み Runtime Core は、Control Plane 上で `Presenting` の session に対してだけ次の transient runtime state を持つ。
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Running: Control PlaneでPresenting、Edge ready
+    [*] --> Running: Control PlaneでPresenting、Runtime ready
     Running --> Paused: presenter disconnect / lease expiry
     Paused --> Running: presenterがRuntime Resumeを要求
     Running --> Terminating: explicit end / Control PlaneでEnded
@@ -280,19 +375,19 @@ stateDiagram-v2
 - `Running`: Presenter Trackingを使ったTrigger評価、Cue / Action / Transitionの進行、Element State配信を行う。
 - `Paused`: canonical Element Stateと進行位置を保持するが、Trigger評価、Cue発火、Transition / playbackの時間進行、新しいState frame生成を停止する。
 - `Terminating`: 不可逆な終了処理中とし、connection resume、runtime resume、command、Tracking Frameを受け入れない。local completionを確定し、Control Planeへの終了通知をidempotentに送る。
-- `Paused`と`Terminating`はEdge内部のruntime substateであり、Control Planeのsession stateへ同名の値を追加しない。
+- `Paused`と`Terminating`はRuntime内部のruntime substateであり、Control Planeのsession stateへ同名の値を追加しない。
 
 `resume`は次の二つに用語を分ける。
 
 - **Connection Resume**: participantの通信再接続。Snapshot / replayで同じruntimeへ復帰するが、runtime state自体は変更しない。
 - **Runtime Resume**: presenterだけが要求できる`Paused -> Running`遷移。有効なpresenter connection、有効なassignment lease、Control Plane上で`Presenting`であることを確認してから適用する。
 
-Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続したpresenterがSnapshotとpause理由を確認し、明示的な`ResumeRuntime` commandを送信する。Venue Edgeは`RuntimePaused`、`RuntimeResumed`、`RuntimeTerminating`をReliable Eventとして全participantへ配信する。
+Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続したpresenterがSnapshotとpause理由を確認し、明示的な`ResumeRuntime` commandを送信する。Runtime Coreは`RuntimePaused`、`RuntimeResumed`、`RuntimeTerminating`をReliable Eventとして全participantへ配信する。
 
 ### 7.2 Step / Cue execution
 
 1. Presenter Quest が連続的な Pose を Tracking Stream、離散的な input を Reliable Control へ送信する。
-2. Venue Edge はruntimeが`Running`の場合だけ、現在の Step に属する Cue を評価する。
+2. Runtime Core はruntimeが`Running`の場合だけ、現在の Step に属する Cue を評価する。
 3. Trigger が成立した Cue を idempotent に発火する。
 4. Cue に属する複数 Action を開始する。
 5. Action に Transition があれば、Runtime tick ごとに状態を計算する。
@@ -301,7 +396,7 @@ Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続
 8. Transition 完了後、最終状態を Reliable Event と Snapshot へ反映する。
 9. Cue の定義に従って次の Step へ遷移する。
 
-同一 Step で複数 Cue が成立した場合の priority、排他、再発火、debounce は runtime contract で明示する。端末ごとに個別評価すると結果が分岐するため、Trigger / Cue / Action / Transition の canonical evaluation は Venue Edge だけが行う。
+同一 Step で複数 Cue が成立した場合の priority、排他、再発火、debounce は runtime contract で明示する。端末ごとに個別評価すると結果が分岐するため、Trigger / Cue / Action / Transition の canonical evaluation は割り当て済み Runtime Core だけが行う。Cloud と Venue Edge の evaluator は同じ入力に対して同じ結果を生成する同一実装を使用する。
 
 ## 8. 通信方式
 
@@ -321,8 +416,8 @@ State Connection
 
 二つのconnectionは独立したsessionとして扱わず、Control Connectionを親とする一つのlogical participant connectionへ束ねる。
 
-- Control handshakeの認証後、Venue Edgeが推測困難な短命`connectionId`を発行する。
-- State Connectionを開くたびに、Venue EdgeはControl Connection上で短命かつ一回使用の`stateConnectionNonce`を発行する。
+- Control handshakeの認証後、Runtimeが推測困難な短命`connectionId`を発行する。
+- State Connectionを開くたびに、RuntimeはControl Connection上で短命かつ一回使用の`stateConnectionNonce`を発行する。
 - State Connectionは同じsession、participant、assignment epochのJWT、`connectionId`、`stateConnectionNonce`を提示する。
 - 一つの`connectionId`に対してactiveなState Connectionは一つだけとし、再確立時は古いRPCを終了してから新しい`stateConnectionNonce`を発行する。
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
@@ -365,7 +460,7 @@ ReliableEvent
 
 ### 8.3 Presenter Tracking Stream
 
-Presenter Quest から Venue Edge へ送る。
+Presenter Quest から割り当て済み Runtime へ送る。
 
 ```text
 PresenterTrackingFrame
@@ -406,13 +501,13 @@ PresenterInputEvent
 ```
 
 - Presenter Quest は入力の edge を検出し、`eventId` を付けて送信する。
-- Venue Edge は presenter role、session、`presentationOriginVersion` を検証し、同じ `eventId` の再送を一度だけ適用する。
+- Runtime Core は presenter role、session、`presentationOriginVersion` を検証し、同じ `eventId` の再送を一度だけ適用する。
 - Runtime が確定した input と、それにより発火した Cue は Reliable Event として採番し、Cue 側から原因となった `eventId` を参照できるようにする。
 - Poseの軌跡や閾値通過を使うTriggerは、Trigger定義ごとに必要なsample windowを持つ。Runtimeは評価に必要な直近Poseを時間上限付きでmemoryへ保持するが、replayやSnapshotには含めない。
 
 ### 8.4 Element State Stream
 
-Venue Edge から全 Quest へ送る。
+割り当て済み Runtime から全 Quest へ送る。
 
 ```text
 ElementStateFrame
@@ -451,7 +546,7 @@ ElementStateFrame
 
 ### 8.5 Clock synchronization
 
-Venue Edge の clock を active session の基準とする。Quest は定期的な ping / pong で Runtime との clock offset と RTT を推定する。
+割り当て済み Runtime の clock を active session の基準とする。Quest は定期的な ping / pong で Runtime との clock offset と RTT を推定する。
 
 - Cue / Transition / playback に Runtime 時刻を付ける。
 - Quest は `producedAt` と推定 offset を使って interpolation buffer を制御する。
@@ -459,7 +554,7 @@ Venue Edge の clock を active session の基準とする。Quest は定期的�
 
 ## 9. 高トラフィックへの対応
 
-Venue Edge の概算 egress は次で決まる。
+Runtime instance の概算 egress は次で決まる。
 
 ```text
 更新頻度 × 更新 Element 数 × 1 Element の payload × viewer 数
@@ -510,12 +605,12 @@ SessionSnapshot
 late join / Connection Resume:
 
 1. Quest がControl Connectionを開き、JWT、session、participant、role、protocol version、assignment epochを検証する。
-2. Venue Edgeはsession lock内で、現在の`reliableSequence = S`をcutとしてSnapshotを作成し、同じ操作内でそのconnectionを`S + 1`以降のReliable Event購読者として登録する。
-3. Venue EdgeがSnapshotと`connectionId`を返す。Snapshot作成後に発生したReliable Eventはconnectionのbounded replay queueへ保持される。
+2. Runtime Coreはsession lock内で、現在の`reliableSequence = S`をcutとしてSnapshotを作成し、同じ操作内でそのconnectionを`S + 1`以降のReliable Event購読者として登録する。
+3. Runtime CoreがSnapshotと`connectionId`を返す。Snapshot作成後に発生したReliable Eventはconnectionのbounded replay queueへ保持される。
 4. QuestがSnapshotを適用し、`S + 1`以降のReliable Eventをsequence順に適用する。gapがある場合はState Connectionへ進まずreplayまたは新しいSnapshotを要求する。
 5. Questが適用済みReliable sequenceと`presentationOriginVersion`を`StateReady`で通知する。
-6. Venue Edgeが`stateConnectionNonce`を返し、Questが`connectionId`とこのnonceを使ってState Connectionを開く。Venue EdgeはControl Connectionと同じidentityへ関連付ける。
-7. runtimeが`Running`なら、Venue Edgeは現在の全Element Stateをkeyframeとして送った後、`StateReady`以降の差分配信を開始する。各frameにその生成時点の`baseReliableSequence`を付ける。`Paused`ならState Connectionだけを確立し、frame送信は行わない。
+6. Runtime Coreが`stateConnectionNonce`を返し、Questが`connectionId`とこのnonceを使ってState Connectionを開く。Runtime CoreはControl Connectionと同じidentityへ関連付ける。
+7. runtimeが`Running`なら、Runtime Coreは現在の全Element Stateをkeyframeとして送った後、`StateReady`以降の差分配信を開始する。各frameにその生成時点の`baseReliableSequence`を付ける。`Paused`ならState Connectionだけを確立し、frame送信は行わない。
 
 Snapshotのcut取得、Reliable Event購読登録、replay開始位置の決定は同じsession coordinatorのcritical sectionで行う。これによりSnapshot作成とlive購読の間にeventを取りこぼさない。State ConnectionはControl Connectionがcatch upするまで開始しない。
 
@@ -533,18 +628,21 @@ Pose の履歴は Snapshot へ含めない。Pose の軌跡や閾値通過を使
 ### 11.1 基本方針
 
 - R2 を Asset の durable source of truth とする。
-- Venue Edge が session 開始前に必要 Asset を一度だけ Cloud から取得する。
-- Quest は Asset を Venue Edge の local HTTPS endpoint から取得する。
 - Asset binary を Realtime gRPC stream へ載せない。
 - 発表開始後に Asset download が発生しないよう preflight する。
+- Presentation Manifest と content hash は配置先にかかわらず共通とする。
 
 ```text
-R2
-  ↓ signed HTTPS URL
-Venue Edge Asset Cache
-  ↓ local HTTPS
-Quest local cache
+Cloud Runtime:
+Control Plane ── signed URL ──> Quest ──> R2 / CDN
+
+Venue Edge Runtime:
+R2 ── signed URL ──> Venue Edge Asset Cache ── local HTTPS ──> Quest
 ```
+
+Cloud 配置では Control Plane が participant、session、Presentation revision を検証し、要求された `assetId` がその revision の Manifest に含まれる場合だけ短命な signed URL を発行する。Quest は R2 / CDN から直接取得し、Cloud Runtime 自身は Asset binary の proxy や cache を持たない。
+
+Venue Edge 配置では Edge が session 開始前に必要 Asset を一度だけ Cloud から取得し、会場 LAN 内の local HTTPS endpoint から Quest へ配信する。
 
 ### 11.2 Manifest
 
@@ -561,9 +659,9 @@ PresentationManifest
    └─ mediaType
 ```
 
-Venue Edge は Manifest に含まれる Asset だけを取得し、size、MIME、checksum を検証してから ready とする。
+Quest と Venue Edge は Manifest に含まれる Asset だけを取得し、size、MIME、checksum を検証してから ready とする。signed URL は Manifest の認可境界を広げず、別 session または別 Presentation revision の Asset を取得できないようにする。
 
-### 11.3 Cache
+### 11.3 Venue Edge Cache
 
 Asset は content hash 単位で immutable に保存する。
 
@@ -576,10 +674,11 @@ cache/
 
 - 同じ Asset を複数 Presentation / session で再利用する。
 - Cloud からの取得には短命 signed URL を使い、Edge へ恒久 R2 credential を置かない。
-- cache capacity と eviction policy を設定する。
+- cache capacity と eviction policy は実機の disk 容量と preload 計測後に決定する。
 - active session が参照する Asset は eviction しない。
+- cache の hard limit、low-disk threshold、LRU 等の退避順、partial download の回収、複数 session の quota は未決定事項とする。
 
-### 11.4 Quest 向け endpoint
+### 11.4 Venue Edge の Quest 向け endpoint
 
 例:
 
@@ -601,13 +700,13 @@ GET /sessions/{sessionId}/assets/{assetId}
 
 Video と大容量 Asset のため、Range Requests を必須とする。
 
-QuestはRealtimeと同じsession-bound Venue Edge JWTをHTTPの`Authorization: Bearer` headerで提示する。Asset専用tokenやQuest向けsigned URLは発行しない。
+Venue Edge 配置では、Quest は Realtime と同じ session-bound Runtime JWT を HTTP の `Authorization: Bearer` header で提示する。Asset 専用 token や Quest 向け signed URL は発行しない。
 
-- JWTのaudienceはRealtimeとAsset Gatewayに共通の`unframe-venue-edge`とする。
+- JWT の audience は Realtime と Venue Edge Asset Gateway に共通の Runtime audience とする。現在の `unframe-venue-edge` から移行する具体的な値は protocol contract で確定する。
 - JWTは`realtime:connect`と`assets:read`のscopeを持ち、gRPC接続では前者、Asset Gatewayでは後者を必須とする。
-- Asset Gatewayは署名と標準時刻claimに加え、JWTの`edgeId`、`sessionId`、`participantId`、`assignmentEpoch`、`presentationId`、`presentationRevision`を検証する。
+- Asset Gatewayは署名と標準時刻claimに加え、JWTの`runtimeId`、`runtimeKind: VenueEdge`、`sessionId`、`participantId`、`assignmentEpoch`、`presentationId`、`presentationRevision`を検証する。
 - URLの`sessionId`はJWTのclaimと一致し、要求された`assetId`はその`presentationRevision`のManifestに掲載されていなければならない。
-- 現在のEdge割当とleaseが無効な場合、または別session、別revision、Manifest未掲載Assetへの要求は拒否する。request parameterでJWTの権限範囲を広げられないようにする。
+- 現在のRuntime割当とleaseが無効な場合、または別session、別revision、Manifest未掲載Assetへの要求は拒否する。request parameterでJWTの権限範囲を広げられないようにする。
 - JWTをquery parameterへ含めず、access logにも記録しない。
 - EdgeがCloudからAssetをprefetchするための短命signed URLはこのQuest認可と別のcredentialであり、Questへ渡さない。
 
@@ -629,7 +728,7 @@ ViewerReadiness
 
 - Quest cache に存在する hash は再取得しない。
 - 大容量 Asset は session 開始より前に preload する。
-- 50 台の同時 burst を避けるため、Venue Edge が download concurrency を制御する。
+- Cloud 配置では CDN、Venue Edge 配置では Asset Gateway が 50 台の同時 burst と download concurrency を制御する。
 - session 開始条件を「全 participant ready」または明示した policy として定義する。
 
 ## 12. Authentication / Security
@@ -638,30 +737,30 @@ ViewerReadiness
 
 1. Quest が Cloud Control Plane へ login する。
 2. session 作成または join code 参加を行う。
-3. Control Plane がsession-bound Venue Edge JWTを発行する。
-4. Quest が Venue Edge へ JWT を提示する。
-5. Venue Edge が cached JWKS または Cloud の JWKS で署名を検証する。
+3. Control Plane が session-bound Runtime JWT を発行する。
+4. Quest が bootstrap で選択された Runtime へ JWT を提示する。
+5. Runtime Core が cached JWKS または Control Plane の JWKS で署名を検証する。
 
 JWT は少なくとも次を拘束する。
 
 - issuer
-- audience: `unframe-venue-edge`
+- Runtime 共通 audience
 - subject / participant ID
 - session ID
 - role
-- Edge ID
+- Runtime ID / kind
 - assignment epoch
 - Presentation ID / revision
-- scope: `realtime:connect`, `assets:read`
+- scope: 共通の `realtime:connect`、Venue Edge Asset Gateway 用の `assets:read`
 - protocol version
 - expiry / not-before
 
-同じJWTをgRPCとlocal HTTPSで共用するが、各入口は自身に必要なscopeを独立して検証する。`assets:read`だけでRealtime RPCを呼び出したり、`realtime:connect`だけでAssetを取得したりすることはできない。
+Venue Edge 配置では同じ JWT を gRPC と local HTTPS で共用するが、各入口は自身に必要な scope を独立して検証する。`assets:read`だけでRealtime RPCを呼び出したり、`realtime:connect`だけでAssetを取得したりすることはできない。Cloud 配置の Asset signed URL は Runtime JWT と別に Control Plane が認可・発行する。
 
 ### 12.2 Venue Edge
 
 - Edge はuser JWTと別のEdge固有Bearer tokenを持ち、Cloud Control PlaneへのHTTPS requestで提示する。
-- Control PlaneはEdge登録、health、capacity報告ではEdge ID、token status、token expiryを検証する。Manifest取得、lease更新、checkpoint / completionではこれらに加えてactive assignmentのsession ID、Edge ID、assignment epochを検証する。
+- Control PlaneはEdge登録、health、capacity報告ではEdge ID、token status、token expiryを検証する。Manifest取得、lease更新、checkpoint / completionではこれらに加えてactive Runtime Assignmentのsession ID、runtime ID、assignment epochと、そのRuntimeが当該Edgeへ属することを検証する。
 - Cloud側のserver identityは通常の公開TLS証明書で検証し、client certificateやmTLSは使用しない。
 - Edge へ R2 の恒久 secret や Control Plane signing key を置かない。
 - local endpoint の certificate fingerprint を Control Plane の認証済み response で Quest へ返す。
@@ -675,13 +774,17 @@ JWT は少なくとも次を拘束する。
 - message size、rate、invalid message count を制限する。
 - payload 内の participant ID / role を信頼せず、認証済み connection identity を使用する。
 - Presentation / Asset の revision と session assignment を検証する。
-- connection、command、state更新ごとに現在の assignment epoch と lease が有効であることを検証する。
+- connection、command、state更新ごとに現在の Runtime ID / kind、assignment epoch、lease が有効であることを検証する。
 
 ## 13. Failure / Recovery
 
 ### 13.1 Internet 障害
 
-Internet は session の正式な必須要件とする。ただし短時間の回線揺らぎで即座に発表を停止しないため、Venue Edge は次の grace behavior を持てるようにする。
+Internet は session の正式な必須要件とする。障害時挙動は配置先で異なる。
+
+Cloud Runtime 配置では Quest と Runtime の経路自体が失われるため、client は同じ endpoint へ再接続し、Runtime は保持済み Snapshot / replay から復帰を試みる。Fly.io Machine 再配置をまたぐ Snapshot の durable 保存先と復元単位は未決定であり、復元不能時は session failure とする。
+
+Venue Edge 配置では短時間の WAN 回線揺らぎで即座に発表を停止しないため、次の grace behavior を持てるようにする。
 
 - 既存 participant の Realtime通信は assignment lease の残存期間だけ継続する。
 - 新規 login / join / credential refreshと、EdgeからCloudへのAsset prefetchまたはcache miss取得は失敗する。
@@ -707,24 +810,45 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 - participant 固有 queue を破棄する。
 - 再接続時は Snapshot / replay から復帰する。
 
-### 13.4 Venue Edge process障害
+### 13.4 Runtime process 障害
 
-- reliable event または一定間隔で、runtime status、pause理由、Transition経過時間を含むlocal checkpointを保存する。
-- process supervisor で自動再起動する。
-- 再起動後にlocal Snapshotを復元する。checkpointが`Running`でも自動進行せず、安全側の`Paused`として復元してpresenterのRuntime Resumeを待つ。
+- 共通 Snapshot / replay protocol と、環境固有 checkpoint store を分離する。
+- Cloud Runtime は Fly.io の再起動・再配置を使用し、Venue Edge は local process supervisor で自動再起動する。
+- Cloud の durable checkpoint store と書き込み頻度、Venue Edge の local checkpoint形式・保存先・破損回復は別途決定する。
+- 再起動後に Snapshot を復元する。checkpoint が `Running` でも自動進行せず、安全側の `Paused` として復元して presenter の Runtime Resume を待つ。
 - Quest は exponential backoff と jitter で同じ endpoint へ再接続する。
 - 復旧不能時は Cloud Control Plane へ session failure を報告する。
 
 ### 13.5 Asset取得・cache障害
 
-- checksum mismatch の Asset を ready としない。
-- 部分的な Presentation readiness を返さない。
-- active session に必要な Asset が一件でも欠ける場合は開始を拒否する。
-- Cloud から再取得し、それでも失敗する場合は具体的な Asset ID と理由を presenter へ示す。
+- Cloud 配置では、Quest が期限切れ signed URL を Control Plane で更新して R2 / CDN から再取得する。checksum mismatch、CDN error、再取得失敗を具体的な Asset ID とともに readiness へ反映する。
+- Venue Edge 配置では checksum mismatch の Asset を ready とせず、cache miss または破損時は新しい signed URL で Cloud から再取得する。
+- どちらの配置でも部分的な Presentation readiness を返さず、active session に必要な Asset が一件でも欠ける場合は開始を拒否する。
+- 再取得しても失敗する場合は、具体的な Asset ID と理由を presenter へ示す。
+
+### 13.6 Runtime 障害時の配置先変更
+
+初期段階では発表中の自動 Cloud fallback と Cloud / Venue Edge 間の live migration を行わない。実行中 Runtime の移動には、最新 Snapshot の転送、Reliable Event の cut、重複実行防止、新しい `assignmentEpoch` による fencing、Quest の endpoint 切替と再認証、旧 Runtime の停止確認が必要になる。
+
+MVP では session 開始前に配置先を選び、実行中に Runtime が復旧できない場合は session failure として明示的に終了する。Cloud Runtime は Venue Edge 障害時に新しい session を開始するための選択肢にはなるが、同じ実行中 session の自動継続先にはしない。
 
 ## 14. Network / Deployment
 
-推奨会場構成:
+Runtime Core に対する環境差は次の deployment profile で扱う。
+
+| 項目 | Fly.io Cloud Runtime | Venue Edge Runtime |
+| --- | --- | --- |
+| 起動・登録 | container image の release、Machine 起動、Control Plane への Runtime 登録 | installer / service manager、Edge Bearer credential による登録 |
+| endpoint | Internet 上の公開 TLS gRPC endpoint | 会場 LAN 上の gRPC と local HTTPS endpoint |
+| TLS trust | 公開 CA を基本とする | bootstrap で配布する fingerprint pinning |
+| Asset | Quest が R2 / CDN signed URL から直接取得 | Edge が prefetch、検証、cache して LAN 配信 |
+| health | Fly.io health check と application readiness | Cloud Agent による process、disk、LAN、cache readiness |
+| 更新 | image release と Machine rollout | signed binary / image の段階更新と rollback |
+| recovery | Machine 再起動・再配置と Cloud checkpoint | process supervisor と local checkpoint |
+
+Cloud Runtime を先に実装し、Quest だけで end-to-end MVP を成立させる。Fly.io 上の初期 profile は単一 session を明示的な Runtime instance へ割り当て、公開 TLS endpoint、application health、固定した Runtime identity を提供する。region、複数 room、Machine affinity、autoscaling、durable Snapshot store、rolling update 中の Assignment の扱いは実測後に決定する。
+
+Venue Edge の推奨会場構成:
 
 ```text
 Venue Edge Laptop / Mini PC
@@ -751,11 +875,13 @@ Internet
 
 Venue Edge の必要 capacity は、同時 room 数、participant 数、Asset cache size、Element update rate、payload size、TLS / fan-out CPU を負荷試験して決定する。初期運用では一つの Venue Edge / Runtime instance が一つの active room を担当する。
 
+Venue Edge の実際の local listener 構成は未決定である。少なくとも Control gRPC、State gRPC、Asset HTTPS を提供する必要があるが、同一 process / port で multiplex するか、port を分離するか、LAN interface への bind、証明書の生成・保存・rotation、fingerprint 形式、firewall と discovery を実装前に確定する。
+
 ## 15. Observability
 
 Cloudへ送るもの:
 
-- Edge health / version / capacity
+- Runtime ID / kind / health / version / capacity
 - active session / participant count
 - connection / disconnect reason
 - authentication failure count
@@ -766,7 +892,7 @@ Cloudへ送るもの:
 - `stateWriteBlockTimeout`によるState Connection cancel / 再確立回数
 - `stateMaxFrameAge`超過数
 - RTT / jitter / clock offset
-- Asset cache hit / miss / download duration
+- Cloud signed URL download、Venue Edge cache hit / miss / download duration
 - checkpoint / completion
 - Runtime / network error
 
@@ -777,14 +903,14 @@ Cloudへ送らないもの:
 - credential / signed URL
 - participant の sensitive tracking data
 
-Venue Edge は短時間の高粒度 metrics を local に保持し、Cloud へは集計値を送る。
+Cloud Runtime は集約基盤へ直接 metrics を送り、Venue Edge は短時間の高粒度 metrics を local に保持して Cloud へ集計値を送る。両 profile で同じ metric 名と session / runtime label を使用し、Cloud の基準性能と Venue Edge の改善幅を比較できるようにする。
 
 ## 16. 検証計画
 
 ### 16.1 Functional
 
 - valid / invalid JWT、audience、scope、role enforcement
-- assignment epoch、lease更新、期限切れ、再割り当て時のfencing
+- Runtime kind / ID、assignment epoch、lease更新、期限切れ、再割り当て時のfencing
 - session 共通の Presentation Origin 更新と participant 単位の calibration revision
 - lossy Pose と reliableな離散 Input Event による Trigger 発火
 - 同一 Step の Cue priority / debounce / duplicate
@@ -796,8 +922,10 @@ Venue Edge は短時間の高粒度 metrics を local に保持し、Cloud へ�
 - Connection ResumeとRuntime Resumeの独立性
 - pause中のjoin、Snapshot、Transition / playback clock、timeout、process再起動
 - Presenter / viewerのConnection Resume
-- Asset prefetch / checksum / Range Requests / cache hit
+- Cloud signed URL の認可・checksum・CDN Range Requests
+- Venue Edge Asset prefetch / checksum / Range Requests / cache hit
 - Asset取得のsession、assignment epoch、Presentation revision、Manifest境界
+- Unity client のControl / State 2接続、bootstrap、nonce、再接続、main threadへの適用
 - session終了とCloud completion
 
 ### 16.2 Load / Network
@@ -813,8 +941,8 @@ Venue Edge は短時間の高粒度 metrics を local に保持し、Cloud へ�
 - packet loss / RTT / jitter
 - Internet断と復旧
 - Internet断中のassignment lease期限切れ
-- Venue Edge process再起動
-- 50台同時Asset preload
+- Cloud MachineとVenue Edge processの再起動
+- Cloud CDNとVenue Edgeそれぞれの50台同時Asset preload
 
 測定値:
 
@@ -823,10 +951,12 @@ Venue Edge は短時間の高粒度 metrics を local に保持し、Cloud へ�
 - State frame age
 - dropped / coalesced frame
 - reliable gap / resync 件数
-- Venue Edge CPU / memory / network / disk
+- Cloud / Venue Edge Runtime CPU / memory / network / disk
 - Quest CPU / memory / thermal / battery
 - Wi-Fi throughput / airtime / retransmission
 - Asset ready までの時間
+
+最初に Fly.io Cloud Runtime で 1 / 10 / 25 / 50 台を計測し、Quest だけで成立する MVP の基準値を作る。同じ protocol、Presentation、Quest build、負荷条件を Venue Edge でも再実行し、配置差による latency、jitter、fan-out、Asset ready 時間の改善幅を比較する。
 
 ### 16.3 Transport decision gate
 
@@ -842,86 +972,111 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 
 ## 17. 実装段階
 
-### Phase 1: Cloud-managed Edge foundation
+### Phase 1: Runtime contract の一般化
 
-- adminによるEdge provisioningとEdge固有Bearer tokenの一回表示
-- token hash保存、認証、rotation、Edge単位の失効
-- Edge registration / health / version
-- session assignment
-- assignment lease / epoch / fencing
-- Quest への local endpoint / fingerprint返却
-- Quest用Venue Edge JWT / JWKS / scope verification
-- single room / single Runtime
+- `EdgeSessionAssignment`を`RuntimeAssignment`へ一般化
+- JWT、bootstrap、repository、Runtime Guardの`edgeId`を`runtimeId` / `runtimeKind`へ移行
+- Runtime共通audienceとscope contract
+- assignment lease / epoch / fencingをCloud / Venue Edge共通化
+- Edge Bearer credentialをVenue Edge profileだけに分離
 
-### Phase 2: Asset Gateway
+### Phase 2: Fly.io Cloud Realtime MVP
 
-- Manifest
-- signed URL prefetch
-- content-addressed cache
-- checksum / MIME / size verification
-- local HTTPS / Range Requests
-- Quest readiness
-
-### Phase 3: Realtime contract
-
+- Fly.io Runtimeの起動、登録、公開TLS endpoint、health
 - Control / State channel分離
-- Presenter Tracking Frame
-- Reliable Event
-- Element State Frame
-- per-connection single-slot mailbox / field merge / write timeout
-- clock synchronization
+- Unity Quest clientのbootstrap、JWT、2接続、再接続
+- Presenter Tracking Frameと離散Input Event
+- Reliable EventとElement State Frame
+- Step / Cue / Action / Transition evaluator
+- canonical Element State、Snapshot / Replay
+- Quest向けR2 / CDN signed URLとreadiness
 
-### Phase 4: Step / Cue Runtime
+この段階でVenue Edge用PCなしに、Presenter QuestとViewer Questだけでend-to-endの発表を成立させる。
 
-- active Step filtering
-- Trigger evaluation
-- Cue priority / debounce / idempotency
-- Action / Transition evaluator
-- canonical Element State
-- snapshot / replay
+### Phase 3: Cloud 基準性能の計測
 
-### Phase 5: Recovery / Operations
-
-- local checkpoint
-- process restart recovery
-- Internet grace behavior
-- metrics / logs / alert
-- deployment / update / rollback
-
-### Phase 6: Scale validation
-
-- 50 Quest実機試験
-- Asset preload試験
-- latency / jitter / bandwidth tuning
+- 1 / 10 / 25 / 50 Quest実機試験
+- presenter inputからviewer applyまでのlatency / jitter
+- 50台fan-out、slow viewer、reconnect、Snapshot / Replay
+- CDN Asset preloadとsession readiness
 - payload quantization / update rate調整
 - gRPC State transport継続可否の判断
 
+### Phase 4: Venue Edge profile
+
+- 同じRuntime CoreをVenue Edge用binaryとして起動
+- Cloud Agent、Edge登録、health、lease renewal
+- local HTTPS listenerとcertificate fingerprint pinning
+- Manifest prefetch、content-addressed cache、Range配信
+- local checkpoint、process restart recovery、Internet grace behavior
+- Cloud基準値と同じ条件でlatency / jitter / fan-outを再計測
+
+### Phase 5: 配置先選択
+
+- session作成時の`Cloud | VenueEdge`選択UI / API
+- runtime kindごとのcapacity、readiness、bootstrap
+- Assignment release、再割り当て、終了処理
+- profile共通のmetrics / logs / alert
+- deployment / update / rollback
+
+発表中の自動 fallback はこの段階にも含めない。必要性が実測と運用で確認された場合だけ、別のmigration設計として扱う。
+
 ## 18. Open Questions
 
-- Venue Edge の標準 hardware と最低要件
-- 一つのEdgeで許可するactive room数
-- 会場 router を製品構成に含めるか
+### 18.1 共通 Runtime Core / Protocol
+
+- Runtime共通JWT audienceの値と、既存`unframe-venue-edge`からの移行方法
+- `runtimeId`の寿命、一意性、process / Machine再作成時の扱い
+- UnityがControl / Stateの2接続、endpoint、JWT、fingerprint、`connectionId`、nonceを保持するclient lifecycle
+- Unityへ生成gRPC clientを組み込むcontract生成元、build手順、version drift check
+- Unityのmain threadへStateを適用するqueue、backpressure、app suspend / resume時の再接続
 - Presentation Origin marker / calibration方式
 - PoseをHMD + controllerに限定するか、wrist / hand jointを追加するか
+- Presenter Pose / Input protocol、sample window、clock authority、許容latency
 - Action種別ごとのlocal deterministic executionとRuntime streamingの境界
 - Cue priority、排他、再発火、debounce
 - Transition tick rateとElement種別ごとの配信rate
 - position / rotationの量子化精度
+- Snapshot schema、Reliable Event保持量、atomic cut、replay上限
+- Cloud durable checkpointとVenue Edge local checkpointで同じSnapshotを使う永続化contract
+- Presenter再接続timeout
+- `stateWriteBlockTimeout`と`stateMaxFrameAge`の初期値
+- State transportをgRPCから変更する判断基準となるUX latency budget
+
+### 18.2 Fly.io Cloud Runtime
+
+- region選択、複数room、Machine affinity、autoscaling policy
+- Runtime instanceとFly.io Machineのidentity対応
+- Control PlaneがRuntimeを事前登録するか、Machineが短命なplatform identityで自己登録するか
+- Machine再配置をまたぐSnapshot / Replayのdurable保存先と書き込み頻度
+- rolling update中のactive Assignmentとconnection drain
+- R2 / CDN signed URLのTTL、Range、50台同時取得時のrate / cost
+
+### 18.3 Venue Edge Runtime
+
+- Venue Edge の標準 hardware と最低要件
+- 一つのEdgeで許可するactive room数
+- 会場 router を製品構成に含めるか
+- local HTTPS listenerのprocess / port構成、LAN bind、証明書保存・rotation、fingerprint形式、firewall / discovery
+- Cloud Agentのservice manager、credential store、update / rollback方式
 - Internet grace periodとsession停止policy
 - assignment lease durationとrenew interval
 - Edge tokenの有効期間、rotation interval、overlap期間
-- Presenter再接続timeout
-- `stateWriteBlockTimeout`と`stateMaxFrameAge`の初期値
-- Asset cache容量とeviction policy
-- Cloud Runtimeへのfallbackを提供するか
-- State transportをgRPCから変更する判断基準となるUX latency budget
+- Asset cacheのhard capacity、low-disk threshold、eviction順、active session pin、partial download回収、session quota
+
+### 18.4 将来の Runtime migration
+
+- 発表中のCloud / Venue Edge fallbackが実測上必要か
+- Snapshot転送とReliable Event cutをどのauthorityが調停するか
+- 新旧Runtimeの重複実行を防ぐ停止確認とassignment epoch protocol
+- Questのendpoint切替、再認証、再接続をどのUXで行うか
 
 ## 19. 結論
 
-会場内のMeta Quest 3参加者だけを対象とし、Internet接続を必須とする場合、Cloud-managed Venue EdgeをRealtimeとAsset配信の正規経路とする。
+Target Architecture の Realtime Runtime は Fly.io Cloud と Venue Edge で同じ Core を使用し、session 開始前の `RuntimeAssignment` によって一つの配置先を選ぶ。
 
-Cloud Control Planeは認証、Presentation / Asset、session lifecycle、Edge管理を担当する。Venue EdgeはPresenter Pose / inputを受け、Step / Cue、Action / Transitionを評価し、計算済みElement Stateを最大50台へfan-outする。Quest間のfull-mesh P2PやPresenter Questによる直接fan-outは採用しない。
+Cloud Control Planeは認証、Presentation / Asset、session lifecycle、Runtime管理を担当する。割り当て済みRuntime CoreはPresenter Pose / inputを受け、Step / Cue、Action / Transitionを評価し、計算済みElement Stateを最大50台へfan-outする。Quest間のfull-mesh P2PやPresenter Questによる直接fan-outは採用しない。
 
-AssetはVenue EdgeがCloudから一度取得して検証・cacheし、Questへ会場LAN内のHTTPSで配信する。Realtime Controlと高頻度Stateは論理的・物理的に分離し、初期実装はgRPCで開始する。実測でTCP由来の遅延・jitterが問題になる場合だけState transportをUDP / QUIC系へ置き換える。
+Cloud RuntimeではAssetをR2 / CDNのsigned URLからQuestへ直接配信し、Venue EdgeではEdgeが一度取得して検証・cacheし、会場LAN内のHTTPSで配信する。Realtime Controlと高頻度Stateは論理的・物理的に分離し、初期実装はgRPCで開始する。実測でTCP由来の遅延・jitterが問題になる場合だけState transportをUDP / QUIC系へ置き換える。
 
-この構成により、Cloudによる一元的な認証・管理を維持しながら、高トラフィックなStep × Cue実行、Questの性能制約、Asset配信、会場内の低遅延通信を同じVenue Edge境界で扱う。
+Fly.io Cloud Runtimeを先に実装してQuestだけのMVPと基準性能を確立し、その後に同じRuntime CoreをVenue Edgeへ配置する。発表中の自動fallbackは行わず、Snapshot転送、fencing、再接続、split-brain対策を別設計として成立させるまでは、配置先をsession開始前に固定する。
