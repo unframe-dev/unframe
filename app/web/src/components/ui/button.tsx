@@ -8,8 +8,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]",
+        default: "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]",
         outline:
           "border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--interactive-blue)] hover:bg-[var(--interactive-blue-soft)] hover:text-[var(--interactive-blue-ink)]",
         ghost:

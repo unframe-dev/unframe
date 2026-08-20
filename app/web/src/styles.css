@@ -575,12 +575,7 @@ input[readonly] {
 .workspace-title h1 {
   width: fit-content;
   margin: 0;
-  background: linear-gradient(
-    100deg,
-    var(--brand-blue),
-    #9a80d0 48%,
-    var(--brand-red)
-  );
+  background: linear-gradient(100deg, var(--brand-blue), #9a80d0 48%, var(--brand-red));
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -656,12 +651,7 @@ input[readonly] {
   position: absolute;
   inset: auto 0 0;
   height: 58%;
-  background: linear-gradient(
-    to top,
-    rgb(17 19 24 / 84%) 0%,
-    rgb(17 19 24 / 46%) 48%,
-    transparent
-  );
+  background: linear-gradient(to top, rgb(17 19 24 / 84%) 0%, rgb(17 19 24 / 46%) 48%, transparent);
   pointer-events: none;
   content: "";
 }
@@ -1008,12 +998,7 @@ select:focus {
 
 .search:focus-within::after {
   height: 2px;
-  background: linear-gradient(
-    100deg,
-    var(--brand-blue),
-    #9a80d0 48%,
-    var(--brand-red)
-  );
+  background: linear-gradient(100deg, var(--brand-blue), #9a80d0 48%, var(--brand-red));
 }
 
 .search svg {
@@ -1073,7 +1058,13 @@ select:focus {
     box-shadow 180ms ease !important;
 }
 
-.app-shell button:not(.account-menu-trigger, .account-menu-item, .dialog-close, .sidebar-collapse):enabled:active,
+.app-shell
+  button:not(
+    .account-menu-trigger,
+    .account-menu-item,
+    .dialog-close,
+    .sidebar-collapse
+  ):enabled:active,
 .dialog-popup button:not(.dialog-close):enabled:active,
 .auth-main button:enabled:active,
 .device-main button:enabled:active {

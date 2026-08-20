@@ -17,18 +17,10 @@ function ApplicationPlaceholderPage({
 
 export function DevicesPage() {
   return (
-    <ApplicationPlaceholderPage
-      title="デバイス"
-      description="接続済みのデバイスを管理します。"
-    />
+    <ApplicationPlaceholderPage title="デバイス" description="接続済みのデバイスを管理します。" />
   );
 }
 
 export function RoomsPage() {
-  return (
-    <ApplicationPlaceholderPage
-      title="ルーム"
-      description="参加できるルームを管理します。"
-    />
-  );
+  return <ApplicationPlaceholderPage title="ルーム" description="参加できるルームを管理します。" />;
 }

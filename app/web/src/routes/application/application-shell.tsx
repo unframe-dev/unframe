@@ -68,11 +68,7 @@ function SidebarNavigation({
         aria-expanded={!collapsed}
         onClick={onToggle}
       >
-        {collapsed ? (
-          <CaretRightIcon aria-hidden="true" />
-        ) : (
-          <CaretLeftIcon aria-hidden="true" />
-        )}
+        {collapsed ? <CaretRightIcon aria-hidden="true" /> : <CaretLeftIcon aria-hidden="true" />}
       </button>
       {isSettings && (
         <Link
@@ -138,10 +134,7 @@ function SidebarNavigation({
                   設定
                 </Menu.LinkItem>
                 <Menu.Separator className="account-menu-separator" />
-                <Menu.Item
-                  className="account-menu-item account-menu-logout"
-                  onClick={onLogout}
-                >
+                <Menu.Item className="account-menu-item account-menu-logout" onClick={onLogout}>
                   ログアウト
                   <ArrowUpRightIcon aria-hidden="true" />
                 </Menu.Item>

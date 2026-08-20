@@ -82,9 +82,7 @@ describe("web editor routes", () => {
   it("switches the sidebar to settings navigation on settings pages", async () => {
     await renderRoute("/settings/profile");
 
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "プロフィール" }),
-    ).toBeVisible();
+    expect(await screen.findByRole("heading", { level: 1, name: "プロフィール" })).toBeVisible();
     const navigation = await screen.findByRole("navigation", {
       name: "設定ナビゲーション",
     });
@@ -104,11 +102,11 @@ describe("web editor routes", () => {
 
     await user.click(collapse);
 
-    expect(
-      screen.getByRole("button", { name: "サイドバーを展開" }),
-    ).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("navigation", { name: "メインナビゲーション" }))
-      .toBeVisible();
+    expect(screen.getByRole("button", { name: "サイドバーを展開" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.getByRole("navigation", { name: "メインナビゲーション" })).toBeVisible();
     expect(localStorage.getItem("unframe-sidebar-collapsed")).toBe("true");
   });
 
@@ -173,9 +171,7 @@ describe("web editor routes", () => {
   it("renders the device authorization route and pre-fills its user code", async () => {
     await renderRoute("/device?user_code=ABCD-EFGH");
 
-    expect(
-      await screen.findByRole("heading", { name: "Connect a device." }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connect a device." })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "ユーザーコード" })).toHaveValue("ABCD-EFGH");
   });
 

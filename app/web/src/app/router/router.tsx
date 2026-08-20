@@ -11,20 +11,9 @@ import { loadPresentationSnapshot } from "../runtime/document-runtime";
 import { DeviceAuthorizationPage } from "../../routes/device/device-authorization-page";
 import { HomePage } from "../../routes/home/home-page";
 import { ApplicationShell } from "../../routes/application/application-shell";
-import {
-  DevicesPage,
-  RoomsPage,
-} from "../../routes/application/application-placeholder-pages";
-import {
-  LoginPage,
-  RecoverPage,
-  ResetPage,
-  SignupPage,
-} from "../../routes/auth/auth-pages";
-import {
-  ProfilePage,
-  SecurityPage,
-} from "../../routes/settings/settings-pages";
+import { DevicesPage, RoomsPage } from "../../routes/application/application-placeholder-pages";
+import { LoginPage, RecoverPage, ResetPage, SignupPage } from "../../routes/auth/auth-pages";
+import { ProfilePage, SecurityPage } from "../../routes/settings/settings-pages";
 const EditorPage = lazy(() =>
   import("../../routes/editor/editor-page").then((module) => ({
     default: module.EditorPage,
@@ -45,9 +34,7 @@ function ErrorPage() {
     <main id="main-content" className="auth-main">
       <section className="auth-panel">
         <h1>ページを開けません</h1>
-        <p role="alert">
-          読み込みに失敗しました。時間をおいてもう一度お試しください。
-        </p>
+        <p role="alert">読み込みに失敗しました。時間をおいてもう一度お試しください。</p>
         <a href="/">トップへ戻る</a>
       </section>
     </main>
@@ -93,11 +80,7 @@ const deviceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "device",
   validateSearch: z.object({ user_code: z.string().catch("") }),
-  component: () => (
-    <DeviceAuthorizationPage
-      initialUserCode={deviceRoute.useSearch().user_code}
-    />
-  ),
+  component: () => <DeviceAuthorizationPage initialUserCode={deviceRoute.useSearch().user_code} />,
 });
 const applicationRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -154,13 +137,7 @@ const routeTree = rootRoute.addChildren([
   resetRoute,
   deviceRoute,
   editorRoute,
-  applicationRoute.addChildren([
-    homeRoute,
-    devicesRoute,
-    roomsRoute,
-    profileRoute,
-    securityRoute,
-  ]),
+  applicationRoute.addChildren([homeRoute, devicesRoute, roomsRoute, profileRoute, securityRoute]),
 ]);
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({

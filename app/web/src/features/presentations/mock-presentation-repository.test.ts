@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createMockPresentation,
-  listMockPresentations,
-} from "./mock-presentation-repository";
+import { createMockPresentation, listMockPresentations } from "./mock-presentation-repository";
 
 describe("mock presentation repository", () => {
   it("returns presentation fixtures without sharing mutable state", async () => {
@@ -21,9 +18,7 @@ describe("mock presentation repository", () => {
     expect(first).not.toBe(second);
     expect(first[0]).not.toBe(second[0]);
     expect(first.every((presentation) => presentation.thumbnailUrl)).toBe(true);
-    expect(first[0]?.thumbnailUrl).toMatch(
-      /(?:placeholder-thumbnail\.svg|data:image\/svg\+xml)/,
-    );
+    expect(first[0]?.thumbnailUrl).toMatch(/(?:placeholder-thumbnail\.svg|data:image\/svg\+xml)/);
   });
 
   it("creates a presentation resource from the starter definition", async () => {

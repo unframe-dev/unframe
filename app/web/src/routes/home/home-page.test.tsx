@@ -102,9 +102,10 @@ describe("HomePage", () => {
     expect(updatedAt?.parentElement).toHaveClass("presentation-thumbnail");
     expect(card?.querySelector(".presentation-updated svg")).toBeInTheDocument();
     expect(card).not.toHaveTextContent("Revision");
-    expect(
-      screen.getByRole("img", { name: "空間デザインレビューのサムネイル" }),
-    ).toHaveAttribute("src", "/placeholder-thumbnail.svg");
+    expect(screen.getByRole("img", { name: "空間デザインレビューのサムネイル" })).toHaveAttribute(
+      "src",
+      "/placeholder-thumbnail.svg",
+    );
     expect(screen.queryByRole("link", { name: "編集を開く" })).not.toBeInTheDocument();
     expect(listMockPresentations).toHaveBeenCalledOnce();
   });
@@ -122,13 +123,9 @@ describe("HomePage", () => {
 
     renderHome();
 
-    expect(
-      await screen.findByRole("region", { name: "プレゼンテーション" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "プレゼンテーション" })).toBeInTheDocument();
     expect(screen.queryByText(/items/)).not.toBeInTheDocument();
-    const actions = screen.getByPlaceholderText("タイトルを検索").closest(
-      ".workspace-actions",
-    );
+    const actions = screen.getByPlaceholderText("タイトルを検索").closest(".workspace-actions");
     const createButton = screen.getByRole("button", { name: "新規作成" });
     expect(actions).toBeInTheDocument();
     expect(createButton.parentElement).toBe(actions);

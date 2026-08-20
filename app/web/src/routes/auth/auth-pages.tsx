@@ -39,11 +39,7 @@ function AuthLayout({
     </main>
   );
 }
-function FormErrors({
-  errors,
-}: {
-  errors: Record<string, { message?: string } | undefined>;
-}) {
+function FormErrors({ errors }: { errors: Record<string, { message?: string } | undefined> }) {
   const messages = Object.entries(errors).flatMap(([field, error]) =>
     error?.message ? [{ field, message: error.message }] : [],
   );
@@ -70,11 +66,7 @@ export function LoginPage() {
   const submit = form.handleSubmit(async (values) => {
     setMessage("");
     const result = await auth.signIn.email({ ...values, callbackURL: "/home" });
-    if (
-      result.data &&
-      "twoFactorRedirect" in result.data &&
-      result.data.twoFactorRedirect
-    ) {
+    if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
       setMfa(true);
       return;
     }
@@ -110,9 +102,7 @@ export function LoginPage() {
               <input
                 autoComplete="email"
                 aria-invalid={Boolean(form.formState.errors.email)}
-                aria-describedby={
-                  form.formState.errors.email ? "email-error" : undefined
-                }
+                aria-describedby={form.formState.errors.email ? "email-error" : undefined}
                 {...form.register("email")}
               />
             </label>
@@ -122,9 +112,7 @@ export function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 aria-invalid={Boolean(form.formState.errors.password)}
-                aria-describedby={
-                  form.formState.errors.password ? "password-error" : undefined
-                }
+                aria-describedby={form.formState.errors.password ? "password-error" : undefined}
                 {...form.register("password")}
               />
             </label>
@@ -165,16 +153,12 @@ function MfaForm({ onDone }: { onDone: () => void }) {
   };
   return (
     <form onSubmit={submit}>
-      <p>
-        二要素認証が必要です。認証アプリのコード、またはバックアップコードを入力してください。
-      </p>
+      <p>二要素認証が必要です。認証アプリのコード、またはバックアップコードを入力してください。</p>
       <label>
         確認方法
         <select
           value={method}
-          onChange={(event) =>
-            setMethod(event.target.value as "totp" | "backup")
-          }
+          onChange={(event) => setMethod(event.target.value as "totp" | "backup")}
         >
           <option value="totp">認証アプリ</option>
           <option value="backup">バックアップコード</option>
@@ -218,19 +202,14 @@ export function SignupPage() {
     );
   });
   return (
-    <AuthLayout
-      title="Create an account."
-      description="新しいアカウントを作成します。"
-    >
+    <AuthLayout title="Create an account." description="新しいアカウントを作成します。">
       <form onSubmit={submit}>
         <FormErrors errors={form.formState.errors} />
         <label>
           名前
           <input
             aria-invalid={Boolean(form.formState.errors.name)}
-            aria-describedby={
-              form.formState.errors.name ? "name-error" : undefined
-            }
+            aria-describedby={form.formState.errors.name ? "name-error" : undefined}
             {...form.register("name")}
           />
         </label>
@@ -239,9 +218,7 @@ export function SignupPage() {
           <input
             autoComplete="email"
             aria-invalid={Boolean(form.formState.errors.email)}
-            aria-describedby={
-              form.formState.errors.email ? "email-error" : undefined
-            }
+            aria-describedby={form.formState.errors.email ? "email-error" : undefined}
             {...form.register("email")}
           />
         </label>
@@ -251,16 +228,12 @@ export function SignupPage() {
             type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(form.formState.errors.password)}
-            aria-describedby={
-              form.formState.errors.password ? "password-error" : undefined
-            }
+            aria-describedby={form.formState.errors.password ? "password-error" : undefined}
             {...form.register("password")}
           />
         </label>
         {message ? (
-          <p role={message.includes("できません") ? "alert" : "status"}>
-            {message}
-          </p>
+          <p role={message.includes("できません") ? "alert" : "status"}>{message}</p>
         ) : null}
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "登録中…" : "登録"}
@@ -289,10 +262,7 @@ export function RecoverPage() {
     setDone(true);
   });
   return (
-    <AuthLayout
-      title="Reset your password."
-      description="再設定用のメールを送信します。"
-    >
+    <AuthLayout title="Reset your password." description="再設定用のメールを送信します。">
       <form onSubmit={submit}>
         <FormErrors errors={form.formState.errors} />
         <label>
@@ -300,17 +270,11 @@ export function RecoverPage() {
           <input
             autoComplete="email"
             aria-invalid={Boolean(form.formState.errors.email)}
-            aria-describedby={
-              form.formState.errors.email ? "email-error" : undefined
-            }
+            aria-describedby={form.formState.errors.email ? "email-error" : undefined}
             {...form.register("email")}
           />
         </label>
-        {done ? (
-          <p role="status">
-            再設定メールを送信しました。メールをご確認ください。
-          </p>
-        ) : null}
+        {done ? <p role="status">再設定メールを送信しました。メールをご確認ください。</p> : null}
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "送信中…" : "再設定メールを送信"}
         </Button>
@@ -336,10 +300,7 @@ export function ResetPage({ token }: { token: string }) {
     );
   });
   return (
-    <AuthLayout
-      title="Choose a password."
-      description="新しいパスワードを設定します。"
-    >
+    <AuthLayout title="Choose a password." description="新しいパスワードを設定します。">
       <form onSubmit={submit}>
         <FormErrors errors={form.formState.errors} />
         <label>
@@ -348,9 +309,7 @@ export function ResetPage({ token }: { token: string }) {
             type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(form.formState.errors.password)}
-            aria-describedby={
-              form.formState.errors.password ? "password-error" : undefined
-            }
+            aria-describedby={form.formState.errors.password ? "password-error" : undefined}
             {...form.register("password")}
           />
         </label>

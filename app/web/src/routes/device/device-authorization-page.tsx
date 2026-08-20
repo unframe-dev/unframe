@@ -6,9 +6,7 @@ import { Button } from "../../components/ui/button";
 
 type PageState = "entry" | "pending" | "approved" | "denied";
 
-function errorMessage(
-  error?: { code?: string | undefined; error?: string | undefined } | null,
-) {
+function errorMessage(error?: { code?: string | undefined; error?: string | undefined } | null) {
   switch (error?.error ?? error?.code) {
     case "expired_token":
       return "このコードの有効期限が切れています。";
@@ -31,11 +29,7 @@ function deviceCallbackUrl(userCode: string) {
   return url.toString();
 }
 
-export function DeviceAuthorizationPage({
-  initialUserCode,
-}: {
-  initialUserCode: string;
-}) {
+export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: string }) {
   const [userCode, setUserCode] = useState(initialUserCode);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
@@ -157,10 +151,7 @@ export function DeviceAuthorizationPage({
         </header>
         <div className="device-actions">
           {message ? (
-            <p
-              role="alert"
-              className="rounded-md border border-[var(--destructive)] p-3 text-sm"
-            >
+            <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
               {message}
             </p>
           ) : null}
@@ -174,20 +165,14 @@ export function DeviceAuthorizationPage({
           ) : null}
 
           {!sessionReady ? (
-            <p className="text-sm text-[var(--muted)]">
-              ログイン状態を確認しています…
-            </p>
+            <p className="text-sm text-[var(--muted)]">ログイン状態を確認しています…</p>
           ) : !signedIn ? (
             <div className="grid gap-3">
               <p className="rounded-md border p-3 text-sm">
                 コードを確認するには Google でログインしてください。
               </p>
               {sessionFailure ? (
-                <Button
-                  variant="ghost"
-                  disabled={loading}
-                  onClick={retrySession}
-                >
+                <Button variant="ghost" disabled={loading} onClick={retrySession}>
                   ログイン状態を再確認
                 </Button>
               ) : null}
@@ -202,9 +187,7 @@ export function DeviceAuthorizationPage({
                 <input
                   value={userCode}
                   disabled={loading || state !== "entry"}
-                  onChange={(event) =>
-                    setUserCode(event.target.value.toUpperCase())
-                  }
+                  onChange={(event) => setUserCode(event.target.value.toUpperCase())}
                   placeholder="ABCD-EFGH"
                   autoComplete="one-time-code"
                   aria-label="ユーザーコード"
@@ -220,10 +203,7 @@ export function DeviceAuthorizationPage({
 
               {state === "pending" ? (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Button
-                    disabled={loading}
-                    onClick={() => void decide("approve")}
-                  >
+                  <Button disabled={loading} onClick={() => void decide("approve")}>
                     承認する
                   </Button>
                   <Button

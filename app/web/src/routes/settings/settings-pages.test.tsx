@@ -44,9 +44,10 @@ describe("ProfilePage", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("a@example.test")).not.toBeInTheDocument();
     expect(screen.queryByText("メールアドレス")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("img", { name: "プロフィールアイコン" }),
-    ).toHaveAttribute("src", "https://example.test/old.png");
+    expect(screen.getByRole("img", { name: "プロフィールアイコン" })).toHaveAttribute(
+      "src",
+      "https://example.test/old.png",
+    );
 
     await user.clear(name);
     await user.type(name, "新名");
@@ -83,9 +84,7 @@ describe("SecurityPage", () => {
     }
     expect(screen.queryByText(/SMS やメール OTP/)).not.toBeInTheDocument();
     await user.type(screen.getAllByLabelText("現在のパスワード")[1]!, "password");
-    await user.click(
-      screen.getByRole("button", { name: "二要素認証を有効化" }),
-    );
+    await user.click(screen.getByRole("button", { name: "二要素認証を有効化" }));
     expect(await screen.findByText("otpauth://test")).toBeInTheDocument();
     await user.type(screen.getByLabelText("認証コード"), "123456");
     await user.click(screen.getByRole("button", { name: "コードを確認" }));

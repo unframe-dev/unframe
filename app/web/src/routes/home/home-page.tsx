@@ -1,10 +1,5 @@
 import { Dialog } from "@base-ui/react/dialog";
-import {
-  ClockIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { ClockIcon, MagnifyingGlassIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "../../components/ui/button";
@@ -15,9 +10,7 @@ import {
 } from "../../features/presentations/mock-presentation-repository";
 
 function formatUpdatedAt(value: string) {
-  return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(
-    new Date(value),
-  );
+  return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium" }).format(new Date(value));
 }
 export function HomePage() {
   const client = useQueryClient();
@@ -45,9 +38,7 @@ export function HomePage() {
     .slice()
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .filter((item) =>
-      item.definition.metadata.title
-        .toLocaleLowerCase()
-        .includes(search.toLocaleLowerCase()),
+      item.definition.metadata.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
     );
   return (
     <main id="main-content" className="app-main workspace-main">

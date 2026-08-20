@@ -27,9 +27,7 @@ describe("interaction motion", () => {
     expect(styles).toMatch(
       /\.app-sidebar[^{}]*\{[^{}]*display: flex;[^{}]*height: 100dvh;[^{}]*flex-direction: column;/s,
     );
-    expect(styles).toMatch(
-      /\.sidebar-account[^{}]*\{[^{}]*margin-top: auto;/s,
-    );
+    expect(styles).toMatch(/\.sidebar-account[^{}]*\{[^{}]*margin-top: auto;/s);
   });
 
   it("uses the wider desktop canvas for presentation cards", () => {
@@ -39,21 +37,15 @@ describe("interaction motion", () => {
     expect(styles).toMatch(
       /@media \(min-width: 1024px\)[^]*?\.workspace-main[^{}]*\{[^{}]*width: min\(100% - 144px, 1296px\);/s,
     );
-    expect(styles).toMatch(
-      /\.workspace-main[^{}]*\{[^{}]*width: min\(100% - 80px, 1440px\);/s,
-    );
+    expect(styles).toMatch(/\.workspace-main[^{}]*\{[^{}]*width: min\(100% - 80px, 1440px\);/s);
     expect(styles).toMatch(
       /\.presentation-grid[^{}]*\{[^{}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 300px\), 1fr\)\);/s,
     );
   });
 
   it("places the presentation workspace closer to the header", () => {
-    expect(styles).toMatch(
-      /\.workspace-main[^{}]*\{[^{}]*padding-top: 0;/s,
-    );
-    expect(styles).toMatch(
-      /\.workspace-title[^{}]*\{[^{}]*margin-top: -28px;/s,
-    );
+    expect(styles).toMatch(/\.workspace-main[^{}]*\{[^{}]*padding-top: 0;/s);
+    expect(styles).toMatch(/\.workspace-title[^{}]*\{[^{}]*margin-top: -28px;/s);
     expect(styles).toMatch(
       /@media \(max-width: 767px\)[^]*?\.workspace-title[^{}]*\{[^{}]*margin-top: 0;/s,
     );
@@ -75,9 +67,7 @@ describe("interaction motion", () => {
   });
 
   it("places search and creation actions on the same row", () => {
-    expect(styles).toMatch(
-      /\.workspace-header[^{}]*\{[^{}]*display: grid;[^{}]*gap: 28px;/s,
-    );
+    expect(styles).toMatch(/\.workspace-header[^{}]*\{[^{}]*display: grid;[^{}]*gap: 28px;/s);
     expect(styles).toMatch(
       /\.workspace-actions[^{}]*\{[^{}]*display: flex;[^{}]*width: 100%;[^{}]*align-items: flex-start;[^{}]*justify-content: space-between;[^{}]*gap: 24px;/s,
     );
@@ -87,9 +77,7 @@ describe("interaction motion", () => {
   });
 
   it("uses an iridescent underline with a stronger focus gradient", () => {
-    expect(styles).toMatch(
-      /\.workspace-actions \.search[^{}]*\{[^{}]*width: min\(100%, 480px\);/s,
-    );
+    expect(styles).toMatch(/\.workspace-actions \.search[^{}]*\{[^{}]*width: min\(100%, 480px\);/s);
     expect(styles).toMatch(
       /\.search[^{}]*\{[^{}]*position: relative;[^{}]*min-height: 52px;[^{}]*border: 0;[^{}]*border-radius: 0;[^{}]*background: transparent;/s,
     );
@@ -129,9 +117,7 @@ describe("interaction motion", () => {
     expect(styles).toMatch(
       /\.sidebar-collapse[^{}]*\{[^{}]*position: absolute;[^{}]*right: -22px;[^{}]*top: 24px;[^{}]*width: 44px;[^{}]*min-height: 44px/s,
     );
-    expect(styles).toMatch(
-      /\.app-sidebar[^{}]*\{[^{}]*z-index: 2;/s,
-    );
+    expect(styles).toMatch(/\.app-sidebar[^{}]*\{[^{}]*z-index: 2;/s);
     expect(styles).toMatch(
       /\.sidebar-collapse::before[^{}]*\{[^{}]*inset: 4px;[^{}]*border-radius: 999px;/s,
     );
@@ -160,11 +146,7 @@ describe("interaction motion", () => {
   });
 
   it("keeps motion for surfaces that enter and leave", () => {
-    expect(styles).toMatch(
-      /\.account-menu-popup\[data-starting-style\][^{}]*\{[^{}]*transform:/s,
-    );
-    expect(styles).toMatch(
-      /\.dialog-popup\[data-starting-style\][^{}]*\{[^{}]*transform:/s,
-    );
+    expect(styles).toMatch(/\.account-menu-popup\[data-starting-style\][^{}]*\{[^{}]*transform:/s);
+    expect(styles).toMatch(/\.dialog-popup\[data-starting-style\][^{}]*\{[^{}]*transform:/s);
   });
 });

@@ -3,13 +3,9 @@ import { controlPlaneAuth } from "../../app/auth/control-plane-auth";
 import { Button } from "../../components/ui/button";
 
 const auth = controlPlaneAuth;
-type SessionUser = NonNullable<
-  Awaited<ReturnType<typeof auth.getSession>>["data"]
->["user"];
+type SessionUser = NonNullable<Awaited<ReturnType<typeof auth.getSession>>["data"]>["user"];
 type AuthResult = { error: unknown | null };
-type DeviceSession = NonNullable<
-  Awaited<ReturnType<typeof auth.listSessions>>["data"]
->[number];
+type DeviceSession = NonNullable<Awaited<ReturnType<typeof auth.listSessions>>["data"]>[number];
 
 export function ProfilePage() {
   const [user, setUser] = useState<SessionUser>();
@@ -86,8 +82,7 @@ export function ProfilePage() {
               disabled={
                 !user ||
                 !name.trim() ||
-                (name.trim() === user.name &&
-                  image.trim() === (user.image ?? "")) ||
+                (name.trim() === user.name && image.trim() === (user.image ?? "")) ||
                 state === "保存中…"
               }
             >
@@ -108,11 +103,7 @@ function ProfileIcon({ image, name }: { image: string; name: string }) {
   return (
     <div className="profile-icon-preview">
       {image && !failed ? (
-        <img
-          src={image}
-          alt="プロフィールアイコン"
-          onError={() => setFailed(true)}
-        />
+        <img src={image} alt="プロフィールアイコン" onError={() => setFailed(true)} />
       ) : (
         <span aria-label="プロフィールアイコン">
           {name.trim().charAt(0).toLocaleUpperCase() || "U"}
@@ -132,11 +123,7 @@ export function SecurityPage() {
   const perform = async (task: () => Promise<AuthResult>, success: string) => {
     setState("処理中…");
     const result = await task();
-    setState(
-      result.error
-        ? "操作できませんでした。再認証が必要な場合があります。"
-        : success,
-    );
+    setState(result.error ? "操作できませんでした。再認証が必要な場合があります。" : success);
     return result;
   };
   const beginTotp = async () => {
@@ -162,11 +149,7 @@ export function SecurityPage() {
   const loadSessions = async () => {
     const result = await auth.listSessions();
     setSessions(result.data ?? null);
-    setState(
-      result.error
-        ? "セッションを読み込めませんでした。"
-        : "セッションを更新しました。",
-    );
+    setState(result.error ? "セッションを読み込めませんでした。" : "セッションを更新しました。");
   };
   return (
     <main id="main-content" className="app-main">
@@ -188,11 +171,7 @@ export function SecurityPage() {
         </header>
         <label>
           現在のパスワード
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         <Button disabled={!password} onClick={() => void beginTotp()}>
           二要素認証を有効化
@@ -231,10 +210,7 @@ export function SecurityPage() {
           variant="outline"
           disabled={!password}
           onClick={() =>
-            void perform(
-              () => auth.twoFactor.disable({ password }),
-              "二要素認証を無効化しました。",
-            )
+            void perform(() => auth.twoFactor.disable({ password }), "二要素認証を無効化しました。")
           }
         >
           二要素認証を無効化
@@ -252,8 +228,7 @@ export function SecurityPage() {
             {sessions.map((session: DeviceSession) => (
               <li key={session.id}>
                 <p>
-                  {session.ipAddress ?? "場所を特定できません"} ·{" "}
-                  {session.createdAt}
+                  {session.ipAddress ?? "場所を特定できません"} · {session.createdAt}
                 </p>
               </li>
             ))}
@@ -262,10 +237,7 @@ export function SecurityPage() {
         <Button
           variant="outline"
           onClick={() =>
-            void perform(
-              () => auth.revokeOtherSessions(),
-              "他のセッションを終了しました。",
-            )
+            void perform(() => auth.revokeOtherSessions(), "他のセッションを終了しました。")
           }
         >
           他のセッションを終了
@@ -278,10 +250,7 @@ export function SecurityPage() {
 function PasswordChange({
   perform,
 }: {
-  perform: (
-    task: () => Promise<AuthResult>,
-    success: string,
-  ) => Promise<AuthResult>;
+  perform: (task: () => Promise<AuthResult>, success: string) => Promise<AuthResult>;
 }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

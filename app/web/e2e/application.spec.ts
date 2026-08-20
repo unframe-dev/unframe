@@ -4,9 +4,7 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Sign in." })).toBeVisible();
   await page.getByRole("link", { name: "アカウントを作成" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Create an account." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create an account." })).toBeVisible();
   await page.goto("/home");
   const desktopMenu = page.getByRole("button", { name: "アカウントメニュー" });
   const createButton = page.getByRole("button", { name: "新規作成" });
@@ -33,23 +31,15 @@ test("public authentication routes and account menu are accessible", async ({ pa
     .toEqual({ background: "rgba(0, 0, 0, 0)", color: "rgb(48, 75, 189)" });
   await collapseSidebar.hover();
   await expect
-    .poll(() =>
-      collapseSidebar.evaluate(
-        (element) => getComputedStyle(element).backgroundColor,
-      ),
-    )
+    .poll(() => collapseSidebar.evaluate((element) => getComputedStyle(element).backgroundColor))
     .toBe("rgba(0, 0, 0, 0)");
   const collapseSidebarBox = await collapseSidebar.boundingBox();
   expect(collapseSidebarBox?.width).toBeGreaterThanOrEqual(44);
   expect(collapseSidebarBox?.height).toBeGreaterThanOrEqual(44);
   await collapseSidebar.click({ position: { x: 8, y: 8 } });
-  await expect(
-    page.getByRole("button", { name: "サイドバーを展開" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "サイドバーを展開" })).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "サイドバーを展開" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "サイドバーを展開" })).toBeVisible();
   await page.getByRole("button", { name: "サイドバーを展開" }).click();
   const createButtonStyle = await createButton.evaluate((element) => {
     const style = getComputedStyle(element);
@@ -58,9 +48,7 @@ test("public authentication routes and account menu are accessible", async ({ pa
   expect(createButtonStyle.animationName).toBe("none");
   expect(Number.parseFloat(createButtonStyle.borderRadius)).toBeGreaterThanOrEqual(20);
   await expect(page.getByRole("menuitem", { name: "設定" })).toBeHidden();
-  const pageWidthBeforeMenu = await page.evaluate(
-    () => document.documentElement.clientWidth,
-  );
+  const pageWidthBeforeMenu = await page.evaluate(() => document.documentElement.clientWidth);
   await desktopMenu.click();
   const accountMenu = page.getByRole("menu");
   await expect(accountMenu).toBeVisible();
@@ -68,9 +56,7 @@ test("public authentication routes and account menu are accessible", async ({ pa
     await accountMenu.evaluate((element) => getComputedStyle(element).transitionDuration),
   ).not.toBe("0s");
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
-  expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(
-    pageWidthBeforeMenu,
-  );
+  expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(pageWidthBeforeMenu);
   await expect(page.getByRole("menuitem", { name: "設定" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "ホーム" })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -93,17 +79,26 @@ test("public authentication routes and account menu are accessible", async ({ pa
   const settingsNavigation = page.getByRole("navigation", {
     name: "設定ナビゲーション",
   });
-  await expect(
-    settingsNavigation.getByRole("link", { name: "プロフィール" }),
-  ).toBeVisible();
-  await expect(
-    settingsNavigation.getByRole("link", { name: "セキュリティー" }),
-  ).toBeVisible();
+  await expect(settingsNavigation.getByRole("link", { name: "プロフィール" })).toBeVisible();
+  await expect(settingsNavigation.getByRole("link", { name: "セキュリティー" })).toBeVisible();
 });
 
 test("device authorization accepts a code", async ({ page }) => {
-  await page.route("**/api/auth/get-session", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ user: { id: "u", name: "U", email: "u@example.test" }, session: { id: "s" } }) }));
-  await page.route("**/api/auth/device?user_code=ABCD-EFGH", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ user_code: "ABCD-EFGH", status: "pending" }) }));
+  await page.route("**/api/auth/get-session", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: { id: "u", name: "U", email: "u@example.test" },
+        session: { id: "s" },
+      }),
+    }),
+  );
+  await page.route("**/api/auth/device?user_code=ABCD-EFGH", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ user_code: "ABCD-EFGH", status: "pending" }),
+    }),
+  );
   await page.goto("/device?user_code=ABCD-EFGH");
   await page.getByRole("button", { name: "コードを確認" }).click();
   await expect(page.getByRole("button", { name: "承認する" })).toBeVisible();
