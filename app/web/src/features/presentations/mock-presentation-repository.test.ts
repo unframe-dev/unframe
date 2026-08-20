@@ -9,14 +9,21 @@ describe("mock presentation repository", () => {
     const first = await listMockPresentations();
     const second = await listMockPresentations();
 
-    expect(first).toHaveLength(3);
+    expect(first).toHaveLength(6);
     expect(first.map((presentation) => presentation.definition.metadata.title)).toEqual([
       "Spatial product review",
       "Immersive exhibition concept",
       "Unframe demo stage",
+      "Mixed reality keynote",
+      "Museum wayfinding study",
+      "Interactive showroom walkthrough",
     ]);
     expect(first).not.toBe(second);
     expect(first[0]).not.toBe(second[0]);
+    expect(first.every((presentation) => presentation.thumbnailUrl)).toBe(true);
+    expect(first[0]?.thumbnailUrl).toMatch(
+      /(?:placeholder-thumbnail\.svg|data:image\/svg\+xml)/,
+    );
   });
 
   it("creates a presentation resource from the starter definition", async () => {
@@ -29,5 +36,8 @@ describe("mock presentation repository", () => {
       description: "アイデアの説明",
     });
     expect(presentation.createdAt).toBe(presentation.updatedAt);
+    expect(presentation.thumbnailUrl).toMatch(
+      /(?:placeholder-thumbnail\.svg|data:image\/svg\+xml)/,
+    );
   });
 });

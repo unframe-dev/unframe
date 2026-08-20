@@ -1,11 +1,13 @@
 import type { ControlPlaneClient } from "@unframe/api-client-typescript";
+import placeholderThumbnailUrl from "../../assets/presentations/placeholder-thumbnail.svg?url";
 import { createStarterPresentationDefinition } from "./starter-definition";
 
 type ListPresentationsResponse = Awaited<
   ReturnType<ControlPlaneClient["presentations"]["$get"]>
 >;
 type ListPresentationsBody = Awaited<ReturnType<ListPresentationsResponse["json"]>>;
-export type Presentation = ListPresentationsBody["presentations"][number];
+type PresentationResource = ListPresentationsBody["presentations"][number];
+export type Presentation = PresentationResource & { thumbnailUrl: string };
 
 function presentationFixture(
   id: string,
@@ -19,6 +21,7 @@ function presentationFixture(
     id,
     revision,
     definition: createStarterPresentationDefinition(title, description),
+    thumbnailUrl: placeholderThumbnailUrl,
     createdAt,
     updatedAt,
   };
@@ -49,6 +52,30 @@ const mockPresentations: Presentation[] = [
     "2026-08-08T06:15:00.000Z",
     "2026-08-15T01:10:00.000Z",
   ),
+  presentationFixture(
+    "mock-mixed-reality-keynote",
+    "Mixed reality keynote",
+    "複合現実を使ったキーノートの進行と空間演出を確認する資料。",
+    6,
+    "2026-08-07T03:25:00.000Z",
+    "2026-08-14T09:30:00.000Z",
+  ),
+  presentationFixture(
+    "mock-museum-wayfinding-study",
+    "Museum wayfinding study",
+    "展示空間における案内表示と来場者の移動経路を検討する資料。",
+    4,
+    "2026-08-05T07:00:00.000Z",
+    "2026-08-13T05:45:00.000Z",
+  ),
+  presentationFixture(
+    "mock-interactive-showroom",
+    "Interactive showroom walkthrough",
+    "インタラクティブなショールーム体験の導線を確認するプレゼンテーション。",
+    3,
+    "2026-08-03T01:40:00.000Z",
+    "2026-08-12T10:15:00.000Z",
+  ),
 ];
 
 export async function listMockPresentations(): Promise<Presentation[]> {
@@ -64,6 +91,7 @@ export async function createMockPresentation(
     id: `mock-${crypto.randomUUID()}`,
     revision: 1,
     definition: createStarterPresentationDefinition(title, description || undefined),
+    thumbnailUrl: placeholderThumbnailUrl,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
