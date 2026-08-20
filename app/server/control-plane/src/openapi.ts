@@ -515,6 +515,7 @@ export const publicRoutes = [
       },
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
+      409: errorResponse("Invalid credential expiry"),
     },
   }),
   createRoute({
@@ -546,6 +547,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
+      409: errorResponse("Invalid credential expiry"),
     },
   }),
   createRoute({

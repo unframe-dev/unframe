@@ -55,6 +55,13 @@ describe("Control Plane OpenAPI", () => {
     ).toEqual([{ edgeBearer: [] }]);
   });
 
+  it("declares credential expiry conflicts for provisioning and rotation", () => {
+    const document = createOpenAPIDocument();
+
+    expect(document.paths["/venue-edges"]?.post?.responses?.[409]).toBeDefined();
+    expect(document.paths["/venue-edges/{edgeId}/rotate"]?.post?.responses?.[409]).toBeDefined();
+  });
+
   it("marks every JSON request body as required", () => {
     const document = createOpenAPIDocument();
     const requestBodies = Object.values(document.paths).flatMap((methods) =>
