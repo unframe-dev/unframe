@@ -72,8 +72,9 @@ const sessionResourceSchema = z.object({
 const sessionIdParameter = idParameter;
 const realtimeConnectionSchema = z.object({
   endpoint: httpsUrlSchema,
-  fingerprint: z.string(),
-  edgeId: identifierSchema,
+  fingerprint: z.string().nullable(),
+  runtimeId: identifierSchema,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
   assignmentEpoch: z.number().int().positive(),
   presentationId: identifierSchema,
   presentationRevision: z.number().int().positive(),
@@ -87,7 +88,11 @@ const venueEdgeResourceSchema = z.object({
 const venueEdgeCredentialSchema = z.object({ edge: venueEdgeResourceSchema, token: z.string() });
 const assignmentSchema = z.object({
   sessionId: identifierSchema,
-  edgeId: identifierSchema,
+  runtimeId: identifierSchema,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+  endpoint: httpsUrlSchema,
+  certificateFingerprint: z.string().nullable(),
+  provisioningEdgeId: identifierSchema.nullable(),
   assignmentEpoch: z.number().int().positive(),
   presentationRevision: z.number().int().positive(),
   issuedAt: z.string().datetime(),
@@ -474,6 +479,7 @@ export const publicRoutes = [
       400: errorResponse("Invalid callback"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
+      409: errorResponse("Runtime assignment is not active"),
     },
   }),
   createRoute({
@@ -494,7 +500,7 @@ export const publicRoutes = [
       400: errorResponse("Invalid callback"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
-      409: errorResponse("Assignment is not active"),
+      409: errorResponse("Runtime assignment is not active"),
     },
   }),
   createRoute({
@@ -568,7 +574,7 @@ export const publicRoutes = [
   }),
   createRoute({
     method: "post",
-    path: "/sessions/{sessionId}/venue-edge-assignment",
+    path: "/sessions/{sessionId}/runtime-assignment",
     security: adminSecurity,
     request: {
       params: sessionAssignmentParameter,
@@ -578,7 +584,9 @@ export const publicRoutes = [
           "application/json": {
             schema: z
               .object({
-                edgeId: identifierSchema,
+                runtimeId: identifierSchema,
+                runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+                endpoint: httpsUrlSchema.optional(),
                 presentationRevision: z.number().int().positive(),
                 leaseExpiresAt: z.string().datetime(),
               })
@@ -600,7 +608,7 @@ export const publicRoutes = [
   }),
   createRoute({
     method: "get",
-    path: "/sessions/{sessionId}/venue-edge-assignment",
+    path: "/sessions/{sessionId}/runtime-assignment",
     security: adminSecurity,
     request: { params: sessionAssignmentParameter },
     responses: {
@@ -608,10 +616,7 @@ export const publicRoutes = [
         description: "Active assignment",
         content: {
           "application/json": {
-            schema: assignmentSchema.extend({
-              localEndpoint: httpsUrlSchema,
-              certificateFingerprint: z.string(),
-            }),
+            schema: assignmentSchema,
           },
         },
       },
@@ -633,6 +638,7 @@ export const publicRoutes = [
           "application/json": {
             schema: z
               .object({
+                runtimeId: identifierSchema,
                 runtimeVersion: z.string().min(1),
                 protocolVersion: z.literal("v1"),
                 capacity: z.number().int().nonnegative(),
@@ -650,6 +656,7 @@ export const publicRoutes = [
       400: errorResponse("Invalid registration"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Not found"),
+      409: errorResponse("Runtime identity conflict"),
     },
   }),
   createRoute({
@@ -713,8 +720,8 @@ export const completionRoute = publicRoutes[18];
 export const provisionVenueEdgeRoute = publicRoutes[19];
 export const rotateVenueEdgeRoute = publicRoutes[20];
 export const revokeVenueEdgeRoute = publicRoutes[21];
-export const assignVenueEdgeRoute = publicRoutes[22];
-export const getVenueEdgeAssignmentRoute = publicRoutes[23];
+export const assignRuntimeRoute = publicRoutes[22];
+export const getRuntimeAssignmentRoute = publicRoutes[23];
 export const registerVenueEdgeRoute = publicRoutes[24];
 export const renewVenueEdgeLeaseRoute = publicRoutes[25];
 export const releaseVenueEdgeLeaseRoute = publicRoutes[26];

@@ -34,8 +34,17 @@ export function createPersistenceCallbackRoutes() {
         );
       } catch (error) {
         if (error instanceof PersistenceCallbackError) {
-          throw new HTTPException(404, {
-            res: context.json({ error: { code: "not_found", message: "Not found" } }, 404),
+          throw new HTTPException(error.code === "not_found" ? 404 : 409, {
+            res: context.json(
+              {
+                error: {
+                  code: error.code,
+                  message:
+                    error.code === "not_found" ? "Not found" : "Runtime assignment is not active",
+                },
+              },
+              error.code === "not_found" ? 404 : 409,
+            ),
           });
         }
         throw error;
@@ -54,7 +63,7 @@ export function createPersistenceCallbackRoutes() {
           if (error.code === "conflict") {
             throw new HTTPException(409, {
               res: context.json(
-                { error: { code: "conflict", message: "Assignment is not active" } },
+                { error: { code: "conflict", message: "Runtime assignment is not active" } },
                 409,
               ),
             });

@@ -10,6 +10,10 @@ describe("persistence callback schemas", () => {
     expect(
       checkpointInputSchema.parse({
         sessionId: crypto.randomUUID(),
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationRevision: 1,
         version: 2,
         lastSequence: 10,
         idempotencyKey: "checkpoint-2",
@@ -18,11 +22,31 @@ describe("persistence callback schemas", () => {
     ).toMatchObject({ version: 2, lastSequence: 10 });
   });
 
+  it("requires an opaque JSON snapshot without defining its object shape", () => {
+    const checkpoint = {
+      sessionId: crypto.randomUUID(),
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      assignmentEpoch: 1,
+      presentationRevision: 1,
+      version: 2,
+      lastSequence: 10,
+      idempotencyKey: "checkpoint-2",
+    } as const;
+
+    expect(checkpointInputSchema.safeParse(checkpoint).success).toBe(false);
+    expect(checkpointInputSchema.safeParse({ ...checkpoint, payload: ["opaque", 1] }).success).toBe(
+      true,
+    );
+  });
+
   it("rejects inconsistent completion summaries", () => {
     const completion = {
       sessionId: crypto.randomUUID(),
-      edgeId: crypto.randomUUID(),
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
       assignmentEpoch: 1,
+      presentationRevision: 1,
       checkpointVersion: 2,
       lastSequence: 10,
       idempotencyKey: "completion-2",
@@ -45,6 +69,8 @@ describe("persistence callback schemas", () => {
         })),
       }).success,
     ).toBe(false);
+    const { finalCheckpoint: _, ...withoutFinalCheckpoint } = completion;
+    expect(completionInputSchema.safeParse(withoutFinalCheckpoint).success).toBe(false);
   });
 
   it("requires the assignment identity used to fence completion", () => {
@@ -64,9 +90,30 @@ describe("persistence callback schemas", () => {
     expect(
       completionInputSchema.safeParse({
         ...completion,
-        edgeId: crypto.randomUUID(),
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
         assignmentEpoch: 1,
+        presentationRevision: 1,
       }).success,
     ).toBe(true);
+  });
+
+  it("rejects invalid runtime identifiers at the callback boundary", () => {
+    const input = {
+      sessionId: crypto.randomUUID(),
+      runtimeId: "invalid runtime id",
+      runtimeKind: "Cloud",
+      assignmentEpoch: 1,
+      presentationRevision: 1,
+      version: 1,
+      lastSequence: 1,
+      idempotencyKey: "checkpoint-1",
+      payload: {},
+    };
+
+    expect(checkpointInputSchema.safeParse(input).success).toBe(false);
+    expect(checkpointInputSchema.safeParse({ ...input, runtimeId: "a".repeat(129) }).success).toBe(
+      false,
+    );
   });
 });

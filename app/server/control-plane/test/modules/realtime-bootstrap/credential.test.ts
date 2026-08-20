@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  REALTIME_AUDIENCE,
-  RealtimeBootstrapCredentials,
-} from "../../../src/modules/realtime-bootstrap/credential";
+import { RealtimeBootstrapCredentials } from "../../../src/modules/realtime-bootstrap/credential";
 
 const decode = <T>(value: string) =>
   JSON.parse(new TextDecoder().decode(fromBase64Url(value))) as T;
@@ -20,6 +17,7 @@ describe("RealtimeBootstrapCredentials", () => {
     const credentials = new RealtimeBootstrapCredentials(privateJwk, {
       issuer: "https://control-plane.example.com",
       keyId: "realtime-2026-08",
+      audience: "test-realtime-audience",
       now: () => 1_700_000_000,
       newId: () => "credential-id",
     });
@@ -28,7 +26,8 @@ describe("RealtimeBootstrapCredentials", () => {
       sessionId: "session-1",
       userId: "user-1",
       role: "presenter",
-      edgeId: "edge-1",
+      runtimeId: "runtime-1",
+      runtimeKind: "VenueEdge",
       assignmentEpoch: 3,
       presentationId: "presentation-1",
       presentationRevision: 7,
@@ -43,11 +42,12 @@ describe("RealtimeBootstrapCredentials", () => {
     expect(decode(encodedHeader!)).toEqual({ alg: "EdDSA", typ: "JWT", kid: "realtime-2026-08" });
     expect(decode(encodedPayload!)).toEqual({
       iss: "https://control-plane.example.com",
-      aud: REALTIME_AUDIENCE,
+      aud: "test-realtime-audience",
       sub: "user-1",
       session_id: "session-1",
       role: "presenter",
-      edge_id: "edge-1",
+      runtime_id: "runtime-1",
+      runtime_kind: "VenueEdge",
       assignment_epoch: 3,
       presentation_id: "presentation-1",
       presentation_revision: 7,

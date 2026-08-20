@@ -79,6 +79,7 @@ export const sessionJoinAttempts = sqliteTable("session_join_attempts", {
 
 export const venueEdges = sqliteTable("venue_edges", {
   id: text().primaryKey(),
+  runtimeId: text("runtime_id"),
   status: text().$type<"active" | "revoked">().notNull(),
   runtimeVersion: text("runtime_version"),
   protocolVersion: text("protocol_version"),
@@ -107,16 +108,20 @@ export const venueEdgeCredentials = sqliteTable(
   (table) => [primaryKey({ columns: [table.edgeId, table.tokenId] })],
 );
 
-export const sessionEdgeAssignments = sqliteTable(
-  "session_edge_assignments",
+export const runtimeAssignments = sqliteTable(
+  "runtime_assignments",
   {
     sessionId: text("session_id").notNull(),
-    edgeId: text("edge_id").notNull(),
-    assignmentEpoch: integer("assignment_epoch").notNull(),
-    presentationRevision: integer("presentation_revision").notNull(),
+    runtimeId: text("runtime_id").notNull(),
+    runtimeKind: text("runtime_kind").$type<"Cloud" | "VenueEdge">().notNull(),
+    endpoint: text().notNull(),
+    certificateFingerprint: text("certificate_fingerprint"),
+    provisioningEdgeId: text("provisioning_edge_id"),
+    epoch: integer().notNull(),
+    revision: integer().notNull(),
     issuedAt: text("issued_at").notNull(),
     leaseExpiresAt: text("lease_expires_at").notNull(),
     releasedAt: text("released_at"),
   },
-  (table) => [primaryKey({ columns: [table.sessionId, table.assignmentEpoch] })],
+  (table) => [primaryKey({ columns: [table.sessionId, table.epoch] })],
 );

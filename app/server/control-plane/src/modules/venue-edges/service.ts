@@ -1,7 +1,5 @@
 import type {
-  AssignmentRequest,
   EdgeRegistration,
-  LeaseRequest,
   VenueEdgeCredentialRecord,
   VenueEdgeRecord,
   VenueEdgeRepository,
@@ -15,9 +13,6 @@ export class VenueEdgeError extends Error {
 
 export type ProvisionedVenueEdge = { edge: VenueEdgeRecord; token: string };
 export type CredentialGenerator = () => { tokenId: string; secret: Uint8Array };
-
-const maximumRenewedLeaseDurationMs = 5 * 60 * 1000;
-const maximumEdgeHeartbeatAgeMs = 60 * 1000;
 
 export class VenueEdgeService {
   constructor(
@@ -36,6 +31,7 @@ export class VenueEdgeService {
     const token = `${generated.tokenId}.${toBase64Url(generated.secret)}`;
     const edge: VenueEdgeRecord = {
       id: this.edgeId(),
+      runtimeId: null,
       status: "active",
       runtimeVersion: null,
       protocolVersion: null,
@@ -114,50 +110,7 @@ export class VenueEdgeService {
         observedAt: this.now().toISOString(),
       }))
     )
-      throw new VenueEdgeError("not_found");
-  }
-
-  async assign(input: Omit<AssignmentRequest, "issuedAt" | "edgeHealthyAfter">) {
-    const current = this.now();
-    const leaseExpiresAt = canonicalFutureLeaseExpiry(input.leaseExpiresAt, current);
-    const assignment = await this.repository.assign({
-      ...input,
-      leaseExpiresAt,
-      issuedAt: current.toISOString(),
-      edgeHealthyAfter: new Date(current.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
-    });
-    if (!assignment) throw new VenueEdgeError("conflict");
-    return assignment;
-  }
-
-  async renew(input: Omit<LeaseRequest, "now"> & { leaseExpiresAt: string }) {
-    const current = this.now();
-    const leaseExpiresAt = canonicalFutureLeaseExpiry(input.leaseExpiresAt, current);
-    if (new Date(leaseExpiresAt).getTime() - current.getTime() > maximumRenewedLeaseDurationMs)
       throw new VenueEdgeError("conflict");
-    const assignment = await this.repository.renew({
-      ...input,
-      leaseExpiresAt,
-      now: current.toISOString(),
-    });
-    if (!assignment) throw new VenueEdgeError("conflict");
-    return assignment;
-  }
-
-  async release(input: Omit<LeaseRequest, "now" | "leaseExpiresAt">) {
-    if (!(await this.repository.release({ ...input, now: this.now().toISOString() })))
-      throw new VenueEdgeError("conflict");
-  }
-
-  async activeAssignment(sessionId: string) {
-    const current = this.now();
-    const assignment = await this.repository.findActiveAssignment(
-      sessionId,
-      current.toISOString(),
-      new Date(current.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
-    );
-    if (!assignment) throw new VenueEdgeError("conflict");
-    return assignment;
   }
 
   private credentialRecord(
@@ -191,11 +144,6 @@ const toBase64Url = (value: Uint8Array) =>
     .replaceAll("=", "");
 const isFuture = (candidate: Date, reference: Date) =>
   !Number.isNaN(candidate.getTime()) && candidate.getTime() > reference.getTime();
-const canonicalFutureLeaseExpiry = (value: string, reference: Date) => {
-  const candidate = new Date(value);
-  if (!isFuture(candidate, reference)) throw new VenueEdgeError("conflict");
-  return candidate.toISOString();
-};
 export const sha256 = async (value: string) =>
   [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)))]
     .map((byte) => byte.toString(16).padStart(2, "0"))

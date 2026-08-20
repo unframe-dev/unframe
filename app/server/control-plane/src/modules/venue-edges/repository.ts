@@ -1,10 +1,11 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
-import { sessionEdgeAssignments, venueEdgeCredentials, venueEdges } from "../../adapters/d1/schema";
+import { venueEdgeCredentials, venueEdges } from "../../adapters/d1/schema";
 
 export type VenueEdgeRecord = {
   id: string;
+  runtimeId: string | null;
   status: "active" | "revoked";
   runtimeVersion: string | null;
   protocolVersion: string | null;
@@ -27,20 +28,8 @@ export type VenueEdgeCredentialRecord = {
   lastUsedAt: string | null;
   revokedAt: string | null;
 };
-export type EdgeSessionAssignment = {
-  sessionId: string;
-  edgeId: string;
-  assignmentEpoch: number;
-  presentationRevision: number;
-  issuedAt: string;
-  leaseExpiresAt: string;
-  releasedAt: string | null;
-};
-export type ActiveEdgeSessionAssignment = EdgeSessionAssignment & {
-  localEndpoint: string;
-  certificateFingerprint: string;
-};
 export type EdgeRegistration = {
+  runtimeId: string;
   runtimeVersion: string;
   protocolVersion: string;
   capacity: number;
@@ -48,21 +37,6 @@ export type EdgeRegistration = {
   certificateFingerprint: string;
   health: string;
   observedAt: string;
-};
-export type AssignmentRequest = {
-  sessionId: string;
-  edgeId: string;
-  presentationRevision: number;
-  issuedAt: string;
-  leaseExpiresAt: string;
-  edgeHealthyAfter: string;
-};
-export type LeaseRequest = {
-  sessionId: string;
-  edgeId: string;
-  assignmentEpoch: number;
-  now: string;
-  leaseExpiresAt?: string;
 };
 export interface VenueEdgeRepository {
   createEdge(edge: VenueEdgeRecord, credential: VenueEdgeCredentialRecord): Promise<void>;
@@ -76,14 +50,6 @@ export interface VenueEdgeRepository {
   }): Promise<boolean>;
   revokeEdge(edgeId: string, revokedAt: string): Promise<boolean>;
   register(edgeId: string, update: EdgeRegistration): Promise<boolean>;
-  assign(input: AssignmentRequest): Promise<EdgeSessionAssignment | null>;
-  renew(input: LeaseRequest): Promise<EdgeSessionAssignment | null>;
-  release(input: LeaseRequest): Promise<boolean>;
-  findActiveAssignment(
-    sessionId: string,
-    now: string,
-    edgeHealthyAfter: string,
-  ): Promise<ActiveEdgeSessionAssignment | null>;
 }
 
 export class D1VenueEdgeRepository implements VenueEdgeRepository {
@@ -162,7 +128,7 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
         .bind(revokedAt, edgeId),
       this.database
         .prepare(
-          "UPDATE session_edge_assignments SET released_at = ? WHERE edge_id = ? AND released_at IS NULL",
+          "UPDATE runtime_assignments SET released_at = ? WHERE provisioning_edge_id = ? AND released_at IS NULL",
         )
         .bind(revokedAt, edgeId),
     ]);
@@ -171,9 +137,10 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
   async register(edgeId: string, update: EdgeRegistration) {
     const result = await this.database
       .prepare(
-        "UPDATE venue_edges SET runtime_version = ?, protocol_version = ?, capacity = ?, local_endpoint = ?, certificate_fingerprint = ?, health = ?, registered_at = COALESCE(registered_at, ?), last_seen_at = ? WHERE id = ? AND status = 'active'",
+        "UPDATE venue_edges SET runtime_id = ?, runtime_version = ?, protocol_version = ?, capacity = ?, local_endpoint = ?, certificate_fingerprint = ?, health = ?, registered_at = COALESCE(registered_at, ?), last_seen_at = ? WHERE id = ? AND status = 'active' AND (runtime_id IS NULL OR runtime_id = ?) AND NOT EXISTS (SELECT 1 FROM venue_edges AS registered WHERE registered.runtime_id = ? AND registered.id != ?)",
       )
       .bind(
+        update.runtimeId,
         update.runtimeVersion,
         update.protocolVersion,
         update.capacity,
@@ -183,93 +150,11 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
         update.observedAt,
         update.observedAt,
         edgeId,
+        update.runtimeId,
+        update.runtimeId,
+        edgeId,
       )
       .run();
     return result.meta.changes === 1;
-  }
-  async assign(input: AssignmentRequest) {
-    const result = await this.database
-      .prepare(
-        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, COALESCE((SELECT MAX(assignment_epoch) + 1 FROM session_edge_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND last_seen_at >= ? AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM session_edge_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM session_edge_assignments WHERE edge_id = ? AND released_at IS NULL AND lease_expires_at > ?)",
-      )
-      .bind(
-        input.sessionId,
-        input.edgeId,
-        input.sessionId,
-        input.presentationRevision,
-        input.issuedAt,
-        input.leaseExpiresAt,
-        input.sessionId,
-        input.presentationRevision,
-        input.edgeId,
-        input.edgeHealthyAfter,
-        input.sessionId,
-        input.issuedAt,
-        input.edgeId,
-        input.issuedAt,
-      )
-      .run();
-    return result.meta.changes === 1 ? this.currentAssignment(input.sessionId) : null;
-  }
-  async renew({ sessionId, edgeId, assignmentEpoch, now, leaseExpiresAt }: LeaseRequest) {
-    const result = await this.database
-      .prepare(
-        "UPDATE session_edge_assignments SET lease_expires_at = ? WHERE session_id = ? AND edge_id = ? AND assignment_epoch = ? AND released_at IS NULL AND lease_expires_at > ? AND lease_expires_at < ? AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy') AND EXISTS (SELECT 1 FROM presentation_sessions WHERE id = ? AND state != 'Ended')",
-      )
-      .bind(
-        leaseExpiresAt,
-        sessionId,
-        edgeId,
-        assignmentEpoch,
-        now,
-        leaseExpiresAt,
-        edgeId,
-        sessionId,
-      )
-      .run();
-    return result.meta.changes === 1 ? this.assignment(sessionId, assignmentEpoch) : null;
-  }
-  async release({ sessionId, edgeId, assignmentEpoch, now }: LeaseRequest) {
-    const result = await this.database
-      .prepare(
-        "UPDATE session_edge_assignments SET released_at = ? WHERE session_id = ? AND edge_id = ? AND assignment_epoch = ? AND released_at IS NULL AND lease_expires_at > ?",
-      )
-      .bind(now, sessionId, edgeId, assignmentEpoch, now)
-      .run();
-    return result.meta.changes === 1;
-  }
-  async findActiveAssignment(sessionId: string, now: string, edgeHealthyAfter: string) {
-    return (
-      (await this.database
-        .prepare(
-          "SELECT assignment.session_id AS sessionId, assignment.edge_id AS edgeId, assignment.assignment_epoch AS assignmentEpoch, assignment.presentation_revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt, edge.local_endpoint AS localEndpoint, edge.certificate_fingerprint AS certificateFingerprint FROM session_edge_assignments AS assignment JOIN venue_edges AS edge ON edge.id = assignment.edge_id JOIN presentation_sessions AS session ON session.id = assignment.session_id WHERE assignment.session_id = ? AND session.state != 'Ended' AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND edge.status = 'active' AND edge.protocol_version = 'v1' AND edge.health = 'healthy' AND edge.registered_at IS NOT NULL AND edge.last_seen_at >= ? AND edge.local_endpoint IS NOT NULL AND edge.certificate_fingerprint IS NOT NULL ORDER BY assignment.assignment_epoch DESC LIMIT 1",
-        )
-        .bind(sessionId, now, edgeHealthyAfter)
-        .first<ActiveEdgeSessionAssignment>()) ?? null
-    );
-  }
-  private async currentAssignment(sessionId: string) {
-    return (
-      (await this.db
-        .select()
-        .from(sessionEdgeAssignments)
-        .where(eq(sessionEdgeAssignments.sessionId, sessionId))
-        .orderBy(desc(sessionEdgeAssignments.assignmentEpoch))
-        .get()) ?? null
-    );
-  }
-  private async assignment(sessionId: string, assignmentEpoch: number) {
-    return (
-      (await this.db
-        .select()
-        .from(sessionEdgeAssignments)
-        .where(
-          and(
-            eq(sessionEdgeAssignments.sessionId, sessionId),
-            eq(sessionEdgeAssignments.assignmentEpoch, assignmentEpoch),
-          ),
-        )
-        .get()) ?? null
-    );
   }
 }

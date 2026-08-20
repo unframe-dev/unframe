@@ -10,6 +10,7 @@ import { createAssetRoutes, type AssetRouteOptions } from "./modules/assets/rout
 import { createPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
 import { RealtimeBootstrapCredentials } from "./modules/realtime-bootstrap/credential";
 import { createSessionRoutes, type SessionRouteOptions } from "./modules/sessions/routes";
+import { createRuntimeAssignmentRoutes } from "./modules/runtime-assignments/routes";
 import { createVenueEdgeRoutes, type VenueEdgeRouteOptions } from "./modules/venue-edges/routes";
 import { jwksRoute } from "./openapi";
 
@@ -76,10 +77,16 @@ export function createProductApi(options: AppOptions = {}) {
       ...(options.sessionNow ? { now: options.sessionNow } : {}),
       ...(options.sessionId ? { id: options.sessionId } : {}),
       ...(options.joinCode ? { joinCode: options.joinCode } : {}),
-      ...(options.venueEdgeRepository ? { venueEdgeRepository: options.venueEdgeRepository } : {}),
     }),
   );
-  const venueEdges = sessions.route(
+  const runtimeAssignments = sessions.route(
+    "/",
+    createRuntimeAssignmentRoutes({
+      identityProvider,
+      ...(options.sessionNow ? { now: options.sessionNow } : {}),
+    }),
+  );
+  const venueEdges = runtimeAssignments.route(
     "/",
     createVenueEdgeRoutes({
       identityProvider,
@@ -95,6 +102,7 @@ export function createProductApi(options: AppOptions = {}) {
       await new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
         issuer: config.REALTIME_ISSUER,
         keyId: config.REALTIME_SIGNING_KID,
+        audience: config.REALTIME_AUDIENCE,
       }).jwks(),
       200,
     );

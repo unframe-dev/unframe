@@ -27,20 +27,12 @@ const seedSession = async () => {
   )
     .bind(id, presentationId, userId, `hash-${id}`, "2026-01-01")
     .run();
+  await env.DB.prepare(
+    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01')",
+  )
+    .bind(id)
+    .run();
   return id;
-};
-
-const seedAssignment = async (sessionId: string) => {
-  const edgeId = crypto.randomUUID();
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO venue_edges (id, status, last_seen_at, created_at) VALUES (?, 'active', ?, ?)",
-    ).bind(edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T00:00:00.000Z"),
-    env.DB.prepare(
-      "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 1, 1, ?, ?, NULL)",
-    ).bind(sessionId, edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T01:00:00.000Z"),
-  ]);
-  return edgeId;
 };
 
 describe("D1PersistenceCallbackRepository", () => {
@@ -54,6 +46,10 @@ describe("D1PersistenceCallbackRepository", () => {
     const sessionId = await seedSession();
     const checkpoint = {
       sessionId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud" as const,
+      assignmentEpoch: 1,
+      presentationRevision: 1,
       version: 1,
       lastSequence: 12,
       idempotencyKey: "checkpoint-1",
@@ -68,11 +64,12 @@ describe("D1PersistenceCallbackRepository", () => {
 
   it("stores completion once and ends the session", async () => {
     const sessionId = await seedSession();
-    const edgeId = await seedAssignment(sessionId);
     const completion = {
       sessionId,
-      edgeId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud" as const,
       assignmentEpoch: 1,
+      presentationRevision: 1,
       checkpointVersion: 1,
       lastSequence: 12,
       idempotencyKey: "completion-1",
@@ -85,40 +82,98 @@ describe("D1PersistenceCallbackRepository", () => {
     await expect(repository.applyCompletion(completion)).resolves.toBe("applied");
     await expect(repository.applyCompletion(completion)).resolves.toBe("duplicate");
     await expect(
-      env.DB.prepare("SELECT state, ended_at FROM presentation_sessions WHERE id = ?")
-        .bind(sessionId)
-        .first(),
-    ).resolves.toMatchObject({ state: "Ended", ended_at: completion.endedAt });
-    await expect(
       env.DB.prepare(
-        "SELECT released_at FROM session_edge_assignments WHERE session_id = ? AND assignment_epoch = 1",
+        "SELECT session.state, session.ended_at, assignment.released_at FROM presentation_sessions AS session JOIN runtime_assignments AS assignment ON assignment.session_id = session.id WHERE session.id = ?",
       )
         .bind(sessionId)
         .first(),
-    ).resolves.toMatchObject({ released_at: completion.endedAt });
+    ).resolves.toMatchObject({
+      state: "Ended",
+      ended_at: completion.endedAt,
+      released_at: "2026-08-11T00:00:00.000Z",
+    });
+    await expect(
+      repository.applyCheckpoint({
+        sessionId,
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationRevision: 1,
+        version: 2,
+        lastSequence: 13,
+        idempotencyKey: "checkpoint-after-completion",
+        payload: { slide: 3 },
+      }),
+    ).resolves.toBe("conflict");
+  });
+
+  it("rejects callbacks that do not match an active assignment", async () => {
+    const sessionId = await seedSession();
+    const checkpoint = {
+      sessionId,
+      runtimeId: "wrong-runtime",
+      runtimeKind: "Cloud" as const,
+      assignmentEpoch: 1,
+      presentationRevision: 1,
+      version: 1,
+      lastSequence: 12,
+      idempotencyKey: "wrong-runtime",
+      payload: { slide: 2 },
+    };
+
+    await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("conflict");
+    await expect(
+      repository.applyCompletion({
+        sessionId,
+        runtimeId: "wrong-runtime",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationRevision: 1,
+        checkpointVersion: 1,
+        lastSequence: 12,
+        idempotencyKey: "wrong-runtime-completion",
+        startedAt: "2026-08-11T00:00:00.000Z",
+        endedAt: "2026-08-11T00:01:00.000Z",
+        participantCount: 1,
+        participants: [{ userId: "presenter", role: "presenter" }],
+        finalCheckpoint: { slide: 2 },
+      }),
+    ).resolves.toBe("conflict");
+    await expect(
+      env.DB.prepare(
+        "SELECT session.state, assignment.released_at FROM presentation_sessions AS session JOIN runtime_assignments AS assignment ON assignment.session_id = session.id WHERE session.id = ?",
+      )
+        .bind(sessionId)
+        .first(),
+    ).resolves.toMatchObject({ state: "Presenting", released_at: null });
+    await env.DB.prepare(
+      "UPDATE runtime_assignments SET released_at = '2026-08-10T00:00:00.000Z' WHERE session_id = ?",
+    )
+      .bind(sessionId)
+      .run();
+    await expect(repository.applyCheckpoint({ ...checkpoint, runtimeId: "runtime" })).resolves.toBe(
+      "conflict",
+    );
   });
 
   it("rejects completion from a superseded assignment epoch", async () => {
     const sessionId = await seedSession();
-    const staleEdgeId = await seedAssignment(sessionId);
-    const currentEdgeId = crypto.randomUUID();
     await env.DB.batch([
       env.DB.prepare(
-        "UPDATE session_edge_assignments SET released_at = ? WHERE session_id = ? AND assignment_epoch = 1",
+        "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND epoch = 1",
       ).bind("2026-08-11T00:10:00.000Z", sessionId),
       env.DB.prepare(
-        "INSERT INTO venue_edges (id, status, last_seen_at, created_at) VALUES (?, 'active', ?, ?)",
-      ).bind(currentEdgeId, "2026-08-11T00:10:00.000Z", "2026-08-11T00:10:00.000Z"),
-      env.DB.prepare(
-        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 2, 1, ?, ?, NULL)",
-      ).bind(sessionId, currentEdgeId, "2026-08-11T00:10:00.000Z", "2026-08-11T01:00:00.000Z"),
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime-next', 'Cloud', 'https://runtime-next.example.com', 2, 1, ?, ?)",
+      ).bind(sessionId, "2026-08-11T00:10:00.000Z", "2026-08-11T01:00:00.000Z"),
     ]);
 
     await expect(
       repository.applyCompletion({
         sessionId,
-        edgeId: staleEdgeId,
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
         assignmentEpoch: 1,
+        presentationRevision: 1,
         checkpointVersion: 1,
         lastSequence: 12,
         idempotencyKey: "stale-completion",
@@ -136,7 +191,7 @@ describe("D1PersistenceCallbackRepository", () => {
     ).resolves.toMatchObject({ state: "Presenting" });
     await expect(
       env.DB.prepare(
-        "SELECT released_at FROM session_edge_assignments WHERE session_id = ? AND assignment_epoch = 2",
+        "SELECT released_at FROM runtime_assignments WHERE session_id = ? AND epoch = 2",
       )
         .bind(sessionId)
         .first(),
@@ -147,6 +202,10 @@ describe("D1PersistenceCallbackRepository", () => {
     await expect(
       repository.applyCheckpoint({
         sessionId: crypto.randomUUID(),
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationRevision: 1,
         version: 1,
         lastSequence: 1,
         idempotencyKey: "unknown",

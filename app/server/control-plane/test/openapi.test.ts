@@ -68,8 +68,8 @@ describe("Control Plane OpenAPI", () => {
       ["/venue-edges", "post"],
       ["/venue-edges/{edgeId}/rotate", "post"],
       ["/venue-edges/{edgeId}", "delete"],
-      ["/sessions/{sessionId}/venue-edge-assignment", "post"],
-      ["/sessions/{sessionId}/venue-edge-assignment", "get"],
+      ["/sessions/{sessionId}/runtime-assignment", "post"],
+      ["/sessions/{sessionId}/runtime-assignment", "get"],
       ["/venue-edges/{edgeId}/register", "post"],
       ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew", "post"],
       ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/release", "post"],
@@ -93,5 +93,23 @@ describe("Control Plane OpenAPI", () => {
     expect(requestBodies).toEqual(
       expect.arrayContaining(requestBodies.map(() => expect.objectContaining({ required: true }))),
     );
+  });
+
+  it("requires opaque checkpoint values without assigning them a shape", () => {
+    const document = createOpenAPIDocument();
+    const requestSchema = (path: string) => {
+      const requestBody = document.paths[path]?.post?.requestBody;
+      if (!requestBody || !("content" in requestBody)) return undefined;
+      return requestBody.content["application/json"]?.schema;
+    };
+
+    expect(requestSchema("/callbacks/checkpoints")).toMatchObject({
+      required: expect.arrayContaining(["payload"]),
+      properties: { payload: expect.any(Object) },
+    });
+    expect(requestSchema("/callbacks/completions")).toMatchObject({
+      required: expect.arrayContaining(["finalCheckpoint"]),
+      properties: { finalCheckpoint: expect.any(Object) },
+    });
   });
 });

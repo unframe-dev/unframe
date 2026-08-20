@@ -10765,13 +10765,21 @@
                       "format": "uri"
                     },
                     "fingerprint": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
                     },
-                    "edgeId": {
+                    "runtimeId": {
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 128,
                       "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "runtimeKind": {
+                      "type": "string",
+                      "enum": [
+                        "Cloud",
+                        "VenueEdge"
+                      ]
                     },
                     "assignmentEpoch": {
                       "type": "integer",
@@ -10800,7 +10808,8 @@
                   "required": [
                     "endpoint",
                     "fingerprint",
-                    "edgeId",
+                    "runtimeId",
+                    "runtimeKind",
                     "assignmentEpoch",
                     "presentationId",
                     "presentationRevision",
@@ -10933,6 +10942,507 @@
           },
           "409": {
             "description": "Session ended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{sessionId}/runtime-assignment": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "runtimeId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  },
+                  "runtimeKind": {
+                    "type": "string",
+                    "enum": [
+                      "Cloud",
+                      "VenueEdge"
+                    ]
+                  },
+                  "endpoint": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "presentationRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "leaseExpiresAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "runtimeId",
+                  "runtimeKind",
+                  "presentationRevision",
+                  "leaseExpiresAt"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "runtimeId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "runtimeKind": {
+                      "type": "string",
+                      "enum": [
+                        "Cloud",
+                        "VenueEdge"
+                      ]
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "certificateFingerprint": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "provisioningEdgeId": {
+                      "type": "string",
+                      "nullable": true,
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "assignmentEpoch": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "presentationRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "leaseExpiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "releasedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "runtimeId",
+                    "runtimeKind",
+                    "endpoint",
+                    "certificateFingerprint",
+                    "provisioningEdgeId",
+                    "assignmentEpoch",
+                    "presentationRevision",
+                    "issuedAt",
+                    "leaseExpiresAt",
+                    "releasedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid assignment request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Active assignment exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "cookieSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "runtimeId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "runtimeKind": {
+                      "type": "string",
+                      "enum": [
+                        "Cloud",
+                        "VenueEdge"
+                      ]
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "certificateFingerprint": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "provisioningEdgeId": {
+                      "type": "string",
+                      "nullable": true,
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "assignmentEpoch": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "presentationRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "leaseExpiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "releasedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "runtimeId",
+                    "runtimeKind",
+                    "endpoint",
+                    "certificateFingerprint",
+                    "provisioningEdgeId",
+                    "assignmentEpoch",
+                    "presentationRevision",
+                    "issuedAt",
+                    "leaseExpiresAt",
+                    "releasedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid session ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No active assignment",
             "content": {
               "application/json": {
                 "schema": {
@@ -11536,452 +12046,6 @@
         }
       }
     },
-    "/sessions/{sessionId}/venue-edge-assignment": {
-      "post": {
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "cookieSession": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9_-]+$"
-            },
-            "required": true,
-            "name": "sessionId",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "edgeId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                    "pattern": "^[A-Za-z0-9_-]+$"
-                  },
-                  "presentationRevision": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "exclusiveMinimum": true
-                  },
-                  "leaseExpiresAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  }
-                },
-                "required": [
-                  "edgeId",
-                  "presentationRevision",
-                  "leaseExpiresAt"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Assigned",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "sessionId": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128,
-                      "pattern": "^[A-Za-z0-9_-]+$"
-                    },
-                    "edgeId": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128,
-                      "pattern": "^[A-Za-z0-9_-]+$"
-                    },
-                    "assignmentEpoch": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "presentationRevision": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "issuedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "leaseExpiresAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "releasedAt": {
-                      "type": "string",
-                      "nullable": true,
-                      "format": "date-time"
-                    }
-                  },
-                  "required": [
-                    "sessionId",
-                    "edgeId",
-                    "assignmentEpoch",
-                    "presentationRevision",
-                    "issuedAt",
-                    "leaseExpiresAt",
-                    "releasedAt"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid assignment request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Active assignment exists",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "cookieSession": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9_-]+$"
-            },
-            "required": true,
-            "name": "sessionId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Active assignment",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "sessionId": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128,
-                      "pattern": "^[A-Za-z0-9_-]+$"
-                    },
-                    "edgeId": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 128,
-                      "pattern": "^[A-Za-z0-9_-]+$"
-                    },
-                    "assignmentEpoch": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "presentationRevision": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "issuedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "leaseExpiresAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "releasedAt": {
-                      "type": "string",
-                      "nullable": true,
-                      "format": "date-time"
-                    },
-                    "localEndpoint": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "certificateFingerprint": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "sessionId",
-                    "edgeId",
-                    "assignmentEpoch",
-                    "presentationRevision",
-                    "issuedAt",
-                    "leaseExpiresAt",
-                    "releasedAt",
-                    "localEndpoint",
-                    "certificateFingerprint"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid session ID",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "No active assignment",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/venue-edges/{edgeId}/register": {
       "post": {
         "security": [
@@ -12009,6 +12073,12 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "runtimeId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  },
                   "runtimeVersion": {
                     "type": "string",
                     "minLength": 1
@@ -12037,6 +12107,7 @@
                   }
                 },
                 "required": [
+                  "runtimeId",
                   "runtimeVersion",
                   "protocolVersion",
                   "capacity",
@@ -12115,6 +12186,36 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Runtime identity conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -12221,8 +12322,30 @@
                       "maxLength": 128,
                       "pattern": "^[A-Za-z0-9_-]+$"
                     },
-                    "edgeId": {
+                    "runtimeId": {
                       "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9_-]+$"
+                    },
+                    "runtimeKind": {
+                      "type": "string",
+                      "enum": [
+                        "Cloud",
+                        "VenueEdge"
+                      ]
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "certificateFingerprint": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "provisioningEdgeId": {
+                      "type": "string",
+                      "nullable": true,
                       "minLength": 1,
                       "maxLength": 128,
                       "pattern": "^[A-Za-z0-9_-]+$"
@@ -12253,7 +12376,11 @@
                   },
                   "required": [
                     "sessionId",
-                    "edgeId",
+                    "runtimeId",
+                    "runtimeKind",
+                    "endpoint",
+                    "certificateFingerprint",
+                    "provisioningEdgeId",
                     "assignmentEpoch",
                     "presentationRevision",
                     "issuedAt",
@@ -12513,6 +12640,27 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "runtimeId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "runtimeKind": {
+                    "type": "string",
+                    "enum": [
+                      "Cloud",
+                      "VenueEdge"
+                    ]
+                  },
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "presentationRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
                   "version": {
                     "type": "integer",
                     "minimum": 0
@@ -12527,14 +12675,40 @@
                     "maxLength": 200
                   },
                   "payload": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "nullable": true
-                    }
+                    "anyOf": [
+                      {
+                        "nullable": true
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "nullable": true
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
                   "sessionId",
+                  "runtimeId",
+                  "runtimeKind",
+                  "assignmentEpoch",
+                  "presentationRevision",
                   "version",
                   "lastSequence",
                   "idempotencyKey",
@@ -12652,6 +12826,36 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Runtime assignment is not active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -12674,13 +12878,23 @@
                     "type": "string",
                     "format": "uuid"
                   },
-                  "edgeId": {
+                  "runtimeId": {
                     "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                    "pattern": "^[A-Za-z0-9_-]+$"
+                    "minLength": 1
+                  },
+                  "runtimeKind": {
+                    "type": "string",
+                    "enum": [
+                      "Cloud",
+                      "VenueEdge"
+                    ]
                   },
                   "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "presentationRevision": {
                     "type": "integer",
                     "minimum": 0,
                     "exclusiveMinimum": true
@@ -12737,16 +12951,40 @@
                     "maxItems": 50
                   },
                   "finalCheckpoint": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "nullable": true
-                    }
+                    "anyOf": [
+                      {
+                        "nullable": true
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "nullable": true
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
                   "sessionId",
-                  "edgeId",
+                  "runtimeId",
+                  "runtimeKind",
                   "assignmentEpoch",
+                  "presentationRevision",
                   "checkpointVersion",
                   "lastSequence",
                   "idempotencyKey",
@@ -12870,7 +13108,7 @@
             }
           },
           "409": {
-            "description": "Assignment is not active",
+            "description": "Runtime assignment is not active",
             "content": {
               "application/json": {
                 "schema": {

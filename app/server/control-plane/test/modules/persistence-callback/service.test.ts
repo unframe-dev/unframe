@@ -8,6 +8,10 @@ import {
 
 const checkpoint = {
   sessionId: "session",
+  runtimeId: "runtime",
+  runtimeKind: "Cloud" as const,
+  assignmentEpoch: 1,
+  presentationRevision: 1,
   version: 1,
   lastSequence: 10,
   payload: { page: 1 },
@@ -15,8 +19,10 @@ const checkpoint = {
 };
 const completion = {
   sessionId: "session",
-  edgeId: "edge-1",
+  runtimeId: "runtime",
+  runtimeKind: "Cloud" as const,
   assignmentEpoch: 1,
+  presentationRevision: 1,
   checkpointVersion: 1,
   lastSequence: 10,
   idempotencyKey: "shared-key",

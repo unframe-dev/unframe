@@ -49,6 +49,7 @@ describe("venue edge HTTP routes", () => {
     expect(
       (
         await request(`/venue-edges/${credential.edge.id}/register`, "POST", undefined, {
+          runtimeId: `runtime-${suffix}`,
           runtimeVersion: "1",
           protocolVersion: "v1",
           capacity: 10,
@@ -65,6 +66,7 @@ describe("venue edge HTTP routes", () => {
           "POST",
           undefined,
           {
+            runtimeId: `runtime-${suffix}`,
             runtimeVersion: "1",
             protocolVersion: "v1",
             capacity: 10,
@@ -83,6 +85,7 @@ describe("venue edge HTTP routes", () => {
           "POST",
           undefined,
           {
+            runtimeId: `runtime-${suffix}`,
             runtimeVersion: "1",
             protocolVersion: "v1",
             capacity: 10,
@@ -109,20 +112,16 @@ describe("venue edge HTTP routes", () => {
     )
       .bind(sessionId, `presentation-${suffix}`, `user-${suffix}`, `code-${suffix}`)
       .run();
-    const assignment = await request(
-      `/sessions/${sessionId}/venue-edge-assignment`,
-      "POST",
-      "admin",
-      {
-        edgeId: credential.edge.id,
-        presentationRevision: 1,
-        leaseExpiresAt: "2026-08-20T00:02:00.000Z",
-      },
-    );
+    const assignment = await request(`/sessions/${sessionId}/runtime-assignment`, "POST", "admin", {
+      runtimeId: `runtime-${suffix}`,
+      runtimeKind: "VenueEdge",
+      presentationRevision: 1,
+      leaseExpiresAt: "2026-08-20T00:02:00.000Z",
+    });
     expect(assignment.status).toBe(201);
     const value = await assignment.json<{ assignmentEpoch: number }>();
     expect(
-      (await request(`/sessions/${sessionId}/venue-edge-assignment`, "GET", "admin")).status,
+      (await request(`/sessions/${sessionId}/runtime-assignment`, "GET", "admin")).status,
     ).toBe(200);
     expect(
       (

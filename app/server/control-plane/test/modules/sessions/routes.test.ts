@@ -79,10 +79,11 @@ describe("session HTTP lifecycle", () => {
       409,
     );
     await env.DB.prepare(
-      "INSERT INTO venue_edges (id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, 'active', '1', 'v1', 50, ?, ?, 'healthy', ?, ?, ?)",
+      "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v1', 50, ?, ?, 'healthy', ?, ?, ?)",
     )
       .bind(
         `edge-${suffix}`,
+        `runtime-${suffix}`,
         "https://edge.example.com",
         "sha256:test",
         "2026-08-17T00:00:00.000Z",
@@ -91,10 +92,13 @@ describe("session HTTP lifecycle", () => {
       )
       .run();
     await env.DB.prepare(
-      "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at) VALUES (?, ?, 1, 1, ?, ?)",
+      "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'VenueEdge', ?, ?, ?, 1, 1, ?, ?)",
     )
       .bind(
         creation.session.id,
+        `runtime-${suffix}`,
+        "https://edge.example.com",
+        "sha256:test",
         `edge-${suffix}`,
         "2026-08-17T00:00:00.000Z",
         "2026-08-21T00:00:00.000Z",
@@ -103,7 +107,8 @@ describe("session HTTP lifecycle", () => {
     const bootstrap = await request(`/sessions/${creation.session.id}/bootstrap`, viewerId, {});
     await expect(bootstrap.json()).resolves.toMatchObject({
       endpoint: "https://edge.example.com",
-      edgeId: `edge-${suffix}`,
+      runtimeId: `runtime-${suffix}`,
+      runtimeKind: "VenueEdge",
       assignmentEpoch: 1,
       presentationId,
       presentationRevision: 1,
@@ -114,7 +119,7 @@ describe("session HTTP lifecycle", () => {
     expect((await request(`/sessions/${creation.session.id}/end`, ownerId, {})).status).toBe(200);
     await expect(
       env.DB.prepare(
-        "SELECT released_at AS releasedAt FROM session_edge_assignments WHERE session_id = ? AND assignment_epoch = 1",
+        "SELECT released_at AS releasedAt FROM runtime_assignments WHERE session_id = ? AND epoch = 1",
       )
         .bind(creation.session.id)
         .first<{ releasedAt: string | null }>(),
@@ -174,9 +179,10 @@ describe("session HTTP lifecycle", () => {
     const edgeId = `edge-${suffix}`;
     await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO venue_edges (id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, 'active', '1', 'v1', 50, ?, ?, 'healthy', ?, ?, ?)",
+        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v1', 50, ?, ?, 'healthy', ?, ?, ?)",
       ).bind(
         edgeId,
+        `runtime-${suffix}`,
         "https://edge.example.com",
         "sha256:test",
         "2026-08-17T00:00:00.000Z",
@@ -184,8 +190,16 @@ describe("session HTTP lifecycle", () => {
         "2026-08-17T00:00:00.000Z",
       ),
       env.DB.prepare(
-        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at) VALUES (?, ?, 1, 1, ?, ?)",
-      ).bind(creation.session.id, edgeId, "2026-08-17T00:00:00.000Z", "2026-08-21T00:00:00.000Z"),
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'VenueEdge', ?, ?, ?, 1, 1, ?, ?)",
+      ).bind(
+        creation.session.id,
+        `runtime-${suffix}`,
+        "https://edge.example.com",
+        "sha256:test",
+        edgeId,
+        "2026-08-17T00:00:00.000Z",
+        "2026-08-21T00:00:00.000Z",
+      ),
     ]);
 
     const response = await request(`/sessions/${creation.session.id}/bootstrap`, {});
@@ -223,13 +237,14 @@ describe("session HTTP lifecycle", () => {
       sessionNow: () => now,
     });
     const edgeId = `edge-${suffix}`;
+    const runtimeId = `runtime-${suffix}`;
     await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO venue_edges (id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, 'active', '1', 'v1', 50, 'https://edge.example.com', 'sha256:test', 'healthy', ?, ?, ?)",
-      ).bind(edgeId, now.toISOString(), now.toISOString(), now.toISOString()),
+        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v1', 50, 'https://edge.example.com', 'sha256:test', 'healthy', ?, ?, ?)",
+      ).bind(edgeId, runtimeId, now.toISOString(), now.toISOString(), now.toISOString()),
       env.DB.prepare(
-        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at) VALUES (?, ?, 1, 1, ?, ?)",
-      ).bind(sessionId, edgeId, now.toISOString(), "2026-08-18T00:00:01.100Z"),
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'VenueEdge', 'https://edge.example.com', 'sha256:test', ?, 1, 1, ?, ?)",
+      ).bind(sessionId, runtimeId, edgeId, now.toISOString(), "2026-08-18T00:00:01.100Z"),
     ]);
     const response = await app.fetch(
       new Request(`https://api.example.com/sessions/${sessionId}/bootstrap`, { method: "POST" }),
