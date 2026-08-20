@@ -15,6 +15,10 @@ import { ApplicationShell } from "../../routes/application/application-shell";
 import { DevicesPage, RoomsPage } from "../../routes/application/application-placeholder-pages";
 import { LoginPage, RecoverPage, ResetPage, SignupPage } from "../../routes/auth/auth-pages";
 import { ProfilePage, SecurityPage } from "../../routes/settings/settings-pages";
+import publicModuleStyles from "../../routes/public/public-pages.module.css";
+import routerModuleStyles from "./router.module.css";
+const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
+const styles = { skipLink: routerModuleStyles["skipLink"]! };
 const EditorPage = lazy(() =>
   import("../../routes/editor/editor-page").then((module) => ({
     default: module.EditorPage,
@@ -23,7 +27,7 @@ const EditorPage = lazy(() =>
 function Root() {
   return (
     <>
-      <a href="#main-content" className="skip-link">
+      <a href="#main-content" className={styles.skipLink}>
         本文へ移動
       </a>
       <Outlet />
@@ -32,8 +36,8 @@ function Root() {
 }
 function ErrorPage() {
   return (
-    <main id="main-content" className="auth-main">
-      <section className="auth-panel">
+    <main id="main-content" className={publicStyles.main}>
+      <section className={publicStyles.panel}>
         <h1>ページを開けません</h1>
         <p role="alert">読み込みに失敗しました。時間をおいてもう一度お試しください。</p>
         <a href="/">トップへ戻る</a>
@@ -43,8 +47,8 @@ function ErrorPage() {
 }
 function NotFound() {
   return (
-    <main id="main-content" className="auth-main">
-      <section className="auth-panel">
+    <main id="main-content" className={publicStyles.main}>
+      <section className={publicStyles.panel}>
         <h1>ページが見つかりません</h1>
         <a href="/">トップへ戻る</a>
       </section>

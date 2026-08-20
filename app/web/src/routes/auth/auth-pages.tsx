@@ -7,6 +7,17 @@ import { z } from "zod";
 import { controlPlaneAuth } from "../../app/auth/control-plane-auth";
 import { BrandLink } from "../../app/brand/brand-link";
 import { Button } from "../../components/ui/button";
+import moduleStyles from "../public/public-pages.module.css";
+const styles = {
+  main: moduleStyles["main"]!,
+  header: moduleStyles["header"]!,
+  panel: moduleStyles["panel"]!,
+  copy: moduleStyles["copy"]!,
+  lede: moduleStyles["lede"]!,
+  form: moduleStyles["form"]!,
+  error: moduleStyles["error"]!,
+  divider: moduleStyles["divider"]!,
+};
 
 const credentialsSchema = z.object({
   email: z.string().email("有効なメールアドレスを入力してください。"),
@@ -27,17 +38,17 @@ function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main id="main-content" className="auth-main">
-      <header className="public-header">
+    <main id="main-content" className={styles.main}>
+      <header className={styles.header}>
         <BrandLink />
         <a href="https://un-fra.me/docs/">Docs</a>
       </header>
-      <section className="auth-panel">
-        <header className="auth-copy">
+      <section className={styles.panel}>
+        <header className={styles.copy}>
           <h1>{title}</h1>
-          <p className="auth-lede">{description}</p>
+          <p className={styles.lede}>{description}</p>
         </header>
-        <div className="auth-form">{children}</div>
+        <div className={styles.form}>{children}</div>
       </section>
     </main>
   );
@@ -47,7 +58,7 @@ function FormErrors({ errors }: { errors: Record<string, { message?: string } | 
     error?.message ? [{ field, message: error.message }] : [],
   );
   return messages.length ? (
-    <div role="alert" className="status-error">
+    <div role="alert" className={styles.error}>
       <p>入力内容を確認してください。</p>
       <ul>
         {messages.map(({ field, message }) => (
@@ -101,7 +112,7 @@ export function LoginPage() {
             <GoogleLogoIcon aria-hidden="true" />
             Google でログイン
           </Button>
-          <p className="divider">または</p>
+          <p className={styles.divider}>または</p>
           <form onSubmit={submit}>
             <FormErrors errors={form.formState.errors} />
             <label>
@@ -124,7 +135,7 @@ export function LoginPage() {
               />
             </label>
             {message ? (
-              <p role="alert" className="status-error">
+              <p role="alert" className={styles.error}>
                 {message}
               </p>
             ) : null}
@@ -181,7 +192,7 @@ function MfaForm({ onDone }: { onDone: () => void }) {
         />
       </label>
       {message ? (
-        <p role="alert" className="status-error">
+        <p role="alert" className={styles.error}>
           {message}
         </p>
       ) : null}
@@ -287,7 +298,7 @@ export function RecoverPage() {
         </label>
         {done ? <p role="status">再設定メールを送信しました。メールをご確認ください。</p> : null}
         {message ? (
-          <p role="alert" className="status-error">
+          <p role="alert" className={styles.error}>
             {message}
           </p>
         ) : null}

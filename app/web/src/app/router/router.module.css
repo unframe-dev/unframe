@@ -1,0 +1,20 @@
+.skipLink {
+  position: fixed;
+  z-index: 2000;
+  top: 8px;
+  left: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #fff;
+  background: #0b0e14;
+  transform: translateY(-160%);
+  transition: transform 120ms ease;
+}
+.skipLink:focus {
+  transform: translateY(0);
+}
+@media (forced-colors: active) {
+  .skipLink {
+    border: 2px solid ButtonText;
+  }
+}

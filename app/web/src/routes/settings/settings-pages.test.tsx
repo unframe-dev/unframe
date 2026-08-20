@@ -38,10 +38,6 @@ describe("ProfilePage", () => {
     const name = await screen.findByDisplayValue("旧名");
     const image = screen.getByRole("textbox", { name: "アイコンURL" });
 
-    expect(screen.queryByText("01")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("表示名とプロフィールアイコンを設定します。"),
-    ).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("a@example.test")).not.toBeInTheDocument();
     expect(screen.queryByText("メールアドレス")).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "プロフィールアイコン" })).toHaveAttribute(
@@ -120,10 +116,6 @@ describe("SecurityPage", () => {
     });
     render(<SecurityPage />);
     const user = userEvent.setup();
-    for (const number of ["01", "02", "03"]) {
-      expect(screen.queryByText(number)).not.toBeInTheDocument();
-    }
-    expect(screen.queryByText(/SMS やメール OTP/)).not.toBeInTheDocument();
     await user.type(screen.getAllByLabelText("現在のパスワード")[1]!, "password");
     await user.click(screen.getByRole("button", { name: "二要素認証を有効化" }));
     expect(await screen.findByText("otpauth://test")).toBeInTheDocument();

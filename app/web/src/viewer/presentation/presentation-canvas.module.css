@@ -1,0 +1,44 @@
+.loading,
+.error,
+.text {
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 8px;
+  color: #fff;
+  background: rgb(17 21 29 / 92%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
+  font:
+    600 13px/1.4 Inter,
+    system-ui,
+    sans-serif;
+  white-space: nowrap;
+}
+.loading,
+.text {
+  padding: 8px 12px;
+}
+.error {
+  display: grid;
+  gap: 6px;
+  min-width: 240px;
+  padding: 14px;
+  white-space: normal;
+}
+.error span {
+  color: #c9ccda;
+  font-weight: 400;
+}
+.error button {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #a9b5ff;
+  border-radius: 6px;
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.error button:focus-visible {
+  outline: 2px solid #df7b80;
+  outline-offset: 3px;
+}

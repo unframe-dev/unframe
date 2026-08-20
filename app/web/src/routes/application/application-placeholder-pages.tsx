@@ -1,3 +1,7 @@
+import moduleStyles from "./application-content.module.css";
+
+const styles = { main: moduleStyles["main"]!, heading: moduleStyles["heading"]! };
+
 function ApplicationPlaceholderPage({
   title,
   description,
@@ -6,8 +10,8 @@ function ApplicationPlaceholderPage({
   description: string;
 }) {
   return (
-    <main id="main-content" className="app-main">
-      <header className="page-heading">
+    <main id="main-content" className={styles.main}>
+      <header className={styles.heading}>
         <h1>{title}</h1>
         <p>{description}</p>
       </header>

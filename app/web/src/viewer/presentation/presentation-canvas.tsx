@@ -19,6 +19,12 @@ import type { PresentationDocument } from "../../document/schema/presentation-do
 import type { Transform } from "../../document/schema/transform";
 import type { EditorTool, SnapSettings } from "../../editor/session/editor-session";
 import { detectWebGLSupport } from "./webgl-support";
+import moduleStyles from "./presentation-canvas.module.css";
+const styles = {
+  error: moduleStyles["error"]!,
+  loading: moduleStyles["loading"]!,
+  text: moduleStyles["text"]!,
+};
 
 interface ViewerCanvasProps {
   mode: "viewer";
@@ -80,7 +86,7 @@ class ModelErrorBoundary extends Component<
     if (!this.state.failed) return this.props.children;
     return (
       <Html center>
-        <div className="viewport-error" role="alert">
+        <div className={styles.error} role="alert">
           <strong>{this.props.assetName}を読み込めません</strong>
           <span>GLBを確認して再試行してください。</span>
           <button type="button" onClick={this.retry}>
@@ -201,7 +207,7 @@ function ModelObject({
         <Suspense
           fallback={
             <Html center>
-              <div className="viewport-loading" role="status">
+              <div className={styles.loading} role="status">
                 GLBを読み込み中…
               </div>
             </Html>
@@ -242,7 +248,7 @@ function TextObject({ element }: { element: TextElement }) {
       visible={element.visible}
     >
       <Html center transform distanceFactor={5}>
-        <div className="viewport-text">{element.content}</div>
+        <div className={styles.text}>{element.content}</div>
       </Html>
     </group>
   );

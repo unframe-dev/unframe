@@ -3,6 +3,29 @@ import { ClockIcon, MagnifyingGlassIcon, PlusIcon, XIcon } from "@phosphor-icons
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "../../components/ui/button";
+import moduleStyles from "./home-page.module.css";
+const styles = {
+  main: moduleStyles["main"]!,
+  surface: moduleStyles["surface"]!,
+  header: moduleStyles["header"]!,
+  title: moduleStyles["title"]!,
+  actions: moduleStyles["actions"]!,
+  search: moduleStyles["search"]!,
+  content: moduleStyles["content"]!,
+  error: moduleStyles["error"]!,
+  muted: moduleStyles["muted"]!,
+  grid: moduleStyles["grid"]!,
+  card: moduleStyles["card"]!,
+  thumbnail: moduleStyles["thumbnail"]!,
+  updated: moduleStyles["updated"]!,
+  backdrop: moduleStyles["backdrop"]!,
+  viewport: moduleStyles["viewport"]!,
+  popup: moduleStyles["popup"]!,
+  dialogHeading: moduleStyles["dialogHeading"]!,
+  close: moduleStyles["close"]!,
+  form: moduleStyles["form"]!,
+  actionsDialog: moduleStyles["actionsDialog"]!,
+};
 import {
   createMockPresentation,
   listMockPresentations,
@@ -41,14 +64,14 @@ export function HomePage() {
       item.definition.metadata.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
     );
   return (
-    <main id="main-content" className="app-main workspace-main">
-      <section className="workspace-surface" aria-label="プレゼンテーション">
-        <header className="workspace-header">
-          <div className="workspace-title">
+    <main id="main-content" className={styles.main}>
+      <section className={styles.surface} aria-label="プレゼンテーション">
+        <header className={styles.header}>
+          <div className={styles.title}>
             <h1>Presentations.</h1>
           </div>
-          <div className="workspace-actions">
-            <label className="search">
+          <div className={styles.actions}>
+            <label className={styles.search}>
               <MagnifyingGlassIcon aria-hidden="true" />
               <span className="sr-only">タイトルを検索</span>
               <input
@@ -63,12 +86,12 @@ export function HomePage() {
             </Button>
           </div>
         </header>
-        <div className="workspace-content">
+        <div className={styles.content}>
           {presentations.isPending ? (
             <p role="status">プレゼンテーションを読み込み中…</p>
           ) : presentations.isError ? (
             <div>
-              <p role="alert" className="status-error">
+              <p role="alert" className={styles.error}>
                 プレゼンテーションを読み込めませんでした。
               </p>
               <Button variant="outline" onClick={() => presentations.refetch()}>
@@ -77,7 +100,7 @@ export function HomePage() {
             </div>
           ) : items.length === 0 ? (
             <div>
-              <p className="muted">
+              <p className={styles.muted}>
                 {search
                   ? "一致するプレゼンテーションはありません。"
                   : "プレゼンテーションはまだありません。"}
@@ -89,17 +112,17 @@ export function HomePage() {
               ) : null}
             </div>
           ) : (
-            <ul className="presentation-grid">
+            <ul className={styles.grid}>
               {items.map((presentation) => (
-                <li className="presentation-card" key={presentation.id}>
-                  <div className="presentation-thumbnail">
+                <li className={styles.card} key={presentation.id}>
+                  <div className={styles.thumbnail}>
                     <img
                       src={presentation.thumbnailUrl}
                       alt={`${presentation.definition.metadata.title}のサムネイル`}
                       loading="lazy"
                     />
                     <p
-                      className="presentation-updated"
+                      className={styles.updated}
                       aria-label={`更新日時 ${formatUpdatedAt(presentation.updatedAt)}`}
                     >
                       <ClockIcon aria-hidden="true" />
@@ -125,10 +148,10 @@ export function HomePage() {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className="dialog-backdrop" />
-          <Dialog.Viewport className="dialog-viewport">
-            <Dialog.Popup className="dialog-popup">
-              <div className="dialog-heading">
+          <Dialog.Backdrop className={styles.backdrop} />
+          <Dialog.Viewport className={styles.viewport}>
+            <Dialog.Popup className={styles.popup}>
+              <div className={styles.dialogHeading}>
                 <div>
                   <Dialog.Title>プレゼンテーションを作成</Dialog.Title>
                   <Dialog.Description>
@@ -136,7 +159,7 @@ export function HomePage() {
                   </Dialog.Description>
                 </div>
                 <Dialog.Close
-                  className="dialog-close"
+                  className={styles.close}
                   aria-label="閉じる"
                   disabled={create.isPending}
                 >
@@ -144,7 +167,7 @@ export function HomePage() {
                 </Dialog.Close>
               </div>
               <form
-                className="dialog-form"
+                className={styles.form}
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (title.trim() && !create.isPending) create.mutate();
@@ -171,11 +194,11 @@ export function HomePage() {
                   />
                 </label>
                 {create.isError ? (
-                  <p role="alert" className="status-error">
+                  <p role="alert" className={styles.error}>
                     {create.error.message}
                   </p>
                 ) : null}
-                <div className="dialog-actions">
+                <div className={styles.actionsDialog}>
                   <Dialog.Close
                     render={<Button type="button" variant="ghost" />}
                     disabled={create.isPending}

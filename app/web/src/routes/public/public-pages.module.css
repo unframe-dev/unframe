@@ -1,0 +1,137 @@
+.main {
+  position: relative;
+  display: block;
+  min-height: 100dvh;
+  padding: 0 24px;
+  background: var(--background);
+}
+.header {
+  position: absolute;
+  z-index: 30;
+  inset: 0 0 auto;
+  display: flex;
+  width: min(100% - 48px, 1328px);
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 0;
+}
+.header > a:last-child {
+  color: color-mix(in srgb, var(--night) 60%, transparent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+.panel,
+.deviceShell {
+  display: grid;
+  width: min(100%, 1100px);
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 0.78fr) minmax(340px, 1.22fr);
+  gap: unset;
+  padding: 176px 0 112px;
+}
+.deviceShell {
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+}
+.copy,
+.deviceIntro {
+  display: grid;
+  align-content: start;
+  gap: 28px;
+}
+.panel h1 {
+  margin: 0;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(3.25rem, 6vw, 5.25rem);
+  font-weight: 300;
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+.deviceShell h1 {
+  margin: 0;
+  font-size: clamp(3.5rem, 7vw, 6.75rem);
+  font-weight: 300;
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+.panel p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.panel a {
+  color: color-mix(in srgb, var(--night) 72%, var(--brand-blue));
+}
+.lede {
+  max-width: 30rem;
+  color: var(--muted);
+}
+.deviceLede {
+  max-width: 28rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.form,
+.deviceActions {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding-top: 72px;
+  border-top: 1px solid var(--line);
+}
+.form form {
+  max-width: none;
+}
+.divider {
+  color: var(--muted);
+  text-align: center;
+}
+.error {
+  color: #9e3039;
+}
+.error ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.main button {
+  border-radius: 999px !important;
+  transition:
+    color 120ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 180ms ease !important;
+}
+.main button:enabled:active {
+  box-shadow: none;
+}
+@media (min-width: 640px) {
+  .header {
+    width: calc(100% - 80px);
+  }
+}
+@media (min-width: 1024px) {
+  .header {
+    width: min(100% - 112px, 1328px);
+  }
+}
+@media (max-width: 767px) {
+  .header {
+    width: calc(100% - 48px);
+  }
+  .panel,
+  .deviceShell {
+    grid-template-columns: 1fr;
+    gap: 44px;
+    padding: 136px 0 72px;
+  }
+  .form,
+  .deviceActions {
+    padding-top: 40px;
+  }
+  .panel h1 {
+    font-size: clamp(2.75rem, 14vw, 4rem);
+  }
+}
