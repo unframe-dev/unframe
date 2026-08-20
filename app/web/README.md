@@ -1,19 +1,23 @@
 # Unframe Web Editor
 
-`app/web` は、空間プレゼンテーションを管理・編集する React SPA です。現在の Editor は `demo` fixture を使う移行前の POC であり、永続モデルの正本ではありません。Device Authorization のブラウザ承認画面は Control Plane の Better Auth に接続しますが、Presentation API、アップロード、永続サーバー保存はまだ接続していません。目標境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を参照してください。
+`app/web` は、空間プレゼンテーションを管理・編集する React SPA です。Home の一覧と新規作成は現在、画面確認用の mock repository を使用しており、Control Plane の Presentation API には接続しません。現在の Editor は `demo` fixture を使う移行前の POC であり、永続モデルの正本ではありません。Device Authorization のブラウザ承認画面は Control Plane の Better Auth に接続しますが、Presentation の取得・保存、アップロードはまだ Editor に接続していません。目標境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を参照してください。
 
 ## 現在の実装
 
 - React 19.2、Tailwind CSS v4、shadcn/ui（Base UI）、TanStack Router、Zustand、Zod、React Hook Form
 - React Three Fiber / Drei による GLB 表示、選択、移動、回転、拡縮
 - serializable command と revision に基づく Undo / Redo
+- TanStack Query と mock repository による Presentation 一覧・作成（Editor への遷移は未接続）
+- `/login`、`/signup`、`/recover` と `/recover/reset?token=` の Better Auth browser flow
+- `/settings/profile` の名前更新と、`/settings/security` の password / TOTP / session 操作
+- `/home`、`/devices`、`/rooms` の折り畳み可能なアプリケーションナビゲーションと、設定内ナビゲーション
 - root-based routing と Cloudflare Workers Static Assets の SPA fallback
 - `/device` の Device Authorization 検証・承認・拒否と Google ログインへの復帰 URL 保持
 - Vitest、Testing Library、Playwright Chromium による unit / component / E2E test
 
 次の機能は未実装です。
 
-- Presentation API とサーバー永続化
+- Presentation の取得・更新・削除と Editor のサーバー永続化
 - editor の認証、認可、共同編集、競合解決
 - asset upload、変換、R2 配信 URL の解決
 - 複数ブラウザや複数端末へのリアルタイム配信
@@ -32,13 +36,16 @@ pnpm --filter @unframe/web run dev
 
 利用できる fixture route は次のとおりです。
 
-| URL                              | 用途                                |
-| -------------------------------- | ----------------------------------- |
-| `/home/`                         | 認証必須の fixture workspace        |
-| `/editor/demo/?panel=properties` | 認証必須の POC Editor               |
-| `/device/?user_code=ABCD-EFGH`   | Device Authorization のブラウザ承認 |
+| URL                                         | 用途                                |
+| ------------------------------------------- | ----------------------------------- |
+| `/home/`                                    | 認証必須の Presentation 一覧        |
+| `/devices/`、`/rooms/`                      | デバイス・ルーム管理の準備画面      |
+| `/editor/demo/?panel=properties`            | 認証必須の POC Editor               |
+| `/device/?user_code=ABCD-EFGH`              | Device Authorization のブラウザ承認 |
+| `/login/`、`/signup/`、`/recover/`          | public authentication routes        |
+| `/settings/profile/`、`/settings/security/` | account settings                    |
 
-認証必須 route で session を確認できない場合は、LP が所有する `/` へ戻ります。
+認証 guard はローカル session setup の調整中のため一時的に無効化しています。復帰時は application route の `beforeLoad` で、未認証を LP 所有の `/` へ外部遷移させます。
 
 ## 構成
 
@@ -94,6 +101,6 @@ pnpm --dir app/web exec wrangler dev --config dist/unframe_web_editor/wrangler.j
 
 NixOS で配布版 `workerd` を実行するには、host 側で `programs.nix-ld.enable` が必要です。このリポジトリにはデプロイ workflow がないため、公開操作は品質ゲートに含めていません。
 
-## Device Authorization の接続先
+## Control Plane の接続先
 
-Device Authorization 画面は `VITE_CONTROL_PLANE_URL` を Control Plane API の origin として使い、未設定時は production の `https://api.un-fra.me` を使います。cookie session を送るため、認証 request は `credentials: "include"` です。
+Device Authorization 画面は `VITE_CONTROL_PLANE_URL` を Control Plane API の origin として使い、未設定時は production の `https://api.un-fra.me` を使います。cookie session を送るため、認証 request は `credentials: "include"` です。Home の Presentation 一覧と新規作成は mock repository 内で完結します。

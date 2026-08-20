@@ -8,6 +8,7 @@
   import UseCases from "$lib/components/sections/UseCases.svelte";
   import Vision from "$lib/components/sections/Vision.svelte";
   import Footer from "$lib/components/layout/Footer.svelte";
+  import lightHeaderUrl from "$lib/assets/brand/light-header.png?url";
 </script>
 
 <svelte:head>
@@ -15,7 +16,7 @@
   <meta name="description" content="Unframeはアイデアを空間的な体験へ変える。奥行きと方向性、動く余白を持ったプレゼンテーションをつくる。" />
   <meta property="og:title" content="Unframe — Present beyond the frame" />
   <meta property="og:description" content="動く余白を必要とするアイデアのための、新しい表現手段。" />
-  <meta property="og:image" content="/brand/light-header.png" />
+  <meta property="og:image" content={lightHeaderUrl} />
   <meta name="theme-color" content="#f7f7f5" />
 </svelte:head>
 

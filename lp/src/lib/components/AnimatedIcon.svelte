@@ -1,5 +1,5 @@
 <script lang="ts">
-  import iconUrl from "../../../../assets/icon.svg?url";
+  import iconUrl from "$lib/assets/brand/icon.svg?url";
 
   type AnimatedIconProps = {
     alt?: string;

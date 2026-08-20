@@ -1,6 +1,7 @@
 import { GoogleLogoIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { controlPlaneAuth as auth } from "../../app/auth/control-plane-auth";
+import { BrandLink } from "../../app/brand/brand-link";
 import { Button } from "../../components/ui/button";
 
 type PageState = "entry" | "pending" | "approved" | "denied";
@@ -136,19 +137,19 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
         : undefined;
 
   return (
-    <main id="main-content" className="min-h-dvh px-4 py-16">
-      <section className="mx-auto max-w-lg rounded-xl border bg-white p-6 shadow-sm sm:p-8">
-        <div className="grid gap-6">
-          <div>
-            <p className="text-xs font-bold tracking-[.12em] text-[var(--primary)]">
-              UNFRAME DEVICE AUTHORIZATION
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold">デバイスを接続</h1>
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-              デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
-            </p>
-          </div>
-
+    <main id="main-content" className="device-main">
+      <header className="public-header">
+        <BrandLink />
+        <a href="https://un-fra.me/docs/">Docs</a>
+      </header>
+      <section className="device-shell">
+        <header className="device-intro">
+          <h1>Connect a device.</h1>
+          <p className="device-lede">
+            デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
+          </p>
+        </header>
+        <div className="device-actions">
           {message ? (
             <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
               {message}
