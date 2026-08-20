@@ -14,6 +14,7 @@ class FakeRepository implements VenueEdgeRepository {
   edges = new Map<string, VenueEdgeRecord>();
   credentials = new Map<string, VenueEdgeCredentialRecord>();
   assignments: AssignmentRequest[] = [];
+  renewed: LeaseRequest | null = null;
   async createEdge(edge: VenueEdgeRecord, credential: VenueEdgeCredentialRecord) {
     this.edges.set(edge.id, edge);
     this.credentials.set(`${edge.id}:${credential.tokenId}`, credential);
@@ -57,6 +58,7 @@ class FakeRepository implements VenueEdgeRepository {
     return { ...input, assignmentEpoch: this.assignments.length, releasedAt: null };
   }
   async renew(input: LeaseRequest) {
+    this.renewed = input;
     return {
       sessionId: input.sessionId,
       edgeId: input.edgeId,
@@ -167,5 +169,49 @@ describe("VenueEdgeService", () => {
         leaseExpiresAt: "2026-08-20T00:00:00.000Z",
       }),
     ).rejects.toMatchObject({ code: "conflict" });
+  });
+  it("canonicalizes RFC3339 lease timestamps and bounds renewal to the temporary policy", async () => {
+    const { repository, service } = setup();
+    const provisioned = await service.provision(new Date("2026-08-22T00:00:00.000Z"));
+    await service.assign({
+      sessionId: "session-1",
+      edgeId: provisioned.edge.id,
+      presentationRevision: 1,
+      leaseExpiresAt: "2026-08-20T00:01:00+00:00",
+    });
+    expect(repository.assignments[0]?.leaseExpiresAt).toBe("2026-08-20T00:01:00.000Z");
+    await service.renew({
+      sessionId: "session-1",
+      edgeId: provisioned.edge.id,
+      assignmentEpoch: 1,
+      leaseExpiresAt: "2026-08-20T00:05:00+00:00",
+    });
+    expect(repository.renewed?.leaseExpiresAt).toBe("2026-08-20T00:05:00.000Z");
+    await expect(
+      service.renew({
+        sessionId: "session-1",
+        edgeId: provisioned.edge.id,
+        assignmentEpoch: 1,
+        leaseExpiresAt: "2027-08-20T00:00:00.000Z",
+      }),
+    ).rejects.toMatchObject({ code: "conflict" } satisfies Partial<VenueEdgeError>);
+  });
+
+  it("compares lease expiries as instants instead of RFC3339 strings", async () => {
+    const service = new VenueEdgeService(
+      new FakeRepository(),
+      () => new Date("2026-08-20T00:00:00.500Z"),
+      () => "edge-1",
+      () => ({ tokenId: "token-1", secret: new Uint8Array(32).fill(1) }),
+    );
+
+    await expect(
+      service.assign({
+        sessionId: "session-1",
+        edgeId: "edge-1",
+        presentationRevision: 1,
+        leaseExpiresAt: "2026-08-20T00:00:00Z",
+      }),
+    ).rejects.toMatchObject({ code: "conflict" } satisfies Partial<VenueEdgeError>);
   });
 });

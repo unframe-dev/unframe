@@ -61,6 +61,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         ? undefined
         : context.json({ error: { code: "validation_error", message: "Invalid request" } }, 400),
   });
+  const now = options.now ?? (() => new Date());
   const dependencies = (context: AppContext): RouteDependencies => {
     const config = context.get("config");
     return {
@@ -68,7 +69,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       service: new SessionService(
         options.sessionRepository ?? new D1SessionRepository(config.DB),
         options.presentationRepository ?? new D1PresentationRepository(config.DB),
-        options.now ?? (() => new Date()),
+        now,
         options.id ?? (() => crypto.randomUUID()),
         options.joinCode ?? randomJoinCode,
         sha256JoinCode,
@@ -81,7 +82,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         }),
       edges: new VenueEdgeService(
         options.venueEdgeRepository ?? new D1VenueEdgeRepository(config.DB),
-        options.now ?? (() => new Date()),
+        now,
         () => crypto.randomUUID(),
         () => ({
           tokenId: crypto.randomUUID(),
@@ -155,17 +156,27 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         const id = context.req.valid("param").id;
         const { participant, session } = await service.bootstrap(identity, id);
         const assignment = await edges.activeAssignment(id);
-        const credential = await credentials.issue({
-          sessionId: id,
-          userId: identity.userId,
-          role: participant.role,
-          edgeId: assignment.edgeId,
-          assignmentEpoch: assignment.assignmentEpoch,
-          presentationId: session.presentationId,
-          presentationRevision: assignment.presentationRevision,
-          scopes: ["realtime:connect", "assets:read"],
-          expiresAt: Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000),
-        });
+        const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
+        if (expiresAt <= Math.floor(now().getTime() / 1_000)) {
+          throw new SessionError("conflict");
+        }
+        let credential;
+        try {
+          credential = await credentials.issue({
+            sessionId: id,
+            userId: identity.userId,
+            role: participant.role,
+            edgeId: assignment.edgeId,
+            assignmentEpoch: assignment.assignmentEpoch,
+            presentationId: session.presentationId,
+            presentationRevision: assignment.presentationRevision,
+            scopes: ["realtime:connect", "assets:read"],
+            expiresAt,
+          });
+        } catch (error) {
+          if (error instanceof RangeError) throw new SessionError("conflict");
+          throw error;
+        }
         const current = await service.bootstrap(identity, id);
         const currentAssignment = await edges.activeAssignment(id);
         if (

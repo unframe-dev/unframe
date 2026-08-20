@@ -192,4 +192,52 @@ describe("session HTTP lifecycle", () => {
     expect(response.status).toBe(409);
     await expect(response.text()).resolves.not.toContain("must-not-be-returned");
   });
+
+  it("returns the existing conflict response when less than one second remains on a lease", async () => {
+    const suffix = crypto.randomUUID();
+    const ownerId = `owner-${suffix}`;
+    const presentationId = `presentation-${suffix}`;
+    const now = new Date("2026-08-18T00:00:00.900Z");
+    await addUser(ownerId);
+    await env.DB.prepare(
+      "INSERT INTO presentations (id, owner_id, revision, definition, created_at, updated_at) VALUES (?, ?, 1, '{\"groups\":[],\"assets\":[]}', '2026-01-01', '2026-01-01')",
+    )
+      .bind(presentationId, ownerId)
+      .run();
+    await env.DB.prepare(
+      "INSERT INTO presentation_members (presentation_id, user_id, role) VALUES (?, ?, 'owner')",
+    )
+      .bind(presentationId, ownerId)
+      .run();
+    const sessionId = `session-${suffix}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, participant_count, max_participants, created_at) VALUES (?, ?, ?, ?, 'Waiting', 1, 50, ?)",
+      ).bind(sessionId, presentationId, ownerId, `code-${suffix}`, now.toISOString()),
+      env.DB.prepare(
+        "INSERT INTO session_participants (session_id, user_id, role, joined_at) VALUES (?, ?, 'presenter', ?)",
+      ).bind(sessionId, ownerId, now.toISOString()),
+    ]);
+    const app = createApp({
+      identityProvider: async () => ({ userId: ownerId, globalRole: "user" }),
+      sessionNow: () => now,
+    });
+    const edgeId = `edge-${suffix}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO venue_edges (id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, 'active', '1', 'v1', 50, 'https://edge.example.com', 'sha256:test', 'healthy', ?, ?, ?)",
+      ).bind(edgeId, now.toISOString(), now.toISOString(), now.toISOString()),
+      env.DB.prepare(
+        "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at) VALUES (?, ?, 1, 1, ?, ?)",
+      ).bind(sessionId, edgeId, now.toISOString(), "2026-08-18T00:00:01.100Z"),
+    ]);
+    const response = await app.fetch(
+      new Request(`https://api.example.com/sessions/${sessionId}/bootstrap`, { method: "POST" }),
+      runtimeEnvironment(),
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "conflict", message: "conflict" },
+    });
+  });
 });

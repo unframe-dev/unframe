@@ -16,6 +16,8 @@ export class VenueEdgeError extends Error {
 export type ProvisionedVenueEdge = { edge: VenueEdgeRecord; token: string };
 export type CredentialGenerator = () => { tokenId: string; secret: Uint8Array };
 
+const maximumRenewedLeaseDurationMs = 5 * 60 * 1000;
+
 export class VenueEdgeService {
   constructor(
     private readonly repository: VenueEdgeRepository,
@@ -116,9 +118,10 @@ export class VenueEdgeService {
 
   async assign(input: Omit<AssignmentRequest, "issuedAt">) {
     const current = this.now();
-    if (!isFuture(new Date(input.leaseExpiresAt), current)) throw new VenueEdgeError("conflict");
+    const leaseExpiresAt = canonicalFutureLeaseExpiry(input.leaseExpiresAt, current);
     const assignment = await this.repository.assign({
       ...input,
+      leaseExpiresAt,
       issuedAt: current.toISOString(),
     });
     if (!assignment) throw new VenueEdgeError("conflict");
@@ -127,8 +130,14 @@ export class VenueEdgeService {
 
   async renew(input: Omit<LeaseRequest, "now"> & { leaseExpiresAt: string }) {
     const current = this.now();
-    if (!isFuture(new Date(input.leaseExpiresAt), current)) throw new VenueEdgeError("conflict");
-    const assignment = await this.repository.renew({ ...input, now: current.toISOString() });
+    const leaseExpiresAt = canonicalFutureLeaseExpiry(input.leaseExpiresAt, current);
+    if (new Date(leaseExpiresAt).getTime() - current.getTime() > maximumRenewedLeaseDurationMs)
+      throw new VenueEdgeError("conflict");
+    const assignment = await this.repository.renew({
+      ...input,
+      leaseExpiresAt,
+      now: current.toISOString(),
+    });
     if (!assignment) throw new VenueEdgeError("conflict");
     return assignment;
   }
@@ -178,6 +187,11 @@ const toBase64Url = (value: Uint8Array) =>
     .replaceAll("=", "");
 const isFuture = (candidate: Date, reference: Date) =>
   !Number.isNaN(candidate.getTime()) && candidate.getTime() > reference.getTime();
+const canonicalFutureLeaseExpiry = (value: string, reference: Date) => {
+  const candidate = new Date(value);
+  if (!isFuture(candidate, reference)) throw new VenueEdgeError("conflict");
+  return candidate.toISOString();
+};
 export const sha256 = async (value: string) =>
   [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)))]
     .map((byte) => byte.toString(16).padStart(2, "0"))

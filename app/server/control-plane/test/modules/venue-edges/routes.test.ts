@@ -116,7 +116,7 @@ describe("venue edge HTTP routes", () => {
       {
         edgeId: credential.edge.id,
         presentationRevision: 1,
-        leaseExpiresAt: "2026-08-22T00:00:00.000Z",
+        leaseExpiresAt: "2026-08-20T00:02:00.000Z",
       },
     );
     expect(assignment.status).toBe(201);
@@ -130,7 +130,7 @@ describe("venue edge HTTP routes", () => {
           `/venue-edges/${credential.edge.id}/assignments/${sessionId}/${value.assignmentEpoch + 1}/renew`,
           "POST",
           undefined,
-          { leaseExpiresAt: "2026-08-23T00:00:00.000Z" },
+          { leaseExpiresAt: "2026-08-20T00:05:00.000Z" },
           credential.token,
         )
       ).status,
@@ -141,7 +141,7 @@ describe("venue edge HTTP routes", () => {
           `/venue-edges/${credential.edge.id}/assignments/${sessionId}/${value.assignmentEpoch}/renew`,
           "POST",
           undefined,
-          { leaseExpiresAt: "2026-08-23T00:00:00.000Z" },
+          { leaseExpiresAt: "2026-08-20T00:05:00.000Z" },
           credential.token,
         )
       ).status,
