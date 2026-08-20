@@ -126,6 +126,25 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await expect(settingsNavigation.getByRole("link", { name: "セキュリティー" })).toBeVisible();
 });
 
+test("logout failure keeps the page and presents the error state", async ({ page }) => {
+  await page.route("**/api/auth/sign-out", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "SIGN_OUT_FAILED" }),
+    }),
+  );
+  await page.goto("/home");
+
+  await page.getByRole("button", { name: "アカウントメニュー" }).click();
+  await page.getByRole("menuitem", { name: "ログアウト" }).click();
+
+  const alert = page.getByRole("alert");
+  await expect(alert).toHaveText("ログアウトできませんでした。もう一度お試しください。");
+  await expect(alert).toHaveCSS("color", "rgb(158, 48, 57)");
+  await expect(page).toHaveURL(/\/home$/);
+});
+
 test("device authorization accepts a code", async ({ page }) => {
   await page.route("**/api/auth/device?user_code=ABCD-EFGH", (route) =>
     route.fulfill({
