@@ -641,6 +641,7 @@ export const publicRoutes = [
     },
     responses: {
       204: { description: "Registered" },
+      400: errorResponse("Invalid registration"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Not found"),
     },

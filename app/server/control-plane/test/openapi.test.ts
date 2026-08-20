@@ -62,6 +62,14 @@ describe("Control Plane OpenAPI", () => {
     expect(document.paths["/venue-edges/{edgeId}/rotate"]?.post?.responses?.[409]).toBeDefined();
   });
 
+  it("declares Venue Edge registration validation failures", () => {
+    const document = createOpenAPIDocument();
+
+    expect(
+      document.paths["/venue-edges/{edgeId}/register"]?.post?.responses?.[400],
+    ).toBeDefined();
+  });
+
   it("marks every JSON request body as required", () => {
     const document = createOpenAPIDocument();
     const requestBodies = Object.values(document.paths).flatMap((methods) =>

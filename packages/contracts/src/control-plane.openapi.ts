@@ -3550,6 +3550,20 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Invalid registration */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Unauthorized */
                 401: {
                     headers: {
