@@ -38,12 +38,7 @@ const seedAssignment = async (sessionId: string) => {
     ).bind(edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T00:00:00.000Z"),
     env.DB.prepare(
       "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 1, 1, ?, ?, NULL)",
-    ).bind(
-      sessionId,
-      edgeId,
-      "2026-08-11T00:00:00.000Z",
-      "2026-08-11T01:00:00.000Z",
-    ),
+    ).bind(sessionId, edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T01:00:00.000Z"),
   ]);
 };
 

@@ -65,9 +65,7 @@ describe("Control Plane OpenAPI", () => {
   it("declares Venue Edge registration validation failures", () => {
     const document = createOpenAPIDocument();
 
-    expect(
-      document.paths["/venue-edges/{edgeId}/register"]?.post?.responses?.[400],
-    ).toBeDefined();
+    expect(document.paths["/venue-edges/{edgeId}/register"]?.post?.responses?.[400]).toBeDefined();
   });
 
   it("marks every JSON request body as required", () => {
