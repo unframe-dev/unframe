@@ -88,15 +88,15 @@ Product route の validation error は安定した JSON error に変換する。
 
 ### 4.1 API ownership
 
-| Boundary | Consumer | Status | Ownership |
-| --- | --- | --- | --- |
-| Better Auth API | Web / Unity | Current | Better Authのversioned endpoint。Product OpenAPIへ複製しない |
-| Presentation API | Web / Unity | Current | Definition aggregate、membership、revision conflict |
-| Asset API | Web / Unity / authorized delivery consumer | Current | Metadata、signed access、finalize、download、delete |
-| Session API | Unity | Current | Durable lifecycle、join、participant、bootstrap |
-| JWKS / Realtime credential | Realtime consumer | Current | Control Planeが署名・公開し、Realtime側が検証する |
-| Persistence callback | Realtime Backend | Current | Service-authenticated checkpoint / completion |
-| Presentation delivery projection | Web / Session bootstrap | Target | Definitionと参照Asset accessの一貫したprojection |
+| Boundary                         | Consumer                                   | Status  | Ownership                                                    |
+| -------------------------------- | ------------------------------------------ | ------- | ------------------------------------------------------------ |
+| Better Auth API                  | Web / Unity                                | Current | Better Authのversioned endpoint。Product OpenAPIへ複製しない |
+| Presentation API                 | Web / Unity                                | Current | Definition aggregate、membership、revision conflict          |
+| Asset API                        | Web / Unity / authorized delivery consumer | Current | Metadata、signed access、finalize、download、delete          |
+| Session API                      | Unity                                      | Current | Durable lifecycle、join、participant、bootstrap              |
+| JWKS / Realtime credential       | Realtime consumer                          | Current | Control Planeが署名・公開し、Realtime側が検証する            |
+| Persistence callback             | Realtime Backend                           | Current | Service-authenticated checkpoint / completion                |
+| Presentation delivery projection | Web / Session bootstrap                    | Target  | Definitionと参照Asset accessの一貫したprojection             |
 
 Endpoint、request / response、status codeのsource of truthは生成OpenAPIとBetter Authのversioned contractであり、本表はroute contractを置き換えない。
 
@@ -123,14 +123,14 @@ Device Authorization consumerは`authorization_pending`中だけpollを継続し
 
 Control Plane は次の role を区別する。
 
-| Scope | Role | Authority |
-| --- | --- | --- |
-| Global | `admin` | 全 Presentation の管理、Session の管理操作 |
-| Global | `user` | membership に基づく通常操作 |
-| Presentation | `owner` | read / update / delete、Asset、Session 作成 |
-| Presentation | `editor` | read / update、Asset、Session 作成 |
-| Session | `presenter` | 固定 creator。start / end を実行 |
-| Session | `viewer` | join 済み participant として参照・bootstrap |
+| Scope        | Role        | Authority                                   |
+| ------------ | ----------- | ------------------------------------------- |
+| Global       | `admin`     | 全 Presentation の管理、Session の管理操作  |
+| Global       | `user`      | membership に基づく通常操作                 |
+| Presentation | `owner`     | read / update / delete、Asset、Session 作成 |
+| Presentation | `editor`    | read / update、Asset、Session 作成          |
+| Session      | `presenter` | 固定 creator。start / end を実行            |
+| Session      | `viewer`    | join 済み participant として参照・bootstrap |
 
 Resource ID の推測困難性を authorization の代わりにしない。Presentation と Asset の read / write は D1 上の membership、Session 操作は participant と presenter identity を照合する。
 
@@ -352,18 +352,18 @@ Component gate は次を検証する。
 
 ## 13. Implementation status
 
-| Area | Status | Boundary |
-| --- | --- | --- |
-| Better Auth、cookie / Bearer session、MFA、Device Authorization | Current | Consumer UI 接続は各 application の責務 |
-| Presentation CRUD、membership、revision conflict | Current | Web / Unity consumer 接続は未完了 |
-| Asset init / finalize / download / delete / orphan collection | Current | Remote R2 smoke test は環境ごとに必要 |
-| Session create / join / start / end / bootstrap | Current | Endpoint は静的設定 |
-| Ed25519 JWT と JWKS | Current | Realtime 側の検証統合は別 component |
-| Checkpoint / completion callback | Current | Realtime 側の送信・retry 統合は別 component |
-| Presentation delivery projection | Target | OpenAPI と consumer を同時に設計する |
-| Venue Edge registry / assignment / lease / fencing | Target | Realtime architecture の bootstrap 要件と整合させる |
-| Key rotation と Edge-scoped service identity | Target / Open | Rotation と失効 policy を決定する |
-| Durable audit storage と運用 SLO | Open | Privacy と retention を先に定義する |
+| Area                                                            | Status        | Boundary                                            |
+| --------------------------------------------------------------- | ------------- | --------------------------------------------------- |
+| Better Auth、cookie / Bearer session、MFA、Device Authorization | Current       | Consumer UI 接続は各 application の責務             |
+| Presentation CRUD、membership、revision conflict                | Current       | Web / Unity consumer 接続は未完了                   |
+| Asset init / finalize / download / delete / orphan collection   | Current       | Remote R2 smoke test は環境ごとに必要               |
+| Session create / join / start / end / bootstrap                 | Current       | Endpoint は静的設定                                 |
+| Ed25519 JWT と JWKS                                             | Current       | Realtime 側の検証統合は別 component                 |
+| Checkpoint / completion callback                                | Current       | Realtime 側の送信・retry 統合は別 component         |
+| Presentation delivery projection                                | Target        | OpenAPI と consumer を同時に設計する                |
+| Venue Edge registry / assignment / lease / fencing              | Target        | Realtime architecture の bootstrap 要件と整合させる |
+| Key rotation と Edge-scoped service identity                    | Target / Open | Rotation と失効 policy を決定する                   |
+| Durable audit storage と運用 SLO                                | Open          | Privacy と retention を先に定義する                 |
 
 ## 14. Open decisions
 
