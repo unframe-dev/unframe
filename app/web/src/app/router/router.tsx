@@ -7,20 +7,20 @@ import {
 } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { z } from "zod";
-import { requireSession } from "../auth/require-session";
-import { loadPresentationSnapshot } from "../runtime/document-runtime";
-import { DeviceAuthorizationPage } from "../../routes/device/device-authorization-page";
-import { HomePage } from "../../routes/home/home-page";
-import { ApplicationShell } from "../../routes/application/application-shell";
-import { DevicesPage, RoomsPage } from "../../routes/application/application-placeholder-pages";
-import { LoginPage, RecoverPage, ResetPage, SignupPage } from "../../routes/auth/auth-pages";
-import { ProfilePage, SecurityPage } from "../../routes/settings/settings-pages";
-import publicModuleStyles from "../../routes/public/public-pages.module.css";
+import { requireSession } from "@/features/auth/require-session";
+import { loadPresentationSnapshot } from "@/features/editor/infra/document-runtime";
+import { DeviceAuthorizationPage } from "@/features/device/device-authorization-page";
+import { HomePage } from "@/features/presentations/home-page";
+import { ApplicationShell } from "@/app/shell/application-shell";
+import { DevicesPage, RoomsPage } from "@/app/shell/application-placeholder-pages";
+import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
+import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
+import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";
 const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
 const styles = { skipLink: routerModuleStyles["skipLink"]! };
 const EditorPage = lazy(() =>
-  import("../../routes/editor/editor-page").then((module) => ({
+  import("@/features/editor/ui/editor-page").then((module) => ({
     default: module.EditorPage,
   })),
 );

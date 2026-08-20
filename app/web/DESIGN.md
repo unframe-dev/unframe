@@ -32,7 +32,7 @@ LP より高い情報密度を許容しますが、機能を常時並べませ�
 
 ### PoC を設計制約にしない
 
-現行の Slide fixture、read-only Viewer、`localStorage`、`BroadcastChannel` は移行前の検証実装です。これらの画面構成、用語、データフローとの互換性を新しい UI の要件にしません。
+現行の Slide fixture と `localStorage` persistence は移行中の fixture adapter です。これらのデータ構造と保存フローとの互換性を新しい UI の要件にしません。
 
 ## Information Architecture
 
@@ -144,7 +144,7 @@ motion は状態変化と空間関係の理解に使います。装飾のため�
 - Tailwind CSS v4 を token と layout の基盤にする
 - shadcn/ui の Base UI variant を使用する
 - icon は `@phosphor-icons/react` に統一する
-- shadcn/ui component は必要になった時点で source を追加し、`src/components/ui/` で所有する
+- shadcn/ui component は必要になった時点で source を追加し、`src/shared/ui/` で所有する
 - route 固有の component を汎用 primitive に昇格させない
 - LP の Svelte component を React 用 abstraction へ移植しない
 
@@ -180,7 +180,7 @@ Editor の breakpoint と panel behavior は Editor 設計時に決定します�
 - `#` だけの link、処理のない button、存在しない anchor を置く
 - status、focus、selection、error を色だけで伝える
 - 署名 URL、Object URL、Three.js object、runtime state を Definition に保存する
-- PoC の Slide / Viewer model を新 Editor の互換要件にする
+- PoC の Slide schema を新 Editor の互換要件にする
 - Session や Realtime の操作を Web Editor に追加する
 
 ## Validation

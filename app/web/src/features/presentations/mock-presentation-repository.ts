@@ -1,5 +1,5 @@
 import type { ControlPlaneClient } from "@unframe/api-client-typescript";
-import placeholderThumbnailUrl from "../../assets/presentations/placeholder-thumbnail.svg?url";
+import placeholderThumbnailUrl from "./placeholder-thumbnail.svg?url";
 import { createStarterPresentationDefinition } from "./starter-definition";
 
 type ListPresentationsResponse = Awaited<ReturnType<ControlPlaneClient["presentations"]["$get"]>>;
