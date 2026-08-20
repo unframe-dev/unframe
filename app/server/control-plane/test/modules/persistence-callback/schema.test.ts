@@ -21,6 +21,8 @@ describe("persistence callback schemas", () => {
   it("rejects inconsistent completion summaries", () => {
     const completion = {
       sessionId: crypto.randomUUID(),
+      edgeId: crypto.randomUUID(),
+      assignmentEpoch: 1,
       checkpointVersion: 2,
       lastSequence: 10,
       idempotencyKey: "completion-2",
@@ -43,5 +45,28 @@ describe("persistence callback schemas", () => {
         })),
       }).success,
     ).toBe(false);
+  });
+
+  it("requires the assignment identity used to fence completion", () => {
+    const completion = {
+      sessionId: crypto.randomUUID(),
+      checkpointVersion: 2,
+      lastSequence: 10,
+      idempotencyKey: "completion-2",
+      startedAt: "2026-08-11T00:00:00.000Z",
+      endedAt: "2026-08-11T00:01:00.000Z",
+      participantCount: 1,
+      participants: [{ userId: "presenter", role: "presenter" }],
+      finalCheckpoint: {},
+    };
+
+    expect(completionInputSchema.safeParse(completion).success).toBe(false);
+    expect(
+      completionInputSchema.safeParse({
+        ...completion,
+        edgeId: crypto.randomUUID(),
+        assignmentEpoch: 1,
+      }).success,
+    ).toBe(true);
   });
 });

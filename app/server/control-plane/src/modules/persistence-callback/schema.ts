@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 const idempotencyKey = z.string().trim().min(1).max(200);
+const assignmentIdentifier = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_-]+$/);
 const state = z.record(z.string(), z.unknown());
 const participant = z.object({
   userId: z.string().trim().min(1),
@@ -18,6 +24,8 @@ export const checkpointInputSchema = z.object({
 export const completionInputSchema = z
   .object({
     sessionId: z.string().uuid(),
+    edgeId: assignmentIdentifier,
+    assignmentEpoch: z.number().int().positive(),
     checkpointVersion: z.number().int().nonnegative(),
     lastSequence: z.number().int().nonnegative(),
     idempotencyKey,

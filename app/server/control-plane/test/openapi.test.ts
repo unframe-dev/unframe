@@ -62,10 +62,21 @@ describe("Control Plane OpenAPI", () => {
     expect(document.paths["/venue-edges/{edgeId}/rotate"]?.post?.responses?.[409]).toBeDefined();
   });
 
-  it("declares Venue Edge registration validation failures", () => {
+  it("declares validation failures for every Venue Edge operation", () => {
     const document = createOpenAPIDocument();
+    const operations = [
+      ["/venue-edges", "post"],
+      ["/venue-edges/{edgeId}/rotate", "post"],
+      ["/venue-edges/{edgeId}", "delete"],
+      ["/sessions/{sessionId}/venue-edge-assignment", "post"],
+      ["/sessions/{sessionId}/venue-edge-assignment", "get"],
+      ["/venue-edges/{edgeId}/register", "post"],
+      ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew", "post"],
+      ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/release", "post"],
+    ] as const;
 
-    expect(document.paths["/venue-edges/{edgeId}/register"]?.post?.responses?.[400]).toBeDefined();
+    for (const [path, method] of operations)
+      expect(document.paths[path]?.[method]?.responses?.[400], `${method} ${path}`).toBeDefined();
   });
 
   it("marks every JSON request body as required", () => {

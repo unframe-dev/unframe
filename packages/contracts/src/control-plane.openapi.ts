@@ -3102,6 +3102,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Invalid provisioning request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Unauthorized */
                 401: {
                     headers: {
@@ -3190,6 +3204,20 @@ export interface paths {
                         "application/json": {
                             tokenId: string;
                             token: string;
+                        };
+                    };
+                };
+                /** @description Invalid rotation request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
                         };
                     };
                 };
@@ -3285,6 +3313,20 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Invalid Edge ID */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Unauthorized */
                 401: {
                     headers: {
@@ -3375,6 +3417,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Invalid session ID */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Unauthorized */
                 401: {
                     headers: {
@@ -3457,6 +3513,20 @@ export interface paths {
                             leaseExpiresAt: string;
                             /** Format: date-time */
                             releasedAt: string | null;
+                        };
+                    };
+                };
+                /** @description Invalid assignment request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
                         };
                     };
                 };
@@ -3649,6 +3719,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Invalid lease renewal */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Unauthorized */
                 401: {
                     headers: {
@@ -3713,6 +3797,20 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description Invalid lease release */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
                 };
                 /** @description Unauthorized */
                 401: {
@@ -3863,6 +3961,8 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         sessionId: string;
+                        edgeId: string;
+                        assignmentEpoch: number;
                         checkpointVersion: number;
                         lastSequence: number;
                         idempotencyKey: string;
@@ -3924,6 +4024,20 @@ export interface paths {
                 };
                 /** @description Session not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Assignment is not active */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
