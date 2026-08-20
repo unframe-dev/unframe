@@ -29,9 +29,9 @@ MR デバイス上でプレゼンテーションを表示
 | Unity MR Application（WIP） | MR 表示と realtime session 参加 | Unity / C# |
 | Landing Page（WIP） | プロダクト紹介とドキュメント | SvelteKit |
 
-`app/server/` は Control Plane と Realtime Backend の親ディレクトリです。旧 Go/Huma/Turso/R2 HTTP API は削除済みで、各 component の実装は独立して追加されます。設計の正本は [app/server/ARCHITECTURE.md](./app/server/ARCHITECTURE.md) を参照してください。
+`app/server/` は Control Plane と Realtime Backend の親ディレクトリです。旧 Go/Huma/Turso/R2 HTTP API は削除済みで、各 component は独立した実行・依存・deployment 単位です。Component 間の境界は [app/server/ARCHITECTURE.md](./app/server/ARCHITECTURE.md)、内部設計は [Control Plane](./app/server/control-plane/ARCHITECTURE.md) と [Realtime Backend](./app/server/realtime/ARCHITECTURE.md) の各文書を参照してください。
 
-旧 OpenAPI contract と TypeScript client は削除済みです。新しい Control Plane と Realtime の contract は、それぞれの実装と同時に定義します。
+旧 Go HTTP API の OpenAPI と client は削除済みです。現在は Control Plane の OpenAPI / Hono RPC client と Realtime の Protocol Buffers / Go 生成物を各 component の実装から生成し、Unity / C# consumer の生成・接続は未実装です。
 
 ## 現在のステータス
 
@@ -54,6 +54,8 @@ docs/          アーキテクチャ、設計判断、ドキュメント
 
 - [アーキテクチャ](./ARCHITECTURE.md)
 - [Backend アーキテクチャ](./app/server/ARCHITECTURE.md)
+- [Control Plane アーキテクチャ](./app/server/control-plane/ARCHITECTURE.md)
+- [Realtime Backend アーキテクチャ](./app/server/realtime/ARCHITECTURE.md)
 - [開発・コントリビューションガイド](./CONTRIBUTING.md)
 - [設計判断（ADR）](./docs/decisions/)
 - [空間プレゼンテーションのドメインモデル（ADR-0005）](./docs/decisions/0005-spatial-presentation-domain-model.md)
