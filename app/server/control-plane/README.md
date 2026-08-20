@@ -9,12 +9,13 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 - `Group → Step → Cue` を持つ Presentation Definition の CRUD と revision 競合検知
 - R2 直接uploadの初期化、署名済みContent-Length / MIME / SHA-256制約、finalize時のsize / magic bytes検証、download、監査log付き削除、metadata-less objectを含む孤児回収
 - Waiting / Presenting / Ended のSession lifecycle、50人上限、固定presenter、hash化join codeとcode / user / IP別rate limit
-- session participant向けの1週間有効なEd25519 Realtime credentialと公開JWKS
+- adminによるVenue Edge provisioning、hash化したEdge固有credential、rotation / revoke、registration、単一roomのlease付きassignment / epoch fencing
+- active assignmentのendpoint / certificate fingerprintと、lease期限に拘束したsession-bound Venue Edge JWTを返すbootstrap、公開JWKS
 - Realtime service identity専用のidempotent checkpoint / completion callback
 - 実行ルートと一体化した OpenAPI 生成、Hono RPC TypeScript client、契約 drift check
 
 認証endpointとserver-side policyまでが実装済みです。Web / Unityのemail/password UIはこのcomponentの対象外で、まだ接続していません。
-Realtime BackendでのJWT検証とsession終了状態の照合、Web / Unityからのconsumer接続は未実装です。
+Realtime BackendでのJWT / scope検証とlocal assignment fencingは実装済みです。Control Planeのsession終了を既存Realtime接続へ反映するCloud Agentと、Web / Unityからのconsumer接続は未実装です。
 R2 objectを孤児化させないため、Asset metadataが残るPresentationは削除できません。先に各Assetの削除APIを完了させてください。
 
 ## Setup
@@ -48,7 +49,7 @@ pnpm --filter @unframe/contracts generate:control-plane
 
 email/password はメール確認後に利用でき、TOTP または backup code の MFA を必要とします。確認・password reset メールは Resend を使うため、`RESEND_API_KEY` と表示名なしの送信元メールアドレス `AUTH_EMAIL_FROM` を設定してください。password reset は既存 session と未消費の認証grantを失効させます。MFA の trusted device は Better Auth 標準どおり30日間有効です。
 
-Realtime credential署名にはEd25519 private JWKのJSONを`REALTIME_SIGNING_JWK`へ設定し、公開鍵の識別子を`REALTIME_SIGNING_KID`で管理します。`SERVICE_IDENTITY_SECRET`はRealtime Backendからcheckpoint / completion callbackを送るための専用Bearer secretで、user session tokenとは共有しません。両方ともremote環境ではWrangler secretとして設定してください。
+Venue Edge credentialはprovisioning / rotation responseで一度だけ返し、D1にはtoken IDとSHA-256 hashだけを保存します。Realtime credential署名にはEd25519 private JWKのJSONを`REALTIME_SIGNING_JWK`へ設定し、公開鍵の識別子を`REALTIME_SIGNING_KID`で管理します。Quest向けJWTは`unframe-venue-edge` audience、`realtime:connect assets:read` scope、Edge ID、assignment epoch、Presentation ID / revisionを拘束し、active leaseの期限を越えて発行しません。`SERVICE_IDENTITY_SECRET`はRealtime Backendからcheckpoint / completion callbackを送るための専用Bearer secretで、user session tokenやEdge固有credentialとは共有しません。秘密値はremote環境ではWrangler secretとして設定してください。
 
 Worker起動時に全設定を検証するため、`pnpm deploy` または直接 `wrangler deploy` を実行した際に不足・不正な設定があればデプロイは失敗します。エラーには設定名だけを出し、値は出力しません。
 

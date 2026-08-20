@@ -11,12 +11,16 @@
 - multi-stage build、distroless、non-root の Docker image を構築できる。
 - Realtime 専用の vet、lint、test、build、race detector と Docker build check がある。
 - Control Plane は session-bound Ed25519 JWT の発行と JWKS の公開を実装済み。
+- Control Plane はVenue Edgeのprovisioning / registration / assignmentと、endpoint / fingerprint / assignment-bound JWTを返すbootstrapを実装済み。
+- Realtime gRPC processはJWKS検証、scope検証、assignment lease / epoch fencingを実装済み。
+- Manifest検証、content-addressed Asset cache、Range配信、Runtime pause/resume、Element State mailboxはdomain primitiveまで実装済み。
 
 ## 現在の制限
 
-- 通常プロセスに JWT 認証 interceptor がなく、すべての `Connect` が `Unauthenticated` になる。
+- assignment / ManifestをControl Planeから同期しleaseを更新するCloud Agentは未実装で、通常プロセスは単一room assignmentを環境変数から読み込む。
 - session の終了状態を Realtime Backend から確認できない。
 - snapshot、replay、resume、ephemeral state は未実装。
+- Asset Gatewayのlocal HTTPS listenerとreadiness報告、Control / State channel分離は未実装。
 - session state は process memory のみにあり、Machine の停止・再起動で失われる。
 - Control Plane への checkpoint / completion 送信は未実装。
 - gRPC health service、metrics、traces、運用向け structured log は未実装。
@@ -28,16 +32,16 @@
 
 ### JWT / JWKS 認証
 
-- [ ] gRPC metadata から `Authorization: Bearer <token>` を取得する。
-- [ ] `https://api.un-fra.me/.well-known/jwks.json` から JWKS を取得・cache する。
-- [ ] 未知の `kid` を受けた場合に JWKS を安全に refresh する。
-- [ ] `alg = EdDSA`、`kid`、signature を検証する。
-- [ ] `iss = https://api.un-fra.me` を検証する。
-- [ ] `aud = unframe-realtime` を検証する。
-- [ ] `exp`、`nbf`、`sub`、`session_id`、`role`、`protocol_version` を検証する。
-- [ ] 検証済み claim を `session.Identity` に変換し、stream context へ設定する。
-- [ ] token や credential を log に出さない。
-- [ ] 正常系と claim / signature ごとの異常系 test を追加する。
+- [x] gRPC metadata から `Authorization: Bearer <token>` を取得する。
+- [x] `REALTIME_JWKS_URL` から JWKS を取得・cacheする。
+- [x] 未知の `kid` を受けた場合に JWKS をrefreshする。
+- [x] `alg = EdDSA`、`kid`、signatureを検証する。
+- [x] `iss = REALTIME_ISSUER` を検証する。
+- [x] `aud = unframe-venue-edge` を検証する。
+- [x] `exp`、`nbf`、`sub`、`session_id`、`role`、`edge_id`、`assignment_epoch`、Presentation、scope、`protocol_version` を検証する。
+- [x] 検証済みclaimを`session.Identity`へ変換し、stream contextへ設定する。
+- [x] tokenやcredentialをlogへ出さない。
+- [x] 正常系とclaim / signatureごとの異常系testを追加する。
 
 ### Session lifecycle
 

@@ -15,7 +15,7 @@ app/server/
 - `realtime/` の目標責務はgRPC接続、session中の一時状態、fan-out、backpressureです。
 - 共有境界は `packages/contracts/` の contract です。TypeScript と Go の実装コードは直接共有しません。
 
-旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Planeは認証とPresentation / Asset APIまで実装済みで、session bootstrapは未実装です。Realtimeは独立したGo module、gRPC process、lint設定、Docker build context、品質taskを所有します。Protobuf bidi serviceとpage-changeのin-memory fan-outは実装済みです。JWT検証、snapshot/replay、ephemeral state、persistence bridgeは未実装です。
+旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Plane は認証、Presentation / Asset API、Session lifecycle、Venue Edge の provisioning / registration / assignment と assignment-bound bootstrap を実装しています。Realtime は独立した Go module、gRPC process、lint設定、Docker build context、品質taskを所有します。Protobuf bidi service、page-change の in-memory fan-out、Venue Edge JWT / JWKS 検証と assignment lease / epoch fencing は実装済みです。Cloud Agent による assignment / Manifest 同期、snapshot / replay、Control / State channel の分離、persistence bridge は未実装です。
 
 ## Control Plane
 
