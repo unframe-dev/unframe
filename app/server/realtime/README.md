@@ -2,6 +2,8 @@
 
 Go 1.25.7 と gRPC を使う、Control Plane から独立した Venue Edge Realtime Backend の実行基盤です。`RealtimeService.Connect` はControl PlaneのJWKSでsession-bound JWTを検証し、local assignmentのsession、Edge ID、epoch、Presentation revision、leaseで接続とcommandをfencingします。JWKS cacheは5分で失効し、refreshでControl Planeから削除された鍵を反映します。protocol-version handshake後はpresenterのpage-change commandをsession単位で採番し、接続中のparticipantへ順序付きでin-memory fan-outします。replayとresumeは未実装です。
 
+Realtime Backend / Venue Edge の目標設計は [ARCHITECTURE.md](./ARCHITECTURE.md)、Control Plane との authority handoff は [`../ARCHITECTURE.md`](../ARCHITECTURE.md) を参照してください。
+
 ## 起動
 
 ```sh

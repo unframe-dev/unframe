@@ -1,13 +1,16 @@
 # Unframe Backend
 
-`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。設計の正本は [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
+`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書、現在確認されている不整合と完了条件は [todo.md](./todo.md) を参照してください。
 
 ```text
 app/server/
 ├── ARCHITECTURE.md
 ├── README.md
-├── control-plane/  # Cloudflare Workers / TypeScript / Hono / D1 / R2
-├── realtime/       # Go / gRPC / container
+├── todo.md           # component 間の不整合とArchitecture同期作業
+├── control-plane/
+│   └── ARCHITECTURE.md  # Cloudflare Workers / TypeScript / Hono / D1 / R2
+├── realtime/
+│   └── ARCHITECTURE.md  # Go / gRPC / Venue Edge Runtime
 └── integration/    # planned: component 間 E2E テスト
 ```
 
@@ -19,7 +22,7 @@ app/server/
 
 ## Control Plane
 
-`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
+`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset / Session API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
 
 ```sh
 nix run .#control-plane
