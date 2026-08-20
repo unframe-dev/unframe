@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -49,6 +50,21 @@ func TestBearerTokenVerifierVerifiesVenueEdgeClaimsAndRequiredScope(t *testing.T
 	}
 }
 
+func TestBearerTokenVerifierUsesBoundedDefaultJWKSCacheTTL(t *testing.T) {
+	t.Parallel()
+
+	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
+		Issuer:  "https://control-plane.example.test",
+		JWKSURL: "https://control-plane.example.test/.well-known/jwks.json",
+	})
+	if err != nil {
+		t.Fatalf("new verifier: %v", err)
+	}
+	if verifier.cacheTTL != 5*time.Minute {
+		t.Errorf("cache TTL = %s, want 5m", verifier.cacheTTL)
+	}
+}
+
 func TestBearerTokenVerifierRefreshesJWKSForUnknownKeyID(t *testing.T) {
 	t.Parallel()
 
@@ -71,6 +87,103 @@ func TestBearerTokenVerifierRefreshesJWKSForUnknownKeyID(t *testing.T) {
 	}
 	if _, err := verifier.Verify(context.Background(), issueToken(t, privateKey, "new-key", validClaims(now)), "realtime:connect"); err != nil {
 		t.Fatalf("verify token after unknown-kid refresh: %v", err)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Errorf("JWKS requests = %d, want 2", got)
+	}
+}
+
+func TestBearerTokenVerifierRefreshesCachedKeyAfterTTLAndRejectsRemovedKey(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		if requests.Add(1) == 1 {
+			_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+			return
+		}
+		_ = json.NewEncoder(response).Encode(jwks("key-2", publicKey))
+	}))
+	defer server.Close()
+	verifier := newTestVerifierWithTTL(t, server.URL, &now, time.Minute)
+	token := issueToken(t, privateKey, "key-1", validClaims(now))
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != nil {
+		t.Fatalf("verify with initial cached key: %v", err)
+	}
+
+	now = now.Add(time.Minute)
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != ErrInvalidTokenKeyID {
+		t.Errorf("verify after key removal error = %v, want %v", err, ErrInvalidTokenKeyID)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Errorf("JWKS requests = %d, want 2", got)
+	}
+}
+
+func TestBearerTokenVerifierFailsClosedWhenTTLRefreshFails(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if requests.Add(1) == 1 {
+			response.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+			return
+		}
+		response.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	verifier := newTestVerifierWithTTL(t, server.URL, &now, time.Minute)
+	token := issueToken(t, privateKey, "key-1", validClaims(now))
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != nil {
+		t.Fatalf("verify with initial cached key: %v", err)
+	}
+
+	now = now.Add(time.Minute)
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != ErrJWKSUnavailable {
+		t.Errorf("verify after failed refresh error = %v, want %v", err, ErrJWKSUnavailable)
+	}
+}
+
+func TestBearerTokenVerifierCoalescesConcurrentTTLRefresh(t *testing.T) {
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		requests.Add(1)
+		response.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+	}))
+	defer server.Close()
+	verifier := newTestVerifierWithTTL(t, server.URL, &now, time.Minute)
+	claims := withClaim(validClaims(now), "exp", now.Add(time.Hour).Unix())
+	token := issueToken(t, privateKey, "key-1", claims)
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != nil {
+		t.Fatalf("verify with initial cached key: %v", err)
+	}
+
+	now = now.Add(time.Minute)
+	var group sync.WaitGroup
+	errors := make(chan error, 8)
+	for range cap(errors) {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			_, err := verifier.Verify(context.Background(), token, "realtime:connect")
+			errors <- err
+		}()
+	}
+	group.Wait()
+	close(errors)
+	for err := range errors {
+		if err != nil {
+			t.Errorf("verify after concurrent refresh: %v", err)
+		}
 	}
 	if got := requests.Load(); got != 2 {
 		t.Errorf("JWKS requests = %d, want 2", got)
@@ -121,11 +234,16 @@ func TestBearerTokenVerifierRejectsInvalidHeaderSignatureAndClaimsWithoutLeaking
 }
 
 func newTestVerifier(t *testing.T, jwksURL string, now *time.Time) *BearerTokenVerifier {
+	return newTestVerifierWithTTL(t, jwksURL, now, 5*time.Minute)
+}
+
+func newTestVerifierWithTTL(t *testing.T, jwksURL string, now *time.Time, cacheTTL time.Duration) *BearerTokenVerifier {
 	t.Helper()
 	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
-		Issuer:  "https://control-plane.example.test",
-		JWKSURL: jwksURL,
-		Clock:   func() time.Time { return *now },
+		Issuer:   "https://control-plane.example.test",
+		JWKSURL:  jwksURL,
+		Clock:    func() time.Time { return *now },
+		CacheTTL: cacheTTL,
 	})
 	if err != nil {
 		t.Fatalf("new verifier: %v", err)

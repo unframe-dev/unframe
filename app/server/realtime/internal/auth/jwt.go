@@ -17,6 +17,7 @@ import (
 const (
 	venueEdgeAudience      = "unframe-venue-edge"
 	currentProtocolVersion = 1
+	defaultJWKSCacheTTL    = 5 * time.Minute
 )
 
 var (
@@ -45,18 +46,21 @@ type BearerTokenVerifierConfig struct {
 	JWKSURL    string
 	HTTPClient HTTPClient
 	Clock      Clock
+	CacheTTL   time.Duration
 }
 
 // BearerTokenVerifier validates session-bound Venue Edge credentials. Cached
-// keys are refreshed when a token references an unknown key ID.
+// keys are refreshed when they expire or a token references an unknown key ID.
 type BearerTokenVerifier struct {
 	issuer     string
 	jwksURL    string
 	httpClient HTTPClient
 	clock      Clock
 
-	mu   sync.RWMutex
-	keys map[string]ed25519.PublicKey
+	mu             sync.Mutex
+	keys           map[string]ed25519.PublicKey
+	cacheExpiresAt time.Time
+	cacheTTL       time.Duration
 }
 
 func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerifier, error) {
@@ -69,11 +73,15 @@ func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerif
 	if config.Clock == nil {
 		config.Clock = time.Now
 	}
+	if config.CacheTTL <= 0 {
+		config.CacheTTL = defaultJWKSCacheTTL
+	}
 	return &BearerTokenVerifier{
 		issuer:     config.Issuer,
 		jwksURL:    config.JWKSURL,
 		httpClient: config.HTTPClient,
 		clock:      config.Clock,
+		cacheTTL:   config.CacheTTL,
 	}, nil
 }
 
@@ -123,25 +131,21 @@ func (v *BearerTokenVerifier) Verify(ctx context.Context, token string, required
 }
 
 func (v *BearerTokenVerifier) keyFor(ctx context.Context, keyID string) (ed25519.PublicKey, error) {
-	v.mu.RLock()
-	key, cached := v.keys[keyID]
-	v.mu.RUnlock()
-	if cached {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if key := v.keys[keyID]; key != nil && v.clock().Before(v.cacheExpiresAt) {
 		return key, nil
 	}
-	if err := v.refreshKeys(ctx); err != nil {
+	if err := v.refreshKeysLocked(ctx); err != nil {
 		return nil, err
 	}
-	v.mu.RLock()
-	key, cached = v.keys[keyID]
-	v.mu.RUnlock()
-	if !cached {
-		return nil, ErrInvalidTokenKeyID
+	if key := v.keys[keyID]; key != nil {
+		return key, nil
 	}
-	return key, nil
+	return nil, ErrInvalidTokenKeyID
 }
 
-func (v *BearerTokenVerifier) refreshKeys(ctx context.Context) error {
+func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context) error {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, v.jwksURL, nil)
 	if err != nil {
 		return ErrJWKSUnavailable
@@ -175,9 +179,8 @@ func (v *BearerTokenVerifier) refreshKeys(ctx context.Context) error {
 	if len(keys) == 0 {
 		return ErrJWKSUnavailable
 	}
-	v.mu.Lock()
 	v.keys = keys
-	v.mu.Unlock()
+	v.cacheExpiresAt = v.clock().Add(v.cacheTTL)
 	return nil
 }
 
