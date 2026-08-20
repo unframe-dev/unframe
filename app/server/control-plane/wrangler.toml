@@ -27,7 +27,6 @@ DEVICE_CLIENT_ID = "unframe-unity"
 WEB_ORIGIN = "https://un-fra.me"
 R2_ACCOUNT_ID = "5e51990fc7286bc6106950b1617361c9"
 R2_BUCKET_NAME = "unframe-assets"
-REALTIME_ENDPOINT = "https://realtime.un-fra.me"
 REALTIME_ISSUER = "https://api.un-fra.me"
 REALTIME_SIGNING_KID = "realtime-2026-08"
 

@@ -19,7 +19,6 @@ const config = () => ({
   R2_BUCKET_NAME: "assets",
   R2_ACCESS_KEY_ID: "access-key",
   R2_SECRET_ACCESS_KEY: "secret-key",
-  REALTIME_ENDPOINT: "https://realtime.example.com",
   REALTIME_ISSUER: "https://api.example.com",
   REALTIME_SIGNING_KID: "test-realtime",
   REALTIME_SIGNING_JWK:
@@ -32,7 +31,6 @@ describe("runtime configuration", () => {
     expect(validateConfig(config())).toMatchObject({
       WEB_ORIGIN: "https://app.example.com",
       R2_BUCKET_NAME: "assets",
-      REALTIME_ENDPOINT: "https://realtime.example.com",
     });
   });
 
@@ -60,7 +58,6 @@ describe("runtime configuration", () => {
     ["R2_BUCKET_NAME", ""],
     ["R2_ACCESS_KEY_ID", ""],
     ["R2_SECRET_ACCESS_KEY", ""],
-    ["REALTIME_ENDPOINT", "not-a-url"],
     ["REALTIME_ISSUER", "not-a-url"],
     ["REALTIME_SIGNING_KID", ""],
     ["REALTIME_SIGNING_JWK", "{}"],

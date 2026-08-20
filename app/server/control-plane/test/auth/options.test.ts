@@ -20,7 +20,6 @@ const testEnvironment = () => ({
   R2_BUCKET_NAME: "assets",
   R2_ACCESS_KEY_ID: "test-r2-access-key",
   R2_SECRET_ACCESS_KEY: "test-r2-secret-access-key",
-  REALTIME_ENDPOINT: "https://realtime.example.com",
   REALTIME_ISSUER: "https://api.example.com",
   REALTIME_SIGNING_KID: "test-realtime",
   REALTIME_SIGNING_JWK:
