@@ -134,11 +134,7 @@ describe("D1RuntimeAssignmentRepository", () => {
       releasedAt: null,
     });
     await expect(
-      repository.findActive(
-        sessionId,
-        "2026-08-20T01:00:00.000Z",
-        "2026-08-20T00:59:00.000Z",
-      ),
+      repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2026-08-20T00:59:00.000Z"),
     ).resolves.toMatchObject({ runtimeId: nextRuntimeId, assignmentEpoch: 2 });
   });
 
@@ -157,22 +153,14 @@ describe("D1RuntimeAssignmentRepository", () => {
     expect(assignment).not.toHaveProperty("epoch");
     expect(assignment).not.toHaveProperty("revision");
     await expect(
-      repository.findActive(
-        sessionId,
-        "2026-08-21T00:00:00.000Z",
-        "2026-08-20T23:59:00.000Z",
-      ),
+      repository.findActive(sessionId, "2026-08-21T00:00:00.000Z", "2026-08-20T23:59:00.000Z"),
     ).resolves.toBeNull();
 
     await env.DB.prepare("UPDATE presentation_sessions SET state = 'Ended' WHERE id = ?")
       .bind(sessionId)
       .run();
     await expect(
-      repository.findActive(
-        sessionId,
-        "2026-08-20T01:00:00.000Z",
-        "2026-08-20T00:59:00.000Z",
-      ),
+      repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2026-08-20T00:59:00.000Z"),
     ).resolves.toBeNull();
   });
 
@@ -274,11 +262,7 @@ describe("D1RuntimeAssignmentRepository", () => {
       .run();
 
     await expect(
-      repository.findActive(
-        sessionId,
-        "2026-08-20T01:00:00.000Z",
-        "2026-08-20T00:59:00.000Z",
-      ),
+      repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2026-08-20T00:59:00.000Z"),
     ).resolves.toBeNull();
     await expect(
       repository.renew({
@@ -321,11 +305,7 @@ describe("D1RuntimeAssignmentRepository", () => {
       .run();
     await expect(repository.assign(input)).resolves.toMatchObject({ assignmentEpoch: 1 });
     await expect(
-      repository.findActive(
-        sessionId,
-        "2026-08-20T00:04:00.000Z",
-        "2026-08-20T00:03:00.000Z",
-      ),
+      repository.findActive(sessionId, "2026-08-20T00:04:00.000Z", "2026-08-20T00:03:00.000Z"),
     ).resolves.toBeNull();
   });
 });
