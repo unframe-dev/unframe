@@ -13,6 +13,7 @@ describe("Control Plane OpenAPI", () => {
             (route.path.startsWith("/presentations") ||
               route.path.startsWith("/assets") ||
               route.path.startsWith("/sessions") ||
+              route.path.startsWith("/venue-edges") ||
               route.path.startsWith("/callbacks") ||
               route.path === "/.well-known/jwks.json"),
         )
@@ -28,7 +29,7 @@ describe("Control Plane OpenAPI", () => {
     expect(documented).toEqual(actual);
   });
 
-  it("declares both Bearer and browser cookie sessions", () => {
+  it("declares user, browser, service, and Venue Edge authentication separately", () => {
     const schemes = createOpenAPIDocument().components?.securitySchemes;
     expect(schemes).toMatchObject({
       bearerAuth: { type: "http", scheme: "bearer" },
@@ -38,7 +39,20 @@ describe("Control Plane OpenAPI", () => {
         name: "__Secure-better-auth.session_token",
       },
       serviceBearer: { type: "http", scheme: "bearer" },
+      edgeBearer: { type: "http", scheme: "bearer" },
     });
+  });
+
+  it("uses Venue Edge credentials only for Edge-owned operations", () => {
+    const document = createOpenAPIDocument();
+
+    expect(document.paths["/venue-edges/{edgeId}/register"]?.post?.security).toEqual([
+      { edgeBearer: [] },
+    ]);
+    expect(
+      document.paths["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew"]?.post
+        ?.security,
+    ).toEqual([{ edgeBearer: [] }]);
   });
 
   it("marks every JSON request body as required", () => {

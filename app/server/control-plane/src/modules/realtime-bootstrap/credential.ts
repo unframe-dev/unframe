@@ -3,8 +3,7 @@ import {
   type RealtimeBootstrapCredentialInput,
 } from "./schema";
 
-export const REALTIME_AUDIENCE = "unframe-realtime";
-export const REALTIME_CREDENTIAL_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
+export const REALTIME_AUDIENCE = "unframe-venue-edge";
 
 type CredentialOptions = {
   issuer: string;
@@ -19,6 +18,11 @@ type RealtimeCredentialClaims = {
   sub: string;
   session_id: string;
   role: RealtimeBootstrapCredentialInput["role"];
+  edge_id: string;
+  assignment_epoch: number;
+  presentation_id: string;
+  presentation_revision: number;
+  scope: string;
   iat: number;
   nbf: number;
   exp: number;
@@ -47,7 +51,10 @@ export class RealtimeBootstrapCredentials {
   async issue(input: RealtimeBootstrapCredentialInput) {
     const participant = realtimeBootstrapCredentialInputSchema.parse(input);
     const iat = this.now();
-    const exp = iat + REALTIME_CREDENTIAL_LIFETIME_SECONDS;
+    if (participant.expiresAt <= iat) {
+      throw new RangeError("realtime credential expiry must be in the future");
+    }
+    const exp = participant.expiresAt;
     const header = encodeBase64Url(
       JSON.stringify({ alg: "EdDSA", typ: "JWT", kid: this.options.keyId }),
     );
@@ -57,6 +64,11 @@ export class RealtimeBootstrapCredentials {
       sub: participant.userId,
       session_id: participant.sessionId,
       role: participant.role,
+      edge_id: participant.edgeId,
+      assignment_epoch: participant.assignmentEpoch,
+      presentation_id: participant.presentationId,
+      presentation_revision: participant.presentationRevision,
+      scope: participant.scopes.join(" "),
       iat,
       nbf: iat,
       exp,

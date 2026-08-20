@@ -10,6 +10,7 @@ import { createAssetRoutes, type AssetRouteOptions } from "./modules/assets/rout
 import { createPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
 import { RealtimeBootstrapCredentials } from "./modules/realtime-bootstrap/credential";
 import { createSessionRoutes, type SessionRouteOptions } from "./modules/sessions/routes";
+import { createVenueEdgeRoutes, type VenueEdgeRouteOptions } from "./modules/venue-edges/routes";
 import { jwksRoute } from "./openapi";
 
 const internalError = {
@@ -34,12 +35,21 @@ const forbidden = {
 } as const;
 
 const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const productRoutePrefixes = ["/presentations", "/assets", "/sessions", "/callbacks"];
+const productRoutePrefixes = [
+  "/presentations",
+  "/assets",
+  "/sessions",
+  "/venue-edges",
+  "/callbacks",
+];
 
 type AppOptions = Partial<PresentationRouteOptions & AssetRouteOptions> &
   Partial<Omit<SessionRouteOptions, "identityProvider" | "now" | "id">> & {
     sessionNow?: () => Date;
     sessionId?: () => string;
+  } & {
+    venueEdgeRepository?: VenueEdgeRouteOptions["repository"];
+    venueEdgeCredential?: VenueEdgeRouteOptions["credential"];
   };
 
 export function createProductApi(options: AppOptions = {}) {
@@ -66,9 +76,19 @@ export function createProductApi(options: AppOptions = {}) {
       ...(options.sessionNow ? { now: options.sessionNow } : {}),
       ...(options.sessionId ? { id: options.sessionId } : {}),
       ...(options.joinCode ? { joinCode: options.joinCode } : {}),
+      ...(options.venueEdgeRepository ? { venueEdgeRepository: options.venueEdgeRepository } : {}),
     }),
   );
-  const callbacks = sessions.route("/", createPersistenceCallbackRoutes());
+  const venueEdges = sessions.route(
+    "/",
+    createVenueEdgeRoutes({
+      identityProvider,
+      ...(options.venueEdgeRepository ? { repository: options.venueEdgeRepository } : {}),
+      ...(options.sessionNow ? { now: options.sessionNow } : {}),
+      ...(options.venueEdgeCredential ? { credential: options.venueEdgeCredential } : {}),
+    }),
+  );
+  const callbacks = venueEdges.route("/", createPersistenceCallbackRoutes());
   return callbacks.openapi(jwksRoute, async (context) => {
     const config = context.get("config");
     return context.json(
@@ -95,6 +115,10 @@ export const createOpenAPIDocument = () => {
     name: "__Secure-better-auth.session_token",
   });
   app.openAPIRegistry.registerComponent("securitySchemes", "serviceBearer", {
+    type: "http",
+    scheme: "bearer",
+  });
+  app.openAPIRegistry.registerComponent("securitySchemes", "edgeBearer", {
     type: "http",
     scheme: "bearer",
   });

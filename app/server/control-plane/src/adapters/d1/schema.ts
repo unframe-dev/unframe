@@ -76,3 +76,47 @@ export const sessionJoinAttempts = sqliteTable("session_join_attempts", {
   ipAddress: text("ip_address").notNull(),
   attemptedAt: integer("attempted_at").notNull(),
 });
+
+export const venueEdges = sqliteTable("venue_edges", {
+  id: text().primaryKey(),
+  status: text().$type<"active" | "revoked">().notNull(),
+  runtimeVersion: text("runtime_version"),
+  protocolVersion: text("protocol_version"),
+  capacity: integer(),
+  localEndpoint: text("local_endpoint"),
+  certificateFingerprint: text("certificate_fingerprint"),
+  health: text(),
+  registeredAt: text("registered_at"),
+  lastSeenAt: text("last_seen_at").notNull(),
+  createdAt: text("created_at").notNull(),
+  revokedAt: text("revoked_at"),
+});
+
+export const venueEdgeCredentials = sqliteTable(
+  "venue_edge_credentials",
+  {
+    edgeId: text("edge_id").notNull(),
+    tokenId: text("token_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    status: text().$type<"active" | "revoked">().notNull(),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    lastUsedAt: text("last_used_at"),
+    revokedAt: text("revoked_at"),
+  },
+  (table) => [primaryKey({ columns: [table.edgeId, table.tokenId] })],
+);
+
+export const sessionEdgeAssignments = sqliteTable(
+  "session_edge_assignments",
+  {
+    sessionId: text("session_id").notNull(),
+    edgeId: text("edge_id").notNull(),
+    assignmentEpoch: integer("assignment_epoch").notNull(),
+    presentationRevision: integer("presentation_revision").notNull(),
+    issuedAt: text("issued_at").notNull(),
+    leaseExpiresAt: text("lease_expires_at").notNull(),
+    releasedAt: text("released_at"),
+  },
+  (table) => [primaryKey({ columns: [table.sessionId, table.assignmentEpoch] })],
+);

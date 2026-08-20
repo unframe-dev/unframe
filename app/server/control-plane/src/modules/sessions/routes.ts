@@ -16,6 +16,8 @@ import {
 } from "../../presentation/repository";
 import type { Identity } from "../../presentation/service";
 import { RealtimeBootstrapCredentials } from "../realtime-bootstrap/credential";
+import { D1VenueEdgeRepository, type VenueEdgeRepository } from "../venue-edges/repository";
+import { VenueEdgeError, VenueEdgeService } from "../venue-edges/service";
 import { D1SessionRepository, type SessionRepository } from "./repository";
 import { SessionError, SessionService, sha256JoinCode } from "./service";
 
@@ -25,6 +27,7 @@ type RouteDependencies = {
   config: RuntimeConfig;
   service: SessionService;
   credentials: CredentialIssuer;
+  edges: VenueEdgeService;
 };
 export type SessionRouteOptions = {
   identityProvider: (context: AppContext) => Promise<Identity | undefined>;
@@ -34,6 +37,7 @@ export type SessionRouteOptions = {
   now?: () => Date;
   id?: () => string;
   joinCode?: () => string;
+  venueEdgeRepository?: VenueEdgeRepository;
 };
 const errorStatuses = {
   not_found: 404,
@@ -75,6 +79,15 @@ export function createSessionRoutes(options: SessionRouteOptions) {
           issuer: config.REALTIME_ISSUER,
           keyId: config.REALTIME_SIGNING_KID,
         }),
+      edges: new VenueEdgeService(
+        options.venueEdgeRepository ?? new D1VenueEdgeRepository(config.DB),
+        options.now ?? (() => new Date()),
+        () => crypto.randomUUID(),
+        () => ({
+          tokenId: crypto.randomUUID(),
+          secret: crypto.getRandomValues(new Uint8Array(32)),
+        }),
+      ),
     };
   };
   const execute = async <T>(
@@ -90,8 +103,8 @@ export function createSessionRoutes(options: SessionRouteOptions) {
     try {
       return await operation(identity, dependencies(context));
     } catch (error) {
-      if (error instanceof SessionError) {
-        const status = errorStatuses[error.code];
+      if (error instanceof SessionError || error instanceof VenueEdgeError) {
+        const status = errorStatuses[error.code as SessionError["code"]] ?? 409;
         throw new HTTPException(status, {
           res: context.json(
             { error: { code: error.code, message: error.code.replaceAll("_", " ") } },
@@ -138,16 +151,42 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       return context.json(result, 200);
     })
     .openapi(bootstrapSessionRoute, async (context) => {
-      const result = await execute(context, async (identity, { config, credentials, service }) => {
+      const result = await execute(context, async (identity, { credentials, edges, service }) => {
         const id = context.req.valid("param").id;
-        const { participant } = await service.bootstrap(identity, id);
+        const { participant, session } = await service.bootstrap(identity, id);
+        const assignment = await edges.activeAssignment(id);
         const credential = await credentials.issue({
           sessionId: id,
           userId: identity.userId,
           role: participant.role,
+          edgeId: assignment.edgeId,
+          assignmentEpoch: assignment.assignmentEpoch,
+          presentationId: session.presentationId,
+          presentationRevision: assignment.presentationRevision,
+          scopes: ["realtime:connect", "assets:read"],
+          expiresAt: Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000),
         });
+        const current = await service.bootstrap(identity, id);
+        const currentAssignment = await edges.activeAssignment(id);
+        if (
+          current.session.presentationId !== session.presentationId ||
+          current.participant.userId !== participant.userId ||
+          current.participant.role !== participant.role ||
+          currentAssignment.edgeId !== assignment.edgeId ||
+          currentAssignment.assignmentEpoch !== assignment.assignmentEpoch ||
+          currentAssignment.presentationRevision !== assignment.presentationRevision ||
+          currentAssignment.localEndpoint !== assignment.localEndpoint ||
+          currentAssignment.certificateFingerprint !== assignment.certificateFingerprint
+        ) {
+          throw new SessionError("conflict");
+        }
         return {
-          endpoint: config.REALTIME_ENDPOINT,
+          endpoint: currentAssignment.localEndpoint,
+          fingerprint: currentAssignment.certificateFingerprint,
+          edgeId: currentAssignment.edgeId,
+          assignmentEpoch: currentAssignment.assignmentEpoch,
+          presentationId: current.session.presentationId,
+          presentationRevision: currentAssignment.presentationRevision,
           credential: credential.token,
           expiresAt: new Date(credential.expiresAt).toISOString(),
         };

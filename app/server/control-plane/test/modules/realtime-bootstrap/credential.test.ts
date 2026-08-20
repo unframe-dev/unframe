@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   REALTIME_AUDIENCE,
-  REALTIME_CREDENTIAL_LIFETIME_SECONDS,
   RealtimeBootstrapCredentials,
 } from "../../../src/modules/realtime-bootstrap/credential";
 
@@ -29,6 +28,12 @@ describe("RealtimeBootstrapCredentials", () => {
       sessionId: "session-1",
       userId: "user-1",
       role: "presenter",
+      edgeId: "edge-1",
+      assignmentEpoch: 3,
+      presentationId: "presentation-1",
+      presentationRevision: 7,
+      scopes: ["realtime:connect", "assets:read"],
+      expiresAt: 1_700_000_300,
     });
     const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
 
@@ -42,13 +47,18 @@ describe("RealtimeBootstrapCredentials", () => {
       sub: "user-1",
       session_id: "session-1",
       role: "presenter",
+      edge_id: "edge-1",
+      assignment_epoch: 3,
+      presentation_id: "presentation-1",
+      presentation_revision: 7,
+      scope: "realtime:connect assets:read",
       iat: 1_700_000_000,
       nbf: 1_700_000_000,
-      exp: 1_700_000_000 + REALTIME_CREDENTIAL_LIFETIME_SECONDS,
+      exp: 1_700_000_300,
       jti: "credential-id",
       protocol_version: 1,
     });
-    expect(expiresAt).toBe((1_700_000_000 + REALTIME_CREDENTIAL_LIFETIME_SECONDS) * 1_000);
+    expect(expiresAt).toBe(1_700_000_300_000);
 
     const jwks = await credentials.jwks();
     expect(jwks).toEqual({
