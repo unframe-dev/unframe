@@ -105,9 +105,9 @@ Bootstrap は durable authority から active runtime への handoff である�
 4. Realtime Backend が署名、issuer / audience、期限、protocol version、Session、participant、role を検証する。
 5. Realtime Backend は検証済み identity を connection context に固定し、message payload による identity 上書きを許さない。
 
-Current の Control Plane は静的 endpoint と JWT / JWKS 発行までを実装している。Realtime process への JWT verification 統合、Venue Edge assignment、lease / fencing を含む動的 handoff は未接続である。
+Current の Control Plane は、active Venue Edge assignment の endpoint / certificate fingerprint と、lease / epoch / Presentation revision に拘束した JWT / JWKS を発行する。Realtime process は同じ JWT contract を検証し、local assignment guard で接続、command、reliable delivery を fencing する。Current process は単一 assignment を環境変数から読み込むため、Control Plane から assignment / Manifest を同期する Cloud Agent、Cloud Runtime、`RuntimeAssignment` への一般化は未接続である。
 
-Realtime credential の有効期限が残っていても、durable Session が `Ended` なら新規接続と connection resume を拒否する。Control Plane は `Ended` Session の bootstrap を拒否し、Realtime Backend は接続・resume 時に信頼できる Session / assignment state を検証する。これを message ごとの Control Plane 問い合わせで実装しない。
+Current の Control Plane は `Ended` Session の join / bootstrap を拒否し、Session end と accepted completion で active assignment を解放する。一方、既に起動した Realtime process へ `Ended` または assignment release を即時通知する control channel はなく、発行済み credential と local lease が有効な間は `Ended` だけで新規接続や既存接続を停止できない。Connection resume 自体も未実装である。Target では Cloud Agent または同等の channel で失効を伝え、新規接続、既存接続、resume を停止する。これを message ごとの Control Plane 問い合わせで実装しない。
 
 ### 4.4 Persistence boundary
 
@@ -115,10 +115,10 @@ Realtime Backend は高頻度 message を D1 へ逐次保存せず、checkpoint 
 
 - Callback は service identity で user API から分離する
 - Retry で同じ結果になるよう idempotency key と monotonic version を使う
-- Control Plane は unknown Session を拒否する。Target では stale assignment からの書き込みも fencing する
+- Control Plane は unknown Session を拒否する。Completion は active Edge ID / assignment epoch / lease で fencing し、Checkpoint の assignment fencing は Target とする
 - Completion の永続化と runtime の停止は別 component の処理であり、片方の成功をもう片方の成功として扱わない
 
-Current の Control Plane は冪等な callback 受付を実装済みだが、Realtime Backend からの送信・retry は未接続である。Assignment generation による fencing は Target である。
+Current の Control Plane は冪等な callback 受付を実装し、accepted completion と同じ D1 batch で Session を `Ended` にして active assignment を解放する。Realtime Backend からの送信 / retry と Checkpoint の assignment fencing は未接続である。
 
 ### 4.5 Asset boundary
 
@@ -147,7 +147,7 @@ Draft / Release の product lifecycle はまだ cross-component contract とし�
 6. Realtime Backend が checkpoint を非同期に Control Plane へ送る。
 7. Session 終了時に Realtime Backend が completion を送り、Control Plane が durable record を確定する。
 
-Current では手順1と2、および接続 endpoint / credential の発行までが Control Plane に実装されている。Presentation / Asset delivery projection、認証済み Realtime 接続、checkpoint / completion の end-to-end 接続は未実装である。
+Current では手順1と2、および active Venue Edge assignment に基づく接続 endpoint / credential の発行が Control Plane に実装されている。Realtime component では同じ credential の検証、assignment fencing、初期 fan-out を実装済みである。Presentation / Asset delivery projection、Unity consumer、Control Plane から Realtime process への assignment 同期、checkpoint / completion sender、repository-level end-to-end 接続は未実装である。
 
 ## 6. Cross-component invariants
 
@@ -158,10 +158,10 @@ Current では手順1と2、および接続 endpoint / credential の発行ま�
 5. Credential は Session、participant、role、protocol version、有効期間に拘束し、payload 内の自己申告 identity を authority にしない。
 6. Better Auth session、Realtime JWT、persistence callback の service identity は用途を固定し、相互に認証 credential として流用しない。
 7. Checkpoint と completion は retry-safe にし、重複 callback で state を二重適用しない。
-8. Runtime の移動や failover では assignment generation または同等の fencing を導入し、二つの runtime を同時に authority にしない。
+8. Runtime の移動や failover では assignment epoch または同等の fencing を使い、二つの runtime を同時に authority にしない。
 9. Asset binary と realtime state は別 transport とし、どちらの障害も他方の credential scope を拡張しない。
 10. Contract を先に変更し、producer、generated artifact、adapter、consumer、drift check を同じ変更単位で同期する。
-11. Durable Session の `Ended` と Realtime runtime の `Terminating` は不可逆とし、同じ Session を再開しない。再度発表する場合は新しい Session を作成する。
+11. Target では durable Session の `Ended` を Realtime runtime の `Terminating` へ伝播して不可逆にし、同じ Session を再開しない。再度発表する場合は新しい Session を作成する。
 
 ## 7. Failure と consistency boundary
 
@@ -179,13 +179,13 @@ Realtime Backend は bounded retry と local recovery data を使い、idempoten
 
 ### Conflicting runtime authority
 
-Runtime の再起動や別 node への割り当てでは、古い runtime からの command と callback を識別できなければならない。Venue Edge lease、assignment generation、強制切替の詳細は Realtime architecture と今後の Control Plane contract を同時に確定する。
+Runtime の再起動や別 node への割り当てでは、古い runtime からの command と callback を識別できなければならない。Current の Venue Edge は lease と assignment epoch で接続、command、completion を fencing する。Cloud Runtime への一般化、Checkpoint fencing、強制切替の詳細は Realtime architecture と Control Plane contract を同時に確定する。
 
 ## 8. Cross-component observability
 
 Control Plane の bootstrap、Realtime connection、checkpoint / completion を一つの処理系列として追跡できるようにする。ただし、component ごとの log と metrics の所有権は分離する。
 
-- Session ID、connection ID、incident ID、導入後の assignment generation を correlation に使用する
+- Session ID、connection ID、incident ID、assignment epoch を correlation に使用する
 - User ID は必要な範囲で pseudonymous identifier とし、Presentation content を correlation field にしない
 - Better Auth cookie / Bearer token、Realtime JWT、service secret、signed URL を log や trace attribute に記録しない
 - Expected disconnect、validation rejection、server failure、persistence retry を区別する
@@ -227,13 +227,14 @@ Control PlaneはD1上の現行migrationとcontractをdurable authorityとし、R
 | --- | --- | --- |
 | Control Plane product API と generated OpenAPI / Hono RPC | Current | Component 内 drift check あり |
 | Realtime Protocol Buffers と Go generated code | Current | Component 内 drift check あり |
-| Control Plane の Session directory と bootstrap JWT / JWKS | Current | 接続先は静的設定 |
-| Realtime の初期 gRPC process と in-memory fan-out | Partial | JWT verification、full runtime state、recovery は未実装 |
-| Control Plane-issued credential → authenticated Realtime connection | Not integrated | 通常 process は認証を通過できない |
-| Realtime → Control Plane persistence callback | Not integrated | Control Plane 受付だけが実装済み |
+| Control Plane の Session directory と Venue Edge bootstrap | Current | Active assignmentのendpoint、fingerprint、lease-bound JWTを発行 |
+| Realtime の初期 gRPC process と in-memory fan-out | Partial | JWT / assignment fencingはCurrent。full runtime stateとrecoveryは未実装 |
+| Control Plane-issued credential → authenticated Realtime connection | Partial | Producer / verifier contractは一致。Unity consumerとrepository-level E2Eは未実装 |
+| Realtime → Control Plane persistence callback | Partial | Control Plane受付とcompletion fencingはCurrent。sender / retryは未実装 |
 | Web / Unity → Control Plane resource flow | Partial | Device Authorization UI の一部以外は未接続 |
 | Presentation / Asset → Session delivery projection | Not implemented | Contract 未定義 |
-| Venue Edge assignment / lease / fencing | Not implemented | Realtime 提案と Control Plane contract の統合が必要 |
+| Venue Edge provisioning / registration / assignment | Current | Control PlaneのD1 / route / OpenAPIに実装済み |
+| Realtime assignment同期 / Session終了伝播 | Not integrated | Current processは環境変数を使用し、Cloud Agentは未実装 |
 | Unity / C# generated HTTP・gRPC clients | Not implemented | 配置予定地と手書きmodelはあるが生成・consumer接続は未導入 |
 | Repository-level backend E2E | Not implemented | `app/server/integration/` は未作成 |
 
@@ -257,8 +258,8 @@ Component をまたぐ変更では、最低限次を同じ変更で検証する�
 
 ## 12. Cross-component open decisions
 
-- Realtime architecture が提案する Venue Edge を、Control Plane がどの contract で登録・割り当て・失効するか
-- Current の静的 `REALTIME_ENDPOINT` / `unframe-realtime` credential と、Venue Edge 用 bootstrap credential の移行境界
+- Edge 固有の `EdgeSessionAssignment` / `edgeId` を、Cloud Runtime と共有できる `RuntimeAssignment` / `runtimeId` / `runtimeKind` へ一般化する境界
+- Cloud Agent が assignment、lease、Manifest、Session 終了を同期する control channel と失効時の停止規則
 - Session が利用する Presentation revision をいつ固定し、どの delivery projection で渡すか
 - Product上のRoomとdurable Session / active runtimeを同一概念にするか、別resourceとして関係を定義するか
 - Unity が Asset を R2 から直接取得する経路と Venue Edge cache 経路の適用条件

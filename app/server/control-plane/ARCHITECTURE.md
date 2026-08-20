@@ -23,7 +23,8 @@ Control Plane は、Unframe の durable state と access policy の authority �
 - Presentation Definition、Asset metadata、Session directory の D1 永続化
 - R2 object lifecycle と、制約付きの直接 upload / download access の発行
 - session の作成、参加、開始、終了と participant membership の管理
-- Realtime endpoint と session-bound credential の発行
+- Venue Edge の provisioning、Edge 固有 credential、registration、assignment、lease の管理
+- active assignment の endpoint と session-bound credential の発行
 - Realtime Backend からの checkpoint / completion の冪等な受付
 - Control Plane が所有する contract、migration、audit boundary の管理
 
@@ -94,6 +95,7 @@ Product route の validation error は安定した JSON error に変換する。
 | Presentation API                 | Web / Unity                                | Current | Definition aggregate、membership、revision conflict          |
 | Asset API                        | Web / Unity / authorized delivery consumer | Current | Metadata、signed access、finalize、download、delete          |
 | Session API                      | Unity                                      | Current | Durable lifecycle、join、participant、bootstrap              |
+| Venue Edge API                   | Admin / Venue Edge                         | Current | Provisioning、registration、assignment、lease、失効          |
 | JWKS / Realtime credential       | Realtime consumer                          | Current | Control Planeが署名・公開し、Realtime側が検証する            |
 | Persistence callback             | Realtime Backend                           | Current | Service-authenticated checkpoint / completion                |
 | Presentation delivery projection | Web / Session bootstrap                    | Target  | Definitionと参照Asset accessの一貫したprojection             |
@@ -140,11 +142,11 @@ Current / Target のauthorization modelにはorganization / team resourceを導�
 
 Realtime Backend の checkpoint / completion callback は user credential と分離した service Bearer credential で認証する。Current は `SERVICE_IDENTITY_SECRET` を使用する。
 
-Realtime bootstrap では Control Plane が Ed25519 で JWT を署名し、公開 JWKS を提供する。credential は `iss`、`aud=unframe-realtime`、`sub`、`session_id`、`role`、`iat`、`nbf`、`exp`、`jti`、`protocol_version` を拘束し、Current の有効期間は1週間である。検証処理と active runtime での利用規則は Realtime Backend の責務である。
+Current の Realtime bootstrap credential は、active Venue Edge assignment に拘束した Ed25519 JWT である。Control Plane は公開 JWKS を提供し、JWT の `iss`、`aud=unframe-venue-edge`、`sub`、`session_id`、`role`、`edge_id`、`assignment_epoch`、`presentation_id`、`presentation_revision`、`scope`、`iat`、`nbf`、`exp`、`jti`、`protocol_version` を拘束する。Current の scope は `realtime:connect assets:read`、有効期限は active assignment の lease expiry であり、固定の1週間ではない。Realtime Backend は issuer / audience、期限、protocol version、必要な scope と assignment-bound field を接続と処理境界で検証する。
 
 Realtime JWT は Control Plane API の認証 credential として受け付けず、Better Auth の cookie / Bearer session も Realtime 接続 credential として流用しない。Callback 用 service identity もこれら二つから分離する。
 
-Venue Edge の登録と割り当てを実装する際は、全 Edge で共有する service secret を配布せず、Edge と assignment に scope された credential を別途導入する。
+Venue Edge の provisioning / rotation response は Edge 固有 credential を一度だけ返し、D1 には token ID と SHA-256 hash だけを保存する。Registration、lease renewal、release はこの Edge identity を検証し、全 Edge で共有する service secret は配布しない。
 
 ## 6. Durable resource model
 
@@ -195,18 +197,19 @@ stateDiagram-v2
 - `Ended` の Session は join と bootstrap を拒否する
 - bootstrap は join 済み participant にだけ endpoint と session-bound credential を返す
 
-Current の endpoint は `REALTIME_ENDPOINT` という静的設定である。Venue Edge registry、capacity、lease、assignment generation に基づく動的 routing は Target であり、本書の Current と混同しない。
+Current の bootstrap は、直近の heartbeat が有効な active Venue Edge assignment を必須とし、その `localEndpoint`、certificate fingerprint、assignment epoch、Presentation revision と lease-bound JWT を返す。assignment がない場合の静的 endpoint fallback は設けない。Control Plane から Realtime process へ assignment / Manifest を同期する Cloud Agent と、Cloud Runtime にも使える `RuntimeAssignment` への一般化は Target である。
 
 ### 6.4 Realtime persistence callback
 
 Checkpoint と completion は Realtime Backend から受け取る Control Plane 側の永続化 interface である。
 
 - checkpoint は `(session_id, version)` と idempotency key で重複適用を防ぐ
-- completion は session ごとに一度だけ保存し、同時に durable Session を `Ended` へ遷移させる
+- completion は active Edge ID / assignment epoch / lease で fencing し、session ごとに一度だけ保存する
+- accepted completion は同じ D1 batch で durable Session を `Ended` へ遷移させ、active assignment を解放する
 - unknown session は受け付けない
 - high-frequency update や message ごとの authorization query はこの interface に流さない
 
-Callback の retry、snapshot の作成、runtime recovery は Realtime Backend 側の設計に従う。
+Checkpoint の assignment fencing、Callback の送信 / retry、snapshot の作成、runtime recovery は Realtime Backend 側との未接続境界である。
 
 ### 6.5 Presentation delivery
 
@@ -327,7 +330,8 @@ app/server/control-plane/
 │   │   ├── assets/              # Asset use cases and ports
 │   │   ├── sessions/            # durable Session lifecycle
 │   │   ├── realtime-bootstrap/  # JWT / JWKS
-│   │   └── persistence-callback/# service-authenticated persistence API
+│   │   ├── persistence-callback/# service-authenticated persistence API
+│   │   └── venue-edges/         # Edge identity、assignment、lease
 │   └── adapters/
 │       ├── d1/                  # shared D1 setup and schema
 │       └── assets/              # D1 / R2 / signed access adapters
@@ -352,23 +356,24 @@ Component gate は次を検証する。
 
 ## 13. Implementation status
 
-| Area                                                            | Status        | Boundary                                            |
-| --------------------------------------------------------------- | ------------- | --------------------------------------------------- |
-| Better Auth、cookie / Bearer session、MFA、Device Authorization | Current       | Consumer UI 接続は各 application の責務             |
-| Presentation CRUD、membership、revision conflict                | Current       | Web / Unity consumer 接続は未完了                   |
-| Asset init / finalize / download / delete / orphan collection   | Current       | Remote R2 smoke test は環境ごとに必要               |
-| Session create / join / start / end / bootstrap                 | Current       | Endpoint は静的設定                                 |
-| Ed25519 JWT と JWKS                                             | Current       | Realtime 側の検証統合は別 component                 |
-| Checkpoint / completion callback                                | Current       | Realtime 側の送信・retry 統合は別 component         |
-| Presentation delivery projection                                | Target        | OpenAPI と consumer を同時に設計する                |
-| Venue Edge registry / assignment / lease / fencing              | Target        | Realtime architecture の bootstrap 要件と整合させる |
-| Key rotation と Edge-scoped service identity                    | Target / Open | Rotation と失効 policy を決定する                   |
-| Durable audit storage と運用 SLO                                | Open          | Privacy と retention を先に定義する                 |
+| Area                                                            | Status  | Boundary                                         |
+| --------------------------------------------------------------- | ------- | ------------------------------------------------ |
+| Better Auth、cookie / Bearer session、MFA、Device Authorization | Current | Consumer UI 接続は各 application の責務          |
+| Presentation CRUD、membership、revision conflict                | Current | Web / Unity consumer 接続は未完了                |
+| Asset init / finalize / download / delete / orphan collection   | Current | Remote R2 smoke test は環境ごとに必要            |
+| Session create / join / start / end / bootstrap                 | Current | Active Venue Edge assignment を必須とする        |
+| Ed25519 JWT と JWKS                                             | Current | Edge assignment-bound contractをRealtime側も検証 |
+| Checkpoint / completion callback                                | Current | Realtime 側の送信・retry 統合は別 component      |
+| Presentation delivery projection                                | Target  | OpenAPI と consumer を同時に設計する             |
+| Venue Edge registry / assignment / lease / fencing              | Current | Cloud AgentとRuntime共通化は未実装               |
+| Realtime signing key rotation                                   | Open    | 旧公開鍵の保持期間とrotation手順を決定する       |
+| Durable audit storage と運用 SLO                                | Open    | Privacy と retention を先に定義する              |
 
 ## 14. Open decisions
 
 - Ed25519 key rotation の周期と旧 public key の保持期間
-- Venue Edge provisioning、credential rotation、assignment lease の Control Plane contract
+- Edge 固有 assignment を Cloud Runtime と共有できる `RuntimeAssignment` へ一般化する境界
+- Cloud Agent が assignment、lease、Manifest、Session 終了を同期する control channel
 - Presentation delivery projection と Session bootstrap の分割
 - Account linking と identity lifecycle の詳細
 - Join code の再利用禁止期間と production rate-limit parameter
