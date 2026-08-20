@@ -2,6 +2,8 @@
 
 Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 
+内部の責務、layer、durable resource、contract、security boundary は [ARCHITECTURE.md](./ARCHITECTURE.md)、Realtime Backend との関係は [`../ARCHITECTURE.md`](../ARCHITECTURE.md) を参照してください。
+
 現在は次を実装しています。
 
 - Better Auth の Google OAuth、email/password、TOTP MFA、Device Authorization、cookie / Bearer session
