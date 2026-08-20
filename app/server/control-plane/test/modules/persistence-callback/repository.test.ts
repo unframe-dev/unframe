@@ -111,12 +111,7 @@ describe("D1PersistenceCallbackRepository", () => {
       ).bind(currentEdgeId, "2026-08-11T00:10:00.000Z", "2026-08-11T00:10:00.000Z"),
       env.DB.prepare(
         "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 2, 1, ?, ?, NULL)",
-      ).bind(
-        sessionId,
-        currentEdgeId,
-        "2026-08-11T00:10:00.000Z",
-        "2026-08-11T01:00:00.000Z",
-      ),
+      ).bind(sessionId, currentEdgeId, "2026-08-11T00:10:00.000Z", "2026-08-11T01:00:00.000Z"),
     ]);
 
     await expect(
