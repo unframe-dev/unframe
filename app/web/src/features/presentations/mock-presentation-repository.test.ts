@@ -23,6 +23,7 @@ describe("mock presentation repository", () => {
 
   it("creates a presentation resource from the starter definition", async () => {
     const presentation = await createMockPresentation("新しい空間", "アイデアの説明");
+    const presentations = await listMockPresentations();
 
     expect(presentation.id).toMatch(/^mock-/);
     expect(presentation.revision).toBe(1);
@@ -34,5 +35,6 @@ describe("mock presentation repository", () => {
     expect(presentation.thumbnailUrl).toMatch(
       /(?:placeholder-thumbnail\.svg|data:image\/svg\+xml)/,
     );
+    expect(presentations).toContainEqual(presentation);
   });
 });

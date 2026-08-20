@@ -182,6 +182,14 @@ describe("web editor routes", () => {
     });
   });
 
+  it("redirects an unauthenticated editor route to the root", async () => {
+    auth.getSession.mockResolvedValue({ data: null, error: null });
+    const router = await renderRoute("/editor/demo?panel=properties");
+
+    await router.load();
+    expect(router.state.location.pathname).toBe("/");
+  });
+
   it("keeps the device URL and code in the Google sign-in callback", async () => {
     const user = userEvent.setup();
     auth.getSession.mockResolvedValue({ data: null, error: null });

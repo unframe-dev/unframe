@@ -14,6 +14,9 @@ const credentialsSchema = z.object({
 });
 type Credentials = z.infer<typeof credentialsSchema>;
 const auth = controlPlaneAuth;
+function hasErrorCode(error: unknown, code: string) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
 function AuthLayout({
   title,
   description,
@@ -71,7 +74,11 @@ export function LoginPage() {
       return;
     }
     if (result.error) {
-      setMessage("ログインできませんでした。入力内容を確認してください。");
+      setMessage(
+        hasErrorCode(result.error, "EMAIL_NOT_VERIFIED")
+          ? "メールアドレスを確認してください。"
+          : "ログインできませんでした。入力内容を確認してください。",
+      );
       return;
     }
     await navigate({ to: "/home" });
@@ -247,6 +254,7 @@ export function SignupPage() {
 }
 export function RecoverPage() {
   const [done, setDone] = useState(false);
+  const [message, setMessage] = useState("");
   const form = useForm<{ email: string }>({
     resolver: zodResolver(
       z.object({
@@ -255,11 +263,14 @@ export function RecoverPage() {
     ),
   });
   const submit = form.handleSubmit(async ({ email }) => {
-    await auth.requestPasswordReset({
+    setDone(false);
+    setMessage("");
+    const result = await auth.requestPasswordReset({
       email,
       redirectTo: `${window.location.origin}/recover/reset`,
     });
-    setDone(true);
+    if (result.error) setMessage("再設定メールを送信できませんでした。");
+    else setDone(true);
   });
   return (
     <AuthLayout title="Reset your password." description="再設定用のメールを送信します。">
@@ -275,6 +286,11 @@ export function RecoverPage() {
           />
         </label>
         {done ? <p role="status">再設定メールを送信しました。メールをご確認ください。</p> : null}
+        {message ? (
+          <p role="alert" className="status-error">
+            {message}
+          </p>
+        ) : null}
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "送信中…" : "再設定メールを送信"}
         </Button>

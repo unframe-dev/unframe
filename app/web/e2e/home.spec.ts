@@ -36,7 +36,7 @@ test("mock Presentation 一覧をAPI通信なしで表示する", async ({ page 
   await page.goto("/home");
 
   await expect(page.getByRole("heading", { name: "Spatial product review" })).toBeVisible();
-  await expect(page.getByText("更新 2026/08/18 · Revision 8")).toBeVisible();
+  await expect(page.getByLabel("更新日時 2026/08/18")).toBeVisible();
   expect(presentationRequests).toBe(0);
   await expect(page.getByRole("link", { name: "編集を開く" })).toHaveCount(0);
 });

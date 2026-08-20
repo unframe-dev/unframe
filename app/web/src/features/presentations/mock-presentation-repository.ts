@@ -85,7 +85,7 @@ export async function createMockPresentation(
   description: string,
 ): Promise<Presentation> {
   const timestamp = new Date().toISOString();
-  return {
+  const presentation = {
     id: `mock-${crypto.randomUUID()}`,
     revision: 1,
     definition: createStarterPresentationDefinition(title, description || undefined),
@@ -93,4 +93,6 @@ export async function createMockPresentation(
     createdAt: timestamp,
     updatedAt: timestamp,
   };
+  mockPresentations.unshift(presentation);
+  return structuredClone(presentation);
 }

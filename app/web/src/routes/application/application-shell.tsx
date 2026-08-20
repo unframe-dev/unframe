@@ -154,6 +154,7 @@ export function ApplicationShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => window.localStorage.getItem(sidebarStorageKey) === "true",
   );
+  const [logoutError, setLogoutError] = useState("");
   const toggleSidebar = () => {
     setSidebarCollapsed((current) => {
       const next = !current;
@@ -162,8 +163,17 @@ export function ApplicationShell() {
     });
   };
   const logout = async () => {
-    await controlPlaneAuth.signOut();
-    window.location.assign("/");
+    setLogoutError("");
+    try {
+      const result = await controlPlaneAuth.signOut();
+      if (result.error) {
+        setLogoutError("ログアウトできませんでした。もう一度お試しください。");
+        return;
+      }
+      window.location.assign("/");
+    } catch {
+      setLogoutError("ログアウトできませんでした。もう一度お試しください。");
+    }
   };
   return (
     <div className="app-shell">
@@ -175,6 +185,11 @@ export function ApplicationShell() {
           onLogout={() => void logout()}
         />
         <div className="app-content">
+          {logoutError ? (
+            <p role="alert" className="status-error">
+              {logoutError}
+            </p>
+          ) : null}
           <Outlet />
         </div>
       </div>

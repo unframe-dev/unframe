@@ -100,4 +100,27 @@ describe("auth pages", () => {
     await user.click(await screen.findByRole("button", { name: /送信/ }));
     expect(await screen.findByRole("status")).toHaveTextContent("再設定メール");
   });
+  it("does not treat a failed password recovery request as sent", async () => {
+    auth.requestPasswordReset.mockResolvedValue({ error: { code: "REQUEST_FAILED" } });
+    renderRoute(RecoverPage);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("メールアドレス"), "u@example.test");
+    await user.click(await screen.findByRole("button", { name: /送信/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "再設定メールを送信できませんでした。",
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("distinguishes an unverified account from invalid credentials", async () => {
+    auth.signIn.email.mockResolvedValue({ error: { code: "EMAIL_NOT_VERIFIED" } });
+    renderRoute(LoginPage);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("メールアドレス"), "u@example.test");
+    await user.type(screen.getByLabelText("パスワード"), "password");
+    await user.click(screen.getByRole("button", { name: "ログイン" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "メールアドレスを確認してください。",
+    );
+  });
 });

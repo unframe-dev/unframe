@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { z } from "zod";
+import { requireSession } from "../auth/require-session";
 import { loadPresentationSnapshot } from "../runtime/document-runtime";
 import { DeviceAuthorizationPage } from "../../routes/device/device-authorization-page";
 import { HomePage } from "../../routes/home/home-page";
@@ -84,8 +85,8 @@ const deviceRoute = createRoute({
 });
 const applicationRoute = createRoute({
   getParentRoute: () => rootRoute,
-  id: "application", // Local session setup is still in progress; restore beforeLoad when it is available.
-  // beforeLoad: requireSession,
+  id: "application",
+  beforeLoad: requireSession,
   component: ApplicationShell,
 });
 const homeRoute = createRoute({
@@ -114,7 +115,7 @@ const securityRoute = createRoute({
   component: SecurityPage,
 });
 const editorRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => applicationRoute,
   path: "editor/$presentationId",
   validateSearch: z.object({
     panel: z.enum(["properties", "assets", "none"]).catch("properties"),
@@ -136,8 +137,14 @@ const routeTree = rootRoute.addChildren([
   recoverRoute,
   resetRoute,
   deviceRoute,
-  editorRoute,
-  applicationRoute.addChildren([homeRoute, devicesRoute, roomsRoute, profileRoute, securityRoute]),
+  applicationRoute.addChildren([
+    homeRoute,
+    devicesRoute,
+    roomsRoute,
+    profileRoute,
+    securityRoute,
+    editorRoute,
+  ]),
 ]);
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({

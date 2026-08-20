@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ProfilePage, SecurityPage } from "./settings-pages";
@@ -59,6 +59,47 @@ describe("ProfilePage", () => {
       name: "新名",
       image: "https://example.test/new.png",
     });
+  });
+
+  it("keeps edits made during a save marked as unsaved", async () => {
+    let resolveUpdate!: (result: { error: null }) => void;
+    auth.getSession.mockResolvedValue({
+      data: { user: { name: "旧名", image: null } },
+      error: null,
+    });
+    auth.updateUser.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    render(<ProfilePage />);
+    const user = userEvent.setup();
+    const name = await screen.findByDisplayValue("旧名");
+    await user.clear(name);
+    await user.type(name, "保存する名前");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await user.clear(name);
+    await user.type(name, "保存後の編集");
+    resolveUpdate({ error: null });
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("未保存の変更があります。"),
+    );
+    expect(screen.queryByDisplayValue("保存する名前")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("保存後の編集")).toBeInTheDocument();
+  });
+
+  it("shows a retry action when getSession returns a structured error", async () => {
+    auth.getSession
+      .mockResolvedValueOnce({ data: null, error: { code: "NETWORK_ERROR" } })
+      .mockResolvedValueOnce({ data: { user: { name: "回復後", image: null } }, error: null });
+    render(<ProfilePage />);
+    const user = userEvent.setup();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "プロフィールを読み込めませんでした。",
+    );
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    expect(await screen.findByDisplayValue("回復後")).toBeInTheDocument();
   });
 });
 describe("SecurityPage", () => {

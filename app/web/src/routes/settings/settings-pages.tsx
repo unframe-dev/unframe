@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { controlPlaneAuth } from "../../app/auth/control-plane-auth";
 import { Button } from "../../components/ui/button";
 
@@ -12,27 +12,52 @@ export function ProfilePage() {
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [state, setState] = useState("読み込み中…");
-  useEffect(() => {
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const draft = useRef({ name: "", image: "" });
+  const loadProfile = useCallback(() => {
+    setLoadFailed(false);
+    setState("読み込み中…");
     void auth
       .getSession()
       .then((result) => {
+        if (result.error) throw result.error;
         setUser(result.data?.user);
-        setName(result.data?.user?.name ?? "");
-        setImage(result.data?.user?.image ?? "");
+        const nextDraft = {
+          name: result.data?.user?.name ?? "",
+          image: result.data?.user?.image ?? "",
+        };
+        draft.current = nextDraft;
+        setName(nextDraft.name);
+        setImage(nextDraft.image);
         setState("");
       })
-      .catch(() => setState("プロフィールを読み込めませんでした。"));
+      .catch(() => {
+        setLoadFailed(true);
+        setState("プロフィールを読み込めませんでした。");
+      });
   }, []);
+  useEffect(() => loadProfile(), [loadProfile]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    const submitted = { name: name.trim(), image: image.trim() };
+    setSaving(true);
     setState("保存中…");
-    const nextImage = image.trim() || null;
-    const result = await auth.updateUser({ name: name.trim(), image: nextImage });
-    setState(result.error ? "保存できませんでした。" : "保存しました。");
-    if (!result.error)
+    const nextImage = submitted.image || null;
+    const result = await auth.updateUser({ name: submitted.name, image: nextImage });
+    setSaving(false);
+    if (result.error) {
+      setState("保存できませんでした。");
+    } else {
       setUser((value: SessionUser | undefined) =>
-        value ? { ...value, name: name.trim(), image: nextImage } : value,
+        value ? { ...value, name: submitted.name, image: nextImage } : value,
       );
+      setState(
+        draft.current.name === submitted.name && draft.current.image === submitted.image
+          ? "保存しました。"
+          : "未保存の変更があります。",
+      );
+    }
   };
   return (
     <main id="main-content" className="app-main">
@@ -55,7 +80,8 @@ export function ProfilePage() {
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
-                  if (state !== "保存中…") setState("未保存の変更があります。");
+                  draft.current.name = e.target.value;
+                  setState("未保存の変更があります。");
                 }}
                 disabled={!user}
                 autoComplete="name"
@@ -68,7 +94,8 @@ export function ProfilePage() {
                 value={image}
                 onChange={(event) => {
                   setImage(event.target.value);
-                  if (state !== "保存中…") setState("未保存の変更があります。");
+                  draft.current.image = event.target.value;
+                  setState("未保存の変更があります。");
                 }}
                 disabled={!user}
                 placeholder="https://example.com/avatar.png"
@@ -76,14 +103,25 @@ export function ProfilePage() {
               />
             </label>
             <p className="profile-image-help">空欄にするとアイコンを解除します。</p>
-            <p role="status">{state}</p>
+            {loadFailed ? (
+              <div>
+                <p role="alert" className="status-error">
+                  {state}
+                </p>
+                <Button type="button" variant="outline" onClick={loadProfile}>
+                  再試行
+                </Button>
+              </div>
+            ) : (
+              <p role="status">{state}</p>
+            )}
             <Button
               type="submit"
               disabled={
                 !user ||
                 !name.trim() ||
                 (name.trim() === user.name && image.trim() === (user.image ?? "")) ||
-                state === "保存中…"
+                saving
               }
             >
               保存
