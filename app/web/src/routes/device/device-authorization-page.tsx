@@ -3,6 +3,15 @@ import { useEffect, useState } from "react";
 import { controlPlaneAuth as auth } from "../../app/auth/control-plane-auth";
 import { BrandLink } from "../../app/brand/brand-link";
 import { Button } from "../../components/ui/button";
+import moduleStyles from "../public/public-pages.module.css";
+const styles = {
+  main: moduleStyles["main"]!,
+  header: moduleStyles["header"]!,
+  deviceShell: moduleStyles["deviceShell"]!,
+  deviceIntro: moduleStyles["deviceIntro"]!,
+  deviceLede: moduleStyles["deviceLede"]!,
+  deviceActions: moduleStyles["deviceActions"]!,
+};
 
 type PageState = "entry" | "pending" | "approved" | "denied";
 
@@ -137,19 +146,19 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
         : undefined;
 
   return (
-    <main id="main-content" className="device-main">
-      <header className="public-header">
+    <main id="main-content" className={styles.main}>
+      <header className={styles.header}>
         <BrandLink />
         <a href="https://un-fra.me/docs/">Docs</a>
       </header>
-      <section className="device-shell">
-        <header className="device-intro">
+      <section className={styles.deviceShell}>
+        <header className={styles.deviceIntro}>
           <h1>Connect a device.</h1>
-          <p className="device-lede">
+          <p className={styles.deviceLede}>
             デバイスに表示されたユーザーコードを確認し、接続を承認または拒否します。
           </p>
         </header>
-        <div className="device-actions">
+        <div className={styles.deviceActions}>
           {message ? (
             <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
               {message}

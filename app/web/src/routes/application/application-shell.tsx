@@ -17,6 +17,30 @@ import { useState } from "react";
 import { controlPlaneAuth } from "../../app/auth/control-plane-auth";
 import { BrandLink } from "../../app/brand/brand-link";
 import { Button } from "../../components/ui/button";
+import moduleStyles from "./application-shell.module.css";
+const styles = {
+  sidebar: moduleStyles["sidebar"]!,
+  sidebarBrand: moduleStyles["sidebarBrand"]!,
+  brand: moduleStyles["brand"]!,
+  collapse: moduleStyles["collapse"]!,
+  back: moduleStyles["back"]!,
+  label: moduleStyles["label"]!,
+  navigation: moduleStyles["navigation"]!,
+  title: moduleStyles["title"]!,
+  links: moduleStyles["links"]!,
+  link: moduleStyles["link"]!,
+  sidebarAccount: moduleStyles["sidebarAccount"]!,
+  menuTrigger: moduleStyles["menuTrigger"]!,
+  menuPositioner: moduleStyles["menuPositioner"]!,
+  menuPopup: moduleStyles["menuPopup"]!,
+  menuItem: moduleStyles["menuItem"]!,
+  menuSeparator: moduleStyles["menuSeparator"]!,
+  menuLogout: moduleStyles["menuLogout"]!,
+  shell: moduleStyles["shell"]!,
+  layout: moduleStyles["layout"]!,
+  content: moduleStyles["content"]!,
+  error: moduleStyles["error"]!,
+};
 
 type NavigationLink = {
   to: "/home" | "/settings/profile" | "/settings/security" | "/devices" | "/rooms";
@@ -54,15 +78,15 @@ function SidebarNavigation({
 
   return (
     <aside
-      className="app-sidebar"
+      className={styles.sidebar}
       data-collapsed={collapsed}
       aria-label="アプリケーションサイドバー"
     >
-      <div className="sidebar-brand">
-        <BrandLink application />
+      <div className={styles.sidebarBrand}>
+        <BrandLink application className={styles.brand} />
       </div>
       <button
-        className="sidebar-collapse"
+        className={styles.collapse}
         type="button"
         aria-label={collapsed ? "サイドバーを展開" : "サイドバーを折り畳む"}
         aria-expanded={!collapsed}
@@ -72,44 +96,44 @@ function SidebarNavigation({
       </button>
       {isSettings && (
         <Link
-          className="sidebar-back"
+          className={styles.back}
           to="/home"
           aria-label={collapsed ? "メインメニューへ戻る" : undefined}
         >
           <ArrowLeftIcon aria-hidden="true" />
-          <span className="sidebar-label">メインメニューへ戻る</span>
+          <span className={styles.label}>メインメニューへ戻る</span>
         </Link>
       )}
       <nav
-        className="sidebar-navigation"
+        className={styles.navigation}
         aria-label={isSettings ? "設定ナビゲーション" : "メインナビゲーション"}
       >
-        {isSettings && <p className="sidebar-title">設定</p>}
-        <div className="sidebar-links">
+        {isSettings && <p className={styles.title}>設定</p>}
+        <div className={styles.links}>
           {links.map(({ to, label, icon: Icon }) => {
             const isCurrent =
               pathname === to || (to === "/settings/profile" && pathname === "/settings");
             return (
               <Link
                 key={to}
-                className="sidebar-link"
+                className={styles.link}
                 to={to}
                 aria-current={isCurrent ? "page" : undefined}
                 aria-label={collapsed ? label : undefined}
               >
                 <Icon aria-hidden="true" />
-                <span className="sidebar-label">{label}</span>
+                <span className={styles.label}>{label}</span>
               </Link>
             );
           })}
         </div>
       </nav>
-      <div className="sidebar-account">
+      <div className={styles.sidebarAccount}>
         <Menu.Root modal={false}>
           <Menu.Trigger
             render={
               <Button
-                className="account-menu-trigger"
+                className={styles.menuTrigger}
                 variant="outline"
                 size="icon"
                 aria-label="アカウントメニュー"
@@ -120,21 +144,21 @@ function SidebarNavigation({
           </Menu.Trigger>
           <Menu.Portal>
             <Menu.Positioner
-              className="account-menu-positioner"
+              className={styles.menuPositioner}
               side="bottom"
               align="end"
               sideOffset={10}
             >
-              <Menu.Popup className="account-menu-popup">
+              <Menu.Popup className={styles.menuPopup}>
                 <Menu.LinkItem
                   closeOnClick
-                  className="account-menu-item"
+                  className={styles.menuItem}
                   render={<Link to="/settings/profile" />}
                 >
                   設定
                 </Menu.LinkItem>
-                <Menu.Separator className="account-menu-separator" />
-                <Menu.Item className="account-menu-item account-menu-logout" onClick={onLogout}>
+                <Menu.Separator className={styles.menuSeparator} />
+                <Menu.Item className={`${styles.menuItem} ${styles.menuLogout}`} onClick={onLogout}>
                   ログアウト
                   <ArrowUpRightIcon aria-hidden="true" />
                 </Menu.Item>
@@ -176,17 +200,17 @@ export function ApplicationShell() {
     }
   };
   return (
-    <div className="app-shell">
-      <div className="app-layout" data-sidebar-collapsed={sidebarCollapsed}>
+    <div className={styles.shell}>
+      <div className={styles.layout} data-sidebar-collapsed={sidebarCollapsed}>
         <SidebarNavigation
           pathname={pathname}
           collapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
           onLogout={() => void logout()}
         />
-        <div className="app-content">
+        <div className={styles.content}>
           {logoutError ? (
-            <p role="alert" className="status-error">
+            <p role="alert" className={styles.error}>
               {logoutError}
             </p>
           ) : null}

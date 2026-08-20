@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { controlPlaneAuth } from "../../app/auth/control-plane-auth";
 import { Button } from "../../components/ui/button";
+import contentModuleStyles from "../application/application-content.module.css";
+import moduleStyles from "./settings-pages.module.css";
+const styles = {
+  main: contentModuleStyles["main"]!,
+  heading: contentModuleStyles["heading"]!,
+  headingCopy: moduleStyles["headingCopy"]!,
+  section: moduleStyles["section"]!,
+  sectionHeading: moduleStyles["sectionHeading"]!,
+  profileEditor: moduleStyles["profileEditor"]!,
+  imageHelp: moduleStyles["imageHelp"]!,
+  error: moduleStyles["error"]!,
+  profileIcon: moduleStyles["profileIcon"]!,
+  list: moduleStyles["list"]!,
+};
 
 const auth = controlPlaneAuth;
 type SessionUser = NonNullable<Awaited<ReturnType<typeof auth.getSession>>["data"]>["user"];
@@ -60,18 +74,18 @@ export function ProfilePage() {
     }
   };
   return (
-    <main id="main-content" className="app-main">
-      <header className="page-heading">
-        <div className="page-heading-copy">
+    <main id="main-content" className={styles.main}>
+      <header className={styles.heading}>
+        <div className={styles.headingCopy}>
           <h1>プロフィール</h1>
           <p>アカウントの基本情報を管理します。</p>
         </div>
       </header>
-      <section className="workspace-section">
-        <header className="section-heading">
+      <section className={styles.section}>
+        <header className={styles.sectionHeading}>
           <h2>基本情報</h2>
         </header>
-        <div className="profile-editor">
+        <div className={styles.profileEditor}>
           <ProfileIcon image={image.trim()} name={name} />
           <form onSubmit={save}>
             <label>
@@ -102,10 +116,10 @@ export function ProfilePage() {
                 inputMode="url"
               />
             </label>
-            <p className="profile-image-help">空欄にするとアイコンを解除します。</p>
+            <p className={styles.imageHelp}>空欄にするとアイコンを解除します。</p>
             {loadFailed ? (
               <div>
-                <p role="alert" className="status-error">
+                <p role="alert" className={styles.error}>
                   {state}
                 </p>
                 <Button type="button" variant="outline" onClick={loadProfile}>
@@ -139,7 +153,7 @@ function ProfileIcon({ image, name }: { image: string; name: string }) {
   useEffect(() => setFailed(false), [image]);
 
   return (
-    <div className="profile-icon-preview">
+    <div className={styles.profileIcon}>
       {image && !failed ? (
         <img src={image} alt="プロフィールアイコン" onError={() => setFailed(true)} />
       ) : (
@@ -190,21 +204,21 @@ export function SecurityPage() {
     setState(result.error ? "セッションを読み込めませんでした。" : "セッションを更新しました。");
   };
   return (
-    <main id="main-content" className="app-main">
-      <header className="page-heading">
-        <div className="page-heading-copy">
+    <main id="main-content" className={styles.main}>
+      <header className={styles.heading}>
+        <div className={styles.headingCopy}>
           <h1>セキュリティー</h1>
           <p>重要な操作には現在のパスワードでの再認証が必要です。</p>
         </div>
       </header>
-      <section className="workspace-section">
-        <header className="section-heading">
+      <section className={styles.section}>
+        <header className={styles.sectionHeading}>
           <h2>パスワード</h2>
         </header>
         <PasswordChange perform={perform} />
       </section>
-      <section className="workspace-section">
-        <header className="section-heading">
+      <section className={styles.section}>
+        <header className={styles.sectionHeading}>
           <h2>二要素認証</h2>
         </header>
         <label>
@@ -254,15 +268,15 @@ export function SecurityPage() {
           二要素認証を無効化
         </Button>
       </section>
-      <section className="workspace-section">
-        <header className="section-heading">
+      <section className={styles.section}>
+        <header className={styles.sectionHeading}>
           <h2>セッション</h2>
         </header>
         <Button variant="outline" onClick={() => void loadSessions()}>
           セッションを更新
         </Button>
         {sessions ? (
-          <ul className="resource-list">
+          <ul className={styles.list}>
             {sessions.map((session: DeviceSession) => (
               <li key={session.id}>
                 <p>

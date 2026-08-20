@@ -73,6 +73,13 @@ test("public authentication routes and account menu are accessible", async ({ pa
   });
   expect(createButtonStyle.animationName).toBe("none");
   expect(Number.parseFloat(createButtonStyle.borderRadius)).toBeGreaterThanOrEqual(20);
+  await createButton.click();
+  const closeDialog = page.getByRole("button", { name: "閉じる" });
+  await expect(closeDialog).toBeVisible();
+  expect(
+    await closeDialog.evaluate((element) => getComputedStyle(element).transitionDuration),
+  ).not.toBe("0s");
+  await closeDialog.click();
   await expect(page.getByRole("menuitem", { name: "設定" })).toBeHidden();
   const pageWidthBeforeMenu = await page.evaluate(() => document.documentElement.clientWidth);
   await desktopMenu.click();
@@ -89,6 +96,11 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await expect(desktopMenu).toBeFocused();
   await page.setViewportSize({ width: 375, height: 700 });
   await page.goto("/home");
+  const homeContentWidth = await page.locator("main#main-content").evaluate((element) => ({
+    main: element.getBoundingClientRect().width,
+    parent: element.parentElement?.getBoundingClientRect().width,
+  }));
+  expect(homeContentWidth.main).toBe(homeContentWidth.parent);
   const menu = page.getByRole("button", { name: "アカウントメニュー" });
   await menu.click();
   await expect(page.getByRole("menu")).toBeVisible();
@@ -102,6 +114,11 @@ test("public authentication routes and account menu are accessible", async ({ pa
   expect(horizontalOverflow).toBe(false);
 
   await page.goto("/settings/profile");
+  const settingsContentWidth = await page.locator("main#main-content").evaluate((element) => ({
+    main: element.getBoundingClientRect().width,
+    parent: element.parentElement?.getBoundingClientRect().width,
+  }));
+  expect(settingsContentWidth.main).toBe(settingsContentWidth.parent);
   const settingsNavigation = page.getByRole("navigation", {
     name: "設定ナビゲーション",
   });
@@ -116,7 +133,13 @@ test("device authorization accepts a code", async ({ page }) => {
       body: JSON.stringify({ user_code: "ABCD-EFGH", status: "pending" }),
     }),
   );
+  await page.setViewportSize({ width: 375, height: 700 });
   await page.goto("/device?user_code=ABCD-EFGH");
+  expect(
+    await page
+      .getByRole("heading", { name: "Connect a device." })
+      .evaluate((element) => getComputedStyle(element).fontSize),
+  ).toBe("56px");
   await page.getByRole("button", { name: "コードを確認" }).click();
   await expect(page.getByRole("button", { name: "承認する" })).toBeVisible();
 });

@@ -1,0 +1,124 @@
+.headingCopy {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
+  align-items: end;
+  gap: 64px;
+}
+.section {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.55fr) minmax(0, 1.45fr);
+  column-gap: clamp(40px, 8vw, 112px);
+  row-gap: 32px;
+  padding: 72px 0;
+  border-bottom: 1px solid var(--line);
+}
+.section > :not(.sectionHeading) {
+  grid-column: 2;
+}
+.sectionHeading {
+  align-content: start;
+}
+.sectionHeading h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+.profileEditor {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+.profileEditor form {
+  width: 100%;
+}
+.profileIcon {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-size: 2rem;
+  font-weight: 600;
+}
+.profileIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.imageHelp {
+  margin: -10px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.error {
+  color: #9e3039;
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.list li {
+  margin: 0 -14px;
+  padding: 24px 14px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 12px;
+  transition:
+    color 140ms ease,
+    background-color 180ms ease,
+    border-color 160ms ease;
+}
+.list li:hover {
+  color: var(--interactive-blue-ink);
+  border-color: color-mix(in srgb, var(--interactive-blue) 42%, var(--line));
+  background: var(--interactive-blue-soft);
+}
+.list h2,
+.list h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.list p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 1100px) {
+  .headingCopy {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .section > .profileEditor {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 767px) {
+  .headingCopy {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .section {
+    grid-template-columns: 1fr;
+    padding: 48px 0;
+  }
+  .section > :not(.sectionHeading) {
+    grid-column: 1;
+  }
+  .profileEditor {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 20px;
+  }
+  .profileIcon {
+    width: 72px;
+    height: 72px;
+    font-size: 1.5rem;
+  }
+}
