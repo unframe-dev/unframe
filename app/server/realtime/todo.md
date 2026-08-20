@@ -105,7 +105,7 @@ timeout = "2s"
 - [ ] Fly.io が提示する DNS target を確認する。
 - [ ] Cloudflare 管理下の `un-fra.me` zone に DNS record を追加する。
 - [ ] certificate の発行完了を確認する。
-- [ ] Control Plane の `REALTIME_ENDPOINT=https://realtime.un-fra.me` と一致することを確認する。
+- [ ] Control Plane の Runtime assignment が返す endpoint で到達性を確認する。
 
 ## Persistence / recovery
 

@@ -23,9 +23,10 @@ Target Architecture では、この Edge 固有の割り当てを Cloud Runtime 
 
 | 領域 | 状態 | 現在の境界・根拠 |
 | --- | --- | --- |
-| Venue Edge provisioning / credential / registration / assignment | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`。lease日時をcanonical ISOへ正規化し、Edgeによるrenewは5分以内に制限する |
+| Venue Edge provisioning / credential / registration / assignment | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`。lease日時をcanonical ISOへ正規化し、Edgeによるrenewは5分以内、割当・bootstrapに使えるhealthは直近60秒以内に制限する |
 | Venue Edge bootstrap / JWT claims | 実装済み | `control-plane/src/modules/realtime-bootstrap/` と session bootstrap route。`edgeId`、assignment epoch、Presentation revision を拘束する |
-| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/edge/`、gRPC interceptor / service guard。JWKS cacheは5分で失効し、refresh失敗時はstale keyを使用しない |
+| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/edge/`、gRPC interceptor / service guard。JWKS cacheは5分で失効し、未知のkey IDによるrefreshは30秒に1回へ制限する。lease失効時はblocked sendからも切断する |
+| Runtime persistence callback | 部分実装 | Control Planeのcheckpoint / completion handlerとD1保存を実装済み。completionは`edgeId`と`assignmentEpoch`でactive leaseをfencingするが、Runtimeからの送信、checkpointのepoch fencing、telemetryは未実装 |
 | Manifest 検証、content-addressed cache、Range 対応 Asset handler | 部分実装 | `realtime/internal/asset/`。domain と `http.Handler` はあるが、実際の local HTTPS listener、証明書、Cloud Agent、runtime composition へ未接続 |
 | Runtime pause / resume state | 部分実装 | `realtime/internal/session/runtime.go`。状態遷移 primitive はあるが、Presenter 接続、Step / Cue、Snapshot / checkpoint へ未接続 |
 | Element State latest-wins mailbox | 部分実装 | `realtime/internal/state/mailbox.go`。field merge primitive はあるが、State gRPC fan-out へ未接続 |
@@ -742,7 +743,7 @@ ViewerReadiness
 4. Quest が bootstrap で選択された Runtime へ JWT を提示する。
 5. Runtime Core が cached JWKS または Control Plane の JWKS で署名を検証する。
 
-JWKS cacheはbounded max ageを持ち、期限後は既知の`kid`でもControl Planeへrefreshする。refresh失敗時はstale keyで検証を継続せずfail closedとし、Control Planeから削除された鍵を予測可能な期間内で拒否する。現在の実装はmax ageを5分とし、未知の`kid`はcache期限前でもrefreshする。
+JWKS cacheはbounded max ageを持ち、期限後は既知の`kid`でもControl Planeへrefreshする。refresh失敗時はstale keyで検証を継続せずfail closedとし、Control Planeから削除された鍵を予測可能な期間内で拒否する。現在の実装はmax ageを5分とし、未知の`kid`によるcache期限前のrefreshはtraffic amplificationを避けるため30秒に1回へ制限する。
 
 JWT は少なくとも次を拘束する。
 
@@ -1063,7 +1064,7 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - local HTTPS listenerのprocess / port構成、LAN bind、証明書保存・rotation、fingerprint形式、firewall / discovery
 - Cloud Agentのservice manager、credential store、update / rollback方式
 - Internet grace periodとsession停止policy
-- assignment lease durationとrenew interval。現在のEdge固有renew APIは安全上の暫定上限を5分とする
+- assignment lease duration、renew interval、health freshness。現在のEdge固有renew APIは安全上の暫定上限を5分、割当・bootstrapに使うheartbeat ageは60秒とする
 - Edge tokenの有効期間、rotation interval、overlap期間
 - Asset cacheのhard capacity、low-disk threshold、eviction順、active session pin、partial download回収、session quota
 
