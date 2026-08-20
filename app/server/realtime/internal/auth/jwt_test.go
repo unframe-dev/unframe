@@ -85,11 +85,39 @@ func TestBearerTokenVerifierRefreshesJWKSForUnknownKeyID(t *testing.T) {
 	if _, err := verifier.Verify(context.Background(), issueToken(t, privateKey, "old-key", validClaims(now)), "realtime:connect"); err != nil {
 		t.Fatalf("verify token with initially cached key: %v", err)
 	}
+	now = now.Add(30 * time.Second)
 	if _, err := verifier.Verify(context.Background(), issueToken(t, privateKey, "new-key", validClaims(now)), "realtime:connect"); err != nil {
 		t.Fatalf("verify token after unknown-kid refresh: %v", err)
 	}
 	if got := requests.Load(); got != 2 {
 		t.Errorf("JWKS requests = %d, want 2", got)
+	}
+}
+
+func TestBearerTokenVerifierBoundsRefreshesForUnknownKeyIDs(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		requests.Add(1)
+		response.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(response).Encode(jwks("known-key", publicKey))
+	}))
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	if _, err := verifier.Verify(context.Background(), issueToken(t, privateKey, "known-key", validClaims(now)), "realtime:connect"); err != nil {
+		t.Fatalf("verify token with initially cached key: %v", err)
+	}
+
+	for _, keyID := range []string{"unknown-1", "unknown-2", "unknown-3"} {
+		if _, err := verifier.Verify(context.Background(), issueToken(t, privateKey, keyID, validClaims(now)), "realtime:connect"); err != ErrInvalidTokenKeyID {
+			t.Errorf("verify token with %s error = %v, want %v", keyID, err, ErrInvalidTokenKeyID)
+		}
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("JWKS requests = %d, want 1 while unknown-key refresh is throttled", got)
 	}
 }
 
@@ -108,13 +136,13 @@ func TestBearerTokenVerifierRefreshesCachedKeyAfterTTLAndRejectsRemovedKey(t *te
 		_ = json.NewEncoder(response).Encode(jwks("key-2", publicKey))
 	}))
 	defer server.Close()
-	verifier := newTestVerifierWithTTL(t, server.URL, &now, time.Minute)
+	verifier := newTestVerifierWithTTL(t, server.URL, &now, 10*time.Second)
 	token := issueToken(t, privateKey, "key-1", validClaims(now))
 	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != nil {
 		t.Fatalf("verify with initial cached key: %v", err)
 	}
 
-	now = now.Add(time.Minute)
+	now = now.Add(10 * time.Second)
 	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != ErrInvalidTokenKeyID {
 		t.Errorf("verify after key removal error = %v, want %v", err, ErrInvalidTokenKeyID)
 	}

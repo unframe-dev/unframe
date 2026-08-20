@@ -19,6 +19,7 @@ const (
 	venueEdgeAudience      = "unframe-venue-edge"
 	currentProtocolVersion = 1
 	defaultJWKSCacheTTL    = 5 * time.Minute
+	minimumJWKSRefreshGap  = 30 * time.Second
 )
 
 var (
@@ -59,10 +60,11 @@ type BearerTokenVerifier struct {
 	httpClient HTTPClient
 	clock      Clock
 
-	mu             sync.Mutex
-	keys           map[string]ed25519.PublicKey
-	cacheExpiresAt time.Time
-	cacheTTL       time.Duration
+	mu                   sync.Mutex
+	keys                 map[string]ed25519.PublicKey
+	cacheExpiresAt       time.Time
+	nextUnknownRefreshAt time.Time
+	cacheTTL             time.Duration
 }
 
 func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerifier, error) {
@@ -140,8 +142,20 @@ func (v *BearerTokenVerifier) Verify(ctx context.Context, token string, required
 func (v *BearerTokenVerifier) keyFor(ctx context.Context, keyID string) (ed25519.PublicKey, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if key := v.keys[keyID]; key != nil && v.clock().Before(v.cacheExpiresAt) {
+	now := v.clock()
+	key := v.keys[keyID]
+	if key != nil && now.Before(v.cacheExpiresAt) {
 		return key, nil
+	}
+	if key == nil && now.Before(v.nextUnknownRefreshAt) {
+		if now.Before(v.cacheExpiresAt) {
+			return nil, ErrInvalidTokenKeyID
+		}
+		return nil, ErrJWKSUnavailable
+	}
+	if key == nil {
+		// Throttle before I/O so failed requests and attacker-chosen key IDs are bounded too.
+		v.nextUnknownRefreshAt = now.Add(minimumJWKSRefreshGap)
 	}
 	if err := v.refreshKeysLocked(ctx); err != nil {
 		return nil, err
@@ -149,6 +163,7 @@ func (v *BearerTokenVerifier) keyFor(ctx context.Context, keyID string) (ed25519
 	if key := v.keys[keyID]; key != nil {
 		return key, nil
 	}
+	v.nextUnknownRefreshAt = now.Add(minimumJWKSRefreshGap)
 	return nil, ErrInvalidTokenKeyID
 }
 
