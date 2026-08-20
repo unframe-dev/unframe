@@ -1,6 +1,6 @@
 import type { CheckpointInput, CompletionInput } from "./schema";
 
-export type PersistenceResult = "applied" | "duplicate" | "not_found";
+export type PersistenceResult = "applied" | "duplicate" | "not_found" | "conflict";
 
 export type PersistenceCallbackRepository = {
   applyCheckpoint(value: CheckpointInput): Promise<PersistenceResult>;
@@ -8,7 +8,7 @@ export type PersistenceCallbackRepository = {
 };
 
 export class PersistenceCallbackError extends Error {
-  constructor(readonly code: "not_found") {
+  constructor(readonly code: "not_found" | "conflict") {
     super(code);
   }
 }
@@ -26,6 +26,7 @@ export class PersistenceCallbackService {
 
   private result(result: PersistenceResult) {
     if (result === "not_found") throw new PersistenceCallbackError("not_found");
+    if (result === "conflict") throw new PersistenceCallbackError("conflict");
     return { applied: result === "applied" };
   }
 }

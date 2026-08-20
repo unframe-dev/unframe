@@ -51,6 +51,14 @@ export function createPersistenceCallbackRoutes() {
         );
       } catch (error) {
         if (error instanceof PersistenceCallbackError) {
+          if (error.code === "conflict") {
+            throw new HTTPException(409, {
+              res: context.json(
+                { error: { code: "conflict", message: "Assignment is not active" } },
+                409,
+              ),
+            });
+          }
           throw new HTTPException(404, {
             res: context.json({ error: { code: "not_found", message: "Not found" } }, 404),
           });

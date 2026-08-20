@@ -15,6 +15,8 @@ const checkpoint = {
 };
 const completion = {
   sessionId: "session",
+  edgeId: "edge-1",
+  assignmentEpoch: 1,
   checkpointVersion: 1,
   lastSequence: 10,
   idempotencyKey: "shared-key",
@@ -59,6 +61,17 @@ describe("PersistenceCallbackService", () => {
 
     await expect(service.checkpoint(checkpoint)).rejects.toEqual(
       new PersistenceCallbackError("not_found"),
+    );
+  });
+
+  it("maps a superseded completion assignment to conflict", async () => {
+    const repository: PersistenceCallbackRepository = {
+      applyCheckpoint: async () => "applied",
+      applyCompletion: async () => "conflict",
+    };
+
+    await expect(new PersistenceCallbackService(repository).complete(completion)).rejects.toEqual(
+      new PersistenceCallbackError("conflict"),
     );
   });
 });

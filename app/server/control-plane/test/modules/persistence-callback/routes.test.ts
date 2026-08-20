@@ -5,6 +5,7 @@ import { runtimeEnvironment } from "../../runtime-environment";
 
 const seedSession = async () => {
   const sessionId = crypto.randomUUID();
+  const edgeId = crypto.randomUUID();
   const userId = `owner-${sessionId}`;
   const presentationId = `presentation-${sessionId}`;
   await env.DB.batch([
@@ -26,12 +27,20 @@ const seedSession = async () => {
   )
     .bind(sessionId, presentationId, userId, `hash-${sessionId}`, "2026-01-01")
     .run();
-  return sessionId;
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO venue_edges (id, status, last_seen_at, created_at) VALUES (?, 'active', ?, ?)",
+    ).bind(edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T00:00:00.000Z"),
+    env.DB.prepare(
+      "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 1, 1, ?, ?, NULL)",
+    ).bind(sessionId, edgeId, "2026-08-11T00:00:00.000Z", "2099-08-11T01:00:00.000Z"),
+  ]);
+  return { sessionId, edgeId };
 };
 
 describe("persistence callback HTTP boundary", () => {
   it("requires service identity and deduplicates writes", async () => {
-    const sessionId = await seedSession();
+    const { sessionId, edgeId } = await seedSession();
     const app = createApp({ identityProvider: async () => undefined });
     const callback = (
       path: string,
@@ -62,6 +71,8 @@ describe("persistence callback HTTP boundary", () => {
     });
     const completion = {
       sessionId,
+      edgeId,
+      assignmentEpoch: 1,
       checkpointVersion: 1,
       lastSequence: 5,
       idempotencyKey: "done-1",
@@ -71,6 +82,13 @@ describe("persistence callback HTTP boundary", () => {
       participants: [{ userId: "presenter", role: "presenter" }],
       finalCheckpoint: { step: 2 },
     };
+    const staleResponse = await callback("/callbacks/completions", {
+      ...completion,
+      edgeId: crypto.randomUUID(),
+      idempotencyKey: "stale-done",
+    });
+    expect(staleResponse.status).toBe(409);
+    await expect(staleResponse.json()).resolves.toMatchObject({ error: { code: "conflict" } });
     await expect((await callback("/callbacks/completions", completion)).json()).resolves.toEqual({
       applied: true,
     });
