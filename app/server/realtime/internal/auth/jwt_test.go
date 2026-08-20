@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -52,7 +53,7 @@ func TestBearerTokenVerifierVerifiesRuntimeAssignmentClaimsAndRequiredScope(t *t
 	}
 }
 
-func TestBearerTokenVerifierUsesBoundedDefaultJWKSCacheTTL(t *testing.T) {
+func TestBearerTokenVerifierUsesBoundedDefaults(t *testing.T) {
 	t.Parallel()
 
 	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
@@ -65,6 +66,9 @@ func TestBearerTokenVerifierUsesBoundedDefaultJWKSCacheTTL(t *testing.T) {
 	}
 	if verifier.cacheTTL != 5*time.Minute {
 		t.Errorf("cache TTL = %s, want 5m", verifier.cacheTTL)
+	}
+	if verifier.requestTimeout != 5*time.Second {
+		t.Errorf("request timeout = %s, want 5s", verifier.requestTimeout)
 	}
 }
 
@@ -230,6 +234,60 @@ func TestBearerTokenVerifierCoalescesConcurrentTTLRefresh(t *testing.T) {
 	}
 	if got := requests.Load(); got != 2 {
 		t.Errorf("JWKS requests = %d, want 2", got)
+	}
+}
+
+func TestBearerTokenVerifierReadinessDeadlineIsNotBlockedByRefresh(t *testing.T) {
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	refreshStarted := make(chan struct{})
+	releaseRefresh := make(chan struct{})
+	var startOnce sync.Once
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseRefresh) }) }
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		startOnce.Do(func() { close(refreshStarted) })
+		<-releaseRefresh
+		_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+	}))
+	defer func() {
+		release()
+		server.Close()
+	}()
+	verifier := newTestVerifier(t, server.URL, &now)
+	token := issueToken(t, privateKey, "key-1", validClaims(now))
+	verifyDone := make(chan error, 1)
+	go func() {
+		_, err := verifier.Verify(context.Background(), token, "realtime:connect")
+		verifyDone <- err
+	}()
+
+	select {
+	case <-refreshStarted:
+	case <-time.After(time.Second):
+		t.Fatal("JWKS refresh did not start")
+	}
+	readinessContext, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	readyDone := make(chan error, 1)
+	go func() { readyDone <- verifier.Ready(readinessContext) }()
+	select {
+	case err := <-readyDone:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Errorf("Ready() error = %v, want context deadline exceeded", err)
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Error("Ready() did not respect its context deadline")
+	}
+
+	release()
+	select {
+	case err := <-verifyDone:
+		if err != nil {
+			t.Errorf("Verify() after releasing refresh = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Error("Verify() did not finish after releasing refresh")
 	}
 }
 

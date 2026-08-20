@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { createD1Database } from "../../adapters/d1/database";
 import { runtimeAssignments } from "../../adapters/d1/schema";
@@ -48,7 +48,7 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
   async assign(input: AssignmentRequest) {
     const result = await this.database
       .prepare(
-        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(epoch) + 1 FROM runtime_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND ((? = 'Cloud' AND ? IS NULL AND ? IS NULL) OR (? = 'VenueEdge' AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND runtime_id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND last_seen_at >= ? AND capacity > 0 AND local_endpoint = ? AND certificate_fingerprint = ?))) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE runtime_id = ? AND released_at IS NULL AND lease_expires_at > ?)",
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(epoch) + 1 FROM runtime_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND ((? = 'Cloud' AND ? IS NULL AND ? IS NULL) OR (? = 'VenueEdge' AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND runtime_id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND last_seen_at >= ? AND capacity > 0 AND local_endpoint = ? AND certificate_fingerprint = ?))) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE runtime_id = ? AND released_at IS NULL AND lease_expires_at > ?) RETURNING session_id AS sessionId, runtime_id AS runtimeId, runtime_kind AS runtimeKind, endpoint, certificate_fingerprint AS certificateFingerprint, provisioning_edge_id AS provisioningEdgeId, epoch AS assignmentEpoch, revision AS presentationRevision, issued_at AS issuedAt, lease_expires_at AS leaseExpiresAt, released_at AS releasedAt",
       )
       .bind(
         input.sessionId,
@@ -77,8 +77,8 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
         input.runtimeId,
         input.issuedAt,
       )
-      .run();
-    return result.meta.changes === 1 ? this.latest(input.sessionId) : null;
+      .run<RuntimeAssignment>();
+    return result.results[0] ?? null;
   }
   async findActive(sessionId: string, now: string, edgeHealthyAfter: string) {
     return (
@@ -135,17 +135,6 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
       )
       .bind(now, sessionId)
       .run();
-  }
-  private async latest(sessionId: string) {
-    const value = await this.db
-      .select()
-      .from(runtimeAssignments)
-      .where(eq(runtimeAssignments.sessionId, sessionId))
-      .orderBy(desc(runtimeAssignments.epoch))
-      .get();
-    if (!value) return null;
-    const { epoch, revision, ...assignment } = value;
-    return { ...assignment, assignmentEpoch: epoch, presentationRevision: revision };
   }
   private async byEpoch(sessionId: string, epoch: number) {
     const value = await this.db

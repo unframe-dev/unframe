@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	currentProtocolVersion = 1
-	defaultJWKSCacheTTL    = 5 * time.Minute
-	defaultRefreshCooldown = 30 * time.Second
-	maxJWKSBodyBytes       = 1 << 20
+	currentProtocolVersion    = 1
+	defaultJWKSCacheTTL       = 5 * time.Minute
+	defaultRefreshCooldown    = 30 * time.Second
+	defaultJWKSRequestTimeout = 5 * time.Second
+	maxJWKSBodyBytes          = 1 << 20
 )
 
 var (
@@ -51,6 +52,7 @@ type BearerTokenVerifierConfig struct {
 	JWKSURL         string
 	CacheTTL        time.Duration
 	RefreshCooldown time.Duration
+	RequestTimeout  time.Duration
 	HTTPClient      HTTPClient
 	Clock           Clock
 }
@@ -64,6 +66,7 @@ type BearerTokenVerifier struct {
 	jwksOrigin      *url.URL
 	cacheTTL        time.Duration
 	refreshCooldown time.Duration
+	requestTimeout  time.Duration
 	httpClient      HTTPClient
 	clock           Clock
 
@@ -71,6 +74,12 @@ type BearerTokenVerifier struct {
 	keys        map[string]ed25519.PublicKey
 	expiresAt   time.Time
 	lastRefresh time.Time
+	refreshing  *jwksRefresh
+}
+
+type jwksRefresh struct {
+	done chan struct{}
+	err  error
 }
 
 func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerifier, error) {
@@ -87,6 +96,9 @@ func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerif
 	if config.RefreshCooldown <= 0 {
 		config.RefreshCooldown = defaultRefreshCooldown
 	}
+	if config.RequestTimeout <= 0 {
+		config.RequestTimeout = defaultJWKSRequestTimeout
+	}
 	if config.HTTPClient == nil {
 		config.HTTPClient = http.DefaultClient
 	}
@@ -100,6 +112,7 @@ func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerif
 		jwksOrigin:      jwksURL,
 		cacheTTL:        config.CacheTTL,
 		refreshCooldown: config.RefreshCooldown,
+		requestTimeout:  config.RequestTimeout,
 		httpClient:      config.HTTPClient,
 		clock:           config.Clock,
 	}, nil
@@ -108,20 +121,12 @@ func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerif
 // Ready confirms that an unexpired JWKS cache with at least one usable
 // verification key is available for application readiness checks.
 func (v *BearerTokenVerifier) Ready(ctx context.Context) error {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	now := v.clock()
-	if len(v.keys) > 0 && now.Before(v.expiresAt) {
-		return nil
-	}
-	if len(v.keys) == 0 && !v.refreshAllowed(now) {
-		return ErrJWKSUnavailable
-	}
-	if err := v.refreshKeysLocked(ctx, now); err != nil {
+	if err := v.ensureFreshKeys(ctx); err != nil {
 		return err
 	}
-	if len(v.keys) == 0 {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if len(v.keys) == 0 || !v.clock().Before(v.expiresAt) {
 		return ErrJWKSUnavailable
 	}
 	return nil
@@ -173,62 +178,125 @@ func (v *BearerTokenVerifier) Verify(ctx context.Context, token string, required
 }
 
 func (v *BearerTokenVerifier) keyFor(ctx context.Context, keyID string) (ed25519.PublicKey, error) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	now := v.clock()
-	refreshed := false
-	if v.keys == nil || !now.Before(v.expiresAt) {
-		if len(v.keys) == 0 && !v.refreshAllowed(now) {
-			return nil, ErrJWKSUnavailable
-		}
-		if err := v.refreshKeysLocked(ctx, now); err != nil {
-			return nil, err
-		}
-		refreshed = true
+	if err := v.ensureFreshKeys(ctx); err != nil {
+		return nil, err
 	}
-	if key := v.keys[keyID]; key != nil {
+	if key := v.cachedKey(keyID); key != nil {
 		return key, nil
 	}
-	if !refreshed && v.refreshAllowed(now) {
-		if err := v.refreshKeysLocked(ctx, now); err != nil {
-			return nil, err
-		}
+	if err := v.refreshForUnknownKey(ctx); err != nil {
+		return nil, err
 	}
-	if key := v.keys[keyID]; key != nil {
+	if key := v.cachedKey(keyID); key != nil {
 		return key, nil
 	}
 	return nil, ErrInvalidTokenKeyID
+}
+
+func (v *BearerTokenVerifier) cachedKey(keyID string) ed25519.PublicKey {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.keys[keyID]
+}
+
+func (v *BearerTokenVerifier) ensureFreshKeys(ctx context.Context) error {
+	v.mu.Lock()
+	now := v.clock()
+	if len(v.keys) > 0 && now.Before(v.expiresAt) {
+		v.mu.Unlock()
+		return nil
+	}
+	if refresh := v.refreshing; refresh != nil {
+		v.mu.Unlock()
+		return waitForJWKSRefresh(ctx, refresh)
+	}
+	if len(v.keys) == 0 && !v.refreshAllowed(now) {
+		v.mu.Unlock()
+		return ErrJWKSUnavailable
+	}
+	refresh := v.beginRefreshLocked(now)
+	v.mu.Unlock()
+	return v.runRefresh(ctx, refresh)
+}
+
+func (v *BearerTokenVerifier) refreshForUnknownKey(ctx context.Context) error {
+	v.mu.Lock()
+	if refresh := v.refreshing; refresh != nil {
+		v.mu.Unlock()
+		return waitForJWKSRefresh(ctx, refresh)
+	}
+	now := v.clock()
+	if !v.refreshAllowed(now) {
+		v.mu.Unlock()
+		return nil
+	}
+	refresh := v.beginRefreshLocked(now)
+	v.mu.Unlock()
+	return v.runRefresh(ctx, refresh)
+}
+
+func (v *BearerTokenVerifier) beginRefreshLocked(now time.Time) *jwksRefresh {
+	refresh := &jwksRefresh{done: make(chan struct{})}
+	v.lastRefresh = now
+	v.refreshing = refresh
+	return refresh
+}
+
+func (v *BearerTokenVerifier) runRefresh(ctx context.Context, refresh *jwksRefresh) error {
+	keys, err := v.fetchKeys(ctx)
+	v.mu.Lock()
+	if err == nil {
+		v.keys = keys
+		v.expiresAt = v.clock().Add(v.cacheTTL)
+	}
+	refresh.err = err
+	v.refreshing = nil
+	close(refresh.done)
+	v.mu.Unlock()
+	return err
+}
+
+func waitForJWKSRefresh(ctx context.Context, refresh *jwksRefresh) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-refresh.done:
+		return refresh.err
+	}
 }
 
 func (v *BearerTokenVerifier) refreshAllowed(now time.Time) bool {
 	return v.lastRefresh.IsZero() || now.Sub(v.lastRefresh) >= v.refreshCooldown
 }
 
-func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context, now time.Time) error {
-	v.lastRefresh = now
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, v.jwksURL, nil)
+func (v *BearerTokenVerifier) fetchKeys(ctx context.Context) (map[string]ed25519.PublicKey, error) {
+	requestContext, cancel := context.WithTimeout(ctx, v.requestTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, v.jwksURL, nil)
 	if err != nil {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
 	response, err := v.httpClient.Do(request)
 	if err != nil || response == nil || response.Body == nil {
-		return ErrJWKSUnavailable
+		if requestContext.Err() != nil {
+			return nil, requestContext.Err()
+		}
+		return nil, ErrJWKSUnavailable
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.Request == nil || !sameOrigin(v.jwksOrigin, response.Request.URL) {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxJWKSBodyBytes+1))
 	if err != nil || len(body) > maxJWKSBodyBytes {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
 	var document jwksDocument
 	if err := json.Unmarshal(body, &document); err != nil {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
 	keys := make(map[string]ed25519.PublicKey)
 	for _, jwk := range document.Keys {
@@ -240,16 +308,14 @@ func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context, now time.Ti
 			continue
 		}
 		if _, duplicate := keys[jwk.Kid]; duplicate {
-			return ErrJWKSUnavailable
+			return nil, ErrJWKSUnavailable
 		}
 		keys[jwk.Kid] = ed25519.PublicKey(key)
 	}
 	if len(keys) == 0 {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
-	v.keys = keys
-	v.expiresAt = now.Add(v.cacheTTL)
-	return nil
+	return keys, nil
 }
 
 func sameOrigin(trusted, actual *url.URL) bool {

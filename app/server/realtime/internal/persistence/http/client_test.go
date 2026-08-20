@@ -184,6 +184,38 @@ func TestClientRequiresHTTPSExceptLoopbackTestOverride(t *testing.T) {
 	}
 }
 
+func TestClientRejectsRedirectsBeforeResendingServiceIdentity(t *testing.T) {
+	t.Parallel()
+
+	var redirectedRequests atomic.Int32
+	redirectTarget := httptest.NewServer(stdhttp.HandlerFunc(func(response stdhttp.ResponseWriter, request *stdhttp.Request) {
+		redirectedRequests.Add(1)
+		if got := request.Header.Get("Authorization"); got != "" {
+			t.Errorf("redirected Authorization = %q, want empty", got)
+		}
+		_, _ = response.Write([]byte(`{"applied":true}`))
+	}))
+	defer redirectTarget.Close()
+	origin := httptest.NewTLSServer(stdhttp.HandlerFunc(func(response stdhttp.ResponseWriter, request *stdhttp.Request) {
+		stdhttp.Redirect(response, request, redirectTarget.URL, stdhttp.StatusTemporaryRedirect)
+	}))
+	defer origin.Close()
+
+	_, err := NewClient(Config{
+		BaseURL:         origin.URL,
+		ServiceIdentity: "service-secret",
+		HTTPClient:      origin.Client(),
+		MaxAttempts:     1,
+	}).Checkpoint(context.Background(), checkpointFixture())
+	var responseError *ResponseError
+	if !errors.As(err, &responseError) || responseError.StatusCode != stdhttp.StatusTemporaryRedirect {
+		t.Fatalf("Checkpoint() error = %v, want 307 ResponseError", err)
+	}
+	if got := redirectedRequests.Load(); got != 0 {
+		t.Errorf("redirected requests = %d, want 0", got)
+	}
+}
+
 func TestClientRetriesOnlyTransientFailures(t *testing.T) {
 	t.Parallel()
 

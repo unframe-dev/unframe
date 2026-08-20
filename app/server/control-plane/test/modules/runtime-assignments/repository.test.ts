@@ -38,6 +38,45 @@ const cloudAssignment = (
   edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
 });
 
+const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
+  let hookCalled = false;
+  const wrapStatement = (statement: D1PreparedStatement): D1PreparedStatement =>
+    new Proxy(statement, {
+      get(target, property, receiver) {
+        if (property === "bind") {
+          return (...values: unknown[]) => wrapStatement(target.bind(...values));
+        }
+        if (property === "run") {
+          return async <T = Record<string, unknown>>() => {
+            const result = await target.run<T>();
+            if (!hookCalled) {
+              hookCalled = true;
+              await hook();
+            }
+            return result;
+          };
+        }
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+  return new Proxy(env.DB, {
+    get(target, property, receiver) {
+      if (property === "prepare") {
+        return (query: string) => {
+          const statement = target.prepare(query);
+          return query.startsWith("INSERT INTO runtime_assignments")
+            ? wrapStatement(statement)
+            : statement;
+        };
+      }
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+};
+
 describe("D1RuntimeAssignmentRepository", () => {
   it("fences one active assignment per session and runtime while incrementing the session epoch", async () => {
     const suffix = crypto.randomUUID();
@@ -67,6 +106,40 @@ describe("D1RuntimeAssignmentRepository", () => {
         cloudAssignment(firstSession, `other-runtime-${suffix}`, "2026-08-20T01:00:00.000Z"),
       ),
     ).resolves.toMatchObject({ assignmentEpoch: 2 });
+  });
+
+  it("returns the assignment inserted by the current request when a later epoch races its response", async () => {
+    const suffix = crypto.randomUUID();
+    const sessionId = await addSession(`race-${suffix}`);
+    const firstRuntimeId = `runtime-first-${suffix}`;
+    const nextRuntimeId = `runtime-next-${suffix}`;
+    const replacementRepository = new D1RuntimeAssignmentRepository(env.DB);
+    const database = withPostInsertHook(async () => {
+      await env.DB.prepare(
+        "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
+      )
+        .bind("2026-08-20T01:00:00.000Z", sessionId)
+        .run();
+      await replacementRepository.assign(
+        cloudAssignment(sessionId, nextRuntimeId, "2026-08-20T01:00:00.000Z"),
+      );
+    });
+    const repository = new D1RuntimeAssignmentRepository(database);
+
+    await expect(
+      repository.assign(cloudAssignment(sessionId, firstRuntimeId)),
+    ).resolves.toMatchObject({
+      runtimeId: firstRuntimeId,
+      assignmentEpoch: 1,
+      releasedAt: null,
+    });
+    await expect(
+      repository.findActive(
+        sessionId,
+        "2026-08-20T01:00:00.000Z",
+        "2026-08-20T00:59:00.000Z",
+      ),
+    ).resolves.toMatchObject({ runtimeId: nextRuntimeId, assignmentEpoch: 2 });
   });
 
   it("returns only the public assignment shape while the session and lease remain active", async () => {

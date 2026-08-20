@@ -125,10 +125,15 @@ func NewClient(config Config) *Client {
 	if httpClient == nil {
 		httpClient = stdhttp.DefaultClient
 	}
+	httpClientCopy := *httpClient
+	// Callback credentials must never be replayed to a redirect target.
+	httpClientCopy.CheckRedirect = func(*stdhttp.Request, []*stdhttp.Request) error {
+		return stdhttp.ErrUseLastResponse
+	}
 	return &Client{
 		baseURL:               strings.TrimRight(config.BaseURL, "/"),
 		serviceIdentity:       config.ServiceIdentity,
-		httpClient:            httpClient,
+		httpClient:            &httpClientCopy,
 		timeout:               timeout,
 		maxAttempts:           maxAttempts,
 		retryDelay:            retryDelay,
