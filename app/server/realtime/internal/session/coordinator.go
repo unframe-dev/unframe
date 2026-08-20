@@ -28,9 +28,14 @@ const (
 )
 
 type Identity struct {
-	SessionID     string
-	ParticipantID string
-	Role          Role
+	SessionID            string
+	ParticipantID        string
+	Role                 Role
+	EdgeID               string
+	AssignmentEpoch      uint64
+	PresentationID       string
+	PresentationRevision uint64
+	ProtocolVersion      uint64
 }
 
 type PageChangeCommand struct {

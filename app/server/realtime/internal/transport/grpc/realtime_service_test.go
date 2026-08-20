@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -61,6 +62,53 @@ func TestRealtimeServiceRejectsViewerCommand(t *testing.T) {
 	_, err := viewer.Recv()
 	if status.Code(err) != codes.PermissionDenied {
 		t.Errorf("viewer command code = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
+	}
+}
+
+func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, EdgeID: "edge-1", AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: edge.ErrLeaseExpired}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	if _, err := client.Recv(); status.Code(err) != codes.FailedPrecondition {
+		t.Errorf("expired assignment connection code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+	}
+}
+
+func TestRealtimeServiceRejectsCommandWhenAssignmentDoesNotMatch(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, EdgeID: "edge-1", AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{command: edge.ErrAssignmentEpochMismatch}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_PRESENTER)
+	if err := client.Send(&realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{MessageId: "command-1", PageIndex: 1}}}); err != nil {
+		t.Fatalf("send page change: %v", err)
+	}
+	if _, err := client.Recv(); status.Code(err) != codes.PermissionDenied {
+		t.Errorf("assignment mismatch command code = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
+	}
+}
+
+func TestRealtimeServiceStopsReliableDeliveryWhenLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, EdgeID: "edge-1", AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{delivery: edge.ErrLeaseExpired}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_PRESENTER)
+	if err := client.Send(&realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{MessageId: "command-1", PageIndex: 1}}}); err != nil {
+		t.Fatalf("send page change: %v", err)
+	}
+	if _, err := client.Recv(); status.Code(err) != codes.FailedPrecondition {
+		t.Errorf("expired assignment delivery code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
 	}
 }
 
@@ -154,7 +202,7 @@ func TestRealtimeServiceReturnsQueueOverflowWhileSendIsBlocked(t *testing.T) {
 
 	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
 	coordinator := session.NewCoordinator()
-	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity})
+	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity}, allowAllAssignment{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stream := newBlockingSendStream(ctx)
@@ -247,6 +295,26 @@ func (r testIdentityResolver) Resolve(context.Context) (session.Identity, error)
 	return r.identity, nil
 }
 
+type allowAllAssignment struct{}
+
+func (allowAllAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
+
+func (allowAllAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
+
+func (allowAllAssignment) AllowReliableDelivery(edge.AssignmentClaim) error { return nil }
+
+type rejectingAssignment struct {
+	connection error
+	command    error
+	delivery   error
+}
+
+func (a rejectingAssignment) AllowNewConnection(edge.AssignmentClaim) error { return a.connection }
+
+func (a rejectingAssignment) AllowCommand(edge.AssignmentClaim) error { return a.command }
+
+func (a rejectingAssignment) AllowReliableDelivery(edge.AssignmentClaim) error { return a.delivery }
+
 type blockingSendStream struct {
 	grpcgo.ServerStream
 	ctx       context.Context
@@ -292,6 +360,10 @@ func (s *blockingSendStream) Send(message *realtimev1.ServerEnvelope) error {
 }
 
 func startRealtimeService(t *testing.T, identities ...session.Identity) (*bufconn.Listener, func()) {
+	return startRealtimeServiceWithAssignment(t, allowAllAssignment{}, identities...)
+}
+
+func startRealtimeServiceWithAssignment(t *testing.T, assignments AssignmentAuthorizer, identities ...session.Identity) (*bufconn.Listener, func()) {
 	t.Helper()
 	listener := bufconn.Listen(1024 * 1024)
 	byParticipant := make(map[string]session.Identity, len(identities))
@@ -306,7 +378,7 @@ func startRealtimeService(t *testing.T, identities ...session.Identity) (*bufcon
 		}
 		return handler(srv, contextServerStream{ServerStream: stream, context: auth.ContextWithIdentity(stream.Context(), identity)})
 	}))
-	realtimev1.RegisterRealtimeServiceServer(server, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}))
+	realtimev1.RegisterRealtimeServiceServer(server, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}, assignments))
 	go func() { _ = server.Serve(listener) }()
 	return listener, func() {
 		server.Stop()

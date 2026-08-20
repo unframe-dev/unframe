@@ -2,11 +2,18 @@ package integration_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -18,23 +25,46 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const participantMetadataKey = "test-participant"
-
 func TestRealtimePageChangeOverTCP(t *testing.T) {
 	t.Parallel()
 
-	presenterIdentity := session.Identity{SessionID: "session-e2e", ParticipantID: "presenter-e2e", Role: session.RolePresenter}
-	viewerIdentity := session.Identity{SessionID: "session-e2e", ParticipantID: "viewer-e2e", Role: session.RoleViewer}
-	identities := map[string]session.Identity{
-		presenterIdentity.ParticipantID: presenterIdentity,
-		viewerIdentity.ParticipantID:    viewerIdentity,
+	now := time.Now().UTC()
+	presenterIdentity := e2eIdentity("presenter-e2e", session.RolePresenter)
+	viewerIdentity := e2eIdentity("viewer-e2e", session.RoleViewer)
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate signing key: %v", err)
+	}
+	jwks := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(response).Encode(map[string]any{"keys": []map[string]any{{
+			"kty": "OKP", "crv": "Ed25519", "kid": "e2e-key", "alg": "EdDSA", "use": "sig",
+			"x": base64.RawURLEncoding.EncodeToString(publicKey),
+		}}})
+	}))
+	defer jwks.Close()
+	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{
+		Issuer: "https://control-plane.example.test", JWKSURL: jwks.URL, Clock: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatalf("create verifier: %v", err)
+	}
+	guard, err := edge.NewAssignmentGuard(edge.EdgeSessionAssignment{
+		SessionID: "session-e2e", EdgeID: "edge-e2e", AssignmentEpoch: 1, PresentationRevision: 1,
+		IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour),
+	}, func() time.Time { return now })
+	if err != nil {
+		t.Fatalf("create assignment guard: %v", err)
 	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	server := transportgrpc.NewServer(listener, grpcgo.StreamInterceptor(identityInterceptor(identities)))
+	server, err := transportgrpc.NewServer(listener, transportgrpc.Dependencies{Verifier: verifier, Guard: guard})
+	if err != nil {
+		t.Fatalf("create server: %v", err)
+	}
 	if err := server.Start(); err != nil {
 		t.Fatalf("start server: %v", err)
 	}
@@ -58,8 +88,8 @@ func TestRealtimePageChangeOverTCP(t *testing.T) {
 		}
 	})
 	client := realtimev1.NewRealtimeServiceClient(connection)
-	presenter := connect(t, ctx, client, presenterIdentity)
-	viewer := connect(t, ctx, client, viewerIdentity)
+	presenter := connect(t, ctx, client, presenterIdentity, issueToken(t, privateKey, presenterIdentity, now))
+	viewer := connect(t, ctx, client, viewerIdentity, issueToken(t, privateKey, viewerIdentity, now))
 
 	command := &realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{
 		MessageId: "command-e2e",
@@ -82,9 +112,9 @@ func TestRealtimePageChangeOverTCP(t *testing.T) {
 	}
 }
 
-func connect(t *testing.T, ctx context.Context, client realtimev1.RealtimeServiceClient, identity session.Identity) realtimev1.RealtimeService_ConnectClient {
+func connect(t *testing.T, ctx context.Context, client realtimev1.RealtimeServiceClient, identity session.Identity, token string) realtimev1.RealtimeService_ConnectClient {
 	t.Helper()
-	streamContext := metadata.AppendToOutgoingContext(ctx, participantMetadataKey, identity.ParticipantID)
+	streamContext := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
 	stream, err := client.Connect(streamContext)
 	if err != nil {
 		t.Fatalf("connect %s: %v", identity.ParticipantID, err)
@@ -117,26 +147,35 @@ func assertPageChanged(t *testing.T, stream realtimev1.RealtimeService_ConnectCl
 	}
 }
 
-func identityInterceptor(identities map[string]session.Identity) grpcgo.StreamServerInterceptor {
-	return func(server any, stream grpcgo.ServerStream, info *grpcgo.StreamServerInfo, handler grpcgo.StreamHandler) error {
-		participants := metadata.ValueFromIncomingContext(stream.Context(), participantMetadataKey)
-		if len(participants) != 1 {
-			return status.Error(codes.Unauthenticated, "test participant identity is unavailable")
-		}
-		identity, ok := identities[participants[0]]
-		if !ok {
-			return status.Error(codes.Unauthenticated, "test participant identity is unknown")
-		}
-		wrapped := &identityServerStream{ServerStream: stream, context: auth.ContextWithIdentity(stream.Context(), identity)}
-		return handler(server, wrapped)
+func e2eIdentity(participantID string, role session.Role) session.Identity {
+	return session.Identity{
+		SessionID: "session-e2e", ParticipantID: participantID, Role: role,
+		EdgeID: "edge-e2e", AssignmentEpoch: 1, PresentationID: "presentation-e2e",
+		PresentationRevision: 1, ProtocolVersion: 1,
 	}
 }
 
-type identityServerStream struct {
-	grpcgo.ServerStream
-	context context.Context
-}
-
-func (s *identityServerStream) Context() context.Context {
-	return s.context
+func issueToken(t *testing.T, privateKey ed25519.PrivateKey, identity session.Identity, now time.Time) string {
+	t.Helper()
+	role := "viewer"
+	if identity.Role == session.RolePresenter {
+		role = "presenter"
+	}
+	header, err := json.Marshal(map[string]any{"alg": "EdDSA", "kid": "e2e-key"})
+	if err != nil {
+		t.Fatalf("marshal JWT header: %v", err)
+	}
+	claims, err := json.Marshal(map[string]any{
+		"iss": "https://control-plane.example.test", "aud": "unframe-venue-edge",
+		"sub": identity.ParticipantID, "session_id": identity.SessionID, "role": role,
+		"edge_id": identity.EdgeID, "assignment_epoch": identity.AssignmentEpoch,
+		"presentation_id": identity.PresentationID, "presentation_revision": identity.PresentationRevision,
+		"scope": "realtime:connect assets:read", "protocol_version": identity.ProtocolVersion,
+		"nbf": now.Add(-time.Minute).Unix(), "exp": now.Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatalf("marshal JWT claims: %v", err)
+	}
+	signingInput := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(claims)
+	return signingInput + "." + base64.RawURLEncoding.EncodeToString(ed25519.Sign(privateKey, []byte(signingInput)))
 }

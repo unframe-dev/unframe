@@ -7,12 +7,16 @@ import (
 	"sync"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
 )
 
-var ErrServerStarted = errors.New("gRPC server already started")
+var (
+	ErrServerStarted       = errors.New("gRPC server already started")
+	ErrServerConfiguration = errors.New("gRPC server dependencies are invalid")
+)
 
 // Server owns a gRPC server and the listener it serves on.
 type Server struct {
@@ -25,15 +29,25 @@ type Server struct {
 	serveErr  error
 }
 
-// NewServer creates a server using listener and registers the realtime bidi service.
-func NewServer(listener net.Listener, options ...grpcgo.ServerOption) *Server {
+type Dependencies struct {
+	Verifier *auth.BearerTokenVerifier
+	Guard    *edge.AssignmentGuard
+}
+
+// NewServer creates an authenticated server and registers the realtime bidi
+// service. It does not start without a verifier and assignment guard.
+func NewServer(listener net.Listener, dependencies Dependencies, options ...grpcgo.ServerOption) (*Server, error) {
+	if dependencies.Verifier == nil || dependencies.Guard == nil {
+		return nil, ErrServerConfiguration
+	}
+	options = append(options, grpcgo.ChainStreamInterceptor(auth.NewBearerStreamServerInterceptor(dependencies.Verifier)))
 	grpcServer := grpcgo.NewServer(options...)
-	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}))
+	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}, dependencies.Guard))
 	return &Server{
 		listener:  listener,
 		server:    grpcServer,
 		serveDone: make(chan struct{}),
-	}
+	}, nil
 }
 
 // GRPCServer returns the underlying server for generated service registration.
