@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -54,6 +55,7 @@ type BearerTokenVerifierConfig struct {
 type BearerTokenVerifier struct {
 	issuer     string
 	jwksURL    string
+	jwksOrigin *url.URL
 	httpClient HTTPClient
 	clock      Clock
 
@@ -65,6 +67,10 @@ type BearerTokenVerifier struct {
 
 func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerifier, error) {
 	if config.Issuer == "" || config.JWKSURL == "" {
+		return nil, ErrInvalidVerifierConfig
+	}
+	jwksURL, err := url.ParseRequestURI(config.JWKSURL)
+	if err != nil || !jwksURL.IsAbs() || jwksURL.Host == "" {
 		return nil, ErrInvalidVerifierConfig
 	}
 	if config.HTTPClient == nil {
@@ -79,6 +85,7 @@ func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerif
 	return &BearerTokenVerifier{
 		issuer:     config.Issuer,
 		jwksURL:    config.JWKSURL,
+		jwksOrigin: jwksURL,
 		httpClient: config.HTTPClient,
 		clock:      config.Clock,
 		cacheTTL:   config.CacheTTL,
@@ -151,10 +158,13 @@ func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context) error {
 		return ErrJWKSUnavailable
 	}
 	response, err := v.httpClient.Do(request)
-	if err != nil {
+	if err != nil || response == nil || response.Body == nil {
 		return ErrJWKSUnavailable
 	}
 	defer func() { _ = response.Body.Close() }()
+	if response.Request == nil || !sameOrigin(v.jwksOrigin, response.Request.URL) {
+		return ErrJWKSUnavailable
+	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return ErrJWKSUnavailable
 	}
@@ -182,6 +192,12 @@ func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context) error {
 	v.keys = keys
 	v.cacheExpiresAt = v.clock().Add(v.cacheTTL)
 	return nil
+}
+
+func sameOrigin(trusted, actual *url.URL) bool {
+	return trusted != nil && actual != nil &&
+		strings.EqualFold(trusted.Scheme, actual.Scheme) &&
+		strings.EqualFold(trusted.Host, actual.Host)
 }
 
 func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identity, map[string]bool, error) {

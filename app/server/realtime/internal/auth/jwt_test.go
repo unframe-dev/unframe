@@ -190,6 +190,66 @@ func TestBearerTokenVerifierCoalescesConcurrentTTLRefresh(t *testing.T) {
 	}
 }
 
+func TestBearerTokenVerifierRejectsJWKSRedirectOutsideConfiguredOrigin(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	redirectTarget := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+	}))
+	defer redirectTarget.Close()
+	configuredOrigin := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		http.Redirect(response, request, redirectTarget.URL, http.StatusFound)
+	}))
+	defer configuredOrigin.Close()
+	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
+		Issuer:     "https://control-plane.example.test",
+		JWKSURL:    configuredOrigin.URL,
+		HTTPClient: configuredOrigin.Client(),
+		Clock:      func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatalf("new verifier: %v", err)
+	}
+
+	token := issueToken(t, privateKey, "key-1", validClaims(now))
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != ErrJWKSUnavailable {
+		t.Fatalf("Verify() error = %v, want %v", err, ErrJWKSUnavailable)
+	}
+}
+
+func TestBearerTokenVerifierAcceptsJWKSRedirectWithinConfiguredOrigin(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/jwks" {
+			http.Redirect(response, request, "/keys", http.StatusFound)
+			return
+		}
+		response.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(response).Encode(jwks("key-1", publicKey))
+	}))
+	defer server.Close()
+	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{
+		Issuer:     "https://control-plane.example.test",
+		JWKSURL:    server.URL + "/jwks",
+		HTTPClient: server.Client(),
+		Clock:      func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatalf("new verifier: %v", err)
+	}
+
+	token := issueToken(t, privateKey, "key-1", validClaims(now))
+	if _, err := verifier.Verify(context.Background(), token, "realtime:connect"); err != nil {
+		t.Fatalf("Verify(): %v", err)
+	}
+}
+
 func TestBearerTokenVerifierRejectsInvalidHeaderSignatureAndClaimsWithoutLeakingToken(t *testing.T) {
 	t.Parallel()
 
