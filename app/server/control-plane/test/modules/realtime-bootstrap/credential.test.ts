@@ -53,7 +53,7 @@ describe("RealtimeBootstrapCredentials", () => {
       presentation_revision: 7,
       scope: "realtime:connect assets:read",
       iat: 1_700_000_000,
-      nbf: 1_700_000_000,
+      nbf: 1_699_999_970,
       exp: 1_700_000_300,
       jti: "credential-id",
       protocol_version: 1,

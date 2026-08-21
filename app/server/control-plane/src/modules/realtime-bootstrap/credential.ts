@@ -4,6 +4,7 @@ import {
 } from "./schema";
 
 export const REALTIME_AUDIENCE = "unframe-venue-edge";
+const NOT_BEFORE_CLOCK_SKEW_SECONDS = 30;
 
 type CredentialOptions = {
   issuer: string;
@@ -70,7 +71,7 @@ export class RealtimeBootstrapCredentials {
       presentation_revision: participant.presentationRevision,
       scope: participant.scopes.join(" "),
       iat,
-      nbf: iat,
+      nbf: iat - NOT_BEFORE_CLOCK_SKEW_SECONDS,
       exp,
       jti: this.newId(),
       protocol_version: 1,
