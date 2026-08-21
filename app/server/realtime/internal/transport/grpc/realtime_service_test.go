@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -69,8 +69,8 @@ func TestRealtimeServiceRejectsViewerCommand(t *testing.T) {
 func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T) {
 	t.Parallel()
 
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, EdgeID: "edge-1", AssignmentEpoch: 1}
-	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: edge.ErrLeaseExpired}, identity)
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: assignment.ErrLeaseExpired}, identity)
 	defer stop()
 	client := connectClient(t, listener, identity.ParticipantID)
 	sendHandshake(t, client)
@@ -82,8 +82,8 @@ func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T
 func TestRealtimeServiceRejectsCommandWhenAssignmentDoesNotMatch(t *testing.T) {
 	t.Parallel()
 
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, EdgeID: "edge-1", AssignmentEpoch: 1}
-	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{command: edge.ErrAssignmentEpochMismatch}, identity)
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{command: assignment.ErrAssignmentEpochMismatch}, identity)
 	defer stop()
 	client := connectClient(t, listener, identity.ParticipantID)
 	sendHandshake(t, client)
@@ -99,8 +99,8 @@ func TestRealtimeServiceRejectsCommandWhenAssignmentDoesNotMatch(t *testing.T) {
 func TestRealtimeServiceStopsReliableDeliveryWhenLeaseExpires(t *testing.T) {
 	t.Parallel()
 
-	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, EdgeID: "edge-1", AssignmentEpoch: 1}
-	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{delivery: edge.ErrLeaseExpired}, identity)
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{delivery: assignment.ErrLeaseExpired}, identity)
 	defer stop()
 	client := connectClient(t, listener, identity.ParticipantID)
 	sendHandshake(t, client)
@@ -395,29 +395,29 @@ func (r testIdentityResolver) Resolve(context.Context) (session.Identity, error)
 
 type allowAllAssignment struct{}
 
-func (allowAllAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
+func (allowAllAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
 
-func (allowAllAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (allowAllAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	return time.Now().Add(time.Hour), nil
 }
 
-func (allowAllAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
+func (allowAllAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
 
-func (allowAllAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (allowAllAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	return time.Now().Add(time.Hour), nil
 }
 
 type deadlineAssignment struct{ deadline time.Time }
 
-func (deadlineAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
+func (deadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
 
-func (a deadlineAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (a deadlineAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	return a.deadline, nil
 }
 
-func (deadlineAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
+func (deadlineAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
 
-func (a deadlineAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (a deadlineAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	return a.deadline, nil
 }
 
@@ -427,9 +427,9 @@ type renewableDeadlineAssignment struct {
 	initialDuration time.Duration
 }
 
-func (*renewableDeadlineAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
+func (*renewableDeadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
 
-func (a *renewableDeadlineAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (a *renewableDeadlineAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.deadline.IsZero() {
@@ -438,9 +438,9 @@ func (a *renewableDeadlineAssignment) ConnectionDeadline(edge.AssignmentClaim) (
 	return a.deadline, nil
 }
 
-func (*renewableDeadlineAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
+func (*renewableDeadlineAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
 
-func (a *renewableDeadlineAssignment) ReliableDeliveryDeadline(claim edge.AssignmentClaim) (time.Time, error) {
+func (a *renewableDeadlineAssignment) ReliableDeliveryDeadline(claim assignment.AssignmentClaim) (time.Time, error) {
 	return a.ConnectionDeadline(claim)
 }
 
@@ -462,15 +462,17 @@ type rejectingAssignment struct {
 	delivery   error
 }
 
-func (a rejectingAssignment) AllowNewConnection(edge.AssignmentClaim) error { return a.connection }
+func (a rejectingAssignment) AllowNewConnection(assignment.AssignmentClaim) error {
+	return a.connection
+}
 
-func (rejectingAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (rejectingAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	return time.Now().Add(time.Hour), nil
 }
 
-func (a rejectingAssignment) AllowCommand(edge.AssignmentClaim) error { return a.command }
+func (a rejectingAssignment) AllowCommand(assignment.AssignmentClaim) error { return a.command }
 
-func (a rejectingAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
+func (a rejectingAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
 	return time.Now().Add(time.Hour), a.delivery
 }
 

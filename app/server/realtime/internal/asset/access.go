@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
 
@@ -16,7 +16,7 @@ type BearerVerifier interface {
 }
 
 type CurrentAssignmentValidator interface {
-	ValidateCurrent(edge.AssignmentClaim) error
+	ValidateCurrent(assignment.AssignmentClaim) error
 }
 
 type VenueEdgeAccessValidator struct {
@@ -36,9 +36,13 @@ func (v *VenueEdgeAccessValidator) Validate(request *http.Request, sessionID str
 	if err != nil {
 		return ErrAccessDenied
 	}
-	claim := edge.AssignmentClaim{
+	if identity.RuntimeKind != assignment.RuntimeKindVenueEdge {
+		return ErrAccessDenied
+	}
+	claim := assignment.AssignmentClaim{
 		SessionID:            identity.SessionID,
-		EdgeID:               identity.EdgeID,
+		RuntimeID:            identity.RuntimeID,
+		RuntimeKind:          identity.RuntimeKind,
 		AssignmentEpoch:      identity.AssignmentEpoch,
 		PresentationRevision: identity.PresentationRevision,
 	}

@@ -5,16 +5,22 @@ import (
 
 	grpcgo "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
 const authorizationMetadataKey = "authorization"
 
-// NewBearerStreamServerInterceptor verifies the session-bound Venue Edge JWT
-// before dispatching a gRPC stream handler.
+// NewBearerStreamServerInterceptor verifies a session-bound Runtime JWT before
+// dispatching a gRPC stream handler. The standard health watch is public so a
+// platform can observe application readiness before participant credentials
+// can be issued.
 func NewBearerStreamServerInterceptor(verifier *BearerTokenVerifier) grpcgo.StreamServerInterceptor {
-	return func(server any, stream grpcgo.ServerStream, _ *grpcgo.StreamServerInfo, handler grpcgo.StreamHandler) error {
+	return func(server any, stream grpcgo.ServerStream, info *grpcgo.StreamServerInfo, handler grpcgo.StreamHandler) error {
+		if info != nil && info.FullMethod == healthv1.Health_Watch_FullMethodName {
+			return handler(server, stream)
+		}
 		if verifier == nil {
 			return status.Error(codes.Unauthenticated, "realtime connection is unauthenticated")
 		}

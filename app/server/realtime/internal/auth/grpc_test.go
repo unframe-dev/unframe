@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -29,7 +31,7 @@ func TestBearerStreamServerInterceptorBindsVerifiedIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolve identity: %v", err)
 		}
-		if identity != (session.Identity{SessionID: "session-1", ParticipantID: "participant-1", Role: session.RolePresenter, EdgeID: "edge-1", AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 7, ProtocolVersion: 1}) {
+		if identity != (session.Identity{SessionID: "session-1", ParticipantID: "participant-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 7, ProtocolVersion: 1}) {
 			t.Errorf("identity = %#v", identity)
 		}
 		return nil
@@ -57,12 +59,30 @@ func TestBearerStreamServerInterceptorRejectsInvalidAuthorizationWithoutLeakingI
 	}
 }
 
+func TestBearerStreamServerInterceptorAllowsPublicHealthWatch(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	err := NewBearerStreamServerInterceptor(nil)(nil, testServerStream{ctx: context.Background()}, &grpcgo.StreamServerInfo{
+		FullMethod: healthv1.Health_Watch_FullMethodName,
+	}, func(any, grpcgo.ServerStream) error {
+		called = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("intercept health watch: %v", err)
+	}
+	if !called {
+		t.Fatal("health watch handler was not called")
+	}
+}
+
 func mustVerifier(t *testing.T) *BearerTokenVerifier {
 	t.Helper()
 	publicKey := make(ed25519.PublicKey, ed25519.PublicKeySize)
 	server := newJWKSServer(t, "key-1", publicKey)
 	t.Cleanup(server.Close)
-	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{Issuer: "test", JWKSURL: server.URL})
+	verifier, err := NewBearerTokenVerifier(BearerTokenVerifierConfig{Issuer: "test", Audience: "test", JWKSURL: server.URL})
 	if err != nil {
 		t.Fatalf("new verifier: %v", err)
 	}

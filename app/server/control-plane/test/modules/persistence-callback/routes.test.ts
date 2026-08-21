@@ -5,7 +5,6 @@ import { runtimeEnvironment } from "../../runtime-environment";
 
 const seedSession = async () => {
   const sessionId = crypto.randomUUID();
-  const edgeId = crypto.randomUUID();
   const userId = `owner-${sessionId}`;
   const presentationId = `presentation-${sessionId}`;
   await env.DB.batch([
@@ -27,20 +26,17 @@ const seedSession = async () => {
   )
     .bind(sessionId, presentationId, userId, `hash-${sessionId}`, "2026-01-01")
     .run();
-  await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO venue_edges (id, status, last_seen_at, created_at) VALUES (?, 'active', ?, ?)",
-    ).bind(edgeId, "2026-08-11T00:00:00.000Z", "2026-08-11T00:00:00.000Z"),
-    env.DB.prepare(
-      "INSERT INTO session_edge_assignments (session_id, edge_id, assignment_epoch, presentation_revision, issued_at, lease_expires_at, released_at) VALUES (?, ?, 1, 1, ?, ?, NULL)",
-    ).bind(sessionId, edgeId, "2026-08-11T00:00:00.000Z", "2099-08-11T01:00:00.000Z"),
-  ]);
-  return { sessionId, edgeId };
+  await env.DB.prepare(
+    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01')",
+  )
+    .bind(sessionId)
+    .run();
+  return sessionId;
 };
 
 describe("persistence callback HTTP boundary", () => {
   it("requires service identity and deduplicates writes", async () => {
-    const { sessionId, edgeId } = await seedSession();
+    const sessionId = await seedSession();
     const app = createApp({ identityProvider: async () => undefined });
     const callback = (
       path: string,
@@ -57,6 +53,10 @@ describe("persistence callback HTTP boundary", () => {
       );
     const checkpoint = {
       sessionId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      assignmentEpoch: 1,
+      presentationRevision: 1,
       version: 1,
       lastSequence: 5,
       idempotencyKey: "cp-1",
@@ -71,8 +71,10 @@ describe("persistence callback HTTP boundary", () => {
     });
     const completion = {
       sessionId,
-      edgeId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
       assignmentEpoch: 1,
+      presentationRevision: 1,
       checkpointVersion: 1,
       lastSequence: 5,
       idempotencyKey: "done-1",
@@ -84,7 +86,7 @@ describe("persistence callback HTTP boundary", () => {
     };
     const staleResponse = await callback("/callbacks/completions", {
       ...completion,
-      edgeId: crypto.randomUUID(),
+      runtimeId: crypto.randomUUID(),
       idempotencyKey: "stale-done",
     });
     expect(staleResponse.status).toBe(409);

@@ -6,20 +6,23 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
 
 const (
-	venueEdgeAudience      = "unframe-venue-edge"
-	currentProtocolVersion = 1
-	defaultJWKSCacheTTL    = 5 * time.Minute
-	minimumJWKSRefreshGap  = 30 * time.Second
+	currentProtocolVersion    = 1
+	defaultJWKSCacheTTL       = 5 * time.Minute
+	defaultRefreshCooldown    = 30 * time.Second
+	defaultJWKSRequestTimeout = 5 * time.Second
+	maxJWKSBodyBytes          = 1 << 20
 )
 
 var (
@@ -44,36 +47,57 @@ type HTTPClient interface {
 type Clock func() time.Time
 
 type BearerTokenVerifierConfig struct {
-	Issuer     string
-	JWKSURL    string
-	HTTPClient HTTPClient
-	Clock      Clock
-	CacheTTL   time.Duration
+	Issuer          string
+	Audience        string
+	JWKSURL         string
+	CacheTTL        time.Duration
+	RefreshCooldown time.Duration
+	RequestTimeout  time.Duration
+	HTTPClient      HTTPClient
+	Clock           Clock
 }
 
-// BearerTokenVerifier validates session-bound Venue Edge credentials. Cached
-// keys are refreshed when they expire or a token references an unknown key ID.
+// BearerTokenVerifier validates session-bound Runtime credentials. Cached keys
+// are refreshed when a token references an unknown key ID.
 type BearerTokenVerifier struct {
-	issuer     string
-	jwksURL    string
-	jwksOrigin *url.URL
-	httpClient HTTPClient
-	clock      Clock
+	issuer          string
+	audience        string
+	jwksURL         string
+	jwksOrigin      *url.URL
+	cacheTTL        time.Duration
+	refreshCooldown time.Duration
+	requestTimeout  time.Duration
+	httpClient      HTTPClient
+	clock           Clock
 
-	mu                   sync.Mutex
-	keys                 map[string]ed25519.PublicKey
-	cacheExpiresAt       time.Time
-	nextUnknownRefreshAt time.Time
-	cacheTTL             time.Duration
+	mu          sync.Mutex
+	keys        map[string]ed25519.PublicKey
+	expiresAt   time.Time
+	lastRefresh time.Time
+	refreshing  *jwksRefresh
+}
+
+type jwksRefresh struct {
+	done chan struct{}
+	err  error
 }
 
 func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerifier, error) {
-	if config.Issuer == "" || config.JWKSURL == "" {
+	if config.Issuer == "" || config.Audience == "" || config.JWKSURL == "" {
 		return nil, ErrInvalidVerifierConfig
 	}
 	jwksURL, err := url.ParseRequestURI(config.JWKSURL)
 	if err != nil || !jwksURL.IsAbs() || jwksURL.Host == "" {
 		return nil, ErrInvalidVerifierConfig
+	}
+	if config.CacheTTL <= 0 {
+		config.CacheTTL = defaultJWKSCacheTTL
+	}
+	if config.RefreshCooldown <= 0 {
+		config.RefreshCooldown = defaultRefreshCooldown
+	}
+	if config.RequestTimeout <= 0 {
+		config.RequestTimeout = defaultJWKSRequestTimeout
 	}
 	if config.HTTPClient == nil {
 		config.HTTPClient = http.DefaultClient
@@ -81,17 +105,31 @@ func NewBearerTokenVerifier(config BearerTokenVerifierConfig) (*BearerTokenVerif
 	if config.Clock == nil {
 		config.Clock = time.Now
 	}
-	if config.CacheTTL <= 0 {
-		config.CacheTTL = defaultJWKSCacheTTL
-	}
 	return &BearerTokenVerifier{
-		issuer:     config.Issuer,
-		jwksURL:    config.JWKSURL,
-		jwksOrigin: jwksURL,
-		httpClient: config.HTTPClient,
-		clock:      config.Clock,
-		cacheTTL:   config.CacheTTL,
+		issuer:          config.Issuer,
+		audience:        config.Audience,
+		jwksURL:         config.JWKSURL,
+		jwksOrigin:      jwksURL,
+		cacheTTL:        config.CacheTTL,
+		refreshCooldown: config.RefreshCooldown,
+		requestTimeout:  config.RequestTimeout,
+		httpClient:      config.HTTPClient,
+		clock:           config.Clock,
 	}, nil
+}
+
+// Ready confirms that an unexpired JWKS cache with at least one usable
+// verification key is available for application readiness checks.
+func (v *BearerTokenVerifier) Ready(ctx context.Context) error {
+	if err := v.ensureFreshKeys(ctx); err != nil {
+		return err
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if len(v.keys) == 0 || !v.clock().Before(v.expiresAt) {
+		return ErrJWKSUnavailable
+	}
+	return nil
 }
 
 // VerifyBearer parses an HTTP or gRPC Bearer authorization value and verifies
@@ -140,56 +178,129 @@ func (v *BearerTokenVerifier) Verify(ctx context.Context, token string, required
 }
 
 func (v *BearerTokenVerifier) keyFor(ctx context.Context, keyID string) (ed25519.PublicKey, error) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	now := v.clock()
-	key := v.keys[keyID]
-	if key != nil && now.Before(v.cacheExpiresAt) {
-		return key, nil
-	}
-	if key == nil && now.Before(v.nextUnknownRefreshAt) {
-		if now.Before(v.cacheExpiresAt) {
-			return nil, ErrInvalidTokenKeyID
-		}
-		return nil, ErrJWKSUnavailable
-	}
-	if key == nil {
-		// Throttle before I/O so failed requests and attacker-chosen key IDs are bounded too.
-		v.nextUnknownRefreshAt = now.Add(minimumJWKSRefreshGap)
-	}
-	if err := v.refreshKeysLocked(ctx); err != nil {
+	if err := v.ensureFreshKeys(ctx); err != nil {
 		return nil, err
 	}
-	if key := v.keys[keyID]; key != nil {
+	if key := v.cachedKey(keyID); key != nil {
 		return key, nil
 	}
-	v.nextUnknownRefreshAt = now.Add(minimumJWKSRefreshGap)
+	if err := v.refreshForUnknownKey(ctx); err != nil {
+		return nil, err
+	}
+	if key := v.cachedKey(keyID); key != nil {
+		return key, nil
+	}
 	return nil, ErrInvalidTokenKeyID
 }
 
-func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context) error {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, v.jwksURL, nil)
-	if err != nil {
+func (v *BearerTokenVerifier) cachedKey(keyID string) ed25519.PublicKey {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.keys[keyID]
+}
+
+func (v *BearerTokenVerifier) ensureFreshKeys(ctx context.Context) error {
+	v.mu.Lock()
+	now := v.clock()
+	if len(v.keys) > 0 && now.Before(v.expiresAt) {
+		v.mu.Unlock()
+		return nil
+	}
+	if refresh := v.refreshing; refresh != nil {
+		v.mu.Unlock()
+		return waitForJWKSRefresh(ctx, refresh)
+	}
+	if len(v.keys) == 0 && !v.refreshAllowed(now) {
+		v.mu.Unlock()
 		return ErrJWKSUnavailable
+	}
+	refresh := v.beginRefreshLocked(now)
+	v.mu.Unlock()
+	return v.runRefresh(ctx, refresh)
+}
+
+func (v *BearerTokenVerifier) refreshForUnknownKey(ctx context.Context) error {
+	v.mu.Lock()
+	if refresh := v.refreshing; refresh != nil {
+		v.mu.Unlock()
+		return waitForJWKSRefresh(ctx, refresh)
+	}
+	now := v.clock()
+	if !v.refreshAllowed(now) {
+		v.mu.Unlock()
+		return nil
+	}
+	refresh := v.beginRefreshLocked(now)
+	v.mu.Unlock()
+	return v.runRefresh(ctx, refresh)
+}
+
+func (v *BearerTokenVerifier) beginRefreshLocked(now time.Time) *jwksRefresh {
+	refresh := &jwksRefresh{done: make(chan struct{})}
+	v.lastRefresh = now
+	v.refreshing = refresh
+	return refresh
+}
+
+func (v *BearerTokenVerifier) runRefresh(ctx context.Context, refresh *jwksRefresh) error {
+	keys, err := v.fetchKeys(ctx)
+	v.mu.Lock()
+	if err == nil {
+		v.keys = keys
+		v.expiresAt = v.clock().Add(v.cacheTTL)
+	}
+	refresh.err = err
+	v.refreshing = nil
+	close(refresh.done)
+	v.mu.Unlock()
+	return err
+}
+
+func waitForJWKSRefresh(ctx context.Context, refresh *jwksRefresh) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-refresh.done:
+		return refresh.err
+	}
+}
+
+func (v *BearerTokenVerifier) refreshAllowed(now time.Time) bool {
+	return v.lastRefresh.IsZero() || now.Sub(v.lastRefresh) >= v.refreshCooldown
+}
+
+func (v *BearerTokenVerifier) fetchKeys(ctx context.Context) (map[string]ed25519.PublicKey, error) {
+	requestContext, cancel := context.WithTimeout(ctx, v.requestTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, v.jwksURL, nil)
+	if err != nil {
+		return nil, ErrJWKSUnavailable
 	}
 	response, err := v.httpClient.Do(request)
 	if err != nil || response == nil || response.Body == nil {
-		return ErrJWKSUnavailable
+		if requestContext.Err() != nil {
+			return nil, requestContext.Err()
+		}
+		return nil, ErrJWKSUnavailable
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.Request == nil || !sameOrigin(v.jwksOrigin, response.Request.URL) {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxJWKSBodyBytes+1))
+	if err != nil || len(body) > maxJWKSBodyBytes {
+		return nil, ErrJWKSUnavailable
 	}
 	var document jwksDocument
-	if err := json.NewDecoder(response.Body).Decode(&document); err != nil {
-		return ErrJWKSUnavailable
+	if err := json.Unmarshal(body, &document); err != nil {
+		return nil, ErrJWKSUnavailable
 	}
 	keys := make(map[string]ed25519.PublicKey)
 	for _, jwk := range document.Keys {
-		if jwk.Kty != "OKP" || jwk.Crv != "Ed25519" || jwk.Kid == "" || jwk.Alg != "EdDSA" || (jwk.Use != "" && jwk.Use != "sig") {
+		if jwk.Kty != "OKP" || jwk.Crv != "Ed25519" || jwk.Kid == "" || jwk.Alg != "EdDSA" || jwk.Use != "sig" || !hasKeyOperation(jwk.KeyOps, "verify") {
 			continue
 		}
 		key, err := base64.RawURLEncoding.DecodeString(jwk.X)
@@ -197,16 +308,14 @@ func (v *BearerTokenVerifier) refreshKeysLocked(ctx context.Context) error {
 			continue
 		}
 		if _, duplicate := keys[jwk.Kid]; duplicate {
-			return ErrJWKSUnavailable
+			return nil, ErrJWKSUnavailable
 		}
 		keys[jwk.Kid] = ed25519.PublicKey(key)
 	}
 	if len(keys) == 0 {
-		return ErrJWKSUnavailable
+		return nil, ErrJWKSUnavailable
 	}
-	v.keys = keys
-	v.cacheExpiresAt = v.clock().Add(v.cacheTTL)
-	return nil
+	return keys, nil
 }
 
 func sameOrigin(trusted, actual *url.URL) bool {
@@ -221,12 +330,13 @@ func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identit
 		return session.Identity{}, nil, ErrInvalidTokenClaims
 	}
 	issuer, ok := requiredString(claims, "iss")
-	if !ok || issuer != v.issuer || !hasVenueEdgeAudience(claims["aud"]) {
+	if !ok || issuer != v.issuer || !hasAudience(claims["aud"], v.audience) {
 		return session.Identity{}, nil, ErrInvalidTokenClaims
 	}
 	participantID, participantOK := requiredString(claims, "sub")
 	sessionID, sessionOK := requiredString(claims, "session_id")
-	edgeID, edgeOK := requiredString(claims, "edge_id")
+	runtimeID, runtimeOK := requiredString(claims, "runtime_id")
+	runtimeKind, runtimeKindOK := parseRuntimeKind(claims["runtime_kind"])
 	presentationID, presentationOK := requiredString(claims, "presentation_id")
 	role, roleOK := parseRole(claims["role"])
 	epoch, epochOK := requiredPositiveUint64(claims, "assignment_epoch")
@@ -237,14 +347,15 @@ func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identit
 	notBefore, notBeforeOK := requiredUnixTime(claims, "nbf")
 	scopes, scopesOK := parseScopes(claims["scope"])
 	now := v.clock()
-	if !participantOK || !sessionOK || !edgeOK || !presentationOK || !roleOK || !epochOK || !revisionOK || !protocolOK || !expiresOK || !notBeforeOK || !scopesOK || !expiresAt.After(notBefore) || !now.Before(expiresAt) || now.Before(notBefore) {
+	if !participantOK || !sessionOK || !runtimeOK || !runtimeKindOK || !presentationOK || !roleOK || !epochOK || !revisionOK || !protocolOK || !expiresOK || !notBeforeOK || !scopesOK || !expiresAt.After(notBefore) || !now.Before(expiresAt) || now.Before(notBefore) {
 		return session.Identity{}, nil, ErrInvalidTokenClaims
 	}
 	return session.Identity{
 		SessionID:            sessionID,
 		ParticipantID:        participantID,
 		Role:                 role,
-		EdgeID:               edgeID,
+		RuntimeID:            runtimeID,
+		RuntimeKind:          runtimeKind,
 		AssignmentEpoch:      epoch,
 		PresentationID:       presentationID,
 		PresentationRevision: revision,
@@ -262,12 +373,13 @@ type jwksDocument struct {
 }
 
 type jwk struct {
-	Kty string `json:"kty"`
-	Crv string `json:"crv"`
-	Kid string `json:"kid"`
-	Alg string `json:"alg"`
-	Use string `json:"use"`
-	X   string `json:"x"`
+	Kty    string   `json:"kty"`
+	Crv    string   `json:"crv"`
+	Kid    string   `json:"kid"`
+	Alg    string   `json:"alg"`
+	Use    string   `json:"use"`
+	KeyOps []string `json:"key_ops"`
+	X      string   `json:"x"`
 }
 
 func splitCompactJWT(token string) (string, string, string, bool) {
@@ -320,21 +432,34 @@ func requiredUnixTime(claims map[string]json.RawMessage, name string) (time.Time
 	return time.Unix(value, 0), true
 }
 
-func hasVenueEdgeAudience(raw json.RawMessage) bool {
+func hasAudience(raw json.RawMessage, expected string) bool {
 	var audience string
 	if err := json.Unmarshal(raw, &audience); err == nil {
-		return audience == venueEdgeAudience
+		return audience == expected
 	}
 	var audiences []string
 	if err := json.Unmarshal(raw, &audiences); err != nil {
 		return false
 	}
 	for _, audience := range audiences {
-		if audience == venueEdgeAudience {
+		if audience == expected {
 			return true
 		}
 	}
 	return false
+}
+
+func parseRuntimeKind(raw json.RawMessage) (assignment.RuntimeKind, bool) {
+	var kind assignment.RuntimeKind
+	if err := json.Unmarshal(raw, &kind); err != nil {
+		return "", false
+	}
+	switch kind {
+	case assignment.RuntimeKindCloud, assignment.RuntimeKindVenueEdge:
+		return kind, true
+	default:
+		return "", false
+	}
 }
 
 func parseRole(raw json.RawMessage) (session.Role, bool) {
@@ -362,4 +487,13 @@ func parseScopes(raw json.RawMessage) (map[string]bool, bool) {
 		scopes[item] = true
 	}
 	return scopes, len(scopes) > 0
+}
+
+func hasKeyOperation(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
 }

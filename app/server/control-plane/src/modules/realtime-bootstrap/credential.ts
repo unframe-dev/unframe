@@ -3,23 +3,23 @@ import {
   type RealtimeBootstrapCredentialInput,
 } from "./schema";
 
-export const REALTIME_AUDIENCE = "unframe-venue-edge";
 const NOT_BEFORE_CLOCK_SKEW_SECONDS = 30;
-
 type CredentialOptions = {
   issuer: string;
   keyId: string;
+  audience: string;
   now?: () => number;
   newId?: () => string;
 };
 
 type RealtimeCredentialClaims = {
   iss: string;
-  aud: typeof REALTIME_AUDIENCE;
+  aud: string;
   sub: string;
   session_id: string;
   role: RealtimeBootstrapCredentialInput["role"];
-  edge_id: string;
+  runtime_id: string;
+  runtime_kind: RealtimeBootstrapCredentialInput["runtimeKind"];
   assignment_epoch: number;
   presentation_id: string;
   presentation_revision: number;
@@ -61,11 +61,12 @@ export class RealtimeBootstrapCredentials {
     );
     const claims: RealtimeCredentialClaims = {
       iss: this.options.issuer,
-      aud: REALTIME_AUDIENCE,
+      aud: this.options.audience,
       sub: participant.userId,
       session_id: participant.sessionId,
       role: participant.role,
-      edge_id: participant.edgeId,
+      runtime_id: participant.runtimeId,
+      runtime_kind: participant.runtimeKind,
       assignment_epoch: participant.assignmentEpoch,
       presentation_id: participant.presentationId,
       presentation_revision: participant.presentationRevision,

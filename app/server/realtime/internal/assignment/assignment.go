@@ -1,5 +1,5 @@
-// Package edge contains Venue Edge assignment and lease domain rules.
-package edge
+// Package assignment contains placement-independent runtime assignment and lease rules.
+package assignment
 
 import (
 	"errors"
@@ -8,24 +8,37 @@ import (
 )
 
 var (
-	ErrInvalidAssignment          = errors.New("edge session assignment is invalid")
-	ErrAssignmentSessionMismatch  = errors.New("edge session assignment session does not match")
-	ErrAssignmentEdgeMismatch     = errors.New("edge session assignment edge does not match")
-	ErrAssignmentEpochMismatch    = errors.New("edge session assignment epoch does not match")
-	ErrAssignmentRevisionMismatch = errors.New("edge session assignment presentation revision does not match")
-	ErrLeaseExpired               = errors.New("edge session assignment lease has expired")
-	ErrLeaseNotExtended           = errors.New("edge session assignment lease renewal does not extend expiry")
+	ErrInvalidAssignment             = errors.New("runtime assignment is invalid")
+	ErrAssignmentSessionMismatch     = errors.New("runtime assignment session does not match")
+	ErrAssignmentRuntimeIDMismatch   = errors.New("runtime assignment runtime ID does not match")
+	ErrAssignmentRuntimeKindMismatch = errors.New("runtime assignment runtime kind does not match")
+	ErrAssignmentEndpointMismatch    = errors.New("runtime assignment endpoint does not match")
+	ErrAssignmentEpochMismatch       = errors.New("runtime assignment epoch does not match")
+	ErrAssignmentRevisionMismatch    = errors.New("runtime assignment presentation revision does not match")
+	ErrAssignmentIssuedAtMismatch    = errors.New("runtime assignment issue time does not match")
+	ErrLeaseExpired                  = errors.New("runtime assignment lease has expired")
+	ErrLeaseNotExtended              = errors.New("runtime assignment lease renewal does not extend expiry")
+)
+
+// RuntimeKind identifies the deployment profile selected for a runtime.
+type RuntimeKind string
+
+const (
+	RuntimeKindCloud     RuntimeKind = "Cloud"
+	RuntimeKindVenueEdge RuntimeKind = "VenueEdge"
 )
 
 // Clock supplies the current time. It permits deterministic lease tests and
 // lets runtime wiring choose its clock explicitly.
 type Clock func() time.Time
 
-// EdgeSessionAssignment binds one session revision to an Edge for one fencing
-// epoch until LeaseExpiresAt.
-type EdgeSessionAssignment struct {
+// RuntimeAssignment binds one session revision to a runtime instance for one
+// fencing epoch until LeaseExpiresAt.
+type RuntimeAssignment struct {
 	SessionID            string
-	EdgeID               string
+	RuntimeID            string
+	RuntimeKind          RuntimeKind
+	Endpoint             string
 	AssignmentEpoch      uint64
 	PresentationRevision uint64
 	IssuedAt             time.Time
@@ -36,27 +49,32 @@ type EdgeSessionAssignment struct {
 // credential required at every runtime operation boundary.
 type AssignmentClaim struct {
 	SessionID            string
-	EdgeID               string
+	RuntimeID            string
+	RuntimeKind          RuntimeKind
 	AssignmentEpoch      uint64
 	PresentationRevision uint64
 }
 
-func (a EdgeSessionAssignment) Validate() error {
-	if a.SessionID == "" || a.EdgeID == "" || a.AssignmentEpoch == 0 || a.PresentationRevision == 0 || a.IssuedAt.IsZero() || a.LeaseExpiresAt.IsZero() || !a.LeaseExpiresAt.After(a.IssuedAt) {
+func (a RuntimeAssignment) Validate() error {
+	if a.SessionID == "" || a.RuntimeID == "" || !a.RuntimeKind.valid() || a.Endpoint == "" || a.AssignmentEpoch == 0 || a.PresentationRevision == 0 || a.IssuedAt.IsZero() || a.LeaseExpiresAt.IsZero() || !a.LeaseExpiresAt.After(a.IssuedAt) {
 		return ErrInvalidAssignment
 	}
 	return nil
 }
 
-// AssignmentGuard authorizes Edge runtime operations against one local
-// assignment. Renew serializes assignment replacement with authorization.
+func (k RuntimeKind) valid() bool {
+	return k == RuntimeKindCloud || k == RuntimeKindVenueEdge
+}
+
+// AssignmentGuard authorizes runtime operations against one local assignment.
+// Renew serializes assignment replacement with authorization.
 type AssignmentGuard struct {
 	mu         sync.RWMutex
-	assignment EdgeSessionAssignment
+	assignment RuntimeAssignment
 	clock      Clock
 }
 
-func NewAssignmentGuard(assignment EdgeSessionAssignment, clock Clock) (*AssignmentGuard, error) {
+func NewAssignmentGuard(assignment RuntimeAssignment, clock Clock) (*AssignmentGuard, error) {
 	if err := assignment.Validate(); err != nil {
 		return nil, err
 	}
@@ -67,14 +85,14 @@ func NewAssignmentGuard(assignment EdgeSessionAssignment, clock Clock) (*Assignm
 }
 
 // Assignment returns the current assignment snapshot.
-func (g *AssignmentGuard) Assignment() EdgeSessionAssignment {
+func (g *AssignmentGuard) Assignment() RuntimeAssignment {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return g.assignment
 }
 
-// ValidateCurrent verifies that the request is for this Edge's current fencing
-// epoch and that its lease has not expired.
+// ValidateCurrent verifies that the request is for this runtime's current
+// fencing epoch and that its lease has not expired.
 func (g *AssignmentGuard) ValidateCurrent(claim AssignmentClaim) error {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -126,7 +144,7 @@ func (g *AssignmentGuard) AllowCheckpoint(claim AssignmentClaim) error {
 
 // Renew replaces the local lease only when it is for the same immutable
 // assignment identity and extends the prior expiry.
-func (g *AssignmentGuard) Renew(renewal EdgeSessionAssignment) error {
+func (g *AssignmentGuard) Renew(renewal RuntimeAssignment) error {
 	if err := renewal.Validate(); err != nil {
 		return err
 	}
@@ -137,14 +155,23 @@ func (g *AssignmentGuard) Renew(renewal EdgeSessionAssignment) error {
 	if renewal.SessionID != current.SessionID {
 		return ErrAssignmentSessionMismatch
 	}
-	if renewal.EdgeID != current.EdgeID {
-		return ErrAssignmentEdgeMismatch
+	if renewal.RuntimeID != current.RuntimeID {
+		return ErrAssignmentRuntimeIDMismatch
+	}
+	if renewal.RuntimeKind != current.RuntimeKind {
+		return ErrAssignmentRuntimeKindMismatch
+	}
+	if renewal.Endpoint != current.Endpoint {
+		return ErrAssignmentEndpointMismatch
 	}
 	if renewal.AssignmentEpoch != current.AssignmentEpoch {
 		return ErrAssignmentEpochMismatch
 	}
 	if renewal.PresentationRevision != current.PresentationRevision {
 		return ErrAssignmentRevisionMismatch
+	}
+	if !renewal.IssuedAt.Equal(current.IssuedAt) {
+		return ErrAssignmentIssuedAtMismatch
 	}
 	if !renewal.LeaseExpiresAt.After(current.LeaseExpiresAt) {
 		return ErrLeaseNotExtended
@@ -157,8 +184,11 @@ func (g *AssignmentGuard) validateCurrentLocked(claim AssignmentClaim) error {
 	if claim.SessionID != g.assignment.SessionID {
 		return ErrAssignmentSessionMismatch
 	}
-	if claim.EdgeID != g.assignment.EdgeID {
-		return ErrAssignmentEdgeMismatch
+	if claim.RuntimeID != g.assignment.RuntimeID {
+		return ErrAssignmentRuntimeIDMismatch
+	}
+	if claim.RuntimeKind != g.assignment.RuntimeKind {
+		return ErrAssignmentRuntimeKindMismatch
 	}
 	if claim.AssignmentEpoch != g.assignment.AssignmentEpoch {
 		return ErrAssignmentEpochMismatch

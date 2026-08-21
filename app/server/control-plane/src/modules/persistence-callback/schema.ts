@@ -1,13 +1,26 @@
 import { z } from "zod";
 
 const idempotencyKey = z.string().trim().min(1).max(200);
-const assignmentIdentifier = z
+const runtimeIdentifier = z
   .string()
   .trim()
   .min(1)
   .max(128)
   .regex(/^[A-Za-z0-9_-]+$/);
-const state = z.record(z.string(), z.unknown());
+const opaqueSnapshot = z.union([
+  z.null(),
+  z.boolean(),
+  z.number(),
+  z.string(),
+  z.array(z.unknown()),
+  z.record(z.string(), z.unknown()),
+]);
+const assignment = {
+  runtimeId: runtimeIdentifier,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+  assignmentEpoch: z.number().int().positive(),
+  presentationRevision: z.number().int().positive(),
+};
 const participant = z.object({
   userId: z.string().trim().min(1),
   role: z.enum(["presenter", "viewer"]),
@@ -15,17 +28,17 @@ const participant = z.object({
 
 export const checkpointInputSchema = z.object({
   sessionId: z.string().uuid(),
+  ...assignment,
   version: z.number().int().nonnegative(),
   lastSequence: z.number().int().nonnegative(),
   idempotencyKey,
-  payload: state,
+  payload: opaqueSnapshot,
 });
 
 export const completionInputSchema = z
   .object({
     sessionId: z.string().uuid(),
-    edgeId: assignmentIdentifier,
-    assignmentEpoch: z.number().int().positive(),
+    ...assignment,
     checkpointVersion: z.number().int().nonnegative(),
     lastSequence: z.number().int().nonnegative(),
     idempotencyKey,
@@ -33,7 +46,7 @@ export const completionInputSchema = z
     endedAt: z.string().datetime(),
     participantCount: z.number().int().min(1).max(50),
     participants: z.array(participant).min(1).max(50),
-    finalCheckpoint: state,
+    finalCheckpoint: opaqueSnapshot,
   })
   .refine((value) => value.participantCount === value.participants.length, {
     path: ["participantCount"],

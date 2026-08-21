@@ -176,7 +176,7 @@ export class D1SessionRepository implements SessionRepository {
         .bind(endedAt, id),
       this.database
         .prepare(
-          "UPDATE session_edge_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
+          "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
         )
         .bind(endedAt, id),
     ]);

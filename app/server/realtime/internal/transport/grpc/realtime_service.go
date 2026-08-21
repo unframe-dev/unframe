@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -24,13 +24,13 @@ type RealtimeService struct {
 	assignments AssignmentAuthorizer
 }
 
-// AssignmentAuthorizer verifies that an operation belongs to the Edge's active
+// AssignmentAuthorizer verifies that an operation belongs to the Runtime's active
 // assignment and is still within its lease.
 type AssignmentAuthorizer interface {
-	AllowNewConnection(edge.AssignmentClaim) error
-	ConnectionDeadline(edge.AssignmentClaim) (time.Time, error)
-	AllowCommand(edge.AssignmentClaim) error
-	ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error)
+	AllowNewConnection(assignment.AssignmentClaim) error
+	ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error)
+	AllowCommand(assignment.AssignmentClaim) error
+	ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error)
 }
 
 func NewRealtimeService(coordinator *session.Coordinator, identities auth.IdentityResolver, assignments AssignmentAuthorizer) *RealtimeService {
@@ -61,7 +61,7 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	}
 	leaseRemaining := time.Until(leaseDeadline)
 	if leaseRemaining <= 0 {
-		return assignmentError(edge.ErrLeaseExpired)
+		return assignmentError(assignment.ErrLeaseExpired)
 	}
 	leaseTimer := time.NewTimer(leaseRemaining)
 	defer leaseTimer.Stop()
@@ -105,7 +105,7 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 			}
 			leaseRemaining = time.Until(leaseDeadline)
 			if leaseRemaining <= 0 {
-				return assignmentError(edge.ErrLeaseExpired)
+				return assignmentError(assignment.ErrLeaseExpired)
 			}
 			leaseTimer.Reset(leaseRemaining)
 		case <-stream.Context().Done():
@@ -138,7 +138,7 @@ func (s *RealtimeService) sendBeforeLeaseExpiry(stream grpcgo.BidiStreamingServe
 	for {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			return assignmentError(edge.ErrLeaseExpired)
+			return assignmentError(assignment.ErrLeaseExpired)
 		}
 		timer := time.NewTimer(remaining)
 		select {
@@ -199,19 +199,20 @@ func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[real
 
 func assignmentError(err error) error {
 	switch {
-	case errors.Is(err, edge.ErrAssignmentSessionMismatch), errors.Is(err, edge.ErrAssignmentEdgeMismatch), errors.Is(err, edge.ErrAssignmentEpochMismatch), errors.Is(err, edge.ErrAssignmentRevisionMismatch):
-		return status.Error(codes.PermissionDenied, "realtime assignment does not match this edge")
-	case errors.Is(err, edge.ErrLeaseExpired):
+	case errors.Is(err, assignment.ErrAssignmentSessionMismatch), errors.Is(err, assignment.ErrAssignmentRuntimeIDMismatch), errors.Is(err, assignment.ErrAssignmentRuntimeKindMismatch), errors.Is(err, assignment.ErrAssignmentEpochMismatch), errors.Is(err, assignment.ErrAssignmentRevisionMismatch):
+		return status.Error(codes.PermissionDenied, "realtime assignment does not match this runtime")
+	case errors.Is(err, assignment.ErrLeaseExpired):
 		return status.Error(codes.FailedPrecondition, "realtime assignment lease has expired")
 	default:
 		return status.Error(codes.FailedPrecondition, "realtime assignment is not active")
 	}
 }
 
-func assignmentClaim(identity session.Identity) edge.AssignmentClaim {
-	return edge.AssignmentClaim{
+func assignmentClaim(identity session.Identity) assignment.AssignmentClaim {
+	return assignment.AssignmentClaim{
 		SessionID:            identity.SessionID,
-		EdgeID:               identity.EdgeID,
+		RuntimeID:            identity.RuntimeID,
+		RuntimeKind:          identity.RuntimeKind,
 		AssignmentEpoch:      identity.AssignmentEpoch,
 		PresentationRevision: identity.PresentationRevision,
 	}

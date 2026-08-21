@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/edge"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
+	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestServerShutdownStopsServing(t *testing.T) {
@@ -107,11 +109,52 @@ func TestNewServerRejectsMissingProductionDependencies(t *testing.T) {
 	}
 }
 
+func TestServerPublishesApplicationReadinessSeparatelyFromProcessStartup(t *testing.T) {
+	t.Parallel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	server := mustNewServer(t, listener)
+	if _, registered := server.GRPCServer().GetServiceInfo()["grpc.health.v1.Health"]; !registered {
+		t.Fatal("standard gRPC health service is not registered")
+	}
+	assertHealthStatus(t, server, healthv1.HealthCheckResponse_NOT_SERVING)
+	if err := server.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	assertHealthStatus(t, server, healthv1.HealthCheckResponse_NOT_SERVING)
+
+	server.SetApplicationReady(true)
+	assertHealthStatus(t, server, healthv1.HealthCheckResponse_SERVING)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		t.Fatalf("shutdown: %v", err)
+	}
+	assertHealthStatus(t, server, healthv1.HealthCheckResponse_NOT_SERVING)
+}
+
+func assertHealthStatus(t *testing.T, server *Server, want healthv1.HealthCheckResponse_ServingStatus) {
+	t.Helper()
+	response, err := server.health.Check(context.Background(), &healthv1.HealthCheckRequest{})
+	if err != nil {
+		t.Fatalf("health check: %v", err)
+	}
+	if response.GetStatus() != want {
+		t.Errorf("health status = %s, want %s", response.GetStatus(), want)
+	}
+}
+
 func mustNewServer(t *testing.T, listener net.Listener) *Server {
 	t.Helper()
-	guard, err := edge.NewAssignmentGuard(edge.EdgeSessionAssignment{
+	guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{
 		SessionID:            "session-1",
-		EdgeID:               "edge-1",
+		RuntimeID:            "runtime-1",
+		RuntimeKind:          assignment.RuntimeKindCloud,
+		Endpoint:             "runtime.example.test:443",
 		AssignmentEpoch:      1,
 		PresentationRevision: 1,
 		IssuedAt:             time.Unix(0, 0),
@@ -120,11 +163,11 @@ func mustNewServer(t *testing.T, listener net.Listener) *Server {
 	if err != nil {
 		t.Fatalf("new assignment guard: %v", err)
 	}
-	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{Issuer: "test", JWKSURL: "https://example.test/jwks"})
+	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{Issuer: "test", Audience: "test-runtime", JWKSURL: "https://example.test/jwks"})
 	if err != nil {
 		t.Fatalf("new verifier: %v", err)
 	}
-	server, err := NewServer(listener, Dependencies{Verifier: verifier, Guard: guard})
+	server, err := NewServer(listener, Dependencies{Verifier: verifier, Guard: guard, Coordinator: session.NewCoordinator()})
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}

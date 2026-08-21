@@ -2972,8 +2972,10 @@ export interface paths {
                         "application/json": {
                             /** Format: uri */
                             endpoint: string;
-                            fingerprint: string;
-                            edgeId: string;
+                            fingerprint: string | null;
+                            runtimeId: string;
+                            /** @enum {string} */
+                            runtimeKind: "Cloud" | "VenueEdge";
                             assignmentEpoch: number;
                             presentationId: string;
                             presentationRevision: number;
@@ -3040,6 +3042,223 @@ export interface paths {
                     };
                 };
                 /** @description Session ended */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{sessionId}/runtime-assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Active assignment */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            sessionId: string;
+                            runtimeId: string;
+                            /** @enum {string} */
+                            runtimeKind: "Cloud" | "VenueEdge";
+                            /** Format: uri */
+                            endpoint: string;
+                            certificateFingerprint: string | null;
+                            provisioningEdgeId: string | null;
+                            assignmentEpoch: number;
+                            presentationRevision: number;
+                            /** Format: date-time */
+                            issuedAt: string;
+                            /** Format: date-time */
+                            leaseExpiresAt: string;
+                            /** Format: date-time */
+                            releasedAt: string | null;
+                        };
+                    };
+                };
+                /** @description Invalid session ID */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description No active assignment */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        runtimeId: string;
+                        /** @enum {string} */
+                        runtimeKind: "Cloud" | "VenueEdge";
+                        /** Format: uri */
+                        endpoint?: string;
+                        presentationRevision: number;
+                        /** Format: date-time */
+                        leaseExpiresAt: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Assigned */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            sessionId: string;
+                            runtimeId: string;
+                            /** @enum {string} */
+                            runtimeKind: "Cloud" | "VenueEdge";
+                            /** Format: uri */
+                            endpoint: string;
+                            certificateFingerprint: string | null;
+                            provisioningEdgeId: string | null;
+                            assignmentEpoch: number;
+                            presentationRevision: number;
+                            /** Format: date-time */
+                            issuedAt: string;
+                            /** Format: date-time */
+                            leaseExpiresAt: string;
+                            /** Format: date-time */
+                            releasedAt: string | null;
+                        };
+                    };
+                };
+                /** @description Invalid assignment request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Active assignment exists */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3376,210 +3595,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/sessions/{sessionId}/venue-edge-assignment": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    sessionId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Active assignment */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            sessionId: string;
-                            edgeId: string;
-                            assignmentEpoch: number;
-                            presentationRevision: number;
-                            /** Format: date-time */
-                            issuedAt: string;
-                            /** Format: date-time */
-                            leaseExpiresAt: string;
-                            /** Format: date-time */
-                            releasedAt: string | null;
-                            /** Format: uri */
-                            localEndpoint: string;
-                            certificateFingerprint: string;
-                        };
-                    };
-                };
-                /** @description Invalid session ID */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description No active assignment */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    sessionId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        edgeId: string;
-                        presentationRevision: number;
-                        /** Format: date-time */
-                        leaseExpiresAt: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Assigned */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            sessionId: string;
-                            edgeId: string;
-                            assignmentEpoch: number;
-                            presentationRevision: number;
-                            /** Format: date-time */
-                            issuedAt: string;
-                            /** Format: date-time */
-                            leaseExpiresAt: string;
-                            /** Format: date-time */
-                            releasedAt: string | null;
-                        };
-                    };
-                };
-                /** @description Invalid assignment request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Active assignment exists */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/venue-edges/{edgeId}/register": {
         parameters: {
             query?: never;
@@ -3601,6 +3616,7 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        runtimeId: string;
                         runtimeVersion: string;
                         /** @enum {string} */
                         protocolVersion: "v1";
@@ -3662,6 +3678,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Runtime identity conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
             };
         };
         delete?: never;
@@ -3707,7 +3737,13 @@ export interface paths {
                     content: {
                         "application/json": {
                             sessionId: string;
-                            edgeId: string;
+                            runtimeId: string;
+                            /** @enum {string} */
+                            runtimeKind: "Cloud" | "VenueEdge";
+                            /** Format: uri */
+                            endpoint: string;
+                            certificateFingerprint: string | null;
+                            provisioningEdgeId: string | null;
                             assignmentEpoch: number;
                             presentationRevision: number;
                             /** Format: date-time */
@@ -3869,10 +3905,15 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         sessionId: string;
+                        runtimeId: string;
+                        /** @enum {string} */
+                        runtimeKind: "Cloud" | "VenueEdge";
+                        assignmentEpoch: number;
+                        presentationRevision: number;
                         version: number;
                         lastSequence: number;
                         idempotencyKey: string;
-                        payload: {
+                        payload: unknown | boolean | number | string | unknown[] | {
                             [key: string]: unknown;
                         };
                     };
@@ -3920,6 +3961,20 @@ export interface paths {
                 };
                 /** @description Session not found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Runtime assignment is not active */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3961,8 +4016,11 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         sessionId: string;
-                        edgeId: string;
+                        runtimeId: string;
+                        /** @enum {string} */
+                        runtimeKind: "Cloud" | "VenueEdge";
                         assignmentEpoch: number;
+                        presentationRevision: number;
                         checkpointVersion: number;
                         lastSequence: number;
                         idempotencyKey: string;
@@ -3976,7 +4034,7 @@ export interface paths {
                             /** @enum {string} */
                             role: "presenter" | "viewer";
                         }[];
-                        finalCheckpoint: {
+                        finalCheckpoint: unknown | boolean | number | string | unknown[] | {
                             [key: string]: unknown;
                         };
                     };
@@ -4036,7 +4094,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Assignment is not active */
+                /** @description Runtime assignment is not active */
                 409: {
                     headers: {
                         [name: string]: unknown;
