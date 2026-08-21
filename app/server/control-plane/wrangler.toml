@@ -17,7 +17,6 @@ required = [
   "AUTH_EMAIL_FROM",
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
-  "REALTIME_AUDIENCE",
   "REALTIME_SIGNING_JWK",
   "SERVICE_IDENTITY_SECRET",
 ]
@@ -29,6 +28,7 @@ WEB_ORIGIN = "https://un-fra.me"
 R2_ACCOUNT_ID = "5e51990fc7286bc6106950b1617361c9"
 R2_BUCKET_NAME = "unframe-assets"
 REALTIME_ISSUER = "https://api.un-fra.me"
+REALTIME_AUDIENCE = "unframe-realtime-runtime"
 REALTIME_SIGNING_KID = "realtime-2026-08"
 
 [[d1_databases]]

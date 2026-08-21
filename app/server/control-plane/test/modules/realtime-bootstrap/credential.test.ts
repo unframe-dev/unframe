@@ -17,7 +17,7 @@ describe("RealtimeBootstrapCredentials", () => {
     const credentials = new RealtimeBootstrapCredentials(privateJwk, {
       issuer: "https://control-plane.example.com",
       keyId: "realtime-2026-08",
-      audience: "test-realtime-audience",
+      audience: "unframe-realtime-runtime",
       now: () => 1_700_000_000,
       newId: () => "credential-id",
     });
@@ -42,7 +42,7 @@ describe("RealtimeBootstrapCredentials", () => {
     expect(decode(encodedHeader!)).toEqual({ alg: "EdDSA", typ: "JWT", kid: "realtime-2026-08" });
     expect(decode(encodedPayload!)).toEqual({
       iss: "https://control-plane.example.com",
-      aud: "test-realtime-audience",
+      aud: "unframe-realtime-runtime",
       sub: "user-1",
       session_id: "session-1",
       role: "presenter",
@@ -78,6 +78,49 @@ describe("RealtimeBootstrapCredentials", () => {
     const publicKey = await crypto.subtle.importKey(
       "jwk",
       jwks.keys[0]!,
+      { name: "Ed25519" },
+      false,
+      ["verify"],
+    );
+    await expect(
+      crypto.subtle.verify(
+        "Ed25519",
+        publicKey,
+        fromBase64Url(encodedSignature!),
+        new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
+      ),
+    ).resolves.toBe(true);
+  });
+
+  it("UTF-8 audienceを含むcredentialを発行する", async () => {
+    const keyPair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+    const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+    const credentials = new RealtimeBootstrapCredentials(privateJwk, {
+      issuer: "https://control-plane.example.com",
+      keyId: "realtime-2026-08",
+      audience: "会場ランタイム🎥",
+      now: () => 1_700_000_000,
+      newId: () => "credential-id",
+    });
+
+    const { token } = await credentials.issue({
+      sessionId: "session-1",
+      userId: "user-1",
+      role: "presenter",
+      runtimeId: "runtime-1",
+      runtimeKind: "VenueEdge",
+      assignmentEpoch: 3,
+      presentationId: "presentation-1",
+      presentationRevision: 7,
+      scopes: ["realtime:connect"],
+      expiresAt: 1_700_000_300,
+    });
+    const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
+
+    expect(decode<{ aud: string }>(encodedPayload!).aud).toBe("会場ランタイム🎥");
+    const publicKey = await crypto.subtle.importKey(
+      "jwk",
+      (await credentials.jwks()).keys[0]!,
       { name: "Ed25519" },
       false,
       ["verify"],

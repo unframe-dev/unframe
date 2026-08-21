@@ -31,11 +31,13 @@ type RealtimeCredentialClaims = {
   protocol_version: 1;
 };
 
-const encodeBase64Url = (value: Uint8Array | string) =>
-  btoa(typeof value === "string" ? value : String.fromCharCode(...value))
+const encodeBase64Url = (value: Uint8Array | string) => {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  return btoa(String.fromCharCode(...bytes))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
+};
 
 export class RealtimeBootstrapCredentials {
   private readonly now: () => number;

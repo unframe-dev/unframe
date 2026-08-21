@@ -16,8 +16,6 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 
 REALTIME_ISSUER=
-# Runtime JWT audience. The production value is intentionally undecided.
-REALTIME_AUDIENCE=
 REALTIME_SIGNING_KID=local-realtime
 REALTIME_SIGNING_JWK=
 SERVICE_IDENTITY_SECRET=
