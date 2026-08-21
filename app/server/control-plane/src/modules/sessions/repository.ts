@@ -168,12 +168,18 @@ export class D1SessionRepository implements SessionRepository {
   }
 
   async end(id: string, endedAt: string) {
-    await this.database
-      .prepare(
-        "UPDATE presentation_sessions SET state = 'Ended', ended_at = ? WHERE id = ? AND state != 'Ended'",
-      )
-      .bind(endedAt, id)
-      .run();
+    await this.database.batch([
+      this.database
+        .prepare(
+          "UPDATE presentation_sessions SET state = 'Ended', ended_at = ? WHERE id = ? AND state != 'Ended'",
+        )
+        .bind(endedAt, id),
+      this.database
+        .prepare(
+          "UPDATE runtime_assignments SET released_at = ? WHERE session_id = ? AND released_at IS NULL",
+        )
+        .bind(endedAt, id),
+    ]);
     return this.findById(id);
   }
 }

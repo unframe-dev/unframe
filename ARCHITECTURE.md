@@ -1,6 +1,6 @@
 # Unframe アーキテクチャ
 
-このドキュメントは Unframe モノレポの目標構成を示す一次資料です。Backend の詳細は [`app/server/ARCHITECTURE.md`](./app/server/ARCHITECTURE.md)、開発フローは [`CONTRIBUTING.md`](./CONTRIBUTING.md)、個別の判断背景は [`docs/decisions/`](./docs/decisions/) を参照してください。
+このドキュメントは Unframe モノレポの目標構成を示す一次資料です。Backend component 間の境界は [`app/server/ARCHITECTURE.md`](./app/server/ARCHITECTURE.md)、Control Plane と Realtime Backend の内部設計はそれぞれ [`app/server/control-plane/ARCHITECTURE.md`](./app/server/control-plane/ARCHITECTURE.md) と [`app/server/realtime/ARCHITECTURE.md`](./app/server/realtime/ARCHITECTURE.md)、開発フローは [`CONTRIBUTING.md`](./CONTRIBUTING.md)、個別の判断背景は [`docs/decisions/`](./docs/decisions/) を参照してください。
 
 ## 全体像
 

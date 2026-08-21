@@ -54,8 +54,8 @@ const runtimeConfigSchema = z.object({
   R2_BUCKET_NAME: requiredString("R2_BUCKET_NAME"),
   R2_ACCESS_KEY_ID: requiredString("R2_ACCESS_KEY_ID"),
   R2_SECRET_ACCESS_KEY: requiredString("R2_SECRET_ACCESS_KEY"),
-  REALTIME_ENDPOINT: requiredString("REALTIME_ENDPOINT").url("REALTIME_ENDPOINT must be a URL"),
   REALTIME_ISSUER: requiredString("REALTIME_ISSUER").url("REALTIME_ISSUER must be a URL"),
+  REALTIME_AUDIENCE: requiredString("REALTIME_AUDIENCE"),
   REALTIME_SIGNING_KID: requiredString("REALTIME_SIGNING_KID"),
   REALTIME_SIGNING_JWK: privateEd25519Jwk,
   SERVICE_IDENTITY_SECRET: requiredString("SERVICE_IDENTITY_SECRET").min(

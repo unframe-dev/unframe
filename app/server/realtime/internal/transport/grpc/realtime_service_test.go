@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
@@ -61,6 +63,139 @@ func TestRealtimeServiceRejectsViewerCommand(t *testing.T) {
 	_, err := viewer.Recv()
 	if status.Code(err) != codes.PermissionDenied {
 		t.Errorf("viewer command code = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
+	}
+}
+
+func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: assignment.ErrLeaseExpired}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	if _, err := client.Recv(); status.Code(err) != codes.FailedPrecondition {
+		t.Errorf("expired assignment connection code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+	}
+}
+
+func TestRealtimeServiceRejectsInactiveAssignmentBeforeHandshake(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: assignment.ErrAssignmentEpochMismatch}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.PermissionDenied {
+			t.Errorf("inactive assignment code = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("connection waited for handshake before rejecting inactive assignment")
+	}
+}
+
+func TestRealtimeServiceClosesStreamWaitingForHandshakeWhenAssignmentLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	lease := &renewableDeadlineAssignment{initialDuration: 500 * time.Millisecond}
+	listener, stop := startRealtimeServiceWithAssignment(t, lease, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("pre-handshake lease expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("connection waited for handshake after assignment lease expiry")
+	}
+}
+
+func TestRealtimeServiceWaitsForHandshakeUntilRenewedLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	initialized := make(chan struct{})
+	lease := &renewableDeadlineAssignment{initialDuration: 250 * time.Millisecond, initialized: initialized}
+	listener, stop := startRealtimeServiceWithAssignment(t, lease, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	select {
+	case <-initialized:
+	case <-time.After(time.Second):
+		t.Fatal("connection did not start waiting for handshake")
+	}
+	initialDeadline := lease.currentDeadline()
+	lease.renew(500 * time.Millisecond)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	waitPastInitialDeadline := time.NewTimer(time.Until(initialDeadline) + 100*time.Millisecond)
+	defer waitPastInitialDeadline.Stop()
+	select {
+	case err := <-result:
+		t.Fatalf("handshake wait ended at the original lease deadline after renewal: %v", err)
+	case <-waitPastInitialDeadline.C:
+	}
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("renewed pre-handshake expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("connection waited for handshake after renewed lease expiry")
+	}
+}
+
+func TestRealtimeServiceRejectsCommandWhenAssignmentDoesNotMatch(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{command: assignment.ErrAssignmentEpochMismatch}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_PRESENTER)
+	if err := client.Send(&realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{MessageId: "command-1", PageIndex: 1}}}); err != nil {
+		t.Fatalf("send page change: %v", err)
+	}
+	if _, err := client.Recv(); status.Code(err) != codes.PermissionDenied {
+		t.Errorf("assignment mismatch command code = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
+	}
+}
+
+func TestRealtimeServiceStopsReliableDeliveryWhenLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{delivery: assignment.ErrLeaseExpired}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_PRESENTER)
+	if err := client.Send(&realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{MessageId: "command-1", PageIndex: 1}}}); err != nil {
+		t.Fatalf("send page change: %v", err)
+	}
+	if _, err := client.Recv(); status.Code(err) != codes.FailedPrecondition {
+		t.Errorf("expired assignment delivery code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
 	}
 }
 
@@ -154,7 +289,7 @@ func TestRealtimeServiceReturnsQueueOverflowWhileSendIsBlocked(t *testing.T) {
 
 	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
 	coordinator := session.NewCoordinator()
-	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity})
+	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity}, allowAllAssignment{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stream := newBlockingSendStream(ctx)
@@ -206,6 +341,103 @@ func TestRealtimeServiceReturnsQueueOverflowWhileSendIsBlocked(t *testing.T) {
 	}
 }
 
+func TestRealtimeServiceStopsBlockedSendWhenAssignmentLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	coordinator := session.NewCoordinator()
+	service := NewRealtimeService(coordinator, testIdentityResolver{identity: identity}, deadlineAssignment{deadline: time.Now().Add(200 * time.Millisecond)})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := newBlockingSendStream(ctx)
+	stream.received <- &realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_Handshake{Handshake: &realtimev1.Handshake{ProtocolVersion: protocol.Version}}}
+	result := make(chan error, 1)
+	go func() { result <- service.Connect(stream) }()
+
+	waitForSignal(t, stream.connected, "connected message")
+	presenter, err := coordinator.Connect(session.Identity{SessionID: identity.SessionID, ParticipantID: "presenter-1", Role: session.RolePresenter})
+	if err != nil {
+		t.Fatalf("connect presenter: %v", err)
+	}
+	defer coordinator.Disconnect(presenter)
+	if _, err := coordinator.ChangePage(presenter, session.PageChangeCommand{MessageID: "command-1", PageIndex: 1}); err != nil {
+		t.Fatalf("send command: %v", err)
+	}
+	waitForSignal(t, stream.blocked, "blocked reliable event send")
+
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Fatalf("Connect error code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Connect waited for blocked Send after assignment lease expiry")
+	}
+	cancel()
+	waitForSignal(t, stream.sendDone, "blocked sender shutdown")
+}
+
+func TestRealtimeServiceClosesIdleStreamWhenAssignmentLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	assignment := &renewableDeadlineAssignment{initialDuration: 500 * time.Millisecond}
+	listener, stop := startRealtimeServiceWithAssignment(t, assignment, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_VIEWER)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("idle stream expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("idle stream remained connected after assignment lease expiry")
+	}
+}
+
+func TestRealtimeServiceKeepsIdleStreamUntilRenewedLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	assignment := &renewableDeadlineAssignment{initialDuration: 250 * time.Millisecond}
+	listener, stop := startRealtimeServiceWithAssignment(t, assignment, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_VIEWER)
+	initialDeadline := assignment.currentDeadline()
+	assignment.renew(500 * time.Millisecond)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	waitPastInitialDeadline := time.NewTimer(time.Until(initialDeadline) + 100*time.Millisecond)
+	defer waitPastInitialDeadline.Stop()
+	select {
+	case err := <-result:
+		t.Fatalf("idle stream closed at the original lease deadline after renewal: %v", err)
+	case <-waitPastInitialDeadline.C:
+	}
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("renewed idle stream expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("idle stream remained connected after renewed lease expiry")
+	}
+}
+
 func TestDeliveryTrackerIgnoresAcknowledgementAfterCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -245,6 +477,94 @@ type testIdentityResolver struct{ identity session.Identity }
 
 func (r testIdentityResolver) Resolve(context.Context) (session.Identity, error) {
 	return r.identity, nil
+}
+
+type allowAllAssignment struct{}
+
+func (allowAllAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
+
+func (allowAllAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), nil
+}
+
+func (allowAllAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
+
+func (allowAllAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), nil
+}
+
+type deadlineAssignment struct{ deadline time.Time }
+
+func (deadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
+
+func (a deadlineAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return a.deadline, nil
+}
+
+func (deadlineAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
+
+func (a deadlineAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return a.deadline, nil
+}
+
+type renewableDeadlineAssignment struct {
+	mu              sync.Mutex
+	deadline        time.Time
+	initialDuration time.Duration
+	initialized     chan struct{}
+}
+
+func (*renewableDeadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
+
+func (a *renewableDeadlineAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.deadline.IsZero() {
+		a.deadline = time.Now().Add(a.initialDuration)
+		if a.initialized != nil {
+			close(a.initialized)
+			a.initialized = nil
+		}
+	}
+	return a.deadline, nil
+}
+
+func (*renewableDeadlineAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
+
+func (a *renewableDeadlineAssignment) ReliableDeliveryDeadline(claim assignment.AssignmentClaim) (time.Time, error) {
+	return a.ConnectionDeadline(claim)
+}
+
+func (a *renewableDeadlineAssignment) renew(duration time.Duration) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.deadline = time.Now().Add(duration)
+}
+
+func (a *renewableDeadlineAssignment) currentDeadline() time.Time {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.deadline
+}
+
+type rejectingAssignment struct {
+	connection error
+	command    error
+	delivery   error
+}
+
+func (a rejectingAssignment) AllowNewConnection(assignment.AssignmentClaim) error {
+	return a.connection
+}
+
+func (rejectingAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), nil
+}
+
+func (a rejectingAssignment) AllowCommand(assignment.AssignmentClaim) error { return a.command }
+
+func (a rejectingAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), a.delivery
 }
 
 type blockingSendStream struct {
@@ -292,6 +612,10 @@ func (s *blockingSendStream) Send(message *realtimev1.ServerEnvelope) error {
 }
 
 func startRealtimeService(t *testing.T, identities ...session.Identity) (*bufconn.Listener, func()) {
+	return startRealtimeServiceWithAssignment(t, allowAllAssignment{}, identities...)
+}
+
+func startRealtimeServiceWithAssignment(t *testing.T, assignments AssignmentAuthorizer, identities ...session.Identity) (*bufconn.Listener, func()) {
 	t.Helper()
 	listener := bufconn.Listen(1024 * 1024)
 	byParticipant := make(map[string]session.Identity, len(identities))
@@ -306,7 +630,7 @@ func startRealtimeService(t *testing.T, identities ...session.Identity) (*bufcon
 		}
 		return handler(srv, contextServerStream{ServerStream: stream, context: auth.ContextWithIdentity(stream.Context(), identity)})
 	}))
-	realtimev1.RegisterRealtimeServiceServer(server, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}))
+	realtimev1.RegisterRealtimeServiceServer(server, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}, assignments))
 	go func() { _ = server.Serve(listener) }()
 	return listener, func() {
 		server.Stop()

@@ -3,6 +3,8 @@ package session
 import (
 	"errors"
 	"sync"
+
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 )
 
 var (
@@ -28,9 +30,15 @@ const (
 )
 
 type Identity struct {
-	SessionID     string
-	ParticipantID string
-	Role          Role
+	SessionID            string
+	ParticipantID        string
+	Role                 Role
+	RuntimeID            string
+	RuntimeKind          assignment.RuntimeKind
+	AssignmentEpoch      uint64
+	PresentationID       string
+	PresentationRevision uint64
+	ProtocolVersion      uint64
 }
 
 type PageChangeCommand struct {

@@ -26,6 +26,11 @@ const seedSession = async () => {
   )
     .bind(sessionId, presentationId, userId, `hash-${sessionId}`, "2026-01-01")
     .run();
+  await env.DB.prepare(
+    "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at) VALUES (?, 'runtime', 'Cloud', 'https://runtime.example.com', 1, 1, '2026-01-01', '2099-01-01')",
+  )
+    .bind(sessionId)
+    .run();
   return sessionId;
 };
 
@@ -48,6 +53,10 @@ describe("persistence callback HTTP boundary", () => {
       );
     const checkpoint = {
       sessionId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      assignmentEpoch: 1,
+      presentationRevision: 1,
       version: 1,
       lastSequence: 5,
       idempotencyKey: "cp-1",
@@ -62,6 +71,10 @@ describe("persistence callback HTTP boundary", () => {
     });
     const completion = {
       sessionId,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      assignmentEpoch: 1,
+      presentationRevision: 1,
       checkpointVersion: 1,
       lastSequence: 5,
       idempotencyKey: "done-1",
@@ -71,6 +84,13 @@ describe("persistence callback HTTP boundary", () => {
       participants: [{ userId: "presenter", role: "presenter" }],
       finalCheckpoint: { step: 2 },
     };
+    const staleResponse = await callback("/callbacks/completions", {
+      ...completion,
+      runtimeId: crypto.randomUUID(),
+      idempotencyKey: "stale-done",
+    });
+    expect(staleResponse.status).toBe(409);
+    await expect(staleResponse.json()).resolves.toMatchObject({ error: { code: "conflict" } });
     await expect((await callback("/callbacks/completions", completion)).json()).resolves.toEqual({
       applied: true,
     });

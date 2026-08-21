@@ -54,6 +54,10 @@ const identifierSchema = z
   .min(1)
   .max(128)
   .regex(/^[A-Za-z0-9_-]+$/);
+const httpsUrlSchema = z
+  .string()
+  .url()
+  .refine((value: string) => new URL(value).protocol === "https:", "HTTPS URL required");
 const idParameter = z.object({ id: identifierSchema }).strict();
 const sessionResourceSchema = z.object({
   id: z.string(),
@@ -67,10 +71,45 @@ const sessionResourceSchema = z.object({
 });
 const sessionIdParameter = idParameter;
 const realtimeConnectionSchema = z.object({
-  endpoint: z.string().url(),
+  endpoint: httpsUrlSchema,
+  fingerprint: z.string().nullable(),
+  runtimeId: identifierSchema,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+  assignmentEpoch: z.number().int().positive(),
+  presentationId: identifierSchema,
+  presentationRevision: z.number().int().positive(),
   credential: z.string(),
   expiresAt: z.string().datetime(),
 });
+const venueEdgeResourceSchema = z.object({
+  id: identifierSchema,
+  status: z.enum(["active", "revoked"]),
+});
+const venueEdgeCredentialSchema = z.object({ edge: venueEdgeResourceSchema, token: z.string() });
+const assignmentSchema = z.object({
+  sessionId: identifierSchema,
+  runtimeId: identifierSchema,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+  endpoint: httpsUrlSchema,
+  certificateFingerprint: z.string().nullable(),
+  provisioningEdgeId: identifierSchema.nullable(),
+  assignmentEpoch: z.number().int().positive(),
+  presentationRevision: z.number().int().positive(),
+  issuedAt: z.string().datetime(),
+  leaseExpiresAt: z.string().datetime(),
+  releasedAt: z.string().datetime().nullable(),
+});
+const edgeIdParameter = z.object({ edgeId: identifierSchema }).strict();
+const sessionAssignmentParameter = z.object({ sessionId: identifierSchema }).strict();
+const edgeLeaseParameter = z
+  .object({
+    edgeId: identifierSchema,
+    sessionId: identifierSchema,
+    assignmentEpoch: z.coerce.number().int().positive(),
+  })
+  .strict();
+const adminSecurity = [{ bearerAuth: [] }, { cookieSession: [] }];
+const edgeSecurity = [{ edgeBearer: [] }];
 
 export const publicRoutes = [
   createRoute({
@@ -440,6 +479,7 @@ export const publicRoutes = [
       400: errorResponse("Invalid callback"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
+      409: errorResponse("Runtime assignment is not active"),
     },
   }),
   createRoute({
@@ -460,6 +500,200 @@ export const publicRoutes = [
       400: errorResponse("Invalid callback"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
+      409: errorResponse("Runtime assignment is not active"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/venue-edges",
+    security: adminSecurity,
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": { schema: z.object({ expiresAt: z.string().datetime() }).strict() },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: "Provisioned",
+        content: { "application/json": { schema: venueEdgeCredentialSchema } },
+      },
+      400: errorResponse("Invalid provisioning request"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      409: errorResponse("Invalid credential expiry"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/venue-edges/{edgeId}/rotate",
+    security: adminSecurity,
+    request: {
+      params: edgeIdParameter,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z
+              .object({ expiresAt: z.string().datetime(), overlapExpiresAt: z.string().datetime() })
+              .strict(),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Rotated",
+        content: {
+          "application/json": {
+            schema: z.object({ tokenId: identifierSchema, token: z.string() }),
+          },
+        },
+      },
+      400: errorResponse("Invalid rotation request"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      404: errorResponse("Not found"),
+      409: errorResponse("Invalid credential expiry"),
+    },
+  }),
+  createRoute({
+    method: "delete",
+    path: "/venue-edges/{edgeId}",
+    security: adminSecurity,
+    request: { params: edgeIdParameter },
+    responses: {
+      204: { description: "Revoked" },
+      400: errorResponse("Invalid Edge ID"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      404: errorResponse("Not found"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/sessions/{sessionId}/runtime-assignment",
+    security: adminSecurity,
+    request: {
+      params: sessionAssignmentParameter,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z
+              .object({
+                runtimeId: identifierSchema,
+                runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+                endpoint: httpsUrlSchema.optional(),
+                presentationRevision: z.number().int().positive(),
+                leaseExpiresAt: z.string().datetime(),
+              })
+              .strict(),
+          },
+        },
+      },
+    },
+    responses: {
+      201: {
+        description: "Assigned",
+        content: { "application/json": { schema: assignmentSchema } },
+      },
+      400: errorResponse("Invalid assignment request"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      409: errorResponse("Active assignment exists"),
+    },
+  }),
+  createRoute({
+    method: "get",
+    path: "/sessions/{sessionId}/runtime-assignment",
+    security: adminSecurity,
+    request: { params: sessionAssignmentParameter },
+    responses: {
+      200: {
+        description: "Active assignment",
+        content: {
+          "application/json": {
+            schema: assignmentSchema,
+          },
+        },
+      },
+      400: errorResponse("Invalid session ID"),
+      401: errorResponse("Unauthorized"),
+      403: errorResponse("Forbidden"),
+      409: errorResponse("No active assignment"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/venue-edges/{edgeId}/register",
+    security: edgeSecurity,
+    request: {
+      params: edgeIdParameter,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z
+              .object({
+                runtimeId: identifierSchema,
+                runtimeVersion: z.string().min(1),
+                protocolVersion: z.literal("v1"),
+                capacity: z.number().int().nonnegative(),
+                localEndpoint: httpsUrlSchema,
+                certificateFingerprint: z.string().min(1),
+                health: z.string().min(1),
+              })
+              .strict(),
+          },
+        },
+      },
+    },
+    responses: {
+      204: { description: "Registered" },
+      400: errorResponse("Invalid registration"),
+      401: errorResponse("Unauthorized"),
+      404: errorResponse("Not found"),
+      409: errorResponse("Runtime identity conflict"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew",
+    security: edgeSecurity,
+    request: {
+      params: edgeLeaseParameter,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z.object({ leaseExpiresAt: z.string().datetime() }).strict(),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Renewed",
+        content: { "application/json": { schema: assignmentSchema } },
+      },
+      400: errorResponse("Invalid lease renewal"),
+      401: errorResponse("Unauthorized"),
+      409: errorResponse("Invalid lease"),
+    },
+  }),
+  createRoute({
+    method: "post",
+    path: "/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/release",
+    security: edgeSecurity,
+    request: { params: edgeLeaseParameter },
+    responses: {
+      204: { description: "Released" },
+      400: errorResponse("Invalid lease release"),
+      401: errorResponse("Unauthorized"),
+      409: errorResponse("Invalid lease"),
     },
   }),
 ] as const;
@@ -483,3 +717,11 @@ export const bootstrapSessionRoute = publicRoutes[15];
 export const jwksRoute = publicRoutes[16];
 export const checkpointRoute = publicRoutes[17];
 export const completionRoute = publicRoutes[18];
+export const provisionVenueEdgeRoute = publicRoutes[19];
+export const rotateVenueEdgeRoute = publicRoutes[20];
+export const revokeVenueEdgeRoute = publicRoutes[21];
+export const assignRuntimeRoute = publicRoutes[22];
+export const getRuntimeAssignmentRoute = publicRoutes[23];
+export const registerVenueEdgeRoute = publicRoutes[24];
+export const renewVenueEdgeLeaseRoute = publicRoutes[25];
+export const releaseVenueEdgeLeaseRoute = publicRoutes[26];

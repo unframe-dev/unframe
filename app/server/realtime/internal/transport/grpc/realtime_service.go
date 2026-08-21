@@ -4,7 +4,9 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
@@ -19,10 +21,20 @@ type RealtimeService struct {
 
 	coordinator *session.Coordinator
 	identities  auth.IdentityResolver
+	assignments AssignmentAuthorizer
 }
 
-func NewRealtimeService(coordinator *session.Coordinator, identities auth.IdentityResolver) *RealtimeService {
-	return &RealtimeService{coordinator: coordinator, identities: identities}
+// AssignmentAuthorizer verifies that an operation belongs to the Runtime's active
+// assignment and is still within its lease.
+type AssignmentAuthorizer interface {
+	AllowNewConnection(assignment.AssignmentClaim) error
+	ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error)
+	AllowCommand(assignment.AssignmentClaim) error
+	ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error)
+}
+
+func NewRealtimeService(coordinator *session.Coordinator, identities auth.IdentityResolver, assignments AssignmentAuthorizer) *RealtimeService {
+	return &RealtimeService{coordinator: coordinator, identities: identities, assignments: assignments}
 }
 
 func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope]) error {
@@ -30,7 +42,11 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "realtime connection is unauthenticated")
 	}
-	first, err := stream.Recv()
+	claim := assignmentClaim(identity)
+	if err := s.assignments.AllowNewConnection(claim); err != nil {
+		return assignmentError(err)
+	}
+	first, err := s.receiveHandshakeBeforeLeaseExpiry(stream, claim)
 	if errors.Is(err, io.EOF) {
 		return status.Error(codes.FailedPrecondition, "handshake is required")
 	}
@@ -40,6 +56,16 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	if handshake := first.GetHandshake(); handshake == nil || handshake.GetProtocolVersion() != protocol.Version {
 		return status.Errorf(codes.FailedPrecondition, "first message must handshake with protocol version %q", protocol.Version)
 	}
+	leaseDeadline, err := s.assignments.ConnectionDeadline(claim)
+	if err != nil {
+		return assignmentError(err)
+	}
+	leaseRemaining := time.Until(leaseDeadline)
+	if leaseRemaining <= 0 {
+		return assignmentError(assignment.ErrLeaseExpired)
+	}
+	leaseTimer := time.NewTimer(leaseRemaining)
+	defer leaseTimer.Stop()
 
 	connection, err := s.coordinator.Connect(identity)
 	if err != nil {
@@ -55,7 +81,7 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	commands := make(chan error, 1)
 	sendResults := make(chan error, 1)
 	go s.sendEvents(stream, connection, identity, deliveries, sendResults)
-	go s.receiveCommands(stream, connection, deliveries, commands)
+	go s.receiveCommands(stream, connection, identity, deliveries, commands)
 	for {
 		select {
 		case err := <-commands:
@@ -73,8 +99,55 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 			return err
 		case <-connection.Overflowed():
 			return status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
+		case <-leaseTimer.C:
+			leaseDeadline, err = s.assignments.ConnectionDeadline(claim)
+			if err != nil {
+				return assignmentError(err)
+			}
+			leaseRemaining = time.Until(leaseDeadline)
+			if leaseRemaining <= 0 {
+				return assignmentError(assignment.ErrLeaseExpired)
+			}
+			leaseTimer.Reset(leaseRemaining)
 		case <-stream.Context().Done():
 			return stream.Context().Err()
+		}
+	}
+}
+
+type handshakeReceiveResult struct {
+	message *realtimev1.ClientEnvelope
+	err     error
+}
+
+func (s *RealtimeService) receiveHandshakeBeforeLeaseExpiry(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], claim assignment.AssignmentClaim) (*realtimev1.ClientEnvelope, error) {
+	deadline, err := s.assignments.ConnectionDeadline(claim)
+	if err != nil {
+		return nil, assignmentError(err)
+	}
+	received := make(chan handshakeReceiveResult, 1)
+	go func() {
+		message, err := stream.Recv()
+		received <- handshakeReceiveResult{message: message, err: err}
+	}()
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return nil, assignmentError(assignment.ErrLeaseExpired)
+		}
+		timer := time.NewTimer(remaining)
+		select {
+		case result := <-received:
+			timer.Stop()
+			return result.message, result.err
+		case <-timer.C:
+			deadline, err = s.assignments.ConnectionDeadline(claim)
+			if err != nil {
+				return nil, assignmentError(err)
+			}
+		case <-stream.Context().Done():
+			timer.Stop()
+			return nil, stream.Context().Err()
 		}
 	}
 }
@@ -85,7 +158,7 @@ func (s *RealtimeService) sendEvents(stream grpcgo.BidiStreamingServer[realtimev
 		return
 	}
 	for event := range connection.Events() {
-		if err := stream.Send(protocol.ReliableEventMessage(event)); err != nil {
+		if err := s.sendBeforeLeaseExpiry(stream, identity, protocol.ReliableEventMessage(event)); err != nil {
 			results <- err
 			return
 		}
@@ -93,7 +166,36 @@ func (s *RealtimeService) sendEvents(stream grpcgo.BidiStreamingServer[realtimev
 	}
 }
 
-func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], connection *session.Connection, deliveries *deliveryTracker, results chan<- error) {
+func (s *RealtimeService) sendBeforeLeaseExpiry(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], identity session.Identity, message *realtimev1.ServerEnvelope) error {
+	deadline, err := s.assignments.ReliableDeliveryDeadline(assignmentClaim(identity))
+	if err != nil {
+		return assignmentError(err)
+	}
+	sent := make(chan error, 1)
+	go func() { sent <- stream.Send(message) }()
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return assignmentError(assignment.ErrLeaseExpired)
+		}
+		timer := time.NewTimer(remaining)
+		select {
+		case err := <-sent:
+			timer.Stop()
+			return err
+		case <-timer.C:
+			deadline, err = s.assignments.ReliableDeliveryDeadline(assignmentClaim(identity))
+			if err != nil {
+				return assignmentError(err)
+			}
+		case <-stream.Context().Done():
+			timer.Stop()
+			return stream.Context().Err()
+		}
+	}
+}
+
+func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], connection *session.Connection, identity session.Identity, deliveries *deliveryTracker, results chan<- error) {
 	for {
 		message, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -115,6 +217,11 @@ func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[real
 			return
 		}
 		delivery := deliveries.expect(input.MessageID)
+		if err := s.assignments.AllowCommand(assignmentClaim(identity)); err != nil {
+			deliveries.cancel(input.MessageID)
+			results <- assignmentError(err)
+			return
+		}
 		_, err = s.coordinator.ChangePage(connection, input)
 		if err != nil {
 			deliveries.cancel(input.MessageID)
@@ -125,6 +232,27 @@ func (s *RealtimeService) receiveCommands(stream grpcgo.BidiStreamingServer[real
 			results <- status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
 			return
 		}
+	}
+}
+
+func assignmentError(err error) error {
+	switch {
+	case errors.Is(err, assignment.ErrAssignmentSessionMismatch), errors.Is(err, assignment.ErrAssignmentRuntimeIDMismatch), errors.Is(err, assignment.ErrAssignmentRuntimeKindMismatch), errors.Is(err, assignment.ErrAssignmentEpochMismatch), errors.Is(err, assignment.ErrAssignmentRevisionMismatch):
+		return status.Error(codes.PermissionDenied, "realtime assignment does not match this runtime")
+	case errors.Is(err, assignment.ErrLeaseExpired):
+		return status.Error(codes.FailedPrecondition, "realtime assignment lease has expired")
+	default:
+		return status.Error(codes.FailedPrecondition, "realtime assignment is not active")
+	}
+}
+
+func assignmentClaim(identity session.Identity) assignment.AssignmentClaim {
+	return assignment.AssignmentClaim{
+		SessionID:            identity.SessionID,
+		RuntimeID:            identity.RuntimeID,
+		RuntimeKind:          identity.RuntimeKind,
+		AssignmentEpoch:      identity.AssignmentEpoch,
+		PresentationRevision: identity.PresentationRevision,
 	}
 }
 

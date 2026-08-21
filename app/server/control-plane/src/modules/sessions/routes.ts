@@ -16,6 +16,8 @@ import {
 } from "../../presentation/repository";
 import type { Identity } from "../../presentation/service";
 import { RealtimeBootstrapCredentials } from "../realtime-bootstrap/credential";
+import { D1RuntimeAssignmentRepository } from "../runtime-assignments/repository";
+import { RuntimeAssignmentError, RuntimeAssignmentService } from "../runtime-assignments/service";
 import { D1SessionRepository, type SessionRepository } from "./repository";
 import { SessionError, SessionService, sha256JoinCode } from "./service";
 
@@ -25,6 +27,7 @@ type RouteDependencies = {
   config: RuntimeConfig;
   service: SessionService;
   credentials: CredentialIssuer;
+  assignments: RuntimeAssignmentService;
 };
 export type SessionRouteOptions = {
   identityProvider: (context: AppContext) => Promise<Identity | undefined>;
@@ -57,6 +60,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         ? undefined
         : context.json({ error: { code: "validation_error", message: "Invalid request" } }, 400),
   });
+  const now = options.now ?? (() => new Date());
   const dependencies = (context: AppContext): RouteDependencies => {
     const config = context.get("config");
     return {
@@ -64,7 +68,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       service: new SessionService(
         options.sessionRepository ?? new D1SessionRepository(config.DB),
         options.presentationRepository ?? new D1PresentationRepository(config.DB),
-        options.now ?? (() => new Date()),
+        now,
         options.id ?? (() => crypto.randomUUID()),
         options.joinCode ?? randomJoinCode,
         sha256JoinCode,
@@ -74,7 +78,9 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
           issuer: config.REALTIME_ISSUER,
           keyId: config.REALTIME_SIGNING_KID,
+          audience: config.REALTIME_AUDIENCE,
         }),
+      assignments: new RuntimeAssignmentService(new D1RuntimeAssignmentRepository(config.DB), now),
     };
   };
   const execute = async <T>(
@@ -90,8 +96,8 @@ export function createSessionRoutes(options: SessionRouteOptions) {
     try {
       return await operation(identity, dependencies(context));
     } catch (error) {
-      if (error instanceof SessionError) {
-        const status = errorStatuses[error.code];
+      if (error instanceof SessionError || error instanceof RuntimeAssignmentError) {
+        const status = errorStatuses[error.code as SessionError["code"]] ?? 409;
         throw new HTTPException(status, {
           res: context.json(
             { error: { code: error.code, message: error.code.replaceAll("_", " ") } },
@@ -138,20 +144,65 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       return context.json(result, 200);
     })
     .openapi(bootstrapSessionRoute, async (context) => {
-      const result = await execute(context, async (identity, { config, credentials, service }) => {
-        const id = context.req.valid("param").id;
-        const { participant } = await service.bootstrap(identity, id);
-        const credential = await credentials.issue({
-          sessionId: id,
-          userId: identity.userId,
-          role: participant.role,
-        });
-        return {
-          endpoint: config.REALTIME_ENDPOINT,
-          credential: credential.token,
-          expiresAt: new Date(credential.expiresAt).toISOString(),
-        };
-      });
+      const result = await execute(
+        context,
+        async (identity, { credentials, assignments, service }) => {
+          const id = context.req.valid("param").id;
+          const { participant, session } = await service.bootstrap(identity, id);
+          const assignment = await assignments.active(id);
+          const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
+          if (expiresAt <= Math.floor(now().getTime() / 1_000)) {
+            throw new SessionError("conflict");
+          }
+          let credential;
+          try {
+            credential = await credentials.issue({
+              sessionId: id,
+              userId: identity.userId,
+              role: participant.role,
+              runtimeId: assignment.runtimeId,
+              runtimeKind: assignment.runtimeKind,
+              assignmentEpoch: assignment.assignmentEpoch,
+              presentationId: session.presentationId,
+              presentationRevision: assignment.presentationRevision,
+              scopes:
+                assignment.runtimeKind === "VenueEdge"
+                  ? ["realtime:connect", "assets:read"]
+                  : ["realtime:connect"],
+              expiresAt,
+            });
+          } catch (error) {
+            if (error instanceof RangeError) throw new SessionError("conflict");
+            throw error;
+          }
+          const current = await service.bootstrap(identity, id);
+          const currentAssignment = await assignments.active(id);
+          if (
+            current.session.presentationId !== session.presentationId ||
+            current.participant.userId !== participant.userId ||
+            current.participant.role !== participant.role ||
+            currentAssignment.runtimeId !== assignment.runtimeId ||
+            currentAssignment.runtimeKind !== assignment.runtimeKind ||
+            currentAssignment.assignmentEpoch !== assignment.assignmentEpoch ||
+            currentAssignment.presentationRevision !== assignment.presentationRevision ||
+            currentAssignment.endpoint !== assignment.endpoint ||
+            currentAssignment.certificateFingerprint !== assignment.certificateFingerprint
+          ) {
+            throw new SessionError("conflict");
+          }
+          return {
+            endpoint: currentAssignment.endpoint,
+            fingerprint: currentAssignment.certificateFingerprint,
+            runtimeId: currentAssignment.runtimeId,
+            runtimeKind: currentAssignment.runtimeKind,
+            assignmentEpoch: currentAssignment.assignmentEpoch,
+            presentationId: current.session.presentationId,
+            presentationRevision: currentAssignment.presentationRevision,
+            credential: credential.token,
+            expiresAt: new Date(credential.expiresAt).toISOString(),
+          };
+        },
+      );
       return context.json(result, 200);
     });
 }

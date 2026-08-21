@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    env: { REALTIME_AUDIENCE: "unframe-realtime-runtime" },
     setupFiles: ["./test/setup.ts"],
     include: ["./test/**/*.test.ts"],
     exclude: ["./test/startup.test.ts"],
@@ -28,6 +29,7 @@ export default defineConfig({
           R2_ACCESS_KEY_ID: "test-r2-access-key",
           R2_SECRET_ACCESS_KEY: "test-r2-secret-access-key",
           R2_ACCOUNT_ID: "test-r2-account-id",
+          REALTIME_AUDIENCE: "unframe-realtime-runtime",
           REALTIME_SIGNING_JWK:
             '{"crv":"Ed25519","d":"NpZQSdEURSFKTVz6-pzQdlaclGrXKEU63J612Pbyycw","x":"TqLQxsPp47KvbpA1ZgokEIlJdEGV3qjSoYq9F1d5AN4","kty":"OKP"}',
           SERVICE_IDENTITY_SECRET: "test-service-identity-secret-32-characters",

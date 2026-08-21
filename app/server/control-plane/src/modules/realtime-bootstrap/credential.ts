@@ -3,22 +3,27 @@ import {
   type RealtimeBootstrapCredentialInput,
 } from "./schema";
 
-export const REALTIME_AUDIENCE = "unframe-realtime";
-export const REALTIME_CREDENTIAL_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
-
+const NOT_BEFORE_CLOCK_SKEW_SECONDS = 30;
 type CredentialOptions = {
   issuer: string;
   keyId: string;
+  audience: string;
   now?: () => number;
   newId?: () => string;
 };
 
 type RealtimeCredentialClaims = {
   iss: string;
-  aud: typeof REALTIME_AUDIENCE;
+  aud: string;
   sub: string;
   session_id: string;
   role: RealtimeBootstrapCredentialInput["role"];
+  runtime_id: string;
+  runtime_kind: RealtimeBootstrapCredentialInput["runtimeKind"];
+  assignment_epoch: number;
+  presentation_id: string;
+  presentation_revision: number;
+  scope: string;
   iat: number;
   nbf: number;
   exp: number;
@@ -26,11 +31,13 @@ type RealtimeCredentialClaims = {
   protocol_version: 1;
 };
 
-const encodeBase64Url = (value: Uint8Array | string) =>
-  btoa(typeof value === "string" ? value : String.fromCharCode(...value))
+const encodeBase64Url = (value: Uint8Array | string) => {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  return btoa(String.fromCharCode(...bytes))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
+};
 
 export class RealtimeBootstrapCredentials {
   private readonly now: () => number;
@@ -47,18 +54,27 @@ export class RealtimeBootstrapCredentials {
   async issue(input: RealtimeBootstrapCredentialInput) {
     const participant = realtimeBootstrapCredentialInputSchema.parse(input);
     const iat = this.now();
-    const exp = iat + REALTIME_CREDENTIAL_LIFETIME_SECONDS;
+    if (participant.expiresAt <= iat) {
+      throw new RangeError("realtime credential expiry must be in the future");
+    }
+    const exp = participant.expiresAt;
     const header = encodeBase64Url(
       JSON.stringify({ alg: "EdDSA", typ: "JWT", kid: this.options.keyId }),
     );
     const claims: RealtimeCredentialClaims = {
       iss: this.options.issuer,
-      aud: REALTIME_AUDIENCE,
+      aud: this.options.audience,
       sub: participant.userId,
       session_id: participant.sessionId,
       role: participant.role,
+      runtime_id: participant.runtimeId,
+      runtime_kind: participant.runtimeKind,
+      assignment_epoch: participant.assignmentEpoch,
+      presentation_id: participant.presentationId,
+      presentation_revision: participant.presentationRevision,
+      scope: participant.scopes.join(" "),
       iat,
-      nbf: iat,
+      nbf: iat - NOT_BEFORE_CLOCK_SKEW_SECONDS,
       exp,
       jti: this.newId(),
       protocol_version: 1,

@@ -13,6 +13,7 @@ describe("Control Plane OpenAPI", () => {
             (route.path.startsWith("/presentations") ||
               route.path.startsWith("/assets") ||
               route.path.startsWith("/sessions") ||
+              route.path.startsWith("/venue-edges") ||
               route.path.startsWith("/callbacks") ||
               route.path === "/.well-known/jwks.json"),
         )
@@ -28,7 +29,7 @@ describe("Control Plane OpenAPI", () => {
     expect(documented).toEqual(actual);
   });
 
-  it("declares both Bearer and browser cookie sessions", () => {
+  it("declares user, browser, service, and Venue Edge authentication separately", () => {
     const schemes = createOpenAPIDocument().components?.securitySchemes;
     expect(schemes).toMatchObject({
       bearerAuth: { type: "http", scheme: "bearer" },
@@ -38,7 +39,44 @@ describe("Control Plane OpenAPI", () => {
         name: "__Secure-better-auth.session_token",
       },
       serviceBearer: { type: "http", scheme: "bearer" },
+      edgeBearer: { type: "http", scheme: "bearer" },
     });
+  });
+
+  it("uses Venue Edge credentials only for Edge-owned operations", () => {
+    const document = createOpenAPIDocument();
+
+    expect(document.paths["/venue-edges/{edgeId}/register"]?.post?.security).toEqual([
+      { edgeBearer: [] },
+    ]);
+    expect(
+      document.paths["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew"]?.post
+        ?.security,
+    ).toEqual([{ edgeBearer: [] }]);
+  });
+
+  it("declares credential expiry conflicts for provisioning and rotation", () => {
+    const document = createOpenAPIDocument();
+
+    expect(document.paths["/venue-edges"]?.post?.responses?.[409]).toBeDefined();
+    expect(document.paths["/venue-edges/{edgeId}/rotate"]?.post?.responses?.[409]).toBeDefined();
+  });
+
+  it("declares validation failures for every Venue Edge operation", () => {
+    const document = createOpenAPIDocument();
+    const operations = [
+      ["/venue-edges", "post"],
+      ["/venue-edges/{edgeId}/rotate", "post"],
+      ["/venue-edges/{edgeId}", "delete"],
+      ["/sessions/{sessionId}/runtime-assignment", "post"],
+      ["/sessions/{sessionId}/runtime-assignment", "get"],
+      ["/venue-edges/{edgeId}/register", "post"],
+      ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew", "post"],
+      ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/release", "post"],
+    ] as const;
+
+    for (const [path, method] of operations)
+      expect(document.paths[path]?.[method]?.responses?.[400], `${method} ${path}`).toBeDefined();
   });
 
   it("marks every JSON request body as required", () => {
@@ -55,5 +93,23 @@ describe("Control Plane OpenAPI", () => {
     expect(requestBodies).toEqual(
       expect.arrayContaining(requestBodies.map(() => expect.objectContaining({ required: true }))),
     );
+  });
+
+  it("requires opaque checkpoint values without assigning them a shape", () => {
+    const document = createOpenAPIDocument();
+    const requestSchema = (path: string) => {
+      const requestBody = document.paths[path]?.post?.requestBody;
+      if (!requestBody || !("content" in requestBody)) return undefined;
+      return requestBody.content["application/json"]?.schema;
+    };
+
+    expect(requestSchema("/callbacks/checkpoints")).toMatchObject({
+      required: expect.arrayContaining(["payload"]),
+      properties: { payload: expect.any(Object) },
+    });
+    expect(requestSchema("/callbacks/completions")).toMatchObject({
+      required: expect.arrayContaining(["finalCheckpoint"]),
+      properties: { finalCheckpoint: expect.any(Object) },
+    });
   });
 });

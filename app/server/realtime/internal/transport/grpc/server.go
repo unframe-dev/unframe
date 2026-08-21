@@ -3,21 +3,30 @@ package grpc
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"sync"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/observability"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-var ErrServerStarted = errors.New("gRPC server already started")
+var (
+	ErrServerStarted       = errors.New("gRPC server already started")
+	ErrServerConfiguration = errors.New("gRPC server dependencies are invalid")
+)
 
 // Server owns a gRPC server and the listener it serves on.
 type Server struct {
 	listener net.Listener
 	server   *grpcgo.Server
+	health   *health.Server
 
 	mu        sync.Mutex
 	started   bool
@@ -25,20 +34,51 @@ type Server struct {
 	serveErr  error
 }
 
-// NewServer creates a server using listener and registers the realtime bidi service.
-func NewServer(listener net.Listener, options ...grpcgo.ServerOption) *Server {
+type Dependencies struct {
+	Verifier    *auth.BearerTokenVerifier
+	Guard       *assignment.AssignmentGuard
+	Coordinator *session.Coordinator
+	Logger      *slog.Logger
+	Metrics     *observability.Metrics
+}
+
+// NewServer creates an authenticated server and registers the realtime bidi
+// service. It requires the verified identity, assignment, and session-state
+// boundaries supplied by the composition root.
+func NewServer(listener net.Listener, dependencies Dependencies, options ...grpcgo.ServerOption) (*Server, error) {
+	if dependencies.Verifier == nil || dependencies.Guard == nil || dependencies.Coordinator == nil {
+		return nil, ErrServerConfiguration
+	}
+	options = append(options, grpcgo.ChainStreamInterceptor(
+		observability.StreamServerInterceptor(dependencies.Logger, dependencies.Metrics),
+		auth.NewBearerStreamServerInterceptor(dependencies.Verifier),
+	))
 	grpcServer := grpcgo.NewServer(options...)
-	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(session.NewCoordinator(), auth.ContextIdentityResolver{}))
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus("", healthv1.HealthCheckResponse_NOT_SERVING)
+	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(dependencies.Coordinator, auth.ContextIdentityResolver{}, dependencies.Guard))
+	healthv1.RegisterHealthServer(grpcServer, healthServer)
 	return &Server{
 		listener:  listener,
 		server:    grpcServer,
+		health:    healthServer,
 		serveDone: make(chan struct{}),
-	}
+	}, nil
 }
 
 // GRPCServer returns the underlying server for generated service registration.
 func (s *Server) GRPCServer() *grpcgo.Server {
 	return s.server
+}
+
+// SetApplicationReady publishes readiness only after the Runtime Core and its
+// external verification dependencies have been checked by the composition root.
+func (s *Server) SetApplicationReady(ready bool) {
+	status := healthv1.HealthCheckResponse_NOT_SERVING
+	if ready {
+		status = healthv1.HealthCheckResponse_SERVING
+	}
+	s.health.SetServingStatus("", status)
 }
 
 // Start begins serving in the background.
@@ -79,6 +119,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if !started {
 		return nil
 	}
+	s.SetApplicationReady(false)
 
 	stopped := make(chan struct{})
 	go func() {

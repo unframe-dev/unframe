@@ -1,13 +1,16 @@
 # Unframe Backend
 
-`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。設計の正本は [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
+`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書、現在確認されている不整合と完了条件は [todo.md](./todo.md) を参照してください。
 
 ```text
 app/server/
 ├── ARCHITECTURE.md
 ├── README.md
-├── control-plane/  # Cloudflare Workers / TypeScript / Hono / D1 / R2
-├── realtime/       # Go / gRPC / container
+├── todo.md           # component 間の不整合とArchitecture同期作業
+├── control-plane/
+│   └── ARCHITECTURE.md  # Cloudflare Workers / TypeScript / Hono / D1 / R2
+├── realtime/
+│   └── ARCHITECTURE.md  # Go / gRPC / Venue Edge Runtime
 └── integration/    # planned: component 間 E2E テスト
 ```
 
@@ -15,11 +18,11 @@ app/server/
 - `realtime/` の目標責務はgRPC接続、session中の一時状態、fan-out、backpressureです。
 - 共有境界は `packages/contracts/` の contract です。TypeScript と Go の実装コードは直接共有しません。
 
-旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Planeは認証とPresentation / Asset APIまで実装済みで、session bootstrapは未実装です。Realtimeは独立したGo module、gRPC process、lint設定、Docker build context、品質taskを所有します。Protobuf bidi serviceとpage-changeのin-memory fan-outは実装済みです。JWT検証、snapshot/replay、ephemeral state、persistence bridgeは未実装です。
+旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Plane は認証、Presentation / Asset API、Session lifecycle、Venue Edge の provisioning / registration / assignment と assignment-bound bootstrap を実装しています。Realtime は独立した Go module、gRPC process、lint設定、Docker build context、品質taskを所有します。Protobuf bidi service、page-change の in-memory fan-out、Venue Edge JWT / JWKS 検証と assignment lease / epoch fencing は実装済みです。Cloud Agent による assignment / Manifest 同期、snapshot / replay、Control / State channel の分離、persistence bridge は未実装です。
 
 ## Control Plane
 
-`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
+`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset / Session API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
 
 ```sh
 nix run .#control-plane
