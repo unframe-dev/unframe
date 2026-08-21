@@ -28,6 +28,7 @@ type RealtimeService struct {
 // assignment and is still within its lease.
 type AssignmentAuthorizer interface {
 	AllowNewConnection(assignment.AssignmentClaim) error
+	ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error)
 	AllowCommand(assignment.AssignmentClaim) error
 	ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error)
 }
@@ -54,6 +55,16 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	if err := s.assignments.AllowNewConnection(assignmentClaim(identity)); err != nil {
 		return assignmentError(err)
 	}
+	leaseDeadline, err := s.assignments.ConnectionDeadline(assignmentClaim(identity))
+	if err != nil {
+		return assignmentError(err)
+	}
+	leaseRemaining := time.Until(leaseDeadline)
+	if leaseRemaining <= 0 {
+		return assignmentError(assignment.ErrLeaseExpired)
+	}
+	leaseTimer := time.NewTimer(leaseRemaining)
+	defer leaseTimer.Stop()
 
 	connection, err := s.coordinator.Connect(identity)
 	if err != nil {
@@ -87,6 +98,16 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 			return err
 		case <-connection.Overflowed():
 			return status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
+		case <-leaseTimer.C:
+			leaseDeadline, err = s.assignments.ConnectionDeadline(assignmentClaim(identity))
+			if err != nil {
+				return assignmentError(err)
+			}
+			leaseRemaining = time.Until(leaseDeadline)
+			if leaseRemaining <= 0 {
+				return assignmentError(assignment.ErrLeaseExpired)
+			}
+			leaseTimer.Reset(leaseRemaining)
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		}

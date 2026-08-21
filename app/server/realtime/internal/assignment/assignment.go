@@ -104,6 +104,12 @@ func (g *AssignmentGuard) AllowNewConnection(claim AssignmentClaim) error {
 	return g.ValidateCurrent(claim)
 }
 
+// ConnectionDeadline returns the current lease boundary for a connected
+// participant so idle streams cannot outlive the assignment.
+func (g *AssignmentGuard) ConnectionDeadline(claim AssignmentClaim) (time.Time, error) {
+	return g.ReliableDeliveryDeadline(claim)
+}
+
 // AllowCommand authorizes a reliable runtime command.
 func (g *AssignmentGuard) AllowCommand(claim AssignmentClaim) error {
 	return g.ValidateCurrent(claim)
