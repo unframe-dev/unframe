@@ -7,7 +7,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -247,6 +249,73 @@ func TestCacheDoesNotFollowAssetSourceRedirects(t *testing.T) {
 	}
 	if redirectedRequests != 0 {
 		t.Fatalf("redirect target requests = %d, want 0", redirectedRequests)
+	}
+}
+
+func TestCacheHonorsHTTPClientTimeout(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("asset payload")
+	source := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/octet-stream")
+		response.WriteHeader(http.StatusOK)
+		response.(http.Flusher).Flush()
+		time.Sleep(200 * time.Millisecond)
+		_, _ = response.Write(payload)
+	}))
+	defer source.Close()
+	client := source.Client()
+	client.Timeout = 25 * time.Millisecond
+	cache, err := NewCache(t.TempDir(), client)
+	if err != nil {
+		t.Fatalf("NewCache(): %v", err)
+	}
+
+	err = cache.Prefetch(context.Background(), testManifest(payload, source.URL))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Prefetch() error = %v, want %v", err, context.DeadlineExceeded)
+	}
+}
+
+func TestCacheDoesNotShareCallerCookieJar(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte("asset payload")
+	cookieSeen := make(chan bool, 1)
+	source := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, err := request.Cookie("ambient")
+		cookieSeen <- err == nil
+		http.SetCookie(response, &http.Cookie{Name: "asset", Value: "stored"})
+		response.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = response.Write(payload)
+	}))
+	defer source.Close()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New(): %v", err)
+	}
+	sourceURL, err := url.Parse(source.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(): %v", err)
+	}
+	jar.SetCookies(sourceURL, []*http.Cookie{{Name: "ambient", Value: "secret"}})
+	client := source.Client()
+	client.Jar = jar
+	cache, err := NewCache(t.TempDir(), client)
+	if err != nil {
+		t.Fatalf("NewCache(): %v", err)
+	}
+
+	if err := cache.Prefetch(context.Background(), testManifest(payload, source.URL)); err != nil {
+		t.Fatalf("Prefetch(): %v", err)
+	}
+	if <-cookieSeen {
+		t.Fatal("Prefetch() sent a cookie from the caller's jar")
+	}
+	for _, cookie := range jar.Cookies(sourceURL) {
+		if cookie.Name == "asset" {
+			t.Fatal("Prefetch() stored a response cookie in the caller's jar")
+		}
 	}
 }
 

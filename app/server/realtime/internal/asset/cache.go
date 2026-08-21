@@ -20,8 +20,8 @@ var (
 )
 
 type Cache struct {
-	root      string
-	transport http.RoundTripper
+	root   string
+	client *http.Client
 
 	mu sync.RWMutex
 	// verified tracks atomically installed, read-only cache files so Range
@@ -42,13 +42,15 @@ func NewCache(root string, client *http.Client) (*Cache, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	transport := client.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
+	downloadClient := *client
+	if downloadClient.Transport == nil {
+		downloadClient.Transport = http.DefaultTransport
 	}
+	downloadClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	downloadClient.Jar = nil
 	return &Cache{
 		root:       root,
-		transport:  transport,
+		client:     &downloadClient,
 		verified:   make(map[string]cachedFileState),
 		hashCached: sha256Checksum,
 	}, nil
@@ -102,10 +104,9 @@ func (c *Cache) fetch(ctx context.Context, descriptor Descriptor) error {
 	if err != nil {
 		return err
 	}
-	// Signed asset URLs are terminal fetch targets. RoundTrip intentionally
-	// bypasses http.Client redirect handling so a signed HTTPS URL cannot
-	// redirect the Edge to another origin or downgrade to plaintext HTTP.
-	response, err := c.transport.RoundTrip(request)
+	// Signed asset URLs are terminal fetch targets. The dedicated client rejects
+	// redirects while retaining the caller's end-to-end download timeout.
+	response, err := c.client.Do(request)
 	if err != nil {
 		return err
 	}
