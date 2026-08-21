@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -290,6 +291,67 @@ func TestRealtimeServiceStopsBlockedSendWhenAssignmentLeaseExpires(t *testing.T)
 	waitForSignal(t, stream.sendDone, "blocked sender shutdown")
 }
 
+func TestRealtimeServiceClosesIdleStreamWhenAssignmentLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	assignment := &renewableDeadlineAssignment{initialDuration: 500 * time.Millisecond}
+	listener, stop := startRealtimeServiceWithAssignment(t, assignment, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_VIEWER)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("idle stream expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("idle stream remained connected after assignment lease expiry")
+	}
+}
+
+func TestRealtimeServiceKeepsIdleStreamUntilRenewedLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	assignment := &renewableDeadlineAssignment{initialDuration: 250 * time.Millisecond}
+	listener, stop := startRealtimeServiceWithAssignment(t, assignment, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	sendHandshake(t, client)
+	assertConnected(t, client, realtimev1.SessionRole_SESSION_ROLE_VIEWER)
+	initialDeadline := assignment.currentDeadline()
+	assignment.renew(500 * time.Millisecond)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	waitPastInitialDeadline := time.NewTimer(time.Until(initialDeadline) + 100*time.Millisecond)
+	defer waitPastInitialDeadline.Stop()
+	select {
+	case err := <-result:
+		t.Fatalf("idle stream closed at the original lease deadline after renewal: %v", err)
+	case <-waitPastInitialDeadline.C:
+	}
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("renewed idle stream expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("idle stream remained connected after renewed lease expiry")
+	}
+}
+
 func TestDeliveryTrackerIgnoresAcknowledgementAfterCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -335,6 +397,10 @@ type allowAllAssignment struct{}
 
 func (allowAllAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
 
+func (allowAllAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), nil
+}
+
 func (allowAllAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
 
 func (allowAllAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
@@ -345,10 +411,49 @@ type deadlineAssignment struct{ deadline time.Time }
 
 func (deadlineAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
 
+func (a deadlineAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+	return a.deadline, nil
+}
+
 func (deadlineAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
 
 func (a deadlineAssignment) ReliableDeliveryDeadline(edge.AssignmentClaim) (time.Time, error) {
 	return a.deadline, nil
+}
+
+type renewableDeadlineAssignment struct {
+	mu              sync.Mutex
+	deadline        time.Time
+	initialDuration time.Duration
+}
+
+func (*renewableDeadlineAssignment) AllowNewConnection(edge.AssignmentClaim) error { return nil }
+
+func (a *renewableDeadlineAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.deadline.IsZero() {
+		a.deadline = time.Now().Add(a.initialDuration)
+	}
+	return a.deadline, nil
+}
+
+func (*renewableDeadlineAssignment) AllowCommand(edge.AssignmentClaim) error { return nil }
+
+func (a *renewableDeadlineAssignment) ReliableDeliveryDeadline(claim edge.AssignmentClaim) (time.Time, error) {
+	return a.ConnectionDeadline(claim)
+}
+
+func (a *renewableDeadlineAssignment) renew(duration time.Duration) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.deadline = time.Now().Add(duration)
+}
+
+func (a *renewableDeadlineAssignment) currentDeadline() time.Time {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.deadline
 }
 
 type rejectingAssignment struct {
@@ -358,6 +463,10 @@ type rejectingAssignment struct {
 }
 
 func (a rejectingAssignment) AllowNewConnection(edge.AssignmentClaim) error { return a.connection }
+
+func (rejectingAssignment) ConnectionDeadline(edge.AssignmentClaim) (time.Time, error) {
+	return time.Now().Add(time.Hour), nil
+}
 
 func (a rejectingAssignment) AllowCommand(edge.AssignmentClaim) error { return a.command }
 
