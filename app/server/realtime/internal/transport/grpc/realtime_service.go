@@ -42,7 +42,11 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "realtime connection is unauthenticated")
 	}
-	first, err := stream.Recv()
+	claim := assignmentClaim(identity)
+	if err := s.assignments.AllowNewConnection(claim); err != nil {
+		return assignmentError(err)
+	}
+	first, err := s.receiveHandshakeBeforeLeaseExpiry(stream, claim)
 	if errors.Is(err, io.EOF) {
 		return status.Error(codes.FailedPrecondition, "handshake is required")
 	}
@@ -52,10 +56,7 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	if handshake := first.GetHandshake(); handshake == nil || handshake.GetProtocolVersion() != protocol.Version {
 		return status.Errorf(codes.FailedPrecondition, "first message must handshake with protocol version %q", protocol.Version)
 	}
-	if err := s.assignments.AllowNewConnection(assignmentClaim(identity)); err != nil {
-		return assignmentError(err)
-	}
-	leaseDeadline, err := s.assignments.ConnectionDeadline(assignmentClaim(identity))
+	leaseDeadline, err := s.assignments.ConnectionDeadline(claim)
 	if err != nil {
 		return assignmentError(err)
 	}
@@ -99,7 +100,7 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 		case <-connection.Overflowed():
 			return status.Error(codes.ResourceExhausted, "reliable event queue exceeded")
 		case <-leaseTimer.C:
-			leaseDeadline, err = s.assignments.ConnectionDeadline(assignmentClaim(identity))
+			leaseDeadline, err = s.assignments.ConnectionDeadline(claim)
 			if err != nil {
 				return assignmentError(err)
 			}
@@ -110,6 +111,43 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 			leaseTimer.Reset(leaseRemaining)
 		case <-stream.Context().Done():
 			return stream.Context().Err()
+		}
+	}
+}
+
+type handshakeReceiveResult struct {
+	message *realtimev1.ClientEnvelope
+	err     error
+}
+
+func (s *RealtimeService) receiveHandshakeBeforeLeaseExpiry(stream grpcgo.BidiStreamingServer[realtimev1.ClientEnvelope, realtimev1.ServerEnvelope], claim assignment.AssignmentClaim) (*realtimev1.ClientEnvelope, error) {
+	deadline, err := s.assignments.ConnectionDeadline(claim)
+	if err != nil {
+		return nil, assignmentError(err)
+	}
+	received := make(chan handshakeReceiveResult, 1)
+	go func() {
+		message, err := stream.Recv()
+		received <- handshakeReceiveResult{message: message, err: err}
+	}()
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return nil, assignmentError(assignment.ErrLeaseExpired)
+		}
+		timer := time.NewTimer(remaining)
+		select {
+		case result := <-received:
+			timer.Stop()
+			return result.message, result.err
+		case <-timer.C:
+			deadline, err = s.assignments.ConnectionDeadline(claim)
+			if err != nil {
+				return nil, assignmentError(err)
+			}
+		case <-stream.Context().Done():
+			timer.Stop()
+			return nil, stream.Context().Err()
 		}
 	}
 }

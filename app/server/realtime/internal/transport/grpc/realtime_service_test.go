@@ -79,6 +79,92 @@ func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T
 	}
 }
 
+func TestRealtimeServiceRejectsInactiveAssignmentBeforeHandshake(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1}
+	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: assignment.ErrAssignmentEpochMismatch}, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.PermissionDenied {
+			t.Errorf("inactive assignment code = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("connection waited for handshake before rejecting inactive assignment")
+	}
+}
+
+func TestRealtimeServiceClosesStreamWaitingForHandshakeWhenAssignmentLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	lease := &renewableDeadlineAssignment{initialDuration: 500 * time.Millisecond}
+	listener, stop := startRealtimeServiceWithAssignment(t, lease, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("pre-handshake lease expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("connection waited for handshake after assignment lease expiry")
+	}
+}
+
+func TestRealtimeServiceWaitsForHandshakeUntilRenewedLeaseExpires(t *testing.T) {
+	t.Parallel()
+
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer}
+	initialized := make(chan struct{})
+	lease := &renewableDeadlineAssignment{initialDuration: 250 * time.Millisecond, initialized: initialized}
+	listener, stop := startRealtimeServiceWithAssignment(t, lease, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	select {
+	case <-initialized:
+	case <-time.After(time.Second):
+		t.Fatal("connection did not start waiting for handshake")
+	}
+	initialDeadline := lease.currentDeadline()
+	lease.renew(500 * time.Millisecond)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.Recv()
+		result <- err
+	}()
+	waitPastInitialDeadline := time.NewTimer(time.Until(initialDeadline) + 100*time.Millisecond)
+	defer waitPastInitialDeadline.Stop()
+	select {
+	case err := <-result:
+		t.Fatalf("handshake wait ended at the original lease deadline after renewal: %v", err)
+	case <-waitPastInitialDeadline.C:
+	}
+	select {
+	case err := <-result:
+		if status.Code(err) != codes.FailedPrecondition {
+			t.Errorf("renewed pre-handshake expiry code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("connection waited for handshake after renewed lease expiry")
+	}
+}
+
 func TestRealtimeServiceRejectsCommandWhenAssignmentDoesNotMatch(t *testing.T) {
 	t.Parallel()
 
@@ -425,6 +511,7 @@ type renewableDeadlineAssignment struct {
 	mu              sync.Mutex
 	deadline        time.Time
 	initialDuration time.Duration
+	initialized     chan struct{}
 }
 
 func (*renewableDeadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
@@ -434,6 +521,10 @@ func (a *renewableDeadlineAssignment) ConnectionDeadline(assignment.AssignmentCl
 	defer a.mu.Unlock()
 	if a.deadline.IsZero() {
 		a.deadline = time.Now().Add(a.initialDuration)
+		if a.initialized != nil {
+			close(a.initialized)
+			a.initialized = nil
+		}
 	}
 	return a.deadline, nil
 }
