@@ -34,7 +34,7 @@
     "tailwind-merge": "^3.6.0",
     "three": "0.185.1",
     "zod": "4.4.3",
-    "zustand": "5.0.14"
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.45.1",
