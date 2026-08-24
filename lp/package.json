@@ -26,7 +26,7 @@
     "svelte-check": "4.7.2",
     "tailwindcss": "^4.1.18",
     "tsx": "4.22.1",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "vite": "catalog:",
     "wrangler": "4.111.0"
   }
