@@ -28,7 +28,7 @@ jobs:
       # PR head を checkout するが認証情報は残さない (persist-credentials: false)。
       # fixer は PR 由来のスクリプト (scripts/ci/*.sh) を実行するため、トークンや push 権限を
       # この段階で環境に置かない。push は最終ステップでのみトークンを使う。
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
           persist-credentials: false
@@ -37,7 +37,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
 
       - name: Cache Realtime Go build and module downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
