@@ -39,6 +39,7 @@ jobs:
       realtime: ${{ steps.filter.outputs.realtime }}
       web: ${{ steps.filter.outputs.web }}
       lp: ${{ steps.filter.outputs.lp }}
+      notion-sync: ${{ steps.filter.outputs.notion-sync }}
       unity: ${{ steps.filter.outputs.unity }}
     steps:
       - uses: actions/checkout@v4
@@ -53,33 +54,46 @@ jobs:
             shared: &shared
               - 'flake.nix'
               - 'flake.lock'
-              - 'scripts/**'
+              - 'scripts/lib/**'
+              - '.github/workflows/ci.yml'
+            js-shared: &js-shared
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'package.json'
               - 'packages/config/**'
               - 'vite.config.ts'
-              - '.github/workflows/ci.yml'
             control-plane:
               - *shared
+              - *js-shared
               - '.github/workflows/control-plane.yml'
+              - 'scripts/ci/control-plane.sh'
               - 'app/server/control-plane/**'
               - 'packages/contracts/**'
               - 'packages/api-client-typescript/**'
             realtime:
               - *shared
               - '.github/workflows/realtime.yml'
+              - 'scripts/ci/realtime.sh'
+              - 'scripts/contracts/**'
               - 'app/server/realtime/**'
               - 'packages/contracts/proto/**'
             web:
               - *shared
+              - *js-shared
               - '.github/workflows/web.yml'
+              - 'scripts/ci/web.sh'
               - 'app/web/**'
               - 'packages/api-client-typescript/**'
             lp:
               - *shared
+              - *js-shared
               - '.github/workflows/lp.yml'
+              - 'scripts/ci/lp.sh'
               - 'lp/**'
+            notion-sync:
+              - *shared
+              - '.github/workflows/sync-notion.yml'
+              - 'scripts/docs/**'
             unity:
               - '.github/workflows/unity.yml'
               - 'app/unity/**'
@@ -108,6 +122,24 @@ jobs:
     if: needs.changes.outputs.lp == 'true'
     uses: ./.github/workflows/lp.yml
 
+  notion-sync:
+    name: Notion Sync
+    needs: changes
+    if: needs.changes.outputs.notion-sync == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
+      - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck
+        run: nix develop --command pnpm --filter unframe-notion-sync run typecheck
+
   unity:
     name: Unity
     needs: changes
@@ -117,7 +149,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, control-plane, realtime, web, lp, unity]
+    needs: [changes, control-plane, realtime, web, lp, notion-sync, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:

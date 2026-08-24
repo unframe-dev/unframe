@@ -18,10 +18,12 @@ permissions:
 jobs:
   autofix:
     name: autofix / format + lint --fix
-    # 同一リポジトリの PR のみ (fork は head ブランチへ push 権限が無い)。
+    # 同一リポジトリの人間が作成した PR のみ (fork は head ブランチへ push 権限が無い)。
+    # Renovate の依存定義・lockfile・workflow 更新では、全領域の autofix を重ねて実行しない。
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.draft == false
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login != 'renovate[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
