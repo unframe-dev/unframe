@@ -30,7 +30,7 @@
     "immer": "11.1.15",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-hook-form": "7.81.0",
+    "react-hook-form": "7.86.0",
     "tailwind-merge": "^3.6.0",
     "three": "0.185.1",
     "zod": "4.4.3",
