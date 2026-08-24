@@ -27,7 +27,7 @@
     "@unframe/api-client-typescript": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "immer": "11.1.15",
+    "immer": "11.1.18",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "7.81.0",
