@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
           # workflow_dispatch は PR イベント情報を持たないため、Autofix から渡した base を使う。
