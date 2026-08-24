@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@notionhq/client": "^2.2.15",
+    "@notionhq/client": "^5.0.0",
     "notion-to-md": "^3.1.7"
   },
   "devDependencies": {
