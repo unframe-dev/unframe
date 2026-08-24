@@ -3,7 +3,11 @@
 - **Status**: Adopted design baseline
 - **Date**: 2026-08-25
 - **Scope**: Presentation authoring, compilation, delivery, and runtime target architecture
-- **Fixed contracts**: v1 — Presentation Progression Contract
+- **Maturity**:
+  - Architecture baseline: adopted
+  - Presentation Progression semantic model: v1 baseline
+  - Progression wire / Runtime contract: draft
+  - Authoring、Rendering、Delivery の下位契約: follow-up
 - **Related**:
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./decisions/0005-spatial-presentation-domain-model.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](./decisions/0006-presentation-rendering-strategy.md)
@@ -21,9 +25,10 @@
 ```text
 Presentation Orchestrator
 presentation.unframe.tsx
+        │  restricted authoring DSL
         │
-        ├─ Component Manifest
-        ├─ Component Renderer
+        ├─ Component Manifest / Component Structure
+        ├─ Component Renderer (Local Compiler only)
         ├─ Theme / Token
         └─ Asset
         │
@@ -36,13 +41,35 @@ Semantic Authoring IR
         └─ Semantic commands
         │
         ▼ Local Compiler
-PresentationDefinition + RenderBundle
-        │
-        ▼ Control Plane delivery projection
-DeliveryManifest
-        │
+PresentationDefinition + RenderBundle + Asset Set
+        │ publish
         ▼
-Unity Runtime
+Immutable Release
+        │
+        ├─ Delivery path
+        │  └─ Control Plane
+        │     ├─ Schema / ownership / hash validation
+        │     └─ Role / capability delivery projection
+        │          │
+        │          ▼
+        │     DeliveryManifest
+        │          │
+        │          ▼
+        │     Unity Runtime clients
+        │     ├─ Presenter
+        │     └─ Viewer
+        │
+        └─ Session path
+           └─ Room / Session (pins Release)
+                  │
+                  ▼
+              Venue Edge
+              ├─ Canonical progression
+              ├─ Reliable Control / Snapshot
+              └─ Latest-wins State Stream
+                  │
+                  ▼
+              Same Unity Runtime clients
 ```
 
 ### 基本原則
@@ -55,6 +82,7 @@ Unity Runtime
 - Control Plane と Unity Runtime は TSX、React、CSS、authoring JavaScript を実行しない。
 - Texture、Video、Protobuf、debug JSON は生成物であり、編集元の正本にはしない。
 - Presentation の意味、build 成果物、配信 projection、実行中状態を別の契約として扱う。
+- Room と Session は immutable Release を参照し、実行中に Draft を直接参照しない。
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を ID の代わりに使用しない。
 
 ## 3. 契約の階層
@@ -74,6 +102,8 @@ Component package の公開契約であり、次を定義する。
 - 対応 renderer
 - Editor metadata
 - Version と migration 情報
+
+Component Action は compile 時に `surface.setState`、Node State、Timeline、Variable などの canonical Action batch へ展開する。Component Output も canonical semantic event へ展開する。どちらも Runtime wire contract に Component 固有の操作として残さない。
 
 ### 3.2 Semantic Authoring IR
 
@@ -145,20 +175,34 @@ DeliveryManifest
 
 配布形式は Protobuf を第一候補とするが、具体的な schema と versioning は別途決定する。
 
-### 3.6 Runtime State
+### 3.6 Immutable Release
+
+Release は、互いに整合する PresentationDefinition、RenderBundle、Asset Set、contract version を束ねる publish 済みの immutable な実行単位である。Room と Session は Release ID を pin し、Delivery、Snapshot、Reliable Event は同じ Release を参照する。
+
+### 3.7 Runtime State
 
 Session 中に変化する状態であり、PresentationDefinition や RenderBundle へ書き戻さない。
 
 ```text
-Runtime State
+Shared Runtime State (Venue Edge authority)
 ├─ Current Group / State / Step
 ├─ Node Transform and visibility
 ├─ Surface State and active state transition
-├─ Video playback
-├─ Active Timeline
-├─ Anchor / Pose
+├─ Video playback / active Runtime Run
+├─ Anchor / Pose の共有投影
 └─ Participants / Presence
+
+Role Projection State
+├─ Presenter 用 controls / notes state
+└─ role / capability ごとに可視な Shared State の projection
+
+Client-local State
+├─ Viewport
+├─ Local selection
+└─ Personal annotation
 ```
+
+Client-local State は Shared Progression に混入させない。外部 Trigger は actor と、追跡や入力の対象となる subject を明示し、v1 の Shared Progression を変更できる actor は Presenter または System に限定する。
 
 ## 4. Presentation Orchestrator
 
@@ -275,6 +319,7 @@ GUI は Manifest から Inspector と編集可能範囲を構築する。rendere
 - GUI と Code の意味論的 round-trip を保証する。
 - Props、Slot、Part、State、Frame Layout を宣言的モデルとして編集できる。
 - GUI が変更できる構文を限定し、任意の式や制御構造を自動変換しない。
+- 内部構造の正本は GUI が理解できる宣言的な Component Structure であり、`*.web.tsx` renderer ではない。Component Structure の格納先（Manifest 内か別ファイルか）は下位仕様で決める。
 
 ### 5.3 Opaque Component
 
@@ -283,6 +328,8 @@ GUI は Manifest から Inspector と編集可能範囲を構築する。rendere
 - 内部実装は Code が所有する。
 - build 時に Web Surface として描画できる。
 - 任意の `map`、条件分岐、関数計算は build 可能でも GUI 内部編集の対象にはしない。
+
+Presentation Orchestrator と Structured Component は、静的解析できる制限付き DSL とする。任意の実行可能コードを許すのは Opaque renderer だけであり、Local Compiler の隔離された build 環境でのみ実行する。Control Plane、Venue Edge、Unity Runtime はこれを実行しない。
 
 自由な Code と完全な GUI 編集を同時に保証せず、Component 単位で境界を明示する。
 
@@ -349,6 +396,14 @@ Group
          └─ Shape
 ```
 
+Surface は用途に応じて次の三層を区別する。
+
+- **SurfaceNode** は Spatial Tree 上の host であり、Transform と Timeline の対象である。
+- **Semantic Surface** は PresentationDefinition 上の安定した意味、State、Interaction を持つ。
+- **Render Surface** は RenderBundle 内で Compiler が生成する描画単位である。
+
+Progression は Semantic Surface ID を参照し、partition の結果である Render Surface ID を参照しない。一つの Semantic Surface が複数の Render Surface や Native UI Node へ lower されても、この参照関係は変わらない。
+
 ### 7.1 Group
 
 Group は物語上の進行スコープであり、Scene Graph の親子構造そのものではない。
@@ -358,8 +413,11 @@ Group
 ├─ Root Spatial Node
 ├─ Initial State
 ├─ Flow
-└─ Timelines
+├─ Timelines
+└─ Owned resources
 ```
+
+Group scope に属する Node、Semantic Surface、Timeline、Variable は Group entry / exit 時の reset または停止対象となる。Presentation 全体で継続する背景や共有モデルなどは Group ではなく presentation scope に所属させる。
 
 ### 7.2 Stable Node Graph
 
@@ -384,9 +442,12 @@ Code 上の入れ子表現は parse 時にこの関係へ正規化する。`pare
 ### 7.3 Spatial Tree
 
 - Position は meter とする。
-- Rotation は正規化 Quaternion とする。
+- 座標系は right-handed、Y-up、forward -Z とする。
+- Rotation は `[x, y, z, w]` 順の正規化 Quaternion とする。
 - Scale は無次元倍率とする。
 - Presentation Origin、Stage、Spatial Node、Body Anchor を親座標として扱う。
+
+ここまでの座標規約は ADR-0005 で固定済みである。Transform の合成順、Quaternion の乗算順、matrix layout、Unity との変換、Surface logical coordinate と UV の完全な変換規則は下位 contract で固定する。
 
 ```ts
 type SpatialParent =
@@ -395,6 +456,7 @@ type SpatialParent =
   | {
       kind: "anchor";
       target: "head" | "leftHand" | "rightHand" | "body";
+      owner: { kind: "presenter" } | { kind: "participant"; participantId: ParticipantId };
       followPosition: boolean;
       followRotation: boolean;
     };
@@ -403,7 +465,7 @@ type SpatialParent =
 ### 7.4 Surface Tree
 
 - Surface は Spatial Tree と 2D UI を接続する。
-- Surface 自体は Spatial Transform を持つ。
+- Spatial Transform は Surface に対応する SurfaceNode が所有する。
 - Surface 内部は logical unit を使用する。
 - 原点は左上、+X は右、+Y は下とする。
 - Surface 内部の Node は Surface または Frame を親とする。
@@ -589,9 +651,9 @@ Renderer の基本選択規則は次のとおりとする。
 
 `rendererPreference` は authoring 上の希望であり、target capability と build 結果を踏まえた concrete renderer は RenderBundle と DeliveryManifest で確定する。
 
-## 12. v1 — Presentation Progression Contract
+## 12. v1 Presentation Progression の意味論
 
-v1 は Surface State を含むプレゼンテーション進行について、State Machine、Trigger、Guard、Action、Timeline と Runtime State の正規契約を定義する。
+v1 は Surface State を含むプレゼンテーション進行について、State Machine、Trigger、Guard、Action、Timeline の意味論的基準を定義する。wire schema、Snapshot の正確な表現、transport の保持期間は下位契約として draft のまま残す。
 
 ```text
 Group       = State Machine のスコープ
@@ -682,9 +744,15 @@ type ProgressionRuntimeState = {
   currentGroupId: GroupId;
   currentStepId: StepId;
   groupEntryEpoch: number;
+  stepEntryEpoch: number;
+  stepEnteredAtRuntimeTimeMilliseconds: number;
   phase: ProgressionPhase;
 };
 ```
+
+Timer、Cue 消費状態、cooldown は `stepEntryEpoch` に属する。これにより self transition と Group reentry の後に、古い Step entry の timer や once 実行状態を復元しない。
+
+Surface transition、Timeline、Media は共通の **Runtime Run** として追跡する。各 Run は `runId`、原因 Cue、開始 runtime time、完了条件、状態を持つ。blocking run は Progression Phase の `blockingRunIds` と対応し、Snapshot から復元できなければならない。
 
 `transitioning` 中は、Timeline 完了などの内部イベントを除く通常の Trigger input を無視する。v1 では input queue や任意 interrupt を持たない。
 
@@ -708,6 +776,7 @@ type SurfaceStateDefinition = {
 type SurfaceRuntimeState = {
   stateId: SurfaceStateId;
   transition?: {
+    runId: RuntimeRunId;
     fromStateId: SurfaceStateId;
     toStateId: SurfaceStateId;
     startedAtRuntimeTime: number;
@@ -728,7 +797,9 @@ type NodeRuntimeState = {
 };
 ```
 
-`surface.setState` を受理した時点で canonical `stateId` は遷移先へ変更する。Crossfade 中の旧状態、開始時刻、duration は `transition` に保持する。Guard が参照する Surface State は遷移先の `stateId` とする。
+`surface.setState` を受理した時点で canonical `stateId` は遷移先へ変更する。Crossfade 中の旧状態、開始時刻、duration は `transition` に保持し、`runId` で対応する Runtime Run と結びつける。Guard と canonical Semantic Tree が参照する Surface State は遷移先の `stateId` とする。
+
+v1 の Surface transition は `cut` または blocking な `crossfade` に限定する。同じ Surface に transition が active な間の新しい `surface.setState` は reject し、replace、interrupt、queue は含めない。Crossfade 中は Surface interaction を無効にし、完了後に遷移先 State の hit region を有効にする。
 
 ```text
 surface.setState("correct")
@@ -745,19 +816,37 @@ RenderBundle はすべての到達可能な Surface State に対応する artifa
 Input source は device 固有入力を Logical Event へ変換する。Trigger はイベントの成立条件だけを記述し、状態変更を行わない。
 
 ```ts
+type TriggerActorSelector = { kind: "presenter" } | { kind: "system" };
+
+type TrackedSubjectSelector =
+  | { kind: "presenter" }
+  | {
+      kind: "anchor";
+      target: "head" | "leftHand" | "rightHand" | "body";
+      owner: { kind: "presenter" } | { kind: "participant"; participantId: ParticipantId };
+    };
+
 type Trigger =
   | {
       kind: "logicalInput";
       action: LogicalEventName;
-      sourceRole: "presenter";
+      actor: TriggerActorSelector;
+    }
+  | {
+      kind: "semanticEvent";
+      event: SemanticEventName;
+      actor: TriggerActorSelector;
     }
   | {
       kind: "surfaceInteraction";
+      actor: TriggerActorSelector;
       surfaceId: SurfaceId;
       interactionId: InteractionId;
     }
   | {
       kind: "zoneEdge";
+      actor: { kind: "system" };
+      subject: TrackedSubjectSelector;
       zoneId: ZoneId;
       edge: "enter" | "exit";
       dwellMilliseconds?: number;
@@ -765,6 +854,8 @@ type Trigger =
     }
   | {
       kind: "motion";
+      actor: { kind: "system" };
+      subject: TrackedSubjectSelector;
       minimumDistanceMeters: number;
       windowMilliseconds: number;
     }
@@ -773,14 +864,15 @@ type Trigger =
   | { kind: "mediaCompleted"; surfaceId: SurfaceId };
 ```
 
-`surfaceInteraction` は現在の canonical Surface State において対象 Interaction が存在し、有効である場合だけ成立する。client が申告した Surface State は判定に使用しない。
+`surfaceInteraction` は現在の canonical Surface State において対象 Interaction が存在し、有効である場合だけ成立する。client が申告した Surface State は判定に使用しない。Trigger は event の `actor` と、必要な場合は `subject` も照合し、宣言されていない participant input が Shared Progression を変更しないようにする。
 
 Zone と Motion は Venue Edge が Tracking Stream から評価し、edge 成立時に内部イベントへ変換する。Raw Pose は Reliable Event として replay せず、現在の zone membership や hysteresis など、誤再発火を防ぐための小さな edge detector state だけを Snapshot に含める。
 
 ```ts
 type RuntimeInputEvent = {
   eventId: string;
-  source: "presenter" | "system";
+  actor: { kind: "presenter" } | { kind: "participant"; participantId: ParticipantId } | { kind: "system" };
+  subject?: { kind: "participant"; participantId: ParticipantId } | { kind: "anchor"; anchorId: AnchorId };
   kind: RuntimeInputKind;
   payload: unknown;
   capturedAt?: number;
@@ -837,7 +929,7 @@ type Action =
             kind: "crossfade";
             durationMilliseconds: number;
             easing: Easing;
-            completion: "blocking" | "nonBlocking";
+            completion: "blocking";
           };
     }
   | {
@@ -849,7 +941,7 @@ type Action =
       kind: "timeline.play";
       timelineId: TimelineId;
       completion: "blocking" | "nonBlocking";
-      conflict: "reject" | "replace";
+      conflict: "reject";
     }
   | { kind: "timeline.stop"; timelineId: TimelineId }
   | { kind: "variable.set"; variableId: VariableId; value: Scalar }
@@ -861,6 +953,8 @@ type Action =
 Runtime は Cue を受理する前に、すべての Action target、Surface State、Timeline、値の型、property conflict を検証する。一つでも不正なら batch 全体を拒否し、partial apply や Step 遷移を行わない。Delivery preflight で検出できなかった実行時 fault が発生した場合は、進行を継続せず Runtime を `Paused` にする。
 
 Action 同士の順序に意味を持たせない。依存した順次演出は次の Step、Timeline keyframe、または `timelineCompleted` Trigger で表現する。
+
+v1 の Action conflict は action 配列順で解決しない。同一 Surface への複数 `surface.setState`、同一 Variable への複数書き込み、同一 Node field への複数 patch、Node patch と Timeline の同一 property 所有、同一 Timeline の play / stop、同一 media target への競合操作は batch validation で reject する。異なる field への Node patch だけは一つの patch として統合できる。`replace`、additive animation、暗黙的な last-write-wins は将来拡張とする。
 
 ### 12.8 Timeline
 
@@ -891,7 +985,9 @@ type TimelineDefinition = {
 - Surface 全体の Transform と opacity は、その Surface に対応する Spatial Node の track として表現する。
 - `SurfaceStateId`、Texture ID、renderer、CSS property、任意の Component 内部値は Timeline track にしない。
 - Baked Surface 内部の個別 Node を動かす必要がある場合は、Surface 分割、有限状態 artifact、Video、Native UI のいずれかへ lower する。
-- 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の既定 conflict policy は `reject` とし、明示された `replace` だけを許可する。
+- Timeline は absolute 値を指定する。各 track の最初の keyframe は `0 ms`、最後の keyframe は Timeline duration とし、keyframe 時刻は単調増加して同時刻を許可しない。
+- Rotation は正規化 Quaternion の shortest-path SLERP で補間する。
+- 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の conflict policy は `reject` のみであり、replace と additive animation は含めない。
 - Timeline は Group scope とし、Group exit 時に停止する。Step 遷移だけでは停止しない。
 - Timeline の開始・完了は Venue Edge の monotonic runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
 - Runtime は開始時刻と Timeline 定義を配信し、各 client はローカル補間する。補間結果を毎 frame Reliable Event として送信しない。
@@ -927,7 +1023,7 @@ Group へ入場する時は次を順に適用する。
 4. Surface を `initialStateId` へ戻す。
 5. Group scope Variable を初期化する。
 6. Cue consumption と cooldown を初期化する。Trigger edge detector は現在値から seed し、入場時の疑似 edge を発火しない。
-7. `initialStepId` を有効にし、entry 処理後から Trigger 評価を開始する。
+7. `initialStepId` を有効にして `stepEntryEpoch` と Step entry runtime time を更新し、entry 処理後から Trigger 評価を開始する。
 
 v1 の Group reentry policy は `reset` に固定する。Group ごとの進行位置や Timeline elapsed を保持する `resume` は checkpoint 契約が必要になるため含めない。
 
@@ -967,16 +1063,20 @@ type RuntimeSnapshot = {
   nodeStates: Record<NodeId, NodeRuntimeState>;
   mediaStates: Record<SurfaceId, MediaRuntimeState>;
   variables: Record<VariableId, Scalar>;
-  activeTimelines: TimelineRunSnapshot[];
+  activeRuns: RuntimeRunSnapshot[];
 
-  consumedCueIds: CueId[];
-  cooldownDeadlines: Record<CueId, number>;
+  stepCueState: {
+    stepEntryEpoch: number;
+    consumedCueIds: CueId[];
+    cooldownDeadlines: Record<CueId, number>;
+    timerDeadlines: Record<CueId, number>;
+  };
   recentEventIds: string[];
   triggerEdgeMemory: TriggerEdgeMemory;
 };
 ```
 
-再接続 client は Snapshot を適用した後、`reliableSequence + 1` 以降の Reliable Event を順序適用する。Timeline の tick 履歴は replay せず、Snapshot の開始時刻と elapsed から現在値を再計算する。Definition、RenderBundle、Snapshot の hash または revision が一致しない場合は実行を開始しない。
+再接続 client は Snapshot を適用した後、`reliableSequence + 1` 以降の Reliable Event を順序適用する。Timeline の tick 履歴は replay せず、Runtime Run の開始時刻と elapsed から現在値を再計算する。Definition、RenderBundle、Snapshot の hash または revision が一致しない場合は実行を開始しない。
 
 ### 12.12 v1 validation requirements
 
@@ -985,11 +1085,14 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - `initialGroupId`、`initialStepId`、Cue の `next` が存在する。
 - Cue、Surface、Surface State、Timeline、Node、Variable の参照先が存在する。
 - 同じ Step に `priority` と `order` が重複する Cue がない。
-- Timeline keyframe の時刻、型、Quaternion、duration が正しい。
+- Timeline keyframe の時刻、型、Quaternion、duration が正しく、各 track が `0 ms` と duration を境界に持つ。
 - 同一 Timeline 内で `target/property` が競合しない。
+- 同一 Cue の Action batch に v1 で許可されない property conflict がない。
 - Surface State と renderer artifact、hit region の対応が完全である。
 - `surfaceInteraction` が参照する Interaction が対象 Surface State で利用できる。
+- Surface transition 中に interaction が有効化されない。
 - Group exit をまたいで blocking run が残らない。
+- Snapshot が Step entry、timer deadline、Cue state、active Runtime Run を復元できる。
 - zero-duration の内部イベントだけで到達できる無限遷移がない。
 - Snapshot に renderer artifact ID、Signed URL、raw Pose history が含まれない。
 
@@ -1007,7 +1110,7 @@ const showTitle: CueDefinition = {
   trigger: {
     kind: "logicalInput",
     action: "presenter.next",
-    sourceRole: "presenter",
+    actor: { kind: "presenter" },
   },
   firePolicy: { kind: "oncePerStepEntry" },
   actions: [
@@ -1067,6 +1170,8 @@ type SemanticNode = {
 
 Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Agent editing、accessibility の基礎として使用する。
 
+Semantic Tree は Surface State ごとに解決済みの完全 Tree を持つ。v1 では状態差分だけを保存して適用する形式を採用せず、最適化は後から追加する。
+
 ### 13.3 Hit Region
 
 Baked Surface の interaction は、Authoring 上の semantic interaction を build 時に解決した hit region として Delivery する。
@@ -1123,9 +1228,11 @@ type CompiledSurface = {
   logicalSize: [number, number];
   physicalSizeMeters: [number, number];
   supportedRenderers: SurfaceRendererArtifact[];
-  semantics: SemanticTree;
+  semanticsByState: Record<SurfaceStateId, SemanticTree>;
 };
 ```
+
+Semantic Tree と Hit Region は Surface State ごとに解決する。実行中は canonical `stateId` に対応する Semantic Tree を accessibility と意味的な interaction に使用し、transition 中の Hit Region は 12.4 の規則に従う。
 
 `SurfaceRendererArtifact` は次の discriminated union とする。
 
@@ -1154,7 +1261,7 @@ BakedWebArtifact
 
 ### 14.3 Native UI Artifact
 
-Native UI Artifact は portable UI tree と、Runtime から変更可能な property の allowlist を持つ。任意の JSON property mutation は許可しない。
+Native UI Artifact は portable UI tree と、Runtime から変更可能な property の allowlist を持つ。更新可能 property は、宣言された Runtime Variable または Runtime Clock への declarative binding で接続する。任意の JSON property mutation や client 固有の完了判定は許可しない。Timer や Counter の完了は Venue Edge authority が判定する。
 
 ### 14.4 Video Artifact
 
@@ -1178,7 +1285,9 @@ Surface partition
 Browser capture / Native UI plan / Video generation
         ↓
 PresentationDefinition + RenderBundle
-        ↓ Control Plane validation and projection
+        ↓ publish
+Immutable Release
+        ↓ Control Plane validation and role / capability projection
 DeliveryManifest
         ↓
 Unity Runtime
@@ -1202,6 +1311,10 @@ Unity Runtime
 - 認可と target capability に基づいて DeliveryManifest を投影する。
 - Signed URL を生成し、永続化しない。
 - Definition と RenderBundle の異なる revision を混在させない。
+
+### Immutable Release
+
+Release は publish された `PresentationDefinition`、`RenderBundle`、Asset Set、各 contract version を一つに束ねた immutable な実行単位である。Room と Session は一つの Release を pin し、Snapshot と Reliable Event はその Release を識別する。Draft の変更を active Room へ反映する方法、または Session 中に Release を差し替える方法は、この文書では決めない。
 
 ### Unity Runtime
 
@@ -1232,7 +1345,7 @@ presentation/
 └─ dist/
    ├─ presentation.definition.debug.json
    ├─ presentation.render-bundle.json
-   ├─ presentation.manifest.pb
+   ├─ presentation.delivery-manifest.pb
    └─ generated-assets/
 ```
 
@@ -1262,7 +1375,7 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 - Surface Render Intent
 - RenderBundle
 - Surface State artifact、semantic tree、hit region
-- v1 Presentation Progression Contract の State Machine、Guard、Surface State、Timeline、Snapshot / Replay
+- v1 Presentation Progression semantic model の実装と、Progression wire / Runtime contract
 - Native UI portable contract
 - DeliveryManifest Protobuf
 - Unity の hybrid renderer graph
@@ -1288,33 +1401,62 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 - Domain Stateとrenderer artifactを分離する。
 - Semantic metadataをTextureから分離する。
 - PresentationDefinition、RenderBundle、DeliveryManifest、Runtime Stateを別契約にする。
-- v1 として Group を State Machine scope、Step を進行状態、Cue を遷移候補に固定する。
+- v1 semantic baseline として Group を State Machine scope、Step を進行状態、Cue を遷移候補に固定する。
 - Venue Edge が Trigger、Guard、Cue、Action、Timeline 完了を canonical evaluationする。
 - 一イベントにつき一 Cue を選択し、Cue 内の Action batch を事前検証後に atomic 適用する。
 - Surface State は意味論的 ID とし、renderer artifact から分離する。
 - blocking run の完了後に次の Step へ進み、遷移中の通常 input は無視する。
 - Group 再入場は reset とし、Snapshot と Reliable Event から同じ進行状態へ収束できるようにする。
+- Room / Session は immutable Release を pin し、Draft と実行中の状態を混在させない。
 
-## 19. 未決定事項
+## 19. Follow-ups
 
-次は採用済みアーキテクチャの下位仕様として決定する。
+以下は採用済みの architecture baseline を実装契約へ落とすための follow-up である。特に最初の項目群は、Progression wire / Runtime contract を v1 として固定する前に閉じる。
 
-1. Component から Surface への分割規則
-2. Surface partition の自動化範囲と author override
-3. Texture state artifact 数と GPU / RAM build budget
-4. Resolution、mipmap、compression、preload、eviction policy
-5. Native UI portable subset
-6. Semantic Tree と Hit Region の完全な schema
+### Progression wire / Runtime contract の blocking follow-ups
+
+1. Component Action / Output の canonical Action / semantic event への lowering 規則
+2. Structured Component の Component Structure schema と、制限付き DSL の静的解析境界
+3. SurfaceNode、Semantic Surface、Render Surface の参照・lowering contract
+4. Group scope と presentation scope の resource ownership schema
+5. actor、subject、Anchor owner の型と認可規則
+6. Step entry epoch、timer deadline、step ごとの Cue 消費状態、Runtime Run の Snapshot schema
+7. Action conflict matrix と Runtime fault / Pause の扱い
+8. Surface transition の完了、interaction、hit region 有効化の wire 表現
+9. Timeline の absolute interpolation、Quaternion、Run lifecycle の wire 表現
+10. Shared Runtime State、Role Projection State、Client-local State の境界と projection schema
+11. Release、Room、Session、Snapshot の参照整合性と、Draft を active Room へ反映する規則
+12. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+
+### Rendering / Delivery の follow-ups
+
+1. Semantic Surface の state ごとの完全 Semantic Tree と Hit Region schema
+2. Native UI portable subset と Runtime Variable / Clock binding
+3. Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な座標規約
+4. Component から Surface への分割規則、partition の自動化範囲、author override
+5. Texture state artifact 数と GPU / RAM build budget
+6. Resolution、mipmap、compression、preload、eviction policy
 7. Component Manifest と renderer implementation の drift 検証
 8. Compiler、Browser、Font、Locale の再現性
-9. Presentation revision、RenderBundle revision、Asset lifecycle の原子的対応
-10. DeliveryManifest Protobuf schema と version negotiation
-11. Draft、Release、Room、active session の反映規則
-12. v1 の下位 transport schema、保持期間、runtime microstep 上限の具体値
+9. DeliveryManifest Protobuf schema、capability negotiation、visual regression test
 
 ## 20. 次の設計対象
 
-v1 は Presentation Progression Contract として固定した。次は Component から Surface への分割規則と、Surface Partition / Build Budgetを定義する。
+次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
+
+1. Component Action / Output lowering
+2. Structured Component と制限付き DSL
+3. SurfaceNode / Semantic Surface / Render Surface
+4. Group scope と Runtime State の三層
+5. actor / Anchor owner
+6. Snapshot / Runtime Run
+7. Immutable Release
+8. Surface transition / Action conflict
+9. Timeline interpolation
+10. Semantic Tree / Native UI binding
+11. Spatial / Surface coordinate convention
+12. Surface Partition
+13. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 

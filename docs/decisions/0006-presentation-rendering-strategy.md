@@ -25,6 +25,17 @@ ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プ�
 
 [Presentation Architecture](../presentation-architecture.md) に記載する目標アーキテクチャを、Unframe の Presentation 設計の正本として採用する。
 
+### 設計成熟度
+
+この ADR が受理するのは上位アーキテクチャであり、すべての下位 contract を同時に固定するものではない。
+
+| 対象 | 状態 |
+| --- | --- |
+| Architecture baseline | Accepted |
+| Presentation Progression の意味モデル | v1 baseline |
+| Progression wire / runtime schema | Draft |
+| Authoring、Rendering、Delivery の下位 contract | Follow-up |
+
 ### 基本原則
 
 - Presentation の意味、authoring source、build 成果物、delivery projection、Runtime State を分離する。
@@ -48,15 +59,20 @@ Presentation を次の契約へ分離する。
 | PresentationDefinition | Scene、Surface、State、Interaction、進行など Presentation の意味を保持する |
 | RenderBundle | Local Compiler が生成した Texture、Video、Native UI plan、Semantic Tree などを保持する |
 | DeliveryManifest | target capability、認可、Asset binding、Signed URL を解決した Runtime projection を保持する |
+| Release | 整合する PresentationDefinition、RenderBundle、Asset Set、contract version を immutable な publish 単位として束ねる |
 | Runtime State | Session 中の現在 Group、Step、Node、Surface State、Timeline、playback、presence を保持する |
 
-Authoring Source と Semantic Authoring IR は編集のための情報を保持する。PresentationDefinition は実行可能な意味を保持する。RenderBundle と DeliveryManifest は再生成可能な派生物とする。Runtime State は実行中にだけ存在し、PresentationDefinition へ書き戻さない。
+Authoring Source と Semantic Authoring IR は編集のための情報を保持する。PresentationDefinition は実行可能な意味を保持する。RenderBundle と DeliveryManifest は再生成可能な派生物とし、Release はそれらの整合する組み合わせを immutable に固定する。Runtime State は実行中にだけ存在し、PresentationDefinition へ書き戻さない。
 
 ### Authoring と Component
 
 コードによる Presentation は、Component の配置と接続を行う composition root として記述する。Component 内部の Frame、Text、装飾を Presentation 全体へ展開して記述することを標準にはしない。
 
 Component package は Props、Slots、Parts、Variants、States、Actions、Outputs、Theme requirements、対応 renderer、Editor metadata、version を公開契約として持つ。GUI は renderer implementation を解析せず、この公開契約から編集可能範囲を構築する。
+
+Structured Component は renderer implementation とは別に、GUI が理解できる宣言的な内部構造を Authoring Source / IR に持つ。Component Action は canonical Action batch、Component Output は canonical semantic event へ compile-time に lower し、Component 固有の実行命令を Runtime contract へ残さない。
+
+Presentation Orchestrator と Structured Component は静的解析可能な制限付き DSL とする。任意コードを許す Opaque renderer は Local Compiler の sandbox 内だけで実行し、renderer artifact へ変換する。Opaque Component の意味情報は renderer の実行結果ではなく、Component Manifest から取得する。
 
 GUI と Code の双方向変換は、任意のソース文字列を完全に再現することではなく、正規化後の意味論的同値性を保証する。自由な実装が必要な Component と GUI が内部構造まで編集できる Component は区別する。
 
@@ -71,6 +87,8 @@ Group は物語上の進行スコープであり、Scene Graph の親子関係�
 Surface 内部の Layout は absolute、stack、grid から始め、最終座標だけでなく配置意図を Authoring IR に保持する。Theme は型付き Token と Named Style を持ち、Layout、親子関係、Spatial Transform、Flow を変更しない。
 
 Component は再利用と編集の境界、Surface は描画、状態、animation、interaction、Runtime resource の境界とする。一つの Component が複数 Surface や Native Node へ展開されることを許す。
+
+Surface は、Spatial Tree 上で Transform を所有する Surface Node、PresentationDefinition 上の安定した Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。Progression は Semantic Surface ID を参照し、Compiler の partition 結果を直接参照しない。
 
 ### Rendering
 
@@ -94,7 +112,11 @@ Venue Edge を canonical authority とし、Trigger、Guard、Cue 選択、Actio
 
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
-v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression Contract](../presentation-architecture.md#12-v1--presentation-progression-contract) に従う。
+Runtime State は、Venue Edge が管理する Shared Runtime State、role / capability に応じた Projection State、各 client だけが保持する Client-local State に分離する。Client-local State は Shared Progression を直接変更しない。
+
+Room / Session は一つの immutable Release を pin する。Release は対応する PresentationDefinition、RenderBundle、Asset Set、contract version を束ね、DeliveryManifest と Snapshot は同じ Release を参照する。
+
+v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../presentation-architecture.md#12-v1-presentation-progression-の意味論) に従う。
 
 ### Component ごとの責務
 
@@ -143,22 +165,29 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 この ADR は目標アーキテクチャを採用するものであり、すべてが現行コードへ実装済みであることを意味しない。
 
-2026-08-25 時点では、現行 PresentationDefinition は ADR-0005 の Group、Step、Cue、Element を中心とした JSON / OpenAPI 契約である。Semantic Authoring IR、Component package、Spatial Tree / Surface Tree、RenderBundle、DeliveryManifest、hybrid renderer、v1 Presentation Progression Contract は target design であり、完成した production contract ではない。
+2026-08-25 時点では、現行 PresentationDefinition は ADR-0005 の Group、Step、Cue、Element を中心とした JSON / OpenAPI 契約である。Semantic Authoring IR、Component package、Spatial Tree / Surface Tree、RenderBundle、DeliveryManifest、hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
 
 この ADR だけで既存 schema を置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI / Protobuf artifact、Web / Unity / Realtime consumer、contract test を同期する。
 
 ## Follow-ups
 
-- [ ] Component Manifest、Semantic Authoring IR、PresentationDefinition の canonical schema と package boundary を定義する。
-- [ ] TSX-like DSL の制約、parse、semantic round-trip、source mapping、Detach を設計する。
-- [ ] Spatial Tree、Surface Tree、Frame Layout、Theme、Token の canonical schema を定義する。
-- [ ] Component から Surface への partition 規則、自動化範囲、author override を決定する。
+- [ ] Component Action / Output の canonical Action / semantic event への lowering contract を定義する。
+- [ ] Structured Component の宣言的な内部構造と renderer implementation の source boundary を定義する。
+- [ ] TSX-like DSL の制約、parse、Opaque renderer sandbox、semantic round-trip、source mapping、Detach を設計する。
+- [ ] Surface Node、Semantic Surface、Render Surface と Group resource scope の canonical schema を定義する。
+- [ ] Presenter / System / participant の actor selector、Anchor owner、Shared / Projection / Client-local State を定義する。
+- [ ] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run / Snapshot contract を定義する。
+- [ ] Immutable Release と PresentationDefinition、RenderBundle、Asset Set、Room / Session の pinning を定義する。
+- [ ] Surface transition、Action batch、Timeline track の conflict policy と Timeline 補間規則を定義する。
+- [ ] Surface State ごとの Semantic Tree と Native UI の宣言的 binding を定義する。
+- [ ] Component から Render Surface への partition 規則、自動化範囲、author override を決定する。
+- [ ] ADR-0005 で固定済みの座標系を前提に、Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な規約を定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
 - [ ] Native UI portable subset、Semantic Tree、Hit Region の完全な schema を定義する。
 - [ ] Deterministic Local Compiler と Component / renderer drift 検証を設計する。
 - [ ] Presentation revision、RenderBundle revision、Asset lifecycle を原子的に対応付ける。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
-- [ ] v1 Presentation Progression Contract を Realtime protocol、Snapshot、consumer へ実装する。
+- [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。
 - [ ] Draft、Release、Room、active session の反映規則を決定する。
 - [ ] Web、Compiler、Unity、Realtime の contract test と visual regression test を設計する。
