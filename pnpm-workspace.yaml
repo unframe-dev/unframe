@@ -32,5 +32,6 @@ allowBuilds:
   sharp: true
   workerd: true
 
+minimumReleaseAge: 720
 minimumReleaseAgeExclude:
   - '@cloudflare/workers-types@5.20260718.1'

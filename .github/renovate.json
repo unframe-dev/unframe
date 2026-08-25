@@ -28,7 +28,9 @@
     {
       "description": "control-plane / app/web / lp / packages (npm/pnpm)",
       "matchManagers": ["npm"],
-      "semanticCommitScope": "deps"
+      "semanticCommitScope": "deps",
+      "minimumReleaseAge": "12 hours",
+      "internalChecksFilter": "strict"
     },
     {
       "description": "app/unity / api-client-csharp (NuGet)",
