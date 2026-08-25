@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-25
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../presentation-architecture.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
+- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
 
 ## Context
 
@@ -19,11 +19,11 @@ Unframe のプレゼンテーションは、コードと GUI による authoring
 
 ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プレゼンテーションのドメイン境界を定義した。本 ADR ではそれを拡張し、authoring から Runtime までを接続する Presentation 全体の目標アーキテクチャを決定する。
 
-詳細な型、Scene Graph、Surface、Layout、State Machine、Timeline、RenderBundle、DeliveryManifest の仕様は [Presentation Architecture](../presentation-architecture.md) を正本とする。本 ADR は、そのアーキテクチャを採用する理由と主要な境界だけを記録する。
+詳細な型、Scene Graph、Surface、Layout、State Machine、Timeline、RenderBundle、DeliveryManifest の仕様は [Presentation Architecture](../presentation/ARCHITECTURE.md) を正本とする。本 ADR は、そのアーキテクチャを採用する理由と主要な境界だけを記録する。
 
 ## Decision
 
-[Presentation Architecture](../presentation-architecture.md) に記載する目標アーキテクチャを、Unframe の Presentation 設計の正本として採用する。
+[Presentation Architecture](../presentation/ARCHITECTURE.md) に記載する目標アーキテクチャを、Unframe の Presentation 設計の正本として採用する。
 
 ### 設計成熟度
 
@@ -41,10 +41,13 @@ ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プ�
 - Presentation の意味、authoring source、build 成果物、delivery projection、Runtime State を分離する。
 - TSX、JSON、Protobuf は用途ごとの表現形式であり、単独で意味モデル全体の正本にはしない。
 - PresentationDefinition を renderer-independent な Presentation の意味モデルとする。
+- v1 の PresentationDefinition は canonical JSON として build する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を識別子として使用しない。
 - Component の公開契約と renderer implementation を分離する。
 - Scene Graph、Presentation Progression、Renderer を独立した関心として扱う。
+- Local Compiler は Authoring TS / TSX を一時的な JavaScript へ transpile / bundle し、deterministic sandbox で実行して Declaration Graph を生成する。
+- Authoring JavaScript は compiler 内部の中間生成物とし、Release や Delivery artifact に含めない。
 - Control Plane、Venue Edge、Unity Runtime は authoring code を実行しない。
 - 現行実装と目標アーキテクチャを区別し、未実装の設計を既存機能として扱わない。
 
@@ -56,7 +59,7 @@ Presentation を次の契約へ分離する。
 | --- | --- |
 | Authoring Source | Presentation の composition、Component、Theme、Asset 選択を人が記述する |
 | Semantic Authoring IR | GUI と Code が共同編集する正規化モデルと authoring metadata を保持する |
-| PresentationDefinition | Scene、Surface、State、Interaction、進行など Presentation の意味を保持する |
+| PresentationDefinition | Scene、Surface、State、Interaction、進行など Presentation の意味を保持し、v1 では canonical JSON として生成する |
 | RenderBundle | Local Compiler が生成した Texture、Video、Native UI plan、Semantic Tree などを保持する |
 | DeliveryManifest | target capability、認可、Asset binding、Signed URL を解決した Runtime projection を保持する |
 | Release | 整合する PresentationDefinition、RenderBundle、Asset Set、contract version を immutable な publish 単位として束ねる |
@@ -72,7 +75,11 @@ Component package は Props、Slots、Parts、Variants、States、Actions、Outp
 
 Structured Component は renderer implementation とは別に、GUI が理解できる宣言的な内部構造を Authoring Source / IR に持つ。Component Action は canonical Action batch、Component Output は canonical semantic event へ compile-time に lower し、Component 固有の実行命令を Runtime contract へ残さない。
 
-Presentation Orchestrator と Structured Component は静的解析可能な制限付き DSL とする。任意コードを許す Opaque renderer は Local Compiler の sandbox 内だけで実行し、renderer artifact へ変換する。Opaque Component の意味情報は renderer の実行結果ではなく、Component Manifest から取得する。
+Presentation Orchestrator と Structured Component は静的解析可能な制限付き DSL とする。Local Compiler は Lossless Syntax Tree と Source Map を GUI / Code の往復に保持しつつ、TS / TSX を一時 JavaScript へ transpile / bundle して sandbox 実行し、Declaration Graph を Semantic Authoring IR へ正規化する。GUI は実行済み JavaScript を Code へ逆コンパイルしない。
+
+Sandbox の入力 capability は source、lock された package、Theme、Asset metadata、Compiler configuration に限定し、network、任意の filesystem、process environment、wall clock、seed が固定されていない乱数に依存させない。
+
+任意コードを許す Opaque renderer も Local Compiler の sandbox 内だけで実行し、renderer artifact へ変換する。Opaque Component の意味情報は renderer の実行結果ではなく、Component Manifest から取得する。
 
 GUI と Code の双方向変換は、任意のソース文字列を完全に再現することではなく、正規化後の意味論的同値性を保証する。自由な実装が必要な Component と GUI が内部構造まで編集できる Component は区別する。
 
@@ -116,11 +123,11 @@ Runtime State は、Venue Edge が管理する Shared Runtime State、role / cap
 
 Room / Session は一つの immutable Release を pin する。Release は対応する PresentationDefinition、RenderBundle、Asset Set、contract version を束ね、DeliveryManifest と Snapshot は同じ Release を参照する。
 
-v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../presentation-architecture.md#12-v1-presentation-progression-の意味論) に従う。
+v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../presentation/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
 
 ### Component ごとの責務
 
-- **Local Compiler**: Authoring Source を解析し、Component、Layout、Theme、Surface boundary、renderer artifact を解決する。
+- **Local Compiler**: Authoring Source を parse / typecheck / transpile / bundle し、一時 JavaScript を deterministic sandbox で実行する。生成した Declaration Graph を Semantic Authoring IR へ正規化し、Component、Layout、Theme、Surface boundary、canonical PresentationDefinition JSON、renderer artifact を解決する。
 - **Control Plane**: PresentationDefinition、RenderBundle、Asset の schema、ownership、hash、revision を検証し、DeliveryManifest を生成する。
 - **Venue Edge**: Session の進行、順序、Trigger、Guard、Action、Timeline、Reliable Event、Snapshot を管理する。
 - **Unity Runtime**: DeliveryManifest を検証し、renderer graph、Asset lifecycle、Spatial rendering、local interpolation、input adapter を担当する。
@@ -154,10 +161,12 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - **Positive**: Component の再利用性と Web の表現力を保ちながら、Unity で任意の authoring code を実行せずに済む。
 - **Positive**: PresentationDefinition を保ったまま renderer、解像度、配信方法を変更できる。
 - **Positive**: Stable ID と Semantic Authoring IR により、GUI と Code の意味論的な往復と semantic command を設計できる。
+- **Positive**: TS / TSX の library、module resolution、type system を利用しながら、実行結果を portable な canonical JSON へ固定できる。
 - **Positive**: Venue Edge の single authority と Snapshot / Replay により、複数 client の進行状態を収束させられる。
 - **Negative**: Authoring Source、IR、PresentationDefinition、RenderBundle、DeliveryManifest の対応と versioning を管理する必要がある。
 - **Negative**: Compiler、Component package、Surface partition、Native UI、Delivery、Realtime の複数契約を実装する必要がある。
 - **Negative**: 自由な TSX と完全な GUI 内部編集を同時には保証できず、Structured / Opaque / Detach の境界が必要になる。
+- **Negative**: Local Compiler は Authoring JavaScript を実行するため、sandbox、module resolution、入力 capability、cache invalidation、決定性を contract として管理する必要がある。
 - **Negative**: Baked Surface は内容や locale の変更で再 build が必要になり、Texture memory と Asset lifecycle の管理も必要になる。
 - **Neutral**: 詳細な schema、transport、build budget、capability negotiation は下位仕様として段階的に決定する。
 
@@ -173,7 +182,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 - [ ] Component Action / Output の canonical Action / semantic event への lowering contract を定義する。
 - [ ] Structured Component の宣言的な内部構造と renderer implementation の source boundary を定義する。
-- [ ] TSX-like DSL の制約、parse、Opaque renderer sandbox、semantic round-trip、source mapping、Detach を設計する。
+- [ ] TSX-like DSL の制約、parse / typecheck / transpile / bundle、Authoring JavaScript sandbox、Declaration Graph normalization、semantic round-trip、source mapping、Detach を設計する。
 - [ ] Surface Node、Semantic Surface、Render Surface と Group resource scope の canonical schema を定義する。
 - [ ] Presenter / System / participant の actor selector、Anchor owner、Shared / Projection / Client-local State を定義する。
 - [ ] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run / Snapshot contract を定義する。
@@ -185,7 +194,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
 - [ ] Native UI portable subset、Semantic Tree、Hit Region の完全な schema を定義する。
-- [ ] Deterministic Local Compiler と Component / renderer drift 検証を設計する。
+- [ ] Deterministic Local Compiler の sandbox capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
 - [ ] Presentation revision、RenderBundle revision、Asset lifecycle を原子的に対応付ける。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
 - [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。

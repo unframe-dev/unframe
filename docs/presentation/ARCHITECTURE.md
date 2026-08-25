@@ -9,10 +9,11 @@
   - Progression wire / Runtime contract: draft
   - Authoring、Rendering、Delivery の下位契約: follow-up
 - **Related**:
-  - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./decisions/0005-spatial-presentation-domain-model.md)
-  - [ADR-0006: プレゼンテーションアーキテクチャを定義する](./decisions/0006-presentation-rendering-strategy.md)
-  - [Repository Architecture](../ARCHITECTURE.md)
-  - [Server Architecture](../app/server/ARCHITECTURE.md)
+  - [Presentation Implementation Design](./DESIGN.md)
+  - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
+  - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
+  - [Repository Architecture](../../ARCHITECTURE.md)
+  - [Server Architecture](../../app/server/ARCHITECTURE.md)
 
 ## 1. この文書の位置付け
 
@@ -32,16 +33,20 @@ presentation.unframe.tsx
         ├─ Theme / Token
         └─ Asset
         │
-        ▼
-Semantic Authoring IR
-        │
-        ├─ GUI editing
-        ├─ Code editing
-        ├─ Validation
-        └─ Semantic commands
-        │
-        ▼ Local Compiler
-PresentationDefinition + RenderBundle + Asset Set
+        ├─ Parse → Lossless Syntax Tree / Source Map ←→ GUI / Code editing
+        └─ Typecheck / Transpile / Bundle
+                   │
+                   ▼
+          Ephemeral Authoring JS
+                   │ Local Compiler sandbox execution
+                   ▼
+           Declaration Graph
+                   │ Normalize / Validate with Syntax Tree
+                   ▼
+          Semantic Authoring IR ←→ GUI Semantic Commands
+                   │
+                   ▼ Compile / Render
+PresentationDefinition JSON + RenderBundle + Asset Set
         │ publish
         ▼
 Immutable Release
@@ -74,13 +79,15 @@ Immutable Release
 
 ### 基本原則
 
-- TSX、JSON、Protobuf は意味モデルそのものではなく、入力、保存、デバッグ、配布のための表現形式とする。
+- TSX、JSON、Protobuf は用途ごとの表現形式とする。v1 の PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
 - `.unframe.tsx` はプレゼンテーション全体を直接描画する巨大な実装ではなく、Component の配置と接続を行う composition root とする。
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
 - GUI が任意の TSX、CSS、JavaScript を完全に逆解析できるとはみなさない。
+- Local Compiler は Authoring TS / TSX を一時的な JavaScript へ transpile / bundle し、隔離された deterministic sandbox で実行して Declaration Graph を生成する。
+- Authoring JavaScript は compiler 内部の中間生成物であり、Release や Delivery artifact に含めない。
 - Control Plane と Unity Runtime は TSX、React、CSS、authoring JavaScript を実行しない。
-- Texture、Video、Protobuf、debug JSON は生成物であり、編集元の正本にはしない。
+- PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
 - Presentation の意味、build 成果物、配信 projection、実行中状態を別の契約として扱う。
 - Room と Session は immutable Release を参照し、実行中に Draft を直接参照しない。
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を ID の代わりに使用しない。
@@ -137,7 +144,7 @@ PresentationDefinition
 └─ Opaque Asset References
 ```
 
-エンコード方式自体は意味モデルの一部ではない。現行 Control Plane は JSON/OpenAPI 契約を使用しているが、debug、export、interop 用の JSON と、将来の別形式を区別できる境界を保つ。
+エンコード方式自体は意味モデルの一部ではないが、v1 の Local Compiler は PresentationDefinition を canonical `presentation.definition.json` として生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。
 
 ### 3.4 RenderBundle
 
@@ -329,7 +336,9 @@ GUI は Manifest から Inspector と編集可能範囲を構築する。rendere
 - build 時に Web Surface として描画できる。
 - 任意の `map`、条件分岐、関数計算は build 可能でも GUI 内部編集の対象にはしない。
 
-Presentation Orchestrator と Structured Component は、静的解析できる制限付き DSL とする。任意の実行可能コードを許すのは Opaque renderer だけであり、Local Compiler の隔離された build 環境でのみ実行する。Control Plane、Venue Edge、Unity Runtime はこれを実行しない。
+Presentation Orchestrator と Structured Component は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。ただし build 時は parse 結果だけで PresentationDefinition を組み立てず、TS / TSX を一時的な JavaScript へ transpile / bundle し、Local Compiler の deterministic sandbox 内で実行して Declaration Graph を得る。
+
+Opaque renderer も同じ sandbox 内で実行できるが、その結果は renderer artifact に限定する。Opaque Component の意味情報は Component Manifest から取得し、renderer の実行結果から推測しない。Control Plane、Venue Edge、Unity Runtime はどちらの authoring JavaScript も実行しない。
 
 自由な Code と完全な GUI 編集を同時に保証せず、Component 単位で境界を明示する。
 
@@ -353,16 +362,21 @@ GUI は TSX 文字列を推測で書き換えない。
 
 ```text
 Code
-  ↓ Parse
-Lossless Syntax Tree
-  ↓ Project
-Semantic Authoring IR
-  ↑
-GUI Semantic Commands
-  ↓
-Syntax Tree Patch
-  ↓
-Code
+├─ Parse → Lossless Syntax Tree / Source Map ──────────────┐
+└─ Typecheck / Transpile / Bundle                           │
+             ↓                                              │
+       Ephemeral Authoring JS                               │
+             ↓ Sandbox execution                            │
+       Declaration Graph                                    │
+             └──────────── Normalize / Validate ──────────────┘
+                                    ↓
+                          Semantic Authoring IR
+                                    ↕
+                         GUI Semantic Commands
+                                    ↓
+                    Syntax Tree Patch via Source Map
+                                    ↓
+                                   Code
 ```
 
 必要な対応情報は次のとおりである。
@@ -375,7 +389,9 @@ Code
 - Semantic command
 - Conflict diagnostics
 
-保証する round-trip は正規化後の意味論的同値性であり、任意の手書きソースについて文字列単位の完全一致を保証しない。
+保証する round-trip は正規化後の意味論的同値性であり、任意の手書きソースについて文字列単位の完全一致を保証しない。GUI は実行済み JavaScript や Declaration Graph を Code へ逆コンパイルせず、Lossless Syntax Tree、Source Map、Stable ID を通じて制限付き DSL を書き換える。
+
+Local Compiler は Declaration Graph を Semantic Authoring IR へ正規化する際に、安定 ID、source range、Component contract と対応できることを検証する。制限付き DSL の範囲でこの対応を作れない実行結果は build error とする。
 
 ## 7. Scene Graph
 
@@ -1271,10 +1287,16 @@ Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec
 
 ```text
 presentation.unframe.tsx
-        ↓ Parse / Typecheck
-Component Manifest resolution
-        ↓
+        ├─ Parse → Lossless Syntax Tree / Source Map
+        └─ Typecheck / Transpile / Bundle
+                    ↓
+           Ephemeral Authoring JS
+                    ↓ Deterministic sandbox execution
+            Declaration Graph
+                    ↓ Normalize / Validate with Syntax Tree
 Semantic Authoring IR
+        ↓
+Component Manifest resolution
         ↓
 Component / Slot / Variant expansion
         ↓
@@ -1284,7 +1306,7 @@ Surface partition
         ↓
 Browser capture / Native UI plan / Video generation
         ↓
-PresentationDefinition + RenderBundle
+Canonical PresentationDefinition JSON + RenderBundle
         ↓ publish
 Immutable Release
         ↓ Control Plane validation and role / capability projection
@@ -1295,13 +1317,22 @@ Unity Runtime
 
 ### Local Compiler
 
+- Authoring Source を parse し、Lossless Syntax Tree、Source Map、Stable ID の対応を保持する。
+- TS / TSX を typecheck / transpile / bundle し、compiler 内部の一時的な Authoring JavaScript を生成する。
+- Authoring JavaScript を deterministic sandbox で実行し、renderer object ではない宣言的な Declaration Graph を生成する。
+- Declaration Graph を正規化し、Syntax Tree / Source Map と対応する Semantic Authoring IR を生成する。
 - Component、Slot、Variant を解決する。
 - Theme、Token、Style を解決する。
 - Surface boundary を決める。
 - Browser 環境で Layout と capture を行う。
 - Texture、Video、Native UI plan を生成する。
 - Semantic Tree、hit region、source map を生成する。
+- PresentationDefinition を canonical JSON として serialize する。
 - PresentationDefinition と RenderBundle の hash を対応付ける。
+
+Sandbox が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。Network、任意の filesystem、process environment、wall clock、seed が固定されていない乱数は禁止し、同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。
+
+Ephemeral Authoring JS は build cache として保持できるが、publish、Release、Delivery の対象にはしない。
 
 ### Control Plane
 
@@ -1342,14 +1373,18 @@ presentation/
 │     ├─ Counter.manifest.ts
 │     └─ Counter.native-ui.ts
 ├─ assets/
+├─ .unframe-cache/
+│  └─ presentation.authoring.bundle.js
 └─ dist/
-   ├─ presentation.definition.debug.json
+   ├─ presentation.definition.json
    ├─ presentation.render-bundle.json
    ├─ presentation.delivery-manifest.pb
    └─ generated-assets/
 ```
 
-JSON output は必須の Authoring source ではなく、debug、export、interop 用の生成物として扱う。
+`.unframe-cache/presentation.authoring.bundle.js` は Local Compiler が再生成できる一時的な実行用 artifact であり、version control、publish、Release には含めない。
+
+`dist/presentation.definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 
@@ -1368,6 +1403,8 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
+- TS / TSX の transpile / bundle、Ephemeral Authoring JS、sandbox execution、Declaration Graph の build pipeline
+- Canonical `presentation.definition.json` の deterministic serialization
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree の canonical schema
@@ -1389,7 +1426,11 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 - `.unframe.tsx` は Composition Root とする。
 - Component Manifest と renderer implementation を分離する。
 - GUI と Code は Semantic Authoring IR を共有する。
+- GUI は Lossless Syntax Tree と Source Map で Code を書き換え、実行済み JavaScript を逆コンパイルしない。
 - Structured と Opaque Component を区別する。
+- Local Compiler は Authoring TS / TSX を一時 JavaScript へ transpile / bundle し、deterministic sandbox で実行して Declaration Graph を生成する。
+- Ephemeral Authoring JS は build cache に限定し、Release と Delivery には含めない。
+- v1 の最終 PresentationDefinition artifact は canonical JSON とする。
 - Scene Graph は Spatial Tree と Surface Tree からなる 2.5D 構造とする。
 - Group は進行スコープ、Scene Graph は空間親子関係とする。
 - Surface は physical size と logical size を持つ。
@@ -1416,7 +1457,7 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 ### Progression wire / Runtime contract の blocking follow-ups
 
 1. Component Action / Output の canonical Action / semantic event への lowering 規則
-2. Structured Component の Component Structure schema と、制限付き DSL の静的解析境界
+2. Structured Component の Component Structure schema と、制限付き DSL の静的解析 / sandbox execution 境界
 3. SurfaceNode、Semantic Surface、Render Surface の参照・lowering contract
 4. Group scope と presentation scope の resource ownership schema
 5. actor、subject、Anchor owner の型と認可規則
@@ -1437,7 +1478,7 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 5. Texture state artifact 数と GPU / RAM build budget
 6. Resolution、mipmap、compression、preload、eviction policy
 7. Component Manifest と renderer implementation の drift 検証
-8. Compiler、Browser、Font、Locale の再現性
+8. Authoring JavaScript sandbox の capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
 9. DeliveryManifest Protobuf schema、capability negotiation、visual regression test
 
 ## 20. 次の設計対象
@@ -1445,7 +1486,7 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
 1. Component Action / Output lowering
-2. Structured Component と制限付き DSL
+2. Structured Component、制限付き DSL、Authoring JavaScript sandbox
 3. SurfaceNode / Semantic Surface / Render Surface
 4. Group scope と Runtime State の三層
 5. actor / Anchor owner
@@ -1460,4 +1501,4 @@ JSON output は必須の Authoring source ではなく、debug、export、intero
 
 中心となる思想は次のとおりである。
 
-> `.unframe.tsx` は Presentation の composition root、Component Manifest は公開契約、Semantic Authoring IR は GUI と Code の共通モデル、Renderer と DeliveryManifest は build と delivery の結果とする。
+> `.unframe.tsx` は Presentation の composition root、Component Manifest は公開契約、Semantic Authoring IR は GUI と Code の共通モデルとする。Local Compiler は TS / TSX を一時 JavaScript として実行し、canonical PresentationDefinition JSON と renderer artifact へ build する。
