@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo",
     "test": "tsx --test src/**/*.test.ts",
     "cf:dev": "wrangler dev",
     "cf:deploy": "wrangler deploy",
@@ -21,12 +21,13 @@
     "@sveltejs/kit": "2.70.3",
     "@sveltejs/vite-plugin-svelte": "7.3.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@typescript/native": "npm:typescript@7.0.2",
     "mdsvex": "0.12.8",
     "svelte": "5.56.10",
     "svelte-check": "4.7.6",
     "tailwindcss": "^4.1.18",
     "tsx": "4.23.12",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "vite": "catalog:",
     "wrangler": "4.125.0"
   }

@@ -147,6 +147,16 @@ describe("SessionService", () => {
     });
   });
 
+  it("rejects persisted sessions whose capacity violates the public contract", async () => {
+    const { service, sessions } = setup();
+    const created = await service.create(owner, "presentation");
+    sessions.records.get(created.session.id)!.maxParticipants = 49;
+
+    await expect(service.get(admin, created.session.id)).rejects.toThrowError(
+      "session maxParticipants must be 50",
+    );
+  });
+
   it("joins idempotently, never exposes the code hash, and rejects ended sessions", async () => {
     const { service } = setup();
     const created = await service.create(owner, "presentation");

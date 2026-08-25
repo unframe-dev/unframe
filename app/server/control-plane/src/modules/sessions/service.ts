@@ -3,10 +3,12 @@ import type { PresentationRepository } from "../../presentation/repository";
 import { joinCodeSchema } from "./schema";
 import type { SessionParticipant, SessionRecord, SessionRepository } from "./repository";
 
-const maximumParticipants = 50;
+const maximumParticipants = 50 as const;
 const joinWindowMs = 5 * 60 * 1000;
 
-export type SessionResource = Omit<SessionRecord, "joinCodeHash">;
+export type SessionResource = Omit<SessionRecord, "joinCodeHash" | "maxParticipants"> & {
+  maxParticipants: typeof maximumParticipants;
+};
 
 export class SessionError extends Error {
   constructor(
@@ -130,8 +132,16 @@ export class SessionService {
   }
 }
 
-const resource = ({ joinCodeHash: _joinCodeHash, ...record }: SessionRecord): SessionResource =>
-  record;
+const resource = ({
+  joinCodeHash: _joinCodeHash,
+  maxParticipants,
+  ...record
+}: SessionRecord): SessionResource => {
+  if (maxParticipants !== maximumParticipants) {
+    throw new RangeError("session maxParticipants must be 50");
+  }
+  return { ...record, maxParticipants };
+};
 
 export const sha256JoinCode = async (value: string) => {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));

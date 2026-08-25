@@ -12,6 +12,42 @@ type CredentialOptions = {
   newId?: () => string;
 };
 
+type Ed25519PrivateJwk = JsonWebKey & {
+  kty: "OKP";
+  crv: "Ed25519";
+  x: string;
+  d: string;
+};
+
+type RealtimeJwks = {
+  keys: Array<{
+    kty: "OKP";
+    crv: "Ed25519";
+    x: string;
+    kid: string;
+    alg: "EdDSA";
+    use: "sig";
+    key_ops: ["verify"];
+  }>;
+};
+
+const requireEd25519PrivateJwk = (value: JsonWebKey): Ed25519PrivateJwk => {
+  if (
+    value.kty !== "OKP" ||
+    value.crv !== "Ed25519" ||
+    typeof value.x !== "string" ||
+    typeof value.d !== "string"
+  ) {
+    throw new TypeError("realtime signing key must be an Ed25519 private JWK");
+  }
+  return {
+    kty: "OKP",
+    crv: "Ed25519",
+    x: value.x,
+    d: value.d,
+  };
+};
+
 type RealtimeCredentialClaims = {
   iss: string;
   aud: string;
@@ -42,11 +78,13 @@ const encodeBase64Url = (value: Uint8Array | string) => {
 export class RealtimeBootstrapCredentials {
   private readonly now: () => number;
   private readonly newId: () => string;
+  private readonly privateJwk: Ed25519PrivateJwk;
 
   constructor(
-    private readonly privateJwk: JsonWebKey,
+    privateJwk: JsonWebKey,
     private readonly options: CredentialOptions,
   ) {
+    this.privateJwk = requireEd25519PrivateJwk(privateJwk);
     this.now = options.now ?? (() => Math.floor(Date.now() / 1_000));
     this.newId = options.newId ?? (() => crypto.randomUUID());
   }
@@ -90,12 +128,13 @@ export class RealtimeBootstrapCredentials {
     return { token: `${header}.${payload}.${encodeBase64Url(signature)}`, expiresAt: exp * 1_000 };
   }
 
-  async jwks() {
-    const { d: _private, ...publicJwk } = this.privateJwk;
+  async jwks(): Promise<RealtimeJwks> {
     return {
       keys: [
         {
-          ...publicJwk,
+          kty: this.privateJwk.kty,
+          crv: this.privateJwk.crv,
+          x: this.privateJwk.x,
           kid: this.options.keyId,
           alg: "EdDSA",
           use: "sig",
