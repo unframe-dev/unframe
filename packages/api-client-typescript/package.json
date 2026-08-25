@@ -14,12 +14,12 @@
   },
   "dependencies": {
     "@unframe/control-plane": "workspace:*",
-    "better-auth": "1.6.26",
+    "better-auth": "1.7.1",
     "hono": "^4.13.1"
   },
   "devDependencies": {
     "@unframe/config": "workspace:*",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.0",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   }

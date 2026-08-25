@@ -9,16 +9,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@notionhq/client": "^2.2.15",
+    "@notionhq/client": "^5.0.0",
     "notion-to-md": "^3.1.7"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^24.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^7.0.0"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@11.23.0"
 }
