@@ -24,7 +24,7 @@
 | 領域 | 状態 | 現在の境界・根拠 |
 | --- | --- | --- |
 | Venue Edge provisioning identity / credential / registration | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`、`migrations/0009_runtime_assignments.sql`。Edge ID / Bearer token は profile 固有の provisioning にだけ使用する |
-| Runtime Assignment lifecycle / bootstrap | 部分実装 | `control-plane/src/modules/runtime-assignments/`、`realtime-bootstrap/` と session bootstrap route。Cloud / Venue Edge 共通の assign / read / bootstrap は `runtimeId`、`runtimeKind`、assignment epoch、Presentation revision を拘束する。renew / release API は Venue Edge profile だけにあり、Cloud lifecycle は未実装。lease 日時を canonical ISO へ正規化し、Venue Edge renew は5分以内、割当・bootstrapに使える Venue Edge heartbeat は直近60秒以内に制限する |
+| Runtime Assignment lifecycle / bootstrap | 部分実装 | `control-plane/src/modules/runtime-assignments/`、`realtime-bootstrap/` と session bootstrap route。Cloud / Venue Edge 共通の assign / read / bootstrap は `runtimeId`、`runtimeKind`、assignment epoch、Presentation revision を拘束する。target の PublishedPresentation / PublicationFence は未実装。renew / release API は Venue Edge profile だけにあり、Cloud lifecycle は未実装。lease 日時を canonical ISO へ正規化し、Venue Edge renew は5分以内、割当・bootstrapに使える Venue Edge heartbeat は直近60秒以内に制限する |
 | JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/assignment/`、gRPC interceptor / service guard。audience は必須設定だが具体値は未決定。JWKS cache は5分で失効し、未知の key ID による refresh は30秒に1回へ制限し、refresh 失敗時は stale key を使用しない。lease 失効時は blocked send も終了する |
 | 共通 Runtime Core composition | 部分実装 | `realtime/internal/runtimecore/` と `cmd/server/`。Cloud / Venue Edge 共通の Coordinator / Guard / gRPC composition は接続済みだが、Step / Cue、State、Snapshot、profile agent は未接続 |
 | application readiness / gRPC health | 実装済み | local assignment lease と JWKS cache を期限付きで継続確認し、確認後だけ `SERVING` とすることで process 起動とは分離する。`NOT_SERVING` 遷移時の既存 idle stream 終了は Runtime lifecycle へ未接続 |
@@ -186,7 +186,7 @@ Runtime Core
 └─ Runtime Assignment Guard
    ├─ runtimeId / runtimeKind
    ├─ assignmentEpoch / lease
-   ├─ presentation revision
+   ├─ PublicationFence
    └─ JWT / role / scope validation
 ```
 
@@ -269,30 +269,34 @@ RuntimeAssignment
 ├─ runtimeKind: Cloud | VenueEdge
 ├─ endpoint
 ├─ assignmentEpoch
-├─ presentationRevision
+├─ publication: PublicationFence
+│  ├─ presentationId
+│  ├─ publicationEpoch
+│  └─ publicationManifestHash
 ├─ issuedAt
 └─ leaseExpiresAt
 ```
 
 - `runtimeId` は配置環境をまたいで Runtime instance を識別する。Fly.io Machine の再作成時に同じ ID を引き継ぐかは Runtime identity の永続化方針で決める。
 - `certificateFingerprint` は Venue Edge の local endpoint にだけ必要な profile 固有情報とし、共通 Assignment の必須 field にしない。
+- RuntimeAssignment の PublicationFence は現在の PublishedPresentation を再参照せず、Session 作成時に固定した SessionPublicationBinding からコピーする。
 - Control Plane は同じ session を別 Runtime へ割り当てるたびに `assignmentEpoch` を増やす。
 - Control Plane は旧 Runtime から明示的な lease 返却を受けるか、旧 lease の期限が切れるまで新しい active assignment を発行しない。強制切替時も旧 lease の期限まで session を停止し、二つの Runtime を同時に active authority にしない。
 - lease renewalの期限はControl Planeのpolicyで制限し、Runtimeのcredentialだけで任意の長期間へ延長できないようにする。現在のVenue Edge renew APIは要求された絶対期限を5分以内に制限し、canonical ISO形式へ正規化する。
-- Runtime は接続、command、state 更新、checkpoint の処理前に、local assignment の `runtimeId`、`runtimeKind`、`assignmentEpoch`、Presentation revision、lease 有効期限を検証する。
-- Quest 用 JWT と bootstrap response は `runtimeId`、`runtimeKind`、`assignmentEpoch` を拘束する。古い世代または別配置先の credential を受け入れない。
+- Runtime は接続、command、state 更新、checkpoint の処理前に、local assignment の `runtimeId`、`runtimeKind`、`assignmentEpoch`、PublicationFence、lease 有効期限を検証する。
+- Quest 用 JWT と bootstrap response は `runtimeId`、`runtimeKind`、`assignmentEpoch`、`presentationId`、`publicationEpoch`、`publicationManifestHash` を拘束する。古い世代、公開物、または別配置先の credential を受け入れない。
 - lease を更新できない場合、既存 connection は `leaseExpiresAt` までだけ継続できる。期限後は Session Runtime を pause し、新規接続、command 受付、state 更新を停止する。
 - Control Plane は古い `assignmentEpoch` から届いた checkpoint、completion、telemetry を現行 session state へ適用しない。
 
-現在の実装は、契約、assign / read repository、bootstrap、JWT、Runtime Guard を `RuntimeAssignment` と `runtimeId` / `runtimeKind` へ移行済みである。Edge 固有 Bearer token と `edgeId` は Venue Edge の provisioning identity としてのみ残し、Quest 用 JWT や共通 Runtime Core の identity には使用しない。renew / release API は Venue Edge profile だけに接続済みで、Cloud lifecycle とその identity は未決定・未実装である。
+現在の実装は、契約、assign / read repository、bootstrap、JWT、Runtime Guard を `RuntimeAssignment` と `runtimeId` / `runtimeKind` へ移行済みである。Edge 固有 Bearer token と `edgeId` は Venue Edge の provisioning identity としてのみ残し、Quest 用 JWT や共通 Runtime Core の identity には使用しない。現行 fence は mutable な`presentationRevision`であり、単一のPublishedPresentationとPublicationFenceへの移行は未実装である。renew / release API は Venue Edge profile だけに接続済みで、Cloud lifecycle とその identity は未決定・未実装である。
 
 ### 5.2 割り当てと bootstrap
 
 1. Presenter が Control Plane で session と `runtimeKind` を選択する。
 2. Control Plane が利用可能な Runtime を選び、`RuntimeAssignment` を作成する。
-3. Runtime が Assignment、Presentation Manifest、Runtime JWT 検証用 JWKS を取得し、lease を更新する。
+3. Runtime が Assignment、PublicationFenceに対応するPresentation Manifest、Runtime JWT 検証用 JWKS を取得し、lease を更新する。
 4. Cloud Runtime は Realtime readiness、Venue Edge は Realtime と Asset の readiness を `assignmentEpoch` とともに報告する。
-5. Quest が session へ join すると、Control Plane が endpoint、`runtimeId`、`runtimeKind`、`assignmentEpoch`、session-bound Runtime JWT、Presentation revision を返す。
+5. Quest が session へ join すると、Control Plane が endpoint、`runtimeId`、`runtimeKind`、`assignmentEpoch`、session-bound Runtime JWT、PublicationFence を返す。
 6. Venue Edge 配置では certificate fingerprint も返し、Quest は local endpoint を pinning する。Cloud 配置では公開 CA による TLS 検証を使用する。
 7. Quest は bootstrap と JWT が示す一つの Runtime へ Control / State connection を開く。
 
@@ -389,6 +393,8 @@ stateDiagram-v2
 - **Runtime Resume**: presenterだけが要求できる`Paused -> Running`遷移。有効なpresenter connection、有効なassignment lease、Control Plane上で`Presenting`であることを確認してから適用する。
 
 Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続したpresenterがSnapshotとpause理由を確認し、明示的な`ResumeRuntime` commandを送信する。Runtime Coreは`RuntimePaused`、`RuntimeResumed`、`RuntimeTerminating`をReliable Eventとして全participantへ配信する。
+
+Target progression clock は pause-aware な logical runtime time とする。`Running`中だけprocessのmonotonic clock差分で進め、`Paused`と`Terminating`では停止する。process固有のmonotonic timestamp、wall clock、`pausedAt`、累積pause durationはSnapshotへ保存しない。Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindする。process recoveryではcheckpoint時に`Running`であってもlogical timeを進めず、`Paused / processRecovered`として復元する。現行`internal/session/runtime.go`の`time.Time`を使うpause primitiveは部分実装であり、このtarget clock contractが実装済みであるとはみなさない。
 
 ### 7.2 Step / Cue execution
 
@@ -592,42 +598,53 @@ Runtime instance の概算 egress は次で決まる。
 ## 10. Snapshot / Replay / Connection Resume
 
 ```text
-SessionSnapshot
-├─ snapshotVersion
-├─ currentGroupId
-├─ currentStepId
-├─ reliableSequence
-├─ presentationOriginVersion
-├─ runtimeStatus
-├─ pauseReason
-├─ pausedAt
-├─ accumulatedPauseDuration
-├─ activeCues
-├─ activeTransitions
-│  └─ elapsedBeforePause
-└─ elementStates
+CanonicalRuntimeSnapshot
+├─ logical runtime clock / lifecycle
+├─ progression / step execution
+├─ canonical resource states
+├─ active Runtime Runs
+├─ allocator sequences
+└─ presentation origin
+
+ConnectionSnapshotEnvelope
+├─ connection / ProjectionInstance
+├─ PublicationFence
+├─ presenceAtCut
+└─ ProjectedRuntimeSnapshot
+
+DurableCheckpointEnvelope
+├─ assignment / PublicationFence / artifact hash / schema fence
+└─ serialized CanonicalRuntimeSnapshot
 ```
+
+`CanonicalRuntimeSnapshot`は全participantで共有するrenderer-independentなimmutable stateであり、participant、connection、projection、transport、serialization formatを含めない。Connection Resumeにはparticipant固有の`ConnectionSnapshotEnvelope`、process recoveryには`DurableCheckpointEnvelope`を使い、同じcanonical cutを異なる用途の外側contractで包む。Projected Runtime Snapshotをdurable recoveryの入力に使用しない。
 
 late join / Connection Resume:
 
-1. Quest がControl Connectionを開き、JWT、session、participant、role、protocol version、assignment epochを検証する。
-2. Runtime Coreはsession lock内で、現在の`reliableSequence = S`をcutとしてSnapshotを作成し、同じ操作内でそのconnectionを`S + 1`以降のReliable Event購読者として登録する。
-3. Runtime CoreがSnapshotと`connectionId`を返す。Snapshot作成後に発生したReliable Eventはconnectionのbounded replay queueへ保持される。
-4. QuestがSnapshotを適用し、`S + 1`以降のReliable Eventをsequence順に適用する。gapがある場合はState Connectionへ進まずreplayまたは新しいSnapshotを要求する。
-5. Questが適用済みReliable sequenceと`presentationOriginVersion`を`StateReady`で通知する。
-6. Runtime Coreが`stateConnectionNonce`を返し、Questが`connectionId`とこのnonceを使ってState Connectionを開く。Runtime CoreはControl Connectionと同じidentityへ関連付ける。
-7. runtimeが`Running`なら、Runtime Coreは現在の全Element Stateをkeyframeとして送った後、`StateReady`以降の差分配信を開始する。各frameにその生成時点の`baseReliableSequence`を付ける。`Paused`ならState Connectionだけを確立し、frame送信は行わない。
+1. Quest がControl Connectionを開き、JWT、session、participant、role、protocol version、assignment epoch、PublicationFenceを検証する。
+2. Runtime Coreはsession coordinatorのcritical section内でlogical runtime time `T`までのdue internal eventを処理し、`reliableSequence = S`のCanonicalRuntimeSnapshotとpresenceのimmutable cutをfreezeする。同じ操作内で`connectionId`を確定し、そのconnectionを`S + 1`以降のReliable Event購読者として登録する。
+3. lock解放後、Runtime Coreはimmutable cutをparticipantのProjectionProfileDescriptor / ProjectionInstanceでprojectし、ConnectionSnapshotEnvelopeを構築・serializeする。この間に発生したReliable Eventはconnectionのbounded replay queueへ保持される。
+4. projectionまたはserialization中にbounded replay queueがoverflowした場合、生成中のenvelopeと購読を破棄し、新しいcutからやり直す。
+5. Runtime CoreがConnectionSnapshotEnvelopeを返す。
+6. QuestがProjectedRuntimeSnapshotを適用し、`S + 1`以降のprojected Reliable Eventをsequence順に適用する。gapがある場合はState Connectionへ進まずreplayまたは新しいConnection Snapshotを要求する。
+7. Questが適用済みReliable sequenceと`presentationOriginVersion`を`StateReady`で通知する。
+8. Runtime Coreが`stateConnectionNonce`を返し、Questが`connectionId`とこのnonceを使ってState Connectionを開く。Runtime CoreはControl Connectionと同じidentityへ関連付ける。
+9. runtimeが`Running`なら、Runtime Coreは現在の全Element Stateをkeyframeとして送った後、`StateReady`以降の差分配信を開始する。各frameにその生成時点の`baseReliableSequence`を付ける。`Paused`ならState Connectionだけを確立し、frame送信は行わない。
 
-Snapshotのcut取得、Reliable Event購読登録、replay開始位置の決定は同じsession coordinatorのcritical sectionで行う。これによりSnapshot作成とlive購読の間にeventを取りこぼさない。State ConnectionはControl Connectionがcatch upするまで開始しない。
+critical sectionに含めるのはdue event処理、canonical / presence cutのfreeze、Reliable Event購読登録、replay開始位置の決定だけとする。Participant projection、ConnectionSnapshotEnvelopeの構築、serialization、compression、hashing、network writeはlock外で行う。lock外でlive mutable mapを読まず、immutable copyまたはstructural sharingされたcutだけを入力にする。これによりSnapshotとlive購読の間のeventを取りこぼさず、participant数やserialization時間をsession全体の停止時間へ転嫁しない。State ConnectionはControl Connectionがcatch upするまで開始しない。
 
-State Connectionだけが切断された場合、Control Connection上のReliable sequenceと`presentationOriginVersion`が引き続き一致していれば、Snapshotを取り直さず新しい`stateConnectionNonce`でState Connectionを再確立できる。runtimeが`Running`なら再確立後のkeyframeを適用してから差分配信へ戻る。`Paused`ならframeを送らず、Runtime Resume時にkeyframeを送ってから差分配信を開始する。Control側にもgapがある場合、または`presentationOriginVersion`が変わった場合は、通常のConnection Resumeとして新しいSnapshotと`connectionId`を取得する。
+Durable checkpointもcritical section内ではCanonicalRuntimeSnapshotのimmutable cutとcheckpoint sequenceの割り当てだけを行う。serialization、compression、hashing、persistence callbackはlock外で実行し、保存するDurableCheckpointEnvelopeにassignment epoch、PublicationFence、presentation / bundle hash、schema versionを含めてfenceする。
+
+State Connectionだけが切断された場合、Control Connection上のReliable sequence、PublicationFence、`presentationOriginVersion`が引き続き一致していれば、Snapshotを取り直さず新しい`stateConnectionNonce`でState Connectionを再確立できる。runtimeが`Running`なら再確立後のkeyframeを適用してから差分配信へ戻る。`Paused`ならframeを送らず、Runtime Resume時にkeyframeを送ってから差分配信を開始する。Control側にもgapがある場合、PublicationFenceが一致しない場合、または`presentationOriginVersion`が変わった場合は、通常のConnection Resumeとして新しいDeliveryManifest、Connection Snapshot、`connectionId`を取得する。
 
 - runtimeが`Paused`の場合も、leaseが有効なら既存participantのConnection Resumeと新しいviewerのjoinを許可する。Snapshotにpause理由と進行位置を含め、State Connectionは確立するが`RuntimeResumed`まで新しいElement State frameを送らない。
 - lease期限切れによる`Paused`では新しいconnectionとjoinを受け入れない。lease更新後も自動的に`Running`へ戻さず、presenterのRuntime Resumeを要求する。
-- pause開始時にRuntimeのmonotonic clock上の`pausedAt`、各Transitionの`elapsedBeforePause`、playback位置を固定する。pause中のwall-clock経過をTransitionやplaybackの進行へ加算しない。
-- Runtime Resume時は`accumulatedPauseDuration`を更新し、Transitionとplaybackの基準時刻を再計算してから`RuntimeResumed`を配信する。
+- pause開始時はlogical runtime clockを停止する。Transition / TimelineのdeadlineとMedia cursorは同じlogical time基準を使うため、Runごとの`elapsedBeforePause`やpause補正値を持たない。
+- Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindしてから`RuntimeResumed`を配信する。pause中のwall-clock経過はTransition、Timeline、playbackへ加算しない。
 
-Pose の履歴は Snapshot へ含めない。Pose の軌跡や閾値通過を使う Trigger が必要とする場合だけ、Trigger contract で定義した短い sample window を Runtime memory に保持し、session recovery や replay の対象にはしない。
+Connection presenceは接続時点の`presenceAtCut`としてConnectionSnapshotEnvelopeにだけ含め、DurableCheckpointEnvelopeへ保存しない。process recovery後のconnection registryは空から再構築する。
+
+Raw Tracking Frame、Presenter Anchor sample、Pose sample window、zone membership、hysteresis、edge detector stateはCanonicalRuntimeSnapshotとDurableCheckpointEnvelopeへ含めない。process recovery後はAnchorをunavailableとしてfresh Tracking Frameを待ち、現在値からdetectorをseedする。復旧直後の値を疑似的なenter / exit / motion edgeとして発火させない。
 
 ## 11. Asset 配信
 
@@ -646,7 +663,7 @@ Venue Edge Runtime:
 R2 ── signed URL ──> Venue Edge Asset Cache ── local HTTPS ──> Quest
 ```
 
-Cloud 配置では Control Plane が participant、session、Presentation revision を検証し、要求された `assetId` がその revision の Manifest に含まれる場合だけ短命な signed URL を発行する。Quest は R2 / CDN から直接取得し、Cloud Runtime 自身は Asset binary の proxy や cache を持たない。
+Cloud 配置では Control Plane が participant、session、PublicationFence を検証し、要求された `assetId` がその publication の Manifest に含まれる場合だけ短命な signed URL を発行する。Quest は R2 / CDN から直接取得し、Cloud Runtime 自身は Asset binary の proxy や cache を持たない。
 
 Venue Edge 配置では Edge が session 開始前に必要 Asset を一度だけ Cloud から取得し、会場 LAN 内の local HTTPS endpoint から Quest へ配信する。
 
@@ -655,8 +672,10 @@ Venue Edge 配置では Edge が session 開始前に必要 Asset を一度だ�
 ```text
 PresentationManifest
 ├─ presentationId
-├─ presentationRevision
+├─ publicationEpoch
+├─ publicationManifestHash
 ├─ definitionChecksum
+├─ renderBundleChecksum
 ├─ protocolVersion
 └─ assets[]
    ├─ assetId
@@ -665,7 +684,7 @@ PresentationManifest
    └─ mediaType
 ```
 
-Quest と Venue Edge は Manifest に含まれる Asset だけを取得し、size、MIME、checksum を検証してから ready とする。signed URL は Manifest の認可境界を広げず、別 session または別 Presentation revision の Asset を取得できないようにする。
+Quest と Venue Edge は Manifest に含まれる Asset だけを取得し、size、MIME、checksum を検証してから ready とする。signed URL は Manifest の認可境界を広げず、別 session または別 PublicationFence の Asset を取得できないようにする。
 
 ### 11.3 Venue Edge Cache
 
@@ -710,9 +729,9 @@ Venue Edge 配置では、Quest は Realtime と同じ session-bound Runtime JWT
 
 - JWT の audience は Realtime と Venue Edge Asset Gateway に共通の Runtime audience とする。現在の `unframe-venue-edge` から移行する具体的な値は protocol contract で確定する。
 - JWTは`realtime:connect`と`assets:read`のscopeを持ち、gRPC接続では前者、Asset Gatewayでは後者を必須とする。
-- Asset Gatewayは署名と標準時刻claimに加え、JWTの`runtimeId`、`runtimeKind: VenueEdge`、`sessionId`、`participantId`、`assignmentEpoch`、`presentationId`、`presentationRevision`を検証する。
-- URLの`sessionId`はJWTのclaimと一致し、要求された`assetId`はその`presentationRevision`のManifestに掲載されていなければならない。
-- 現在のRuntime割当とleaseが無効な場合、または別session、別revision、Manifest未掲載Assetへの要求は拒否する。request parameterでJWTの権限範囲を広げられないようにする。
+- Asset Gatewayは署名と標準時刻claimに加え、JWTの`runtimeId`、`runtimeKind: VenueEdge`、`sessionId`、`participantId`、`assignmentEpoch`、`presentationId`、`publicationEpoch`、`publicationManifestHash`を検証する。
+- URLの`sessionId`はJWTのclaimと一致し、要求された`assetId`はそのPublicationFenceのManifestに掲載されていなければならない。
+- 現在のRuntime割当とleaseが無効な場合、または別session、別PublicationFence、Manifest未掲載Assetへの要求は拒否する。request parameterでJWTの権限範囲を広げられないようにする。
 - JWTをquery parameterへ含めず、access logにも記録しない。
 - EdgeがCloudからAssetをprefetchするための短命signed URLはこのQuest認可と別のcredentialであり、Questへ渡さない。
 
@@ -722,7 +741,8 @@ Quest は session 開始前に readiness を報告する。
 
 ```text
 ViewerReadiness
-├─ presentationRevision
+├─ publicationEpoch
+├─ publicationManifestHash
 ├─ availableAssetHashes
 ├─ missingAssetHashes
 ├─ presentationOriginVersion
@@ -758,7 +778,7 @@ JWT は少なくとも次を拘束する。
 - role
 - Runtime ID / kind
 - assignment epoch
-- Presentation ID / revision
+- PublicationFence (`presentationId`、`publicationEpoch`、`publicationManifestHash`)
 - scope: 共通の `realtime:connect`、Venue Edge Asset Gateway 用の `assets:read`
 - protocol version
 - expiry / not-before
@@ -781,7 +801,7 @@ Venue Edge 配置では同じ JWT を gRPC と local HTTPS で共用するが、
 - viewer からの Element State / Cue command を拒否する。
 - message size、rate、invalid message count を制限する。
 - payload 内の participant ID / role を信頼せず、認証済み connection identity を使用する。
-- Presentation / Asset の revision と session assignment を検証する。
+- PublicationFence、Presentation / Asset manifest hash、session assignment を検証する。
 - connection、command、state更新ごとに現在の Runtime ID / kind、assignment epoch、lease が有効であることを検証する。
 
 ## 13. Failure / Recovery
@@ -820,12 +840,17 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 
 ### 13.4 Runtime process 障害
 
-- 共通 Snapshot / replay protocol と、環境固有 checkpoint store を分離する。
+- 共通CanonicalRuntimeSnapshot、用途別DurableCheckpointEnvelope、環境固有checkpoint storeを分離する。
 - Cloud Runtime は Fly.io の再起動・再配置を使用し、Venue Edge は local process supervisor で自動再起動する。
 - Cloud の durable checkpoint store と書き込み頻度、Venue Edge の local checkpoint形式・保存先・破損回復は別途決定する。
-- 再起動後に Snapshot を復元する。checkpoint が `Running` でも自動進行せず、安全側の `Paused` として復元して presenter の Runtime Resume を待つ。
+- 再起動後はassignment epoch、PublicationFence、presentation / bundle hash、schema versionを検証してCanonicalRuntimeSnapshotを復元する。checkpoint が `Running` でも自動進行せず、安全側の `Paused / processRecovered` として復元してpresenterのRuntime Resumeを待つ。
+- checkpointの`reliableSequence = S`以降を埋めるcontiguousなReliable Event log、または後続eventをすべて含む新しいcheckpointが必要である。復元不能なgapがある場合は古いcheckpointへ黙ってrollbackせず、Pausedのままsession failureを報告する。
+- connection registry、presence、Tracking Frame、Anchor sample、sample window、zone membership、hysteresis、edge detector stateは復元しない。Questの再認証とfresh Tracking Frameから再構築する。
+- v1では同じassignment epoch内のprocess recoveryだけを扱い、別Runtimeまたは新しいassignment epochへのlive migration入力としてcheckpointを流用しない。
 - Quest は exponential backoff と jitter で同じ endpoint へ再接続する。
 - 復旧不能時は Cloud Control Plane へ session failure を報告する。
+
+現行のControl Plane checkpoint APIとRealtime persistence callbackはopaque payloadを運ぶ部分実装であり、上記envelope検証、logical clock、reliable log recoveryが接続済みであるとはみなさない。
 
 ### 13.5 Asset取得・cache障害
 
@@ -919,12 +944,16 @@ Cloud Runtime は集約基盤へ直接 metrics を送り、Venue Edge は短時�
 
 - valid / invalid JWT、audience、scope、role enforcement
 - Runtime kind / ID、assignment epoch、lease更新、期限切れ、再割り当て時のfencing
+- Session作成時のPublicationFence固定、非終了Session中のpublish拒否、古いpublication credential / Snapshot / State Frameの拒否
 - session 共通の Presentation Origin 更新と participant 単位の calibration revision
 - lossy Pose と reliableな離散 Input Event による Trigger 発火
 - 同一 Step の Cue priority / debounce / duplicate
 - 複数 Action / Transition の同時実行
 - snapshot / replay / late join
 - Snapshot cutとReliable購読のatomic handoff、およびControl / State逆順到着
+- canonical / presence cut後のparticipant projection、serialization、compression、hashingがsession critical section外で行われること
+- projection中のbounded replay queue overflowで生成中のConnectionSnapshotEnvelopeを破棄し、新しいcutから収束すること
+- DurableCheckpointEnvelopeがconnection presence、Tracking Frame、Anchor sample、sample window、zone membership、hysteresis、edge detector stateを含まないこと
 - StateMailboxのfield単位merge、single in-flight Send、State再確立後のkeyframe収束
 - State Connectionだけを再確立する場合とSnapshotを伴うConnection Resumeの分岐
 - Connection ResumeとRuntime Resumeの独立性
@@ -932,7 +961,7 @@ Cloud Runtime は集約基盤へ直接 metrics を送り、Venue Edge は短時�
 - Presenter / viewerのConnection Resume
 - Cloud signed URL の認可・checksum・CDN Range Requests
 - Venue Edge Asset prefetch / checksum / Range Requests / cache hit
-- Asset取得のsession、assignment epoch、Presentation revision、Manifest境界
+- Asset取得のsession、assignment epoch、PublicationFence、Manifest境界
 - Unity client のControl / State 2接続、bootstrap、nonce、再接続、main threadへの適用
 - session終了とCloud completion
 
@@ -1049,8 +1078,8 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Cue priority、排他、再発火、debounce
 - Transition tick rateとElement種別ごとの配信rate
 - position / rotationの量子化精度
-- Snapshot schema、Reliable Event保持量、atomic cut、replay上限
-- Cloud durable checkpointとVenue Edge local checkpointで同じSnapshotを使う永続化contract
+- ConnectionSnapshotEnvelope / DurableCheckpointEnvelopeの正確なProtobuf schema、Reliable Event保持量、replay上限
+- Cloud durable checkpointとVenue Edge local checkpointにおけるDurableCheckpointEnvelopeの保存先、書き込み頻度、atomic replacement、破損回復
 - Presenter再接続timeout
 - `stateWriteBlockTimeout`と`stateMaxFrameAge`の初期値
 - State transportをgRPCから変更する判断基準となるUX latency budget

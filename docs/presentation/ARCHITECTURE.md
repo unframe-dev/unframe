@@ -45,7 +45,7 @@ Presentation Orchestrator / Component Manifest / Component Structure
 PresentationDefinition JSON + RenderBundle + Asset Set
         │ publish
         ▼
-Immutable Release
+Current Published Presentation
         │
         ├─ Delivery path
         │  └─ Control Plane
@@ -61,7 +61,7 @@ Immutable Release
         │     └─ Viewer
         │
         └─ Session path
-           └─ Room / Session (pins Release)
+           └─ Room (references Presentation) / Session (pins PublicationFence)
                   │
                   ▼
               Venue Edge
@@ -85,7 +85,7 @@ Immutable Release
 - Control Plane と Unity Runtime は Authoring Source、React、CSS、renderer source を実行しない。
 - PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
 - Presentation の意味、build 成果物、配信 projection、実行中状態を別の契約として扱う。
-- Room と Session は immutable Release を参照し、実行中に Draft を直接参照しない。
+- Presentation は公開済みの実行物を一つだけ持つ。Room は Presentation を参照し、Session は作成時の PublicationFence を固定して実行中に Draft や後続 publish を参照しない。
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を ID の代わりに使用しない。
 
 ## 3. 契約の階層
@@ -166,7 +166,7 @@ Unity Runtime 向けに解決した delivery envelope である。共有可能�
 
 ```text
 DeliveryManifest
-├─ Presentation / RenderBundle revision
+├─ PublicationFence / PresentationDefinition / RenderBundle hash
 ├─ ProjectionProfileDescriptor またはその参照
 │  ├─ Runtime renderer graph
 │  ├─ Selected renderer and resolution
@@ -178,8 +178,14 @@ DeliveryManifest
 ```
 
 ```ts
+type PublicationFence = {
+  presentationId: PresentationId;
+  publicationEpoch: number;
+  publicationManifestHash: ContentHash;
+};
+
 type ProjectionProfileKey = {
-  releaseId: ReleaseId;
+  publication: PublicationFence;
   role: SessionRole;
   capabilityProfileId: CapabilityProfileId;
 };
@@ -200,15 +206,40 @@ type ProjectionInstance = {
 };
 ```
 
-Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`ProjectionProfileId` は descriptor の canonical content と projection contract version に対応し、同じ Release、role、正規化済み capability profile の participant ごとに作り直さない。
+Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`ProjectionProfileId` は descriptor の canonical content と projection contract version に対応し、同じ PublicationFence、role、正規化済み capability profile の participant ごとに作り直さない。
 
 Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed URL を含まない。これらの participant / assignment 固有値と期限付き Asset access binding は DeliveryManifest の instance 側で解決する。client が申告した capability を authorization に使用せず、Control Plane が正規化・検証した `CapabilityProfileId` は renderer compatibility の選択だけに使用する。
 
 配布形式は Protobuf を第一候補とするが、具体的な schema と versioning は別途決定する。
 
-### 3.6 Immutable Release
+### 3.6 Published Presentation と active-use lock
 
-Release は、互いに整合する PresentationDefinition、RenderBundle、Asset Set、contract version を束ねる publish 済みの immutable な実行単位である。Room と Session は Release ID を pin し、Delivery、Snapshot、Reliable Event は同じ Release を参照する。
+Presentation は過去の公開版を選択可能な履歴として保持せず、互いに整合する PresentationDefinition、RenderBundle、Asset Set、contract version を束ねた公開済み実行物を一つだけ持つ。公開済み実行物は一つの immutable value とし、更新時は内部 artifact を差し替えず、新しい value へ atomic に置換する。
+
+```ts
+type PublishedPresentation = PublicationFence & {
+  sourceDraftRevision: number;
+  buildId: PresentationBuildId;
+  definitionHash: ContentHash;
+  renderBundleHash: ContentHash;
+  assetSetHash: ContentHash;
+  contractVersions: ContractVersions;
+};
+
+type SessionPublicationBinding = PublicationFence & {
+  sessionId: SessionId;
+};
+```
+
+`publicationEpoch` は Presentation ごとに単調増加し、過去版を閲覧・選択するためではなく、古い Assignment、credential、DeliveryManifest、Snapshot、Reliable Event、State Frame を拒否する fence とする。`publicationManifestHash` は自身の field を除く PublishedPresentation の canonical manifest から計算し、Definition、RenderBundle、Asset Set、contract version の組み合わせを検証する。
+
+Room は `presentationId` だけを参照し、公開版を選択しない。Session 作成時に Control Plane がその Presentation の現在の PublicationFence を `SessionPublicationBinding` としてコピーし、`Waiting`、`Presenting`、`Ended` の全期間で変更しない。新しい Session は常に作成時点の最新公開物を使用し、未publishのPresentationからはSessionを作成できない。
+
+同じ Presentation を参照する `Waiting` または `Presenting` Session が一つでも存在する間、Control Plane は publish を拒否する。Session 作成と publish は同じ永続化境界で直列化し、publish と同時に古い公開物を参照する Session が作られないようにする。`Ended` だけが publish lock を解放する。
+
+active-use lock 中も Draft 編集と build は許可する。publish は `expectedDraftRevision`、`buildId`、build の source revision、artifact hash、Asset readiness を検証し、すべて一致する場合だけ `publicationEpoch` を増やして現在の PublishedPresentation を atomic に置換する。Draft が build 後に更新されていれば conflict とし、暗黙に最新 Draft を取り込まない。
+
+過去の PublishedPresentation を rollback や Room ごとの選択肢として保持しない。置換前 artifact は active Session から参照されないことを確認した後、Draft、Build cache、監査保持など別の参照がなければ GC できる。監査 log に epoch と hash を残すことは、過去の実行 artifact を製品機能として保持することを意味しない。
 
 ### 3.7 Runtime State
 
@@ -233,11 +264,10 @@ type SharedRuntimeState = {
   variables: Record<VariableId, Scalar>;
   activeRuns: RuntimeRunSnapshot[];
   presentationOrigin: PresentationOrigin;
-  presence: SharedPresenceState;
 };
 ```
 
-Progression、確定した resource state、Presentation Origin、Presence は Snapshot / Reliable Event へ反映する。Presenter Anchor sample、Timeline の frame 間補間値などの高頻度値も Venue Edge authority だが、latest-wins の sampled state とし、raw sample history を Snapshot や Reliable Event に含めない。
+Progression、確定した resource state、Presentation Origin は Snapshot / Reliable Event へ反映する。Connection presence、Presenter Anchor sample、tracking-derived edge memory、Timeline の frame 間補間値は Venue Edge が生成する ephemeral runtime state とし、durable restore 対象へ含めない。Presence は authenticated connection registry から、tracking state は復旧後の新しい Tracking Frame から再構築する。
 
 v1 は participant ごとに異なる server-authoritative Variable、Surface State、Progression を持たない。将来必要になった場合は明示的な `ParticipantRuntimeState` contract を追加し、Participant Runtime View や Client-local State を writable canonical state として流用しない。
 
@@ -256,7 +286,6 @@ type ParticipantRuntimeView = {
   mediaStates: Record<SurfaceId, MediaRuntimeState>;
   variables: Record<VariableId, Scalar>;
   activeRuns: RuntimeRunSnapshot[];
-  presence: ProjectedPresenceState;
   enabledLogicalInputs: LogicalEventName[];
 };
 
@@ -268,7 +297,7 @@ type ProjectedRuntimeSnapshot = {
 };
 ```
 
-Control Plane は Release、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。Venue Edge はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
+Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。Venue Edge はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
 
 Role による visibility と ResourceOwner による lifetime は別概念とする。
 
@@ -280,7 +309,7 @@ type ProjectionAudience =
 
 Projection は参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
 
-Presenter notes の内容は Release 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
+Presenter notes の内容は PublishedPresentation 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
 
 #### Client-local State
 
@@ -816,7 +845,7 @@ type SpatialParent =
     };
 ```
 
-Shared Spatial Tree の Anchor owner は v1 では Session の Presenter だけとする。`ParticipantId` は Session 実行時の identity であり、PresentationDefinition、RenderBundle、Release へ埋め込まない。Viewer 自身の head / hand へ配置する UI は Shared Spatial Tree の node とせず、ProjectionProfileDescriptor の Local Overlay definition と Client-local State の `self` Anchor で表現する。
+Shared Spatial Tree の Anchor owner は v1 では Session の Presenter だけとする。`ParticipantId` は Session 実行時の identity であり、PresentationDefinition、RenderBundle、PublishedPresentation へ埋め込まない。Viewer 自身の head / hand へ配置する UI は Shared Spatial Tree の node とせず、ProjectionProfileDescriptor の Local Overlay definition と Client-local State の `self` Anchor で表現する。
 
 Presenter Anchor が利用できない場合、別 participant の Anchor や Stage origin へ暗黙に fallback しない。対象の Anchor binding を unavailable とし、その Anchor を subject とする Trigger は成立させない。unavailable 中の描画方針は Delivery / Runtime projection contract で固定する。
 
@@ -1179,6 +1208,8 @@ type ProgressionPhase =
   | {
       kind: "transitioning";
       cueId: CueId;
+      causeEventId: string;
+      stepEntryEpoch: number;
       blockingRunIds: RuntimeRunId[];
       pendingNext: CueDefinition["next"];
     };
@@ -1199,11 +1230,88 @@ type RuntimeRunOwner =
       groupId: GroupId;
       groupEntryEpoch: number;
     };
+
+type RuntimeClockSnapshot = {
+  runtimeTimeMilliseconds: number;
+  lifecycle:
+    | { kind: "running" }
+    | { kind: "paused"; reason: PauseReason }
+    | { kind: "terminating" };
+};
+
+type StepTimerState =
+  | {
+      kind: "armed";
+      dueAtRuntimeTimeMilliseconds: number;
+    }
+  | { kind: "fired" };
+
+type StepExecutionSnapshot = {
+  stepEntryEpoch: number;
+  consumedCueIds: CueId[];
+  cooldownUntilRuntimeTimeMilliseconds: Record<CueId, number>;
+  timerStates: Record<CueId, StepTimerState>;
+};
+
+type RuntimeRunCause = {
+  cueId: CueId;
+  causeEventId: string;
+  groupId: GroupId;
+  groupEntryEpoch: number;
+  stepId: StepId;
+  stepEntryEpoch: number;
+};
+
+type RuntimeRunBase = {
+  runId: RuntimeRunId;
+  owner: RuntimeRunOwner;
+  cause: RuntimeRunCause;
+  startedAtRuntimeTimeMilliseconds: number;
+};
+
+type RuntimeRunSnapshot =
+  | (RuntimeRunBase & {
+      kind: "surfaceTransition";
+      completion: "blocking";
+      surfaceId: SemanticSurfaceId;
+      fromStateId: SurfaceStateId;
+      toStateId: SurfaceStateId;
+      durationMilliseconds: number;
+      easing: Easing;
+    })
+  | (RuntimeRunBase & {
+      kind: "timeline";
+      completion: "blocking" | "nonBlocking";
+      timelineId: TimelineId;
+    })
+  | (RuntimeRunBase & {
+      kind: "media";
+      completion: "nonBlocking";
+      surfaceId: SemanticSurfaceId;
+      playback:
+        | {
+            kind: "playing";
+            positionAtReferenceMilliseconds: number;
+            referenceRuntimeTimeMilliseconds: number;
+          }
+        | {
+            kind: "paused";
+            positionMilliseconds: number;
+          };
+    });
 ```
 
-Timer、Cue 消費状態、cooldown は `stepEntryEpoch` に属する。これにより self transition と Group reentry の後に、古い Step entry の timer や once 実行状態を復元しない。
+`runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ Venue Edge の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
 
-Surface transition、Timeline、Media は共通の **Runtime Run** として追跡する。各 Run は `runId`、`RuntimeRunOwner`、原因 Cue、開始 runtime time、完了条件、状態を持つ。Surface transition と Media Run は Semantic Surface、Timeline Run は Timeline Definition から owner を継承する。group-owned Run は開始時の `groupEntryEpoch` を固定し、同じ Group の再入場後に以前の completion を適用しない。blocking run は Progression Phase の `blockingRunIds` と対応し、Snapshot から復元できなければならない。
+Timer、Cue 消費状態、cooldown は `stepEntryEpoch` に属する。`oncePerStepEntry` で受理した Cue だけを `consumedCueIds` に記録し、cooldown は次に受理可能な logical runtime time を保持する。Timer は Step entry 時に一度だけ arm し、deadline 到達時に一度だけ event 化する。Guard 不成立または別 Cue の選択により受理されなかった場合も `fired` とし、同じ Step entry で暗黙に再試行しない。Step exit と self transition では旧 StepExecutionSnapshot を破棄する。
+
+Surface transition、Timeline、Media は共通の **Runtime Run** として追跡する。Snapshot は active Run だけを含み、completed / canceled Run は除去して最終 resource state と Reliable Event へ反映済みにする。Surface transition と Media Run は Semantic Surface、Timeline Run は Timeline Definition から owner を継承する。group-owned Run は開始時の `groupEntryEpoch` を固定し、同じ Group の再入場後に以前の completion を適用しない。
+
+Surface transition の duration と easing は Run が正本とする。Timeline の duration と absolute track は Session が固定した PublishedPresentation の TimelineDefinition から解決し、開始時の client 描画値を保存しない。Media は logical runtime time 上の reference position、または明示的に pause した position を保持する。Global Pause は clock の停止で表現し、Run ごとの pause 補正値を持たない。
+
+`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成し、Snapshot は allocator の最終 sequence を保持する。serialized encoding は下位 wire contract で固定する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement を completion source にしない。
+
+blocking Run は Progression Phase の `blockingRunIds` と一対一に対応する。completion ごとに active Run と blocking set から除去し、最後の blocking Run が完了した時だけ `pendingNext` を atomic に適用する。存在しない Run、完了済み Run、古い Group / Step epoch に対する completion は stale として状態を変更しない。
 
 `transitioning` 中は、Timeline 完了などの内部イベントを除く通常の Trigger input を無視する。v1 では input queue や任意 interrupt を持たない。
 
@@ -1220,14 +1328,7 @@ type SurfaceStateDefinition = {
 
 type SurfaceRuntimeState = {
   stateId: SurfaceStateId;
-  transition?: {
-    runId: RuntimeRunId;
-    fromStateId: SurfaceStateId;
-    toStateId: SurfaceStateId;
-    startedAtRuntimeTime: number;
-    durationMilliseconds: number;
-    easing: Easing;
-  };
+  transitionRunId?: RuntimeRunId;
 };
 ```
 
@@ -1242,7 +1343,7 @@ type NodeRuntimeState = {
 };
 ```
 
-`surface.setState` を受理した時点で Semantic Surface の canonical `stateId` は遷移先へ変更する。Crossfade 中の旧状態、開始時刻、duration は `transition` に保持し、`runId` で対応する Runtime Run と結びつける。Guard と canonical Semantic Tree が参照する Surface State は遷移先の `stateId` とする。
+`surface.setState` を受理した時点で Semantic Surface の canonical `stateId` は遷移先へ変更する。Crossfade 中の旧状態、開始 logical runtime time、duration、easing は `surfaceTransition` Run だけが所有し、SurfaceRuntimeState はその `runId` を参照する。Guard と canonical Semantic Tree が参照する Surface State は遷移先の `stateId` とする。
 
 同じ Semantic Surface に属するすべての Render Surface はこの一つの transition と `runId` を投影し、個別に state や完了時刻を決定しない。一つでも必要な state binding を欠く RenderBundle は Delivery 前に拒否する。
 
@@ -1347,7 +1448,7 @@ participant 起点の canonical event は、認証済み Realtime connection の
 
 `surfaceInteraction` は現在の canonical Surface State において対象 Interaction が存在し、有効である場合だけ成立する。client が申告した Surface State は判定に使用しない。v1 の `logicalInput` と `surfaceInteraction` は Presenter actor、Timeline / Media / Timer completion は対応する System source だけを受理する。通常の `semanticEvent` は宣言した selector を照合する。Compiler は producer と actor selector の不正な組み合わせを build error とする。
 
-Zone と Motion は Venue Edge が認証済み Presenter Tracking Stream から評価し、edge 成立時に `actor = system / tracking`、`subject = Presenter またはその Anchor` の内部イベントへ変換する。subject selector は現在の Session Presenter を concrete `participantId` へ解決する。Raw Pose は Reliable Event として replay せず、現在の zone membership や hysteresis など、誤再発火を防ぐための小さな edge detector state だけを Snapshot に含める。
+Zone と Motion は Venue Edge が認証済み Presenter Tracking Stream から評価し、edge 成立時に `actor = system / tracking`、`subject = Presenter またはその Anchor` の内部イベントへ変換する。subject selector は現在の Session Presenter を concrete `participantId` へ解決する。Raw Pose、現在の zone membership、hysteresis、edge detector state は process-local な tracking state とし、Reliable Event、Canonical Runtime Snapshot、durable checkpoint に含めない。process recovery 後は fresh Tracking Frame の現在値から detector を seed し、復旧そのものを enter / exit / motion edge として扱わない。
 
 ```ts
 type RuntimeInputEvent = {
@@ -1484,15 +1585,15 @@ type TimelineDefinition = {
 - Timeline の開始・完了は Venue Edge の monotonic runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
 - Runtime は開始時刻と Timeline 定義を配信し、各 client はローカル補間する。補間結果を毎 frame Reliable Event として送信しない。
 
-Pause 中は Timeline と media playback の runtime clock を進めない。Runtime Resume 時は pause duration を除外して基準時刻を再計算する。
+Pause 中は Session の logical runtime clock 自体を進めないため、Timeline、Surface transition、playing Media の基準時刻を個別に補正しない。Runtime Resume 後は同じ logical runtime time から進行を再開する。
 
 ### 12.9 Cue の選択と遷移手順
 
 一つの Runtime Input Event を次の順序で処理する。
 
-1. Runtime が `Running` であり、session、role、release、assignment、lease、Presentation Origin version が一致することを検証する。
+1. Runtime が `Running` であり、session、role、PublicationFence、assignment、lease、Presentation Origin version が一致することを検証する。
 2. `eventId` を bounded idempotency window で重複排除し、新規イベントへ `ingressSequence` を割り当てる。
-3. Venue Edge の monotonic clock を進め、現在時刻以前の内部 completion event を先に処理する。
+3. Venue Edge の monotonic clock 差分から Session logical runtime clock を進め、現在の logical runtime time 以前の内部 completion event を先に処理する。
 4. 現在の Group / Step に属する Cue から、Trigger、Guard、fire policy、cooldown を満たす候補を作る。
 5. `priority` 降順、`order` 昇順、`cueId` 辞書順で候補を並べ、先頭の一件だけを選択する。
 6. 選択した Cue の Action batch と `next` を事前検証する。
@@ -1504,6 +1605,8 @@ Pause 中は Timeline と media playback の runtime clock を進めない。Run
 同じ `priority` と `order` を持つ Cue は build validation error とする。Runtime の `cueId` 比較は、不正な Delivery を受けた場合にも結果を決定的にするための fallback である。
 
 `eventId` による transport 上の重複排除、`oncePerStepEntry` による意味論的な一回実行、`cooldownMilliseconds` による連続入力抑制は別の機能として管理する。Cooldown は leading-edge とし、window 終了後の暗黙的な trailing 発火は行わない。
+
+同じlogical runtime timeに複数のTimer / Run completionが成立する場合は、versionedなevent kind順、stable target ID順、runId順で一意に並べてから一件ずつ処理する。Action batchから同時にRunを生成する場合もAction配列順を使わず、同じcanonical target順でrun sequenceを割り当てる。
 
 ### 12.10 Group lifecycle
 
@@ -1540,53 +1643,87 @@ RuntimeStatusChanged
 GroupEntered / GroupExited
 CueAccepted
 SurfaceStateChanged
+SurfaceTransitionStarted / SurfaceTransitionCompleted
 NodeStateCommitted
 TimelineStarted / TimelineCompleted / TimelineCanceled
+MediaStarted / MediaPaused / MediaSeeked / MediaCompleted
 VariableChanged
 StepEntered
 PresentationEnded
 ```
 
-Reliable Event は session 内で単調増加する `sequence`、冪等適用用の `eventId`、原因となった `causeEventId`、runtime time、release と origin の識別情報を持つ。Texture variant や Unity renderer 情報は payload に含めない。
+Reliable Event は session 内で単調増加する `sequence`、冪等適用用の `eventId`、原因となった `causeEventId`、runtime time、PublicationFence と origin の識別情報を持つ。Texture variant や Unity renderer 情報は payload に含めない。
 
 Pose、Timeline の毎 frame 補間値、連続的な Element State frame は latest-wins の State Stream とし、event log へ保存しない。離散的な Cue 採用と最終状態は Reliable Event と Snapshot の両方へ反映する。
 
 ```ts
-type SharedRuntimeSnapshot = {
-  snapshotVersion: number;
-  runtimeId: RuntimeId;
-  releaseId: ReleaseId;
-  presentationRevision: number;
-  definitionHash: string;
-  renderBundleHash: string;
+type CanonicalRuntimeSnapshot = {
   reliableSequence: number;
+  lastIngressSequence: number;
+  lastAllocatedRunSequence: number;
+  clock: RuntimeClockSnapshot;
 
-  runtimeStatus: "running" | "paused" | "terminating";
   progression: ProgressionRuntimeState;
+  stepExecution: StepExecutionSnapshot;
   surfaceStates: Record<SurfaceId, SurfaceRuntimeState>;
   nodeStates: Record<NodeId, NodeRuntimeState>;
   mediaStates: Record<SurfaceId, MediaRuntimeState>;
   variables: Record<VariableId, Scalar>;
   activeRuns: RuntimeRunSnapshot[];
   presentationOrigin: PresentationOrigin;
-  presence: SharedPresenceState;
-
-  stepCueState: {
-    stepEntryEpoch: number;
-    consumedCueIds: CueId[];
-    cooldownDeadlines: Record<CueId, number>;
-    timerDeadlines: Record<CueId, number>;
-  };
   recentEventIds: string[];
-  triggerEdgeMemory: TriggerEdgeMemory;
+};
+
+type ConnectionSnapshotEnvelope = {
+  connectionSnapshotSchemaVersion: number;
+  sessionId: SessionId;
+  connectionId: ConnectionId;
+  publication: PublicationFence;
+  projectionInstance: ProjectionInstance;
+  presenceAtCut: ProjectedPresenceState;
+  snapshot: ProjectedRuntimeSnapshot;
+};
+
+type DurableCheckpointEnvelope = {
+  checkpointSchemaVersion: number;
+  checkpointSequence: number;
+  sessionId: SessionId;
+  runtimeId: RuntimeId;
+  runtimeKind: RuntimeKind;
+  assignmentEpoch: number;
+  publication: PublicationFence;
+  definitionHash: string;
+  renderBundleHash: string;
+  reliableSequence: number;
+  canonicalSnapshotHash: string;
+  payload: SerializedCanonicalRuntimeSnapshot;
 };
 ```
 
-`surfaceStates`、`nodeStates`、`mediaStates`、`variables`、`activeRuns` は presentation-owned resource と Snapshot の `currentGroupId` に属する resource だけを含む。group-owned Runtime Run は `groupId` と `groupEntryEpoch` が Snapshot の progression と一致しなければならない。inactive Group の状態を暗黙的な checkpoint として保持しない。
+`CanonicalRuntimeSnapshot` は renderer、participant、connection、transport、serialization format から独立した Shared Runtime State の immutable value とする。`surfaceStates`、`nodeStates`、`mediaStates`、`variables`、`activeRuns` は presentation-owned resource と Snapshot の `currentGroupId` に属する resource だけを含む。group-owned Runtime Run は `groupId` と `groupEntryEpoch` が Snapshot の progression と一致しなければならない。inactive Group の状態を暗黙的な checkpoint として保持しない。
 
-`SharedRuntimeSnapshot` は Venue Edge の recovery と canonical state transfer に使用する内部 contract であり、client へそのまま配信しない。再接続 client は自身の `ProjectionInstance` に対応する `ProjectedRuntimeSnapshot` を適用した後、同じ `projectionProfileId` と `assignmentEpoch` を持つ `reliableSequence + 1` 以降の projected Reliable Event を順序適用する。不一致の場合は DeliveryManifest と Snapshot を再取得する。
+Connection Resume では session coordinator の critical section 内で次だけを行う。
 
-Timeline の tick 履歴は replay せず、Runtime Run の開始時刻と elapsed から現在値を再計算する。Definition、RenderBundle、Snapshot の hash または revision が一致しない場合は実行を開始しない。Shared / Projected Snapshot の正確な wire schema と recovery 手順は次の Runtime Run / Snapshot follow-up で固定する。
+1. logical runtime time `T` 以前の内部 completion を処理する。
+2. Reliable sequence `S` 時点の canonical state と Connection presence を immutable value として freeze / copy する。
+3. 対象 connection を `S + 1` 以降の Reliable Event subscriber として登録する。
+4. critical section を解放する。
+
+Participant projection、Projected Runtime Snapshot の構築、serialization、compression、hashing、network write は critical section 外で行う。lock 外でlive mutable mapを読むことは禁止し、lock内でfreezeしたimmutable valueまたはstructural sharingされたsnapshotだけを入力にする。projection中にbounded replay queueがoverflowした場合は生成中のConnectionSnapshotEnvelopeを破棄し、新しいcutからやり直す。
+
+Durable checkpointもlock内ではCanonicalRuntimeSnapshotのimmutable cutと`checkpointSequence`の割り当てだけを行い、serialization、hashing、persistence callbackはlock外で行う。DurableCheckpointEnvelopeはassignment、PublicationFence、artifact hash、schemaをfenceする外側のcontractであり、canonical stateへparticipant / connection固有値を混入させない。
+
+Connection presenceは`presenceAtCut`としてConnectionSnapshotEnvelopeにだけ含め、durable checkpointへ保存しない。process recovery後のconnection registryは空から再構築する。Raw Tracking Frame、Presenter Anchor sample、tracking sample window、zone membership、hysteresisを含むTrigger edge memoryもdurable restore対象にしない。復旧後はAnchorをunavailableとしてFresh Tracking Frameを待ち、現在値からedge detectorをseedして疑似enter / exit / motionを発火させない。
+
+再接続clientはConnectionSnapshotEnvelopeのProjectedRuntimeSnapshotを適用した後、同じ`projectionProfileId`と`assignmentEpoch`を持つ`S + 1`以降のprojected Reliable Eventを順序適用する。不一致の場合はDeliveryManifestと新しいConnection Snapshotを取得する。Control側がcatch upした後、State Streamのkeyframeでsnapshot対象外のlatest-wins stateへ収束する。
+
+Snapshot cut前にlogical runtime time `T`以下のarmed TimerとRun completionをすべて処理し、CanonicalRuntimeSnapshotに期限切れのscheduleを残さない。同一deadlineの内部eventはevent kindとstable target IDによるversioned canonical順序で処理し、goroutine、OS scheduler、map iteration順へ依存させない。restore時はactiveRunsとarmed Timerから内部scheduleを再構築する。
+
+process recoveryではschema、session、runtime、assignment epoch、PublicationFence、Definition / RenderBundle hash、すべてのresource / Run参照を検証する。保存時に`running`でもlogical clockを保存時点で停止し、`paused / processRecovered`として復元してPresenterの明示的なRuntime Resumeを待つ。別assignment epochへのrestoreはlive migrationになるためv1では行わない。
+
+Durable recoveryにはSnapshotの`reliableSequence = S`以降を埋めるcontiguousなReliable Event log、または後続eventをすべて含む新しいcheckpointが必要である。復元不能なgapがある場合、古いSnapshotへ黙ってrollbackして実行を再開せず、Pausedのままsession failureとして扱う。現行Control Planeのopaque checkpoint callbackとRealtimeのpause primitiveは部分実装であり、このtarget recovery contractが接続済みであるとはみなさない。
+
+Timelineのtick履歴はreplayせず、logical runtime timeとactive Runから現在値を再計算する。Projected Runtime SnapshotはCanonicalRuntimeSnapshotから生成する派生物であり、durable recoveryの入力に使用しない。
 
 ### 12.12 v1 validation requirements
 
@@ -1597,7 +1734,7 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - すべての group owner が存在し、resource kind ごとの ID が PresentationDefinition 全体で一意である。
 - presentation-owned resource が group-owned resource を参照せず、Group G-owned resource / Cue が別 Group の resource を参照しない。
 - Spatial parent、Timeline target、Component Instance から生成した resource、SurfaceNode から継承する resource の owner が lifetime 規則と一致する。
-- PresentationDefinition と Release に concrete `ParticipantId` が含まれず、Shared Spatial Tree の Anchor owner が Presenter selector だけである。
+- PresentationDefinition と PublishedPresentation に concrete `ParticipantId` が含まれず、Shared Spatial Tree の Anchor owner が Presenter selector だけである。
 - Trigger の actor / subject selector と producer の組み合わせが 12.5 の規則に一致し、Viewer input から Shared Action へ到達する経路がない。
 - participant actor が認証済み connection identity から、System actor が許可された内部 event source からだけ生成される。
 - 同じ `ProjectionProfileKey` が同じ canonical profile を生成し、profile に participant / assignment 固有値や Signed URL が含まれない。
@@ -1612,12 +1749,17 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - Surface transition 中に interaction が有効化されない。
 - Group exit をまたいで blocking run が残らない。
 - group-owned Runtime Run の `groupId` と `groupEntryEpoch` が現在の Group entry と一致する。
-- Snapshot が Step entry、timer deadline、Cue state、active Runtime Run を復元できる。
+- Snapshot の clock、StepExecutionSnapshot、active Runtime Run、allocator sequence から同じ logical deadline と Run identity を復元できる。
+- `ProgressionPhase.blockingRunIds`、Surface の `transitionRunId`、Media state が同じ active Runを参照し、completed / canceled RunがSnapshotに残らない。
+- armed Timerとactive RunのdeadlineがSnapshot cutのlogical runtime timeより後であり、同一deadlineの処理順がcanonicalである。
 - Snapshot が presentation-owned resource と current Group-owned resource だけを含む。
+- CanonicalRuntimeSnapshot にparticipant、connection、Projection、renderer、Presence、tracking sample、Trigger edge memoryが含まれない。
+- ConnectionSnapshotEnvelopeとDurableCheckpointEnvelopeが同じcanonical cutを用途別に包み、Durable側にconnection presenceが含まれない。
+- Snapshot projection、serialization、compression、hashingがsession critical section外でimmutable cutだけを入力に実行される。
 - zero-duration の内部イベントだけで到達できる無限遷移がない。
 - Snapshot に renderer artifact ID、Signed URL、raw Pose history が含まれない。
 
-Conformance test では、event の重複、Cue 競合、cooldown、遷移中の追加入力、Timeline conflict、scope を越える不正参照、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、profile の共有と participant 固有値の隔離、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Pause / Resume、Snapshot + Replay 後の状態一致を検証する。
+Conformance test では、event の重複、Cue 競合、cooldown、Timer fire済み状態、同一deadlineの順序、遷移中の追加入力、Timeline conflict、active Runの復元とstale completion、scope を越える不正参照、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、profile の共有と participant 固有値の隔離、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflow、logical clockのPause / Resume、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
 
 ### 12.13 Example
 
@@ -1822,7 +1964,7 @@ Browser capture / Native UI plan / Video generation
         ↓
 Canonical PresentationDefinition JSON + RenderBundle
         ↓ publish
-Immutable Release
+Current Published Presentation
         ↓ Control Plane validation and role / capability projection
 DeliveryManifest
         ↓
@@ -1851,14 +1993,14 @@ Static lowering が参照できる入力は、Authoring Source、lock された 
 - Authoring source や renderer implementation を実行しない。
 - PresentationDefinition と RenderBundle の schema、hash、revision を検証する。
 - Asset ownership、ready status、checksum を検証する。
-- Release、認可済み role、正規化済み capability profile から共有可能な ProjectionProfileDescriptor を生成する。
+- 現在の PublishedPresentation、認可済み role、正規化済み capability profile から共有可能な ProjectionProfileDescriptor を生成する。
 - profile を participant / assignment 固有の ProjectionInstance と Asset access binding へ結合して DeliveryManifest を生成する。
 - Signed URL を生成し、永続化しない。
 - Definition と RenderBundle の異なる revision を混在させない。
 
-### Immutable Release
+### Published Presentation
 
-Release は publish された `PresentationDefinition`、`RenderBundle`、Asset Set、各 contract version を一つに束ねた immutable な実行単位である。Room と Session は一つの Release を pin し、Snapshot と Reliable Event はその Release を識別する。Draft の変更を active Room へ反映する方法、または Session 中に Release を差し替える方法は、この文書では決めない。
+Control Plane は Presentation ごとに現在の PublishedPresentation を一つだけ保持する。Room は Presentation を参照し、Session 作成時に現在の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish できず、Draft 編集と build の結果も既存 Session へ反映しない。すべての非終了 Session がなくなった後の明示的な publish でだけ、公開済み実行物を atomic に置き換える。
 
 ### Unity Runtime
 
@@ -1899,7 +2041,7 @@ presentation/
    └─ generated-assets/
 ```
 
-`.unframe-cache/renderers/` は Local Compiler が Opaque renderer source から再生成できる中間 bundle を保持できるが、version control、publish、Release には含めない。Release に含める renderer artifact は RenderBundle の一部として hash と provenance を固定する。
+`.unframe-cache/renderers/` は Local Compiler が Opaque renderer source から再生成できる中間 bundle を保持できるが、version control や publish には含めない。PublishedPresentation に含める renderer artifact は RenderBundle の一部として hash と provenance を固定する。
 
 `dist/presentation.definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
@@ -1912,6 +2054,7 @@ presentation/
 - Control Plane の `PresentationDefinition` は JSON/OpenAPI 契約である。
 - 現行 Definition は metadata、stage、asset references、Group、Element、Anchored Element Group、Step、Cue、Trigger、Action、Transition を持つ。
 - Control Plane は Definition 全体を revision 条件付きで原子的に保存する。
+- 現行 Session は `presentationId` を持つが PublicationFence を保存せず、RuntimeAssignment は mutable な Presentation revision を fence に使用している。
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
@@ -1928,6 +2071,7 @@ presentation/
 - Frame Layout、Theme、Token、Named Style
 - Surface Render Intent
 - RenderBundle
+- 単一の PublishedPresentation、PublicationFence、非終了 Session と直列化した publish lock
 - Surface State artifact、semantic tree、hit region
 - v1 Presentation Progression semantic model の実装と、Progression wire / Runtime contract
 - Native UI portable contract
@@ -1975,7 +2119,7 @@ presentation/
 - Surface State は意味論的 ID とし、renderer artifact から分離する。
 - blocking run の完了後に次の Step へ進み、遷移中の通常 input は無視する。
 - Group 再入場は reset とし、Snapshot と Reliable Event から同じ進行状態へ収束できるようにする。
-- Room / Session は immutable Release を pin し、Draft と実行中の状態を混在させない。
+- Presentation は公開済み実行物を一つだけ持ち、非終了 Session 中の publish を禁止する。Room は Presentation を参照し、Session は作成時の PublicationFence を固定して Draft と実行中の状態を混在させない。
 
 ## 19. Follow-ups
 
@@ -1990,15 +2134,15 @@ presentation/
 - [x] Group scope / presentation scope の resource owner、参照方向、lifecycle、Runtime State 保持規則を 7.1 と 12.2〜12.12 で定義した。
 - [x] actor、subject、Anchor owner の型、解決境界、認可規則を 7.3 と 12.5 で定義した。
 - [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を 3.5 と 3.7 で定義した。
+- [x] pause-aware logical runtime clock、Step entry / Timer / Cue consumption、Runtime Run、Canonical Runtime Snapshot、Connection / Durable envelope と recovery 規則を 12.3、12.9、12.11〜12.12 で定義した。
+- [x] 単一の PublishedPresentation、PublicationFence、非終了 Session 中の publish lock、Draft / Build / Session の反映規則を 3.6 と 15 で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
-1. Step entry epoch、timer deadline、step ごとの Cue 消費状態、Runtime Run の Snapshot schema
-2. Action conflict matrix と Runtime fault / Pause の扱い
-3. Surface transition の完了、interaction、hit region 有効化の wire 表現
-4. Timeline の absolute interpolation、Quaternion、Run lifecycle の wire 表現
-5. Release、Room、Session、Snapshot の参照整合性と、Draft を active Room へ反映する規則
-6. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+1. Action conflict matrix と Runtime fault / Pause の扱い
+2. Surface transition の完了、interaction、hit region 有効化の wire 表現
+3. Timeline の absolute interpolation、Quaternion、Run lifecycle の wire 表現
+4. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
 
 ### Rendering / Delivery の follow-ups
 
@@ -2016,14 +2160,12 @@ presentation/
 
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
-1. Snapshot / Runtime Run
-2. Immutable Release
-3. Surface transition / Action conflict
-4. Timeline interpolation
-5. Semantic Tree / Native UI binding
-6. Spatial / Surface coordinate convention
-7. Surface Partition
-8. Texture / GPU / RAM budget
+1. Surface transition / Action conflict
+2. Timeline interpolation
+3. Semantic Tree / Native UI binding
+4. Spatial / Surface coordinate convention
+5. Surface Partition
+6. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 

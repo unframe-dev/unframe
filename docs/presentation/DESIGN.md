@@ -2,7 +2,7 @@
 
 - **Status**: Draft
 - **Date**: 2026-08-25
-- **Scope**: Presentation authoring、compiler、renderer、release、delivery、runtime を実装するための repository layout と ownership
+- **Scope**: Presentation authoring、compiler、renderer、publication、delivery、runtime を実装するための repository layout と ownership
 - **Related**:
   - [Presentation Architecture](./ARCHITECTURE.md)
   - [Repository Architecture](../../ARCHITECTURE.md)
@@ -63,7 +63,7 @@ unframe/
 │  │  ├─ control-plane/
 │  │  │  └─ src/modules/
 │  │  │     ├─ presentation-builds/           # build receipt and validation
-│  │  │     ├─ releases/                      # immutable publish unit
+│  │  │     ├─ publications/                  # current published execution and active-use lock
 │  │  │     └─ delivery/                      # runtime projection
 │  │  ├─ realtime/
 │  │  │  └─ internal/
@@ -121,6 +121,7 @@ Presentation の pure TypeScript semantic core を所有する。
 - ResourceOwner、lifetime参照規則、Group activation model
 - RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner の semantic model
 - ProjectionProfileKey / Descriptor、ProjectionInstance、ParticipantRuntimeView の semantic model
+- pause-aware logical runtime clock、StepExecutionSnapshot、RuntimeRunSnapshot、CanonicalRuntimeSnapshot の semantic model
 - reference validation、invariant validation、diagnostics
 - canonical serialization と hashing
 - schema version と pure migration
@@ -315,7 +316,7 @@ Authoring Projectを操作する利用者向け executable を所有する。
 - semantic validation ruleの実装
 - compiler passの実装
 - renderer artifact generation
-- durable Release state
+- durable PublishedPresentation state、publicationEpoch、active-use lock
 
 CLIは`presentation-compiler`と、既定で有効にするconcrete rendererに依存する。CLIからpackage内部の非公開moduleをimportしない。
 
@@ -339,7 +340,7 @@ packages/contracts/
 - PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/presentation/`をsource of truthとする。
 - `presentation-core`はcontractから生成または導出したTypeScript modelを使用し、serialized fieldを独自に再定義しない。
 - `presentation-core`は、portable structural schemaだけでは表せないreference validation、semantic invariant、canonicalizationを所有する。
-- DeliveryManifest、Reliable Event、Snapshot、State Streamなどのwire sourceは`packages/contracts/proto/`に置く。
+- DeliveryManifest、Reliable Event、ConnectionSnapshotEnvelope、DurableCheckpointEnvelope、State Streamなどのwire sourceは`packages/contracts/proto/`に置く。CanonicalRuntimeSnapshot は renderer、participant、connection、transport、serialization format から独立した semantic model とし、用途別 envelope の内側へ encode する。
 - OpenAPIはControl Plane route contractから生成する。
 - generated fileは手編集しない。
 - source schemaとgenerated artifactのdriftをCIで検証する。
@@ -370,18 +371,22 @@ Web EditorはCompiler Core、Opaque rendererのBrowser実行環境、renderer ar
 Targetとして次のapplication moduleを追加する。
 
 - `presentation-builds`: Compiler成果物のreceipt、schema/hash/Asset検証
-- `releases`: Definition、RenderBundle、Asset Set、contract versionを束ねるimmutable Release
+- `publications`: Definition、RenderBundle、Asset Set、contract versionを束ねる単一のPublishedPresentation、publicationEpoch、非終了Session中のpublish lock
 - `delivery`: role / capabilityごとに共有するProjectionProfileDescriptorとparticipant / assignment固有のProjectionInstance、DeliveryManifest
 
-Control PlaneはAuthoring Source、TSX、React、renderer implementationを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Release migrationが決まるまで自動的に移動しない。
+Control PlaneはAuthoring Source、TSX、React、renderer implementationを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Publication migrationが決まるまで自動的に移動しない。
+
+`publications`はSession作成とpublishを同じ永続化境界で直列化する。Session作成は現在のPublicationFenceをSessionへコピーし、同じPresentationを参照する`Waiting`または`Presenting` Sessionが存在する場合はpublishを拒否する。publishはexpected Draft revision、Buildのsource revision、artifact hash、Asset readinessを検証し、publicationEpochを増やして現在値をatomicに置き換える。過去のPublishedPresentationを選択可能な履歴として保持しない。
 
 ### 6.3 `app/server/realtime`
 
-- `internal/session`: renderer-independentなGo progression、Shared Runtime State、Shared Runtime Snapshot
+- `internal/session`: renderer-independentなGo progression、pause-aware logical clock、Step execution、Runtime Run、Shared Runtime State、Canonical Runtime Snapshot の immutable cut
 - `internal/protocol`: generated wire typeからvalidated core inputへのmapping、認証済み connection identity からの actor 解決
-- `internal/runtimecore`: assignment、transport、session、persistence adapterのcompositionとParticipant Runtime View生成
+- `internal/runtimecore`: assignment、transport、session、persistence adapterのcomposition、Participant Runtime View生成、ConnectionSnapshotEnvelope / DurableCheckpointEnvelope の構築
 
-Realtime は client payload から actor、role、subject を受け取らず、認証済み connection と内部 evaluator から canonical event を構成する。System actor は Runtime 内部だけが生成し、participant identity と role の検証前に progression input として受理しない。
+Realtime は client payload から actor、role、subject を受け取らず、認証済み connection と内部 evaluator から canonical event を構成する。System actor は Runtime 内部だけが生成し、participant identity と role の検証前に progression input として受理しない。session critical section は canonical state の更新、immutable cut、Reliable Event 購読登録だけを担い、participant projection、serialization、compression、hashing、network write、persistence callback は lock 外で immutable cut を入力に実行する。
+
+Connection presence は ConnectionSnapshotEnvelope にだけ含め、Raw Tracking Frame、Anchor sample、sample window、zone membership、hysteresis、edge detector state とともに durable restore 対象から除外する。DurableCheckpointEnvelope は assignment、PublicationFence、artifact hash、contract hash を fence し、CanonicalRuntimeSnapshot の serialized payload だけを永続化する。
 
 既存の`internal/session`と`internal/runtimecore`を拡張し、同じ責務のために新しいtop-level `progression` packageを並立させない。Go progressionはTypeScript implementationを移植して共有したことにせず、contract fixtureとconformance testにより、Compiler validation、Realtime evaluation、Unity consumerの意味を一致させる。
 
@@ -392,6 +397,7 @@ Realtime は client payload から actor、role、subject を受け取らず、�
 - native-3d、baked-web、native-ui、videoのUnity adapter
 - SnapshotとReliable Eventの適用
 - Projected Runtime Snapshot / Event / State Frameのprofile・assignment fence検証
+- ConnectionSnapshotEnvelopeだけを再接続入力として適用し、DurableCheckpointEnvelopeをclientへ配信しない
 - Timelineのlocal interpolation
 - device inputからLogical Eventへの変換
 - calibration、viewport、selection、personal annotation、Local Overlay stateのClient-local ownership
@@ -555,7 +561,7 @@ Directoryとpackageは次の順序で実装を開始する。
 9. `presentation-cli`
 10. `examples/presentation`
 11. `packages/contracts`のDelivery / Runtime拡張
-12. Control Plane Build / Release / Delivery
+12. Control Plane Build / Publication / Delivery
 13. Realtime Progression / Runtime protocol
 14. Unity Presentation Runtime
 15. Web Editor integration
@@ -575,7 +581,7 @@ Directoryとpackageは次の順序で実装を開始する。
 - Native UI、Video renderer packageの追加時期
 - CLIのlocal preview runtime
 - Web EditorからLocal Compilerを呼ぶexecution topology
-- Release、Delivery、Runtime Protobufの具体schema
+- PublicationFence、Delivery、Runtime Protobufの具体schema
 - generated C# artifactをUnityへ組み込む方法
 
 これらを決める際も、本書のownershipと禁止依存を変更する場合は、先に本書と必要なADRを更新する。

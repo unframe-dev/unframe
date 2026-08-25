@@ -62,10 +62,10 @@ Presentation を次の契約へ分離する。
 | PresentationDefinition | Scene、Surface、State、Interaction、進行など Presentation の意味を保持し、v1 では canonical JSON として生成する |
 | RenderBundle | Local Compiler が生成した Texture、Video、Native UI plan、Semantic Tree などを保持する |
 | DeliveryManifest | target capability、認可、Asset binding、Signed URL を解決した Runtime projection を保持する |
-| Release | 整合する PresentationDefinition、RenderBundle、Asset Set、contract version を immutable な publish 単位として束ねる |
+| Published Presentation | 整合する PresentationDefinition、RenderBundle、Asset Set、contract version を現在の公開済み実行物として一つだけ束ねる |
 | Runtime State | Session 中の現在 Group、Step、Node、Surface State、Timeline、playback、presence を保持する |
 
-Authoring Source と Semantic Authoring IR は編集のための情報を保持する。PresentationDefinition は実行可能な意味を保持する。RenderBundle と DeliveryManifest は再生成可能な派生物とし、Release はそれらの整合する組み合わせを immutable に固定する。Runtime State は実行中にだけ存在し、PresentationDefinition へ書き戻さない。
+Authoring Source と Semantic Authoring IR は編集のための情報を保持する。PresentationDefinition は実行可能な意味を保持する。RenderBundle と DeliveryManifest は再生成可能な派生物とし、PublishedPresentation はそれらの整合する組み合わせを一つの immutable value に固定する。Runtime State は実行中にだけ存在し、PresentationDefinition へ書き戻さない。
 
 ### Authoring と Component
 
@@ -123,9 +123,9 @@ Venue Edge を canonical authority とし、Trigger、Guard、Cue 選択、Actio
 
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
-Runtime State は、Venue Edge が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。ProjectionProfileDescriptor は Release、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
+Runtime State は、Venue Edge が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。ProjectionProfileDescriptor は PublicationFence、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
 
-Room / Session は一つの immutable Release を pin する。Release は対応する PresentationDefinition、RenderBundle、Asset Set、contract version を束ね、DeliveryManifest と Snapshot は同じ Release を参照する。
+Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Room は Presentation を参照し、Session は作成時の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
 
 v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../presentation/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
 
@@ -192,8 +192,8 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [x] Group scope / presentation scope の resource owner、参照方向、lifecycle、Runtime State 保持規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#71-group) で定義する。
 - [x] Presenter / System / participant の actor、subject、Anchor owner と認可規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#125-runtime-input-event-と-trigger) で定義する。
 - [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を [Presentation Architecture](../presentation/ARCHITECTURE.md#37-runtime-state) で定義する。
-- [ ] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run / Snapshot contract を定義する。
-- [ ] Immutable Release と PresentationDefinition、RenderBundle、Asset Set、Room / Session の pinning を定義する。
+- [x] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run、pause-aware logical clock、Canonical Runtime Snapshot、Connection / Durable envelope contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#123-runtime-progression-state) と [Snapshot contract](../presentation/ARCHITECTURE.md#1211-reliable-eventstate-streamsnapshot) で定義する。
+- [x] 単一の PublishedPresentation、PublicationFence、PresentationDefinition / RenderBundle / Asset Set / contract version の原子的な整合性、Room / Session の参照、非終了 Session 中の publish lock、置換後artifactのGCを [Presentation Architecture](../presentation/ARCHITECTURE.md#36-published-presentation-と-active-use-lock) で定義する。
 - [ ] Surface transition、Action batch、Timeline track の conflict policy と Timeline 補間規則を定義する。
 - [ ] Surface State ごとの Semantic Tree と Native UI の宣言的 binding を定義する。
 - [ ] Component から Render Surface への partition 規則、自動化範囲、author override を決定する。
@@ -202,8 +202,6 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
 - [ ] Native UI portable subset、Semantic Tree、Hit Region の完全な schema を定義する。
 - [ ] Opaque renderer の Browser capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
-- [ ] Presentation revision、RenderBundle revision、Asset lifecycle を原子的に対応付ける。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
 - [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。
-- [ ] Draft、Release、Room、active session の反映規則を決定する。
 - [ ] Web、Compiler、Unity、Realtime の contract test と visual regression test を設計する。
