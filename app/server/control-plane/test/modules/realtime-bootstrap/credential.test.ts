@@ -11,6 +11,20 @@ const fromBase64Url = (value: string) => {
 };
 
 describe("RealtimeBootstrapCredentials", () => {
+  it("rejects a signing key that is not an Ed25519 private JWK", () => {
+    expect(
+      () =>
+        new RealtimeBootstrapCredentials(
+          { kty: "RSA", n: "modulus", e: "AQAB", d: "private" },
+          {
+            issuer: "https://control-plane.example.com",
+            keyId: "realtime-2026-08",
+            audience: "unframe-realtime-runtime",
+          },
+        ),
+    ).toThrowError("realtime signing key must be an Ed25519 private JWK");
+  });
+
   it("issues a verifiable EdDSA session credential and only publishes its public JWK", async () => {
     const keyPair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
     const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);

@@ -149,6 +149,9 @@ describe("createControlPlaneClient", () => {
       authorization: null,
     });
 
+    if (createdPresentation.status !== 201 || initializedUpload.status !== 201) {
+      throw new Error("Expected successful create responses");
+    }
     const typedPresentation: CreatePresentationResponse = await createdPresentation.json();
     const typedAsset: InitAssetUploadResponse = await initializedUpload.json();
     expect(typedPresentation.id).toBe("presentation-1");

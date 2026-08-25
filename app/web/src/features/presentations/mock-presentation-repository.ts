@@ -3,7 +3,8 @@ import placeholderThumbnailUrl from "./placeholder-thumbnail.svg?url";
 import { createStarterPresentationDefinition } from "./starter-definition";
 
 type ListPresentationsResponse = Awaited<ReturnType<ControlPlaneClient["presentations"]["$get"]>>;
-type ListPresentationsBody = Awaited<ReturnType<ListPresentationsResponse["json"]>>;
+type SuccessfulListPresentationsResponse = Extract<ListPresentationsResponse, { status: 200 }>;
+type ListPresentationsBody = Awaited<ReturnType<SuccessfulListPresentationsResponse["json"]>>;
 type PresentationResource = ListPresentationsBody["presentations"][number];
 export type Presentation = PresentationResource & { thumbnailUrl: string };
 

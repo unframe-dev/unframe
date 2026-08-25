@@ -55,7 +55,7 @@ Venue Edge credentialはprovisioning / rotation responseで一度だけ返し、
 
 `wrangler.toml` の `secrets.required` は remote 環境へ事前設定する binding の一覧です。`REALTIME_AUDIENCE` は secret ではなく、`[vars]` で `unframe-realtime-runtime` に固定しています。Worker は request handling の入口で全設定を検証するため、不足・不正な設定がある環境は traffic を受ける前の smoke test で検出します。エラーには設定名だけを出し、値は出力しません。
 
-Product-owned endpoint は `createRoute` と `OpenAPIHono` で実装・入力検証・OpenAPI・Hono RPC型を一元化しています。OpenAPI 3.0.3 と言語非依存の生成 TypeScript 型は `packages/contracts/`、Hono RPC client は `packages/api-client-typescript/` にあります。Better Auth が所有するendpointは`better-auth@1.6.26`へ固定した認証clientから型付きで利用でき、参照用OpenAPI 3.1.1は`GET /api/auth/open-api/generate-schema`で取得できます。
+Product-owned endpoint は `createRoute` と `OpenAPIHono` で実装・入力検証・OpenAPI・Hono RPC型を一元化しています。OpenAPI 3.0.3 と言語非依存の生成 TypeScript 型は `packages/contracts/`、Hono RPC client は `packages/api-client-typescript/` にあります。Better Auth が所有するendpointは`better-auth@1.7.1`へ固定した認証clientから型付きで利用でき、参照用OpenAPI 3.1.1は`GET /api/auth/open-api/generate-schema`で取得できます。
 
 未処理例外は route pattern、例外名、incident ID だけを構造化ログへ記録し、message、credential、signed URL を response やログへ出しません。
 OAuth codeやDevice Authorization user codeをqueryに含むため、Workers invocation logsと自動traceは無効化しています。

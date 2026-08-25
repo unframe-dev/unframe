@@ -8,6 +8,7 @@ import sessionMigration from "../migrations/0006_sessions.sql?raw";
 import persistenceMigration from "../migrations/0007_realtime_persistence.sql?raw";
 import venueEdgesMigration from "../migrations/0008_venue_edges.sql?raw";
 import runtimeAssignmentsMigration from "../migrations/0009_runtime_assignments.sql?raw";
+import authAccountIssuerMigration from "../migrations/0010_better_auth_account_issuer.sql?raw";
 
 const [assetTables, ...assetTriggers] = assetMigration.split("CREATE TRIGGER");
 
@@ -80,6 +81,9 @@ await env.DB.batch([
     "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES ('migration-runtime-user', 'Migration User', 'migration-runtime@example.test', 1, '2026', '2026')",
   ),
   env.DB.prepare(
+    "INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES ('migration-credential-account', 'migration-runtime-user', 'credential', 'migration-runtime-user', '2026', '2026')",
+  ),
+  env.DB.prepare(
     "INSERT INTO presentations (id, owner_id, revision, definition, created_at, updated_at) VALUES ('migration-runtime-presentation', 'migration-runtime-user', 1, '{\"groups\":[],\"assets\":[]}', '2026', '2026')",
   ),
   env.DB.prepare(
@@ -97,6 +101,13 @@ await applyD1Migrations(env.DB, [
   {
     name: "0009_runtime_assignments.sql",
     queries: runtimeAssignmentsMigration
+      .split(";")
+      .map((query: string) => query.trim())
+      .filter(Boolean),
+  },
+  {
+    name: "0010_better_auth_account_issuer.sql",
+    queries: authAccountIssuerMigration
       .split(";")
       .map((query: string) => query.trim())
       .filter(Boolean),
