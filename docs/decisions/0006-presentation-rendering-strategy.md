@@ -46,8 +46,8 @@ ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プ�
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を識別子として使用しない。
 - Component の公開契約と renderer implementation を分離する。
 - Scene Graph、Presentation Progression、Renderer を独立した関心として扱う。
-- Local Compiler は Authoring TS / TSX を一時的な JavaScript へ transpile / bundle し、deterministic sandbox で実行して Declaration Graph を生成する。
-- Authoring JavaScript は compiler 内部の中間生成物とし、Release や Delivery artifact に含めない。
+- Local Compiler は Presentation Orchestrator、Component Manifest、Structured Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
+- Opaque renderer だけを通常の TS / React / CSS として bundle し、renderer artifact を生成する。renderer の Browser 実行は静的 authoring lowering と別の隔離境界とする。
 - Control Plane、Venue Edge、Unity Runtime は authoring code を実行しない。
 - 現行実装と目標アーキテクチャを区別し、未実装の設計を既存機能として扱わない。
 
@@ -73,13 +73,11 @@ Authoring Source と Semantic Authoring IR は編集のための情報を保持�
 
 Component package は Props、Slots、Parts、Variants、States、Actions、Outputs、Theme requirements、対応 renderer、Editor metadata、version を公開契約として持つ。GUI は renderer implementation を解析せず、この公開契約から編集可能範囲を構築する。
 
-Structured Component は renderer implementation とは別に、GUI が理解できる宣言的な内部構造を Authoring Source / IR に持つ。Component Action は canonical Action batch、Component Output は canonical semantic event へ compile-time に lower し、Component 固有の実行命令を Runtime contract へ残さない。
+Structured Component は Manifest とは別の `*.structure.tsx` を内部構造の正本とし、Component 固有 renderer implementation を持たない。generic renderer が Structure から lower された Primitive graph を描画する。任意 React / CSS renderer が必要な Component は Opaque とし、renderer ごとに Structured / Opaque を切り替えない。Component Action は canonical Action batch、Component Output は明示された canonical event source / Trigger へ compile-time に lower し、Component 固有の実行命令や event name を Runtime contract へ残さない。
 
-Presentation Orchestrator と Structured Component は静的解析可能な制限付き DSL とする。Local Compiler は Lossless Syntax Tree と Source Map を GUI / Code の往復に保持しつつ、TS / TSX を一時 JavaScript へ transpile / bundle して sandbox 実行し、Declaration Graph を Semantic Authoring IR へ正規化する。GUI は実行済み JavaScript を Code へ逆コンパイルしない。
+Presentation Orchestrator、Component Manifest、Structured Component Structure は静的解析可能な制限付き DSL とする。Local Compiler は Lossless Syntax Tree と Source Map を GUI / Code の往復に保持しつつ、import / symbol / 型を解決した AST から Declaration Graph へ直接 lower し、Semantic Authoring IR へ正規化する。GUI は Declaration Graph や renderer artifact を Code へ逆生成しない。
 
-Sandbox の入力 capability は source、lock された package、Theme、Asset metadata、Compiler configuration に限定し、network、任意の filesystem、process environment、wall clock、seed が固定されていない乱数に依存させない。
-
-任意コードを許す Opaque renderer も Local Compiler の sandbox 内だけで実行し、renderer artifact へ変換する。Opaque Component の意味情報は renderer の実行結果ではなく、Component Manifest から取得する。
+任意コードを許す Opaque renderer は通常の TS / React / CSS として bundle し、renderer artifact へ変換する。Opaque Component の意味情報は静的に lower した Component Manifest から取得し、renderer の実行結果から推測しない。artifact の Browser capability と再現性は Rendering / Delivery contract で管理する。
 
 GUI と Code の双方向変換は、任意のソース文字列を完全に再現することではなく、正規化後の意味論的同値性を保証する。自由な実装が必要な Component と GUI が内部構造まで編集できる Component は区別する。
 
@@ -89,25 +87,31 @@ Component の抽象を超えた編集は Authoring 上で Detach し、Delivery 
 
 Scene Graph は、空間配置を表す Spatial Tree と、Surface 内の 2D UI を表す Surface Tree から構成する。
 
-Group は物語上の進行スコープであり、Scene Graph の親子関係とは分離する。Spatial Tree は Stage、Anchor、Container、Model、Audio、Surface などの空間関係を保持する。Surface は 3D 空間と 2D UI を接続し、物理 size と logical size を持つ。
+Group は物語上の進行スコープであり、Scene Graph の親子関係とは分離する。Spatial Tree は Stage、Anchor、Container、Model、Audio、SurfaceNode などの空間関係を保持する。SurfaceNode と Semantic Surface の組が 3D 空間と 2D UI を接続し、Semantic Surface が物理 size と logical size を持つ。
+
+Runtime resource owner は `presentation` または一つの `group` に限定し、Step scope と Group ごとの ID namespace は作らない。Spatial Node、Timeline、Variable、Zone が owner を直接持ち、Semantic Surface、Interaction、Media、Render Surface は親から継承する。Group の owned-resource list は正本にせず、Compiler / Delivery が owner から activation index を派生生成する。
+
+presentation-owned resource は presentation-owned resource、Group G-owned resource と Group G の Cue は presentation-owned または同じ Group G-owned resource だけを参照できる。ownership は Spatial parent と分離し、group-owned Node は presentation-owned Node を parent にできる。presentation-owned Runtime State と Run は Group をまたいで継続し、group-owned state は exit で破棄して reentry で reset する。Timeline も presentation / group の両 owner を許す。
 
 Surface 内部の Layout は absolute、stack、grid から始め、最終座標だけでなく配置意図を Authoring IR に保持する。Theme は型付き Token と Named Style を持ち、Layout、親子関係、Spatial Transform、Flow を変更しない。
 
-Component は再利用と編集の境界、Surface は描画、状態、animation、interaction、Runtime resource の境界とする。一つの Component が複数 Surface や Native Node へ展開されることを許す。
+Component は再利用と編集、SurfaceNode は空間配置と animation、Semantic Surface は意味状態と interaction、Render Surface は描画 partition の境界とする。一つの Component が複数 Surface や Native Node へ展開されることを許す。
 
-Surface は、Spatial Tree 上で Transform を所有する Surface Node、PresentationDefinition 上の安定した Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。Progression は Semantic Surface ID を参照し、Compiler の partition 結果を直接参照しない。
+Surface は、Spatial Tree 上で Transform を所有する SurfaceNode、PresentationDefinition 上で State / Interaction を所有する Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。v1 は SurfaceNode と Semantic Surface を 1:1、Semantic Surface と Render Surface を 1:N とする。
+
+canonical Runtime contract の SurfaceId は SemanticSurfaceId を意味する。Node Action と Timeline は SurfaceNode を含む SpatialNodeId、Surface State、Interaction、media Action、Progression は SemanticSurfaceId を参照する。RenderSurfaceId は compiler-derived な build-local ID とし、Trigger、Guard、Action、Snapshot、Reliable Event に含めない。
 
 ### Rendering
 
 Semantic Scene Graph を優先し、renderer を Local Compiler と Delivery の出力戦略とする。
 
-3D Model、Shape、Spatial Audio、Transform、Anchor tracking は Unity native で描画する。静的 UI と少数の有限状態 UI は Web で描画して Surface 単位に Texture 化する。継続的に変化する限定 UI は portable な Native UI とし、入力非依存の複雑な連続演出は Video とする。
+3D Model、Shape、Spatial Audio、Transform、Anchor tracking は Unity native で描画する。静的 UI と少数の有限状態 UI は Web で描画して Render Surface 単位に Texture 化する。継続的に変化する限定 UI は portable な Native UI とし、入力非依存の複雑な連続演出は Video とする。
 
 Semantic Surface は具体 renderer ではなく Render Intent を持つ。Concrete renderer と解像度は build 結果と target capability に基づいて RenderBundle と DeliveryManifest で確定する。
 
 Surface State は意味論的な状態として保持し、Texture ID や Unity object を参照しない。Renderer artifact は RenderBundle が Surface State に対応付ける。
 
-Embedded Browser は v1 の標準 renderer に含めない。Control Plane と Unity Runtime は TSX、React、HTML、CSS、authoring JavaScript を実行しない。
+Embedded Browser は v1 の標準 renderer に含めない。Control Plane と Unity Runtime は Authoring Source、React、HTML、CSS、renderer source を実行しない。
 
 ### Presentation Progression
 
@@ -119,7 +123,7 @@ Venue Edge を canonical authority とし、Trigger、Guard、Cue 選択、Actio
 
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
-Runtime State は、Venue Edge が管理する Shared Runtime State、role / capability に応じた Projection State、各 client だけが保持する Client-local State に分離する。Client-local State は Shared Progression を直接変更しない。
+Runtime State は、Venue Edge が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。ProjectionProfileDescriptor は Release、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
 
 Room / Session は一つの immutable Release を pin する。Release は対応する PresentationDefinition、RenderBundle、Asset Set、contract version を束ね、DeliveryManifest と Snapshot は同じ Release を参照する。
 
@@ -127,7 +131,7 @@ v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Sn
 
 ### Component ごとの責務
 
-- **Local Compiler**: Authoring Source を parse / typecheck / transpile / bundle し、一時 JavaScript を deterministic sandbox で実行する。生成した Declaration Graph を Semantic Authoring IR へ正規化し、Component、Layout、Theme、Surface boundary、canonical PresentationDefinition JSON、renderer artifact を解決する。
+- **Local Compiler**: Orchestrator、Manifest、Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower して Semantic Authoring IR へ正規化する。Opaque renderer だけを bundle し、Component、Layout、Theme、Surface boundary、canonical PresentationDefinition JSON、renderer artifact を解決する。
 - **Control Plane**: PresentationDefinition、RenderBundle、Asset の schema、ownership、hash、revision を検証し、DeliveryManifest を生成する。
 - **Venue Edge**: Session の進行、順序、Trigger、Guard、Action、Timeline、Reliable Event、Snapshot を管理する。
 - **Unity Runtime**: DeliveryManifest を検証し、renderer graph、Asset lifecycle、Spatial rendering、local interpolation、input adapter を担当する。
@@ -161,12 +165,13 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - **Positive**: Component の再利用性と Web の表現力を保ちながら、Unity で任意の authoring code を実行せずに済む。
 - **Positive**: PresentationDefinition を保ったまま renderer、解像度、配信方法を変更できる。
 - **Positive**: Stable ID と Semantic Authoring IR により、GUI と Code の意味論的な往復と semantic command を設計できる。
-- **Positive**: TS / TSX の library、module resolution、type system を利用しながら、実行結果を portable な canonical JSON へ固定できる。
+- **Positive**: TS / TSX の module resolution と type system を利用しながら、authoring declaration を portable な canonical JSON へ固定できる。
 - **Positive**: Venue Edge の single authority と Snapshot / Replay により、複数 client の進行状態を収束させられる。
 - **Negative**: Authoring Source、IR、PresentationDefinition、RenderBundle、DeliveryManifest の対応と versioning を管理する必要がある。
 - **Negative**: Compiler、Component package、Surface partition、Native UI、Delivery、Realtime の複数契約を実装する必要がある。
 - **Negative**: 自由な TSX と完全な GUI 内部編集を同時には保証できず、Structured / Opaque / Detach の境界が必要になる。
-- **Negative**: Local Compiler は Authoring JavaScript を実行するため、sandbox、module resolution、入力 capability、cache invalidation、決定性を contract として管理する必要がある。
+- **Negative**: Static Authoring DSL は通常の TypeScript より表現力を制限し、Compiler が許可構文、symbol resolution、AST lowering、source patching を contract として管理する必要がある。
+- **Negative**: Opaque renderer は任意コードを含められるため、Browser capability、module resolution、cache invalidation、決定性を renderer contract として管理する必要がある。
 - **Negative**: Baked Surface は内容や locale の変更で再 build が必要になり、Texture memory と Asset lifecycle の管理も必要になる。
 - **Neutral**: 詳細な schema、transport、build budget、capability negotiation は下位仕様として段階的に決定する。
 
@@ -180,11 +185,13 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 ## Follow-ups
 
-- [ ] Component Action / Output の canonical Action / semantic event への lowering contract を定義する。
-- [ ] Structured Component の宣言的な内部構造と renderer implementation の source boundary を定義する。
-- [ ] TSX-like DSL の制約、parse / typecheck / transpile / bundle、Authoring JavaScript sandbox、Declaration Graph normalization、semantic round-trip、source mapping、Detach を設計する。
-- [ ] Surface Node、Semantic Surface、Render Surface と Group resource scope の canonical schema を定義する。
-- [ ] Presenter / System / participant の actor selector、Anchor owner、Shared / Projection / Client-local State を定義する。
+- [x] Component Action / Output の canonical Action / event source への lowering contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#55-component-action--output-lowering) で定義する。
+- [x] Structured Component の宣言的な内部構造と renderer implementation の source boundary を [Presentation Architecture](../presentation/ARCHITECTURE.md#52-structured-component-source-boundary) で定義する。
+- [x] Static Authoring DSL、AST lowering、Declaration Graph normalization、semantic round-trip、source mapping を [Presentation Architecture](../presentation/ARCHITECTURE.md#6-authoring-compiler-と-gui--code-round-trip)、Detach を [Component Instance と Detach](../presentation/ARCHITECTURE.md#54-component-instance-と-detach) で定義する。
+- [x] SurfaceNode、Semantic Surface、Render Surface の canonical identity、cardinality、lowering、Runtime 参照規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#75-render-surface-lowering-と-runtime-参照) で定義する。
+- [x] Group scope / presentation scope の resource owner、参照方向、lifecycle、Runtime State 保持規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#71-group) で定義する。
+- [x] Presenter / System / participant の actor、subject、Anchor owner と認可規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#125-runtime-input-event-と-trigger) で定義する。
+- [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を [Presentation Architecture](../presentation/ARCHITECTURE.md#37-runtime-state) で定義する。
 - [ ] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run / Snapshot contract を定義する。
 - [ ] Immutable Release と PresentationDefinition、RenderBundle、Asset Set、Room / Session の pinning を定義する。
 - [ ] Surface transition、Action batch、Timeline track の conflict policy と Timeline 補間規則を定義する。
@@ -194,7 +201,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
 - [ ] Native UI portable subset、Semantic Tree、Hit Region の完全な schema を定義する。
-- [ ] Deterministic Local Compiler の sandbox capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
+- [ ] Opaque renderer の Browser capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
 - [ ] Presentation revision、RenderBundle revision、Asset lifecycle を原子的に対応付ける。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
 - [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。

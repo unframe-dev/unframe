@@ -117,6 +117,10 @@ Presentation の pure TypeScript semantic core を所有する。
 - Semantic Authoring IR の data model
 - contractから導出したPresentationDefinitionのin-memory semantic model
 - contractから導出したRenderBundleのin-memory build metadata model
+- SurfaceNode / SemanticSurface / RenderSurface の ID、cardinality、参照 model
+- ResourceOwner、lifetime参照規則、Group activation model
+- RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner の semantic model
+- ProjectionProfileKey / Descriptor、ProjectionInstance、ParticipantRuntimeView の semantic model
 - reference validation、invariant validation、diagnostics
 - canonical serialization と hashing
 - schema version と pure migration
@@ -125,7 +129,7 @@ Presentation の pure TypeScript semantic core を所有する。
 **Non-responsibilities**
 
 - TSX、JSX runtime、React
-- TypeScript compiler API、module resolution、sandbox
+- TypeScript compiler API、module resolution、renderer execution environment
 - Browser capture、Texture、Video encoding
 - filesystem、network、process environment
 - D1、R2、HTTP、gRPC、Unity object
@@ -144,14 +148,15 @@ Presentation の pure TypeScript semantic core を所有する。
 - Component Manifest authoring API
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - Theme、Token、Asset reference の authoring API
-- Declaration Graph builder
+- Compiler が静的に認識する authoring declaration signature
 - Stable ID、source metadata、Component Instance のauthoring operation
 - Structured / Opaque Component の公開境界
 - Semantic Command と source patching が共有する authoring operation
 
 **Non-responsibilities**
 
-- TypeScript source の bundle と sandbox execution
+- Authoring Source の parse、typecheck、static AST lowering
+- Opaque renderer source の bundle と実行
 - renderer artifact の生成
 - project filesystem と cache
 - Web Editor UI
@@ -170,7 +175,7 @@ Unframe が提供する標準 Primitive、Component、Theme を所有する。
 - Surface primitive の Manifest と structured definition
 - 標準 Component と Variant
 - 標準 Theme、Token、Named Style
-- component preview fixture と contract test
+- 任意の component preview fixture と contract test
 - 対応 renderer と required capability の宣言
 
 **Non-responsibilities**
@@ -180,7 +185,9 @@ Unframe が提供する標準 Primitive、Component、Theme を所有する。
 - renderer plugin selection
 - product-specific template と user content
 
-この package は `presentation-authoring`と`presentation-core`に依存する。Manifestはrenderer IDとcapabilityをdataとして宣言するが、Compiler plugin用の`presentation-renderer-api`には依存しない。Componentのweb renderer implementationはReactなど自身の実装依存を持てるが、Unframe Compilerやconcrete renderer packageへ依存しない。
+この package は `presentation-authoring`と`presentation-core`に依存する。Manifestはrenderer IDとcapabilityをdataとして宣言するが、Compiler plugin用の`presentation-renderer-api`には依存しない。
+
+Structured Component は `*.structure.tsx` を所有し、Component 固有 renderer implementation を持たない。generic renderer が structured Primitive graph を描画する。Opaque Component だけが `*.web.tsx` などの Component 固有 renderer entry とReact等の実装依存を持てるが、Unframe Compilerやconcrete renderer packageへ依存しない。
 
 ### 4.4 `packages/presentation-renderer-api`
 
@@ -211,7 +218,8 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 
 **Responsibilities**
 
-- Component web renderer entry の bundle と実行
+- Structured Component から lower された Primitive graph の generic Web rendering
+- Opaque Component web renderer entry の bundle と実行
 - Browser lifecycle と fixed rendering environment
 - Surface State ごとの layout と capture
 - Semantic Tree と Hit Region の抽出
@@ -223,6 +231,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 
 - PresentationDefinition の意味変更
 - Component Manifest からの semantic information 推測
+- Structured Component 固有の React / CSS implementation
 - Asset upload とSigned URL
 - Unity rendering
 - Native UI、Video renderer の実装
@@ -264,11 +273,15 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 **Responsibilities**
 
 - Authoring Source のparseとLossless Syntax Tree / Source Map保持
-- TypeScript typecheck、transpile、bundle
-- module resolution とpackage lock検証
-- deterministic sandbox execution
+- Orchestrator、Manifest、Structure の TypeScript typecheck
+- module / symbol resolution と package lock 検証
+- Static Authoring DSL の検証と AST から Declaration Graph への context-specific lowering
+- Opaque renderer TS / React / CSS の bundle orchestration
 - Declaration Graph のnormalizeとSemantic Authoring IR生成
 - Component、Theme、Layout、Surface boundaryの解決
+- Semantic Surface から Render Surface への lowering と mapping 検証
+- resource owner継承、lifetime参照検証、Group activation index生成
+- Shared Trigger の actor / subject と Anchor owner の認可検証
 - renderer selectionとplugin orchestration
 - canonical PresentationDefinition JSON とRenderBundleの生成
 - build cache key、hash、diagnostics
@@ -350,7 +363,7 @@ OpenAPIとProtocol Buffersから生成したC# artifactを所有する。Unity�
 - Compiler diagnosticsとpreviewの表示
 - Draft保存、revision conflict、build / publish UI
 
-Web EditorはCompiler Core、Browser sandbox、renderer artifact generationを所有しない。Node-only Compilerをbrowser bundleへ直接取り込まず、worker、local process、またはserviceとの接続方式をWeb architectureで決める。
+Web EditorはCompiler Core、Opaque rendererのBrowser実行環境、renderer artifact generationを所有しない。Node-only Compilerをbrowser bundleへ直接取り込まず、worker、local process、またはserviceとの接続方式をWeb architectureで決める。
 
 ### 6.2 `app/server/control-plane`
 
@@ -358,15 +371,17 @@ Targetとして次のapplication moduleを追加する。
 
 - `presentation-builds`: Compiler成果物のreceipt、schema/hash/Asset検証
 - `releases`: Definition、RenderBundle、Asset Set、contract versionを束ねるimmutable Release
-- `delivery`: role、capability、assignmentに基づくDeliveryManifest projection
+- `delivery`: role / capabilityごとに共有するProjectionProfileDescriptorとparticipant / assignment固有のProjectionInstance、DeliveryManifest
 
-Control PlaneはAuthoring Source、TSX、React、renderer implementation、Authoring JavaScriptを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Release migrationが決まるまで自動的に移動しない。
+Control PlaneはAuthoring Source、TSX、React、renderer implementationを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Release migrationが決まるまで自動的に移動しない。
 
 ### 6.3 `app/server/realtime`
 
-- `internal/session`: renderer-independentなGo progression、Runtime State、Snapshot
-- `internal/protocol`: generated wire typeからvalidated core inputへのmapping
-- `internal/runtimecore`: assignment、transport、session、persistence adapterのcomposition
+- `internal/session`: renderer-independentなGo progression、Shared Runtime State、Shared Runtime Snapshot
+- `internal/protocol`: generated wire typeからvalidated core inputへのmapping、認証済み connection identity からの actor 解決
+- `internal/runtimecore`: assignment、transport、session、persistence adapterのcompositionとParticipant Runtime View生成
+
+Realtime は client payload から actor、role、subject を受け取らず、認証済み connection と内部 evaluator から canonical event を構成する。System actor は Runtime 内部だけが生成し、participant identity と role の検証前に progression input として受理しない。
 
 既存の`internal/session`と`internal/runtimecore`を拡張し、同じ責務のために新しいtop-level `progression` packageを並立させない。Go progressionはTypeScript implementationを移植して共有したことにせず、contract fixtureとconformance testにより、Compiler validation、Realtime evaluation、Unity consumerの意味を一致させる。
 
@@ -376,8 +391,10 @@ Control PlaneはAuthoring Source、TSX、React、renderer implementation、Autho
 - Asset download、checksum、cache、preload、eviction
 - native-3d、baked-web、native-ui、videoのUnity adapter
 - SnapshotとReliable Eventの適用
+- Projected Runtime Snapshot / Event / State Frameのprofile・assignment fence検証
 - Timelineのlocal interpolation
 - device inputからLogical Eventへの変換
+- calibration、viewport、selection、personal annotation、Local Overlay stateのClient-local ownership
 - Realtime接続、reconnect、state convergence
 
 既存`PresentationImport/`はCurrent schema向けのtransitional implementationとして扱う。Target Runtimeへの移行方法をUnity architectureで決めるまで、名前変更や一括移動を前提にしない。
@@ -551,7 +568,7 @@ Directoryとpackageは次の順序で実装を開始する。
 
 - Semantic contract sourceに使用するschema libraryとJSON Schema generation方法
 - Lossless Syntax Treeとsource patchingの実装
-- Authoring sandboxのprocess / isolate方式
+- Opaque rendererを実行するBrowser process / isolateとcapability
 - Component package distributionと`unframe.lock`の形式
 - Compiler plugin discoveryとversion negotiation
 - Browser capture processの分離方法
