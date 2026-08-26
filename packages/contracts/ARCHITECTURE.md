@@ -96,6 +96,6 @@ Target の Presentation schema と Protocol Buffers は、consumer が generated
 
 ## 8. Current gap
 
-PresentationDefinition / baked-web first RenderBundle のJSON Schema source、最小fixture、TypeScript生成物、schema validationとdrift checkは実装済みである。参照整合性、canonicalization、DeliveryManifest Protobuf、Runtime contract の大部分、Go / C# generationは未実装である。現行 `realtime.proto` は foundation であり、Target architecture 全体を表す完成契約ではない。
+PresentationDefinition / baked-web first RenderBundle のJSON Schema source、最小fixture、TypeScript生成物、schema validationとdrift checkは実装済みである。初期subsetの参照整合性とcanonicalizationは`presentation-core`に実装済みである。完全版contractのsemantic validation、DeliveryManifest Protobuf、Runtime contract の大部分、Go / C# generationは未実装である。現行 `realtime.proto` は foundation であり、Target architecture 全体を表す完成契約ではない。
 
 最初のmilestoneではCueの詳細contractをまだ固定しない。schemaは`cues`を空配列に限定し、任意のCue objectを受け入れない。Frame layoutとText placementは`absolute` subsetのみを構造契約に含める。参照整合性、所有権、tree不変条件、Quaternion正規化、Scalar値の型整合性は`presentation-core`のsemantic validationへ委譲する。

@@ -2414,7 +2414,7 @@ presentation/
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
 - Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Opaque renderer bundling の build pipeline
-- Canonical `presentation.definition.json` の deterministic serialization
+- Canonical `presentation.definition.json` の deterministic serialization（Core APIは実装済み、Compilerからのartifact生成は未実装）
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）

@@ -14,9 +14,10 @@ nix develop
 nix run .#setup
 nix run .#check
 nix run .#control-plane
+nix run .#presentation
 nix run .#realtime
 nix run .#notion-sync
 nix flake check
 ```
 
-`packages/contracts/` は次の Control Plane OpenAPI と Realtime Protocol Buffers の共有境界です。source of truth と生成手順は、対応する component 実装と合わせて定義します。
+`packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は実装済みの `packages/presentation-*` packageをまとめて検証します。source of truth と生成手順は、対応する component 実装と合わせて定義します。

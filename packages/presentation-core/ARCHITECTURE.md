@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Proposal / Target, not implemented
+- **Status**: Initial first-milestone implementation
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -15,10 +15,17 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 
 ## 2. Owned model
 
+### Current first milestone
+
+- generated contractから導出したPresentationDefinition / RenderBundle model
+- Stage、SurfaceNode、Frame / Text、Surface State、baked-web artifactのsemantic invariant
+- stable diagnostic codeとsemantic path
+- compact canonical JSONとSHA-256 content hash
+
+### Target extensions
+
 - Stable ID、Scalar、typed reference、Transform などの value
 - Semantic Authoring IR の normalized data model
-- contract-derived PresentationDefinition semantic model
-- contract-derived RenderBundle build metadata model
 - Spatial Node、SurfaceNode、SemanticSurface、RenderSurface の identity と参照
 - ResourceOwner、lifetime、Group activation の規則
 - RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner
@@ -30,7 +37,7 @@ Semantic Authoring IR と PresentationDefinition は同じものではない。�
 
 ## 3. Internal boundaries
 
-実装時は少なくとも次の関心を分離する。
+将来の拡張では次の関心を分離する。
 
 ```text
 src/
@@ -44,15 +51,21 @@ src/
 └─ migration/          # versioned pure migrations
 ```
 
-これは ownership の提案であり、実装前に空 directory を作ることを要求しない。
+初期実装は、公開APIを一つのpure TypeScript moduleにまとめる。Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashだけを実装する。各責務が増えた段階でこの境界へ分割する。
 
 ## 4. Public API
 
-公開 API は data constructor、validator、canonicalizer、diagnostic、pure migration に限定する。具体的な parse、I/O、renderer、transport adapter は公開しない。
+初期実装は `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、`canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、`hashRenderBundle` を公開する。入力型は`@unframe/contracts/presentation`の生成型を正本とし、Core内でserialized modelを再定義しない。
 
-Validation は boolean だけでなく、stable diagnostic code、semantic path、必要なら source correlation key を返す。PresentationDefinition を受け取る consumer が同じ invariant を再実装しないための API とする。
+すべてのAPIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。
+
+入力は`packages/contracts`のJSON Schemaで構造検証済みであることを前提とする。Coreのdefensiveなshape checkはtrust boundaryのschema validationを代替しない。JSON parse、schema validator、I/O、renderer、transport adapterは公開しない。
 
 ## 5. Invariants
+
+初期実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、Group ownerとSpatial parent lifetime、State / Interaction / override、DefinitionとRenderBundleのsurface / state / semantic tree / hit region対応を検証する。canonicalizationはRecord挿入順に依存せず、意味上のsetだけをsortし、semantic overrideのlayer順を保持する。
+
+次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
 
 - SurfaceNode と SemanticSurface は v1 で 1:1、SemanticSurface と RenderSurface は 1:N とする。
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
@@ -80,16 +93,17 @@ Validation は boolean だけでなく、stable diagnostic code、semantic path�
 
 ## 8. Validation strategy
 
-- ID uniqueness、reference、lifetime、cardinality の property test
-- valid / invalid portable fixture
-- canonical serialization と hash の golden test
-- pure migration の before / after fixture
-- Go / C# consumer と共有する semantic conformance fixture
-- Node.js と Browser の両方で runtime-specific global に依存しないことの検証
+- portable fixtureに対するvalid / invalid semantic test
+- ID、reference、lifetime、cardinality、tree、override、hit regionの境界test
+- object insertion orderとdiagnostic順序の決定性test
+- canonical number serializationとSHA-256のgolden test
+- production sourceがNode.js専用APIへ依存しないことのtest
+
+property test、migration fixture、Go / C# consumerとのsemantic conformanceは対象contractの実装時に追加する。
 
 ## 9. Deferred decisions
 
-- presentation schema source と TypeScript model の生成方式
-- diagnostic path / code の完全な形式
-- canonical JSON algorithm と hash algorithm
+- Cue / Trigger / Guard / Action、Timeline、Native UI、Video artifactのsemantic validation
+- Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
+- data constructor、normalize、pure migration API
 - migration support window
