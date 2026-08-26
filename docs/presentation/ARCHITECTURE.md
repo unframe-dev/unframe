@@ -1710,7 +1710,7 @@ Presentation 開始時は presentation-owned Node、Surface、Variable、Media�
 Group exit では次を順に適用する。
 
 1. 旧 Group の Step / Cue と、group-owned Interaction を無効化する。
-2. 旧 Group 所有の Surface transition、Timeline、Media Run を cancel する。group-owned blocking Run が残る状態では exit を開始しない。
+2. 旧 Group 所有の non-blocking Timeline / Media Run を cancel する。v1 の Surface transition は常に blocking であり、group-owned blocking Run が残る状態では exit を開始しないため、この時点で active な group-owned Surface transition は存在しない。
 3. 旧 Group 所有の Spatial Node を deactivate する。
 4. 旧 Group 所有の Node、Surface、Media、Variable、Zone の Runtime State と Trigger edge memory を canonical Runtime State から除去する。
 5. `GroupExited` を確定する。
@@ -1737,6 +1737,7 @@ v1 の Group reentry policy は `reset` に固定する。Group ごとの進行�
 RuntimeStatusChanged
 GroupEntered / GroupExited
 CueAccepted
+SurfaceInteractionAccepted
 SurfaceStateChanged
 SurfaceTransitionStarted / SurfaceTransitionCompleted
 NodeStateCommitted
@@ -1747,9 +1748,108 @@ StepEntered
 PresentationEnded
 ```
 
-Reliable Event は session 内で単調増加する `sequence`、冪等適用用の `eventId`、原因となった `causeEventId`、runtime time、PublicationFence と origin の識別情報を持つ。Texture variant や Unity renderer 情報は payload に含めない。
+participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching は下位 transport contract で固定するが、この fence と identity を省略しない。
+
+```ts
+type ProjectedReliableEvent<TPayload> = {
+  sequence: number;
+  eventId: string;
+  causeEventId?: string;
+  occurredAtRuntimeTimeMilliseconds: number;
+  sessionId: SessionId;
+  publication: PublicationFence;
+  assignmentEpoch: number;
+  projectionProfileId: ProjectionProfileId;
+  presentationOriginVersion: number;
+  payload: TPayload;
+};
+```
+
+`sequence` は projection 前の session-global な単調増加値、`eventId` は冪等適用、`causeEventId` は canonical event 間の因果関係に使用する。Texture variant、Hit Region geometry、Unity renderer 情報は payload に含めない。client は Session、PublicationFence、assignment epoch、projection profile、Presentation Origin のいずれかが現在の connection / DeliveryManifest と一致しない event を適用せず、Connection Resume を要求する。
 
 Pose、Timeline の毎 frame 補間値、連続的な Element State frame は latest-wins の State Stream とし、event log へ保存しない。離散的な Cue 採用と最終状態は Reliable Event と Snapshot の両方へ反映する。
+
+#### Surface transition / interaction wire contract
+
+Presenter client から Runtime Core へ送る Surface interaction は、renderer や hit-test 実装ではなく canonical Interaction を指定する。
+
+```ts
+type SurfaceInteractionCommand = {
+  clientEventId: string;
+  surfaceId: SemanticSurfaceId;
+  interactionId: InteractionId;
+  presentationOriginVersion: number;
+  capturedAt?: number;
+};
+
+type SurfaceInteractionOutcome = {
+  clientEventId: string;
+  result:
+    | {
+        kind: "accepted";
+        canonicalEventId: string;
+        reliableSequence: number;
+      }
+    | {
+        kind: "rejected";
+        reason: "interactionUnavailable" | "runtimeNotAcceptingInput";
+      };
+};
+```
+
+`SurfaceInteractionCommand` に Surface State、Semantic Node、Hit Region、Render Surface、normalized point、renderer artifact ID、任意 payload を含めない。client は Delivery された現在 State の Hit Region で hit-test して `surfaceId` と `interactionId` を送る。command の session、participant、role、PublicationFence、assignment epoch は認証済み Control Connection が fence し、`presentationOriginVersion` は command ごとに現在値と照合する。不一致では input を canonical event にせず、Control Connection を `FAILED_PRECONDITION / presentation_origin_mismatch` で終了して新しい DeliveryManifest と Connection Snapshot による Connection Resume を要求する。`capturedAt` は診断専用であり、順序、重複判定、availability、Cue 選択に使用しない。Runtime Core は connection から Presenter actor を構成し、現在の canonical Surface State、active transition、`enabledInteractionIds`、resource owner、ProjectionAudience を自身の state で検証する。event payload は PresentationDefinition の Interaction / Trigger contract から解決し、client が申告した表示状態、hit-test 結果、payload を authority にしない。
+
+Runtime Core は最初に Session lifecycle と Progression Phase を検証する。Paused、terminating、`transitioning` など Session が新規 input を受理しない場合は、resource の存在を検査する前に `runtimeNotAcceptingInput` とする。次に現在の canonical state で Surface を検証し、未知、不可視、無効な Interaction と active transition 中の入力を、情報を区別して漏らさない `interactionUnavailable` として connection 単位で reject する。reject は `ingressSequence`、Reliable Event、Cue consumption、cooldown、Runtime State を変更しない。認証・role・PublicationFence・protocol 違反はこの outcome へ丸めず、connection contract の error として fail closed にする。
+
+`clientEventId` は同じ Session と participant の範囲で connection をまたぐ idempotency key とする。Runtime Core は `surfaceId`、`interactionId`、`presentationOriginVersion` の canonical request fingerprint を outcome とともに保持し、`capturedAt` は fingerprint に含めない。同じ ID と fingerprint の再送は新しい canonical input や Reliable Event を生成せず、保持期間内では最初と同じ `SurfaceInteractionOutcome` を返す。同じ ID を異なる fingerprint で再利用した場合は outcome を再利用せず、Control Connection を `INVALID_ARGUMENT / idempotency_key_reused` で fail closed にする。
+
+accepted outcome は、認証・fence・availabilityを満たした Surface interactionをcanonical inputとして一度だけ受理したことだけを意味する。Cue が選択されたことやAction batchがcommitされたことは意味せず、それぞれ後続の `CueAccepted` とstate / fault eventで確定する。accepted outcome の `canonicalEventId` と `reliableSequence` は、対応する `SurfaceInteractionAccepted` Reliable Event を指す。`CueAccepted.causeEventId` はこの canonical event、Surface Action から生じる event の `causeEventId` は対応する `CueAccepted` を指し、input から state change までの因果鎖を renderer 非依存で保持する。
+
+Surface に関する Reliable Event payload は次に固定する。
+
+```ts
+type SurfaceReliableEventPayload =
+  | {
+      kind: "surfaceInteractionAccepted";
+      surfaceId: SemanticSurfaceId;
+      interactionId: InteractionId;
+    }
+  | {
+      kind: "surfaceStateChanged";
+      surfaceId: SemanticSurfaceId;
+      fromStateId: SurfaceStateId;
+      stateId: SurfaceStateId;
+      change: "cut";
+    }
+  | {
+      kind: "surfaceTransitionStarted";
+      surfaceId: SemanticSurfaceId;
+      runId: RuntimeRunId;
+      fromStateId: SurfaceStateId;
+      stateId: SurfaceStateId;
+      startedAtRuntimeTimeMilliseconds: number;
+      durationMilliseconds: number;
+      easing: Easing;
+    }
+  | {
+      kind: "surfaceTransitionCompleted";
+      surfaceId: SemanticSurfaceId;
+      runId: RuntimeRunId;
+      stateId: SurfaceStateId;
+    };
+```
+
+`cut` は Runtime Run を作らず、State と enabled Interaction の切り替えを一つの canonical mutation として確定して `SurfaceStateChanged` を一件生成する。同じ State への有効な no-op cut は mutation も event も生成しない。
+
+`crossfade` の開始は、canonical `stateId` の変更、`surfaceTransition` Run の追加、`transitionRunId` の設定、全 Interaction の無効化を一つの mutation として確定し、`SurfaceTransitionStarted` だけを生成する。同じ変更について追加の `SurfaceStateChanged` を生成しない。client は event の `fromStateId`、`stateId`、開始時刻、duration、easing から表示を補間し、crossfade weight を Reliable Event や State Stream で毎 frame 受信しない。
+
+Runtime Core は logical runtime time が deadline に到達した時に、`runId` と owner epoch が current active Run に一致する場合だけ、Run の除去、`transitionRunId` の解除、遷移先 State の Interaction / Hit Region 有効化を一つの mutation として確定し、その後に `SurfaceTransitionCompleted` を生成する。Renderer acknowledgement や client clock を completion source にしない。stale、重複、owner epoch 不一致の completion は event を生成せず無視する。最後の blocking Run の完了によって `pendingNext` を適用する場合、`SurfaceTransitionCompleted` を、その完了から派生する `GroupEntered` / `GroupExited` / `StepEntered` より前の sequence に置く。
+
+v1 は `SurfaceTransitionCanceled` を持たない。Surface transition は常に blocking であるため Group exit は完了前に開始せず、Presentation 終了時は `PresentationEnded` の適用で active Surface Run を含む Presentation Runtime State 全体を破棄する。将来 non-blocking / interruptible Surface transition を追加する場合は、cancel reason と終了時のInteraction状態を持つ明示的なlifecycle eventを同時に追加する。
+
+Interaction / Hit Region の enabled 状態専用の event、State Stream field、Snapshot field は作らない。Snapshot で `transitionRunId` が存在する Surface は全 Interaction を無効とし、対応する active `surfaceTransition` Run がなければ invalid Snapshot とする。`transitionRunId` がなければ、現在の `stateId` の `enabledInteractionIds` と Delivery 済み Hit Region の積集合だけを有効にする。これにより live event、late join、replay、durable recovery が同じ規則へ収束する。
+
+Surface event は、ProjectionProfileDescriptor で対象 Surface が可視な participant にだけ投影する。不可視な event は payload、resource ID、event kind を含まない集約 `ProjectionAdvance` の規則に従い、Surface、Interaction、State、Run の ID を漏らさない。State Stream frame が Surface transition の開始または完了後の値を前提にする場合、その `baseReliableSequence` は対応する projected Surface event 以上でなければならない。
 
 ```ts
 type CanonicalRuntimeSnapshot = {
@@ -1875,7 +1975,7 @@ Recovery は次の Runtime invariant を検証する。active Timeline Run の p
 
 Conformance test は、今回の progression 規則について次を検証する。
 
-- Surface: 遷移中の追加入力、同じ State への cut / crossfade、crossfade easing、interaction と hit region の有効化時点。
+- Surface: 遷移中の追加入力、同じ State への cut / crossfade、crossfade easing、interaction と hit region の有効化時点、cut が一件の `SurfaceStateChanged` だけを生成すること、crossfade が重複する State event を生成しないこと、completion が派生する Group / Step event より先に並ぶこと、reject が sequence と state を変更しないこと、同じ fingerprint の `clientEventId` 再送が同じ outcome へ収束すること、異なる fingerprint の ID 再利用と Presentation Origin 不一致が fail closed になること、Snapshotから同じInteraction有効状態を導出できること。
 - Action: property claim conflict、batch reject の atomicity、expected reject と Runtime fault の状態遷移。
 - Timeline: exact endpoint、全 easing と number / Vector3 / Quaternion の組み合わせ、Quaternion の反対符号と near-linear 補間、Pause / Resume、明示 stop / Group exit での現在値 commit、Presentation 終了時の cancel 順序。
 - Semantic Tree / Native UI: 空 Tree、root canonical order、State materialization、override の field presence / `null` 削除、enabled / disabled Interaction と Hit Region 整合、tree limit と capability reject、Variable closure、静的literal / boolean labelのreject、single-line置換後のstring許容range、動的valueのtruncate、boolean / number / timer format、Pause / 再接続時のclock表示、全 State のfont face / glyph closure、Native UI / effective Semantic Tree textのartifact内・profile横断injective一致、Unity と Web preview のformatter fixture一致。
@@ -2388,12 +2488,12 @@ presentation/
 - [x] 単一の PublishedPresentation、PublicationFence、Waiting Session の owner cancel / bounded expiry、非終了 Session 中の publish lock、Draft / Build / Session の反映規則を 3.6 と 15 で定義した。
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を 12.4、12.7、12.8、12.12 で定義した。
 - [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
+- [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を 12.11 で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
-1. Surface transition の完了、interaction、hit region 有効化の wire 表現
-2. Timeline の補間結果、停止理由、Run lifecycle の wire 表現
-3. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+1. Timeline の補間結果、停止理由、Run lifecycle の wire 表現
+2. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
 
 ### Rendering / Delivery の follow-ups
 
@@ -2410,8 +2510,8 @@ presentation/
 
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
-1. Surface transition / interaction の wire contract
-2. Timeline / Runtime Run の wire contract
+1. Timeline / Runtime Run の wire contract
+2. Reliable Event / Snapshot / State Stream の transport contract
 3. role 別 Semantic schema / Hit Region schema
 4. Spatial / Surface coordinate convention
 5. Surface Partition

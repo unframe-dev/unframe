@@ -481,6 +481,10 @@ ReliableEvent
 
 同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 
+Surface transition / interaction の canonical wire contract は [Presentation Architecture](../../../docs/presentation/ARCHITECTURE.md#surface-transition--interaction-wire-contract) を正本とする。target protocol の意味論上の入力は Presenter の `clientEventId`、`SemanticSurfaceId`、`InteractionId`、`presentationOriginVersion`であり、任意の`capturedAt`は診断にだけ使う。Surface State、Hit Region、RenderSurfaceId、座標、renderer artifact、任意payloadを入力として信用しない。accepted input は `SurfaceInteractionAccepted`、cut は `SurfaceStateChanged`、crossfade は `SurfaceTransitionStarted` / `SurfaceTransitionCompleted` として Reliable Event に lower する。interaction outcome は接続単位のcommand結果であり、rejectをsession-global event logへ追加しない。projected Reliable EventはSession、PublicationFence、assignment epoch、projection profile、Presentation Originをfenceする。
+
+crossfade開始時はcanonical State変更、Run追加、interaction無効化をatomicに確定し、完了時はRun除去と遷移先Hit Region有効化をatomicに確定する。interaction / Hit Region専用のmutable wire fieldは持たず、Projected Snapshotの`stateId`、`transitionRunId`、active RunとDelivery済みstate artifactから導出する。crossfade weightは開始時刻、duration、easingからQuestが計算し、Element State Streamへ毎frame送信しない。これらはtarget contractであり、現行`realtime.proto`の`PageChangeCommand` / `PageChanged` foundationへ実装済みとはみなさない。
+
 ### 8.3 Presenter Tracking Stream
 
 Presenter Quest から割り当て済み Runtime へ送る。
