@@ -579,7 +579,7 @@ Directoryとpackageは次の順序で実装を開始する。
 
 次は各packageの`ARCHITECTURE.md`または別ADRで決める。
 
-- Semantic contract sourceに使用するschema libraryとJSON Schema generation方法
+- Cue、Theme、Token、Named Styleを含む完全版Semantic contractのschema設計
 - Lossless Syntax Treeとsource patchingの実装
 - Opaque rendererを実行するBrowser process / isolateとcapability
 - Component package distributionと`unframe.lock`の形式

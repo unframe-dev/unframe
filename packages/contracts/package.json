@@ -4,14 +4,27 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./control-plane": "./src/control-plane.openapi.ts"
+    "./control-plane": "./src/control-plane.openapi.ts",
+    "./presentation": "./src/presentation.schema.ts"
   },
   "scripts": {
     "generate:control-plane": "tsx scripts/generate-control-plane.ts",
-    "check:control-plane": "tsx scripts/generate-control-plane.ts --check"
+    "check:control-plane": "tsx scripts/generate-control-plane.ts --check",
+    "generate:presentation": "tsx scripts/generate-presentation.ts",
+    "check:presentation": "tsx scripts/generate-presentation.ts --check",
+    "test:presentation": "tsx test/presentation.contract.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check scripts/generate-presentation.ts test/presentation.contract.test.ts test/presentation.type-test.ts",
+    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm typecheck && pnpm test:presentation && pnpm lint"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
+    "ajv": "8.17.1",
+    "json-schema-to-typescript": "15.0.4",
     "openapi-typescript": "^7.12.0",
-    "tsx": "^4.22.1"
+    "prettier": "3.9.6",
+    "tsx": "^4.22.1",
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:"
   }
 }

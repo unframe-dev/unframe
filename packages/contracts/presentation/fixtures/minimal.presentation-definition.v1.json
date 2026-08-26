@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "presentationId": "presentation-intro",
+  "metadata": { "title": "Intro" },
+  "stage": {
+    "coordinateSystem": {
+      "unit": "meter",
+      "handedness": "right",
+      "upAxis": "+Y",
+      "forwardAxis": "-Z"
+    },
+    "size": [4, 3, 2],
+    "zones": {}
+  },
+  "assets": {},
+  "scene": {
+    "nodes": {
+      "surface-node-title": {
+        "id": "surface-node-title",
+        "name": "Title surface",
+        "kind": "surface",
+        "owner": { "kind": "presentation" },
+        "audience": { "kind": "all" },
+        "parent": { "kind": "stage" },
+        "order": 0,
+        "transform": {
+          "position": [0, 0, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "active": true,
+        "visible": true,
+        "opacity": 1,
+        "surfaceId": "surface-title"
+      }
+    },
+    "surfaces": {
+      "surface-title": {
+        "id": "surface-title",
+        "hostNodeId": "surface-node-title",
+        "physicalSizeMeters": [1.6, 0.9],
+        "logicalSize": [1920, 1080],
+        "fit": "contain",
+        "rootFrameId": "frame-root",
+        "contentNodes": {
+          "frame-root": {
+            "id": "frame-root",
+            "kind": "frame",
+            "parentId": null,
+            "order": 0,
+            "layout": { "kind": "absolute" },
+            "children": ["text-title"]
+          },
+          "text-title": {
+            "id": "text-title",
+            "kind": "text",
+            "parentId": "frame-root",
+            "order": 0,
+            "placement": {
+              "kind": "absolute",
+              "x": 120,
+              "y": 80,
+              "width": 1680,
+              "height": 200
+            },
+            "text": "Hello"
+          }
+        },
+        "baseSemanticTree": {
+          "rootNodeIds": ["semantic-title"],
+          "nodes": {
+            "semantic-title": {
+              "id": "semantic-title",
+              "parentId": null,
+              "order": 0,
+              "role": "heading",
+              "text": "Hello"
+            }
+          }
+        },
+        "interactions": {},
+        "initialStateId": "state-default",
+        "states": {
+          "state-default": {
+            "id": "state-default",
+            "semanticOverrides": [],
+            "enabledInteractionIds": []
+          }
+        },
+        "renderIntent": {
+          "updateModel": { "kind": "static" },
+          "interaction": { "kind": "none" },
+          "internalAnimation": { "kind": "none" },
+          "rendererPreference": "baked-web",
+          "fallbackPolicy": "reject"
+        }
+      }
+    }
+  },
+  "flow": {
+    "initialGroupId": "group-intro",
+    "groups": {
+      "group-intro": {
+        "id": "group-intro",
+        "initialStepId": "step-intro",
+        "steps": { "step-intro": { "id": "step-intro", "cues": [] } }
+      }
+    },
+    "variables": {
+      "optional-subtitle": {
+        "id": "optional-subtitle",
+        "owner": { "kind": "presentation" },
+        "type": "null",
+        "initialValue": null
+      }
+    }
+  }
+}

@@ -2409,7 +2409,7 @@ presentation/
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
 
-### Target, not implemented
+### Target（初期contract subsetのみ実装済み）
 
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
@@ -2417,10 +2417,10 @@ presentation/
 - Canonical `presentation.definition.json` の deterministic serialization
 - Component Manifest と package format
 - Structured / Opaque authoring mode
-- Spatial Tree / Surface Tree の canonical schema
+- Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）
 - Frame Layout、Theme、Token、Named Style
 - Surface Render Intent
-- RenderBundle
+- RenderBundle（baked-web artifactの初期subsetは実装済み）
 - 単一の PublishedPresentation、PublicationFence、Waiting Session の owner cancel / bounded expiry、非終了 Session と直列化した publish lock
 - Surface State artifact、semantic tree、hit region
 - v1 Presentation Progression semantic model の実装と、Progression wire / Runtime contract

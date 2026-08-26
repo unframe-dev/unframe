@@ -1,6 +1,6 @@
 # Contracts Architecture
 
-- **Status**: Current boundary with Target extensions
+- **Status**: Current boundary with initial Target Presentation artifact schema
 - **Scope**: Application、language、runtime をまたぐ serialized artifact と wire contract
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -28,20 +28,22 @@
 
 現行 TypeScript runtime client は OpenAPI path type ではなく、Control Plane が公開する Hono RPC `AppType` を利用する。OpenAPI artifact は language-neutral consumer のための境界として維持する。
 
-### Target
+### Target（Presentation artifact の初期実装）
 
 ```text
 packages/contracts/
 ├─ presentation/
-│  ├─ presentation-definition.<schema-source>
-│  ├─ render-bundle.<schema-source>
+│  ├─ presentation-definition.schema.json
+│  ├─ render-bundle.schema.json
 │  └─ fixtures/
+├─ scripts/generate-presentation.ts
+├─ src/presentation.schema.ts
 └─ proto/unframe/
    ├─ delivery/v1/delivery.proto
    └─ realtime/v1/realtime.proto
 ```
 
-- PresentationDefinition と RenderBundle の serialized shape
+- PresentationDefinition と baked-web first RenderBundle の serialized shape
 - DeliveryManifest、Reliable Event、Snapshot envelope、State Stream の wire shape
 - contract version、compatibility field、portable fixture
 - TypeScript、Go、C# generated artifact の generation entrypoint
@@ -94,4 +96,6 @@ Target の Presentation schema と Protocol Buffers は、consumer が generated
 
 ## 8. Current gap
 
-PresentationDefinition / RenderBundle の portable schema source、DeliveryManifest Protobuf、Runtime contract の大部分、C# generation は未実装である。現行 `realtime.proto` は foundation であり、Target architecture 全体を表す完成契約ではない。
+PresentationDefinition / baked-web first RenderBundle のJSON Schema source、最小fixture、TypeScript生成物、schema validationとdrift checkは実装済みである。参照整合性、canonicalization、DeliveryManifest Protobuf、Runtime contract の大部分、Go / C# generationは未実装である。現行 `realtime.proto` は foundation であり、Target architecture 全体を表す完成契約ではない。
+
+最初のmilestoneではCueの詳細contractをまだ固定しない。schemaは`cues`を空配列に限定し、任意のCue objectを受け入れない。Frame layoutとText placementは`absolute` subsetのみを構造契約に含める。参照整合性、所有権、tree不変条件、Quaternion正規化、Scalar値の型整合性は`presentation-core`のsemantic validationへ委譲する。

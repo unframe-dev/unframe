@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle-intro",
+  "sourceHash": "sha256:source",
+  "definitionHash": "sha256:definition",
+  "compiler": {
+    "name": "@unframe/presentation-compiler",
+    "version": "0.1.0",
+    "environmentHash": "sha256:environment"
+  },
+  "buildContext": {
+    "locale": "ja-JP",
+    "timezone": "Asia/Tokyo",
+    "colorScheme": "dark",
+    "themeId": "theme-default",
+    "themeHash": "sha256:theme"
+  },
+  "surfaces": {
+    "surface-title": {
+      "semanticSurfaceId": "surface-title",
+      "logicalSize": [1920, 1080],
+      "physicalSizeMeters": [1.6, 0.9],
+      "renderSurfaceIds": ["render-surface-title"],
+      "renderSurfaces": {
+        "render-surface-title": {
+          "id": "render-surface-title",
+          "semanticSurfaceId": "surface-title",
+          "logicalBounds": { "x": 0, "y": 0, "width": 1920, "height": 1080 },
+          "layer": 0,
+          "artifacts": {
+            "artifact-title-default": {
+              "id": "artifact-title-default",
+              "kind": "baked-web",
+              "states": {
+                "state-default": {
+                  "stateId": "state-default",
+                  "textures": [
+                    {
+                      "assetId": "asset-title-default-2k",
+                      "mediaType": "image/png",
+                      "pixelSize": [2048, 1152],
+                      "checksum": "sha256:texture",
+                      "colorSpace": "srgb",
+                      "alphaMode": "straight"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "stateBindings": {
+            "state-default": {
+              "kind": "artifacts",
+              "artifactIds": ["artifact-title-default"]
+            }
+          }
+        }
+      },
+      "semanticsByState": {
+        "state-default": {
+          "rootNodeIds": ["semantic-title"],
+          "nodes": {
+            "semantic-title": {
+              "id": "semantic-title",
+              "parentId": null,
+              "order": 0,
+              "role": "heading",
+              "text": "Hello"
+            }
+          }
+        }
+      },
+      "interactionsByState": { "state-default": [] }
+    }
+  }
+}

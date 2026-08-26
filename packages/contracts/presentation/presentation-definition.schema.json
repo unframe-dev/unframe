@@ -1,0 +1,606 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.unframe.dev/presentation/presentation-definition.v1.schema.json",
+  "title": "SerializedPresentationDefinitionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "presentationId",
+    "metadata",
+    "stage",
+    "assets",
+    "scene",
+    "flow"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "presentationId": { "$ref": "#/$defs/id" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "stage": { "$ref": "#/$defs/stage" },
+    "assets": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/asset" }
+    },
+    "scene": { "$ref": "#/$defs/scene" },
+    "flow": { "$ref": "#/$defs/flow" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1 },
+    "number": { "type": "number" },
+    "positive": { "type": "number", "exclusiveMinimum": 0 },
+    "vector2": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/positive" },
+        { "$ref": "#/$defs/positive" }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/number" },
+        { "$ref": "#/$defs/number" },
+        { "$ref": "#/$defs/number" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "positiveVector3": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/positive" },
+        { "$ref": "#/$defs/positive" },
+        { "$ref": "#/$defs/positive" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/number" },
+        { "$ref": "#/$defs/number" },
+        { "$ref": "#/$defs/number" },
+        { "$ref": "#/$defs/number" }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title"],
+      "properties": { "title": { "type": "string", "minLength": 1 } }
+    },
+    "owner": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "presentation" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "groupId"],
+          "properties": {
+            "kind": { "const": "group" },
+            "groupId": { "$ref": "#/$defs/id" }
+          }
+        }
+      ]
+    },
+    "audience": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "all" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "role"],
+          "properties": {
+            "kind": { "const": "role" },
+            "role": { "enum": ["presenter", "viewer"] }
+          }
+        }
+      ]
+    },
+    "parent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "stage" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "nodeId"],
+          "properties": {
+            "kind": { "const": "node" },
+            "nodeId": { "$ref": "#/$defs/id" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "owner",
+            "followPosition",
+            "followRotation"
+          ],
+          "properties": {
+            "kind": { "const": "anchor" },
+            "target": { "enum": ["head", "leftHand", "rightHand", "body"] },
+            "owner": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "presenter" } }
+            },
+            "followPosition": { "type": "boolean" },
+            "followRotation": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "rotation", "scale"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vector3" },
+        "rotation": { "$ref": "#/$defs/quaternion" },
+        "scale": { "$ref": "#/$defs/positiveVector3" }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coordinateSystem", "size", "zones"],
+      "properties": {
+        "coordinateSystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unit", "handedness", "upAxis", "forwardAxis"],
+          "properties": {
+            "unit": { "const": "meter" },
+            "handedness": { "const": "right" },
+            "upAxis": { "const": "+Y" },
+            "forwardAxis": { "const": "-Z" }
+          }
+        },
+        "size": { "$ref": "#/$defs/positiveVector3" },
+        "zones": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/zone" }
+        }
+      }
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "owner", "center", "size"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "owner": { "$ref": "#/$defs/owner" },
+        "center": { "$ref": "#/$defs/vector3" },
+        "size": { "$ref": "#/$defs/positiveVector3" }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "mediaType", "checksum"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "mediaType": { "$ref": "#/$defs/id" },
+        "checksum": { "$ref": "#/$defs/id" }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes", "surfaces"],
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/surfaceNode" }
+        },
+        "surfaces": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/surface" }
+        }
+      }
+    },
+    "surfaceNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "owner",
+        "audience",
+        "parent",
+        "order",
+        "transform",
+        "active",
+        "visible",
+        "opacity",
+        "surfaceId"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "type": "string" },
+        "kind": { "const": "surface" },
+        "owner": { "$ref": "#/$defs/owner" },
+        "audience": { "$ref": "#/$defs/audience" },
+        "parent": { "$ref": "#/$defs/parent" },
+        "order": { "type": "integer", "minimum": 0 },
+        "transform": { "$ref": "#/$defs/transform" },
+        "active": { "type": "boolean" },
+        "visible": { "type": "boolean" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "surfaceId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "hostNodeId",
+        "physicalSizeMeters",
+        "logicalSize",
+        "fit",
+        "rootFrameId",
+        "contentNodes",
+        "baseSemanticTree",
+        "interactions",
+        "initialStateId",
+        "states",
+        "renderIntent"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "hostNodeId": { "$ref": "#/$defs/id" },
+        "physicalSizeMeters": { "$ref": "#/$defs/vector2" },
+        "logicalSize": { "$ref": "#/$defs/vector2" },
+        "fit": { "enum": ["contain", "cover", "stretch"] },
+        "rootFrameId": { "$ref": "#/$defs/id" },
+        "contentNodes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/contentNode" }
+        },
+        "baseSemanticTree": { "$ref": "#/$defs/semanticTree" },
+        "interactions": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/interaction" }
+        },
+        "initialStateId": { "$ref": "#/$defs/id" },
+        "states": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/state" }
+        },
+        "renderIntent": { "$ref": "#/$defs/renderIntent" }
+      }
+    },
+    "contentNode": {
+      "oneOf": [{ "$ref": "#/$defs/frame" }, { "$ref": "#/$defs/text" }]
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "parentId", "order", "layout", "children"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "frame" },
+        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "order": { "type": "integer", "minimum": 0 },
+        "layout": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "absolute" } }
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "parentId", "order", "placement", "text"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "text" },
+        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "order": { "type": "integer", "minimum": 0 },
+        "placement": { "$ref": "#/$defs/absolutePlacement" },
+        "text": { "type": "string" }
+      }
+    },
+    "absolutePlacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "x", "y", "width", "height"],
+      "properties": {
+        "kind": { "const": "absolute" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "semanticTree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootNodeIds", "nodes"],
+      "properties": {
+        "rootNodeIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        },
+        "nodes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/semanticNode" }
+        }
+      }
+    },
+    "semanticNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parentId", "order", "role"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "order": { "type": "integer", "minimum": 0 },
+        "role": {
+          "enum": [
+            "heading",
+            "paragraph",
+            "image",
+            "button",
+            "table",
+            "list",
+            "listItem"
+          ]
+        },
+        "text": { "type": "string" },
+        "language": { "type": "string", "minLength": 1 },
+        "alt": { "type": "string" },
+        "interactionId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "interaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "event"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "click" },
+        "event": { "$ref": "#/$defs/id" }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "semanticOverrides", "enabledInteractionIds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "semanticOverrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/override" }
+        },
+        "enabledInteractionIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes"],
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/nodeOverride" }
+        }
+      }
+    },
+    "nodeOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "included": { "type": "boolean" },
+        "text": { "type": ["string", "null"] },
+        "language": { "type": ["string", "null"] },
+        "alt": { "type": ["string", "null"] }
+      }
+    },
+    "renderIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "updateModel",
+        "interaction",
+        "internalAnimation",
+        "rendererPreference",
+        "fallbackPolicy"
+      ],
+      "properties": {
+        "updateModel": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "static" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "stateIds"],
+              "properties": {
+                "kind": { "const": "finite-state" },
+                "stateIds": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/id" },
+                  "uniqueItems": true
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "source"],
+              "properties": {
+                "kind": { "const": "continuous" },
+                "source": {
+                  "enum": ["timeline", "runtime-data", "user-input"]
+                },
+                "maximumUpdateRateHz": { "$ref": "#/$defs/positive" }
+              }
+            }
+          ]
+        },
+        "interaction": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "none" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "events"],
+              "properties": {
+                "kind": { "const": "regions" },
+                "events": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/id" },
+                  "uniqueItems": true
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "native-input" } }
+            }
+          ]
+        },
+        "internalAnimation": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "none" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "durationSeconds"],
+              "properties": {
+                "kind": { "const": "precomputed" },
+                "durationSeconds": { "$ref": "#/$defs/positive" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "runtime" } }
+            }
+          ]
+        },
+        "rendererPreference": {
+          "enum": ["auto", "baked-web", "native-ui", "video"]
+        },
+        "fallbackPolicy": { "enum": ["reject", "degrade"] }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initialGroupId", "groups", "variables"],
+      "properties": {
+        "initialGroupId": { "$ref": "#/$defs/id" },
+        "groups": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/group" }
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/variable" }
+        }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "owner", "type", "initialValue"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "owner": { "$ref": "#/$defs/owner" },
+        "type": { "enum": ["string", "boolean", "number", "null"] },
+        "initialValue": { "type": ["string", "boolean", "number", "null"] }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "initialStepId", "steps"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "initialStepId": { "$ref": "#/$defs/id" },
+        "steps": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/step" }
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "cues"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "cues": { "type": "array", "maxItems": 0 }
+      }
+    }
+  }
+}

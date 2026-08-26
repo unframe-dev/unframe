@@ -16,6 +16,31 @@ pnpm --filter @unframe/contracts check:control-plane
 
 Control Plane の `src/openapi.ts`、共有 schema、HTTP routeを変更した場合は型を再生成し、drift checkを通してください。TypeScript runtime client は生成 path 型ではなく Hono RPC の `AppType` を使います。生成物は Unity / C# など言語非依存の契約境界として維持します。
 
+## Presentation artifact schemas
+
+`presentation/presentation-definition.schema.json` と
+`presentation/render-bundle.schema.json` は JSON Schema Draft 2020-12 の source of truth です。
+前者は renderer-independent な PresentationDefinition、後者は baked-web artifact を含む
+RenderBundle の最初の serialized shape を定義します。`src/presentation.schema.ts` は決定的な
+TypeScript 生成物であり、`@unframe/contracts/presentation` から import できます。
+
+```sh
+pnpm --filter @unframe/contracts generate:presentation
+pnpm --filter @unframe/contracts check:presentation
+pnpm --filter @unframe/contracts test:presentation
+```
+
+`fixtures/minimal.*.v1.json` は一つの Stage、SurfaceNode、Semantic Surface、root Frame/Text、
+State、baked-web intent、空 Cue の Group/Step を表す最小のcross-language fixtureです。schema は
+portable な構造だけを検証します。ID の相互参照、ownership、State の意味的整合性、canonicalization
+は `presentation-core` が担当します。これらのTarget schemaは既存Control Plane OpenAPI形式を
+置き換えず、consumer migrationもまだ含みません。
+
+最初のmilestoneではCueの詳細なTrigger / Guard / Action contractは未実装です。`cues` は
+`maxItems: 0` とし、任意objectを受け入れません。Frameは`absolute` layout、Textは親Frame内の
+`absolute` placementを持つ親子構造に限定します。ID参照、treeの循環、Quaternionの正規化、Scalar型とinitialValueの一致は
+構造schemaの外であり、`presentation-core` が検証します。
+
 ## Realtime Protocol Buffers
 
 `proto/unframe/realtime/v1/realtime.proto` は Realtime gRPC protocol の source of truth です。Go generated code は `app/server/realtime/internal/gen/realtime/v1/` に出力します。generated files は手で編集しません。
