@@ -1,6 +1,6 @@
 # Presentation Components Architecture
 
-- **Status**: Proposal / Target, not implemented
+- **Status**: Initial Structured Surface primitive implemented
 - **Scope**: Unframe 標準 Primitive、Component、Theme の package
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -90,7 +90,17 @@ Opaque source が React などを必要とする場合、その依存は Compone
 
 ## 9. Deferred decisions
 
-- 最初に提供する Primitive / Component set
+- Surface 以外に提供する Spatial / Surface Primitive と標準 Component set
 - Component distribution と lockfile format
 - Opaque dependency capability と sandbox policy
 - Component / renderer drift の完全な検証方式
+
+## 10. Current implementation
+
+最初の milestone は `@unframe/presentation-components` から `standardSurfaceManifest`、`standardSurfaceStructure`、`standardTheme` と、それらを束ねる `standardComponents` を公開する。Structure は固定の `Surface → Frame → Text` Primitive graph、absolute layout、一つの `default` state、空の Interaction、`static / none / baked-web / reject` Render Intent だけを持つ。
+
+Manifest は実際に Structure へ結合できない Props、Slots、Parts、Variants、Actions、Outputs を先行公開しない。Structure の local ID はすべて source に明示し、Frame / Text は Standard Theme の Named Style ID だけを参照する。Renderer compatibility は `baked-web` という data で宣言し、renderer API や concrete renderer へ依存しない。
+
+現行 Authoring contract は Theme Token category と Named Style property schema をまだ定義していないため、Standard Theme は参照可能な空の Named Style record だけを提供する。これは generic renderer default を選ぶための最小 fixture であり、型付き Theme や標準 visual design を実装済みとは扱わない。
+
+Component Props / Variant の Structure への値注入、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity、migration、preview、visual regression は含めない。これらを暗黙の名前規約で補わず、Authoring / Compiler / Renderer の対応 contract が実装された後に追加する。
