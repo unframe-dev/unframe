@@ -30,6 +30,8 @@
 
 新しい directory は、独立した責務、依存方向、公開 API、品質ゲートのいずれかを持つ場合に作る。単にファイル数を減らすための階層や、将来使うかもしれない空 package は作らない。
 
+実装前に責務をレビューする必要がある Target package は、`Proposal / Target, not implemented` と明記した `ARCHITECTURE.md` だけを先行して置ける。この directory は `package.json`、public entrypoint、workspace package を持つまでは実装済み package とみなさない。
+
 ### 2.2 Package は実行環境をまたいで implementation を共有しない
 
 TypeScript package を Go Realtime や Unity C# から直接利用しない。複数言語間では JSON Schema、OpenAPI、Protocol Buffers、fixture などの contract artifact を共有する。
@@ -103,7 +105,7 @@ unframe/
    └─ decisions/                              # cross-boundary decisions and rationale
 ```
 
-Target directory は担当実装を開始する時点で追加する。empty placeholder、空の `package.json`、将来用の `src/` は先行して作らない。
+Target implementation directory は担当実装を開始する時点で追加する。責務レビュー用の `ARCHITECTURE.md` を除き、empty placeholder、空の `package.json`、将来用の `src/` は先行して作らない。
 
 ## 4. Shared package responsibilities
 
@@ -465,7 +467,7 @@ Unity ────────────────────────�
 
 ## 8. Standard package layout
 
-各新規TypeScript packageは、必要になった範囲で次の形を使用する。
+各新規TypeScript packageは、必要になった範囲で次の形を使用する。実装前は責務レビュー用の `ARCHITECTURE.md` だけが存在してよい。
 
 ```text
 packages/<name>/
@@ -525,12 +527,13 @@ README.md
 
 Cross-boundaryな選択理由は`docs/decisions/`のADRへ置く。`ARCHITECTURE.md`はprompt historyや実装手順ではなく、そのdirectoryを単独で理解するためのcurrent / target boundaryを記述する。
 
-### 10.1 Planned `ARCHITECTURE.md`
+### 10.1 Package responsibility `ARCHITECTURE.md`
 
-実装開始時に次の境界へ追加または既存文書を更新する。
+次の境界は、実装に先立って責務、依存、invariant、検証方針を提案する `ARCHITECTURE.md` を持つ。未実装 package の文書は Target であることを明示し、実装開始時に Current 状態を更新する。
 
 ```text
 packages/contracts/ARCHITECTURE.md
+packages/api-client-csharp/ARCHITECTURE.md
 packages/presentation-core/ARCHITECTURE.md
 packages/presentation-authoring/ARCHITECTURE.md
 packages/presentation-components/ARCHITECTURE.md
@@ -545,6 +548,8 @@ app/server/realtime/ARCHITECTURE.md
 app/server/integration/ARCHITECTURE.md
 app/unity/ARCHITECTURE.md
 ```
+
+現行の `packages/api-client-typescript` は Control Plane の Hono RPC / Better Auth client、`packages/config` は repository tooling の共有設定であり、Presentation authoring / compiler / renderer の Target package layer には含めない。それぞれの境界をさらに分割する必要が生じた場合は、その package 自体の設計から `ARCHITECTURE.md` の要否を判断する。
 
 `src/validation/`や`src/cache/`など、同じpackageの内部directoryすべてに`ARCHITECTURE.md`を置かない。独立した公開境界、別runtime、別言語、別品質ゲートへ分割された場合にだけ追加する。
 
