@@ -17,6 +17,7 @@ case "${mode}" in
   check)
     log "presentation(check): package checks"
     pnpm --config.verify-deps-before-run=false \
+      --filter "${PRESENTATION_AUTHORING_FILTER}" \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
     ;;

@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: Proposal / Target, not implemented
+- **Status**: Initial declaration API implemented; compiler integration deferred
 - **Public package name**: `@unframe/presentation`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -93,3 +93,23 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 - Lossless Syntax Tree / source patching library
 - `unframe.lock` と Component package distribution の形式
 - public API の正確な naming と versioning
+
+## 10. Current implementation
+
+現在は最初の reference Authoring Project に必要な次の宣言 API を提供する。
+
+- `definePresentation`、`defineTheme`、`defineComponentManifest`、`defineComponentStructure`
+- Props、Slots、Parts、Variants、States、Actions、Outputs の builder
+- Token、Named Style、Asset reference
+- Stage、Flow、resource owner / audience、Component Instance と package lock
+- Spatial、Semantic Surface、absolute layout の Frame / Text
+- Structured Component の Part / Slot mapping と Opaque Component の semantic binding
+- topology を変更しない semantic override と Structured Component の Detach vocabulary
+
+Topology を持つ宣言は explicit ID を必須とする。source metadata は Compiler が AST から付与するため入力では任意とし、source correlation と diagnostic に共有できる型を提供する。API は finite な JSON plain data だけを受け取り、import 時登録、暗黙 ID、入力 mutation、function 値を持たない。
+
+最初の実装は static / non-interactive / baked-web Surface、absolute layout、flat Scalar payload に限定する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値を拒否する。参照の存在、一意性、tree、owner 継承、Manifest と Structure の整合性は declaration を横断するため、ここでは検証せず Compiler / Core の semantic validation に残す。
+
+parse、AST lowering、reference resolution、normalization、renderer、filesystem は実装せず、それぞれ Compiler、Core、concrete renderer の境界に残す。
+
+現時点の reference Authoring Project は package test 内の inline fixture であり、Stage、Surface Component、Semantic Tree、Flow を current contract へ lower できる入力として固定している。公開用の `examples/presentation/` source は Compiler / CLI と同じ品質ゲートで実行できる段階に追加する。

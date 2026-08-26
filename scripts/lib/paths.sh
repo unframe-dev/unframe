@@ -18,6 +18,8 @@ export LP_DIR="${REPO_ROOT}/lp"
 export LP_FILTER="@unframe/site"
 # packages/contracts (future API / protocol boundaries)
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
+# packages/presentation-authoring (public SDK name: @unframe/presentation)
+export PRESENTATION_AUTHORING_FILTER="@unframe/presentation"
 # packages/presentation-* (Presentation build pipeline packages)
 export PRESENTATION_PACKAGES_FILTER="@unframe/presentation-*"
 # Notion 同期 (scripts/docs/notion-sync)
