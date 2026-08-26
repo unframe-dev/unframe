@@ -318,6 +318,144 @@ const validateTree = (
 
 const semanticOverrideFields = ["included", "text", "language", "alt"] as const;
 
+const semanticRoles = new Set([
+  "heading",
+  "paragraph",
+  "image",
+  "button",
+  "table",
+  "list",
+  "listItem",
+]);
+
+const isDenseArray = (value: unknown): value is unknown[] =>
+  Array.isArray(value) &&
+  Object.keys(value).length === value.length &&
+  Array.from({ length: value.length }, (_, index) => Object.hasOwn(value, index)).every(Boolean);
+
+const hasOnlyFields = (value: JsonRecord, fields: readonly string[]) =>
+  Object.keys(value).every((field) => fields.includes(field));
+
+const hasOwnFields = (value: JsonRecord, fields: readonly string[]) =>
+  fields.every((field) => Object.hasOwn(value, field));
+
+const validateMaterializableSemanticTree = (
+  diagnostics: Diagnostic[],
+  tree: unknown,
+  path: string,
+) => {
+  if (
+    !isRecord(tree) ||
+    !hasOwnFields(tree, ["rootNodeIds", "nodes"]) ||
+    !isDenseArray(tree.rootNodeIds) ||
+    !isRecord(tree.nodes)
+  ) {
+    diagnostics.push(diagnostic("invalid-semantic-tree", path, "Semantic tree is invalid."));
+    return;
+  }
+  if (!tree.rootNodeIds.every(id) || new Set(tree.rootNodeIds).size !== tree.rootNodeIds.length)
+    diagnostics.push(
+      diagnostic("invalid-semantic-roots", `${path}/rootNodeIds`, "Roots must be unique IDs."),
+    );
+  for (const [nodeId, node] of Object.entries(tree.nodes)) {
+    const nodePath = `${path}/nodes/${pathSegment(nodeId)}`;
+    if (!isRecord(node)) {
+      diagnostics.push(diagnostic("invalid-semantic-node", nodePath, "Semantic node is invalid."));
+      continue;
+    }
+    if (
+      !hasOnlyFields(node, [
+        "id",
+        "parentId",
+        "order",
+        "role",
+        "text",
+        "language",
+        "alt",
+        "interactionId",
+      ]) ||
+      !hasOwnFields(node, ["id", "parentId", "order", "role"]) ||
+      node.id !== nodeId ||
+      (node.parentId !== null && !id(node.parentId)) ||
+      !Number.isInteger(node.order) ||
+      (node.order as number) < 0 ||
+      !semanticRoles.has(node.role as string) ||
+      (node.text !== undefined && typeof node.text !== "string") ||
+      (node.language !== undefined && (!id(node.language) || typeof node.language !== "string")) ||
+      (node.alt !== undefined && typeof node.alt !== "string") ||
+      (node.interactionId !== undefined && !id(node.interactionId))
+    )
+      diagnostics.push(diagnostic("invalid-semantic-node", nodePath, "Semantic node is invalid."));
+  }
+  validateTree(diagnostics, tree.nodes, tree.rootNodeIds, path);
+};
+
+const validateMaterializableSemanticOverrides = (
+  diagnostics: Diagnostic[],
+  tree: unknown,
+  state: unknown,
+  path: string,
+) => {
+  if (
+    !isRecord(state) ||
+    !Object.hasOwn(state, "semanticOverrides") ||
+    !isDenseArray(state.semanticOverrides)
+  ) {
+    diagnostics.push(
+      diagnostic("invalid-semantic-overrides", path, "Semantic overrides are invalid."),
+    );
+    return;
+  }
+  const nodes = isRecord(tree) && isRecord(tree.nodes) ? tree.nodes : undefined;
+  for (const [layerIndex, layer] of state.semanticOverrides.entries()) {
+    const layerPath = `${path}/${layerIndex}`;
+    if (
+      !isRecord(layer) ||
+      !Object.hasOwn(layer, "nodes") ||
+      !hasOnlyFields(layer, ["nodes"]) ||
+      !isRecord(layer.nodes)
+    ) {
+      diagnostics.push(
+        diagnostic("invalid-semantic-override", layerPath, "Semantic override is invalid."),
+      );
+      continue;
+    }
+    for (const [nodeId, override] of Object.entries(layer.nodes)) {
+      const overridePath = `${layerPath}/nodes/${pathSegment(nodeId)}`;
+      if (!isRecord(override)) {
+        diagnostics.push(
+          diagnostic("invalid-semantic-override", overridePath, "Node override is invalid."),
+        );
+        continue;
+      }
+      if (nodes === undefined || !Object.hasOwn(nodes, nodeId) || !isRecord(nodes[nodeId]))
+        diagnostics.push(
+          diagnostic(
+            "missing-semantic-node",
+            overridePath,
+            "Semantic override references a missing node.",
+          ),
+        );
+      if (
+        !hasOnlyFields(override, semanticOverrideFields) ||
+        (Object.hasOwn(override, "included") && typeof override.included !== "boolean") ||
+        (Object.hasOwn(override, "text") &&
+          override.text !== null &&
+          typeof override.text !== "string") ||
+        (Object.hasOwn(override, "language") &&
+          override.language !== null &&
+          (!id(override.language) || typeof override.language !== "string")) ||
+        (Object.hasOwn(override, "alt") &&
+          override.alt !== null &&
+          typeof override.alt !== "string")
+      )
+        diagnostics.push(
+          diagnostic("invalid-semantic-override", overridePath, "Node override is invalid."),
+        );
+    }
+  }
+};
+
 const materializeSemanticTree = (
   surface: JsonRecord,
   state: JsonRecord,
@@ -325,7 +463,7 @@ const materializeSemanticTree = (
   path = "",
 ) => {
   const base = isRecord(surface.baseSemanticTree) ? structuredClone(surface.baseSemanticTree) : {};
-  const nodes = isRecord(base.nodes) ? base.nodes : {};
+  const nodes = isRecord(base.nodes) ? (base.nodes as Record<string, JsonRecord>) : {};
   const excluded = new Set<string>();
   const touched = new Set<string>();
   const isExcluded = (nodeId: string) => {
@@ -340,12 +478,11 @@ const materializeSemanticTree = (
     return false;
   };
 
-  const layers = Array.isArray(state.semanticOverrides) ? state.semanticOverrides : [];
+  const layers = state.semanticOverrides as unknown[];
   for (const [layerIndex, layer] of layers.entries()) {
-    for (const [nodeId, override] of recordEntries(isRecord(layer) ? layer.nodes : undefined)) {
-      if (!isRecord(nodes[nodeId])) continue;
+    for (const [nodeId, override] of recordEntries((layer as JsonRecord).nodes)) {
       const overridePath = `${path}/${layerIndex}/nodes/${pathSegment(nodeId)}`;
-      const fields = semanticOverrideFields.filter((field) => field in override);
+      const fields = semanticOverrideFields.filter((field) => Object.hasOwn(override, field));
       for (const field of fields) {
         const claim = `${pathSegment(nodeId)}\u0000${field}`;
         if (touched.has(claim))
@@ -378,18 +515,76 @@ const materializeSemanticTree = (
           ),
         );
       if (override.included === false) excluded.add(nodeId);
+      const node = Object.hasOwn(nodes, nodeId) ? nodes[nodeId] : undefined;
+      if (node === undefined) continue;
       for (const field of ["text", "language", "alt"] as const)
-        if (field in override) {
-          if (override[field] === null) delete nodes[nodeId][field];
-          else nodes[nodeId][field] = override[field];
+        if (Object.hasOwn(override, field)) {
+          if (override[field] === null) delete node[field];
+          else node[field] = override[field];
         }
     }
   }
   for (const nodeId of Object.keys(nodes)) if (isExcluded(nodeId)) delete nodes[nodeId];
   base.rootNodeIds = Array.isArray(base.rootNodeIds)
-    ? base.rootNodeIds.filter((nodeId) => nodeId in nodes)
+    ? base.rootNodeIds.filter((nodeId) => Object.hasOwn(nodes, nodeId))
     : [];
   return base;
+};
+
+export const materializeCompletedSemanticTree = (
+  surface: SemanticSurface,
+  stateId: string,
+): ValidationResult<CompletedSemanticTree> => {
+  try {
+    if (
+      !isRecord(surface) ||
+      !id(stateId) ||
+      !isRecord(surface.states) ||
+      !isRecord(surface.baseSemanticTree)
+    )
+      return {
+        valid: false,
+        diagnostics: [diagnostic("invalid-semantic-surface", "", "Surface input is invalid.")],
+      };
+    if (!Object.hasOwn(surface.states, stateId))
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic("unknown-surface-state", "/states", "Surface state does not exist."),
+        ],
+      };
+    const state = surface.states[stateId];
+    if (!isRecord(state))
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic("unknown-surface-state", "/states", "Surface state does not exist."),
+        ],
+      };
+    const diagnostics: Diagnostic[] = [];
+    validateMaterializableSemanticTree(diagnostics, surface.baseSemanticTree, "/baseSemanticTree");
+    validateMaterializableSemanticOverrides(
+      diagnostics,
+      surface.baseSemanticTree,
+      state,
+      `/states/${pathSegment(stateId)}/semanticOverrides`,
+    );
+    if (diagnostics.length > 0) return { valid: false, diagnostics: sorted(diagnostics) };
+    const tree = materializeSemanticTree(
+      surface,
+      state,
+      diagnostics,
+      `/states/${pathSegment(stateId)}/semanticOverrides`,
+    );
+    return diagnostics.length === 0
+      ? { valid: true, value: tree as CompletedSemanticTree, diagnostics: [] }
+      : { valid: false, diagnostics: sorted(diagnostics) };
+  } catch {
+    return {
+      valid: false,
+      diagnostics: [diagnostic("invalid-semantic-surface", "", "Surface input is invalid.")],
+    };
+  }
 };
 
 export const validatePresentationDefinition = (
@@ -457,8 +652,48 @@ export const validatePresentationDefinition = (
     validateVector(diagnostics, zone.size, 3, `/stage/zones/${pathSegment(zoneId)}/size`, true);
   }
   validateRecordIds(diagnostics, input.assets, "/assets");
+  for (const [assetId, value] of Object.entries(isRecord(input.assets) ? input.assets : {})) {
+    const asset = isRecord(value) ? value : undefined;
+    if (
+      asset === undefined ||
+      !hasOnlyFields(asset, ["id", "mediaType", "checksum"]) ||
+      asset.id !== assetId ||
+      !id(asset.mediaType) ||
+      !id(asset.checksum)
+    )
+      diagnostics.push(
+        diagnostic(
+          "invalid-asset",
+          `/assets/${pathSegment(assetId)}`,
+          "Asset descriptor must match the portable contract shape.",
+        ),
+      );
+  }
 
   for (const [nodeId, node] of nodeEntries) {
+    if (
+      !hasOnlyFields(node, [
+        "id",
+        "name",
+        "kind",
+        "owner",
+        "audience",
+        "parent",
+        "order",
+        "transform",
+        "active",
+        "visible",
+        "opacity",
+        "surfaceId",
+      ])
+    )
+      diagnostics.push(
+        diagnostic(
+          "unknown-surface-node-property",
+          `/scene/nodes/${pathSegment(nodeId)}`,
+          "SurfaceNode contains an unknown property.",
+        ),
+      );
     validateGroupOwner(diagnostics, node, groupIds, `/scene/nodes/${pathSegment(nodeId)}`);
     const surfaceId = node.surfaceId;
     if (!id(surfaceId) || !surfaceIds.has(surfaceId))
@@ -699,12 +934,13 @@ export const validatePresentationDefinition = (
       }
     }
     const semanticTree = isRecord(surface.baseSemanticTree) ? surface.baseSemanticTree : undefined;
-    validateTree(
+    const semanticTreeDiagnosticsStart = diagnostics.length;
+    validateMaterializableSemanticTree(
       diagnostics,
-      semanticTree?.nodes,
-      semanticTree?.rootNodeIds,
+      semanticTree,
       `/scene/surfaces/${pathSegment(surfaceId)}/baseSemanticTree`,
     );
+    const hasInvalidSemanticTree = diagnostics.length > semanticTreeDiagnosticsStart;
     validateRecordIds(
       diagnostics,
       surface.interactions,
@@ -767,19 +1003,14 @@ export const validatePresentationDefinition = (
         `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/enabledInteractionIds`,
         "missing-interaction",
       );
-      const layers = Array.isArray(state.semanticOverrides) ? state.semanticOverrides : [];
-      for (const [layerIndex, layer] of layers.entries()) {
-        for (const [overrideId] of recordEntries(isRecord(layer) ? layer.nodes : undefined)) {
-          if (!recordEntries(semanticTree?.nodes).some(([key]) => key === overrideId))
-            diagnostics.push(
-              diagnostic(
-                "missing-semantic-node",
-                `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/semanticOverrides/${layerIndex}/nodes/${pathSegment(overrideId)}`,
-                "Semantic override must target a base semantic node.",
-              ),
-            );
-        }
-      }
+      const semanticOverrideDiagnosticsStart = diagnostics.length;
+      validateMaterializableSemanticOverrides(
+        diagnostics,
+        semanticTree,
+        state,
+        `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/semanticOverrides`,
+      );
+      if (hasInvalidSemanticTree || diagnostics.length > semanticOverrideDiagnosticsStart) continue;
       const materializedTree = materializeSemanticTree(
         surface,
         state,

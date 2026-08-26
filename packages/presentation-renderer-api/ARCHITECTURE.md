@@ -9,6 +9,9 @@
 
 ## 1. Role
 
+現在のAPIには一回だけ実行する`executeRendererPlugin`を含む。決定性を確認するための
+反復実行はconformance harnessの責務に残す。
+
 `presentation-renderer-api` は、Compiler が renderer implementation を選択・実行するための runtime-neutral plugin boundary である。Concrete renderer の処理や自動選択 policy は持たず、入力 capability、出力 artifact、diagnostics、provenance の共通契約を定義する。
 
 ## 2. Owned contract

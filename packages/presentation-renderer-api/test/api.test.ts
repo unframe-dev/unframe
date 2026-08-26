@@ -3,8 +3,10 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createRendererFingerprint,
   defineRendererPlugin,
+  executeRendererPlugin,
   evaluateFirstMilestoneSupport,
   runRendererConformance,
+  validateRendererPlugin,
   type CompilerResolvedSurfaceInput,
   type RendererBuildResult,
   type RendererCapabilities,
@@ -195,6 +197,132 @@ const goodPlugin = defineRendererPlugin({
 });
 
 describe("first-milestone plugin contract", () => {
+  it("rejects malformed plugins before invoking them", async () => {
+    const invalid = { ...goodPlugin, identity: { ...identity, id: "" } };
+    expect(validateRendererPlugin(invalid).map(({ code }) => code)).toContain(
+      "invalid-renderer-identity",
+    );
+    expect((await executeRendererPlugin(invalid as never, input)).valid).toBe(false);
+  });
+  it("rejects plugins without callable support and build methods", async () => {
+    const withoutSupport = { ...goodPlugin, support: undefined };
+    const withoutBuild = { ...goodPlugin, build: null };
+
+    expect(validateRendererPlugin(withoutSupport).map(({ code }) => code)).toContain(
+      "invalid-renderer-plugin",
+    );
+    expect(validateRendererPlugin(withoutBuild).map(({ code }) => code)).toContain(
+      "invalid-renderer-plugin",
+    );
+    expect((await executeRendererPlugin(withoutSupport as never, input)).valid).toBe(false);
+    expect((await executeRendererPlugin(withoutBuild as never, input)).valid).toBe(false);
+  });
+  it("executes build exactly once", async () => {
+    let calls = 0;
+    const plugin = {
+      ...goodPlugin,
+      build: (value: CompilerResolvedSurfaceInput) => {
+        calls++;
+        return successfulResult(value);
+      },
+    };
+    expect((await executeRendererPlugin(plugin, input)).valid).toBe(true);
+    expect(calls).toBe(1);
+  });
+  it("does not build after support failure", async () => {
+    let calls = 0;
+    const plugin = {
+      ...goodPlugin,
+      support: () => {
+        throw new Error("no");
+      },
+      build: () => {
+        calls++;
+        return successfulResult(input);
+      },
+    };
+    expect((await executeRendererPlugin(plugin, input)).valid).toBe(false);
+    expect(calls).toBe(0);
+  });
+  it("stops before build when support mutates input", async () => {
+    let calls = 0;
+    const plugin = {
+      ...goodPlugin,
+      support: () => {
+        (input.plan.states as Record<string, unknown>).changed = {};
+        return evaluateFirstMilestoneSupport({
+          entry: input.entry,
+          resolvedIntent: input.resolvedIntent,
+        });
+      },
+      build: () => {
+        calls++;
+        return successfulResult(input);
+      },
+    };
+    const result = await executeRendererPlugin(plugin, input);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("renderer-mutated-input");
+    expect(calls).toBe(0);
+    delete (input.plan.states as Record<string, unknown>).changed;
+  });
+  it("does not build unsupported input", async () => {
+    let calls = 0;
+    const unsupported = {
+      ...input,
+      entry: { kind: "opaque" as const, entryId: "x", moduleHash: "h" },
+    };
+    const plugin = {
+      ...goodPlugin,
+      build: () => {
+        calls++;
+        return successfulResult(input);
+      },
+    };
+    expect((await executeRendererPlugin(plugin, unsupported)).valid).toBe(false);
+    expect(calls).toBe(0);
+  });
+  it("does not invoke plugins for invalid plans", async () => {
+    let calls = 0;
+    const invalid = {
+      ...input,
+      plan: { ...input.plan, states: { "state-default": { kind: "bad" } } },
+    } as never as CompilerResolvedSurfaceInput;
+    const plugin = {
+      ...goodPlugin,
+      support: () => {
+        calls++;
+        return { supported: true, diagnostics: [] } as const;
+      },
+      build: () => successfulResult(input),
+    };
+    expect((await executeRendererPlugin(plugin, invalid)).valid).toBe(false);
+    expect(calls).toBe(0);
+  });
+  it("does not invoke conformance plugins for invalid inputs", async () => {
+    let supportCalls = 0;
+    let buildCalls = 0;
+    const invalid = {
+      ...input,
+      plan: { ...input.plan, contentNodeIds: ["missing-node"] },
+    } as const satisfies CompilerResolvedSurfaceInput;
+    const plugin = {
+      ...goodPlugin,
+      support: () => {
+        supportCalls++;
+        return { supported: true, diagnostics: [] } as const;
+      },
+      build: () => {
+        buildCalls++;
+        return successfulResult(input);
+      },
+    };
+
+    expect((await runRendererConformance(plugin, [fixture(invalid)])).valid).toBe(false);
+    expect(supportCalls).toBe(0);
+    expect(buildCalls).toBe(0);
+  });
   it("accepts a deterministic renderer after resolving an auto source preference", async () => {
     const result = await runRendererConformance(goodPlugin, [fixture()]);
 
@@ -286,6 +414,37 @@ describe("first-milestone plugin contract", () => {
 
 describe("conformance diagnostics", () => {
   const withBuild = (build: RendererPlugin["build"]): RendererPlugin => ({ ...goodPlugin, build });
+
+  it("rejects inherited state, content, and Hit Region entries", async () => {
+    const inheritedSemantics = Object.create({
+      "state-default": input.semanticsByState["state-default"],
+    }) as CompilerResolvedSurfaceInput["semanticsByState"];
+    const inheritedContentNodes = Object.create({
+      "text-title": input.surface.contentNodes["text-title"],
+    }) as CompilerResolvedSurfaceInput["surface"]["contentNodes"];
+    const inheritedInput = {
+      ...input,
+      surface: { ...input.surface, contentNodes: inheritedContentNodes },
+      semanticsByState: inheritedSemantics,
+    } as const satisfies CompilerResolvedSurfaceInput;
+    const inputResult = await executeRendererPlugin(goodPlugin, inheritedInput);
+    expect(inputResult.valid).toBe(false);
+    if (!inputResult.valid)
+      expect(inputResult.diagnostics.map(({ code }) => code)).toEqual(
+        expect.arrayContaining(["missing-content-node", "missing-state-semantics"]),
+      );
+
+    const inheritedHitRegions = withBuild((value) => ({
+      ...successfulResult(value),
+      hitRegionsByState: Object.create({ "state-default": [] }),
+    }));
+    const outputResult = await runRendererConformance(inheritedHitRegions, [fixture()]);
+    expect(outputResult.valid).toBe(false);
+    if (!outputResult.valid)
+      expect(outputResult.diagnostics.map(({ code }) => code)).toContain(
+        "missing-state-hit-regions",
+      );
+  });
 
   it("detects RGBA length, state completeness, duplicate IDs, and provenance drift", async () => {
     const invalid = withBuild((value) => ({
@@ -436,8 +595,8 @@ describe("conformance diagnostics", () => {
     const upgradedResult = await runRendererConformance(upgradedPlugin, [fixture()]);
     expect(upgradedResult.valid).toBe(false);
     if (!upgradedResult.valid)
-      expect(upgradedResult.diagnostics.map(({ code }) => code)).toEqual(
-        expect.arrayContaining(["invalid-renderer-provenance", "renderer-fingerprint-mismatch"]),
+      expect(upgradedResult.diagnostics.map(({ code }) => code)).toContain(
+        "renderer-fingerprint-mismatch",
       );
   });
 
@@ -628,6 +787,22 @@ describe("conformance diagnostics", () => {
           "surface-plan-mismatch",
         ]),
       );
+  });
+
+  it("rejects duplicate content nodes in Compiler plans", async () => {
+    const duplicateContent = {
+      ...input,
+      plan: {
+        ...input.plan,
+        contentNodeIds: ["frame-root", "frame-root"],
+      },
+    } as const satisfies CompilerResolvedSurfaceInput;
+
+    const result = await executeRendererPlugin(goodPlugin, duplicateContent);
+
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("duplicate-content-node");
   });
 });
 

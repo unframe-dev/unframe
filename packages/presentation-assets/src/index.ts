@@ -13,6 +13,11 @@ const INTERNAL_PNG_HARD_CAPS = Object.freeze({
 export const PNG_ABSOLUTE_LIMITS: Readonly<EncodeLimits> = Object.freeze({
   ...INTERNAL_PNG_HARD_CAPS,
 });
+export const PNG_ENCODER_IDENTITY = Object.freeze({
+  encoderId: "unframe-memory-png" as const,
+  version: "1" as const,
+  fingerprint: "png-rgba8-srgb-filter0-store-v1" as const,
+});
 
 export type RgbaInput = Uint8Array;
 
@@ -373,9 +378,7 @@ const encodeValidated = (request: ValidatedRequest): ValidationResult<EncodedTex
       byteLength: output.length,
       sourceId: request.sourceId,
       provenance: {
-        encoderId: "unframe-memory-png",
-        version: "1",
-        fingerprint: "png-rgba8-srgb-filter0-store-v1",
+        ...PNG_ENCODER_IDENTITY,
       },
     },
     diagnostics: [],

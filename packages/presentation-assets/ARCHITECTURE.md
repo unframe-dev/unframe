@@ -9,6 +9,9 @@
 
 ## 1. Role
 
+`PNG_ENCODER_IDENTITY`は現在のmemory-only encoderの凍結された公開provenance identity
+である。cacheとdelivery bindingはこのpackageの責務外である。
+
 `presentation-assets` は、入力 Asset と renderer capture を content-addressed な build artifact へ変換する library boundary である。OS tool、codec、font processor などの environment-dependent implementation を semantic core から隔離し、変換条件と provenance を明示する。
 
 Asset の upload、ownership、delivery URL、Unity runtime cache はこの package の責務ではない。

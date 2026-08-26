@@ -3,6 +3,7 @@ import { inflateSync } from "node:zlib";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   PNG_ABSOLUTE_LIMITS,
+  PNG_ENCODER_IDENTITY,
   encodeRgbaToPng,
   type EncodeRequest,
   type EncodedTextureArtifact,
@@ -80,6 +81,12 @@ const parseStoredBlocks = (idat: Uint8Array) => {
 };
 
 describe("deterministic PNG encoding", () => {
+  it("freezes the public encoder identity and uses it for each result", () => {
+    expect(Object.isFrozen(PNG_ENCODER_IDENTITY)).toBe(true);
+    expect(Reflect.set(PNG_ENCODER_IDENTITY, "version", "changed")).toBe(false);
+    const result = encodeRgbaToPng(request);
+    expect(result.valid && result.value.provenance).toEqual(PNG_ENCODER_IDENTITY);
+  });
   it("emits a stable content-addressed texture and provenance", () => {
     const first = encodeRgbaToPng(request);
     const second = encodeRgbaToPng(request);

@@ -186,27 +186,57 @@ const sameArray = (left: readonly string[], right: readonly string[]) =>
 export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
   plugin: Plugin,
 ): Plugin => {
-  if (
-    !nonEmpty(plugin.identity.id) ||
-    !nonEmpty(plugin.identity.version) ||
-    !nonEmpty(plugin.identity.contractVersion) ||
-    !nonEmpty(plugin.identity.implementationHash)
-  )
+  const diagnostics = validateRendererPlugin(plugin);
+  if (diagnostics.some(({ code }) => code === "invalid-renderer-identity"))
     throw new TypeError("Renderer identity fields must be non-empty.");
-
-  const capability = plugin.capabilities;
-  if (
-    !sameArray(capability.inputKinds, ["structured"]) ||
-    !sameArray(capability.updateModels, ["static"]) ||
-    !sameArray(capability.interactions, ["none"]) ||
-    !sameArray(capability.internalAnimations, ["none"]) ||
-    !sameArray(capability.rendererPreferences, ["baked-web"]) ||
-    !sameArray(capability.fallbackPolicies, ["reject"]) ||
-    capability.deterministic !== true
-  )
+  if (diagnostics.length > 0)
     throw new TypeError("Renderer capabilities must match the first-milestone contract.");
 
   return plugin;
+};
+
+export const validateRendererPlugin = (plugin: unknown): readonly Diagnostic[] => {
+  try {
+    if (!isRecord(plugin) || !isRecord(plugin.identity) || !isRecord(plugin.capabilities))
+      return [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])];
+    if (typeof plugin.support !== "function" || typeof plugin.build !== "function")
+      return [
+        diagnostic(
+          "invalid-renderer-plugin",
+          "Renderer plugins must provide callable support() and build() methods.",
+          [],
+        ),
+      ];
+    const identity = plugin.identity;
+    if (
+      ![identity.id, identity.version, identity.contractVersion, identity.implementationHash].every(
+        (value) => typeof value === "string" && value.length > 0,
+      )
+    )
+      return [
+        diagnostic("invalid-renderer-identity", "Renderer identity fields must be non-empty.", []),
+      ];
+    const capability = plugin.capabilities as unknown as RendererCapabilities;
+    if (
+      !sameArray(capability.inputKinds, ["structured"]) ||
+      !sameArray(capability.updateModels, ["static"]) ||
+      !sameArray(capability.interactions, ["none"]) ||
+      !sameArray(capability.internalAnimations, ["none"]) ||
+      !sameArray(capability.rendererPreferences, ["baked-web"]) ||
+      !sameArray(capability.fallbackPolicies, ["reject"]) ||
+      capability.deterministic !== true
+    )
+      return [
+        diagnostic(
+          "invalid-renderer-capabilities",
+          "Renderer capabilities must match the first-milestone contract.",
+          [],
+        ),
+      ];
+    return [];
+  } catch {
+    return [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])];
+  }
 };
 
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
@@ -393,7 +423,18 @@ const validateInput = (
           "states",
         ]),
       );
-    else if (!(stateId in input.semanticsByState))
+  for (const [stateId, state] of Object.entries(input.plan.states))
+    if (state.kind !== "capture" && state.kind !== "empty")
+      diagnostics.push(
+        diagnostic("invalid-render-state-kind", "Render state kind must be capture or empty.", [
+          ...prefix,
+          "plan",
+          "states",
+          stateId,
+          "kind",
+        ]),
+      );
+    else if (!Object.hasOwn(input.semanticsByState, stateId))
       diagnostics.push(
         diagnostic("missing-state-semantics", "Planned state has no completed Semantic Tree.", [
           ...prefix,
@@ -479,7 +520,7 @@ const validateInput = (
       ),
     );
   for (const contentNodeId of input.plan.contentNodeIds)
-    if (!nonEmpty(contentNodeId) || !(contentNodeId in input.surface.contentNodes))
+    if (!nonEmpty(contentNodeId) || !Object.hasOwn(input.surface.contentNodes, contentNodeId))
       diagnostics.push(
         diagnostic("missing-content-node", "Render plan references an unknown content node.", [
           ...prefix,
@@ -488,6 +529,14 @@ const validateInput = (
           contentNodeId,
         ]),
       );
+  if (new Set(input.plan.contentNodeIds).size !== input.plan.contentNodeIds.length)
+    diagnostics.push(
+      diagnostic("duplicate-content-node", "Render plan content node IDs must be unique.", [
+        ...prefix,
+        "plan",
+        "contentNodeIds",
+      ]),
+    );
 };
 
 const validateProvenance = (
@@ -674,7 +723,7 @@ const validateSuccess = (
           [name, "output", "captures", stateId],
         ),
       );
-    if (!(stateId in result.hitRegionsByState))
+    if (!Object.hasOwn(result.hitRegionsByState, stateId))
       diagnostics.push(
         diagnostic("missing-state-hit-regions", "Every planned state needs Hit Region output.", [
           name,
@@ -683,7 +732,18 @@ const validateSuccess = (
           stateId,
         ]),
       );
-    const regions = result.hitRegionsByState[stateId] ?? [];
+    const regions = result.hitRegionsByState[stateId];
+    if (!Array.isArray(regions)) {
+      diagnostics.push(
+        diagnostic("invalid-state-hit-regions", "Hit Regions must be an array.", [
+          name,
+          "output",
+          "hitRegionsByState",
+          stateId,
+        ]),
+      );
+      continue;
+    }
     if (input.resolvedIntent.interaction.kind === "none" && regions.length > 0)
       diagnostics.push(
         diagnostic(
@@ -704,7 +764,7 @@ const validateSuccess = (
         );
   }
   for (const stateId of capturesByState.keys())
-    if (!(stateId in input.plan.states))
+    if (!Object.hasOwn(input.plan.states, stateId))
       diagnostics.push(
         diagnostic("unexpected-capture-state", "Capture references an unplanned state.", [
           name,
@@ -714,7 +774,7 @@ const validateSuccess = (
         ]),
       );
   for (const [stateId, regions] of Object.entries(result.hitRegionsByState)) {
-    if (!(stateId in input.plan.states))
+    if (!Object.hasOwn(input.plan.states, stateId))
       diagnostics.push(
         diagnostic("unexpected-hit-region-state", "Hit Regions reference an unplanned state.", [
           name,
@@ -748,7 +808,98 @@ const callSupport = (plugin: RendererPlugin, request: RendererSupportRequest): C
   }
 };
 
-export const runRendererConformance = async (
+export const executeRendererPlugin = async (
+  plugin: RendererPlugin,
+  input: CompilerResolvedSurfaceInput,
+): Promise<ValidationResult<RendererBuildSuccess>> => {
+  try {
+    const diagnostics: Diagnostic[] = [];
+    const pluginDiagnostics = validateRendererPlugin(plugin);
+    if (pluginDiagnostics.length > 0) return { valid: false, diagnostics: [...pluginDiagnostics] };
+    const fixture: RendererConformanceFixture = { name: "single", input };
+    validateInput(fixture, plugin, diagnostics);
+    if (diagnostics.length > 0)
+      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    const before = snapshot(input);
+    const request = { entry: input.entry, resolvedIntent: input.resolvedIntent };
+    const supportCall = callSupport(plugin, request);
+    if (supportCall.threw)
+      diagnostics.push(
+        diagnostic("renderer-support-threw", "support() must return a diagnostic decision.", []),
+      );
+    else if (!isSupportDecision(supportCall.value))
+      diagnostics.push(
+        diagnostic(
+          "malformed-support-decision",
+          "support() must return a structured diagnostic decision.",
+          [],
+        ),
+      );
+    if (snapshot(input) !== before)
+      diagnostics.push(
+        diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", []),
+      );
+    if (diagnostics.length > 0)
+      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    const expected = evaluateFirstMilestoneSupport(request);
+    if (
+      snapshot((supportCall as { readonly value: RendererSupportDecision }).value) !==
+      snapshot(expected)
+    )
+      diagnostics.push(
+        diagnostic("invalid-support-decision", "support() must follow declared capabilities.", []),
+      );
+    if (diagnostics.length > 0)
+      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    if (!expected.supported)
+      return { valid: false, diagnostics: sortedDiagnostics([...expected.diagnostics]) };
+    const buildCall = await callBuild(plugin, input);
+    if (buildCall.threw)
+      diagnostics.push(
+        diagnostic("renderer-threw", "Renderer failures must be returned as diagnostics.", []),
+      );
+    else if (!isBuildResult(buildCall.value))
+      diagnostics.push(
+        diagnostic(
+          "malformed-renderer-output",
+          "build() must return a structured renderer result.",
+          [],
+        ),
+      );
+    if (snapshot(input) !== before)
+      diagnostics.push(
+        diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", []),
+      );
+    if (diagnostics.length > 0)
+      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    const support = (supportCall as { readonly value: RendererSupportDecision }).value;
+    const result = (buildCall as { readonly value: RendererBuildResult }).value;
+    if (support.supported !== result.ok)
+      diagnostics.push(diagnostic("support-build-mismatch", "support() and build() disagree.", []));
+    if (result.ok) validateSuccess(fixture, plugin, result, diagnostics);
+    else if (result.diagnostics.length === 0)
+      diagnostics.push(
+        diagnostic("missing-failure-diagnostic", "Renderer failure must include a diagnostic.", []),
+      );
+    if (!result.ok)
+      return {
+        valid: false,
+        diagnostics: sortedDiagnostics([...diagnostics, ...result.diagnostics]),
+      };
+    return diagnostics.length === 0
+      ? { valid: true, value: result, diagnostics: [] }
+      : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+  } catch {
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic("invalid-renderer-boundary", "Renderer boundary input is invalid.", []),
+      ],
+    };
+  }
+};
+
+const runRendererConformanceUnchecked = async (
   plugin: RendererPlugin,
   fixtures: readonly RendererConformanceFixture[],
 ): Promise<ValidationResult<readonly RendererBuildResult[]>> => {
@@ -756,7 +907,9 @@ export const runRendererConformance = async (
   const results: RendererBuildResult[] = [];
 
   for (const fixture of fixtures) {
+    const diagnosticsBeforeInput = diagnostics.length;
     validateInput(fixture, plugin, diagnostics);
+    if (diagnostics.length > diagnosticsBeforeInput) continue;
     const inputSnapshot = snapshot(fixture.input);
     const request = { entry: fixture.input.entry, resolvedIntent: fixture.input.resolvedIntent };
     const expectedSupport = evaluateFirstMilestoneSupport(request);
@@ -886,4 +1039,22 @@ export const runRendererConformance = async (
   return diagnostics.length === 0
     ? { valid: true, value: results, diagnostics: [] }
     : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+};
+
+export const runRendererConformance = async (
+  plugin: RendererPlugin,
+  fixtures: readonly RendererConformanceFixture[],
+): Promise<ValidationResult<readonly RendererBuildResult[]>> => {
+  try {
+    const pluginDiagnostics = validateRendererPlugin(plugin);
+    if (pluginDiagnostics.length > 0) return { valid: false, diagnostics: [...pluginDiagnostics] };
+    return await runRendererConformanceUnchecked(plugin, fixtures);
+  } catch {
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic("invalid-renderer-boundary", "Renderer boundary input is invalid.", []),
+      ],
+    };
+  }
 };

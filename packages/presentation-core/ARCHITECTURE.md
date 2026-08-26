@@ -9,6 +9,9 @@
 
 ## 1. Role
 
+現在の公開helperには`materializeCompletedSemanticTree`を含む。rendererとCompilerの
+orchestrationはこのpackageの責務外である。
+
 `presentation-core` は Presentation の pure TypeScript semantic core である。portable contract から導出した in-memory model と、構造 schema だけでは表せない invariant を所有する。
 
 Web、Compiler、Control Plane が同じ意味を利用できるようにするが、Browser、Node.js、Cloudflare Workers、React、filesystem、network の runtime object は持ち込まない。Go Realtime と Unity C# はこの実装を共有せず、generated contract と conformance fixture を介して意味を一致させる。
