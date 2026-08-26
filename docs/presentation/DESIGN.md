@@ -378,7 +378,7 @@ Targetとして次のapplication moduleを追加する。
 
 Control PlaneはAuthoring Source、TSX、React、renderer implementationを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Publication migrationが決まるまで自動的に移動しない。
 
-`publications`はSession作成とpublishを同じ永続化境界で直列化する。Session作成は現在のPublicationFenceをSessionへコピーし、同じPresentationを参照する`Waiting`または`Presenting` Sessionが存在する場合はpublishを拒否する。publishはexpected Draft revision、Buildのsource revision、artifact hash、Asset readinessを検証し、publicationEpochを増やして現在値をatomicに置き換える。過去のPublishedPresentationを選択可能な履歴として保持しない。
+`publications`はSession作成とpublishを同じ永続化境界で直列化する。Session作成は現在のPublicationFenceをコピーし、有限の`waitingExpiresAt`とともにSessionへ保存する。同じPresentationを参照する期限内の`Waiting` Session、または`Presenting` Sessionが存在する場合はpublishを拒否する。Presentation owner / adminは`Waiting` Sessionをcancelでき、publish判定は期限切れWaiting Sessionを同じ永続化境界で`Ended`にしてからactive-use lockを確認する。`Presenting`はwaiting expiryで終了しない。publishはexpected Draft revision、Buildのsource revision、artifact hash、Asset readinessを検証し、publicationEpochを増やして現在値をatomicに置き換える。過去のPublishedPresentationを選択可能な履歴として保持しない。
 
 ### 6.3 `app/server/realtime`
 

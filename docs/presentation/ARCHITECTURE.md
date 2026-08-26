@@ -6,8 +6,8 @@
 - **Maturity**:
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
-  - Progression wire / Runtime contract: v1 target baseline
-  - Authoring、Rendering、Delivery の下位契約: v1 target baseline
+  - Progression wire / Runtime contract: draft
+  - Authoring、Rendering、Delivery の下位契約: follow-up
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
@@ -274,7 +274,9 @@ type SessionPublicationBinding = PublicationFence & {
 
 Session は `presentationId` を参照し、公開版を選択しない。Session 作成時に Control Plane がその Presentation の現在の PublicationFence を `SessionPublicationBinding` としてコピーし、`Waiting`、`Presenting`、`Ended` の全期間で変更しない。新しい Session は常に作成時点の最新公開物を使用し、未publishのPresentationからはSessionを作成できない。
 
-同じ Presentation を参照する `Waiting` または `Presenting` Session が一つでも存在する間、Control Plane は publish を拒否する。Session 作成と publish は同じ永続化境界で直列化し、publish と同時に古い公開物を参照する Session が作られないようにする。`Ended` だけが publish lock を解放する。
+同じ Presentation を参照する期限内の `Waiting` Session または `Presenting` Session が一つでも存在する間、Control Plane は publish を拒否する。Session 作成、期限切れ `Waiting` Session の終了、publish は同じ永続化境界で直列化し、publish と同時に古い公開物を参照する Session が作られないようにする。`Ended` だけが publish lock を解放する。
+
+`Waiting` は作成時に有限の `waitingExpiresAt` を持つ。Presentation owner または admin は、その Session の presenter でなくても `Waiting` Session を cancel して `Ended` にできる。publish の直列化処理は期限切れの `Waiting` Session を同じ永続化境界で `Ended / waitingExpired` にした後、残る active-use lock を判定する。通常の editor 操作、viewer join、接続切断だけで期限を延長せず、延長を許可する場合も認証済み presenter の明示操作と上限付き lease として定義する。`Presenting` は waiting lease では自動終了せず、通常の Session end または Runtime recovery timeout に従う。これにより editor が作成後に放置した Session が publish を無期限に妨げない。
 
 active-use lock 中も Draft 編集と build は許可する。publish は `expectedDraftRevision`、`buildId`、build の source revision、artifact hash、Asset readiness を検証し、すべて一致する場合だけ `publicationEpoch` を増やして現在の PublishedPresentation を atomic に置換する。Draft が build 後に更新されていれば conflict とし、暗黙に最新 Draft を取り込まない。
 
@@ -1364,7 +1366,7 @@ Surface transition の duration と easing は Run が正本とする。Timeline
 
 blocking Run は Progression Phase の `blockingRunIds` と一対一に対応する。completion ごとに active Run と blocking set から除去し、最後の blocking Run が完了した時だけ `pendingNext` を atomic に適用する。存在しない Run、完了済み Run、古い Group / Step epoch に対する completion は stale として状態を変更しない。
 
-`transitioning` 中は、Timeline 完了などの内部イベントを除く通常の Trigger input を無視する。v1 では input queue や任意 interrupt を持たない。
+`transitioning` 中は、新しい Cue を一切評価しない。通常の Trigger input は無視し、Timer は deadline 到達時に `fired` として消費するが対応 Cue を評価せず、同じ Step entry で遅延発火または再試行しない。Timeline / Media / Surface transition の内部 completion は既存の active Run、resource state、`blockingRunIds` を更新するためだけに処理し、その completion に一致する Trigger から別の Cue を開始しない。最後の blocking Run が完了した場合だけ、保持済みの `pendingNext` を適用して `stable` に戻る。v1 では input queue、completion の再配送、任意 interrupt / merge を持たない。
 
 ### 12.4 Surface State
 
@@ -1802,7 +1804,7 @@ Connection Resume では session coordinator の critical section 内で次だ�
 3. 対象 connection を `S + 1` 以降の Reliable Event subscriber として登録する。
 4. critical section を解放する。
 
-Participant projection、Projected Runtime Snapshot の構築、serialization、compression、hashing、network write は critical section 外で行う。lock 外でlive mutable mapを読むことは禁止し、lock内でfreezeしたimmutable valueまたはstructural sharingされたsnapshotだけを入力にする。projection中にbounded replay queueがoverflowした場合は生成中のConnectionSnapshotEnvelopeを破棄し、新しいcutからやり直す。
+Participant projection、Projected Runtime Snapshot の構築、serialization、compression、hashing、network write は critical section 外で行う。lock 外でlive mutable mapを読むことは禁止し、lock内でfreezeしたimmutable valueまたはstructural sharingされたsnapshotだけを入力にする。projection中にbounded replay queueがoverflowした場合は生成中のConnectionSnapshotEnvelopeと購読を破棄し、新しいcutからやり直す。ただし再試行は protocol version ごとの試行回数上限と総時間 budget の両方で制限する。どちらかを超えた場合は購読とqueueを確実に解放し、部分的なSnapshotを返さず `RESOURCE_EXHAUSTED / snapshot_catch_up_exhausted` として Connection Resume を終了する。client は jitter 付き backoff 後に新しい Connection Resume として再試行する。
 
 Durable checkpointもlock内ではCanonicalRuntimeSnapshotのimmutable cutと`checkpointSequence`の割り当てだけを行い、serialization、hashing、persistence callbackはlock外で行う。DurableCheckpointEnvelopeはassignment、PublicationFence、artifact hash、schemaをfenceする外側のcontractであり、canonical stateへparticipant / connection固有値を混入させない。
 
@@ -1878,7 +1880,7 @@ Conformance test は、今回の progression 規則について次を検証す�
 - Timeline: exact endpoint、全 easing と number / Vector3 / Quaternion の組み合わせ、Quaternion の反対符号と near-linear 補間、Pause / Resume、明示 stop / Group exit での現在値 commit、Presentation 終了時の cancel 順序。
 - Semantic Tree / Native UI: 空 Tree、root canonical order、State materialization、override の field presence / `null` 削除、enabled / disabled Interaction と Hit Region 整合、tree limit と capability reject、Variable closure、静的literal / boolean labelのreject、single-line置換後のstring許容range、動的valueのtruncate、boolean / number / timer format、Pause / 再接続時のclock表示、全 State のfont face / glyph closure、Native UI / effective Semantic Tree textのartifact内・profile横断injective一致、Unity と Web preview のformatter fixture一致。
 
-加えて、event の重複、Cue 競合、cooldown、Timer fire済み状態、同一deadlineの順序、active Run の復元と stale completion、scope を越える不正参照、Stage / Node / Presenter Anchor parentの保持と循環拒否、ProjectionAudienceを越える参照拒否、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、projection contract versionごとのcache分離、profile の共有と participant 固有値の隔離、Surface Stateごとのartifact選択、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflow、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
+加えて、event の重複、Cue 競合、cooldown、Timer fire済み状態、`transitioning` 中にdeadlineへ達したTimerとRun completionが新しいCueを開始しないこと、同一deadlineの順序、active Run の復元と stale completion、scope を越える不正参照、Stage / Node / Presenter Anchor parentの保持と循環拒否、ProjectionAudienceを越える参照拒否、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、projection contract versionごとのcache分離、profile の共有と participant 固有値の隔離、Surface Stateごとのartifact選択、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflowが再試行上限内では新しいcutへ収束し、上限超過時は購読を解放して型付きerrorで終了すること、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
 
 ### 12.13 Example
 
@@ -2247,7 +2249,7 @@ Static lowering が参照できる入力は、Authoring Source、lock された 
 
 ### Published Presentation
 
-Control Plane は Presentation ごとに現在の PublishedPresentation を一つだけ保持する。Session は Presentation を参照し、作成時に現在の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish できず、Draft 編集と build の結果も既存 Session へ反映しない。すべての非終了 Session がなくなった後の明示的な publish でだけ、公開済み実行物を atomic に置き換える。
+Control Plane は Presentation ごとに現在の PublishedPresentation を一つだけ保持する。Session は Presentation を参照し、作成時に現在の PublicationFence を固定する。期限内の `Waiting` Session または `Presenting` Session が存在する間は publish できず、Draft 編集と build の結果も既存 Session へ反映しない。Presentation owner / admin による Waiting Session の cancel と bounded waiting expiry を提供し、期限切れ Waiting Session を終了させた後の明示的な publish でだけ、公開済み実行物を atomic に置き換える。
 
 ### Unity Runtime
 
@@ -2302,6 +2304,7 @@ presentation/
 - 現行 Definition は metadata、stage、asset references、Group、Element、Anchored Element Group、Step、Cue、Trigger、Action、Transition を持つ。
 - Control Plane は Definition 全体を revision 条件付きで原子的に保存する。
 - 現行 Session は `presentationId` を持つが PublicationFence を保存せず、RuntimeAssignment は mutable な Presentation revision を fence に使用している。
+- 現行 Session は有限の waiting expiry と Presentation owner による第三者作成 Waiting Session の cancel を持たない。
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
@@ -2318,7 +2321,7 @@ presentation/
 - Frame Layout、Theme、Token、Named Style
 - Surface Render Intent
 - RenderBundle
-- 単一の PublishedPresentation、PublicationFence、非終了 Session と直列化した publish lock
+- 単一の PublishedPresentation、PublicationFence、Waiting Session の owner cancel / bounded expiry、非終了 Session と直列化した publish lock
 - Surface State artifact、semantic tree、hit region
 - v1 Presentation Progression semantic model の実装と、Progression wire / Runtime contract
 - Native UI portable contract
@@ -2364,9 +2367,9 @@ presentation/
 - Cloud または Venue Edge に配置された割り当て済み Runtime Core が Trigger、Guard、Cue、Action、Timeline 完了を canonical evaluationする。
 - 一イベントにつき一 Cue を選択し、Cue 内の Action batch を事前検証後に atomic 適用する。
 - Surface State は意味論的 ID とし、renderer artifact から分離する。
-- blocking run の完了後に次の Step へ進み、遷移中の通常 input は無視する。
+- blocking run の完了後に次の Step へ進み、遷移中は通常 input と新しい Cue 評価を抑止する。
 - Group 再入場は reset とし、Snapshot と Reliable Event から同じ進行状態へ収束できるようにする。
-- Presentation は公開済み実行物を一つだけ持ち、非終了 Session 中の publish を禁止する。Session は Presentation を参照し、作成時の PublicationFence を固定して Draft と実行中の状態を混在させない。
+- Presentation は公開済み実行物を一つだけ持ち、期限内の Waiting Session または Presenting Session が存在する間の publish を禁止する。Session は Presentation を参照し、作成時の PublicationFence を固定して Draft と実行中の状態を混在させない。放置された Waiting Session は owner cancel と bounded expiry で解放する。
 
 ## 19. Follow-ups
 
@@ -2382,7 +2385,7 @@ presentation/
 - [x] actor、subject、Anchor owner の型、解決境界、認可規則を 7.3 と 12.5 で定義した。
 - [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を 3.5 と 3.7 で定義した。
 - [x] pause-aware logical runtime clock、Step entry / Timer / Cue consumption、Runtime Run、Canonical Runtime Snapshot、Connection / Durable envelope と recovery 規則を 12.3、12.9、12.11〜12.12 で定義した。
-- [x] 単一の PublishedPresentation、PublicationFence、非終了 Session 中の publish lock、Draft / Build / Session の反映規則を 3.6 と 15 で定義した。
+- [x] 単一の PublishedPresentation、PublicationFence、Waiting Session の owner cancel / bounded expiry、非終了 Session 中の publish lock、Draft / Build / Session の反映規則を 3.6 と 15 で定義した。
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を 12.4、12.7、12.8、12.12 で定義した。
 - [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
 

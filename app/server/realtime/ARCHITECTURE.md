@@ -476,8 +476,8 @@ ReliableEvent
 - client は最後に適用した sequence を保持する。
 - gap 検知時は replay、保持範囲外なら Snapshot を取得する。
 - exactly-once delivery は仮定せず、`eventId` で idempotent に適用する。
-- profile projectionでparticipantに不可視なReliable Eventもsequenceを欠番にしない。Runtime Coreは同じsequenceを持つpayloadなしの`ProjectionAdvance`を送信し、clientはそのsequenceまでControlを進める。不可視eventのpayload、resource ID、存在を推測できる情報は含めない。
-- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstepの上限を所有する。超過、保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
+- profile projectionでparticipantに不可視なReliable Eventが発生しても、そのeventごとのControl itemを送信しない。Runtime Coreはconnectionごとに連続する不可視sequence範囲を保持し、次の可視Reliable Eventを送る直前に一つの`ProjectionAdvance { fromExclusive, throughSequence }`へ集約する。不可視eventだけを理由にnetwork writeを開始せず、後続の可視eventがなければmarkerも送らない。新しいConnection Snapshotはcutの`reliableSequence`で未送信範囲を置き換える。markerはpayload、resource ID、event kindを含まず、clientはmarkerと直後の可視eventをControl stream順に適用する。これにより可視同期境界ではcanonical event数の集約差分が分かり得るが、不可視eventごとの発生時刻とtraffic patternは公開しない。
+- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。超過、保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
 
 同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 
@@ -563,7 +563,7 @@ ElementStateFrame
 - runtimeが`Running`の場合、State Connectionの初回確立と再確立では、`StateReady`後に現在の全Element Stateをkeyframeとして一度送ってから差分配信を開始する。cancel時に送達不明となったframeは、このkeyframeで収束させる。
 - 送信前のcoalesceは許容するが、受信した`frameSequence`にgapがある場合は送達済み差分の欠落とみなし、State Connectionを再確立してkeyframeを取得する。
 - Transition 完了等の確定状態は Reliable Event にも反映する。
-- `baseReliableSequence`は、そのState Frameが前提にするsession-global Reliable sequenceである。clientの適用済みReliable sequenceより大きいframeは、その前提となるReliable Eventまたは`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
+- `baseReliableSequence`は、そのprojected State Frameが実際に前提にする、当該participantへ送信済みまたは同じ送信境界で先行するReliable sequenceである。participantに不可視なeventだけで値を進めない。clientの適用済みReliable sequenceより大きいframeは、その前提となる可視Reliable Eventまたは集約`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
 - `baseReliableSequence`がclientの適用済みsequenceより小さいframe、または`presentationOriginVersion`が一致しないframeはstaleとして破棄し、Control Connection上でState keyframeを要求する。
 - Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable ControlやSession全体をblockしない。
 
@@ -635,9 +635,9 @@ late join / Connection Resume:
 1. Quest がControl Connectionを開き、JWT、session、participant、role、protocol version、assignment epoch、PublicationFenceを検証する。
 2. Runtime Coreはsession coordinatorのcritical section内でlogical runtime time `T`までのdue internal eventを処理し、`reliableSequence = S`のCanonicalRuntimeSnapshotとpresenceのimmutable cutをfreezeする。同じ操作内で`connectionId`を確定し、そのconnectionを`S + 1`以降のReliable Event購読者として登録する。
 3. lock解放後、Runtime Coreはimmutable cutをparticipantのProjectionProfileDescriptor / ProjectionInstanceでprojectし、ConnectionSnapshotEnvelopeを構築・serializeする。この間に発生したReliable Eventは`RuntimeProtocolLimits`で上限を定めたconnectionごとのreplay queueへ保持される。
-4. projectionまたはserialization中にbounded replay queueがoverflowした場合、生成中のenvelopeと購読を破棄し、新しいcutからやり直す。
+4. projectionまたはserialization中にbounded replay queueがoverflowした場合、生成中のenvelope、購読、queueを破棄し、新しいcutからやり直す。再試行は`RuntimeProtocolLimits`の`connectionSnapshotAttemptLimit`（初回を含む正の試行回数）と`connectionSnapshotTimeBudgetMilliseconds`（開始からのmonotonic elapsed）の両方で制限する。どちらかを超えた場合はsubscriberが残っていないことを確認し、部分的なenvelopeを返さず`RESOURCE_EXHAUSTED`とstable reason `snapshot_catch_up_exhausted`でConnection Resumeを終了する。Questはjitter付きbackoff後に新しいConnection Resumeを開始する。
 5. Runtime CoreがConnectionSnapshotEnvelopeを返す。
-6. QuestがProjectedRuntimeSnapshotを適用し、`S + 1`以降のprojected Reliable Eventまたは不可視eventに対応する`ProjectionAdvance`をsession-global sequence順に適用する。gapがある場合はState Connectionへ進まずreplayまたは新しいConnection Snapshotを要求する。
+6. QuestがProjectedRuntimeSnapshotを適用し、`S + 1`以降のprojected Reliable Eventをsession-global sequence順に適用する。不可視eventの連続範囲は、後続の可視eventがある場合だけその直前の一つの`ProjectionAdvance`として受け取る。gapがある場合はState Connectionへ進まずreplayまたは新しいConnection Snapshotを要求する。
 7. Questが適用済みReliable sequenceと`presentationOriginVersion`を`StateReady`で通知する。
 8. Runtime Coreが`stateConnectionNonce`を返し、Questが`connectionId`とこのnonceを使ってState Connectionを開く。Runtime CoreはControl Connectionと同じidentityへ関連付ける。
 9. runtimeが`Running`なら、Runtime Coreは現在の全Element Stateをkeyframeとして送った後、`StateReady`以降の差分配信を開始する。各frameにその生成時点の`baseReliableSequence`を付ける。`Paused`ならState Connectionだけを確立し、frame送信は行わない。
@@ -963,7 +963,8 @@ Cloud Runtime は集約基盤へ直接 metrics を送り、Venue Edge は短時�
 - snapshot / replay / late join
 - Snapshot cutとReliable購読のatomic handoff、およびControl / State逆順到着
 - canonical / presence cut後のparticipant projection、serialization、compression、hashingがsession critical section外で行われること
-- projection中のbounded replay queue overflowで生成中のConnectionSnapshotEnvelopeを破棄し、新しいcutから収束すること
+- projection中のbounded replay queue overflowで生成中のConnectionSnapshotEnvelopeと購読を破棄し、試行回数 / 総時間上限内では新しいcutへ収束し、上限超過時はsubscriberを残さず`RESOURCE_EXHAUSTED / snapshot_catch_up_exhausted`で終了すること
+- 不可視Reliable EventだけではControl itemを送らず、後続の可視event直前に連続範囲を一つのProjectionAdvanceへ集約し、State Frameの`baseReliableSequence`が未送信の不可視sequenceだけでは進まないこと
 - DurableCheckpointEnvelopeがconnection presence、Tracking Frame、Anchor sample、sample window、zone membership、hysteresis、edge detector stateを含まないこと
 - StateMailboxのfield単位merge、single in-flight Send、State再確立後のkeyframe収束
 - State Connectionだけを再確立する場合とSnapshotを伴うConnection Resumeの分岐
