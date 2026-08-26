@@ -24,6 +24,9 @@ export type CompletedSemanticTree = DeepReadonly<
 export type HitRegion = DeepReadonly<
   SerializedRenderBundleV1["surfaces"][string]["interactionsByState"][string][number]
 >;
+export type TextureArtifact = DeepReadonly<
+  SerializedRenderBundleV1["surfaces"][string]["renderSurfaces"][string]["artifacts"][string]["states"][string]["textures"][number]
+>;
 
 export type Diagnostic = {
   code: string;

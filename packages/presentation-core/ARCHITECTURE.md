@@ -57,7 +57,7 @@ src/
 
 初期実装は `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、`canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、`hashRenderBundle` を公開する。入力型は`@unframe/contracts/presentation`の生成型を正本とし、Core内でserialized modelを再定義しない。
 
-Compiler と renderer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
+Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
 すべてのAPIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。
 

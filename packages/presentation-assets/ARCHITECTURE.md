@@ -1,6 +1,6 @@
 # Presentation Assets Architecture
 
-- **Status**: Proposal / Target, not implemented
+- **Status**: Initial memory-only PNG encoder implemented
 - **Scope**: Compiler build 中の deterministic asset transformation
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -72,7 +72,25 @@ declared input + transform request + toolchain provenance
 - descriptor と binary checksum の consistency test
 - toolchain provenance 変更時の cache invalidation test
 
-## 8. Deferred decisions
+## 8. Current implementation
+
+最初の milestone は memory-only の `encodeRgbaToPng` を公開する。入力は source ID、sRGB RGBA8 bytes、pixel size、alpha mode と caller budget であり、filesystem path、process environment、renderer固有型を含まない。
+
+PNG byte列は 8-bit RGBA / non-interlaceのIHDR、sRGB rendering intent 0、各scanlineのfilter 0、`78 01` zlib headerと最大65,535 byteのstored DEFLATE block、Adler-32、CRC32、IENDに固定する。timestampや可変metadataを持たず、native codecやOS toolへ依存しない。同じ入力は同じbyte列になるが、圧縮率は最適化しない。
+
+Encoderは検証時に最終byte数を計画し、入力RGBAとは別の単一output bufferへPNGを直接書き込む。scanline全体、DEFLATE block列、chunk列の中間copyは作らず、最大時の主要working setをcaller-owned inputとencoder-owned outputに限定する。
+
+PNGがunassociated alphaを表すため、`opaque`は全alpha channelが255であることを検証し、`straight`をそのまま保持する。`premultiplied`は丸めを伴う変換規則が未定義なのでstable diagnosticで拒否する。
+
+Callerはwidth、height、pixel数、input byte数、output byte数の上限を明示する。さらにpackage trust boundaryとして4,096 x 4,096、16,777,216 pixels、64 MiB input、65 MiB outputの絶対上限を超えられない。これはGPUやDeliveryの品質budgetではなく、未trusted inputによる過大allocationを防ぐ初期上限である。
+
+最終PNG bytesのchecksumをlowercase hexの`sha256:<digest>`とし、first milestoneのderived `assetId`にも同じ値を使う。source ID、derived ID、Compiler cache keyは別概念であり、encoder version / fingerprintはprovenanceとして返す。現行RenderBundleに独立provenance fieldがないため、Compilerが将来cache/environment hashへ結合する。
+
+返却された`bytes`はcallerが所有し、別のencode結果や入力bufferとは共有しない。callerはchecksum検証後のbytesを変更できるが、descriptor/checksumを永続化または後段へ渡した後は変更してはならない。mutable/untrustedなbytesを受け取る永続化・Delivery境界はdescriptorのchecksumを再検証する。
+
+resize、mipmap、temporary workspace、font / video / model変換、cache、Surface State binding、RenderBundle組み立て、upload / Deliveryは実装しない。
+
+## 9. Deferred decisions
 
 - texture format、resolution、mipmap、compression budget
 - font resolver と subset toolchain
