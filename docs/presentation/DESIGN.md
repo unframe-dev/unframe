@@ -224,7 +224,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - Opaque Component web renderer entry の bundle と実行
 - Browser lifecycle と fixed rendering environment
 - Surface State ごとの layout と capture
-- Semantic Tree と Hit Region の抽出
+- Hit Region geometry の解決
 - pixel size、color space、alpha modeを持つ未encodeのSurface capture生成
 - Browser、font、locale、timezone、layoutのrenderer provenance
 - visual regression fixture
@@ -264,7 +264,7 @@ Compiler build 中に使用する deterministic asset transformation を所有�
 
 OS toolやcodec依存はこのpackageかそのadapterに閉じ込め、`presentation-core`へ持ち込まない。
 
-`presentation-renderer-web`はBrowser上の意味、layout、capture条件を所有し、`presentation-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
+`presentation-renderer-web`はBrowser上のlayout、capture条件、Hit Region geometryを所有する。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`presentation-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
 
 このpackageはartifact descriptorとdiagnosticsの型に限って`presentation-core`へ依存する。
 

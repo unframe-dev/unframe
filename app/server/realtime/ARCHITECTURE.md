@@ -94,7 +94,7 @@ Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、s
 - Presenter Quest による 49 台分の直接 fan-out
 - 発表中の Asset binary の gRPC streaming
 - 高頻度 state の D1 永続化
-- 1 room を複数 Runtime へ分割する distributed consensus
+- 1 Session を複数 Runtime へ分割する distributed consensus
 - 初期実装での host migration
 - 発表中の Cloud / Venue Edge 間の自動 fallback または live migration
 - Edge固有鍵、one-time enrollment、client certificate、mTLSによるEdge認証
@@ -132,7 +132,7 @@ flowchart LR
 
 1. Cloud Control Plane を認証、durable resource、session lifecycle、Runtime 管理と割り当ての authority とする。
 2. session に割り当てられた Runtime Core を、active session 中の Group / Step / Cue、Action / Transition、Element State の authority とする。Cloud と Venue Edge はこの同一のauthority contractを実行する配置 profile であり、Venue Edge 固有のauthorityではない。
-3. Presenter Quest は Pose と input の source であり、room state や fan-out の authority にはしない。
+3. Presenter Quest は Pose と input の source であり、Session state や fan-out の authority にはしない。
 4. Viewer Quest は受信した Element State を、自端末で校正した Presentation Origin に対して描画する。
 5. Cloud 配置では Quest が R2 / CDN から signed URL で Asset を直接取得し、Venue Edge 配置では Edge が一度取得して会場 LAN 内で配信する。
 6. Realtime hot path は割り当て済み Runtime 内で完結させ、Control Plane へ Pose frame や Element State frame を中継しない。
@@ -401,20 +401,20 @@ Target progression clock は pause-aware な logical runtime time とする。`R
 1. Presenter Quest が連続的な Pose を Tracking Stream、離散的な input を Reliable Control へ送信する。
 2. Runtime Core はruntimeが`Running`の場合だけ、現在の Step に属する Cue を評価する。
 3. Trigger が成立した Cue を idempotent に発火する。
-4. Cue に属する複数 Action を開始する。
-5. Action に Transition があれば、Runtime tick ごとに状態を計算する。
-6. 計算結果から canonical Element State を更新する。
-7. 変更された Element State を viewer ごとの送信 frame へまとめる。
-8. Transition 完了後、最終状態を Reliable Event と Snapshot へ反映する。
+4. Cue の Action batch を preflight し、reject する場合は canonical state を変更しない。
+5. 即時 state 変更と Runtime Run の開始を atomic に確定し、Reliable Event と送信 frame へ反映する。
+6. active Run の effective value を logical runtime time から計算し、viewer ごとの State frame へまとめる。
+7. Run 完了時は Timeline の最終 Node 値を commit し、Surface transition は Run を除去して interaction / hit region を有効化した後、completion event を確定する。
+8. Snapshot は commit 済み canonical state と active Run を同じ cut で反映する。
 9. Cue の定義に従って次の Step へ遷移する。
 
-端末ごとに個別評価すると結果が分岐するため、Trigger / Cue / Action / Transition の canonical evaluation は割り当て済み Runtime Core だけが行う。Cloud と Venue Edge の evaluator は同じ入力に対して同じ結果を生成する同一実装を使用する。
+意味論の正本は [Presentation Progression](../../../docs/presentation/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) とし、本書は Realtime transport、authority、fan-out、recovery への接続を定義する。端末ごとに個別評価すると結果が分岐するため、Trigger / Cue / Action / Transition の canonical evaluation は割り当て済み Runtime Core だけが行う。Cloud と Venue Edge の evaluator は同じ入力に対して同じ結果を生成する同一実装を使用する。
 
-v1 では一つの Runtime Input Event ごとに、現在の Group / Step の候補を Trigger、Guard、fire policy、cooldown で絞り、`priority` 降順、`order` 昇順、`cueId` 辞書順で先頭の一件だけを選択する。同じ `priority` と `order` は Delivery 前の検証で拒否する。transport上の`eventId`重複排除、`oncePerStepEntry`による受理済み Cue の消費、leading-edge の cooldown は別々に管理する。Timer は Step entry ごとに一度だけarmし、Guard不成立または別Cue選択で受理されなかった場合も同じentryで暗黙に再試行しない。
+Runtime Core は正本の Cue 選択、Action preflight、atomic commit を session critical section 内で実行する。batch reject では Cue 消費、cooldown、state、Run、Step を変更せず、別 Cue へ fallback しない。invariant 違反または atomic commit 失敗では partial state を公開せず Runtime を `Paused` にし、理由を Reliable Control で通知する。
 
-Cue の Action batch は適用前に全target、型、状態、property conflict を検証し、即時変更とRun開始をatomicに適用する。同一 Surface への複数 state変更、同一 Variable への複数書込み、同一 Node fieldへの複数patch、Node patchとTimelineの同一property所有、同一Timelineのplay / stop、同一media targetへの競合操作はrejectする。異なるNode fieldのpatchだけは統合できる。実行時faultはpartial applyやStep遷移を行わず、Runtimeを`Paused`にしてReliable Controlで理由を通知する。
+Surface transition、Timeline、Media は Runtime Run として追跡し、Run ID、owner epoch、開始 logical runtime time、完了種別を Snapshot へ保存する。即時 canonical state と Run lifecycle は Reliable Event、effective value は State frame、commit 済み state と active Run は Snapshot へそれぞれ fan-out する。個別の conflict、補間、停止規則は Presentation Progression の正本に従う。
 
-Surface stateは受理時に遷移先へcanonicalに変更する。v1は`cut`またはblockingな`crossfade`だけとし、crossfade中の同一Surfaceへのstate変更はreject、interactionとhit regionは無効、完了後に遷移先のものだけを有効にする。Surface transition、Timeline、Mediaは共通のRuntime Runとして追跡し、Run ID、owner epoch、開始logical runtime time、完了種別をSnapshotへ保存する。Timelineは固定済みPublishedPresentationのabsolute trackをlogical runtime clock上で評価し、rotationはshortest-path SLERP、同一propertyを所有するactive Timeline Runは一つだけとする。blocking Runが全て完了した場合だけpending Step遷移をatomicに適用し、`transitioning`中の通常inputは無視する。
+Native UI の表示に必要な projection は、ProjectionProfileDescriptor が許可する `visibleVariableIds`、pause-aware logical clock sample、timer表示に必要な現在の Group / Step と `stepEnteredAtRuntimeTimeMilliseconds` を含む projected progression fields を含める。二重の timer state は投影しない。割り当て済み Runtime Core は formatter や文字列置換を評価せず、timer完了は canonical Cue evaluation として判定する。client は Projected Runtime Snapshot の clock と progression state から表示だけを計算する。具体的な Native UI / Semantic Tree の意味論は Presentation Architecture を正本とする。
 
 ## 8. 通信方式
 
@@ -565,7 +565,7 @@ ElementStateFrame
 - Transition 完了等の確定状態は Reliable Event にも反映する。
 - `baseReliableSequence`は、そのState Frameが前提にするsession-global Reliable sequenceである。clientの適用済みReliable sequenceより大きいframeは、その前提となるReliable Eventまたは`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
 - `baseReliableSequence`がclientの適用済みsequenceより小さいframe、または`presentationOriginVersion`が一致しないframeはstaleとして破棄し、Control Connection上でState keyframeを要求する。
-- Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable Controlやroom全体をblockしない。
+- Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable ControlやSession全体をblockしない。
 
 ### 8.5 Clock synchronization
 
@@ -602,7 +602,7 @@ Runtime instance の概算 egress は次で決まる。
 - 同じ Element の複数更新を送信前に coalesce する
 - deterministic な Action は `CueFired + start time` で local 実行し、必要な correction だけ送る余地を残す
 - video / audio は media binary ではなく playback state を同期する
-- slow viewer を room 全体の遅延原因にしない
+- slow viewer を Session 全体の遅延原因にしない
 
 最適化後も、1 / 10 / 50 Quest、20 / 30 / 60 Hz、複数 Element 数と payload size の組み合わせで実測して上限を決定する。
 
@@ -890,7 +890,7 @@ Runtime Core に対する環境差は次の deployment profile で扱う。
 | 更新 | image release と Machine rollout | signed binary / image の段階更新と rollback |
 | recovery | Machine 再起動・再配置と Cloud checkpoint | process supervisor と local checkpoint |
 
-Cloud Runtime を先に実装し、Quest だけで end-to-end MVP を成立させる。Fly.io 上の初期 profile は単一 session を明示的な Runtime instance へ割り当て、公開 TLS endpoint、application health、固定した Runtime identity を提供する。region、複数 room、Machine affinity、autoscaling、durable Snapshot store、rolling update 中の Assignment の扱いは実測後に決定する。
+Cloud Runtime を先に実装し、Quest だけで end-to-end MVP を成立させる。Fly.io 上の初期 profile は単一 Session を明示的な Runtime instance へ割り当て、公開 TLS endpoint、application health、固定した Runtime identity を提供する。region、複数 Session、Machine affinity、autoscaling、durable Snapshot store、rolling update 中の Assignment の扱いは実測後に決定する。
 
 Venue Edge の推奨会場構成:
 
@@ -917,7 +917,7 @@ Internet
 - QoS / roaming / packet loss が管理できない
 - Venue Edge と Quest 間の local routing を保証できない
 
-Venue Edge の必要 capacity は、同時 room 数、participant 数、Asset cache size、Element update rate、payload size、TLS / fan-out CPU を負荷試験して決定する。初期運用では一つの Venue Edge / Runtime instance が一つの active room を担当する。
+Venue Edge の必要 capacity は、同時 Session 数、participant 数、Asset cache size、Element update rate、payload size、TLS / fan-out CPU を負荷試験して決定する。初期運用では一つの Venue Edge / Runtime instance が一つの active Session を担当する。
 
 Venue Edge の実際の local listener 構成は未決定である。少なくとも Control gRPC、State gRPC、Asset HTTPS を提供する必要があるが、同一 process / port で multiplex するか、port を分離するか、LAN interface への bind、証明書の生成・保存・rotation、fingerprint 形式、firewall と discovery を実装前に確定する。
 
@@ -1097,7 +1097,7 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 
 ### 18.2 Fly.io Cloud Runtime
 
-- region選択、複数room、Machine affinity、autoscaling policy
+- region選択、複数Session、Machine affinity、autoscaling policy
 - Runtime instanceとFly.io Machineのidentity対応
 - Control PlaneがRuntimeを事前登録するか、Machineが短命なplatform identityで自己登録するか
 - Machine再配置をまたぐSnapshot / Replayのdurable保存先と書き込み頻度
@@ -1107,7 +1107,7 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 ### 18.3 Venue Edge Runtime
 
 - Venue Edge の標準 hardware と最低要件
-- 一つのEdgeで許可するactive room数
+- 一つのEdgeで許可するactive Session数
 - 会場 router を製品構成に含めるか
 - local HTTPS listenerのprocess / port構成、LAN bind、証明書保存・rotation、fingerprint形式、firewall / discovery
 - Cloud Agentのservice manager、credential store、update / rollback方式

@@ -119,13 +119,13 @@ Group を State Machine のスコープ、Step を進行状態、Cue を Trigger
 
 State Machine は離散的な進行と Surface State を管理し、Timeline は連続値の時間変化を管理する。Action は renderer-independent な意味論的対象を変更し、Texture や Unity API を直接操作しない。
 
-Venue Edge を canonical authority とし、Trigger、Guard、Cue 選択、Action、Timeline 完了、Group / Step 遷移を一意に評価する。Unity は device input を Logical Event へ変換し、確定した Runtime State と Timeline を描画へ反映する。
+Cloud または Venue Edge に配置された割り当て済み Runtime Core を canonical authority とし、Trigger、Guard、Cue 選択、Action、Timeline 完了、Group / Step 遷移を一意に評価する。Unity は device input を Logical Event へ変換し、確定した Runtime State と Timeline を描画へ反映する。
 
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
-Runtime State は、Venue Edge が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial NodeがProjectionAudienceを宣言し、Semantic Surfaceなどの派生resourceはhostから継承する。ProjectionProfileDescriptorはPublicationFence、projection contract version、role、capability profileごとに共有し、participant / assignment固有のProjectionInstanceと分離する。Client-local State は Shared Progression を直接変更しない。
+Runtime State は、割り当て済み Runtime Core が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial NodeがProjectionAudienceを宣言し、Semantic Surfaceなどの派生resourceはhostから継承する。ProjectionProfileDescriptorはPublicationFence、projection contract version、role、capability profileごとに共有し、participant / assignment固有のProjectionInstanceと分離する。Client-local State は Shared Progression を直接変更しない。
 
-Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Room は Presentation を参照し、Session は作成時の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
+Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Session は Presentation を参照し、作成時の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
 
 v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../presentation/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
 
@@ -133,7 +133,7 @@ v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Sn
 
 - **Local Compiler**: Orchestrator、Theme Declaration、Manifest、Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower して Semantic Authoring IR へ正規化する。Opaque renderer だけを bundle し、Component、Layout、Theme、Surface boundary、canonical PresentationDefinition JSON、renderer artifact を解決する。
 - **Control Plane**: PresentationDefinition、RenderBundle、Asset の schema、ownership、hash、revision を検証し、DeliveryManifest を生成する。
-- **Venue Edge**: Session の進行、順序、Trigger、Guard、Action、Timeline、Reliable Event、Snapshot を管理する。
+- **割り当て済み Runtime Core**: Cloud または Venue Edge に配置され、Session の進行、順序、Trigger、Guard、Action、Timeline、Reliable Event、Snapshot を管理する。
 - **Unity Runtime**: DeliveryManifest を検証し、renderer graph、Asset lifecycle、Spatial rendering、local interpolation、input adapter を担当する。
 - **Web Editor**: Semantic Authoring IR を semantic command で編集し、保存 revision や Runtime authority と分離した UI state を管理する。
 
@@ -157,7 +157,7 @@ Web authoring には自然だが、任意コードの実行、安全性、決定
 
 ### Option E: 各 client が Presentation Progression を個別評価する
 
-Tracking、input、clock、renderer の差によって Cue と State が分岐する。Snapshot と Replay だけでは決定結果を一致させられないため、Venue Edge を authority とする。
+Tracking、input、clock、renderer の差によって Cue と State が分岐する。Snapshot と Replay だけでは決定結果を一致させられないため、Cloud または Venue Edge に配置された割り当て済み Runtime Core を唯一の authority とする。
 
 ## Consequences
 
@@ -166,7 +166,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - **Positive**: PresentationDefinition を保ったまま renderer、解像度、配信方法を変更できる。
 - **Positive**: Stable ID と Semantic Authoring IR により、GUI と Code の意味論的な往復と semantic command を設計できる。
 - **Positive**: TS / TSX の module resolution と type system を利用しながら、authoring declaration を portable な canonical JSON へ固定できる。
-- **Positive**: Venue Edge の single authority と Snapshot / Replay により、複数 client の進行状態を収束させられる。
+- **Positive**: Cloud または Venue Edge に配置された割り当て済み Runtime Core の single authority と Snapshot / Replay により、複数 client の進行状態を収束させられる。
 - **Negative**: Authoring Source、IR、PresentationDefinition、RenderBundle、DeliveryManifest の対応と versioning を管理する必要がある。
 - **Negative**: Compiler、Component package、Surface partition、Native UI、Delivery、Realtime の複数契約を実装する必要がある。
 - **Negative**: 自由な TSX と完全な GUI 内部編集を同時には保証できず、Structured / Opaque / Detach の境界が必要になる。
@@ -193,14 +193,14 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [x] Presenter / System / participant の actor、subject、Anchor owner と認可規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#125-runtime-input-event-と-trigger) で定義する。
 - [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を [Presentation Architecture](../presentation/ARCHITECTURE.md#37-runtime-state) で定義する。
 - [x] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run、pause-aware logical clock、Canonical Runtime Snapshot、Connection / Durable envelope contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#123-runtime-progression-state) と [Snapshot contract](../presentation/ARCHITECTURE.md#1211-reliable-eventstate-streamsnapshot) で定義する。
-- [x] 単一の PublishedPresentation、PublicationFence、PresentationDefinition / RenderBundle / Asset Set / contract version の原子的な整合性、Room / Session の参照、非終了 Session 中の publish lock、置換後artifactのGCを [Presentation Architecture](../presentation/ARCHITECTURE.md#36-published-presentation-と-active-use-lock) で定義する。
-- [ ] Surface transition、Action batch、Timeline track の conflict policy と Timeline 補間規則を定義する。
-- [ ] Surface State ごとの Semantic Tree と Native UI の宣言的 binding を定義する。
+- [x] 単一の PublishedPresentation、PublicationFence、PresentationDefinition / RenderBundle / Asset Set / contract version の原子的な整合性、Session と PublicationFence の参照、非終了 Session 中の publish lock、置換後artifactのGCを [Presentation Architecture](../presentation/ARCHITECTURE.md#36-published-presentation-と-active-use-lock) で定義する。
+- [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を [Surface State](../presentation/ARCHITECTURE.md#124-surface-state)、[Action](../presentation/ARCHITECTURE.md#127-action)、[Timeline](../presentation/ARCHITECTURE.md#128-timeline) で定義する。
+- [x] Surface State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#132-semantic-tree)、[Native UI Artifact](../presentation/ARCHITECTURE.md#143-native-ui-artifact)、[DeliveryManifest](../presentation/ARCHITECTURE.md#35-deliverymanifest) で定義する。
 - [ ] Component から Render Surface への partition 規則、自動化範囲、author override を決定する。
 - [ ] ADR-0005 で固定済みの座標系を前提に、Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な規約を定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
-- [ ] Native UI portable subset、Semantic Tree、Hit Region の完全な schema を定義する。
+- [ ] role 別 Semantic schema と Hit Region の完全な schema を定義する。
 - [ ] Opaque renderer の Browser capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
 - [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。

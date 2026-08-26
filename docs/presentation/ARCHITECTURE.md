@@ -61,10 +61,11 @@ Current Published Presentation
         │     └─ Viewer
         │
         └─ Session path
-           └─ Room (references Presentation) / Session (pins PublicationFence)
+           └─ Session (references Presentation and pins PublicationFence)
                   │
                   ▼
-              Venue Edge
+              Assigned Runtime Core
+              ├─ Cloud or Venue Edge deployment profile
               ├─ Canonical progression
               ├─ Reliable Control / Snapshot
               └─ Latest-wins State Stream
@@ -72,6 +73,8 @@ Current Published Presentation
                   ▼
               Same Unity Runtime clients
 ```
+
+Session path の authority は Cloud または Venue Edge に配置された割り当て済み Runtime Core である。Venue Edge profile は会場内 network、tracking / input ingress、Asset cache を追加できるが、Session の意味論的 authority を別に持たない。
 
 ### 基本原則
 
@@ -85,7 +88,7 @@ Current Published Presentation
 - Control Plane と Unity Runtime は Authoring Source、React、CSS、renderer source を実行しない。
 - PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
 - Presentation の意味、build 成果物、配信 projection、実行中状態を別の契約として扱う。
-- Presentation は公開済みの実行物を一つだけ持つ。Room は Presentation を参照し、Session は作成時の PublicationFence を固定して実行中に Draft や後続 publish を参照しない。
+- Presentation は公開済みの実行物を一つだけ持つ。Session は Presentation を参照し、作成時の PublicationFence を固定して実行中に Draft や後続 publish を参照しない。
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を ID の代わりに使用しない。
 
 ## 3. 契約の階層
@@ -206,6 +209,7 @@ type ProjectionProfileDescriptor = {
   key: ProjectionProfileKey;
   visibleNodeIds: SpatialNodeId[];
   visibleSurfaceIds: SemanticSurfaceId[];
+  visibleVariableIds: VariableId[];
   renderSurfaces: Record<RenderSurfaceId, DeliveredRenderSurface>;
   localOverlays: LocalOverlayDefinition[];
 };
@@ -241,7 +245,7 @@ Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed
 
 `DeliveredRenderSurface` は Render Surface ごと、かつ到達可能な Surface State ごとに選択結果を固定する。`empty` 以外の各 state は同じ renderer contract で解釈できる artifact を一つ持たなければならず、Unity が実行時に候補から再選択しない。これにより、state A と state B が異なる artifact を必要とする場合も一つの profile で完全に配信できる。
 
-`CapabilityProfileId` が指す正規化済み profile は、対応する Delivery / Runtime protocol version、renderer kind と contract version、Native UI feature / limit、Texture dimension / format / mipmap / color / alpha、Video codec / alpha / audio、GPU / RAM budget tier、Local Overlay support を持つ。Control Plane は登録済み client build、device class、認証済み bootstrap の情報から profile を決める。client の自己申告だけで profile を拡張しない。
+Compiler は artifact ごとに参照する Variable ID の dependency を RenderBundle へ記録する。Control Plane は profile で選択した visible な Native UI artifact の dependency closure から `visibleVariableIds` を導出する。profile はこの集合にない Variable を Runtime View、Snapshot、Event、State Frame に含めない。`CapabilityProfileId` が指す正規化済み profile は、対応する Delivery / Runtime protocol version、renderer kind と contract version、Native UI feature / limit、Texture dimension / format / mipmap / color / alpha、Video codec / alpha / audio、GPU / RAM budget tier、Local Overlay support を持つ。Control Plane は登録済み client build、device class、認証済み bootstrap の情報から profile を決める。client の自己申告だけで profile を拡張しない。
 
 PublishedPresentation の必須 capability と profile の共通部分から完全な renderer graph を作れない場合は、Session 開始前に型付き incompatibility として拒否する。`fallbackPolicy: "degrade"` は Compiler が事前生成し検証した代替 artifact の選択だけを許し、Unity による暗黙の renderer 置換や解像度低下は許可しない。
 
@@ -268,13 +272,13 @@ type SessionPublicationBinding = PublicationFence & {
 
 `publicationEpoch` は Presentation ごとに単調増加し、過去版を閲覧・選択するためではなく、古い Assignment、credential、DeliveryManifest、Snapshot、Reliable Event、State Frame を拒否する fence とする。`publicationManifestHash` は自身の field を除く PublishedPresentation の canonical manifest から計算し、Definition、RenderBundle、Asset Set、contract version の組み合わせを検証する。
 
-Room は `presentationId` だけを参照し、公開版を選択しない。Session 作成時に Control Plane がその Presentation の現在の PublicationFence を `SessionPublicationBinding` としてコピーし、`Waiting`、`Presenting`、`Ended` の全期間で変更しない。新しい Session は常に作成時点の最新公開物を使用し、未publishのPresentationからはSessionを作成できない。
+Session は `presentationId` を参照し、公開版を選択しない。Session 作成時に Control Plane がその Presentation の現在の PublicationFence を `SessionPublicationBinding` としてコピーし、`Waiting`、`Presenting`、`Ended` の全期間で変更しない。新しい Session は常に作成時点の最新公開物を使用し、未publishのPresentationからはSessionを作成できない。
 
 同じ Presentation を参照する `Waiting` または `Presenting` Session が一つでも存在する間、Control Plane は publish を拒否する。Session 作成と publish は同じ永続化境界で直列化し、publish と同時に古い公開物を参照する Session が作られないようにする。`Ended` だけが publish lock を解放する。
 
 active-use lock 中も Draft 編集と build は許可する。publish は `expectedDraftRevision`、`buildId`、build の source revision、artifact hash、Asset readiness を検証し、すべて一致する場合だけ `publicationEpoch` を増やして現在の PublishedPresentation を atomic に置換する。Draft が build 後に更新されていれば conflict とし、暗黙に最新 Draft を取り込まない。
 
-過去の PublishedPresentation を rollback や Room ごとの選択肢として保持しない。置換前 artifact は active Session から参照されないことを確認した後、Draft、Build cache、監査保持など別の参照がなければ GC できる。監査 log に epoch と hash を残すことは、過去の実行 artifact を製品機能として保持することを意味しない。
+過去の PublishedPresentation を rollback や Session ごとの選択肢として保持しない。置換前 artifact は active Session から参照されないことを確認した後、Draft、Build cache、監査保持など別の参照がなければ GC できる。監査 log に epoch と hash を残すことは、過去の実行 artifact を製品機能として保持することを意味しない。
 
 ### 3.7 Runtime State
 
@@ -321,6 +325,7 @@ type ParticipantRuntimeView = {
   mediaStates: Record<SurfaceId, MediaRuntimeState>;
   variables: Record<VariableId, Scalar>;
   activeRuns: RuntimeRunSnapshot[];
+  clock: RuntimeClockSnapshot;
   enabledLogicalInputs: LogicalEventName[];
 };
 
@@ -332,7 +337,7 @@ type ProjectedRuntimeSnapshot = {
 };
 ```
 
-Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。割り当て済み Runtime Core はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
+Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。割り当て済み Runtime Core はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。`variables` には descriptor の `visibleVariableIds` だけを含める。`clock` は Shared Runtime State の pause-aware logical clock の sample であり、client は `running` 中だけ受信 sample を基準に local monotonic clock で Native UI の表示を補間し、`paused` と `terminating` では補間を止める。timer の完了判定は常に割り当て済み Runtime Core だけが行い、再接続時は新しい Runtime View の clock sample から表示を再開する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
 
 Role による visibility と ResourceOwner による lifetime は別概念とする。
 
@@ -533,7 +538,7 @@ components/CustomChart/
 
 Opaque Component は Component Structure を持たず、Manifest が Component 固有 renderer entry を参照する。意味情報、State、Interaction、Action、Output の公開境界は Manifest だけを正本とし、renderer の DOM、React tree、CSS、実行結果から追加の意味を推測しない。Manifest に宣言されていない interaction や Output を renderer が発生させる構成は build error とする。
 
-Opaque Manifest は Action / Output lowering に必要な公開 Runtime target を `semantics` として宣言する。`semantics` は Node、Surface、Surface State、Interaction、Timeline、Variable、Media の stable local ID と renderer binding key だけを持ち、内部 Node hierarchy、Layout、DOM、CSS、React component を持たない。これは editable な Component Structure ではなく、Opaque renderer と canonical Presentation model を接続する semantic adapter である。
+Opaque Manifest は Action / Output lowering に必要な公開 Runtime target を `semantics` として宣言する。`semantics` は Node、Surface、Surface State、Interaction、Timeline、Variable、Media の stable local ID と renderer binding key を持つ。各公開 Surface の semantic adapter は `baseSemanticTree` と State override を宣言できるが、これは accessibility / interaction の公開意味構造であり、renderer DOM、layout hierarchy、CSS、React component を表さない。これは editable な Component Structure ではなく、Opaque renderer と canonical Presentation model を接続する semantic adapter である。
 
 Opaque renderer は Manifest の binding key に concrete geometry や artifact を対応付けるが、宣言済み target の意味や ID を変更できない。Compiler は Opaque Action / Output template の local target を `semantics` から解決し、参照先の欠落、ID や binding key の重複、必須 binding の未結合、renderer が追加した未宣言 binding を build error とする。
 
@@ -640,7 +645,7 @@ Output reference は compile 時に次の規則で canonical Trigger へ一意�
 | `mediaCompleted` | 同じ canonical Surface ID を参照する `mediaCompleted` | System |
 | `timer` | `afterMilliseconds` を保持する Step timer | System |
 
-`timer` は Component の mount 時刻ではなく、Output reference を含む Cue が属する Step の entry を基準にする。Step exit で破棄し、Step reentry では新しい `stepEntryEpoch` に属する timer として開始する。Native UI の Runtime Clock はこの同じ Step timer を表示へ binding できるが、完了判定と Output 発生は Venue Edge が行う。Component Output から別の `semanticEvent` を producer として参照することは v1 では許可しない。これにより producer chain と event cycle を作らない。
+`timer` は Component の mount 時刻ではなく、Output reference を含む Cue が属する Step の entry を基準にする。Step exit で破棄し、Step reentry では新しい `stepEntryEpoch` に属する timer として開始する。Native UI の Runtime Clock はこの同じ Step timer を表示へ binding できるが、完了判定と Output 発生は割り当て済み Runtime Core が行う。Component Output から別の `semanticEvent` を producer として参照することは v1 では許可しない。これにより producer chain と event cycle を作らない。
 
 Compiler は `component.output`、Component 固有 event name、producer mapping を Runtime wire に残さず、解決済み Trigger と Cue の `fixedPayload` だけを出力する。Output reference から生成した Cue では Manifest の固定 payload を `fixedPayload` に設定する。
 
@@ -838,6 +843,7 @@ Authoring と PresentationDefinition の ID、Compiler が生成する ID を分
 | `SurfaceNodeId` | Authoring Source / PresentationDefinition | author-stable、`SpatialNodeId` の kind-safe subtype |
 | `SemanticSurfaceId` | Authoring Source / PresentationDefinition | author-stable |
 | `SurfaceContentNodeId` | Authoring Source / PresentationDefinition | Semantic Surface 内で author-stable |
+| `SemanticNodeId` | Structured Component Structure / Opaque Manifest semantic adapter | Semantic Surface 内で author-stable |
 | `RenderSurfaceId` | RenderBundle | compiler-derived、build-local |
 | `RendererArtifactId` | RenderBundle | compiler-derived、build-local |
 
@@ -913,11 +919,14 @@ type SemanticSurface = {
   logicalSize: [number, number];
   fit: "contain" | "cover" | "stretch";
   rootFrameId: SurfaceContentNodeId;
+  baseSemanticTree: SemanticTree;
   initialStateId: SurfaceStateId;
   states: Record<SurfaceStateId, SurfaceStateDefinition>;
   renderIntent: SurfaceRenderIntent;
 };
 ```
+
+`baseSemanticTree` は Surface の全 State が共有する意味構造の正本である。State は `SurfaceSemanticOverride` により既存 Node の可視性と text / language / alt だけを変更でき、Node ID、role、parent、order、interaction の所属を変更したり、新しい Semantic Node を生成したりできない。これにより State 間で意味対象と Hit Region の参照先を安定させる。
 
 Compiler は次の invariant を検証する。
 
@@ -926,6 +935,7 @@ Compiler は次の invariant を検証する。
 - SurfaceNode は Spatial Tree 上の leaf とし、2D 内容を Spatial child として保持しない。
 - `rootFrameId` とすべての SurfaceContentNode が同じ Semantic Surface に所属し、別 Surface の Node を親または child にしない。
 - `physicalSizeMeters` と `logicalSize` の各要素は有限かつ正である。
+- `baseSemanticTree` と各 State override は 13.2 の stable ID、親子、property conflict 規則に従う。
 - SurfaceNode または Semantic Surface の orphan、重複参照、ID kind の取り違えを build error とする。
 
 ### 7.5 Render Surface lowering と Runtime 参照
@@ -1176,7 +1186,7 @@ Timeline Run:      title-fade-in の 420 ms 地点
 
 ### 12.1 Authority と基本 invariant
 
-- Venue Edge を Session Runtime の single authority とし、Trigger、Guard、Cue 選択、Action、Timeline 完了、Group / Step 遷移を canonical evaluation する。
+- Cloud または Venue Edge に配置された割り当て済み Runtime Core を Session Runtime の single authority とし、Trigger、Guard、Cue 選択、Action、Timeline 完了、Group / Step 遷移を canonical evaluation する。
 - v1 では同時に active な Group と Step をそれぞれ一つに限定する。
 - Group は State Machine のスコープであり、Scene Graph の親子関係には使用しない。
 - 現在の Step に属する Cue だけを評価する。
@@ -1342,7 +1352,7 @@ type RuntimeRunSnapshot =
     });
 ```
 
-`runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ Venue Edge の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
+`runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ割り当て済み Runtime Core の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
 
 Timer、Cue 消費状態、cooldown は `stepEntryEpoch` に属する。`oncePerStepEntry` で受理した Cue だけを `consumedCueIds` に記録し、cooldown は次に受理可能な logical runtime time を保持する。Timer は Step entry 時に一度だけ arm し、deadline 到達時に一度だけ event 化する。Guard 不成立または別 Cue の選択により受理されなかった場合も `fired` とし、同じ Step entry で暗黙に再試行しない。Step exit と self transition では旧 StepExecutionSnapshot を破棄する。
 
@@ -1371,6 +1381,8 @@ type SurfaceRuntimeState = {
   stateId: SurfaceStateId;
   transitionRunId?: RuntimeRunId;
 };
+
+type Easing = "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
 ```
 
 Spatial Node に共通する `active`、`visible`、`opacity`、`transform` は Surface State へ重複させず、Node Runtime State として管理する。
@@ -1388,7 +1400,9 @@ type NodeRuntimeState = {
 
 同じ Semantic Surface に属するすべての Render Surface はこの一つの transition と `runId` を投影し、個別に state や完了時刻を決定しない。一つでも必要な state binding を欠く RenderBundle は Delivery 前に拒否する。
 
-v1 の Surface transition は `cut` または blocking な `crossfade` に限定する。同じ Semantic Surface に transition が active な間の新しい `surface.setState` は reject し、replace、interrupt、queue は含めない。Crossfade 中は Surface interaction を無効にし、完了後に遷移先 State の hit region を有効にする。
+v1 の Surface transition は `cut` または blocking な `crossfade` に限定し、`transition` の省略は `cut` と同義とする。`cut` は Runtime Run を生成せず、Surface State の変更だけを atomic に確定する。active transition がなく、現在と同じ State への `cut` は有効な no-op とし、Surface State の Reliable Event は生成しない。現在と同じ State への `crossfade` は Runtime preflight で batch reject とし、`crossfade.durationMilliseconds` は有限かつ正でなければならない。
+
+同じ Semantic Surface に transition が active な間の新しい `surface.setState` は、遷移先が同じ場合も reject する。replace、interrupt、queue は v1 に含めない。Crossfade は開始時の logical runtime time を `startedAt` とし、`startedAt + durationMilliseconds` を完了 deadline とする。§12.8 と同じ easing 関数を `e` として、経過率 `u` に対する旧 State の weight を `1 - e(u)`、遷移先 State の weight を `e(u)` とする。Crossfade 中は Surface interaction を無効にし、完了後に遷移先 State の hit region を有効にする。
 
 ```text
 surface.setState("correct")
@@ -1483,13 +1497,13 @@ type Trigger =
 
 `actor` は event を発生させた認証済み主体、`subject` は追跡または判定の対象であり、subject であること自体は権限を与えない。Presenter は Session role であり、Runtime event の identity では `participantId` と ingress 時に検証した role の両方を保持する。Session の Presenter は creator に固定し、v1 では途中交代しない。
 
-participant 起点の canonical event は、認証済み Realtime connection の JWT claims から Venue Edge が `participantId` と role を設定する。client payload に actor、role、subject を含めず、client がこれらを申告しても採用しない。System actor は Venue Edge 内部の tracking evaluator、timer、timeline、media、runtime lifecycle だけが生成でき、client から System event を送信する wire path は設けない。
+participant 起点の canonical event は、認証済み Realtime connection の JWT claims から割り当て済み Runtime Core が `participantId` と role を設定する。client payload に actor、role、subject を含めず、client がこれらを申告しても採用しない。System actor は割り当て済み Runtime Core 内部の tracking evaluator、timer、timeline、media、runtime lifecycle だけが生成でき、client から System event を送信する wire path は設けない。
 
 `TriggerActorSelector` の `presenter` は `RuntimeActor.kind === "participant"` かつ `role === "presenter"` にだけ一致する。`system` は System actor に一致し、`source` が指定されていれば同じ source だけに一致する。PresentationDefinition は具体的な `participantId` を使う actor selector を持たない。Viewer input は Shared Progression の Trigger に一致させず、Projection / Client-local State に対する入力規則を定義するまでは共有 Action を発生させない。
 
 `surfaceInteraction` は現在の canonical Surface State において対象 Interaction が存在し、有効である場合だけ成立する。client が申告した Surface State は判定に使用しない。v1 の `logicalInput` と `surfaceInteraction` は Presenter actor、Timeline / Media / Timer completion は対応する System source だけを受理する。通常の `semanticEvent` は宣言した selector を照合する。Compiler は producer と actor selector の不正な組み合わせを build error とする。
 
-Zone と Motion は Venue Edge が認証済み Presenter Tracking Stream から評価し、edge 成立時に `actor = system / tracking`、`subject = Presenter またはその Anchor` の内部イベントへ変換する。subject selector は現在の Session Presenter を concrete `participantId` へ解決する。Raw Pose、現在の zone membership、hysteresis、edge detector state は process-local な tracking state とし、Reliable Event、Canonical Runtime Snapshot、durable checkpoint に含めない。process recovery 後は fresh Tracking Frame の現在値から detector を seed し、復旧そのものを enter / exit / motion edge として扱わない。
+Zone と Motion は割り当て済み Runtime Core が認証済み Presenter Tracking Stream から評価し、edge 成立時に `actor = system / tracking`、`subject = Presenter またはその Anchor` の内部イベントへ変換する。subject selector は現在の Session Presenter を concrete `participantId` へ解決する。Raw Pose、現在の zone membership、hysteresis、edge detector state は process-local な tracking state とし、Reliable Event、Canonical Runtime Snapshot、durable checkpoint に含めない。process recovery後は fresh Tracking Frame の現在値から detector を seed し、復旧そのものを enter / exit / motion edge として扱わない。
 
 ```ts
 type RuntimeInputEvent = {
@@ -1503,7 +1517,7 @@ type RuntimeInputEvent = {
 };
 ```
 
-認証、role、event kind、subject の検証に失敗した入力は canonical event にせず、`ingressSequence` も割り当てない。`eventId` は冪等適用、Venue Edge が受理時に割り当てる `ingressSequence` は順序決定に使用する。client の `capturedAt` は診断専用であり、イベント順序には使用しない。
+認証、role、event kind、subject の検証に失敗した入力は canonical event にせず、`ingressSequence` も割り当てない。`eventId` は冪等適用、割り当て済み Runtime Core が受理時に割り当てる `ingressSequence` は順序決定に使用する。client の `capturedAt` は診断専用であり、イベント順序には使用しない。
 
 `timer.afterMilliseconds` の基準は Step entry とし、Step exit で破棄する。Pause 中は timer を進めない。
 
@@ -1580,9 +1594,26 @@ type Action =
   | { kind: "media.seek"; surfaceId: SurfaceId; positionSeconds: ActionValue<number> };
 ```
 
-`ActionValue` の参照は Cue を発火させた event payload と同じ pre-event Variable snapshot に対して解決する。型不一致、存在しない payload field、未定義 Variable、非有限 number は batch validation error とする。`transform`、target ID、Surface State ID のように Runtime graph の構造を決める値は v1 では静的値に限定する。
+Runtime は Action を適用前に property claim へ正規化する。
 
-Runtime は Cue を受理する前に、すべての Action target、Surface State、Timeline、値の型、property conflict を検証する。一つでも不正なら batch 全体を拒否し、partial apply や Step 遷移を行わない。Delivery preflight で検出できなかった実行時 fault が発生した場合は、進行を継続せず Runtime を `Paused` にする。
+| Action | claim |
+| --- | --- |
+| `surface.setState` | 対象 Surface の state と transition |
+| `node.patch` | 指定した Node field。`transform` は position、rotation、scale のすべて |
+| `variable.set` | 対象 Variable の value |
+| `timeline.play` | Timeline lifecycle と全 track の `target/property` |
+| `timeline.stop` | Timeline lifecycle と active Run が所有する全 `target/property` |
+| `media.play` / `pause` / `seek` | 対象 Surface の media lifecycle |
+
+同じ batch 内で claim が重なる場合は、操作内容が同じでも batch 全体を reject する。active Timeline Run が所有する property への `node.patch`、同じ property を所有する別 Timeline の開始、active な同一 Timeline の再開始も reject する。`timeline.stop` は対象 Run の claim を停止処理のために引き継げるが、同じ batch にある別 Action とその claim が重なる場合は reject する。停止と値変更を順に行う場合は、別の Cue または Step として表現する。
+
+inactive Timeline への `timeline.stop` は有効な no-op とする。Compiler が対象 Timeline が必ず inactive だと静的に証明できる場合は warning を出せるが、Runtime error にはしない。
+
+`ActionValue` の参照は Cue を発火させた event payload と同じ pre-event Variable snapshot に対して解決する。event payload の型不一致、存在しない payload field、event から得た非有限 number は Runtime の batch validation error とする。静的な `ActionValue` と Variable 参照の存在、型、有限性は build 時に検証する。定義済み Variable の Runtime value が欠落または型不一致なら invariant fault とする。`transform`、target ID、Surface State ID のように Runtime graph の構造を決める値は v1 では静的値に限定する。
+
+Runtime は Cue を受理する前に、event payload や Variable から解決した値、現在の Surface State、active Run の property claim を検証する。回復可能な入力不正または current-state conflict があれば batch 全体を reject し、Cue の消費、cooldown、resource state、Runtime Run、Step 遷移を変更しない。選択済み Cue の batch が reject された場合に別の Cue へ fallback しない。
+
+event 依存値の型不一致、同じ State への不正な transition、active Run との claim conflict は batch reject とし、Runtime を継続する。PublishedPresentation で保証される target、Surface State、Timeline、Variable、静的な値の型が live Runtime で欠落または不整合なら invariant fault とする。atomic commit の失敗も Runtime fault とし、partial state を公開せず Runtime を `Paused` にする。stale completion は状態を変更せず無視する。batch reject と Runtime fault の wire 表現は Progression wire contract で定義する。
 
 Action 同士の順序に意味を持たせない。依存した順次演出は次の Step、Timeline keyframe、または `timelineCompleted` Trigger で表現する。
 
@@ -1593,6 +1624,12 @@ v1 の Action conflict は action 配列順で解決しない。同一 Surface �
 Timeline は連続補間可能な property の時間変化だけを所有する。
 
 ```ts
+type TimelineKeyframe = {
+  timeMilliseconds: number;
+  value: number | Vector3 | Quaternion;
+  easingToNext?: Easing;
+};
+
 type TimelineDefinition = {
   id: TimelineId;
   owner: ResourceOwner;
@@ -1606,11 +1643,7 @@ type TimelineDefinition = {
         | "transform.rotation"
         | "transform.scale";
     };
-    keyframes: Array<{
-      timeMilliseconds: number;
-      value: number | Vector3 | Quaternion;
-      easing: Easing;
-    }>;
+    keyframes: TimelineKeyframe[];
   }>;
 };
 ```
@@ -1618,15 +1651,34 @@ type TimelineDefinition = {
 - Surface 全体の Transform と opacity は、その Semantic Surface に対応する SurfaceNode の track として表現する。
 - `SurfaceStateId`、Texture ID、renderer、CSS property、任意の Component 内部値は Timeline track にしない。
 - Baked Web Render Surface 内部の個別 Node を動かす必要がある場合は、Semantic Surface 分割、有限状態 artifact、Video、Native UI のいずれかへ lower する。
+- Timeline の `durationMilliseconds` は有限かつ正とし、track を一つ以上持つ。各 track は二つ以上の keyframe を持ち、すべての時刻と値は有限でなければならない。
 - Timeline は absolute 値を指定する。各 track の最初の keyframe は `0 ms`、最後の keyframe は Timeline duration とし、keyframe 時刻は単調増加して同時刻を許可しない。
-- Rotation は正規化 Quaternion の shortest-path SLERP で補間する。
+- `opacity` は number、`transform.position` と `transform.scale` は Vector3、`transform.rotation` は非ゼロ Quaternion だけを値に取る。Quaternion は Compiler が Delivery 前に正規化し、Runtime も補間境界で正規化する。
+- 最終 keyframe 以外は `easingToNext` を必須とし、最終 keyframe では禁止する。easing はその keyframe から次の keyframe までの segment に適用する。
 - 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の conflict policy は `reject` のみであり、replace と additive animation は含めない。
 - group-owned Timeline は同じ Group または presentation-owned Spatial Node、presentation-owned Timeline は presentation-owned Spatial Node だけを target にできる。
 - group-owned Timeline は Group exit 時に停止する。presentation-owned Timeline は明示的な `timeline.stop` または Presentation 終了まで Group をまたいで継続できる。Step 遷移だけではどちらも停止しない。
-- Timeline の開始・完了は Venue Edge の monotonic runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
+- Timeline の開始・完了は Session の pause-aware logical runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
 - Runtime は開始時刻と Timeline 定義を配信し、各 client はローカル補間する。補間結果を毎 frame Reliable Event として送信しない。
 
 Pause 中は Session の logical runtime clock 自体を進めないため、Timeline、Surface transition、playing Media の基準時刻を個別に補正しない。Runtime Resume 後は同じ logical runtime time から進行を再開する。
+
+Run の開始 logical runtime time を `startedAt`、現在の logical runtime time を `runtimeTime` とし、Timeline local time を `t = clamp(runtimeTime - startedAt, 0, durationMilliseconds)` とする。`t` が keyframe `i` と `i + 1` の間にある場合、`u = clamp((t - t_i) / (t_{i+1} - t_i), 0, 1)`、`e = easingToNext(u)` とする。easing 関数は次に固定する。
+
+```text
+linear(u)     = u
+cubicIn(u)    = u^3
+cubicOut(u)   = 1 - (1 - u)^3
+cubicInOut(u) = u < 0.5 ? 4u^3 : 1 - (-2u + 2)^3 / 2
+```
+
+number と Vector3 は `e` を補間係数として component-wise に線形補間する。Quaternion は両端を正規化し、dot product が負なら終点 Quaternion の符号を反転して shortest path を選ぶ。dot product が `0.9995` より大きい場合は `e` を係数とする normalized lerp、それ以外は `e` を係数とする SLERP を使い、出力を再度正規化する。`t <= 0` は最初、`t >= durationMilliseconds` は最後の keyframe 値を計算誤差なしの端点として採用する。
+
+active Timeline Run の補間値は、Run が所有する Node property の effective value とする。Timeline 完了時は全 track の最終値を Node Runtime State へ atomic に commit してから Run を除去し、`TimelineCompleted` を確定する。
+
+明示的な `timeline.stop` と Group exit による cancel は、その時点の local time `t` で全 track を評価し、現在値を Node Runtime State へ atomic に commit してから Run を除去する。値を開始前へ戻したり最終 keyframe へ進めたりしない。group-owned Node の state は commit 後に Group lifecycle に従って破棄し、presentation-owned Node は停止時の値を維持する。
+
+Presentation 終了時は active Timeline Run の値を commit せず、Run を除去して `TimelineCanceled / presentationEnded` を `runId` 順に確定した後に `PresentationEnded` を確定し、Presentation Runtime State 全体を破棄する。その他の `TimelineCanceled` reason は `explicitStop` と `groupExit` とする。
 
 ### 12.9 Cue の選択と遷移手順
 
@@ -1634,7 +1686,7 @@ Pause 中は Session の logical runtime clock 自体を進めないため、Tim
 
 1. Runtime が `Running` であり、session、role、PublicationFence、assignment、lease、Presentation Origin version が一致することを検証する。
 2. `eventId` を bounded idempotency window で重複排除し、新規イベントへ `ingressSequence` を割り当てる。
-3. Venue Edge の monotonic clock 差分から Session logical runtime clock を進め、現在の logical runtime time 以前の内部 completion event を先に処理する。
+3. 割り当て済み Runtime Core の monotonic clock 差分から Session logical runtime clock を進め、現在の logical runtime time 以前の内部 completion event を先に処理する。
 4. 現在の Group / Step に属する Cue から、Trigger、Guard、fire policy、cooldown を満たす候補を作る。
 5. `priority` 降順、`order` 昇順、`cueId` 辞書順で候補を並べ、先頭の一件だけを選択する。
 6. 選択した Cue の Action batch と `next` を事前検証する。
@@ -1768,7 +1820,7 @@ Timelineのtick履歴はreplayせず、logical runtime timeとactive Runから�
 
 ### 12.12 v1 validation requirements
 
-Compiler、Control Plane、Delivery projection は少なくとも次を検証する。
+Compiler、Control Plane、Delivery projection は少なくとも次を静的に検証する。
 
 - `initialGroupId`、`initialStepId`、Cue の `next` が存在する。
 - Cue、Surface、Surface State、Timeline、Node、Variable の参照先が存在する。
@@ -1782,14 +1834,31 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - participant actor が認証済み connection identity から、System actor が許可された内部 event source からだけ生成される。
 - 同じ PublicationFence、projection contract version、role、capability profileから同じ canonical profileを生成し、異なるprojection contract versionが同じcache namespaceを共有せず、profileにparticipant / assignment固有値やSigned URLが含まれない。
 - ProjectionProfileDescriptor の visible resource set が参照 closure を満たし、capability 差が認可や Shared semantic state を変更しない。
+- ProjectionProfileDescriptor の `visibleVariableIds` が visible Native UI binding の Variable closure と一致し、profile 外の Variable を Projected Snapshot / Event / State Frame に含めない。
 - Projected Snapshot / Event / State Frame の `projectionProfileId` と `assignmentEpoch` が受信 participant の ProjectionInstance と一致する。
 - 同じ Step に `priority` と `order` が重複する Cue がない。
-- Timeline keyframe の時刻、型、Quaternion、duration が正しく、各 track が `0 ms` と duration を境界に持つ。
+- Timeline の duration が有限かつ正で、track が一つ以上あり、各 track が二つ以上の keyframe と `0 ms` / duration の境界を持つ。時刻は有限かつ単調増加し、値は property に対応する有限な型で、Quaternion は非ゼロかつ Delivery 前に正規化される。
+- 最終以外の Timeline keyframe が `easingToNext` を持ち、最終 keyframe が持たない。
 - 同一 Timeline 内で `target/property` が競合しない。
-- 同一 Cue の Action batch に v1 で許可されない property conflict がない。
+- 同一 Cue の Action batch で property claim が相互に重複しない。
+- `crossfade` の duration が有限かつ正である。
 - Surface State と renderer artifact、hit region の対応が完全で、Delivery profileが各Render Surfaceの到達可能なstateごとに一つの互換artifactまたは宣言済み`empty`を固定する。
+- Semantic Tree の root、parent、到達可能性、order、interaction 参照が 13.2 に従い、State materialization 後の Tree / Hit Region が整合する。
+- Native UI plan の tree closure、cycle / parent / child order、bounds、Node / depth / text / glyph / code point limit、contract version、required feature が target capability に適合する。`clip`、`ellipsis`、明示fallback fontを使用する plan がそれぞれ `clip`、`ellipsis`、`explicitFontFallback` を required feature として列挙する。
+- Native UI Variable binding の source / 型 / format が一致し、timer binding が実在する timer Trigger の Cue、duration、Cue 所属 Group から導出する owner、host SurfaceNode の owner と一致する。timer表示は Surface audience projection に従い、Cue に audience を要求しない。single-line禁止 / 置換対象、single-line置換後のstring許容range、静的literal / boolean labelのlength、動的valueのtruncate規則が一致する。
+- 全 reachable State の Native UI font face、fallback順、supported code point range が Asset closure に含まれる。literal、boolean label、binding range、number、timer、U+2026、U+FFFD の glyph が primary / fallback closure に存在し、implicit system fallback と synthetic face を要求しない。
+- Native UI text が同じ State の完成 Semantic Tree 内の non-interactive Semantic Node を一つだけ、かつartifact内とProjectionProfileが同時選択するartifact横断でinjectiveに参照し、literal / dynamic の text 規則、crossfade時のeffective semantic valueが一致する。
+- Hit Region は State の enabled Interaction だけを参照し、Baked hit region として公開する enabled Interaction が少なくとも一つの region を持つ。
 - `surfaceInteraction` が参照する Interaction が対象 Surface State で利用できる。
-- Surface transition 中に interaction が有効化されない。
+- Surface transition 中に interaction を有効化する projection を生成しない。
+
+Runtime は Action batch の適用前に、現在の Session state に依存する次の条件を検証する。
+
+- 同じ State への `crossfade`、active Surface transition 中の `surface.setState`、active Timeline Run の claim と競合する Action を batch reject する。
+
+Recovery は次の Runtime invariant を検証する。active Timeline Run の property claim が相互に重複するなど、違反した checkpoint は fail closed とし、Runtime を `Paused` にする。
+
+- active Timeline Run の property claim が相互に重複しない。
 - Group exit をまたいで blocking run が残らない。
 - group-owned Runtime Run の `groupId` と `groupEntryEpoch` が現在の Group entry と一致する。
 - Snapshot の clock、StepExecutionSnapshot、active Runtime Run、allocator sequence から同じ logical deadline と Run identity を復元できる。
@@ -1802,7 +1871,14 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - zero-duration の内部イベントだけで到達できる無限遷移がない。
 - Snapshot に renderer artifact ID、Signed URL、raw Pose history が含まれない。
 
-Conformance test では、event の重複、Cue 競合、cooldown、Timer fire済み状態、同一deadlineの順序、遷移中の追加入力、Timeline conflict、active Runの復元とstale completion、scope を越える不正参照、Stage / Node / Presenter Anchor parentの保持と循環拒否、ProjectionAudienceを越える参照拒否、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、projection contract versionごとのcache分離、profile の共有と participant 固有値の隔離、Surface Stateごとのartifact選択、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflow、logical clockのPause / Resume、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
+Conformance test は、今回の progression 規則について次を検証する。
+
+- Surface: 遷移中の追加入力、同じ State への cut / crossfade、crossfade easing、interaction と hit region の有効化時点。
+- Action: property claim conflict、batch reject の atomicity、expected reject と Runtime fault の状態遷移。
+- Timeline: exact endpoint、全 easing と number / Vector3 / Quaternion の組み合わせ、Quaternion の反対符号と near-linear 補間、Pause / Resume、明示 stop / Group exit での現在値 commit、Presentation 終了時の cancel 順序。
+- Semantic Tree / Native UI: 空 Tree、root canonical order、State materialization、override の field presence / `null` 削除、enabled / disabled Interaction と Hit Region 整合、tree limit と capability reject、Variable closure、静的literal / boolean labelのreject、single-line置換後のstring許容range、動的valueのtruncate、boolean / number / timer format、Pause / 再接続時のclock表示、全 State のfont face / glyph closure、Native UI / effective Semantic Tree textのartifact内・profile横断injective一致、Unity と Web preview のformatter fixture一致。
+
+加えて、event の重複、Cue 競合、cooldown、Timer fire済み状態、同一deadlineの順序、active Run の復元と stale completion、scope を越える不正参照、Stage / Node / Presenter Anchor parentの保持と循環拒否、ProjectionAudienceを越える参照拒否、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、projection contract versionごとのcache分離、profile の共有と participant 固有値の隔離、Surface Stateごとのartifact選択、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflow、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
 
 ### 12.13 Example
 
@@ -1827,7 +1903,7 @@ const showTitle: CueDefinition = {
       transition: {
         kind: "crossfade",
         durationMilliseconds: 300,
-        easing: "easeOut",
+        easing: "cubicOut",
         completion: "blocking",
       },
     },
@@ -1870,13 +1946,34 @@ type SemanticNode = {
   text?: string;
   language?: string;
   alt?: string;
-  actionId?: InteractionId;
+  interactionId?: InteractionId;
+};
+
+type SemanticTree = {
+  rootNodeIds: SemanticNodeId[];
+  nodes: Record<SemanticNodeId, SemanticNode>;
+};
+
+type SurfaceSemanticOverride = {
+  nodes: Record<
+    SemanticNodeId,
+    {
+      included?: boolean;
+      text?: string | null;
+      language?: string | null;
+      alt?: string | null;
+    }
+  >;
 };
 ```
 
 Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Agent editing、accessibility の基礎として使用する。
 
-Semantic Tree は Surface State ごとに解決済みの完全 Tree を持つ。v1 では状態差分だけを保存して適用する形式を採用せず、最適化は後から追加する。
+`SemanticTree` は空 Tree を許可する。空でない tree は tree 内で一意な stable Node ID、存在する parent、循環しない親子関係、同じ parent 内で一意な `order` を持つ。`parentId === null` の Node は `rootNodeIds` に一度だけ含まなければならず、`rootNodeIds` に含まれる Node の `parentId` は `null` でなければならない。root 以外の Node は一つの parent を持ち、すべての Node はいずれかの root から到達可能とする。root の順序は `Node.order` 昇順とし、canonical serialization もこの順序で `rootNodeIds` を出力する。`interactionId` は同じ Semantic Surface の Interaction を参照し、Interaction を持たない Node は指定しない。
+
+`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materialize し、`RenderBundle.semanticsByState` には完成 Tree だけを格納する。差分や適用処理を Runtime へ配信しない。override は base Tree に存在する Node だけを参照でき、全 layer を通じて同じ Node/property を重複して変更できない。override property は field が存在しない場合だけ base 値を保持し、`text`、`language`、`alt` が `null` の場合は base 値を削除する。`included: false` は対象 Node とすべての descendant を完成 Tree から除外し、除外された Node の descendant を個別に再 include できない。`included` 以外の property は明示的または暗黙に include される Node にだけ指定できる。これら、または State 間の ID / role / parent / order / interaction 変更は build error とする。
+
+Structured Component の Semantic Tree は Component Structure の semantic Primitive から生成し、Opaque Component は Manifest の `semantics` から生成する。renderer は layout と Hit Region の concrete geometry を解決するだけで、DOM、React tree、CSS、Texture、実行結果から意味を抽出・補完しない。
 
 ### 13.3 Hit Region
 
@@ -1899,6 +1996,8 @@ type ResolvedInteractiveRegion = {
 ```
 
 Hit region は Semantic Surface State ごとに解決し、bounds は Render Surface ではなく Semantic Surface 全体の normalized coordinate space で表す。UV 原点、fit/crop、overlap priority、visibility を Delivery contract で固定する。v1 は矩形 click interaction に限定する。
+
+各 State の Hit Region は同じ State の完成 Semantic Tree に含まれ、かつ `SurfaceStateDefinition.enabledInteractionIds` に含まれる `interactionId` だけを参照できる。参照先 Node が除外される場合、その Node の Hit Region も存在できない。Baked hit region として公開する enabled Interaction は少なくとも一つの region を持ち、disabled Interaction の region は禁止する。存在しない Node / Interaction、または Node の `interactionId` と異なる `interactionId` を持つ region は build error とする。
 
 ## 14. RenderBundle
 
@@ -1941,7 +2040,7 @@ type CompiledSemanticSurface = {
 };
 ```
 
-RenderBundle の `surfaces` key は PresentationDefinition の SemanticSurfaceId と一致し、RenderSurfaceId から意味対象を逆引きしない。Semantic Tree と Hit Region は Semantic Surface State ごとに解決する。実行中は canonical `stateId` に対応する Semantic Tree を accessibility と意味的な interaction に使用し、transition 中の Hit Region は 12.4 の規則に従う。
+RenderBundle の `surfaces` key は PresentationDefinition の SemanticSurfaceId と一致し、RenderSurfaceId から意味対象を逆引きしない。Semantic Tree と Hit Region は Semantic Surface State ごとに解決する。実行中は canonical `stateId` に対応する Semantic Tree を accessibility と意味的な interaction に使用し、transition 中の Hit Region は 12.4 の規則に従う。State に Native UI artifact がある場合、各 State binding は完全な `NativeUIArtifact` plan を参照する。crossfade 中の旧 State / 新 State の plan は同一の `ParticipantRuntimeView.variables` と `clock` sample に対して評価し、renderer ごとに異なる Variable snapshot や時刻を選ばない。
 
 各 Render Surface の `SurfaceRendererArtifact` は次の discriminated union とする。
 
@@ -1970,7 +2069,112 @@ BakedWebArtifact
 
 ### 14.3 Native UI Artifact
 
-Native UI Artifact は portable UI tree と、Runtime から変更可能な property の allowlist を持つ。更新可能 property は、宣言された Runtime Variable または Runtime Clock への declarative binding で接続する。任意の JSON property mutation や client 固有の完了判定は許可しない。Timer や Counter の完了は Venue Edge authority が判定する。
+Native UI Artifact は v1 では `group` と一行 `text` だけからなる portable UI tree とする。`group` は hierarchy、clip、解決済み bounds を持つ。`text` は解決済み bounds、単一行のalign / color / overflow、Font Asset、文字列値を持つ。editable field、native input、scroll、rich text、progress bar、任意 animation は v1 に含めない。
+
+```ts
+type NativeTextValue =
+  | { kind: "literal"; value: string }
+  | {
+      kind: "variable";
+      variableId: VariableId;
+      expectedType: "string";
+      format: {
+        kind: "string";
+        allowedCodePointRanges: Array<[number, number]>;
+      };
+    }
+  | {
+      kind: "variable";
+      variableId: VariableId;
+      expectedType: "boolean";
+      format: { kind: "boolean"; trueLabel: string; falseLabel: string };
+    }
+  | {
+      kind: "variable";
+      variableId: VariableId;
+      expectedType: "number";
+      format: NumberFormat;
+    }
+  | {
+      kind: "stepTimerRemaining";
+      groupId: GroupId;
+      stepId: StepId;
+      cueId: CueId;
+      durationMilliseconds: number;
+      whenStepInactive: "empty" | "zero";
+      format: TimerFormat;
+    };
+
+type NumberFormat = { kind: "number"; fractionDigits: 0 | 1 | 2 | 3 };
+type TimerFormat = "mm:ss" | "hh:mm:ss";
+type NativeUIFeature = "clip" | "ellipsis" | "explicitFontFallback";
+
+type NativeUIRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  coordinateSpace: "renderSurfaceLogical";
+};
+
+type SRGBAColor = {
+  red: number;
+  green: number;
+  blue: number;
+  alpha: number;
+};
+
+type ResolvedFontFace = {
+  assetId: AssetId;
+  supportedCodePointRanges: Array<[number, number]>;
+};
+
+type ResolvedFont = {
+  primary: ResolvedFontFace;
+  fallbacks: ResolvedFontFace[];
+};
+
+type NativeUIArtifact = {
+  kind: "native-ui";
+  contractVersion: 1;
+  requiredFeatures: NativeUIFeature[];
+  rootNodeId: NativeUINodeId;
+  nodes: Record<NativeUINodeId, NativeUINode>;
+};
+
+type NativeUINode =
+  | {
+      kind: "group";
+      id: NativeUINodeId;
+      bounds: NativeUIRect;
+      clip: boolean;
+      children: NativeUINodeId[];
+    }
+  | {
+      kind: "text";
+      id: NativeUINodeId;
+      bounds: NativeUIRect;
+      semanticNodeId: SemanticNodeId;
+      value: NativeTextValue;
+      font: ResolvedFont;
+      color: SRGBAColor;
+      fontSize: number;
+      lineHeight: number;
+      align: "start" | "center" | "end";
+      overflow: "clip" | "ellipsis";
+      maxCodePoints: number;
+    };
+```
+
+`NativeUIArtifact` は State ごとの完全 plan である。`rootNodeId` と全 child reference は `nodes` 内に存在し、一つの root から全 Node が一度だけ到達可能で、cycle、複数 parent、child order の重複を許可しない。bounds は Render Surface の logical coordinate で表し、全値は有限、size は非負とする。sRGB RGBA の各 channel は `0..1` とする。text の `fontSize` と `lineHeight` は有限かつ正、`maxCodePoints` は正の整数とする。Node 数、tree depth、text数、glyph数、文字列の Unicode code point 数は artifact contract と target capability が定める上限以下でなければならない。`clip` を使う plan は `clip`、`ellipsis` を使う plan は `ellipsis`、fallback font を持つ plan は `explicitFontFallback` を必ず `requiredFeatures` に含める。未知の required feature や contract version は fail closed とする。
+
+Runtime binding の対象は `text.value` だけである。literal、宣言済み Runtime Variable、現在 Step の timer 残時間以外の source、任意式、JSON path、style / geometry / visibility / font の Runtime 変更は build error とする。Variable binding は string、boolean、有限 number だけを受け、`null` は拒否する。single-line 禁止 / 置換対象は U+000A、U+000B、U+000C、U+000D、U+0085、U+2028、U+2029 に固定する。literal と boolean label はこの一覧を含められず、整形後の表示 code point 数が `maxCodePoints` 以下でなければ build error とする。したがって静的値は Runtime で truncate されず、literal は `SemanticNode.text` と常に一致する。dynamic string は最初にこの一覧を U+0020 に置換し、次に結果を `allowedCodePointRanges` で検査して範囲外の code point を U+FFFD に置換する。したがって置換後の U+0020 が許容範囲外ならU+FFFDになる。boolean は明示した `trueLabel` / `falseLabel`、number は grouping なしの ASCII 数字、`fractionDigits` 0〜3、half-away-from-zero の丸めに固定する。
+
+timer の `durationMilliseconds` は有限かつ正とし、現在 Group / Step が binding の `groupId` / `stepId` と一致するときは armed / fired、Cue の Guard 成否を問わず、`remaining = max(0, durationMilliseconds - (clock.runtimeTimeMilliseconds - progression.stepEnteredAtRuntimeTimeMilliseconds))` を表示値に使う。Group または Step が不一致のときだけ `whenStepInactive` に従い、空文字列またはゼロを表示する。残時間は秒へ切り上げて 0 で clamp する。`mm:ss` は分が二桁を超えても必要桁まで増やして秒を二桁で表示し、`hh:mm:ss` は時間を必要桁まで増やして分・秒を二桁で表示する。`whenStepInactive: "zero"` は同じ timer format でゼロを表示する。Compiler は `stepTimerRemaining` が実在する `groupId` / `stepId` / `cueId` の timer Trigger を参照し、`durationMilliseconds` が一致することを検証する。timer owner は Cue の所属 Group から導出し、binding は host SurfaceNode が同じ Group-owned の場合だけ許可する。presentation-owned Surface は group-owned timer を参照できない。Cue 自体は ProjectionAudience を持たないため、timer表示は visible Surface の audience projection に従う。client は `ParticipantRuntimeView.clock` と `progression.stepEnteredAtRuntimeTimeMilliseconds` から表示だけを計算し、timer state を別途投影しない。完了判定と Cue 発火は常に割り当て済み Runtime Core だけが行う。共通 truncation は動的 string / number / timer の format 結果だけに `maxCodePoints` を適用する。超過時は `overflow: "clip"` なら先頭 `maxCodePoints` code point、`overflow: "ellipsis"` なら先頭 `maxCodePoints - 1` code point と U+2026 を使い、`maxCodePoints === 1` では U+2026 だけを使う。Unity と Web preview は同じ fixture に対して同じ pure formatter 結果を返さなければならない。
+
+Authoring では各 text と各 Surface State が Font Asset または Theme Font Token を自由に指定できる。Compiler は State ごとの Native UI artifact に concrete Font Asset と、authoring で明示した fallback Font Asset 列を解決する。`supportedCodePointRanges` は各 delivered font face が実際に描画可能な code point を表す。text は `primary`、`fallbacks` の順に、対象 glyph を最初に持つ face を使う。system font への暗黙 fallback と synthetic bold / italic は許可しない。literal、boolean label、string binding の `allowedCodePointRanges` と formatterで生成し得る U+0020 / U+FFFD、number の ASCII digit / `-` / `.`, timer の ASCII digit / `:`, U+2026 は font closure に含まれなければならない。全 reachable State の plan が参照する primary / fallback font face、supported code point range、required Native UI feature は Asset / capability closure に含まれなければならない。解決できない font / fallback / glyph coverage、または target capability が必要な font を満たさない場合は Delivery 前に reject する。font の選択は artifact の State 切替でだけ変わり、Runtime Variable / Clock binding から変更できない。
+
+各 Native UI text はその State の完成 Semantic Tree に含まれる `semanticNodeId` を一つだけ参照しなければならない。resolved State の一つの Native UI plan 内では、この対応は injective とし、複数 Text Node が同じ `semanticNodeId` を参照できない。さらに、同じ Semantic Surface / State に対して一つの ProjectionProfile が同時選択する全 Native UI artifact を横断しても injective とする。Compiler は artifact ごとの制約を、Control Plane は profile selection 後のartifact組合せを検証する。異なる ProjectionProfile は別々に検証する。literal は対応する `SemanticNode.text` と同じ値を持つ。dynamic value は `SemanticNode.text` を omit し、client が同じ formatted value を visual text と Participant Runtime View から派生する effective Semantic Tree text の両方へ適用する。canonical Semantic Tree の構造と ID は変えず、renderer が意味を推測しない。effective text は Snapshot の Variable / clock / progression から再現できる。Native UI v1 は non-interactive なので、参照する Semantic Node は `interactionId` を持てない。crossfade 中の effective semantic value は 12.4 の canonical Surface State 規則に従い、遷移先 State を有効な意味状態として使用し、旧 / 新 plan 間で別の Variable / clock snapshot を使わない。
 
 ### 14.4 Video Artifact
 
@@ -2043,7 +2247,7 @@ Static lowering が参照できる入力は、Authoring Source、lock された 
 
 ### Published Presentation
 
-Control Plane は Presentation ごとに現在の PublishedPresentation を一つだけ保持する。Room は Presentation を参照し、Session 作成時に現在の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish できず、Draft 編集と build の結果も既存 Session へ反映しない。すべての非終了 Session がなくなった後の明示的な publish でだけ、公開済み実行物を atomic に置き換える。
+Control Plane は Presentation ごとに現在の PublishedPresentation を一つだけ保持する。Session は Presentation を参照し、作成時に現在の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish できず、Draft 編集と build の結果も既存 Session へ反映しない。すべての非終了 Session がなくなった後の明示的な publish でだけ、公開済み実行物を atomic に置き換える。
 
 ### Unity Runtime
 
@@ -2157,12 +2361,12 @@ presentation/
 - Semantic metadataをTextureから分離する。
 - PresentationDefinition、RenderBundle、DeliveryManifest、Runtime Stateを別契約にする。
 - v1 semantic baseline として Group を State Machine scope、Step を進行状態、Cue を遷移候補に固定する。
-- Venue Edge が Trigger、Guard、Cue、Action、Timeline 完了を canonical evaluationする。
+- Cloud または Venue Edge に配置された割り当て済み Runtime Core が Trigger、Guard、Cue、Action、Timeline 完了を canonical evaluationする。
 - 一イベントにつき一 Cue を選択し、Cue 内の Action batch を事前検証後に atomic 適用する。
 - Surface State は意味論的 ID とし、renderer artifact から分離する。
 - blocking run の完了後に次の Step へ進み、遷移中の通常 input は無視する。
 - Group 再入場は reset とし、Snapshot と Reliable Event から同じ進行状態へ収束できるようにする。
-- Presentation は公開済み実行物を一つだけ持ち、非終了 Session 中の publish を禁止する。Room は Presentation を参照し、Session は作成時の PublicationFence を固定して Draft と実行中の状態を混在させない。
+- Presentation は公開済み実行物を一つだけ持ち、非終了 Session 中の publish を禁止する。Session は Presentation を参照し、作成時の PublicationFence を固定して Draft と実行中の状態を混在させない。
 
 ## 19. Follow-ups
 
@@ -2179,33 +2383,33 @@ presentation/
 - [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を 3.5 と 3.7 で定義した。
 - [x] pause-aware logical runtime clock、Step entry / Timer / Cue consumption、Runtime Run、Canonical Runtime Snapshot、Connection / Durable envelope と recovery 規則を 12.3、12.9、12.11〜12.12 で定義した。
 - [x] 単一の PublishedPresentation、PublicationFence、非終了 Session 中の publish lock、Draft / Build / Session の反映規則を 3.6 と 15 で定義した。
+- [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を 12.4、12.7、12.8、12.12 で定義した。
+- [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
-1. Action conflict matrix と Runtime fault / Pause の扱い
-2. Surface transition の完了、interaction、hit region 有効化の wire 表現
-3. Timeline の absolute interpolation、Quaternion、Run lifecycle の wire 表現
-4. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+1. Surface transition の完了、interaction、hit region 有効化の wire 表現
+2. Timeline の補間結果、停止理由、Run lifecycle の wire 表現
+3. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
 
 ### Rendering / Delivery の follow-ups
 
-1. Semantic Surface の state ごとの完全 Semantic Tree と Hit Region schema
-2. Native UI portable subset と Runtime Variable / Clock binding
-3. Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な座標規約
-4. Component から Surface への分割規則、partition の自動化範囲、author override
-5. Texture state artifact 数と GPU / RAM build budget
-6. Resolution、mipmap、compression、preload、eviction policy
-7. Component Manifest と renderer implementation の drift 検証
-8. Opaque renderer の Browser capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
-9. DeliveryManifest Protobuf schema、capability negotiation、visual regression test
+1. role 別 Semantic schema と Hit Region の完全 schema
+2. Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な座標規約
+3. Component から Surface への分割規則、partition の自動化範囲、author override
+4. Texture state artifact 数と GPU / RAM build budget
+5. Resolution、mipmap、compression、preload、eviction policy
+6. Component Manifest と renderer implementation の drift 検証
+7. Opaque renderer の Browser capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
+8. DeliveryManifest Protobuf schema、capability negotiation、visual regression test
 
 ## 20. 次の設計対象
 
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
-1. Surface transition / Action conflict
-2. Timeline interpolation
-3. Semantic Tree / Native UI binding
+1. Surface transition / interaction の wire contract
+2. Timeline / Runtime Run の wire contract
+3. role 別 Semantic schema / Hit Region schema
 4. Spatial / Surface coordinate convention
 5. Surface Partition
 6. Texture / GPU / RAM budget
