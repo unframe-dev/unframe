@@ -46,7 +46,7 @@ ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プ�
 - すべての参照可能な構成要素に安定 ID を割り当て、配列位置や描画順を識別子として使用しない。
 - Component の公開契約と renderer implementation を分離する。
 - Scene Graph、Presentation Progression、Renderer を独立した関心として扱う。
-- Local Compiler は Presentation Orchestrator、Component Manifest、Structured Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
+- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
 - Opaque renderer だけを通常の TS / React / CSS として bundle し、renderer artifact を生成する。renderer の Browser 実行は静的 authoring lowering と別の隔離境界とする。
 - Control Plane、Venue Edge、Unity Runtime は authoring code を実行しない。
 - 現行実装と目標アーキテクチャを区別し、未実装の設計を既存機能として扱わない。
@@ -75,7 +75,7 @@ Component package は Props、Slots、Parts、Variants、States、Actions、Outp
 
 Structured Component は Manifest とは別の `*.structure.tsx` を内部構造の正本とし、Component 固有 renderer implementation を持たない。generic renderer が Structure から lower された Primitive graph を描画する。任意 React / CSS renderer が必要な Component は Opaque とし、renderer ごとに Structured / Opaque を切り替えない。Component Action は canonical Action batch、Component Output は明示された canonical event source / Trigger へ compile-time に lower し、Component 固有の実行命令や event name を Runtime contract へ残さない。
 
-Presentation Orchestrator、Component Manifest、Structured Component Structure は静的解析可能な制限付き DSL とする。Local Compiler は Lossless Syntax Tree と Source Map を GUI / Code の往復に保持しつつ、import / symbol / 型を解決した AST から Declaration Graph へ直接 lower し、Semantic Authoring IR へ正規化する。GUI は Declaration Graph や renderer artifact を Code へ逆生成しない。
+Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は静的解析可能な制限付き DSL とする。Local Compiler は Lossless Syntax Tree と Source Map を GUI / Code の往復に保持しつつ、import / symbol / 型を解決した AST から Declaration Graph へ直接 lower し、Semantic Authoring IR へ正規化する。GUI は Declaration Graph や renderer artifact を Code へ逆生成しない。
 
 任意コードを許す Opaque renderer は通常の TS / React / CSS として bundle し、renderer artifact へ変換する。Opaque Component の意味情報は静的に lower した Component Manifest から取得し、renderer の実行結果から推測しない。artifact の Browser capability と再現性は Rendering / Delivery contract で管理する。
 
@@ -109,7 +109,7 @@ Semantic Scene Graph を優先し、renderer を Local Compiler と Delivery の
 
 Semantic Surface は具体 renderer ではなく Render Intent を持つ。Concrete renderer と解像度は build 結果と target capability に基づいて RenderBundle と DeliveryManifest で確定する。
 
-Surface State は意味論的な状態として保持し、Texture ID や Unity object を参照しない。Renderer artifact は RenderBundle が Surface State に対応付ける。
+Surface State は意味論的な状態として保持し、Texture ID や Unity object を参照しない。Renderer artifact は RenderBundle が Surface State に対応付け、DeliveryManifestはtarget capabilityに応じてRender Surfaceの各到達可能stateへartifactまたは明示的なempty bindingを固定する。
 
 Embedded Browser は v1 の標準 renderer に含めない。Control Plane と Unity Runtime は Authoring Source、React、HTML、CSS、renderer source を実行しない。
 
@@ -123,7 +123,7 @@ Venue Edge を canonical authority とし、Trigger、Guard、Cue 選択、Actio
 
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
-Runtime State は、Venue Edge が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。ProjectionProfileDescriptor は PublicationFence、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
+Runtime State は、Venue Edge が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial NodeがProjectionAudienceを宣言し、Semantic Surfaceなどの派生resourceはhostから継承する。ProjectionProfileDescriptorはPublicationFence、projection contract version、role、capability profileごとに共有し、participant / assignment固有のProjectionInstanceと分離する。Client-local State は Shared Progression を直接変更しない。
 
 Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Room は Presentation を参照し、Session は作成時の PublicationFence を固定する。`Waiting`または`Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
 
@@ -131,7 +131,7 @@ v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Sn
 
 ### Component ごとの責務
 
-- **Local Compiler**: Orchestrator、Manifest、Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower して Semantic Authoring IR へ正規化する。Opaque renderer だけを bundle し、Component、Layout、Theme、Surface boundary、canonical PresentationDefinition JSON、renderer artifact を解決する。
+- **Local Compiler**: Orchestrator、Theme Declaration、Manifest、Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower して Semantic Authoring IR へ正規化する。Opaque renderer だけを bundle し、Component、Layout、Theme、Surface boundary、canonical PresentationDefinition JSON、renderer artifact を解決する。
 - **Control Plane**: PresentationDefinition、RenderBundle、Asset の schema、ownership、hash、revision を検証し、DeliveryManifest を生成する。
 - **Venue Edge**: Session の進行、順序、Trigger、Guard、Action、Timeline、Reliable Event、Snapshot を管理する。
 - **Unity Runtime**: DeliveryManifest を検証し、renderer graph、Asset lifecycle、Spatial rendering、local interpolation、input adapter を担当する。

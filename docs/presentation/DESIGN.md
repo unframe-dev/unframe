@@ -120,7 +120,7 @@ Presentation の pure TypeScript semantic core を所有する。
 - SurfaceNode / SemanticSurface / RenderSurface の ID、cardinality、参照 model
 - ResourceOwner、lifetime参照規則、Group activation model
 - RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner の semantic model
-- ProjectionProfileKey / Descriptor、ProjectionInstance、ParticipantRuntimeView の semantic model
+- ProjectionAudience、versioned ProjectionProfileKey / Descriptor、ProjectionInstance、ParticipantRuntimeView の semantic model
 - pause-aware logical runtime clock、StepExecutionSnapshot、RuntimeRunSnapshot、CanonicalRuntimeSnapshot の semantic model
 - reference validation、invariant validation、diagnostics
 - canonical serialization と hashing
@@ -145,6 +145,7 @@ Presentation の pure TypeScript semantic core を所有する。
 **Responsibilities**
 
 - `definePresentation`
+- `defineTheme`とTheme Declaration
 - Presentation Orchestrator の制限付き JSX / DSL
 - Component Manifest authoring API
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
@@ -274,13 +275,14 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 **Responsibilities**
 
 - Authoring Source のparseとLossless Syntax Tree / Source Map保持
-- Orchestrator、Manifest、Structure の TypeScript typecheck
+- Orchestrator、Theme Declaration、Manifest、Structure の TypeScript typecheck
 - module / symbol resolution と package lock 検証
 - Static Authoring DSL の検証と AST から Declaration Graph への context-specific lowering
 - Opaque renderer TS / React / CSS の bundle orchestration
 - Declaration Graph のnormalizeとSemantic Authoring IR生成
 - Component、Theme、Layout、Surface boundaryの解決
 - Semantic Surface から Render Surface への lowering と mapping 検証
+- SpatialParent、ProjectionAudience、Surface Stateごとのartifact候補の整合性検証
 - resource owner継承、lifetime参照検証、Group activation index生成
 - Shared Trigger の actor / subject と Anchor owner の認可検証
 - renderer selectionとplugin orchestration
@@ -372,7 +374,7 @@ Targetとして次のapplication moduleを追加する。
 
 - `presentation-builds`: Compiler成果物のreceipt、schema/hash/Asset検証
 - `publications`: Definition、RenderBundle、Asset Set、contract versionを束ねる単一のPublishedPresentation、publicationEpoch、非終了Session中のpublish lock
-- `delivery`: role / capabilityごとに共有するProjectionProfileDescriptorとparticipant / assignment固有のProjectionInstance、DeliveryManifest
+- `delivery`: projection contract version / role / capabilityごとに共有するProjectionProfileDescriptor、Surface Stateごとのrenderer選択、participant / assignment固有のProjectionInstanceとDeliveryManifest
 
 Control PlaneはAuthoring Source、TSX、React、renderer implementationを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Publication migrationが決まるまで自動的に移動しない。
 

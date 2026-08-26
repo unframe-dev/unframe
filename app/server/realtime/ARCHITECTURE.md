@@ -39,8 +39,8 @@
 | session 作成時の `Cloud` / `VenueEdge` 選択 | 部分実装 | Control Plane の generic assignment API / repository / bootstrap は両 kind を扱う。session 作成 API と UI からの選択・Runtime 自動選定は未実装 |
 | Unity の Control / State gRPC 接続 | 未実装 | generated client の組み込み、2 connection lifecycle、nonce、再接続、State 適用は未着手 |
 | Presenter Tracking / Input protocol | 未実装 | Pose sample、clock、rate、Unity送信、Runtime受信は Target のみ |
-| Step / Cue / Action / Transition evaluator | 未実装 | canonical evaluation と Element State 生成は未着手 |
-| Snapshot / Replay / Connection Resume | 未実装 | protocol、atomic cut、replay queue、Quest適用、durable / local checkpoint への配線は未着手 |
+| Step / Cue / Action / Transition evaluator | 未実装 | canonical evaluation、Cue 選択、Action conflict、Surface transition、Timeline / Runtime Run と Element State 生成は未着手 |
+| Snapshot / Replay / Connection Resume | 未実装 | target のsession-global reliable sequence、ProjectionAdvance、atomic cut、replay queue、Quest適用、durable / local checkpoint への配線は未着手 |
 | Venue Edge Cloud Agent / local HTTPS listener / update | 未実装 | service manager、LAN bind、証明書、fingerprint rotation、health、更新・rollbackは未着手 |
 | Cloud 配置の R2 / CDN signed URL 配信 | 未実装 | Manifest認可、signed URL発行、Quest download / readinessはTargetのみ |
 | Asset cache容量・eviction | 未決定 | hard limit、low-disk threshold、退避順、active session pin、quotaを実測後に決定する |
@@ -61,7 +61,7 @@ Presentation は `Group -> Step -> Cue` の構造を持つ。
 
 Presenter の Pose や input によって Cue が発火し、Action / Transition の実行結果が複数の Quest へ継続的に配信される。複数 Element を 20–60 Hz で最大 50 台へ配信する可能性があるため、発表中の通信は高トラフィックになり得る。
 
-Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、snapshot / replay を担当させると、MR 描画や tracking と競合する。このため、Quest 同士の full-mesh P2P や presenter-host 方式ではなく、Cloud または Venue Edge 上の専用 Runtime が session の authority と fan-out を担当する。
+Presenter の Quest 自身に最大 49 台分の接続、暗号化、fan-out、snapshot / replay を担当させると、MR 描画や tracking と競合する。このため、Quest 同士の full-mesh P2P や presenter-host 方式ではなく、Cloud または Venue Edge に配置された、session に割り当て済みの共通 Runtime Core が session の authority と fan-out を担当する。
 
 初期 MVP は Fly.io 上の Cloud Runtime を使用する。これにより Venue Edge 用 PC がなくても Quest だけで利用でき、開発、デモ、自動テストを先行できる。また、Venue Edge 導入前の基準性能を測定でき、小規模会場では Cloud だけで要件を満たす可能性も検証できる。Venue Edge は Cloud Runtime と同じ Core を会場 LAN 内で動かし、低遅延通信と local Asset 配信が必要な構成へ追加する。
 
@@ -131,7 +131,7 @@ flowchart LR
 ### 3.1 基本方針
 
 1. Cloud Control Plane を認証、durable resource、session lifecycle、Runtime 管理と割り当ての authority とする。
-2. session に割り当てられた Cloud または Venue Edge Runtime を、active session 中の Group / Step / Cue、Action / Transition、Element State の authority とする。
+2. session に割り当てられた Runtime Core を、active session 中の Group / Step / Cue、Action / Transition、Element State の authority とする。Cloud と Venue Edge はこの同一のauthority contractを実行する配置 profile であり、Venue Edge 固有のauthorityではない。
 3. Presenter Quest は Pose と input の source であり、room state や fan-out の authority にはしない。
 4. Viewer Quest は受信した Element State を、自端末で校正した Presentation Origin に対して描画する。
 5. Cloud 配置では Quest が R2 / CDN から signed URL で Asset を直接取得し、Venue Edge 配置では Edge が一度取得して会場 LAN 内で配信する。
@@ -408,7 +408,13 @@ Target progression clock は pause-aware な logical runtime time とする。`R
 8. Transition 完了後、最終状態を Reliable Event と Snapshot へ反映する。
 9. Cue の定義に従って次の Step へ遷移する。
 
-同一 Step で複数 Cue が成立した場合の priority、排他、再発火、debounce は runtime contract で明示する。端末ごとに個別評価すると結果が分岐するため、Trigger / Cue / Action / Transition の canonical evaluation は割り当て済み Runtime Core だけが行う。Cloud と Venue Edge の evaluator は同じ入力に対して同じ結果を生成する同一実装を使用する。
+端末ごとに個別評価すると結果が分岐するため、Trigger / Cue / Action / Transition の canonical evaluation は割り当て済み Runtime Core だけが行う。Cloud と Venue Edge の evaluator は同じ入力に対して同じ結果を生成する同一実装を使用する。
+
+v1 では一つの Runtime Input Event ごとに、現在の Group / Step の候補を Trigger、Guard、fire policy、cooldown で絞り、`priority` 降順、`order` 昇順、`cueId` 辞書順で先頭の一件だけを選択する。同じ `priority` と `order` は Delivery 前の検証で拒否する。transport上の`eventId`重複排除、`oncePerStepEntry`による受理済み Cue の消費、leading-edge の cooldown は別々に管理する。Timer は Step entry ごとに一度だけarmし、Guard不成立または別Cue選択で受理されなかった場合も同じentryで暗黙に再試行しない。
+
+Cue の Action batch は適用前に全target、型、状態、property conflict を検証し、即時変更とRun開始をatomicに適用する。同一 Surface への複数 state変更、同一 Variable への複数書込み、同一 Node fieldへの複数patch、Node patchとTimelineの同一property所有、同一Timelineのplay / stop、同一media targetへの競合操作はrejectする。異なるNode fieldのpatchだけは統合できる。実行時faultはpartial applyやStep遷移を行わず、Runtimeを`Paused`にしてReliable Controlで理由を通知する。
+
+Surface stateは受理時に遷移先へcanonicalに変更する。v1は`cut`またはblockingな`crossfade`だけとし、crossfade中の同一Surfaceへのstate変更はreject、interactionとhit regionは無効、完了後に遷移先のものだけを有効にする。Surface transition、Timeline、Mediaは共通のRuntime Runとして追跡し、Run ID、owner epoch、開始logical runtime time、完了種別をSnapshotへ保存する。Timelineは固定済みPublishedPresentationのabsolute trackをlogical runtime clock上で評価し、rotationはshortest-path SLERP、同一propertyを所有するactive Timeline Runは一つだけとする。blocking Runが全て完了した場合だけpending Step遷移をatomicに適用し、`transitioning`中の通常inputは無視する。
 
 ## 8. 通信方式
 
@@ -434,6 +440,8 @@ State Connection
 - 一つの`connectionId`に対してactiveなState Connectionは一つだけとし、再確立時は古いRPCを終了してから新しい`stateConnectionNonce`を発行する。
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
 - connection間の到着順は仮定せず、Reliable sequenceと`baseReliableSequence`でapplication上の依存関係を解決する。
+
+現行の`realtime.proto`とRealtime実装は、単一双方向streamでpresenterの`PageChangeCommand`をserver採番の`PageChanged`へfan-outするfoundationだけを提供する。ここで定義するControl / State二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run、Progression wireはtarget contractであり、現行protoまたは実装済み挙動ではない。
 
 実測で TCP retransmission、head-of-line blocking、write blocking、jitter が UX 上の問題になる場合のみ、State Connection を UDP / QUIC 系 transport へ置き換える。Control Connection は gRPC のまま維持する。
 
@@ -464,11 +472,14 @@ ReliableEvent
 └─ payload
 ```
 
-- sequence は session 内で単調増加する。
+- `sequence` はprojection前のsession-globalな単調増加値であり、participantごとに採番しない。
 - client は最後に適用した sequence を保持する。
 - gap 検知時は replay、保持範囲外なら Snapshot を取得する。
 - exactly-once delivery は仮定せず、`eventId` で idempotent に適用する。
-- reliable queue を維持できない client は resync または disconnect する。
+- profile projectionでparticipantに不可視なReliable Eventもsequenceを欠番にしない。Runtime Coreは同じsequenceを持つpayloadなしの`ProjectionAdvance`を送信し、clientはそのsequenceまでControlを進める。不可視eventのpayload、resource ID、存在を推測できる情報は含めない。
+- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstepの上限を所有する。超過、保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
+
+同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 
 ### 8.3 Presenter Tracking Stream
 
@@ -552,7 +563,7 @@ ElementStateFrame
 - runtimeが`Running`の場合、State Connectionの初回確立と再確立では、`StateReady`後に現在の全Element Stateをkeyframeとして一度送ってから差分配信を開始する。cancel時に送達不明となったframeは、このkeyframeで収束させる。
 - 送信前のcoalesceは許容するが、受信した`frameSequence`にgapがある場合は送達済み差分の欠落とみなし、State Connectionを再確立してkeyframeを取得する。
 - Transition 完了等の確定状態は Reliable Event にも反映する。
-- clientの適用済みReliable sequenceより`baseReliableSequence`が大きいframeは、その前提となるReliable Eventを適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
+- `baseReliableSequence`は、そのState Frameが前提にするsession-global Reliable sequenceである。clientの適用済みReliable sequenceより大きいframeは、その前提となるReliable Eventまたは`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
 - `baseReliableSequence`がclientの適用済みsequenceより小さいframe、または`presentationOriginVersion`が一致しないframeはstaleとして破棄し、Control Connection上でState keyframeを要求する。
 - Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable Controlやroom全体をblockしない。
 
@@ -623,10 +634,10 @@ late join / Connection Resume:
 
 1. Quest がControl Connectionを開き、JWT、session、participant、role、protocol version、assignment epoch、PublicationFenceを検証する。
 2. Runtime Coreはsession coordinatorのcritical section内でlogical runtime time `T`までのdue internal eventを処理し、`reliableSequence = S`のCanonicalRuntimeSnapshotとpresenceのimmutable cutをfreezeする。同じ操作内で`connectionId`を確定し、そのconnectionを`S + 1`以降のReliable Event購読者として登録する。
-3. lock解放後、Runtime Coreはimmutable cutをparticipantのProjectionProfileDescriptor / ProjectionInstanceでprojectし、ConnectionSnapshotEnvelopeを構築・serializeする。この間に発生したReliable Eventはconnectionのbounded replay queueへ保持される。
+3. lock解放後、Runtime Coreはimmutable cutをparticipantのProjectionProfileDescriptor / ProjectionInstanceでprojectし、ConnectionSnapshotEnvelopeを構築・serializeする。この間に発生したReliable Eventは`RuntimeProtocolLimits`で上限を定めたconnectionごとのreplay queueへ保持される。
 4. projectionまたはserialization中にbounded replay queueがoverflowした場合、生成中のenvelopeと購読を破棄し、新しいcutからやり直す。
 5. Runtime CoreがConnectionSnapshotEnvelopeを返す。
-6. QuestがProjectedRuntimeSnapshotを適用し、`S + 1`以降のprojected Reliable Eventをsequence順に適用する。gapがある場合はState Connectionへ進まずreplayまたは新しいConnection Snapshotを要求する。
+6. QuestがProjectedRuntimeSnapshotを適用し、`S + 1`以降のprojected Reliable Eventまたは不可視eventに対応する`ProjectionAdvance`をsession-global sequence順に適用する。gapがある場合はState Connectionへ進まずreplayまたは新しいConnection Snapshotを要求する。
 7. Questが適用済みReliable sequenceと`presentationOriginVersion`を`StateReady`で通知する。
 8. Runtime Coreが`stateConnectionNonce`を返し、Questが`connectionId`とこのnonceを使ってState Connectionを開く。Runtime CoreはControl Connectionと同じidentityへ関連付ける。
 9. runtimeが`Running`なら、Runtime Coreは現在の全Element Stateをkeyframeとして送った後、`StateReady`以降の差分配信を開始する。各frameにその生成時点の`baseReliableSequence`を付ける。`Paused`ならState Connectionだけを確立し、frame送信は行わない。
@@ -635,7 +646,7 @@ critical sectionに含めるのはdue event処理、canonical / presence cutのf
 
 Durable checkpointもcritical section内ではCanonicalRuntimeSnapshotのimmutable cutとcheckpoint sequenceの割り当てだけを行う。serialization、compression、hashing、persistence callbackはlock外で実行し、保存するDurableCheckpointEnvelopeにassignment epoch、PublicationFence、presentation / bundle hash、schema versionを含めてfenceする。
 
-State Connectionだけが切断された場合、Control Connection上のReliable sequence、PublicationFence、`presentationOriginVersion`が引き続き一致していれば、Snapshotを取り直さず新しい`stateConnectionNonce`でState Connectionを再確立できる。runtimeが`Running`なら再確立後のkeyframeを適用してから差分配信へ戻る。`Paused`ならframeを送らず、Runtime Resume時にkeyframeを送ってから差分配信を開始する。Control側にもgapがある場合、PublicationFenceが一致しない場合、または`presentationOriginVersion`が変わった場合は、通常のConnection Resumeとして新しいDeliveryManifest、Connection Snapshot、`connectionId`を取得する。
+State Connectionだけが切断された場合、Control Connection上のsession-global Reliable sequence、PublicationFence、`presentationOriginVersion`が引き続き一致していれば、Snapshotを取り直さず新しい`stateConnectionNonce`でState Connectionを再確立できる。runtimeが`Running`なら再確立後のkeyframeを適用してから差分配信へ戻る。`Paused`ならframeを送らず、Runtime Resume時にkeyframeを送ってから差分配信を開始する。Control側にもgapがある場合、PublicationFenceが一致しない場合、または`presentationOriginVersion`が変わった場合は、通常のConnection Resumeとして新しいDeliveryManifest、Connection Snapshot、`connectionId`を取得する。
 
 - runtimeが`Paused`の場合も、leaseが有効なら既存participantのConnection Resumeと新しいviewerのjoinを許可する。Snapshotにpause理由と進行位置を含め、State Connectionは確立するが`RuntimeResumed`まで新しいElement State frameを送らない。
 - lease期限切れによる`Paused`では新しいconnectionとjoinを受け入れない。lease更新後も自動的に`Running`へ戻さず、presenterのRuntime Resumeを要求する。

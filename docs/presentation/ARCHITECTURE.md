@@ -6,8 +6,8 @@
 - **Maturity**:
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
-  - Progression wire / Runtime contract: draft
-  - Authoring、Rendering、Delivery の下位契約: follow-up
+  - Progression wire / Runtime contract: v1 target baseline
+  - Authoring、Rendering、Delivery の下位契約: v1 target baseline
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
@@ -80,7 +80,7 @@ Current Published Presentation
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
 - GUI が任意の TSX、CSS、JavaScript を完全に逆解析できるとはみなさない。
-- Local Compiler は Presentation Orchestrator、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
+- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
 - Opaque renderer だけが通常の TS / React / CSS を bundle して renderer artifact を生成する。renderer の実行環境は Authoring DSL の lowering から分離する。
 - Control Plane と Unity Runtime は Authoring Source、React、CSS、renderer source を実行しない。
 - PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
@@ -186,8 +186,19 @@ type PublicationFence = {
 
 type ProjectionProfileKey = {
   publication: PublicationFence;
+  projectionContractVersion: number;
   role: SessionRole;
   capabilityProfileId: CapabilityProfileId;
+};
+
+type DeliveredRenderSurface = {
+  rendererKind: "baked-web" | "native-ui" | "video";
+  rendererContractVersion: number;
+  stateBindings: Record<
+    SurfaceStateId,
+    | { kind: "empty" }
+    | { kind: "artifact"; artifactId: RendererArtifactId }
+  >;
 };
 
 type ProjectionProfileDescriptor = {
@@ -195,7 +206,7 @@ type ProjectionProfileDescriptor = {
   key: ProjectionProfileKey;
   visibleNodeIds: SpatialNodeId[];
   visibleSurfaceIds: SemanticSurfaceId[];
-  rendererBindings: Record<RenderSurfaceId, RendererArtifactId>;
+  renderSurfaces: Record<RenderSurfaceId, DeliveredRenderSurface>;
   localOverlays: LocalOverlayDefinition[];
 };
 
@@ -204,13 +215,37 @@ type ProjectionInstance = {
   participantId: ParticipantId;
   assignmentEpoch: number;
 };
+
+type AssetAccessBinding = {
+  assetId: AssetId;
+  checksum: ContentHash;
+  url: string;
+  expiresAt: string;
+};
+
+type DeliveryManifest = {
+  deliveryContractVersion: number;
+  sessionId: SessionId;
+  publication: PublicationFence;
+  definitionHash: ContentHash;
+  renderBundleHash: ContentHash;
+  projectionProfile: ProjectionProfileDescriptor;
+  projectionInstance: ProjectionInstance;
+  assetAccess: AssetAccessBinding[];
+};
 ```
 
-Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`ProjectionProfileId` は descriptor の canonical content と projection contract version に対応し、同じ PublicationFence、role、正規化済み capability profile の participant ごとに作り直さない。
+Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`projectionContractVersion` は visibility closure と renderer 選択規則を含む projection algorithm の互換性境界であり、cache namespace の一部とする。`ProjectionProfileId` は descriptor の canonical content に対応し、同じ PublicationFence、projection contract version、role、正規化済み capability profile の participant ごとに作り直さない。
 
 Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed URL を含まない。これらの participant / assignment 固有値と期限付き Asset access binding は DeliveryManifest の instance 側で解決する。client が申告した capability を authorization に使用せず、Control Plane が正規化・検証した `CapabilityProfileId` は renderer compatibility の選択だけに使用する。
 
-配布形式は Protobuf を第一候補とするが、具体的な schema と versioning は別途決定する。
+`DeliveredRenderSurface` は Render Surface ごと、かつ到達可能な Surface State ごとに選択結果を固定する。`empty` 以外の各 state は同じ renderer contract で解釈できる artifact を一つ持たなければならず、Unity が実行時に候補から再選択しない。これにより、state A と state B が異なる artifact を必要とする場合も一つの profile で完全に配信できる。
+
+`CapabilityProfileId` が指す正規化済み profile は、対応する Delivery / Runtime protocol version、renderer kind と contract version、Native UI feature / limit、Texture dimension / format / mipmap / color / alpha、Video codec / alpha / audio、GPU / RAM budget tier、Local Overlay support を持つ。Control Plane は登録済み client build、device class、認証済み bootstrap の情報から profile を決める。client の自己申告だけで profile を拡張しない。
+
+PublishedPresentation の必須 capability と profile の共通部分から完全な renderer graph を作れない場合は、Session 開始前に型付き incompatibility として拒否する。`fallbackPolicy: "degrade"` は Compiler が事前生成し検証した代替 artifact の選択だけを許し、Unity による暗黙の renderer 置換や解像度低下は許可しない。
+
+DeliveryManifest の wire source は `packages/contracts/proto/` に置く Protobuf とする。top-level、projection、renderer、Native UI の各 contract は独立した version を持ち、breaking change では新しい major package または明示的な contract version を使う。同じ major で許可するのは、省略時の意味が固定された optional field と、受信側が安全に無視できる非必須 feature の追加だけとする。未知の required feature、unknown enum、必須 field の欠落、hash / PublicationFence / assignment epoch の不一致は fail closed とする。Signed URL は期限付き instance data であり、canonical profile ID や PublishedPresentation hash の入力にしない。
 
 ### 3.6 Published Presentation と active-use lock
 
@@ -247,13 +282,13 @@ Session 中に変化する状態であり、PresentationDefinition や RenderBun
 
 | Layer                    | Authority            | Producer                      | 保持・復元                                              |
 | ------------------------ | -------------------- | ----------------------------- | ------------------------------------------------------- |
-| Shared Runtime State     | Venue Edge           | Venue Edge                    | Snapshot / Reliable Event。高頻度値は State Stream     |
-| Participant Runtime View | なし。派生 view      | Venue Edge（profile は Control Plane） | profile と Shared Runtime State から再生成       |
+| Shared Runtime State     | 割り当て済み Runtime Core | 割り当て済み Runtime Core       | Snapshot / Reliable Event。高頻度値は State Stream     |
+| Participant Runtime View | なし。派生 view      | Runtime Core（profile は Control Plane） | profile と Shared Runtime State から再生成       |
 | Client-local State       | Unity client / device | Unity client                  | 必要な場合だけ端末内で保持                              |
 
 #### Shared Runtime State
 
-Venue Edge が唯一の authority であり、すべての participant に共通する canonical state を保持する。
+Session に割り当てられた Cloud または Venue Edge の Runtime Core が唯一の authority であり、すべての participant に共通する canonical state を保持する。
 
 ```ts
 type SharedRuntimeState = {
@@ -267,7 +302,7 @@ type SharedRuntimeState = {
 };
 ```
 
-Progression、確定した resource state、Presentation Origin は Snapshot / Reliable Event へ反映する。Connection presence、Presenter Anchor sample、tracking-derived edge memory、Timeline の frame 間補間値は Venue Edge が生成する ephemeral runtime state とし、durable restore 対象へ含めない。Presence は authenticated connection registry から、tracking state は復旧後の新しい Tracking Frame から再構築する。
+Progression、確定した resource state、Presentation Origin は Snapshot / Reliable Event へ反映する。Connection presence、Presenter Anchor sample、tracking-derived edge memory、Timeline の frame 間補間値は Runtime Core が生成する ephemeral runtime state とし、durable restore 対象へ含めない。Presence は authenticated connection registry から、tracking state は復旧後の新しい Tracking Frame から再構築する。
 
 v1 は participant ごとに異なる server-authoritative Variable、Surface State、Progression を持たない。将来必要になった場合は明示的な `ParticipantRuntimeState` contract を追加し、Participant Runtime View や Client-local State を writable canonical state として流用しない。
 
@@ -297,7 +332,7 @@ type ProjectedRuntimeSnapshot = {
 };
 ```
 
-Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。Venue Edge はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
+Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。割り当て済み Runtime Core はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
 
 Role による visibility と ResourceOwner による lifetime は別概念とする。
 
@@ -305,15 +340,22 @@ Role による visibility と ResourceOwner による lifetime は別概念と�
 type ProjectionAudience =
   | { kind: "all" }
   | { kind: "role"; role: "presenter" | "viewer" };
+
+type ProjectableResourceRef =
+  | { kind: "node"; id: SpatialNodeId }
+  | { kind: "surface"; id: SemanticSurfaceId }
+  | { kind: "asset"; id: AssetId };
 ```
 
-Projection は参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
+Spatial Node は `audience` を直接持ち、Semantic Surface、Interaction、Media、Render Surface は host Spatial Node から継承する。Asset は独立した audience を持たず、visible resource からの参照 closure に含まれる場合だけ access binding を生成する。resource は同じ audience またはそれより広い audience の resource だけを参照できる。つまり、`all` は `all`、`presenter` は `all`または`presenter`、`viewer`は`all`または`viewer`を参照でき、roleをまたぐ参照はできない。この規則に反する Spatial parent、Surface、Interaction、renderer、Asset の参照と、同じ Semantic Surface 内で異なる audience を混在させる構成は build error とする。
+
+Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
 
 Presenter notes の内容は PublishedPresentation 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
 
 #### Client-local State
 
-Client-local State は participant の一つの device が所有し、Venue Edge の Snapshot、Reliable Event、Shared Guard / Cue / Action に混入させない。
+Client-local State は participant の一つの device が所有し、Runtime Core の Snapshot、Reliable Event、Shared Guard / Cue / Action に混入させない。
 
 ```ts
 type ClientLocalState = {
@@ -497,7 +539,7 @@ Opaque renderer は Manifest の binding key に concrete geometry や artifact 
 
 Component package lock は Opaque Component の Manifest hash と renderer entry hash を固定する。renderer source または依存 lock が変わった場合は package integrity と entry hash を変更し、renderer artifact を再生成する。完全な drift 検証と renderer provenance は Rendering / Delivery follow-up で定義する。
 
-Presentation Orchestrator、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
+Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
 
 Opaque renderer は通常の TS / React / CSS として bundle し、renderer artifact を生成する。artifact の Browser 実行は静的 authoring lowering とは別の隔離境界で行う。Opaque Component の意味情報は静的に lower した Component Manifest から取得し、renderer の React tree、DOM、CSS、実行結果から推測しない。Control Plane、Venue Edge、Unity Runtime は authoring source や renderer source を実行しない。
 
@@ -627,20 +669,21 @@ Authoring Source はすべて同じ方法で実行せず、意味を宣言する
 | Source | Compiler path | Output |
 | --- | --- | --- |
 | Presentation Orchestrator | parse / typecheck 後、AST から静的に lower | Presentation Declaration Graph |
+| Theme Declaration | parse / typecheck 後、AST から静的に lower | Theme Declaration Graph |
 | Component Manifest | parse / typecheck 後、AST から静的に lower | Component Declaration Graph（contract / semantics） |
 | Structured Component Structure | parse / typecheck 後、AST から静的に lower | Component Declaration Graph fragment |
 | Opaque Component renderer | 通常の TS / React / CSS として bundle | renderer artifact |
 
-Declaration Graph は context-specific な root を持つ同じ宣言モデルとして、Orchestrator、Manifest、Structure の参照を接続する。Opaque renderer の React tree、DOM、CSS、実行結果は Declaration Graph ではない。Opaque renderer と Component semantics は Manifest の binding key だけで接続する。
+Declaration Graph は context-specific な root を持つ同じ宣言モデルとして、Orchestrator、Theme、Manifest、Structure の参照を接続する。Opaque renderer の React tree、DOM、CSS、実行結果は Declaration Graph ではない。Opaque renderer と Component semantics は Manifest の binding key だけで接続する。
 
 ### 6.2 Static Authoring DSL
 
-Presentation Orchestrator、Component Manifest、Structured Component Structure は TypeScript / TSX の構文を使うが、JavaScript runtime semantics を持つ汎用プログラムではない。JSX は React JSX ではなく、Compiler が認識する宣言構文とする。
+Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は TypeScript / TSX の構文を使うが、JavaScript runtime semantics を持つ汎用プログラムではない。JSX は React JSX ではなく、Compiler が認識する宣言構文とする。
 
 v1 の DSL で許可する構文は次に限定する。
 
 - lockfile で固定した Component Manifest、Compiler SDK、Primitive、型の静的 ESM import
-- `definePresentation`、Manifest builder、Structure Primitive など Compiler が認識する宣言 API
+- `definePresentation`、`defineTheme`、Manifest builder、Structure Primitive など Compiler が認識する宣言 API
 - literal、object / array literal、JSX、immutable な `const`、型注釈、type-only import
 - literal stable ID による参照
 - 単一式で宣言値を返し、外部の可変状態を捕捉しない Compiler-defined callback
@@ -803,34 +846,6 @@ Authoring と PresentationDefinition の ID、Compiler が生成する ID を分
 Semantic Authoring IR と PresentationDefinition は Spatial Node を安定 ID で管理する。
 
 ```ts
-type SpatialNodeBase = {
-  id: SpatialNodeId;
-  owner: ResourceOwner;
-  parentId: SpatialNodeId | null;
-  order: number;
-  name?: string;
-};
-
-type SceneGraph = {
-  rootNodeId: SpatialNodeId;
-  nodes: Record<SpatialNodeId, SpatialNode>;
-  surfaces: Record<SemanticSurfaceId, SemanticSurface>;
-};
-```
-
-Code 上の入れ子表現は parse 時にこの関係へ正規化する。`parentId` の循環を禁止し、`order` と ID を分離する。
-
-### 7.3 Spatial Tree
-
-- Position は meter とする。
-- 座標系は right-handed、Y-up、forward -Z とする。
-- Rotation は `[x, y, z, w]` 順の正規化 Quaternion とする。
-- Scale は無次元倍率とする。
-- Presentation Origin、Stage、Spatial Node、Body Anchor を親座標として扱う。
-
-ここまでの座標規約は ADR-0005 で固定済みである。Transform の合成順、Quaternion の乗算順、matrix layout、Unity との変換、Surface logical coordinate と UV の完全な変換規則は下位 contract で固定する。
-
-```ts
 type AnchorTarget = "head" | "leftHand" | "rightHand" | "body";
 
 type SpatialParent =
@@ -843,7 +858,33 @@ type SpatialParent =
       followPosition: boolean;
       followRotation: boolean;
     };
+
+type SpatialNodeBase = {
+  id: SpatialNodeId;
+  owner: ResourceOwner;
+  audience: ProjectionAudience;
+  parent: SpatialParent;
+  order: number;
+  name?: string;
+};
+
+type SceneGraph = {
+  nodes: Record<SpatialNodeId, SpatialNode>;
+  surfaces: Record<SemanticSurfaceId, SemanticSurface>;
+};
 ```
+
+Code 上の入れ子表現は parse 時に `parent` へ正規化する。`node` parent は参照先の存在を必須とし、その variant が作る graph だけで循環を禁止する。`stage` と `anchor` は graph root であり、架空の Spatial Node や単一の `rootNodeId` を作らない。`order` は同じ parent を持つ sibling 間の順序であり、ID と分離する。
+
+### 7.3 Spatial Tree
+
+- Position は meter とする。
+- 座標系は right-handed、Y-up、forward -Z とする。
+- Rotation は `[x, y, z, w]` 順の正規化 Quaternion とする。
+- Scale は無次元倍率とする。
+- Presentation Origin、Stage、Spatial Node、Body Anchor を親座標として扱う。
+
+ここまでの座標規約は ADR-0005 で固定済みである。Transform の合成順、Quaternion の乗算順、matrix layout、Unity との変換、Surface logical coordinate と UV の完全な変換規則は下位 contract で固定する。
 
 Shared Spatial Tree の Anchor owner は v1 では Session の Presenter だけとする。`ParticipantId` は Session 実行時の identity であり、PresentationDefinition、RenderBundle、PublishedPresentation へ埋め込まない。Viewer 自身の head / hand へ配置する UI は Shared Spatial Tree の node とせず、ProjectionProfileDescriptor の Local Overlay definition と Client-local State の `self` Anchor で表現する。
 
@@ -920,7 +961,7 @@ lowering は次を満たさなければならない。
 - Render Surface の集合、bounds、layer はすべての Surface State に対して同じ build 内で固定する。状態ごとに内容が存在しない partition は明示的な empty binding を持てる。
 - すべての到達可能な Surface State について、各 Render Surface が選択可能な artifact、native plan、または明示的な empty binding を持つ。
 - `artifacts` binding の `artifactIds` は空でなく、同じ Render Surface の `artifacts` に存在しなければならない。
-- DeliveryManifest は target capability に応じ、各 Render Surface について互換な artifact を一つ選択する。
+- DeliveryManifest は target capability に応じ、各 Render Surface の到達可能な Surface State ごとに互換な artifact を一つ、または RenderBundle が宣言した `empty` を選択する。非 empty state の選択は同じ renderer kind / contract version で解釈できなければならない。
 
 Runtime contract が参照できる ID を次に固定する。
 
@@ -1734,17 +1775,19 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - すべての group owner が存在し、resource kind ごとの ID が PresentationDefinition 全体で一意である。
 - presentation-owned resource が group-owned resource を参照せず、Group G-owned resource / Cue が別 Group の resource を参照しない。
 - Spatial parent、Timeline target、Component Instance から生成した resource、SurfaceNode から継承する resource の owner が lifetime 規則と一致する。
+- すべての Spatial Node が明示的な `SpatialParent` を持ち、`node` parent の参照先が存在してその graph が循環せず、`stage` / `anchor` parent の情報が失われない。
+- resource 間の参照が ProjectionAudience の包含規則を満たし、role 限定 resource を別 role または `all` resource の closureへ混入させない。
 - PresentationDefinition と PublishedPresentation に concrete `ParticipantId` が含まれず、Shared Spatial Tree の Anchor owner が Presenter selector だけである。
 - Trigger の actor / subject selector と producer の組み合わせが 12.5 の規則に一致し、Viewer input から Shared Action へ到達する経路がない。
 - participant actor が認証済み connection identity から、System actor が許可された内部 event source からだけ生成される。
-- 同じ `ProjectionProfileKey` が同じ canonical profile を生成し、profile に participant / assignment 固有値や Signed URL が含まれない。
+- 同じ PublicationFence、projection contract version、role、capability profileから同じ canonical profileを生成し、異なるprojection contract versionが同じcache namespaceを共有せず、profileにparticipant / assignment固有値やSigned URLが含まれない。
 - ProjectionProfileDescriptor の visible resource set が参照 closure を満たし、capability 差が認可や Shared semantic state を変更しない。
 - Projected Snapshot / Event / State Frame の `projectionProfileId` と `assignmentEpoch` が受信 participant の ProjectionInstance と一致する。
 - 同じ Step に `priority` と `order` が重複する Cue がない。
 - Timeline keyframe の時刻、型、Quaternion、duration が正しく、各 track が `0 ms` と duration を境界に持つ。
 - 同一 Timeline 内で `target/property` が競合しない。
 - 同一 Cue の Action batch に v1 で許可されない property conflict がない。
-- Surface State と renderer artifact、hit region の対応が完全である。
+- Surface State と renderer artifact、hit region の対応が完全で、Delivery profileが各Render Surfaceの到達可能なstateごとに一つの互換artifactまたは宣言済み`empty`を固定する。
 - `surfaceInteraction` が参照する Interaction が対象 Surface State で利用できる。
 - Surface transition 中に interaction が有効化されない。
 - Group exit をまたいで blocking run が残らない。
@@ -1759,7 +1802,7 @@ Compiler、Control Plane、Delivery projection は少なくとも次を検証す
 - zero-duration の内部イベントだけで到達できる無限遷移がない。
 - Snapshot に renderer artifact ID、Signed URL、raw Pose history が含まれない。
 
-Conformance test では、event の重複、Cue 競合、cooldown、Timer fire済み状態、同一deadlineの順序、遷移中の追加入力、Timeline conflict、active Runの復元とstale completion、scope を越える不正参照、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、profile の共有と participant 固有値の隔離、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflow、logical clockのPause / Resume、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
+Conformance test では、event の重複、Cue 競合、cooldown、Timer fire済み状態、同一deadlineの順序、遷移中の追加入力、Timeline conflict、active Runの復元とstale completion、scope を越える不正参照、Stage / Node / Presenter Anchor parentの保持と循環拒否、ProjectionAudienceを越える参照拒否、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、projection contract versionごとのcache分離、profile の共有と participant 固有値の隔離、Surface Stateごとのartifact選択、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflow、logical clockのPause / Resume、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
 
 ### 12.13 Example
 
@@ -1936,7 +1979,7 @@ Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec
 ## 15. コンパイルと配信
 
 ```text
-Orchestrator / Manifest / Structured Component Structure
+Orchestrator / Theme Declaration / Manifest / Structured Component Structure
         ├─ Parse → Lossless Syntax Tree / Source Map
         ├─ Import / Symbol resolution / Typecheck
         └─ Static AST lowering
@@ -1974,7 +2017,7 @@ Unity Runtime
 ### Local Compiler
 
 - Authoring Source を parse し、Lossless Syntax Tree、Source Map、Stable ID の対応を保持する。
-- Presentation Orchestrator、Component Manifest、Structured Component Structure の import、symbol、型、DSL signature を解決し、検証済み AST から Declaration Graph へ静的に lower する。
+- Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure の import、symbol、型、DSL signature を解決し、検証済み AST から Declaration Graph へ静的に lower する。
 - Opaque renderer の TS / React / CSS だけを通常の module として bundle し、renderer artifact を生成する。
 - Declaration Graph を正規化し、Syntax Tree / Source Map と対応する Semantic Authoring IR を生成する。
 - Component、Slot、Variant を解決する。
@@ -2093,7 +2136,7 @@ presentation/
 - GUI と Code は Semantic Authoring IR を共有する。
 - GUI は Lossless Syntax Tree と Source Map で Code を書き換え、Declaration Graph や renderer artifact から Code を逆生成しない。
 - Structured と Opaque Component を区別する。
-- Local Compiler は Orchestrator、Manifest、Structure を実行せず、検証済み AST から Declaration Graph へ静的に lower する。
+- Local Compiler は Orchestrator、Theme Declaration、Manifest、Structure を実行せず、検証済み AST から Declaration Graph へ静的に lower する。
 - Opaque renderer だけを通常の TS / React / CSS として bundle し、renderer artifact の意味は静的に lower した Manifest と binding key で接続する。
 - v1 の最終 PresentationDefinition artifact は canonical JSON とする。
 - Scene Graph は Spatial Tree と Surface Tree からなる 2.5D 構造とする。
@@ -2169,4 +2212,4 @@ presentation/
 
 中心となる思想は次のとおりである。
 
-> `.unframe.tsx` は Presentation の composition root、Component Manifest は公開契約、Semantic Authoring IR は GUI と Code の共通モデルとする。Local Compiler は Orchestrator、Manifest、Structure を AST から静的に lower し、Opaque renderer だけを bundle して、canonical PresentationDefinition JSON と renderer artifact へ build する。
+> `.unframe.tsx` は Presentation の composition root、Theme Declaration と Component Manifest は宣言的な公開契約、Semantic Authoring IR は GUI と Code の共通モデルとする。Local Compiler は Orchestrator、Theme、Manifest、Structure を AST から静的に lower し、Opaque renderer だけを bundle して、canonical PresentationDefinition JSON と renderer artifact へ build する。
