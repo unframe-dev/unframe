@@ -1,0 +1,23 @@
+{
+  "name": "@unframe/presentation-renderer-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.3.0",
+    "@unframe/presentation-renderer-api": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.0",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

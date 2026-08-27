@@ -1,6 +1,6 @@
 # Presentation Web Renderer Architecture
 
-- **Status**: Proposal / Target, not implemented
+- **Status**: Initial implementation
 - **Renderer ID**: `baked-web`
 - **Scope**: Fixed Browser 環境での Web rendering、layout、capture
 - **Related**:
@@ -11,13 +11,37 @@
 
 ## 1. Role
 
-`presentation-renderer-web` は `baked-web` concrete renderer を実装する。Structured Component から lower された Primitive graph、または Opaque Component の Web renderer entry を、固定された Browser 環境で layout / capture し、RenderBundle 候補を生成する。
+### Current
+
+`presentation-renderer-web` は `baked-web` concrete renderer を実装する。Structured Component から lower された Primitive graph を、固定された Browser 環境で layout / capture し、RenderBundle 候補を生成する。
+
+現在は `FixedBrowserAdapter` を注入する Structured 初期実装である。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。実ブラウザ binary の選択・起動方式はまだ決めない。
+
+初期 Structured path は absolute root `Frame` と、その直接の absolute `Text` 子だけを deterministic な HTML/CSS に lower する。logical bounds は requested pixel target へ明示的に scale し、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State は UTF-16 lexical 順に一回ずつ raw RGBA capture する。ただしこの段階では visual state 差分を lower できないため、capture 対象の completed semantics が異なれば fail closed にする。interaction は `none` のため全 State の Hit Region は空である。renderer config hash が Compiler context と一致しない build は拒否する。
+
+初期 renderer config は CSS を受け取らない。background は `[r, g, b, a]` の 0–255 byte、font family は ASCII 英数字・space・`_`・`-` の allowlist とし、factory は config を clone/freeze して作成後の外部 mutation を遮断する。
+
+build は Renderer API が prepared snapshot として返した input だけを以後の処理に使用し、呼出元の input object を再読しない。
+
+Adapter から返る raw capture は requested pixel size の sRGB `opaque` または `straight` RGBA に限定する。renderer は RGBA bytes と pixel size をコピーして ownership を引き受け、`premultiplied` は Assets encoder と互換しないため拒否する。
 
 Web technology は build-time renderer implementation であり、Control Plane や Unity Runtime に HTML、CSS、React、JavaScript を配信して実行させるものではない。
 
 Compiler が決定した Render Surface partition を build input として受け取り、その geometry と artifact を解決する。renderer が Component graph を再分割したり partition policy を選択したりしない。
 
+### Target / Deferred
+
+設計上は renderer が `presentation-core` と `presentation-assets` を直接利用する target である。一方、現在は Renderer API の型境界だけに直接依存し、Core validation・Assets encode は Compiler 経由で行う。
+
 ## 2. Owned pipeline
+
+### Current
+
+- injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
+- absolute root `Frame` と direct `Text` の HTML/CSS lower、state capture、raw RGBA ownership transfer
+- Compiler が入力を検証・partition し、`presentation-assets` への encode / checksum 委譲と RenderBundle 組立を行う
+
+### Target
 
 - generic Web renderer による Structured Primitive graph の描画
 - Opaque renderer TS / React / CSS の isolated execution
@@ -27,6 +51,10 @@ Compiler が決定した Render Surface partition を build input として受�
 - unencoded Surface capture の生成
 - Browser、font、locale、timezone、viewport、layout provenance
 - visual regression fixture
+
+### Deferred
+
+- concrete Browser binary lifecycle、Opaque execution と interaction geometry
 
 ```text
 resolved semantic input + renderer source
@@ -42,9 +70,19 @@ resolved semantic input + renderer source
 
 ## 3. Structured and opaque paths
 
+### Current
+
+Structured path は absolute root `Frame` とその direct `Text` だけを扱う。semantic tree の意味は入力として比較するだけで DOM から推測しない。Opaque entry は `support()` で拒否する。
+
+### Target
+
 Structured path は Primitive graph を generic renderer で描画する。Component 固有 React / CSS を参照せず、Structure に宣言されていない semantics を追加しない。
 
 Opaque path は Component 固有 renderer entry を bundle / execute できる。ただし、Semantic Tree、State、Interaction、Action、Output の意味は Manifest から受け取り、DOM や実行結果から推測しない。Renderer binding key と resolved element geometry の対応だけを解決する。
+
+### Deferred
+
+Opaque module resolution、React/CSS isolation、Frame/Text 以外の Primitive と state visual variation の lower は未実装である。
 
 ## 4. Invariants
 
@@ -67,15 +105,28 @@ Opaque path は Component 固有 renderer entry を bundle / execute できる�
 
 ## 6. Dependency rules
 
-`presentation-renderer-web` は `presentation-core`、`presentation-renderer-api`、`presentation-assets` に依存する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
+`presentation-renderer-web` は `presentation-renderer-api` と hash utility にだけ直接依存する。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
 
 ## 7. Isolation boundary
+
+### Current
+
+Adapter の own data descriptor を snapshot し、capture 参照・identity・environment の後続 mutation や accessor を build input に混入させない。
+
+### Target / Deferred
 
 Browser process / isolate は semantic Compiler process と分離可能な adapter とする。Opaque code の failure、timeout、resource exhaustion を renderer diagnostic へ変換し、Compiler host を暗黙に汚染しない。
 
 Capability は allowlist とし、module resolution と package lock を build input に含める。Embedded Browser runtime を生成する機能は持たない。
 
 ## 8. Validation strategy
+
+### Current
+
+- Renderer API conformance、fixed adapter / config / environment / fingerprint の境界テスト
+- HTML/CSS golden、state order、capture ownership、hostile output / direct build input の回帰テスト
+
+### Target
 
 - generic Primitive renderer の conformance fixture
 - Surface State ごとの visual regression
@@ -85,10 +136,15 @@ Capability は allowlist とし、module resolution と package lock を build i
 - renderer / font / locale 変更時の cache invalidation test
 - raw capture と encoded artifact descriptor の integration test
 
+### Deferred
+
+- real Browser visual regression baseline、Opaque timeout / resource budget、Assets との end-to-end artifact test
+
 ## 9. Deferred decisions
 
-- Browser process / isolate の具体方式
+- Browser process / isolate の具体方式と binary provisioning
 - Opaque renderer capability と module resolution
 - Surface partition の author override
 - capture resolution、GPU / RAM budget
 - visual regression tolerance と platform baseline
+- Frame/Text 以外の Structured Primitive、style token の concrete 解決、interaction Hit Region
