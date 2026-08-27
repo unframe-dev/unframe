@@ -1,7 +1,7 @@
 # Presentation CLI Architecture
 
-- **Status**: Proposal / Target, not implemented
-- **Scope**: Authoring Project を操作する user-facing executable
+- **Status**: Current initial programmatic CLI boundary
+- **Scope**: Authoring Project JSON を Compiler / Web Renderer に接続し、診断または build artifact を host へ渡す
 - **Related**:
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Presentation Compiler Architecture](../presentation-compiler/ARCHITECTURE.md)
@@ -9,86 +9,66 @@
 
 ## 1. Role
 
-`presentation-cli` は Authoring Project の project discovery、Compiler / renderer composition、diagnostic presentation、local development、publish adapter の user-facing entrypoint である。Semantic rule や compiler pass を実装せず、下位 library を公開 workflow として構成する。
-
-Nix app、CI、repository script はこの CLI または package task を呼ぶ薄い wrapper とし、Presentation domain logic を複製しない。
-
-## 2. Commands
-
-Target command surface は次を想定する。
-
-- `init`: Authoring Project の明示的な scaffold
-- `dev`: watch、incremental check / build、local preview orchestration
-- `check`: source / contract / semantic diagnostics
-- `build`: canonical PresentationDefinition、RenderBundle、Asset Set の生成
-- `test`: component / presentation fixture の実行
-- `preview`: build artifact の local preview host
-- `publish`: build result を public Control Plane contract へ送る
-
-Command 名と option は実装時に確定する。`publish` は local compile と remote publication request を構成するが、durable PublishedPresentation や publication lock を所有しない。
-
-## 3. Project boundary
-
-CLI は明示された project root から次を解決する。
-
-- `unframe.config.ts`
-- `unframe.lock`
-- Authoring Source と Asset
-- `.unframe-cache/`
-- `dist/`
-- renderer plugin と toolchain version
-
-Project root、cache、output を command invocation ごとに固定し、ambient current directory や user-global config による hidden build input を避ける。
-
-## 4. Composition boundary
+`presentation-cli` は `runPresentationCli` という programmatic entrypoint を公開する。CLI 自身は Authoring
+semantic rule、Renderer artifact、実ファイルシステムの置換を所有しない。Host が project JSON の読取り、Fixed
+Browser adapter、明示的 build context、単一の artifact write transaction を注入する。
 
 ```text
-CLI command
-├─ resolve project / config / lock
-├─ compose presentation-compiler
-├─ register selected concrete renderers
-├─ render diagnostics / progress
-├─ host watch / preview
-└─ call Control Plane publish adapter
+runPresentationCli
+├─ parse explicit command and absolute paths
+├─ host.readProject(project.json)
+├─ check: presentation-compiler.checkDeclarationProject
+└─ build: compiler + presentation-renderer-web
+   └─ host.writeBuildArtifacts(output, complete artifact set)
 ```
 
-CLI は package の内部 module を deep import せず、各 package の public entrypoint だけを利用する。
+実装は package の public entrypoint だけを import する。Compiler / Renderer の内部 module を deep import
+せず、input と adapter の accessor・mutation 防御は各 public boundary に委譲する。
 
-## 5. Invariants
+## 2. Current command contract
 
-- command exit code と machine-readable result を安定して対応させる。
-- diagnostics の意味を CLI で再解釈・再実装しない。
-- `check` と `build` は同じ Compiler validation contract を利用する。
-- `publish` は build hash、source revision、artifact identity を明示して remote API へ渡す。
-- credential を log、cache、dist に保存しない。
-- cache と dist は再生成可能で、Authoring Source の正本として読まない。
+`args` は dense な string array であり、project JSON と output directory は絶対 path でなければならない。
 
-## 6. Non-responsibilities
+```text
+check <absolute-project.json> [--format text|json]
+build <absolute-project.json> <absolute-output-dir> [--format text|json]
+```
 
-- semantic validation rule と compiler pass
-- renderer artifact generation
-- Control Plane の authorization、publicationEpoch、active-use lock
-- durable Asset ownership と Signed URL generation
-- Web Editor UI と Unity Runtime
+`check` は project JSON を Compiler に渡すだけで、Browser adapter / Renderer を読まず、Compiler diagnostics
+を意味変更せず安定順で text または JSON に表示する。`build` は injected Fixed Browser adapter と build
+context から baked-web renderer を一つ作り、Compiler の公開 build API を呼ぶ。
 
-## 7. Dependency rules
+Exit code は `0` が成功、`1` が domain diagnostics、`2` が usage / invocation、`3` が project I/O または
+write I/O である。成功時の JSON output は `ok: true`、失敗時は diagnostic array を持つ。text diagnostics は
+`path: code: message` の一行形式である。
 
-`presentation-cli` は `presentation-compiler` と、既定で有効にする concrete renderer に依存する。Publish は公開 Control Plane client adapter を介す。Control Plane implementation、Compiler 内部 module、Web Editor への依存は禁止する。
+## 3. Artifact boundary
 
-## 8. Validation strategy
+build の成功時だけ、CLI は次の deterministic な全ファイルを辞書順 path で一度に `writeBuildArtifacts` へ渡す。
 
-- command parsing と exit code の table test
-- temporary Authoring Project による CLI integration test
-- diagnostics の text / JSON output fixture
-- watch cancellation と stale build suppression の test
-- preview host の artifact fence test
-- publish adapter fake による request / error mapping test
-- credential redaction test
+- `definition.json`
+- `render-bundle.json`
+- `assets/<percent-encoded asset id>.png`
 
-## 9. Deferred decisions
+CLI は個別の file write、既存 output の削除、partial output の rollback を行わない。Host はこの complete
+artifact set を transaction として扱い、成功または失敗を返す。Compiler / Renderer の domain diagnostics は
+exit code `1`、project JSON の読取り・parse と host write の失敗は exit code `3` とする。どの失敗でも、
+write boundary は呼ばれないか、単一 boundary の失敗として扱う。
 
-- exact command / option contract
-- local preview runtime
-- plugin discovery と configuration
-- authentication / credential provider integration
-- publish adapter の retry / resumable upload orchestration contract。転送処理と durable state は client adapter / Control Plane が所有する
+## 4. Dependency rules
+
+production dependency は `presentation-compiler` と `presentation-renderer-web` に限る。`presentation-components`
+は fixture の devDependency であり、CLI runtime の project discovery / component registry ではない。
+
+## 5. Deferred
+
+以下は current implementation に含めない。
+
+- Node executable、実 Browser process の起動・終了、signal lifecycle
+- project discovery、TSX authoring、`unframe.config.ts`、lockfile、plugin discovery
+- `init`、`dev`、`test`、`preview`、`publish` command
+- watch / incremental cache、remote publish adapter、credential integration
+- real filesystem の staging / atomic replacement strategy
+
+これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
+package に移さない。
