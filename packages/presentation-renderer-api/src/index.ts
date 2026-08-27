@@ -180,8 +180,544 @@ export const createRendererFingerprint = (
   ]);
 
 const nonEmpty = (value: string) => value.length > 0;
+const applyFunction = Reflect.apply;
 const sameArray = (left: readonly string[], right: readonly string[]) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
+
+const plainDataRecord = (value: unknown): Record<string, unknown> | undefined => {
+  try {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+    Object.getPrototypeOf(value);
+    if (Object.getOwnPropertySymbols(value).length !== 0) return undefined;
+    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
+    if (Object.keys(descriptors).some((key) => descriptors[key]?.get || descriptors[key]?.set))
+      return undefined;
+    return Object.fromEntries(
+      Object.keys(descriptors).map((key) => [key, descriptors[key]?.value]),
+    );
+  } catch {
+    return undefined;
+  }
+};
+
+const invalidSnapshot = Symbol("invalid-renderer-boundary-snapshot");
+
+const snapshotUnknown = (value: unknown, seen = new Set<object>()): unknown => {
+  if (value === null || ["string", "number", "boolean"].includes(typeof value)) return value;
+  if (typeof value !== "object" || seen.has(value)) return invalidSnapshot;
+  seen.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const descriptors = Object.getOwnPropertyDescriptors(value);
+      const length = (descriptors["length"] as unknown as PropertyDescriptor | undefined)?.value;
+      if (
+        !Number.isSafeInteger(length) ||
+        length < 0 ||
+        Object.getOwnPropertySymbols(value).length !== 0
+      )
+        return invalidSnapshot;
+      const expected = Array.from({ length }, (_, index) => String(index));
+      if (
+        Object.keys(descriptors).length !== length + 1 ||
+        expected.some((key) => {
+          const descriptor = descriptors[key];
+          return !descriptor || descriptor.get || descriptor.set;
+        })
+      )
+        return invalidSnapshot;
+      return expected.map((key) => snapshotUnknown(descriptors[key]?.value, seen));
+    }
+    const record = plainDataRecord(value);
+    if (!record) return invalidSnapshot;
+    return Object.fromEntries(
+      Object.keys(record).map((key) => [key, snapshotUnknown(record[key], seen)]),
+    );
+  } finally {
+    seen.delete(value);
+  }
+};
+
+const dataArray = (value: unknown): readonly unknown[] | undefined =>
+  Array.isArray(value) ? value : undefined;
+const denseDataArray = (value: unknown): readonly unknown[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  try {
+    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
+    const length = descriptors["length"]?.value;
+    if (!Number.isSafeInteger(length) || length < 0) return undefined;
+    const keys = Array.from({ length }, (_, index) => String(index));
+    if (
+      Object.keys(descriptors).length !== length + 1 ||
+      keys.some((key) => {
+        const descriptor = descriptors[key];
+        return !descriptor || descriptor.get || descriptor.set;
+      })
+    )
+      return undefined;
+    return keys.map((key) => descriptors[key]?.value);
+  } catch {
+    return undefined;
+  }
+};
+const stringArray = (value: unknown): readonly string[] | undefined => {
+  const array = dataArray(value);
+  return array && array.every((item) => typeof item === "string") ? array : undefined;
+};
+const record = (value: unknown): Record<string, unknown> | undefined =>
+  isRecord(value) ? value : undefined;
+const hasString = (value: unknown) => typeof value === "string";
+const hasId = (value: unknown): value is string => hasString(value) && value.length > 0;
+const hasNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+const hasPositiveNumber = (value: unknown): value is number => hasNumber(value) && value > 0;
+const hasOrder = (value: unknown): value is number =>
+  Number.isSafeInteger(value) && (value as number) >= 0;
+const hasOnlyKeys = (value: Record<string, unknown>, keys: readonly string[]) =>
+  Object.keys(value).every((key) => keys.includes(key));
+
+const semanticRoles = new Set([
+  "heading",
+  "paragraph",
+  "image",
+  "button",
+  "table",
+  "list",
+  "listItem",
+]);
+
+const isSemanticTreeShape = (value: unknown) => {
+  const tree = record(value);
+  const rootNodeIds = tree && stringArray(tree.rootNodeIds);
+  const nodes = tree && record(tree.nodes);
+  if (
+    !tree ||
+    !hasOnlyKeys(tree, ["rootNodeIds", "nodes"]) ||
+    !rootNodeIds ||
+    rootNodeIds.some((id) => !hasId(id)) ||
+    !nodes ||
+    new Set(rootNodeIds).size !== rootNodeIds.length
+  )
+    return false;
+  const roots = new Set(rootNodeIds);
+  if (rootNodeIds.some((id) => !Object.hasOwn(nodes, id))) return false;
+  for (const [key, value] of Object.entries(nodes)) {
+    const node = record(value);
+    if (
+      !node ||
+      !hasOnlyKeys(node, [
+        "id",
+        "parentId",
+        "order",
+        "role",
+        "text",
+        "language",
+        "alt",
+        "interactionId",
+      ]) ||
+      !hasId(key) ||
+      node.id !== key ||
+      (node.parentId !== null && !hasId(node.parentId)) ||
+      !hasOrder(node.order) ||
+      !hasString(node.role) ||
+      !semanticRoles.has(node.role)
+    )
+      return false;
+    for (const optional of [node.text, node.alt])
+      if (optional !== undefined && !hasString(optional)) return false;
+    if (node.language !== undefined && !hasId(node.language)) return false;
+    if (node.interactionId !== undefined && !hasId(node.interactionId)) return false;
+    if (node.parentId === null ? !roots.has(key) : !Object.hasOwn(nodes, node.parentId))
+      return false;
+  }
+  if (!Object.keys(nodes).every((id) => roots.has(id) === (record(nodes[id])?.parentId === null)))
+    return false;
+  const siblingOrders = new Set<string>();
+  for (const [id, value] of Object.entries(nodes)) {
+    const node = record(value)!;
+    const key = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
+    if (siblingOrders.has(key)) return false;
+    siblingOrders.add(key);
+    const visited = new Set([id]);
+    let parentId = node.parentId;
+    while (typeof parentId === "string") {
+      if (visited.has(parentId)) return false;
+      visited.add(parentId);
+      parentId = record(nodes[parentId])?.parentId;
+    }
+  }
+  return true;
+};
+
+const isInteractionMapShape = (value: unknown) => {
+  const interactions = record(value);
+  if (!interactions) return false;
+  return Object.entries(interactions).every(([key, value]) => {
+    const interaction = record(value);
+    return (
+      !!interaction &&
+      hasOnlyKeys(interaction, ["id", "kind", "event"]) &&
+      hasId(key) &&
+      interaction.id === key &&
+      interaction.kind === "click" &&
+      hasId(interaction.event)
+    );
+  });
+};
+
+const isStateMapShape = (value: unknown) => {
+  const states = record(value);
+  if (!states) return false;
+  return Object.entries(states).every(([key, value]) => {
+    const state = record(value);
+    const overrides = state && dataArray(state.semanticOverrides);
+    const enabledInteractionIds = state && stringArray(state.enabledInteractionIds);
+    if (
+      !state ||
+      !hasOnlyKeys(state, ["id", "semanticOverrides", "enabledInteractionIds"]) ||
+      !hasId(key) ||
+      state.id !== key ||
+      !overrides ||
+      !enabledInteractionIds ||
+      enabledInteractionIds.some((id) => !hasId(id)) ||
+      new Set(enabledInteractionIds).size !== enabledInteractionIds.length
+    )
+      return false;
+    return overrides.every((value) => {
+      const override = record(value);
+      const nodes = override && record(override.nodes);
+      if (!override || !hasOnlyKeys(override, ["nodes"]) || !nodes) return false;
+      return Object.values(nodes).every((value) => {
+        const node = record(value);
+        if (!node || !hasOnlyKeys(node, ["included", "text", "language", "alt"])) return false;
+        if (node.included !== undefined && typeof node.included !== "boolean") return false;
+        if (node.language !== undefined && node.language !== null && !hasId(node.language))
+          return false;
+        return [node.text, node.alt].every(
+          (item) => item === undefined || item === null || hasString(item),
+        );
+      });
+    });
+  });
+};
+
+const isIntentShape = (value: unknown, resolved: boolean) => {
+  const current = record(value);
+  const updateModel = current && record(current.updateModel);
+  const interaction = current && record(current.interaction);
+  const internalAnimation = current && record(current.internalAnimation);
+  if (
+    !current ||
+    !hasOnlyKeys(current, [
+      "updateModel",
+      "interaction",
+      "internalAnimation",
+      resolved ? "selectedRendererId" : "rendererPreference",
+      "fallbackPolicy",
+    ]) ||
+    !updateModel ||
+    !interaction ||
+    !internalAnimation
+  )
+    return false;
+  const validUpdateKeys =
+    (updateModel.kind === "static" && hasOnlyKeys(updateModel, ["kind"])) ||
+    (updateModel.kind === "finite-state" && hasOnlyKeys(updateModel, ["kind", "stateIds"])) ||
+    (updateModel.kind === "continuous" &&
+      hasOnlyKeys(updateModel, ["kind", "source", "maximumUpdateRateHz"]));
+  const validInteractionKeys =
+    (["none", "native-input"].includes(interaction.kind as string) &&
+      hasOnlyKeys(interaction, ["kind"])) ||
+    (interaction.kind === "regions" && hasOnlyKeys(interaction, ["kind", "events"]));
+  const validAnimationKeys =
+    (["none", "runtime"].includes(internalAnimation.kind as string) &&
+      hasOnlyKeys(internalAnimation, ["kind"])) ||
+    (internalAnimation.kind === "precomputed" &&
+      hasOnlyKeys(internalAnimation, ["kind", "durationSeconds"]));
+  if (!validUpdateKeys || !validInteractionKeys || !validAnimationKeys) return false;
+  const stateIds = updateModel && stringArray(updateModel.stateIds);
+  const events = interaction && stringArray(interaction.events);
+  const validUpdateModel =
+    updateModel?.kind === "static" ||
+    (updateModel?.kind === "finite-state" &&
+      !!stateIds &&
+      stateIds.length > 0 &&
+      stateIds.every(hasId) &&
+      new Set(stateIds).size === stateIds.length) ||
+    (updateModel?.kind === "continuous" &&
+      ["timeline", "runtime-data", "user-input"].includes(updateModel.source as string) &&
+      (updateModel.maximumUpdateRateHz === undefined ||
+        hasPositiveNumber(updateModel.maximumUpdateRateHz)));
+  const validInteraction =
+    interaction?.kind === "none" ||
+    interaction?.kind === "native-input" ||
+    (interaction?.kind === "regions" &&
+      !!events &&
+      events.length > 0 &&
+      events.every(hasId) &&
+      new Set(events).size === events.length);
+  const validAnimation =
+    internalAnimation?.kind === "none" ||
+    internalAnimation?.kind === "runtime" ||
+    (internalAnimation?.kind === "precomputed" &&
+      hasPositiveNumber(internalAnimation.durationSeconds));
+  return (
+    validUpdateModel &&
+    validInteraction &&
+    validAnimation &&
+    ["reject", "degrade"].includes(current.fallbackPolicy as string) &&
+    (resolved
+      ? hasId(current.selectedRendererId)
+      : ["auto", "baked-web", "native-ui", "video"].includes(current.rendererPreference as string))
+  );
+};
+
+const isInputShape = (value: unknown): value is CompilerResolvedSurfaceInput => {
+  const input = record(value);
+  const context = input && record(input.context);
+  const plan = input && record(input.plan);
+  const bounds = plan && record(plan.logicalBounds);
+  const surface = input && record(input.surface);
+  const pixelTarget = context && dataArray(context.pixelTarget);
+  const logicalSize = surface && dataArray(surface.logicalSize);
+  const physicalSize = surface && dataArray(surface.physicalSizeMeters);
+  const contentNodes = surface && record(surface.contentNodes);
+  const semanticsByState = input && record(input.semanticsByState);
+  const entry = input && record(input.entry);
+  if (!input || !context || !plan || !bounds || !surface) return false;
+  if (
+    !hasOnlyKeys(input, [
+      "surface",
+      "sourceIntent",
+      "resolvedIntent",
+      "semanticsByState",
+      "plan",
+      "entry",
+      "context",
+    ]) ||
+    !hasOnlyKeys(context, [
+      "locale",
+      "timezone",
+      "colorScheme",
+      "themeId",
+      "themeHash",
+      "inputHash",
+      "buildContextHash",
+      "environmentHash",
+      "rendererConfigHash",
+      "rendererFingerprint",
+      "pixelTarget",
+    ]) ||
+    !hasOnlyKeys(plan, [
+      "id",
+      "semanticSurfaceId",
+      "logicalBounds",
+      "layer",
+      "contentNodeIds",
+      "states",
+    ]) ||
+    !hasOnlyKeys(bounds, ["x", "y", "width", "height"]) ||
+    !hasOnlyKeys(surface, [
+      "id",
+      "hostNodeId",
+      "physicalSizeMeters",
+      "logicalSize",
+      "fit",
+      "rootFrameId",
+      "contentNodes",
+      "baseSemanticTree",
+      "interactions",
+      "initialStateId",
+      "states",
+      "renderIntent",
+    ]) ||
+    ![
+      context.locale,
+      context.timezone,
+      context.colorScheme,
+      context.themeId,
+      context.themeHash,
+      context.inputHash,
+      context.buildContextHash,
+      context.environmentHash,
+      context.rendererConfigHash,
+      context.rendererFingerprint,
+      plan.id,
+      plan.semanticSurfaceId,
+      surface.id,
+      surface.rootFrameId,
+      surface.initialStateId,
+    ].every(hasId) ||
+    !["light", "dark"].includes(context.colorScheme as string) ||
+    ![bounds.x, bounds.y, bounds.width, bounds.height].every(hasNumber) ||
+    !hasNumber(plan.layer) ||
+    !pixelTarget ||
+    pixelTarget.length !== 2 ||
+    !pixelTarget.every(hasNumber) ||
+    !stringArray(plan.contentNodeIds) ||
+    !record(plan.states) ||
+    !logicalSize ||
+    logicalSize.length !== 2 ||
+    !logicalSize.every(hasPositiveNumber) ||
+    !physicalSize ||
+    physicalSize.length !== 2 ||
+    !physicalSize.every(hasPositiveNumber) ||
+    !hasId(surface.hostNodeId) ||
+    !["contain", "cover", "stretch"].includes(surface.fit as string) ||
+    !contentNodes ||
+    !isStateMapShape(surface.states) ||
+    !isInteractionMapShape(surface.interactions) ||
+    !isSemanticTreeShape(surface.baseSemanticTree) ||
+    !isIntentShape(surface.renderIntent, false) ||
+    !isIntentShape(input.sourceIntent, false) ||
+    !isIntentShape(input.resolvedIntent, true) ||
+    !semanticsByState ||
+    !entry ||
+    !["structured", "opaque"].includes(entry.kind as string) ||
+    (entry.kind === "structured" && !hasOnlyKeys(entry, ["kind"])) ||
+    (entry.kind === "opaque" &&
+      (!hasOnlyKeys(entry, ["kind", "entryId", "moduleHash"]) ||
+        !hasId(entry.entryId) ||
+        !hasId(entry.moduleHash))) ||
+    !Object.hasOwn(surface.states as object, surface.initialStateId as string)
+  )
+    return false;
+  const rootId = surface.rootFrameId as string;
+  const root = record(contentNodes[rootId]);
+  if (!root || root.kind !== "frame" || root.parentId !== null) return false;
+  for (const [key, node] of Object.entries(contentNodes)) {
+    const current = record(node);
+    if (
+      !current ||
+      !hasId(key) ||
+      current.id !== key ||
+      !["frame", "text"].includes(current.kind as string) ||
+      !hasOrder(current.order)
+    )
+      return false;
+    if (
+      current.kind === "frame" &&
+      !hasOnlyKeys(current, ["id", "kind", "parentId", "order", "layout", "children"])
+    )
+      return false;
+    if (
+      current.kind === "text" &&
+      !hasOnlyKeys(current, ["id", "kind", "parentId", "order", "placement", "text"])
+    )
+      return false;
+    if (current.parentId === null ? key !== rootId : !hasId(current.parentId)) return false;
+    if (
+      current.kind === "frame" &&
+      (!stringArray(current.children) ||
+        record(current.layout)?.kind !== "absolute" ||
+        !hasOnlyKeys(record(current.layout)!, ["kind"]))
+    )
+      return false;
+    if (
+      current.kind === "frame" &&
+      stringArray(current.children)?.some((childId) => {
+        const child = record(contentNodes[childId]);
+        return !child || child.parentId !== key;
+      })
+    )
+      return false;
+    if (
+      current.kind === "text" &&
+      (!hasString(current.text) ||
+        record(current.placement)?.kind !== "absolute" ||
+        !hasOnlyKeys(record(current.placement)!, ["kind", "x", "y", "width", "height"]) ||
+        ![
+          record(current.placement)?.x,
+          record(current.placement)?.y,
+          record(current.placement)?.width,
+          record(current.placement)?.height,
+        ].every(hasNumber) ||
+        !hasPositiveNumber(record(current.placement)?.width) ||
+        !hasPositiveNumber(record(current.placement)?.height))
+    )
+      return false;
+    if (current.parentId !== null) {
+      const parent = record(contentNodes[current.parentId as string]);
+      if (!parent || parent.kind !== "frame" || !stringArray(parent.children)?.includes(key))
+        return false;
+    }
+  }
+  const contentOrders = new Set<string>();
+  for (const [id, value] of Object.entries(contentNodes)) {
+    const node = record(value)!;
+    const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
+    if (contentOrders.has(orderKey)) return false;
+    contentOrders.add(orderKey);
+    if (node.kind === "frame") {
+      const children = stringArray(node.children)!;
+      if (new Set(children).size !== children.length || children.some((child) => !hasId(child)))
+        return false;
+    }
+    const visited = new Set([id]);
+    let parentId = node.parentId;
+    while (typeof parentId === "string") {
+      if (visited.has(parentId)) return false;
+      visited.add(parentId);
+      parentId = record(contentNodes[parentId])?.parentId;
+    }
+  }
+  for (const state of Object.values(plan.states as Record<string, unknown>)) {
+    const current = record(state);
+    if (
+      !current ||
+      !hasOnlyKeys(current, ["kind"]) ||
+      !["capture", "empty"].includes(current.kind as string)
+    )
+      return false;
+  }
+  if (!Object.values(semanticsByState).every(isSemanticTreeShape)) return false;
+  const interactions = surface.interactions as Record<string, unknown>;
+  const interactionEvents = new Set(
+    Object.values(interactions).map((interaction) => record(interaction)?.event as string),
+  );
+  for (const intent of [surface.renderIntent, input.sourceIntent, input.resolvedIntent]) {
+    const updateModel = record(record(intent)?.updateModel);
+    if (
+      updateModel?.kind === "finite-state" &&
+      stringArray(updateModel.stateIds)?.some(
+        (stateId) => !Object.hasOwn(surface.states as object, stateId),
+      )
+    )
+      return false;
+    const interaction = record(record(intent)?.interaction);
+    if (
+      interaction?.kind === "regions" &&
+      stringArray(interaction.events)?.some((event) => !interactionEvents.has(event))
+    )
+      return false;
+  }
+  const baseSemanticNodes = record(record(surface.baseSemanticTree)?.nodes);
+  if (!baseSemanticNodes) return false;
+  for (const state of Object.values(surface.states as Record<string, unknown>)) {
+    const current = record(state);
+    if (
+      !current ||
+      stringArray(current.enabledInteractionIds)?.some((id) => !Object.hasOwn(interactions, id))
+    )
+      return false;
+    for (const override of dataArray(current.semanticOverrides) ?? []) {
+      const nodes = record(record(override)?.nodes);
+      if (!nodes || Object.keys(nodes).some((id) => !Object.hasOwn(baseSemanticNodes, id)))
+        return false;
+    }
+  }
+  for (const tree of [surface.baseSemanticTree, ...Object.values(semanticsByState)]) {
+    const nodes = record(record(tree)?.nodes);
+    if (
+      !nodes ||
+      Object.values(nodes).some((node) => {
+        const interactionId = record(node)?.interactionId;
+        return interactionId !== undefined && !Object.hasOwn(interactions, interactionId as string);
+      })
+    )
+      return false;
+  }
+  return true;
+};
 
 export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
   plugin: Plugin,
@@ -195,53 +731,130 @@ export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
   return plugin;
 };
 
-export const validateRendererPlugin = (plugin: unknown): readonly Diagnostic[] => {
+const prepareRendererPlugin = (plugin: unknown): ValidationResult<RendererPlugin> => {
   try {
-    if (!isRecord(plugin) || !isRecord(plugin.identity) || !isRecord(plugin.capabilities))
-      return [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])];
-    if (typeof plugin.support !== "function" || typeof plugin.build !== "function")
-      return [
-        diagnostic(
-          "invalid-renderer-plugin",
-          "Renderer plugins must provide callable support() and build() methods.",
-          [],
-        ),
-      ];
-    const identity = plugin.identity;
+    const snapshot = plainDataRecord(plugin);
+    const identity = snapshot && plainDataRecord(snapshot.identity);
+    const capability = snapshot && plainDataRecord(snapshot.capabilities);
+    if (!snapshot || !identity || !capability)
+      return {
+        valid: false,
+        diagnostics: [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])],
+      };
+    if (typeof snapshot.support !== "function" || typeof snapshot.build !== "function")
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "invalid-renderer-plugin",
+            "Renderer plugins must provide callable support() and build() methods.",
+            [],
+          ),
+        ],
+      };
     if (
       ![identity.id, identity.version, identity.contractVersion, identity.implementationHash].every(
         (value) => typeof value === "string" && value.length > 0,
       )
     )
-      return [
-        diagnostic("invalid-renderer-identity", "Renderer identity fields must be non-empty.", []),
-      ];
-    const capability = plugin.capabilities as unknown as RendererCapabilities;
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "invalid-renderer-identity",
+            "Renderer identity fields must be non-empty.",
+            [],
+          ),
+        ],
+      };
+    const exactCapability = (value: unknown, expected: readonly string[]) => {
+      const values = snapshotUnknown(value);
+      return Array.isArray(values) && values.every(hasString) && sameArray(values, expected);
+    };
     if (
-      !sameArray(capability.inputKinds, ["structured"]) ||
-      !sameArray(capability.updateModels, ["static"]) ||
-      !sameArray(capability.interactions, ["none"]) ||
-      !sameArray(capability.internalAnimations, ["none"]) ||
-      !sameArray(capability.rendererPreferences, ["baked-web"]) ||
-      !sameArray(capability.fallbackPolicies, ["reject"]) ||
+      !exactCapability(capability.inputKinds, ["structured"]) ||
+      !exactCapability(capability.updateModels, ["static"]) ||
+      !exactCapability(capability.interactions, ["none"]) ||
+      !exactCapability(capability.internalAnimations, ["none"]) ||
+      !exactCapability(capability.rendererPreferences, ["baked-web"]) ||
+      !exactCapability(capability.fallbackPolicies, ["reject"]) ||
       capability.deterministic !== true
     )
-      return [
-        diagnostic(
-          "invalid-renderer-capabilities",
-          "Renderer capabilities must match the first-milestone contract.",
-          [],
-        ),
-      ];
-    return [];
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "invalid-renderer-capabilities",
+            "Renderer capabilities must match the first-milestone contract.",
+            [],
+          ),
+        ],
+      };
+    const frozenIdentity = Object.freeze({
+      id: identity.id as string,
+      version: identity.version as string,
+      contractVersion: identity.contractVersion as string,
+      implementationHash: identity.implementationHash as string,
+    });
+    const frozenCapabilities = Object.freeze({
+      inputKinds: Object.freeze(["structured"] as const),
+      updateModels: Object.freeze(["static"] as const),
+      interactions: Object.freeze(["none"] as const),
+      internalAnimations: Object.freeze(["none"] as const),
+      rendererPreferences: Object.freeze(["baked-web"] as const),
+      fallbackPolicies: Object.freeze(["reject"] as const),
+      deterministic: true as const,
+    });
+    const support = snapshot.support as RendererPlugin["support"];
+    const build = snapshot.build as RendererPlugin["build"];
+    const receiver = Object.freeze({
+      identity: frozenIdentity,
+      capabilities: frozenCapabilities,
+      support,
+      build,
+    });
+    return {
+      valid: true,
+      value: Object.freeze({
+        identity: frozenIdentity,
+        capabilities: frozenCapabilities,
+        support: (request) => applyFunction(support, receiver, [request]),
+        build: (input) => applyFunction(build, receiver, [input]),
+      }),
+      diagnostics: [],
+    };
   } catch {
-    return [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])];
+    return {
+      valid: false,
+      diagnostics: [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])],
+    };
   }
 };
 
+export const validateRendererPlugin = (plugin: unknown): readonly Diagnostic[] =>
+  prepareRendererPlugin(plugin).diagnostics;
+
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
-const isUint8Array = (value: unknown): value is Uint8Array =>
-  ArrayBuffer.isView(value) && Object.prototype.toString.call(value) === "[object Uint8Array]";
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
+const typedArrayByteLength = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  "byteLength",
+)?.get;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+const copyUint8Array = (value: unknown): Uint8Array | undefined => {
+  try {
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
+    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    const byteLength = typedArrayByteLength.call(value);
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    const copy = new Uint8Array(byteLength);
+    Uint8Array.prototype.set.call(copy, value as Uint8Array);
+    return copy;
+  } catch {
+    return undefined;
+  }
+};
+const isUint8Array = (value: unknown): value is Uint8Array => copyUint8Array(value) !== undefined;
 
 const sortedDiagnostics = (diagnostics: readonly Diagnostic[]) =>
   [...diagnostics].sort((left, right) => {
@@ -251,7 +864,8 @@ const sortedDiagnostics = (diagnostics: readonly Diagnostic[]) =>
   });
 
 const comparable = (value: unknown): unknown => {
-  if (isUint8Array(value)) return [...value];
+  const bytes = copyUint8Array(value);
+  if (bytes) return Array.from({ length: bytes.length }, (_, index) => bytes[index]);
   if (Array.isArray(value)) return value.map(comparable);
   if (typeof value === "object" && value !== null)
     return Object.fromEntries(
@@ -271,34 +885,40 @@ const sameKeySet = (left: object, right: object) =>
   snapshot(Object.keys(left).sort(compareStrings)) ===
   snapshot(Object.keys(right).sort(compareStrings));
 
-const isDiagnostic = (value: unknown): value is Diagnostic =>
-  isRecord(value) &&
-  typeof value.code === "string" &&
-  typeof value.message === "string" &&
-  Array.isArray(value.path) &&
-  value.path.every((part) => typeof part === "string" || typeof part === "number");
+const isDiagnostic = (value: unknown): value is Diagnostic => {
+  if (!isRecord(value) || typeof value.code !== "string" || typeof value.message !== "string")
+    return false;
+  const path = denseDataArray(value.path);
+  return (
+    !!path &&
+    path.every(
+      (part) => typeof part === "string" || (typeof part === "number" && Number.isFinite(part)),
+    )
+  );
+};
 
 const isSupportDecision = (value: unknown): value is RendererSupportDecision =>
   isRecord(value) &&
   typeof value.supported === "boolean" &&
-  Array.isArray(value.diagnostics) &&
-  value.diagnostics.every(isDiagnostic);
+  !!denseDataArray(value.diagnostics) &&
+  denseDataArray(value.diagnostics)!.every(isDiagnostic);
 
 const isBuildResult = (value: unknown): value is RendererBuildResult => {
-  if (!isRecord(value) || typeof value.ok !== "boolean" || !Array.isArray(value.diagnostics))
-    return false;
-  if (!value.diagnostics.every(isDiagnostic)) return false;
+  if (!isRecord(value) || typeof value.ok !== "boolean") return false;
+  const diagnostics = denseDataArray(value.diagnostics);
+  if (!diagnostics || !diagnostics.every(isDiagnostic)) return false;
   if (!value.ok) return true;
+  const captures = denseDataArray(value.captures);
   if (
     !isRecord(value.renderSurface) ||
     !isRecord(value.renderSurface.logicalBounds) ||
-    !Array.isArray(value.captures) ||
+    !captures ||
     !isRecord(value.hitRegionsByState) ||
     !isRecord(value.provenance)
   )
     return false;
   if (
-    !value.captures.every(
+    !captures.every(
       (capture) =>
         isRecord(capture) &&
         typeof capture.id === "string" &&
@@ -310,26 +930,27 @@ const isBuildResult = (value: unknown): value is RendererBuildResult => {
     )
   )
     return false;
-  return Object.values(value.hitRegionsByState).every(
-    (regions) =>
-      Array.isArray(regions) &&
-      regions.every(
+  return Object.values(value.hitRegionsByState).every((regions) => {
+    const denseRegions = denseDataArray(regions);
+    return (
+      !!denseRegions &&
+      denseRegions.every(
         (region) =>
           isRecord(region) &&
           typeof region.interactionId === "string" &&
           typeof region.semanticNodeId === "string" &&
           isRecord(region.bounds),
-      ),
-  );
+      )
+    );
+  });
 };
 
 const validateInput = (
-  fixture: RendererConformanceFixture,
+  input: CompilerResolvedSurfaceInput,
   plugin: RendererPlugin,
   diagnostics: Diagnostic[],
+  prefix: readonly (string | number)[],
 ) => {
-  const { input, name } = fixture;
-  const prefix = [name, "input"] as const;
   for (const [label, value] of Object.entries({
     renderSurfaceId: input.plan.id,
     semanticSurfaceId: input.plan.semanticSurfaceId,
@@ -539,6 +1160,64 @@ const validateInput = (
     );
 };
 
+type PreparedRendererBoundary = {
+  readonly input: CompilerResolvedSurfaceInput;
+  readonly plugin: RendererPlugin;
+};
+
+const prepareRendererBoundary = (
+  input: unknown,
+  plugin: unknown,
+  prefix: readonly (string | number)[],
+  preparedPlugin?: RendererPlugin,
+): ValidationResult<PreparedRendererBoundary> => {
+  try {
+    const pluginResult = preparedPlugin
+      ? { valid: true as const, value: preparedPlugin }
+      : prepareRendererPlugin(plugin);
+    if (!pluginResult.valid) return pluginResult;
+    const snapshot = snapshotUnknown(input);
+    if (!isInputShape(snapshot))
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
+        ],
+      };
+    const diagnostics: Diagnostic[] = [];
+    validateInput(snapshot, pluginResult.value, diagnostics, prefix);
+    return diagnostics.length === 0
+      ? {
+          valid: true,
+          value: Object.freeze({ input: snapshot, plugin: pluginResult.value }),
+          diagnostics: [],
+        }
+      : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+  } catch {
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
+      ],
+    };
+  }
+};
+
+export const prepareRendererBuildInput = (
+  input: unknown,
+  plugin: unknown,
+): ValidationResult<CompilerResolvedSurfaceInput> => {
+  const prepared = prepareRendererBoundary(input, plugin, []);
+  return prepared.valid
+    ? { valid: true, value: prepared.value.input, diagnostics: [] }
+    : { valid: false, diagnostics: prepared.diagnostics };
+};
+
+export const validateRendererBuildInput = (
+  input: unknown,
+  plugin: unknown,
+): readonly Diagnostic[] => prepareRendererBuildInput(input, plugin).diagnostics;
+
 const validateProvenance = (
   fixture: RendererConformanceFixture,
   plugin: RendererPlugin,
@@ -685,8 +1364,9 @@ const validateSuccess = (
           "pixelSize",
         ]),
       );
+    const rgba = copyUint8Array(capture.rgba);
     if (
-      !isUint8Array(capture.rgba) ||
+      !rgba ||
       capture.colorSpace !== "srgb" ||
       !["opaque", "straight", "premultiplied"].includes(capture.alphaMode)
     )
@@ -698,9 +1378,23 @@ const validateSuccess = (
         ),
       );
     const expectedBytes = capture.pixelSize[0] * capture.pixelSize[1] * 4;
-    if (capture.rgba.length !== expectedBytes)
+    if (rgba && rgba.length !== expectedBytes)
       diagnostics.push(
         diagnostic("invalid-rgba-length", "Raw RGBA byte length does not match pixel size.", [
+          name,
+          "output",
+          "captures",
+          capture.id,
+          "rgba",
+        ]),
+      );
+    if (
+      rgba &&
+      capture.alphaMode === "opaque" &&
+      rgba.some((_, index) => index % 4 === 3 && rgba[index] !== 255)
+    )
+      diagnostics.push(
+        diagnostic("invalid-opaque-alpha", "Opaque captures must use alpha 255 for every pixel.", [
           name,
           "output",
           "captures",
@@ -814,15 +1508,13 @@ export const executeRendererPlugin = async (
 ): Promise<ValidationResult<RendererBuildSuccess>> => {
   try {
     const diagnostics: Diagnostic[] = [];
-    const pluginDiagnostics = validateRendererPlugin(plugin);
-    if (pluginDiagnostics.length > 0) return { valid: false, diagnostics: [...pluginDiagnostics] };
-    const fixture: RendererConformanceFixture = { name: "single", input };
-    validateInput(fixture, plugin, diagnostics);
-    if (diagnostics.length > 0)
-      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
-    const before = snapshot(input);
-    const request = { entry: input.entry, resolvedIntent: input.resolvedIntent };
-    const supportCall = callSupport(plugin, request);
+    const prepared = prepareRendererBoundary(input, plugin, ["single", "input"]);
+    if (!prepared.valid) return { valid: false, diagnostics: [...prepared.diagnostics] };
+    const fixture: RendererConformanceFixture = { name: "single", input: prepared.value.input };
+    const preparedPlugin = prepared.value.plugin;
+    const before = snapshot(fixture.input);
+    const request = { entry: fixture.input.entry, resolvedIntent: fixture.input.resolvedIntent };
+    const supportCall = callSupport(preparedPlugin, request);
     if (supportCall.threw)
       diagnostics.push(
         diagnostic("renderer-support-threw", "support() must return a diagnostic decision.", []),
@@ -835,7 +1527,7 @@ export const executeRendererPlugin = async (
           [],
         ),
       );
-    if (snapshot(input) !== before)
+    if (snapshot(fixture.input) !== before)
       diagnostics.push(
         diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", []),
       );
@@ -853,7 +1545,7 @@ export const executeRendererPlugin = async (
       return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
     if (!expected.supported)
       return { valid: false, diagnostics: sortedDiagnostics([...expected.diagnostics]) };
-    const buildCall = await callBuild(plugin, input);
+    const buildCall = await callBuild(preparedPlugin, fixture.input);
     if (buildCall.threw)
       diagnostics.push(
         diagnostic("renderer-threw", "Renderer failures must be returned as diagnostics.", []),
@@ -866,7 +1558,7 @@ export const executeRendererPlugin = async (
           [],
         ),
       );
-    if (snapshot(input) !== before)
+    if (snapshot(fixture.input) !== before)
       diagnostics.push(
         diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", []),
       );
@@ -876,7 +1568,7 @@ export const executeRendererPlugin = async (
     const result = (buildCall as { readonly value: RendererBuildResult }).value;
     if (support.supported !== result.ok)
       diagnostics.push(diagnostic("support-build-mismatch", "support() and build() disagree.", []));
-    if (result.ok) validateSuccess(fixture, plugin, result, diagnostics);
+    if (result.ok) validateSuccess(fixture, preparedPlugin, result, diagnostics);
     else if (result.diagnostics.length === 0)
       diagnostics.push(
         diagnostic("missing-failure-diagnostic", "Renderer failure must include a diagnostic.", []),
@@ -907,11 +1599,25 @@ const runRendererConformanceUnchecked = async (
   const results: RendererBuildResult[] = [];
 
   for (const fixture of fixtures) {
-    const diagnosticsBeforeInput = diagnostics.length;
-    validateInput(fixture, plugin, diagnostics);
-    if (diagnostics.length > diagnosticsBeforeInput) continue;
-    const inputSnapshot = snapshot(fixture.input);
-    const request = { entry: fixture.input.entry, resolvedIntent: fixture.input.resolvedIntent };
+    const prepared = prepareRendererBoundary(
+      fixture.input,
+      plugin,
+      [fixture.name, "input"],
+      plugin,
+    );
+    if (!prepared.valid) {
+      diagnostics.push(...prepared.diagnostics);
+      continue;
+    }
+    const preparedFixture: RendererConformanceFixture = {
+      name: fixture.name,
+      input: prepared.value.input,
+    };
+    const inputSnapshot = snapshot(preparedFixture.input);
+    const request = {
+      entry: preparedFixture.input.entry,
+      resolvedIntent: preparedFixture.input.resolvedIntent,
+    };
     const expectedSupport = evaluateFirstMilestoneSupport(request);
     const supportCall = callSupport(plugin, request);
     if (supportCall.threw) {
@@ -921,7 +1627,7 @@ const runRendererConformanceUnchecked = async (
           "support",
         ]),
       );
-      if (snapshot(fixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot)
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
@@ -938,7 +1644,7 @@ const runRendererConformanceUnchecked = async (
           [fixture.name, "support"],
         ),
       );
-      if (snapshot(fixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot)
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
@@ -956,7 +1662,7 @@ const runRendererConformanceUnchecked = async (
         ]),
       );
 
-    const firstCall = await callBuild(plugin, fixture.input);
+    const firstCall = await callBuild(plugin, preparedFixture.input);
     if (firstCall.threw) {
       diagnostics.push(
         diagnostic("renderer-threw", "Renderer failures must be returned as diagnostics.", [
@@ -964,7 +1670,7 @@ const runRendererConformanceUnchecked = async (
           "build",
         ]),
       );
-      if (snapshot(fixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot)
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
@@ -981,7 +1687,7 @@ const runRendererConformanceUnchecked = async (
           [fixture.name, "build"],
         ),
       );
-      if (snapshot(fixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot)
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
@@ -1011,9 +1717,9 @@ const runRendererConformanceUnchecked = async (
             "diagnostics",
           ]),
         );
-    } else validateSuccess(fixture, plugin, first, diagnostics);
+    } else validateSuccess(preparedFixture, plugin, first, diagnostics);
     if (plugin.capabilities.deterministic) {
-      const secondCall = await callBuild(plugin, fixture.input);
+      const secondCall = await callBuild(plugin, preparedFixture.input);
       if (
         secondCall.threw ||
         !isBuildResult(secondCall.value) ||
@@ -1027,7 +1733,7 @@ const runRendererConformanceUnchecked = async (
           ),
         );
     }
-    if (snapshot(fixture.input) !== inputSnapshot)
+    if (snapshot(preparedFixture.input) !== inputSnapshot)
       diagnostics.push(
         diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
           fixture.name,
@@ -1046,9 +1752,10 @@ export const runRendererConformance = async (
   fixtures: readonly RendererConformanceFixture[],
 ): Promise<ValidationResult<readonly RendererBuildResult[]>> => {
   try {
-    const pluginDiagnostics = validateRendererPlugin(plugin);
-    if (pluginDiagnostics.length > 0) return { valid: false, diagnostics: [...pluginDiagnostics] };
-    return await runRendererConformanceUnchecked(plugin, fixtures);
+    const preparedPlugin = prepareRendererPlugin(plugin);
+    if (!preparedPlugin.valid)
+      return { valid: false, diagnostics: [...preparedPlugin.diagnostics] };
+    return await runRendererConformanceUnchecked(preparedPlugin.value, fixtures);
   } catch {
     return {
       valid: false,

@@ -5,7 +5,9 @@ import {
   defineRendererPlugin,
   executeRendererPlugin,
   evaluateFirstMilestoneSupport,
+  prepareRendererBuildInput,
   runRendererConformance,
+  validateRendererBuildInput,
   validateRendererPlugin,
   type CompilerResolvedSurfaceInput,
   type RendererBuildResult,
@@ -197,6 +199,561 @@ const goodPlugin = defineRendererPlugin({
 });
 
 describe("first-milestone plugin contract", () => {
+  it("prepared boundary は nested Proxy の get trap を実行せず入力を独立 snapshot 化する", async () => {
+    const source = structuredClone(input) as unknown as CompilerResolvedSurfaceInput;
+    let getTrapCalls = 0;
+    const denyGet = <T extends object>(target: T): T =>
+      new Proxy(target, {
+        get() {
+          getTrapCalls++;
+          throw new Error("prepared boundary must not read through Proxy getters");
+        },
+      });
+    const pixelTarget = [...source.context.pixelTarget];
+    const contextTarget = { ...source.context, pixelTarget: denyGet(pixelTarget) };
+    const textTarget = { ...source.surface.contentNodes["text-title"] } as { text?: unknown };
+    const contentNodesTarget = {
+      ...source.surface.contentNodes,
+      "text-title": denyGet(textTarget),
+    };
+    const surfaceTarget = {
+      ...source.surface,
+      contentNodes: denyGet(contentNodesTarget),
+    };
+    const proxiedInput = {
+      ...source,
+      context: denyGet(contextTarget),
+      surface: denyGet(surfaceTarget),
+    } as unknown as CompilerResolvedSurfaceInput;
+
+    const prepared = prepareRendererBuildInput(proxiedInput, goodPlugin);
+    expect(prepared.valid).toBe(true);
+    expect(getTrapCalls).toBe(0);
+    if (prepared.valid) {
+      contextTarget.locale = "en-US";
+      textTarget.text = "Mutated after preparation";
+      expect(prepared.value.context.locale).toBe("ja-JP");
+      const preparedText = prepared.value.surface.contentNodes["text-title"];
+      expect(preparedText?.kind).toBe("text");
+      if (preparedText?.kind === "text") expect(preparedText.text).toBe("Hello");
+    }
+
+    const execution = await executeRendererPlugin(goodPlugin, proxiedInput);
+    expect(execution.valid).toBe(true);
+    expect(getTrapCalls).toBe(0);
+  });
+
+  it("prepared boundary は plugin Proxy の identity/capabilities/methods を descriptor から固定する", async () => {
+    let getTrapCalls = 0;
+    const proxiedPlugin = new Proxy(goodPlugin, {
+      get() {
+        getTrapCalls++;
+        throw new Error("prepared boundary must not read through Proxy getters");
+      },
+    });
+
+    const prepared = prepareRendererBuildInput(input, proxiedPlugin);
+    expect(prepared.valid).toBe(true);
+    expect(getTrapCalls).toBe(0);
+
+    const execution = await executeRendererPlugin(proxiedPlugin, input);
+    expect(execution.valid).toBe(true);
+    expect(getTrapCalls).toBe(0);
+  });
+
+  it.each([
+    [
+      "frame children is missing",
+      () => ({
+        ...input,
+        surface: {
+          ...input.surface,
+          contentNodes: {
+            ...input.surface.contentNodes,
+            "frame-root": (() => {
+              const { children: _children, ...frame } = input.surface.contentNodes["frame-root"];
+              return frame;
+            })(),
+          },
+        },
+      }),
+    ],
+    [
+      "frame children references an unknown node",
+      () => ({
+        ...input,
+        surface: {
+          ...input.surface,
+          contentNodes: {
+            ...input.surface.contentNodes,
+            "frame-root": { ...input.surface.contentNodes["frame-root"], children: ["unknown"] },
+          },
+        },
+      }),
+    ],
+    [
+      "Text placement is missing a numeric field",
+      () => ({
+        ...input,
+        surface: {
+          ...input.surface,
+          contentNodes: {
+            ...input.surface.contentNodes,
+            "text-title": {
+              ...input.surface.contentNodes["text-title"],
+              placement: { kind: "absolute", x: 120, y: 80, width: 1680 },
+            },
+          },
+        },
+      }),
+    ],
+    [
+      "Text placement kind is missing",
+      () => ({
+        ...input,
+        surface: {
+          ...input.surface,
+          contentNodes: {
+            ...input.surface.contentNodes,
+            "text-title": {
+              ...input.surface.contentNodes["text-title"],
+              placement: { x: 120, y: 80, width: 1680, height: 200 },
+            },
+          },
+        },
+      }),
+    ],
+    [
+      "semantic node shape is malformed",
+      () => ({
+        ...input,
+        semanticsByState: {
+          ...input.semanticsByState,
+          "state-default": {
+            ...input.semanticsByState["state-default"],
+            nodes: {
+              ...input.semanticsByState["state-default"].nodes,
+              "semantic-title": {
+                ...input.semanticsByState["state-default"].nodes["semantic-title"],
+                role: 42,
+              },
+            },
+          },
+        },
+      }),
+    ],
+    [
+      "surface required field is missing",
+      () => {
+        const { hostNodeId: _hostNodeId, ...surface } = input.surface;
+        return { ...input, surface };
+      },
+    ],
+    [
+      "state shape is malformed",
+      () => ({
+        ...input,
+        surface: {
+          ...input.surface,
+          states: {
+            "state-default": {
+              ...input.surface.states["state-default"],
+              enabledInteractionIds: [42],
+            },
+          },
+        },
+      }),
+    ],
+    [
+      "interaction shape is malformed",
+      () => ({
+        ...input,
+        surface: {
+          ...input.surface,
+          interactions: { tap: { id: "tap" } },
+        },
+      }),
+    ],
+    [
+      "opaque renderer entry fields are missing",
+      () => ({
+        ...input,
+        entry: { kind: "opaque" },
+      }),
+    ],
+  ] as const)("prepare rejects %s", (_name, createMalformedInput) => {
+    const malformed = createMalformedInput() as unknown as CompilerResolvedSurfaceInput;
+    const result = prepareRendererBuildInput(malformed, goodPlugin);
+
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics).toContainEqual(
+        expect.objectContaining({ code: "invalid-renderer-input", path: [] }),
+      );
+  });
+
+  it.each([
+    [
+      "non-finite logical size",
+      { ...input, surface: { ...input.surface, logicalSize: [Infinity, 1080] } },
+    ],
+    [
+      "unknown enabled interaction",
+      {
+        ...input,
+        surface: {
+          ...input.surface,
+          states: {
+            "state-default": {
+              ...input.surface.states["state-default"],
+              enabledInteractionIds: ["missing"],
+            },
+          },
+        },
+      },
+    ],
+    [
+      "unknown semantic override node",
+      {
+        ...input,
+        surface: {
+          ...input.surface,
+          states: {
+            "state-default": {
+              ...input.surface.states["state-default"],
+              semanticOverrides: [{ nodes: { missing: { text: "x" } } }],
+            },
+          },
+        },
+      },
+    ],
+    [
+      "unsupported optional value",
+      {
+        ...input,
+        semanticsByState: {
+          ...input.semanticsByState,
+          "state-default": {
+            ...input.semanticsByState["state-default"],
+            nodes: {
+              ...input.semanticsByState["state-default"].nodes,
+              "semantic-title": {
+                ...input.semanticsByState["state-default"].nodes["semantic-title"],
+                text: () => "not plain data",
+              },
+            },
+          },
+        },
+      },
+    ],
+  ] as const)("prepare rejects %s", (_name, malformed) => {
+    expect(
+      prepareRendererBuildInput(malformed as unknown as CompilerResolvedSurfaceInput, goodPlugin),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [expect.objectContaining({ code: "invalid-renderer-input" })],
+    });
+  });
+
+  it.each([
+    ["invalid color scheme", { ...input, context: { ...input.context, colorScheme: "invalid" } }],
+    ["empty surface host", { ...input, surface: { ...input.surface, hostNodeId: "" } }],
+    [
+      "duplicate finite states",
+      {
+        ...input,
+        surface: {
+          ...input.surface,
+          renderIntent: {
+            ...input.surface.renderIntent,
+            updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
+          },
+        },
+        sourceIntent: {
+          ...input.sourceIntent,
+          updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
+        },
+        resolvedIntent: {
+          ...input.resolvedIntent,
+          updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
+        },
+      },
+    ],
+    [
+      "semantic cycle",
+      {
+        ...input,
+        semanticsByState: {
+          "state-default": {
+            rootNodeIds: [],
+            nodes: {
+              a: { id: "a", parentId: "b", order: 0, role: "paragraph" },
+              b: { id: "b", parentId: "a", order: 0, role: "paragraph" },
+            },
+          },
+        },
+      },
+    ],
+    [
+      "empty semantic language",
+      {
+        ...input,
+        semanticsByState: {
+          "state-default": {
+            ...input.semanticsByState["state-default"],
+            nodes: {
+              "semantic-title": {
+                ...input.semanticsByState["state-default"].nodes["semantic-title"],
+                language: "",
+              },
+            },
+          },
+        },
+      },
+    ],
+    [
+      "duplicate enabled interactions",
+      {
+        ...input,
+        surface: {
+          ...input.surface,
+          interactions: { tap: { id: "tap", kind: "click", event: "advance" } },
+          states: {
+            "state-default": {
+              ...input.surface.states["state-default"],
+              enabledInteractionIds: ["tap", "tap"],
+            },
+          },
+        },
+      },
+    ],
+    [
+      "disconnected root frame",
+      {
+        ...input,
+        surface: {
+          ...input.surface,
+          contentNodes: {
+            ...input.surface.contentNodes,
+            detached: {
+              id: "detached",
+              kind: "frame",
+              parentId: null,
+              order: 1,
+              layout: { kind: "absolute" },
+              children: [],
+            },
+          },
+        },
+      },
+    ],
+    [
+      "parentless text",
+      {
+        ...input,
+        surface: {
+          ...input.surface,
+          contentNodes: {
+            ...input.surface.contentNodes,
+            "text-title": {
+              ...input.surface.contentNodes["text-title"],
+              parentId: null,
+              order: 2,
+            },
+          },
+        },
+      },
+    ],
+  ] as const)("prepare rejects strict contract violation: %s", (_name, malformed) => {
+    expect(
+      prepareRendererBuildInput(malformed as unknown as CompilerResolvedSurfaceInput, goodPlugin),
+    ).toMatchObject({ valid: false });
+  });
+
+  it("RGBA output の偽装 brand と iterator を実行せず拒否する", async () => {
+    let iteratorCalls = 0;
+    const bytes = new Uint8ClampedArray(8);
+    Object.defineProperties(bytes, {
+      [Symbol.toStringTag]: { value: "Uint8Array" },
+      [Symbol.iterator]: {
+        value() {
+          iteratorCalls++;
+          throw new Error("must not iterate hostile bytes");
+        },
+      },
+    });
+    const hostile = defineRendererPlugin({
+      ...goodPlugin,
+      build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
+        const result = successfulResult(value);
+        if (!result.ok) return result;
+        return {
+          ...result,
+          captures: [{ ...result.captures[0]!, rgba: bytes as unknown as Uint8Array }],
+        };
+      },
+    });
+    const result = await runRendererConformance(hostile, [fixture()]);
+    expect(result.valid).toBe(false);
+    expect(iteratorCalls).toBe(0);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+  });
+
+  it("sparse failure diagnostics と不透明でない opaque capture を拒否する", async () => {
+    const sparseFailure = defineRendererPlugin({
+      ...goodPlugin,
+      build: () =>
+        ({
+          ok: false,
+          diagnostics: Object.assign([], { length: 1 }),
+        }) as RendererBuildResult,
+    });
+    const sparseResult = await runRendererConformance(sparseFailure, [fixture()]);
+    expect(sparseResult.valid).toBe(false);
+    if (!sparseResult.valid)
+      expect(sparseResult.diagnostics.map(({ code }) => code)).toContain(
+        "malformed-renderer-output",
+      );
+
+    const invalidOpaque = defineRendererPlugin({
+      ...goodPlugin,
+      build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
+        const result = successfulResult(value);
+        if (!result.ok) return result;
+        const rgba = new Uint8Array(result.captures[0]!.rgba);
+        rgba[3] = 1;
+        return {
+          ...result,
+          captures: [{ ...result.captures[0]!, rgba, alphaMode: "opaque" as const }],
+        };
+      },
+    });
+    const opaqueResult = await runRendererConformance(invalidOpaque, [fixture()]);
+    expect(opaqueResult.valid).toBe(false);
+    if (!opaqueResult.valid)
+      expect(opaqueResult.diagnostics.map(({ code }) => code)).toContain("invalid-opaque-alpha");
+  });
+
+  it("sparse または非有限な diagnostic path を拒否する", async () => {
+    const sparsePath = Object.assign([], { length: 1 }) as unknown as (string | number)[];
+    for (const path of [sparsePath, [Number.NaN], [Number.POSITIVE_INFINITY]]) {
+      const plugin = defineRendererPlugin({
+        ...goodPlugin,
+        build: () => ({
+          ok: false as const,
+          diagnostics: [{ code: "failure", message: "failure", path }],
+        }),
+      });
+      const result = await runRendererConformance(plugin, [fixture()]);
+      expect(result.valid).toBe(false);
+      if (!result.valid)
+        expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+    }
+  });
+
+  it("固定した method の mutable call property を参照しない", async () => {
+    const support = (request: Parameters<typeof goodPlugin.support>[0]) =>
+      evaluateFirstMilestoneSupport(request);
+    const build = (value: CompilerResolvedSurfaceInput) => successfulResult(value);
+    Object.defineProperty(support, "call", { value: () => Promise.reject(new Error("unused")) });
+    Object.defineProperty(build, "call", { value: () => Promise.reject(new Error("unused")) });
+    const plugin = defineRendererPlugin({ ...goodPlugin, support, build });
+    await expect(executeRendererPlugin(plugin, input)).resolves.toMatchObject({ valid: true });
+  });
+
+  it("公開入力validatorは hostile input を実行せず診断化する", () => {
+    expect(validateRendererBuildInput(null, {})).toMatchObject([
+      { code: "invalid-renderer-plugin" },
+    ]);
+    expect(validateRendererBuildInput({ plan: {} }, { identity, capabilities })).toMatchObject([
+      { code: "invalid-renderer-plugin" },
+    ]);
+    let contextReads = 0;
+    const getterInput = Object.defineProperty({ ...input }, "context", {
+      get() {
+        contextReads++;
+        return input.context;
+      },
+    });
+    expect(validateRendererBuildInput(getterInput, goodPlugin)).toContainEqual(
+      expect.objectContaining({ code: "invalid-renderer-input", path: [] }),
+    );
+    expect(contextReads).toBe(0);
+  });
+  it("sparse boundary values と malformed Text node を prefix 付きで拒否する", async () => {
+    const sparsePixelTarget = [2, undefined] as unknown as number[];
+    delete sparsePixelTarget[1];
+    expect(
+      validateRendererBuildInput(
+        { ...input, context: { ...input.context, pixelTarget: sparsePixelTarget } },
+        goodPlugin,
+      ),
+    ).toContainEqual(expect.objectContaining({ code: "invalid-renderer-input", path: [] }));
+    const malformedText = {
+      ...input,
+      surface: {
+        ...input.surface,
+        contentNodes: {
+          ...input.surface.contentNodes,
+          "text-title": { ...input.surface.contentNodes["text-title"], text: 1 },
+        },
+      },
+    } as unknown as CompilerResolvedSurfaceInput;
+    expect(validateRendererBuildInput(malformedText, goodPlugin)).toContainEqual(
+      expect.objectContaining({ code: "invalid-renderer-input", path: [] }),
+    );
+    const malformedFixture = await runRendererConformance(goodPlugin, [
+      { name: "malformed-fixture", input: malformedText },
+    ]);
+    expect(malformedFixture.valid).toBe(false);
+    if (!malformedFixture.valid)
+      expect(malformedFixture.diagnostics).toContainEqual(
+        expect.objectContaining({
+          code: "invalid-renderer-input",
+          path: ["malformed-fixture", "input"],
+        }),
+      );
+    const sparseCapabilities = [undefined] as unknown as string[];
+    delete sparseCapabilities[0];
+    expect(
+      validateRendererPlugin({
+        ...goodPlugin,
+        capabilities: { ...capabilities, inputKinds: sparseCapabilities },
+      }),
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "invalid-renderer-capabilities" })]),
+    );
+  });
+  it("公開validatorは root path を二重にせず、conformance fixture 名は保持する", async () => {
+    const invalid = {
+      ...input,
+      sourceIntent: { ...input.sourceIntent, rendererPreference: "native-ui" },
+    } as const satisfies CompilerResolvedSurfaceInput;
+    expect(validateRendererBuildInput(invalid, goodPlugin)).toContainEqual(
+      expect.objectContaining({ code: "source-render-intent-mismatch", path: ["sourceIntent"] }),
+    );
+    const execution = await executeRendererPlugin(goodPlugin, invalid);
+    expect(execution.valid).toBe(false);
+    if (!execution.valid)
+      expect(execution.diagnostics).toContainEqual(
+        expect.objectContaining({
+          code: "source-render-intent-mismatch",
+          path: ["single", "input", "sourceIntent"],
+        }),
+      );
+    const result = await runRendererConformance(goodPlugin, [
+      { name: "fixture-a", input: invalid },
+    ]);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics).toContainEqual(
+        expect.objectContaining({
+          code: "source-render-intent-mismatch",
+          path: ["fixture-a", "input", "sourceIntent"],
+        }),
+      );
+  });
   it("rejects malformed plugins before invoking them", async () => {
     const invalid = { ...goodPlugin, identity: { ...identity, id: "" } };
     expect(validateRendererPlugin(invalid).map(({ code }) => code)).toContain(
@@ -261,11 +818,11 @@ describe("first-milestone plugin contract", () => {
       },
     };
     const result = await executeRendererPlugin(plugin, input);
+    delete (input.plan.states as Record<string, unknown>).changed;
     expect(result.valid).toBe(false);
     if (!result.valid)
-      expect(result.diagnostics.map(({ code }) => code)).toContain("renderer-mutated-input");
-    expect(calls).toBe(0);
-    delete (input.plan.states as Record<string, unknown>).changed;
+      expect(result.diagnostics.map(({ code }) => code)).not.toContain("renderer-mutated-input");
+    expect(calls).toBe(1);
   });
   it("does not build unsupported input", async () => {
     let calls = 0;
@@ -430,9 +987,7 @@ describe("conformance diagnostics", () => {
     const inputResult = await executeRendererPlugin(goodPlugin, inheritedInput);
     expect(inputResult.valid).toBe(false);
     if (!inputResult.valid)
-      expect(inputResult.diagnostics.map(({ code }) => code)).toEqual(
-        expect.arrayContaining(["missing-content-node", "missing-state-semantics"]),
-      );
+      expect(inputResult.diagnostics.map(({ code }) => code)).toContain("invalid-renderer-input");
 
     const inheritedHitRegions = withBuild((value) => ({
       ...successfulResult(value),
@@ -679,7 +1234,10 @@ describe("conformance diagnostics", () => {
       ...input,
       surface: {
         ...input.surface,
-        interactions: { tap: { id: "tap", kind: "click", event: "advance" } },
+        interactions: {
+          tap: { id: "tap", kind: "click", event: "advance" },
+          other: { id: "other", kind: "click", event: "other" },
+        },
         baseSemanticTree: {
           rootNodeIds: ["semantic-title"],
           nodes: {

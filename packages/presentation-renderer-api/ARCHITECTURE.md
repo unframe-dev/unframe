@@ -9,8 +9,9 @@
 
 ## 1. Role
 
-現在のAPIには一回だけ実行する`executeRendererPlugin`を含む。決定性を確認するための
-反復実行はconformance harnessの責務に残す。
+現在のAPIには、一回だけ実行する `executeRendererPlugin` と、入力・plugin を own-data
+snapshot へ変換する `prepareRendererBuildInput` を含む。決定性を確認するための反復実行は
+conformance harnessの責務に残す。
 
 `presentation-renderer-api` は、Compiler が renderer implementation を選択・実行するための runtime-neutral plugin boundary である。Concrete renderer の処理や自動選択 policy は持たず、入力 capability、出力 artifact、diagnostics、provenance の共通契約を定義する。
 
@@ -42,6 +43,13 @@ RendererPlugin
 
 入力は `presentation-core` の semantic / build model と、Compiler が解決した明示的 build context に限定する。Semantic Surface が宣言した source intent と、Compiler が renderer 選択だけを解決した resolved intent は分離する。これにより `rendererPreference: auto` を元の意味として保持したまま、選択済み renderer ID を plugin に渡せる。Renderer が project filesystem、environment variable、network を暗黙に探索しない。
 
+公開境界は caller 所有 object を検証した後で再利用しない。`prepareRendererBuildInput` は
+plain own-data descriptor から runtime shape を検証した snapshot を作り、元 input の accessor、
+Proxy の `get`、後続 mutation を build 実行へ持ち込まない。`executeRendererPlugin` と
+conformance harness も、identity / capabilities / method reference を一度固定した plugin wrapper と
+prepared input だけを `support` / `build` へ渡す。Concrete renderer が同じ境界を直接利用する場合も、
+返された prepared input を以後の唯一の入力とする。
+
 出力は encode 前の RGBA capture、Surface State ごとの normalized Hit Region、resolved geometry、diagnostics、provenance とする。Raw bytes の所有権は build result とともに caller へ移り、Renderer は返却後に buffer を変更しない。Renderer は PresentationDefinition の意味を書き換えず、Asset ID や最終 RenderBundle binding も決定しない。
 
 ## 4. Invariants
@@ -50,6 +58,7 @@ RendererPlugin
 - Compiler が選択した renderer ID と実際に呼び出した plugin identity が一致する。
 - `auto` 以外の明示 renderer preference を別 renderer へ暗黙 fallback しない。
 - `support` 判定と `build` 結果が同じ capability contract に従う。
+- 検証した input / plugin と実行する input / plugin を同じ prepared snapshot に固定する。
 - plan、Surface、完成 Semantic Tree の state 集合が完全一致する。
 - Hit Region は state で有効な interaction と、それを参照する Semantic Node に結び付き、有効な interaction を漏れなく覆う。
 - renderer output から Semantic Tree の意味を推測しない。
@@ -74,6 +83,7 @@ RendererPlugin
 
 - capability support matrix fixture
 - valid / invalid build input fixture
+- sparse array、accessor、Proxy、後続 mutationを含む prepared boundary fixture
 - deterministic output / provenance fixture
 - diagnostic code contract test
 - Structured Semantic Tree を変更しないことの test
@@ -99,3 +109,8 @@ Renderer は state ごとの未 encode RGBA capture と normalized Hit Region ge
 `presentation-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を cache key と `environmentHash` の入力に含める責務を持つが、Compiler 未実装の現時点では integration test も未実装であり、この API 単体は hash への包含を検証したとは主張しない。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 
 共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、Hit Region の有効性と completeness、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
+
+`prepareRendererBuildInput` は現行 contract の Surface、Frame / Text、State、Semantic Tree、
+Render Surface plan、build context を runtime shape と参照関係まで検査する。Plugin capability 配列は
+dense own-data array に限定し、plugin method は固定 receiver から呼び出す。境界通過後の renderer が
+prepared input を変更した場合は `executeRendererPlugin` / conformance harness が diagnostic にする。
