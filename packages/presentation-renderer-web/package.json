@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test",
@@ -12,7 +14,8 @@
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",
-    "@unframe/presentation-renderer-api": "workspace:*"
+    "@unframe/presentation-renderer-api": "workspace:*",
+    "rolldown": "1.0.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

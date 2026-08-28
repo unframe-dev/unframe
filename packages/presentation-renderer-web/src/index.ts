@@ -13,6 +13,15 @@ import {
   type RendererSupportRequest,
 } from "@unframe/presentation-renderer-api";
 
+export {
+  bundleOpaqueRenderer,
+  type OpaqueBundleDiagnostic,
+  type OpaqueRendererBundleInput,
+  type OpaqueRendererBundleResult,
+  type OpaqueRendererModule,
+  type OpaqueRendererModuleType,
+} from "./opaque/bundle-opaque-renderer.js";
+
 export type FixedBrowserEnvironment = {
   readonly browser: {
     readonly id: string;
