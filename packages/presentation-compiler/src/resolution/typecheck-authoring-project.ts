@@ -19,6 +19,19 @@ export type TypecheckedAuthoringProject =
   | { readonly ok: true; readonly diagnostics: [] }
   | { readonly ok: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] };
 
+export type AnalyzedAuthoringProject =
+  | { readonly ok: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] }
+  | {
+      readonly ok: true;
+      readonly value: {
+        readonly program: ts.Program;
+        readonly checker: ts.TypeChecker;
+        readonly context: VirtualModuleContext;
+        readonly entrySourceFile: ts.SourceFile;
+      };
+      readonly diagnostics: [];
+    };
+
 const compareDiagnostics = (left: AuthoringProjectDiagnostic, right: AuthoringProjectDiagnostic) =>
   (left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0) ||
   left.start - right.start ||
@@ -32,9 +45,9 @@ const rangeFor = (sourceFile: ts.SourceFile, start: number, end: number) => {
   return { start, end, line: position.line + 1, column: position.character + 1 };
 };
 
-export const typecheckAuthoringProject = (
+export const analyzeAuthoringProject = (
   project: ParsedAuthoringProjectValue,
-): TypecheckedAuthoringProject => {
+): AnalyzedAuthoringProject => {
   const context = new VirtualModuleContext(project);
   const diagnostics: AuthoringProjectDiagnostic[] = [];
   for (const sourceFile of context.sourceFiles.values())
@@ -75,7 +88,33 @@ export const typecheckAuthoringProject = (
       typescriptCode: item.code,
     });
   }
-  return diagnostics.length
-    ? { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) }
-    : { ok: true, diagnostics: [] };
+  if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  const entrySourceFile = project.files[project.entryFile];
+  if (!entrySourceFile)
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-project-entry-invariant-invalid",
+          fileName: "",
+          message: "Parsed project entry source is unavailable.",
+          start: 0,
+          end: 0,
+          line: 1,
+          column: 1,
+        },
+      ],
+    };
+  return {
+    ok: true,
+    value: { program, checker: program.getTypeChecker(), context, entrySourceFile },
+    diagnostics: [],
+  };
+};
+
+export const typecheckAuthoringProject = (
+  project: ParsedAuthoringProjectValue,
+): TypecheckedAuthoringProject => {
+  const analyzed = analyzeAuthoringProject(project);
+  return analyzed.ok ? { ok: true, diagnostics: [] } : analyzed;
 };

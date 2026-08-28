@@ -10,10 +10,20 @@ export type ModuleFailureCode =
   | "compiler-module-deep-import-forbidden";
 
 export type ModuleResolution =
-  | { readonly kind: "resolved"; readonly fileName: string }
+  | {
+      readonly kind: "resolved";
+      readonly fileName: string;
+      readonly packageExport?: {
+        readonly packageName: string;
+        readonly packageVersion: string;
+        readonly packageIntegrity: string;
+        readonly subpath: string;
+        readonly targetFile: string;
+      };
+    }
   | { readonly kind: "failed"; readonly code: ModuleFailureCode; readonly message: string };
 
-type Owner =
+export type SourceOwner =
   | {
       readonly kind: "project";
       readonly files: Readonly<Record<string, ts.SourceFile>>;
@@ -87,12 +97,12 @@ const parseBareSpecifier = (specifier: string) => {
 export class VirtualModuleContext {
   readonly sourceFiles = new Map<string, ts.SourceFile>();
   readonly projectRootFiles: string[] = [];
-  readonly #owners = new Map<string, Owner>();
+  readonly #owners = new Map<string, SourceOwner>();
   readonly #relativeNames = new Map<string, string>();
   readonly #packages = new Map<string, ParsedLockedPackage>();
 
   constructor(private readonly project: ParsedAuthoringProjectValue) {
-    const projectOwner: Owner = {
+    const projectOwner: SourceOwner = {
       kind: "project",
       files: project.files,
       display: (fileName) => fileName,
@@ -105,7 +115,7 @@ export class VirtualModuleContext {
     }
     for (const pkg of project.packages) {
       this.#packages.set(pkg.packageName, pkg);
-      const owner: Owner = {
+      const owner: SourceOwner = {
         kind: "package",
         package: pkg,
         files: pkg.files,
@@ -123,6 +133,14 @@ export class VirtualModuleContext {
     const owner = this.#owners.get(sourceFile.fileName);
     const relative = this.#relativeNames.get(sourceFile.fileName);
     return owner === undefined || relative === undefined ? "" : owner.display(relative);
+  }
+
+  ownerFor(sourceFile: ts.SourceFile) {
+    return this.#owners.get(sourceFile.fileName);
+  }
+
+  relativeFileName(sourceFile: ts.SourceFile) {
+    return this.#relativeNames.get(sourceFile.fileName);
   }
 
   resolve(containingFile: string, specifier: string): ModuleResolution {
@@ -176,7 +194,17 @@ export class VirtualModuleContext {
         code: "compiler-module-deep-import-forbidden",
         message: "Bare imports must resolve through an exact locked package export.",
       };
-    return { kind: "resolved", fileName: pkg.files[exported.targetFile]!.fileName };
+    return {
+      kind: "resolved",
+      fileName: pkg.files[exported.targetFile]!.fileName,
+      packageExport: {
+        packageName: pkg.packageName,
+        packageVersion: pkg.packageVersion,
+        packageIntegrity: pkg.packageIntegrity,
+        subpath,
+        targetFile: exported.targetFile,
+      },
+    };
   }
 }
 

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 import { typecheckAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
+import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
+import { collectPackageValueProvenance } from "../src/resolution/symbol-provenance.js";
 
 type PackageInput = {
   packageName: string;
@@ -45,6 +47,32 @@ const project = (sourceText: string, packages: readonly ReturnType<typeof locked
 };
 
 describe("typecheckAuthoringProject locked packages", () => {
+  it("derives direct locked package named value provenance through TypeChecker aliases", () => {
+    const parsed = project('import { definePresentation as define } from "pkg"; define();', [
+      lockedPackage({
+        packageName: "pkg",
+        files: [
+          {
+            fileName: "index.ts",
+            sourceText: "export const definePresentation = () => undefined;",
+          },
+        ],
+        exports: [{ subpath: ".", targetFile: "index.ts" }],
+      }),
+    ]);
+    const analyzed = analyzeAuthoringProject(parsed);
+    expect(analyzed.ok).toBe(true);
+    if (!analyzed.ok) return;
+    expect(collectPackageValueProvenance(analyzed)).toMatchObject([
+      {
+        packageName: "pkg",
+        exportName: "definePresentation",
+        targetFile: "index.ts",
+        declarationFile: "index.ts",
+      },
+    ]);
+  });
+
   it("keeps a project source root when its logical path collides with a package namespace path", () => {
     const packageName = "pkg";
     const packageVersion = "1";
