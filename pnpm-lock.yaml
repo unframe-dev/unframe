@@ -608,6 +608,9 @@ importers:
       '@unframe/contracts':
         specifier: workspace:*
         version: link:../contracts
+      canonicalize:
+        specifier: 3.0.0
+        version: 3.0.0
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -3276,6 +3279,11 @@ packages:
 
   caniuse-lite@1.0.30001809:
     resolution: {integrity: sha512-xxWVywk6a6Arlk+hymeycyn/VgqEfLDxupvhH/xiY5SJ/18kmi9o6MiO320DCUzypORHLtvh0I4i04tUhCNHNQ==}
+
+  canonicalize@3.0.0:
+    resolution: {integrity: sha512-yYLfHyDMIXRyRqsKBRLX023riFLpXY2YOfdtqKXZRZy9qsfOJ9U+4F9YZL7MEzL5+ziN2x2nlBvY/Voi3EBljA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
@@ -6942,6 +6950,8 @@ snapshots:
       three: 0.185.1
 
   caniuse-lite@1.0.30001809: {}
+
+  canonicalize@3.0.0: {}
 
   chai@6.2.2: {}
 

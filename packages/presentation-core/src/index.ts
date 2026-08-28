@@ -5,6 +5,8 @@ import type {
   SerializedRenderBundleV1,
 } from "@unframe/contracts/presentation";
 
+import { canonicalJson, normalizedJson } from "./canonicalization/canonical-json.js";
+
 type DeepReadonly<T> = T extends readonly unknown[]
   ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
   : T extends object
@@ -44,18 +46,8 @@ export type PresentationArtifacts = {
   renderBundle: RenderBundle;
 };
 
-type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 type JsonRecord = Record<string, unknown>;
 type DiagnosticPath = string | readonly (string | number)[];
-
-const setArrayKeys = new Set([
-  "rootNodeIds",
-  "enabledInteractionIds",
-  "stateIds",
-  "events",
-  "renderSurfaceIds",
-  "artifactIds",
-]);
 
 const pathSegment = (value: unknown) => String(value).replaceAll("~", "~0").replaceAll("/", "~1");
 
@@ -1316,8 +1308,8 @@ export const validatePresentationArtifacts = (
         if (
           isRecord(state) &&
           isRecord(semanticTree) &&
-          JSON.stringify(canonicalize(materializeSemanticTree(definitionSurface, state))) !==
-            JSON.stringify(canonicalize(semanticTree))
+          normalizedJson(materializeSemanticTree(definitionSurface, state)) !==
+            normalizedJson(semanticTree)
         )
           diagnostics.push(
             diagnostic(
@@ -1450,62 +1442,6 @@ export const validatePresentationArtifacts = (
       }
     : { valid: false, diagnostics: sorted(diagnostics) };
 };
-
-const canonicalize = (value: unknown, key?: string): JsonValue => {
-  if (value === null || typeof value === "boolean" || typeof value === "string") return value;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value))
-      throw new TypeError("Canonical JSON does not permit non-finite numbers.");
-    return value;
-  }
-  if (Array.isArray(value)) {
-    const canonical = value.map((item) => canonicalize(item));
-    return key !== undefined && setArrayKeys.has(key)
-      ? [...canonical].sort((left, right) => {
-          const leftId = String(left);
-          const rightId = String(right);
-          return compareStrings(leftId, rightId);
-        })
-      : canonical;
-  }
-  if (isRecord(value)) {
-    const result = Object.create(null) as Record<string, JsonValue>;
-    for (const entryKey of Object.keys(value).sort())
-      result[entryKey] = canonicalize(value[entryKey], entryKey);
-    const nodes = value["nodes"];
-    if (Array.isArray(result.rootNodeIds) && isRecord(nodes)) {
-      result.rootNodeIds.sort((left, right) => {
-        const leftNode = nodes[String(left)];
-        const rightNode = nodes[String(right)];
-        const order =
-          isRecord(leftNode) && isRecord(rightNode)
-            ? Number(leftNode.order) - Number(rightNode.order)
-            : 0;
-        return order === 0 ? compareStrings(String(left), String(right)) : order;
-      });
-    }
-    const sourceContentNodes = isRecord(value.contentNodes) ? value.contentNodes : undefined;
-    const resultContentNodes = isRecord(result.contentNodes) ? result.contentNodes : undefined;
-    if (sourceContentNodes !== undefined && resultContentNodes !== undefined)
-      for (const [nodeId] of recordEntries(sourceContentNodes)) {
-        const resultNode = resultContentNodes[nodeId];
-        if (!isRecord(resultNode) || !Array.isArray(resultNode.children)) continue;
-        resultNode.children.sort((left, right) => {
-          const leftNode = sourceContentNodes[String(left)];
-          const rightNode = sourceContentNodes[String(right)];
-          const order =
-            isRecord(leftNode) && isRecord(rightNode)
-              ? Number(leftNode.order) - Number(rightNode.order)
-              : 0;
-          return order === 0 ? compareStrings(String(left), String(right)) : order;
-        });
-      }
-    return result;
-  }
-  throw new TypeError("Canonical JSON only supports JSON values.");
-};
-
-const canonicalJson = (value: unknown) => JSON.stringify(canonicalize(value));
 
 const validatedCanonicalJson = <T>(
   input: unknown,

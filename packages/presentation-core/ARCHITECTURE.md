@@ -23,7 +23,7 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 - generated contractから導出したPresentationDefinition / RenderBundle model
 - Stage、SurfaceNode、Frame / Text、Surface State、baked-web artifactのsemantic invariant
 - stable diagnostic codeとsemantic path
-- compact canonical JSONとSHA-256 content hash
+- Presentation固有の意味上のset正規化、RFC 8785 canonical JSON、SHA-256 content hash
 
 ### Target extensions
 
@@ -54,11 +54,11 @@ src/
 └─ migration/          # versioned pure migrations
 ```
 
-初期実装は、公開APIを一つのpure TypeScript moduleにまとめる。Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashだけを実装する。各責務が増えた段階でこの境界へ分割する。
+初期実装は、Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashだけを実装する。canonicalizationは独立moduleへ分離し、Presentation固有の意味上のset正規化後に`canonicalize`でRFC 8785 JSONへ直列化する。その他の責務も増えた段階でこの境界へ分割する。
 
 ## 4. Public API
 
-初期実装は `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、`canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、`hashRenderBundle` を公開する。入力型は`@unframe/contracts/presentation`の生成型を正本とし、Core内でserialized modelを再定義しない。
+初期実装は `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、`canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、`hashRenderBundle` を公開する。入力型は`@unframe/contracts/presentation`のZod schemaから推論した型を正本とし、Core内でserialized modelを再定義しない。
 
 Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
@@ -94,7 +94,7 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 
 ## 7. Dependency rules
 
-`presentation-core` は generated TypeScript presentation contract 以外の presentation package に依存しない。Authoring、Compiler、Renderer、CLI から Core へ依存する逆向きだけを許可する。
+`presentation-core` は generated TypeScript presentation contract 以外の presentation package に依存しない。RFC 8785直列化には`canonicalize`、content hashには`@noble/hashes`を用いる。Authoring、Compiler、Renderer、CLI から Core へ依存する逆向きだけを許可する。
 
 ## 8. Validation strategy
 

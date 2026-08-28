@@ -446,6 +446,22 @@ describe("canonical JSON and diagnostics", () => {
     });
   });
 
+  it("rejects lone Unicode surrogates that RFC 8785 cannot canonicalize", () => {
+    const value = structuredClone(definitionFixture);
+    recordAt(value, "metadata").title = "invalid-\ud800-title";
+
+    expect(canonicalizePresentationDefinition(value)).toEqual({
+      valid: false,
+      diagnostics: [
+        {
+          code: "invalid-canonical-json",
+          path: [],
+          message: "Artifact cannot be represented as canonical JSON.",
+        },
+      ],
+    });
+  });
+
   it("sorts complete diagnostics independently of Record insertion order", () => {
     const first = structuredClone(definitionFixture);
     const second = structuredClone(definitionFixture);

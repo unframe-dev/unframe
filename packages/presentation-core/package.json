@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",
-    "@unframe/contracts": "workspace:*"
+    "@unframe/contracts": "workspace:*",
+    "canonicalize": "3.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
