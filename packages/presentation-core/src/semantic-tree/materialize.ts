@@ -20,6 +20,23 @@ import {
   validateTree,
   type JsonRecord,
 } from "../validation/shared.js";
+
+const cloneJsonValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(cloneJsonValue);
+  if (!isRecord(value)) return value;
+  const clone = Object.create(null) as JsonRecord;
+  for (const [key, item] of Object.entries(value))
+    Object.defineProperty(clone, key, {
+      value: cloneJsonValue(item),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  return clone;
+};
+
+const cloneJsonRecord = (value: JsonRecord): JsonRecord => cloneJsonValue(value) as JsonRecord;
+
 export const validateMaterializableSemanticTree = (
   diagnostics: Diagnostic[],
   tree: unknown,
@@ -143,7 +160,9 @@ export const materializeSemanticTree = (
   diagnostics: Diagnostic[] = [],
   path = "",
 ) => {
-  const base = isRecord(surface.baseSemanticTree) ? structuredClone(surface.baseSemanticTree) : {};
+  const base: JsonRecord = isRecord(surface.baseSemanticTree)
+    ? cloneJsonRecord(surface.baseSemanticTree)
+    : {};
   const nodes = isRecord(base.nodes) ? (base.nodes as Record<string, JsonRecord>) : {};
   const excluded = new Set<string>();
   const touched = new Set<string>();

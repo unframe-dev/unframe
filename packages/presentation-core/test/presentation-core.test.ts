@@ -12,6 +12,27 @@ import {
 } from "../src/index.js";
 
 describe("presentation-core", () => {
+  it("does not require ambient runtime globals for hashing or semantic materialization", () => {
+    const textEncoder = Object.getOwnPropertyDescriptor(globalThis, "TextEncoder");
+    const clone = Object.getOwnPropertyDescriptor(globalThis, "structuredClone");
+    Object.defineProperty(globalThis, "TextEncoder", { value: undefined, configurable: true });
+    Object.defineProperty(globalThis, "structuredClone", { value: undefined, configurable: true });
+    try {
+      expect(hashPresentationDefinition(definitionFixture).valid).toBe(true);
+      expect(
+        materializeCompletedSemanticTree(
+          definitionFixture.scene.surfaces["surface-title"] as never,
+          "state-default",
+        ).valid,
+      ).toBe(true);
+    } finally {
+      if (textEncoder) Object.defineProperty(globalThis, "TextEncoder", textEncoder);
+      else Reflect.deleteProperty(globalThis, "TextEncoder");
+      if (clone) Object.defineProperty(globalThis, "structuredClone", clone);
+      else Reflect.deleteProperty(globalThis, "structuredClone");
+    }
+  });
+
   it("materializes a state and rejects unknown or hostile surfaces", () => {
     const surface = definitionFixture.scene.surfaces["surface-title"] as never;
     expect(materializeCompletedSemanticTree(surface, "state-default").valid).toBe(true);
