@@ -3,17 +3,29 @@ import { rolldown, type RolldownBuild, type RolldownOutput } from "rolldown";
 import {
   extensionOf,
   opaqueRendererBundleInputSchema,
-  type OpaqueRendererModuleType,
+  type SourceModuleType,
 } from "./input-schema.js";
-import { snapshotDenseArray, snapshotStrictRecord } from "../validation/safe-data.js";
+import {
+  copyUint8Array,
+  snapshotDenseArray,
+  snapshotStrictRecord,
+} from "../validation/safe-data.js";
 
 export type { OpaqueRendererModuleType } from "./input-schema.js";
 
-export type OpaqueRendererModule = {
+type OpaqueRendererAssetModule = {
+  readonly path: string;
+  readonly source: string | Uint8Array;
+  readonly moduleType: "asset";
+};
+
+type OpaqueRendererSourceModule = {
   readonly path: string;
   readonly source: string;
-  readonly moduleType: OpaqueRendererModuleType;
+  readonly moduleType: SourceModuleType;
 };
+
+export type OpaqueRendererModule = OpaqueRendererAssetModule | OpaqueRendererSourceModule;
 
 export type OpaqueRendererBundleInput = {
   readonly entry: string;
@@ -72,7 +84,9 @@ const snapshotInputUnchecked = (
   for (const [index, value] of moduleValues.entries()) {
     const item = snapshotStrictRecord(value, ["moduleType", "path", "source"]);
     if (!item) return { ok: false, path: ["modules", String(index)] };
-    safeModules.push(item);
+    const source = typeof item.source === "string" ? item.source : copyUint8Array(item.source);
+    if (source === undefined) return { ok: false, path: ["modules", String(index), "source"] };
+    safeModules.push({ ...item, source });
   }
   const parsed = opaqueRendererBundleInputSchema.safeParse({
     entry: record.entry,
@@ -84,11 +98,7 @@ const snapshotInputUnchecked = (
       path: parsed.error.issues[0]?.path.map(String) ?? [],
     };
   const modules = new Map<string, ModuleSnapshot>();
-  for (const item of parsed.data.modules)
-    modules.set(
-      item.path,
-      Object.freeze({ path: item.path, source: item.source, moduleType: item.moduleType }),
-    );
+  for (const item of parsed.data.modules) modules.set(item.path, Object.freeze(item));
   return { ok: true, value: { entry: parsed.data.entry, modules } };
 };
 

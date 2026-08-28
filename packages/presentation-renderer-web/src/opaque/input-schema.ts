@@ -10,7 +10,7 @@ export const opaqueRendererModuleTypeSchema = z.enum([
   "tsx",
 ]);
 export type OpaqueRendererModuleType = z.output<typeof opaqueRendererModuleTypeSchema>;
-type SourceModuleType = Exclude<OpaqueRendererModuleType, "asset">;
+export type SourceModuleType = Exclude<OpaqueRendererModuleType, "asset">;
 
 const assetExtensions = new Set([
   ".avif",
@@ -58,25 +58,38 @@ const modulePathSchema = z
         ),
   );
 
-export const opaqueRendererModuleSchema = z
+const assetModuleSchema = z
   .strictObject({
     path: modulePathSchema,
-    source: z.string(),
-    moduleType: opaqueRendererModuleTypeSchema,
+    source: z.union([z.string(), z.instanceof(Uint8Array)]),
+    moduleType: z.literal("asset"),
   })
   .superRefine((module, context) => {
     const extension = extensionOf(module.path);
-    const valid =
-      module.moduleType === "asset"
-        ? assetExtensions.has(extension)
-        : sourceTypeExtensions[module.moduleType].has(extension);
-    if (!valid)
+    if (!assetExtensions.has(extension))
       context.addIssue({
         code: "custom",
         path: ["moduleType"],
         message: "Module type must match the module path extension.",
       });
   });
+
+const sourceModuleSchema = z
+  .strictObject({
+    path: modulePathSchema,
+    source: z.string(),
+    moduleType: z.enum(["css", "js", "jsx", "json", "ts", "tsx"]),
+  })
+  .superRefine((module, context) => {
+    if (!sourceTypeExtensions[module.moduleType].has(extensionOf(module.path)))
+      context.addIssue({
+        code: "custom",
+        path: ["moduleType"],
+        message: "Module type must match the module path extension.",
+      });
+  });
+
+export const opaqueRendererModuleSchema = z.union([assetModuleSchema, sourceModuleSchema]);
 
 export const opaqueRendererBundleInputSchema = z
   .strictObject({

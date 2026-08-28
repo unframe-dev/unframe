@@ -1,5 +1,26 @@
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
+const typedArrayByteLength = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  "byteLength",
+)?.get;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+
+export const copyUint8Array = (value: unknown): Uint8Array | undefined => {
+  try {
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
+    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    const byteLength = typedArrayByteLength.call(value);
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    const copy = new Uint8Array(byteLength);
+    Uint8Array.prototype.set.call(copy, value as Uint8Array);
+    return copy;
+  } catch {
+    return undefined;
+  }
+};
+
 export const snapshotStrictRecord = (
   value: unknown,
   expectedKeys: readonly string[],

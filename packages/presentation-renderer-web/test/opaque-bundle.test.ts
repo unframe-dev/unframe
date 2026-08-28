@@ -110,6 +110,37 @@ describe("bundleOpaqueRenderer", () => {
     expect(first).toMatchObject({ ok: true });
   });
 
+  it("preserves a defensive copy of binary asset bytes", async () => {
+    const source = Uint8Array.of(0x00, 0x80, 0xff, 0x7f);
+    const resultPromise = bundleOpaqueRenderer({
+      entry: "renderer.ts",
+      modules: [
+        module("renderer.ts", 'import image from "./image.png"; export default image;'),
+        { path: "image.png", source, moduleType: "asset" },
+      ],
+    });
+    source.fill(0);
+
+    const result = await resultPromise;
+
+    expect(result.ok ? [] : result.diagnostics).toEqual([]);
+    if (!result.ok) return;
+    const asset = result.assets.find((item) => item.fileName.endsWith(".png"));
+    expect(asset?.source).toEqual(Uint8Array.of(0x00, 0x80, 0xff, 0x7f));
+  });
+
+  it("rejects binary source for executable modules", async () => {
+    await expect(
+      bundleOpaqueRenderer({
+        entry: "renderer.ts",
+        modules: [{ path: "renderer.ts", source: Uint8Array.of(1), moduleType: "ts" }],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "opaque-bundle-input-invalid" }],
+    });
+  });
+
   it("keeps hostile input objects on the diagnostic boundary", async () => {
     const input = new Proxy(
       {},
