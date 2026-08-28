@@ -15,11 +15,11 @@
     "@unframe/presentation": "workspace:*",
     "@unframe/presentation-assets": "workspace:*",
     "@unframe/presentation-core": "workspace:*",
-    "@unframe/presentation-renderer-api": "workspace:*"
+    "@unframe/presentation-renderer-api": "workspace:*",
+    "typescript": "6.0.3"
   },
   "devDependencies": {
     "@unframe/presentation-components": "workspace:*",
-    "typescript": "^7.0.0",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   }

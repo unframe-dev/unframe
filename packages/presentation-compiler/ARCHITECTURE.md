@@ -10,7 +10,7 @@
 
 ## 1. Role
 
-`presentation-compiler` は programmatic Local Compiler pipeline を所有する。現在は post-lowering の plain-data `PresentationDeclaration` を検査し、Static Structured Surface subset を canonical `PresentationDefinition` JSON に lower する。
+`presentation-compiler` は programmatic Local Compiler pipeline を所有する。現在はTypeScript Compiler APIによるTS/TSXの構文解析境界と、post-lowering の plain-data `PresentationDeclaration` を検査してStatic Structured Surface subsetをcanonical `PresentationDefinition` JSONへlowerする境界を持つ。
 
 CLI command parsing、concrete renderer implementation、publish は所有しない。Compiler は orchestration library であり、concrete renderer は host から plugin として注入する。
 
@@ -63,7 +63,7 @@ src/
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
-TS/TSX parser、AST lowering、cache、CLI は未実装である。
+TS/TSX parserは構文解析とsource diagnosticまで実装済みである。module / symbol resolution、typecheck、AST lowering、cache、CLI は未実装である。
 
 ## 5. Public API
 
@@ -97,7 +97,7 @@ Programmatic API は command line、stdout、process exit、global current direc
 
 ## 8. Dependency rules
 
-現在の package は `presentation-core`、`presentation-authoring`、`presentation-renderer-api`、`presentation-assets` に依存する。Concrete component / renderer の実装には依存せず、Renderer は plugin として host から注入する。
+現在の package は `presentation-core`、`presentation-authoring`、`presentation-renderer-api`、`presentation-assets`、固定versionの`typescript`に依存する。構文解析はclassic TypeScript Compiler APIを直接使用し、`ts-morph`のようなwrapperを介さない。TypeScript 7の`unstable/sync` APIはvirtual filesystemと`tsgo` processを伴うproject解析向けであるため、このpureな単一source構文解析境界には採用しない。Concrete component / renderer の実装には依存せず、Renderer は plugin として host から注入する。
 
 Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しない。
 
@@ -114,7 +114,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 
 ## 10. Deferred decisions
 
-- TypeScript parse / lossless tree implementation
+- TypeScript module / symbol resolution、typecheck、AST lowering
 - plugin discovery と version negotiation
 - Surface partition algorithm と author override
 - cache layout と remote cache policy
