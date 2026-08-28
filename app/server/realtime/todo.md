@@ -5,7 +5,7 @@
 - Cloud / Venue Edge 共通の `RuntimeAssignment`、`runtimeId`、`runtimeKind`、lease / epoch fencing
 - Venue Edge Bearer credential と Edge ID の provisioning identity への分離
 - session-bound Runtime JWT、必須 audience 設定、strict JWKS 検証、cache TTL / refresh cooldown
-- 配置 profile に依存しない Runtime Core composition と単一 room gRPC process
+- 配置 profile に依存しない Runtime Core composition と単一 Session gRPC process
 - application readiness と標準 gRPC Health Checking service の分離
 - credential を記録しない stream log と in-process metrics
 - assignment-bound checkpoint / completion HTTP client と bounded callback buffer
@@ -59,7 +59,7 @@
 
 ## 現在の制限
 
-- 通常 process は単一 room の assignment を環境変数から読み取る
+- 通常 process は単一 Session の assignment を環境変数から読み取る
 - page-change 以外の Presentation runtime protocol は未実装
 - session state は process memory のみにあり、再起動で失われる
 - Runtime 自動選定と session 作成 UI / API からの配置先選択は未接続

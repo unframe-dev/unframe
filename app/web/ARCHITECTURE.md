@@ -10,8 +10,11 @@ Web は次を担当します。
 - Presentation の一覧、作成、取得、編集、保存
 - Asset の upload、状態確認、preview、download
 - Presentation Definition のブラウザ内編集
+- Session の作成、Join Code の表示、participant / device readiness の確認
+- Session の Runtime 配置選択、開始、pause、終了
+- Presenter 切断時の状況確認と、権限を持つ operator による再開または終了
 
-Web は Unity 用 Session の作成・参加・開始・終了、Realtime Backend への接続、発表中の状態操作を担当しません。
+Web は Realtime Backend の高頻度 stream へ直接接続せず、Pose、input、canonical Runtime State の操作を担当しません。Session の運営操作は Control Plane API を通じて行い、発表中の低遅延な進行操作は Unity Presenter が担当します。
 
 ## Routes
 
@@ -25,11 +28,13 @@ Web は Unity 用 Session の作成・参加・開始・終了、Realtime Backen
 
 /home/
 /editor/:presentationId/
+/sessions/
+/sessions/:sessionId/
 /settings/profile/
 /settings/security/
 ```
 
-`/device/` は Device Authorization の公開 route です。`/home/`、`/editor/:presentationId/`、`/settings/*` は認証必須です。
+`/device/` は Device Authorization の公開 route です。`/home/`、`/editor/:presentationId/`、`/sessions/*`、`/settings/*` は認証必須です。
 
 ## API Boundaries
 
@@ -41,7 +46,7 @@ React route / feature
   -> Control Plane
 ```
 
-Presentation、Asset、delivery などの product API は Hono RPC を使用します。route component から product API へ直接 `fetch()` しません。Better Auth の endpoint は Better Auth client、R2 の署名付き upload / download は Control Plane が返す request 情報に従う直接 `fetch()` を使用します。
+Presentation、Asset、Session、delivery などの product API は Hono RPC を使用します。route component から product API へ直接 `fetch()` しません。Better Auth の endpoint は Better Auth client、R2 の署名付き upload / download は Control Plane が返す request 情報に従う直接 `fetch()` を使用します。
 
 OpenAPI artifact は外部契約と Unity / C# のために維持しますが、Web の product API client として生成 OpenAPI client は使用しません。
 
@@ -50,6 +55,7 @@ OpenAPI artifact は外部契約と Unity / C# のために維持しますが、
 | State                                           | Owner                                |
 | ----------------------------------------------- | ------------------------------------ |
 | Presentation resource、revision、Asset metadata | TanStack Query                       |
+| Session、participant、device readiness          | TanStack Query                       |
 | 編集中の Definition と Undo / Redo              | Editor draft state                   |
 | selection、tool、panel、drag 中の値             | Zustand または component local state |
 | 3D object、camera、pointer の一時状態           | React Three Fiber / Three.js         |

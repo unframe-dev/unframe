@@ -258,10 +258,11 @@ Component をまたぐ変更では、最低限次を同じ変更で検証する�
 
 ## 12. Cross-component open decisions
 
+Product 上の Session と durable Session は同一 resource とし、active Runtime は `RuntimeAssignment` で関連付ける。
+
 - Edge 固有の `EdgeSessionAssignment` / `edgeId` を、Cloud Runtime と共有できる `RuntimeAssignment` / `runtimeId` / `runtimeKind` へ一般化する境界
 - Cloud Agent が assignment、lease、Manifest、Session 終了を同期する control channel と失効時の停止規則
 - Session が利用する Presentation revision をいつ固定し、どの delivery projection で渡すか
-- Product上のRoomとdurable Session / active runtimeを同一概念にするか、別resourceとして関係を定義するか
 - Unity が Asset を R2 から直接取得する経路と Venue Edge cache 経路の適用条件
 - Internet / Control Plane 障害時に active session を継続できる上限と、lease expiry 後の停止規則
 - Presenter disconnect 後に残存 participant が終了を要求できる条件と、runtime を不可逆に終了する timeout

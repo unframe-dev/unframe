@@ -36,7 +36,7 @@ go run ./cmd/server
 
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier、assignment guard、session coordinator なしでは構築できません。
 
-現在の composition root は `runtimeKind` にかかわらず同じ Runtime Core を起動しますが、単一 room の assignment は環境変数から読み取ります。Control Plane から assignment / Manifest を取得して lease を更新する profile adapter、Asset Gateway の local HTTPS listener、runtime state machine と State mailbox の gRPC contract への接続は後続実装です。`internal/persistence/http` の callback client / bounded buffer も transport 境界までで、Snapshot schema や session lifecycle には未接続です。`internal/asset`、`internal/session.Runtime`、`internal/state` は transport-independent な検証済み domain primitive です。
+現在の composition root は `runtimeKind` にかかわらず同じ Runtime Core を起動しますが、単一 Session の assignment は環境変数から読み取ります。Control Plane から assignment / Manifest を取得して lease を更新する profile adapter、Asset Gateway の local HTTPS listener、runtime state machine と State mailbox の gRPC contract への接続は後続実装です。`internal/persistence/http` の callback client / bounded buffer も transport 境界までで、Snapshot schema や session lifecycle には未接続です。`internal/asset`、`internal/session.Runtime`、`internal/state` は transport-independent な検証済み domain primitive です。
 
 `fly.toml` は TLS 終端から H2C backend へ接続する共通 service profile だけを定義します。app、region、Machine 構成、autoscaling、Runtime identity、health routing は未決定であり、この repository では固定していません。
 

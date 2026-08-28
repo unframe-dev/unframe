@@ -36,14 +36,14 @@ pnpm --filter @unframe/web run dev
 
 利用できる fixture route は次のとおりです。
 
-| URL                                         | 用途                                |
-| ------------------------------------------- | ----------------------------------- |
-| `/home/`                                    | 認証必須の Presentation 一覧        |
-| `/devices/`、`/rooms/`                      | デバイス・ルーム管理の準備画面      |
-| `/editor/demo/?panel=properties`            | 認証必須の POC Editor               |
-| `/device/?user_code=ABCD-EFGH`              | Device Authorization のブラウザ承認 |
-| `/login/`、`/signup/`、`/recover/`          | public authentication routes        |
-| `/settings/profile/`、`/settings/security/` | account settings                    |
+| URL                                         | 用途                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| `/home/`                                    | 認証必須の Presentation 一覧                                       |
+| `/devices/`、`/rooms/`                      | デバイス・Session 管理の準備画面。`/rooms/` は移行前の fixture URL |
+| `/editor/demo/?panel=properties`            | 認証必須の POC Editor                                              |
+| `/device/?user_code=ABCD-EFGH`              | Device Authorization のブラウザ承認                                |
+| `/login/`、`/signup/`、`/recover/`          | public authentication routes                                       |
+| `/settings/profile/`、`/settings/security/` | account settings                                                   |
 
 application route の `beforeLoad` は未認証を LP 所有の `/` へ外部遷移させます。
 
