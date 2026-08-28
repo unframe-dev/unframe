@@ -147,7 +147,7 @@ const encodeVirtualPathSegment = (value: string) => {
 };
 
 const packageVirtualFileName = (item: LockedPackageIdentity, fileName: string) =>
-  `/.unframe/packages/${encodeVirtualPathSegment(item.packageName)}/${encodeVirtualPathSegment(item.packageVersion)}/${encodeVirtualPathSegment(item.packageIntegrity)}/${fileName}`;
+  `unframe-package://${encodeVirtualPathSegment(item.packageName)}/${encodeVirtualPathSegment(item.packageVersion)}/${encodeVirtualPathSegment(item.packageIntegrity)}/${fileName}`;
 
 export const parseLockedPackages = (value: UnknownRecord): ParsedLockedPackages => {
   const dependencies = value.packageDependencies;

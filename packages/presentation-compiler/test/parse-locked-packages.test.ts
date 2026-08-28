@@ -45,7 +45,7 @@ describe("parseAuthoringProject locked packages", () => {
       dependencies: [],
     });
     expect(result.value.packages[0]?.files["index.d.ts"]?.fileName).toBe(
-      "/.unframe/packages/p00400075006E006600720061006D0065002F007400680065006D0065/p0031002E0030002E0030/p006F00700061007100750065002D0069006E0074006500670072006900740079/index.d.ts",
+      "unframe-package://p00400075006E006600720061006D0065002F007400680065006D0065/p0031002E0030002E0030/p006F00700061007100750065002D0069006E0074006500670072006900740079/index.d.ts",
     );
   });
 
@@ -230,7 +230,7 @@ describe("parseAuthoringProject locked packages", () => {
     expect(parsed.ok).toBe(true);
     if (parsed.ok)
       expect(parsed.value.packages[0]?.files["index.d.ts"]?.fileName).toBe(
-        "/.unframe/packages/p00400075006E006600720061006D0065002F007400680065006D0065/p0031002F002E002E002F006500760069006C/p006F00700061007100750065002D0069006E0074006500670072006900740079/index.d.ts",
+        "unframe-package://p00400075006E006600720061006D0065002F007400680065006D0065/p0031002F002E002E002F006500760069006C/p006F00700061007100750065002D0069006E0074006500670072006900740079/index.d.ts",
       );
   });
 
@@ -255,7 +255,7 @@ describe("parseAuthoringProject locked packages", () => {
       expect(result.ok).toBe(true);
       if (result.ok)
         expect(result.value.packages[0]?.files["index.d.ts"]?.fileName).toBe(
-          `/.unframe/packages/p00400075006E006600720061006D0065002F007400680065006D0065/${expected}/index.d.ts`,
+          `unframe-package://p00400075006E006600720061006D0065002F007400680065006D0065/${expected}/index.d.ts`,
         );
     }
   });
