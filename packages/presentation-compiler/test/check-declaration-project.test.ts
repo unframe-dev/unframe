@@ -484,6 +484,17 @@ describe("checkDeclarationProject", () => {
     const proto = JSON.parse(JSON.stringify(project())) as Record<string, unknown>;
     Object.defineProperty(proto, "__proto__", { value: { retained: true }, enumerable: true });
     expect(codes(proto)).toContain("compiler-invalid-project-field");
+
+    const customArray = project();
+    let customMapCalled = false;
+    Object.setPrototypeOf(customArray.themes, {
+      map: () => {
+        customMapCalled = true;
+        return [];
+      },
+    });
+    expect(codes(customArray)).toContain("compiler-invalid-input");
+    expect(customMapCalled).toBe(false);
   });
 
   it("rejects duplicate lowering identifiers and operations without component instances", () => {
@@ -641,6 +652,25 @@ describe("compileDeclarationProject", () => {
     });
     expect(checkDeclarationProject(project())).toEqual(before);
     expect(await compileDeclarationProject(project(), options())).toEqual(result);
+  });
+
+  it("rejects accessor-backed build options without invoking the accessor", async () => {
+    let accessed = false;
+    const hostile = options() as Record<string, unknown>;
+    Object.defineProperty(hostile, "compiler", {
+      enumerable: true,
+      get: () => {
+        accessed = true;
+        throw new Error("hostile");
+      },
+    });
+
+    const result = await compileDeclarationProject(project(), hostile);
+
+    expect(accessed).toBe(false);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map((item) => item.code)).toContain("compiler-invalid-options");
   });
 
   it("binds bundle identity to compiler and build context", async () => {

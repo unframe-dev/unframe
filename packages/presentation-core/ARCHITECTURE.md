@@ -54,7 +54,7 @@ src/
 └─ migration/          # versioned pure migrations
 ```
 
-初期実装は、Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashだけを実装する。canonicalizationは独立moduleへ分離し、Presentation固有の意味上のset正規化後に`canonicalize`でRFC 8785 JSONへ直列化する。その他の責務も増えた段階でこの境界へ分割する。
+初期実装は、Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashを実装する。現在の実装はdomain model、Definition / RenderBundle / artifact validation、Semantic Tree materialization、canonicalizationへ責務を分け、Presentation固有の意味上のset正規化後に`canonicalize`でRFC 8785 JSONへ直列化する。
 
 ## 4. Public API
 

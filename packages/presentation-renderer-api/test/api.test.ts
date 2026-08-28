@@ -570,6 +570,54 @@ describe("first-milestone plugin contract", () => {
     ).toMatchObject({ valid: false });
   });
 
+  it("prepare rejects interactions whose record key differs from interaction.id", () => {
+    const malformed = {
+      ...input,
+      surface: {
+        ...input.surface,
+        interactions: { tap: { id: "different-id", kind: "click", event: "advance" } },
+        states: {
+          "state-default": {
+            ...input.surface.states["state-default"],
+            enabledInteractionIds: ["tap"],
+          },
+        },
+      },
+    } as unknown as CompilerResolvedSurfaceInput;
+
+    expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
+  });
+
+  it("prepare rejects content-node cycles detached from the root frame", () => {
+    const malformed = {
+      ...input,
+      surface: {
+        ...input.surface,
+        contentNodes: {
+          ...input.surface.contentNodes,
+          "detached-a": {
+            id: "detached-a",
+            kind: "frame",
+            parentId: "detached-b",
+            order: 0,
+            layout: { kind: "absolute" },
+            children: ["detached-b"],
+          },
+          "detached-b": {
+            id: "detached-b",
+            kind: "frame",
+            parentId: "detached-a",
+            order: 0,
+            layout: { kind: "absolute" },
+            children: ["detached-a"],
+          },
+        },
+      },
+    } as unknown as CompilerResolvedSurfaceInput;
+
+    expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
+  });
+
   it("RGBA output の偽装 brand と iterator を実行せず拒否する", async () => {
     let iteratorCalls = 0;
     const bytes = new Uint8ClampedArray(8);
