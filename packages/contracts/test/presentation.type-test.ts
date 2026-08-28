@@ -1,7 +1,7 @@
 import type {
   SerializedPresentationDefinitionV1,
   SerializedRenderBundleV1,
-} from "../src/presentation.schema";
+} from "../src/presentation/index";
 
 export const tupleConformance = {
   stageSize: [4, 3, 2],

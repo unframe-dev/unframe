@@ -9,11 +9,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test",
-    "test": "vitest run",
+    "test": "vp test run",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
-    "@unframe/presentation-core": "workspace:*"
+    "@unframe/presentation-core": "workspace:*",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "typescript": "^7.0.0",

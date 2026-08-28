@@ -172,6 +172,33 @@ describe("presentation-core", () => {
       );
   });
 
+  it("rejects unknown contract fields through the Zod schema boundary", () => {
+    const definition = { ...structuredClone(definitionFixture), unexpected: true };
+
+    const result = validatePresentationDefinition(definition);
+
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics).toContainEqual(
+        expect.objectContaining({ code: "invalid-definition", path: [] }),
+      );
+  });
+
+  it("does not execute accessors while snapshotting contract input", () => {
+    let reads = 0;
+    const definition = structuredClone(definitionFixture) as Record<string, unknown>;
+    Object.defineProperty(definition, "scene", {
+      enumerable: true,
+      get: () => {
+        reads++;
+        return definitionFixture.scene;
+      },
+    });
+
+    expect(validatePresentationDefinition(definition).valid).toBe(false);
+    expect(reads).toBe(0);
+  });
+
   it("rejects unknown SurfaceNode fields", () => {
     const definition = structuredClone(definitionFixture) as typeof definitionFixture & {
       scene: { nodes: Record<string, Record<string, unknown>> };

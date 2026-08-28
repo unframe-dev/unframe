@@ -15,7 +15,7 @@
 
 `presentation-renderer-web` は `baked-web` concrete renderer を実装する。Structured Component から lower された Primitive graph を、固定された Browser 環境で layout / capture し、RenderBundle 候補を生成する。
 
-現在は `FixedBrowserAdapter` を注入する Structured 初期実装である。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。実ブラウザ binary の選択・起動方式はまだ決めない。
+現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer sourceを実行せずにbundleする境界を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。実ブラウザ binary の選択・起動方式はまだ決めない。
 
 初期 Structured path は absolute root `Frame` と、その直接の absolute `Text` 子だけを deterministic な HTML/CSS に lower する。logical bounds は requested pixel target へ明示的に scale し、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State は UTF-16 lexical 順に一回ずつ raw RGBA capture する。ただしこの段階では visual state 差分を lower できないため、capture 対象の completed semantics が異なれば fail closed にする。interaction は `none` のため全 State の Hit Region は空である。renderer config hash が Compiler context と一致しない build は拒否する。
 
@@ -39,6 +39,7 @@ Compiler が決定した Render Surface partition を build input として受�
 
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
 - absolute root `Frame` と direct `Text` の HTML/CSS lower、state capture、raw RGBA ownership transfer
+- locked virtual packageからのOpaque TS/TSX/JS/JSX/JSON bundleとCSS/asset emit
 - Compiler が入力を検証・partition し、`presentation-assets` への encode / checksum 委譲と RenderBundle 組立を行う
 
 ### Target
@@ -72,7 +73,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` とその direct `Text` だけを扱う。semantic tree の意味は入力として比較するだけで DOM から推測しない。Opaque entry は `support()` で拒否する。
+Structured path は absolute root `Frame` とその direct `Text` だけを扱う。semantic tree の意味は入力として比較するだけで DOM から推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
 
 ### Target
 
@@ -82,7 +83,7 @@ Opaque path は Component 固有 renderer entry を bundle / execute できる�
 
 ### Deferred
 
-Opaque module resolution、React/CSS isolation、Frame/Text 以外の Primitive と state visual variation の lower は未実装である。
+Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Primitive と state visual variation の lower は未実装である。
 
 ## 4. Invariants
 
@@ -105,19 +106,19 @@ Opaque module resolution、React/CSS isolation、Frame/Text 以外の Primitive 
 
 ## 6. Dependency rules
 
-`presentation-renderer-web` は `presentation-renderer-api` と hash utility にだけ直接依存する。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
+`presentation-renderer-web` は `presentation-renderer-api`、hash utility、Zod 4、固定versionの`rolldown`にだけ直接依存する。ZodはOpaque locked module input、renderer config、Browser identity / environment、capture metadataのruntime validationを所有する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
 
 ## 7. Isolation boundary
 
 ### Current
 
-Adapter の own data descriptor を snapshot し、capture 参照・identity・environment の後続 mutation や accessor を build input に混入させない。
+Adapter とOpaque bundle inputのown data descriptorをproperty value accessなしでsnapshotし、後続mutationやaccessorをbuild inputに混入させない。hostile objectをZodへ直接渡さず、descriptor検査から再構築したplain-data snapshotだけを渡すことで、Zodのproperty readによるgetter実行を防ぐ。Zodはsnapshot後のstrict object、tuple、enum、文字列制約、module path / type整合、entry / module集合の関係を検証する。
 
 ### Target / Deferred
 
 Browser process / isolate は semantic Compiler process と分離可能な adapter とする。Opaque code の failure、timeout、resource exhaustion を renderer diagnostic へ変換し、Compiler host を暗黙に汚染しない。
 
-Capability は allowlist とし、module resolution と package lock を build input に含める。Embedded Browser runtime を生成する機能は持たない。
+Capability はallowlistとする。現行bundle境界はlocked virtual package内の相対module、`react`、`react/jsx-runtime`、固定`@unframe/renderer-runtime`、package内CSS/assetsだけを許可する。`node:*`、絶対path、network import、任意bare import、`react-dom`、`node_modules`、PostCSS/Tailwind/Vite/Rolldown config、caller pluginは拒否する。React DOMは将来のBrowser hostが所有する。Embedded Browser runtimeを生成する機能は持たない。
 
 ## 8. Validation strategy
 
@@ -125,6 +126,8 @@ Capability は allowlist とし、module resolution と package lock を build i
 
 - Renderer API conformance、fixed adapter / config / environment / fingerprint の境界テスト
 - HTML/CSS golden、state order、capture ownership、hostile output / direct build input の回帰テスト
+- Zod schemaによるconfig / environment / capture metadataとOpaque module inputのvalidation test
+- Opaque module/asset bundle、field path diagnostic、accessor非実行、capability denyの境界テスト
 
 ### Target
 
@@ -143,7 +146,7 @@ Capability は allowlist とし、module resolution と package lock を build i
 ## 9. Deferred decisions
 
 - Browser process / isolate の具体方式と binary provisioning
-- Opaque renderer capability と module resolution
+- Opaque bundleとRenderer plugin/Browser isolateの接続
 - Surface partition の author override
 - capture resolution、GPU / RAM budget
 - visual regression tolerance と platform baseline

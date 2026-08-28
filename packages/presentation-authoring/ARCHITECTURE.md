@@ -76,7 +76,7 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 
 ## 7. Dependency rules
 
-`presentation-authoring` は `presentation-core` にだけ依存する。Compiler、Web Editor、Component package がこの package を利用する。Compiler や Web Editor への逆依存は禁止する。
+`presentation-authoring` は `presentation-core` と Zod 4 にだけ依存する。Compiler、Web Editor、Component package がこの package を利用する。Compiler や Web Editor への逆依存は禁止する。
 
 ## 8. Validation strategy
 
@@ -86,6 +86,8 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 - Semantic Command と code patch の semantic equivalence fixture
 - Structured / Opaque boundary と Action / Output lowering の fixture
 - package import が filesystem、Browser、network side effect を起こさないことのテスト
+
+公開 builder / definition の入力は、descriptor ベースの plain-data snapshot で accessor、cycle、sparse array、symbol key、非 JSON 値を先に拒否してから Zod 4 schema に渡す。Zod は string、number、tuple、record、enum、discriminated union と declaration の構造を検証する。参照の存在、一意性、tree、owner 継承のように複数 declaration を横断する意味論だけは Compiler / Core の責務として残す。
 
 ## 9. Deferred decisions
 

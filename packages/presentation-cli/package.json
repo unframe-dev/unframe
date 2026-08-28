@@ -3,16 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui/run.tsx"
+  },
   "scripts": {
+    "tui": "bun src/tui/main.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "vp check src test",
-    "test": "vitest run",
-    "check": "pnpm typecheck && pnpm lint && pnpm test"
+    "lint": "vp check src test test-bun",
+    "test": "vp test run",
+    "test:tui": "bun test ./test-bun/tui-render.test.bun.tsx",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:tui"
   },
   "dependencies": {
+    "@opentui/core": "0.4.5",
+    "@opentui/keymap": "0.4.5",
+    "@opentui/solid": "0.4.5",
     "@unframe/presentation-compiler": "workspace:*",
-    "@unframe/presentation-renderer-web": "workspace:*"
+    "@unframe/presentation-renderer-web": "workspace:*",
+    "solid-js": "1.9.12",
+    "web-tree-sitter": "0.25.10",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@unframe/presentation-components": "workspace:*",

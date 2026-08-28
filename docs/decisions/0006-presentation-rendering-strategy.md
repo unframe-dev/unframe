@@ -179,7 +179,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 この ADR は目標アーキテクチャを採用するものであり、すべてが現行コードへ実装済みであることを意味しない。
 
-2026-08-27 時点では、現行 Control Plane の PresentationDefinition は ADR-0005 の Group、Step、Cue、Element を中心とした JSON / OpenAPI 契約である。Target のSpatial Tree / Surface Treeとbaked-web RenderBundleは、初期subsetのJSON SchemaとTypeScript生成物のみ実装済みである。Semantic Authoring IR、Component package、完全版contract、DeliveryManifest、hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
+2026-08-28 時点では、現行 Control Plane の PresentationDefinition は ADR-0005 の Group、Step、Cue、Element を中心とした JSON / OpenAPI 契約である。Target の Spatial Tree / Surface Tree と baked-web RenderBundle は、Zod 4 source、生成 JSON Schema、初期 semantic Core、Authoring / Component / Renderer API / Assets、post-lowering Compiler、Structured renderer、Opaque source の Rolldown bundle、headless CLI と Bun / OpenTUI shell まで実装済みである。一方、Authoring TS / TSX は構文解析まで、Opaque renderer は bundle まで、TUI は command selection までであり、実 Browser execution / capture とは未接続である。完全版contract、DeliveryManifest、hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
 
 この ADR だけで既存 schema を置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI / Protobuf artifact、Web / Unity / Realtime consumer、contract test を同期する。
 

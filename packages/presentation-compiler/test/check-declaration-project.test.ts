@@ -93,6 +93,25 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("rejects accessor-backed project data without executing the accessor", () => {
+    let reads = 0;
+    const input = {
+      presentation: presentation(),
+      themes: [],
+      components: [],
+      assets: {},
+    };
+    Object.defineProperty(input, "themes", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        throw new Error("must not execute");
+      },
+    });
+    expect(codes(input)).toContain("compiler-invalid-input");
+    expect(reads).toBe(0);
+  });
+
   it("keeps malformed public envelopes and sparse arrays on the diagnostic boundary", () => {
     const sparse: string[] = [];
     sparse.length = 2;
@@ -465,6 +484,17 @@ describe("checkDeclarationProject", () => {
     const proto = JSON.parse(JSON.stringify(project())) as Record<string, unknown>;
     Object.defineProperty(proto, "__proto__", { value: { retained: true }, enumerable: true });
     expect(codes(proto)).toContain("compiler-invalid-project-field");
+
+    const customArray = project();
+    let customMapCalled = false;
+    Object.setPrototypeOf(customArray.themes, {
+      map: () => {
+        customMapCalled = true;
+        return [];
+      },
+    });
+    expect(codes(customArray)).toContain("compiler-invalid-input");
+    expect(customMapCalled).toBe(false);
   });
 
   it("rejects duplicate lowering identifiers and operations without component instances", () => {
@@ -622,6 +652,25 @@ describe("compileDeclarationProject", () => {
     });
     expect(checkDeclarationProject(project())).toEqual(before);
     expect(await compileDeclarationProject(project(), options())).toEqual(result);
+  });
+
+  it("rejects accessor-backed build options without invoking the accessor", async () => {
+    let accessed = false;
+    const hostile = options() as Record<string, unknown>;
+    Object.defineProperty(hostile, "compiler", {
+      enumerable: true,
+      get: () => {
+        accessed = true;
+        throw new Error("hostile");
+      },
+    });
+
+    const result = await compileDeclarationProject(project(), hostile);
+
+    expect(accessed).toBe(false);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map((item) => item.code)).toContain("compiler-invalid-options");
   });
 
   it("binds bundle identity to compiler and build context", async () => {

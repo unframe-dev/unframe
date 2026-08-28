@@ -3,7 +3,360 @@
   "$id": "https://contracts.unframe.dev/presentation/render-bundle.v1.schema.json",
   "title": "SerializedRenderBundleV1",
   "type": "object",
-  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "bundleId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "sourceHash": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "definitionHash": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "compiler": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "version": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "environmentHash": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "environmentHash"
+      ],
+      "additionalProperties": false
+    },
+    "buildContext": {
+      "type": "object",
+      "properties": {
+        "locale": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "timezone": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "colorScheme": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark"
+          ]
+        },
+        "themeId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "themeHash": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "locale",
+        "timezone",
+        "colorScheme",
+        "themeId",
+        "themeHash"
+      ],
+      "additionalProperties": false
+    },
+    "surfaces": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "semanticSurfaceId": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "logicalSize": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "physicalSizeMeters": {
+            "$ref": "#/$defs/__schema1"
+          },
+          "renderSurfaceIds": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "renderSurfaces": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "semanticSurfaceId": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "logicalBounds": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "layer": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "artifacts": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "baked-web"
+                      },
+                      "states": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "stateId": {
+                              "$ref": "#/$defs/__schema0"
+                            },
+                            "textures": {
+                              "minItems": 1,
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/$defs/__schema4"
+                              }
+                            }
+                          },
+                          "required": [
+                            "stateId",
+                            "textures"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "states"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "stateBindings": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "empty"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "artifacts"
+                          },
+                          "artifactIds": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/$defs/__schema0"
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "artifactIds"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "semanticSurfaceId",
+                "logicalBounds",
+                "layer",
+                "artifacts",
+                "stateBindings"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "semanticsByState": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "rootNodeIds": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "nodes": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "parentId": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "order": {
+                        "type": "number"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "heading",
+                          "paragraph",
+                          "image",
+                          "button",
+                          "table",
+                          "list",
+                          "listItem"
+                        ]
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "alt": {
+                        "type": "string"
+                      },
+                      "interactionId": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "parentId",
+                      "order",
+                      "role"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "rootNodeIds",
+                "nodes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "interactionsByState": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "interactionId": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "semanticNodeId": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "bounds": {
+                    "$ref": "#/$defs/__schema3"
+                  },
+                  "coordinateSpace": {
+                    "type": "string",
+                    "const": "normalized"
+                  },
+                  "event": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "priority": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "interactionId",
+                  "semanticNodeId",
+                  "bounds",
+                  "coordinateSpace",
+                  "event",
+                  "priority"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "required": [
+          "semanticSurfaceId",
+          "logicalSize",
+          "physicalSizeMeters",
+          "renderSurfaceIds",
+          "renderSurfaces",
+          "semanticsByState",
+          "interactionsByState"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
   "required": [
     "schemaVersion",
     "bundleId",
@@ -13,68 +366,83 @@
     "buildContext",
     "surfaces"
   ],
-  "properties": {
-    "schemaVersion": { "const": 1 },
-    "bundleId": { "$ref": "#/$defs/id" },
-    "sourceHash": { "$ref": "#/$defs/id" },
-    "definitionHash": { "$ref": "#/$defs/id" },
-    "compiler": { "$ref": "#/$defs/compiler" },
-    "buildContext": { "$ref": "#/$defs/buildContext" },
-    "surfaces": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": { "$ref": "#/$defs/compiledSurface" }
-    }
-  },
+  "additionalProperties": false,
   "$defs": {
-    "id": { "type": "string", "minLength": 1 },
-    "positive": { "type": "number", "exclusiveMinimum": 0 },
-    "vector2": {
+    "__schema0": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema1": {
       "type": "array",
       "prefixItems": [
-        { "$ref": "#/$defs/positive" },
-        { "$ref": "#/$defs/positive" }
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "$ref": "#/$defs/__schema2"
+        }
       ],
       "items": false,
       "minItems": 2,
       "maxItems": 2
     },
-    "compiler": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "version", "environmentHash"],
-      "properties": {
-        "name": { "$ref": "#/$defs/id" },
-        "version": { "$ref": "#/$defs/id" },
-        "environmentHash": { "$ref": "#/$defs/id" }
-      }
+    "__schema2": {
+      "type": "number",
+      "exclusiveMinimum": 0
     },
-    "buildContext": {
+    "__schema3": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["locale", "timezone", "colorScheme", "themeId", "themeHash"],
       "properties": {
-        "locale": { "$ref": "#/$defs/id" },
-        "timezone": { "$ref": "#/$defs/id" },
-        "colorScheme": { "enum": ["light", "dark"] },
-        "themeId": { "$ref": "#/$defs/id" },
-        "themeHash": { "$ref": "#/$defs/id" }
-      }
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "height": {
+          "$ref": "#/$defs/__schema2"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
     },
-    "bounds": {
+    "__schema4": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["x", "y", "width", "height"],
       "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "width": { "$ref": "#/$defs/positive" },
-        "height": { "$ref": "#/$defs/positive" }
-      }
-    },
-    "texture": {
-      "type": "object",
-      "additionalProperties": false,
+        "assetId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "mediaType": {
+          "type": "string",
+          "const": "image/png"
+        },
+        "pixelSize": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "checksum": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "colorSpace": {
+          "type": "string",
+          "const": "srgb"
+        },
+        "alphaMode": {
+          "type": "string",
+          "enum": [
+            "opaque",
+            "straight",
+            "premultiplied"
+          ]
+        }
+      },
       "required": [
         "assetId",
         "mediaType",
@@ -83,195 +451,7 @@
         "colorSpace",
         "alphaMode"
       ],
-      "properties": {
-        "assetId": { "$ref": "#/$defs/id" },
-        "mediaType": { "const": "image/png" },
-        "pixelSize": { "$ref": "#/$defs/vector2" },
-        "checksum": { "$ref": "#/$defs/id" },
-        "colorSpace": { "const": "srgb" },
-        "alphaMode": { "enum": ["opaque", "straight", "premultiplied"] }
-      }
-    },
-    "bakedArtifact": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "kind", "states"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "const": "baked-web" },
-        "states": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/bakedState" }
-        }
-      }
-    },
-    "bakedState": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["stateId", "textures"],
-      "properties": {
-        "stateId": { "$ref": "#/$defs/id" },
-        "textures": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/texture" }
-        }
-      }
-    },
-    "semanticNode": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "parentId", "order", "role"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
-        "order": { "type": "integer", "minimum": 0 },
-        "role": {
-          "enum": [
-            "heading",
-            "paragraph",
-            "image",
-            "button",
-            "table",
-            "list",
-            "listItem"
-          ]
-        },
-        "text": { "type": "string" },
-        "language": { "type": "string", "minLength": 1 },
-        "alt": { "type": "string" },
-        "interactionId": { "$ref": "#/$defs/id" }
-      }
-    },
-    "semanticTree": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["rootNodeIds", "nodes"],
-      "properties": {
-        "rootNodeIds": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/id" },
-          "uniqueItems": true
-        },
-        "nodes": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/semanticNode" }
-        }
-      }
-    },
-    "hitRegion": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "interactionId",
-        "semanticNodeId",
-        "bounds",
-        "coordinateSpace",
-        "event",
-        "priority"
-      ],
-      "properties": {
-        "interactionId": { "$ref": "#/$defs/id" },
-        "semanticNodeId": { "$ref": "#/$defs/id" },
-        "bounds": { "$ref": "#/$defs/bounds" },
-        "coordinateSpace": { "const": "normalized" },
-        "event": { "$ref": "#/$defs/id" },
-        "priority": { "type": "integer", "minimum": 0 }
-      }
-    },
-    "binding": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind"],
-          "properties": { "kind": { "const": "empty" } }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "artifactIds"],
-          "properties": {
-            "kind": { "const": "artifacts" },
-            "artifactIds": {
-              "type": "array",
-              "minItems": 1,
-              "items": { "$ref": "#/$defs/id" },
-              "uniqueItems": true
-            }
-          }
-        }
-      ]
-    },
-    "renderSurface": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "semanticSurfaceId",
-        "logicalBounds",
-        "layer",
-        "artifacts",
-        "stateBindings"
-      ],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "semanticSurfaceId": { "$ref": "#/$defs/id" },
-        "logicalBounds": { "$ref": "#/$defs/bounds" },
-        "layer": { "type": "integer", "minimum": 0 },
-        "artifacts": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/bakedArtifact" }
-        },
-        "stateBindings": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/binding" }
-        }
-      }
-    },
-    "compiledSurface": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "semanticSurfaceId",
-        "logicalSize",
-        "physicalSizeMeters",
-        "renderSurfaceIds",
-        "renderSurfaces",
-        "semanticsByState",
-        "interactionsByState"
-      ],
-      "properties": {
-        "semanticSurfaceId": { "$ref": "#/$defs/id" },
-        "logicalSize": { "$ref": "#/$defs/vector2" },
-        "physicalSizeMeters": { "$ref": "#/$defs/vector2" },
-        "renderSurfaceIds": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/id" },
-          "uniqueItems": true
-        },
-        "renderSurfaces": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/renderSurface" }
-        },
-        "semanticsByState": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/semanticTree" }
-        },
-        "interactionsByState": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/hitRegion" }
-          }
-        }
-      }
+      "additionalProperties": false
     }
   }
 }

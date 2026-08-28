@@ -570,6 +570,54 @@ describe("first-milestone plugin contract", () => {
     ).toMatchObject({ valid: false });
   });
 
+  it("prepare rejects interactions whose record key differs from interaction.id", () => {
+    const malformed = {
+      ...input,
+      surface: {
+        ...input.surface,
+        interactions: { tap: { id: "different-id", kind: "click", event: "advance" } },
+        states: {
+          "state-default": {
+            ...input.surface.states["state-default"],
+            enabledInteractionIds: ["tap"],
+          },
+        },
+      },
+    } as unknown as CompilerResolvedSurfaceInput;
+
+    expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
+  });
+
+  it("prepare rejects content-node cycles detached from the root frame", () => {
+    const malformed = {
+      ...input,
+      surface: {
+        ...input.surface,
+        contentNodes: {
+          ...input.surface.contentNodes,
+          "detached-a": {
+            id: "detached-a",
+            kind: "frame",
+            parentId: "detached-b",
+            order: 0,
+            layout: { kind: "absolute" },
+            children: ["detached-b"],
+          },
+          "detached-b": {
+            id: "detached-b",
+            kind: "frame",
+            parentId: "detached-a",
+            order: 0,
+            layout: { kind: "absolute" },
+            children: ["detached-a"],
+          },
+        },
+      },
+    } as unknown as CompilerResolvedSurfaceInput;
+
+    expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
+  });
+
   it("RGBA output の偽装 brand と iterator を実行せず拒否する", async () => {
     let iteratorCalls = 0;
     const bytes = new Uint8ClampedArray(8);
@@ -650,6 +698,34 @@ describe("first-milestone plugin contract", () => {
       if (!result.valid)
         expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
     }
+  });
+
+  it("Zod boundary は build output の accessor と未知 field を実行せず拒否する", async () => {
+    let accessorReads = 0;
+    const hostileOutput = defineRendererPlugin({
+      ...goodPlugin,
+      build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
+        const result = successfulResult(value);
+        if (!result.ok) return result;
+        return Object.defineProperties(
+          { ...result, unexpected: true },
+          {
+            captures: {
+              get() {
+                accessorReads++;
+                throw new Error("renderer boundary must not execute accessors");
+              },
+            },
+          },
+        ) as RendererBuildResult;
+      },
+    });
+
+    const result = await runRendererConformance(hostileOutput, [fixture()]);
+    expect(accessorReads).toBe(0);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
   });
 
   it("固定した method の mutable call property を参照しない", async () => {

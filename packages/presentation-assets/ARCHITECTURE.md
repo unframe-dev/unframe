@@ -64,6 +64,8 @@ declared input + transform request + toolchain provenance
 
 `presentation-assets` は artifact descriptor と diagnostic の型に限って `presentation-core` へ依存できる。Renderer API、Compiler、concrete renderer、Control Plane へ依存しない。
 
+入力 request、limit、pixel size、color space、alpha mode は Zod 4 schema で検証する。schema に渡す前に request を一度 snapshot し、hostile property access は stable diagnostic へ変換する。PNG plan の byte arithmetic、absolute / caller budget、RGBA length、opaque alpha byte列の走査は format 固有の algorithmic invariant なので手書きで保持する。
+
 外部 executable / codec を adapter 内に閉じ込め、public model や Core に process-specific 型を露出しない。
 
 ## 7. Validation strategy
