@@ -22,14 +22,16 @@ type ProjectSourceDiagnostic = {
   readonly typescriptCode?: number;
 };
 
+export type ParsedAuthoringProjectValue = {
+  readonly projectRoot: string;
+  readonly entryFile: string;
+  readonly files: Readonly<Record<string, ts.SourceFile>>;
+};
+
 export type ParsedAuthoringProject =
   | {
       readonly ok: true;
-      readonly value: {
-        readonly projectRoot: string;
-        readonly entryFile: string;
-        readonly files: Readonly<Record<string, ts.SourceFile>>;
-      };
+      readonly value: ParsedAuthoringProjectValue;
       readonly diagnostics: [];
     }
   | { readonly ok: false; readonly diagnostics: readonly ProjectSourceDiagnostic[] };
