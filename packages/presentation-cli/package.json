@@ -11,7 +11,7 @@
     "tui": "bun src/tui/main.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test test-bun",
-    "test": "vitest run",
+    "test": "vp test run",
     "test:tui": "bun test ./test-bun/tui-render.test.bun.tsx",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:tui"
   },
