@@ -1,6 +1,13 @@
 import { rolldown, type RolldownBuild, type RolldownOutput } from "rolldown";
 
-export type OpaqueRendererModuleType = "asset" | "css" | "js" | "jsx" | "json" | "ts" | "tsx";
+import {
+  extensionOf,
+  opaqueRendererBundleInputSchema,
+  type OpaqueRendererModuleType,
+} from "./input-schema.js";
+import { snapshotDenseArray, snapshotStrictRecord } from "../validation/safe-data.js";
+
+export type { OpaqueRendererModuleType } from "./input-schema.js";
 
 export type OpaqueRendererModule = {
   readonly path: string;
@@ -44,29 +51,6 @@ const RUNTIME_SPECIFIER = "@unframe/renderer-runtime";
 const RUNTIME_SOURCE = "export const defineOpaqueRenderer = (renderer) => renderer;";
 const externalImports = new Set(["react", "react/jsx-runtime"]);
 const sourceExtensions = [".ts", ".tsx", ".js", ".jsx", ".json", ".css"] as const;
-const assetExtensions = new Set([
-  ".avif",
-  ".gif",
-  ".jpeg",
-  ".jpg",
-  ".png",
-  ".svg",
-  ".webp",
-  ".woff",
-  ".woff2",
-]);
-const sourceTypeExtensions: Record<
-  Exclude<OpaqueRendererModuleType, "asset">,
-  readonly string[]
-> = {
-  css: [".css"],
-  js: [".js"],
-  jsx: [".jsx"],
-  json: [".json"],
-  ts: [".ts"],
-  tsx: [".tsx"],
-};
-const deniedConfigPattern = /(?:^|\/)(?:postcss|rolldown|tailwind|vite)\.config\.[^/]+$/;
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
 const failure = (
@@ -75,101 +59,44 @@ const failure = (
   message: string,
 ): OpaqueRendererBundleResult => ({ ok: false, diagnostics: [{ code, path, message }] });
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  Object.getPrototypeOf(value) === Object.prototype;
-
-const ownData = (
-  value: unknown,
-  expectedKeys: readonly string[],
-): Record<string, unknown> | undefined => {
-  if (!isPlainRecord(value) || Object.getOwnPropertySymbols(value).length !== 0) return undefined;
-  const descriptors = Object.getOwnPropertyDescriptors(value);
-  const keys = Object.keys(descriptors).sort();
-  if (keys.length !== expectedKeys.length || keys.some((key, index) => key !== expectedKeys[index]))
-    return undefined;
-  if (expectedKeys.some((key) => descriptors[key]?.get || descriptors[key]?.set)) return undefined;
-  return Object.fromEntries(expectedKeys.map((key) => [key, descriptors[key]?.value]));
-};
-
-const extensionOf = (path: string) => {
-  const fileName = path.slice(path.lastIndexOf("/") + 1);
-  const index = fileName.lastIndexOf(".");
-  return index < 0 ? "" : fileName.slice(index).toLowerCase();
-};
-
-const validModulePath = (path: string) =>
-  path.length > 0 &&
-  !path.startsWith("/") &&
-  !path.includes("\\") &&
-  !path.includes(":") &&
-  !path.includes("?") &&
-  !path.includes("#") &&
-  !deniedConfigPattern.test(path) &&
-  path
-    .split("/")
-    .every(
-      (segment) =>
-        segment.length > 0 && segment !== "." && segment !== ".." && segment !== "node_modules",
-    );
-
-const validModuleType = (path: string, moduleType: OpaqueRendererModuleType) => {
-  const extension = extensionOf(path);
-  return moduleType === "asset"
-    ? assetExtensions.has(extension)
-    : sourceTypeExtensions[moduleType].includes(extension);
-};
-
 const snapshotInputUnchecked = (
   input: unknown,
-): { entry: string; modules: ReadonlyMap<string, ModuleSnapshot> } | undefined => {
-  const record = ownData(input, ["entry", "modules"]);
-  if (!record || typeof record.entry !== "string" || !Array.isArray(record.modules))
-    return undefined;
-  const moduleValues = record.modules;
-  if (
-    Object.keys(moduleValues).length !== moduleValues.length ||
-    [...Array(moduleValues.length).keys()].some((index) => !Object.hasOwn(moduleValues, index))
-  )
-    return undefined;
-
+):
+  | { ok: true; value: { entry: string; modules: ReadonlyMap<string, ModuleSnapshot> } }
+  | { ok: false; path: readonly string[] } => {
+  const record = snapshotStrictRecord(input, ["entry", "modules"]);
+  if (!record) return { ok: false, path: [] };
+  const moduleValues = snapshotDenseArray(record.modules);
+  if (!moduleValues) return { ok: false, path: ["modules"] };
+  const safeModules: Record<string, unknown>[] = [];
+  for (const [index, value] of moduleValues.entries()) {
+    const item = snapshotStrictRecord(value, ["moduleType", "path", "source"]);
+    if (!item) return { ok: false, path: ["modules", String(index)] };
+    safeModules.push(item);
+  }
+  const parsed = opaqueRendererBundleInputSchema.safeParse({
+    entry: record.entry,
+    modules: safeModules,
+  });
+  if (!parsed.success)
+    return {
+      ok: false,
+      path: parsed.error.issues[0]?.path.map(String) ?? [],
+    };
   const modules = new Map<string, ModuleSnapshot>();
-  for (const value of moduleValues) {
-    const item = ownData(value, ["moduleType", "path", "source"]);
-    if (
-      !item ||
-      typeof item.path !== "string" ||
-      typeof item.source !== "string" ||
-      (item.moduleType !== "asset" &&
-        item.moduleType !== "css" &&
-        item.moduleType !== "js" &&
-        item.moduleType !== "jsx" &&
-        item.moduleType !== "json" &&
-        item.moduleType !== "ts" &&
-        item.moduleType !== "tsx") ||
-      !validModulePath(item.path) ||
-      !validModuleType(item.path, item.moduleType) ||
-      modules.has(item.path)
-    )
-      return undefined;
+  for (const item of parsed.data.modules)
     modules.set(
       item.path,
       Object.freeze({ path: item.path, source: item.source, moduleType: item.moduleType }),
     );
-  }
-  if (!validModulePath(record.entry) || !modules.has(record.entry)) return undefined;
-  const entry = modules.get(record.entry);
-  if (!entry || entry.moduleType === "asset" || entry.moduleType === "css") return undefined;
-  return { entry: record.entry, modules };
+  return { ok: true, value: { entry: parsed.data.entry, modules } };
 };
 
 const snapshotInput = (input: unknown) => {
   try {
     return snapshotInputUnchecked(input);
   } catch {
-    return undefined;
+    return { ok: false as const, path: [] };
   }
 };
 
@@ -267,13 +194,14 @@ const resultFromOutput = (output: RolldownOutput): OpaqueRendererBundleResult =>
 };
 
 export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRendererBundleResult> => {
-  const snapshot = snapshotInput(input);
-  if (!snapshot)
+  const snapshotResult = snapshotInput(input);
+  if (!snapshotResult.ok)
     return failure(
       "opaque-bundle-input-invalid",
-      [],
+      snapshotResult.path,
       "Opaque bundle input must be a locked TS/TSX/JS/JSX/JSON/CSS/asset module set.",
     );
+  const snapshot = snapshotResult.value;
   const cssFailure = invalidCssReference(snapshot);
   if (cssFailure) return { ok: false, diagnostics: [cssFailure] };
 

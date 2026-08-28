@@ -106,13 +106,13 @@ Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Pr
 
 ## 6. Dependency rules
 
-`presentation-renderer-web` は `presentation-renderer-api`、hash utility、固定versionの`rolldown`にだけ直接依存する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
+`presentation-renderer-web` は `presentation-renderer-api`、hash utility、Zod 4、固定versionの`rolldown`にだけ直接依存する。ZodはOpaque locked module input、renderer config、Browser identity / environment、capture metadataのruntime validationを所有する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
 
 ## 7. Isolation boundary
 
 ### Current
 
-Adapter の own data descriptor を snapshot し、capture 参照・identity・environment の後続 mutation や accessor を build input に混入させない。
+Adapter とOpaque bundle inputのown data descriptorをproperty value accessなしでsnapshotし、後続mutationやaccessorをbuild inputに混入させない。hostile objectをZodへ直接渡さず、descriptor検査から再構築したplain-data snapshotだけを渡すことで、Zodのproperty readによるgetter実行を防ぐ。Zodはsnapshot後のstrict object、tuple、enum、文字列制約、module path / type整合、entry / module集合の関係を検証する。
 
 ### Target / Deferred
 
@@ -126,7 +126,8 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 - Renderer API conformance、fixed adapter / config / environment / fingerprint の境界テスト
 - HTML/CSS golden、state order、capture ownership、hostile output / direct build input の回帰テスト
-- Opaque module/asset bundleとcapability denyの境界テスト
+- Zod schemaによるconfig / environment / capture metadataとOpaque module inputのvalidation test
+- Opaque module/asset bundle、field path diagnostic、accessor非実行、capability denyの境界テスト
 
 ### Target
 

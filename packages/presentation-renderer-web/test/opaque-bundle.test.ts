@@ -126,6 +126,42 @@ describe("bundleOpaqueRenderer", () => {
     });
   });
 
+  it("reports the invalid field path from schema validation", async () => {
+    await expect(
+      bundleOpaqueRenderer({
+        entry: "renderer.ts",
+        modules: [module("renderer.ts", "export default {};", "css")],
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      diagnostics: [
+        {
+          code: "opaque-bundle-input-invalid",
+          path: ["modules", "0", "moduleType"],
+        },
+      ],
+    });
+  });
+
+  it("does not execute accessors before schema validation", async () => {
+    let reads = 0;
+    const modules: unknown[] = [];
+    Object.defineProperty(modules, "0", {
+      enumerable: true,
+      get() {
+        reads++;
+        return module("renderer.ts", "export default {};");
+      },
+    });
+    modules.length = 1;
+
+    await expect(bundleOpaqueRenderer({ entry: "renderer.ts", modules })).resolves.toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "opaque-bundle-input-invalid" }],
+    });
+    expect(reads).toBe(0);
+  });
+
   it("does not accept runtime plugin injection or configuration module types", async () => {
     await expect(
       bundleOpaqueRenderer({

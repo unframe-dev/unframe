@@ -13,6 +13,14 @@ import {
   type RendererSupportRequest,
 } from "@unframe/presentation-renderer-api";
 
+import { snapshotDenseArray, snapshotStrictRecord } from "./validation/safe-data.js";
+import {
+  adapterIdentitySchema,
+  browserCaptureSchema,
+  fixedBrowserEnvironmentSchema,
+  webRendererConfigSchema,
+} from "./validation/schemas.js";
+
 export {
   bundleOpaqueRenderer,
   type OpaqueBundleDiagnostic,
@@ -136,27 +144,6 @@ const copyRgba = (value: unknown): Uint8Array | undefined => {
   }
 };
 
-const ownDataRecord = (
-  value: unknown,
-  keys: readonly string[],
-): Record<string, unknown> | undefined => {
-  try {
-    if (!isRecord(value) || Object.getPrototypeOf(value) !== Object.prototype) return undefined;
-    if (Object.getOwnPropertySymbols(value).length > 0) return undefined;
-    const actualKeys = Object.keys(value).sort(compare);
-    if (actualKeys.length !== keys.length || actualKeys.some((key, index) => key !== keys[index]))
-      return undefined;
-    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
-    if (
-      keys.some((key) => descriptors[key]?.get !== undefined || descriptors[key]?.set !== undefined)
-    )
-      return undefined;
-    return Object.fromEntries(keys.map((key) => [key, descriptors[key]?.value]));
-  } catch {
-    return undefined;
-  }
-};
-
 const environmentKeys = [
   "browser",
   "clock",
@@ -174,16 +161,10 @@ const adapterIdentityKeys = ["id", "implementationHash"] as const;
 const snapshotAdapterIdentity = (
   identity: unknown,
 ): Readonly<FixedBrowserAdapter["identity"]> | undefined => {
-  const record = ownDataRecord(identity, adapterIdentityKeys);
-  if (
-    !record ||
-    typeof record.id !== "string" ||
-    record.id.length === 0 ||
-    typeof record.implementationHash !== "string" ||
-    record.implementationHash.length === 0
-  )
-    return undefined;
-  return Object.freeze({ id: record.id, implementationHash: record.implementationHash });
+  const record = snapshotStrictRecord(identity, adapterIdentityKeys);
+  if (!record) return undefined;
+  const parsed = adapterIdentitySchema.safeParse(record);
+  return parsed.success ? Object.freeze(parsed.data) : undefined;
 };
 
 const normalizedEnvironment = (environment: FixedBrowserEnvironment) => ({
@@ -203,84 +184,26 @@ const normalizedEnvironment = (environment: FixedBrowserEnvironment) => ({
 });
 
 const snapshotEnvironment = (value: unknown): FixedBrowserEnvironment | undefined => {
-  const record = ownDataRecord(value, environmentKeys);
-  const browser = record && ownDataRecord(record.browser, browserKeys);
-  if (
-    !record ||
-    !browser ||
-    ![browser.id, browser.version, browser.fontFingerprint, record.locale, record.timezone].every(
-      (item) => typeof item === "string" && item.length > 0,
-    ) ||
-    record.colorSpace !== "srgb" ||
-    record.deviceScaleFactor !== 1 ||
-    record.network !== "deny" ||
-    record.filesystem !== "deny" ||
-    record.clock !== "fixed" ||
-    record.random !== "fixed"
-  )
-    return undefined;
+  const record = snapshotStrictRecord(value, environmentKeys);
+  const browser = record && snapshotStrictRecord(record.browser, browserKeys);
+  if (!record || !browser) return undefined;
+  const parsed = fixedBrowserEnvironmentSchema.safeParse({ ...record, browser });
+  if (!parsed.success) return undefined;
   return Object.freeze({
-    browser: Object.freeze({
-      id: browser.id as string,
-      version: browser.version as string,
-      fontFingerprint: browser.fontFingerprint as string,
-    }),
-    locale: record.locale as string,
-    timezone: record.timezone as string,
-    colorSpace: "srgb",
-    deviceScaleFactor: 1,
-    network: "deny",
-    filesystem: "deny",
-    clock: "fixed",
-    random: "fixed",
+    ...parsed.data,
+    browser: Object.freeze(parsed.data.browser),
   });
-};
-
-const snapshotDenseDataArray = (value: unknown, length: number): readonly unknown[] | undefined => {
-  try {
-    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return undefined;
-    if (Object.getOwnPropertySymbols(value).length !== 0) return undefined;
-    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
-    const lengthDescriptor = descriptors["length"] as unknown as PropertyDescriptor | undefined;
-    const expectedKeys = Array.from({ length }, (_, index) => String(index));
-    const actualKeys = Object.keys(descriptors);
-    if (
-      actualKeys.length !== expectedKeys.length + 1 ||
-      actualKeys.slice(0, length).some((key, index) => key !== expectedKeys[index]) ||
-      actualKeys[length] !== "length"
-    )
-      return undefined;
-    if (
-      lengthDescriptor?.value !== length ||
-      expectedKeys.some((key) => {
-        const descriptor = descriptors[key];
-        return !descriptor || descriptor.get !== undefined || descriptor.set !== undefined;
-      })
-    )
-      return undefined;
-    return expectedKeys.map((key) => descriptors[key]?.value);
-  } catch {
-    return undefined;
-  }
 };
 
 const snapshotConfig = (config: unknown): WebRendererConfig | undefined => {
-  const record = ownDataRecord(config, ["documentBackground", "fontFamily"]);
-  const values = record && snapshotDenseDataArray(record.documentBackground, 4);
+  const record = snapshotStrictRecord(config, ["documentBackground", "fontFamily"]);
+  const values = record && snapshotDenseArray(record.documentBackground, 4);
   if (!record || !values) return undefined;
-  const fontFamily = typeof record.fontFamily === "string" ? record.fontFamily.trim() : "";
-  if (
-    !values.every(
-      (item) => typeof item === "number" && Number.isSafeInteger(item) && item >= 0 && item <= 255,
-    ) ||
-    !fontFamily ||
-    !/^[A-Za-z0-9 _-]+$/.test(fontFamily)
-  )
-    return undefined;
-  return frozenConfig({
-    documentBackground: values as [number, number, number, number],
-    fontFamily,
+  const parsed = webRendererConfigSchema.safeParse({
+    documentBackground: values,
+    fontFamily: record.fontFamily,
   });
+  return parsed.success ? frozenConfig(parsed.data) : undefined;
 };
 
 const configHashFromSnapshot = (config: WebRendererConfig): string =>
@@ -457,29 +380,30 @@ const snapshotCapture = (
   value: unknown,
   pixelTarget: readonly [number, number],
 ): BrowserRgbaCapture | undefined => {
-  const record = ownDataRecord(value, ["alphaMode", "colorSpace", "pixelSize", "rgba"]);
-  const pixelSize = record && snapshotDenseDataArray(record.pixelSize, 2);
+  const record = snapshotStrictRecord(value, ["alphaMode", "colorSpace", "pixelSize", "rgba"]);
+  const pixelSize = record && snapshotDenseArray(record.pixelSize, 2);
   const rgba = record && copyRgba(record.rgba);
   if (!record || !pixelSize || !rgba) return undefined;
-  const [width, height] = pixelSize;
+  const parsed = browserCaptureSchema.safeParse({ ...record, pixelSize, rgba });
+  if (!parsed.success) return undefined;
+  const [width, height] = parsed.data.pixelSize;
   if (
     width !== pixelTarget[0] ||
     height !== pixelTarget[1] ||
     rgba.byteLength !== pixelTarget[0] * pixelTarget[1] * 4 ||
-    record.colorSpace !== "srgb" ||
-    (record.alphaMode !== "opaque" && record.alphaMode !== "straight")
+    parsed.data.colorSpace !== "srgb"
   )
     return undefined;
   if (
-    record.alphaMode === "opaque" &&
+    parsed.data.alphaMode === "opaque" &&
     rgba.some((_, index) => index % 4 === 3 && rgba[index] !== 255)
   )
     return undefined;
   return {
     rgba,
-    pixelSize: [width as number, height as number],
+    pixelSize: [width, height],
     colorSpace: "srgb",
-    alphaMode: record.alphaMode,
+    alphaMode: parsed.data.alphaMode,
   };
 };
 
@@ -487,7 +411,7 @@ export const createBakedWebRenderer = ({
   adapter,
   config,
 }: CreateBakedWebRendererOptions): RendererPlugin => {
-  const initialAdapter = ownDataRecord(adapter, ["capture", "environment", "identity"]);
+  const initialAdapter = snapshotStrictRecord(adapter, ["capture", "environment", "identity"]);
   const fixedCapture =
     typeof initialAdapter?.capture === "function" ? initialAdapter.capture : undefined;
   const environment = snapshotEnvironment(initialAdapter?.environment);
