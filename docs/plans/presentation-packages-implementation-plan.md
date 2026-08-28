@@ -153,6 +153,25 @@ contracts
 - `build` は一時 staging directory へ完全な artifact set を生成し、成功時だけ atomic に置き換える。
 - signal、Browser cleanup、失敗時の partial output 非公開を検証する。
 
+### 5.5 実装進捗と未決定事項
+
+2026-08-29 時点で、Compiler source frontend のうち次を実装済みである。
+
+- logical project root と root-relative TS / TSX / declaration file の safe snapshot、syntax diagnostic
+- locked virtual package の identity、file、exact export、direct dependency 検証
+- project / package owner ごとの relative import と direct locked package resolution
+- virtual-only strict ES2022 typecheck と owner-aware stable diagnostic
+- TypeChecker alias、package identity、exact export、declaration owner に基づく named value symbol provenance
+
+次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
+
+- Static DSL の完全な許可構文、composition root の entry export、TSX / JSX lowering
+- serialized `unframe.lock` と Component package distribution / integrity algorithm
+- Fixed Browser の process / isolate、binary provisioning、font baseline
+- real filesystem の project discovery、config loader、staging / atomic replacement strategy
+
+これらに依存しない trust boundary、diagnostic、documentation、review は継続する。Milestone 1 の checklist は、Source から実 Browser artifact までの完了条件を満たすまで未完了のままとする。
+
 ### 完了条件
 
 - reference `.unframe.tsx` から CLI で Definition、RenderBundle、PNG を生成できる。

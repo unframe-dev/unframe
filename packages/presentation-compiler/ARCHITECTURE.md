@@ -63,7 +63,9 @@ src/
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
-TS/TSX parser は構文解析の前に Zod 4 で file name / source text input を検査し、source diagnosticまで実装済みである。module / symbol resolution、typecheck、AST lowering、cache、CLI は未実装である。
+Source frontend は、明示的な logical project root、root-relative TS / TSX / declaration file、locked virtual package を descriptor-safe に snapshot する。TypeScript Compiler API は virtual source だけを読み、project 内 relative import、package 内 relative import、direct locked dependency、exact package export を解決する。実 filesystem、`node_modules`、`ts.sys` へ fallback しない。
+
+typecheck は strict ES2022、`noLib` で実行し、project root から到達しない package の ambient declaration を semantic program へ混入させない。一方、lock graph 全体の module specifier は preflight し、不正な dependency / export を owner-aware source diagnostic として拒否する。named value import は TypeChecker alias と package identity / export / declaration owner を照合し、plain-data symbol provenance を生成できる。Static DSL validation、AST lowering、normalization、cache、Source frontend の public API 接続は未実装である。
 
 ## 5. Public API
 
@@ -114,7 +116,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 
 ## 10. Deferred decisions
 
-- TypeScript module / symbol resolution、typecheck、AST lowering
+- Static DSL の完全な許可構文、entry export、TSX / JSX lowering
 - plugin discovery と version negotiation
 - Surface partition algorithm と author override
 - cache layout と remote cache policy
