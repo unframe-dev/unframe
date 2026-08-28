@@ -57,7 +57,67 @@ describe("parseAuthoringSource", () => {
         {
           code: "compiler-source-kind-unsupported",
           fileName: "presentation.unframe.js",
-          message: "Authoring source must use a .ts or .tsx file name.",
+          message: "Authoring source must use a .ts, .tsx, or .d.ts file name.",
+          start: 0,
+          length: 0,
+          line: 1,
+          column: 1,
+        },
+      ],
+    });
+  });
+
+  it("rejects accessor and proxy source input without executing traps", () => {
+    let reads = 0;
+    const accessorInput = { fileName: "presentation.ts", sourceText: "export {};" };
+    Object.defineProperty(accessorInput, "sourceText", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        throw new Error("must not run");
+      },
+    });
+    const proxyInput = new Proxy(
+      { fileName: "presentation.ts", sourceText: "export {};" },
+      {
+        ownKeys() {
+          throw new Error("must not run");
+        },
+      },
+    );
+
+    for (const input of [accessorInput, proxyInput])
+      expect(parseAuthoringSource(input)).toEqual({
+        ok: false,
+        diagnostics: [
+          {
+            code: "compiler-invalid-input",
+            fileName: "",
+            message: "Authoring source input cannot be inspected safely.",
+            start: 0,
+            length: 0,
+            line: 1,
+            column: 1,
+          },
+        ],
+      });
+    expect(reads).toBe(0);
+  });
+
+  it("rejects own prototype-shaped unknown source fields", () => {
+    const input = { fileName: "presentation.ts", sourceText: "export {};" } as Record<
+      string,
+      unknown
+    >;
+    Object.defineProperty(input, "__proto__", { value: {}, enumerable: true });
+
+    expect(parseAuthoringSource(input)).toEqual({
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-source-kind-unsupported",
+          fileName: "",
+          message: "Authoring source input must contain a file name and source text.",
           start: 0,
           length: 0,
           line: 1,

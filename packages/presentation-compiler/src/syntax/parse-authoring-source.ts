@@ -1,13 +1,18 @@
 import * as ts from "typescript";
 import { z } from "zod";
 
+import { safePlainClone } from "../validation/safe-plain-clone.js";
+
 export type AuthoringSourceInput = {
   readonly fileName: string;
   readonly sourceText: string;
 };
 
 export type AuthoringSourceDiagnostic = {
-  readonly code: "compiler-source-kind-unsupported" | "compiler-source-syntax-error";
+  readonly code:
+    | "compiler-invalid-input"
+    | "compiler-source-kind-unsupported"
+    | "compiler-source-syntax-error";
   readonly fileName: string;
   readonly message: string;
   readonly start: number;
@@ -23,7 +28,7 @@ export type ParsedAuthoringSource =
 
 const scriptKindFor = (fileName: string) => {
   if (fileName.endsWith(".tsx")) return ts.ScriptKind.TSX;
-  if (fileName.endsWith(".ts")) return ts.ScriptKind.TS;
+  if (fileName.endsWith(".ts") || fileName.endsWith(".d.ts")) return ts.ScriptKind.TS;
   return undefined;
 };
 
@@ -49,8 +54,46 @@ const authoringSourceInputSchema = z
   .object({ fileName: z.string(), sourceText: z.string() })
   .strict();
 
-export const parseAuthoringSource = (input: AuthoringSourceInput): ParsedAuthoringSource => {
-  const parsedInput = authoringSourceInputSchema.safeParse(input);
+const hasAuthoringSourceKeys = (value: unknown) =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  Object.keys(value).length === 2 &&
+  Object.keys(value).every((key) => key === "fileName" || key === "sourceText");
+
+export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
+  const snapshot = safePlainClone(input);
+  if (!snapshot.valid)
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-invalid-input",
+          fileName: "",
+          message: "Authoring source input cannot be inspected safely.",
+          start: 0,
+          length: 0,
+          line: 1,
+          column: 1,
+        },
+      ],
+    };
+  if (!hasAuthoringSourceKeys(snapshot.value))
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-source-kind-unsupported",
+          fileName: "",
+          message: "Authoring source input must contain a file name and source text.",
+          start: 0,
+          length: 0,
+          line: 1,
+          column: 1,
+        },
+      ],
+    };
+  const parsedInput = authoringSourceInputSchema.safeParse(snapshot.value);
   if (!parsedInput.success)
     return {
       ok: false,
@@ -75,7 +118,7 @@ export const parseAuthoringSource = (input: AuthoringSourceInput): ParsedAuthori
         {
           code: "compiler-source-kind-unsupported",
           fileName,
-          message: "Authoring source must use a .ts or .tsx file name.",
+          message: "Authoring source must use a .ts, .tsx, or .d.ts file name.",
           start: 0,
           length: 0,
           line: 1,
