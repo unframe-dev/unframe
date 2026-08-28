@@ -1,5 +1,9 @@
 {
   "extends": "../config/tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "noPropertyAccessFromIndexSignature": false },
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false
+  },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

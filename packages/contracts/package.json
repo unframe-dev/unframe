@@ -14,13 +14,14 @@
     "check:presentation": "tsx scripts/generate-presentation.ts --check",
     "test:presentation": "tsx test/presentation.contract.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "vp check src/presentation scripts/generate-presentation.ts test/presentation.contract.test.ts test/presentation.type-test.ts",
+    "lint": "vp check src/presentation scripts test",
     "check": "pnpm check:control-plane && pnpm check:presentation && pnpm typecheck && pnpm test:presentation && pnpm lint"
   },
   "dependencies": {
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20260825.1",
     "@types/node": "^24.0.0",
     "ajv": "8.17.1",
     "openapi-typescript": "^7.12.0",

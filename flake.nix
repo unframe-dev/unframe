@@ -33,6 +33,7 @@
           pkgs.dotnet-sdk_8
           pkgs.powershell
           pkgs.git
+          pkgs.git-lfs
           pkgs.coreutils
           pkgs.bash
         ];

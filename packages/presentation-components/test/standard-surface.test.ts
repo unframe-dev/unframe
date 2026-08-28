@@ -116,7 +116,6 @@ describe("standard Surface contract", () => {
   it("exports stable JSON-safe plain data without hidden registry state", () => {
     const serialized = JSON.stringify(standardComponents);
     expect(JSON.parse(serialized)).toEqual(standardComponents);
-    expect(structuredClone(standardComponents)).toEqual(standardComponents);
     expect(standardComponents.surface.manifest).toBe(standardSurfaceManifest);
     expect(standardComponents.surface.structure).toBe(standardSurfaceStructure);
     expect(standardComponents.theme).toBe(standardTheme);

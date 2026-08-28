@@ -3,6 +3,7 @@
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
+    "lib": ["ES2022", "DOM"],
     "noEmit": true,
     "noPropertyAccessFromIndexSignature": false
   },

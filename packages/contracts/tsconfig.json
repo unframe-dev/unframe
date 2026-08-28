@@ -1,12 +1,8 @@
 {
   "extends": "../config/tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node", "@cloudflare/workers-types"]
   },
-  "include": [
-    "scripts/generate-presentation.ts",
-    "src/presentation.schema.ts",
-    "test/presentation.contract.test.ts",
-    "test/presentation.type-test.ts"
-  ]
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
 }

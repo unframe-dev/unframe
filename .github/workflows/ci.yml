@@ -54,7 +54,7 @@ jobs:
             shared: &shared
               - 'flake.nix'
               - 'flake.lock'
-              - 'scripts/lib/**'
+              - 'scripts/**'
               - '.github/workflows/ci.yml'
             js-shared: &js-shared
               - 'pnpm-lock.yaml'
@@ -90,6 +90,7 @@ jobs:
               - '.github/workflows/presentation.yml'
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'
+              - 'packages/api-client-csharp/**'
               - 'packages/presentation-*/**'
             lp:
               - *shared

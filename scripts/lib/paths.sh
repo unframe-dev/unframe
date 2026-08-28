@@ -18,6 +18,8 @@ export LP_DIR="${REPO_ROOT}/lp"
 export LP_FILTER="@unframe/site"
 # packages/contracts (future API / protocol boundaries)
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
+# packages/config (shared TypeScript and repository tooling configuration)
+export CONFIG_FILTER="@unframe/config"
 # packages/presentation-authoring (public SDK name: @unframe/presentation)
 export PRESENTATION_AUTHORING_FILTER="@unframe/presentation"
 # packages/presentation-* (Presentation build pipeline packages)

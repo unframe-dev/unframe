@@ -15,7 +15,8 @@ case "${mode}" in
       "${REPO_ROOT}"/packages/presentation-*
     ;;
   check)
-    log "presentation(check): package checks"
+    log "presentation(check): shared config / package checks"
+    pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_AUTHORING_FILTER}" \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
