@@ -3,7 +3,12 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 
-import { presentationDefinitionSchema, renderBundleSchema } from "../src/presentation.schema";
+import {
+  presentationDefinitionJsonSchema,
+  presentationDefinitionSchema,
+  renderBundleJsonSchema,
+  renderBundleSchema,
+} from "../src/presentation/index";
 
 const root = resolve(import.meta.dirname, "..");
 const fixture = async (name: string) =>
@@ -14,8 +19,8 @@ const ajv = new Ajv2020({
   strict: true,
   allowUnionTypes: true,
 });
-const validateDefinition = ajv.compile(presentationDefinitionSchema);
-const validateBundle = ajv.compile(renderBundleSchema);
+const validateDefinition = ajv.compile(presentationDefinitionJsonSchema);
+const validateBundle = ajv.compile(renderBundleJsonSchema);
 
 const minimalDefinition = await fixture("minimal.presentation-definition.v1.json");
 const minimalBundle = await fixture("minimal.render-bundle.v1.json");
@@ -26,14 +31,18 @@ assert.equal(
   ajv.errorsText(validateDefinition.errors),
 );
 assert.equal(validateBundle(minimalBundle), true, ajv.errorsText(validateBundle.errors));
+assert.equal(presentationDefinitionSchema.safeParse(minimalDefinition).success, true);
+assert.equal(renderBundleSchema.safeParse(minimalBundle).success, true);
 
 const invalidSchemaVersion = structuredClone(minimalDefinition);
 invalidSchemaVersion.schemaVersion = 2;
 assert.equal(validateDefinition(invalidSchemaVersion), false, "schemaVersion must be fixed");
+assert.equal(presentationDefinitionSchema.safeParse(invalidSchemaVersion).success, false);
 
 const invalidMetadata = structuredClone(minimalDefinition);
 invalidMetadata.metadata.extra = true;
 assert.equal(validateDefinition(invalidMetadata), false, "metadata must reject unknown properties");
+assert.equal(presentationDefinitionSchema.safeParse(invalidMetadata).success, false);
 
 const invalidTopLevel = structuredClone(minimalDefinition);
 invalidTopLevel.extra = true;
@@ -42,6 +51,7 @@ assert.equal(
   false,
   "the definition must reject unknown top-level properties",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidTopLevel).success, false);
 
 const invalidCoordinateSystem = structuredClone(minimalDefinition);
 invalidCoordinateSystem.stage.coordinateSystem.forwardAxis = "+Z";
@@ -50,6 +60,7 @@ assert.equal(
   false,
   "coordinate system must be canonical",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidCoordinateSystem).success, false);
 
 const invalidAudience = structuredClone(minimalDefinition);
 invalidAudience.scene.nodes["surface-node-title"].audience = "all";
@@ -58,6 +69,7 @@ assert.equal(
   false,
   "audience must use the discriminated record",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidAudience).success, false);
 
 const invalidTransform = structuredClone(minimalDefinition);
 invalidTransform.scene.nodes["surface-node-title"].transform.scale = [1, 1];
@@ -66,6 +78,7 @@ assert.equal(
   false,
   "transform must have a positive Vector3 scale",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidTransform).success, false);
 
 const invalidRecordValue = structuredClone(minimalDefinition);
 invalidRecordValue.scene.surfaces["surface-title"].states["state-default"] = {};
@@ -74,6 +87,7 @@ assert.equal(
   false,
   "record values must use their strict definitions",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidRecordValue).success, false);
 
 const missingTextPlacement = structuredClone(minimalDefinition);
 delete missingTextPlacement.scene.surfaces["surface-title"].contentNodes["text-title"].placement;
@@ -82,6 +96,7 @@ assert.equal(
   false,
   "text nodes require absolute placement within their parent frame",
 );
+assert.equal(presentationDefinitionSchema.safeParse(missingTextPlacement).success, false);
 
 const invalidTextPlacement = structuredClone(minimalDefinition);
 invalidTextPlacement.scene.surfaces["surface-title"].contentNodes["text-title"].placement.width = 0;
@@ -90,6 +105,7 @@ assert.equal(
   false,
   "text placement dimensions must be positive",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidTextPlacement).success, false);
 
 const invalidRendererPreference = structuredClone(minimalDefinition);
 invalidRendererPreference.scene.surfaces["surface-title"].renderIntent.rendererPreference =
@@ -99,6 +115,7 @@ assert.equal(
   false,
   "rendererPreference must reject unknown values",
 );
+assert.equal(presentationDefinitionSchema.safeParse(invalidRendererPreference).success, false);
 
 const unsupportedCue = structuredClone(minimalDefinition);
 unsupportedCue.flow.groups["group-intro"].steps["step-intro"].cues.push({
@@ -109,22 +126,26 @@ assert.equal(
   false,
   "cues are intentionally unsupported in the first milestone",
 );
+assert.equal(presentationDefinitionSchema.safeParse(unsupportedCue).success, false);
 
 const invalidDefinition = structuredClone(minimalDefinition);
 invalidDefinition.scene.surfaces["surface-title"].logicalSize = [0, 1080];
 assert.equal(validateDefinition(invalidDefinition), false, "logicalSize must be positive");
+assert.equal(presentationDefinitionSchema.safeParse(invalidDefinition).success, false);
 
 const invalidBundle = structuredClone(minimalBundle);
 invalidBundle.surfaces["surface-title"].renderSurfaces["render-surface-title"].artifacts[
   "artifact-title-default"
 ].states["state-default"].textures[0].pixelSize = [0, 1152];
 assert.equal(validateBundle(invalidBundle), false, "texture pixelSize must be positive");
+assert.equal(renderBundleSchema.safeParse(invalidBundle).success, false);
 
 const invalidBundleRecord = structuredClone(minimalBundle);
 invalidBundleRecord.surfaces["surface-title"].renderSurfaces["render-surface-title"].stateBindings[
   "state-default"
 ] = { kind: "artifacts" };
 assert.equal(validateBundle(invalidBundleRecord), false, "artifact bindings require artifact IDs");
+assert.equal(renderBundleSchema.safeParse(invalidBundleRecord).success, false);
 
 const legacyControlPlaneDefinition = {
   id: "legacy-presentation",
@@ -138,6 +159,13 @@ assert.equal(
   false,
   "the target schema must reject the existing Control Plane representation",
 );
+assert.equal(presentationDefinitionSchema.safeParse(legacyControlPlaneDefinition).success, false);
 
-const generated = await readFile(resolve(root, "src/presentation.schema.ts"), "utf8");
-assert.match(generated, /Generated from presentation\/.+schema\.json\. Do not edit\./);
+const generatedDefinition = JSON.parse(
+  await readFile(resolve(root, "presentation/presentation-definition.schema.json"), "utf8"),
+);
+const generatedBundle = JSON.parse(
+  await readFile(resolve(root, "presentation/render-bundle.schema.json"), "utf8"),
+);
+assert.deepEqual(generatedDefinition, presentationDefinitionJsonSchema);
+assert.deepEqual(generatedBundle, renderBundleJsonSchema);

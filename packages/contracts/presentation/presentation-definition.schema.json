@@ -3,7 +3,1010 @@
   "$id": "https://contracts.unframe.dev/presentation/presentation-definition.v1.schema.json",
   "title": "SerializedPresentationDefinitionV1",
   "type": "object",
-  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "presentationId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "stage": {
+      "type": "object",
+      "properties": {
+        "coordinateSystem": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "type": "string",
+              "const": "meter"
+            },
+            "handedness": {
+              "type": "string",
+              "const": "right"
+            },
+            "upAxis": {
+              "type": "string",
+              "const": "+Y"
+            },
+            "forwardAxis": {
+              "type": "string",
+              "const": "-Z"
+            }
+          },
+          "required": [
+            "unit",
+            "handedness",
+            "upAxis",
+            "forwardAxis"
+          ],
+          "additionalProperties": false
+        },
+        "size": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "zones": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "owner": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "center": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "size": {
+                "$ref": "#/$defs/__schema1"
+              }
+            },
+            "required": [
+              "id",
+              "owner",
+              "center",
+              "size"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "coordinateSystem",
+        "size",
+        "zones"
+      ],
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "mediaType": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "checksum": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        "required": [
+          "id",
+          "mediaType",
+          "checksum"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "scene": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "const": "surface"
+              },
+              "owner": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "audience": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "all"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "role"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "presenter",
+                          "viewer"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "role"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "stage"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "node"
+                      },
+                      "nodeId": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "nodeId"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "anchor"
+                      },
+                      "target": {
+                        "type": "string",
+                        "enum": [
+                          "head",
+                          "leftHand",
+                          "rightHand",
+                          "body"
+                        ]
+                      },
+                      "owner": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "presenter"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "followPosition": {
+                        "type": "boolean"
+                      },
+                      "followRotation": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "target",
+                      "owner",
+                      "followPosition",
+                      "followRotation"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "order": {
+                "type": "number"
+              },
+              "transform": {
+                "type": "object",
+                "properties": {
+                  "position": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "rotation": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 4,
+                    "maxItems": 4
+                  },
+                  "scale": {
+                    "$ref": "#/$defs/__schema1"
+                  }
+                },
+                "required": [
+                  "position",
+                  "rotation",
+                  "scale"
+                ],
+                "additionalProperties": false
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "visible": {
+                "type": "boolean"
+              },
+              "opacity": {
+                "type": "number"
+              },
+              "surfaceId": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "owner",
+              "audience",
+              "parent",
+              "order",
+              "transform",
+              "active",
+              "visible",
+              "opacity",
+              "surfaceId"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "surfaces": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "hostNodeId": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "physicalSizeMeters": {
+                "$ref": "#/$defs/__schema5"
+              },
+              "logicalSize": {
+                "$ref": "#/$defs/__schema5"
+              },
+              "fit": {
+                "type": "string",
+                "enum": [
+                  "contain",
+                  "cover",
+                  "stretch"
+                ]
+              },
+              "rootFrameId": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "contentNodes": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "frame"
+                        },
+                        "parentId": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/__schema0"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "order": {
+                          "type": "number"
+                        },
+                        "layout": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "absolute"
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "children": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/__schema0"
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "parentId",
+                        "order",
+                        "layout",
+                        "children"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "text"
+                        },
+                        "parentId": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/__schema0"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "order": {
+                          "type": "number"
+                        },
+                        "placement": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "absolute"
+                            },
+                            "x": {
+                              "type": "number"
+                            },
+                            "y": {
+                              "type": "number"
+                            },
+                            "width": {
+                              "$ref": "#/$defs/__schema2"
+                            },
+                            "height": {
+                              "$ref": "#/$defs/__schema2"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "x",
+                            "y",
+                            "width",
+                            "height"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "parentId",
+                        "order",
+                        "placement",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "baseSemanticTree": {
+                "type": "object",
+                "properties": {
+                  "rootNodeIds": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "nodes": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "parentId": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/__schema0"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "order": {
+                          "type": "number"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "heading",
+                            "paragraph",
+                            "image",
+                            "button",
+                            "table",
+                            "list",
+                            "listItem"
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": "string"
+                        },
+                        "alt": {
+                          "type": "string"
+                        },
+                        "interactionId": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "parentId",
+                        "order",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "rootNodeIds",
+                  "nodes"
+                ],
+                "additionalProperties": false
+              },
+              "interactions": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "click"
+                    },
+                    "event": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "event"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "initialStateId": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "states": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "semanticOverrides": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nodes": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "included": {
+                                  "type": "boolean"
+                                },
+                                "text": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "language": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "alt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "nodes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "enabledInteractionIds": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "semanticOverrides",
+                    "enabledInteractionIds"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "renderIntent": {
+                "type": "object",
+                "properties": {
+                  "updateModel": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "static"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "finite-state"
+                          },
+                          "stateIds": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/$defs/__schema0"
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "stateIds"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "continuous"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "timeline",
+                              "runtime-data",
+                              "user-input"
+                            ]
+                          },
+                          "maximumUpdateRateHz": {
+                            "$ref": "#/$defs/__schema2"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "source"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "interaction": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "regions"
+                          },
+                          "events": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/$defs/__schema0"
+                            }
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "events"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "native-input"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "internalAnimation": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "precomputed"
+                          },
+                          "durationSeconds": {
+                            "$ref": "#/$defs/__schema2"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "durationSeconds"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "runtime"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "rendererPreference": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "baked-web",
+                      "native-ui",
+                      "video"
+                    ]
+                  },
+                  "fallbackPolicy": {
+                    "type": "string",
+                    "enum": [
+                      "reject",
+                      "degrade"
+                    ]
+                  }
+                },
+                "required": [
+                  "updateModel",
+                  "interaction",
+                  "internalAnimation",
+                  "rendererPreference",
+                  "fallbackPolicy"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "hostNodeId",
+              "physicalSizeMeters",
+              "logicalSize",
+              "fit",
+              "rootFrameId",
+              "contentNodes",
+              "baseSemanticTree",
+              "interactions",
+              "initialStateId",
+              "states",
+              "renderIntent"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "nodes",
+        "surfaces"
+      ],
+      "additionalProperties": false
+    },
+    "flow": {
+      "type": "object",
+      "properties": {
+        "initialGroupId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "groups": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "initialStepId": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "steps": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "cues": {
+                      "maxItems": 0,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema6"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "cues"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "initialStepId",
+              "steps"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "variables": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "owner": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "boolean",
+                  "number",
+                  "null"
+                ]
+              },
+              "initialValue": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "owner",
+              "type",
+              "initialValue"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "initialGroupId",
+        "groups",
+        "variables"
+      ],
+      "additionalProperties": false
+    }
+  },
   "required": [
     "schemaVersion",
     "presentationId",
@@ -13,594 +1016,98 @@
     "scene",
     "flow"
   ],
-  "properties": {
-    "schemaVersion": { "const": 1 },
-    "presentationId": { "$ref": "#/$defs/id" },
-    "metadata": { "$ref": "#/$defs/metadata" },
-    "stage": { "$ref": "#/$defs/stage" },
-    "assets": {
-      "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/asset" }
-    },
-    "scene": { "$ref": "#/$defs/scene" },
-    "flow": { "$ref": "#/$defs/flow" }
-  },
+  "additionalProperties": false,
   "$defs": {
-    "id": { "type": "string", "minLength": 1 },
-    "number": { "type": "number" },
-    "positive": { "type": "number", "exclusiveMinimum": 0 },
-    "vector2": {
+    "__schema0": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema1": {
       "type": "array",
       "prefixItems": [
-        { "$ref": "#/$defs/positive" },
-        { "$ref": "#/$defs/positive" }
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "$ref": "#/$defs/__schema2"
+        }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "__schema2": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "__schema3": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "presentation"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "group"
+            },
+            "groupId": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "kind",
+            "groupId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema4": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "__schema5": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/__schema2"
+        },
+        {
+          "$ref": "#/$defs/__schema2"
+        }
       ],
       "items": false,
       "minItems": 2,
       "maxItems": 2
     },
-    "vector3": {
-      "type": "array",
-      "prefixItems": [
-        { "$ref": "#/$defs/number" },
-        { "$ref": "#/$defs/number" },
-        { "$ref": "#/$defs/number" }
-      ],
-      "items": false,
-      "minItems": 3,
-      "maxItems": 3
-    },
-    "positiveVector3": {
-      "type": "array",
-      "prefixItems": [
-        { "$ref": "#/$defs/positive" },
-        { "$ref": "#/$defs/positive" },
-        { "$ref": "#/$defs/positive" }
-      ],
-      "items": false,
-      "minItems": 3,
-      "maxItems": 3
-    },
-    "quaternion": {
-      "type": "array",
-      "prefixItems": [
-        { "$ref": "#/$defs/number" },
-        { "$ref": "#/$defs/number" },
-        { "$ref": "#/$defs/number" },
-        { "$ref": "#/$defs/number" }
-      ],
-      "items": false,
-      "minItems": 4,
-      "maxItems": 4
-    },
-    "metadata": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["title"],
-      "properties": { "title": { "type": "string", "minLength": 1 } }
-    },
-    "owner": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind"],
-          "properties": { "kind": { "const": "presentation" } }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "groupId"],
-          "properties": {
-            "kind": { "const": "group" },
-            "groupId": { "$ref": "#/$defs/id" }
-          }
-        }
-      ]
-    },
-    "audience": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind"],
-          "properties": { "kind": { "const": "all" } }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "role"],
-          "properties": {
-            "kind": { "const": "role" },
-            "role": { "enum": ["presenter", "viewer"] }
-          }
-        }
-      ]
-    },
-    "parent": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind"],
-          "properties": { "kind": { "const": "stage" } }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "nodeId"],
-          "properties": {
-            "kind": { "const": "node" },
-            "nodeId": { "$ref": "#/$defs/id" }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "target",
-            "owner",
-            "followPosition",
-            "followRotation"
-          ],
-          "properties": {
-            "kind": { "const": "anchor" },
-            "target": { "enum": ["head", "leftHand", "rightHand", "body"] },
-            "owner": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": { "kind": { "const": "presenter" } }
-            },
-            "followPosition": { "type": "boolean" },
-            "followRotation": { "type": "boolean" }
-          }
-        }
-      ]
-    },
-    "transform": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["position", "rotation", "scale"],
-      "properties": {
-        "position": { "$ref": "#/$defs/vector3" },
-        "rotation": { "$ref": "#/$defs/quaternion" },
-        "scale": { "$ref": "#/$defs/positiveVector3" }
-      }
-    },
-    "stage": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["coordinateSystem", "size", "zones"],
-      "properties": {
-        "coordinateSystem": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["unit", "handedness", "upAxis", "forwardAxis"],
-          "properties": {
-            "unit": { "const": "meter" },
-            "handedness": { "const": "right" },
-            "upAxis": { "const": "+Y" },
-            "forwardAxis": { "const": "-Z" }
-          }
-        },
-        "size": { "$ref": "#/$defs/positiveVector3" },
-        "zones": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/zone" }
-        }
-      }
-    },
-    "zone": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "owner", "center", "size"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "owner": { "$ref": "#/$defs/owner" },
-        "center": { "$ref": "#/$defs/vector3" },
-        "size": { "$ref": "#/$defs/positiveVector3" }
-      }
-    },
-    "asset": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "mediaType", "checksum"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "mediaType": { "$ref": "#/$defs/id" },
-        "checksum": { "$ref": "#/$defs/id" }
-      }
-    },
-    "scene": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["nodes", "surfaces"],
-      "properties": {
-        "nodes": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/surfaceNode" }
-        },
-        "surfaces": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/surface" }
-        }
-      }
-    },
-    "surfaceNode": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "owner",
-        "audience",
-        "parent",
-        "order",
-        "transform",
-        "active",
-        "visible",
-        "opacity",
-        "surfaceId"
-      ],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "name": { "type": "string" },
-        "kind": { "const": "surface" },
-        "owner": { "$ref": "#/$defs/owner" },
-        "audience": { "$ref": "#/$defs/audience" },
-        "parent": { "$ref": "#/$defs/parent" },
-        "order": { "type": "integer", "minimum": 0 },
-        "transform": { "$ref": "#/$defs/transform" },
-        "active": { "type": "boolean" },
-        "visible": { "type": "boolean" },
-        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
-        "surfaceId": { "$ref": "#/$defs/id" }
-      }
-    },
-    "surface": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "hostNodeId",
-        "physicalSizeMeters",
-        "logicalSize",
-        "fit",
-        "rootFrameId",
-        "contentNodes",
-        "baseSemanticTree",
-        "interactions",
-        "initialStateId",
-        "states",
-        "renderIntent"
-      ],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "hostNodeId": { "$ref": "#/$defs/id" },
-        "physicalSizeMeters": { "$ref": "#/$defs/vector2" },
-        "logicalSize": { "$ref": "#/$defs/vector2" },
-        "fit": { "enum": ["contain", "cover", "stretch"] },
-        "rootFrameId": { "$ref": "#/$defs/id" },
-        "contentNodes": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/contentNode" }
-        },
-        "baseSemanticTree": { "$ref": "#/$defs/semanticTree" },
-        "interactions": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/interaction" }
-        },
-        "initialStateId": { "$ref": "#/$defs/id" },
-        "states": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/state" }
-        },
-        "renderIntent": { "$ref": "#/$defs/renderIntent" }
-      }
-    },
-    "contentNode": {
-      "oneOf": [{ "$ref": "#/$defs/frame" }, { "$ref": "#/$defs/text" }]
-    },
-    "frame": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "kind", "parentId", "order", "layout", "children"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "const": "frame" },
-        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
-        "order": { "type": "integer", "minimum": 0 },
-        "layout": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind"],
-          "properties": { "kind": { "const": "absolute" } }
-        },
-        "children": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/id" },
-          "uniqueItems": true
-        }
-      }
-    },
-    "text": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "kind", "parentId", "order", "placement", "text"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "const": "text" },
-        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
-        "order": { "type": "integer", "minimum": 0 },
-        "placement": { "$ref": "#/$defs/absolutePlacement" },
-        "text": { "type": "string" }
-      }
-    },
-    "absolutePlacement": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind", "x", "y", "width", "height"],
-      "properties": {
-        "kind": { "const": "absolute" },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "width": { "type": "number", "exclusiveMinimum": 0 },
-        "height": { "type": "number", "exclusiveMinimum": 0 }
-      }
-    },
-    "semanticTree": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["rootNodeIds", "nodes"],
-      "properties": {
-        "rootNodeIds": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/id" },
-          "uniqueItems": true
-        },
-        "nodes": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/semanticNode" }
-        }
-      }
-    },
-    "semanticNode": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "parentId", "order", "role"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "parentId": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
-        "order": { "type": "integer", "minimum": 0 },
-        "role": {
-          "enum": [
-            "heading",
-            "paragraph",
-            "image",
-            "button",
-            "table",
-            "list",
-            "listItem"
-          ]
-        },
-        "text": { "type": "string" },
-        "language": { "type": "string", "minLength": 1 },
-        "alt": { "type": "string" },
-        "interactionId": { "$ref": "#/$defs/id" }
-      }
-    },
-    "interaction": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "kind", "event"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "const": "click" },
-        "event": { "$ref": "#/$defs/id" }
-      }
-    },
-    "state": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "semanticOverrides", "enabledInteractionIds"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "semanticOverrides": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/override" }
-        },
-        "enabledInteractionIds": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/id" },
-          "uniqueItems": true
-        }
-      }
-    },
-    "override": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["nodes"],
-      "properties": {
-        "nodes": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/nodeOverride" }
-        }
-      }
-    },
-    "nodeOverride": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "included": { "type": "boolean" },
-        "text": { "type": ["string", "null"] },
-        "language": { "type": ["string", "null"] },
-        "alt": { "type": ["string", "null"] }
-      }
-    },
-    "renderIntent": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "updateModel",
-        "interaction",
-        "internalAnimation",
-        "rendererPreference",
-        "fallbackPolicy"
-      ],
-      "properties": {
-        "updateModel": {
-          "oneOf": [
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": { "kind": { "const": "static" } }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind", "stateIds"],
-              "properties": {
-                "kind": { "const": "finite-state" },
-                "stateIds": {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": { "$ref": "#/$defs/id" },
-                  "uniqueItems": true
-                }
-              }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind", "source"],
-              "properties": {
-                "kind": { "const": "continuous" },
-                "source": {
-                  "enum": ["timeline", "runtime-data", "user-input"]
-                },
-                "maximumUpdateRateHz": { "$ref": "#/$defs/positive" }
-              }
-            }
-          ]
-        },
-        "interaction": {
-          "oneOf": [
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": { "kind": { "const": "none" } }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind", "events"],
-              "properties": {
-                "kind": { "const": "regions" },
-                "events": {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": { "$ref": "#/$defs/id" },
-                  "uniqueItems": true
-                }
-              }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": { "kind": { "const": "native-input" } }
-            }
-          ]
-        },
-        "internalAnimation": {
-          "oneOf": [
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": { "kind": { "const": "none" } }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind", "durationSeconds"],
-              "properties": {
-                "kind": { "const": "precomputed" },
-                "durationSeconds": { "$ref": "#/$defs/positive" }
-              }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": { "kind": { "const": "runtime" } }
-            }
-          ]
-        },
-        "rendererPreference": {
-          "enum": ["auto", "baked-web", "native-ui", "video"]
-        },
-        "fallbackPolicy": { "enum": ["reject", "degrade"] }
-      }
-    },
-    "flow": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["initialGroupId", "groups", "variables"],
-      "properties": {
-        "initialGroupId": { "$ref": "#/$defs/id" },
-        "groups": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/group" }
-        },
-        "variables": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/variable" }
-        }
-      }
-    },
-    "variable": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "owner", "type", "initialValue"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "owner": { "$ref": "#/$defs/owner" },
-        "type": { "enum": ["string", "boolean", "number", "null"] },
-        "initialValue": { "type": ["string", "boolean", "number", "null"] }
-      }
-    },
-    "group": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "initialStepId", "steps"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "initialStepId": { "$ref": "#/$defs/id" },
-        "steps": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/step" }
-        }
-      }
-    },
-    "step": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "cues"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "cues": { "type": "array", "maxItems": 0 }
-      }
-    }
+    "__schema6": {}
   }
 }

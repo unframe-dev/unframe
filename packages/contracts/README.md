@@ -18,11 +18,11 @@ Control Plane の `src/openapi.ts`、共有 schema、HTTP routeを変更した�
 
 ## Presentation artifact schemas
 
-`presentation/presentation-definition.schema.json` と
-`presentation/render-bundle.schema.json` は JSON Schema Draft 2020-12 の source of truth です。
-前者は renderer-independent な PresentationDefinition、後者は baked-web artifact を含む
-RenderBundle の最初の serialized shape を定義します。`src/presentation.schema.ts` は決定的な
-TypeScript 生成物であり、`@unframe/contracts/presentation` から import できます。
+`src/presentation/definition.ts` と `src/presentation/render-bundle.ts` の Zod 4 schema が source of
+truth です。前者は renderer-independent な PresentationDefinition、後者は baked-web artifact を含む
+RenderBundle の最初の serialized shape を定義します。型は同じschemaから`z.infer`で導出し、
+`@unframe/contracts/presentation` からimportできます。`presentation/*.schema.json`はZodから生成する
+JSON Schema Draft 2020-12 artifactであり、手編集しません。
 
 ```sh
 pnpm --filter @unframe/contracts generate:presentation
@@ -31,8 +31,8 @@ pnpm --filter @unframe/contracts test:presentation
 ```
 
 `fixtures/minimal.*.v1.json` は一つの Stage、SurfaceNode、Semantic Surface、root Frame/Text、
-State、baked-web intent、空 Cue の Group/Step を表す最小のcross-language fixtureです。schema は
-portable な構造だけを検証します。ID の相互参照、ownership、State の意味的整合性、canonicalization
+State、baked-web intent、空 Cue の Group/Step を表す最小fixtureです。Zodと生成JSON Schemaの両方で
+同じvalid/invalid結果になることを検証します。schema はportable な構造だけを検証し、ID の相互参照、ownership、State の意味的整合性、canonicalization
 は `presentation-core` が担当します。これらのTarget schemaは既存Control Plane OpenAPI形式を
 置き換えず、consumer migrationもまだ含みません。
 
