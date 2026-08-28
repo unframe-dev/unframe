@@ -793,6 +793,21 @@ describe("baked web renderer", () => {
     expect(() => createBakedWebRenderer({ adapter: hostileAdapter, config })).not.toThrow();
   });
 
+  it("factory optionsをZod境界の前にsnapshotし、accessorを実行しない", () => {
+    let reads = 0;
+    const hostileOptions = Object.defineProperty({ config }, "adapter", {
+      enumerable: true,
+      get() {
+        reads++;
+        return adapter();
+      },
+    });
+
+    expect(() => createBakedWebRenderer(null as never)).not.toThrow();
+    expect(() => createBakedWebRenderer(hostileOptions as never)).not.toThrow();
+    expect(reads).toBe(0);
+  });
+
   it("公開型を固定する", () => {
     expectTypeOf(createWebRendererConfigHash).returns.toEqualTypeOf<string>();
     expectTypeOf(createBakedWebRenderer).returns.toMatchTypeOf<{ build: Function }>();

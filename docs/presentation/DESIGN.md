@@ -59,6 +59,8 @@ CLI は compiler orchestration の利用者向け entrypoint とし、compile lo
 最初の Presentation package chain では、外部依存の責務を次のように固定する。
 
 - portable Presentation contract は Zod 4 schema を正本とし、TypeScript 型を推論し、JSON Schema Draft 2020-12 を生成する。JSON Schema は別の手書き正本にしない。
+- Presentation TypeScript packageのruntime trust boundaryは、構造、scalar、tuple、enum、local cross-field constraintをZod 4で検証する。公開型は可能な限りschemaから推論し、同じshapeを手書きtype guardとZodへ二重定義しない。Zodを使わない`typeof`、`Array.isArray`、`Object.keys`等の直接shape validationは原則禁止する。
+- caller-owned object、plugin output、host callbackをZodへ直接渡さない。accessor、Proxy、sparse array、symbol、cycle、prototype、typed-array ownershipを扱うdescriptor-safe snapshot / copyを先に行い、再構築したdataだけをZodへ渡す。この安全化処理と、参照解決、重複、tree cycle、byte arithmetic、determinism、複数artifact間の一致などのalgorithmic semantic invariantは手書きで保持できるが、Zodが表現するlocal shape validationとは分離する。
 - semantic canonicalization は RFC 8785 実装の `canonicalize`、content hash は `@noble/hashes` を使う。Presentation 固有の set 正規化は Core が直列化前に行う。
 - Authoring TS / TSX の構文解析は固定 version の classic TypeScript Compiler API を直接使う。`ts-morph` と TypeScript 7 `unstable/sync` は初期の pure parser boundary に追加しない。
 - Opaque renderer source の bundle は Rolldown の programmatic API と固定内部 plugin を使う。任意 plugin、Node API、network import、package 外参照は受け入れず、Browser execution / capture の具体方式は別に決める。

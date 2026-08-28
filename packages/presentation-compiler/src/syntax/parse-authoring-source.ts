@@ -1,4 +1,5 @@
 import * as ts from "typescript";
+import { z } from "zod";
 
 export type AuthoringSourceInput = {
   readonly fileName: string;
@@ -44,15 +45,36 @@ const compilerHostFor = (sourceFile: ts.SourceFile, sourceText: string): ts.Comp
   writeFile: () => undefined,
 });
 
+const authoringSourceInputSchema = z
+  .object({ fileName: z.string(), sourceText: z.string() })
+  .strict();
+
 export const parseAuthoringSource = (input: AuthoringSourceInput): ParsedAuthoringSource => {
-  const scriptKind = scriptKindFor(input.fileName);
+  const parsedInput = authoringSourceInputSchema.safeParse(input);
+  if (!parsedInput.success)
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "compiler-source-kind-unsupported",
+          fileName: "",
+          message: "Authoring source input must contain a file name and source text.",
+          start: 0,
+          length: 0,
+          line: 1,
+          column: 1,
+        },
+      ],
+    };
+  const { fileName, sourceText } = parsedInput.data;
+  const scriptKind = scriptKindFor(fileName);
   if (scriptKind === undefined)
     return {
       ok: false,
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
-          fileName: input.fileName,
+          fileName,
           message: "Authoring source must use a .ts or .tsx file name.",
           start: 0,
           length: 0,
@@ -63,16 +85,16 @@ export const parseAuthoringSource = (input: AuthoringSourceInput): ParsedAuthori
     };
 
   const sourceFile = ts.createSourceFile(
-    input.fileName,
-    input.sourceText,
+    fileName,
+    sourceText,
     ts.ScriptTarget.Latest,
     true,
     scriptKind,
   );
   const program = ts.createProgram({
-    rootNames: [input.fileName],
+    rootNames: [fileName],
     options: { jsx: ts.JsxEmit.Preserve, noLib: true, noResolve: true },
-    host: compilerHostFor(sourceFile, input.sourceText),
+    host: compilerHostFor(sourceFile, sourceText),
   });
   const diagnostics = program
     .getSyntacticDiagnostics(sourceFile)
@@ -81,7 +103,7 @@ export const parseAuthoringSource = (input: AuthoringSourceInput): ParsedAuthori
       const position = sourceFile.getLineAndCharacterOfPosition(start);
       return {
         code: "compiler-source-syntax-error",
-        fileName: input.fileName,
+        fileName,
         message: ts.flattenDiagnosticMessageText(item.messageText, "\n"),
         start,
         length: item.length ?? 0,

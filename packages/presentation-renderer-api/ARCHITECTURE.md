@@ -44,7 +44,7 @@ RendererPlugin
 入力は `presentation-core` の semantic / build model と、Compiler が解決した明示的 build context に限定する。Semantic Surface が宣言した source intent と、Compiler が renderer 選択だけを解決した resolved intent は分離する。これにより `rendererPreference: auto` を元の意味として保持したまま、選択済み renderer ID を plugin に渡せる。Renderer が project filesystem、environment variable、network を暗黙に探索しない。
 
 公開境界は caller 所有 object を検証した後で再利用しない。`prepareRendererBuildInput` は
-plain own-data descriptor から runtime shape を検証した snapshot を作り、元 input の accessor、
+plain own-data descriptor から snapshot を作った後、Zod 4 schema で runtime shape を検証し、元 input の accessor、
 Proxy の `get`、後続 mutation を build 実行へ持ち込まない。`executeRendererPlugin` と
 conformance harness も、identity / capabilities / method reference を一度固定した plugin wrapper と
 prepared input だけを `support` / `build` へ渡す。Concrete renderer が同じ境界を直接利用する場合も、
@@ -77,13 +77,13 @@ prepared input だけを `support` / `build` へ渡す。Concrete renderer が�
 
 ## 6. Dependency rules
 
-`presentation-renderer-api` は `presentation-core` にだけ依存する。Compiler と concrete renderer が API に依存する。API から concrete renderer、Compiler、CLI への依存は禁止する。Concrete renderer 同士も依存しない。
+`presentation-renderer-api` は `presentation-core` と runtime boundary validation のための `zod` にだけ依存する。Compiler と concrete renderer が API に依存する。API から concrete renderer、Compiler、CLI への依存は禁止する。Concrete renderer 同士も依存しない。
 
 ## 7. Conformance strategy
 
 - capability support matrix fixture
 - valid / invalid build input fixture
-- sparse array、accessor、Proxy、後続 mutationを含む prepared boundary fixture
+- sparse array、accessor、Proxy、extra property、後続 mutationを含む prepared boundary fixture
 - deterministic output / provenance fixture
 - diagnostic code contract test
 - Structured Semantic Tree を変更しないことの test
@@ -111,6 +111,8 @@ Renderer は state ごとの未 encode RGBA capture と normalized Hit Region ge
 共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、Hit Region の有効性と completeness、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
 
 `prepareRendererBuildInput` は現行 contract の Surface、Frame / Text、State、Semantic Tree、
-Render Surface plan、build context を runtime shape と参照関係まで検査する。Plugin capability 配列は
-dense own-data array に限定し、plugin method は固定 receiver から呼び出す。境界通過後の renderer が
+Render Surface plan、build context の shape を `src/validation/schemas.ts` の Zod schema で検査し、
+参照関係だけを API 固有の invariant として検査する。Plugin capability、support decision、build result、
+diagnostic、capture、Hit Region も同じく Zod schema を通す。各 schema の前段では dense own-data snapshot を
+作るため、accessor、Proxy、sparse array、extra array property は value read 前に拒否する。plugin method は固定 receiver から呼び出す。境界通過後の renderer が
 prepared input を変更した場合は `executeRendererPlugin` / conformance harness が diagnostic にする。

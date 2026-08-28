@@ -64,7 +64,7 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 
 すべてのAPIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。
 
-入力は`packages/contracts`のJSON Schemaで構造検証済みであることを前提とする。Coreのdefensiveなshape checkはtrust boundaryのschema validationを代替しない。JSON parse、schema validator、I/O、renderer、transport adapterは公開しない。
+公開validation APIは、descriptor-safeなplain JSON snapshotを作成した後、`packages/contracts`が正本として公開するZod 4 schemaで構造を検証する。Zodへcaller-owned objectを直接渡さないため、accessor、sparse array、symbol、cycle、非plain prototypeを実行時データへ混入させない。構造検証済みの値に対して、Coreは参照、cardinality、tree、lifetime、cross-artifact整合などのsemantic invariantだけを検証する。JSON parse、I/O、renderer、transport adapterは公開しない。
 
 ## 5. Invariants
 
@@ -94,11 +94,13 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 
 ## 7. Dependency rules
 
-`presentation-core` は generated TypeScript presentation contract 以外の presentation package に依存しない。RFC 8785直列化には`canonicalize`、content hashには`@noble/hashes`を用いる。Authoring、Compiler、Renderer、CLI から Core へ依存する逆向きだけを許可する。
+`presentation-core` は generated TypeScript presentation contract 以外の presentation package に依存しない。runtime構造検証は`packages/contracts`のZod 4 schemaへ委譲し、Core内に同じ構造schemaを再定義しない。RFC 8785直列化には`canonicalize`、content hashには`@noble/hashes`を用いる。Authoring、Compiler、Renderer、CLI から Core へ依存する逆向きだけを許可する。
 
 ## 8. Validation strategy
 
 - portable fixtureに対するvalid / invalid semantic test
+- Zod contract schemaのissue pathとstable diagnosticの対応test
+- accessorを実行しないdescriptor snapshotとstrict contract fieldの境界test
 - ID、reference、lifetime、cardinality、tree、override、hit regionの境界test
 - object insertion orderとdiagnostic順序の決定性test
 - canonical number serializationとSHA-256のgolden test

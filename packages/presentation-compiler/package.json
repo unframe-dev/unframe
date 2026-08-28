@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test",
@@ -16,7 +18,8 @@
     "@unframe/presentation-assets": "workspace:*",
     "@unframe/presentation-core": "workspace:*",
     "@unframe/presentation-renderer-api": "workspace:*",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@unframe/presentation-components": "workspace:*",

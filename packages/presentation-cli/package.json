@@ -22,7 +22,8 @@
     "@unframe/presentation-compiler": "workspace:*",
     "@unframe/presentation-renderer-web": "workspace:*",
     "solid-js": "1.9.12",
-    "web-tree-sitter": "0.25.10"
+    "web-tree-sitter": "0.25.10",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@unframe/presentation-components": "workspace:*",

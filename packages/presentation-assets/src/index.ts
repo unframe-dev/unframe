@@ -1,6 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type { Diagnostic, TextureArtifact, ValidationResult } from "@unframe/presentation-core";
+import { z } from "zod";
 
 const INTERNAL_PNG_HARD_CAPS = Object.freeze({
   maxWidth: 4_096,
@@ -99,14 +100,44 @@ const invalid = <T>(
   diagnostics: [diagnostic(code, path, message)],
 });
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
+const typedArrayByteLength = Object.getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  "byteLength",
+)?.get;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+const copyUint8Array = (value: unknown): Uint8Array | undefined => {
+  try {
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
+    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    const byteLength = typedArrayByteLength.call(value);
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    const copy = new Uint8Array(byteLength);
+    Uint8Array.prototype.set.call(copy, value as Uint8Array);
+    return copy;
+  } catch {
+    return undefined;
+  }
+};
 
-const isUint8Array = (value: unknown): value is Uint8Array =>
-  ArrayBuffer.isView(value) && Object.prototype.toString.call(value) === "[object Uint8Array]";
+const positiveSafeIntegerSchema = z.number().int().safe().positive();
+const encodeLimitsSchema = z.strictObject({
+  maxWidth: positiveSafeIntegerSchema,
+  maxHeight: positiveSafeIntegerSchema,
+  maxPixels: positiveSafeIntegerSchema,
+  maxInputBytes: positiveSafeIntegerSchema,
+  maxOutputBytes: positiveSafeIntegerSchema,
+});
+const encodeRequestSchema = z.strictObject({
+  sourceId: z.string().trim().min(1),
+  rgba: z.instanceof(Uint8Array),
+  pixelSize: z.tuple([positiveSafeIntegerSchema, positiveSafeIntegerSchema]),
+  colorSpace: z.literal("srgb"),
+  alphaMode: z.enum(["opaque", "straight", "premultiplied"]),
+  limits: encodeLimitsSchema,
+});
 
-const isPositiveSafeInteger = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+type ParsedEncodeRequest = z.infer<typeof encodeRequestSchema>;
 
 const createPngPlan = (width: number, height: number): PngPlan => {
   const rowBytes = width * 4;
@@ -122,83 +153,114 @@ const createPngPlan = (width: number, height: number): PngPlan => {
   };
 };
 
-const validateLimits = (value: unknown): ValidationResult<EncodeLimits> => {
-  if (!isRecord(value))
-    return invalid("invalid-encode-limits", ["limits"], "Encode limits must be an object.");
+const snapshotRecord = (value: unknown): Record<string, unknown> | undefined => {
+  try {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return undefined;
+    if (Object.getOwnPropertySymbols(value).length !== 0) return undefined;
+    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
+    if (
+      Object.values(descriptors).some(
+        (descriptor) =>
+          descriptor.get !== undefined || descriptor.set !== undefined || !descriptor.enumerable,
+      )
+    )
+      return undefined;
+    return Object.fromEntries(
+      Object.entries(descriptors).map(([key, descriptor]) => [key, descriptor.value]),
+    );
+  } catch {
+    return undefined;
+  }
+};
 
-  const keys = ["maxWidth", "maxHeight", "maxPixels", "maxInputBytes", "maxOutputBytes"] as const;
-  const limits = {} as Record<(typeof keys)[number], number>;
-  for (const key of keys) {
-    const limit = value[key];
-    if (!isPositiveSafeInteger(limit))
-      return invalid(
-        "invalid-encode-limits",
-        ["limits", key],
-        "Encode limits must be positive safe integers.",
-      );
+const snapshotDenseArray = (value: unknown): readonly unknown[] | undefined => {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return undefined;
+    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
+    const length = descriptors["length"]?.value;
+    if (!Number.isSafeInteger(length) || length < 0) return undefined;
+    const keys = Array.from({ length }, (_, index) => String(index));
+    if (
+      Object.getOwnPropertySymbols(value).length !== 0 ||
+      Object.keys(descriptors).length !== length + 1 ||
+      keys.some((key) => {
+        const descriptor = descriptors[key];
+        return !descriptor || descriptor.get !== undefined || descriptor.set !== undefined;
+      })
+    )
+      return undefined;
+    return keys.map((key) => descriptors[key]!.value);
+  } catch {
+    return undefined;
+  }
+};
+
+const snapshotRequest = (value: unknown): unknown => {
+  const request = snapshotRecord(value);
+  if (!request) return undefined;
+  return {
+    ...request,
+    rgba: copyUint8Array(request.rgba),
+    pixelSize: snapshotDenseArray(request.pixelSize),
+    limits: snapshotRecord(request.limits),
+  };
+};
+
+const validationIssue = (parsed: z.ZodSafeParseError<unknown>): Diagnostic => {
+  if (parsed.error.issues.length > 1)
+    return diagnostic("invalid-encode-request", [], "Encode request must be an object.");
+  const issue = parsed.error.issues[0];
+  const path = (issue?.path ?? []).filter(
+    (segment): segment is string | number =>
+      typeof segment === "string" || typeof segment === "number",
+  );
+  if (path[0] === "sourceId")
+    return diagnostic("invalid-source-id", path, "Source ID must be a non-empty string.");
+  if (path[0] === "rgba")
+    return diagnostic("invalid-rgba", path, "RGBA input must be a Uint8Array.");
+  if (path[0] === "pixelSize")
+    return diagnostic(
+      "invalid-pixel-size",
+      ["pixelSize"],
+      "Pixel size must contain two positive safe integers.",
+    );
+  if (path[0] === "colorSpace")
+    return diagnostic("unsupported-color-space", path, "Only the sRGB color space is supported.");
+  if (path[0] === "alphaMode")
+    return diagnostic(
+      "invalid-alpha-mode",
+      path,
+      "Alpha mode must be opaque, straight, or premultiplied.",
+    );
+  if (path[0] === "limits")
+    return diagnostic(
+      "invalid-encode-limits",
+      path,
+      "Encode limits must be positive safe integers.",
+    );
+  return diagnostic("invalid-encode-request", path, "Encode request must be an object.");
+};
+
+const validateLimits = (
+  limits: z.infer<typeof encodeLimitsSchema>,
+): ValidationResult<EncodeLimits> => {
+  for (const [key, limit] of Object.entries(limits) as [keyof EncodeLimits, number][]) {
     if (limit > INTERNAL_PNG_HARD_CAPS[key])
       return invalid(
         "encode-limit-above-hard-cap",
         ["limits", key],
         "Caller limits cannot exceed the package hard cap.",
       );
-    limits[key] = limit;
   }
-
-  return {
-    valid: true,
-    value: {
-      maxWidth: limits.maxWidth,
-      maxHeight: limits.maxHeight,
-      maxPixels: limits.maxPixels,
-      maxInputBytes: limits.maxInputBytes,
-      maxOutputBytes: limits.maxOutputBytes,
-    },
-    diagnostics: [],
-  };
+  return { valid: true, value: limits, diagnostics: [] };
 };
 
 const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => {
-  if (!isRecord(value))
-    return invalid("invalid-encode-request", [], "Encode request must be an object.");
-
-  const sourceId = value.sourceId;
-  const rgba = value.rgba;
-  const pixelSize = value.pixelSize;
-  const colorSpace = value.colorSpace;
-  const alphaMode = value.alphaMode;
-  const requestedLimits = value.limits;
-
-  if (typeof sourceId !== "string" || sourceId.trim().length === 0)
-    return invalid("invalid-source-id", ["sourceId"], "Source ID must be a non-empty string.");
-  if (!isUint8Array(rgba))
-    return invalid("invalid-rgba", ["rgba"], "RGBA input must be a Uint8Array.");
-  const pixelSizeArray = Array.isArray(pixelSize) ? pixelSize : undefined;
-  const pixelSizeLength = pixelSizeArray?.length ?? -1;
-  const widthValue = pixelSizeLength === 2 ? pixelSizeArray?.[0] : undefined;
-  const heightValue = pixelSizeLength === 2 ? pixelSizeArray?.[1] : undefined;
-  if (
-    pixelSizeLength !== 2 ||
-    !isPositiveSafeInteger(widthValue) ||
-    !isPositiveSafeInteger(heightValue)
-  )
-    return invalid(
-      "invalid-pixel-size",
-      ["pixelSize"],
-      "Pixel size must contain two positive safe integers.",
-    );
-  if (colorSpace !== "srgb")
-    return invalid(
-      "unsupported-color-space",
-      ["colorSpace"],
-      "Only the sRGB color space is supported.",
-    );
-  if (alphaMode !== "opaque" && alphaMode !== "straight" && alphaMode !== "premultiplied")
-    return invalid(
-      "invalid-alpha-mode",
-      ["alphaMode"],
-      "Alpha mode must be opaque, straight, or premultiplied.",
-    );
+  const parsed = encodeRequestSchema.safeParse(snapshotRequest(value));
+  if (!parsed.success) return { valid: false, diagnostics: [validationIssue(parsed)] };
+  const { sourceId, rgba, pixelSize, alphaMode } = parsed.data as ParsedEncodeRequest;
   if (alphaMode === "premultiplied")
     return invalid(
       "unsupported-alpha-mode",
@@ -206,11 +268,10 @@ const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => 
       "Premultiplied alpha conversion is not defined by this encoder version.",
     );
 
-  const limits = validateLimits(requestedLimits);
+  const limits = validateLimits(parsed.data.limits);
   if (!limits.valid) return limits;
 
-  const width = widthValue;
-  const height = heightValue;
+  const [width, height] = pixelSize;
   const pixels = width * height;
   const inputBytes = pixels * 4;
   if (

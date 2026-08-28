@@ -45,7 +45,7 @@ root export は native module を import しない。OpenTUI の Zig core を必
 
 ## 2. Current command contract
 
-`args` は dense な string array であり、project JSON と output directory は絶対 path でなければならない。
+`args` は descriptor-safe snapshot の後に Zod 4 で検査する dense な string array であり、project JSON と output directory は絶対 path でなければならない。public input、command grammar、build context、host callback も Zod で boundary validation する。host の callback invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 
 ```text
 check <absolute-project.json> [--format text|json]

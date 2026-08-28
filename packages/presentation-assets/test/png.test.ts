@@ -276,6 +276,7 @@ describe("PNG trust boundary", () => {
       "invalid-rgba",
     );
     expect(diagnosticCodes({ ...request, pixelSize: [0, 1] })).toContain("invalid-pixel-size");
+    expect(diagnosticCodes({ ...request, pixelSize: [1.5, 1] })).toContain("invalid-pixel-size");
     expect(diagnosticCodes({ ...request, rgba: new Uint8Array(3) })).toContain(
       "rgba-length-mismatch",
     );
@@ -348,7 +349,7 @@ describe("PNG trust boundary", () => {
     expect(diagnosticCodes(revocable.proxy)).toContain("invalid-encode-request");
   });
 
-  it("snapshots request properties once during validation", () => {
+  it("rejects accessor-backed request properties without executing them", () => {
     let sourceReads = 0;
     const getterRequest = { ...request } as Record<string, unknown>;
     Object.defineProperty(getterRequest, "sourceId", {
@@ -358,8 +359,8 @@ describe("PNG trust boundary", () => {
       },
     });
 
-    expect(encodeRgbaToPng(getterRequest).valid).toBe(true);
-    expect(sourceReads).toBe(1);
+    expect(encodeRgbaToPng(getterRequest).valid).toBe(false);
+    expect(sourceReads).toBe(0);
   });
 });
 

@@ -1,5 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
+import { z } from "zod";
 import {
   defineComponentManifest,
   defineComponentStructure,
@@ -78,6 +79,98 @@ export type CompiledDeclarationProject = CheckedDeclarationProject & {
 
 type UnknownRecord = Record<string, unknown>;
 
+const nonEmptyStringSchema = z.string().min(1);
+const plainRecordSchema = z.record(z.string(), z.unknown());
+const declarationProjectEnvelopeSchema = z
+  .object({
+    presentation: plainRecordSchema,
+    themes: z.array(
+      z.object({ declaration: plainRecordSchema, hash: nonEmptyStringSchema }).strict(),
+    ),
+    components: z.array(
+      z
+        .object({
+          manifest: plainRecordSchema,
+          structure: plainRecordSchema,
+          lock: z
+            .object({
+              packageVersion: nonEmptyStringSchema,
+              packageIntegrity: nonEmptyStringSchema,
+              manifestHash: nonEmptyStringSchema,
+              structureHash: nonEmptyStringSchema,
+            })
+            .strict(),
+        })
+        .strict(),
+    ),
+    assets: plainRecordSchema,
+  })
+  .strict();
+const declarationProjectFieldKeysSchema = z.array(
+  z.enum(["presentation", "themes", "components", "assets"]),
+);
+const compilerBuildOptionsSchema = z
+  .object({
+    compiler: z
+      .object({
+        name: nonEmptyStringSchema,
+        version: nonEmptyStringSchema,
+        baseEnvironmentHash: nonEmptyStringSchema,
+      })
+      .strict(),
+    locale: nonEmptyStringSchema,
+    timezone: nonEmptyStringSchema,
+    colorScheme: z.enum(["light", "dark"]),
+    pixelTarget: z.tuple([z.int().positive(), z.int().positive()]),
+    rendererConfigHash: nonEmptyStringSchema,
+    renderers: z.array(z.unknown()),
+    encodeLimits: z.object({}).passthrough(),
+  })
+  .strict();
+const diagnosticSchema = z.strictObject({
+  code: z.string(),
+  path: z.array(z.union([z.string(), z.number()])),
+  message: z.string(),
+  relatedPath: z.array(z.union([z.string(), z.number()])).optional(),
+});
+const initialOwnerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("presentation") }),
+  z.strictObject({ kind: z.literal("group"), groupId: nonEmptyStringSchema }),
+]);
+const initialAudienceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("all") }),
+  z.strictObject({ kind: z.literal("role"), role: z.enum(["presenter", "viewer"]) }),
+]);
+const initialParentSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("stage") }),
+  z.strictObject({ kind: z.literal("node"), nodeId: nonEmptyStringSchema }),
+]);
+const initialPresentationShapeSchema = z.object({
+  metadata: z.object({ title: nonEmptyStringSchema }),
+  stage: z.object({
+    coordinateSystem: z.strictObject({
+      unit: z.literal("meter"),
+      handedness: z.literal("right"),
+      upAxis: z.literal("+Y"),
+      forwardAxis: z.literal("-Z"),
+    }),
+  }),
+  scene: z.object({
+    spatial: z.array(
+      z.object({
+        kind: z.literal("spatial"),
+        name: z.string(),
+        owner: initialOwnerSchema,
+        audience: initialAudienceSchema,
+        parent: initialParentSchema,
+        active: z.boolean(),
+        visible: z.boolean(),
+      }),
+    ),
+  }),
+  assets: z.array(z.strictObject({ kind: z.literal("asset-ref"), assetId: nonEmptyStringSchema })),
+});
+
 const diagnostic = (
   code: string,
   path: readonly (string | number)[],
@@ -142,13 +235,21 @@ const safePlainClone = (input: unknown): ValidationResult<unknown> => {
           "Input must not contain non-enumerable properties.",
         );
       const cloned: UnknownRecord = {};
-      for (const key of Object.keys(value).sort())
+      for (const key of Object.keys(value).sort()) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (!descriptor || descriptor.get !== undefined || descriptor.set !== undefined)
+          throw diagnostic(
+            "compiler-invalid-input",
+            [...path, key],
+            "Input must not contain accessors.",
+          );
         Object.defineProperty(cloned, key, {
-          value: walk((value as UnknownRecord)[key], [...path, key]),
+          value: walk(descriptor.value, [...path, key]),
           enumerable: true,
           configurable: true,
           writable: true,
         });
+      }
       return cloned;
     } finally {
       ancestors.delete(value);
@@ -165,10 +266,7 @@ const safePlainClone = (input: unknown): ValidationResult<unknown> => {
 };
 
 const isDiagnostic = (value: unknown): value is Diagnostic =>
-  isRecord(value) &&
-  typeof value.code === "string" &&
-  Array.isArray(value.path) &&
-  typeof value.message === "string";
+  diagnosticSchema.safeParse(value).success;
 const safelyIsDiagnostic = (value: unknown): value is Diagnostic => {
   try {
     return isDiagnostic(value);
@@ -179,9 +277,9 @@ const safelyIsDiagnostic = (value: unknown): value is Diagnostic => {
 
 const hashJson = (json: string) => `sha256:${bytesToHex(sha256(new TextEncoder().encode(json)))}`;
 
-const emptyRecord = (value: unknown) => isRecord(value) && Object.keys(value).length === 0;
+const emptyRecord = (value: unknown) => z.strictObject({}).safeParse(value).success;
 const nonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.length > 0;
+  nonEmptyStringSchema.safeParse(value).success;
 const resourceId = (instanceId: string, localId: string) =>
   `${encodeURIComponent(instanceId)}:${encodeURIComponent(localId)}`;
 const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock) =>
@@ -198,40 +296,39 @@ const renderIntent = () => ({
   fallbackPolicy: "reject" as const,
 });
 
-const hasValidInitialPresentationShape = (presentation: PresentationDeclaration) => {
-  const coordinateSystem = presentation.stage.coordinateSystem;
-  const validAudience = (value: unknown) =>
-    isRecord(value) &&
-    (value.kind === "all" ||
-      (value.kind === "role" && (value.role === "presenter" || value.role === "viewer")));
-  const validOwner = (value: unknown) =>
-    isRecord(value) &&
-    (value.kind === "presentation" || (value.kind === "group" && nonEmptyString(value.groupId)));
-  const validParent = (value: unknown) =>
-    isRecord(value) &&
-    (value.kind === "stage" || (value.kind === "node" && nonEmptyString(value.nodeId)));
-  return (
-    isRecord(presentation.metadata) &&
-    nonEmptyString(presentation.metadata.title) &&
-    isRecord(coordinateSystem) &&
-    coordinateSystem.unit === "meter" &&
-    coordinateSystem.handedness === "right" &&
-    coordinateSystem.upAxis === "+Y" &&
-    coordinateSystem.forwardAxis === "-Z" &&
-    presentation.scene.spatial.every(
-      (node) =>
-        node.kind === "spatial" &&
-        typeof node.name === "string" &&
-        validOwner(node.owner) &&
-        validAudience(node.audience) &&
-        validParent(node.parent) &&
-        typeof node.active === "boolean" &&
-        typeof node.visible === "boolean",
-    ) &&
-    presentation.assets.every(
-      (reference) => reference.kind === "asset-ref" && nonEmptyString(reference.assetId),
-    )
-  );
+const hasValidInitialPresentationShape = (presentation: PresentationDeclaration) =>
+  initialPresentationShapeSchema.safeParse(presentation).success;
+
+const projectEnvelopeDiagnostics = (issues: readonly z.core.$ZodIssue[]): readonly Diagnostic[] => {
+  const mapped = issues.map((issue) => {
+    const [section, index] = issue.path;
+    if (section === "components")
+      return diagnostic(
+        "compiler-invalid-component-entry",
+        ["components", typeof index === "number" ? index : 0],
+        "Component entries require declarations and a complete non-empty lock.",
+      );
+    if (section === "themes")
+      return diagnostic(
+        "compiler-invalid-theme-entry",
+        ["themes", typeof index === "number" ? index : 0],
+        "Theme entries require a declaration and non-empty hash.",
+      );
+    if (issue.code === "unrecognized_keys" && issue.path.length === 0)
+      return diagnostic(
+        "compiler-invalid-project-field",
+        [],
+        "Project contains an unknown top-level field.",
+      );
+    return diagnostic(
+      "compiler-invalid-input",
+      issue.path.map((segment) => (typeof segment === "number" ? segment : String(segment))),
+      "Project fields are malformed.",
+    );
+  });
+  return [
+    ...new Map(mapped.map((item) => [`${item.code}\0${item.path.join("/")}`, item])).values(),
+  ];
 };
 
 const checkDeclarationProjectUnchecked = (
@@ -239,29 +336,9 @@ const checkDeclarationProjectUnchecked = (
 ): ValidationResult<CheckedDeclarationProject> => {
   const cloned = safePlainClone(input);
   if (!cloned.valid) return cloned;
-  if (!isRecord(cloned.value))
-    return {
-      valid: false,
-      diagnostics: [diagnostic("compiler-invalid-input", [], "Project must be an object.")],
-    };
-
-  // The clone has already rejected non-JSON data; types are checked by the declaration API.
-  const project = cloned.value as CompilerDeclarationProject;
-  const diagnostics: Diagnostic[] = [];
-  const rawPresentation = project.presentation;
   if (
-    !isRecord(rawPresentation) ||
-    !Array.isArray(project.themes) ||
-    !Array.isArray(project.components) ||
-    !isRecord(project.assets)
-  ) {
-    return {
-      valid: false,
-      diagnostics: [diagnostic("compiler-invalid-input", [], "Project fields are missing.")],
-    };
-  }
-  const projectFields = ["presentation", "themes", "components", "assets"];
-  if (Object.keys(cloned.value).some((key) => !projectFields.includes(key)))
+    !declarationProjectFieldKeysSchema.safeParse(Object.keys(cloned.value as UnknownRecord)).success
+  )
     return {
       valid: false,
       diagnostics: [
@@ -272,6 +349,17 @@ const checkDeclarationProjectUnchecked = (
         ),
       ],
     };
+  const parsedProject = declarationProjectEnvelopeSchema.safeParse(cloned.value);
+  if (!parsedProject.success)
+    return {
+      valid: false,
+      diagnostics: sortDiagnostics([...projectEnvelopeDiagnostics(parsedProject.error.issues)]),
+    };
+
+  // Declaration API owns the detailed Authoring contracts; this schema owns the public envelope.
+  const project = parsedProject.data as unknown as CompilerDeclarationProject;
+  const diagnostics: Diagnostic[] = [];
+  const rawPresentation = project.presentation;
   const presentation = rawPresentation as PresentationDeclaration;
   const themes = project.themes as CompilerDeclarationProject["themes"];
   const components = project.components as CompilerDeclarationProject["components"];
@@ -303,58 +391,16 @@ const checkDeclarationProjectUnchecked = (
       ),
     );
   for (const [index, candidate] of themes.entries()) {
-    if (
-      !isRecord(candidate) ||
-      !isRecord(candidate.declaration) ||
-      !nonEmptyString(candidate.hash)
-    ) {
-      diagnostics.push(
-        diagnostic(
-          "compiler-invalid-theme-entry",
-          ["themes", index],
-          "Theme entries require a declaration and non-empty hash.",
-        ),
-      );
-      continue;
-    }
-    validateDeclaration(["themes", index, "declaration"], () =>
-      defineTheme(candidate.declaration as ThemeDeclaration),
-    );
+    validateDeclaration(["themes", index, "declaration"], () => defineTheme(candidate.declaration));
   }
   for (const [index, candidate] of components.entries()) {
-    if (
-      !isRecord(candidate) ||
-      !isRecord(candidate.manifest) ||
-      !isRecord(candidate.structure) ||
-      !isRecord(candidate.lock) ||
-      !nonEmptyString(candidate.lock.packageVersion) ||
-      !nonEmptyString(candidate.lock.packageIntegrity) ||
-      !nonEmptyString(candidate.lock.manifestHash) ||
-      !nonEmptyString(candidate.lock.structureHash)
-    ) {
-      diagnostics.push(
-        diagnostic(
-          "compiler-invalid-component-entry",
-          ["components", index],
-          "Component entries require declarations and a complete non-empty lock.",
-        ),
-      );
-      continue;
-    }
     const manifestValid = validateDeclaration(["components", index, "manifest"], () =>
-      defineComponentManifest(candidate.manifest as ComponentManifest),
+      defineComponentManifest(candidate.manifest),
     );
-    const structure = candidate.structure as ComponentStructure;
-    const rawRoot = isRecord(structure) && isRecord(structure.root) ? structure.root : undefined;
+    const structure = candidate.structure;
     if (
-      rawRoot?.kind === "surface" &&
-      isRecord(rawRoot.states) &&
-      Object.values(rawRoot.states).some(
-        (state) =>
-          isRecord(state) &&
-          Array.isArray(state.enabledInteractionIds) &&
-          state.enabledInteractionIds.length !== 0,
-      )
+      structure.root.kind === "surface" &&
+      Object.values(structure.root.states).some((state) => state.enabledInteractionIds.length !== 0)
     )
       diagnostics.push(
         diagnostic(
@@ -847,61 +893,40 @@ const invalidCompileOptions = (message: string): ValidationResult<never> => ({
   diagnostics: [diagnostic("compiler-invalid-options", ["options"], message)],
 });
 
-const validCompileOptions = (value: unknown): value is CompilerBuildOptions => {
-  if (!isRecord(value) || !isRecord(value.compiler) || !Array.isArray(value.renderers))
-    return false;
-  const compiler = value.compiler;
-  const pixelTarget = value.pixelTarget;
-  return (
-    nonEmptyString(compiler.name) &&
-    nonEmptyString(compiler.version) &&
-    nonEmptyString(compiler.baseEnvironmentHash) &&
-    nonEmptyString(value.locale) &&
-    nonEmptyString(value.timezone) &&
-    (value.colorScheme === "light" || value.colorScheme === "dark") &&
-    Array.isArray(pixelTarget) &&
-    pixelTarget.length === 2 &&
-    pixelTarget.every((dimension) => Number.isSafeInteger(dimension) && dimension > 0) &&
-    nonEmptyString(value.rendererConfigHash) &&
-    isRecord(value.encodeLimits)
-  );
-};
-
 const compileUnchecked = async (
   input: unknown,
   options: unknown,
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
   const checked = checkDeclarationProject(input);
   if (!checked.valid) return checked;
-  if (!validCompileOptions(options))
+  const parsedOptions = compilerBuildOptionsSchema.safeParse(options);
+  if (!parsedOptions.success)
     return invalidCompileOptions("Build options must be a complete explicit configuration.");
+  const validatedOptions = parsedOptions.data as unknown as CompilerBuildOptions;
 
   // The Definition does not retain Theme metadata; resolve it from the checked project instead.
   const sourceProject = safePlainClone(input);
-  if (
-    !sourceProject.valid ||
-    !isRecord(sourceProject.value) ||
-    !Array.isArray(sourceProject.value.themes)
-  )
+  if (!sourceProject.valid)
     return {
       valid: false,
       diagnostics: [
         diagnostic("compiler-invalid-input", [], "Project input could not be resolved safely."),
       ],
     };
-  const selectedThemeId = (sourceProject.value.presentation as { theme?: { themeId?: unknown } })
-    .theme?.themeId;
-  const selectedTheme = sourceProject.value.themes.find(
-    (candidate) =>
-      isRecord(candidate) &&
-      isRecord(candidate.declaration) &&
-      candidate.declaration.id === selectedThemeId,
+  const parsedSourceProject = declarationProjectEnvelopeSchema.safeParse(sourceProject.value);
+  if (!parsedSourceProject.success)
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic("compiler-invalid-input", [], "Project input could not be resolved safely."),
+      ],
+    };
+  const resolvedSourceProject = parsedSourceProject.data as unknown as CompilerDeclarationProject;
+  const selectedThemeId = resolvedSourceProject.presentation.theme?.themeId;
+  const selectedTheme = resolvedSourceProject.themes.find(
+    (candidate) => candidate.declaration.id === selectedThemeId,
   );
-  if (
-    !isRecord(selectedTheme) ||
-    !isRecord(selectedTheme.declaration) ||
-    !nonEmptyString(selectedTheme.hash)
-  )
+  if (!selectedTheme)
     return {
       valid: false,
       diagnostics: [
@@ -914,7 +939,7 @@ const compileUnchecked = async (
     };
 
   const rendererDiagnostics: Diagnostic[] = [];
-  for (const [index, candidate] of options.renderers.entries())
+  for (const [index, candidate] of validatedOptions.renderers.entries())
     for (const item of validateRendererPlugin(candidate))
       rendererDiagnostics.push({
         ...item,
@@ -922,7 +947,7 @@ const compileUnchecked = async (
       });
   if (rendererDiagnostics.length > 0)
     return { valid: false, diagnostics: sortDiagnostics(rendererDiagnostics) };
-  const matchingRenderers = options.renderers.filter(
+  const matchingRenderers = validatedOptions.renderers.filter(
     (candidate) => candidate.identity.id === "baked-web",
   );
   if (matchingRenderers.length !== 1)
@@ -941,13 +966,13 @@ const compileUnchecked = async (
   const renderer = matchingRenderers[0]!;
   const rendererFingerprint = createRendererFingerprint(
     renderer.identity,
-    options.rendererConfigHash,
+    validatedOptions.rendererConfigHash,
   );
   const environmentHash = hashJson(
     JSON.stringify({
-      baseEnvironmentHash: options.compiler.baseEnvironmentHash,
-      compilerName: options.compiler.name,
-      compilerVersion: options.compiler.version,
+      baseEnvironmentHash: validatedOptions.compiler.baseEnvironmentHash,
+      compilerName: validatedOptions.compiler.name,
+      compilerVersion: validatedOptions.compiler.version,
       pngEncoder: PNG_ENCODER_IDENTITY,
       rendererFingerprint,
     }),
@@ -977,14 +1002,14 @@ const compileUnchecked = async (
     );
     const buildContextHash = hashJson(
       JSON.stringify({
-        colorScheme: options.colorScheme,
+        colorScheme: validatedOptions.colorScheme,
         inputHash,
-        locale: options.locale,
-        pixelTarget: options.pixelTarget,
-        rendererConfigHash: options.rendererConfigHash,
+        locale: validatedOptions.locale,
+        pixelTarget: validatedOptions.pixelTarget,
+        rendererConfigHash: validatedOptions.rendererConfigHash,
         themeHash: selectedTheme.hash,
         themeId: selectedThemeId,
-        timezone: options.timezone,
+        timezone: validatedOptions.timezone,
       }),
     );
     const rendered = await executeRendererPlugin(renderer, {
@@ -1013,17 +1038,17 @@ const compileUnchecked = async (
       },
       entry: { kind: "structured" },
       context: {
-        locale: options.locale,
-        timezone: options.timezone,
-        colorScheme: options.colorScheme,
+        locale: validatedOptions.locale,
+        timezone: validatedOptions.timezone,
+        colorScheme: validatedOptions.colorScheme,
         themeId: selectedThemeId as string,
         themeHash: selectedTheme.hash,
         inputHash,
         buildContextHash,
         environmentHash,
-        rendererConfigHash: options.rendererConfigHash,
+        rendererConfigHash: validatedOptions.rendererConfigHash,
         rendererFingerprint,
-        pixelTarget: options.pixelTarget,
+        pixelTarget: validatedOptions.pixelTarget,
       },
     });
     if (!rendered.valid) return rendered;
@@ -1033,9 +1058,12 @@ const compileUnchecked = async (
       compareStrings(a.stateId, b.stateId),
     )) {
       const encoded = encodeRgbaToPng({
-        ...capture,
         sourceId: `${surfaceId}:${capture.id}`,
-        limits: options.encodeLimits,
+        rgba: capture.rgba,
+        pixelSize: capture.pixelSize,
+        colorSpace: capture.colorSpace,
+        alphaMode: capture.alphaMode,
+        limits: validatedOptions.encodeLimits,
       });
       if (!encoded.valid) return encoded;
       assets[encoded.value.descriptor.assetId] = encoded.value.bytes;
@@ -1081,23 +1109,27 @@ const compileUnchecked = async (
         definitionHash: checked.value.definitionHash,
         environmentHash,
         buildContext: {
-          locale: options.locale,
-          timezone: options.timezone,
-          colorScheme: options.colorScheme,
+          locale: validatedOptions.locale,
+          timezone: validatedOptions.timezone,
+          colorScheme: validatedOptions.colorScheme,
           themeId: selectedThemeId,
           themeHash: selectedTheme.hash,
-          pixelTarget: options.pixelTarget,
-          rendererConfigHash: options.rendererConfigHash,
+          pixelTarget: validatedOptions.pixelTarget,
+          rendererConfigHash: validatedOptions.rendererConfigHash,
         },
       }),
     ),
     sourceHash: checked.value.sourceHash,
     definitionHash: checked.value.definitionHash,
-    compiler: { name: options.compiler.name, version: options.compiler.version, environmentHash },
+    compiler: {
+      name: validatedOptions.compiler.name,
+      version: validatedOptions.compiler.version,
+      environmentHash,
+    },
     buildContext: {
-      locale: options.locale,
-      timezone: options.timezone,
-      colorScheme: options.colorScheme,
+      locale: validatedOptions.locale,
+      timezone: validatedOptions.timezone,
+      colorScheme: validatedOptions.colorScheme,
       themeId: selectedThemeId as string,
       themeHash: selectedTheme.hash,
     },

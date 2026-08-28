@@ -1,4 +1,5 @@
 import type { Diagnostic } from "@unframe/presentation-core";
+import { z } from "zod";
 
 export type Json =
   | null
@@ -327,14 +328,113 @@ type Exact<T, Shape> = T & Record<Exclude<keyof T, keyof Shape>, never>;
 const invalid = (message: string): never => {
   throw new TypeError(message);
 };
+
+const idSchema = z.string().min(1);
+const finiteNumberSchema = z.number().finite();
+const nonNegativeIntegerSchema = z.number().int().safe().nonnegative();
+const positiveSafeIntegerSchema = z.number().int().safe().positive();
+const jsonValueSchema: z.ZodType = z.lazy(() =>
+  z.union([
+    z.null(),
+    z.boolean(),
+    finiteNumberSchema,
+    z.string(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ]),
+);
+const stringPropSchema = z.object({
+  required: z.boolean().optional(),
+  default: z.string().optional(),
+});
+const numberPropSchema = z.object({
+  required: z.boolean().optional(),
+  default: finiteNumberSchema.optional(),
+});
+const booleanPropSchema = z.object({
+  required: z.boolean().optional(),
+  default: z.boolean().optional(),
+});
+const slotSchema = z.object({
+  accepts: z.array(idSchema),
+  cardinality: z.enum(["one", "many"]),
+  required: z.boolean().optional(),
+});
+const partSchema = z.object({ overridable: z.array(z.enum(["content", "placement", "style"])) });
+const variantSchema = z.object({ values: z.array(idSchema), default: idSchema.optional() });
+const stateSchema = z.object({ initial: z.boolean().optional() });
+
+const assertSchema = (schema: z.ZodType, value: unknown, message: string): void => {
+  if (!schema.safeParse(value).success) invalid(message);
+};
+
+const snapshotJson = (value: unknown, ancestors = new WeakSet<object>()): unknown => {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") return value;
+  if (typeof value !== "object") invalid("Declarations must contain JSON-safe values.");
+
+  const object = value as object;
+  if (ancestors.has(object)) invalid("Declarations must not contain cycles.");
+  ancestors.add(object);
+  try {
+    if (Array.isArray(value)) {
+      const keys = Reflect.ownKeys(value);
+      if (
+        Object.keys(value).length !== value.length ||
+        keys.some(
+          (key) =>
+            key !== "length" &&
+            (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length),
+        )
+      )
+        invalid("Declarations must not contain sparse arrays or custom array properties.");
+      const snapshot: unknown[] = [];
+      for (let index = 0; index < value.length; index++) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (descriptor === undefined || !("value" in descriptor))
+          invalid("Declarations must contain data properties.");
+        snapshot.push(
+          snapshotJson((descriptor as PropertyDescriptor & { value: unknown }).value, ancestors),
+        );
+      }
+      return snapshot;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null)
+      invalid("Declarations must be plain data.");
+    const snapshot = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(object)) {
+      if (typeof key !== "string") invalid("Declarations must use string object keys.");
+      const stringKey = key as string;
+      const descriptor = Object.getOwnPropertyDescriptor(object, stringKey);
+      if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor))
+        invalid("Declarations must contain enumerable data properties only.");
+      Object.defineProperty(snapshot, stringKey, {
+        value: snapshotJson(
+          (descriptor as PropertyDescriptor & { value: unknown }).value,
+          ancestors,
+        ),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    return snapshot;
+  } finally {
+    ancestors.delete(object);
+  }
+};
+
 const assertId: (value: unknown, label?: string) => asserts value is string = (
   value,
   label = "id",
 ) => {
-  if (typeof value !== "string" || value.length === 0) invalid(`${label} must be a non-empty id.`);
+  if (!idSchema.safeParse(value).success) invalid(`${label} must be a non-empty id.`);
 };
 const assertFinite = (values: readonly number[], label: string, positive = false): void => {
-  if (values.some((value) => !Number.isFinite(value) || (positive && value <= 0)))
+  const schema = z.array(positive ? finiteNumberSchema.positive() : finiteNumberSchema);
+  if (!schema.safeParse(values).success)
     invalid(`${label} must contain ${positive ? "positive " : ""}finite numbers.`);
 };
 const assertVector = (
@@ -343,60 +443,24 @@ const assertVector = (
   label: string,
   positive = false,
 ): void => {
-  if (values.length !== length) invalid(`${label} must contain exactly ${length} numbers.`);
+  if (!z.array(finiteNumberSchema).length(length).safeParse(values).success)
+    invalid(`${label} must contain exactly ${length} numbers.`);
   assertFinite(values, label, positive);
 };
 const assertSource = (source: SourceMetadata | undefined): void => {
   if (source === undefined) return;
   assertId(source.file, "source.file");
-  if (
-    source.range !== undefined &&
-    (source.range.length !== 2 ||
-      !source.range.every((value) => Number.isSafeInteger(value) && value >= 0) ||
-      source.range[0] > source.range[1])
-  )
+  const rangeSchema = z
+    .tuple([nonNegativeIntegerSchema, nonNegativeIntegerSchema])
+    .refine(([start, end]) => start <= end);
+  if (source.range !== undefined && !rangeSchema.safeParse(source.range).success)
     invalid("source.range must be ordered non-negative integer offsets.");
 };
 
 const assertJsonSafe = (value: unknown, ancestors = new WeakSet<object>()): void => {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) invalid("Declarations must contain finite JSON numbers.");
-    return;
-  }
-  if (typeof value !== "object") invalid("Declarations must contain JSON-safe values.");
-
-  const object = value as object;
-  if (ancestors.has(object)) invalid("Declarations must not contain cycles.");
-  ancestors.add(object);
-
-  if (Array.isArray(value)) {
-    const keys = Reflect.ownKeys(value);
-    if (
-      Object.keys(value).length !== value.length ||
-      keys.some(
-        (key) =>
-          key !== "length" &&
-          (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length),
-      )
-    )
-      invalid("Declarations must not contain sparse arrays or custom array properties.");
-    for (const item of value) assertJsonSafe(item, ancestors);
-  } else {
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null)
-      invalid("Declarations must be plain data.");
-    for (const key of Reflect.ownKeys(object)) {
-      if (typeof key !== "string") invalid("Declarations must use string object keys.");
-      const descriptor = Object.getOwnPropertyDescriptor(object, key);
-      if (descriptor === undefined)
-        throw new TypeError("Declarations must contain data properties.");
-      if (!descriptor.enumerable || !("value" in descriptor))
-        invalid("Declarations must contain enumerable data properties only.");
-      assertJsonSafe(descriptor.value, ancestors);
-    }
-  }
-  ancestors.delete(object);
+  const snapshot = snapshotJson(value, ancestors);
+  if (!jsonValueSchema.safeParse(snapshot).success)
+    invalid("Declarations must contain finite JSON numbers.");
 };
 
 const defineStable = <const T extends StableDeclaration>(value: T): T => {
@@ -415,14 +479,38 @@ const assertStableNested = (value: StableDeclaration, label: string): void => {
   assertSource(value.source);
 };
 const assertRecordKeys = (value: Readonly<Record<string, unknown>>, label: string): void => {
-  for (const key of Object.keys(value)) assertId(key, label);
+  if (!z.record(idSchema, z.unknown()).safeParse(value).success)
+    invalid(`${label} must be a non-empty id.`);
 };
 const assertOwner = (owner: ResourceOwner): void => {
-  if (owner.kind === "group") assertId(owner.groupId, "owner.groupId");
+  const result = z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("presentation") }),
+      z.object({ kind: z.literal("group"), groupId: idSchema }),
+    ])
+    .safeParse(owner);
+  if (!result.success) invalid("owner.groupId must be a non-empty id.");
 };
 const assertLayout = (layout: AbsoluteLayoutDeclaration): void => {
-  assertVector([layout.x, layout.y], 2, "layout position");
-  assertVector([layout.width, layout.height], 2, "layout size", true);
+  const result = z
+    .object({
+      kind: z.literal("absolute"),
+      x: finiteNumberSchema,
+      y: finiteNumberSchema,
+      width: finiteNumberSchema.positive(),
+      height: finiteNumberSchema.positive(),
+    })
+    .safeParse(layout);
+  if (!result.success) {
+    const dimensions = result.error.issues.some(
+      ({ path }) => path[0] === "width" || path[0] === "height",
+    );
+    invalid(
+      dimensions
+        ? "layout size must contain positive finite numbers."
+        : "layout position must contain finite numbers.",
+    );
+  }
 };
 const assertSpatialFields = (value: SpatialDeclaration): void => {
   assertStableNested(value, "spatial node id");
@@ -431,9 +519,9 @@ const assertSpatialFields = (value: SpatialDeclaration): void => {
   assertVector(value.transform.position, 3, "transform.position");
   assertVector(value.transform.rotation, 4, "transform.rotation");
   assertVector(value.transform.scale, 3, "transform.scale", true);
-  if (!Number.isSafeInteger(value.order) || value.order < 0)
+  if (!nonNegativeIntegerSchema.safeParse(value.order).success)
     invalid("Spatial order must be a non-negative integer.");
-  if (!Number.isFinite(value.opacity) || value.opacity < 0 || value.opacity > 1)
+  if (!finiteNumberSchema.min(0).max(1).safeParse(value.opacity).success)
     invalid("Spatial opacity must be between 0 and 1.");
 };
 const assertComponentInstanceIds = (value: ComponentInstanceDeclaration): void => {
@@ -544,6 +632,7 @@ const assertFlowIds = (flow: FlowDeclaration): void => {
 };
 
 export const definePresentation = <const T extends PresentationDeclaration>(value: T): T => {
+  assertJsonSafe(value);
   assertVector(value.stage.size, 3, "stage.size", true);
   assertFlowIds(value.flow);
   for (const node of value.scene.spatial) {
@@ -562,14 +651,16 @@ export const definePresentation = <const T extends PresentationDeclaration>(valu
   return defineStable(value);
 };
 export const defineTheme = <const T extends ThemeDeclaration>(value: T): T => {
+  assertJsonSafe(value);
   assertRecordKeys(value.tokens, "theme token id");
   assertRecordKeys(value.namedStyles, "named style id");
   return defineStable(value);
 };
 export const defineComponentManifest = <const T extends ComponentManifest>(value: T): T => {
+  assertJsonSafe(value);
   assertId(value.componentId, "componentId");
   assertSource(value.source);
-  if (!Number.isSafeInteger(value.version) || value.version <= 0)
+  if (!positiveSafeIntegerSchema.safeParse(value.version).success)
     invalid("Component version must be a positive integer.");
   for (const [label, members] of Object.entries({
     prop: value.props,
@@ -583,7 +674,7 @@ export const defineComponentManifest = <const T extends ComponentManifest>(value
     assertRecordKeys(members, `${label} id`);
   for (const actionValue of Object.values(value.actions)) {
     assertRecordKeys(actionValue.inputs, "action input id");
-    if (actionValue.effects.length === 0)
+    if (!z.array(z.unknown()).min(1).safeParse(actionValue.effects).success)
       invalid("Component actions must declare at least one effect.");
     for (const precondition of actionValue.preconditions) {
       assertId(precondition.surfaceId, "action precondition surfaceId");
@@ -611,8 +702,7 @@ export const defineComponentManifest = <const T extends ComponentManifest>(value
     else if (outputValue.producer.kind === "mediaCompleted")
       assertId(outputValue.producer.surfaceId, "output producer surfaceId");
     else if (
-      !Number.isFinite(outputValue.producer.afterMilliseconds) ||
-      outputValue.producer.afterMilliseconds < 0
+      !finiteNumberSchema.nonnegative().safeParse(outputValue.producer.afterMilliseconds).success
     )
       invalid("output producer afterMilliseconds must be a non-negative finite number.");
   }
@@ -638,6 +728,7 @@ export const defineComponentManifest = <const T extends ComponentManifest>(value
   return value;
 };
 export const defineComponentStructure = <const T extends ComponentStructure>(value: T): T => {
+  assertJsonSafe(value);
   assertId(value.componentId, "componentId");
   assertRecordKeys(value.partBindings, "part binding id");
   for (const targetId of Object.values(value.partBindings))
@@ -651,31 +742,53 @@ export const defineComponentStructure = <const T extends ComponentStructure>(val
   return defineStable(value);
 };
 
-export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(value: T) =>
-  build({ ...value, kind: "string" as const });
-export const numberProp = <const T extends WithoutKind<NumberPropDeclaration>>(value: T) =>
-  build({ ...value, kind: "number" as const });
-export const booleanProp = <const T extends WithoutKind<BooleanPropDeclaration>>(value: T) =>
-  build({ ...value, kind: "boolean" as const });
-export const slot = <const T extends WithoutKind<SlotDeclaration>>(value: T) =>
-  build({ ...value, kind: "slot" as const });
-export const part = <const T extends WithoutKind<PartDeclaration>>(value: T) =>
-  build({ ...value, kind: "part" as const });
-export const variant = <const T extends WithoutKind<VariantDeclaration>>(value: T) =>
-  build({ ...value, kind: "variant" as const });
+export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  assertSchema(stringPropSchema, value, "Invalid string prop declaration."),
+  build({ ...value, kind: "string" as const })
+);
+export const numberProp = <const T extends WithoutKind<NumberPropDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  assertSchema(numberPropSchema, value, "Invalid number prop declaration."),
+  build({ ...value, kind: "number" as const })
+);
+export const booleanProp = <const T extends WithoutKind<BooleanPropDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  assertSchema(booleanPropSchema, value, "Invalid boolean prop declaration."),
+  build({ ...value, kind: "boolean" as const })
+);
+export const slot = <const T extends WithoutKind<SlotDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  assertSchema(slotSchema, value, "Invalid slot declaration."),
+  build({ ...value, kind: "slot" as const })
+);
+export const part = <const T extends WithoutKind<PartDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  assertSchema(partSchema, value, "Invalid part declaration."),
+  build({ ...value, kind: "part" as const })
+);
+export const variant = <const T extends WithoutKind<VariantDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  assertSchema(variantSchema, value, "Invalid variant declaration."),
+  build({ ...value, kind: "variant" as const })
+);
 export function state(): StateDeclaration;
 export function state<const T extends WithoutKind<StateDeclaration>>(
   value: T,
 ): T & { kind: "state" };
 export function state(value: WithoutKind<StateDeclaration> = {}): StateDeclaration {
+  assertJsonSafe(value);
+  assertSchema(stateSchema, value, "Invalid state declaration.");
   return build({ ...value, kind: "state" });
 }
 export const action = <const T extends WithoutKind<ActionDeclaration>>(value: T) =>
-  value.effects.length === 0
+  (assertJsonSafe(value), !z.array(z.unknown()).min(1).safeParse(value.effects).success)
     ? invalid("Component actions must declare at least one effect.")
     : build({ ...value, kind: "action" as const });
-export const output = <const T extends WithoutKind<OutputDeclaration>>(value: T) =>
-  build({ ...value, kind: "output" as const });
+export const output = <const T extends WithoutKind<OutputDeclaration>>(value: T) => (
+  assertJsonSafe(value),
+  build({ ...value, kind: "output" as const })
+);
 
 export const surfaceState = (surfaceId: string, stateId: string): ActionPrecondition => {
   assertId(surfaceId, "surfaceId");
@@ -692,6 +805,9 @@ export const playTimeline = (
   options: { completion: "blocking" | "nonBlocking" },
 ): ActionEffect => {
   assertId(timelineId, "timelineId");
+  assertJsonSafe(options);
+  if (!z.object({ completion: z.enum(["blocking", "nonBlocking"]) }).safeParse(options).success)
+    invalid("completion must be blocking or nonBlocking.");
   return build({ kind: "playTimeline", timelineId, ...options });
 };
 export const surfaceInteraction = (interactionId: string): OutputProducer => {
@@ -707,13 +823,14 @@ export const mediaCompleted = (surfaceId: string): OutputProducer => {
   return { kind: "mediaCompleted", surfaceId };
 };
 export const after = (afterMilliseconds: number): OutputProducer => {
-  if (!Number.isFinite(afterMilliseconds) || afterMilliseconds < 0)
+  if (!finiteNumberSchema.nonnegative().safeParse(afterMilliseconds).success)
     invalid("afterMilliseconds must be a non-negative finite number.");
   return { kind: "timer", afterMilliseconds };
 };
 export const invokeComponentAction = <const T extends Omit<ComponentActionInvocation, "kind">>(
   value: T,
 ) => {
+  assertJsonSafe(value);
   assertId(value.componentInstanceId, "componentInstanceId");
   assertId(value.actionId, "actionId");
   return build({ ...value, kind: "component.action" as const });
@@ -721,6 +838,7 @@ export const invokeComponentAction = <const T extends Omit<ComponentActionInvoca
 export const componentOutput = <const T extends Omit<ComponentOutputReference, "kind">>(
   value: T,
 ) => {
+  assertJsonSafe(value);
   assertId(value.componentInstanceId, "componentInstanceId");
   assertId(value.outputId, "outputId");
   return build({ ...value, kind: "component.output" as const });
@@ -728,32 +846,39 @@ export const componentOutput = <const T extends Omit<ComponentOutputReference, "
 export const cue = <const T extends CueDeclaration>(value: T): T => defineStable(value);
 
 export const tokenRef = <const T extends WithoutKind<TokenReference>>(value: T) => {
+  assertJsonSafe(value);
   assertId(value.tokenId, "tokenId");
   return build({ ...value, kind: "token-ref" as const });
 };
 export const namedStyleRef = <const T extends WithoutKind<NamedStyleReference>>(value: T) => {
+  assertJsonSafe(value);
   assertId(value.styleId, "styleId");
   return build({ ...value, kind: "named-style-ref" as const });
 };
 export const assetRef = <const T extends WithoutKind<AssetReference>>(value: T) => {
+  assertJsonSafe(value);
   assertId(value.assetId, "assetId");
   return build({ ...value, kind: "asset-ref" as const });
 };
 
 export const spatial = <const T extends WithoutStableKind<SpatialDeclaration>>(value: T) => {
+  assertJsonSafe(value);
   const declaration = { ...value, kind: "spatial" as const };
   assertSpatialFields(declaration);
   return defineStable(declaration);
 };
 export const frame = <const T extends WithoutStableKind<FrameDeclaration>>(value: T) => {
+  assertJsonSafe(value);
   assertLayout(value.layout);
   return defineStable({ ...value, kind: "frame" as const });
 };
 export const text = <const T extends WithoutStableKind<TextDeclaration>>(value: T) => {
+  assertJsonSafe(value);
   assertLayout(value.layout);
   return defineStable({ ...value, kind: "text" as const });
 };
 export const surface = <const T extends WithoutStableKind<SurfaceDeclaration>>(value: T) => {
+  assertJsonSafe(value);
   const declaration = { ...value, kind: "surface" as const };
   assertSurfaceIds(declaration);
   return defineStable(declaration);
@@ -761,12 +886,14 @@ export const surface = <const T extends WithoutStableKind<SurfaceDeclaration>>(v
 export const semanticOverride = <const T extends WithoutStableKind<SemanticOverrideDeclaration>>(
   value: Exact<T, WithoutStableKind<SemanticOverrideDeclaration>>,
 ) => {
+  assertJsonSafe(value);
   assertId(value.targetId, "targetId");
   return defineStable({ ...value, kind: "semantic-override" as const });
 };
 export const componentInstance = <const T extends WithoutStableKind<ComponentInstanceDeclaration>>(
   value: T,
 ) => {
+  assertJsonSafe(value);
   assertId(value.componentId, "componentId");
   assertId(value.spatialNodeId, "spatialNodeId");
   const declaration = { ...value, kind: "component-instance" as const };
@@ -774,6 +901,7 @@ export const componentInstance = <const T extends WithoutStableKind<ComponentIns
   return defineStable(declaration);
 };
 export const detach = <const T extends WithoutStableKind<DetachDeclaration>>(value: T) => {
+  assertJsonSafe(value);
   assertId(value.instanceId, "instanceId");
   assertId(value.provenance.componentId, "provenance.componentId");
   return defineStable({ ...value, kind: "detach" as const });

@@ -57,13 +57,13 @@ src/
 
 ## 4. Current implementation
 
-`checkDeclarationProject(unknown)` は input を安全に JSON plain-data として検査し、Theme、Component manifest/structure/lock、Spatial instance、Asset reference を解決する。実装済み subset は Structured `Surface → Frame → direct Text`、静的・非対話・baked-web のみである。結果には Core canonical JSON、source hash、definition hash を含む。
+`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、Asset reference を解決する。cross-reference、duplicate、initial subset の制約だけは semantic invariant として個別に検査する。実装済み subset は Structured `Surface → Frame → direct Text`、静的・非対話・baked-web のみである。結果には Core canonical JSON、source hash、definition hash を含む。
 
 `compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。注入された `baked-web` Renderer の raw RGBA capture を `presentation-assets` で決定論的な PNG に encode し、Core で検証済みの canonical RenderBundle と asset bytes を返す。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
-TS/TSX parserは構文解析とsource diagnosticまで実装済みである。module / symbol resolution、typecheck、AST lowering、cache、CLI は未実装である。
+TS/TSX parser は構文解析の前に Zod 4 で file name / source text input を検査し、source diagnosticまで実装済みである。module / symbol resolution、typecheck、AST lowering、cache、CLI は未実装である。
 
 ## 5. Public API
 

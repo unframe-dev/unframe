@@ -7,6 +7,23 @@ import type {
   ValidationResult,
 } from "@unframe/presentation-core";
 
+import {
+  capturePixelSizeSchema,
+  hitRegionPrioritySchema,
+  logicalBoundsConstraintSchema,
+  normalizedHitRegionBoundsSchema,
+  pixelTargetSchema,
+  rendererBuildInputSchema,
+  rendererBuildResultSchema,
+  rendererCapabilitiesSchema,
+  rendererFunctionSchema,
+  rendererIdSchema,
+  rendererIdentitySchema,
+  rendererSupportDecisionSchema,
+  renderLayerSchema,
+  renderStateIdsSchema,
+} from "./validation/schemas.js";
+
 export type { Diagnostic, ValidationResult };
 
 export type RendererIdentity = {
@@ -179,10 +196,7 @@ export const createRendererFingerprint = (
     rendererConfigHash,
   ]);
 
-const nonEmpty = (value: string) => value.length > 0;
 const applyFunction = Reflect.apply;
-const sameArray = (left: readonly string[], right: readonly string[]) =>
-  left.length === right.length && left.every((value, index) => value === right[index]);
 
 const plainDataRecord = (value: unknown): Record<string, unknown> | undefined => {
   try {
@@ -204,6 +218,8 @@ const invalidSnapshot = Symbol("invalid-renderer-boundary-snapshot");
 
 const snapshotUnknown = (value: unknown, seen = new Set<object>()): unknown => {
   if (value === null || ["string", "number", "boolean"].includes(typeof value)) return value;
+  const bytes = copyUint8Array(value);
+  if (bytes) return bytes;
   if (typeof value !== "object" || seen.has(value)) return invalidSnapshot;
   seen.add(value);
   try {
@@ -237,486 +253,89 @@ const snapshotUnknown = (value: unknown, seen = new Set<object>()): unknown => {
   }
 };
 
-const dataArray = (value: unknown): readonly unknown[] | undefined =>
-  Array.isArray(value) ? value : undefined;
-const denseDataArray = (value: unknown): readonly unknown[] | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  try {
-    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
-    const length = descriptors["length"]?.value;
-    if (!Number.isSafeInteger(length) || length < 0) return undefined;
-    const keys = Array.from({ length }, (_, index) => String(index));
-    if (
-      Object.keys(descriptors).length !== length + 1 ||
-      keys.some((key) => {
-        const descriptor = descriptors[key];
-        return !descriptor || descriptor.get || descriptor.set;
-      })
-    )
-      return undefined;
-    return keys.map((key) => descriptors[key]?.value);
-  } catch {
-    return undefined;
-  }
-};
-const stringArray = (value: unknown): readonly string[] | undefined => {
-  const array = dataArray(value);
-  return array && array.every((item) => typeof item === "string") ? array : undefined;
-};
-const record = (value: unknown): Record<string, unknown> | undefined =>
-  isRecord(value) ? value : undefined;
-const hasString = (value: unknown) => typeof value === "string";
-const hasId = (value: unknown): value is string => hasString(value) && value.length > 0;
-const hasNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-const hasPositiveNumber = (value: unknown): value is number => hasNumber(value) && value > 0;
-const hasOrder = (value: unknown): value is number =>
-  Number.isSafeInteger(value) && (value as number) >= 0;
-const hasOnlyKeys = (value: Record<string, unknown>, keys: readonly string[]) =>
-  Object.keys(value).every((key) => keys.includes(key));
-
-const semanticRoles = new Set([
-  "heading",
-  "paragraph",
-  "image",
-  "button",
-  "table",
-  "list",
-  "listItem",
-]);
-
-const isSemanticTreeShape = (value: unknown) => {
-  const tree = record(value);
-  const rootNodeIds = tree && stringArray(tree.rootNodeIds);
-  const nodes = tree && record(tree.nodes);
-  if (
-    !tree ||
-    !hasOnlyKeys(tree, ["rootNodeIds", "nodes"]) ||
-    !rootNodeIds ||
-    rootNodeIds.some((id) => !hasId(id)) ||
-    !nodes ||
-    new Set(rootNodeIds).size !== rootNodeIds.length
-  )
-    return false;
-  const roots = new Set(rootNodeIds);
-  if (rootNodeIds.some((id) => !Object.hasOwn(nodes, id))) return false;
-  for (const [key, value] of Object.entries(nodes)) {
-    const node = record(value);
-    if (
-      !node ||
-      !hasOnlyKeys(node, [
-        "id",
-        "parentId",
-        "order",
-        "role",
-        "text",
-        "language",
-        "alt",
-        "interactionId",
-      ]) ||
-      !hasId(key) ||
-      node.id !== key ||
-      (node.parentId !== null && !hasId(node.parentId)) ||
-      !hasOrder(node.order) ||
-      !hasString(node.role) ||
-      !semanticRoles.has(node.role)
-    )
-      return false;
-    for (const optional of [node.text, node.alt])
-      if (optional !== undefined && !hasString(optional)) return false;
-    if (node.language !== undefined && !hasId(node.language)) return false;
-    if (node.interactionId !== undefined && !hasId(node.interactionId)) return false;
-    if (node.parentId === null ? !roots.has(key) : !Object.hasOwn(nodes, node.parentId))
-      return false;
-  }
-  if (!Object.keys(nodes).every((id) => roots.has(id) === (record(nodes[id])?.parentId === null)))
-    return false;
-  const siblingOrders = new Set<string>();
-  for (const [id, value] of Object.entries(nodes)) {
-    const node = record(value)!;
-    const key = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
-    if (siblingOrders.has(key)) return false;
-    siblingOrders.add(key);
-    const visited = new Set([id]);
-    let parentId = node.parentId;
-    while (typeof parentId === "string") {
-      if (visited.has(parentId)) return false;
-      visited.add(parentId);
-      parentId = record(nodes[parentId])?.parentId;
-    }
-  }
-  return true;
-};
-
-const isInteractionMapShape = (value: unknown) => {
-  const interactions = record(value);
-  if (!interactions) return false;
-  return Object.entries(interactions).every(([key, value]) => {
-    const interaction = record(value);
-    return (
-      !!interaction &&
-      hasOnlyKeys(interaction, ["id", "kind", "event"]) &&
-      hasId(key) &&
-      interaction.id === key &&
-      interaction.kind === "click" &&
-      hasId(interaction.event)
-    );
-  });
-};
-
-const isStateMapShape = (value: unknown) => {
-  const states = record(value);
-  if (!states) return false;
-  return Object.entries(states).every(([key, value]) => {
-    const state = record(value);
-    const overrides = state && dataArray(state.semanticOverrides);
-    const enabledInteractionIds = state && stringArray(state.enabledInteractionIds);
-    if (
-      !state ||
-      !hasOnlyKeys(state, ["id", "semanticOverrides", "enabledInteractionIds"]) ||
-      !hasId(key) ||
-      state.id !== key ||
-      !overrides ||
-      !enabledInteractionIds ||
-      enabledInteractionIds.some((id) => !hasId(id)) ||
-      new Set(enabledInteractionIds).size !== enabledInteractionIds.length
-    )
-      return false;
-    return overrides.every((value) => {
-      const override = record(value);
-      const nodes = override && record(override.nodes);
-      if (!override || !hasOnlyKeys(override, ["nodes"]) || !nodes) return false;
-      return Object.values(nodes).every((value) => {
-        const node = record(value);
-        if (!node || !hasOnlyKeys(node, ["included", "text", "language", "alt"])) return false;
-        if (node.included !== undefined && typeof node.included !== "boolean") return false;
-        if (node.language !== undefined && node.language !== null && !hasId(node.language))
-          return false;
-        return [node.text, node.alt].every(
-          (item) => item === undefined || item === null || hasString(item),
-        );
-      });
-    });
-  });
-};
-
-const isIntentShape = (value: unknown, resolved: boolean) => {
-  const current = record(value);
-  const updateModel = current && record(current.updateModel);
-  const interaction = current && record(current.interaction);
-  const internalAnimation = current && record(current.internalAnimation);
-  if (
-    !current ||
-    !hasOnlyKeys(current, [
-      "updateModel",
-      "interaction",
-      "internalAnimation",
-      resolved ? "selectedRendererId" : "rendererPreference",
-      "fallbackPolicy",
-    ]) ||
-    !updateModel ||
-    !interaction ||
-    !internalAnimation
-  )
-    return false;
-  const validUpdateKeys =
-    (updateModel.kind === "static" && hasOnlyKeys(updateModel, ["kind"])) ||
-    (updateModel.kind === "finite-state" && hasOnlyKeys(updateModel, ["kind", "stateIds"])) ||
-    (updateModel.kind === "continuous" &&
-      hasOnlyKeys(updateModel, ["kind", "source", "maximumUpdateRateHz"]));
-  const validInteractionKeys =
-    (["none", "native-input"].includes(interaction.kind as string) &&
-      hasOnlyKeys(interaction, ["kind"])) ||
-    (interaction.kind === "regions" && hasOnlyKeys(interaction, ["kind", "events"]));
-  const validAnimationKeys =
-    (["none", "runtime"].includes(internalAnimation.kind as string) &&
-      hasOnlyKeys(internalAnimation, ["kind"])) ||
-    (internalAnimation.kind === "precomputed" &&
-      hasOnlyKeys(internalAnimation, ["kind", "durationSeconds"]));
-  if (!validUpdateKeys || !validInteractionKeys || !validAnimationKeys) return false;
-  const stateIds = updateModel && stringArray(updateModel.stateIds);
-  const events = interaction && stringArray(interaction.events);
-  const validUpdateModel =
-    updateModel?.kind === "static" ||
-    (updateModel?.kind === "finite-state" &&
-      !!stateIds &&
-      stateIds.length > 0 &&
-      stateIds.every(hasId) &&
-      new Set(stateIds).size === stateIds.length) ||
-    (updateModel?.kind === "continuous" &&
-      ["timeline", "runtime-data", "user-input"].includes(updateModel.source as string) &&
-      (updateModel.maximumUpdateRateHz === undefined ||
-        hasPositiveNumber(updateModel.maximumUpdateRateHz)));
-  const validInteraction =
-    interaction?.kind === "none" ||
-    interaction?.kind === "native-input" ||
-    (interaction?.kind === "regions" &&
-      !!events &&
-      events.length > 0 &&
-      events.every(hasId) &&
-      new Set(events).size === events.length);
-  const validAnimation =
-    internalAnimation?.kind === "none" ||
-    internalAnimation?.kind === "runtime" ||
-    (internalAnimation?.kind === "precomputed" &&
-      hasPositiveNumber(internalAnimation.durationSeconds));
-  return (
-    validUpdateModel &&
-    validInteraction &&
-    validAnimation &&
-    ["reject", "degrade"].includes(current.fallbackPolicy as string) &&
-    (resolved
-      ? hasId(current.selectedRendererId)
-      : ["auto", "baked-web", "native-ui", "video"].includes(current.rendererPreference as string))
-  );
-};
-
-const isInputShape = (value: unknown): value is CompilerResolvedSurfaceInput => {
-  const input = record(value);
-  const context = input && record(input.context);
-  const plan = input && record(input.plan);
-  const bounds = plan && record(plan.logicalBounds);
-  const surface = input && record(input.surface);
-  const pixelTarget = context && dataArray(context.pixelTarget);
-  const logicalSize = surface && dataArray(surface.logicalSize);
-  const physicalSize = surface && dataArray(surface.physicalSizeMeters);
-  const contentNodes = surface && record(surface.contentNodes);
-  const semanticsByState = input && record(input.semanticsByState);
-  const entry = input && record(input.entry);
-  if (!input || !context || !plan || !bounds || !surface) return false;
-  if (
-    !hasOnlyKeys(input, [
-      "surface",
-      "sourceIntent",
-      "resolvedIntent",
-      "semanticsByState",
-      "plan",
-      "entry",
-      "context",
-    ]) ||
-    !hasOnlyKeys(context, [
-      "locale",
-      "timezone",
-      "colorScheme",
-      "themeId",
-      "themeHash",
-      "inputHash",
-      "buildContextHash",
-      "environmentHash",
-      "rendererConfigHash",
-      "rendererFingerprint",
-      "pixelTarget",
-    ]) ||
-    !hasOnlyKeys(plan, [
-      "id",
-      "semanticSurfaceId",
-      "logicalBounds",
-      "layer",
-      "contentNodeIds",
-      "states",
-    ]) ||
-    !hasOnlyKeys(bounds, ["x", "y", "width", "height"]) ||
-    !hasOnlyKeys(surface, [
-      "id",
-      "hostNodeId",
-      "physicalSizeMeters",
-      "logicalSize",
-      "fit",
-      "rootFrameId",
-      "contentNodes",
-      "baseSemanticTree",
-      "interactions",
-      "initialStateId",
-      "states",
-      "renderIntent",
-    ]) ||
-    ![
-      context.locale,
-      context.timezone,
-      context.colorScheme,
-      context.themeId,
-      context.themeHash,
-      context.inputHash,
-      context.buildContextHash,
-      context.environmentHash,
-      context.rendererConfigHash,
-      context.rendererFingerprint,
-      plan.id,
-      plan.semanticSurfaceId,
-      surface.id,
-      surface.rootFrameId,
-      surface.initialStateId,
-    ].every(hasId) ||
-    !["light", "dark"].includes(context.colorScheme as string) ||
-    ![bounds.x, bounds.y, bounds.width, bounds.height].every(hasNumber) ||
-    !hasNumber(plan.layer) ||
-    !pixelTarget ||
-    pixelTarget.length !== 2 ||
-    !pixelTarget.every(hasNumber) ||
-    !stringArray(plan.contentNodeIds) ||
-    !record(plan.states) ||
-    !logicalSize ||
-    logicalSize.length !== 2 ||
-    !logicalSize.every(hasPositiveNumber) ||
-    !physicalSize ||
-    physicalSize.length !== 2 ||
-    !physicalSize.every(hasPositiveNumber) ||
-    !hasId(surface.hostNodeId) ||
-    !["contain", "cover", "stretch"].includes(surface.fit as string) ||
-    !contentNodes ||
-    !isStateMapShape(surface.states) ||
-    !isInteractionMapShape(surface.interactions) ||
-    !isSemanticTreeShape(surface.baseSemanticTree) ||
-    !isIntentShape(surface.renderIntent, false) ||
-    !isIntentShape(input.sourceIntent, false) ||
-    !isIntentShape(input.resolvedIntent, true) ||
-    !semanticsByState ||
-    !entry ||
-    !["structured", "opaque"].includes(entry.kind as string) ||
-    (entry.kind === "structured" && !hasOnlyKeys(entry, ["kind"])) ||
-    (entry.kind === "opaque" &&
-      (!hasOnlyKeys(entry, ["kind", "entryId", "moduleHash"]) ||
-        !hasId(entry.entryId) ||
-        !hasId(entry.moduleHash))) ||
-    !Object.hasOwn(surface.states as object, surface.initialStateId as string)
-  )
-    return false;
-  const rootId = surface.rootFrameId as string;
-  const root = record(contentNodes[rootId]);
+const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean => {
+  const { surface, semanticsByState } = input;
+  if (!Object.hasOwn(surface.states, surface.initialStateId)) return false;
+  const root = surface.contentNodes[surface.rootFrameId];
   if (!root || root.kind !== "frame" || root.parentId !== null) return false;
-  for (const [key, node] of Object.entries(contentNodes)) {
-    const current = record(node);
-    if (
-      !current ||
-      !hasId(key) ||
-      current.id !== key ||
-      !["frame", "text"].includes(current.kind as string) ||
-      !hasOrder(current.order)
-    )
-      return false;
-    if (
-      current.kind === "frame" &&
-      !hasOnlyKeys(current, ["id", "kind", "parentId", "order", "layout", "children"])
-    )
-      return false;
-    if (
-      current.kind === "text" &&
-      !hasOnlyKeys(current, ["id", "kind", "parentId", "order", "placement", "text"])
-    )
-      return false;
-    if (current.parentId === null ? key !== rootId : !hasId(current.parentId)) return false;
-    if (
-      current.kind === "frame" &&
-      (!stringArray(current.children) ||
-        record(current.layout)?.kind !== "absolute" ||
-        !hasOnlyKeys(record(current.layout)!, ["kind"]))
-    )
-      return false;
-    if (
-      current.kind === "frame" &&
-      stringArray(current.children)?.some((childId) => {
-        const child = record(contentNodes[childId]);
-        return !child || child.parentId !== key;
-      })
-    )
-      return false;
-    if (
-      current.kind === "text" &&
-      (!hasString(current.text) ||
-        record(current.placement)?.kind !== "absolute" ||
-        !hasOnlyKeys(record(current.placement)!, ["kind", "x", "y", "width", "height"]) ||
-        ![
-          record(current.placement)?.x,
-          record(current.placement)?.y,
-          record(current.placement)?.width,
-          record(current.placement)?.height,
-        ].every(hasNumber) ||
-        !hasPositiveNumber(record(current.placement)?.width) ||
-        !hasPositiveNumber(record(current.placement)?.height))
-    )
-      return false;
-    if (current.parentId !== null) {
-      const parent = record(contentNodes[current.parentId as string]);
-      if (!parent || parent.kind !== "frame" || !stringArray(parent.children)?.includes(key))
-        return false;
-    }
-  }
   const contentOrders = new Set<string>();
-  for (const [id, value] of Object.entries(contentNodes)) {
-    const node = record(value)!;
+  for (const [id, node] of Object.entries(surface.contentNodes)) {
+    if (
+      node.id !== id ||
+      (node.parentId === null ? id !== surface.rootFrameId : !surface.contentNodes[node.parentId])
+    )
+      return false;
     const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
     if (contentOrders.has(orderKey)) return false;
     contentOrders.add(orderKey);
     if (node.kind === "frame") {
-      const children = stringArray(node.children)!;
-      if (new Set(children).size !== children.length || children.some((child) => !hasId(child)))
+      if (
+        new Set(node.children).size !== node.children.length ||
+        node.children.some((childId) => surface.contentNodes[childId]?.parentId !== id)
+      )
         return false;
-    }
-    const visited = new Set([id]);
-    let parentId = node.parentId;
-    while (typeof parentId === "string") {
-      if (visited.has(parentId)) return false;
-      visited.add(parentId);
-      parentId = record(contentNodes[parentId])?.parentId;
+    } else {
+      const parent = surface.contentNodes[node.parentId ?? ""];
+      if (!parent || parent.kind !== "frame" || !parent.children.includes(id)) return false;
     }
   }
-  for (const state of Object.values(plan.states as Record<string, unknown>)) {
-    const current = record(state);
+  const validateTree = (tree: CompletedSemanticTree) => {
+    const roots = new Set(tree.rootNodeIds);
+    if (tree.rootNodeIds.some((id) => !tree.nodes[id])) return false;
+    const siblingOrders = new Set<string>();
+    for (const [id, node] of Object.entries(tree.nodes)) {
+      if (node.id !== id || (node.parentId === null ? !roots.has(id) : !tree.nodes[node.parentId]))
+        return false;
+      const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
+      if (siblingOrders.has(orderKey)) return false;
+      siblingOrders.add(orderKey);
+      const seen = new Set([id]);
+      for (
+        let parentId = node.parentId;
+        parentId !== null;
+        parentId = tree.nodes[parentId]?.parentId ?? null
+      ) {
+        if (seen.has(parentId)) return false;
+        seen.add(parentId);
+      }
+    }
+    return Object.keys(tree.nodes).every(
+      (id) => roots.has(id) === (tree.nodes[id]?.parentId === null),
+    );
+  };
+  if (
+    !validateTree(surface.baseSemanticTree) ||
+    !Object.values(semanticsByState).every(validateTree)
+  )
+    return false;
+  const interactionEvents = new Set(Object.values(surface.interactions).map(({ event }) => event));
+  for (const intent of [surface.renderIntent, input.sourceIntent, input.resolvedIntent]) {
     if (
-      !current ||
-      !hasOnlyKeys(current, ["kind"]) ||
-      !["capture", "empty"].includes(current.kind as string)
+      intent.updateModel.kind === "finite-state" &&
+      intent.updateModel.stateIds.some((id) => !surface.states[id])
+    )
+      return false;
+    if (
+      intent.interaction.kind === "regions" &&
+      intent.interaction.events.some((event) => !interactionEvents.has(event))
     )
       return false;
   }
-  if (!Object.values(semanticsByState).every(isSemanticTreeShape)) return false;
-  const interactions = surface.interactions as Record<string, unknown>;
-  const interactionEvents = new Set(
-    Object.values(interactions).map((interaction) => record(interaction)?.event as string),
-  );
-  for (const intent of [surface.renderIntent, input.sourceIntent, input.resolvedIntent]) {
-    const updateModel = record(record(intent)?.updateModel);
+  for (const [stateId, state] of Object.entries(surface.states)) {
+    if (state.id !== stateId || state.enabledInteractionIds.some((id) => !surface.interactions[id]))
+      return false;
     if (
-      updateModel?.kind === "finite-state" &&
-      stringArray(updateModel.stateIds)?.some(
-        (stateId) => !Object.hasOwn(surface.states as object, stateId),
+      state.semanticOverrides.some(({ nodes }) =>
+        Object.keys(nodes).some((id) => !surface.baseSemanticTree.nodes[id]),
       )
     )
       return false;
-    const interaction = record(record(intent)?.interaction);
-    if (
-      interaction?.kind === "regions" &&
-      stringArray(interaction.events)?.some((event) => !interactionEvents.has(event))
-    )
-      return false;
   }
-  const baseSemanticNodes = record(record(surface.baseSemanticTree)?.nodes);
-  if (!baseSemanticNodes) return false;
-  for (const state of Object.values(surface.states as Record<string, unknown>)) {
-    const current = record(state);
-    if (
-      !current ||
-      stringArray(current.enabledInteractionIds)?.some((id) => !Object.hasOwn(interactions, id))
-    )
-      return false;
-    for (const override of dataArray(current.semanticOverrides) ?? []) {
-      const nodes = record(record(override)?.nodes);
-      if (!nodes || Object.keys(nodes).some((id) => !Object.hasOwn(baseSemanticNodes, id)))
-        return false;
-    }
-  }
-  for (const tree of [surface.baseSemanticTree, ...Object.values(semanticsByState)]) {
-    const nodes = record(record(tree)?.nodes);
-    if (
-      !nodes ||
-      Object.values(nodes).some((node) => {
-        const interactionId = record(node)?.interactionId;
-        return interactionId !== undefined && !Object.hasOwn(interactions, interactionId as string);
-      })
-    )
-      return false;
-  }
-  return true;
+  return [surface.baseSemanticTree, ...Object.values(semanticsByState)].every((tree) =>
+    Object.values(tree.nodes).every(
+      ({ interactionId }) => interactionId === undefined || !!surface.interactions[interactionId],
+    ),
+  );
 };
 
 export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
@@ -734,14 +353,15 @@ export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
 const prepareRendererPlugin = (plugin: unknown): ValidationResult<RendererPlugin> => {
   try {
     const snapshot = plainDataRecord(plugin);
-    const identity = snapshot && plainDataRecord(snapshot.identity);
-    const capability = snapshot && plainDataRecord(snapshot.capabilities);
-    if (!snapshot || !identity || !capability)
+    if (!snapshot)
       return {
         valid: false,
         diagnostics: [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])],
       };
-    if (typeof snapshot.support !== "function" || typeof snapshot.build !== "function")
+    if (
+      !rendererFunctionSchema.safeParse(snapshot.support).success ||
+      !rendererFunctionSchema.safeParse(snapshot.build).success
+    )
       return {
         valid: false,
         diagnostics: [
@@ -752,11 +372,8 @@ const prepareRendererPlugin = (plugin: unknown): ValidationResult<RendererPlugin
           ),
         ],
       };
-    if (
-      ![identity.id, identity.version, identity.contractVersion, identity.implementationHash].every(
-        (value) => typeof value === "string" && value.length > 0,
-      )
-    )
+    const identityResult = rendererIdentitySchema.safeParse(snapshotUnknown(snapshot.identity));
+    if (!identityResult.success)
       return {
         valid: false,
         diagnostics: [
@@ -767,19 +384,10 @@ const prepareRendererPlugin = (plugin: unknown): ValidationResult<RendererPlugin
           ),
         ],
       };
-    const exactCapability = (value: unknown, expected: readonly string[]) => {
-      const values = snapshotUnknown(value);
-      return Array.isArray(values) && values.every(hasString) && sameArray(values, expected);
-    };
-    if (
-      !exactCapability(capability.inputKinds, ["structured"]) ||
-      !exactCapability(capability.updateModels, ["static"]) ||
-      !exactCapability(capability.interactions, ["none"]) ||
-      !exactCapability(capability.internalAnimations, ["none"]) ||
-      !exactCapability(capability.rendererPreferences, ["baked-web"]) ||
-      !exactCapability(capability.fallbackPolicies, ["reject"]) ||
-      capability.deterministic !== true
-    )
+    const capabilityResult = rendererCapabilitiesSchema.safeParse(
+      snapshotUnknown(snapshot.capabilities),
+    );
+    if (!capabilityResult.success)
       return {
         valid: false,
         diagnostics: [
@@ -791,19 +399,16 @@ const prepareRendererPlugin = (plugin: unknown): ValidationResult<RendererPlugin
         ],
       };
     const frozenIdentity = Object.freeze({
-      id: identity.id as string,
-      version: identity.version as string,
-      contractVersion: identity.contractVersion as string,
-      implementationHash: identity.implementationHash as string,
+      ...identityResult.data,
     });
     const frozenCapabilities = Object.freeze({
-      inputKinds: Object.freeze(["structured"] as const),
-      updateModels: Object.freeze(["static"] as const),
-      interactions: Object.freeze(["none"] as const),
-      internalAnimations: Object.freeze(["none"] as const),
-      rendererPreferences: Object.freeze(["baked-web"] as const),
-      fallbackPolicies: Object.freeze(["reject"] as const),
-      deterministic: true as const,
+      inputKinds: Object.freeze(capabilityResult.data.inputKinds),
+      updateModels: Object.freeze(capabilityResult.data.updateModels),
+      interactions: Object.freeze(capabilityResult.data.interactions),
+      internalAnimations: Object.freeze(capabilityResult.data.internalAnimations),
+      rendererPreferences: Object.freeze(capabilityResult.data.rendererPreferences),
+      fallbackPolicies: Object.freeze(capabilityResult.data.fallbackPolicies),
+      deterministic: capabilityResult.data.deterministic,
     });
     const support = snapshot.support as RendererPlugin["support"];
     const build = snapshot.build as RendererPlugin["build"];
@@ -854,8 +459,6 @@ const copyUint8Array = (value: unknown): Uint8Array | undefined => {
     return undefined;
   }
 };
-const isUint8Array = (value: unknown): value is Uint8Array => copyUint8Array(value) !== undefined;
-
 const sortedDiagnostics = (diagnostics: readonly Diagnostic[]) =>
   [...diagnostics].sort((left, right) => {
     const leftKey = `${JSON.stringify(left.path)}\0${left.code}\0${left.message}`;
@@ -877,72 +480,24 @@ const comparable = (value: unknown): unknown => {
 };
 
 const snapshot = (value: unknown) => JSON.stringify(comparable(value));
-const finite = (value: number) => Number.isFinite(value);
-const positiveInteger = (value: number) => Number.isSafeInteger(value) && value > 0;
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 const sameKeySet = (left: object, right: object) =>
   snapshot(Object.keys(left).sort(compareStrings)) ===
   snapshot(Object.keys(right).sort(compareStrings));
 
-const isDiagnostic = (value: unknown): value is Diagnostic => {
-  if (!isRecord(value) || typeof value.code !== "string" || typeof value.message !== "string")
-    return false;
-  const path = denseDataArray(value.path);
-  return (
-    !!path &&
-    path.every(
-      (part) => typeof part === "string" || (typeof part === "number" && Number.isFinite(part)),
-    )
-  );
+const parseSupportDecision = (value: unknown) => {
+  const boundarySnapshot = snapshotUnknown(value);
+  const parsed = rendererSupportDecisionSchema.safeParse(boundarySnapshot);
+  return parsed.success
+    ? { success: true as const, data: boundarySnapshot as RendererSupportDecision }
+    : parsed;
 };
 
-const isSupportDecision = (value: unknown): value is RendererSupportDecision =>
-  isRecord(value) &&
-  typeof value.supported === "boolean" &&
-  !!denseDataArray(value.diagnostics) &&
-  denseDataArray(value.diagnostics)!.every(isDiagnostic);
-
-const isBuildResult = (value: unknown): value is RendererBuildResult => {
-  if (!isRecord(value) || typeof value.ok !== "boolean") return false;
-  const diagnostics = denseDataArray(value.diagnostics);
-  if (!diagnostics || !diagnostics.every(isDiagnostic)) return false;
-  if (!value.ok) return true;
-  const captures = denseDataArray(value.captures);
-  if (
-    !isRecord(value.renderSurface) ||
-    !isRecord(value.renderSurface.logicalBounds) ||
-    !captures ||
-    !isRecord(value.hitRegionsByState) ||
-    !isRecord(value.provenance)
-  )
-    return false;
-  if (
-    !captures.every(
-      (capture) =>
-        isRecord(capture) &&
-        typeof capture.id === "string" &&
-        typeof capture.stateId === "string" &&
-        isUint8Array(capture.rgba) &&
-        Array.isArray(capture.pixelSize) &&
-        typeof capture.colorSpace === "string" &&
-        typeof capture.alphaMode === "string",
-    )
-  )
-    return false;
-  return Object.values(value.hitRegionsByState).every((regions) => {
-    const denseRegions = denseDataArray(regions);
-    return (
-      !!denseRegions &&
-      denseRegions.every(
-        (region) =>
-          isRecord(region) &&
-          typeof region.interactionId === "string" &&
-          typeof region.semanticNodeId === "string" &&
-          isRecord(region.bounds),
-      )
-    );
-  });
+const parseBuildResult = (value: unknown) => {
+  const boundarySnapshot = snapshotUnknown(value);
+  const parsed = rendererBuildResultSchema.safeParse(boundarySnapshot);
+  return parsed.success
+    ? { success: true as const, data: boundarySnapshot as RendererBuildResult }
+    : parsed;
 };
 
 const validateInput = (
@@ -951,22 +506,6 @@ const validateInput = (
   diagnostics: Diagnostic[],
   prefix: readonly (string | number)[],
 ) => {
-  for (const [label, value] of Object.entries({
-    renderSurfaceId: input.plan.id,
-    semanticSurfaceId: input.plan.semanticSurfaceId,
-    locale: input.context.locale,
-    timezone: input.context.timezone,
-    themeId: input.context.themeId,
-    themeHash: input.context.themeHash,
-    inputHash: input.context.inputHash,
-    buildContextHash: input.context.buildContextHash,
-    environmentHash: input.context.environmentHash,
-    rendererConfigHash: input.context.rendererConfigHash,
-    rendererFingerprint: input.context.rendererFingerprint,
-  }))
-    if (!nonEmpty(value))
-      diagnostics.push(diagnostic("invalid-renderer-input", `${label} must be non-empty.`, prefix));
-
   if (input.plan.semanticSurfaceId !== input.surface.id)
     diagnostics.push(
       diagnostic(
@@ -976,18 +515,11 @@ const validateInput = (
       ),
     );
 
-  const bounds = input.plan.logicalBounds;
   if (
-    !finite(bounds.x) ||
-    !finite(bounds.y) ||
-    !finite(bounds.width) ||
-    !finite(bounds.height) ||
-    bounds.width <= 0 ||
-    bounds.height <= 0 ||
-    bounds.x < 0 ||
-    bounds.y < 0 ||
-    bounds.x + bounds.width > input.surface.logicalSize[0] ||
-    bounds.y + bounds.height > input.surface.logicalSize[1]
+    !logicalBoundsConstraintSchema.safeParse({
+      bounds: input.plan.logicalBounds,
+      logicalSize: input.surface.logicalSize,
+    }).success
   )
     diagnostics.push(
       diagnostic("invalid-logical-bounds", "Logical bounds must be finite and positive.", [
@@ -1009,7 +541,7 @@ const validateInput = (
         [...prefix, "context", "rendererFingerprint"],
       ),
     );
-  if (!Number.isSafeInteger(input.plan.layer) || input.plan.layer < 0)
+  if (!renderLayerSchema.safeParse(input.plan.layer).success)
     diagnostics.push(
       diagnostic("invalid-render-layer", "Render layer must be a non-negative integer.", [
         ...prefix,
@@ -1017,7 +549,7 @@ const validateInput = (
         "layer",
       ]),
     );
-  if (input.context.pixelTarget.length !== 2 || !input.context.pixelTarget.every(positiveInteger))
+  if (!pixelTargetSchema.safeParse(input.context.pixelTarget).success)
     diagnostics.push(
       diagnostic("invalid-pixel-target", "Pixel target must contain positive integers.", [
         ...prefix,
@@ -1027,35 +559,20 @@ const validateInput = (
     );
 
   const stateIds = Object.keys(input.plan.states);
-  if (stateIds.length === 0)
+  if (!renderStateIdsSchema.safeParse(stateIds).success) {
+    const code = stateIds.length === 0 ? "missing-render-states" : "invalid-render-state-id";
     diagnostics.push(
-      diagnostic("missing-render-states", "Render plan must include a reachable state.", [
-        ...prefix,
-        "plan",
-        "states",
-      ]),
+      diagnostic(
+        code,
+        stateIds.length === 0
+          ? "Render plan must include a reachable state."
+          : "Render state IDs must be non-empty.",
+        [...prefix, "plan", "states"],
+      ),
     );
-  for (const stateId of stateIds)
-    if (!nonEmpty(stateId))
-      diagnostics.push(
-        diagnostic("invalid-render-state-id", "Render state IDs must be non-empty.", [
-          ...prefix,
-          "plan",
-          "states",
-        ]),
-      );
-  for (const [stateId, state] of Object.entries(input.plan.states))
-    if (state.kind !== "capture" && state.kind !== "empty")
-      diagnostics.push(
-        diagnostic("invalid-render-state-kind", "Render state kind must be capture or empty.", [
-          ...prefix,
-          "plan",
-          "states",
-          stateId,
-          "kind",
-        ]),
-      );
-    else if (!Object.hasOwn(input.semanticsByState, stateId))
+  }
+  for (const stateId of Object.keys(input.plan.states))
+    if (!Object.hasOwn(input.semanticsByState, stateId))
       diagnostics.push(
         diagnostic("missing-state-semantics", "Planned state has no completed Semantic Tree.", [
           ...prefix,
@@ -1113,15 +630,7 @@ const validateInput = (
         [...prefix, "resolvedIntent"],
       ),
     );
-  if (!nonEmpty(input.resolvedIntent.selectedRendererId))
-    diagnostics.push(
-      diagnostic("invalid-selected-renderer", "Selected renderer ID must be non-empty.", [
-        ...prefix,
-        "resolvedIntent",
-        "selectedRendererId",
-      ]),
-    );
-  else if (input.resolvedIntent.selectedRendererId !== plugin.identity.id)
+  if (input.resolvedIntent.selectedRendererId !== plugin.identity.id)
     diagnostics.push(
       diagnostic(
         "selected-renderer-plugin-mismatch",
@@ -1141,7 +650,10 @@ const validateInput = (
       ),
     );
   for (const contentNodeId of input.plan.contentNodeIds)
-    if (!nonEmpty(contentNodeId) || !Object.hasOwn(input.surface.contentNodes, contentNodeId))
+    if (
+      !rendererIdSchema.safeParse(contentNodeId).success ||
+      !Object.hasOwn(input.surface.contentNodes, contentNodeId)
+    )
       diagnostics.push(
         diagnostic("missing-content-node", "Render plan references an unknown content node.", [
           ...prefix,
@@ -1176,20 +688,31 @@ const prepareRendererBoundary = (
       ? { valid: true as const, value: preparedPlugin }
       : prepareRendererPlugin(plugin);
     if (!pluginResult.valid) return pluginResult;
-    const snapshot = snapshotUnknown(input);
-    if (!isInputShape(snapshot))
+    const inputSnapshot = snapshotUnknown(input);
+    const inputResult = rendererBuildInputSchema.safeParse(inputSnapshot);
+    if (!inputResult.success) {
       return {
         valid: false,
         diagnostics: [
           diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
         ],
       };
+    }
     const diagnostics: Diagnostic[] = [];
-    validateInput(snapshot, pluginResult.value, diagnostics, prefix);
+    const preparedInput = inputSnapshot as CompilerResolvedSurfaceInput;
+    if (!validateInputReferences(preparedInput)) {
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
+        ],
+      };
+    }
+    validateInput(preparedInput, pluginResult.value, diagnostics, prefix);
     return diagnostics.length === 0
       ? {
           valid: true,
-          value: Object.freeze({ input: snapshot, plugin: pluginResult.value }),
+          value: Object.freeze({ input: preparedInput, plugin: pluginResult.value }),
           diagnostics: [],
         }
       : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
@@ -1255,20 +778,7 @@ const validateHitRegion = (
     stateId,
     region.interactionId,
   ] as const;
-  const bounds = region.bounds;
-  if (
-    !finite(bounds.x) ||
-    !finite(bounds.y) ||
-    !finite(bounds.width) ||
-    !finite(bounds.height) ||
-    bounds.x < 0 ||
-    bounds.y < 0 ||
-    bounds.width <= 0 ||
-    bounds.height <= 0 ||
-    bounds.x + bounds.width > 1 ||
-    bounds.y + bounds.height > 1 ||
-    region.coordinateSpace !== "normalized"
-  )
+  if (!normalizedHitRegionBoundsSchema.safeParse(region.bounds).success)
     diagnostics.push(
       diagnostic(
         "invalid-hit-region-bounds",
@@ -1300,7 +810,7 @@ const validateHitRegion = (
         path,
       ),
     );
-  if (!Number.isSafeInteger(region.priority) || region.priority < 0)
+  if (!hitRegionPrioritySchema.safeParse(region.priority).success)
     diagnostics.push(
       diagnostic("invalid-hit-region-priority", "Hit Region priority must be non-negative.", path),
     );
@@ -1333,7 +843,7 @@ const validateSuccess = (
   const captureIds = new Set<string>();
   const capturesByState = new Map<string, number>();
   for (const capture of result.captures) {
-    if (!nonEmpty(capture.id) || captureIds.has(capture.id))
+    if (captureIds.has(capture.id))
       diagnostics.push(
         diagnostic("duplicate-capture-id", "Capture IDs must be unique and non-empty.", [
           name,
@@ -1344,7 +854,7 @@ const validateSuccess = (
       );
     captureIds.add(capture.id);
     capturesByState.set(capture.stateId, (capturesByState.get(capture.stateId) ?? 0) + 1);
-    if (capture.pixelSize.length !== 2 || !capture.pixelSize.every(positiveInteger))
+    if (!capturePixelSizeSchema.safeParse(capture.pixelSize).success)
       diagnostics.push(
         diagnostic("invalid-capture-size", "Capture size must contain positive integers.", [
           name,
@@ -1365,18 +875,6 @@ const validateSuccess = (
         ]),
       );
     const rgba = copyUint8Array(capture.rgba);
-    if (
-      !rgba ||
-      capture.colorSpace !== "srgb" ||
-      !["opaque", "straight", "premultiplied"].includes(capture.alphaMode)
-    )
-      diagnostics.push(
-        diagnostic(
-          "invalid-raw-capture",
-          "Capture must use RGBA bytes and declared color metadata.",
-          [name, "output", "captures", capture.id],
-        ),
-      );
     const expectedBytes = capture.pixelSize[0] * capture.pixelSize[1] * 4;
     if (rgba && rgba.length !== expectedBytes)
       diagnostics.push(
@@ -1427,17 +925,7 @@ const validateSuccess = (
         ]),
       );
     const regions = result.hitRegionsByState[stateId];
-    if (!Array.isArray(regions)) {
-      diagnostics.push(
-        diagnostic("invalid-state-hit-regions", "Hit Regions must be an array.", [
-          name,
-          "output",
-          "hitRegionsByState",
-          stateId,
-        ]),
-      );
-      continue;
-    }
+    if (!regions) continue;
     if (input.resolvedIntent.interaction.kind === "none" && regions.length > 0)
       diagnostics.push(
         diagnostic(
@@ -1519,7 +1007,7 @@ export const executeRendererPlugin = async (
       diagnostics.push(
         diagnostic("renderer-support-threw", "support() must return a diagnostic decision.", []),
       );
-    else if (!isSupportDecision(supportCall.value))
+    else if (!parseSupportDecision(supportCall.value).success)
       diagnostics.push(
         diagnostic(
           "malformed-support-decision",
@@ -1550,7 +1038,7 @@ export const executeRendererPlugin = async (
       diagnostics.push(
         diagnostic("renderer-threw", "Renderer failures must be returned as diagnostics.", []),
       );
-    else if (!isBuildResult(buildCall.value))
+    else if (!parseBuildResult(buildCall.value).success)
       diagnostics.push(
         diagnostic(
           "malformed-renderer-output",
@@ -1564,8 +1052,10 @@ export const executeRendererPlugin = async (
       );
     if (diagnostics.length > 0)
       return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
-    const support = (supportCall as { readonly value: RendererSupportDecision }).value;
-    const result = (buildCall as { readonly value: RendererBuildResult }).value;
+    const support = parseSupportDecision((supportCall as { readonly value: unknown }).value)
+      .data as RendererSupportDecision;
+    const result = parseBuildResult((buildCall as { readonly value: unknown }).value)
+      .data as RendererBuildResult;
     if (support.supported !== result.ok)
       diagnostics.push(diagnostic("support-build-mismatch", "support() and build() disagree.", []));
     if (result.ok) validateSuccess(fixture, preparedPlugin, result, diagnostics);
@@ -1636,7 +1126,8 @@ const runRendererConformanceUnchecked = async (
         );
       continue;
     }
-    if (!isSupportDecision(supportCall.value)) {
+    const supportResult = parseSupportDecision(supportCall.value);
+    if (!supportResult.success) {
       diagnostics.push(
         diagnostic(
           "malformed-support-decision",
@@ -1653,7 +1144,7 @@ const runRendererConformanceUnchecked = async (
         );
       continue;
     }
-    const support = supportCall.value;
+    const support = supportResult.data as RendererSupportDecision;
     if (snapshot(support) !== snapshot(expectedSupport))
       diagnostics.push(
         diagnostic("invalid-support-decision", "support() must follow declared capabilities.", [
@@ -1679,7 +1170,8 @@ const runRendererConformanceUnchecked = async (
         );
       continue;
     }
-    if (!isBuildResult(firstCall.value)) {
+    const firstResult = parseBuildResult(firstCall.value);
+    if (!firstResult.success) {
       diagnostics.push(
         diagnostic(
           "malformed-renderer-output",
@@ -1696,7 +1188,7 @@ const runRendererConformanceUnchecked = async (
         );
       continue;
     }
-    const first = firstCall.value;
+    const first = firstResult.data as RendererBuildResult;
     const firstSnapshot = snapshot(first);
     results.push(first);
 
@@ -1722,8 +1214,8 @@ const runRendererConformanceUnchecked = async (
       const secondCall = await callBuild(plugin, preparedFixture.input);
       if (
         secondCall.threw ||
-        !isBuildResult(secondCall.value) ||
-        firstSnapshot !== snapshot(secondCall.value)
+        !parseBuildResult(secondCall.value).success ||
+        firstSnapshot !== snapshot(parseBuildResult(secondCall.value).data)
       )
         diagnostics.push(
           diagnostic(

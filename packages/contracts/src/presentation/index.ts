@@ -25,7 +25,9 @@ const generateJsonSchema = (
   return { $schema: draft202012, $id: id, title, ...shape };
 };
 
-export { presentationDefinitionSchema, renderBundleSchema };
+export { idSchema } from "./common";
+export { presentationDefinitionSchema, semanticSurfaceSchema } from "./definition";
+export { renderBundleSchema };
 export type { SerializedPresentationDefinitionV1 } from "./definition";
 export type { SerializedRenderBundleV1 } from "./render-bundle";
 

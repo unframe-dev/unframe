@@ -7,6 +7,7 @@ import {
   createBakedWebRenderer,
   createWebRendererConfigHash,
 } from "@unframe/presentation-renderer-web";
+import { z } from "zod";
 
 import type {
   BuildArtifactFile,
@@ -34,6 +35,44 @@ type ParseResult =
       format: "text" | "json";
       diagnostics: readonly Diagnostic[];
     }>;
+
+const absolutePathSchema = z.string().refine((value) => value.startsWith("/") && value.length > 1);
+const argumentArraySchema = z.array(z.string());
+const buildContextSchema = z
+  .object({
+    compiler: z
+      .object({
+        name: z.string().min(1),
+        version: z.string().min(1),
+        baseEnvironmentHash: z.string().min(1),
+      })
+      .strict(),
+    locale: z.string().min(1),
+    timezone: z.string().min(1),
+    colorScheme: z.enum(["light", "dark"]),
+    pixelTarget: z.tuple([z.int().positive(), z.int().positive()]),
+    webRendererConfig: z
+      .object({
+        documentBackground: z.tuple([
+          z.int().min(0).max(255),
+          z.int().min(0).max(255),
+          z.int().min(0).max(255),
+          z.int().min(0).max(255),
+        ]),
+        fontFamily: z.string(),
+      })
+      .strict(),
+  })
+  .strict();
+const publicInputSchema = z.object({ args: z.unknown(), host: z.unknown() }).strict();
+const checkHostSchema = z.object({ readProject: z.function().optional() });
+const buildHostSchema = checkHostSchema.extend({
+  writeBuildArtifacts: z.function().optional(),
+  browserAdapter: z.unknown().optional(),
+  buildContext: z.unknown().optional(),
+});
+const hostCallbackSchema = z.function();
+const projectSourceSchema = z.string();
 
 const textEncoder = new TextEncoder();
 const PNG_LIMITS = Object.freeze({
@@ -70,92 +109,7 @@ const ownDataRecord = (value: unknown): Record<string, unknown> | undefined => {
   }
 };
 
-const ownDenseValues = (value: unknown, expectedLength: number): readonly unknown[] | undefined => {
-  try {
-    if (!Array.isArray(value) || Object.getOwnPropertySymbols(value).length !== 0) return undefined;
-    const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
-    if (descriptors["length"]?.value !== expectedLength) return undefined;
-    const keys = Array.from({ length: expectedLength }, (_, index) => String(index));
-    if (
-      Object.keys(descriptors).length !== expectedLength + 1 ||
-      keys.some((key) => {
-        const descriptor = descriptors[key];
-        return !descriptor || descriptor.get !== undefined || descriptor.set !== undefined;
-      })
-    )
-      return undefined;
-    return keys.map((key) => descriptors[key]!.value);
-  } catch {
-    return undefined;
-  }
-};
-
-const hasExactly = (value: Record<string, unknown>, keys: readonly string[]) =>
-  Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
-
-const snapshotBuildContext = (value: unknown): PresentationCliBuildContext | undefined => {
-  const context = ownDataRecord(value);
-  if (
-    !context ||
-    !hasExactly(context, [
-      "compiler",
-      "locale",
-      "timezone",
-      "colorScheme",
-      "pixelTarget",
-      "webRendererConfig",
-    ])
-  )
-    return undefined;
-  const compiler = ownDataRecord(context.compiler);
-  const config = ownDataRecord(context.webRendererConfig);
-  const pixelTarget = ownDenseValues(context.pixelTarget, 2);
-  const background = config && ownDenseValues(config.documentBackground, 4);
-  if (
-    !compiler ||
-    !hasExactly(compiler, ["name", "version", "baseEnvironmentHash"]) ||
-    ![compiler.name, compiler.version, compiler.baseEnvironmentHash].every(
-      (item) => typeof item === "string" && item.length > 0,
-    ) ||
-    typeof context.locale !== "string" ||
-    context.locale.length === 0 ||
-    typeof context.timezone !== "string" ||
-    context.timezone.length === 0 ||
-    (context.colorScheme !== "light" && context.colorScheme !== "dark") ||
-    !pixelTarget ||
-    !pixelTarget.every((item) => Number.isSafeInteger(item) && (item as number) > 0) ||
-    !config ||
-    !hasExactly(config, ["documentBackground", "fontFamily"]) ||
-    !background ||
-    !background.every(
-      (item) => Number.isSafeInteger(item) && (item as number) >= 0 && (item as number) <= 255,
-    ) ||
-    typeof config.fontFamily !== "string"
-  )
-    return undefined;
-  return Object.freeze({
-    compiler: Object.freeze({
-      name: compiler.name as string,
-      version: compiler.version as string,
-      baseEnvironmentHash: compiler.baseEnvironmentHash as string,
-    }),
-    locale: context.locale,
-    timezone: context.timezone,
-    colorScheme: context.colorScheme,
-    pixelTarget: Object.freeze([pixelTarget[0] as number, pixelTarget[1] as number] as const),
-    webRendererConfig: Object.freeze({
-      documentBackground: Object.freeze([
-        background[0] as number,
-        background[1] as number,
-        background[2] as number,
-        background[3] as number,
-      ] as const),
-      fontFamily: config.fontFamily,
-    }),
-  });
-};
-
-const ownDenseStrings = (value: unknown): readonly string[] | undefined => {
+const ownDenseValues = (value: unknown): readonly unknown[] | undefined => {
   try {
     if (!Array.isArray(value) || Object.getOwnPropertySymbols(value).length !== 0) return undefined;
     const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
@@ -170,19 +124,29 @@ const ownDenseStrings = (value: unknown): readonly string[] | undefined => {
       })
     )
       return undefined;
-    const items: string[] = [];
-    for (const key of keys) {
-      const descriptor = descriptors[key];
-      if (!descriptor || typeof descriptor.value !== "string") return undefined;
-      items.push(descriptor.value);
-    }
-    return items;
+    return keys.map((key) => descriptors[key]!.value);
   } catch {
     return undefined;
   }
 };
 
-const absolutePath = (value: string) => value.startsWith("/") && value.length > 1;
+const snapshotBuildContext = (value: unknown): PresentationCliBuildContext | undefined => {
+  const context = ownDataRecord(value);
+  if (!context) return undefined;
+  const compiler = ownDataRecord(context.compiler);
+  const config = ownDataRecord(context.webRendererConfig);
+  const pixelTarget = ownDenseValues(context.pixelTarget);
+  const background = config && ownDenseValues(config.documentBackground);
+  if (!compiler || !config || !pixelTarget || !background) return undefined;
+  const parsed = buildContextSchema.safeParse({
+    ...context,
+    pixelTarget,
+    compiler,
+    webRendererConfig: { ...config, documentBackground: background },
+  });
+  return parsed.success ? Object.freeze(parsed.data) : undefined;
+};
+
 const cliDiagnostic = (
   code: string,
   message: string,
@@ -227,8 +191,9 @@ const result = (
 };
 
 const parse = (rawArgs: unknown): ParseResult => {
-  const args = ownDenseStrings(rawArgs);
-  if (!args)
+  const snapshot = ownDenseValues(rawArgs);
+  const parsedArguments = argumentArraySchema.safeParse(snapshot);
+  if (!parsedArguments.success)
     return {
       ok: false,
       command: undefined,
@@ -237,6 +202,7 @@ const parse = (rawArgs: unknown): ParseResult => {
         cliDiagnostic("cli-invalid-arguments", "Arguments must be a dense string array."),
       ],
     };
+  const args = parsedArguments.data;
   const command = args[0];
   const formatIndex = args.indexOf("--format");
   const hasFormat = formatIndex >= 0;
@@ -258,7 +224,11 @@ const parse = (rawArgs: unknown): ParseResult => {
     };
   if (command === "check") {
     const projectPath = positional[1];
-    if (positional.length !== 2 || !projectPath || !absolutePath(projectPath))
+    if (
+      positional.length !== 2 ||
+      !projectPath ||
+      !absolutePathSchema.safeParse(projectPath).success
+    )
       return {
         ok: false,
         command,
@@ -273,8 +243,8 @@ const parse = (rawArgs: unknown): ParseResult => {
     positional.length !== 3 ||
     !projectPath ||
     !outputDirectory ||
-    !absolutePath(projectPath) ||
-    !absolutePath(outputDirectory)
+    !absolutePathSchema.safeParse(projectPath).success ||
+    !absolutePathSchema.safeParse(outputDirectory).success
   )
     return {
       ok: false,
@@ -294,14 +264,23 @@ const loadProject = async (
 ): Promise<{ ok: true; value: unknown } | { ok: false; diagnostics: readonly Diagnostic[] }> => {
   try {
     const readProject = host.readProject;
-    if (typeof readProject !== "function")
+    const parsedReadProject = hostCallbackSchema.safeParse(readProject);
+    if (!parsedReadProject.success)
       return {
         ok: false,
         diagnostics: [cliDiagnostic("cli-read-unavailable", "Project reader is unavailable.")],
       };
-    const source = await Reflect.apply(readProject, host, [projectPath]);
+    const source = await Reflect.apply(parsedReadProject.data, host, [projectPath]);
+    const parsedSource = projectSourceSchema.safeParse(source);
+    if (!parsedSource.success)
+      return {
+        ok: false,
+        diagnostics: [
+          cliDiagnostic("cli-invalid-json", "Project JSON cannot be parsed.", [projectPath]),
+        ],
+      };
     try {
-      return { ok: true, value: JSON.parse(source) };
+      return { ok: true, value: JSON.parse(parsedSource.data) };
     } catch {
       return {
         ok: false,
@@ -342,20 +321,25 @@ const artifactFiles = (compiled: CompiledDeclarationProject): readonly BuildArti
 
 export const runPresentationCli = async (input: unknown): Promise<PresentationCliResult> => {
   try {
-    if (typeof input !== "object" || input === null || Array.isArray(input))
+    const inputSnapshot = ownDataRecord(input);
+    const parsedInput = publicInputSchema.safeParse(inputSnapshot);
+    if (!parsedInput.success)
       return result(2, undefined, "text", [
         cliDiagnostic("cli-invalid-input", "CLI input is invalid."),
       ]);
-    const record = input as { args?: unknown; host?: unknown };
+    const record = parsedInput.data;
     const parsedResult = parse(record.args);
     if (!parsedResult.ok)
       return result(2, parsedResult.command, parsedResult.format, parsedResult.diagnostics);
     const parsed = parsedResult.value;
-    if (typeof record.host !== "object" || record.host === null || Array.isArray(record.host))
+    const parsedHost = (parsed.command === "check" ? checkHostSchema : buildHostSchema).safeParse(
+      record.host,
+    );
+    if (!parsedHost.success)
       return result(2, parsed.command, parsed.format, [
         cliDiagnostic("cli-invalid-host", "CLI host is invalid."),
       ]);
-    const host = record.host as PresentationCliHost;
+    const host = parsedHost.data as PresentationCliHost;
     const project = await loadProject(host, parsed.projectPath);
     if (!project.ok) return result(3, parsed.command, parsed.format, project.diagnostics);
     if (parsed.command === "check") {
@@ -404,11 +388,12 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     const files = artifactFiles(compiled.value);
     try {
       const writeBuildArtifacts = host.writeBuildArtifacts;
-      if (typeof writeBuildArtifacts !== "function")
+      const parsedWriteBuildArtifacts = hostCallbackSchema.safeParse(writeBuildArtifacts);
+      if (!parsedWriteBuildArtifacts.success)
         return result(3, "build", parsed.format, [
           cliDiagnostic("cli-write-unavailable", "Artifact writer is unavailable."),
         ]);
-      await Reflect.apply(writeBuildArtifacts, host, [parsed.outputDirectory, files]);
+      await Reflect.apply(parsedWriteBuildArtifacts.data, host, [parsed.outputDirectory, files]);
     } catch {
       return result(3, "build", parsed.format, [
         cliDiagnostic("cli-write-failed", "Build artifacts could not be written."),

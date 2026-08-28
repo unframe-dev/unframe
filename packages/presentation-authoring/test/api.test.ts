@@ -459,6 +459,28 @@ describe("local declaration boundary", () => {
       /data properties/,
     );
   });
+
+  it("rejects builder accessors before execution and invalid action completion enums", () => {
+    let reads = 0;
+    const reference = {} as { assetId: string };
+    Object.defineProperty(reference, "assetId", {
+      enumerable: true,
+      get() {
+        reads++;
+        return "logo";
+      },
+    });
+
+    expect(() => assetRef(reference)).toThrow(/data properties/);
+    expect(reads).toBe(0);
+    expect(() => playTimeline("reveal", { completion: "eventually" } as never)).toThrow(
+      /completion/,
+    );
+    expect(() => stringProp({ default: 1 } as never)).toThrow(/string prop/);
+    expect(() => slot({ accepts: ["frame"], cardinality: "optional" } as never)).toThrow(
+      /slot declaration/,
+    );
+  });
 });
 
 const typeContractChecks = () => {

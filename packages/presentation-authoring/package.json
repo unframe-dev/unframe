@@ -13,7 +13,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
-    "@unframe/presentation-core": "workspace:*"
+    "@unframe/presentation-core": "workspace:*",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "typescript": "^7.0.0",

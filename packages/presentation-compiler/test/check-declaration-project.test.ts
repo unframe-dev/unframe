@@ -93,6 +93,25 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("rejects accessor-backed project data without executing the accessor", () => {
+    let reads = 0;
+    const input = {
+      presentation: presentation(),
+      themes: [],
+      components: [],
+      assets: {},
+    };
+    Object.defineProperty(input, "themes", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        throw new Error("must not execute");
+      },
+    });
+    expect(codes(input)).toContain("compiler-invalid-input");
+    expect(reads).toBe(0);
+  });
+
   it("keeps malformed public envelopes and sparse arrays on the diagnostic boundary", () => {
     const sparse: string[] = [];
     sparse.length = 2;

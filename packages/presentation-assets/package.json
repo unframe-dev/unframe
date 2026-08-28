@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",
-    "@unframe/presentation-core": "workspace:*"
+    "@unframe/presentation-core": "workspace:*",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

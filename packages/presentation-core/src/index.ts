@@ -6,6 +6,12 @@ import type {
 } from "@unframe/contracts/presentation";
 
 import { canonicalJson, normalizedJson } from "./canonicalization/canonical-json.js";
+import {
+  parseIdInput,
+  parsePresentationDefinitionInput,
+  parseRenderBundleInput,
+  parseSemanticSurfaceInput,
+} from "./validation/contract-input.js";
 
 type DeepReadonly<T> = T extends readonly unknown[]
   ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
@@ -75,6 +81,65 @@ const sorted = (diagnostics: Diagnostic[]) =>
     const rightKey = `${right.path.join("/")}\u0000${right.code}`;
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
   });
+
+const schemaPath = (path: readonly PropertyKey[]): readonly (string | number)[] =>
+  path.map((segment) => (typeof segment === "number" ? segment : String(segment)));
+
+const containerPath = (
+  path: readonly (string | number)[],
+  fields: readonly string[],
+): readonly (string | number)[] | undefined => {
+  for (let index = path.length - 1; index >= 0; index--)
+    if (fields.includes(String(path[index]))) return path.slice(0, index + 1);
+  return undefined;
+};
+
+const structuralDiagnostic = (
+  contract: "definition" | "render-bundle",
+  issue: { readonly path: readonly PropertyKey[]; readonly message: string },
+): Diagnostic => {
+  const path = schemaPath(issue.path);
+  const joined = path.join("/");
+  if (contract === "definition") {
+    if (joined.startsWith("assets/"))
+      return diagnostic("invalid-asset", path.slice(0, 2), "Asset descriptor is invalid.");
+    if (joined.startsWith("scene/nodes/") && issue.message.includes("Unrecognized key"))
+      return diagnostic(
+        "unknown-surface-node-property",
+        path.slice(0, 3),
+        "SurfaceNode contains an unknown property.",
+      );
+    const vectorPath = containerPath(path, [
+      "physicalSizeMeters",
+      "logicalSize",
+      "position",
+      "scale",
+      "center",
+      "size",
+    ]);
+    if (vectorPath)
+      return diagnostic("invalid-vector", vectorPath, "Vector does not match the contract schema.");
+    const rotationPath = containerPath(path, ["rotation"]);
+    if (rotationPath)
+      return diagnostic(
+        "invalid-quaternion",
+        rotationPath,
+        "Quaternion does not match the contract schema.",
+      );
+    const placementPath = containerPath(path, ["placement"]);
+    if (joined.includes("/contentNodes/") && placementPath)
+      return diagnostic(
+        "invalid-text-placement",
+        placementPath,
+        "Text placement does not match the contract schema.",
+      );
+    return diagnostic("invalid-definition", path, issue.message);
+  }
+  const vectorPath = containerPath(path, ["logicalSize", "physicalSizeMeters", "pixelSize"]);
+  if (vectorPath)
+    return diagnostic("invalid-vector", vectorPath, "Vector does not match the contract schema.");
+  return diagnostic("invalid-render-bundle", path, issue.message);
+};
 
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
@@ -528,42 +593,36 @@ export const materializeCompletedSemanticTree = (
   stateId: string,
 ): ValidationResult<CompletedSemanticTree> => {
   try {
-    if (
-      !isRecord(surface) ||
-      !id(stateId) ||
-      !isRecord(surface.states) ||
-      !isRecord(surface.baseSemanticTree)
-    )
+    const parsedSurface = parseSemanticSurfaceInput(surface);
+    if (!parsedSurface.success || !parseIdInput(stateId).success)
       return {
         valid: false,
         diagnostics: [diagnostic("invalid-semantic-surface", "", "Surface input is invalid.")],
       };
-    if (!Object.hasOwn(surface.states, stateId))
+    const validatedSurface = parsedSurface.data;
+    if (!Object.hasOwn(validatedSurface.states, stateId))
       return {
         valid: false,
         diagnostics: [
           diagnostic("unknown-surface-state", "/states", "Surface state does not exist."),
         ],
       };
-    const state = surface.states[stateId];
-    if (!isRecord(state))
-      return {
-        valid: false,
-        diagnostics: [
-          diagnostic("unknown-surface-state", "/states", "Surface state does not exist."),
-        ],
-      };
+    const state = validatedSurface.states[stateId]!;
     const diagnostics: Diagnostic[] = [];
-    validateMaterializableSemanticTree(diagnostics, surface.baseSemanticTree, "/baseSemanticTree");
+    validateMaterializableSemanticTree(
+      diagnostics,
+      validatedSurface.baseSemanticTree,
+      "/baseSemanticTree",
+    );
     validateMaterializableSemanticOverrides(
       diagnostics,
-      surface.baseSemanticTree,
+      validatedSurface.baseSemanticTree,
       state,
       `/states/${pathSegment(stateId)}/semanticOverrides`,
     );
     if (diagnostics.length > 0) return { valid: false, diagnostics: sorted(diagnostics) };
     const tree = materializeSemanticTree(
-      surface,
+      validatedSurface,
       state,
       diagnostics,
       `/states/${pathSegment(stateId)}/semanticOverrides`,
@@ -582,7 +641,16 @@ export const materializeCompletedSemanticTree = (
 export const validatePresentationDefinition = (
   input: unknown,
 ): ValidationResult<SerializedPresentationDefinitionV1> => {
-  const diagnostics: Diagnostic[] = [];
+  const parsed = parsePresentationDefinitionInput(input);
+  if (!parsed.success && parsed.snapshot === undefined)
+    return {
+      valid: false,
+      diagnostics: sorted(parsed.issues.map((issue) => structuralDiagnostic("definition", issue))),
+    };
+  input = parsed.success ? parsed.data : parsed.snapshot;
+  const diagnostics: Diagnostic[] = parsed.success
+    ? []
+    : parsed.issues.map((issue) => structuralDiagnostic("definition", issue));
   if (!isRecord(input))
     return {
       valid: false,
@@ -1073,7 +1141,18 @@ export const validatePresentationDefinition = (
 export const validateRenderBundle = (
   input: unknown,
 ): ValidationResult<SerializedRenderBundleV1> => {
-  const diagnostics: Diagnostic[] = [];
+  const parsed = parseRenderBundleInput(input);
+  if (!parsed.success && parsed.snapshot === undefined)
+    return {
+      valid: false,
+      diagnostics: sorted(
+        parsed.issues.map((issue) => structuralDiagnostic("render-bundle", issue)),
+      ),
+    };
+  input = parsed.success ? parsed.data : parsed.snapshot;
+  const diagnostics: Diagnostic[] = parsed.success
+    ? []
+    : parsed.issues.map((issue) => structuralDiagnostic("render-bundle", issue));
   if (!isRecord(input) || !isRecord(input.surfaces))
     return {
       valid: false,

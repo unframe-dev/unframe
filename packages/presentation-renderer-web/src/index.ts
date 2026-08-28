@@ -15,8 +15,10 @@ import {
 
 import { snapshotDenseArray, snapshotStrictRecord } from "./validation/safe-data.js";
 import {
+  adapterCaptureSchema,
   adapterIdentitySchema,
-  browserCaptureSchema,
+  browserCaptureSchemaFor,
+  createBakedWebRendererOptionsSchema,
   fixedBrowserEnvironmentSchema,
   webRendererConfigSchema,
 } from "./validation/schemas.js";
@@ -229,8 +231,7 @@ const frozenConfig = (config: WebRendererConfig): WebRendererConfig =>
     fontFamily: config.fontFamily.trim(),
   });
 
-const escapeHtml = (value: unknown) => {
-  if (typeof value !== "string") throw new TypeError("HTML text must be a primitive string.");
+const escapeHtml = (value: string) => {
   let escaped = "";
   for (let index = 0; index < value.length; index++) {
     const character = value[index];
@@ -279,11 +280,6 @@ const documentFor = (
   input: CompilerResolvedSurfaceInput,
   config: WebRendererConfig,
 ): { readonly document: string } | RendererBuildFailure => {
-  if (input.context.colorScheme !== "light" && input.context.colorScheme !== "dark")
-    return failure("invalid-renderer-context", "Color scheme must be light or dark.", [
-      "context",
-      "colorScheme",
-    ]);
   const root = input.surface.contentNodes[input.surface.rootFrameId];
   if (!root || root.kind !== "frame" || root.parentId !== null || root.layout.kind !== "absolute")
     return failure(
@@ -339,9 +335,6 @@ const documentFor = (
       );
     const placement = node.placement;
     if (
-      ![placement.x, placement.y, placement.width, placement.height].every(finite) ||
-      placement.width <= 0 ||
-      placement.height <= 0 ||
       placement.x < bounds.x ||
       placement.y < bounds.y ||
       placement.x + placement.width > bounds.x + bounds.width ||
@@ -384,21 +377,9 @@ const snapshotCapture = (
   const pixelSize = record && snapshotDenseArray(record.pixelSize, 2);
   const rgba = record && copyRgba(record.rgba);
   if (!record || !pixelSize || !rgba) return undefined;
-  const parsed = browserCaptureSchema.safeParse({ ...record, pixelSize, rgba });
+  const parsed = browserCaptureSchemaFor(pixelTarget).safeParse({ ...record, pixelSize, rgba });
   if (!parsed.success) return undefined;
   const [width, height] = parsed.data.pixelSize;
-  if (
-    width !== pixelTarget[0] ||
-    height !== pixelTarget[1] ||
-    rgba.byteLength !== pixelTarget[0] * pixelTarget[1] * 4 ||
-    parsed.data.colorSpace !== "srgb"
-  )
-    return undefined;
-  if (
-    parsed.data.alphaMode === "opaque" &&
-    rgba.some((_, index) => index % 4 === 3 && rgba[index] !== 255)
-  )
-    return undefined;
   return {
     rgba,
     pixelSize: [width, height],
@@ -407,13 +388,16 @@ const snapshotCapture = (
   };
 };
 
-export const createBakedWebRenderer = ({
-  adapter,
-  config,
-}: CreateBakedWebRendererOptions): RendererPlugin => {
+export const createBakedWebRenderer = (options: CreateBakedWebRendererOptions): RendererPlugin => {
+  const optionsRecord = snapshotStrictRecord(options, ["adapter", "config"]);
+  const parsedOptions = createBakedWebRendererOptionsSchema.safeParse(optionsRecord);
+  const adapter = parsedOptions.success ? parsedOptions.data.adapter : undefined;
+  const config = parsedOptions.success ? parsedOptions.data.config : undefined;
   const initialAdapter = snapshotStrictRecord(adapter, ["capture", "environment", "identity"]);
-  const fixedCapture =
-    typeof initialAdapter?.capture === "function" ? initialAdapter.capture : undefined;
+  const parsedCapture = adapterCaptureSchema.safeParse(initialAdapter?.capture);
+  const fixedCapture = parsedCapture.success
+    ? (initialAdapter?.capture as FixedBrowserAdapter["capture"])
+    : undefined;
   const environment = snapshotEnvironment(initialAdapter?.environment);
   const adapterIdentity = snapshotAdapterIdentity(initialAdapter?.identity);
   const resolvedConfig = snapshotConfig(config);

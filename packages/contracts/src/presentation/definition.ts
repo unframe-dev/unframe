@@ -103,7 +103,7 @@ const renderIntentSchema = z.strictObject({
   fallbackPolicy: z.enum(["reject", "degrade"]),
 });
 
-const surfaceSchema = z.strictObject({
+export const semanticSurfaceSchema = z.strictObject({
   id: idSchema,
   hostNodeId: idSchema,
   physicalSizeMeters: vector2Schema,
@@ -183,7 +183,7 @@ export const presentationDefinitionSchema = z.strictObject({
   ),
   scene: z.strictObject({
     nodes: z.record(z.string(), surfaceNodeSchema),
-    surfaces: z.record(z.string(), surfaceSchema),
+    surfaces: z.record(z.string(), semanticSurfaceSchema),
   }),
   flow: z.strictObject({
     initialGroupId: idSchema,

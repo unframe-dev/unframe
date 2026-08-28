@@ -652,6 +652,34 @@ describe("first-milestone plugin contract", () => {
     }
   });
 
+  it("Zod boundary は build output の accessor と未知 field を実行せず拒否する", async () => {
+    let accessorReads = 0;
+    const hostileOutput = defineRendererPlugin({
+      ...goodPlugin,
+      build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
+        const result = successfulResult(value);
+        if (!result.ok) return result;
+        return Object.defineProperties(
+          { ...result, unexpected: true },
+          {
+            captures: {
+              get() {
+                accessorReads++;
+                throw new Error("renderer boundary must not execute accessors");
+              },
+            },
+          },
+        ) as RendererBuildResult;
+      },
+    });
+
+    const result = await runRendererConformance(hostileOutput, [fixture()]);
+    expect(accessorReads).toBe(0);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+  });
+
   it("固定した method の mutable call property を参照しない", async () => {
     const support = (request: Parameters<typeof goodPlugin.support>[0]) =>
       evaluateFirstMilestoneSupport(request);
