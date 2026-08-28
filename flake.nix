@@ -22,6 +22,7 @@
 
         # ツールチェイン。旧 mise.toml のツール固定を置換する。
         toolchain = [
+          pkgs.bun
           pkgs.nodejs_22
           pkgs.pnpm
           pkgs.go

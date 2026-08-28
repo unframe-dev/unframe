@@ -1,5 +1,10 @@
 {
   "extends": "../config/tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "noPropertyAccessFromIndexSignature": false },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"]
 }
