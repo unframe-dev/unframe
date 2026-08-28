@@ -1,18 +1,16 @@
 import type * as ts from "typescript";
 import { z } from "zod";
 
+import {
+  parseLockedPackages,
+  type LockedPackageIdentity,
+  type ParsedLockedPackage,
+} from "./parse-locked-packages.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { parseAuthoringSource } from "../syntax/parse-authoring-source.js";
 
 type ProjectSourceDiagnostic = {
-  readonly code:
-    | "compiler-invalid-input"
-    | "compiler-project-root-invalid"
-    | "compiler-project-path-invalid"
-    | "compiler-project-file-duplicate"
-    | "compiler-project-entry-not-found"
-    | "compiler-source-kind-unsupported"
-    | "compiler-source-syntax-error";
+  readonly code: string;
   readonly fileName: string;
   readonly message: string;
   readonly start: number;
@@ -26,6 +24,8 @@ export type ParsedAuthoringProjectValue = {
   readonly projectRoot: string;
   readonly entryFile: string;
   readonly files: Readonly<Record<string, ts.SourceFile>>;
+  readonly packageDependencies: readonly LockedPackageIdentity[];
+  readonly packages: readonly ParsedLockedPackage[];
 };
 
 export type ParsedAuthoringProject =
@@ -41,6 +41,8 @@ const inputSchema = z
     projectRoot: z.string(),
     entryFile: z.string(),
     files: z.array(z.object({ fileName: z.string(), sourceText: z.string() }).strict()),
+    packageDependencies: z.array(z.unknown()),
+    packages: z.array(z.unknown()),
   })
   .strict();
 
@@ -52,10 +54,22 @@ const hasExactOwnKeys = (value: unknown, expected: readonly string[]) =>
   Object.keys(value).every((key) => expected.includes(key));
 
 const hasProjectEnvelopeShape = (value: unknown) => {
-  if (!hasExactOwnKeys(value, ["projectRoot", "entryFile", "files"])) return false;
-  const files = (value as Record<string, unknown>).files;
+  if (
+    !hasExactOwnKeys(value, [
+      "projectRoot",
+      "entryFile",
+      "files",
+      "packageDependencies",
+      "packages",
+    ])
+  )
+    return false;
+  const { files, packageDependencies, packages } = value as Record<string, unknown>;
   return (
-    Array.isArray(files) && files.every((file) => hasExactOwnKeys(file, ["fileName", "sourceText"]))
+    Array.isArray(files) &&
+    files.every((file) => hasExactOwnKeys(file, ["fileName", "sourceText"])) &&
+    Array.isArray(packageDependencies) &&
+    Array.isArray(packages)
   );
 };
 
@@ -131,6 +145,9 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
     };
 
   const { projectRoot, entryFile, files } = parsed.data;
+  const lockedPackages = parseLockedPackages(snapshot.value as Record<string, unknown>);
+  if (!lockedPackages.valid)
+    return { ok: false, diagnostics: [...lockedPackages.diagnostics].sort(compareDiagnostics) };
   const diagnostics: ProjectSourceDiagnostic[] = [];
   if (!isLogicalAbsolutePosixPath(projectRoot))
     diagnostics.push(
@@ -215,5 +232,15 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
   }
   return diagnostics.length > 0
     ? { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) }
-    : { ok: true, value: { projectRoot, entryFile, files: parsedFiles }, diagnostics: [] };
+    : {
+        ok: true,
+        value: {
+          projectRoot,
+          entryFile,
+          files: parsedFiles,
+          packageDependencies: lockedPackages.packageDependencies,
+          packages: lockedPackages.packages,
+        },
+        diagnostics: [],
+      };
 };

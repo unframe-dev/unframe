@@ -7,6 +7,8 @@ const project = (files: readonly { fileName: string; sourceText: string }[]) => 
   const parsed = parseAuthoringProject({
     projectRoot: "/virtual/presentation",
     entryFile: "presentation.unframe.ts",
+    packageDependencies: [],
+    packages: [],
     files,
   });
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
