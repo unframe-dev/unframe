@@ -1,7 +1,7 @@
 # Unframe Presentation Implementation Design
 
 - **Status**: Draft
-- **Date**: 2026-08-25
+- **Date**: 2026-08-28
 - **Scope**: Presentation authoring、compiler、renderer、publication、delivery、runtime を実装するための repository layout と ownership
 - **Related**:
   - [Presentation Architecture](./ARCHITECTURE.md)
@@ -53,6 +53,19 @@ CLI は compiler orchestration の利用者向け entrypoint とし、compile lo
 ### 2.5 Current と Target を混在させない
 
 本書に記載する新規 directory は Target layout であり、現在すべて存在することを意味しない。既存の Control Plane schema、Web Editor PoC、Unity importer、Realtime foundation は、それぞれの移行境界が設計されるまで維持する。
+
+### 2.6 Initial dependency baseline
+
+最初の Presentation package chain では、外部依存の責務を次のように固定する。
+
+- portable Presentation contract は Zod 4 schema を正本とし、TypeScript 型を推論し、JSON Schema Draft 2020-12 を生成する。JSON Schema は別の手書き正本にしない。
+- semantic canonicalization は RFC 8785 実装の `canonicalize`、content hash は `@noble/hashes` を使う。Presentation 固有の set 正規化は Core が直列化前に行う。
+- Authoring TS / TSX の構文解析は固定 version の classic TypeScript Compiler API を直接使う。`ts-morph` と TypeScript 7 `unstable/sync` は初期の pure parser boundary に追加しない。
+- Opaque renderer source の bundle は Rolldown の programmatic API と固定内部 plugin を使う。任意 plugin、Node API、network import、package 外参照は受け入れず、Browser execution / capture の具体方式は別に決める。
+- user-facing TUI は Bun runtime、`@opentui/core`、`@opentui/solid`、`@opentui/keymap`、Solid を使う。pnpm は package manager と lockfile 管理を継続し、headless API は native TUI import から分離する。
+- Control Plane HTTP API は現行どおり Hono / OpenAPIHono を application boundary とする。Presentation package から Hono へ依存しない。
+
+これらは各 package の内部責務を代替しない。依存 library へ渡す前後の trust boundary、determinism、capability allowlist、diagnostics は owning package が保持する。
 
 ## 3. Target repository layout
 
@@ -300,14 +313,16 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 - Web Editor UI
 - Runtime progression evaluation
 
-Compiler は `presentation-core`、`presentation-authoring`、`presentation-renderer-api`、`presentation-assets`に依存する。concrete renderer はhostから注入する。
+Compiler は `presentation-core`、`presentation-authoring`、`presentation-renderer-api`、`presentation-assets`と固定 version の TypeScript に依存する。concrete renderer はhostから注入する。
 
 ### 4.8 `packages/presentation-cli`
 
-Authoring Projectを操作する利用者向け executable を所有する。
+Authoring Projectを操作する利用者向け executable と、automation 向け headless application boundary を所有する。
 
 **Responsibilities**
 
+- Bun / OpenTUI Solid による interactive command selection と terminal lifecycle
+- native TUI に依存しない headless `check` / `build` API
 - `init`、`dev`、`check`、`build`、`test`、`preview`、`publish` command
 - project config、lockfile、cache、output directoryの解決
 - Compilerとrenderer pluginのcomposition
@@ -322,7 +337,9 @@ Authoring Projectを操作する利用者向け executable を所有する。
 - renderer artifact generation
 - durable PublishedPresentation state、publicationEpoch、active-use lock
 
-CLIは`presentation-compiler`と、既定で有効にするconcrete rendererに依存する。CLIからpackage内部の非公開moduleをimportしない。
+CLIは`presentation-compiler`と、既定で有効にするconcrete rendererに依存する。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
+
+Current implementation は `check` / `build` の headless API と、それらを選ぶ TUI shell までである。filesystem host、Browser process、publish、previewとの接続は Target responsibility であり未実装である。
 
 ## 5. Contract and generated artifact ownership
 
@@ -445,6 +462,7 @@ presentation-compiler ──────────→ presentation-assets
 presentation-cli ───────────────→ presentation-compiler
 presentation-cli ───────────────→ presentation-renderer-web
 presentation-cli ───────────────→ Control Plane API client adapter
+presentation-cli TUI ───────────→ Bun / OpenTUI core / Solid / keymap
 
 Web Editor ─────────────────────→ presentation-core / presentation-authoring
 Control Plane ──────────────────→ presentation-core / generated contracts
@@ -575,13 +593,15 @@ Directoryとpackageは次の順序で実装を開始する。
 
 最初のmilestoneは、手書きのreference Authoring Projectから、CLIを通じてcanonical PresentationDefinition JSONと一つのbaked-web Surfaceを含むRenderBundleをdeterministicに生成することとする。Publish、Realtime、Unity、GUI editingはこのmilestoneの完了条件に含めない。
 
+2026-08-28 時点で 1〜9 の初期 subset は実装済みである。ただし Compiler の source boundary は構文解析まで、Opaque renderer は bundle まで、CLI の TUI は command selection までであり、完全な Authoring Source から実 Browser capture までの一貫経路が完成したことを意味しない。
+
 ## 12. Deferred decisions
 
 次は各packageの`ARCHITECTURE.md`または別ADRで決める。
 
 - Cue、Theme、Token、Named Styleを含む完全版Semantic contractのschema設計
 - Lossless Syntax Treeとsource patchingの実装
-- Opaque rendererを実行するBrowser process / isolateとcapability
+- Opaque renderer bundleを実行するBrowser process / isolateとruntime capability
 - Component package distributionと`unframe.lock`の形式
 - Compiler plugin discoveryとversion negotiation
 - Browser capture processの分離方法
