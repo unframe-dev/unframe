@@ -30,21 +30,24 @@ Semantic Authoring IR と PresentationDefinition は同じものではない。�
 
 ## 3. Internal boundaries
 
-実装時は少なくとも次の関心を分離する。
+実装時は少なくとも次の関心を module boundary として分離する。package の public entrypoint は `src/index.ts` に集約してよいが、これは export surface の集約であって、型、schema、validation、canonicalization の実装を一つのファイルへ集約する方針ではない。
 
 ```text
 src/
-├─ values/             # IDs, scalar, references, transforms
-├─ authoring/          # normalized Semantic Authoring IR model
-├─ definition/         # PresentationDefinition semantic model
-├─ render-bundle/      # build metadata model
-├─ runtime/            # runtime-neutral snapshot/view values
-├─ validation/         # reference and semantic invariants
-├─ canonicalization/   # stable ordering, serialization, hashing
-└─ migration/          # versioned pure migrations
+├─ index.ts                  # reviewed public exports only
+├─ values/                   # IDs, scalar, references, transforms
+├─ authoring/                # normalized Semantic Authoring IR model
+├─ definition/               # PresentationDefinition semantic model
+├─ render-bundle/            # build metadata model
+├─ runtime/                  # runtime-neutral snapshot/view values
+├─ validation/               # reference and semantic invariants
+├─ canonicalization/         # stable ordering, serialization, hashing
+└─ migration/                # versioned pure migrations
 ```
 
-これは ownership の提案であり、実装前に空 directory を作ることを要求しない。
+各責務では data type、runtime schema、validator を同じ global `types.ts` に集約しない。型だけで循環を作らず独立して読める場合は責務内の `types.ts`、serialized input を parse する場合は責務内の `schema.ts`、複数 invariant を持つ場合は `validation.ts` のように分離し、対象 model の近くへ配置する。小さな value object は型と constructor を同じ module に置いてよい。
+
+この layout は ownership の提案であり、実装前に空 directory を作ることを要求しない。一方、最初の実装時点ですでに contract-derived type、semantic invariant、canonical serialization という別責務が存在するなら、ファイル数の少なさを理由に単一 `index.ts` へ同居させない。
 
 ## 4. Public API
 
@@ -58,7 +61,8 @@ Validation は boolean だけでなく、stable diagnostic code、semantic path�
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
 - Resource owner は `presentation` または一つの `group` に限定する。
 - reference は同じか長い lifetime の resource へだけ向ける。
-- ProjectionAudience は host Spatial Node から派生 resource へ継承し、profile ごとの visibility closure が参照 closure を満たす。
+- ProjectionAudience は Spatial Node と Timeline が直接持ち、host Spatial Node から派生 resource へ継承する。Timeline target は同じ audience に限定し、profile ごとの visibility closure が参照 closure を満たす。
+- Semantic Surface は canonical Surface Tree と Media timing を保持し、renderer artifact metadata を semantic authority にしない。
 - actor、subject、Anchor owner は canonical identity と resource ownership に従い、client payload から任意値として受理しない。
 - Component Action / Output は Runtime model に残さず、canonical Action / Trigger へ lower 済みとする。
 - canonicalization は入力順、object insertion order、renderer の描画順に依存しない。
@@ -80,6 +84,9 @@ Validation は boolean だけでなく、stable diagnostic code、semantic path�
 
 ## 8. Validation strategy
 
+- serialized contract の構造 parse は `packages/contracts` が所有する schema source またはそこから生成した validator を正本とし、`presentation-core` に重複 schema を手書きしない。
+- TypeScript の runtime schema library は trust boundary の parser 実装として利用できるが、その library 固有 schema を cross-language contract の正本にしない。採用する場合は generated contract、bundle size、Node.js / Browser / Workers 対応、diagnostic path の要件を package 実装時に検証する。
+- reference closure、resource lifetime、audience、cross-field cardinality、canonical ordering など構造 schema だけでは表せない invariant は pure validator として実装する。
 - ID uniqueness、reference、lifetime、cardinality の property test
 - valid / invalid portable fixture
 - canonical serialization と hash の golden test
@@ -90,6 +97,7 @@ Validation は boolean だけでなく、stable diagnostic code、semantic path�
 ## 9. Deferred decisions
 
 - presentation schema source と TypeScript model の生成方式
+- runtime schema library の選定と generated validator との接続方式
 - diagnostic path / code の完全な形式
 - canonical JSON algorithm と hash algorithm
 - migration support window

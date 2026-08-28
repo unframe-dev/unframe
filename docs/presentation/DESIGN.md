@@ -30,6 +30,8 @@
 
 新しい directory は、独立した責務、依存方向、公開 API、品質ゲートのいずれかを持つ場合に作る。単にファイル数を減らすための階層や、将来使うかもしれない空 package は作らない。
 
+この原則は package / directory の ownership boundary に対するものであり、package 内の責務別 module を単一ファイルへ畳み込む根拠にはしない。実装開始時点で contract-derived type、runtime schema、semantic validation、canonicalization などの変更理由が異なる場合は、public `index.ts` を export barrel とし、型・schema・validator を owning responsibility の近くへ分離する。逆に、単一の小さな value object のためだけに空階層や全 package 共通の巨大な `types.ts` は作らない。
+
 実装前に責務をレビューする必要がある Target package は、`Proposal / Target, not implemented` と明記した `ARCHITECTURE.md` だけを先行して置ける。この directory は `package.json`、public entrypoint、workspace package を持つまでは実装済み package とみなさない。
 
 ### 2.2 Package は実行環境をまたいで implementation を共有しない
@@ -123,6 +125,7 @@ Presentation の pure TypeScript semantic core を所有する。
 - ResourceOwner、lifetime参照規則、Group activation model
 - RuntimeActor、RuntimeSubject、TriggerActorSelector、Anchor owner の semantic model
 - ProjectionAudience、versioned ProjectionProfileKey / Descriptor、ProjectionInstance、ParticipantRuntimeView の semantic model
+- Timeline audience と projection closure、Semantic Media timing、canonical Surface Tree の semantic model
 - pause-aware logical runtime clock、StepExecutionSnapshot、RuntimeRunSnapshot、CanonicalRuntimeSnapshot の semantic model
 - reference validation、invariant validation、diagnostics
 - canonical serialization と hashing
@@ -139,6 +142,8 @@ Presentation の pure TypeScript semantic core を所有する。
 - Delivery 時だけ存在する Signed URL
 
 この package は Node.js、DOM、React、Cloudflare Workers に依存しない。Web、Compiler、Control Plane から利用できるが、Go と C# には generated contract artifact を介して接続する。
+
+`presentation-core` の public `index.ts` は公開 API の export だけを集約する。contract-derived model、runtime schema、semantic validator、canonicalizer は責務別 module に分離する。serialized input の構造 validation は `packages/contracts` の schema source または generated validator を正本とし、runtime schema library を使う場合も library 固有 schema を cross-language contract の正本にはしない。
 
 ### 4.2 `packages/presentation-authoring`
 
@@ -284,7 +289,8 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 - Declaration Graph のnormalizeとSemantic Authoring IR生成
 - Component、Theme、Layout、Surface boundaryの解決
 - Semantic Surface から Render Surface への lowering と mapping 検証
-- SpatialParent、ProjectionAudience、Surface Stateごとのartifact候補の整合性検証
+- SpatialParent、ProjectionAudience、Timeline audience、Surface Stateごとのartifact候補の整合性検証
+- canonical Surface Tree、Semantic Media timing、Video Artifact metadata の整合性検証
 - resource owner継承、lifetime参照検証、Group activation index生成
 - Shared Trigger の actor / subject と Anchor owner の認可検証
 - renderer selectionとplugin orchestration

@@ -199,8 +199,7 @@ type DeliveredRenderSurface = {
   rendererContractVersion: number;
   stateBindings: Record<
     SurfaceStateId,
-    | { kind: "empty" }
-    | { kind: "artifact"; artifactId: RendererArtifactId }
+    { kind: "empty" } | { kind: "artifact"; artifactId: RendererArtifactId }
   >;
 };
 
@@ -209,6 +208,7 @@ type ProjectionProfileDescriptor = {
   key: ProjectionProfileKey;
   visibleNodeIds: SpatialNodeId[];
   visibleSurfaceIds: SemanticSurfaceId[];
+  visibleTimelineIds: TimelineId[];
   visibleVariableIds: VariableId[];
   renderSurfaces: Record<RenderSurfaceId, DeliveredRenderSurface>;
   localOverlays: LocalOverlayDefinition[];
@@ -286,11 +286,11 @@ active-use lock 中も Draft 編集と build は許可する。publish は `expe
 
 Session 中に変化する状態であり、PresentationDefinition や RenderBundle へ書き戻さない。
 
-| Layer                    | Authority            | Producer                      | 保持・復元                                              |
-| ------------------------ | -------------------- | ----------------------------- | ------------------------------------------------------- |
-| Shared Runtime State     | 割り当て済み Runtime Core | 割り当て済み Runtime Core       | Snapshot / Reliable Event。高頻度値は State Stream     |
-| Participant Runtime View | なし。派生 view      | Runtime Core（profile は Control Plane） | profile と Shared Runtime State から再生成       |
-| Client-local State       | Unity client / device | Unity client                  | 必要な場合だけ端末内で保持                              |
+| Layer                    | Authority                 | Producer                                 | 保持・復元                                         |
+| ------------------------ | ------------------------- | ---------------------------------------- | -------------------------------------------------- |
+| Shared Runtime State     | 割り当て済み Runtime Core | 割り当て済み Runtime Core                | Snapshot / Reliable Event。高頻度値は State Stream |
+| Participant Runtime View | なし。派生 view           | Runtime Core（profile は Control Plane） | profile と Shared Runtime State から再生成         |
+| Client-local State       | Unity client / device     | Unity client                             | 必要な場合だけ端末内で保持                         |
 
 #### Shared Runtime State
 
@@ -344,19 +344,18 @@ Control Plane は PublishedPresentation、role、正規化済み capability prof
 Role による visibility と ResourceOwner による lifetime は別概念とする。
 
 ```ts
-type ProjectionAudience =
-  | { kind: "all" }
-  | { kind: "role"; role: "presenter" | "viewer" };
+type ProjectionAudience = { kind: "all" } | { kind: "role"; role: "presenter" | "viewer" };
 
 type ProjectableResourceRef =
   | { kind: "node"; id: SpatialNodeId }
   | { kind: "surface"; id: SemanticSurfaceId }
+  | { kind: "timeline"; id: TimelineId }
   | { kind: "asset"; id: AssetId };
 ```
 
-Spatial Node は `audience` を直接持ち、Semantic Surface、Interaction、Media、Render Surface は host Spatial Node から継承する。Asset は独立した audience を持たず、visible resource からの参照 closure に含まれる場合だけ access binding を生成する。resource は同じ audience またはそれより広い audience の resource だけを参照できる。つまり、`all` は `all`、`presenter` は `all`または`presenter`、`viewer`は`all`または`viewer`を参照でき、roleをまたぐ参照はできない。この規則に反する Spatial parent、Surface、Interaction、renderer、Asset の参照と、同じ Semantic Surface 内で異なる audience を混在させる構成は build error とする。
+Spatial Node と Timeline は `audience` を直接持ち、Semantic Surface、Interaction、Media、Render Surface は host Spatial Node から継承する。Timeline の全 target Spatial Node は Timeline と同じ audience を持たなければならず、一つの Timeline に異なる audience の track を混在させない。Asset は独立した audience を持たず、visible resource からの参照 closure に含まれる場合だけ access binding を生成する。resource は同じ audience またはそれより広い audience の resource だけを参照できる。つまり、`all` は `all`、`presenter` は `all`または`presenter`、`viewer`は`all`または`viewer`を参照でき、roleをまたぐ参照はできない。この規則に反する Spatial parent、Surface、Interaction、renderer、Asset の参照と、同じ Semantic Surface または Timeline 内で異なる audience を混在させる構成は build error とする。
 
-Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
+Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、Timeline Definition、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。`ParticipantRuntimeView.activeRuns` は `visibleTimelineIds` に含まれる Timeline Run だけを保持し、非表示 Timeline の ID、track、Run を projected contract へ含めない。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
 
 Presenter notes の内容は PublishedPresentation 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
 
@@ -410,14 +409,9 @@ export default definePresentation({
   ),
 
   flow: ({ event, instance }) => [
-    event("presenter.next")
-      .in("intro-idle")
-      .do(instance("hero").action("show"))
-      .to("intro-shown"),
+    event("presenter.next").in("intro-idle").do(instance("hero").action("show")).to("intro-shown"),
 
-    event(instance("timer").output("completed"))
-      .in("intro-shown")
-      .to("intro-completed"),
+    event(instance("timer").output("completed")).in("intro-shown").to("intro-completed"),
   ],
 });
 ```
@@ -640,12 +634,12 @@ Output payload は v1 では有限個の名前付き Scalar field だけを持�
 
 Output reference は compile 時に次の規則で canonical Trigger へ一意に置き換える。
 
-| Output producer | Canonical Trigger | Actor |
-| --- | --- | --- |
+| Output producer      | Canonical Trigger                                             | Actor                   |
+| -------------------- | ------------------------------------------------------------- | ----------------------- |
 | `surfaceInteraction` | 同じ canonical Interaction ID を参照する `surfaceInteraction` | v1 は認証済み Presenter |
-| `timelineCompleted` | 同じ canonical Timeline ID を参照する `timelineCompleted` | System |
-| `mediaCompleted` | 同じ canonical Surface ID を参照する `mediaCompleted` | System |
-| `timer` | `afterMilliseconds` を保持する Step timer | System |
+| `timelineCompleted`  | 同じ canonical Timeline ID を参照する `timelineCompleted`     | System                  |
+| `mediaCompleted`     | 同じ canonical Surface ID を参照する `mediaCompleted`         | System                  |
+| `timer`              | `afterMilliseconds` を保持する Step timer                     | System                  |
 
 `timer` は Component の mount 時刻ではなく、Output reference を含む Cue が属する Step の entry を基準にする。Step exit で破棄し、Step reentry では新しい `stepEntryEpoch` に属する timer として開始する。Native UI の Runtime Clock はこの同じ Step timer を表示へ binding できるが、完了判定と Output 発生は割り当て済み Runtime Core が行う。Component Output から別の `semanticEvent` を producer として参照することは v1 では許可しない。これにより producer chain と event cycle を作らない。
 
@@ -673,13 +667,13 @@ Canonical Cue 自体は Action を伴わず Step または Group だけを遷移
 
 Authoring Source はすべて同じ方法で実行せず、意味を宣言する source と任意の描画実装を分離する。
 
-| Source | Compiler path | Output |
-| --- | --- | --- |
-| Presentation Orchestrator | parse / typecheck 後、AST から静的に lower | Presentation Declaration Graph |
-| Theme Declaration | parse / typecheck 後、AST から静的に lower | Theme Declaration Graph |
-| Component Manifest | parse / typecheck 後、AST から静的に lower | Component Declaration Graph（contract / semantics） |
-| Structured Component Structure | parse / typecheck 後、AST から静的に lower | Component Declaration Graph fragment |
-| Opaque Component renderer | 通常の TS / React / CSS として bundle | renderer artifact |
+| Source                         | Compiler path                              | Output                                              |
+| ------------------------------ | ------------------------------------------ | --------------------------------------------------- |
+| Presentation Orchestrator      | parse / typecheck 後、AST から静的に lower | Presentation Declaration Graph                      |
+| Theme Declaration              | parse / typecheck 後、AST から静的に lower | Theme Declaration Graph                             |
+| Component Manifest             | parse / typecheck 後、AST から静的に lower | Component Declaration Graph（contract / semantics） |
+| Structured Component Structure | parse / typecheck 後、AST から静的に lower | Component Declaration Graph fragment                |
+| Opaque Component renderer      | 通常の TS / React / CSS として bundle      | renderer artifact                                   |
 
 Declaration Graph は context-specific な root を持つ同じ宣言モデルとして、Orchestrator、Theme、Manifest、Structure の参照を接続する。Opaque renderer の React tree、DOM、CSS、実行結果は Declaration Graph ではない。Opaque renderer と Component semantics は Manifest の binding key だけで接続する。
 
@@ -793,9 +787,7 @@ v1 は一つの SurfaceNode と一つの Semantic Surface を 1:1 に対応さ�
 Group は物語上の進行スコープであり、Scene Graph の親子構造や resource ID namespace ではない。v1 の Runtime resource owner は `presentation` または一つの `group` に限定し、`step` scope は作らない。Step は Cue の有効範囲であり、resource lifetime ではない。
 
 ```ts
-type ResourceOwner =
-  | { kind: "presentation" }
-  | { kind: "group"; groupId: GroupId };
+type ResourceOwner = { kind: "presentation" } | { kind: "group"; groupId: GroupId };
 
 type OwnedResource = {
   owner: ResourceOwner;
@@ -806,26 +798,26 @@ ownership の正本は各独立 resource の `owner` とし、Group に `ownedNo
 
 owner を直接持つ独立 resource と、owner を継承する resource を次に固定する。
 
-| Resource | owner |
-| --- | --- |
-| Component Instance | authoring declaration で所有 |
-| Spatial Node、Timeline、Variable、Zone | `owner` を直接所有 |
-| Semantic Surface | host SurfaceNode から継承 |
-| SurfaceContentNode、Interaction | Semantic Surface から継承 |
-| Media Runtime State / Run | Semantic Surface から継承 |
-| Render Surface / renderer artifact | Semantic Surface から継承 |
-| Step / Cue | 構造上所属する Group に固定 |
-| Asset、Theme、Component package | Runtime lifecycle scope の対象外 |
+| Resource                               | owner                            |
+| -------------------------------------- | -------------------------------- |
+| Component Instance                     | authoring declaration で所有     |
+| Spatial Node、Timeline、Variable、Zone | `owner` を直接所有               |
+| Semantic Surface                       | host SurfaceNode から継承        |
+| SurfaceContentNode、Interaction        | Semantic Surface から継承        |
+| Media Runtime State / Run              | Semantic Surface から継承        |
+| Render Surface / renderer artifact     | Semantic Surface から継承        |
+| Step / Cue                             | 構造上所属する Group に固定      |
+| Asset、Theme、Component package        | Runtime lifecycle scope の対象外 |
 
 ResourceOwner は immutable な Definition contract であり、Action や Runtime State から変更しない。owner は Spatial parent、`active`、`visible`、現在の Group と別概念とする。
 
 参照は短い lifetime から同じまたは長い lifetime への方向だけを許可する。
 
-| 参照元 | 参照可能な target |
-| --- | --- |
-| presentation-owned resource | presentation-owned resource |
-| group G-owned resource | presentation-owned resource / group G-owned resource |
-| Group G の Step / Cue | presentation-owned resource / group G-owned resource |
+| 参照元                      | 参照可能な target                                    |
+| --------------------------- | ---------------------------------------------------- |
+| presentation-owned resource | presentation-owned resource                          |
+| group G-owned resource      | presentation-owned resource / group G-owned resource |
+| Group G の Step / Cue       | presentation-owned resource / group G-owned resource |
 
 presentation-owned resource から group-owned resource、Group A から Group B の resource への参照は build error とする。この規則は Spatial parent、Timeline target、Variable、Zone、Surface、Interaction、Action、Guard、Trigger の参照に共通して適用する。
 
@@ -839,15 +831,15 @@ Presentation 全体で継続する背景、共有 HUD、累積 Variable、ambien
 
 Authoring と PresentationDefinition の ID、Compiler が生成する ID を分離する。
 
-| ID | 所有 contract | 安定性 |
-| --- | --- | --- |
-| `SpatialNodeId` | Authoring Source / PresentationDefinition | author-stable |
-| `SurfaceNodeId` | Authoring Source / PresentationDefinition | author-stable、`SpatialNodeId` の kind-safe subtype |
-| `SemanticSurfaceId` | Authoring Source / PresentationDefinition | author-stable |
-| `SurfaceContentNodeId` | Authoring Source / PresentationDefinition | Semantic Surface 内で author-stable |
-| `SemanticNodeId` | Structured Component Structure / Opaque Manifest semantic adapter | Semantic Surface 内で author-stable |
-| `RenderSurfaceId` | RenderBundle | compiler-derived、build-local |
-| `RendererArtifactId` | RenderBundle | compiler-derived、build-local |
+| ID                     | 所有 contract                                                     | 安定性                                              |
+| ---------------------- | ----------------------------------------------------------------- | --------------------------------------------------- |
+| `SpatialNodeId`        | Authoring Source / PresentationDefinition                         | author-stable                                       |
+| `SurfaceNodeId`        | Authoring Source / PresentationDefinition                         | author-stable、`SpatialNodeId` の kind-safe subtype |
+| `SemanticSurfaceId`    | Authoring Source / PresentationDefinition                         | author-stable                                       |
+| `SurfaceContentNodeId` | Authoring Source / PresentationDefinition                         | Semantic Surface 内で author-stable                 |
+| `SemanticNodeId`       | Structured Component Structure / Opaque Manifest semantic adapter | Semantic Surface 内で author-stable                 |
+| `RenderSurfaceId`      | RenderBundle                                                      | compiler-derived、build-local                       |
+| `RendererArtifactId`   | RenderBundle                                                      | compiler-derived、build-local                       |
 
 既存の canonical Trigger、Guard、Action、Snapshot に現れる `SurfaceId` は `SemanticSurfaceId` を意味する。`NodeId` は `SpatialNodeId` を意味し、Surface Tree 内部の `SurfaceContentNodeId` を含めない。RenderSurfaceId は authoring API と PresentationDefinition に現れない。
 
@@ -914,6 +906,32 @@ type SurfaceNode = Omit<SpatialNodeBase, "id"> & {
   surfaceId: SemanticSurfaceId;
 };
 
+type SurfaceContentNodeBase = {
+  id: SurfaceContentNodeId;
+  parentFrameId: SurfaceContentNodeId | null;
+  order: number;
+  placement: SurfaceNodePlacement | null;
+};
+
+type SurfaceContentNode =
+  | (SurfaceContentNodeBase & { kind: "frame"; layout: FrameLayout })
+  | (SurfaceContentNodeBase & { kind: "text"; text: TextContent })
+  | (SurfaceContentNodeBase & { kind: "image"; image: ImageContent })
+  | (SurfaceContentNodeBase & { kind: "video"; video: VideoContent })
+  | (SurfaceContentNodeBase & { kind: "shape"; shape: ShapeContent });
+
+type SemanticMediaDefinition =
+  | {
+      durationMilliseconds: number;
+      playback: "once";
+      completion: "mediaCompleted";
+    }
+  | {
+      durationMilliseconds: number;
+      playback: "loop";
+      completion: "never";
+    };
+
 type SemanticSurface = {
   id: SemanticSurfaceId;
   hostNodeId: SurfaceNodeId;
@@ -921,12 +939,16 @@ type SemanticSurface = {
   logicalSize: [number, number];
   fit: "contain" | "cover" | "stretch";
   rootFrameId: SurfaceContentNodeId;
+  contentNodes: Record<SurfaceContentNodeId, SurfaceContentNode>;
   baseSemanticTree: SemanticTree;
+  media?: SemanticMediaDefinition;
   initialStateId: SurfaceStateId;
   states: Record<SurfaceStateId, SurfaceStateDefinition>;
   renderIntent: SurfaceRenderIntent;
 };
 ```
+
+`contentNodes` は canonical Surface Tree の正本である。各 Node は `parentFrameId` と `order` で親子関係と sibling 順を保持し、Frame だけが親になれる。`rootFrameId` は `contentNodes` 内の `kind: "frame"` を参照し、その root だけが `parentFrameId: null`、`placement: null`、`order: 0` を持つ。root 以外は parent Frame に対応する placement を必ず持つ。primitive 固有 payload と `FrameLayout` / `SurfaceNodePlacement` の完全 schema は portable Presentation contract で固定するが、Compiler が解決した layout、内容、Asset 参照を PresentationDefinition から省略して別 artifact に暗黙委譲しない。
 
 `baseSemanticTree` は Surface の全 State が共有する意味構造の正本である。State は `SurfaceSemanticOverride` により既存 Node の可視性と text / language / alt だけを変更でき、Node ID、role、parent、order、interaction の所属を変更したり、新しい Semantic Node を生成したりできない。これにより State 間で意味対象と Hit Region の参照先を安定させる。
 
@@ -935,7 +957,9 @@ Compiler は次の invariant を検証する。
 - `SurfaceNode.surfaceId` と `SemanticSurface.hostNodeId` が双方向に一致する。
 - 一つの SurfaceNode は一つの Semantic Surface だけを host し、一つの Semantic Surface は一つの SurfaceNode だけを参照する。
 - SurfaceNode は Spatial Tree 上の leaf とし、2D 内容を Spatial child として保持しない。
-- `rootFrameId` とすべての SurfaceContentNode が同じ Semantic Surface に所属し、別 Surface の Node を親または child にしない。
+- `rootFrameId` は `contentNodes` 内の唯一の root Frame であり、全 Node がその root から一度だけ到達できる。存在しない parent、Frame 以外の parent、cycle、複数 root、同じ parent 内の `order` 重複を許可しない。
+- すべての SurfaceContentNode は同じ Semantic Surface の `contentNodes` に所属し、別 Surface の Node を parent にしない。
+- `media` を持つ Surface は有限かつ正の canonical duration を持つ。`playback: "once"` だけが `mediaCompleted` を発生させる。`playback: "loop"` は自動完了せず、明示的な play / pause / seek と Presentation lifecycle だけが再生状態を変更する。
 - `physicalSizeMeters` と `logicalSize` の各要素は有限かつ正である。
 - `baseSemanticTree` と各 State override は 13.2 の stable ID、親子、property conflict 規則に従う。
 - SurfaceNode または Semantic Surface の orphan、重複参照、ID kind の取り違えを build error とする。
@@ -960,8 +984,7 @@ type RenderSurface = {
 };
 
 type RenderSurfaceStateBinding =
-  | { kind: "empty" }
-  | { kind: "artifacts"; artifactIds: RendererArtifactId[] };
+  { kind: "empty" } | { kind: "artifacts"; artifactIds: RendererArtifactId[] };
 ```
 
 `logicalBounds` は親 Semantic Surface の logical coordinate space で表す。RenderSurfaceId は同じ source、lockfile、Compiler version、configuration に対して決定的に生成するが、author-stable ID ではなく、Compiler version や partition strategy が変われば変更できる。
@@ -977,19 +1000,19 @@ lowering は次を満たさなければならない。
 
 Runtime contract が参照できる ID を次に固定する。
 
-| Contract | 参照可能な target |
-| --- | --- |
-| `node.patch`、Timeline track | SurfaceNode を含む `SpatialNodeId` |
-| `surface.setState`、Surface Interaction、media Action | `SemanticSurfaceId` |
-| Guard、Progression、Snapshot、Reliable Event | `SemanticSurfaceId` / `SpatialNodeId` |
-| RenderBundle、Delivery renderer graph | `RenderSurfaceId` |
-| Authoring 内部編集 | `SurfaceContentNodeId` |
+| Contract                                              | 参照可能な target                     |
+| ----------------------------------------------------- | ------------------------------------- |
+| `node.patch`、Timeline track                          | SurfaceNode を含む `SpatialNodeId`    |
+| `surface.setState`、Surface Interaction、media Action | `SemanticSurfaceId`                   |
+| Guard、Progression、Snapshot、Reliable Event          | `SemanticSurfaceId` / `SpatialNodeId` |
+| RenderBundle、Delivery renderer graph                 | `RenderSurfaceId`                     |
+| Authoring 内部編集                                    | `SurfaceContentNodeId`                |
 
 RenderSurfaceId は Trigger、Guard、Action、Timeline、Snapshot、Reliable Event に含めない。SurfaceContentNodeId も公開 Interaction や Semantic Node へ明示的に lower された場合を除き、Runtime progression から直接参照しない。
 
 一つの Semantic Surface が複数 Render Surface へ分割されても、`surface.setState` は一回の canonical state change とする。すべての partition は同じ transition run と `runId` に従って原子的に切り替え、Render Surface ごとの独立した canonical state を作らない。Surface 全体の Transform と opacity は SurfaceNode に一度だけ適用する。
 
-`media.play`、`media.pause`、`media.seek` と `mediaCompleted` も SemanticSurfaceId を参照し、同じ Semantic Surface の media partition を一つの canonical media run として扱う。独立した再生位置や完了判定が必要な media は別 Semantic Surface に分ける。Render Surface や renderer acknowledgement を media authority にしない。
+`media.play`、`media.pause`、`media.seek` と `mediaCompleted` も SemanticSurfaceId を参照し、同じ Semantic Surface の media partition を一つの canonical media run として扱う。割り当て済み Runtime Core は `SemanticSurface.media` の duration、playback、completion を正本として再生位置と完了を決定する。`mediaCompleted` Trigger は `playback: "once"` の Surface だけを参照でき、looping Surface への参照は build error とする。独立した再生位置や完了判定が必要な media は別 Semantic Surface に分ける。Render Surface、renderer artifact metadata、renderer acknowledgement を media authority にしない。
 
 Render Surface の具体的な partition algorithm、自動化範囲、author override、artifact format は Rendering / Delivery follow-up で定義する。
 
@@ -1139,14 +1162,10 @@ type SurfaceRenderIntent = {
       };
 
   interaction:
-    | { kind: "none" }
-    | { kind: "regions"; events: LogicalEventName[] }
-    | { kind: "native-input" };
+    { kind: "none" } | { kind: "regions"; events: LogicalEventName[] } | { kind: "native-input" };
 
   internalAnimation:
-    | { kind: "none" }
-    | { kind: "precomputed"; durationSeconds: number }
-    | { kind: "runtime" };
+    { kind: "none" } | { kind: "precomputed"; durationSeconds: number } | { kind: "runtime" };
 
   rendererPreference: "auto" | "baked-web" | "native-ui" | "video";
   fallbackPolicy: "reject" | "degrade";
@@ -1155,13 +1174,13 @@ type SurfaceRenderIntent = {
 
 Renderer の基本選択規則は次のとおりとする。
 
-| Surface の特性 | 基本 renderer |
-| --- | --- |
-| 静的な Typography、Card、Table | `baked-web` |
-| 少数の有限状態 | `baked-web` + state artifacts |
-| 入力非依存の連続演出 | `video` |
-| Timer、Counter、入力値などの継続変化 | `native-ui` |
-| Surface 全体の移動、回転、拡縮、Fade | Unity SurfaceNode |
+| Surface の特性                       | 基本 renderer                 |
+| ------------------------------------ | ----------------------------- |
+| 静的な Typography、Card、Table       | `baked-web`                   |
+| 少数の有限状態                       | `baked-web` + state artifacts |
+| 入力非依存の連続演出                 | `video`                       |
+| Timer、Counter、入力値などの継続変化 | `native-ui`                   |
+| Surface 全体の移動、回転、拡縮、Fade | Unity SurfaceNode             |
 
 `rendererPreference` は authoring 上の希望であり、target capability と build 結果を踏まえた concrete renderer は RenderBundle と DeliveryManifest で確定する。
 
@@ -1235,9 +1254,7 @@ type CueDefinition = {
   trigger: Trigger;
   fixedPayload?: CanonicalEventPayload;
   guard?: Guard;
-  firePolicy:
-    | { kind: "oncePerStepEntry" }
-    | { kind: "repeatable"; cooldownMilliseconds: number };
+  firePolicy: { kind: "oncePerStepEntry" } | { kind: "repeatable"; cooldownMilliseconds: number };
   actions: Action[];
   next:
     | { kind: "stay" }
@@ -1287,9 +1304,7 @@ type RuntimeRunOwner =
 type RuntimeClockSnapshot = {
   runtimeTimeMilliseconds: number;
   lifecycle:
-    | { kind: "running" }
-    | { kind: "paused"; reason: PauseReason }
-    | { kind: "terminating" };
+    { kind: "running" } | { kind: "paused"; reason: PauseReason } | { kind: "terminating" };
 };
 
 type StepTimerState =
@@ -1436,9 +1451,7 @@ type RuntimeActor =
       source: SystemEventSource;
     };
 
-type TriggerActorSelector =
-  | { kind: "presenter" }
-  | { kind: "system"; source?: SystemEventSource };
+type TriggerActorSelector = { kind: "presenter" } | { kind: "system"; source?: SystemEventSource };
 
 type TrackedSubjectSelector =
   | {
@@ -1598,14 +1611,14 @@ type Action =
 
 Runtime は Action を適用前に property claim へ正規化する。
 
-| Action | claim |
-| --- | --- |
-| `surface.setState` | 対象 Surface の state と transition |
-| `node.patch` | 指定した Node field。`transform` は position、rotation、scale のすべて |
-| `variable.set` | 対象 Variable の value |
-| `timeline.play` | Timeline lifecycle と全 track の `target/property` |
-| `timeline.stop` | Timeline lifecycle と active Run が所有する全 `target/property` |
-| `media.play` / `pause` / `seek` | 対象 Surface の media lifecycle |
+| Action                          | claim                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `surface.setState`              | 対象 Surface の state と transition                                    |
+| `node.patch`                    | 指定した Node field。`transform` は position、rotation、scale のすべて |
+| `variable.set`                  | 対象 Variable の value                                                 |
+| `timeline.play`                 | Timeline lifecycle と全 track の `target/property`                     |
+| `timeline.stop`                 | Timeline lifecycle と active Run が所有する全 `target/property`        |
+| `media.play` / `pause` / `seek` | 対象 Surface の media lifecycle                                        |
 
 同じ batch 内で claim が重なる場合は、操作内容が同じでも batch 全体を reject する。active Timeline Run が所有する property への `node.patch`、同じ property を所有する別 Timeline の開始、active な同一 Timeline の再開始も reject する。`timeline.stop` は対象 Run の claim を停止処理のために引き継げるが、同じ batch にある別 Action とその claim が重なる場合は reject する。停止と値変更を順に行う場合は、別の Cue または Step として表現する。
 
@@ -1635,15 +1648,12 @@ type TimelineKeyframe = {
 type TimelineDefinition = {
   id: TimelineId;
   owner: ResourceOwner;
+  audience: ProjectionAudience;
   durationMilliseconds: number;
   tracks: Array<{
     target: {
       nodeId: NodeId;
-      property:
-        | "opacity"
-        | "transform.position"
-        | "transform.rotation"
-        | "transform.scale";
+      property: "opacity" | "transform.position" | "transform.rotation" | "transform.scale";
     };
     keyframes: TimelineKeyframe[];
   }>;
@@ -1658,6 +1668,8 @@ type TimelineDefinition = {
 - `opacity` は number、`transform.position` と `transform.scale` は Vector3、`transform.rotation` は非ゼロ Quaternion だけを値に取る。Quaternion は Compiler が Delivery 前に正規化し、Runtime も補間境界で正規化する。
 - 最終 keyframe 以外は `easingToNext` を必須とし、最終 keyframe では禁止する。easing はその keyframe から次の keyframe までの segment に適用する。
 - 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の conflict policy は `reject` のみであり、replace と additive animation は含めない。
+- Timeline の全 target Spatial Node は Timeline 自身と同じ `ProjectionAudience` を持つ。異なる audience の target を一つの Timeline に混在させず、profile は visible Timeline Definition とその Run をまとめて投影する。
+- `timeline.play` の `completion: "blocking"` は `audience: { kind: "all" }` の Timeline にだけ許可する。role 限定 Timeline は `nonBlocking` とし、非表示 Run の ID を共有 `ProgressionPhase.blockingRunIds` から参照させない。
 - group-owned Timeline は同じ Group または presentation-owned Spatial Node、presentation-owned Timeline は presentation-owned Spatial Node だけを target にできる。
 - group-owned Timeline は Group exit 時に停止する。presentation-owned Timeline は明示的な `timeline.stop` または Presentation 終了まで Group をまたいで継続できる。Step 遷移だけではどちらも停止しない。
 - Timeline の開始・完了は Session の pause-aware logical runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
@@ -2280,7 +2292,7 @@ Authoring では各 text と各 Surface State が Font Asset または Theme Fon
 
 ### 14.4 Video Artifact
 
-Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec capability を保持する。
+Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec capability を保持する。ただし duration と loop は Runtime の意味を所有せず、対応する `SemanticSurface.media` の canonical duration / playback を再掲する派生 metadata とする。Compiler は同じ Semantic Surface に対応する全 Video Artifact の duration と loop が semantic definition と一致することを検証し、不一致を build error とする。artifact 選択や codec capability によって `mediaCompleted` の時刻と有無を変えない。
 
 ## 15. コンパイルと配信
 
@@ -2489,6 +2501,7 @@ presentation/
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を 12.4、12.7、12.8、12.12 で定義した。
 - [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を 12.11 で定義した。
+- [x] Timeline audience と projection closure、Semantic Media の canonical timing、Surface Tree の canonical `contentNodes` 格納契約を 3.7、7.4〜7.5、12.8、14.4 で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
