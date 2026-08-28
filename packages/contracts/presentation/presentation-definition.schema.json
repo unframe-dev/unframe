@@ -128,764 +128,22 @@
         "nodes": {
           "type": "object",
           "propertyNames": {
-            "type": "string"
+            "$ref": "#/$defs/__schema5"
           },
           "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "name": {
-                "type": "string"
-              },
-              "kind": {
-                "type": "string",
-                "const": "surface"
-              },
-              "owner": {
-                "$ref": "#/$defs/__schema3"
-              },
-              "audience": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "all"
-                      }
-                    },
-                    "required": [
-                      "kind"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "role"
-                      },
-                      "role": {
-                        "type": "string",
-                        "enum": [
-                          "presenter",
-                          "viewer"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "role"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              "parent": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "stage"
-                      }
-                    },
-                    "required": [
-                      "kind"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "node"
-                      },
-                      "nodeId": {
-                        "$ref": "#/$defs/__schema0"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "nodeId"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "anchor"
-                      },
-                      "target": {
-                        "type": "string",
-                        "enum": [
-                          "head",
-                          "leftHand",
-                          "rightHand",
-                          "body"
-                        ]
-                      },
-                      "owner": {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "presenter"
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "followPosition": {
-                        "type": "boolean"
-                      },
-                      "followRotation": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "target",
-                      "owner",
-                      "followPosition",
-                      "followRotation"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              "order": {
-                "type": "number"
-              },
-              "transform": {
-                "type": "object",
-                "properties": {
-                  "position": {
-                    "$ref": "#/$defs/__schema4"
-                  },
-                  "rotation": {
-                    "type": "array",
-                    "prefixItems": [
-                      {
-                        "type": "number"
-                      },
-                      {
-                        "type": "number"
-                      },
-                      {
-                        "type": "number"
-                      },
-                      {
-                        "type": "number"
-                      }
-                    ],
-                    "items": false,
-                    "minItems": 4,
-                    "maxItems": 4
-                  },
-                  "scale": {
-                    "$ref": "#/$defs/__schema1"
-                  }
-                },
-                "required": [
-                  "position",
-                  "rotation",
-                  "scale"
-                ],
-                "additionalProperties": false
-              },
-              "active": {
-                "type": "boolean"
-              },
-              "visible": {
-                "type": "boolean"
-              },
-              "opacity": {
-                "type": "number"
-              },
-              "surfaceId": {
-                "$ref": "#/$defs/__schema0"
-              }
-            },
-            "required": [
-              "id",
-              "kind",
-              "owner",
-              "audience",
-              "parent",
-              "order",
-              "transform",
-              "active",
-              "visible",
-              "opacity",
-              "surfaceId"
-            ],
-            "additionalProperties": false
-          }
+            "$ref": "#/$defs/__schema6"
+          },
+          "minProperties": 1
         },
         "surfaces": {
           "type": "object",
           "propertyNames": {
-            "type": "string"
+            "$ref": "#/$defs/__schema7"
           },
           "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "hostNodeId": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "physicalSizeMeters": {
-                "$ref": "#/$defs/__schema5"
-              },
-              "logicalSize": {
-                "$ref": "#/$defs/__schema5"
-              },
-              "fit": {
-                "type": "string",
-                "enum": [
-                  "contain",
-                  "cover",
-                  "stretch"
-                ]
-              },
-              "rootFrameId": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "contentNodes": {
-                "type": "object",
-                "propertyNames": {
-                  "type": "string"
-                },
-                "additionalProperties": {
-                  "oneOf": [
-                    {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "$ref": "#/$defs/__schema0"
-                        },
-                        "kind": {
-                          "type": "string",
-                          "const": "frame"
-                        },
-                        "parentId": {
-                          "anyOf": [
-                            {
-                              "$ref": "#/$defs/__schema0"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "order": {
-                          "type": "number"
-                        },
-                        "layout": {
-                          "type": "object",
-                          "properties": {
-                            "kind": {
-                              "type": "string",
-                              "const": "absolute"
-                            }
-                          },
-                          "required": [
-                            "kind"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "children": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/$defs/__schema0"
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "kind",
-                        "parentId",
-                        "order",
-                        "layout",
-                        "children"
-                      ],
-                      "additionalProperties": false
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "$ref": "#/$defs/__schema0"
-                        },
-                        "kind": {
-                          "type": "string",
-                          "const": "text"
-                        },
-                        "parentId": {
-                          "anyOf": [
-                            {
-                              "$ref": "#/$defs/__schema0"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "order": {
-                          "type": "number"
-                        },
-                        "placement": {
-                          "type": "object",
-                          "properties": {
-                            "kind": {
-                              "type": "string",
-                              "const": "absolute"
-                            },
-                            "x": {
-                              "type": "number"
-                            },
-                            "y": {
-                              "type": "number"
-                            },
-                            "width": {
-                              "$ref": "#/$defs/__schema2"
-                            },
-                            "height": {
-                              "$ref": "#/$defs/__schema2"
-                            }
-                          },
-                          "required": [
-                            "kind",
-                            "x",
-                            "y",
-                            "width",
-                            "height"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "text": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "kind",
-                        "parentId",
-                        "order",
-                        "placement",
-                        "text"
-                      ],
-                      "additionalProperties": false
-                    }
-                  ]
-                }
-              },
-              "baseSemanticTree": {
-                "type": "object",
-                "properties": {
-                  "rootNodeIds": {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/$defs/__schema0"
-                    }
-                  },
-                  "nodes": {
-                    "type": "object",
-                    "propertyNames": {
-                      "type": "string"
-                    },
-                    "additionalProperties": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "$ref": "#/$defs/__schema0"
-                        },
-                        "parentId": {
-                          "anyOf": [
-                            {
-                              "$ref": "#/$defs/__schema0"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "order": {
-                          "type": "number"
-                        },
-                        "role": {
-                          "type": "string",
-                          "enum": [
-                            "heading",
-                            "paragraph",
-                            "image",
-                            "button",
-                            "table",
-                            "list",
-                            "listItem"
-                          ]
-                        },
-                        "text": {
-                          "type": "string"
-                        },
-                        "language": {
-                          "type": "string"
-                        },
-                        "alt": {
-                          "type": "string"
-                        },
-                        "interactionId": {
-                          "$ref": "#/$defs/__schema0"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "parentId",
-                        "order",
-                        "role"
-                      ],
-                      "additionalProperties": false
-                    }
-                  }
-                },
-                "required": [
-                  "rootNodeIds",
-                  "nodes"
-                ],
-                "additionalProperties": false
-              },
-              "interactions": {
-                "type": "object",
-                "propertyNames": {
-                  "type": "string"
-                },
-                "additionalProperties": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "$ref": "#/$defs/__schema0"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "const": "click"
-                    },
-                    "event": {
-                      "$ref": "#/$defs/__schema0"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "kind",
-                    "event"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "initialStateId": {
-                "$ref": "#/$defs/__schema0"
-              },
-              "states": {
-                "type": "object",
-                "propertyNames": {
-                  "type": "string"
-                },
-                "additionalProperties": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "$ref": "#/$defs/__schema0"
-                    },
-                    "semanticOverrides": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "nodes": {
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {
-                              "type": "object",
-                              "properties": {
-                                "included": {
-                                  "type": "boolean"
-                                },
-                                "text": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
-                                "language": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
-                                "alt": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "nodes"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "enabledInteractionIds": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/$defs/__schema0"
-                      }
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "semanticOverrides",
-                    "enabledInteractionIds"
-                  ],
-                  "additionalProperties": false
-                }
-              },
-              "renderIntent": {
-                "type": "object",
-                "properties": {
-                  "updateModel": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "static"
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "finite-state"
-                          },
-                          "stateIds": {
-                            "minItems": 1,
-                            "type": "array",
-                            "items": {
-                              "$ref": "#/$defs/__schema0"
-                            }
-                          }
-                        },
-                        "required": [
-                          "kind",
-                          "stateIds"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "continuous"
-                          },
-                          "source": {
-                            "type": "string",
-                            "enum": [
-                              "timeline",
-                              "runtime-data",
-                              "user-input"
-                            ]
-                          },
-                          "maximumUpdateRateHz": {
-                            "$ref": "#/$defs/__schema2"
-                          }
-                        },
-                        "required": [
-                          "kind",
-                          "source"
-                        ],
-                        "additionalProperties": false
-                      }
-                    ]
-                  },
-                  "interaction": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "none"
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "regions"
-                          },
-                          "events": {
-                            "minItems": 1,
-                            "type": "array",
-                            "items": {
-                              "$ref": "#/$defs/__schema0"
-                            }
-                          }
-                        },
-                        "required": [
-                          "kind",
-                          "events"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "native-input"
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      }
-                    ]
-                  },
-                  "internalAnimation": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "none"
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "precomputed"
-                          },
-                          "durationSeconds": {
-                            "$ref": "#/$defs/__schema2"
-                          }
-                        },
-                        "required": [
-                          "kind",
-                          "durationSeconds"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "runtime"
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      }
-                    ]
-                  },
-                  "rendererPreference": {
-                    "type": "string",
-                    "enum": [
-                      "auto",
-                      "baked-web",
-                      "native-ui",
-                      "video"
-                    ]
-                  },
-                  "fallbackPolicy": {
-                    "type": "string",
-                    "enum": [
-                      "reject",
-                      "degrade"
-                    ]
-                  }
-                },
-                "required": [
-                  "updateModel",
-                  "interaction",
-                  "internalAnimation",
-                  "rendererPreference",
-                  "fallbackPolicy"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "id",
-              "hostNodeId",
-              "physicalSizeMeters",
-              "logicalSize",
-              "fit",
-              "rootFrameId",
-              "contentNodes",
-              "baseSemanticTree",
-              "interactions",
-              "initialStateId",
-              "states",
-              "renderIntent"
-            ],
-            "additionalProperties": false
-          }
+            "$ref": "#/$defs/__schema8"
+          },
+          "minProperties": 1
         }
       },
       "required": [
@@ -929,7 +187,7 @@
                       "maxItems": 0,
                       "type": "array",
                       "items": {
-                        "$ref": "#/$defs/__schema6"
+                        "$ref": "#/$defs/__schema10"
                       }
                     }
                   },
@@ -1095,6 +353,765 @@
       "maxItems": 3
     },
     "__schema5": {
+      "type": "string"
+    },
+    "__schema6": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "const": "surface"
+        },
+        "owner": {
+          "$ref": "#/$defs/__schema3"
+        },
+        "audience": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "all"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "presenter",
+                    "viewer"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "stage"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "node"
+                },
+                "nodeId": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "kind",
+                "nodeId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "anchor"
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "head",
+                    "leftHand",
+                    "rightHand",
+                    "body"
+                  ]
+                },
+                "owner": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "presenter"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                "followPosition": {
+                  "type": "boolean"
+                },
+                "followRotation": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "kind",
+                "target",
+                "owner",
+                "followPosition",
+                "followRotation"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "order": {
+          "type": "number"
+        },
+        "transform": {
+          "type": "object",
+          "properties": {
+            "position": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "rotation": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "items": false,
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "scale": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "position",
+            "rotation",
+            "scale"
+          ],
+          "additionalProperties": false
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "surfaceId": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "owner",
+        "audience",
+        "parent",
+        "order",
+        "transform",
+        "active",
+        "visible",
+        "opacity",
+        "surfaceId"
+      ],
+      "additionalProperties": false
+    },
+    "__schema7": {
+      "type": "string"
+    },
+    "__schema8": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "hostNodeId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "physicalSizeMeters": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "logicalSize": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "fit": {
+          "type": "string",
+          "enum": [
+            "contain",
+            "cover",
+            "stretch"
+          ]
+        },
+        "rootFrameId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "contentNodes": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "frame"
+                  },
+                  "parentId": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "order": {
+                    "type": "number"
+                  },
+                  "layout": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "absolute"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "children": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "parentId",
+                  "order",
+                  "layout",
+                  "children"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "text"
+                  },
+                  "parentId": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "order": {
+                    "type": "number"
+                  },
+                  "placement": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "absolute"
+                      },
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "width": {
+                        "$ref": "#/$defs/__schema2"
+                      },
+                      "height": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "x",
+                      "y",
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "parentId",
+                  "order",
+                  "placement",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "baseSemanticTree": {
+          "type": "object",
+          "properties": {
+            "rootNodeIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "nodes": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "parentId": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "order": {
+                    "type": "number"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "heading",
+                      "paragraph",
+                      "image",
+                      "button",
+                      "table",
+                      "list",
+                      "listItem"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "language": {
+                    "type": "string"
+                  },
+                  "alt": {
+                    "type": "string"
+                  },
+                  "interactionId": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "id",
+                  "parentId",
+                  "order",
+                  "role"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "rootNodeIds",
+            "nodes"
+          ],
+          "additionalProperties": false
+        },
+        "interactions": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "kind": {
+                "type": "string",
+                "const": "click"
+              },
+              "event": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "event"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "initialStateId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "states": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "semanticOverrides": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "nodes": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "included": {
+                            "type": "boolean"
+                          },
+                          "text": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "language": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "nodes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "enabledInteractionIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "id",
+              "semanticOverrides",
+              "enabledInteractionIds"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "renderIntent": {
+          "type": "object",
+          "properties": {
+            "updateModel": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "static"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "finite-state"
+                    },
+                    "stateIds": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "stateIds"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "continuous"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "timeline",
+                        "runtime-data",
+                        "user-input"
+                      ]
+                    },
+                    "maximumUpdateRateHz": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "interaction": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "none"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "regions"
+                    },
+                    "events": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "native-input"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "internalAnimation": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "none"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "precomputed"
+                    },
+                    "durationSeconds": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "durationSeconds"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "runtime"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "rendererPreference": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "baked-web",
+                "native-ui",
+                "video"
+              ]
+            },
+            "fallbackPolicy": {
+              "type": "string",
+              "enum": [
+                "reject",
+                "degrade"
+              ]
+            }
+          },
+          "required": [
+            "updateModel",
+            "interaction",
+            "internalAnimation",
+            "rendererPreference",
+            "fallbackPolicy"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "hostNodeId",
+        "physicalSizeMeters",
+        "logicalSize",
+        "fit",
+        "rootFrameId",
+        "contentNodes",
+        "baseSemanticTree",
+        "interactions",
+        "initialStateId",
+        "states",
+        "renderIntent"
+      ],
+      "additionalProperties": false
+    },
+    "__schema9": {
       "type": "array",
       "prefixItems": [
         {
@@ -1108,6 +1125,6 @@
       "minItems": 2,
       "maxItems": 2
     },
-    "__schema6": {}
+    "__schema10": {}
   }
 }

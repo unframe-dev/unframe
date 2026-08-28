@@ -111,7 +111,9 @@
                   "$ref": "#/$defs/__schema3"
                 },
                 "layer": {
-                  "type": "number"
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
                 },
                 "artifacts": {
                   "type": "object",

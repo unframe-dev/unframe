@@ -73,10 +73,15 @@ const nodeOverrideSchema = z.strictObject({
   alt: z.string().nullable().optional(),
 });
 
+const uniqueIdArraySchema = z
+  .array(idSchema)
+  .refine((ids) => new Set(ids).size === ids.length, "Interaction IDs must be unique")
+  .meta({ uniqueItems: true });
+
 const stateSchema = z.strictObject({
   id: idSchema,
   semanticOverrides: z.array(z.strictObject({ nodes: z.record(z.string(), nodeOverrideSchema) })),
-  enabledInteractionIds: z.array(idSchema),
+  enabledInteractionIds: uniqueIdArraySchema,
 });
 
 const renderIntentSchema = z.strictObject({
@@ -133,7 +138,7 @@ const surfaceNodeSchema = z.strictObject({
   }),
   active: z.boolean(),
   visible: z.boolean(),
-  opacity: z.number(),
+  opacity: z.number().min(0).max(1),
   surfaceId: idSchema,
 });
 
@@ -182,8 +187,14 @@ export const presentationDefinitionSchema = z.strictObject({
     z.strictObject({ id: idSchema, mediaType: idSchema, checksum: idSchema }),
   ),
   scene: z.strictObject({
-    nodes: z.record(z.string(), surfaceNodeSchema),
-    surfaces: z.record(z.string(), semanticSurfaceSchema),
+    nodes: z
+      .record(z.string(), surfaceNodeSchema)
+      .refine((nodes) => Object.keys(nodes).length > 0, "A scene must contain a node")
+      .meta({ minProperties: 1 }),
+    surfaces: z
+      .record(z.string(), semanticSurfaceSchema)
+      .refine((surfaces) => Object.keys(surfaces).length > 0, "A scene must contain a surface")
+      .meta({ minProperties: 1 }),
   }),
   flow: z.strictObject({
     initialGroupId: idSchema,

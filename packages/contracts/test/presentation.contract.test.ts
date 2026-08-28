@@ -133,12 +133,63 @@ invalidDefinition.scene.surfaces["surface-title"].logicalSize = [0, 1080];
 assert.equal(validateDefinition(invalidDefinition), false, "logicalSize must be positive");
 assert.equal(presentationDefinitionSchema.safeParse(invalidDefinition).success, false);
 
+const invalidOpacity = structuredClone(minimalDefinition);
+invalidOpacity.scene.nodes["surface-node-title"].opacity = 1.01;
+assert.equal(validateDefinition(invalidOpacity), false, "opacity must be between zero and one");
+assert.equal(presentationDefinitionSchema.safeParse(invalidOpacity).success, false);
+
+const duplicateEnabledInteractionIds = structuredClone(minimalDefinition);
+duplicateEnabledInteractionIds.scene.surfaces["surface-title"].states[
+  "state-default"
+].enabledInteractionIds = ["interaction-title", "interaction-title"];
+assert.equal(
+  validateDefinition(duplicateEnabledInteractionIds),
+  false,
+  "enabled interaction IDs must be unique",
+);
+assert.equal(presentationDefinitionSchema.safeParse(duplicateEnabledInteractionIds).success, false);
+
+const definitionWithoutNodes = structuredClone(minimalDefinition);
+definitionWithoutNodes.scene.nodes = {};
+assert.equal(validateDefinition(definitionWithoutNodes), false, "a scene must contain a node");
+assert.equal(presentationDefinitionSchema.safeParse(definitionWithoutNodes).success, false);
+
+const definitionWithoutSurfaces = structuredClone(minimalDefinition);
+definitionWithoutSurfaces.scene.surfaces = {};
+assert.equal(
+  validateDefinition(definitionWithoutSurfaces),
+  false,
+  "a scene must contain a surface",
+);
+assert.equal(presentationDefinitionSchema.safeParse(definitionWithoutSurfaces).success, false);
+
 const invalidBundle = structuredClone(minimalBundle);
 invalidBundle.surfaces["surface-title"].renderSurfaces["render-surface-title"].artifacts[
   "artifact-title-default"
 ].states["state-default"].textures[0].pixelSize = [0, 1152];
 assert.equal(validateBundle(invalidBundle), false, "texture pixelSize must be positive");
 assert.equal(renderBundleSchema.safeParse(invalidBundle).success, false);
+
+const invalidRenderSurfaceLayer = structuredClone(minimalBundle);
+invalidRenderSurfaceLayer.surfaces["surface-title"].renderSurfaces["render-surface-title"].layer =
+  -1;
+assert.equal(
+  validateBundle(invalidRenderSurfaceLayer),
+  false,
+  "render surface layer must be a non-negative integer",
+);
+assert.equal(renderBundleSchema.safeParse(invalidRenderSurfaceLayer).success, false);
+
+const fractionalRenderSurfaceLayer = structuredClone(minimalBundle);
+fractionalRenderSurfaceLayer.surfaces["surface-title"].renderSurfaces[
+  "render-surface-title"
+].layer = 0.5;
+assert.equal(
+  validateBundle(fractionalRenderSurfaceLayer),
+  false,
+  "render surface layer must be an integer",
+);
+assert.equal(renderBundleSchema.safeParse(fractionalRenderSurfaceLayer).success, false);
 
 const invalidBundleRecord = structuredClone(minimalBundle);
 invalidBundleRecord.surfaces["surface-title"].renderSurfaces["render-surface-title"].stateBindings[

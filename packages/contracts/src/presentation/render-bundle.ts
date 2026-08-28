@@ -29,7 +29,7 @@ const renderSurfaceSchema = z.strictObject({
   id: idSchema,
   semanticSurfaceId: idSchema,
   logicalBounds: boundsSchema,
-  layer: z.number(),
+  layer: z.int().nonnegative(),
   artifacts: z.record(z.string(), bakedArtifactSchema),
   stateBindings: z.record(z.string(), bindingSchema),
 });
