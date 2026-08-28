@@ -193,6 +193,20 @@ contracts
 
 各項目では、意味、authority、source of truth、wire field、failure、compatibility、consumer の責務まで決める。判断を必要とする次項目へ進む前に、対応する Architecture / ADR を更新する。
 
+### 6.1 Timeline / Runtime Run contract 監査
+
+2026-08-29 時点で、Timeline の補間式、easing、number / Vector3 / Quaternion、Pause / Resume、完了時 commit、`explicitStop` / `groupExit` / `presentationEnded` の停止規則、Runtime Core authority は Architecture に定義済みである。一方、現行 Presentation contract は Timeline catalog を持たず、Realtime Protobuf は Handshake / PageChange foundation だけであるため、wire contract は未実装である。
+
+実装前に次を順番に確定する。
+
+1. Timeline の frame 間値を client が開始時刻と immutable definition から local interpolation するか、latest-wins State Stream でも配送するか。Architecture 12.8 の local interpolation と 12.11 の State Stream 記述は現在矛盾している。
+2. TimelineDefinition を PresentationDefinition / PublishedPresentation の immutable catalog として配送するか、lifecycle event payload に含めるか。
+3. `RuntimeRunId` の serialized form、`TimelineStarted` / `TimelineCompleted` / `TimelineCanceled` payload、停止時刻の表現。
+4. invariant violation、atomic commit failure、microstep overflow、recovery gap を区別する Runtime fault / Pause / termination reason。
+5. projected active Run の visibility と、旧 client が Timeline event を無視しない progression contract version / capability negotiation。
+
+推奨案は、Timeline catalog を immutable Presentation contract に含め、wire は lifecycle event と active Run snapshotだけを配送し、frame 間値は client が local interpolationする方式である。State Stream は tracking由来などTimeline以外の連続状態とkeyframeに限定する。この判断が採用されるまではProtobuf fieldや互換fallbackを追加せず、Milestone 2 item 2以降へ進まない。
+
 ### 完了条件
 
 - PresentationDefinition、RenderBundle、DeliveryManifest、Runtime State の境界が混在していない。
