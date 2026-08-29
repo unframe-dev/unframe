@@ -79,7 +79,7 @@ project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、
 
 `checkAuthoringProject(unknown)` は virtual Source frontend の公開 pure boundary として parse、typecheck、lower、normalize、collect、pair を接続し、成功時は TypeScript の `Program` / `TypeChecker` を含まない plain declaration catalog、失敗時は source range 付き diagnostic を返す。builder implementation、filesystem、Browser は実行しない。
 
-`assembleDeclarationProject(unknown)` は paired catalog と、Theme ID ごとの hash、Component `(componentId, version)` ごとの完全 package lock、Asset carrier を明示的に受け取る pure boundary である。catalog の source-map wrapper を出力に持ち込まず、carrier の欠落・余分・重複・identity mismatch を fail closed で拒否する。入力順に依存せず canonical envelope を組み立て、`checkDeclarationProject` で再検証する。hash、integrity、checksum は計算も推測もしない。
+`assembleDeclarationProject(unknown)` は paired catalog と、Theme ID ごとの hash、Component `(componentId, version)` ごとの完全 package lock、Asset carrier を明示的に受け取る pure boundary である。catalog の source-map wrapper を出力に持ち込まず、carrier の欠落・余分・重複・identity mismatch を fail closed で拒否する。Theme、Manifest、Structure はそれぞれの declaration semantic payload を Core の canonical JSON SHA-256 で再計算し、lock hash mismatch を stable diagnostic として拒否する。declaration node の `source` metadata は hash から除くが、Theme token / named-style 等の任意 JSON にある同名のデータは保持する。入力順に依存せず canonical envelope を組み立て、`checkDeclarationProject` で再検証する。package integrity と asset checksum は計算も推測もしない。
 
 post-lowering declaration の検査は Authoring package の pure type guard を利用し、definition builder を呼び出さない。Compiler の plain-data clone は `Object.prototype` と null-prototype の record を受理し、descriptor だけから null-prototype clone を作る。custom prototype、accessor、cycle、sparse array、symbol key、非 JSON 値は Zod や semantic validation に渡す前に拒否し、caller-owned getter や Proxy の `get` trap を実行しない。
 

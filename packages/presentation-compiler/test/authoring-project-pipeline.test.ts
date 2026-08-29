@@ -7,7 +7,11 @@ import {
 } from "@unframe/presentation-renderer-api";
 import {
   checkAuthoringProjectAssembly,
+  checkAuthoringProject,
   compileAuthoringProject,
+  hashComponentManifestDeclaration,
+  hashComponentStructureDeclaration,
+  hashThemeDeclaration,
   type DeclarationProjectAssemblyCarrier,
 } from "../src/index.js";
 
@@ -27,7 +31,7 @@ export default definePresentation({
   theme: { themeId: "theme" },
   scene: {
     spatial: [{ id: "spatial", kind: "spatial", name: "Surface", owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, order: 0, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }, active: true, visible: true, opacity: 1 }],
-    components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", packageLock: { packageVersion: "1", packageIntegrity: "integrity", manifestHash: "manifest", structureHash: "structure" }, props: {}, slots: {}, variants: {}, partOverrides: [] }]
+    components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", packageLock: { packageVersion: "1", packageIntegrity: "integrity", manifestHash: "__MANIFEST_HASH__", structureHash: "__STRUCTURE_HASH__" }, props: {}, slots: {}, variants: {}, partOverrides: [] }]
   }, assets: [],
   flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []
 });`;
@@ -61,21 +65,10 @@ export default defineComponentStructure({
 
 type VirtualFile = { readonly fileName: string; readonly sourceText: string };
 
-const virtualProject = (files?: readonly VirtualFile[]) => ({
+const baseProject = (files: readonly VirtualFile[]) => ({
   projectRoot: "/virtual/pipeline",
   entryFile: "entry.ts",
-  files: files ?? [
-    { fileName: "entry.ts", sourceText: entrySource },
-    { fileName: "theme.unframe.ts", sourceText: themeSource },
-    { fileName: "theme-z.unframe.ts", sourceText: extraThemeSource },
-    { fileName: "surface.manifest.ts", sourceText: manifestSource },
-    { fileName: "surface.structure.tsx", sourceText: structureSource("surface", "surface") },
-    { fileName: "surface-z.manifest.ts", sourceText: extraManifestSource },
-    {
-      fileName: "surface-z.structure.tsx",
-      sourceText: structureSource("surface-z", "surface-z"),
-    },
-  ],
+  files,
   packageDependencies: [
     { packageName: "@unframe/presentation", packageVersion: "1", packageIntegrity: "integrity" },
   ],
@@ -91,35 +84,65 @@ const virtualProject = (files?: readonly VirtualFile[]) => ({
   ],
 });
 
-const carrier = (): DeclarationProjectAssemblyCarrier => ({
-  themeHashes: [
-    { themeId: "theme", hash: "theme-hash" },
-    { themeId: "theme-z", hash: "theme-z-hash" },
-  ],
-  componentLocks: [
-    {
-      componentId: "surface",
-      version: 1,
+const sourceFiles = (): readonly VirtualFile[] => [
+  { fileName: "entry.ts", sourceText: entrySource },
+  { fileName: "theme.unframe.ts", sourceText: themeSource },
+  { fileName: "theme-z.unframe.ts", sourceText: extraThemeSource },
+  { fileName: "surface.manifest.ts", sourceText: manifestSource },
+  { fileName: "surface.structure.tsx", sourceText: structureSource("surface", "surface") },
+  { fileName: "surface-z.manifest.ts", sourceText: extraManifestSource },
+  {
+    fileName: "surface-z.structure.tsx",
+    sourceText: structureSource("surface-z", "surface-z"),
+  },
+];
+
+const virtualProject = (files?: readonly VirtualFile[]) => {
+  if (files !== undefined) return baseProject(files);
+  const unbound = baseProject(sourceFiles());
+  const catalog = checkAuthoringProject(unbound);
+  if (!catalog.valid) throw new Error("Test authoring project must parse.");
+  const component = catalog.value.components.find(
+    (item) => item.manifest.value.componentId === "surface",
+  )!;
+  const manifestHash = hashComponentManifestDeclaration(component.manifest.value);
+  const structureHash = hashComponentStructureDeclaration(component.structure.value);
+  return baseProject(
+    sourceFiles().map((file) =>
+      file.fileName === "entry.ts"
+        ? {
+            ...file,
+            sourceText: file.sourceText
+              .replace("__MANIFEST_HASH__", manifestHash)
+              .replace("__STRUCTURE_HASH__", structureHash),
+          }
+        : file,
+    ),
+  );
+};
+
+const carrier = (): DeclarationProjectAssemblyCarrier => {
+  const catalog = checkAuthoringProject(virtualProject());
+  if (!catalog.valid) throw new Error("Test authoring project must parse.");
+  return {
+    themeHashes: catalog.value.themes.map((theme) => ({
+      themeId: theme.value.id,
+      hash: hashThemeDeclaration(theme.value),
+    })),
+    componentLocks: catalog.value.components.map((component) => ({
+      componentId: component.manifest.value.componentId,
+      version: component.manifest.value.version,
       lock: {
-        packageVersion: "1",
-        packageIntegrity: "integrity",
-        manifestHash: "manifest",
-        structureHash: "structure",
+        packageVersion: component.manifest.value.componentId === "surface" ? "1" : "2",
+        packageIntegrity:
+          component.manifest.value.componentId === "surface" ? "integrity" : "integrity-z",
+        manifestHash: hashComponentManifestDeclaration(component.manifest.value),
+        structureHash: hashComponentStructureDeclaration(component.structure.value),
       },
-    },
-    {
-      componentId: "surface-z",
-      version: 2,
-      lock: {
-        packageVersion: "2",
-        packageIntegrity: "integrity-z",
-        manifestHash: "manifest-z",
-        structureHash: "structure-z",
-      },
-    },
-  ],
-  assets: {},
-});
+    })),
+    assets: {},
+  };
+};
 
 const options = (renderer: RendererPlugin) => ({
   compiler: { name: "unframe", version: "1", baseEnvironmentHash: "environment" },

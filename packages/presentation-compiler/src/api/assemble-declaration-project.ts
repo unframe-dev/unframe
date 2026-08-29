@@ -1,9 +1,24 @@
 import { z } from "zod";
+import type {
+  ComponentManifest,
+  ComponentStructure,
+  ThemeDeclaration,
+} from "@unframe/presentation";
+import {
+  isComponentManifest,
+  isComponentStructure,
+  isThemeDeclaration,
+} from "@unframe/presentation";
 import type { Diagnostic, ValidationResult } from "@unframe/presentation-core";
 import { sortDiagnostics, diagnostic } from "../diagnostics/diagnostics.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { resolveAuthoringStructurePath } from "../project/pair-authoring-declarations.js";
 import { checkDeclarationProject } from "./check-declaration-project.js";
+import {
+  hashComponentManifestDeclaration,
+  hashComponentStructureDeclaration,
+  hashThemeDeclaration,
+} from "../semantic/declaration-hashes.js";
 import type { CheckedDeclarationProject, CompilerDeclarationProject } from "./types.js";
 
 const nonEmptyStringSchema = z.string().min(1);
@@ -90,12 +105,12 @@ const assemblyInputSchema = z
   .strict();
 
 type AssemblyInput = z.output<typeof assemblyInputSchema>;
-type ThemeEntry = { readonly id: string; readonly declaration: unknown };
+type ThemeEntry = { readonly id: string; readonly declaration: ThemeDeclaration };
 type ComponentEntry = {
   readonly componentId: string;
   readonly version: number;
-  readonly manifest: unknown;
-  readonly structure: unknown;
+  readonly manifest: ComponentManifest;
+  readonly structure: ComponentStructure;
 };
 
 const assemblyEnvelopeDiagnostics = (issues: readonly z.core.$ZodIssue[]): Diagnostic[] => {
@@ -181,9 +196,9 @@ const collectThemes = (input: AssemblyInput, diagnostics: Diagnostic[]): ThemeEn
           "Theme declarations must expose a non-empty ID for hash pairing.",
         ),
       );
-      return { id: `\u0000${index}`, declaration: candidate.value };
+      return { id: `\u0000${index}`, declaration: candidate.value as ThemeDeclaration };
     }
-    return { id, declaration: candidate.value };
+    return { id, declaration: candidate.value as ThemeDeclaration };
   });
 
 const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): ComponentEntry[] =>
@@ -207,8 +222,8 @@ const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): Com
       return {
         componentId: `\u0000${index}`,
         version: 0,
-        manifest: candidate.manifest.value,
-        structure: candidate.structure.value,
+        manifest: candidate.manifest.value as ComponentManifest,
+        structure: candidate.structure.value as ComponentStructure,
       };
     }
     if (structure?.componentId !== componentId)
@@ -245,8 +260,8 @@ const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): Com
     return {
       componentId,
       version,
-      manifest: candidate.manifest.value,
-      structure: candidate.structure.value,
+      manifest: candidate.manifest.value as ComponentManifest,
+      structure: candidate.structure.value as ComponentStructure,
     };
   });
 
@@ -316,7 +331,9 @@ export const assembleDeclarationProjectValidated = (
     diagnostics,
   );
 
-  const themeHashes = new Map(value.themeHashes.map((item) => [item.themeId, item]));
+  const themeHashes = new Map(
+    value.themeHashes.map((item, index) => [item.themeId, { item, index }]),
+  );
   const catalogThemeIds = new Set(themes.map((item) => item.id));
   themes.forEach((theme, index) => {
     if (!themeHashes.has(theme.id))
@@ -339,8 +356,27 @@ export const assembleDeclarationProjectValidated = (
       );
   });
 
+  themes.forEach((theme) => {
+    const entry = themeHashes.get(theme.id);
+    if (
+      entry !== undefined &&
+      isThemeDeclaration(theme.declaration) &&
+      entry.item.hash !== hashThemeDeclaration(theme.declaration)
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-theme-hash-mismatch",
+          ["themeHashes", entry.index],
+          "Theme hash must match the declaration semantic payload.",
+        ),
+      );
+  });
+
   const locks = new Map(
-    value.componentLocks.map((item) => [keyForComponent(item.componentId, item.version), item]),
+    value.componentLocks.map((item, index) => [
+      keyForComponent(item.componentId, item.version),
+      { item, index },
+    ]),
   );
   const catalogComponentKeys = new Set(
     components.map((item) => keyForComponent(item.componentId, item.version)),
@@ -374,19 +410,46 @@ export const assembleDeclarationProjectValidated = (
         ),
       );
   });
+  components.forEach((component) => {
+    const entry = locks.get(keyForComponent(component.componentId, component.version));
+    if (entry === undefined) return;
+    const { lock } = entry.item;
+    if (
+      isComponentManifest(component.manifest) &&
+      lock.manifestHash !== hashComponentManifestDeclaration(component.manifest)
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-component-manifest-hash-mismatch",
+          ["componentLocks", entry.index, "lock", "manifestHash"],
+          "Component manifest hash must match the declaration semantic payload.",
+        ),
+      );
+    if (
+      isComponentStructure(component.structure) &&
+      lock.structureHash !== hashComponentStructureDeclaration(component.structure)
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-component-structure-hash-mismatch",
+          ["componentLocks", entry.index, "lock", "structureHash"],
+          "Component structure hash must match the declaration semantic payload.",
+        ),
+      );
+  });
   if (diagnostics.length > 0) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
 
   const project: CompilerDeclarationProject = {
     presentation: value.catalog.presentation.value as CompilerDeclarationProject["presentation"],
     themes: themes.sort(byString).map((theme) => ({
       declaration: theme.declaration as CompilerDeclarationProject["themes"][number]["declaration"],
-      hash: themeHashes.get(theme.id)!.hash,
+      hash: themeHashes.get(theme.id)!.item.hash,
     })),
     components: components.sort(byComponent).map((component) => ({
       manifest: component.manifest as CompilerDeclarationProject["components"][number]["manifest"],
       structure:
         component.structure as CompilerDeclarationProject["components"][number]["structure"],
-      lock: locks.get(keyForComponent(component.componentId, component.version))!.lock,
+      lock: locks.get(keyForComponent(component.componentId, component.version))!.item.lock,
     })),
     assets: canonicalRecord(
       value.assets as CompilerDeclarationProject["assets"],

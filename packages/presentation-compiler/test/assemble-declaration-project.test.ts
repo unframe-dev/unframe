@@ -4,6 +4,9 @@ import type { PresentationDeclaration } from "@unframe/presentation";
 import {
   assembleDeclarationProject,
   checkAuthoringProject,
+  hashComponentManifestDeclaration,
+  hashComponentStructureDeclaration,
+  hashThemeDeclaration,
   type DeclarationProjectAssemblyInput,
   type PairedAuthoringDeclarationCatalog,
 } from "../src/index.js";
@@ -43,8 +46,8 @@ const presentation = (): PresentationDeclaration => ({
         packageLock: {
           packageVersion: "1",
           packageIntegrity: "integrity",
-          manifestHash: "manifest",
-          structureHash: "structure",
+          manifestHash: hashComponentManifestDeclaration(standardComponents.surface.manifest),
+          structureHash: hashComponentStructureDeclaration(standardComponents.surface.structure),
         },
         props: {},
         slots: {},
@@ -135,7 +138,9 @@ const catalog = (includeAdditional = false): PairedAuthoringDeclarationCatalog =
 
 const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
   catalog: catalog(includeAdditional),
-  themeHashes: [{ themeId: standardComponents.theme.id, hash: "theme" }],
+  themeHashes: [
+    { themeId: standardComponents.theme.id, hash: hashThemeDeclaration(standardComponents.theme) },
+  ],
   componentLocks: [
     {
       componentId: standardComponents.surface.manifest.componentId,
@@ -143,16 +148,19 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
       lock: {
         packageVersion: "1",
         packageIntegrity: "integrity",
-        manifestHash: "manifest",
-        structureHash: "structure",
+        manifestHash: hashComponentManifestDeclaration(standardComponents.surface.manifest),
+        structureHash: hashComponentStructureDeclaration(standardComponents.surface.structure),
       },
     },
   ],
   ...(includeAdditional
     ? {
         themeHashes: [
-          { themeId: standardComponents.theme.id, hash: "theme" },
-          { themeId: "theme-z", hash: "theme-z" },
+          {
+            themeId: standardComponents.theme.id,
+            hash: hashThemeDeclaration(standardComponents.theme),
+          },
+          { themeId: "theme-z", hash: hashThemeDeclaration(additionalTheme) },
         ],
         componentLocks: [
           {
@@ -161,8 +169,10 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
             lock: {
               packageVersion: "1",
               packageIntegrity: "integrity",
-              manifestHash: "manifest",
-              structureHash: "structure",
+              manifestHash: hashComponentManifestDeclaration(standardComponents.surface.manifest),
+              structureHash: hashComponentStructureDeclaration(
+                standardComponents.surface.structure,
+              ),
             },
           },
           {
@@ -171,8 +181,8 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
             lock: {
               packageVersion: "2",
               packageIntegrity: "integrity-z",
-              manifestHash: "manifest-z",
-              structureHash: "structure-z",
+              manifestHash: hashComponentManifestDeclaration(additionalManifest),
+              structureHash: hashComponentStructureDeclaration(additionalStructure),
             },
           },
         ],
@@ -193,7 +203,12 @@ describe("assembleDeclarationProject", () => {
     if (!result.valid) return;
     expect(result.value).toEqual({
       presentation: presentation(),
-      themes: [{ declaration: standardComponents.theme, hash: "theme" }],
+      themes: [
+        {
+          declaration: standardComponents.theme,
+          hash: hashThemeDeclaration(standardComponents.theme),
+        },
+      ],
       components: [
         {
           manifest: standardComponents.surface.manifest,
@@ -201,8 +216,8 @@ describe("assembleDeclarationProject", () => {
           lock: {
             packageVersion: "1",
             packageIntegrity: "integrity",
-            manifestHash: "manifest",
-            structureHash: "structure",
+            manifestHash: hashComponentManifestDeclaration(standardComponents.surface.manifest),
+            structureHash: hashComponentStructureDeclaration(standardComponents.surface.structure),
           },
         },
       ],
@@ -224,6 +239,178 @@ describe("assembleDeclarationProject", () => {
       componentLocks: [...input(true).componentLocks].reverse(),
     };
     expect(assembleDeclarationProject(second)).toEqual(assembleDeclarationProject(first));
+  });
+
+  it("hashes declaration semantics without admitting declaration locations as content", () => {
+    const themeWithDifferentLocation = {
+      ...standardComponents.theme,
+      source: { file: "another-theme.ts", range: [4, 9] as const },
+    };
+    expect(hashThemeDeclaration(themeWithDifferentLocation)).toBe(
+      hashThemeDeclaration(standardComponents.theme),
+    );
+    expect(
+      hashThemeDeclaration({
+        ...standardComponents.theme,
+        tokens: { source: "token-content" },
+      }),
+    ).not.toBe(hashThemeDeclaration(standardComponents.theme));
+
+    const manifestWithDifferentLocation = {
+      ...standardComponents.surface.manifest,
+      source: { file: "another-manifest.ts" },
+    };
+    expect(hashComponentManifestDeclaration(manifestWithDifferentLocation)).toBe(
+      hashComponentManifestDeclaration(standardComponents.surface.manifest),
+    );
+
+    const structureWithDifferentLocations = {
+      ...standardComponents.surface.structure,
+      source: { file: "another-structure.ts" },
+      root: {
+        ...standardComponents.surface.structure.root,
+        source: { file: "another-root.ts" },
+      },
+    };
+    expect(hashComponentStructureDeclaration(structureWithDifferentLocations)).toBe(
+      hashComponentStructureDeclaration(standardComponents.surface.structure),
+    );
+  });
+
+  it("rejects declaration hashes that do not match the paired lock", () => {
+    const themeMismatch = {
+      ...input(),
+      themeHashes: [{ ...input().themeHashes[0]!, hash: "sha256:0" }],
+    };
+    const manifestMismatch = {
+      ...input(),
+      componentLocks: input().componentLocks.map((entry) => ({
+        ...entry,
+        lock: { ...entry.lock, manifestHash: "sha256:0" },
+      })),
+    };
+    const structureMismatch = {
+      ...input(),
+      componentLocks: input().componentLocks.map((entry) => ({
+        ...entry,
+        lock: { ...entry.lock, structureHash: "sha256:0" },
+      })),
+    };
+    expect(codes(themeMismatch)).toContain("compiler-theme-hash-mismatch");
+    expect(codes(manifestMismatch)).toContain("compiler-component-manifest-hash-mismatch");
+    expect(codes(structureMismatch)).toContain("compiler-component-structure-hash-mismatch");
+  });
+
+  it("reports hash mismatches at the matching carrier entries after carrier reordering", () => {
+    const source = input(true);
+    const reordered = {
+      ...source,
+      themeHashes: source.themeHashes
+        .map((entry) =>
+          entry.themeId === "theme-z" ? { ...entry, hash: "sha256:theme-mismatch" } : entry,
+        )
+        .reverse(),
+      componentLocks: source.componentLocks
+        .map((entry) =>
+          entry.componentId === "surface-z"
+            ? { ...entry, lock: { ...entry.lock, structureHash: "sha256:structure-mismatch" } }
+            : entry,
+        )
+        .reverse(),
+    };
+    const result = assembleDeclarationProject(reordered);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
+        {
+          code: "compiler-component-structure-hash-mismatch",
+          path: ["componentLocks", 0, "lock", "structureHash"],
+        },
+        { code: "compiler-theme-hash-mismatch", path: ["themeHashes", 0] },
+      ]);
+  });
+
+  it("excludes declaration locations inside opaque semantic surfaces from manifest hashes", () => {
+    const opaque = {
+      ...standardComponents.surface.manifest,
+      authoring: { mode: "opaque" as const },
+      renderers: { "baked-web": { entry: "renderer.ts", bindingKeys: [] } },
+      semantics: {
+        targets: [],
+        surfaces: [
+          {
+            id: "surface",
+            bindingKey: "surface",
+            source: { file: "first-surface.ts" },
+            baseSemanticTree: {
+              rootNodeIds: ["node"],
+              nodes: {
+                node: {
+                  id: "node",
+                  parentId: null,
+                  order: 0,
+                  role: "paragraph" as const,
+                  source: { file: "first-node.ts" },
+                },
+              },
+            },
+            interactions: {},
+            initialStateId: "state",
+            states: {
+              state: {
+                id: "state",
+                source: { file: "first-state.ts" },
+                semanticOverrides: [
+                  {
+                    id: "override",
+                    kind: "semantic-override" as const,
+                    targetId: "node",
+                    source: { file: "first-override.ts" },
+                  },
+                ],
+                enabledInteractionIds: [],
+              },
+            },
+          },
+        ],
+      },
+    } as const;
+    const relocated = {
+      ...opaque,
+      semantics: {
+        ...opaque.semantics,
+        surfaces: [
+          {
+            ...opaque.semantics.surfaces[0],
+            source: { file: "second-surface.ts" },
+            baseSemanticTree: {
+              ...opaque.semantics.surfaces[0].baseSemanticTree,
+              nodes: {
+                node: {
+                  ...opaque.semantics.surfaces[0].baseSemanticTree.nodes.node,
+                  source: { file: "second-node.ts" },
+                },
+              },
+            },
+            states: {
+              state: {
+                ...opaque.semantics.surfaces[0].states.state,
+                source: { file: "second-state.ts" },
+                semanticOverrides: [
+                  {
+                    ...opaque.semantics.surfaces[0].states.state.semanticOverrides[0],
+                    source: { file: "second-override.ts" },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    } as const;
+    expect(hashComponentManifestDeclaration(relocated)).toBe(
+      hashComponentManifestDeclaration(opaque),
+    );
   });
 
   it("orders asset carrier keys canonically", () => {
@@ -359,16 +546,9 @@ describe("assembleDeclarationProject", () => {
       renderers: {},
       semantics: { targets: [], surfaces: [] },
     };
-    const result = assembleDeclarationProject({ ...input(), catalog: forgedCatalog });
-    expect(result).toMatchObject({
-      valid: false,
-      diagnostics: [
-        {
-          code: "compiler-opaque-component-unsupported",
-          path: ["catalog", "components", 0, "manifest", "authoring", "mode"],
-        },
-      ],
-    });
+    expect(codes({ ...input(), catalog: forgedCatalog })).toContain(
+      "compiler-opaque-component-unsupported",
+    );
   });
 
   it("requires a complete component lock before checking the resulting project", () => {
@@ -506,9 +686,31 @@ export default defineComponentStructure({
     const checked = checkAuthoringProject(source);
     expect(checked.valid).toBe(true);
     if (!checked.valid) return;
+    const component = checked.value.components[0]!;
+    const manifestHash = hashComponentManifestDeclaration(component.manifest.value);
+    const structureHash = hashComponentStructureDeclaration(component.structure.value);
+    const checkedCatalog = checked.value as unknown as {
+      presentation: { value: PresentationDeclaration };
+    };
+    checkedCatalog.presentation.value = {
+      ...checkedCatalog.presentation.value,
+      scene: {
+        ...checkedCatalog.presentation.value.scene,
+        components: checkedCatalog.presentation.value.scene.components.map((instance) => ({
+          ...instance,
+          packageLock: {
+            ...instance.packageLock,
+            manifestHash,
+            structureHash,
+          },
+        })),
+      },
+    };
     const result = assembleDeclarationProject({
-      catalog: checked.value,
-      themeHashes: [{ themeId: "theme", hash: "theme" }],
+      catalog: checkedCatalog,
+      themeHashes: [
+        { themeId: "theme", hash: hashThemeDeclaration(checked.value.themes[0]!.value) },
+      ],
       componentLocks: [
         {
           componentId: "surface",
@@ -516,8 +718,8 @@ export default defineComponentStructure({
           lock: {
             packageVersion: "1",
             packageIntegrity: "integrity",
-            manifestHash: "manifest",
-            structureHash: "structure",
+            manifestHash,
+            structureHash,
           },
         },
       ],
