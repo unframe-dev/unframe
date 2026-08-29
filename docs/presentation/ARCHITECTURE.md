@@ -1337,7 +1337,7 @@ type RuntimeRunSnapshot =
     });
 ```
 
-`RuntimeStatusChanged` は lifecycle を `running`、pause reason を持つ `paused`、termination reason を持つ `terminating` として discriminated に送る。invariant violation、atomic commit failure、microstep overflow、recovery gap は Runtime fault であり、terminating ではなく `paused` の reason として区別する。詳細な wire / recovery policy は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) を正本とする。
+`RuntimeStatusChanged` は lifecycle を `running`、pause reason を持つ `paused`、termination reason を持つ `terminating` として discriminated に送る。invariant violation、atomic commit failure、microstep overflow、recovery gap は Runtime fault であり、terminating ではなく `paused` の reason として区別する。Timeline / Runtime Run の semantic policy は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md)、transport / replay / recovery policy は [ADR-0008](../decisions/0008-runtime-transport-contract.md) を正本とする。
 
 `runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ割り当て済み Runtime Core の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
 
@@ -1727,7 +1727,7 @@ StepEntered
 PresentationEnded
 ```
 
-participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching は下位 transport contract で固定するが、この fence と identity を省略しない。
+participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching、Snapshot / State keyframe、microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) を正本とし、この fence と identity を省略しない。
 
 ```ts
 type ProjectedReliableEvent<TPayload> = {
@@ -2472,7 +2472,7 @@ presentation/
 ### Progression wire / Runtime contract の blocking follow-ups
 
 1. [x] Timeline の補間結果、停止理由、Run lifecycle の semantic wire contract は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で Accepted とした（transport protobuf schema は Draft・未実装）。
-2. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) で Accepted とした（proto / generated consumer は M5 で実装する）。
 
 ### Rendering / Delivery の follow-ups
 
@@ -2489,11 +2489,10 @@ presentation/
 
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
-1. Reliable Event / Snapshot / State Stream の transport contract
-2. role 別 Semantic schema / Hit Region schema
-3. Spatial / Surface coordinate convention
-4. Surface Partition
-5. Texture / GPU / RAM budget
+1. role 別 Semantic schema / Hit Region schema
+2. Spatial / Surface coordinate convention
+3. Surface Partition
+4. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 

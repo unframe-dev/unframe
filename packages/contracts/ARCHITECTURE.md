@@ -7,6 +7,7 @@
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [ADR-0006](../../docs/decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)
+  - [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md)
 
 ## 1. Role
 
@@ -105,6 +106,6 @@ Target の Presentation schema と Protocol Buffers は、consumer が generated
 
 ## 8. Current gap
 
-PresentationDefinition / baked-web first RenderBundle のZod 4 source、最小fixture、生成JSON Schema、schema validationとdrift checkは実装済みである。初期subsetの参照整合性とcanonicalizationは`presentation-core`に実装済みである。Timeline catalog / Runtime Run wire の accepted semantics は [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md) に定義したが、対応する Protobuf、Delivery projection、version negotiation、Go / C# generation は未実装である。現行 `realtime.proto` は foundation であり、Target architecture 全体を表す完成契約ではない。
+PresentationDefinition / baked-web first RenderBundle のZod 4 source、最小fixture、生成JSON Schema、schema validationとdrift checkは実装済みである。初期subsetの参照整合性とcanonicalizationは`presentation-core`に実装済みである。Timeline catalog / Runtime Run wire の accepted semantics は [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)、Reliable Event / Snapshot / State Stream の exact envelope、retention、microstep上限は [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md) に定義した。対応する Protobuf、Delivery projection、version negotiation、Go / C# generation は未実装である。現行 `realtime.proto` は foundation であり、Target architecture 全体を表す完成契約ではない。
 
 最初のmilestoneではCueの詳細contractをまだ固定しない。schemaは`cues`を空配列に限定し、任意のCue objectを受け入れない。Frame layoutとText placementは`absolute` subsetのみを構造契約に含める。参照整合性、所有権、tree不変条件、Quaternion正規化、Scalar値の型整合性は`presentation-core`のsemantic validationへ委譲する。

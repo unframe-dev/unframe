@@ -7,7 +7,7 @@
 
 ## Context
 
-Timeline の時間補間を全 client の State Stream へ毎 frame 配送すると、authority、replay、projection、帯域の責務が混在する。一方で client が Timeline 定義または Run lifecycle を知らなければ、pause-aware clock 上で同じ表示を補間できない。本 ADR は M2 item 1 の実装前 **semantic wire contract** を固定する。field number を含む transport Protobuf schema は後続 item であり、現行 `realtime.proto` は foundation のままである。
+Timeline の時間補間を全 client の State Stream へ毎 frame 配送すると、authority、replay、projection、帯域の責務が混在する。一方で client が Timeline 定義または Run lifecycle を知らなければ、pause-aware clock 上で同じ表示を補間できない。本 ADR は M2 item 1 の実装前 **semantic wire contract** を固定する。field number を含む transport contract は [ADR-0008](./0008-runtime-transport-contract.md) で固定し、現行 `realtime.proto` は foundation のままである。
 
 ## Decision
 
@@ -19,7 +19,7 @@ Timeline の時間補間を全 client の State Stream へ毎 frame 配送する
 
 ### Runtime Run と lifecycle
 
-field number は M2 item 2 で固定するが、message の意味と presence は次に固定する。
+field number は ADR-0008を正本とし、message の意味と presence は次に固定する。
 
 ```proto
 message RuntimeRunId {
@@ -89,7 +89,7 @@ Delivery / handshake target contract は `progressionContractVersion = 1` と re
 
 - Timeline の帯域は Run lifecycle と Snapshot に収束し、表示の連続性は local interpolation が担う。
 - Runtime / Delivery / client の clock と completion source が分離される。
-- protobuf、cross-language fixture、capability negotiation、recovery implementation は後続 M2 item 2 以降で追加する。本 ADR 自体は proto / code を変更しない。
+- protobuf、cross-language fixture、capability negotiation、recovery implementation は M5 以降で追加する。本 ADR 自体は proto / code を変更しない。
 
 ## Alternatives Considered
 
@@ -103,5 +103,5 @@ Delivery / handshake target contract は `progressionContractVersion = 1` と re
 
 ## Follow-ups
 
-- M2 item 2 で field number、Reliable Event envelope、retention / replay、runtime microstep 上限を実装 contract として固定する。
+- M2 item 2 の field number、Reliable Event envelope、retention / replay、runtime microstep 上限は [ADR-0008](./0008-runtime-transport-contract.md) で Accepted とした。
 - canonical event-kind、stable target ID、Run ID 順の同一 logical time ordering と、`presentationEnded` が Timeline cancel を先に確定する順序は Presentation Architecture の既存規則を適用する。

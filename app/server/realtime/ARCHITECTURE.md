@@ -441,7 +441,7 @@ State Connection
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
 - connection間の到着順は仮定せず、Reliable sequenceと`baseReliableSequence`でapplication上の依存関係を解決する。
 
-現行の`realtime.proto`とRealtime実装は、単一双方向streamでpresenterの`PageChangeCommand`をserver採番の`PageChanged`へfan-outするfoundationだけを提供する。ここで定義するControl / State二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run、Progression wireはtarget contractであり、現行protoまたは実装済み挙動ではない。
+現行の`realtime.proto`とRealtime実装は、単一双方向streamでpresenterの`PageChangeCommand`をserver採番の`PageChanged`へfan-outするfoundationだけを提供する。Control / State二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run、Progression wireは [ADR-0007](../../../docs/decisions/0007-timeline-runtime-run-wire-contract.md) と [ADR-0008](../../../docs/decisions/0008-runtime-transport-contract.md) で Accepted のtarget contractだが、現行protoまたは実装済み挙動ではない。
 
 実測で TCP retransmission、head-of-line blocking、write blocking、jitter が UX 上の問題になる場合のみ、State Connection を UDP / QUIC 系 transport へ置き換える。Control Connection は gRPC のまま維持する。
 
@@ -477,7 +477,7 @@ ReliableEvent
 - gap 検知時は replay、保持範囲外なら Snapshot を取得する。
 - exactly-once delivery は仮定せず、`eventId` で idempotent に適用する。
 - profile projectionでparticipantに不可視なReliable Eventが発生しても、そのeventごとのControl itemを送信しない。Runtime Coreはconnectionごとに連続する不可視sequence範囲を保持し、次の可視Reliable Eventを送る直前に一つの`ProjectionAdvance { fromExclusive, throughSequence }`へ集約する。不可視eventだけを理由にnetwork writeを開始せず、後続の可視eventがなければmarkerも送らない。新しいConnection Snapshotはcutの`reliableSequence`で未送信範囲を置き換える。markerはpayload、resource ID、event kindを含まず、clientはmarkerと直後の可視eventをControl stream順に適用する。これにより可視同期境界ではcanonical event数の集約差分が分かり得るが、不可視eventごとの発生時刻とtraffic patternは公開しない。
-- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。超過、保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
+- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。v1 の retention、replay / catch-up queue、Snapshot retry、idempotency、State dependency buffer、microstep の値と超過時の挙動は [ADR-0008](../../../docs/decisions/0008-runtime-transport-contract.md) を正本とする。保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
 
 同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 
@@ -550,6 +550,7 @@ ElementStateFrame
    ├─ rotation
    ├─ scale
    ├─ active
+   ├─ visible
    ├─ animationState
    └─ playbackPosition
 ```
@@ -1094,7 +1095,6 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Cue priority、排他、再発火、debounce
 - Transition tick rateとElement種別ごとの配信rate
 - position / rotationの量子化精度
-- ConnectionSnapshotEnvelope / DurableCheckpointEnvelopeの正確なProtobuf schema、Reliable Event保持量、replay上限
 - Cloud durable checkpointとVenue Edge local checkpointにおけるDurableCheckpointEnvelopeの保存先、書き込み頻度、atomic replacement、破損回復
 - Presenter再接続timeout
 - `stateWriteBlockTimeout`と`stateMaxFrameAge`の初期値

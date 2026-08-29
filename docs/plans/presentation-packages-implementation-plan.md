@@ -204,7 +204,7 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 実装前に、Presentation Architecture が指定する順序で次の contract を一つずつ確定する。
 
 1. [x] Timeline の補間、停止理由、Runtime Run lifecycle の semantic wire contract（[ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md)、transport protobuf schema は Draft・未実装）
-2. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限（[ADR-0008](../decisions/0008-runtime-transport-contract.md)）
 3. role 別 Semantic Tree / Hit Region schema
 4. Transform、Quaternion、matrix、Unity、Surface / UV の座標規約
 5. Surface Partition と author override
@@ -218,7 +218,9 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 
 Timeline catalog、local interpolation、State Stream の非 Timeline 限定、`RuntimeRunId`、lifecycle payload、reason、projection、capability policyは [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で semantic wire contract として Accepted とした。transport protobuf schema は Draft・未実装であり、現行 `realtime.proto` は foundation のままである。互換 downgrade fallback は追加しない。
 
-次は item 2 の Reliable Event / Snapshot / State Stream transport schema、保持期間、runtime microstep 上限を確定する。
+Reliable Event / Snapshot / State Stream の envelope、field number、replay / catch-up / idempotency window、State keyframe、runtime microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) で Accepted とした。M2 では設計だけを固定し、現行 foundation proto の置換、Go / C# generation、cross-language fixture は semantic payload が揃う M5 で一括実装する。
+
+次は item 3 の role 別 Semantic Tree / Hit Region schema を確定する。
 
 ### 完了条件
 
