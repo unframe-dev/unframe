@@ -65,7 +65,9 @@ Renderer registry は `baked-web` ID がちょうど一つに解決されるこ�
 
 Source frontend は、明示的な logical project root、root-relative TS / TSX / declaration file、locked virtual package を descriptor-safe に snapshot する。TypeScript Compiler API は virtual source だけを読み、project 内 relative import、package 内 relative import、direct locked dependency、exact package export を解決する。実 filesystem、`node_modules`、`ts.sys` へ fallback しない。
 
-typecheck は strict ES2022、`noLib` で実行し、project root から到達しない package の ambient declaration を semantic program へ混入させない。一方、lock graph 全体の module specifier は preflight し、不正な dependency / export を owner-aware source diagnostic として拒否する。named value import は TypeChecker alias と package identity / export / declaration owner を照合し、plain-data symbol provenance を生成できる。Static DSL validation、AST lowering、normalization、cache、Source frontend の public API 接続は未実装である。
+typecheck は strict ES2022、`noLib` で実行し、project root から到達しない package の ambient declaration を semantic program へ混入させない。一方、lock graph 全体の module specifier は preflight し、不正な dependency / export を owner-aware source diagnostic として拒否する。named value import は TypeChecker alias と package identity / export / declaration owner を照合し、plain-data symbol provenance を生成できる。
+
+個別 declaration file については、M1 Static DSL の import、root builder、nested builder、JSON-like expression を fail closed で検証し、source origin 付きの plain-data Declaration Graph へ lower できる。builder signature は現行 public Authoring API の arity と基本 argument shape に固定し、Source module と builder implementation は実行しない。複数 declaration file の graph assembly、post-lowering declaration への normalization、cache、Source frontend の public API 接続は未実装である。
 
 M1 Static DSL は、各 declaration file の default export を、provenance 検証済みの `@unframe/presentation` root named value import に対する直接 builder call へ限定する。builder 引数は JSON-like literal と認識済み builder call だけを許可し、JSX、任意関数、control flow、dynamic import、property access、spread、template expression、local alias を stable diagnostic で拒否する。named import alias は元の package export provenance を保持する。Compiler は Authoring Source や builder implementation を実行しない。
 
