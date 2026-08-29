@@ -90,6 +90,11 @@
               name = "unframe-${name}";
               runtimeInputs = toolchain;
               text = ''
+                ${pkgs.lib.concatStringsSep "\n" (
+                  pkgs.lib.mapAttrsToList (
+                    variable: value: "export ${variable}=${pkgs.lib.escapeShellArg value}"
+                  ) nixLdEnvironment
+                )}
                 root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
                 exec "''${root}/scripts/${script}" "$@"
               '';

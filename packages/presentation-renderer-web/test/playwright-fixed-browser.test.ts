@@ -163,6 +163,25 @@ const captureRequest = (session: FixedBrowserSession) => ({
 });
 
 describe("Playwright Fixed Browser", () => {
+  it("起動中のabortでsessionを公開せず、遅れて起動したbrowserも閉じる", async () => {
+    const fake = driver();
+    let finishLaunch: (() => void) | undefined;
+    fake.value.launch = vi.fn(
+      () =>
+        new Promise<typeof fake.browser>((resolve) => {
+          finishLaunch = () => resolve(fake.browser);
+        }),
+    );
+    const controller = new AbortController();
+    const opening = createPlaywrightFixedBrowserFactory(fake.value)({ signal: controller.signal });
+
+    controller.abort();
+    await expect(opening).rejects.toMatchObject({ name: "AbortError" });
+    finishLaunch?.();
+    await vi.waitFor(() => expect(fake.browser.close).toHaveBeenCalledOnce());
+    expect(fake.browser.newContext).not.toHaveBeenCalled();
+  });
+
   it("managed Chromiumだけを固定環境で起動し、隔離contextからRGBAをcaptureする", async () => {
     const fake = driver();
     const session = await createPlaywrightFixedBrowserFactory(fake.value)();

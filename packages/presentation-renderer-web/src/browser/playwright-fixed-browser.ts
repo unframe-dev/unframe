@@ -284,17 +284,29 @@ const abortable = async <T>(promise: Promise<T>, signal: AbortSignal): Promise<T
 };
 
 export const createPlaywrightFixedBrowserFactory =
-  (driver: BrowserDriver) => async (): Promise<FixedBrowserSession> => {
-    const browser = await driver.launch({
+  (driver: BrowserDriver) =>
+  async (options: { readonly signal?: AbortSignal } = {}): Promise<FixedBrowserSession> => {
+    const launch = driver.launch({
       headless: true,
       chromiumSandbox: true,
       handleSIGINT: false,
       handleSIGTERM: false,
       handleSIGHUP: false,
     });
+    let browser: LaunchedBrowser;
+    try {
+      browser = options.signal ? await abortable(launch, options.signal) : await launch;
+    } catch (error) {
+      if (options.signal?.aborted)
+        void launch.then((lateBrowser) => lateBrowser.close()).catch(() => undefined);
+      throw error;
+    }
     let fontFingerprint: string;
     try {
-      fontFingerprint = await fontFingerprintFor(browser, driver);
+      const fingerprint = fontFingerprintFor(browser, driver);
+      fontFingerprint = options.signal
+        ? await abortable(fingerprint, options.signal)
+        : await fingerprint;
     } catch (error) {
       await browser.close();
       throw error;

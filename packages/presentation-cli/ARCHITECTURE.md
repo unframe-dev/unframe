@@ -21,7 +21,7 @@ runPresentationCli
 ├─ parse explicit absolute project directory
 ├─ M1 filesystem host: explicit root + config / lock, materialize virtual project
 ├─ check: presentation-compiler.checkAuthoringProjectAssembly（Browserなし）
-└─ build: compiler + presentation-renderer-web
+└─ build: exclusive project build lock + compiler + presentation-renderer-web
    └─ managed staging + atomic dist symlink replacement
 ```
 
@@ -34,6 +34,10 @@ src/
 ├─ application/
 │  ├─ types.ts                          # headless host / result contract
 │  └─ run-presentation-cli.ts           # check / build orchestration
+├─ filesystem/build-lock.ts              # process-local build exclusion lease
+├─ process/
+│  ├─ main.ts                           # Bun executable entrypoint
+│  └─ run-presentation-process.ts       # SIGINT/SIGTERM owner
 └─ tui/
    ├─ model.ts                          # renderer-independent state and effects
    ├─ view.tsx                          # OpenTUI Solid view
@@ -60,6 +64,10 @@ build <absolute-project-directory> [--format text|json]
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
 `build` だけが Fixed Browser adapter と build context から baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
+同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
+ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
+非協調 process が lock path を unlink する攻撃は ADR-0013 の threat model 外である。`check` は lock を取得しない。
 
 Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer`、`2` が `usage`、`3` が `io`、signal cancel の
 `130` が `cancel` である。成功時の JSON output は `ok: true`、失敗時は diagnostic array を持つ。diagnostic JSON は
@@ -102,12 +110,21 @@ OpenTUI stack に依存する。`presentation-components` は fixture の devDep
 discovery / component registry ではない。依存 version は pnpm lockfile で固定し、repository toolchain は Bun と
 Node.js の両方を提供する。
 
-## 6. Deferred
+## 6. Process and acceptance boundary
+
+`pnpm presentation -- check|build <project>` は Bun process entry である。この entrypoint だけが単一の
+`AbortController` と `SIGINT` / `SIGTERM` listener を所有し、同じ signal を application API に渡す。listener は
+常に解除し、`process.exit()` は呼ばず `process.exitCode` と stdout/stderr の stable result を使う。
+
+`nix run .#presentation` の check mode は通常の package check の後、provision 済み repository-local Fixed Browser
+で reference project の check と temp copy への build を2回行う。`definition.json`、`render-bundle.json`、PNG asset set
+の relative path と SHA-256 manifest が完全一致することを検証する。fix mode と通常 package check は Browser を起動しない。
+
+## 7. Deferred
 
 以下は current implementation に含めない。
 
 - TUI command selection と M1 process command の接続
-- process entry、reference project acceptance、`nix run .#presentation` への接続
 - remote package registry、plugin discovery、distribution update
 - `init`、`dev`、`test`、`preview`、`publish` command
 - watch / incremental cache、remote publish adapter、credential integration

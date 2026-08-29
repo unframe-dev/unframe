@@ -1,4 +1,14 @@
-import { cp, lstat, mkdtemp, readFile, readdir, readlink, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdtemp,
+  readFile,
+  readdir,
+  readlink,
+  rm,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,7 +49,9 @@ const buildContext = {
 const fakeBrowser = (
   configuration: {
     readonly abortDuringCapture?: AbortController;
+    readonly failClose?: boolean;
     readonly failCapture?: boolean;
+    readonly beforeClose?: () => Promise<void>;
   } = {},
 ) => {
   const observed = { close: 0, capture: 0, signals: [] as (AbortSignal | undefined)[] };
@@ -77,6 +89,8 @@ const fakeBrowser = (
     },
     close: async () => {
       observed.close += 1;
+      await configuration.beforeClose?.();
+      if (configuration.failClose) throw new Error("close failed");
     },
   };
   return { observed, session };
@@ -219,6 +233,50 @@ describe("reference Authoring Project", () => {
     await expect(lstat(join(directory, ".unframe"))).rejects.toThrow();
   });
 
+  it("does not start a Browser when cancellation arrives during project I/O", async () => {
+    const directory = await projectCopy();
+    const controller = new AbortController();
+    let browserOpens = 0;
+    queueMicrotask(() => controller.abort());
+
+    const result = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: {
+        signal: controller.signal,
+        openFixedBrowser: async () => {
+          browserOpens += 1;
+          return fakeBrowser().session;
+        },
+      },
+    });
+
+    expect(result.exitCode).toBe(130);
+    expect(browserOpens).toBe(0);
+    await expect(lstat(join(directory, ".unframe-build.lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("reports Browser cleanup failure after a compile failure", async () => {
+    const directory = await projectCopy();
+    const browser = fakeBrowser({ failCapture: true, failClose: true });
+    const result = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: { openFixedBrowser: async () => browser.session, buildContext },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(diagnostics(result)).toEqual([
+      {
+        family: "renderer",
+        code: "cli-browser-cleanup-failed",
+        message: expect.any(String),
+        path: [],
+      },
+    ]);
+    expect(browser.observed.close).toBe(1);
+  });
+
   it("keeps the previous managed dist unchanged for renderer and I/O failures", async () => {
     const directory = await projectCopy();
     const initial = fakeBrowser();
@@ -251,5 +309,32 @@ describe("reference Authoring Project", () => {
     expect(io.exitCode).toBe(3);
     expect(diagnostics(io)[0]?.family).toBe("io");
     await expect(readFile(join(directory, "dist"), "utf8")).resolves.toBe("unmanaged output");
+  });
+
+  it("reports a stable I/O diagnostic when its build lock cannot be released", async () => {
+    const directory = await projectCopy();
+    const lockPath = join(directory, ".unframe-build.lock");
+    const browser = fakeBrowser({
+      beforeClose: async () => {
+        await unlink(lockPath);
+        await writeFile(lockPath, "replacement");
+      },
+    });
+
+    const result = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: { openFixedBrowser: async () => browser.session, buildContext },
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(diagnostics(result)).toEqual([
+      {
+        family: "io",
+        code: "cli-build-lock-release-failed",
+        message: expect.any(String),
+        path: [],
+      },
+    ]);
+    await expect(readFile(lockPath, "utf8")).resolves.toBe("replacement");
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "@unframe/presentation-renderer-web";
 
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
+import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
 import type {
@@ -281,96 +282,171 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       ? output(0, command, format)
       : output(1, command, format, compilerDiagnostics(checked));
   }
-  let session: FixedBrowserSession | undefined;
-  try {
-    const opener = host.openFixedBrowser ?? (() => openPlaywrightFixedBrowser());
+  const acquired = await acquireBuildLock(discovered.projectDirectory);
+  if (!acquired.ok)
+    return output(3, command, format, [
+      diagnostic(
+        "io",
+        acquired.code,
+        "Another build owns this project or its build lock is unsafe.",
+      ),
+    ]);
+  const buildLock: BuildLock = acquired.value;
+  const finishBuild = async (result: PresentationCliResult): Promise<PresentationCliResult> => {
     try {
-      session = await opener(host.signal ? { signal: host.signal } : {});
+      await buildLock.release();
     } catch {
+      return output(
+        result.exitCode === 130 ? 130 : 3,
+        command,
+        format,
+        result.exitCode === 130
+          ? [
+              diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+              diagnostic(
+                "io",
+                "cli-build-lock-release-failed",
+                "Build lock could not be released.",
+              ),
+            ]
+          : [
+              diagnostic(
+                "io",
+                "cli-build-lock-release-failed",
+                "Build lock could not be released.",
+              ),
+            ],
+      );
+    }
+    return result;
+  };
+  if (host.signal?.aborted)
+    return finishBuild(
+      output(130, command, format, [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]),
+    );
+  let cleanupFailed = false;
+  const buildResult = await (async (): Promise<PresentationCliResult> => {
+    let session: FixedBrowserSession | undefined;
+    try {
+      const opener =
+        host.openFixedBrowser ??
+        ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
+      try {
+        session = await opener(host.signal ? { signal: host.signal } : {});
+      } catch {
+        if (host.signal?.aborted)
+          return output(130, command, format, [
+            diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+          ]);
+        throw new BrowserProvisionFailure();
+      }
       if (host.signal?.aborted)
         return output(130, command, format, [
           diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
         ]);
-      throw new BrowserProvisionFailure();
-    }
-    if (host.signal?.aborted)
-      return output(130, command, format, [
-        diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
-      ]);
-    const context = host.buildContext ?? fixedContext;
-    const adapter = Object.freeze({
-      identity: session.identity,
-      environment: session.environment,
-      capture: (request: Parameters<FixedBrowserSession["capture"]>[0]) =>
-        Reflect.apply(session!.capture, session, [
-          request,
-          ...(host.signal ? [{ signal: host.signal }] : []),
-        ]),
-    });
-    const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
-      compiler: context.compiler,
-      locale: context.locale,
-      timezone: context.timezone,
-      colorScheme: context.colorScheme,
-      pixelTarget: context.pixelTarget,
-      rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-      renderers: [createBakedWebRenderer({ adapter, config: context.webRendererConfig })],
-      encodeLimits: limits,
-    });
-    if (!compiled.valid)
-      return output(
-        host.signal?.aborted ? 130 : 1,
-        command,
-        format,
-        host.signal?.aborted
-          ? [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]
-          : compilerDiagnostics(compiled),
-      );
-    const closed = session;
-    session = undefined;
-    await closeSession(closed);
-    if (host.signal?.aborted)
-      return output(130, command, format, [
-        diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
-      ]);
-    const published = await publishAtomicArtifacts({
-      projectDirectory: discovered.projectDirectory,
-      artifacts: artifacts(compiled.value),
-      ...(host.signal ? { signal: host.signal } : {}),
-    });
-    if (!published.ok)
-      return output(published.family === "cancel" ? 130 : 3, command, format, [
+      const context = host.buildContext ?? fixedContext;
+      const adapter = Object.freeze({
+        identity: session.identity,
+        environment: session.environment,
+        capture: (request: Parameters<FixedBrowserSession["capture"]>[0]) =>
+          Reflect.apply(session!.capture, session, [
+            request,
+            ...(host.signal ? [{ signal: host.signal }] : []),
+          ]),
+      });
+      const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
+        compiler: context.compiler,
+        locale: context.locale,
+        timezone: context.timezone,
+        colorScheme: context.colorScheme,
+        pixelTarget: context.pixelTarget,
+        rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
+        renderers: [createBakedWebRenderer({ adapter, config: context.webRendererConfig })],
+        encodeLimits: limits,
+      });
+      if (!compiled.valid)
+        return output(
+          host.signal?.aborted ? 130 : 1,
+          command,
+          format,
+          host.signal?.aborted
+            ? [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]
+            : compilerDiagnostics(compiled),
+        );
+      const closed = session;
+      session = undefined;
+      await closeSession(closed);
+      if (host.signal?.aborted)
+        return output(130, command, format, [
+          diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+        ]);
+      const published = await publishAtomicArtifacts({
+        projectDirectory: discovered.projectDirectory,
+        artifacts: artifacts(compiled.value),
+        ...(host.signal ? { signal: host.signal } : {}),
+      });
+      if (!published.ok)
+        return output(published.family === "cancel" ? 130 : 3, command, format, [
+          diagnostic(
+            published.family,
+            published.code,
+            published.family === "cancel"
+              ? "Build was cancelled."
+              : "Build artifacts could not be published.",
+          ),
+        ]);
+      return output(0, command, format);
+    } catch (error) {
+      const cancel =
+        host.signal?.aborted || (error instanceof Error && error.name === "AbortError");
+      const browserFailure =
+        error instanceof BrowserProvisionFailure || error instanceof BrowserCleanupFailure;
+      return output(cancel ? 130 : browserFailure ? 1 : 3, command, format, [
         diagnostic(
-          published.family,
-          published.code,
-          published.family === "cancel"
+          cancel ? "cancel" : browserFailure ? "renderer" : "io",
+          cancel
+            ? "cli-cancelled"
+            : error instanceof BrowserCleanupFailure
+              ? "cli-browser-cleanup-failed"
+              : error instanceof BrowserProvisionFailure
+                ? "cli-browser-provision-failed"
+                : "cli-build-io",
+          cancel
             ? "Build was cancelled."
-            : "Build artifacts could not be published.",
+            : browserFailure
+              ? "Fixed Browser could not be completed."
+              : "Build could not be completed.",
         ),
       ]);
-    return output(0, command, format);
-  } catch (error) {
-    const cancel = host.signal?.aborted || (error instanceof Error && error.name === "AbortError");
-    const browserFailure =
-      error instanceof BrowserProvisionFailure || error instanceof BrowserCleanupFailure;
-    return output(cancel ? 130 : browserFailure ? 1 : 3, command, format, [
-      diagnostic(
-        cancel ? "cancel" : browserFailure ? "renderer" : "io",
-        cancel
-          ? "cli-cancelled"
-          : error instanceof BrowserCleanupFailure
-            ? "cli-browser-cleanup-failed"
-            : error instanceof BrowserProvisionFailure
-              ? "cli-browser-provision-failed"
-              : "cli-build-io",
-        cancel
-          ? "Build was cancelled."
-          : browserFailure
-            ? "Fixed Browser could not be completed."
-            : "Build could not be completed.",
-      ),
-    ]);
-  } finally {
-    if (session) await closeSession(session).catch(() => undefined);
-  }
+    } finally {
+      if (session)
+        await closeSession(session).catch(() => {
+          cleanupFailed = true;
+        });
+    }
+  })();
+  const completedResult = cleanupFailed
+    ? output(
+        buildResult.exitCode === 130 ? 130 : 1,
+        command,
+        format,
+        buildResult.exitCode === 130
+          ? [
+              diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+              diagnostic(
+                "renderer",
+                "cli-browser-cleanup-failed",
+                "Fixed Browser could not be completed.",
+              ),
+            ]
+          : [
+              diagnostic(
+                "renderer",
+                "cli-browser-cleanup-failed",
+                "Fixed Browser could not be completed.",
+              ),
+            ],
+      )
+    : buildResult;
+  return finishBuild(completedResult);
 };

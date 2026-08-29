@@ -9,6 +9,7 @@
   },
   "scripts": {
     "tui": "bun src/tui/main.tsx",
+    "presentation": "bun src/process/main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test test-bun",
     "test": "vp test run",
