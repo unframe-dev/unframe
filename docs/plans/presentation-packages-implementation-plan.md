@@ -203,7 +203,7 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 
 実装前に、Presentation Architecture が指定する順序で次の contract を一つずつ確定する。
 
-1. Timeline の補間結果、停止理由、Runtime Run lifecycle の wire contract
+1. [x] Timeline の補間、停止理由、Runtime Run lifecycle の semantic wire contract（[ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md)、transport protobuf schema は Draft・未実装）
 2. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
 3. role 別 Semantic Tree / Hit Region schema
 4. Transform、Quaternion、matrix、Unity、Surface / UV の座標規約
@@ -216,15 +216,9 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 
 2026-08-29 時点で、Timeline の補間式、easing、number / Vector3 / Quaternion、Pause / Resume、完了時 commit、`explicitStop` / `groupExit` / `presentationEnded` の停止規則、Runtime Core authority は Architecture に定義済みである。一方、現行 Presentation contract は Timeline catalog を持たず、Realtime Protobuf は Handshake / PageChange foundation だけであるため、wire contract は未実装である。
 
-実装前に次を順番に確定する。
+Timeline catalog、local interpolation、State Stream の非 Timeline 限定、`RuntimeRunId`、lifecycle payload、reason、projection、capability policyは [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で semantic wire contract として Accepted とした。transport protobuf schema は Draft・未実装であり、現行 `realtime.proto` は foundation のままである。互換 downgrade fallback は追加しない。
 
-1. Timeline の frame 間値を client が開始時刻と immutable definition から local interpolation するか、latest-wins State Stream でも配送するか。Architecture 12.8 の local interpolation と 12.11 の State Stream 記述は現在矛盾している。
-2. TimelineDefinition を PresentationDefinition / PublishedPresentation の immutable catalog として配送するか、lifecycle event payload に含めるか。
-3. `RuntimeRunId` の serialized form、`TimelineStarted` / `TimelineCompleted` / `TimelineCanceled` payload、停止時刻の表現。
-4. invariant violation、atomic commit failure、microstep overflow、recovery gap を区別する Runtime fault / Pause / termination reason。
-5. projected active Run の visibility と、旧 client が Timeline event を無視しない progression contract version / capability negotiation。
-
-推奨案は、Timeline catalog を immutable Presentation contract に含め、wire は lifecycle event と active Run snapshotだけを配送し、frame 間値は client が local interpolationする方式である。State Stream は tracking由来などTimeline以外の連続状態とkeyframeに限定する。この判断が採用されるまではProtobuf fieldや互換fallbackを追加せず、Milestone 2 item 2以降へ進まない。
+次は item 2 の Reliable Event / Snapshot / State Stream transport schema、保持期間、runtime microstep 上限を確定する。
 
 ### 完了条件
 

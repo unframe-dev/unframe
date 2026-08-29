@@ -6,7 +6,7 @@
 - **Maturity**:
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
-  - Progression wire / Runtime contract: draft
+  - Progression semantic wire contract: Accepted（transport protobuf schema は Draft・未実装）
   - Authoring、Rendering、Delivery の下位契約: follow-up
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
@@ -1270,7 +1270,9 @@ type RuntimeRunOwner =
 type RuntimeClockSnapshot = {
   runtimeTimeMilliseconds: number;
   lifecycle:
-    { kind: "running" } | { kind: "paused"; reason: PauseReason } | { kind: "terminating" };
+    | { kind: "running" }
+    | { kind: "paused"; reason: PauseReason }
+    | { kind: "terminating"; reason: TerminationReason };
 };
 
 type StepTimerState =
@@ -1335,6 +1337,8 @@ type RuntimeRunSnapshot =
     });
 ```
 
+`RuntimeStatusChanged` は lifecycle を `running`、pause reason を持つ `paused`、termination reason を持つ `terminating` として discriminated に送る。invariant violation、atomic commit failure、microstep overflow、recovery gap は Runtime fault であり、terminating ではなく `paused` の reason として区別する。詳細な wire / recovery policy は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) を正本とする。
+
 `runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ割り当て済み Runtime Core の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
 
 Timer、Cue 消費状態、cooldown は `stepEntryEpoch` に属する。`oncePerStepEntry` で受理した Cue だけを `consumedCueIds` に記録し、cooldown は次に受理可能な logical runtime time を保持する。Timer は Step entry 時に一度だけ arm し、deadline 到達時に一度だけ event 化する。Guard 不成立または別 Cue の選択により受理されなかった場合も `fired` とし、同じ Step entry で暗黙に再試行しない。Step exit と self transition では旧 StepExecutionSnapshot を破棄する。
@@ -1343,7 +1347,7 @@ Surface transition、Timeline、Media は共通の **Runtime Run** として追�
 
 Surface transition の duration と easing は Run が正本とする。Timeline の duration と absolute track は Session が固定した PublishedPresentation の TimelineDefinition から解決し、開始時の client 描画値を保存しない。Media は logical runtime time 上の reference position、または明示的に pause した position を保持する。Global Pause は clock の停止で表現し、Run ごとの pause 補正値を持たない。
 
-`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成し、Snapshot は allocator の最終 sequence を保持する。serialized encoding は下位 wire contract で固定する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement を completion source にしない。
+`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成する session / assignment scoped value である。wire は `uint64 assignment_epoch` と `uint64 run_sequence` を持つ protobuf message とし、Snapshot は allocator の最終 sequence を保持する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement と corrective keyframe を completion source にしない。Timeline Run の lifecycle、停止理由、projection、compatibility は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) を正本とする。
 
 blocking Run は Progression Phase の `blockingRunIds` と一対一に対応する。completion ごとに active Run と blocking set から除去し、最後の blocking Run が完了した時だけ `pendingNext` を atomic に適用する。存在しない Run、完了済み Run、古い Group / Step epoch に対する completion は stale として状態を変更しない。
 
@@ -1636,7 +1640,7 @@ type TimelineDefinition = {
 - group-owned Timeline は同じ Group または presentation-owned Spatial Node、presentation-owned Timeline は presentation-owned Spatial Node だけを target にできる。
 - group-owned Timeline は Group exit 時に停止する。presentation-owned Timeline は明示的な `timeline.stop` または Presentation 終了まで Group をまたいで継続できる。Step 遷移だけではどちらも停止しない。
 - Timeline の開始・完了は Session の pause-aware logical runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
-- Runtime は開始時刻と Timeline 定義を配信し、各 client はローカル補間する。補間結果を毎 frame Reliable Event として送信しない。
+- Runtime は Delivery 済み immutable Timeline catalog と開始時刻を用い、各 client はローカル補間する。Timeline の補間結果を毎 frame Reliable Event または State Stream として送信しない。State Stream は tracking 等の非 Timeline latest-wins state に限定し、Timeline-owned property を含めない。
 
 Pause 中は Session の logical runtime clock 自体を進めないため、Timeline、Surface transition、playing Media の基準時刻を個別に補正しない。Runtime Resume 後は同じ logical runtime time から進行を再開する。
 
@@ -1742,7 +1746,7 @@ type ProjectedReliableEvent<TPayload> = {
 
 `sequence` は projection 前の session-global な単調増加値、`eventId` は冪等適用、`causeEventId` は canonical event 間の因果関係に使用する。Texture variant、Hit Region geometry、Unity renderer 情報は payload に含めない。client は Session、PublicationFence、assignment epoch、projection profile、Presentation Origin のいずれかが現在の connection / DeliveryManifest と一致しない event を適用せず、Connection Resume を要求する。
 
-Pose、Timeline の毎 frame 補間値、連続的な Element State frame は latest-wins の State Stream とし、event log へ保存しない。離散的な Cue 採用と最終状態は Reliable Event と Snapshot の両方へ反映する。
+Pose と Timeline 以外の連続的な Element State frame は latest-wins の State Stream とし、event log へ保存しない。Timeline の毎 frame補間値は Delivery 済み immutable catalog、active Run、logical runtime time から client が再計算する。離散的な Cue 採用、Run lifecycle、最終状態は Reliable Event と Snapshot の両方へ反映する。
 
 #### Surface transition / interaction wire contract
 
@@ -2467,7 +2471,7 @@ presentation/
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
-1. Timeline の補間結果、停止理由、Run lifecycle の wire 表現
+1. [x] Timeline の補間結果、停止理由、Run lifecycle の semantic wire contract は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で Accepted とした（transport protobuf schema は Draft・未実装）。
 2. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
 
 ### Rendering / Delivery の follow-ups
@@ -2485,12 +2489,11 @@ presentation/
 
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
-1. Timeline / Runtime Run の wire contract
-2. Reliable Event / Snapshot / State Stream の transport contract
-3. role 別 Semantic schema / Hit Region schema
-4. Spatial / Surface coordinate convention
-5. Surface Partition
-6. Texture / GPU / RAM budget
+1. Reliable Event / Snapshot / State Stream の transport contract
+2. role 別 Semantic schema / Hit Region schema
+3. Spatial / Surface coordinate convention
+4. Surface Partition
+5. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 
