@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isDeclaration, snapshotDeclaration } from "../internal/declaration-validation.js";
 import type {
   SourceMetadata,
   StableDeclaration,
@@ -84,64 +85,6 @@ const assertSchema = (schema: z.ZodType, value: unknown, message: string): void 
   if (!schema.safeParse(value).success) invalid(message);
 };
 
-const snapshotJson = (value: unknown, ancestors = new WeakSet<object>()): unknown => {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number") return value;
-  if (typeof value !== "object") invalid("Declarations must contain JSON-safe values.");
-
-  const object = value as object;
-  if (ancestors.has(object)) invalid("Declarations must not contain cycles.");
-  ancestors.add(object);
-  try {
-    if (Array.isArray(value)) {
-      const keys = Reflect.ownKeys(value);
-      if (
-        Object.keys(value).length !== value.length ||
-        keys.some(
-          (key) =>
-            key !== "length" &&
-            (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length),
-        )
-      )
-        invalid("Declarations must not contain sparse arrays or custom array properties.");
-      const snapshot: unknown[] = [];
-      for (let index = 0; index < value.length; index++) {
-        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-        if (descriptor === undefined || !("value" in descriptor))
-          invalid("Declarations must contain data properties.");
-        snapshot.push(
-          snapshotJson((descriptor as PropertyDescriptor & { value: unknown }).value, ancestors),
-        );
-      }
-      return snapshot;
-    }
-
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null)
-      invalid("Declarations must be plain data.");
-    const snapshot = Object.create(null) as Record<string, unknown>;
-    for (const key of Reflect.ownKeys(object)) {
-      if (typeof key !== "string") invalid("Declarations must use string object keys.");
-      const stringKey = key as string;
-      const descriptor = Object.getOwnPropertyDescriptor(object, stringKey);
-      if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor))
-        invalid("Declarations must contain enumerable data properties only.");
-      Object.defineProperty(snapshot, stringKey, {
-        value: snapshotJson(
-          (descriptor as PropertyDescriptor & { value: unknown }).value,
-          ancestors,
-        ),
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      });
-    }
-    return snapshot;
-  } finally {
-    ancestors.delete(object);
-  }
-};
-
 const assertId: (value: unknown, label?: string) => asserts value is string = (
   value,
   label = "id",
@@ -173,16 +116,17 @@ const assertSource = (source: SourceMetadata | undefined): void => {
     invalid("source.range must be ordered non-negative integer offsets.");
 };
 
-const assertJsonSafe = (value: unknown, ancestors = new WeakSet<object>()): void => {
-  const snapshot = snapshotJson(value, ancestors);
+const assertJsonSafe = <T>(value: T): T => {
+  const snapshot = snapshotDeclaration(value);
   if (!jsonValueSchema.safeParse(snapshot).success)
     invalid("Declarations must contain finite JSON numbers.");
+  return snapshot as T;
 };
 
 const defineStable = <const T extends StableDeclaration>(value: T): T => {
-  assertId(value.id);
-  assertSource(value.source);
-  assertJsonSafe(value);
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.id);
+  assertSource(declaration.source);
   return value;
 };
 const build = <const T>(value: T): T => {
@@ -347,48 +291,48 @@ const assertFlowIds = (flow: FlowDeclaration): void => {
   }
 };
 
-export const definePresentation = <const T extends PresentationDeclaration>(value: T): T => {
-  assertJsonSafe(value);
-  assertVector(value.stage.size, 3, "stage.size", true);
-  assertFlowIds(value.flow);
-  for (const node of value.scene.spatial) {
+const assertPresentationDeclaration = (value: unknown): void => {
+  const declaration = assertJsonSafe(value) as PresentationDeclaration;
+  assertVector(declaration.stage.size, 3, "stage.size", true);
+  assertFlowIds(declaration.flow);
+  for (const node of declaration.scene.spatial) {
     assertSpatialFields(node);
   }
-  for (const instance of value.scene.components) {
+  for (const instance of declaration.scene.components) {
     assertComponentInstanceIds(instance);
   }
-  for (const reference of value.assets) assertId(reference.assetId, "assetId");
-  if (value.theme !== undefined) assertId(value.theme.themeId, "themeId");
-  for (const operation of value.operations) {
+  for (const reference of declaration.assets) assertId(reference.assetId, "assetId");
+  if (declaration.theme !== undefined) assertId(declaration.theme.themeId, "themeId");
+  for (const operation of declaration.operations) {
     assertStableNested(operation, "operation id");
     assertId(operation.instanceId, "operation instanceId");
     assertId(operation.provenance.componentId, "operation provenance componentId");
   }
-  return defineStable(value);
+  assertStableNested(declaration, "id");
 };
-export const defineTheme = <const T extends ThemeDeclaration>(value: T): T => {
-  assertJsonSafe(value);
-  assertRecordKeys(value.tokens, "theme token id");
-  assertRecordKeys(value.namedStyles, "named style id");
-  return defineStable(value);
+const assertThemeDeclaration = (value: unknown): void => {
+  const declaration = assertJsonSafe(value) as ThemeDeclaration;
+  assertRecordKeys(declaration.tokens, "theme token id");
+  assertRecordKeys(declaration.namedStyles, "named style id");
+  assertStableNested(declaration, "id");
 };
-export const defineComponentManifest = <const T extends ComponentManifest>(value: T): T => {
-  assertJsonSafe(value);
-  assertId(value.componentId, "componentId");
-  assertSource(value.source);
-  if (!positiveSafeIntegerSchema.safeParse(value.version).success)
+const assertComponentManifest = (value: unknown): void => {
+  const declaration = assertJsonSafe(value) as ComponentManifest;
+  assertId(declaration.componentId, "componentId");
+  assertSource(declaration.source);
+  if (!positiveSafeIntegerSchema.safeParse(declaration.version).success)
     invalid("Component version must be a positive integer.");
   for (const [label, members] of Object.entries({
-    prop: value.props,
-    slot: value.slots,
-    part: value.parts,
-    variant: value.variants,
-    state: value.states,
-    action: value.actions,
-    output: value.outputs,
+    prop: declaration.props,
+    slot: declaration.slots,
+    part: declaration.parts,
+    variant: declaration.variants,
+    state: declaration.states,
+    action: declaration.actions,
+    output: declaration.outputs,
   }))
     assertRecordKeys(members, `${label} id`);
-  for (const actionValue of Object.values(value.actions)) {
+  for (const actionValue of Object.values(declaration.actions)) {
     assertRecordKeys(actionValue.inputs, "action input id");
     if (!z.array(z.unknown()).min(1).safeParse(actionValue.effects).success)
       invalid("Component actions must declare at least one effect.");
@@ -403,13 +347,13 @@ export const defineComponentManifest = <const T extends ComponentManifest>(value
       } else assertId(effect.timelineId, "action effect timelineId");
     }
   }
-  for (const slotValue of Object.values(value.slots))
+  for (const slotValue of Object.values(declaration.slots))
     for (const accepted of slotValue.accepts) assertId(accepted, "slot accepted kind");
-  for (const variantValue of Object.values(value.variants)) {
+  for (const variantValue of Object.values(declaration.variants)) {
     for (const option of variantValue.values) assertId(option, "variant value");
     if (variantValue.default !== undefined) assertId(variantValue.default, "variant default");
   }
-  for (const outputValue of Object.values(value.outputs)) {
+  for (const outputValue of Object.values(declaration.outputs)) {
     assertRecordKeys(outputValue.payload, "output payload id");
     if (outputValue.producer.kind === "surfaceInteraction")
       assertId(outputValue.producer.interactionId, "output producer interactionId");
@@ -422,89 +366,115 @@ export const defineComponentManifest = <const T extends ComponentManifest>(value
     )
       invalid("output producer afterMilliseconds must be a non-negative finite number.");
   }
-  if (!("semantics" in value)) {
-    for (const rendererId of value.renderers) assertId(rendererId, "renderer id");
+  if (!("semantics" in declaration)) {
+    for (const rendererId of declaration.renderers) assertId(rendererId, "renderer id");
   } else {
-    assertRecordKeys(value.renderers, "renderer id");
-    for (const renderer of Object.values(value.renderers)) {
+    assertRecordKeys(declaration.renderers, "renderer id");
+    for (const renderer of Object.values(declaration.renderers)) {
       assertId(renderer.entry, "renderer entry");
       for (const bindingKey of renderer.bindingKeys) assertId(bindingKey, "renderer bindingKey");
     }
-    for (const target of value.semantics.targets) {
+    for (const target of declaration.semantics.targets) {
       assertId(target.id, "opaque semantic target id");
       if (target.bindingKey !== undefined) assertId(target.bindingKey, "opaque bindingKey");
     }
-    for (const semanticSurface of value.semantics.surfaces) {
+    for (const semanticSurface of declaration.semantics.surfaces) {
       assertId(semanticSurface.id, "opaque surface id");
       assertId(semanticSurface.bindingKey, "opaque surface bindingKey");
       assertSurfaceSemanticIds(semanticSurface);
     }
   }
-  assertJsonSafe(value);
+};
+const assertComponentStructure = (value: unknown): void => {
+  const declaration = assertJsonSafe(value) as ComponentStructure;
+  assertId(declaration.componentId, "componentId");
+  assertRecordKeys(declaration.partBindings, "part binding id");
+  for (const targetId of Object.values(declaration.partBindings))
+    assertId(targetId, "part binding targetId");
+  assertRecordKeys(declaration.slotPlacements, "slot placement id");
+  for (const targetId of Object.values(declaration.slotPlacements))
+    assertId(targetId, "slot placement targetId");
+  for (const timeline of declaration.timelines) assertStableNested(timeline, "timeline id");
+  if (declaration.root.kind === "surface") assertSurfaceIds(declaration.root);
+  else assertContentIds(declaration.root);
+  assertStableNested(declaration, "id");
+};
+
+export const isPresentationDeclaration = (value: unknown): value is PresentationDeclaration =>
+  isDeclaration(value, assertPresentationDeclaration);
+export const isThemeDeclaration = (value: unknown): value is ThemeDeclaration =>
+  isDeclaration(value, assertThemeDeclaration);
+export const isComponentManifest = (value: unknown): value is ComponentManifest =>
+  isDeclaration(value, assertComponentManifest);
+export const isComponentStructure = (value: unknown): value is ComponentStructure =>
+  isDeclaration(value, assertComponentStructure);
+
+export const definePresentation = <const T extends PresentationDeclaration>(value: T): T => {
+  assertPresentationDeclaration(value);
+  return value;
+};
+export const defineTheme = <const T extends ThemeDeclaration>(value: T): T => {
+  assertThemeDeclaration(value);
+  return value;
+};
+export const defineComponentManifest = <const T extends ComponentManifest>(value: T): T => {
+  assertComponentManifest(value);
   return value;
 };
 export const defineComponentStructure = <const T extends ComponentStructure>(value: T): T => {
-  assertJsonSafe(value);
-  assertId(value.componentId, "componentId");
-  assertRecordKeys(value.partBindings, "part binding id");
-  for (const targetId of Object.values(value.partBindings))
-    assertId(targetId, "part binding targetId");
-  assertRecordKeys(value.slotPlacements, "slot placement id");
-  for (const targetId of Object.values(value.slotPlacements))
-    assertId(targetId, "slot placement targetId");
-  for (const timeline of value.timelines) assertStableNested(timeline, "timeline id");
-  if (value.root.kind === "surface") assertSurfaceIds(value.root);
-  else assertContentIds(value.root);
-  return defineStable(value);
+  assertComponentStructure(value);
+  return value;
 };
 
-export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  assertSchema(stringPropSchema, value, "Invalid string prop declaration."),
-  build({ ...value, kind: "string" as const })
-);
-export const numberProp = <const T extends WithoutKind<NumberPropDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  assertSchema(numberPropSchema, value, "Invalid number prop declaration."),
-  build({ ...value, kind: "number" as const })
-);
-export const booleanProp = <const T extends WithoutKind<BooleanPropDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  assertSchema(booleanPropSchema, value, "Invalid boolean prop declaration."),
-  build({ ...value, kind: "boolean" as const })
-);
-export const slot = <const T extends WithoutKind<SlotDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  assertSchema(slotSchema, value, "Invalid slot declaration."),
-  build({ ...value, kind: "slot" as const })
-);
-export const part = <const T extends WithoutKind<PartDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  assertSchema(partSchema, value, "Invalid part declaration."),
-  build({ ...value, kind: "part" as const })
-);
-export const variant = <const T extends WithoutKind<VariantDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  assertSchema(variantSchema, value, "Invalid variant declaration."),
-  build({ ...value, kind: "variant" as const })
-);
+export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(stringPropSchema, declaration, "Invalid string prop declaration.");
+  return build({ ...declaration, kind: "string" as const });
+};
+export const numberProp = <const T extends WithoutKind<NumberPropDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(numberPropSchema, declaration, "Invalid number prop declaration.");
+  return build({ ...declaration, kind: "number" as const });
+};
+export const booleanProp = <const T extends WithoutKind<BooleanPropDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(booleanPropSchema, declaration, "Invalid boolean prop declaration.");
+  return build({ ...declaration, kind: "boolean" as const });
+};
+export const slot = <const T extends WithoutKind<SlotDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(slotSchema, declaration, "Invalid slot declaration.");
+  return build({ ...declaration, kind: "slot" as const });
+};
+export const part = <const T extends WithoutKind<PartDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(partSchema, declaration, "Invalid part declaration.");
+  return build({ ...declaration, kind: "part" as const });
+};
+export const variant = <const T extends WithoutKind<VariantDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(variantSchema, declaration, "Invalid variant declaration.");
+  return build({ ...declaration, kind: "variant" as const });
+};
 export function state(): StateDeclaration;
 export function state<const T extends WithoutKind<StateDeclaration>>(
   value: T,
 ): T & { kind: "state" };
 export function state(value: WithoutKind<StateDeclaration> = {}): StateDeclaration {
-  assertJsonSafe(value);
-  assertSchema(stateSchema, value, "Invalid state declaration.");
-  return build({ ...value, kind: "state" });
+  const declaration = assertJsonSafe(value);
+  assertSchema(stateSchema, declaration, "Invalid state declaration.");
+  return build({ ...declaration, kind: "state" });
 }
-export const action = <const T extends WithoutKind<ActionDeclaration>>(value: T) =>
-  (assertJsonSafe(value), !z.array(z.unknown()).min(1).safeParse(value.effects).success)
-    ? invalid("Component actions must declare at least one effect.")
-    : build({ ...value, kind: "action" as const });
-export const output = <const T extends WithoutKind<OutputDeclaration>>(value: T) => (
-  assertJsonSafe(value),
-  build({ ...value, kind: "output" as const })
-);
+export const action = <const T extends WithoutKind<ActionDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  if (!z.array(z.unknown()).min(1).safeParse(declaration.effects).success)
+    invalid("Component actions must declare at least one effect.");
+  return build({ ...declaration, kind: "action" as const });
+};
+export const output = <const T extends WithoutKind<OutputDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  return build({ ...declaration, kind: "output" as const });
+};
 
 export const surfaceState = (surfaceId: string, stateId: string): ActionPrecondition => {
   assertId(surfaceId, "surfaceId");
@@ -521,10 +491,10 @@ export const playTimeline = (
   options: { completion: "blocking" | "nonBlocking" },
 ): ActionEffect => {
   assertId(timelineId, "timelineId");
-  assertJsonSafe(options);
-  if (!z.object({ completion: z.enum(["blocking", "nonBlocking"]) }).safeParse(options).success)
+  const declaration = assertJsonSafe(options);
+  if (!z.object({ completion: z.enum(["blocking", "nonBlocking"]) }).safeParse(declaration).success)
     invalid("completion must be blocking or nonBlocking.");
-  return build({ kind: "playTimeline", timelineId, ...options });
+  return build({ kind: "playTimeline", timelineId, ...declaration });
 };
 export const surfaceInteraction = (interactionId: string): OutputProducer => {
   assertId(interactionId, "interactionId");
@@ -546,79 +516,79 @@ export const after = (afterMilliseconds: number): OutputProducer => {
 export const invokeComponentAction = <const T extends Omit<ComponentActionInvocation, "kind">>(
   value: T,
 ) => {
-  assertJsonSafe(value);
-  assertId(value.componentInstanceId, "componentInstanceId");
-  assertId(value.actionId, "actionId");
-  return build({ ...value, kind: "component.action" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.componentInstanceId, "componentInstanceId");
+  assertId(declaration.actionId, "actionId");
+  return build({ ...declaration, kind: "component.action" as const });
 };
 export const componentOutput = <const T extends Omit<ComponentOutputReference, "kind">>(
   value: T,
 ) => {
-  assertJsonSafe(value);
-  assertId(value.componentInstanceId, "componentInstanceId");
-  assertId(value.outputId, "outputId");
-  return build({ ...value, kind: "component.output" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.componentInstanceId, "componentInstanceId");
+  assertId(declaration.outputId, "outputId");
+  return build({ ...declaration, kind: "component.output" as const });
 };
 export const cue = <const T extends CueDeclaration>(value: T): T => defineStable(value);
 
 export const tokenRef = <const T extends WithoutKind<TokenReference>>(value: T) => {
-  assertJsonSafe(value);
-  assertId(value.tokenId, "tokenId");
-  return build({ ...value, kind: "token-ref" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.tokenId, "tokenId");
+  return build({ ...declaration, kind: "token-ref" as const });
 };
 export const namedStyleRef = <const T extends WithoutKind<NamedStyleReference>>(value: T) => {
-  assertJsonSafe(value);
-  assertId(value.styleId, "styleId");
-  return build({ ...value, kind: "named-style-ref" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.styleId, "styleId");
+  return build({ ...declaration, kind: "named-style-ref" as const });
 };
 export const assetRef = <const T extends WithoutKind<AssetReference>>(value: T) => {
-  assertJsonSafe(value);
-  assertId(value.assetId, "assetId");
-  return build({ ...value, kind: "asset-ref" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.assetId, "assetId");
+  return build({ ...declaration, kind: "asset-ref" as const });
 };
 
 export const spatial = <const T extends WithoutStableKind<SpatialDeclaration>>(value: T) => {
-  assertJsonSafe(value);
-  const declaration = { ...value, kind: "spatial" as const };
+  const snapshot = assertJsonSafe(value);
+  const declaration = { ...snapshot, kind: "spatial" as const };
   assertSpatialFields(declaration);
   return defineStable(declaration);
 };
 export const frame = <const T extends WithoutStableKind<FrameDeclaration>>(value: T) => {
-  assertJsonSafe(value);
-  assertLayout(value.layout);
-  return defineStable({ ...value, kind: "frame" as const });
+  const declaration = assertJsonSafe(value);
+  assertLayout(declaration.layout);
+  return defineStable({ ...declaration, kind: "frame" as const });
 };
 export const text = <const T extends WithoutStableKind<TextDeclaration>>(value: T) => {
-  assertJsonSafe(value);
-  assertLayout(value.layout);
-  return defineStable({ ...value, kind: "text" as const });
+  const declaration = assertJsonSafe(value);
+  assertLayout(declaration.layout);
+  return defineStable({ ...declaration, kind: "text" as const });
 };
 export const surface = <const T extends WithoutStableKind<SurfaceDeclaration>>(value: T) => {
-  assertJsonSafe(value);
-  const declaration = { ...value, kind: "surface" as const };
+  const snapshot = assertJsonSafe(value);
+  const declaration = { ...snapshot, kind: "surface" as const };
   assertSurfaceIds(declaration);
   return defineStable(declaration);
 };
 export const semanticOverride = <const T extends WithoutStableKind<SemanticOverrideDeclaration>>(
   value: Exact<T, WithoutStableKind<SemanticOverrideDeclaration>>,
 ) => {
-  assertJsonSafe(value);
-  assertId(value.targetId, "targetId");
-  return defineStable({ ...value, kind: "semantic-override" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.targetId, "targetId");
+  return defineStable({ ...declaration, kind: "semantic-override" as const });
 };
 export const componentInstance = <const T extends WithoutStableKind<ComponentInstanceDeclaration>>(
   value: T,
 ) => {
-  assertJsonSafe(value);
-  assertId(value.componentId, "componentId");
-  assertId(value.spatialNodeId, "spatialNodeId");
-  const declaration = { ...value, kind: "component-instance" as const };
+  const snapshot = assertJsonSafe(value);
+  assertId(snapshot.componentId, "componentId");
+  assertId(snapshot.spatialNodeId, "spatialNodeId");
+  const declaration = { ...snapshot, kind: "component-instance" as const };
   assertComponentInstanceIds(declaration);
   return defineStable(declaration);
 };
 export const detach = <const T extends WithoutStableKind<DetachDeclaration>>(value: T) => {
-  assertJsonSafe(value);
-  assertId(value.instanceId, "instanceId");
-  assertId(value.provenance.componentId, "provenance.componentId");
-  return defineStable({ ...value, kind: "detach" as const });
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.instanceId, "instanceId");
+  assertId(declaration.provenance.componentId, "provenance.componentId");
+  return defineStable({ ...declaration, kind: "detach" as const });
 };

@@ -101,7 +101,9 @@ JSX、任意関数、loop / branch、dynamic import、property access、spread�
 - Structured / Opaque boundary と Action / Output lowering の fixture
 - package import が filesystem、Browser、network side effect を起こさないことのテスト
 
-公開 builder / definition の入力は、descriptor ベースの plain-data snapshot で accessor、cycle、sparse array、symbol key、非 JSON 値を先に拒否してから Zod 4 schema に渡す。Zod は string、number、tuple、record、enum、discriminated union と declaration の構造を検証する。参照の存在、一意性、tree、owner 継承のように複数 declaration を横断する意味論だけは Compiler / Core の責務として残す。
+公開 builder / definition の入力は、descriptor ベースの null-prototype plain-data snapshot で accessor、cycle、sparse array、symbol key、非 JSON 値を先に拒否してから Zod 4 schema に渡す。snapshot 後は caller-owned object を再読せず、配列長も own data descriptor から取得して inherited getter と Proxy の `get` trap を実行しない。Zod は string、number、tuple、record、enum、discriminated union と declaration の構造を検証する。参照の存在、一意性、tree、owner 継承のように複数 declaration を横断する意味論だけは Compiler / Core の責務として残す。
+
+definition ごとの pure type guard は builder と同じ local declaration validation を共有する。Compiler は post-lowering value の検査にこの guard を利用できるが、builder implementation や Authoring Source は実行しない。
 
 ## 9. Deferred decisions
 

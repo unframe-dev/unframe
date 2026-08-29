@@ -6,6 +6,7 @@ import {
   validatePresentationDefinition,
 } from "@unframe/presentation-core";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
+import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
@@ -87,6 +88,15 @@ const project = () => ({
   assets: {},
 });
 
+const nullPrototype = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(nullPrototype);
+  if (value === null || typeof value !== "object") return value;
+  return Object.assign(
+    Object.create(null),
+    Object.fromEntries(Object.entries(value).map(([key, child]) => [key, nullPrototype(child)])),
+  );
+};
+
 const codes = (value: unknown) => {
   const result = checkDeclarationProject(value);
   return result.valid ? [] : result.diagnostics.map((item) => item.code);
@@ -145,6 +155,49 @@ describe("checkDeclarationProject", () => {
     expect(result.value.definitionHash).toBe(
       "sha256:498e988f6967fb310feb236b2627ff724d1b0875eaf6506fa56a4d073a962403",
     );
+  });
+
+  it("accepts recursively null-prototype declaration data", () => {
+    const normalized = nullPrototype(project());
+    const result = checkDeclarationProject(normalized);
+
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+  });
+
+  it("does not read length through declaration Array Proxies", () => {
+    let reads = 0;
+    const value = project();
+    value.themes = new Proxy(value.themes, {
+      get() {
+        reads++;
+        throw new Error("must not read array length");
+      },
+    });
+
+    const result = checkDeclarationProject(value);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    expect(reads).toBe(0);
+  });
+
+  it("does not inherit Object.prototype accessors into cloned declaration data", () => {
+    let reads = 0;
+    Object.defineProperty(Object.prototype, "presentation", {
+      configurable: true,
+      get() {
+        reads++;
+        throw new Error("must not inherit caller data");
+      },
+    });
+
+    try {
+      const result = safePlainClone(project());
+      expect(result.valid).toBe(true);
+      if (!result.valid) return;
+      expect(reads).toBe(0);
+      expect(Object.getPrototypeOf(result.value)).toBeNull();
+    } finally {
+      delete (Object.prototype as { presentation?: unknown }).presentation;
+    }
   });
 
   it("is independent of plain-object insertion order", () => {
@@ -224,7 +277,7 @@ describe("checkDeclarationProject", () => {
           },
         ],
       }),
-    ).toContain("compiler-enabled-interactions-unsupported");
+    ).toContain("compiler-invalid-declaration");
     const parent = project();
     expect(
       codes({
@@ -452,8 +505,16 @@ describe("checkDeclarationProject", () => {
 
     const malformedStructure = project();
     (malformedStructure.components[0] as unknown as { structure: unknown }).structure = {};
-    expect(() => checkDeclarationProject(malformedStructure)).not.toThrow();
-    expect(codes(malformedStructure)).not.toEqual([]);
+    const malformedStructureResult = checkDeclarationProject(malformedStructure);
+    expect(malformedStructureResult).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "compiler-invalid-declaration",
+          path: ["components", 0, "structure"],
+        },
+      ],
+    });
 
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
@@ -495,6 +556,11 @@ describe("checkDeclarationProject", () => {
     });
     expect(codes(customArray)).toContain("compiler-invalid-input");
     expect(customMapCalled).toBe(false);
+
+    class CustomData {}
+    const customObject = project();
+    customObject.assets = new CustomData() as never;
+    expect(codes(customObject)).toContain("compiler-invalid-input");
   });
 
   it("rejects duplicate lowering identifiers and operations without component instances", () => {

@@ -15,11 +15,12 @@ export const safePlainClone = (input: unknown): ValidationResult<unknown> => {
       throw diagnostic("compiler-invalid-input", path, "Input must contain plain JSON data.");
     if (ancestors.has(value))
       throw diagnostic("compiler-invalid-input", path, "Input must not contain cycles.");
+    const prototype = Object.getPrototypeOf(value);
     if (
-      (Array.isArray(value) && Object.getPrototypeOf(value) !== Array.prototype) ||
-      (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype)
+      (Array.isArray(value) && prototype !== Array.prototype) ||
+      (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null)
     )
-      throw diagnostic("compiler-invalid-input", path, "Input objects must use Object.prototype.");
+      throw diagnostic("compiler-invalid-input", path, "Input objects must use a plain prototype.");
     ancestors.add(value);
     try {
       if (Object.getOwnPropertySymbols(value).length !== 0)
@@ -29,14 +30,28 @@ export const safePlainClone = (input: unknown): ValidationResult<unknown> => {
           "Input must not contain symbol properties.",
         );
       if (Array.isArray(value)) {
+        const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
         if (
-          Object.keys(value).length !== value.length ||
+          !lengthDescriptor ||
+          lengthDescriptor.get !== undefined ||
+          lengthDescriptor.set !== undefined
+        )
+          throw diagnostic("compiler-invalid-input", path, "Input must not contain accessors.");
+        const length = lengthDescriptor.value;
+        if (!Number.isSafeInteger(length) || length < 0 || length > 0xffff_ffff)
+          throw diagnostic(
+            "compiler-invalid-input",
+            path,
+            "Input must contain valid array lengths.",
+          );
+        if (
+          Object.keys(value).length !== length ||
           Object.keys(value).some((key) => !/^(0|[1-9][0-9]*)$/.test(key)) ||
-          [...Array(value.length).keys()].some((index) => !Object.hasOwn(value, index))
+          [...Array(length).keys()].some((index) => !Object.hasOwn(value, index))
         )
           throw diagnostic("compiler-invalid-input", path, "Input must not contain sparse arrays.");
         const cloned: unknown[] = [];
-        for (let index = 0; index < value.length; index++) {
+        for (let index = 0; index < length; index++) {
           const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
           if (!descriptor || descriptor.get !== undefined || descriptor.set !== undefined)
             throw diagnostic(
@@ -58,7 +73,7 @@ export const safePlainClone = (input: unknown): ValidationResult<unknown> => {
           path,
           "Input must not contain non-enumerable properties.",
         );
-      const cloned: UnknownRecord = {};
+      const cloned = Object.create(null) as UnknownRecord;
       for (const key of Object.keys(value).sort()) {
         const descriptor = Object.getOwnPropertyDescriptor(value, key);
         if (!descriptor || descriptor.get !== undefined || descriptor.set !== undefined)

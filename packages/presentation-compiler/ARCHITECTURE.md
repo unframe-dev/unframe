@@ -73,6 +73,8 @@ typecheck は strict ES2022、`noLib` で実行し、project root から到達�
 
 project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、`*.structure.tsx` の role と root builder を照合し、project-relative filename 順で lower / normalize できる。補助 `.d.ts` と package-owned source は collection から除外し、未対応 suffix や role mismatch は全 file 分を canonical diagnostic として返す。Manifest / Structure の対応付け、Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly、cache、Source frontend の public API 接続は未実装である。
 
+post-lowering declaration の検査は Authoring package の pure type guard を利用し、definition builder を呼び出さない。Compiler の plain-data clone は `Object.prototype` と null-prototype の record を受理し、descriptor だけから null-prototype clone を作る。custom prototype、accessor、cycle、sparse array、symbol key、非 JSON 値は Zod や semantic validation に渡す前に拒否し、caller-owned getter や Proxy の `get` trap を実行しない。
+
 M1 Static DSL は、各 declaration file の default export を、provenance 検証済みの `@unframe/presentation` root named value import に対する直接 builder call へ限定する。builder 引数は JSON-like literal と認識済み builder call だけを許可し、JSX、任意関数、control flow、dynamic import、property access、spread、template expression、local alias を stable diagnostic で拒否する。named import alias は元の package export provenance を保持する。Compiler は Authoring Source や builder implementation を実行しない。
 
 ## 5. Public API

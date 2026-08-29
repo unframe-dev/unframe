@@ -1,8 +1,8 @@
 import {
-  defineComponentManifest,
-  defineComponentStructure,
-  definePresentation,
-  defineTheme,
+  isComponentManifest,
+  isComponentStructure,
+  isPresentationDeclaration,
+  isThemeDeclaration,
   type PresentationDeclaration,
 } from "@unframe/presentation";
 import {
@@ -66,11 +66,8 @@ const checkDeclarationProjectUnchecked = (
   const themes = project.themes as CompilerDeclarationProject["themes"];
   const components = project.components as CompilerDeclarationProject["components"];
   const assets = project.assets as CompilerDeclarationProject["assets"];
-  const validateDeclaration = (path: readonly (string | number)[], validate: () => void) => {
-    try {
-      validate();
-      return true;
-    } catch {
+  const validateDeclaration = (path: readonly (string | number)[], valid: boolean) => {
+    if (!valid) {
       diagnostics.push(
         diagnostic(
           "compiler-invalid-declaration",
@@ -80,9 +77,11 @@ const checkDeclarationProjectUnchecked = (
       );
       return false;
     }
+    return true;
   };
-  const presentationValid = validateDeclaration(["presentation"], () =>
-    definePresentation(presentation),
+  const presentationValid = validateDeclaration(
+    ["presentation"],
+    isPresentationDeclaration(presentation),
   );
   if (presentationValid && !hasValidInitialPresentationShape(presentation))
     diagnostics.push(
@@ -93,14 +92,23 @@ const checkDeclarationProjectUnchecked = (
       ),
     );
   for (const [index, candidate] of themes.entries()) {
-    validateDeclaration(["themes", index, "declaration"], () => defineTheme(candidate.declaration));
+    validateDeclaration(
+      ["themes", index, "declaration"],
+      isThemeDeclaration(candidate.declaration),
+    );
   }
   for (const [index, candidate] of components.entries()) {
-    const manifestValid = validateDeclaration(["components", index, "manifest"], () =>
-      defineComponentManifest(candidate.manifest),
+    const manifestValid = validateDeclaration(
+      ["components", index, "manifest"],
+      isComponentManifest(candidate.manifest),
     );
     const structure = candidate.structure;
+    const structureValid = validateDeclaration(
+      ["components", index, "structure"],
+      isComponentStructure(structure),
+    );
     if (
+      structureValid &&
       structure.root.kind === "surface" &&
       Object.values(structure.root.states).some((state) => state.enabledInteractionIds.length !== 0)
     )
@@ -111,9 +119,6 @@ const checkDeclarationProjectUnchecked = (
           "The initial subset does not support enabled interactions.",
         ),
       );
-    const structureValid = validateDeclaration(["components", index, "structure"], () =>
-      defineComponentStructure(structure),
-    );
     if (!manifestValid || !structureValid) continue;
   }
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };

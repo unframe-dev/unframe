@@ -14,6 +14,10 @@ import {
   detach,
   frame,
   invokeComponentAction,
+  isComponentManifest,
+  isComponentStructure,
+  isPresentationDeclaration,
+  isThemeDeclaration,
   namedStyleRef,
   numberProp,
   output,
@@ -358,6 +362,116 @@ describe("theme and reference vocabulary", () => {
 });
 
 describe("local declaration boundary", () => {
+  it("exposes non-mutating declaration guards with builder-equivalent acceptance", () => {
+    const theme = { id: "default-theme", tokens: { accent: "#ff00ff" }, namedStyles: {} };
+    const before = JSON.stringify({
+      referencePresentation,
+      surfaceManifest,
+      surfaceStructure,
+      theme,
+    });
+
+    expect(isPresentationDeclaration(referencePresentation)).toBe(true);
+    expect(isComponentManifest(surfaceManifest)).toBe(true);
+    expect(isComponentStructure(surfaceStructure)).toBe(true);
+    expect(isThemeDeclaration(theme)).toBe(true);
+    expect(() => definePresentation(referencePresentation)).not.toThrow();
+    expect(() => defineComponentManifest(surfaceManifest)).not.toThrow();
+    expect(() => defineComponentStructure(surfaceStructure)).not.toThrow();
+    expect(() => defineTheme(theme)).not.toThrow();
+    expect(isThemeDeclaration({})).toBe(false);
+    expect(() => defineTheme({} as never)).toThrow(TypeError);
+    expect(
+      JSON.stringify({ referencePresentation, surfaceManifest, surfaceStructure, theme }),
+    ).toBe(before);
+  });
+
+  it("returns false without evaluating malformed declaration accessors", () => {
+    let reads = 0;
+    const accessor = Object.defineProperty({ id: "theme", tokens: {}, namedStyles: {} }, "tokens", {
+      enumerable: true,
+      get() {
+        reads++;
+        return {};
+      },
+    });
+    const cyclic: Record<string, unknown> = { id: "theme", tokens: {}, namedStyles: {} };
+    cyclic.self = cyclic;
+
+    expect(isThemeDeclaration(accessor)).toBe(false);
+    expect(reads).toBe(0);
+    expect(isThemeDeclaration(cyclic)).toBe(false);
+    expect(
+      isThemeDeclaration({
+        id: "theme",
+        tokens: { invalid: Number.POSITIVE_INFINITY },
+        namedStyles: {},
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts descriptor-backed Proxy declarations without reading caller values", () => {
+    let reads = 0;
+    const proxy = <T extends object>(value: T): T =>
+      new Proxy(value, {
+        get() {
+          reads++;
+          throw new Error("must not read caller data");
+        },
+      });
+
+    expect(() => stringProp(proxy({ required: true }))).not.toThrow();
+    expect(() => assetRef(proxy({ assetId: "logo" }))).not.toThrow();
+    expect(() => semanticOverride(proxy({ id: "override", targetId: "target" }))).not.toThrow();
+    expect(() =>
+      cue(proxy({ id: "cue", trigger: { kind: "event", event: "ready" }, actions: [] })),
+    ).not.toThrow();
+    expect(isThemeDeclaration(proxy({ id: "theme", tokens: {}, namedStyles: {} }))).toBe(true);
+    expect(reads).toBe(0);
+  });
+
+  it("does not read length through a nested Array Proxy", () => {
+    let reads = 0;
+    const accepts = new Proxy(["frame"], {
+      get() {
+        reads++;
+        throw new Error("must not read array length");
+      },
+    });
+
+    expect(() => slot({ accepts: accepts as never, cardinality: "many" })).not.toThrow();
+    expect(reads).toBe(0);
+  });
+
+  it("does not inherit Object.prototype accessors during validation", () => {
+    let reads = 0;
+    Object.defineProperty(Object.prototype, "required", {
+      configurable: true,
+      get() {
+        reads++;
+        throw new Error("must not inherit caller data");
+      },
+    });
+
+    try {
+      expect(() => stringProp({})).not.toThrow();
+      expect(isThemeDeclaration({ id: "theme", tokens: {}, namedStyles: {} })).toBe(true);
+      expect(reads).toBe(0);
+    } finally {
+      delete (Object.prototype as { required?: unknown }).required;
+    }
+  });
+
+  it("accepts normalized null-prototype declarations", () => {
+    const theme = Object.assign(Object.create(null), {
+      id: "theme",
+      tokens: Object.assign(Object.create(null), { accent: "#ff00ff" }),
+      namedStyles: Object.create(null),
+    });
+
+    expect(isThemeDeclaration(theme)).toBe(true);
+  });
+
   it.each([
     ["function", () => undefined],
     ["undefined", undefined],
