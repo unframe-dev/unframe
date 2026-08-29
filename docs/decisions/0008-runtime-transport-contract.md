@@ -239,16 +239,39 @@ message ElementStateFrame {
   RuntimeProjectionFence fence = 1;
   uint64 frame_sequence = 2;
   uint64 produced_at_runtime_time_ms = 3;
-  uint64 oldest_change_at_runtime_time_ms = 4;
+  uint64 oldest_change_at_runtime_monotonic_ms = 4;
   uint64 base_reliable_sequence = 5;
   StateFrameKind kind = 6;
   repeated ElementStatePatch elements = 7;
+  repeated ProjectedAnchorBindingPatch anchor_bindings = 8;
+  uint64 produced_at_runtime_monotonic_ms = 9;
+}
+
+message CoordinateVector3 { double x = 1; double y = 2; double z = 3; }
+message CoordinateQuaternion { double x = 1; double y = 2; double z = 3; double w = 4; }
+message AnchorBindingUnavailable {}
+message ProjectedAnchorBindingSample {
+  uint64 tracking_frame_sequence = 1;
+  uint64 observed_at_runtime_monotonic_ms = 2;
+  optional CoordinateVector3 position = 3;
+  optional CoordinateQuaternion rotation = 4;
+}
+message ProjectedAnchorBindingPatch {
+  string node_id = 1;
+  oneof state {
+    AnchorBindingUnavailable unavailable = 2;
+    ProjectedAnchorBindingSample sample = 3;
+  }
 }
 ```
 
 `ElementStatePatch` の具体 field は M3 の Node / Media state contract と同時に確定する。patch は explicit presence を持つ scalar / message field を使用し、`active` と `visible` を別 field として保持する。`field_mask` と値の矛盾、duplicate element ID、profile 外 resource を拒否する。Timeline-owned property、crossfade weight、interaction enabled state は含めない。
 
-State frame は保存・replayしない。server は connection ごとに element / field 単位で merge する single-slot mailbox だけを持ち、`frame_sequence` は dequeue 時に採番する。Runtimeが`Running`の場合だけ、初回と再接続時に`KEYFRAME`一件を適用してから`DELTA`を受理する。`Paused`中はState Connectionだけを確立してframeを送らず、`RuntimeStatusChanged(running)`の適用後に`KEYFRAME`一件を送る。gap、stale fence、古い `base_reliable_sequence`、buffer overflow では delta を補完せず State Connection を再確立する。Control Connection と他 participant は停止しない。
+`anchor_bindings`はraw Presenter poseのcatalogではなく、profile内のvisible Nodeが直接参照するAnchor parentをNode IDごとにprojectしたephemeral stateである。Nodeの`followPosition`がtrueの場合だけ`position`をrequired、falseなら禁止し、`followRotation`も同様に扱う。両方falseのAnchor parentはbuild errorとする。followしないposition成分はzero translation、followしないrotation成分はidentity Quaternionとしてparent matrixを構成し、その後にNode local matrixを乗じる。別Node、profile外Node、参照されないAnchor targetのposeを含めず、target名をState wireへ重複しない。`KEYFRAME`はvisibleな全Anchor-bound Nodeをexactly once、`DELTA`は変更sampleまたは`unavailable` tombstoneだけを含む。duplicate Node ID、空oneof、profile外Node、follow fieldの過不足、non-canonical Quaternionを拒否する。
+
+`anchorSampleMaxAgeMilliseconds`は下表のAnchor binding sample ageであり、`500`に固定する。Runtimeはframe生成時、clientは同期済みRuntime monotonic timeでそれぞれageを検査する。超過、tracking unavailable、Origin version不一致では`unavailable`へ収束し、次のfresh sampleまで該当Nodeを描画もhit-testもしない。`observed_at_runtime_monotonic_ms`はRuntime受理時刻であり、client申告のcapture時刻をfreshness authorityにしない。
+
+State frame は保存・replayしない。server はconnectionごとにsingle-slot mailboxを持ち、Element patchはelement / field単位、Anchor bindingはNode ID単位のsample / tombstone全体でlatest-wins mergeする。同じAnchor sampleのposition / rotationを別tracking frameから合成しない。dequeueは一つのcritical sectionでElement map、Anchor map、最古monotonic change、logical runtime time、Runtime monotonic time、reliable / Origin fenceをimmutable frameへfreezeし、その後に`frame_sequence`を採番する。keyframe生成も同じcutでcurrent Element / projected Anchor binding mapをfreezeする。送信中のframeは変更せず、後続変更は次のmailboxへmergeする。Runtimeが`Running`の場合だけ、初回と再接続時に`KEYFRAME`一件を適用してから`DELTA`を受理する。`Paused`中はState Connectionだけを確立してframeを送らず、`RuntimeStatusChanged(running)`の適用後に`KEYFRAME`一件を送る。gap、stale fence、古い `base_reliable_sequence`、buffer overflow では delta を補完せず State Connection を再確立する。Control Connection と他 participant は停止しない。
 
 ### RuntimeProtocolLimits v1
 
@@ -263,6 +286,7 @@ State frame は保存・replayしない。server は connection ごとに elemen
 | Connection Snapshot total budget |                    250 ms monotonic elapsed | 超過で `RESYNC_REASON_SNAPSHOT_CATCH_UP_EXHAUSTED`                             |
 | idempotency outcome window       |                    1,024 IDs and 900,000 ms | session / participant ごと。どちらかの境界で eviction                          |
 | State dependency buffer          |       4,096 element-field values and 500 ms | 超過で State Connection を再確立                                               |
+| Anchor binding sample age        |                                      500 ms | Runtime / clientで失効し`unavailable`へ収束                                    |
 | runtime microsteps               | 1,024 per external input or due-event drain | 次の microstep を適用せず Runtime を pause                                     |
 
 MiB は `1,048,576` bytes、serialized size は protobuf message の wire sizeで計測する。event log の age は event の logical runtime time ではなく server monotonic retention age であり、Runtime Pause 中も eviction を継続する。durable checkpoint の保存期間・頻度は deployment policyであり、この replay retention から導出しない。

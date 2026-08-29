@@ -333,6 +333,7 @@ type ParticipantRuntimeView = {
   variables: Record<VariableId, Scalar>;
   activeRuns: RuntimeRunSnapshot[];
   clock: RuntimeClockSnapshot;
+  presentationOrigin: PresentationOrigin;
   enabledLogicalInputs: LogicalEventName[];
 };
 
@@ -343,6 +344,8 @@ type ProjectedRuntimeSnapshot = {
   runtimeView: ParticipantRuntimeView;
 };
 ```
+
+`presentationOrigin`はcanonical Snapshot cutからparticipantへ投影し、`presentationOriginVersion`とposeを同じimmutable valueで運ぶ。Presenter Anchor poseはephemeral tracking stateでありProjected Runtime Snapshotへ保存しない。State Streamはraw pose catalogではなく、profile内でvisibleなAnchor-bound Nodeごとにfollow指定された成分だけを初回keyframe / deltaへ投影する。該当Nodeは初回keyframeまたは後続fresh sampleを受け取るまでunavailableとし、描画とinteractionを開始しない。
 
 Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。割り当て済み Runtime Core はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。`variables` には descriptor の `visibleVariableIds` だけを含める。`clock` は Shared Runtime State の pause-aware logical clock の sample であり、client は `running` 中だけ受信 sample を基準に local monotonic clock で Native UI の表示を補間し、`paused` と `terminating` では補間を止める。timer の完了判定は常に割り当て済み Runtime Core だけが行い、再接続時は新しい Runtime View の clock sample から表示を再開する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
 
@@ -888,7 +891,7 @@ Code 上の入れ子表現は parse 時に `parent` へ正規化する。`node` 
 - Scale は無次元倍率とする。
 - Presentation Origin、Stage、Spatial Node、Body Anchor を親座標として扱う。
 
-ここまでの座標規約は ADR-0005 で固定済みである。Transform の合成順、Quaternion の乗算順、matrix layout、Unity との変換、Surface logical coordinate と UV の完全な変換規則は下位 contract で固定する。
+基礎座標規約はADR-0005、Transformの`T * R * S`、parent-first matrix積、Hamilton Quaternionとcanonical sign、column-major matrix、Unity境界のZ reflectionは [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。Spatial treeはlocal TRSを正本とし、non-uniform scaleとrotationから生じ得るworld shearを含むderived world値はmatrixを正本としてTRSへ再分解しない。
 
 Shared Spatial Tree の Anchor owner は v1 では Session の Presenter だけとする。`ParticipantId` は Session 実行時の identity であり、PresentationDefinition、RenderBundle、PublishedPresentation へ埋め込まない。Viewer 自身の head / hand へ配置する UI は Shared Spatial Tree の node とせず、ProjectionProfileDescriptor の Local Overlay definition と Client-local State の `self` Anchor で表現する。
 
@@ -925,6 +928,8 @@ type SemanticSurface = {
 ```
 
 `baseSemanticTree` は Surface の全 State が共有する意味構造の正本である。State は `SurfaceSemanticOverride` により既存 Node の可視性とroleが許すtext / language / alt / labelだけを変更でき、Node ID、role固有の構造field、parent、order、interactionの所属を変更したり、新しいSemantic Nodeを生成したりできない。これによりState間で意味対象とHit Regionの参照先を安定させる。
+
+Surface local planeは中心原点、+X right、+Y up、front normal +Zとする。logical-to-meter変換は`fit`に従って中央寄せし、`contain`の余白はnon-content、`cover`のplane外はclip、`stretch`だけはaspect ratioを変更する。Render Surface内のrasterは左上原点、Unity UV0は左下原点として`u = rx`、`v = 1 - ry`で一度だけflipする。raycast、fit inverse、crop、Semantic Surface normalized Hit Regionの完全な式と境界規則は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。
 
 Compiler は次の invariant を検証する。
 
@@ -2513,6 +2518,7 @@ presentation/
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を 12.4、12.7、12.8、12.12 で定義した。
 - [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を 12.11 で定義した。
+- [x] Spatial TRS / matrix / Quaternion、Unity handedness、Surface logical / physical / raster / UV変換を [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
@@ -2522,7 +2528,7 @@ presentation/
 ### Rendering / Delivery の follow-ups
 
 1. [x] role 別 Semantic schema と Hit Region の完全 schemaは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした（current flat schemaの実装置換はM3 Slice B）。
-2. Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な座標規約
+2. [x] Transform / Quaternion / matrix / Unity / Surface / UV座標規約は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) でAcceptedとした（fixtureとconsumer実装はM3〜M5）。
 3. Component から Surface への分割規則、partition の自動化範囲、author override
 4. Texture state artifact 数と GPU / RAM build budget
 5. Resolution、mipmap、compression、preload、eviction policy
@@ -2532,11 +2538,10 @@ presentation/
 
 ## 20. 次の設計対象
 
-次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
+blockingなTimeline / transport / Semantic / coordinate contractはAcceptedになった。次のRendering / Delivery設計は次の順で閉じる。
 
-1. Spatial / Surface coordinate convention
-2. Surface Partition
-3. Texture / GPU / RAM budget
+1. Surface Partition
+2. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 

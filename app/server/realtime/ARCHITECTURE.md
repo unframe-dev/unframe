@@ -366,6 +366,8 @@ ParticipantCalibration
 - Presenter Quest は最新の `presentationFromQuestLocal` を使って Pose を Presentation Space へ変換してから送信する。Viewer Quest は同じ変換の逆変換を使って Element State を自端末の tracking space へ配置する。
 - participant 単独の再 calibration 後は、保持済みの canonical Element State を新しい変換で再描画するため、session 全体の Snapshot を再生成しない。
 
+Canonical Presentation Spaceのright-handed TRS、Unity handedness変換、Surface plane / ray inverse / Hit Region座標は [ADR-0010](../../../docs/decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。interaction hit-testはcurrent `presentationOriginVersion`、participant calibration、同じruntime cutのeffective Node TransformとAnchor sampleが揃う場合だけ行い、不一致またはunavailable / staleな入力をno-hitとして扱う。現行Realtime foundationはこのcoordinate-aware projectionをまだ配信していない。
+
 ## 7. Session Runtime と Step / Cue 実行モデル
 
 ### 7.1 Runtime state
@@ -539,10 +541,20 @@ PresenterInputEvent
 ```text
 ElementStateFrame
 ├─ frameSequence
-├─ producedAt
-├─ oldestChangeAt
+├─ producedAtRuntimeTime
+├─ producedAtRuntimeMonotonic
+├─ oldestChangeAtRuntimeMonotonic
 ├─ presentationOriginVersion
 ├─ baseReliableSequence
+├─ anchorBindings[]
+│  ├─ nodeId
+│  └─ state
+│     ├─ unavailable
+│     └─ sample
+│        ├─ trackingFrameSequence
+│        ├─ observedAtRuntimeMonotonic
+│        ├─ position?  # followPositionだけ
+│        └─ rotation?  # followRotationだけ
 └─ elements[]
    ├─ elementId
    ├─ changedFields
@@ -558,12 +570,12 @@ ElementStateFrame
 - 初期検証範囲は 20–60 Hz とする。
 - viewerごとに、gRPCへ渡す前の未送信差分を保持するsingle-slot `StateMailbox`を持つ。
 - `StateMailbox`はframeを丸ごと置き換えず、`elementId`とfieldごとに差分をmergeして最新値を残す。これにより、別々のframeで更新されたElementやfieldをcoalesceしても変更を失わない。
-- `StateMailbox`は未送信差分の最古時刻を`oldestChangeAt`として保持する。`frameSequence`と`producedAt`はmailboxから送信frameを確定する時点で採番・記録し、coalesceしただけではsequence gapを作らない。
+- `StateMailbox`はElementをelement / field単位、Anchor bindingをNode ID単位のsample / tombstone全体としてlatest-wins mergeし、position / rotationを別Tracking Frameから合成しない。両mapの未送信差分の最古monotonic時刻を`oldestChangeAtRuntimeMonotonic`として保持する。dequeueは一つのcritical sectionで両map、logical runtime time、Runtime monotonic time、Reliable / Origin fenceをimmutable frameへfreezeしてから`frameSequence`を採番し、coalesceしただけではsequence gapを作らない。
 - viewerごとに`Send`を実行するgoroutineを一つに限定し、同時に複数のframeをgRPCへ渡さない。送信中のframeはimmutableとし、その間の更新は次の`StateMailbox`へmergeする。
 - latest-winsが保証する範囲はgRPCの`Send`へ渡す前までとする。すでにHTTP/2またはTCP bufferへ渡した古いframeは取り消せない。
 - 変更された Element と field だけを送る。
 - 複数 Element を一つの frame に batch する。
-- `StateMailbox`から取り出す直前に`oldestChangeAt`を検査し、未送信時間が`stateMaxFrameAge`を超えた差分は送らずState Connectionを再確立する。
+- `StateMailbox`から取り出す直前に`oldestChangeAtRuntimeMonotonic`を検査し、未送信時間が`stateMaxFrameAge`を超えた差分は送らずState Connectionを再確立する。
 - `Send`のwrite blockが`stateWriteBlockTimeout`を超えた場合も、該当viewerのState Connectionだけをcancelし、mailboxと送信中frameを破棄する。他viewerとReliable Controlをblockしない。
 - runtimeが`Running`の場合、State Connectionの初回確立と再確立では、`StateReady`後に現在の全Element Stateをkeyframeとして一度送ってから差分配信を開始する。cancel時に送達不明となったframeは、このkeyframeで収束させる。
 - 送信前のcoalesceは許容するが、受信した`frameSequence`にgapがある場合は送達済み差分の欠落とみなし、State Connectionを再確立してkeyframeを取得する。
@@ -571,13 +583,17 @@ ElementStateFrame
 - `baseReliableSequence`は、そのprojected State Frameが実際に前提にする、当該participantへ送信済みまたは同じ送信境界で先行するReliable sequenceである。participantに不可視なeventだけで値を進めない。clientの適用済みReliable sequenceより大きいframeは、その前提となる可視Reliable Eventまたは集約`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
 - `baseReliableSequence`がclientの適用済みsequenceより小さいframe、または`presentationOriginVersion`が一致しないframeはstaleとして破棄し、Control Connection上でState keyframeを要求する。
 - Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable ControlやSession全体をblockしない。
+- `anchorBindings`はraw Presenter poseの一覧ではなく、projection profileでvisibleかつAnchor parentを直接参照するNode IDだけをkeyにしたephemeral parent stateである。Nodeの`followPosition` / `followRotation`が要求する成分だけを運び、参照されないAnchor、profile外Node、追従しない成分を配信しない。追従しないpositionはzero translation、追従しないrotationはidentityとしてparent matrixを組み立てる。`trackingFrameSequence`は元Tracking Frame、`observedAtRuntimeMonotonic`はRuntimeが受理した時点の`producedAtRuntimeMonotonic`と同じmonotonic time domainとする。client申告の`capturedAt`をfreshness authorityにしない。
+- `anchorSampleMaxAgeMilliseconds`はprotocol versionに紐付く`500 ms`とする。frame生成時に`producedAtRuntimeMonotonic - observedAtRuntimeMonotonic > 500 ms`、tracking unavailable、またはOrigin version不一致ならRuntimeは`unavailable` tombstoneを送る。clientも同期済みRuntime monotonic timeで500 msを超えたsampleをlocal expiryし、次のfresh sampleまでAnchor childを描画せずhit-testしない。
+- 初回 / 再接続keyframeは全Element Stateに加えて、そのcutでvisibleな全Anchor-bound Nodeのfresh sampleまたは`unavailable`をexactly onceで含む。Projected Runtime Snapshot自体にはAnchorを含めず、clientは初回keyframeまたは後続fresh sampleの到着まで該当Nodeをunavailableにする。
+- clientは一つのState FrameのElement patch、Anchor patch、`baseReliableSequence`、`presentationOriginVersion`をatomicに適用する。各render / hit sampleでは最後に適用したframeSequence、Control cut、Origin、Anchor setをfreezeし、一つのlogical runtime timeでactive Runを評価する。visual Transformとauthoritative hit-testに別のcutを使わない。
 
 ### 8.5 Clock synchronization
 
 割り当て済み Runtime の clock を active session の基準とする。Quest は定期的な ping / pong で Runtime との clock offset と RTT を推定する。
 
 - Cue / Transition / playback に Runtime 時刻を付ける。
-- Quest は `producedAt` と推定 offset を使って interpolation buffer を制御する。
+- Quest は`producedAtRuntimeMonotonic`と推定offsetをtransport / freshness判定に、`producedAtRuntimeTime`をTimeline / media interpolationに使い、二つのtime domainを減算しない。
 - RTT や jitter の急増時も古い state を順に再生せず、最新 state へ追従する。
 
 ## 9. 高トラフィックへの対応
