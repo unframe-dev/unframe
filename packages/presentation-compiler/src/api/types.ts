@@ -8,6 +8,7 @@ import type {
 import type { EncodeLimits } from "@unframe/presentation-assets";
 import type { PresentationDefinition, RenderBundle } from "@unframe/presentation-core";
 import type { RendererPlugin } from "@unframe/presentation-renderer-api";
+import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 
 export type CompilerDeclarationProject = {
   presentation: PresentationDeclaration;
@@ -15,9 +16,24 @@ export type CompilerDeclarationProject = {
   components: readonly {
     manifest: ComponentManifest;
     structure: ComponentStructure;
-    lock: ComponentPackageLock;
+    lock: Required<ComponentPackageLock>;
   }[];
   assets: Readonly<Record<string, PresentationDefinition["assets"][string]>>;
+};
+export type DeclarationProjectThemeHash = {
+  readonly themeId: string;
+  readonly hash: string;
+};
+export type DeclarationProjectComponentLock = {
+  readonly componentId: string;
+  readonly version: number;
+  readonly lock: Required<ComponentPackageLock>;
+};
+export type DeclarationProjectAssemblyInput = {
+  readonly catalog: PairedAuthoringDeclarationCatalog;
+  readonly themeHashes: readonly DeclarationProjectThemeHash[];
+  readonly componentLocks: readonly DeclarationProjectComponentLock[];
+  readonly assets: Readonly<Record<string, PresentationDefinition["assets"][string]>>;
 };
 export type CheckedDeclarationProject = {
   definition: PresentationDefinition;

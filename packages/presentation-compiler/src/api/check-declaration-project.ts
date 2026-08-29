@@ -510,7 +510,8 @@ const checkDeclarationProjectUnchecked = (
         "Asset references must resolve.",
       ),
     );
-  for (const [assetId, asset] of Object.entries(assets))
+  const referencedAssetIds = new Set(presentation.assets.map((asset) => asset.assetId));
+  for (const [assetId, asset] of Object.entries(assets)) {
     if (
       !isRecord(asset) ||
       Object.keys(asset).some((key) => !["id", "mediaType", "checksum"].includes(key)) ||
@@ -525,6 +526,15 @@ const checkDeclarationProjectUnchecked = (
           "Asset descriptors must match their key and portable contract shape.",
         ),
       );
+    if (!referencedAssetIds.has(assetId))
+      diagnostics.push(
+        diagnostic(
+          "compiler-asset-unreferenced",
+          ["assets", assetId],
+          "Asset carrier entries must be referenced by the presentation.",
+        ),
+      );
+  }
   if (
     Object.values(presentation.flow.groups).some((group) =>
       Object.values(group.steps).some((step) => step.cues.length),

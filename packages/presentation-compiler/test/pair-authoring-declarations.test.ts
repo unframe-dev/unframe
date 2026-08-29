@@ -8,7 +8,10 @@ import {
   frame,
 } from "@unframe/presentation";
 import type { CollectedAuthoringDeclaration } from "../src/project/collect-authoring-declarations.js";
-import { pairAuthoringDeclarations } from "../src/project/pair-authoring-declarations.js";
+import {
+  pairAuthoringDeclarations,
+  resolveAuthoringStructurePath,
+} from "../src/project/pair-authoring-declarations.js";
 
 const origin = (fileName: string, start = 0) => ({
   fileName,
@@ -102,6 +105,20 @@ const nullPrototype = (value: unknown): unknown => {
   }
   return value;
 };
+
+describe("resolveAuthoringStructurePath", () => {
+  it("resolves a root-contained POSIX relative structure path", () => {
+    expect(
+      resolveAuthoringStructurePath("components/Button.manifest.ts", "./Button.structure.tsx"),
+    ).toBe("components/Button.structure.tsx");
+    expect(
+      resolveAuthoringStructurePath("components/Button.manifest.ts", "../Shared.structure.tsx"),
+    ).toBe("Shared.structure.tsx");
+    expect(
+      resolveAuthoringStructurePath("Button.manifest.ts", "../escape.structure.tsx"),
+    ).toBeUndefined();
+  });
+});
 
 describe("pairAuthoringDeclarations", () => {
   it("pairs structured manifest and structure deterministically while retaining collected entries", () => {

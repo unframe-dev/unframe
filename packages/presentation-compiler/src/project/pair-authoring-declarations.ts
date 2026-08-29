@@ -71,7 +71,10 @@ const diagnosticAt = (
   message: string,
 ): DeclarationCollectionDiagnostic => ({ code, message, ...originAt(declaration, path) });
 
-const pathForStructure = (manifestFileName: string, value: string): string | undefined => {
+export const resolveAuthoringStructurePath = (
+  manifestFileName: string,
+  value: string,
+): string | undefined => {
   const relative = value.startsWith("./") ? value.slice(2) : value;
   if (
     relative.length === 0 ||
@@ -113,7 +116,7 @@ const potentialStructurePath = (declaration: CollectedAuthoringDeclaration): str
   const authoring = ownDataValue(declaration.value, "authoring");
   const structure = ownDataValue(authoring, "structure");
   return typeof structure === "string"
-    ? pathForStructure(declaration.fileName, structure)
+    ? resolveAuthoringStructurePath(declaration.fileName, structure)
     : undefined;
 };
 
@@ -296,7 +299,7 @@ export const pairAuthoringDeclarations = (
   for (const manifest of manifestsByIdentity.values()) {
     const authoring = manifest.value.authoring;
     if (authoring.mode !== "structured") continue;
-    const structurePath = pathForStructure(manifest.fileName, authoring.structure);
+    const structurePath = resolveAuthoringStructurePath(manifest.fileName, authoring.structure);
     if (!structurePath) {
       diagnostics.push(
         diagnosticAt(

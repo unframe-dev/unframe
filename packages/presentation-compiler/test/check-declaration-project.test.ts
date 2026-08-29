@@ -503,6 +503,12 @@ describe("checkDeclarationProject", () => {
     inheritedAsset.presentation.assets = [{ kind: "asset-ref", assetId: "toString" }];
     expect(codes(inheritedAsset)).toContain("compiler-asset-not-found");
 
+    const unreferencedAsset = project();
+    unreferencedAsset.assets = {
+      unused: { id: "unused", mediaType: "image/png", checksum: "checksum" },
+    };
+    expect(codes(unreferencedAsset)).toContain("compiler-asset-unreferenced");
+
     const malformedStructure = project();
     (malformedStructure.components[0] as unknown as { structure: unknown }).structure = {};
     const malformedStructureResult = checkDeclarationProject(malformedStructure);
