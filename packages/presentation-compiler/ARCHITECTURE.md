@@ -98,6 +98,8 @@ M1 Static DSL は、各 declaration file の default export を、provenance 検
 
 Programmatic API は command line、stdout、process exit、global current directory に依存しない。
 
+M1 filesystem hostとprocess entryは`presentation-cli`が所有する。CLIはreference Authoring Projectのconfig / lockをvirtual inputへ変換し、この公開APIへ渡す。`nix run .#presentation`は同じ入力をFixed Browserで2回buildし、Definition、RenderBundle、PNG asset setの全bytesが一致することを検証する。
+
 ## 6. Invariants
 
 以下は target pipeline 全体の invariant である。現在の初期 subset は Component Action / Output、Interaction、Timeline、Opaque renderer を lower せず、入力で明示的に拒否する。
@@ -143,5 +145,5 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 - ADR-0011でAcceptedになったSurface partition / author isolate overrideのM3〜M4実装
 - ADR-0012でAcceptedになったresolution / count / aggregate build budgetのM3〜M4実装
 - cache layout と remote cache policy
-- Browser process / isolate topology
-- diagnostics の stability policy
+- M1後のBrowser pooling / multi-project isolate topology
+- release間のdiagnostic compatibility policy

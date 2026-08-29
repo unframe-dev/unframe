@@ -2517,7 +2517,7 @@ dist/
 
 ## 17. 現行実装との関係
 
-この文書は目標アーキテクチャである。2026-08-29 時点の現行実装について、次を区別する。
+この文書は目標アーキテクチャである。2026-08-30 時点の現行実装について、次を区別する。
 
 ### Current
 
@@ -2529,6 +2529,7 @@ dist/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
+- M1 Local Compilerは、reference Authoring Sourceを実行せず、明示filesystem rootのconfig / lockからDefinition、RenderBundle、PNGを生成する。`check`はBrowserを起動せず、`build`はFixed Browserを使用してmanaged `dist`を成功時だけatomic replacementする。
 
 ### Target（目標。初期contract subsetの一部だけが現行実装）
 
@@ -2537,7 +2538,7 @@ dist/
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
 - Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Source frontendからCompiler compositionへの接続
-- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成は実装済み。M1 local outputのfile nameは`definition.json`であり、real filesystem config / lock とatomic outputはM1で接続する）
+- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成、M1 filesystem config / lockとatomic outputは実装済み。M1 local outputのfile nameは`definition.json`）
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）
@@ -2550,7 +2551,7 @@ dist/
 - Native UI portable contract
 - DeliveryManifest Protobuf
 - Unity の hybrid renderer graph
-- Deterministic Local Compiler の filesystem host、reference project、atomic artifact publication（M1未完了）
+- M1を超えるLocal Compiler cache、watch / dev / preview / publish、完全なSemantic / Runtime contract
 
 既存の `PresentationDefinition` schema をこの文書だけで置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI/Protobuf artifact、Web/Unity consumer、contract testを同期する。
 

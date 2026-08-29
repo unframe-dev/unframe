@@ -3,6 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
+- **Current Goal scope**: Milestone 1 完了まで。Milestone 3〜6 は未完了の後続 Goal として保持する
 - **Architecture source**:
   - [Presentation Architecture](../presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../presentation/DESIGN.md)
@@ -10,7 +11,7 @@
 
 ## 1. 目的
 
-現在の `packages/` は、Presentation package chain の初期 subset まで実装済みである。一方で、Authoring Source から実際の build artifact を生成する一貫経路、完全版の Semantic / Runtime contract、Delivery、C# generation は未完成である。
+現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。一方で、完全版の Semantic / Runtime contract、Delivery、C# generation は未完成である。
 
 本計画は、未実装事項を package ごとの独立した TODO として消化するのではなく、各段階で利用可能な結果を残す縦断的な milestone として整理する。
 
@@ -18,17 +19,17 @@
 
 ## 2. 現在地
 
-Presentation Implementation Design が定義する初期実装順のうち、`packages/contracts/presentation` から `presentation-cli` までの初期 subset は実装済みである。ただし、次の分断が残っている。
+Presentation Implementation Design が定義する初期実装順のうち、`packages/contracts/presentation` から `presentation-cli` までの M1 subset は実装済みである。その縦断経路と、先に残る分断は次のとおりである。
 
 ```text
 presentation.unframe.tsx
-        ↓ 未接続: module / symbol resolution、typecheck、AST lowering
-post-lowering PresentationDeclaration
-        ↓ 実装済み: initial static subset の検証と lowering
+        ↓ 実装済み: virtual resolution、typecheck、Static DSL lowering、assembly
 PresentationDefinition
-        ↓ 実装済み: injected renderer による初期 build
+        ↓ 実装済み: Fixed Browser capture と deterministic PNG encode
 RenderBundle + PNG
-        ↓ 未接続: filesystem CLIからの実 Browser利用、cache、publish / delivery
+        ↓ 実装済み: filesystem CLI の managed staging / atomic dist replacement
+M1 local artifact
+        ↓ 未接続: cache、publish / delivery
 consumer
 ```
 
@@ -42,11 +43,11 @@ consumer
 | `packages/presentation-core`         | 初期 Definition / RenderBundle 検証、Semantic Tree materialization、canonical JSON / hash                | Cue / Action / Timeline、Projection、Runtime Snapshot、migration、完全な lifetime / visibility closure                        |
 | `packages/presentation-authoring`    | Manifest、Structure、Theme、Presentation declaration API                                                 | Static DSL の確定、Source との接続、Lossless Syntax Tree / source patch、lock / distribution                                  |
 | `packages/presentation-components`   | static な標準 Surface / Frame / Text                                                                     | Props / Slots / Variants、型付き Theme、Spatial、Interaction、Action / Output、Opaque component、migration                    |
-| `packages/presentation-compiler`     | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | real filesystem lock resolver、cache、M1より広いStatic DSL                                                                    |
+| `packages/presentation-compiler`     | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | cache、M1より広いStatic DSL                                                                                                   |
 | `packages/presentation-renderer-api` | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability                             |
 | `packages/presentation-renderer-web` | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                                        |
 | `packages/presentation-assets`       | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                                                |
-| `packages/presentation-cli`          | injected host の headless check / build、TUI command selector、M1 filesystem contract                    | filesystem host実装、watch / dev / preview / test / publish                                                                   |
+| `packages/presentation-cli`          | filesystem check / build、process signal / build lock、atomic output、TUI command selector               | TUIとprocess commandの接続、watch / dev / preview / test / publish                                                            |
 | `packages/config`                    | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備                        |
 
 ## 3. 実装原則
@@ -173,14 +174,18 @@ contracts
 - Manifest の `authoring.structure` entry を正本に、Presentation、Theme、Component `(componentId, version)`、Structure を source map 付きで決定論的に対応付ける declaration catalog
 - parse、typecheck、lower、normalize、collect、pair を接続し、TypeScript内部状態を漏らさず plain catalog または source diagnostic を返す公開 `checkAuthoringProject`
 
-source map付きcatalogと明示的なTheme hash、Component package lock、Asset carrierを一意に対応付け、canonical `CompilerDeclarationProject`へ変換するpure assemblyは実装済みである。Source frontendからassembly / compileへの公開compositionも接続済みで、source / assembly / compileの失敗phaseを区別し、checked Definitionを再利用する。serialized lock、canonical hash、explicit filesystem root、managed output、signal policy は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) でAcceptedとしたが、process entry、reference acceptance、実装は引き続き未完了である。
+source map付きcatalogと明示的なTheme hash、Component package lock、Asset carrierを一意に対応付け、canonical `CompilerDeclarationProject`へ変換するpure assemblyを実装した。Source frontendからassembly / compileへの公開compositionも接続し、source / assembly / compileの失敗phaseを区別してchecked Definitionを再利用する。
 
-Fixed Browser は `playwright-core@1.62.1` のmanaged Chromium headless shellを明示provisionし、Nixでruntime libraryとNoto Sans CJK JP fontconfigを固定する。adapterはcaptureごとの隔離context、network / filesystem deny、fixed clock / random、PNG decode前resource preflight、cancel / close cleanupを所有する。font fingerprintは固定glyph baselineの実capture RGBAから内部導出し、Browser versionとともにrenderer identityへ反映する。通常package checkは実Browserを起動せずunit testを実行し、明示integration testで同一font fingerprintとclock / random captureの再現性を検証する。
+Fixed Browser は `playwright-core@1.62.1` のmanaged Chromium headless shellを明示provisionし、Nixでruntime libraryとNoto Sans CJK JP fontconfigを固定する。adapterはcaptureごとの隔離context、network / filesystem deny、fixed clock / random、PNG decode前resource preflight、signal / cancel / close cleanupを所有する。font fingerprintは固定glyph baselineの実capture RGBAから内部導出し、Browser versionとともにrenderer identityへ反映する。通常package checkは実Browserを起動せずunit testを実行する。
 
-次は Accepted 済みの [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) を、暫定形式や暗黙 fallback を作らずに実装する。
+2026-08-30 に [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) の M1 filesystem contractを実装した。
 
-- serialized `unframe.lock` v1 と Component package integrity verification
-- explicit filesystem root、static config loader、staging / atomic replacement
+- absolute real project root、data-only config、serialized `unframe.lock` v1、package / declaration integrityをfail closedで検証する。
+- `check` はBrowser factoryを読まず、`build`だけがFixed Browserを起動する。
+- project build lock、generation staging、成功時だけのatomic `dist` replacementにより、失敗時はpartial outputを公開しない。
+- Bun process entryが単一signalを所有し、cancel、late Browser launch、Browser cleanup、lock releaseをstable diagnosticへ反映する。
+- `examples/presentation`をtemp copyへ2回実buildし、Definition、RenderBundle、全PNGのrelative pathとSHA-256が一致するacceptanceを`nix run .#presentation`へ接続した。
+- `nix flake check`、`nix run .#presentation`、repository-wide `nix run .#check`が成功した。
 
 Static DSL は 2026-08-29 に次の M1 contract で確定した。
 
@@ -190,15 +195,15 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 - named import alias は元の locked package export provenance を保持する場合に限り許可する。
 - JSX-first authoring とより広い static expression は M1 より後へ延期する。
 
-これらに依存しない trust boundary、diagnostic、documentation、review は継続する。Milestone 1 の checklist は、Source から実 Browser artifact までの完了条件を満たすまで未完了のままとする。
+JSX-first authoring とより広い static expression は M1 に含めず、Milestone 3以降の後続Goalまで明示的にdeferする。M1実装の独立Review / Fix loopでは、確認済みの未対応P1/P2がない状態まで収束した。
 
 ### 完了条件
 
-- reference `.unframe.tsx` から CLI で Definition、RenderBundle、PNG を生成できる。
-- 同一 toolchain と同一入力を二回 build した artifact hash が一致する。
-- Authoring declaration codeを実行せずに buildできる。
-- `usage`、syntax、type、semantic、renderer、I/O、cancel の failure family が区別された stable diagnostic になる。
-- `nix run .#presentation` と repository-wide `nix run .#check` が成功する。
+- [x] reference `.unframe.tsx` から CLI で Definition、RenderBundle、PNG を生成できる。
+- [x] 同一 toolchain と同一入力を二回 build した artifact hash が一致する。
+- [x] Authoring declaration codeを実行せずに buildできる。
+- [x] `usage`、syntax、type、semantic、renderer、I/O、cancel の failure family が区別された stable diagnostic になる。
+- [x] `nix run .#presentation` と repository-wide `nix run .#check` が成功する。
 
 ## 6. Milestone 2: Blocking contract の確定
 
@@ -229,7 +234,7 @@ Surface Partitionのcanonical paint run、required renderer / compositing bounda
 
 Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compiler aggregate budget、Delivery GPU / load CPU tier、全State preload、readiness、active pin / LRU evictionは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。current実装はper-encode PNG hard capだけを持ち、Compiler / Delivery / Realtime / Unityへのtarget実装はM3〜M5で接続する。
 
-M2のblocking contract 6項目はすべてAcceptedとなった。本Goalは未完了のM1 project assembly / reference Browser / CLIに限定する。M3〜M6は後続Goalとして未完了のまま保持し、このGoalでは実装を開始しない。
+M2のblocking contract 6項目はすべてAcceptedとなった。今回のGoalはM1 project assembly / reference Browser / CLIの完了までに限定した。M3〜M6は後続Goalとして未完了のまま保持し、このGoalでは実装を開始しない。
 
 ### 完了条件
 
@@ -450,7 +455,7 @@ GoalでMilestoneを実行する場合も、この終了条件をGoalの完了条
 ## 13. 実行順チェックリスト
 
 - [x] Milestone 0: 品質基盤の補修
-- [ ] Milestone 1: `.unframe.tsx`からartifactまでのLocal Compiler縦断経路
+- [x] Milestone 1: `.unframe.tsx`からartifactまでのLocal Compiler縦断経路
 - [x] Milestone 2: Blocking contractの確定
 - [ ] Milestone 3A: ThemeとStructured composition
 - [ ] Milestone 3B: State、Interaction、Hit Region
