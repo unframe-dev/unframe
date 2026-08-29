@@ -10,6 +10,8 @@ export type DeclarationSourceOrigin = {
   readonly fileName: string;
   readonly start: number;
   readonly end: number;
+  readonly line: number;
+  readonly column: number;
 };
 
 export type DeclarationGraphValue =
@@ -200,6 +202,8 @@ export const lowerAuthoringDeclarationFile = (
     fileName: displayFileName,
     start: node.getStart(sourceFile),
     end: node.getEnd(),
+    line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
+    column: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).character + 1,
   });
   const report = (node: ts.Node, code: string, message: string) =>
     diagnostics.push(displayDiagnostic(sourceFile, node, code, message, displayFileName));

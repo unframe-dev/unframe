@@ -116,6 +116,8 @@ describe("lowerAuthoringDeclarationFile", () => {
             fileName: "presentation.ts",
             start: rootStart,
             end: sourceText.length - 1,
+            line: 2,
+            column: rootStart - sourceText.lastIndexOf("\n"),
           },
           arguments: [
             {
@@ -152,6 +154,44 @@ describe("lowerAuthoringDeclarationFile", () => {
       },
       diagnostics: [],
     });
+  });
+
+  it("preserves UTF-16 offsets and line columns after multiline emoji text", () => {
+    const sourceText = [
+      'import { definePresentation, stringProp } from "@unframe/presentation";',
+      "export default definePresentation({",
+      '  emoji: "😀",',
+      "  value: stringProp({",
+      '    label: "ok",',
+      "  }),",
+      "});",
+    ].join("\n");
+    const result = lower(sourceText);
+    const position = (text: string) => {
+      const start = sourceText.indexOf(text);
+      const lineStart = sourceText.lastIndexOf("\n", start);
+      return {
+        fileName: "presentation.ts",
+        start,
+        end: start + text.length,
+        line: sourceText.slice(0, start).split("\n").length,
+        column: start - lineStart,
+      };
+    };
+    if (!result.ok) throw new Error("expected lowered declaration");
+    const rootObject = result.graph.root.arguments[0];
+    if (rootObject?.kind !== "object") throw new Error("expected root object");
+    const emoji = rootObject.properties[0];
+    const value = rootObject.properties[1];
+    expect(emoji).toMatchObject({ key: "emoji", origin: position("emoji") });
+    expect(value).toMatchObject({ key: "value", origin: position("value") });
+    if (value?.value.kind !== "builder-call") throw new Error("expected nested builder");
+    expect(value.value.origin).toEqual(position('stringProp({\n    label: "ok",\n  })'));
+    const nestedObject = value.value.arguments[0];
+    if (nestedObject?.kind !== "object") throw new Error("expected nested object");
+    const label = nestedObject.properties[0];
+    expect(label?.origin).toEqual(position("label"));
+    expect(label?.value).toMatchObject({ origin: position('"ok"') });
   });
 
   it("rejects unprovenanced root forms and root builders nested as values", () => {

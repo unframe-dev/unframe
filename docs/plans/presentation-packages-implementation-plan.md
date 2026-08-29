@@ -164,8 +164,10 @@ contracts
 - TypeChecker alias、package identity、exact export、declaration owner に基づく named value symbol provenance
 - provenance 検証済み builder import、direct default root、JSON-like expression の Static DSL validation
 - builder 実装を実行しない、UTF-16 source origin 付き個別 declaration file の plain Declaration Graph lowering
+- builder call を実行しない単一 Declaration Graph の plain declaration value normalization
+- normalized JSON path と value / property key / generated field origin を対応させる deterministic sidecar source map
 
-個別 Declaration Graph の project-wide assembly、post-lowering declaration への normalization、Source frontend の public API 接続は引き続き未実装である。
+個別 Declaration Graph の project-wide assembly、`CompilerDeclarationProject` への接続、Source frontend の public API 接続は引き続き未実装である。
 
 次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
 
