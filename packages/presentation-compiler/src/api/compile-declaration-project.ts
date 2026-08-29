@@ -26,6 +26,7 @@ import type {
   CompilerBuildOptions,
   CompilerDeclarationProject,
   CompiledDeclarationProject,
+  CheckedDeclarationProject,
 } from "./types.js";
 
 const invalidCompileOptions = (message: string): ValidationResult<never> => ({
@@ -36,8 +37,11 @@ const invalidCompileOptions = (message: string): ValidationResult<never> => ({
 const compileUnchecked = async (
   input: unknown,
   options: unknown,
+  checkedOverride?: CheckedDeclarationProject,
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
-  const checked = checkDeclarationProject(input);
+  const checked = checkedOverride
+    ? { valid: true as const, value: checkedOverride, diagnostics: [] as const }
+    : checkDeclarationProject(input);
   if (!checked.valid) return checked;
   const optionsSnapshot = safeBuildOptionsSnapshot(options);
   if (!optionsSnapshot.valid) return optionsSnapshot;
@@ -298,6 +302,12 @@ const compileUnchecked = async (
     diagnostics: [],
   };
 };
+
+export const compileCheckedDeclarationProject = (
+  project: CompilerDeclarationProject,
+  checked: CheckedDeclarationProject,
+  options: unknown,
+) => compileUnchecked(project, options, checked);
 
 export const compileDeclarationProject = async (
   input: unknown,

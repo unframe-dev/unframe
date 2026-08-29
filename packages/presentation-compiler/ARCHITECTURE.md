@@ -90,6 +90,8 @@ M1 Static DSL は、各 declaration file の default export を、provenance 検
 - `checkDeclarationProject`: post-lowering declaration の限定 subset を検査し Definition を返す。Renderer は実行しない
 - `checkAuthoringProject`: virtual Authoring source を実行せず検査し、source origin 付き declaration catalog を返す
 - `assembleDeclarationProject`: checked catalog と明示 carrier から、source-map を含まない canonical `CompilerDeclarationProject` を返す
+- `checkAuthoringProjectAssembly`: virtual source と catalog を上書きできない carrier を接続し、phase 付き失敗または Checked Definition を返す
+- `compileAuthoringProject`: 同じ source-to-assembly 経路を Renderer / PNG compilation へ接続する
 - `compileDeclarationProject`: 明示された build context、Renderer plugin、encoder limits から Definition、RenderBundle、PNG asset bytes を返す
 - diagnostics: stable code、severity、semantic path、source range
 - build metadata: source、lock、config、Compiler、renderer environment の hash / provenance

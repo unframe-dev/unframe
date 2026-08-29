@@ -7,6 +7,7 @@ import type {
 } from "@unframe/presentation";
 import type { EncodeLimits } from "@unframe/presentation-assets";
 import type { PresentationDefinition, RenderBundle } from "@unframe/presentation-core";
+import type { Diagnostic } from "@unframe/presentation-core";
 import type { RendererPlugin } from "@unframe/presentation-renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 
@@ -35,6 +36,19 @@ export type DeclarationProjectAssemblyInput = {
   readonly componentLocks: readonly DeclarationProjectComponentLock[];
   readonly assets: Readonly<Record<string, PresentationDefinition["assets"][string]>>;
 };
+export type DeclarationProjectAssemblyCarrier = Omit<DeclarationProjectAssemblyInput, "catalog">;
+export type AuthoringProjectPipelineResult<T> =
+  | { readonly valid: true; readonly value: T; readonly diagnostics: [] }
+  | {
+      readonly valid: false;
+      readonly phase: "source";
+      readonly diagnostics: readonly import("./check-authoring-project.js").AuthoringProjectDiagnostic[];
+    }
+  | {
+      readonly valid: false;
+      readonly phase: "assembly" | "compile";
+      readonly diagnostics: readonly Diagnostic[];
+    };
 export type CheckedDeclarationProject = {
   definition: PresentationDefinition;
   definitionJson: string;

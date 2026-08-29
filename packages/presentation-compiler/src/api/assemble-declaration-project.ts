@@ -4,7 +4,7 @@ import { sortDiagnostics, diagnostic } from "../diagnostics/diagnostics.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { resolveAuthoringStructurePath } from "../project/pair-authoring-declarations.js";
 import { checkDeclarationProject } from "./check-declaration-project.js";
-import type { CompilerDeclarationProject } from "./types.js";
+import type { CheckedDeclarationProject, CompilerDeclarationProject } from "./types.js";
 
 const nonEmptyStringSchema = z.string().min(1);
 const sourceOriginSchema = z
@@ -267,9 +267,12 @@ const duplicateDiagnostics = <T>(
 };
 
 /** Assembles source-free compiler declarations from a checked Authoring catalog and explicit carriers. */
-export const assembleDeclarationProject = (
+export const assembleDeclarationProjectValidated = (
   input: unknown,
-): ValidationResult<CompilerDeclarationProject> => {
+): ValidationResult<{
+  project: CompilerDeclarationProject;
+  checked: CheckedDeclarationProject;
+}> => {
   const snapshot = safePlainClone(input);
   if (!snapshot.valid) return snapshot;
   const parsed = assemblyInputSchema.safeParse(snapshot.value);
@@ -390,5 +393,14 @@ export const assembleDeclarationProject = (
     ) as CompilerDeclarationProject["assets"],
   };
   const checked = checkDeclarationProject(project);
-  return checked.valid ? { valid: true, value: project, diagnostics: [] } : checked;
+  return checked.valid
+    ? { valid: true as const, value: { project, checked: checked.value }, diagnostics: [] as const }
+    : checked;
+};
+
+export const assembleDeclarationProject = (
+  input: unknown,
+): ValidationResult<CompilerDeclarationProject> => {
+  const result = assembleDeclarationProjectValidated(input);
+  return result.valid ? { valid: true, value: result.value.project, diagnostics: [] } : result;
 };

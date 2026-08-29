@@ -173,7 +173,7 @@ contracts
 - Manifest の `authoring.structure` entry を正本に、Presentation、Theme、Component `(componentId, version)`、Structure を source map 付きで決定論的に対応付ける declaration catalog
 - parse、typecheck、lower、normalize、collect、pair を接続し、TypeScript内部状態を漏らさず plain catalog または source diagnostic を返す公開 `checkAuthoringProject`
 
-source map付きcatalogと明示的なTheme hash、Component package lock、Asset carrierを一意に対応付け、canonical `CompilerDeclarationProject`へ変換するpure assemblyは実装済みである。hash / package integrity / Asset metadataのresolver、Source frontendからassembly / compileへの公開composition、real `unframe.lock`読取りは引き続き未実装である。
+source map付きcatalogと明示的なTheme hash、Component package lock、Asset carrierを一意に対応付け、canonical `CompilerDeclarationProject`へ変換するpure assemblyは実装済みである。Source frontendからassembly / compileへの公開compositionも接続済みで、source / assembly / compileの失敗phaseを区別し、checked Definitionを再利用する。hash / package integrity / Asset metadataのresolverとreal `unframe.lock`読取りは引き続き未実装である。
 
 次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
 
