@@ -125,15 +125,17 @@ inverseFit(physicalPlane) =
 ```
 
 ```text
-visible = geometry
-  intersect SemanticSurface([0, W) x [0, H))
+surfaceVisibleWindow =
+  SemanticSurface([0, W) x [0, H))
   intersect inverseFit(physicalPlane)
+
+partitionVisible = geometry
   intersect RenderSurface.logicalBounds
 ```
 
 `contain`のinverse physical viewportはlogical domainより広いためcontent側でclipされ、余りはletterboxになる。`cover`ではinverse physical viewportがlogical domainの部分集合となり、cropされたgeometryとregionを出力しない。複数Render Surfaceへpartitionしてもnormalized Hit RegionはSemantic Surface全体を分母にし、partition-local `rx / ry`やUVをDeliveryへ出さない。partition境界にまたがる一つのbuttonは複数regionへ分割でき、ADR-0009のduplicate / canonical order規則に従う。
 
-clipのauthorityは一方向にする。Compilerはfit scale、inverse physical viewport、Render Surface boundsからcanonical visible clip windowを決定してrenderer planへ渡すが、rendererが返すconcrete geometryを先にclipしない。artifact producer（Browser renderer、またはNative UI planを生成するCompiler stage）がこのwindowとのintersectionを一度だけ適用してartifact / Hit Regionを出力する。Presentation Coreは出力がwindow内であることを再検証し、再clipや補正を行わず違反をbuild errorにする。
+clipのauthorityは一方向にする。CompilerはまずRender Surfaceに依存しない`surfaceVisibleWindow`を決定し、raw visual unionとのintersectionから各`RenderSurface.logicalBounds`を導出する。次にそのboundsをpartition clip windowとしてrenderer planへ渡すが、rendererが返すconcrete geometryを先にclipしない。artifact producer（Browser renderer、またはNative UI planを生成するCompiler stage）がこのwindowとのintersectionを一度だけ適用し、partition-local private geometry / regionを出力する。Compiler aggregate stageはregionを再clipせずSemantic Surface normalized coordinateへ変換し、Presentation Coreは出力がwindow内であることを再検証して、補正せず違反をbuild errorにする。
 
 ### Numeric and validation policy
 
@@ -152,7 +154,7 @@ Cross-language fixtureは少なくともidentity、nested translation / rotation
 | Contracts                | finite local TRS、positive scale / size、Quaternion tuple、logical boundsのportable runtime shape        |
 | Presentation Core        | parent graph、Quaternion norm / sign、TRS / matrix invariant、bounds / fit / regionのsemantic validation |
 | Compiler                 | Quaternion / local TRS canonicalization、world matrix、fit / partition / canonical clip windowの決定     |
-| Renderer API / Web       | top-left logical / pixel geometry、clip windowの一回適用、normalized Hit Region                          |
+| Renderer API / Web       | top-left logical / pixel geometry、clip windowの一回適用、partition-local private region                 |
 | Control Plane / Delivery | coordinate contract / capability versionの一致とportable artifactのfail-closed validation                |
 | Unity                    | Z reflection、Surface / UV、binary64 authoritative ray inverse / hit-testとvisual float rangeを検証      |
 
@@ -186,4 +188,4 @@ resolution、partition、graphics APIへinteraction authorityが依存するた�
 - M3でContracts / Core / Compiler / rendererにcoordinate fixtureとstable diagnosticを追加する。
 - M4のreference projectでcontain / cover / stretchとpartition境界のbrowser render / hit fixtureを追加する。
 - M5でDelivery contract versionとUnity EditMode fixtureを接続する。
-- M2 item 5で本ADRのvisible intersectionを前提にSurface Partitionとauthor overrideを固定する。
+- [x] M2 item 5で本ADRのvisible intersectionを前提にSurface Partitionとauthor overrideを [ADR-0011](0011-surface-partition-contract.md) へ固定した。

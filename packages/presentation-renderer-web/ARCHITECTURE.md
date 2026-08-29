@@ -40,7 +40,7 @@ Compiler が決定した Render Surface partition を build input として受�
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
 - absolute root `Frame` と direct `Text` の HTML/CSS lower、state capture、raw RGBA ownership transfer
 - locked virtual packageからのOpaque TS/TSX/JS/JSX/JSON bundleとCSS/asset emit
-- Compiler が入力を検証・partition し、`presentation-assets` への encode / checksum 委譲と RenderBundle 組立を行う
+- Compilerが入力を検証し、現行subsetではSemantic Surface全体を一partitionにして、`presentation-assets`へのencode / checksum委譲とRenderBundle組立を行う
 
 ### Target
 
@@ -147,7 +147,7 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 - Browser process / isolate の具体方式と binary provisioning
 - Opaque bundleとRenderer plugin/Browser isolateの接続
-- Surface partition の author override
+- ADR-0011で確定したmulti-partition plan / private region aggregateの実装
 - capture resolution、GPU / RAM budget
 - visual regression tolerance と platform baseline
 - Frame/Text 以外の Structured Primitive、style token の concrete 解決、interaction Hit Region

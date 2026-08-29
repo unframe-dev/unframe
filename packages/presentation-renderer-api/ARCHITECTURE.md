@@ -50,7 +50,9 @@ conformance harness も、identity / capabilities / method reference を一度�
 prepared input だけを `support` / `build` へ渡す。Concrete renderer が同じ境界を直接利用する場合も、
 返された prepared input を以後の唯一の入力とする。
 
-出力は encode 前の RGBA capture、Surface State ごとの normalized Hit Region、resolved geometry、diagnostics、provenance とする。Raw bytes の所有権は build result とともに caller へ移り、Renderer は返却後に buffer を変更しない。Renderer は PresentationDefinition の意味を書き換えず、Asset ID や最終 RenderBundle binding も決定しない。
+target出力はencode前のRGBA capture、Surface Stateごとのpartition-local `RendererPrivateHitRegion`、resolved geometry、diagnostics、provenanceとする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。RendererはPresentationDefinitionの意味を書き換えず、Asset ID、portable `HitRegion`、最終RenderBundle bindingも決定しない。
+
+Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つのplanだけを処理する。target planはexactly-once ownershipの`ownedContentNodeIds`と複製可能な`contextNodeIds`を分離する。renderer outputのregionはpartition-private geometryであり、Compiler aggregate stageが再clipせずSemantic Surface normalized regionへ変換・結合する。APIは別partitionを探索、merge、reorderしない。
 
 ## 4. Invariants
 
@@ -102,9 +104,9 @@ Conformance harness は renderer implementation の process topology を固定�
 
 ## 9. Current implementation
 
-最初の milestone は Compiler が解決した一つの Semantic Surface と Render Surface plan を、`static` / `interaction: none` / `internalAnimation: none` / `baked-web` / `reject` の Structured Frame / Text rendererへ渡す契約を実装する。
+最初のmilestoneはCompilerが一つのSemantic Surface全体を一つのRender Surface planへlowerし、`static` / `interaction: none` / `internalAnimation: none` / `baked-web` / `reject`のStructured Frame / Text rendererへ渡すsubsetを実装する。ADR-0011のmulti-partition planning、provenance、aggregate regionはM3〜M4で接続する。
 
-Renderer は state ごとの未 encode RGBA capture と normalized Hit Region geometry を返す。PNG encode、checksum、Asset ID、最終的な RenderBundle artifact / state binding は `presentation-assets` と Compiler が所有する。Renderer が plan、完成 Semantic Tree、入力 hash を変更することを許可しない。
+現行Rendererはstateごとの未encode RGBA captureとSemantic Surface normalized `HitRegion`を返す一partition subsetである。M3でplanのowned/context分離とpartition-local `RendererPrivateHitRegion`へ置換し、Compiler aggregateによるportable `HitRegion`生成と同時に移行する。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`presentation-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
 `presentation-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を cache key と `environmentHash` の入力に含める責務を持つが、Compiler 未実装の現時点では integration test も未実装であり、この API 単体は hash への包含を検証したとは主張しない。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 

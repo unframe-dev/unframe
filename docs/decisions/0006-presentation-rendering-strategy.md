@@ -197,7 +197,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を [Surface State](../presentation/ARCHITECTURE.md#124-surface-state)、[Action](../presentation/ARCHITECTURE.md#127-action)、[Timeline](../presentation/ARCHITECTURE.md#128-timeline) で定義する。
 - [x] Surface State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#132-semantic-tree)、[Native UI Artifact](../presentation/ARCHITECTURE.md#143-native-ui-artifact)、[DeliveryManifest](../presentation/ARCHITECTURE.md#35-deliverymanifest) で定義する。
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#surface-transition--interaction-wire-contract) で定義する。
-- [ ] Component から Render Surface への partition 規則、自動化範囲、author override を決定する。
+- [x] ComponentからRender Surfaceへのpartition規則、自動化範囲、author overrideを [ADR-0011](0011-surface-partition-contract.md) で定義する。
 - [x] ADR-0005の基礎座標系を前提に、Transform / matrix / Quaternion / Unity / Surface / UVの完全な規約を [ADR-0010](0010-spatial-surface-coordinate-contract.md) で定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。

@@ -195,8 +195,11 @@ type ProjectionProfileKey = {
 };
 
 type DeliveredRenderSurface = {
+  semanticSurfaceId: SemanticSurfaceId;
+  logicalBounds: LogicalBounds;
+  layer: UInt32;
   rendererKind: "baked-web" | "native-ui" | "video";
-  rendererContractVersion: number;
+  artifactContractVersion: UInt32;
   stateBindings: Record<
     SurfaceStateId,
     { kind: "empty" } | { kind: "artifact"; artifactId: RendererArtifactId }
@@ -204,6 +207,7 @@ type DeliveredRenderSurface = {
 };
 
 type ProjectedSemanticSurface = {
+  renderSurfaceIds: RenderSurfaceId[];
   semanticsByState: Record<SurfaceStateId, ProjectedSemanticTree>;
   interactionsByState: Record<SurfaceStateId, ResolvedInteractiveRegion[]>;
 };
@@ -243,6 +247,8 @@ type DeliveryManifest = {
   assetAccess: AssetAccessBinding[];
 };
 ```
+
+各`ProjectedSemanticSurface.renderSurfaceIds`はimmutable RenderBundleの該当Semantic Surfaceに属する完全なpartition集合をlayer昇順でexactly onceに持つ。`ProjectionProfileDescriptor.renderSurfaces`のkey集合はvisible Semantic Surfaceごとのordered IDのunionと一致し、各`DeliveredRenderSurface`の`semanticSurfaceId`、`logicalBounds`、`layer`はRenderBundle metadataと完全一致しなければならない。不可視Surfaceのpartition、欠落・余分・duplicate ID、layer gap / duplicate、metadata drift、compatible artifact不在はprofile単位でatomicに拒否する。Deliveryは`rendererKind`、artifact自身の`contractVersion` / `requiredFeatures`、target capabilityから`artifactContractVersion`とbindingを選び、build時renderer identityのstring `contractVersion`とは比較しない。
 
 Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`projectionContractVersion` は visibility closure と renderer 選択規則を含む projection algorithm の互換性境界であり、cache namespace の一部とする。`ProjectionProfileId` は descriptor の canonical content に対応し、同じ PublicationFence、projection contract version、role、正規化済み capability profile の participant ごとに作り直さない。
 
@@ -503,6 +509,8 @@ export const Hero = defineComponentManifest({
 ```
 
 GUI は Manifest から Inspector と編集可能範囲を構築する。Structured Component の `renderers` は対応可能な generic renderer を宣言する compatibility metadata であり、Component 固有 implementation entry ではない。renderer 実装を解析して公開契約を推測しない。
+
+Partの`overridable`は`content`、`placement`、`style`に加えて`partition`を宣言できる。`partition` permissionを持つ公開Partだけがinstance側の`{ kind: "isolate" }`を受けられ、Structure Part bindingが一つのstable subtree rootへ解決する。authorはRenderSurfaceId、bounds、layer、rendererを指定しない。完全なpartition override contractは [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 ### 5.2 Structured Component source boundary
 
@@ -946,6 +954,7 @@ Compiler は次の invariant を検証する。
 一つの Semantic Surface は一つ以上の Render Surface へ lower する。Native UI、Baked Web、Video はいずれも Render Surface の renderer artifact として扱い、Semantic Surface と並列の意味 identity を作らない。
 
 ```ts
+// Target M3 portable shape. Current generated schema remains the M1 subset.
 type RenderSurface = {
   id: RenderSurfaceId;
   semanticSurfaceId: SemanticSurfaceId;
@@ -955,7 +964,8 @@ type RenderSurface = {
     width: number;
     height: number;
   };
-  layer: number;
+  layer: UInt32;
+  partitionStrategyVersion: 1;
   artifacts: Record<RendererArtifactId, SurfaceRendererArtifact>;
   stateBindings: Record<SurfaceStateId, RenderSurfaceStateBinding>;
 };
@@ -964,16 +974,19 @@ type RenderSurfaceStateBinding =
   { kind: "empty" } | { kind: "artifacts"; artifactIds: RendererArtifactId[] };
 ```
 
-`logicalBounds` は親 Semantic Surface の logical coordinate space で表す。RenderSurfaceId は同じ source、lockfile、Compiler version、configuration に対して決定的に生成するが、author-stable ID ではなく、Compiler version や partition strategy が変われば変更できる。
+`logicalBounds` は親 Semantic Surface の logical coordinate spaceで表す。RenderSurfaceIdはauthor-stable IDではなく、partition strategy、SemanticSurfaceId、renderer contract、paint順のowned Node、bounds、layerのcanonical descriptorから導出するbuild-local IDである。完全なalgorithmとprovenanceは [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 lowering は次を満たさなければならない。
 
 - 一つの Render Surface は一つの Semantic Surface だけに所属し、Semantic Surface boundary を越えて内容を統合しない。
 - 複数 Surface の texture atlas や GPU batching は Asset / Runtime 最適化であり、Render Surface identity を統合しない。
 - Render Surface の集合、bounds、layer はすべての Surface State に対して同じ build 内で固定する。状態ごとに内容が存在しない partition は明示的な empty binding を持てる。
+- renderable content NodeはCompiler internal planの`ownedContentNodeIds`で一partitionだけが所有し、structural context Nodeは`contextNodeIds`としてrenderer planへ複製できるがownershipへ重複計上しない。どちらもportable RenderBundle / DeliveryManifestへ出さない。
+- partitionはcanonical paint interval順にlayer `0..N-1`を重複なく持ち、小さい値からback-to-frontに合成する。bounds overlapとtransparent gapは許可する。
 - すべての到達可能な Surface State について、各 Render Surface が選択可能な artifact、native plan、または明示的な empty binding を持つ。
 - `artifacts` binding の `artifactIds` は空でなく、同じ Render Surface の `artifacts` に存在しなければならない。
 - DeliveryManifest は target capability に応じ、各 Render Surface の到達可能な Surface State ごとに互換な artifact を一つ、または RenderBundle が宣言した `empty` を選択する。非 empty state の選択は同じ renderer kind / contract version で解釈できなければならない。
+- compatible artifactが存在しない場合は暗黙fallbackせず、`delivery-artifact-unavailable`でDeliveryManifest全体をatomicに拒否する。
 
 Runtime contract が参照できる ID を次に固定する。
 
@@ -991,7 +1004,7 @@ RenderSurfaceId は Trigger、Guard、Action、Timeline、Snapshot、Reliable Ev
 
 `media.play`、`media.pause`、`media.seek` と `mediaCompleted` も SemanticSurfaceId を参照し、同じ Semantic Surface の media partition を一つの canonical media run として扱う。独立した再生位置や完了判定が必要な media は別 Semantic Surface に分ける。Render Surface や renderer acknowledgement を media authority にしない。
 
-Render Surface の具体的な partition algorithm、自動化範囲、author override、artifact format は Rendering / Delivery follow-up で定義する。
+v1はrequired renderer / compositing boundaryとManifestが許可した公開Partの`isolate`だけでcanonical paint atom列を最大runへ分割する。同じ要件のatomをtexture sizeやNode数のheuristicだけで分けず、authorはRenderSurfaceId、bounds、layer、rendererを指定しない。Compilerが全partitionのprivate regionをSemantic Surface normalized Hit Regionへaggregateし、Coreがreject-onlyで検証する。詳細は [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 ## 8. Frame Layout
 
@@ -1148,6 +1161,8 @@ type SurfaceRenderIntent = {
   fallbackPolicy: "reject" | "degrade";
 };
 ```
+
+click `InteractionDefinition`とAuthoring `InteractionDeclaration`はrequired `hitPriority: UInt32`を持つ。これはoverlap時のhit-test winnerを決めるsemantic authorityであり、Compilerがrenderer plan / Hit Regionへcopyする。rendererやDeliveryはpriorityを生成・変更せず、未指定値へ暗黙defaultを置かない。M3のschema移行で現行declarationへbreakingに追加する。
 
 Renderer の基本選択規則は次のとおりとする。
 
@@ -2179,6 +2194,20 @@ RenderBundle の `surfaces` key は PresentationDefinition の SemanticSurfaceId
 - `NativeUIArtifact`
 - `VideoArtifact`
 
+全artifact kindは次のcommon compatibility envelopeを持つ。
+
+```ts
+type SurfaceRendererArtifactCompatibility =
+  | { kind: "baked-web"; contractVersion: 1; requiredFeatures: BakedWebFeature[] }
+  | { kind: "native-ui"; contractVersion: 1; requiredFeatures: NativeUIFeature[] }
+  | { kind: "video"; contractVersion: 1; requiredFeatures: VideoFeature[] };
+
+type BakedWebFeature = "png" | "srgb" | "alpha-opaque" | "alpha-straight" | "alpha-premultiplied";
+type VideoFeature = "h264" | "vp9" | "av1" | "alpha" | "audio";
+```
+
+各concrete artifactの`kind`、`contractVersion`、UTF-16 code-unit昇順かつduplicate-freeな`requiredFeatures`はこのenvelopeと一致し、未知version / featureをfail closedで拒否する。Baked Webは`png`、`srgb`、alpha featureのいずれか一つをexactly onceで持つ。Videoはcodec featureを一つだけ持ち、`alpha` / `audio`は実際に含むtrackだけに付ける。Deliveryはnormalized Capability Profileが許可するkind / version / feature closureと照合し、選択したartifactの`contractVersion`を`DeliveredRenderSurface.artifactContractVersion`へcopyする。build-time `RendererIdentity.contractVersion: string`はrenderer plugin APIの互換性であり、artifact compatibilityへ流用しない。
+
 ### 14.2 Baked Web Artifact
 
 Surface State ごとに一つ以上の解像度 artifact を持つ。
@@ -2519,6 +2548,7 @@ presentation/
 - [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を 12.11 で定義した。
 - [x] Spatial TRS / matrix / Quaternion、Unity handedness、Surface logical / physical / raster / UV変換を [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) で定義した。
+- [x] Surface Partitionのautomatic boundary、Part isolate override、derived ID / layer / region aggregateを [ADR-0011](../decisions/0011-surface-partition-contract.md) で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
@@ -2529,7 +2559,7 @@ presentation/
 
 1. [x] role 別 Semantic schema と Hit Region の完全 schemaは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした（current flat schemaの実装置換はM3 Slice B）。
 2. [x] Transform / Quaternion / matrix / Unity / Surface / UV座標規約は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) でAcceptedとした（fixtureとconsumer実装はM3〜M5）。
-3. Component から Surface への分割規則、partition の自動化範囲、author override
+3. [x] ComponentからSurfaceへのpartition規則とauthor overrideは [ADR-0011](../decisions/0011-surface-partition-contract.md) でAcceptedとした（実装はM3〜M4）。
 4. Texture state artifact 数と GPU / RAM build budget
 5. Resolution、mipmap、compression、preload、eviction policy
 6. Component Manifest と renderer implementation の drift 検証
@@ -2540,8 +2570,7 @@ presentation/
 
 blockingなTimeline / transport / Semantic / coordinate contractはAcceptedになった。次のRendering / Delivery設計は次の順で閉じる。
 
-1. Surface Partition
-2. Texture / GPU / RAM budget
+1. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 

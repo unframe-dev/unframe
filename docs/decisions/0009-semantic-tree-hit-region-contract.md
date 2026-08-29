@@ -125,9 +125,11 @@ type ResolvedInteractiveRegion = {
 
 `UInt32`はwire上の`0..4_294_967_295`のintegerを表すportable scalarである。Hit Regionはruntime identityを持たず、array positionもcommandやSnapshotから参照しない。現行portable contractが任意number、renderer conformanceがnon-negative integerを要求するdriftはM3でcontract側を`UInt32`へ厳格化して解消する。`event`は持たず、Runtime Coreが`interactionId`からPresentationDefinitionのcanonical eventを解決する。異なるInteractionが同じeventを共有することは許可するが、authorityとhit-test結果は常にInteraction IDで扱う。regionを持つ全Interactionのeventは`SurfaceRenderIntent.interaction.events`に含まれなければならず、rendererはintentにないeventを追加できない。
 
-`x` / `y` / `width` / `height` は有限値で、`0 <= x < 1`、`0 <= y < 1`、`0 < width <= 1 - x`、`0 < height <= 1 - y`を満たす。rendererはSemantic Surfaceから外れるgeometryをsurface boundaryでclipし、clip後に面積がないregionを出力しない。boundsはRender Surface、texture、pixel、UVの座標ではなくSemantic Surface全体のnormalized logical coordinateである。logical / UV / Unity変換はM2 item 4を正本とする。
+canonical Interaction definitionはrequired `hitPriority: UInt32`を持ち、Authoring `InteractionDeclaration`も同じ値を明示する。Compilerはこの値をprivate / portable regionへcopyし、renderer、Delivery、clientは変更しない。M3では現行Interaction declaration / schemaをbreakingに拡張し、暗黙defaultやsemantic orderからの推測を追加しない。
 
-一つのInteraction / button Nodeが複数regionを持つこととregion同士のoverlapを許可する。`interactionId + semanticNodeId + x + y + width + height`が同じregionはpriorityにかかわらずduplicateとしてinvalidとする。rendererは出力境界で拒否し、Presentation CoreもRenderBundle全体のcross-artifact invariantとして再検証する。canonical array orderとhit-test winnerは`priority`降順、次に`interactionId`、`semanticNodeId`のRFC 8785と同じUTF-16 code-unit昇順、最後に`x`、`y`、`width`、`height`の数値昇順とする。local input pointは`0 <= x < 1`、`0 <= y < 1`とし、rectangleはleft / top inclusive、right / bottom exclusiveで判定する。候補の先頭regionの`interactionId`を選ぶ。
+`x` / `y` / `width` / `height` は有限値で、`0 <= x < 1`、`0 <= y < 1`、`0 < width <= 1 - x`、`0 < height <= 1 - y`を満たす。target pipelineではartifact producerがADR-0011のpartition-local private regionを一度だけclipし、Compiler aggregateがSemantic Surface全体のnormalized logical coordinateへ変換する。aggregate後に面積がないregionを出力しない。portable boundsはRender Surface、texture、pixel、UVの座標を持たない。logical / UV / Unity変換とclip authorityはADR-0010、private regionのexact shapeとaggregateはADR-0011を正本とする。
+
+一つのInteraction / button Nodeが複数regionを持つこととregion同士のoverlapを許可する。`interactionId + semanticNodeId + x + y + width + height`が同じregionはpriorityにかかわらずduplicateとしてinvalidとする。artifact producerはpartition-local private region内のduplicateを拒否し、Presentation CoreはCompiler aggregate後にRenderBundle全体のcross-partition invariantとして再検証する。canonical array orderとhit-test winnerは`priority`降順、次に`interactionId`、`semanticNodeId`のRFC 8785と同じUTF-16 code-unit昇順、最後に`x`、`y`、`width`、`height`の数値昇順とする。local input pointは`0 <= x < 1`、`0 <= y < 1`とし、rectangleはleft / top inclusive、right / bottom exclusiveで判定する。候補の先頭regionの`interactionId`を選ぶ。
 
 各regionは同じStateのCompleted treeにある`stateEnabled: true`のbutton Nodeを参照し、そのbuttonの`interactionId`とregionの`interactionId`が一致しなければならない。enabled Interactionは一つ以上のregionを持ち、disabled / unknown Interaction、excluded / non-button Nodeはregionを持てない。State recordは到達可能な全Stateをexactly onceで含む。
 
@@ -143,7 +145,7 @@ Semantic Surfaceはhost Spatial Nodeの`ProjectionAudience`を全体として継
 
 Definition schemaとCompleted schemaを混同せず、unknown role、unknown required field、roleに禁止されたfield、unsupported schema versionはfail closedとする。同じversionで許可する追加は全consumerが安全に無視できるoptional metadataだけとし、role、required field、parent / child relation、hit-test規則の変更はbreaking changeとする。
 
-現行`schemaVersion: 1`は未公開のinitial subsetであるため、M3ではflat schemaを新しいv1 shapeへ一括置換し、legacy unionやfallbackを追加しない。fixture、generated JSON Schema、Core、Compiler、renderer、reference projectを同じcommit系列で更新する。
+現行`schemaVersion: 1`は未公開のinitial subsetであるため、M3ではflat schemaを新しいv1 shapeへ一括置換し、legacy unionやfallbackを追加しない。現行Renderer APIがnormalized `HitRegion`を直接返す一partition contractも同時にprivate region / Compiler aggregateへ置換する。fixture、generated JSON Schema、Core、Compiler、renderer、reference projectを同じcommit系列で更新する。
 
 ## Consumer responsibility
 
@@ -152,7 +154,7 @@ Definition schemaとCompleted schemaを混同せず、unknown role、unknown req
 | Contracts                | Definition / Completed role union、override、Hit Regionのportable Zod sourceとgenerated JSON Schema                              |
 | Presentation Core        | tree / role relation、State materialization、accessible value、button enabled、cross-artifact invariant                          |
 | Compiler                 | authoring role lowering、stable ID、dynamic binding、State completeness、canonical order                                         |
-| Renderer API / Web       | 完成Treeを変更せず、visible geometryをnormalized regionへ解決し、ID / bounds / coverageを検証                                    |
+| Renderer API / Web       | 完成Treeを変更せず、visible geometryをpartition-local private regionへ解決し、local ID / boundsを検証                            |
 | Control Plane / Delivery | audience / Session role / capability closureを検証し、Projected treeを生成してprofile外Tree / interaction / regionを配信前に除外 |
 | Unity / Web preview      | 同じCompleted treeからplatform semanticsを生成し、同じordered region hit-test fixtureを適用                                      |
 

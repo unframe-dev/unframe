@@ -207,7 +207,7 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限（[ADR-0008](../decisions/0008-runtime-transport-contract.md)）
 3. [x] role 別 Semantic Tree / Hit Region schema（[ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md)）
 4. [x] Transform、Quaternion、matrix、Unity、Surface / UV の座標規約（[ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md)）
-5. Surface Partition と author override
+5. [x] Surface Partition と author override（[ADR-0011](../decisions/0011-surface-partition-contract.md)）
 6. Texture state artifact 数、GPU / RAM build budget
 
 各項目では、意味、authority、source of truth、wire field、failure、compatibility、consumer の責務まで決める。判断を必要とする次項目へ進む前に、対応する Architecture / ADR を更新する。
@@ -224,7 +224,9 @@ Semantic roleごとのstrict union、Definition / Completed treeの分離、requ
 
 Spatial TRS / matrix合成、Quaternion canonical sign、Canonical↔UnityのZ reflection、Semantic Surface logical / physical fit、Render Surface / raster / UV / Hit Region変換は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) でAcceptedとした。M2では設計だけを固定し、cross-language fixtureとContracts / Core / Compiler / renderer / Unity実装はM3〜M5で接続する。
 
-次はitem 5のSurface Partitionとauthor overrideを確定する。
+Surface Partitionのcanonical paint run、required renderer / compositing boundary、公開Partの`isolate` override、state-invariant bounds / layer、derived ID、cross-partition Hit Region aggregateは [ADR-0011](../decisions/0011-surface-partition-contract.md) でAcceptedとした。current Compilerは一Surface一partitionのM1 subsetであり、target implementationはM3〜M4で接続する。
+
+次はitem 6のTexture state artifact数とGPU / RAM build budgetを確定する。
 
 ### 完了条件
 
