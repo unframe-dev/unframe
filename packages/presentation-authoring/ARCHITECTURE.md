@@ -54,6 +54,20 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 
 具体的な許可構文の判定、parse、typecheck、symbol resolution は Compiler が所有する。
 
+M1 の declaration source は、各 file が対応する public definition builder の直接呼出しを default export する。
+
+```ts
+import { definePresentation } from "@unframe/presentation";
+
+export default definePresentation({
+  // JSON-like declaration
+});
+```
+
+Compiler が認識するのは、locked `@unframe/presentation` package の root export として TypeChecker で provenance を検証できる named value import だけである。named import alias は元の public export を保持する場合に限り許可する。引数は JSON-like literal と、同じ規則で認識された builder の直接呼出しに限定する。
+
+JSX、任意関数、loop / branch、dynamic import、property access、spread、template expression、local variable / function を経由した builder alias は M1 では lower せず、stable diagnostic で拒否する。Source module と builder function を実行せず、AST から Declaration Graph へ lower する。JSX-first authoring、local const 参照、より広い static expression は後続の明示的な contract 判断まで追加しない。
+
 ## 5. Invariants
 
 - `presentation.unframe.tsx` は Component の配置と接続を行う composition root であり、Component 内部を展開した正本にしない。
@@ -91,7 +105,7 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 
 ## 9. Deferred decisions
 
-- Static DSL の完全な許可構文
+- M1 より広い Static DSL、JSX-first authoring、local const / expression evaluation
 - Lossless Syntax Tree / source patching library
 - `unframe.lock` と Component package distribution の形式
 - public API の正確な naming と versioning

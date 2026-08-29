@@ -165,10 +165,17 @@ contracts
 
 次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
 
-- Static DSL の完全な許可構文、composition root の entry export、TSX / JSX lowering
 - serialized `unframe.lock` と Component package distribution / integrity algorithm
 - Fixed Browser の process / isolate、binary provisioning、font baseline
 - real filesystem の project discovery、config loader、staging / atomic replacement strategy
+
+Static DSL は 2026-08-29 に次の M1 contract で確定した。
+
+- 各 declaration file は対応する public definition builder の直接呼出しを default export する。
+- builder 引数は JSON-like literal と provenance 検証済み named builder call だけを許可する。
+- JSX、任意関数、loop / branch、dynamic import、property access、spread、template expression、local builder alias は stable diagnostic で拒否する。
+- named import alias は元の locked package export provenance を保持する場合に限り許可する。
+- JSX-first authoring とより広い static expression は M1 より後へ延期する。
 
 これらに依存しない trust boundary、diagnostic、documentation、review は継続する。Milestone 1 の checklist は、Source から実 Browser artifact までの完了条件を満たすまで未完了のままとする。
 

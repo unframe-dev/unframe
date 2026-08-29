@@ -67,6 +67,8 @@ Source frontend は、明示的な logical project root、root-relative TS / TSX
 
 typecheck は strict ES2022、`noLib` で実行し、project root から到達しない package の ambient declaration を semantic program へ混入させない。一方、lock graph 全体の module specifier は preflight し、不正な dependency / export を owner-aware source diagnostic として拒否する。named value import は TypeChecker alias と package identity / export / declaration owner を照合し、plain-data symbol provenance を生成できる。Static DSL validation、AST lowering、normalization、cache、Source frontend の public API 接続は未実装である。
 
+M1 Static DSL は、各 declaration file の default export を、provenance 検証済みの `@unframe/presentation` root named value import に対する直接 builder call へ限定する。builder 引数は JSON-like literal と認識済み builder call だけを許可し、JSX、任意関数、control flow、dynamic import、property access、spread、template expression、local alias を stable diagnostic で拒否する。named import alias は元の package export provenance を保持する。Compiler は Authoring Source や builder implementation を実行しない。
+
 ## 5. Public API
 
 - `checkDeclarationProject`: post-lowering declaration の限定 subset を検査し Definition を返す。Renderer は実行しない
@@ -116,7 +118,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 
 ## 10. Deferred decisions
 
-- Static DSL の完全な許可構文、entry export、TSX / JSX lowering
+- M1 より広い Static DSL、named entry export、TSX / JSX lowering
 - plugin discovery と version negotiation
 - Surface partition algorithm と author override
 - cache layout と remote cache policy
