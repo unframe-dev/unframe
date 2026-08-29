@@ -111,3 +111,87 @@ export const canonicalJson = (value: unknown): string => {
   assertCanonicalUnicode(value);
   return normalizedJson(value);
 };
+
+const invalidPayload = (): never => {
+  throw new TypeError("Canonical JSON payload must contain only observably plain JSON values.");
+};
+
+const arrayIndex = (key: string): number | undefined => {
+  if (key === "0") return 0;
+  if (!/^[1-9][0-9]*$/u.test(key)) return undefined;
+  const value = Number(key);
+  return Number.isSafeInteger(value) && value < 2 ** 32 - 1 ? value : undefined;
+};
+
+const observedJsonValue = (value: unknown, ancestors: WeakSet<object>): JsonValue => {
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    assertValidUnicode(value);
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) invalidPayload();
+    return value;
+  }
+  if (typeof value !== "object" || value === null) return invalidPayload();
+
+  try {
+    if (ancestors.has(value)) return invalidPayload();
+    ancestors.add(value);
+    try {
+      if (Array.isArray(value)) {
+        if (Object.getPrototypeOf(value) !== Array.prototype) return invalidPayload();
+        const keys = Reflect.ownKeys(value);
+        const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+        if (lengthDescriptor === undefined || !("value" in lengthDescriptor))
+          return invalidPayload();
+        const length = lengthDescriptor.value;
+        if (!Number.isSafeInteger(length) || length < 0 || length >= 2 ** 32)
+          return invalidPayload();
+        const result: JsonValue[] = Array.from({ length });
+        const seen = new Set<number>();
+        for (const key of keys) {
+          if (key === "length") continue;
+          if (typeof key !== "string") return invalidPayload();
+          const index = arrayIndex(key);
+          if (index === undefined || index >= length) return invalidPayload();
+          const descriptor = Object.getOwnPropertyDescriptor(value, key);
+          if (
+            descriptor === undefined ||
+            !descriptor.enumerable ||
+            !("value" in descriptor) ||
+            seen.has(index)
+          )
+            return invalidPayload();
+          seen.add(index);
+          result[index] = observedJsonValue(descriptor.value, ancestors);
+        }
+        if (seen.size !== length) return invalidPayload();
+        return result;
+      }
+
+      const prototype = Object.getPrototypeOf(value);
+      if (prototype !== Object.prototype && prototype !== null) return invalidPayload();
+      const result = Object.create(null) as Record<string, JsonValue>;
+      for (const key of Reflect.ownKeys(value)) {
+        if (typeof key !== "string") return invalidPayload();
+        assertValidUnicode(key);
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor))
+          return invalidPayload();
+        result[key] = observedJsonValue(descriptor.value, ancestors);
+      }
+      return result;
+    } finally {
+      ancestors.delete(value);
+    }
+  } catch (error) {
+    if (error instanceof TypeError) throw error;
+    return invalidPayload();
+  }
+};
+
+export const canonicalJsonPayload = (value: unknown): string => {
+  const serialized = canonicalize(observedJsonValue(value, new WeakSet()));
+  return serialized ?? invalidPayload();
+};

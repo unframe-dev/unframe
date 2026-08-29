@@ -4,6 +4,7 @@ import definitionFixture from "../../contracts/presentation/fixtures/minimal.pre
 import bundleFixture from "../../contracts/presentation/fixtures/minimal.render-bundle.v1.json";
 import {
   canonicalizePresentationDefinition,
+  hashCanonicalJsonPayload,
   hashPresentationDefinition,
   materializeCompletedSemanticTree,
   validatePresentationArtifacts,
@@ -12,6 +13,56 @@ import {
 } from "../src/index.js";
 
 describe("presentation-core", () => {
+  describe("hashCanonicalJsonPayload", () => {
+    it("hashes an unmodified generic JSON payload using RFC 8785 key ordering", () => {
+      const payload = { b: 1, a: "x", values: ["second", "first"] };
+      const before = structuredClone(payload);
+
+      expect(hashCanonicalJsonPayload({ b: 1, a: "x" })).toBe(
+        "sha256:cdab067e9f3beb32d1252cfd63e492592fecbf591b0d08cadb24bb17f3864246",
+      );
+      expect(hashCanonicalJsonPayload(payload)).not.toBe(
+        hashCanonicalJsonPayload({ a: "x", b: 1, values: ["first", "second"] }),
+      );
+      expect(hashCanonicalJsonPayload(Object.freeze({ a: Object.freeze([1, 2]) }))).toBe(
+        hashCanonicalJsonPayload({ a: [1, 2] }),
+      );
+      expect(payload).toEqual(before);
+    });
+
+    it("rejects values that are not observably plain JSON", () => {
+      const accessor = {};
+      Object.defineProperty(accessor, "value", {
+        enumerable: true,
+        get() {
+          return 1;
+        },
+      });
+      const hostileProxy = new Proxy(
+        {},
+        {
+          ownKeys() {
+            throw new Error("hostile");
+          },
+        },
+      );
+
+      for (const value of [
+        undefined,
+        () => undefined,
+        Symbol("value"),
+        1n,
+        Number.NaN,
+        Number.POSITIVE_INFINITY,
+        "invalid-\ud800-unicode",
+        new Date(),
+        accessor,
+        hostileProxy,
+      ])
+        expect(() => hashCanonicalJsonPayload(value)).toThrow(TypeError);
+    });
+  });
+
   it("does not require ambient runtime globals for hashing or semantic materialization", () => {
     const textEncoder = Object.getOwnPropertyDescriptor(globalThis, "TextEncoder");
     const clone = Object.getOwnPropertyDescriptor(globalThis, "structuredClone");
