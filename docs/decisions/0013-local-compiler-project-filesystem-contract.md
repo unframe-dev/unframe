@@ -79,6 +79,8 @@ duplicate JSON key、不正 UTF-8、未知 required version、integrity mismatch
 
 公開前に全 hash と I/O close を検証して staging を `.unframe/generations/<generation-id>/` へ rename する。公開先は root 固定の `dist` であり、CLI が管理する relative symbolic link とする。既存 `dist` が正確に3 segmentの relative target `.unframe/generations/<validated-id>`（`validated-id` は同じ grammar）を指す symlink でない場合は、置換・削除せず I/O diagnostic で拒否する。公開はこの同じ3 segment targetを持つ new symlink を作成して `rename` する一回の atomic replacement とする。root、`.unframe`、`generations`、generation directory はすべて root 内の non-symlink directory であることを `lstat` と open 時に検証し、外部symlinkとpath traversalを拒否する。build は公開済み generation を変更せず、staging / failed generation を公開しない。M1 は persistent managed marker も過去 generation の cleanup も導入せず、cleanup 対象は今回の process が作成した staging だけに限る。
 
+同一 project に対する Unframe CLI の build は process 境界で直列化する。publication 中に別の非 Unframe process が project tree の directory entry を敵対的に差し替える場合に対する filesystem CAS は M1 の保証外とする。publication boundary は各 entry を commit point 直前まで再検証するが、この前提を越えて unmanaged entry と atomic replacement を同時に保護する kernel primitive は要求しない。
+
 ### Signal、cancel、Browser lifecycle
 
 process entry だけが `SIGINT` と `SIGTERM` listener を所有し、`AbortSignal` へ一回だけ変換する。library は global listener を追加・変更しない。process entry は listener を `finally` で必ず解除し、phase 境界で cancellation を確認する。同期 Compiler API は signal-aware ではないため signal を渡さない。Fixed Browser capture wrapper だけが同じ signal を capture に渡す。cancel を受けたら新規 phase を開始せず、active Browser context と Browser process を close し、今回の staging を cleanup する。signal による終了 code は 130 とする。
