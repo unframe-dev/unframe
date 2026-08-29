@@ -69,7 +69,9 @@ typecheck は strict ES2022、`noLib` で実行し、project root から到達�
 
 個別 declaration file については、M1 Static DSL の import、root builder、nested builder、JSON-like expression を fail closed で検証し、source origin 付きの plain-data Declaration Graph へ lower できる。builder signature は現行 public Authoring API の arity と基本 argument shape に固定し、Source module と builder implementation は実行しない。
 
-単一 Declaration Graph は、builder call を実行せず null-prototype の plain declaration value へ normalize できる。normalizer は予約 field の衝突と不正 Graph を fail closed で拒否し、正規化後の JSON path と value / property key / generated field の source origin を sidecar source map に保持する。複数 declaration file の project-wide assembly、`CompilerDeclarationProject` への接続、cache、Source frontend の public API 接続は未実装である。
+単一 Declaration Graph は、builder call を実行せず null-prototype の plain declaration value へ normalize できる。normalizer は予約 field の衝突と不正 Graph を fail closed で拒否し、正規化後の JSON path と value / property key / generated field の source origin を sidecar source map に保持する。
+
+project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、`*.structure.tsx` の role と root builder を照合し、project-relative filename 順で lower / normalize できる。補助 `.d.ts` と package-owned source は collection から除外し、未対応 suffix や role mismatch は全 file 分を canonical diagnostic として返す。Manifest / Structure の対応付け、Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly、cache、Source frontend の public API 接続は未実装である。
 
 M1 Static DSL は、各 declaration file の default export を、provenance 検証済みの `@unframe/presentation` root named value import に対する直接 builder call へ限定する。builder 引数は JSON-like literal と認識済み builder call だけを許可し、JSX、任意関数、control flow、dynamic import、property access、spread、template expression、local alias を stable diagnostic で拒否する。named import alias は元の package export provenance を保持する。Compiler は Authoring Source や builder implementation を実行しない。
 

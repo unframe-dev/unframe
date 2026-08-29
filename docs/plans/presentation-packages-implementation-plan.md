@@ -166,8 +166,10 @@ contracts
 - builder 実装を実行しない、UTF-16 source origin 付き個別 declaration file の plain Declaration Graph lowering
 - builder call を実行しない単一 Declaration Graph の plain declaration value normalization
 - normalized JSON path と value / property key / generated field origin を対応させる deterministic sidecar source map
+- entry、Theme、Manifest、Structure の file role と root builder を照合する project-wide declaration collection
+- package-owned source と補助 `.d.ts` を分離し、全 project file の失敗を集約する canonical diagnostic
 
-個別 Declaration Graph の project-wide assembly、`CompilerDeclarationProject` への接続、Source frontend の public API 接続は引き続き未実装である。
+Manifest / Structure の対応付け、Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly と、Source frontend の public API 接続は引き続き未実装である。
 
 次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
 

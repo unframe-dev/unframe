@@ -3,7 +3,14 @@ import type {
   DeclarationSourceOrigin,
 } from "../lowering/lower-authoring-declaration.js";
 
-type Json = null | boolean | number | string | Json[] | { readonly [key: string]: Json };
+export type NormalizedDeclarationValue =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly NormalizedDeclarationValue[]
+  | { readonly [key: string]: NormalizedDeclarationValue };
+type Json = NormalizedDeclarationValue;
 type PathSegment = string | number;
 
 export type DeclarationSourceMapEntry = {
