@@ -73,7 +73,9 @@ typecheck は strict ES2022、`noLib` で実行し、project root から到達�
 
 project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、`*.structure.tsx` の role と root builder を照合し、project-relative filename 順で lower / normalize できる。補助 `.d.ts` と package-owned source は collection から除外し、未対応 suffix や role mismatch は全 file 分を canonical diagnostic として返す。
 
-正規化済み collection は、Presentation 1件、Theme ID、Component `(componentId, version)` を検証し、Structured Manifest が所有する root-contained な `authoring.structure` entry から Structure を決定論的に対応付ける。複数versionが同じ Structure entryを共有することは許可し、Structure の `componentId` は参照元 Manifest と一致させる。pairing は source map 付き canonical diagnostic を全件集約し、失敗時に partial catalog を返さない。Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly、cache、Source frontend の public API 接続は未実装である。
+正規化済み collection は、Presentation 1件、Theme ID、Component `(componentId, version)` を検証し、Structured Manifest が所有する root-contained な `authoring.structure` entry から Structure を決定論的に対応付ける。複数versionが同じ Structure entryを共有することは許可し、Structure の `componentId` は参照元 Manifest と一致させる。pairing は source map 付き canonical diagnostic を全件集約し、失敗時に partial catalog を返さない。
+
+`checkAuthoringProject(unknown)` は virtual Source frontend の公開 pure boundary として parse、typecheck、lower、normalize、collect、pair を接続し、成功時は TypeScript の `Program` / `TypeChecker` を含まない plain declaration catalog、失敗時は source range 付き diagnostic を返す。builder implementation、filesystem、Browser は実行しない。Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly と cache は未実装である。
 
 post-lowering declaration の検査は Authoring package の pure type guard を利用し、definition builder を呼び出さない。Compiler の plain-data clone は `Object.prototype` と null-prototype の record を受理し、descriptor だけから null-prototype clone を作る。custom prototype、accessor、cycle、sparse array、symbol key、非 JSON 値は Zod や semantic validation に渡す前に拒否し、caller-owned getter や Proxy の `get` trap を実行しない。
 
@@ -82,6 +84,7 @@ M1 Static DSL は、各 declaration file の default export を、provenance 検
 ## 5. Public API
 
 - `checkDeclarationProject`: post-lowering declaration の限定 subset を検査し Definition を返す。Renderer は実行しない
+- `checkAuthoringProject`: virtual Authoring source を実行せず検査し、source origin 付き declaration catalog を返す
 - `compileDeclarationProject`: 明示された build context、Renderer plugin、encoder limits から Definition、RenderBundle、PNG asset bytes を返す
 - diagnostics: stable code、severity、semantic path、source range
 - build metadata: source、lock、config、Compiler、renderer environment の hash / provenance
