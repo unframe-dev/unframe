@@ -83,7 +83,7 @@ Session path の authority は Cloud または Venue Edge に配置された割�
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
 - GUI が任意の TSX、CSS、JavaScript を完全に逆解析できるとはみなさない。
-- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
+- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。M1 の project discovery、config / lock、hash、managed output は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) を正本とする。
 - Opaque renderer だけが通常の TS / React / CSS を bundle して renderer artifact を生成する。renderer の実行環境は Authoring DSL の lowering から分離する。
 - Control Plane と Unity Runtime は Authoring Source、React、CSS、renderer source を実行しない。
 - PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
@@ -143,7 +143,7 @@ PresentationDefinition
 └─ Opaque Asset References
 ```
 
-エンコード方式自体は意味モデルの一部ではないが、v1 の Local Compiler は PresentationDefinition を canonical `presentation.definition.json` として生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。
+エンコード方式自体は意味モデルの一部ではないが、v1 の Local Compiler は PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
 
 ### 3.4 RenderBundle
 
@@ -2444,6 +2444,8 @@ Unity Runtime
 
 Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
+M1 の local process は POSIX filesystem に限定し、明示された absolute project directory の realpath を root とする。同じ root の`unframe.config.ts`と`unframe.lock`を読み、上方探索はしない。config は AST で読む data-only `export default { entryFile }`、lock は `schemaVersion: 1`、package identity、self-contained package source、integrityを記録する UTF-8 JSON とし、いずれも実行・network lookup・symbolic link traversal を許可しない。`check` はこの入力と Source frontend までを検証して Browser を起動せず、`build` だけが Fixed Browser capture を行う。M1 の公開artifactは`definition.json`、`render-bundle.json`、`assets/*.png`だけであり、root固定の`dist`を今回生成したstagingからatomic replacementして公開する。`usage`、`syntax`、`type`、`semantic`、`renderer`、`io`、`cancel`の failureは family と exit code を区別し、commit point 前に previous output を維持する。正確な lock shape、hash、signal、diagnostic family は ADR-0013 に従う。
+
 ### Control Plane
 
 - Authoring source や renderer implementation を実行しない。
@@ -2469,7 +2471,7 @@ Control Plane は Presentation ごとに現在の PublishedPresentation を一�
 - calibration、viewport、selection、personal annotation、Local Overlay state を Client-local State として所有する。
 - TSX、CSS、React、Component implementation を解釈しない。
 
-## 16. 想定ファイル構成
+## 16. 目標アーキテクチャの想定ファイル構成
 
 ```text
 presentation/
@@ -2490,7 +2492,7 @@ presentation/
 ├─ .unframe-cache/
 │  └─ renderers/
 │     └─ CustomChart.web.bundle.js
-└─ dist/
+└─ dist/                                 # post-M1 full Delivery target
    ├─ presentation.definition.json
    ├─ presentation.render-bundle.json
    ├─ presentation.delivery-manifest.pb
@@ -2499,7 +2501,19 @@ presentation/
 
 `.unframe-cache/renderers/` は Local Compiler が Opaque renderer source から再生成できる中間 bundle を保持できるが、version control や publish には含めない。PublishedPresentation に含める renderer artifact は RenderBundle の一部として hash と provenance を固定する。
 
-`dist/presentation.definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
+### M1 Local Compiler output
+
+M1 の `dist` は managed generation を指す symlink であり、次だけを公開する。これは上記の system target layout と別の local-only artifact layout であり、Delivery artifactを含まない。
+
+```text
+dist/
+├─ definition.json
+├─ render-bundle.json
+└─ assets/
+   └─ <percent-encoded asset id>.png
+```
+
+`definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 
@@ -2516,12 +2530,14 @@ presentation/
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
 
-### Target（初期contract subsetのみ実装済み）
+### Target（目標。初期contract subsetの一部だけが現行実装）
+
+以下は target architecture であり、Current 節または各項目に実装済みと明記した部分以外を、現行機能として扱わない。
 
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
-- Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Opaque renderer bundling の build pipeline
-- Canonical `presentation.definition.json` の deterministic serialization（Core APIとpost-lowering declarationからのCompiler artifact生成は実装済み、Authoring Sourceからの接続は未実装）
+- Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Source frontendからCompiler compositionへの接続
+- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成は実装済み。M1 local outputのfile nameは`definition.json`であり、real filesystem config / lock とatomic outputはM1で接続する）
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）
@@ -2534,7 +2550,7 @@ presentation/
 - Native UI portable contract
 - DeliveryManifest Protobuf
 - Unity の hybrid renderer graph
-- Deterministic Local Compiler
+- Deterministic Local Compiler の filesystem host、reference project、atomic artifact publication（M1未完了）
 
 既存の `PresentationDefinition` schema をこの文書だけで置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI/Protobuf artifact、Web/Unity consumer、contract testを同期する。
 

@@ -1,26 +1,29 @@
 # Presentation CLI Architecture
 
-- **Status**: Current headless command boundary and interactive TUI shell
-- **Scope**: Authoring Project JSON を Compiler / Web Renderer に接続し、Bun 上の OpenTUI command selector と headless API を提供する
+- **Status**: Current injected headless boundary; M1 process host is planned
+- **Scope**: Authoring Project を Compiler / Web Renderer に接続し、Bun 上の OpenTUI command selector と headless API を提供する
 - **Related**:
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Presentation Compiler Architecture](../presentation-compiler/ARCHITECTURE.md)
   - [Web Renderer Architecture](../presentation-renderer-web/ARCHITECTURE.md)
+  - [ADR-0013: Local Compiler の project filesystem contract](../../docs/decisions/0013-local-compiler-project-filesystem-contract.md)
 
 ## 1. Role
 
 `presentation-cli` は headless な `runPresentationCli` と、interactive な `runPresentationTui` を別 entrypoint
-として公開する。CLI 自身は Authoring semantic rule、Renderer artifact、実ファイルシステムの置換を所有しない。
-Host が project JSON の読取り、Fixed Browser adapter、明示的 build context、単一の artifact write transaction
-を注入する。
+として公開する。CLI は Authoring semantic rule や renderer implementation を所有しないが、M1 の process adapter
+は ADR-0013 に従い explicit project root、data-only config / lock、Fixed Browser lifecycle、managed output の原子的公開を
+所有する予定である。現行実装は injected headless API までであり、process entry と reference-project acceptance は未接続
+である。headless application API は引き続き project reader、Fixed Browser adapter、明示的 build context、単一の artifact
+write transaction を注入できる。
 
 ```text
 runPresentationCli
-├─ parse explicit command and absolute paths
-├─ host.readProject(project.json)
-├─ check: presentation-compiler.checkDeclarationProject
+├─ parse explicit absolute project directory
+├─ M1 filesystem host: explicit root + config / lock, materialize virtual project
+├─ check: presentation-compiler.checkAuthoringProject（Browserなし）
 └─ build: compiler + presentation-renderer-web
-   └─ host.writeBuildArtifacts(output, complete artifact set)
+   └─ managed staging + atomic dist symlink replacement
 ```
 
 実装は package の public entrypoint だけを import する。Compiler / Renderer の内部 module を deep import
@@ -43,22 +46,25 @@ root export は native module を import しない。OpenTUI の Zig core を必
 または `pnpm tui` を使う。これにより Node / Vitest 上の headless check と build は native TUI lifecycle から
 独立する。
 
-## 2. Current command contract
+## 2. Command contract
 
-`args` は descriptor-safe snapshot の後に Zod 4 で検査する dense な string array であり、project JSON と output directory は絶対 path でなければならない。public input、command grammar、build context、host callback も Zod で boundary validation する。host の callback invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
+現行 public API の `args` は descriptor-safe snapshot の後に Zod 4 で検査する dense な string array である。M1
+process command は absolute project directory を受け、その realpath を root として同じ directory の`unframe.config.ts`、
+`unframe.lock`を読む。上方探索は行わない。public input、command grammar、build context、host callback も Zod で boundary validation する。host の callback
+invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 
 ```text
-check <absolute-project.json> [--format text|json]
-build <absolute-project.json> <absolute-output-dir> [--format text|json]
+check <absolute-project-directory> [--format text|json]
+build <absolute-project-directory> [--format text|json]
 ```
 
-`check` は project JSON を Compiler に渡すだけで、Browser adapter / Renderer を読まず、Compiler diagnostics
-を意味変更せず安定順で text または JSON に表示する。`build` は injected Fixed Browser adapter と build
-context から baked-web renderer を一つ作り、Compiler の公開 build API を呼ぶ。
+`check` は discovery、config、lock、Source frontend を検証するだけで、Browser adapter / Renderer を読まず起動しない。
+`build` だけが Fixed Browser adapter と build context から baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 
-Exit code は `0` が成功、`1` が domain diagnostics、`2` が usage / invocation、`3` が project I/O または
-write I/O である。成功時の JSON output は `ok: true`、失敗時は diagnostic array を持つ。text diagnostics は
-`path: code: message` の一行形式である。
+Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer`、`2` が `usage`、`3` が `io`、signal cancel の
+`130` が `cancel` である。成功時の JSON output は `ok: true`、失敗時は diagnostic array を持つ。diagnostic JSON は
+`"usage" | "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel"` の `family` field を必ず持ち、text diagnostics は
+`path: family/code: message` の一行形式である。family と順序は ADR-0013 に従う。
 
 ## 3. Artifact boundary
 
@@ -68,10 +74,11 @@ build の成功時だけ、CLI は次の deterministic な全ファイルを辞�
 - `render-bundle.json`
 - `assets/<percent-encoded asset id>.png`
 
-CLI は個別の file write、既存 output の削除、partial output の rollback を行わない。Host はこの complete
-artifact set を transaction として扱い、成功または失敗を返す。Compiler / Renderer の domain diagnostics は
-exit code `1`、project JSON の読取り・parse と host write の失敗は exit code `3` とする。どの失敗でも、
-write boundary は呼ばれないか、単一 boundary の失敗として扱う。
+injected host API は個別の file write、既存 output の削除、partial output の rollback を行わない。planned M1 filesystem host
+は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
+relative target の managed `dist` symlink を atomic replacement する。失敗または cancel では previous `dist` を維持し、今回の
+staging を公開しない。manifest と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
+discovery / read / write I/O は exit code `3` とする。
 
 ## 4. Interactive TUI boundary
 
@@ -100,12 +107,12 @@ Node.js の両方を提供する。
 
 以下は current implementation に含めない。
 
-- TUI command selection と実 headless command / filesystem host の接続
-- 実 Browser process の選定・起動・終了、capture、signal lifecycle
-- project discovery、TSX authoring、`unframe.config.ts`、lockfile、plugin discovery
+- TUI command selection と M1 process command の接続
+- process entry、reference project acceptance、`nix run .#presentation` への接続
+- remote package registry、plugin discovery、distribution update
 - `init`、`dev`、`test`、`preview`、`publish` command
 - watch / incremental cache、remote publish adapter、credential integration
-- real filesystem の staging / atomic replacement strategy
+- Windows / case-insensitive filesystem support
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
 package に移さない。
