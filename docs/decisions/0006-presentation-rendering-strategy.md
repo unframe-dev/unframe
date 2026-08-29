@@ -200,7 +200,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [x] ComponentからRender Surfaceへのpartition規則、自動化範囲、author overrideを [ADR-0011](0011-surface-partition-contract.md) で定義する。
 - [x] ADR-0005の基礎座標系を前提に、Transform / matrix / Quaternion / Unity / Surface / UVの完全な規約を [ADR-0010](0010-spatial-surface-coordinate-contract.md) で定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
-- [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
+- [x] Texture build budget、resolution、mipmap、compression、preload、eviction policyを [ADR-0012](0012-texture-budget-residency-contract.md) で定義する。
 - [x] role 別 Semantic schema と Hit Region の完全なschemaを [ADR-0009](0009-semantic-tree-hit-region-contract.md) で定義する。
 - [ ] Opaque renderer の Browser capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。

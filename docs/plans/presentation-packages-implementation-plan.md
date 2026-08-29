@@ -208,7 +208,7 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 3. [x] role 別 Semantic Tree / Hit Region schema（[ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md)）
 4. [x] Transform、Quaternion、matrix、Unity、Surface / UV の座標規約（[ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md)）
 5. [x] Surface Partition と author override（[ADR-0011](../decisions/0011-surface-partition-contract.md)）
-6. Texture state artifact 数、GPU / RAM build budget
+6. [x] Texture state artifact数、GPU / RAM build budget（[ADR-0012](../decisions/0012-texture-budget-residency-contract.md)）
 
 各項目では、意味、authority、source of truth、wire field、failure、compatibility、consumer の責務まで決める。判断を必要とする次項目へ進む前に、対応する Architecture / ADR を更新する。
 
@@ -226,7 +226,9 @@ Spatial TRS / matrix合成、Quaternion canonical sign、Canonical↔UnityのZ r
 
 Surface Partitionのcanonical paint run、required renderer / compositing boundary、公開Partの`isolate` override、state-invariant bounds / layer、derived ID、cross-partition Hit Region aggregateは [ADR-0011](../decisions/0011-surface-partition-contract.md) でAcceptedとした。current Compilerは一Surface一partitionのM1 subsetであり、target implementationはM3〜M4で接続する。
 
-次はitem 6のTexture state artifact数とGPU / RAM build budgetを確定する。
+Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compiler aggregate budget、Delivery GPU / load CPU tier、全State preload、readiness、active pin / LRU evictionは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。current実装はper-encode PNG hard capだけを持ち、Compiler / Delivery / Realtime / Unityへのtarget実装はM3〜M5で接続する。
+
+M2のblocking contract 6項目はすべてAcceptedとなった。次は未完了のM1 project assembly / reference Browser / CLIを完了してから、M3の縦断実装へ進む。
 
 ### 完了条件
 
@@ -448,7 +450,7 @@ GoalでMilestoneを実行する場合も、この終了条件をGoalの完了条
 
 - [x] Milestone 0: 品質基盤の補修
 - [ ] Milestone 1: `.unframe.tsx`からartifactまでのLocal Compiler縦断経路
-- [ ] Milestone 2: Blocking contractの確定
+- [x] Milestone 2: Blocking contractの確定
 - [ ] Milestone 3A: ThemeとStructured composition
 - [ ] Milestone 3B: State、Interaction、Hit Region
 - [ ] Milestone 3C: Action、Output、Trigger、Cue

@@ -232,8 +232,26 @@ type ProjectionInstance = {
 type AssetAccessBinding = {
   assetId: AssetId;
   checksum: ContentHash;
+  mediaType: string;
+  encodedSizeBytes: UInt64;
   url: string;
   expiresAt: string;
+};
+
+type TextureResidencyBindingV1 = {
+  assetId: AssetId;
+  checksum: ContentHash;
+  pixelSize: readonly [width: UInt32, height: UInt32];
+  pixelFormat: "rgba8-unorm-srgb";
+  mipCount: 1;
+  decodedGpuBytes: UInt64;
+  peakLoadCpuBytes: UInt64;
+  memoryEstimateVersion: 1;
+};
+
+type TextureResidencyPlanV1 = {
+  budgetTierId: "texture-baseline-v1";
+  textures: TextureResidencyBindingV1[];
 };
 
 type DeliveryManifest = {
@@ -245,6 +263,7 @@ type DeliveryManifest = {
   projectionProfile: ProjectionProfileDescriptor;
   projectionInstance: ProjectionInstance;
   assetAccess: AssetAccessBinding[];
+  textureResidency: TextureResidencyPlanV1;
 };
 ```
 
@@ -252,7 +271,7 @@ type DeliveryManifest = {
 
 Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`projectionContractVersion` は visibility closure と renderer 選択規則を含む projection algorithm の互換性境界であり、cache namespace の一部とする。`ProjectionProfileId` は descriptor の canonical content に対応し、同じ PublicationFence、projection contract version、role、正規化済み capability profile の participant ごとに作り直さない。
 
-Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed URL を含まない。これらの participant / assignment 固有値と期限付き Asset access binding は DeliveryManifest の instance 側で解決する。client が申告した capability を authorization に使用せず、Control Plane が正規化・検証した `CapabilityProfileId` は renderer compatibility の選択だけに使用する。
+Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed URL を含まない。これらの participant / assignment 固有値と期限付き Asset access binding は DeliveryManifest の instance 側で解決する。`assetAccess`はProjectionがselectedしたAsset ID集合と完全一致し、各Asset IDをexactly once、Asset IDのUTF-16 code-unit昇順で持つ。duplicate、missing / extra binding、同じAsset IDのdescriptor不一致はManifest全体をrejectする。各bindingはdownload検証に必要なmedia type / encoded sizeを運び、`textureResidency`はselected textureをchecksum、Asset ID順でexactly onceに持つ。Unityは両者とProjection内のartifact descriptorが一致すること、GPU sum / CPU maxが`budgetTierId`の上限内であることを再検証する。client が申告した capability を authorization に使用せず、Control Plane が正規化・検証した `CapabilityProfileId` は renderer compatibility の選択だけに使用する。
 
 `DeliveredRenderSurface` は Render Surface ごと、かつ到達可能な Surface State ごとに選択結果を固定する。`empty` 以外の各 state は同じ renderer contract で解釈できる artifact を一つ持たなければならず、Unity が実行時に候補から再選択しない。これにより、state A と state B が異なる artifact を必要とする場合も一つの profile で完全に配信できる。
 
@@ -2148,6 +2167,25 @@ Hit region は Semantic Surface State ごとに解決し、bounds は Render Sur
 ## 14. RenderBundle
 
 ```ts
+type NormalizedTextureBuildPolicyV1 = {
+  policyVersion: 1;
+  resolutionPolicyVersion: 1;
+  policyHash: ContentHash;
+  longEdgePixels: UInt32;
+  maxStatesPerRenderSurface: UInt32;
+  maxRenderSurfacesPerSemanticSurface: UInt32;
+  maxRenderSurfacesPerBundle: UInt32;
+  maxTextureBindings: UInt32;
+  maxTextureWidth: UInt32;
+  maxTextureHeight: UInt32;
+  maxTexturePixels: UInt32;
+  maxRenderedPixels: UInt64;
+  maxSurfaceCaptureBytes: UInt64;
+  maxBuildOutputBytes: UInt64;
+  maxBuildAccountedPeakBytes: UInt64;
+  rendererConcurrency: 1;
+};
+
 type RenderBundle = {
   schemaVersion: 1;
   bundleId: string;
@@ -2166,11 +2204,14 @@ type RenderBundle = {
     colorScheme: "light" | "dark";
     themeId: ThemeId;
     themeHash: string;
+    textureBuildPolicy: NormalizedTextureBuildPolicyV1;
   };
 
   surfaces: Record<SemanticSurfaceId, CompiledSemanticSurface>;
 };
 ```
+
+`NormalizedTextureBuildPolicyV1`はADR-0012のresolution policy version、budget policy version、long edge、State / Surface / binding count、texture dimension / pixels、rendered pixels、capture bytes、output bytes、accounted peak bytes、renderer concurrencyの正規化済み実値を持つ。`policyHash` fieldを除いたcanonical payloadのhashを`textureBuildPolicy.policyHash`として保持し、RenderBundle hashとCompiler cache keyの入力にする。wall-time、host RSS、abortはavailability guardであり、このportable objectやartifact identityへ含めない。callerが上限を縮小した場合も実際に使用した値を記録し、default値へ丸めない。per-texture pixel countは`UInt32`、`maxRenderedPixels`を含むaggregate pixel countは`UInt64`とする。
 
 ### 14.1 Compiled Semantic Surface
 
@@ -2202,15 +2243,15 @@ type SurfaceRendererArtifactCompatibility =
   | { kind: "native-ui"; contractVersion: 1; requiredFeatures: NativeUIFeature[] }
   | { kind: "video"; contractVersion: 1; requiredFeatures: VideoFeature[] };
 
-type BakedWebFeature = "png" | "srgb" | "alpha-opaque" | "alpha-straight" | "alpha-premultiplied";
+type BakedWebFeature = "png" | "srgb" | "alpha-opaque" | "alpha-straight";
 type VideoFeature = "h264" | "vp9" | "av1" | "alpha" | "audio";
 ```
 
-各concrete artifactの`kind`、`contractVersion`、UTF-16 code-unit昇順かつduplicate-freeな`requiredFeatures`はこのenvelopeと一致し、未知version / featureをfail closedで拒否する。Baked Webは`png`、`srgb`、alpha featureのいずれか一つをexactly onceで持つ。Videoはcodec featureを一つだけ持ち、`alpha` / `audio`は実際に含むtrackだけに付ける。Deliveryはnormalized Capability Profileが許可するkind / version / feature closureと照合し、選択したartifactの`contractVersion`を`DeliveredRenderSurface.artifactContractVersion`へcopyする。build-time `RendererIdentity.contractVersion: string`はrenderer plugin APIの互換性であり、artifact compatibilityへ流用しない。
+各concrete artifactの`kind`、`contractVersion`、UTF-16 code-unit昇順かつduplicate-freeな`requiredFeatures`はこのenvelopeと一致し、未知version / featureをfail closedで拒否する。Baked Webは`png`、`srgb`、alpha featureのいずれか一つをexactly onceで持ち、premultiplied alphaはv1で許可しない。Videoはcodec featureを一つだけ持ち、`alpha` / `audio`は実際に含むtrackだけに付ける。Deliveryはnormalized Capability Profileが許可するkind / version / feature closureと照合し、選択したartifactの`contractVersion`を`DeliveredRenderSurface.artifactContractVersion`へcopyする。build-time `RendererIdentity.contractVersion: string`はrenderer plugin APIの互換性であり、artifact compatibilityへ流用しない。
 
 ### 14.2 Baked Web Artifact
 
-Surface State ごとに一つ以上の解像度 artifact を持つ。
+次の1K / 2K複数候補はpost-v1 target例であり、Baked Web v1はADR-0012に従い各non-empty Stateへ2K-long-edge textureをexactly oneだけ持つ。複数resolutionは新artifact / budget policy versionでのみ導入する。
 
 ```text
 BakedWebArtifact
@@ -2339,6 +2380,14 @@ Authoring では各 text と各 Surface State が Font Asset または Theme Fon
 ### 14.4 Video Artifact
 
 Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec capability を保持する。
+
+### 14.5 Texture budget と residency
+
+Baked Web v1は各non-empty Render Surface Stateにexactly one 2K-long-edge PNG / RGBA32 textureを持ち、`mipCount = 1`、runtime compressionなしとする。State / partition / binding count、pixel、capture、output、Compiler accounted peak、Delivery GPU / load CPUは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) のchecked byte式とbaseline tierを正本とする。現行PNG encoderの4K / 64 MiB hard capは単一allocationのtrust-boundaryであり、このPresentation budgetを代替しない。
+
+Deliveryはvisibleな全reachable Stateのselected textureをGPU 256 MiB、serial load CPU 256 MiB以内で固定し、Unityはsession開始前にdownload / checksum / decode / uploadを完了してCPU readback copyを破棄する。`downloadReady`、`residentReady`、`sessionReady`を分け、active Session中は全selected hashをpinする。crossfadeのold / newはpreloaded集合内にあり、transition開始時に追加download / allocationしない。encoded cacheはGPU residencyと分離し、baseline 4 GiB hard limit / 512 MiB reserve、active pin、unpinned deterministic LRUを使う。
+
+Native UIはこのtexture byte式の対象外、Videoはdecoder budgetを定義するまでv1 Deliveryでunsupportedとする。budget超過時に暗黙downscale、mipmap削除、renderer変更、crossfadeからcutへの変更を行わず、Bundle / Manifest / readinessのatomic unitをfail closedにする。
 
 ## 15. コンパイルと配信
 
@@ -2549,6 +2598,7 @@ presentation/
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を 12.11 で定義した。
 - [x] Spatial TRS / matrix / Quaternion、Unity handedness、Surface logical / physical / raster / UV変換を [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) で定義した。
 - [x] Surface Partitionのautomatic boundary、Part isolate override、derived ID / layer / region aggregateを [ADR-0011](../decisions/0011-surface-partition-contract.md) で定義した。
+- [x] Texture State artifact数、2K PNG / RGBA32、build / Delivery budget、preload / readiness / evictionを [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
@@ -2560,17 +2610,15 @@ presentation/
 1. [x] role 別 Semantic schema と Hit Region の完全 schemaは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした（current flat schemaの実装置換はM3 Slice B）。
 2. [x] Transform / Quaternion / matrix / Unity / Surface / UV座標規約は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) でAcceptedとした（fixtureとconsumer実装はM3〜M5）。
 3. [x] ComponentからSurfaceへのpartition規則とauthor overrideは [ADR-0011](../decisions/0011-surface-partition-contract.md) でAcceptedとした（実装はM3〜M4）。
-4. Texture state artifact 数と GPU / RAM build budget
-5. Resolution、mipmap、compression、preload、eviction policy
+4. [x] Texture state artifact数とGPU / RAM build budgetは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした（実装はM3〜M5）。
+5. [x] Resolution、mipmap、compression、preload、eviction policyも [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。
 6. Component Manifest と renderer implementation の drift 検証
 7. Opaque renderer の Browser capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
 8. DeliveryManifest Protobuf schema、capability negotiation、visual regression test
 
 ## 20. 次の設計対象
 
-blockingなTimeline / transport / Semantic / coordinate contractはAcceptedになった。次のRendering / Delivery設計は次の順で閉じる。
-
-1. Texture / GPU / RAM budget
+blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。次はM1のproject assembly / reference Browser / CLIを完了し、M3以降でcontractを縦断実装する。
 
 中心となる思想は次のとおりである。
 

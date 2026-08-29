@@ -43,7 +43,7 @@
 | Snapshot / Replay / Connection Resume                            | 未実装   | target のsession-global reliable sequence、ProjectionAdvance、atomic cut、replay queue、Quest適用、durable / local checkpoint への配線は未着手                                                                                                                                                                                                                                                                                                                                                                                   |
 | Venue Edge Cloud Agent / local HTTPS listener / update           | 未実装   | service manager、LAN bind、証明書、fingerprint rotation、health、更新・rollbackは未着手                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Cloud 配置の R2 / CDN signed URL 配信                            | 未実装   | Manifest認可、signed URL発行、Quest download / readinessはTargetのみ                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Asset cache容量・eviction                                        | 未決定   | hard limit、low-disk threshold、退避順、active session pin、quotaを実測後に決定する                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Asset cache容量・eviction                                        | 未実装   | ADR-0012でbaseline policyを確定済み。hard limit 4 GiB、low-space reserve 512 MiB、persistent access sequenceによるunpinned LRU、active / waiting Sessionのselected Asset pinをM4〜M5で接続する。Quest実機計測に基づく別tierは後続判断とする                                                                                                                                                                                                                                                                                      |
 | 1 / 10 / 25 / 50 Quest 実機計測                                  | 未実装   | latency、jitter、fan-out、Asset ready の基準値は未計測                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## 1. 背景
@@ -731,9 +731,9 @@ cache/
 
 - 同じ Asset を複数 Presentation / session で再利用する。
 - Cloud からの取得には短命 signed URL を使い、Edge へ恒久 R2 credential を置かない。
-- cache capacity と eviction policy は実機の disk 容量と preload 計測後に決定する。
+- baseline cache capacity、reserve、pin / eviction policyは [ADR-0012](../../../docs/decisions/0012-texture-budget-residency-contract.md) を正本とし、実機計測による変更は新tier / policy versionで行う。
 - active session が参照する Asset は eviction しない。
-- cache の hard limit、low-disk threshold、LRU 等の退避順、partial download の回収、複数 session の quota は未決定事項とする。
+- targetは4 GiB hard limit、512 MiB low-disk reserve、active / waiting Session reference count pin、unpinned content hashのdeterministic LRU、partial / mismatch staging cleanupを実装する。現行cacheにはcapacity / pin / LRUがなく、M5で接続する。
 
 ### 11.4 Venue Edge の Quest 向け endpoint
 
@@ -777,6 +777,8 @@ ViewerReadiness
 ├─ publicationManifestHash
 ├─ availableAssetHashes
 ├─ missingAssetHashes
+├─ downloadReady
+├─ residentReady
 ├─ presentationOriginVersion
 ├─ calibrationRevision
 ├─ calibrationReady
@@ -786,6 +788,7 @@ ViewerReadiness
 
 - Quest cache に存在する hash は再取得しない。
 - 大容量 Asset は session 開始より前に preload する。
+- `downloadReady`はselected Assetのsize / MIME / checksum検証、`residentReady`はADR-0012の全selected texture uploadとCPU readback解放を表す。両方とconnection / fence条件を満たすparticipantだけを`sessionReady`として開始policyのready集合へ数える。
 - Cloud 配置では CDN、Venue Edge 配置では Asset Gateway が 50 台の同時 burst と download concurrency を制御する。
 - session 開始条件を「全 participant ready」または明示した policy として定義する。
 
@@ -1135,7 +1138,8 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Internet grace periodとsession停止policy
 - assignment lease duration、renew interval、health freshness。現在のEdge固有renew APIは安全上の暫定上限を5分、割当・bootstrapに使うheartbeat ageは60秒とする
 - Edge tokenの有効期間、rotation interval、overlap期間
-- Asset cacheのhard capacity、low-disk threshold、eviction順、active session pin、partial download回収、session quota
+- ADR-0012のbaseline cache policyをQuest実機計測後も維持するか、別capacity tierを追加するか
+- session単位quotaをbaseline cache policyへ追加するか
 
 ### 18.4 将来の Runtime migration
 

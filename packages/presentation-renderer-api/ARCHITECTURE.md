@@ -98,7 +98,7 @@ Conformance harness は renderer implementation の process topology を固定�
 - plugin discovery と version negotiation
 - process / isolate boundary
 - capability vocabulary
-- cancellation、timeout、resource budget の API
+- ADR-0012のcapture前budget、deadline / abort、resource guard APIの実装
 - Native UI / Video renderer API の追加時期
 - Compiler cache key と RenderBundle `environmentHash` への `rendererFingerprint` 結合、およびその integration test
 

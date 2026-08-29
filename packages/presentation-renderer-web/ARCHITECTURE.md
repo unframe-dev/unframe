@@ -148,6 +148,6 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 - Browser process / isolate の具体方式と binary provisioning
 - Opaque bundleとRenderer plugin/Browser isolateの接続
 - ADR-0011で確定したmulti-partition plan / private region aggregateの実装
-- capture resolution、GPU / RAM budget
+- ADR-0012で確定した2K capture resolution / capture budgetの実装
 - visual regression tolerance と platform baseline
 - Frame/Text 以外の Structured Primitive、style token の concrete 解決、interaction Hit Region

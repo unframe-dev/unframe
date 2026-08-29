@@ -8,6 +8,7 @@
   - [Presentation Authoring Architecture](../presentation-authoring/ARCHITECTURE.md)
   - [Renderer API Architecture](../presentation-renderer-api/ARCHITECTURE.md)
   - [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)
+  - [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)
 
 ## 1. Role
 
@@ -135,6 +136,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 - M1 より広い Static DSL、named entry export、TSX / JSX lowering
 - plugin discovery と version negotiation
 - ADR-0011でAcceptedになったSurface partition / author isolate overrideのM3〜M4実装
+- ADR-0012でAcceptedになったresolution / count / aggregate build budgetのM3〜M4実装
 - cache layout と remote cache policy
 - Browser process / isolate topology
 - diagnostics の stability policy

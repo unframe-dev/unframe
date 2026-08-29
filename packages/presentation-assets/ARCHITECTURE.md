@@ -6,6 +6,7 @@
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Presentation Core Architecture](../presentation-core/ARCHITECTURE.md)
+  - [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)
 
 ## 1. Role
 
@@ -18,7 +19,7 @@ Asset の upload、ownership、delivery URL、Unity runtime cache はこの pack
 
 ## 2. Owned pipeline
 
-次は変換 adapter の ownership 候補であり、対応 format、budget、既定値が確定済みであることを意味しない。
+次は変換adapterのownership候補である。Baked Web v1のformat、resolution、byte式、aggregate budgetは [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) でAcceptedだが、現行実装はmemory-only PNG encodeだけである。
 
 - image / renderer capture の resize
 - texture encode、mipmap、checksum
@@ -97,7 +98,7 @@ resize、mipmap、temporary workspace、font / video / model変換、cache、Sur
 
 ## 9. Deferred decisions
 
-- texture format、resolution、mipmap、compression budget
+- ADR-0012でAcceptedになったtexture metadata / aggregate budget / resolution policyの実装
 - font resolver と subset toolchain
 - video / model adapter の初期範囲
 - cross-platform reproducibility と container / Nix boundary
