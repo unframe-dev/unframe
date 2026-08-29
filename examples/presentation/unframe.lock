@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "packageDependencies": [
+    {
+      "packageName": "@unframe/presentation",
+      "packageVersion": "1.0.0",
+      "packageIntegrity": "sha256:c548b342a5dda6934c12afa6d5fb6e8ba01ba808375a7cda5a02867441213bf7"
+    }
+  ],
+  "packages": [
+    {
+      "packageName": "@unframe/presentation",
+      "packageVersion": "1.0.0",
+      "packageIntegrity": "sha256:c548b342a5dda6934c12afa6d5fb6e8ba01ba808375a7cda5a02867441213bf7",
+      "files": [
+        {
+          "fileName": "index.ts",
+          "sourceText": "export const definePresentation = <T>(value: T): T => value;\nexport const defineTheme = <T>(value: T): T => value;\nexport const defineComponentManifest = <T>(value: T): T => value;\nexport const defineComponentStructure = <T>(value: T): T => value;\n"
+        }
+      ],
+      "exports": [{ "subpath": ".", "targetFile": "index.ts" }],
+      "dependencies": []
+    }
+  ],
+  "themeHashes": [
+    { "themeId": "reference-theme", "hash": "sha256:ad2ce030f24df3aeb16f38bf7913b40a40195c28f553a1015d7bf943ec30b244" }
+  ],
+  "componentLocks": [
+    {
+      "componentId": "reference-surface",
+      "version": 1,
+      "lock": {
+        "packageVersion": "1.0.0",
+        "packageIntegrity": "sha256:c548b342a5dda6934c12afa6d5fb6e8ba01ba808375a7cda5a02867441213bf7",
+        "manifestHash": "sha256:e88ff72e1a1a4b10d580d7b6a16ab6ac6e1c001041797db151ce5ca31f086f62",
+        "structureHash": "sha256:27ea8d8ee71ccd11ef9a2199b462f746e1a236f42689c774bb41cc4977432b1c"
+      }
+    }
+  ],
+  "assets": {}
+}

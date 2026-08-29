@@ -308,7 +308,11 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         ]),
     });
     const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
-      ...context,
+      compiler: context.compiler,
+      locale: context.locale,
+      timezone: context.timezone,
+      colorScheme: context.colorScheme,
+      pixelTarget: context.pixelTarget,
       rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
       renderers: [createBakedWebRenderer({ adapter, config: context.webRendererConfig })],
       encodeLimits: limits,
