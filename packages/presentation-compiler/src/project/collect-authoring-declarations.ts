@@ -18,7 +18,7 @@ export type AuthoringDeclarationRootBuilder =
   | "defineComponentManifest"
   | "defineComponentStructure";
 
-type DeclarationCollectionDiagnostic = {
+export type DeclarationCollectionDiagnostic = {
   readonly code: string;
   readonly fileName: string;
   readonly message: string;
@@ -40,9 +40,14 @@ export type CollectedAuthoringDeclarations =
   | {
       readonly ok: true;
       readonly declarations: readonly CollectedAuthoringDeclaration[];
-      readonly diagnostics: [];
+      readonly diagnostics: readonly [];
     }
   | { readonly ok: false; readonly diagnostics: readonly DeclarationCollectionDiagnostic[] };
+
+export type CollectedAuthoringDeclarationsSuccess = Extract<
+  CollectedAuthoringDeclarations,
+  { readonly ok: true }
+>;
 
 const roleFor = (fileName: string, entryFileName: string) => {
   if (fileName === entryFileName)

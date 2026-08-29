@@ -170,8 +170,9 @@ contracts
 - package-owned source と補助 `.d.ts` を分離し、全 project file の失敗を集約する canonical diagnostic
 - Authoring builder と共有する pure declaration guard による post-lowering validation（builder implementation 非実行）
 - Object.prototype / null-prototype の plain data を descriptor-only で snapshot し、inherited getter と Proxy `get` trap を実行しない Compiler input boundary
+- Manifest の `authoring.structure` entry を正本に、Presentation、Theme、Component `(componentId, version)`、Structure を source map 付きで決定論的に対応付ける declaration catalog
 
-Manifest / Structure の対応付け、Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly と、Source frontend の public API 接続は引き続き未実装である。
+Theme / Component hash、package lock、Asset を含む `CompilerDeclarationProject` assembly と、Source frontend の public API 接続は引き続き未実装である。
 
 次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
 
