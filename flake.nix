@@ -42,12 +42,43 @@
         # Linux では nix-ld 経由で GNU 動的リンカーを使用する。
         # /lib64 の shim 自体は NixOS 側の programs.nix-ld.enable で有効化する。
         nixLdPackages = pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.nix-ld ];
+        chromiumRuntime = pkgs.lib.optionals pkgs.stdenv.isLinux [
+          pkgs.glib
+          pkgs.nspr
+          pkgs.nss
+          pkgs.atk
+          pkgs.at-spi2-atk
+          pkgs.dbus.lib
+          pkgs.libX11
+          pkgs.libXcomposite
+          pkgs.libXdamage
+          pkgs.libXext
+          pkgs.libXfixes
+          pkgs.libXrandr
+          pkgs.libxcb
+          pkgs.libgbm
+          pkgs.mesa
+          pkgs.expat
+          pkgs.libxkbcommon
+          pkgs.systemd
+          pkgs.alsa-lib
+          pkgs.fontconfig
+          pkgs.noto-fonts-cjk-sans
+        ];
+        presentationFontconfig = pkgs.writeText "unframe-presentation-fontconfig.conf" ''
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <dir>${pkgs.noto-fonts-cjk-sans}/share/fonts</dir>
+          </fontconfig>
+        '';
         nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
-          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
             pkgs.glibc
             pkgs.stdenv.cc.cc
-          ];
+          ] ++ chromiumRuntime);
+          FONTCONFIG_FILE = presentationFontconfig;
         };
 
         # scripts/ の実処理を flake app としてラップする。

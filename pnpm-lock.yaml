@@ -697,6 +697,12 @@ importers:
       '@unframe/presentation-renderer-api':
         specifier: workspace:*
         version: link:../presentation-renderer-api
+      playwright-core:
+        specifier: 1.62.1
+        version: 1.62.1
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
       rolldown:
         specifier: 1.0.1
         version: 1.0.1
@@ -707,6 +713,9 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
+      '@types/pngjs':
+        specifier: 6.0.5
+        version: 6.0.5
       typescript:
         specifier: ^7.0.0
         version: 7.0.2
@@ -2672,6 +2681,9 @@ packages:
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
+
+  '@types/pngjs@6.0.5':
+    resolution: {integrity: sha512-0k5eKfrA83JOZPppLtS2C7OUtyNAl2wKNxfyYl9Q5g9lPkgBl/9hNyAu6HuEH2J4XmIv2znEpkDd0SaZVxW6iQ==}
 
   '@types/react-dom@19.2.5':
     resolution: {integrity: sha512-fMPwH9v7r/pp43yUd2/Mbiex5KouJwwR3dzHkhLREUC6764VyDsqxhAxv6OFEYR1RhjOyD1naqba8ECDBe7ZQg==}
@@ -6756,6 +6768,10 @@ snapshots:
       undici-types: 7.18.2
 
   '@types/offscreencanvas@2019.7.3': {}
+
+  '@types/pngjs@6.0.5':
+    dependencies:
+      '@types/node': 24.13.3
 
   '@types/react-dom@19.2.5(@types/react@19.2.18)':
     dependencies:

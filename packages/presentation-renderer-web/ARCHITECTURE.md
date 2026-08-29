@@ -15,7 +15,11 @@
 
 `presentation-renderer-web` は `baked-web` concrete renderer を実装する。Structured Component から lower された Primitive graph を、固定された Browser 環境で layout / capture し、RenderBundle 候補を生成する。
 
-現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer sourceを実行せずにbundleする境界を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。実ブラウザ binary の選択・起動方式はまだ決めない。
+現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer sourceを実行せずにbundleする境界を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。
+
+`openPlaywrightFixedBrowser` は `playwright-core@1.62.1` が managed Chromium headless shell を選択して起動し、外部 binary path / fallback を持たない。`install chromium --only-shell` と headless 起動を対応させるため、adapterはPlaywrightのmanaged browser registryに起動先の選択を委譲する。Chromium sandbox 有効、Node global signal handler 無効で起動し、Noto Sans CJK JP、`ja-JP`、`Asia/Tokyo`、DSF 1、sRGB、2000-01-01T00:00:00Z、seed `0x5eed` を固定する。font fingerprint は固定glyph baselineの実capture RGBAから内部導出し、adapter identity hash に font profile とともに結合する。capture ごとに隔離 context を作成し、offline、service worker block、download deny、全 route abort、clock / random init、font ready の後に CSS scale、背景保持、animation無効、caret非表示の PNG screenshot を decode して所有済み RGBA として返す。capture trust boundary は各辺4096px・総16,777,216pxまでで fail closed とし、これは後続のM2 2K artifact policyとは別の入力上限である。abort または session close は進行中 context を閉じ、context cleanup 後に browser を閉じる。通常 check は `*.integration.test.ts` を除外してこの adapter を fake で検証する unit test だけを実行し、browser binary の provision / 実機 integration は明示 script の後にのみ実行する。
+
+M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque renderer execution自体は引き続きDeferredである。
 
 初期 Structured path は absolute root `Frame` と、その直接の absolute `Text` 子だけを deterministic な HTML/CSS に lower する。logical bounds は requested pixel target へ明示的に scale し、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State は UTF-16 lexical 順に一回ずつ raw RGBA capture する。ただしこの段階では visual state 差分を lower できないため、capture 対象の completed semantics が異なれば fail closed にする。interaction は `none` のため全 State の Hit Region は空である。renderer config hash が Compiler context と一致しない build は拒否する。
 
@@ -46,7 +50,7 @@ Compiler が決定した Render Surface partition を build input として受�
 
 - generic Web renderer による Structured Primitive graph の描画
 - Opaque renderer TS / React / CSS の isolated execution
-- Browser lifecycle と fixed rendering environment
+- Opaque renderer向けのBrowser isolate lifecycle
 - Surface State ごとの layout と capture
 - Hit Region の concrete geometry 解決
 - unencoded Surface capture の生成
@@ -55,7 +59,7 @@ Compiler が決定した Render Surface partition を build input として受�
 
 ### Deferred
 
-- concrete Browser binary lifecycle、Opaque execution と interaction geometry
+- Opaque execution と interaction geometry
 
 ```text
 resolved semantic input + renderer source
@@ -106,7 +110,7 @@ Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Pr
 
 ## 6. Dependency rules
 
-`presentation-renderer-web` は `presentation-renderer-api`、hash utility、Zod 4、固定versionの`rolldown`にだけ直接依存する。ZodはOpaque locked module input、renderer config、Browser identity / environment、capture metadataのruntime validationを所有する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
+`presentation-renderer-web` は `presentation-renderer-api`、hash utility、Zod 4、固定versionの`rolldown`、`playwright-core`、`pngjs`に直接依存する。Playwrightはmanaged headless shellのhost lifecycleだけ、pngjsはpreflight済みscreenshotのRGBA decodeだけを担当する。font fingerprintはcaller入力ではなく固定Noto glyph baselineのactual RGBA bytesから導出する。ZodはOpaque locked module input、renderer config、Browser identity / environment、capture metadataのruntime validationを所有する。Opaque source bundleはRolldownのprogrammatic APIと固定内部pluginだけを使用し、callerから任意pluginを受け取らない。raw RGBA encode / checksum は Compiler 経由で `presentation-assets` に委譲し、`presentation-core` は Renderer API の型境界を通して参照する。Compiler から plugin として注入され、Compiler へ逆依存しない。他の concrete renderer にも依存しない。
 
 ## 7. Isolation boundary
 
@@ -145,7 +149,6 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 ## 9. Deferred decisions
 
-- Browser process / isolate の具体方式と binary provisioning
 - Opaque bundleとRenderer plugin/Browser isolateの接続
 - ADR-0011で確定したmulti-partition plan / private region aggregateの実装
 - ADR-0012で確定した2K capture resolution / capture budgetの実装

@@ -9,17 +9,20 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test",
-    "test": "vp test run",
+    "test": "vp test run --exclude test/*.integration.test.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",
     "@unframe/presentation-renderer-api": "workspace:*",
+    "playwright-core": "1.62.1",
+    "pngjs": "7.0.0",
     "rolldown": "1.0.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/pngjs": "6.0.5",
     "typescript": "^7.0.0",
     "vite-plus": "catalog:",
     "vitest": "catalog:"

@@ -28,26 +28,26 @@ post-lowering PresentationDeclaration
 PresentationDefinition
         ↓ 実装済み: injected renderer による初期 build
 RenderBundle + PNG
-        ↓ 未接続: 実 Browser、real filesystem、cache、publish / delivery
+        ↓ 未接続: filesystem CLIからの実 Browser利用、cache、publish / delivery
 consumer
 ```
 
 ### 2.1 Package inventory
 
-| Package                              | Current                                                                                                 | 主な未実装                                                                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `packages/contracts`                 | Control Plane OpenAPI、PresentationDefinition / baked-web RenderBundle 初期 schema、Realtime foundation | Cue / Trigger / Action / Timeline、DeliveryManifest、Snapshot / State Stream、完全な Runtime contract、cross-language fixture |
-| `packages/api-client-csharp`         | 生成先の責務を定義した placeholder                                                                      | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                                            |
-| `packages/api-client-typescript`     | Hono RPC と Better Auth client                                                                          | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                                                |
-| `packages/presentation-core`         | 初期 Definition / RenderBundle 検証、Semantic Tree materialization、canonical JSON / hash               | Cue / Action / Timeline、Projection、Runtime Snapshot、migration、完全な lifetime / visibility closure                        |
-| `packages/presentation-authoring`    | Manifest、Structure、Theme、Presentation declaration API                                                | Static DSL の確定、Source との接続、Lossless Syntax Tree / source patch、lock / distribution                                  |
-| `packages/presentation-components`   | static な標準 Surface / Frame / Text                                                                    | Props / Slots / Variants、型付き Theme、Spatial、Interaction、Action / Output、Opaque component、migration                    |
-| `packages/presentation-compiler`     | TS / TSX 構文解析、post-lowering declaration の check / build                                           | project resolution、typecheck、AST lowering、normalization、cache、Source からの compile                                      |
-| `packages/presentation-renderer-api` | baked-web 初期 plugin contract と conformance harness                                                   | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability                             |
-| `packages/presentation-renderer-web` | injected Browser adapter による Frame / Text capture、Opaque bundle                                     | 実 Browser lifecycle、Opaque execution / isolation、state variation、generic Primitive、interaction geometry                  |
-| `packages/presentation-assets`       | deterministic memory-only PNG encoder                                                                   | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                                                |
-| `packages/presentation-cli`          | injected host の headless check / build、TUI command selector                                           | filesystem / Browser host、atomic output、config / lock、watch / dev / preview / test / publish                               |
-| `packages/config`                    | TypeScript 基底設定、Vite+ 設定、Git hooks                                                              | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備                        |
+| Package                              | Current                                                                                                  | 主な未実装                                                                                                                    |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `packages/contracts`                 | Control Plane OpenAPI、PresentationDefinition / baked-web RenderBundle 初期 schema、Realtime foundation  | Cue / Trigger / Action / Timeline、DeliveryManifest、Snapshot / State Stream、完全な Runtime contract、cross-language fixture |
+| `packages/api-client-csharp`         | 生成先の責務を定義した placeholder                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                                            |
+| `packages/api-client-typescript`     | Hono RPC と Better Auth client                                                                           | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                                                |
+| `packages/presentation-core`         | 初期 Definition / RenderBundle 検証、Semantic Tree materialization、canonical JSON / hash                | Cue / Action / Timeline、Projection、Runtime Snapshot、migration、完全な lifetime / visibility closure                        |
+| `packages/presentation-authoring`    | Manifest、Structure、Theme、Presentation declaration API                                                 | Static DSL の確定、Source との接続、Lossless Syntax Tree / source patch、lock / distribution                                  |
+| `packages/presentation-components`   | static な標準 Surface / Frame / Text                                                                     | Props / Slots / Variants、型付き Theme、Spatial、Interaction、Action / Output、Opaque component、migration                    |
+| `packages/presentation-compiler`     | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | real filesystem lock resolver、cache、M1より広いStatic DSL                                                                    |
+| `packages/presentation-renderer-api` | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability                             |
+| `packages/presentation-renderer-web` | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                                        |
+| `packages/presentation-assets`       | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                                                |
+| `packages/presentation-cli`          | injected host の headless check / build、TUI command selector                                            | filesystem / Browser host、atomic output、config / lock、watch / dev / preview / test / publish                               |
+| `packages/config`                    | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備                        |
 
 ## 3. 実装原則
 
@@ -175,10 +175,11 @@ contracts
 
 source map付きcatalogと明示的なTheme hash、Component package lock、Asset carrierを一意に対応付け、canonical `CompilerDeclarationProject`へ変換するpure assemblyは実装済みである。Source frontendからassembly / compileへの公開compositionも接続済みで、source / assembly / compileの失敗phaseを区別し、checked Definitionを再利用する。hash / package integrity / Asset metadataのresolverとreal `unframe.lock`読取りは引き続き未実装である。
 
+Fixed Browser は `playwright-core@1.62.1` のmanaged Chromium headless shellを明示provisionし、Nixでruntime libraryとNoto Sans CJK JP fontconfigを固定する。adapterはcaptureごとの隔離context、network / filesystem deny、fixed clock / random、PNG decode前resource preflight、cancel / close cleanupを所有する。font fingerprintは固定glyph baselineの実capture RGBAから内部導出し、Browser versionとともにrenderer identityへ反映する。通常package checkは実Browserを起動せずunit testを実行し、明示integration testで同一font fingerprintとclock / random captureの再現性を検証する。
+
 次は Architecture の deferred decision であり、暫定形式や暗黙 fallback では埋めない。
 
 - serialized `unframe.lock` と Component package distribution / integrity algorithm
-- Fixed Browser の process / isolate、binary provisioning、font baseline
 - real filesystem の project discovery、config loader、staging / atomic replacement strategy
 
 Static DSL は 2026-08-29 に次の M1 contract で確定した。

@@ -39,7 +39,14 @@ export type FixedBrowserAdapter = {
     readonly implementationHash: string;
   };
   readonly environment: FixedBrowserEnvironment;
-  capture(request: BrowserCaptureRequest): Promise<BrowserRgbaCapture> | BrowserRgbaCapture;
+  capture(
+    request: BrowserCaptureRequest,
+    options?: { readonly signal?: AbortSignal },
+  ): Promise<BrowserRgbaCapture> | BrowserRgbaCapture;
+};
+
+export type FixedBrowserSession = FixedBrowserAdapter & {
+  close(): Promise<void>;
 };
 
 export type WebRendererConfig = {

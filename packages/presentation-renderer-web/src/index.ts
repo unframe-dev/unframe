@@ -2,6 +2,8 @@ export { createBakedWebRenderer } from "./rendering/baked-web-renderer.js";
 
 export { createWebRendererConfigHash } from "./config/config-environment.js";
 
+export { openPlaywrightFixedBrowser } from "./browser/playwright-fixed-browser.js";
+
 export {
   bundleOpaqueRenderer,
   type OpaqueBundleDiagnostic,
@@ -17,5 +19,6 @@ export type {
   CreateBakedWebRendererOptions,
   FixedBrowserAdapter,
   FixedBrowserEnvironment,
+  FixedBrowserSession,
   WebRendererConfig,
 } from "./public-types.js";
