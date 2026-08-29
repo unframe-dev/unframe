@@ -563,6 +563,9 @@ importers:
       '@unframe/presentation-compiler':
         specifier: workspace:*
         version: link:../presentation-compiler
+      '@unframe/presentation-core':
+        specifier: workspace:*
+        version: link:../presentation-core
       '@unframe/presentation-renderer-web':
         specifier: workspace:*
         version: link:../presentation-renderer-web
