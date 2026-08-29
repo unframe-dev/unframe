@@ -29,12 +29,12 @@ ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プ�
 
 この ADR が受理するのは上位アーキテクチャであり、すべての下位 contract を同時に固定するものではない。
 
-| 対象 | 状態 |
-| --- | --- |
-| Architecture baseline | Accepted |
-| Presentation Progression の意味モデル | v1 baseline |
-| Progression wire / runtime schema | Draft |
-| Authoring、Rendering、Delivery の下位 contract | Follow-up |
+| 対象                                           | 状態        |
+| ---------------------------------------------- | ----------- |
+| Architecture baseline                          | Accepted    |
+| Presentation Progression の意味モデル          | v1 baseline |
+| Progression wire / runtime schema              | Draft       |
+| Authoring、Rendering、Delivery の下位 contract | Follow-up   |
 
 ### 基本原則
 
@@ -55,15 +55,15 @@ ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プ�
 
 Presentation を次の契約へ分離する。
 
-| 契約 | 責務 |
-| --- | --- |
-| Authoring Source | Presentation の composition、Component、Theme、Asset 選択を人が記述する |
-| Semantic Authoring IR | GUI と Code が共同編集する正規化モデルと authoring metadata を保持する |
-| PresentationDefinition | Scene、Surface、State、Interaction、進行など Presentation の意味を保持し、v1 では canonical JSON として生成する |
-| RenderBundle | Local Compiler が生成した Texture、Video、Native UI plan、Semantic Tree などを保持する |
-| DeliveryManifest | target capability、認可、Asset binding、Signed URL を解決した Runtime projection を保持する |
+| 契約                   | 責務                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Authoring Source       | Presentation の composition、Component、Theme、Asset 選択を人が記述する                                               |
+| Semantic Authoring IR  | GUI と Code が共同編集する正規化モデルと authoring metadata を保持する                                                |
+| PresentationDefinition | Scene、Surface、State、Interaction、進行など Presentation の意味を保持し、v1 では canonical JSON として生成する       |
+| RenderBundle           | Local Compiler が生成した Texture、Video、Native UI plan、Semantic Tree などを保持する                                |
+| DeliveryManifest       | target capability、認可、Asset binding、Signed URL を解決した Runtime projection を保持する                           |
 | Published Presentation | 整合する PresentationDefinition、RenderBundle、Asset Set、contract version を現在の公開済み実行物として一つだけ束ねる |
-| Runtime State | Session 中の現在 Group、Step、Node、Surface State、Timeline、playback、presence を保持する |
+| Runtime State          | Session 中の現在 Group、Step、Node、Surface State、Timeline、playback、presence を保持する                            |
 
 Authoring Source と Semantic Authoring IR は編集のための情報を保持する。PresentationDefinition は実行可能な意味を保持する。RenderBundle と DeliveryManifest は再生成可能な派生物とし、PublishedPresentation はそれらの整合する組み合わせを一つの immutable value に固定する。Runtime State は実行中にだけ存在し、PresentationDefinition へ書き戻さない。
 
@@ -201,7 +201,7 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [ ] ADR-0005 で固定済みの座標系を前提に、Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な規約を定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
 - [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
-- [ ] role 別 Semantic schema と Hit Region の完全な schema を定義する。
+- [x] role 別 Semantic schema と Hit Region の完全なschemaを [ADR-0009](0009-semantic-tree-hit-region-contract.md) で定義する。
 - [ ] Opaque renderer の Browser capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
 - [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。

@@ -203,6 +203,11 @@ type DeliveredRenderSurface = {
   >;
 };
 
+type ProjectedSemanticSurface = {
+  semanticsByState: Record<SurfaceStateId, ProjectedSemanticTree>;
+  interactionsByState: Record<SurfaceStateId, ResolvedInteractiveRegion[]>;
+};
+
 type ProjectionProfileDescriptor = {
   projectionProfileId: ProjectionProfileId;
   key: ProjectionProfileKey;
@@ -210,6 +215,7 @@ type ProjectionProfileDescriptor = {
   visibleSurfaceIds: SemanticSurfaceId[];
   visibleVariableIds: VariableId[];
   renderSurfaces: Record<RenderSurfaceId, DeliveredRenderSurface>;
+  semanticSurfaces: Record<SemanticSurfaceId, ProjectedSemanticSurface>;
   localOverlays: LocalOverlayDefinition[];
 };
 
@@ -911,14 +917,14 @@ type SemanticSurface = {
   logicalSize: [number, number];
   fit: "contain" | "cover" | "stretch";
   rootFrameId: SurfaceContentNodeId;
-  baseSemanticTree: SemanticTree;
+  baseSemanticTree: SemanticTreeDefinition;
   initialStateId: SurfaceStateId;
   states: Record<SurfaceStateId, SurfaceStateDefinition>;
   renderIntent: SurfaceRenderIntent;
 };
 ```
 
-`baseSemanticTree` は Surface の全 State が共有する意味構造の正本である。State は `SurfaceSemanticOverride` により既存 Node の可視性と text / language / alt だけを変更でき、Node ID、role、parent、order、interaction の所属を変更したり、新しい Semantic Node を生成したりできない。これにより State 間で意味対象と Hit Region の参照先を安定させる。
+`baseSemanticTree` は Surface の全 State が共有する意味構造の正本である。State は `SurfaceSemanticOverride` により既存 Node の可視性とroleが許すtext / language / alt / labelだけを変更でき、Node ID、role固有の構造field、parent、order、interactionの所属を変更したり、新しいSemantic Nodeを生成したりできない。これによりState間で意味対象とHit Regionの参照先を安定させる。
 
 Compiler は次の invariant を検証する。
 
@@ -2019,20 +2025,59 @@ presenter.enterZone
 Texture 化された Surface でも内容の意味を失わないよう、表示 artifact と Semantic Tree を分離する。
 
 ```ts
-type SemanticNode = {
+type SemanticNodeBase = {
   id: SemanticNodeId;
   parentId: SemanticNodeId | null;
   order: number;
-  role: "heading" | "paragraph" | "image" | "button" | "table" | "list" | "listItem";
-  text?: string;
-  language?: string;
-  alt?: string;
-  interactionId?: InteractionId;
 };
 
-type SemanticTree = {
+type SemanticNodeDefinition =
+  | (SemanticNodeBase & {
+      role: "heading";
+      level: 1 | 2 | 3 | 4 | 5 | 6;
+      text: string;
+      language?: string;
+    })
+  | (SemanticNodeBase & { role: "paragraph"; text: string; language?: string })
+  | (SemanticNodeBase & { role: "image"; alt: string; language?: string })
+  | (SemanticNodeBase & {
+      role: "button";
+      text: string;
+      language?: string;
+      interactionId: InteractionId;
+    })
+  | (SemanticNodeBase & { role: "list"; ordered: boolean })
+  | (SemanticNodeBase & { role: "listItem"; text: string; language?: string })
+  | (SemanticNodeBase & { role: "table"; label?: string; language?: string })
+  | (SemanticNodeBase & { role: "row" })
+  | (SemanticNodeBase & {
+      role: "cell" | "columnHeader" | "rowHeader";
+      text: string;
+      language?: string;
+    });
+
+type SemanticTreeDefinition = {
   rootNodeIds: SemanticNodeId[];
-  nodes: Record<SemanticNodeId, SemanticNode>;
+  nodes: Record<SemanticNodeId, SemanticNodeDefinition>;
+};
+
+type CompletedSemanticNode =
+  | Exclude<SemanticNodeDefinition, { role: "button" }>
+  | (Extract<SemanticNodeDefinition, { role: "button" }> & { stateEnabled: boolean });
+
+type CompletedSemanticTree = {
+  rootNodeIds: SemanticNodeId[];
+  nodes: Record<SemanticNodeId, CompletedSemanticNode>;
+};
+
+type ProjectedSemanticNode =
+  | Exclude<CompletedSemanticNode, { role: "button" }>
+  | (Omit<Extract<CompletedSemanticNode, { role: "button" }>, "stateEnabled" | "interactionId"> &
+      ({ enabled: true; interactionId: InteractionId } | { enabled: false }));
+
+type ProjectedSemanticTree = {
+  rootNodeIds: SemanticNodeId[];
+  nodes: Record<SemanticNodeId, ProjectedSemanticNode>;
 };
 
 type SurfaceSemanticOverride = {
@@ -2040,19 +2085,20 @@ type SurfaceSemanticOverride = {
     SemanticNodeId,
     {
       included?: boolean;
-      text?: string | null;
+      text?: string;
       language?: string | null;
-      alt?: string | null;
+      alt?: string;
+      label?: string | null;
     }
   >;
 };
 ```
 
-Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Agent editing、accessibility の基礎として使用する。
+Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Agent editing、accessibility の基礎として使用する。roleごとのrequired field、Definition / Completed tree、list / table structure、accessible value、language継承は [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) を正本とする。
 
-`SemanticTree` は空 Tree を許可する。空でない tree は tree 内で一意な stable Node ID、存在する parent、循環しない親子関係、同じ parent 内で一意な `order` を持つ。`parentId === null` の Node は `rootNodeIds` に一度だけ含まなければならず、`rootNodeIds` に含まれる Node の `parentId` は `null` でなければならない。root 以外の Node は一つの parent を持ち、すべての Node はいずれかの root から到達可能とする。root の順序は `Node.order` 昇順とし、canonical serialization もこの順序で `rootNodeIds` を出力する。`interactionId` は同じ Semantic Surface の Interaction を参照し、Interaction を持たない Node は指定しない。
+`SemanticTreeDefinition` と `CompletedSemanticTree` は空 Tree を許可する。空でない tree は tree 内で一意な stable Node ID、存在する parent、循環しない親子関係、roleごとのrequired parent / children、同じ parent 内で一意な `order` を持つ。`parentId === null` の Node は `rootNodeIds` に一度だけ含め、root以外のNodeは一つのparentを持ち、すべてのNodeはいずれかのrootから到達可能とする。materializerの戻り値自体がrootとsiblingを`Node.order`昇順に並べ、canonical serializationだけに並べ替えを委ねない。`interactionId`はbuttonだけが持ち、同じSemantic SurfaceのInteractionを参照する。text-bearing roleはnon-empty `text`を持ち、dynamic Native UI textがある場合はempty / unavailable時のaccessibility fallbackとして使う。bindingの正本は選択された`NativeUIArtifact`内でそのNodeを一意に参照するtext Nodeであり、独立したsemantic binding fieldは作らない。
 
-`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materialize し、`RenderBundle.semanticsByState` には完成 Tree だけを格納する。差分や適用処理を Runtime へ配信しない。override は base Tree に存在する Node だけを参照でき、全 layer を通じて同じ Node/property を重複して変更できない。override property は field が存在しない場合だけ base 値を保持し、`text`、`language`、`alt` が `null` の場合は base 値を削除する。`included: false` は対象 Node とすべての descendant を完成 Tree から除外し、除外された Node の descendant を個別に再 include できない。`included` 以外の property は明示的または暗黙に include される Node にだけ指定できる。これら、または State 間の ID / role / parent / order / interaction 変更は build error とする。
+`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materializeし、buttonの`stateEnabled`をStateのenabled Interaction集合から導出して、`RenderBundle.semanticsByState`には`CompletedSemanticTree`だけを格納する。DeliveryはSession roleからprojected `enabled`を導出し、viewerのInteraction ID / Hit Regionを配信前に除外する。差分や適用処理をRuntimeへ配信しない。overrideはbase Treeに存在するNodeとroleが許すpropertyだけを参照でき、全layerを通じて同じNode/propertyを重複して変更できない。fieldが存在しない場合だけbase値を保持し、requiredなtext / altは削除できず、optionalなtable labelだけを`null`で削除できる。`included: false`は対象Nodeとすべてのdescendantを完成Treeから除外し、required list / table structureを壊したり、除外されたNodeのdescendantを個別に再includeできない。これら、またはState間のID / role / parent / order / interaction変更はbuild errorとする。
 
 Structured Component の Semantic Tree は Component Structure の semantic Primitive から生成し、Opaque Component は Manifest の `semantics` から生成する。renderer は layout と Hit Region の concrete geometry を解決するだけで、DOM、React tree、CSS、Texture、実行結果から意味を抽出・補完しない。
 
@@ -2071,12 +2117,11 @@ type ResolvedInteractiveRegion = {
     height: number;
   };
   coordinateSpace: "normalized";
-  event: LogicalEventName;
-  priority: number;
+  priority: UInt32;
 };
 ```
 
-Hit region は Semantic Surface State ごとに解決し、bounds は Render Surface ではなく Semantic Surface 全体の normalized coordinate space で表す。UV 原点、fit/crop、overlap priority、visibility を Delivery contract で固定する。v1 は矩形 click interaction に限定する。
+Hit region は Semantic Surface State ごとに解決し、bounds は Render Surface ではなく Semantic Surface 全体の normalized coordinate space で表す。`UInt32`は`0..4_294_967_295`のintegerとし、overlapはpriority降順、Interaction / Semantic Node ID、boundsのcanonical順で解決する。eventは重複保持せずInteraction definitionから解決する。boundsの有限範囲、duplicate key、half-open hit-test、State completenessは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) を正本とする。UV原点とfit/crop変換は次の座標contractで固定する。v1は矩形click interactionに限定する。
 
 各 State の Hit Region は同じ State の完成 Semantic Tree に含まれ、かつ `SurfaceStateDefinition.enabledInteractionIds` に含まれる `interactionId` だけを参照できる。参照先 Node が除外される場合、その Node の Hit Region も存在できない。Baked hit region として公開する enabled Interaction は少なくとも一つの region を持ち、disabled Interaction の region は禁止する。存在しない Node / Interaction、または Node の `interactionId` と異なる `interactionId` を持つ region は build error とする。
 
@@ -2116,7 +2161,7 @@ type CompiledSemanticSurface = {
   physicalSizeMeters: [number, number];
   renderSurfaceIds: RenderSurfaceId[];
   renderSurfaces: Record<RenderSurfaceId, RenderSurface>;
-  semanticsByState: Record<SurfaceStateId, SemanticTree>;
+  semanticsByState: Record<SurfaceStateId, CompletedSemanticTree>;
   interactionsByState: Record<SurfaceStateId, ResolvedInteractiveRegion[]>;
 };
 ```
@@ -2249,13 +2294,13 @@ type NativeUINode =
 
 `NativeUIArtifact` は State ごとの完全 plan である。`rootNodeId` と全 child reference は `nodes` 内に存在し、一つの root から全 Node が一度だけ到達可能で、cycle、複数 parent、child order の重複を許可しない。bounds は Render Surface の logical coordinate で表し、全値は有限、size は非負とする。sRGB RGBA の各 channel は `0..1` とする。text の `fontSize` と `lineHeight` は有限かつ正、`maxCodePoints` は正の整数とする。Node 数、tree depth、text数、glyph数、文字列の Unicode code point 数は artifact contract と target capability が定める上限以下でなければならない。`clip` を使う plan は `clip`、`ellipsis` を使う plan は `ellipsis`、fallback font を持つ plan は `explicitFontFallback` を必ず `requiredFeatures` に含める。未知の required feature や contract version は fail closed とする。
 
-Runtime binding の対象は `text.value` だけである。literal、宣言済み Runtime Variable、現在 Step の timer 残時間以外の source、任意式、JSON path、style / geometry / visibility / font の Runtime 変更は build error とする。Variable binding は string、boolean、有限 number だけを受け、`null` は拒否する。single-line 禁止 / 置換対象は U+000A、U+000B、U+000C、U+000D、U+0085、U+2028、U+2029 に固定する。literal と boolean label はこの一覧を含められず、整形後の表示 code point 数が `maxCodePoints` 以下でなければ build error とする。したがって静的値は Runtime で truncate されず、literal は `SemanticNode.text` と常に一致する。dynamic string は最初にこの一覧を U+0020 に置換し、次に結果を `allowedCodePointRanges` で検査して範囲外の code point を U+FFFD に置換する。したがって置換後の U+0020 が許容範囲外ならU+FFFDになる。boolean は明示した `trueLabel` / `falseLabel`、number は grouping なしの ASCII 数字、`fractionDigits` 0〜3、half-away-from-zero の丸めに固定する。
+Runtime binding の対象は `text.value` だけである。literal、宣言済み Runtime Variable、現在 Step の timer 残時間以外の source、任意式、JSON path、style / geometry / visibility / font の Runtime 変更は build error とする。Variable binding は string、boolean、有限 number だけを受け、`null` は拒否する。single-line 禁止 / 置換対象は U+000A、U+000B、U+000C、U+000D、U+0085、U+2028、U+2029 に固定する。literal と boolean label はこの一覧を含められず、整形後の表示 code point 数が `maxCodePoints` 以下でなければ build error とする。したがって静的値は Runtime で truncate されず、literal は `CompletedSemanticNode.text` と常に一致する。dynamic string は最初にこの一覧を U+0020 に置換し、次に結果を `allowedCodePointRanges` で検査して範囲外の code point を U+FFFD に置換する。したがって置換後の U+0020 が許容範囲外ならU+FFFDになる。boolean は明示した `trueLabel` / `falseLabel`、number は grouping なしの ASCII 数字、`fractionDigits` 0〜3、half-away-from-zero の丸めに固定する。
 
 timer の `durationMilliseconds` は有限かつ正とし、現在 Group / Step が binding の `groupId` / `stepId` と一致するときは armed / fired、Cue の Guard 成否を問わず、`remaining = max(0, durationMilliseconds - (clock.runtimeTimeMilliseconds - progression.stepEnteredAtRuntimeTimeMilliseconds))` を表示値に使う。Group または Step が不一致のときだけ `whenStepInactive` に従い、空文字列またはゼロを表示する。残時間は秒へ切り上げて 0 で clamp する。`mm:ss` は分が二桁を超えても必要桁まで増やして秒を二桁で表示し、`hh:mm:ss` は時間を必要桁まで増やして分・秒を二桁で表示する。`whenStepInactive: "zero"` は同じ timer format でゼロを表示する。Compiler は `stepTimerRemaining` が実在する `groupId` / `stepId` / `cueId` の timer Trigger を参照し、`durationMilliseconds` が一致することを検証する。timer owner は Cue の所属 Group から導出し、binding は host SurfaceNode が同じ Group-owned の場合だけ許可する。presentation-owned Surface は group-owned timer を参照できない。Cue 自体は ProjectionAudience を持たないため、timer表示は visible Surface の audience projection に従う。client は `ParticipantRuntimeView.clock` と `progression.stepEnteredAtRuntimeTimeMilliseconds` から表示だけを計算し、timer state を別途投影しない。完了判定と Cue 発火は常に割り当て済み Runtime Core だけが行う。共通 truncation は動的 string / number / timer の format 結果だけに `maxCodePoints` を適用する。超過時は `overflow: "clip"` なら先頭 `maxCodePoints` code point、`overflow: "ellipsis"` なら先頭 `maxCodePoints - 1` code point と U+2026 を使い、`maxCodePoints === 1` では U+2026 だけを使う。Unity と Web preview は同じ fixture に対して同じ pure formatter 結果を返さなければならない。
 
 Authoring では各 text と各 Surface State が Font Asset または Theme Font Token を自由に指定できる。Compiler は State ごとの Native UI artifact に concrete Font Asset と、authoring で明示した fallback Font Asset 列を解決する。`supportedCodePointRanges` は各 delivered font face が実際に描画可能な code point を表す。text は `primary`、`fallbacks` の順に、対象 glyph を最初に持つ face を使う。system font への暗黙 fallback と synthetic bold / italic は許可しない。literal、boolean label、string binding の `allowedCodePointRanges` と formatterで生成し得る U+0020 / U+FFFD、number の ASCII digit / `-` / `.`, timer の ASCII digit / `:`, U+2026 は font closure に含まれなければならない。全 reachable State の plan が参照する primary / fallback font face、supported code point range、required Native UI feature は Asset / capability closure に含まれなければならない。解決できない font / fallback / glyph coverage、または target capability が必要な font を満たさない場合は Delivery 前に reject する。font の選択は artifact の State 切替でだけ変わり、Runtime Variable / Clock binding から変更できない。
 
-各 Native UI text はその State の完成 Semantic Tree に含まれる `semanticNodeId` を一つだけ参照しなければならない。resolved State の一つの Native UI plan 内では、この対応は injective とし、複数 Text Node が同じ `semanticNodeId` を参照できない。さらに、同じ Semantic Surface / State に対して一つの ProjectionProfile が同時選択する全 Native UI artifact を横断しても injective とする。Compiler は artifact ごとの制約を、Control Plane は profile selection 後のartifact組合せを検証する。異なる ProjectionProfile は別々に検証する。literal は対応する `SemanticNode.text` と同じ値を持つ。dynamic value は `SemanticNode.text` を omit し、client が同じ formatted value を visual text と Participant Runtime View から派生する effective Semantic Tree text の両方へ適用する。canonical Semantic Tree の構造と ID は変えず、renderer が意味を推測しない。effective text は Snapshot の Variable / clock / progression から再現できる。Native UI v1 は non-interactive なので、参照する Semantic Node は `interactionId` を持てない。crossfade 中の effective semantic value は 12.4 の canonical Surface State 規則に従い、遷移先 State を有効な意味状態として使用し、旧 / 新 plan 間で別の Variable / clock snapshot を使わない。
+各 Native UI text はその State の完成 Semantic Tree に含まれる `semanticNodeId` を一つだけ参照しなければならない。resolved State の一つの Native UI plan 内では、この対応は injective とし、複数 Text Node が同じ `semanticNodeId` を参照できない。さらに、同じ Semantic Surface / State に対して一つの ProjectionProfile が同時選択する全 Native UI artifact を横断しても injective とする。Compiler は artifact ごとの制約を、Control Plane は profile selection 後のartifact組合せを検証する。異なる ProjectionProfile は別々に検証する。literal は対応する `CompletedSemanticNode.text` と同じ値を持つ。dynamic valueでは`CompletedSemanticNode.text`をnon-empty accessibility fallbackとして保持し、clientが同じnon-empty formatted valueをvisual textとParticipant Runtime Viewから派生するeffective Semantic Tree textへ適用する。formatted valueがemptyまたは利用不能ならvisual textはその結果に従い、effective semantic textだけをfallbackへ戻す。canonical Semantic Treeの構造とIDは変えず、rendererが意味を推測しない。effective textはSnapshotのVariable / clock / progressionから再現できる。Native UI v1はnon-interactiveなので、参照するSemantic Nodeは`interactionId`を持てない。crossfade中のeffective semantic valueは12.4のcanonical Surface State規則に従い、遷移先Stateを有効な意味状態として使用し、旧 / 新plan間で別のVariable / clock snapshotを使わない。
 
 ### 14.4 Video Artifact
 
@@ -2476,7 +2521,7 @@ presentation/
 
 ### Rendering / Delivery の follow-ups
 
-1. role 別 Semantic schema と Hit Region の完全 schema
+1. [x] role 別 Semantic schema と Hit Region の完全 schemaは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした（current flat schemaの実装置換はM3 Slice B）。
 2. Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な座標規約
 3. Component から Surface への分割規則、partition の自動化範囲、author override
 4. Texture state artifact 数と GPU / RAM build budget
@@ -2489,10 +2534,9 @@ presentation/
 
 次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
 
-1. role 別 Semantic schema / Hit Region schema
-2. Spatial / Surface coordinate convention
-3. Surface Partition
-4. Texture / GPU / RAM budget
+1. Spatial / Surface coordinate convention
+2. Surface Partition
+3. Texture / GPU / RAM budget
 
 中心となる思想は次のとおりである。
 
