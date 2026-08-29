@@ -1,9 +1,13 @@
+import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, mkdir, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { promisify } from "node:util";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+
+const execFile = promisify(execFileCallback);
 
 const directories: string[] = [];
 const links: string[] = [];
@@ -34,6 +38,89 @@ describe("filesystem project discovery", () => {
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
       ok: true,
       entryFile: "presentation.unframe.tsx",
+    });
+  });
+
+  it("project-owned TypeScript sourceをUTF-16 code-unit順のUTF-8 snapshotとして返す", async () => {
+    const directory = await project();
+    await mkdir(join(directory, "nested"));
+    await writeFile(join(directory, "z.ts"), "export const z = 1;", "utf8");
+    await writeFile(join(directory, "nested", "a.d.ts"), "declare const a: string;", "utf8");
+    await writeFile(join(directory, "nested", "b.tsx"), "export const b = <div />;", "utf8");
+    await writeFile(join(directory, "ignored.js"), "throw new Error();", "utf8");
+    const result = await discoverPresentationProjectFiles(directory);
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok)
+      expect(result.files).toEqual([
+        { fileName: "nested/a.d.ts", sourceText: "declare const a: string;" },
+        { fileName: "nested/b.tsx", sourceText: "export const b = <div />;" },
+        { fileName: "presentation.unframe.tsx", sourceText: "export default {}" },
+        { fileName: "z.ts", sourceText: "export const z = 1;" },
+      ]);
+  });
+
+  it("excluded directoryをsource入力から除外し、dist生成後も同じprojectを再checkできる", async () => {
+    const directory = await project();
+    for (const name of [".git", ".unframe", "dist", "node_modules"]) {
+      await mkdir(join(directory, name));
+      await writeFile(join(directory, name, "ignored.ts"), "invalid source", "utf8");
+    }
+    const first = await discoverPresentationProjectFiles(directory);
+    const second = await discoverPresentationProjectFiles(directory);
+    expect(first).toMatchObject({ ok: true });
+    expect(second).toMatchObject({ ok: true });
+    if (first.ok && second.ok) {
+      expect(first.files).toEqual(second.files);
+      expect(first.files).toEqual([
+        { fileName: "presentation.unframe.tsx", sourceText: "export default {}" },
+      ]);
+    }
+  });
+
+  it("scan対象のsymlinkとinvalid UTF-8をstable I/O failureとして拒否する", async () => {
+    const directory = await project();
+    await writeFile(join(directory, "outside.ts"), "export {};", "utf8");
+    await symlink(join(directory, "outside.ts"), join(directory, "linked.ts"));
+    await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
+      ok: false,
+      code: "cli-project-discovery-source-scan-failed",
+    });
+    await unlink(join(directory, "linked.ts"));
+    await writeFile(join(directory, "invalid.ts"), Buffer.from([0xed, 0xa0, 0x80]));
+    await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
+      ok: false,
+      code: "cli-project-discovery-source-scan-failed",
+    });
+  });
+
+  it("entryがsnapshot内のTypeScript sourceでなければ拒否する", async () => {
+    const directory = await project();
+    await writeFile(join(directory, "entry.txt"), "not TypeScript", "utf8");
+    await writeFile(
+      join(directory, "unframe.config.ts"),
+      'export default { entryFile: "entry.txt" }',
+      "utf8",
+    );
+    await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
+      ok: false,
+      code: "cli-project-discovery-invalid-entry-file",
+    });
+  });
+
+  it.each([
+    ["unframe.config.ts", "cli-project-discovery-missing-files"],
+    ["unframe.lock", "cli-project-discovery-missing-files"],
+    ["presentation.unframe.tsx", "cli-project-discovery-invalid-entry-file"],
+    ["nested/source.ts", "cli-project-discovery-source-scan-failed"],
+  ])("FIFOをopenせずstable failureにする: %s", async (fileName, code) => {
+    const directory = await project();
+    const path = join(directory, fileName);
+    await mkdir(dirname(path), { recursive: true });
+    await unlink(path).catch(() => undefined);
+    await execFile("mkfifo", [path]);
+    await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
+      ok: false,
+      code,
     });
   });
 

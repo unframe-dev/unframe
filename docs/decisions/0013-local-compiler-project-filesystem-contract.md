@@ -17,7 +17,7 @@ M1 の Local Compiler は、virtual Authoring Project と injected host まで�
 
 CLI は POSIX filesystem だけを M1 の対象にする。process command は absolute project directory を明示的に受け、その `realpath` を project root とする。上方向の discovery は行わず、同じ directory に `unframe.config.ts` と `unframe.lock` がともに存在しなければ I/O diagnostic で fail closed にする。root 外を参照する、入力中に symbolic link がある場合も I/O diagnostic とする。Windows path、junction、case-insensitive path の同一性は M1 では unsupported である。
 
-discovery、config、lock、authoring source は regular file だけを受け入れる。reader は traversal 中と open 時に symbolic link を拒否し、root-relative POSIX path を正規化して `..`、empty segment、NUL、absolute path を拒否する。directory scan の順序は UTF-16 code-unit 昇順に固定し、filesystem の返却順を入力にしない。
+discovery、config、lock、authoring source は regular file だけを受け入れる。reader は traversal 中と open 時に symbolic link を拒否し、root-relative POSIX path を正規化して `..`、empty segment、NUL、absolute path を拒否する。root から recursive scan した project-owned `.ts`、`.tsx`、`.d.ts` は、fatal UTF-8 decode 後に root-relative POSIX `fileName` と `sourceText` の一度だけの snapshot として virtual Authoring Project に渡す。`unframe.config.ts`、`.unframe`、`dist`、`.git`、`node_modules` は source input から除外する。directory scan と materialized source の順序は UTF-16 code-unit 昇順に固定し、filesystem の返却順を入力にしない。scan 対象の symbolic link、unsafe traversal、read race、UTF-8 failure は stable I/O discovery diagnostic で fail closed にする。`entryFile` はこの snapshot 内に存在しなければならない。
 
 ### `unframe.config.ts`
 

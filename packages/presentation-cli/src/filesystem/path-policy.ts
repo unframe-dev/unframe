@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
+import { lstat, open, readdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, parse, relative } from "node:path";
 
 type Identity = { readonly dev: number; readonly ino: number };
@@ -24,7 +24,8 @@ const noSymlinkComponents = async (path: string): Promise<boolean> => {
 const checkedPath = async (path: string, directory: boolean): Promise<CheckedPath | undefined> => {
   if (!(await noSymlinkComponents(path))) return undefined;
   const stat = await lstat(path).catch(() => undefined);
-  if (!stat || stat.isSymbolicLink() || stat.isDirectory() !== directory) return undefined;
+  if (!stat || stat.isSymbolicLink() || (directory ? !stat.isDirectory() : !stat.isFile()))
+    return undefined;
   const resolved = await realpath(path).catch(() => undefined);
   return resolved ? { identity: { dev: stat.dev, ino: stat.ino }, resolved } : undefined;
 };
@@ -79,6 +80,30 @@ export const projectDirectory = async (path: string) => {
     return undefined;
   }
   return stable ? before.resolved : undefined;
+};
+
+/** Returns a stable snapshot of direct names; callers must validate every discovered entry. */
+export const readDirectoryNames = async (path: string): Promise<readonly string[] | undefined> => {
+  const before = await checkedPath(path, true);
+  if (!before) return undefined;
+  const handle = await open(
+    path,
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  ).catch(() => undefined);
+  if (!handle) return undefined;
+  let names: readonly string[] | undefined;
+  try {
+    const stat = await handle.stat();
+    if (stat.isDirectory() && sameIdentity(before.identity, { dev: stat.dev, ino: stat.ino }))
+      names = await readdir(path);
+  } catch {}
+  const stable = names && (await stablePath(path, before, true));
+  try {
+    await handle.close();
+  } catch {
+    return undefined;
+  }
+  return stable && names ? [...names] : undefined;
 };
 
 export const rootRelativePosix = (root: string, value: string) => {
