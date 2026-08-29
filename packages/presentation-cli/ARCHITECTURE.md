@@ -1,6 +1,6 @@
 # Presentation CLI Architecture
 
-- **Status**: Current injected headless boundary; M1 process host is planned
+- **Status**: M1 filesystem-backed headless application boundary
 - **Scope**: Authoring Project を Compiler / Web Renderer に接続し、Bun 上の OpenTUI command selector と headless API を提供する
 - **Related**:
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
@@ -11,17 +11,16 @@
 ## 1. Role
 
 `presentation-cli` は headless な `runPresentationCli` と、interactive な `runPresentationTui` を別 entrypoint
-として公開する。CLI は Authoring semantic rule や renderer implementation を所有しないが、M1 の process adapter
-は ADR-0013 に従い explicit project root、data-only config / lock、Fixed Browser lifecycle、managed output の原子的公開を
-所有する予定である。現行実装は injected headless API までであり、process entry と reference-project acceptance は未接続
-である。headless application API は引き続き project reader、Fixed Browser adapter、明示的 build context、単一の artifact
-write transaction を注入できる。
+として公開する。CLI は Authoring semantic rule や renderer implementation を所有しないが、ADR-0013 に従い explicit
+project root、data-only config / lock、Fixed Browser lifecycle、managed output の原子的公開を組み立てる。headless
+application API はテスト用に Fixed Browser session factory、AbortSignal、固定 build context を注入できる。production default
+は packaged Fixed Browser と固定 toolchain context を使用し、project reader や output directory は注入しない。
 
 ```text
 runPresentationCli
 ├─ parse explicit absolute project directory
 ├─ M1 filesystem host: explicit root + config / lock, materialize virtual project
-├─ check: presentation-compiler.checkAuthoringProject（Browserなし）
+├─ check: presentation-compiler.checkAuthoringProjectAssembly（Browserなし）
 └─ build: compiler + presentation-renderer-web
    └─ managed staging + atomic dist symlink replacement
 ```
@@ -48,9 +47,10 @@ root export は native module を import しない。OpenTUI の Zig core を必
 
 ## 2. Command contract
 
-現行 public API の `args` は descriptor-safe snapshot の後に Zod 4 で検査する dense な string array である。M1
+現行 public API の `args` は descriptor-safe snapshot の後に検査する dense な string array である。M1
 process command は absolute project directory を受け、その realpath を root として同じ directory の`unframe.config.ts`、
-`unframe.lock`を読む。上方探索は行わない。public input、command grammar、build context、host callback も Zod で boundary validation する。host の callback
+`unframe.lock`を読む。上方探索は行わない。public input、command grammar、build context、host callback も descriptor-safe
+snapshot と explicit validation で boundary validation する。host の callback
 invocation と Compiler / Renderer の cross-boundary semantic diagnostics は、この構造検査の後に扱う。
 
 ```text
@@ -58,7 +58,7 @@ check <absolute-project-directory> [--format text|json]
 build <absolute-project-directory> [--format text|json]
 ```
 
-`check` は discovery、config、lock、Source frontend を検証するだけで、Browser adapter / Renderer を読まず起動しない。
+`check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
 `build` だけが Fixed Browser adapter と build context から baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 
 Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer`、`2` が `usage`、`3` が `io`、signal cancel の
@@ -68,14 +68,13 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 
 ## 3. Artifact boundary
 
-build の成功時だけ、CLI は次の deterministic な全ファイルを辞書順 path で一度に `writeBuildArtifacts` へ渡す。
+build の成功時だけ、CLI は次の deterministic な全ファイルを辞書順 path で一度に `publishAtomicArtifacts` へ渡す。
 
 - `definition.json`
 - `render-bundle.json`
 - `assets/<percent-encoded asset id>.png`
 
-injected host API は個別の file write、既存 output の削除、partial output の rollback を行わない。planned M1 filesystem host
-は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
+filesystem host は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
 relative target の managed `dist` symlink を atomic replacement する。失敗または cancel では previous `dist` を維持し、今回の
 staging を公開しない。manifest と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
 discovery / read / write I/O は exit code `3` とする。

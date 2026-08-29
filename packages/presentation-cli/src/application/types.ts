@@ -1,7 +1,21 @@
-import type { CompilerBuildOptions } from "@unframe/presentation-compiler";
-import type { FixedBrowserAdapter, WebRendererConfig } from "@unframe/presentation-renderer-web";
+import type { FixedBrowserSession, WebRendererConfig } from "@unframe/presentation-renderer-web";
 
-export type PresentationCliExitCode = 0 | 1 | 2 | 3;
+export type PresentationCliExitCode = 0 | 1 | 2 | 3 | 130;
+export type PresentationDiagnosticFamily =
+  | "usage"
+  | "syntax"
+  | "type"
+  | "semantic"
+  | "renderer"
+  | "io"
+  | "cancel";
+
+export type PresentationCliDiagnostic = Readonly<{
+  family: PresentationDiagnosticFamily;
+  code: string;
+  message: string;
+  path: readonly (string | number)[];
+}>;
 
 export type PresentationCliResult = Readonly<{
   exitCode: PresentationCliExitCode;
@@ -9,31 +23,24 @@ export type PresentationCliResult = Readonly<{
   stderr: string;
 }>;
 
-export type BuildArtifactFile = Readonly<{
-  path: string;
-  bytes: Uint8Array;
-}>;
-
 export type PresentationCliBuildContext = Readonly<{
-  compiler: CompilerBuildOptions["compiler"];
-  locale: string;
-  timezone: string;
-  colorScheme: "light" | "dark";
+  compiler: Readonly<{ name: string; version: string; baseEnvironmentHash: string }>;
+  locale: "ja-JP";
+  timezone: "Asia/Tokyo";
+  colorScheme: "light";
   pixelTarget: readonly [width: number, height: number];
   webRendererConfig: WebRendererConfig;
 }>;
 
 export type PresentationCliHost = Readonly<{
-  readProject?: (absoluteProjectJsonPath: string) => Promise<string> | string;
-  writeBuildArtifacts?: (
-    absoluteOutputDirectory: string,
-    files: readonly BuildArtifactFile[],
-  ) => Promise<void> | void;
-  browserAdapter?: FixedBrowserAdapter;
+  /** Test seam. Production opens the packaged Fixed Browser. */
+  openFixedBrowser?: (input: Readonly<{ signal?: AbortSignal }>) => Promise<FixedBrowserSession>;
+  /** Process owners pass their single cancellation signal through this boundary. */
+  signal?: AbortSignal;
   buildContext?: PresentationCliBuildContext;
 }>;
 
 export type RunPresentationCliInput = Readonly<{
   args: readonly string[];
-  host: PresentationCliHost;
+  host?: PresentationCliHost;
 }>;
