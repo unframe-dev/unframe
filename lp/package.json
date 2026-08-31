@@ -23,12 +23,12 @@
     "@tailwindcss/vite": "^4.1.18",
     "@typescript/native": "npm:typescript@7.0.2",
     "mdsvex": "0.12.8",
-    "svelte": "5.56.10",
+    "svelte": "5.57.0",
     "svelte-check": "4.7.6",
     "tailwindcss": "^4.1.18",
-    "tsx": "4.23.12",
+    "tsx": "4.23.13",
     "typescript": "6.0.3",
     "vite": "catalog:",
-    "wrangler": "4.125.0"
+    "wrangler": "4.127.1"
   }
 }
