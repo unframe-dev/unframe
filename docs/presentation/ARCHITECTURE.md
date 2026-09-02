@@ -10,6 +10,7 @@
   - Authoring、Rendering、Delivery の下位契約: follow-up
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
+  - [Presentation Surface 描画方式の比較条件](./UI_RENDERING_COMPARISON.md)
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
   - [Repository Architecture](../../ARCHITECTURE.md)
