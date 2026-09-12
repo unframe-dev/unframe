@@ -22,18 +22,18 @@
     "@phosphor-icons/react": "^2.1.10",
     "@react-three/drei": "10.7.8",
     "@react-three/fiber": "9.7.0",
-    "@tanstack/react-query": "5.102.3",
-    "@tanstack/react-router": "1.170.32",
+    "@tanstack/react-query": "5.102.8",
+    "@tanstack/react-router": "1.170.35",
     "@unframe/api-client-typescript": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "immer": "11.1.18",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-hook-form": "7.86.0",
+    "react-hook-form": "7.88.0",
     "tailwind-merge": "^3.6.0",
-    "three": "0.185.1",
-    "zod": "4.4.3",
+    "three": "0.186.0",
+    "zod": "4.6.2",
     "zustand": "5.0.15"
   },
   "devDependencies": {
@@ -53,7 +53,7 @@
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.0",
     "vite": "catalog:",
-    "vitest": "4.1.11",
+    "vitest": "5.0.0",
     "wrangler": "4.129.1"
   }
 }
