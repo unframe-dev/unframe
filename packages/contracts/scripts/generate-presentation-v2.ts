@@ -61,14 +61,23 @@ for (const [name, schema] of schemas) {
   });
   await output(
     `presentation/v2/${name}.schema.json`,
-    `${JSON.stringify(
+    execFileSync(
+      "pnpm",
+      ["exec", "vp", "fmt", `--stdin-filepath=presentation/v2/${name}.schema.json`],
       {
-        ...jsonSchema,
-        $id: `https://contracts.unframe.dev/presentation/${name}.v2.schema.json`,
+        cwd: root,
+        input: `${JSON.stringify(
+          {
+            ...jsonSchema,
+            $id: `https://contracts.unframe.dev/presentation/${name}.v2.schema.json`,
+          },
+          null,
+          2,
+        )}\n`,
+        encoding: "utf8",
+        maxBuffer: 16 * 1024 * 1024,
       },
-      null,
-      2,
-    )}\n`,
+    ),
   );
 }
 
