@@ -16,7 +16,21 @@ pnpm --filter @unframe/contracts check:control-plane
 
 Control Plane の `src/openapi.ts`、共有 schema、HTTP routeを変更した場合は型を再生成し、drift checkを通してください。TypeScript runtime client は生成 path 型ではなく Hono RPC の `AppType` を使います。生成物は Unity / C# など言語非依存の契約境界として維持します。
 
-## Presentation artifact schemas
+## Presentation v2
+
+完成版の構造は `src/presentation/v2/` の Zod と `proto/unframe/{presentation,delivery,realtime}/v2/` の Protobuf が正本です。型は `@unframe/contracts/presentation/v2` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/presentation/DATA_MODEL.md) を併読してください。v1 consumer の移行と実機対応は含みません。
+
+repository root の Nix development shell で実行します。
+
+```sh
+pnpm --filter @unframe/contracts generate:presentation:v2
+pnpm --filter @unframe/contracts check:presentation:v2
+pnpm --filter @unframe/contracts test:presentation:v2
+```
+
+`presentation/v2/*.schema.json` と `contract.pb` は生成物です。fixture は合成データで、モデル・動画・フォントの実バイトや実機測定値を含みません。構造の受理・拒否と生成物の一致を検証し、素材の変換・描画成功とは区別します。
+
+## Presentation v1（既存 consumer の初期 subset）
 
 `src/presentation/definition.ts` と `src/presentation/render-bundle.ts` の Zod 4 schema が source of
 truth です。前者は renderer-independent な PresentationDefinition、後者は baked-web artifact を含む
@@ -41,7 +55,7 @@ State、baked-web intent、空 Cue の Group/Step を表す最小fixtureです�
 `absolute` placementを持つ親子構造に限定します。ID参照、treeの循環、Quaternionの正規化、Scalar型とinitialValueの一致は
 構造schemaの外であり、`presentation-core` が検証します。
 
-## Realtime Protocol Buffers
+## Realtime v1（既存 foundation）
 
 `proto/unframe/realtime/v1/realtime.proto` は Realtime gRPC protocol の source of truth です。Go generated code は `app/server/realtime/internal/gen/realtime/v1/` に出力します。generated files は手で編集しません。
 

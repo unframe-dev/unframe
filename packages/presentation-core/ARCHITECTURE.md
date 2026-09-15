@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Initial first-milestone implementation
+- **Status**: v1 semantic core and v2 publication integrity boundary
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -79,7 +79,7 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 - ProjectionAudience は host Spatial Node から派生 resource へ継承し、profile ごとの visibility closure が参照 closure を満たす。
 - actor、subject、Anchor owner は canonical identity と resource ownership に従い、client payload から任意値として受理しない。
 - Component Action / Output は Runtime model に残さず、canonical Action / Trigger へ lower 済みとする。
-- canonicalization は入力順、object insertion order、renderer の描画順に依存しない。
+- v1 canonicalization は意味上の set の入力順と object insertion order に依存しない。v2 の JCS hash は配列順を保持する。
 - CanonicalRuntimeSnapshot は renderer、participant、connection、transport から独立させる。
 
 ## 6. Non-responsibilities
@@ -114,3 +114,16 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window
+
+## 10. v2 公開物の整合性検証
+
+`verifyPublicationIntegrityV2` は、`definition`、`renderBundle`、`assetSet`、`buildManifest`、
+`publishedPresentation` をまとめて受け取り、`ValidationResult<PublicationArtifactsV2>` を返す。
+型は `@unframe/contracts/presentation/v2` を正本とする。
+
+この入口は安全な plain JSON snapshot、v2 構造、素材の参照集合と descriptor、モデル・clip 参照、
+成果物間の hash と公開 manifest の一致を検証する。入力を変更せず、JCS hash では配列順を保持する。
+
+入力はデコード済みの値である。raw JSON の重複 key 検出はデコードする adapter が担当する。
+成功は公開権限、epoch の更新可否、素材バイトの形式、端末への配信可否を保証しない。
+Scene / Flow / State の完全な意味検証と既存 Compiler の v2 出力への移行も別途必要になる。

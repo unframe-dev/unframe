@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "assets": {
+    "image": {
+      "checksum": "sha256:affa657b3c3e9337bdf3c879c0561b74d54a9197fdc6acd834dcdc02837454fc",
+      "mediaType": "image/png",
+      "encodedSizeBytes": 64
+    },
+    "texture": {
+      "checksum": "sha256:8bb284b35b1014ff30cfb0da419d98e11d78e32ce8c8a545d6b45bc448b10b1c",
+      "mediaType": "image/png",
+      "encodedSizeBytes": 64
+    },
+    "font": {
+      "checksum": "sha256:637c82de478ca913fe74688e4ec9d50ff9de7cea2f408f1e4f534bd5e8921d2a",
+      "mediaType": "font/ttf",
+      "encodedSizeBytes": 64
+    },
+    "model-asset": {
+      "checksum": "sha256:fd74b90fd019e393d01a960cefb7b188bd78ff80f4ef64d0f5bdf41f60029131",
+      "mediaType": "model/gltf-binary",
+      "encodedSizeBytes": 64
+    },
+    "video-asset": {
+      "checksum": "sha256:1e44022b2f4e8d4ba9fb6b9a56e459ce780b0ed64005df00cf45de9f930ecf49",
+      "mediaType": "video/mp4",
+      "encodedSizeBytes": 64
+    }
+  }
+}

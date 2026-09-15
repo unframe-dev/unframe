@@ -21,6 +21,8 @@ const assertValidUnicode = (value: string) => {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
     if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      if (index + 1 >= value.length)
+        throw new TypeError("Canonical JSON does not permit lone Unicode surrogates.");
       const next = value.charCodeAt(index + 1);
       if (next < 0xdc00 || next > 0xdfff)
         throw new TypeError("Canonical JSON does not permit lone Unicode surrogates.");

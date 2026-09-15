@@ -8,10 +8,11 @@
   - [Presentation Architecture](../presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../presentation/DESIGN.md)
   - [ADR-0006](../decisions/0006-presentation-rendering-strategy.md)
+  - [ADR-0014](../decisions/0014-presentation-rendering-scope.md)
 
 ## 1. 目的
 
-現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。一方で、完全版の Semantic / Runtime contract、Delivery、C# generation は未完成である。
+現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。Compiler / Core の v2 移行、Delivery の実行処理、C# generation は未完成である。
 
 本計画は、未実装事項を package ごとの独立した TODO として消化するのではなく、各段階で利用可能な結果を残す縦断的な milestone として整理する。
 
@@ -234,6 +235,8 @@ Surface Partitionのcanonical paint run、required renderer / compositing bounda
 
 Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compiler aggregate budget、Delivery GPU / load CPU tier、全State preload、readiness、active pin / LRU evictionは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。current実装はper-encode PNG hard capだけを持ち、Compiler / Delivery / Realtime / Unityへのtarget実装はM3〜M5で接続する。
 
+Native 3D、`baked-web`、限定 `native-ui`、`video` の責務と、Runtime Web を対象外にする境界は [ADR-0014](../decisions/0014-presentation-rendering-scope.md) でAcceptedとした。方式の採用は実装や実機性能の完了を意味しない。現行 Local Compiler は `baked-web` 初期 subset だけを実装し、ADR-0012 の v1 Delivery baseline も `baked-web` だけを対象とする。Native UI と Video は固有 budget と consumer が受理されるまで Delivery で拒否する。
+
 M2のblocking contract 6項目はすべてAcceptedとなった。今回のGoalはM1 project assembly / reference Browser / CLIの完了までに限定した。M3〜M6は後続Goalとして未完了のまま保持し、このGoalでは実装を開始しない。
 
 ### 完了条件
@@ -293,6 +296,7 @@ M2のblocking contract 6項目はすべてAcceptedとなった。今回のGoal�
 - timeout、cancel、CPU / memory budget
 - plugin discovery、version negotiation、cache invalidation
 - visual regression baseline
+- `embedded-web`、WebView、Runtime HTML / JavaScript renderer は対象外とし、拡張口を追加しない
 
 ### Assets
 

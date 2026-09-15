@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-25
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
+- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [ADR-0014: Presentation の描画方式を限定する](./0014-presentation-rendering-scope.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
 
 ## Context
 
@@ -87,9 +87,9 @@ Component の抽象を超えた編集は Authoring 上で Detach し、Delivery 
 
 Scene Graph は、空間配置を表す Spatial Tree と、Surface 内の 2D UI を表す Surface Tree から構成する。
 
-Group は物語上の進行スコープであり、Scene Graph の親子関係とは分離する。Spatial Tree は Stage、Anchor、Container、Model、Audio、SurfaceNode などの空間関係を保持する。SurfaceNode と Semantic Surface の組が 3D 空間と 2D UI を接続し、Semantic Surface が物理 size と logical size を持つ。
+Group は物語上の進行スコープであり、Scene Graph の親子関係とは分離する。Spatial Tree は Stage、Anchor、Container、Model、SurfaceNode などの空間関係を保持する。SurfaceNode と Semantic Surface の組が 3D 空間と 2D UI を接続し、Semantic Surface が物理 size と logical size を持つ。
 
-Runtime resource owner は `presentation` または一つの `group` に限定し、Step scope と Group ごとの ID namespace は作らない。Spatial Node、Timeline、Variable、Zone が owner を直接持ち、Semantic Surface、Interaction、Media、Render Surface は親から継承する。Group の owned-resource list は正本にせず、Compiler / Delivery が owner から activation index を派生生成する。
+Runtime resource owner は `presentation` または一つの `group` に限定し、Step scope と Group ごとの ID namespace は作らない。Spatial Node、Timeline、Variable、Zone が owner を直接持ち、Semantic Surface、Interaction、Video playback state、Render Surface は親から継承する。Group の owned-resource list は正本にせず、Compiler / Delivery が owner から activation index を派生生成する。
 
 presentation-owned resource は presentation-owned resource、Group G-owned resource と Group G の Cue は presentation-owned または同じ Group G-owned resource だけを参照できる。ownership は Spatial parent と分離し、group-owned Node は presentation-owned Node を parent にできる。presentation-owned Runtime State と Run は Group をまたいで継続し、group-owned state は exit で破棄して reentry で reset する。Timeline も presentation / group の両 owner を許す。
 
@@ -99,19 +99,19 @@ Component は再利用と編集、SurfaceNode は空間配置と animation、Sem
 
 Surface は、Spatial Tree 上で Transform を所有する SurfaceNode、PresentationDefinition 上で State / Interaction を所有する Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。v1 は SurfaceNode と Semantic Surface を 1:1、Semantic Surface と Render Surface を 1:N とする。
 
-canonical Runtime contract の SurfaceId は SemanticSurfaceId を意味する。Node Action と Timeline は SurfaceNode を含む SpatialNodeId、Surface State、Interaction、media Action、Progression は SemanticSurfaceId を参照する。RenderSurfaceId は compiler-derived な build-local ID とし、Trigger、Guard、Action、Snapshot、Reliable Event に含めない。
+canonical Runtime contract の SurfaceId は SemanticSurfaceId を意味する。Node Action と Timeline は SurfaceNode を含む SpatialNodeId、Surface State、Interaction、Video の media Action、Progression は SemanticSurfaceId を参照する。media Action は Video artifact を持つ Semantic Surface だけを対象とする。RenderSurfaceId は compiler-derived な build-local ID とし、Trigger、Guard、Action、Snapshot、Reliable Event に含めない。
 
 ### Rendering
 
 Semantic Scene Graph を優先し、renderer を Local Compiler と Delivery の出力戦略とする。
 
-3D Model、Shape、Spatial Audio、Transform、Anchor tracking は Unity native で描画する。静的 UI と少数の有限状態 UI は Web で描画して Render Surface 単位に Texture 化する。継続的に変化する限定 UI は portable な Native UI とし、入力非依存の複雑な連続演出は Video とする。
+3D Model、Shape、Transform、Anchor tracking は Unity native で描画する。静的 UI と少数の有限状態 UI は Web で描画して Render Surface 単位に Texture 化する。Timer、Counter、短い動的 Text は portable な Native UI とし、入力非依存の複雑な連続演出は Video とする。独立した音声、BGM、効果音、空間音声は対象外とし、音声は Video artifact 内の audio track としてだけ扱う。
 
 Semantic Surface は具体 renderer ではなく Render Intent を持つ。Concrete renderer と解像度は build 結果と target capability に基づいて RenderBundle と DeliveryManifest で確定する。
 
 Surface State は意味論的な状態として保持し、Texture ID や Unity object を参照しない。Renderer artifact は RenderBundle が Surface State に対応付け、DeliveryManifestはtarget capabilityに応じてRender Surfaceの各到達可能stateへartifactまたは明示的なempty bindingを固定する。
 
-Embedded Browser は v1 の標準 renderer に含めない。Control Plane と Unity Runtime は Authoring Source、React、HTML、CSS、renderer source を実行しない。
+採用する描画方式と適用範囲は [ADR-0014](./0014-presentation-rendering-scope.md) に従う。`embedded-web`、WebView、Unity Runtime で任意の HTML / CSS / JavaScript / WebAssembly を実行する方式はプロジェクトの対象外とし、将来用の artifact kind や予約 field も作らない。Control Plane と Unity Runtime は Authoring Source、React、HTML、CSS、renderer source を実行しない。固定 Browser での Opaque TS / React / CSS 実行は build-time artifact generation の隔離境界に限って許可する。
 
 ### Presentation Progression
 
@@ -179,9 +179,9 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 この ADR は目標アーキテクチャを採用するものであり、すべてが現行コードへ実装済みであることを意味しない。
 
-2026-08-28 時点では、現行 Control Plane の PresentationDefinition は ADR-0005 の Group、Step、Cue、Element を中心とした JSON / OpenAPI 契約である。Target の Spatial Tree / Surface Tree と baked-web RenderBundle は、Zod 4 source、生成 JSON Schema、初期 semantic Core、Authoring / Component / Renderer API / Assets、post-lowering Compiler、Structured renderer、Opaque source の Rolldown bundle、headless CLI と Bun / OpenTUI shell まで実装済みである。一方、Authoring TS / TSX は構文解析まで、Opaque renderer は bundle まで、TUI は command selection までであり、実 Browser execution / capture とは未接続である。完全版contract、DeliveryManifest、hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
+2026-09-15 時点では、Authoring Source の virtual resolution、typecheck、Static DSL lowering から、固定 Browser capture、deterministic PNG encode、`definition.json`、`render-bundle.json`、`assets/*.png` の atomic output までを M1 Local Compiler として実装済みである。現行 contract と renderer は static な `baked-web` 初期 subset に限られる。完全版 contract、DeliveryManifest、Native UI / Video consumer、Unity hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
 
-この ADR だけで既存 schema を置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI / Protobuf artifact、Web / Unity / Realtime consumer、contract test を同期する。
+この ADR だけで既存 schema を置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI / Protobuf artifact、Web / Unity / Realtime consumer、contract test を同期する。既存 Unity code に独立音声の実装が残っていても、Target contract の採用範囲には含めない。
 
 ## Follow-ups
 

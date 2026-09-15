@@ -7,6 +7,9 @@
   - [Presentation Architecture](./ARCHITECTURE.md)
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
+  - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
+
+具体的な成果物・配信・Runtime のデータ契約は [Presentation v2](./DATA_MODEL.md) を正本とする。本書は実装配置と責務を説明する。
 
 ## 1. この文書の位置付け
 
@@ -257,7 +260,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 
 この package は `presentation-core`、`presentation-renderer-api`、`presentation-assets`に依存する。Capture結果のresize、encode、checksumは`presentation-assets`へ委譲する。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
 
-Native UI、Video、その他の renderer は、実装開始時にそれぞれ独立 package として追加する。`presentation-renderer-web` に仮実装を置かない。
+Native UI と Video renderer は、実装開始時にそれぞれ独立 package として追加する。`presentation-renderer-web` に仮実装を置かない。`embedded-web`、WebView、任意の Runtime HTML / JavaScript renderer package は追加しない。
 
 ### 4.6 `packages/presentation-assets`
 
@@ -341,7 +344,7 @@ Authoring Projectを操作する利用者向け executable と、automation 向�
 
 CLIは`presentation-compiler`と、既定で有効にするconcrete rendererに依存する。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
 
-Current implementation は `check` / `build` の headless API と、それらを選ぶ TUI shell までである。filesystem host、Browser process、publish、previewとの接続は Target responsibility であり未実装である。
+Current implementation は filesystem host と Fixed Browser を接続した `check` / `build` process entry、atomic output、および command selection 用の TUI shell を持つ。TUI と process command の接続、publish、preview は未実装である。
 
 ## 5. Contract and generated artifact ownership
 
@@ -595,7 +598,7 @@ Directoryとpackageは次の順序で実装を開始する。
 
 最初のmilestoneは、手書きのreference Authoring Projectから、CLIを通じてcanonical PresentationDefinition JSONと一つのbaked-web Surfaceを含むRenderBundleをdeterministicに生成することとする。Publish、Realtime、Unity、GUI editingはこのmilestoneの完了条件に含めない。
 
-2026-08-28 時点で 1〜9 の初期 subset は実装済みである。ただし Compiler の source boundary は構文解析まで、Opaque renderer は bundle まで、CLI の TUI は command selection までであり、完全な Authoring Source から実 Browser capture までの一貫経路が完成したことを意味しない。
+2026-09-15 時点で M1 の static Authoring Source から Fixed Browser capture、Definition / RenderBundle / PNG の atomic output までの経路は実装済みである。Opaque renderer は bundle まで、CLI の TUI は command selection までであり、publish、preview、完全な Opaque execution は未実装である。
 
 ## 12. Deferred decisions
 
