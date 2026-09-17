@@ -4,14 +4,34 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./control-plane": "./src/control-plane.openapi.ts"
+    "./control-plane": "./src/control-plane.openapi.ts",
+    "./presentation": "./src/presentation/index.ts",
+    "./presentation/v2": "./src/presentation/v2/index.ts"
   },
   "scripts": {
     "generate:control-plane": "tsx scripts/generate-control-plane.ts",
-    "check:control-plane": "tsx scripts/generate-control-plane.ts --check"
+    "check:control-plane": "tsx scripts/generate-control-plane.ts --check",
+    "generate:presentation": "tsx scripts/generate-presentation.ts",
+    "check:presentation": "tsx scripts/generate-presentation.ts --check",
+    "test:presentation": "tsx test/presentation.contract.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src/presentation scripts test",
+    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:presentation:v2 && pnpm typecheck && pnpm test:presentation && pnpm test:presentation:v2 && pnpm lint",
+    "generate:presentation:v2": "tsx scripts/generate-presentation-v2.ts",
+    "check:presentation:v2": "tsx scripts/generate-presentation-v2.ts --check",
+    "test:presentation:v2": "tsx test/presentation-v2.contract.test.ts"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20260825.1",
+    "@types/node": "^24.0.0",
+    "ajv": "8.17.1",
+    "canonicalize": "3.0.0",
     "openapi-typescript": "^7.12.0",
-    "tsx": "^4.22.1"
+    "tsx": "^4.22.1",
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:"
   }
 }

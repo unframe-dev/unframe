@@ -6,14 +6,20 @@
 - **Maturity**:
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
-  - Progression wire / Runtime contract: draft
-  - Authoring、Rendering、Delivery の下位契約: follow-up
+  - Progression semantic wire contract: Accepted（v2 Protobuf 定義済み、consumer は未接続）
+  - コンパイル後の構造・配信・Runtime: Presentation v2。Authoring / build host の実装設計は後続
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
+  - [Presentation Surface 描画方式の検証条件](./UI_RENDERING_COMPARISON.md)
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
+  - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
+  - [ADR-0015: Definition と素材集合の構造境界を定める](../decisions/0015-presentation-definition-artifact-boundaries.md)
+  - [ADR-0016: モデル内蔵アニメーションの範囲を定める](../decisions/0016-model-animation-scope.md)
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [Server Architecture](../../app/server/ARCHITECTURE.md)
+
+具体的なデータ構造と実行規則は [Presentation v2 データ契約](./DATA_MODEL.md) を正本とする。本書の旧型例と異なる場合は v2 を優先する。
 
 ## 1. この文書の位置付け
 
@@ -83,7 +89,7 @@ Session path の authority は Cloud または Venue Edge に配置された割�
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
 - GUI が任意の TSX、CSS、JavaScript を完全に逆解析できるとはみなさない。
-- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。
+- Local Compiler は Presentation Orchestrator、Theme Declaration、Component Manifest、Component Structure を parse / typecheck し、検証済み AST から Declaration Graph へ静的に lower する。これらを JavaScript として実行しない。M1 の project discovery、config / lock、hash、managed output は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) を正本とする。
 - Opaque renderer だけが通常の TS / React / CSS を bundle して renderer artifact を生成する。renderer の実行環境は Authoring DSL の lowering から分離する。
 - Control Plane と Unity Runtime は Authoring Source、React、CSS、renderer source を実行しない。
 - PresentationDefinition JSON、Texture、Video、Protobuf は生成物であり、編集元の正本にはしない。
@@ -134,16 +140,28 @@ Presentation の意味モデルである。
 
 ```text
 PresentationDefinition
-├─ Metadata
-├─ Stage / Coordinate Space / Zone
-├─ Semantic Scene Graph
-├─ Group / Flow / State / Action
-├─ Semantic Surface
-├─ Interaction
-└─ Opaque Asset References
+├─ schemaVersion
+├─ presentationId
+├─ metadata
+├─ stage
+│  ├─ coordinateSystem
+│  ├─ size
+│  └─ zones
+├─ scene
+│  ├─ nodes
+│  └─ surfaces
+└─ flow
+   ├─ initialGroupId
+   ├─ groups → steps → cues
+   ├─ variables
+   └─ timelines
 ```
 
-エンコード方式自体は意味モデルの一部ではないが、v1 の Local Compiler は PresentationDefinition を canonical `presentation.definition.json` として生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。
+`scene.nodes` は空間配置、owner、audience、初期 transform / 表示状態、`scene.surfaces` は内容ツリー、意味情報、State、Interaction、Render Intent を保持する。`flow.timelines` は Timeline catalog を保持し、実行中の Run、現在時刻、現在値を含めない。完全な構造境界は [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md) を正本とする。
+
+素材の使用箇所は `assetId` だけを参照する。checksum、media type、encoded size を持つ素材 descriptor は、Definition と RenderBundle から独立した immutable な `AssetSetManifest` に置く。Compiler は Definition、RenderBundle、AssetSetManifest、素材実体の参照完全性を検証し、Control Plane はそれぞれの hash を PublishedPresentation に固定する。現行 M1 の `definition.assets` と出力 layout にこの分離が実装済みとは扱わない。独立音声用 descriptor は持たず、Video 内の audio track は Video asset の一部として検証する。
+
+エンコード方式自体は意味モデルの一部ではないが、v1 の Local Compiler は PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
 
 ### 3.4 RenderBundle
 
@@ -195,12 +213,21 @@ type ProjectionProfileKey = {
 };
 
 type DeliveredRenderSurface = {
+  semanticSurfaceId: SemanticSurfaceId;
+  logicalBounds: LogicalBounds;
+  layer: UInt32;
   rendererKind: "baked-web" | "native-ui" | "video";
-  rendererContractVersion: number;
+  artifactContractVersion: UInt32;
   stateBindings: Record<
     SurfaceStateId,
     { kind: "empty" } | { kind: "artifact"; artifactId: RendererArtifactId }
   >;
+};
+
+type ProjectedSemanticSurface = {
+  renderSurfaceIds: RenderSurfaceId[];
+  semanticsByState: Record<SurfaceStateId, ProjectedSemanticTree>;
+  interactionsByState: Record<SurfaceStateId, ResolvedInteractiveRegion[]>;
 };
 
 type ProjectionProfileDescriptor = {
@@ -208,9 +235,9 @@ type ProjectionProfileDescriptor = {
   key: ProjectionProfileKey;
   visibleNodeIds: SpatialNodeId[];
   visibleSurfaceIds: SemanticSurfaceId[];
-  visibleTimelineIds: TimelineId[];
   visibleVariableIds: VariableId[];
   renderSurfaces: Record<RenderSurfaceId, DeliveredRenderSurface>;
+  semanticSurfaces: Record<SemanticSurfaceId, ProjectedSemanticSurface>;
   localOverlays: LocalOverlayDefinition[];
 };
 
@@ -223,8 +250,26 @@ type ProjectionInstance = {
 type AssetAccessBinding = {
   assetId: AssetId;
   checksum: ContentHash;
+  mediaType: string;
+  encodedSizeBytes: UInt64;
   url: string;
   expiresAt: string;
+};
+
+type TextureResidencyBindingV1 = {
+  assetId: AssetId;
+  checksum: ContentHash;
+  pixelSize: readonly [width: UInt32, height: UInt32];
+  pixelFormat: "rgba8-unorm-srgb";
+  mipCount: 1;
+  decodedGpuBytes: UInt64;
+  peakLoadCpuBytes: UInt64;
+  memoryEstimateVersion: 1;
+};
+
+type TextureResidencyPlanV1 = {
+  budgetTierId: "texture-baseline-v1";
+  textures: TextureResidencyBindingV1[];
 };
 
 type DeliveryManifest = {
@@ -236,12 +281,15 @@ type DeliveryManifest = {
   projectionProfile: ProjectionProfileDescriptor;
   projectionInstance: ProjectionInstance;
   assetAccess: AssetAccessBinding[];
+  textureResidency: TextureResidencyPlanV1;
 };
 ```
 
+各`ProjectedSemanticSurface.renderSurfaceIds`はimmutable RenderBundleの該当Semantic Surfaceに属する完全なpartition集合をlayer昇順でexactly onceに持つ。`ProjectionProfileDescriptor.renderSurfaces`のkey集合はvisible Semantic Surfaceごとのordered IDのunionと一致し、各`DeliveredRenderSurface`の`semanticSurfaceId`、`logicalBounds`、`layer`はRenderBundle metadataと完全一致しなければならない。不可視Surfaceのpartition、欠落・余分・duplicate ID、layer gap / duplicate、metadata drift、compatible artifact不在はprofile単位でatomicに拒否する。Deliveryは`rendererKind`、artifact自身の`contractVersion` / `requiredFeatures`、target capabilityから`artifactContractVersion`とbindingを選び、build時renderer identityのstring `contractVersion`とは比較しない。
+
 Control Plane は同じ `ProjectionProfileKey` から同じ `ProjectionProfileDescriptor` を生成し、profile 単位で cache / 共有できるようにする。`projectionContractVersion` は visibility closure と renderer 選択規則を含む projection algorithm の互換性境界であり、cache namespace の一部とする。`ProjectionProfileId` は descriptor の canonical content に対応し、同じ PublicationFence、projection contract version、role、正規化済み capability profile の participant ごとに作り直さない。
 
-Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed URL を含まない。これらの participant / assignment 固有値と期限付き Asset access binding は DeliveryManifest の instance 側で解決する。client が申告した capability を authorization に使用せず、Control Plane が正規化・検証した `CapabilityProfileId` は renderer compatibility の選択だけに使用する。
+Profile は `participantId`、`assignmentEpoch`、endpoint、credential、Signed URL を含まない。これらの participant / assignment 固有値と期限付き Asset access binding は DeliveryManifest の instance 側で解決する。`assetAccess`はProjectionがselectedしたAsset ID集合と完全一致し、各Asset IDをexactly once、Asset IDのUTF-16 code-unit昇順で持つ。duplicate、missing / extra binding、同じAsset IDのdescriptor不一致はManifest全体をrejectする。各bindingはdownload検証に必要なmedia type / encoded sizeを運び、`textureResidency`はselected textureをchecksum、Asset ID順でexactly onceに持つ。Unityは両者とProjection内のartifact descriptorが一致すること、GPU sum / CPU maxが`budgetTierId`の上限内であることを再検証する。client が申告した capability を authorization に使用せず、Control Plane が正規化・検証した `CapabilityProfileId` は renderer compatibility の選択だけに使用する。
 
 `DeliveredRenderSurface` は Render Surface ごと、かつ到達可能な Surface State ごとに選択結果を固定する。`empty` 以外の各 state は同じ renderer contract で解釈できる artifact を一つ持たなければならず、Unity が実行時に候補から再選択しない。これにより、state A と state B が異なる artifact を必要とする場合も一つの profile で完全に配信できる。
 
@@ -328,6 +376,7 @@ type ParticipantRuntimeView = {
   variables: Record<VariableId, Scalar>;
   activeRuns: RuntimeRunSnapshot[];
   clock: RuntimeClockSnapshot;
+  presentationOrigin: PresentationOrigin;
   enabledLogicalInputs: LogicalEventName[];
 };
 
@@ -339,6 +388,8 @@ type ProjectedRuntimeSnapshot = {
 };
 ```
 
+`presentationOrigin`はcanonical Snapshot cutからparticipantへ投影し、`presentationOriginVersion`とposeを同じimmutable valueで運ぶ。Presenter Anchor poseはephemeral tracking stateでありProjected Runtime Snapshotへ保存しない。State Streamはraw pose catalogではなく、profile内でvisibleなAnchor-bound Nodeごとにfollow指定された成分だけを初回keyframe / deltaへ投影する。該当Nodeは初回keyframeまたは後続fresh sampleを受け取るまでunavailableとし、描画とinteractionを開始しない。
+
 Control Plane は PublishedPresentation、role、正規化済み capability profile から静的な `ProjectionProfileDescriptor` を生成する。割り当て済み Runtime Core はその profile、`ProjectionInstance`、Shared Runtime State を組み合わせ、participant ごとの Runtime View、Projected Runtime Snapshot、Reliable Event、State Frame を生成する。`variables` には descriptor の `visibleVariableIds` だけを含める。`clock` は Shared Runtime State の pause-aware logical clock の sample であり、client は `running` 中だけ受信 sample を基準に local monotonic clock で Native UI の表示を補間し、`paused` と `terminating` では補間を止める。timer の完了判定は常に割り当て済み Runtime Core だけが行い、再接続時は新しい Runtime View の clock sample から表示を再開する。Unity client は受信後に unauthorized resource を非表示化する authority を持たず、配信前の projection で除外する。
 
 Role による visibility と ResourceOwner による lifetime は別概念とする。
@@ -349,13 +400,14 @@ type ProjectionAudience = { kind: "all" } | { kind: "role"; role: "presenter" | 
 type ProjectableResourceRef =
   | { kind: "node"; id: SpatialNodeId }
   | { kind: "surface"; id: SemanticSurfaceId }
-  | { kind: "timeline"; id: TimelineId }
   | { kind: "asset"; id: AssetId };
 ```
 
-Spatial Node と Timeline は `audience` を直接持ち、Semantic Surface、Interaction、Media、Render Surface は host Spatial Node から継承する。Timeline の全 target Spatial Node は Timeline と同じ audience を持たなければならず、一つの Timeline に異なる audience の track を混在させない。Asset は独立した audience を持たず、visible resource からの参照 closure に含まれる場合だけ access binding を生成する。resource は同じ audience またはそれより広い audience の resource だけを参照できる。つまり、`all` は `all`、`presenter` は `all`または`presenter`、`viewer`は`all`または`viewer`を参照でき、roleをまたぐ参照はできない。この規則に反する Spatial parent、Surface、Interaction、renderer、Asset の参照と、同じ Semantic Surface または Timeline 内で異なる audience を混在させる構成は build error とする。
+Spatial Node は `audience` を直接持ち、Semantic Surface、Interaction、Media、Render Surface は host Spatial Node から継承する。Asset は独立した audience を持たず、visible resource からの参照 closure に含まれる場合だけ access binding を生成する。resource は同じ audience またはそれより広い audience の resource だけを参照できる。つまり、`all` は `all`、`presenter` は `all`または`presenter`、`viewer`は`all`または`viewer`を参照でき、roleをまたぐ参照はできない。この規則に反する Spatial parent、Surface、Interaction、renderer、Asset の参照と、同じ Semantic Surface 内で異なる audience を混在させる構成は build error とする。
 
-Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、Timeline Definition、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。`ParticipantRuntimeView.activeRuns` は `visibleTimelineIds` に含まれる Timeline Run だけを保持し、非表示 Timeline の ID、track、Run を projected contract へ含めない。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
+Projection は `ProjectableResourceRef` の参照 closure を満たさなければならない。visible resource が必要とする Spatial ancestor、Semantic Surface、renderer binding、Asset descriptor を欠く profile は Delivery 前に拒否する。capability 差は renderer / resolution / local overlay の選択だけを変え、Shared Progression、認可、semantic resource identity を変更しない。
+
+Presentation v2 の Timeline は `audience` を持たず、Delivery の runtime catalog に一括して含まれる。このため v2 では role 限定 Node を Timeline target にできないものとし、Compiler は `audience: { kind: "all" }` 以外の target を拒否する。Timeline audience、profile ごとの Definition / Run 投影、role 限定 Timeline の non-blocking 規則は、Zod と Delivery / Realtime Protobuf を同時に更新する後続 contract とする。
 
 Presenter notes の内容は PublishedPresentation 内の Presenter 限定 projection resource、control の利用可否は Shared Progression から導出する Runtime View、panel の開閉や hover は Client-local State とする。Projection 自体を Action target や Variable scope にしない。
 
@@ -392,7 +444,7 @@ Presenter control の押下は認証済み Logical Input へ変換できるが�
 Component 内部の Frame、Text、装飾などを Presentation Orchestrator へ展開して記述しない。
 
 ```tsx
-import { definePresentation } from "@unframe/presentation";
+import { definePresentation } from "@unframe/unframe-authoring";
 import { Hero } from "./components/Hero/Hero.manifest";
 import { Counter } from "./components/Counter/Counter.manifest";
 
@@ -496,6 +548,8 @@ export const Hero = defineComponentManifest({
 ```
 
 GUI は Manifest から Inspector と編集可能範囲を構築する。Structured Component の `renderers` は対応可能な generic renderer を宣言する compatibility metadata であり、Component 固有 implementation entry ではない。renderer 実装を解析して公開契約を推測しない。
+
+Partの`overridable`は`content`、`placement`、`style`に加えて`partition`を宣言できる。`partition` permissionを持つ公開Partだけがinstance側の`{ kind: "isolate" }`を受けられ、Structure Part bindingが一つのstable subtree rootへ解決する。authorはRenderSurfaceId、bounds、layer、rendererを指定しない。完全なpartition override contractは [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 ### 5.2 Structured Component source boundary
 
@@ -762,7 +816,6 @@ Group
 └─ Spatial Tree
    ├─ Container3D
    ├─ Model
-   ├─ Audio
    └─ SurfaceNode ── 1:1 ── Semantic Surface
                                ├─ Surface Tree
                                │  ├─ Frame
@@ -781,6 +834,10 @@ Surface は次の三層を別の canonical identity として扱う。
 - **Render Surface** は一つの Semantic Surface から Compiler が生成する RenderBundle 内の描画 partition である。
 
 v1 は一つの SurfaceNode と一つの Semantic Surface を 1:1 に対応させ、一つの Semantic Surface を一つ以上の Render Surface へ lower する。同じ Semantic Surface を複数の SurfaceNode へ配置する mirroring は含めず、再利用や複数配置は Component Instance と SurfaceNode をそれぞれ作成して表現する。
+
+ModelNode は Model Asset に内蔵された animation clip を再生できる。通常は一つの ModelNode で同時に一つの clip だけを再生し、clip crossfade 中だけ遷移元と遷移先の二つを許可する。別 ModelNode の clip は同時に再生できる。部位 mask、animation layer、additive clip 合成は対象外とし、将来用 field や拡張口を作らない。詳細な採用範囲は [ADR-0016](../decisions/0016-model-animation-scope.md) に従う。
+
+clip は Model 内部の姿勢だけを変更する。build 時に root motion を除去または無効化し、安全に変換・検証できない素材を拒否する。ModelNode の position / rotation / scale は Timeline と Node 操作が所有する。自然終了は最終姿勢、明示停止は停止時点の姿勢を保持する。crossfade 中の別 clip 要求は拒否し、自動 queue しない。Run 除去後も保持姿勢を途中参加・再接続で復元できる canonical state が必要になる。この方針は Target であり、現行 Action / Runtime Run union に Model animation を追加済みとは扱わない。Clip ID binding、保持姿勢、配布形式の構造は [Presentation Data Model](./DATA_MODEL.md) に従う。root motion の規則、Action、Run、Snapshot、Reliable Event の field と wire は同 v2 契約に定義する。
 
 ### 7.1 Group
 
@@ -825,7 +882,7 @@ presentation-owned resource から group-owned resource、Group A から Group B
 
 Spatial ownership と Spatial parent は分離する。group-owned Node は presentation-owned Node、Stage、Anchor を parent にできるが、presentation-owned Node は group-owned Node を parent にできず、異なる Group の Node 間に parent relation を作れない。Group は単一の Root Spatial Node を所有する必要はなく、Compiler は owner と parent relation から複数の group root を導出できる。
 
-Presentation 全体で継続する背景、共有 HUD、累積 Variable、ambient media、Timeline は presentation-owned とする。Group の Step / Cue は presentation-owned resource を変更でき、その結果は次の Group にも残る。独立した global Cue は v1 に含めず、presentation-owned Surface の Interaction も現在の Group / Step に対応する Cue がある場合だけ Progression へ影響する。
+Presentation 全体で継続する背景、共有 HUD、累積 Variable、継続再生する Video、Timeline は presentation-owned とする。Group の Step / Cue は presentation-owned resource を変更でき、その結果は次の Group にも残る。独立した global Cue は v1 に含めず、presentation-owned Surface の Interaction も現在の Group / Step に対応する Cue がある場合だけ Progression へ影響する。
 
 ### 7.2 Stable identity と Spatial Node Graph
 
@@ -884,7 +941,7 @@ Code 上の入れ子表現は parse 時に `parent` へ正規化する。`node` 
 - Scale は無次元倍率とする。
 - Presentation Origin、Stage、Spatial Node、Body Anchor を親座標として扱う。
 
-ここまでの座標規約は ADR-0005 で固定済みである。Transform の合成順、Quaternion の乗算順、matrix layout、Unity との変換、Surface logical coordinate と UV の完全な変換規則は下位 contract で固定する。
+基礎座標規約はADR-0005、Transformの`T * R * S`、parent-first matrix積、Hamilton Quaternionとcanonical sign、column-major matrix、Unity境界のZ reflectionは [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。Spatial treeはlocal TRSを正本とし、non-uniform scaleとrotationから生じ得るworld shearを含むderived world値はmatrixを正本としてTRSへ再分解しない。
 
 Shared Spatial Tree の Anchor owner は v1 では Session の Presenter だけとする。`ParticipantId` は Session 実行時の identity であり、PresentationDefinition、RenderBundle、PublishedPresentation へ埋め込まない。Viewer 自身の head / hand へ配置する UI は Shared Spatial Tree の node とせず、ProjectionProfileDescriptor の Local Overlay definition と Client-local State の `self` Anchor で表現する。
 
@@ -908,29 +965,23 @@ type SurfaceNode = Omit<SpatialNodeBase, "id"> & {
 
 type SurfaceContentNodeBase = {
   id: SurfaceContentNodeId;
-  parentFrameId: SurfaceContentNodeId | null;
+  parentId: SurfaceContentNodeId | null;
   order: number;
-  placement: SurfaceNodePlacement | null;
+  placement: SurfaceNodePlacement;
+  visible: boolean;
+  opacity: number;
 };
 
 type SurfaceContentNode =
-  | (SurfaceContentNodeBase & { kind: "frame"; layout: FrameLayout })
+  | (SurfaceContentNodeBase & {
+      kind: "frame";
+      children: SurfaceContentNodeId[];
+      layout: FrameLayout;
+    })
   | (SurfaceContentNodeBase & { kind: "text"; text: TextContent })
   | (SurfaceContentNodeBase & { kind: "image"; image: ImageContent })
   | (SurfaceContentNodeBase & { kind: "video"; video: VideoContent })
   | (SurfaceContentNodeBase & { kind: "shape"; shape: ShapeContent });
-
-type SemanticMediaDefinition =
-  | {
-      durationMilliseconds: number;
-      playback: "once";
-      completion: "mediaCompleted";
-    }
-  | {
-      durationMilliseconds: number;
-      playback: "loop";
-      completion: "never";
-    };
 
 type SemanticSurface = {
   id: SemanticSurfaceId;
@@ -940,17 +991,18 @@ type SemanticSurface = {
   fit: "contain" | "cover" | "stretch";
   rootFrameId: SurfaceContentNodeId;
   contentNodes: Record<SurfaceContentNodeId, SurfaceContentNode>;
-  baseSemanticTree: SemanticTree;
-  media?: SemanticMediaDefinition;
+  baseSemanticTree: SemanticTreeDefinition;
   initialStateId: SurfaceStateId;
   states: Record<SurfaceStateId, SurfaceStateDefinition>;
   renderIntent: SurfaceRenderIntent;
 };
 ```
 
-`contentNodes` は canonical Surface Tree の正本である。各 Node は `parentFrameId` と `order` で親子関係と sibling 順を保持し、Frame だけが親になれる。`rootFrameId` は `contentNodes` 内の `kind: "frame"` を参照し、その root だけが `parentFrameId: null`、`placement: null`、`order: 0` を持つ。root 以外は parent Frame に対応する placement を必ず持つ。primitive 固有 payload と `FrameLayout` / `SurfaceNodePlacement` の完全 schema は portable Presentation contract で固定するが、Compiler が解決した layout、内容、Asset 参照を PresentationDefinition から省略して別 artifact に暗黙委譲しない。
+`contentNodes` は canonical Surface Tree の正本である。各 Node は `parentId` と `order` を持ち、Frame の `children` が親子関係と sibling 順を固定する。Frame だけが親になれる。`rootFrameId` は `contentNodes` 内の `kind: "frame"` を参照し、その root だけが `parentId: null`、`order: 0` を持つ。root を含む全 Node は親 Frame の layout に対応する `placement` を持ち、root は Surface logical bounds 全体の `absolute` placement を持つ。primitive 固有 payload と `FrameLayout` / `SurfaceNodePlacement` の完全 schema は portable Presentation contract を正本とし、Compiler が解決した layout、内容、Asset 参照を PresentationDefinition から省略して別 artifact に暗黙委譲しない。
 
-`baseSemanticTree` は Surface の全 State が共有する意味構造の正本である。State は `SurfaceSemanticOverride` により既存 Node の可視性と text / language / alt だけを変更でき、Node ID、role、parent、order、interaction の所属を変更したり、新しい Semantic Node を生成したりできない。これにより State 間で意味対象と Hit Region の参照先を安定させる。
+Definition の Surface 要素 ID、親子関係、要素 kind と `baseSemanticTree` の ID / topology は全 State で固定し、State ごとの追加・削除を許可しない。State は既存要素の内容、装飾、表示だけを変更する。非表示指定により派生 `CompletedSemanticTree` から Node を除外できるが、Definition の基底 Node を削除したことにはしない。連続的な Runtime 更新は限定 Native UI の text value だけに許可し、構造、装飾、表示を Runtime 値で変更しない。具体的な State override は [Presentation Data Model](./DATA_MODEL.md) を正本とする。
+
+Surface local planeは中心原点、+X right、+Y up、front normal +Zとする。logical-to-meter変換は`fit`に従って中央寄せし、`contain`の余白はnon-content、`cover`のplane外はclip、`stretch`だけはaspect ratioを変更する。Render Surface内のrasterは左上原点、Unity UV0は左下原点として`u = rx`、`v = 1 - ry`で一度だけflipする。raycast、fit inverse、crop、Semantic Surface normalized Hit Regionの完全な式と境界規則は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。
 
 Compiler は次の invariant を検証する。
 
@@ -959,7 +1011,7 @@ Compiler は次の invariant を検証する。
 - SurfaceNode は Spatial Tree 上の leaf とし、2D 内容を Spatial child として保持しない。
 - `rootFrameId` は `contentNodes` 内の唯一の root Frame であり、全 Node がその root から一度だけ到達できる。存在しない parent、Frame 以外の parent、cycle、複数 root、同じ parent 内の `order` 重複を許可しない。
 - すべての SurfaceContentNode は同じ Semantic Surface の `contentNodes` に所属し、別 Surface の Node を parent にしない。
-- `media` を持つ Surface は有限かつ正の canonical duration を持つ。`playback: "once"` だけが `mediaCompleted` を発生させる。`playback: "loop"` は自動完了せず、明示的な play / pause / seek と Presentation lifecycle だけが再生状態を変更する。
+- media Action の対象 Surface は Video content node をちょうど一つ持つ。Video content の `loop: false` だけが `mediaCompleted` を発生させ、`loop: true` は自動完了しない。duration は admitted Video Artifact の正の `durationMilliseconds` を使う。
 - `physicalSizeMeters` と `logicalSize` の各要素は有限かつ正である。
 - `baseSemanticTree` と各 State override は 13.2 の stable ID、親子、property conflict 規則に従う。
 - SurfaceNode または Semantic Surface の orphan、重複参照、ID kind の取り違えを build error とする。
@@ -969,6 +1021,7 @@ Compiler は次の invariant を検証する。
 一つの Semantic Surface は一つ以上の Render Surface へ lower する。Native UI、Baked Web、Video はいずれも Render Surface の renderer artifact として扱い、Semantic Surface と並列の意味 identity を作らない。
 
 ```ts
+// Target M3 portable shape. Current generated schema remains the M1 subset.
 type RenderSurface = {
   id: RenderSurfaceId;
   semanticSurfaceId: SemanticSurfaceId;
@@ -978,7 +1031,8 @@ type RenderSurface = {
     width: number;
     height: number;
   };
-  layer: number;
+  layer: UInt32;
+  partitionStrategyVersion: 1;
   artifacts: Record<RendererArtifactId, SurfaceRendererArtifact>;
   stateBindings: Record<SurfaceStateId, RenderSurfaceStateBinding>;
 };
@@ -987,16 +1041,19 @@ type RenderSurfaceStateBinding =
   { kind: "empty" } | { kind: "artifacts"; artifactIds: RendererArtifactId[] };
 ```
 
-`logicalBounds` は親 Semantic Surface の logical coordinate space で表す。RenderSurfaceId は同じ source、lockfile、Compiler version、configuration に対して決定的に生成するが、author-stable ID ではなく、Compiler version や partition strategy が変われば変更できる。
+`logicalBounds` は親 Semantic Surface の logical coordinate spaceで表す。RenderSurfaceIdはauthor-stable IDではなく、partition strategy、SemanticSurfaceId、renderer contract、paint順のowned Node、bounds、layerのcanonical descriptorから導出するbuild-local IDである。完全なalgorithmとprovenanceは [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 lowering は次を満たさなければならない。
 
 - 一つの Render Surface は一つの Semantic Surface だけに所属し、Semantic Surface boundary を越えて内容を統合しない。
 - 複数 Surface の texture atlas や GPU batching は Asset / Runtime 最適化であり、Render Surface identity を統合しない。
 - Render Surface の集合、bounds、layer はすべての Surface State に対して同じ build 内で固定する。状態ごとに内容が存在しない partition は明示的な empty binding を持てる。
+- renderable content NodeはCompiler internal planの`ownedContentNodeIds`で一partitionだけが所有し、structural context Nodeは`contextNodeIds`としてrenderer planへ複製できるがownershipへ重複計上しない。どちらもportable RenderBundle / DeliveryManifestへ出さない。
+- partitionはcanonical paint interval順にlayer `0..N-1`を重複なく持ち、小さい値からback-to-frontに合成する。bounds overlapとtransparent gapは許可する。
 - すべての到達可能な Surface State について、各 Render Surface が選択可能な artifact、native plan、または明示的な empty binding を持つ。
 - `artifacts` binding の `artifactIds` は空でなく、同じ Render Surface の `artifacts` に存在しなければならない。
 - DeliveryManifest は target capability に応じ、各 Render Surface の到達可能な Surface State ごとに互換な artifact を一つ、または RenderBundle が宣言した `empty` を選択する。非 empty state の選択は同じ renderer kind / contract version で解釈できなければならない。
+- compatible artifactが存在しない場合は暗黙fallbackせず、`delivery-artifact-unavailable`でDeliveryManifest全体をatomicに拒否する。
 
 Runtime contract が参照できる ID を次に固定する。
 
@@ -1012,9 +1069,9 @@ RenderSurfaceId は Trigger、Guard、Action、Timeline、Snapshot、Reliable Ev
 
 一つの Semantic Surface が複数 Render Surface へ分割されても、`surface.setState` は一回の canonical state change とする。すべての partition は同じ transition run と `runId` に従って原子的に切り替え、Render Surface ごとの独立した canonical state を作らない。Surface 全体の Transform と opacity は SurfaceNode に一度だけ適用する。
 
-`media.play`、`media.pause`、`media.seek` と `mediaCompleted` も SemanticSurfaceId を参照し、同じ Semantic Surface の media partition を一つの canonical media run として扱う。割り当て済み Runtime Core は `SemanticSurface.media` の duration、playback、completion を正本として再生位置と完了を決定する。`mediaCompleted` Trigger は `playback: "once"` の Surface だけを参照でき、looping Surface への参照は build error とする。独立した再生位置や完了判定が必要な media は別 Semantic Surface に分ける。Render Surface、renderer artifact metadata、renderer acknowledgement を media authority にしない。
+`media.play`、`media.pause`、`media.seek` と `mediaCompleted` は、Video content node をちょうど一つ持ち、その content に対応する Video artifact が選択された SemanticSurfaceId だけを参照する。Compiler はそれ以外の Surface への media Action / Trigger を build error とする。同じ Semantic Surface の Video partition は一つの canonical media run として扱い、割り当て済み Runtime Core は admitted Video Artifact の duration と Video content の `loop` を使って再生位置と完了を決定する。`mediaCompleted` Trigger は `loop: false` の Surface だけを参照でき、looping Surface への参照は build error とする。独立した再生位置や完了判定が必要な Video は別 Semantic Surface に分ける。renderer acknowledgement を media authority にしない。本書の `Media` / `media` runtime state、run、event はすべてこの Video playback を意味し、独立音声を含まない。
 
-Render Surface の具体的な partition algorithm、自動化範囲、author override、artifact format は Rendering / Delivery follow-up で定義する。
+v1はrequired renderer / compositing boundaryとManifestが許可した公開Partの`isolate`だけでcanonical paint atom列を最大runへ分割する。同じ要件のatomをtexture sizeやNode数のheuristicだけで分けず、authorはRenderSurfaceId、bounds、layer、rendererを指定しない。Compilerが全partitionのprivate regionをSemantic Surface normalized Hit Regionへaggregateし、Coreがreject-onlyで検証する。詳細は [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 ## 8. Frame Layout
 
@@ -1112,7 +1169,6 @@ Semantic Surface
 - Model
 - Shape
 - Light
-- Spatial Audio
 - Transform
 - Anchor tracking
 
@@ -1129,16 +1185,22 @@ Semantic Surface
 - Timer
 - Counter
 - 短い動的 Text
-- Runtime data や user input で継続的に変化する限定 UI
 
 任意の CSS を実行せず、versioned portable UI contract と、更新可能 property の allowlist を使用する。
 
 ### 10.4 Video
 
 - 複雑だが事前に確定できる連続演出に使用する。
+- 音声は Video artifact 内の audio track としてだけ使用し、映像と同じ再生状態と時刻に従う。
 - Codec、alpha、audio、seek、loop、device capability は Delivery 契約で検証する。
 
-### 10.5 Component と Surface
+### 10.5 対象外の Runtime Web
+
+`embedded-web`、WebView、Unity Runtime で任意の HTML / CSS / JavaScript / WebAssembly を実行する方式は採用しない。将来用の renderer kind、capability、fallback、予約 field、Unity adapter boundary も作らない。固定 Browser で Opaque TS / React / CSS を実行できるのは、`baked-web` artifact を生成する隔離済み build-time boundary だけである。
+
+独立した音声、BGM、効果音、空間音声も採用しない。Video の audio track とは別の独立音声用 Asset kind、Spatial Node、Action、capability、予約 field、Unity adapter boundary は作らない。
+
+### 10.6 Component と Surface
 
 - Component は再利用と編集の境界である。
 - Semantic Surface は意味状態と interaction の境界、Render Surface は描画 partition、SurfaceNode は空間 animation の境界である。
@@ -1171,6 +1233,8 @@ type SurfaceRenderIntent = {
   fallbackPolicy: "reject" | "degrade";
 };
 ```
+
+click `InteractionDefinition`とAuthoring `InteractionDeclaration`はrequired `hitPriority: UInt32`を持つ。これはoverlap時のhit-test winnerを決めるsemantic authorityであり、Compilerがrenderer plan / Hit Regionへcopyする。rendererやDeliveryはpriorityを生成・変更せず、未指定値へ暗黙defaultを置かない。M3のschema移行で現行declarationへbreakingに追加する。
 
 Renderer の基本選択規則は次のとおりとする。
 
@@ -1304,7 +1368,9 @@ type RuntimeRunOwner =
 type RuntimeClockSnapshot = {
   runtimeTimeMilliseconds: number;
   lifecycle:
-    { kind: "running" } | { kind: "paused"; reason: PauseReason } | { kind: "terminating" };
+    | { kind: "running" }
+    | { kind: "paused"; reason: PauseReason }
+    | { kind: "terminating"; reason: TerminationReason };
 };
 
 type StepTimerState =
@@ -1369,6 +1435,8 @@ type RuntimeRunSnapshot =
     });
 ```
 
+`RuntimeStatusChanged` は lifecycle を `running`、pause reason を持つ `paused`、termination reason を持つ `terminating` として discriminated に送る。invariant violation、atomic commit failure、microstep overflow、recovery gap は Runtime fault であり、terminating ではなく `paused` の reason として区別する。Timeline / Runtime Run の semantic policy は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md)、transport / replay / recovery policy は [ADR-0008](../decisions/0008-runtime-transport-contract.md) を正本とする。
+
 `runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ割り当て済み Runtime Core の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
 
 Timer、Cue 消費状態、cooldown は `stepEntryEpoch` に属する。`oncePerStepEntry` で受理した Cue だけを `consumedCueIds` に記録し、cooldown は次に受理可能な logical runtime time を保持する。Timer は Step entry 時に一度だけ arm し、deadline 到達時に一度だけ event 化する。Guard 不成立または別 Cue の選択により受理されなかった場合も `fired` とし、同じ Step entry で暗黙に再試行しない。Step exit と self transition では旧 StepExecutionSnapshot を破棄する。
@@ -1377,7 +1445,7 @@ Surface transition、Timeline、Media は共通の **Runtime Run** として追�
 
 Surface transition の duration と easing は Run が正本とする。Timeline の duration と absolute track は Session が固定した PublishedPresentation の TimelineDefinition から解決し、開始時の client 描画値を保存しない。Media は logical runtime time 上の reference position、または明示的に pause した position を保持する。Global Pause は clock の停止で表現し、Run ごとの pause 補正値を持たない。
 
-`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成し、Snapshot は allocator の最終 sequence を保持する。serialized encoding は下位 wire contract で固定する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement を completion source にしない。
+`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成する session / assignment scoped value である。wire は `uint64 assignment_epoch` と `uint64 run_sequence` を持つ protobuf message とし、Snapshot は allocator の最終 sequence を保持する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement と corrective keyframe を completion source にしない。Timeline Run の lifecycle、停止理由、projection、compatibility は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) を正本とする。
 
 blocking Run は Progression Phase の `blockingRunIds` と一対一に対応する。completion ごとに active Run と blocking set から除去し、最後の blocking Run が完了した時だけ `pendingNext` を atomic に適用する。存在しない Run、完了済み Run、古い Group / Step epoch に対する completion は stale として状態を変更しない。
 
@@ -1390,6 +1458,7 @@ Surface State は `hidden`、`shown`、`selected`、`correct` のような意味
 ```ts
 type SurfaceStateDefinition = {
   id: SurfaceStateId;
+  contentOverrides: Record<SurfaceContentNodeId, SurfaceContentOverride>;
   semanticOverrides: SurfaceSemanticOverride[];
   enabledInteractionIds: InteractionId[];
 };
@@ -1632,7 +1701,7 @@ event 依存値の型不一致、同じ State への不正な transition、activ
 
 Action 同士の順序に意味を持たせない。依存した順次演出は次の Step、Timeline keyframe、または `timelineCompleted` Trigger で表現する。
 
-v1 の Action conflict は action 配列順で解決しない。同一 Surface への複数 `surface.setState`、同一 Variable への複数書き込み、同一 Node field への複数 patch、Node patch と Timeline の同一 property 所有、同一 Timeline の play / stop、同一 media target への競合操作は batch validation で reject する。異なる field への Node patch だけは一つの patch として統合できる。`replace`、additive animation、暗黙的な last-write-wins は将来拡張とする。
+v1 の Action conflict は action 配列順で解決しない。同一 Surface への複数 `surface.setState`、同一 Variable への複数書き込み、同一 Node field への複数 patch、Node patch と Timeline の同一 property 所有、同一 Timeline の play / stop、同一 media target への競合操作は batch validation で reject する。異なる field への Node patch だけは一つの patch として統合できる。Timeline Run 間の `replace`、Spatial property の additive 合成、暗黙的な last-write-wins は将来拡張とする。この記述は Model animation clip の layer / additive 合成を将来拡張に含めない。
 
 ### 12.8 Timeline
 
@@ -1648,7 +1717,6 @@ type TimelineKeyframe = {
 type TimelineDefinition = {
   id: TimelineId;
   owner: ResourceOwner;
-  audience: ProjectionAudience;
   durationMilliseconds: number;
   tracks: Array<{
     target: {
@@ -1668,12 +1736,11 @@ type TimelineDefinition = {
 - `opacity` は number、`transform.position` と `transform.scale` は Vector3、`transform.rotation` は非ゼロ Quaternion だけを値に取る。Quaternion は Compiler が Delivery 前に正規化し、Runtime も補間境界で正規化する。
 - 最終 keyframe 以外は `easingToNext` を必須とし、最終 keyframe では禁止する。easing はその keyframe から次の keyframe までの segment に適用する。
 - 同じ `target/property` を同時に所有できる Timeline Run は一つだけとする。v1 の conflict policy は `reject` のみであり、replace と additive animation は含めない。
-- Timeline の全 target Spatial Node は Timeline 自身と同じ `ProjectionAudience` を持つ。異なる audience の target を一つの Timeline に混在させず、profile は visible Timeline Definition とその Run をまとめて投影する。
-- `timeline.play` の `completion: "blocking"` は `audience: { kind: "all" }` の Timeline にだけ許可する。role 限定 Timeline は `nonBlocking` とし、非表示 Run の ID を共有 `ProgressionPhase.blockingRunIds` から参照させない。
+- Presentation v2 の Timeline catalog は全 profile に共通であるため、target は `audience: { kind: "all" }` の Spatial Node に限定する。role 限定 Timeline は後続 contract で Timeline audience と Definition / Run の投影を追加するまで許可しない。
 - group-owned Timeline は同じ Group または presentation-owned Spatial Node、presentation-owned Timeline は presentation-owned Spatial Node だけを target にできる。
 - group-owned Timeline は Group exit 時に停止する。presentation-owned Timeline は明示的な `timeline.stop` または Presentation 終了まで Group をまたいで継続できる。Step 遷移だけではどちらも停止しない。
 - Timeline の開始・完了は Session の pause-aware logical runtime clock で決定する。Renderer acknowledgement を完了条件にしない。
-- Runtime は開始時刻と Timeline 定義を配信し、各 client はローカル補間する。補間結果を毎 frame Reliable Event として送信しない。
+- Runtime は Delivery 済み immutable Timeline catalog と開始時刻を用い、各 client はローカル補間する。Timeline の補間結果を毎 frame Reliable Event または State Stream として送信しない。State Stream は tracking 等の非 Timeline latest-wins state に限定し、Timeline-owned property を含めない。
 
 Pause 中は Session の logical runtime clock 自体を進めないため、Timeline、Surface transition、playing Media の基準時刻を個別に補正しない。Runtime Resume 後は同じ logical runtime time から進行を再開する。
 
@@ -1760,7 +1827,7 @@ StepEntered
 PresentationEnded
 ```
 
-participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching は下位 transport contract で固定するが、この fence と identity を省略しない。
+participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching、Snapshot / State keyframe、microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) を正本とし、この fence と identity を省略しない。
 
 ```ts
 type ProjectedReliableEvent<TPayload> = {
@@ -1779,7 +1846,7 @@ type ProjectedReliableEvent<TPayload> = {
 
 `sequence` は projection 前の session-global な単調増加値、`eventId` は冪等適用、`causeEventId` は canonical event 間の因果関係に使用する。Texture variant、Hit Region geometry、Unity renderer 情報は payload に含めない。client は Session、PublicationFence、assignment epoch、projection profile、Presentation Origin のいずれかが現在の connection / DeliveryManifest と一致しない event を適用せず、Connection Resume を要求する。
 
-Pose、Timeline の毎 frame 補間値、連続的な Element State frame は latest-wins の State Stream とし、event log へ保存しない。離散的な Cue 採用と最終状態は Reliable Event と Snapshot の両方へ反映する。
+Pose と Timeline 以外の連続的な Element State frame は latest-wins の State Stream とし、event log へ保存しない。Timeline の毎 frame補間値は Delivery 済み immutable catalog、active Run、logical runtime time から client が再計算する。離散的な Cue 採用、Run lifecycle、最終状態は Reliable Event と Snapshot の両方へ反映する。
 
 #### Surface transition / interaction wire contract
 
@@ -1990,6 +2057,7 @@ Conformance test は、今回の progression 規則について次を検証す�
 - Surface: 遷移中の追加入力、同じ State への cut / crossfade、crossfade easing、interaction と hit region の有効化時点、cut が一件の `SurfaceStateChanged` だけを生成すること、crossfade が重複する State event を生成しないこと、completion が派生する Group / Step event より先に並ぶこと、reject が sequence と state を変更しないこと、同じ fingerprint の `clientEventId` 再送が同じ outcome へ収束すること、異なる fingerprint の ID 再利用と Presentation Origin 不一致が fail closed になること、Snapshotから同じInteraction有効状態を導出できること。
 - Action: property claim conflict、batch reject の atomicity、expected reject と Runtime fault の状態遷移。
 - Timeline: exact endpoint、全 easing と number / Vector3 / Quaternion の組み合わせ、Quaternion の反対符号と near-linear 補間、Pause / Resume、明示 stop / Group exit での現在値 commit、Presentation 終了時の cancel 順序。
+- Model animation: 自然終了と明示停止後の姿勢保持、crossfade 中の別 clip 要求拒否、Run 除去後の復元、root motion が ModelNode transform を変更しないこと。
 - Semantic Tree / Native UI: 空 Tree、root canonical order、State materialization、override の field presence / `null` 削除、enabled / disabled Interaction と Hit Region 整合、tree limit と capability reject、Variable closure、静的literal / boolean labelのreject、single-line置換後のstring許容range、動的valueのtruncate、boolean / number / timer format、Pause / 再接続時のclock表示、全 State のfont face / glyph closure、Native UI / effective Semantic Tree textのartifact内・profile横断injective一致、Unity と Web preview のformatter fixture一致。
 
 加えて、event の重複、Cue 競合、cooldown、Timer fire済み状態、`transitioning` 中にdeadlineへ達したTimerとRun completionが新しいCueを開始しないこと、同一deadlineの順序、active Run の復元と stale completion、scope を越える不正参照、Stage / Node / Presenter Anchor parentの保持と循環拒否、ProjectionAudienceを越える参照拒否、Presenter / Viewer の role spoof、client 起点の System event、actor と subject の不正な組み合わせ、Presenter Anchor unavailable、projection contract versionごとのcache分離、profile の共有と participant 固有値の隔離、Surface Stateごとのartifact選択、unauthorized resource の配信前除外、projection profile / assignment mismatch、Client-local State が Shared State に混入しないこと、connection presence / tracking stateを除外したdurable restore、projection中のreplay queue overflowが再試行上限内では新しいcutへ収束し、上限超過時は購読を解放して型付きerrorで終了すること、process recovery後のPaused化、recovery log gapのfail closed、presentation-owned state の Group 間継続、group-owned state の exit 時破棄と reentry reset、Snapshot + Replay 後の状態一致を検証する。
@@ -2052,20 +2120,59 @@ presenter.enterZone
 Texture 化された Surface でも内容の意味を失わないよう、表示 artifact と Semantic Tree を分離する。
 
 ```ts
-type SemanticNode = {
+type SemanticNodeBase = {
   id: SemanticNodeId;
   parentId: SemanticNodeId | null;
   order: number;
-  role: "heading" | "paragraph" | "image" | "button" | "table" | "list" | "listItem";
-  text?: string;
-  language?: string;
-  alt?: string;
-  interactionId?: InteractionId;
 };
 
-type SemanticTree = {
+type SemanticNodeDefinition =
+  | (SemanticNodeBase & {
+      role: "heading";
+      level: 1 | 2 | 3 | 4 | 5 | 6;
+      text: string;
+      language?: string;
+    })
+  | (SemanticNodeBase & { role: "paragraph"; text: string; language?: string })
+  | (SemanticNodeBase & { role: "image"; alt: string; language?: string })
+  | (SemanticNodeBase & {
+      role: "button";
+      text: string;
+      language?: string;
+      interactionId: InteractionId;
+    })
+  | (SemanticNodeBase & { role: "list"; ordered: boolean })
+  | (SemanticNodeBase & { role: "listItem"; text: string; language?: string })
+  | (SemanticNodeBase & { role: "table"; label?: string; language?: string })
+  | (SemanticNodeBase & { role: "row" })
+  | (SemanticNodeBase & {
+      role: "cell" | "columnHeader" | "rowHeader";
+      text: string;
+      language?: string;
+    });
+
+type SemanticTreeDefinition = {
   rootNodeIds: SemanticNodeId[];
-  nodes: Record<SemanticNodeId, SemanticNode>;
+  nodes: Record<SemanticNodeId, SemanticNodeDefinition>;
+};
+
+type CompletedSemanticNode =
+  | Exclude<SemanticNodeDefinition, { role: "button" }>
+  | (Extract<SemanticNodeDefinition, { role: "button" }> & { stateEnabled: boolean });
+
+type CompletedSemanticTree = {
+  rootNodeIds: SemanticNodeId[];
+  nodes: Record<SemanticNodeId, CompletedSemanticNode>;
+};
+
+type ProjectedSemanticNode =
+  | Exclude<CompletedSemanticNode, { role: "button" }>
+  | (Omit<Extract<CompletedSemanticNode, { role: "button" }>, "stateEnabled" | "interactionId"> &
+      ({ enabled: true; interactionId: InteractionId } | { enabled: false }));
+
+type ProjectedSemanticTree = {
+  rootNodeIds: SemanticNodeId[];
+  nodes: Record<SemanticNodeId, ProjectedSemanticNode>;
 };
 
 type SurfaceSemanticOverride = {
@@ -2073,19 +2180,20 @@ type SurfaceSemanticOverride = {
     SemanticNodeId,
     {
       included?: boolean;
-      text?: string | null;
+      text?: string;
       language?: string | null;
-      alt?: string | null;
+      alt?: string;
+      label?: string | null;
     }
   >;
 };
 ```
 
-Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Agent editing、accessibility の基礎として使用する。
+Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Agent editing、accessibility の基礎として使用する。roleごとのrequired field、Definition / Completed tree、list / table structure、accessible value、language継承は [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) を正本とする。
 
-`SemanticTree` は空 Tree を許可する。空でない tree は tree 内で一意な stable Node ID、存在する parent、循環しない親子関係、同じ parent 内で一意な `order` を持つ。`parentId === null` の Node は `rootNodeIds` に一度だけ含まなければならず、`rootNodeIds` に含まれる Node の `parentId` は `null` でなければならない。root 以外の Node は一つの parent を持ち、すべての Node はいずれかの root から到達可能とする。root の順序は `Node.order` 昇順とし、canonical serialization もこの順序で `rootNodeIds` を出力する。`interactionId` は同じ Semantic Surface の Interaction を参照し、Interaction を持たない Node は指定しない。
+`SemanticTreeDefinition` と `CompletedSemanticTree` は空 Tree を許可する。空でない tree は tree 内で一意な stable Node ID、存在する parent、循環しない親子関係、roleごとのrequired parent / children、同じ parent 内で一意な `order` を持つ。`parentId === null` の Node は `rootNodeIds` に一度だけ含め、root以外のNodeは一つのparentを持ち、すべてのNodeはいずれかのrootから到達可能とする。materializerの戻り値自体がrootとsiblingを`Node.order`昇順に並べ、canonical serializationだけに並べ替えを委ねない。`interactionId`はbuttonだけが持ち、同じSemantic SurfaceのInteractionを参照する。text-bearing roleはnon-empty `text`を持ち、dynamic Native UI textがある場合はempty / unavailable時のaccessibility fallbackとして使う。bindingの正本は選択された`NativeUIArtifact`内でそのNodeを一意に参照するtext Nodeであり、独立したsemantic binding fieldは作らない。
 
-`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materialize し、`RenderBundle.semanticsByState` には完成 Tree だけを格納する。差分や適用処理を Runtime へ配信しない。override は base Tree に存在する Node だけを参照でき、全 layer を通じて同じ Node/property を重複して変更できない。override property は field が存在しない場合だけ base 値を保持し、`text`、`language`、`alt` が `null` の場合は base 値を削除する。`included: false` は対象 Node とすべての descendant を完成 Tree から除外し、除外された Node の descendant を個別に再 include できない。`included` 以外の property は明示的または暗黙に include される Node にだけ指定できる。これら、または State 間の ID / role / parent / order / interaction 変更は build error とする。
+`SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materializeし、buttonの`stateEnabled`をStateのenabled Interaction集合から導出して、`RenderBundle.semanticsByState`には`CompletedSemanticTree`だけを格納する。DeliveryはSession roleからprojected `enabled`を導出し、viewerのInteraction ID / Hit Regionを配信前に除外する。差分や適用処理をRuntimeへ配信しない。overrideはbase Treeに存在するNodeとroleが許すpropertyだけを参照でき、全layerを通じて同じNode/propertyを重複して変更できない。fieldが存在しない場合だけbase値を保持し、requiredなtext / altは削除できず、optionalなtable labelだけを`null`で削除できる。`included: false`は対象Nodeとすべてのdescendantを派生 Completed Tree から除外するが、Definition の基底 Node は維持する。required list / table structureを壊したり、除外されたNodeのdescendantを個別に再includeしたりできない。State 間の基底 Node ID / role / parent / order / interaction変更はbuild errorとする。
 
 Structured Component の Semantic Tree は Component Structure の semantic Primitive から生成し、Opaque Component は Manifest の `semantics` から生成する。renderer は layout と Hit Region の concrete geometry を解決するだけで、DOM、React tree、CSS、Texture、実行結果から意味を抽出・補完しない。
 
@@ -2104,18 +2212,36 @@ type ResolvedInteractiveRegion = {
     height: number;
   };
   coordinateSpace: "normalized";
-  event: LogicalEventName;
-  priority: number;
+  priority: UInt32;
 };
 ```
 
-Hit region は Semantic Surface State ごとに解決し、bounds は Render Surface ではなく Semantic Surface 全体の normalized coordinate space で表す。UV 原点、fit/crop、overlap priority、visibility を Delivery contract で固定する。v1 は矩形 click interaction に限定する。
+Hit region は Semantic Surface State ごとに解決し、bounds は Render Surface ではなく Semantic Surface 全体の normalized coordinate space で表す。`UInt32`は`0..4_294_967_295`のintegerとし、overlapはpriority降順、Interaction / Semantic Node ID、boundsのcanonical順で解決する。eventは重複保持せずInteraction definitionから解決する。boundsの有限範囲、duplicate key、half-open hit-test、State completenessは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) を正本とする。UV原点とfit/crop変換は次の座標contractで固定する。v1は矩形click interactionに限定する。
 
-各 State の Hit Region は同じ State の完成 Semantic Tree に含まれ、かつ `SurfaceStateDefinition.enabledInteractionIds` に含まれる `interactionId` だけを参照できる。参照先 Node が除外される場合、その Node の Hit Region も存在できない。Baked hit region として公開する enabled Interaction は少なくとも一つの region を持ち、disabled Interaction の region は禁止する。存在しない Node / Interaction、または Node の `interactionId` と異なる `interactionId` を持つ region は build error とする。
+各 State の Hit Region は同じ State の完成 Semantic Tree に含まれ、かつ `SurfaceStateDefinition.enabledInteractionIds` に含まれる `interactionId` だけを参照できる。State で表示しない Node の Hit Region は存在できない。Baked hit region として公開する enabled Interaction は少なくとも一つの region を持ち、disabled Interaction の region は禁止する。存在しない Node / Interaction、または Node の `interactionId` と異なる `interactionId` を持つ region は build error とする。
 
 ## 14. RenderBundle
 
 ```ts
+type NormalizedTextureBuildPolicyV1 = {
+  policyVersion: 1;
+  resolutionPolicyVersion: 1;
+  policyHash: ContentHash;
+  longEdgePixels: UInt32;
+  maxStatesPerRenderSurface: UInt32;
+  maxRenderSurfacesPerSemanticSurface: UInt32;
+  maxRenderSurfacesPerBundle: UInt32;
+  maxTextureBindings: UInt32;
+  maxTextureWidth: UInt32;
+  maxTextureHeight: UInt32;
+  maxTexturePixels: UInt32;
+  maxRenderedPixels: UInt64;
+  maxSurfaceCaptureBytes: UInt64;
+  maxBuildOutputBytes: UInt64;
+  maxBuildAccountedPeakBytes: UInt64;
+  rendererConcurrency: 1;
+};
+
 type RenderBundle = {
   schemaVersion: 1;
   bundleId: string;
@@ -2134,11 +2260,14 @@ type RenderBundle = {
     colorScheme: "light" | "dark";
     themeId: ThemeId;
     themeHash: string;
+    textureBuildPolicy: NormalizedTextureBuildPolicyV1;
   };
 
   surfaces: Record<SemanticSurfaceId, CompiledSemanticSurface>;
 };
 ```
+
+`NormalizedTextureBuildPolicyV1`はADR-0012のresolution policy version、budget policy version、long edge、State / Surface / binding count、texture dimension / pixels、rendered pixels、capture bytes、output bytes、accounted peak bytes、renderer concurrencyの正規化済み実値を持つ。`policyHash` fieldを除いたcanonical payloadのhashを`textureBuildPolicy.policyHash`として保持し、RenderBundle hashとCompiler cache keyの入力にする。wall-time、host RSS、abortはavailability guardであり、このportable objectやartifact identityへ含めない。callerが上限を縮小した場合も実際に使用した値を記録し、default値へ丸めない。per-texture pixel countは`UInt32`、`maxRenderedPixels`を含むaggregate pixel countは`UInt64`とする。
 
 ### 14.1 Compiled Semantic Surface
 
@@ -2149,7 +2278,7 @@ type CompiledSemanticSurface = {
   physicalSizeMeters: [number, number];
   renderSurfaceIds: RenderSurfaceId[];
   renderSurfaces: Record<RenderSurfaceId, RenderSurface>;
-  semanticsByState: Record<SurfaceStateId, SemanticTree>;
+  semanticsByState: Record<SurfaceStateId, CompletedSemanticTree>;
   interactionsByState: Record<SurfaceStateId, ResolvedInteractiveRegion[]>;
 };
 ```
@@ -2162,9 +2291,23 @@ RenderBundle の `surfaces` key は PresentationDefinition の SemanticSurfaceId
 - `NativeUIArtifact`
 - `VideoArtifact`
 
+全artifact kindは次のcommon compatibility envelopeを持つ。
+
+```ts
+type SurfaceRendererArtifactCompatibility =
+  | { kind: "baked-web"; contractVersion: 1; requiredFeatures: BakedWebFeature[] }
+  | { kind: "native-ui"; contractVersion: 1; requiredFeatures: NativeUIFeature[] }
+  | { kind: "video"; contractVersion: 1; requiredFeatures: VideoFeature[] };
+
+type BakedWebFeature = "png" | "srgb" | "alpha-opaque" | "alpha-straight";
+type VideoFeature = "h264" | "vp9" | "av1" | "alpha" | "audio";
+```
+
+各concrete artifactの`kind`、`contractVersion`、UTF-16 code-unit昇順かつduplicate-freeな`requiredFeatures`はこのenvelopeと一致し、未知version / featureをfail closedで拒否する。Baked Webは`png`、`srgb`、alpha featureのいずれか一つをexactly onceで持ち、premultiplied alphaはv1で許可しない。Videoはcodec featureを一つだけ持ち、`alpha` / `audio`は実際に含むtrackだけに付ける。Deliveryはnormalized Capability Profileが許可するkind / version / feature closureと照合し、選択したartifactの`contractVersion`を`DeliveredRenderSurface.artifactContractVersion`へcopyする。build-time `RendererIdentity.contractVersion: string`はrenderer plugin APIの互換性であり、artifact compatibilityへ流用しない。
+
 ### 14.2 Baked Web Artifact
 
-Surface State ごとに一つ以上の解像度 artifact を持つ。
+次の1K / 2K複数候補はpost-v1 target例であり、Baked Web v1はADR-0012に従い各non-empty Stateへ2K-long-edge textureをexactly oneだけ持つ。複数resolutionは新artifact / budget policy versionでのみ導入する。
 
 ```text
 BakedWebArtifact
@@ -2282,17 +2425,25 @@ type NativeUINode =
 
 `NativeUIArtifact` は State ごとの完全 plan である。`rootNodeId` と全 child reference は `nodes` 内に存在し、一つの root から全 Node が一度だけ到達可能で、cycle、複数 parent、child order の重複を許可しない。bounds は Render Surface の logical coordinate で表し、全値は有限、size は非負とする。sRGB RGBA の各 channel は `0..1` とする。text の `fontSize` と `lineHeight` は有限かつ正、`maxCodePoints` は正の整数とする。Node 数、tree depth、text数、glyph数、文字列の Unicode code point 数は artifact contract と target capability が定める上限以下でなければならない。`clip` を使う plan は `clip`、`ellipsis` を使う plan は `ellipsis`、fallback font を持つ plan は `explicitFontFallback` を必ず `requiredFeatures` に含める。未知の required feature や contract version は fail closed とする。
 
-Runtime binding の対象は `text.value` だけである。literal、宣言済み Runtime Variable、現在 Step の timer 残時間以外の source、任意式、JSON path、style / geometry / visibility / font の Runtime 変更は build error とする。Variable binding は string、boolean、有限 number だけを受け、`null` は拒否する。single-line 禁止 / 置換対象は U+000A、U+000B、U+000C、U+000D、U+0085、U+2028、U+2029 に固定する。literal と boolean label はこの一覧を含められず、整形後の表示 code point 数が `maxCodePoints` 以下でなければ build error とする。したがって静的値は Runtime で truncate されず、literal は `SemanticNode.text` と常に一致する。dynamic string は最初にこの一覧を U+0020 に置換し、次に結果を `allowedCodePointRanges` で検査して範囲外の code point を U+FFFD に置換する。したがって置換後の U+0020 が許容範囲外ならU+FFFDになる。boolean は明示した `trueLabel` / `falseLabel`、number は grouping なしの ASCII 数字、`fractionDigits` 0〜3、half-away-from-zero の丸めに固定する。
+Runtime binding の対象は `text.value` だけである。literal、宣言済み Runtime Variable、現在 Step の timer 残時間以外の source、任意式、JSON path、style / geometry / visibility / font の Runtime 変更は build error とする。Variable binding は string、boolean、有限 number だけを受け、`null` は拒否する。single-line 禁止 / 置換対象は U+000A、U+000B、U+000C、U+000D、U+0085、U+2028、U+2029 に固定する。literal と boolean label はこの一覧を含められず、整形後の表示 code point 数が `maxCodePoints` 以下でなければ build error とする。したがって静的値は Runtime で truncate されず、literal は `CompletedSemanticNode.text` と常に一致する。dynamic string は最初にこの一覧を U+0020 に置換し、次に結果を `allowedCodePointRanges` で検査して範囲外の code point を U+FFFD に置換する。したがって置換後の U+0020 が許容範囲外ならU+FFFDになる。boolean は明示した `trueLabel` / `falseLabel`、number は grouping なしの ASCII 数字、`fractionDigits` 0〜3、half-away-from-zero の丸めに固定する。
 
 timer の `durationMilliseconds` は有限かつ正とし、現在 Group / Step が binding の `groupId` / `stepId` と一致するときは armed / fired、Cue の Guard 成否を問わず、`remaining = max(0, durationMilliseconds - (clock.runtimeTimeMilliseconds - progression.stepEnteredAtRuntimeTimeMilliseconds))` を表示値に使う。Group または Step が不一致のときだけ `whenStepInactive` に従い、空文字列またはゼロを表示する。残時間は秒へ切り上げて 0 で clamp する。`mm:ss` は分が二桁を超えても必要桁まで増やして秒を二桁で表示し、`hh:mm:ss` は時間を必要桁まで増やして分・秒を二桁で表示する。`whenStepInactive: "zero"` は同じ timer format でゼロを表示する。Compiler は `stepTimerRemaining` が実在する `groupId` / `stepId` / `cueId` の timer Trigger を参照し、`durationMilliseconds` が一致することを検証する。timer owner は Cue の所属 Group から導出し、binding は host SurfaceNode が同じ Group-owned の場合だけ許可する。presentation-owned Surface は group-owned timer を参照できない。Cue 自体は ProjectionAudience を持たないため、timer表示は visible Surface の audience projection に従う。client は `ParticipantRuntimeView.clock` と `progression.stepEnteredAtRuntimeTimeMilliseconds` から表示だけを計算し、timer state を別途投影しない。完了判定と Cue 発火は常に割り当て済み Runtime Core だけが行う。共通 truncation は動的 string / number / timer の format 結果だけに `maxCodePoints` を適用する。超過時は `overflow: "clip"` なら先頭 `maxCodePoints` code point、`overflow: "ellipsis"` なら先頭 `maxCodePoints - 1` code point と U+2026 を使い、`maxCodePoints === 1` では U+2026 だけを使う。Unity と Web preview は同じ fixture に対して同じ pure formatter 結果を返さなければならない。
 
 Authoring では各 text と各 Surface State が Font Asset または Theme Font Token を自由に指定できる。Compiler は State ごとの Native UI artifact に concrete Font Asset と、authoring で明示した fallback Font Asset 列を解決する。`supportedCodePointRanges` は各 delivered font face が実際に描画可能な code point を表す。text は `primary`、`fallbacks` の順に、対象 glyph を最初に持つ face を使う。system font への暗黙 fallback と synthetic bold / italic は許可しない。literal、boolean label、string binding の `allowedCodePointRanges` と formatterで生成し得る U+0020 / U+FFFD、number の ASCII digit / `-` / `.`, timer の ASCII digit / `:`, U+2026 は font closure に含まれなければならない。全 reachable State の plan が参照する primary / fallback font face、supported code point range、required Native UI feature は Asset / capability closure に含まれなければならない。解決できない font / fallback / glyph coverage、または target capability が必要な font を満たさない場合は Delivery 前に reject する。font の選択は artifact の State 切替でだけ変わり、Runtime Variable / Clock binding から変更できない。
 
-各 Native UI text はその State の完成 Semantic Tree に含まれる `semanticNodeId` を一つだけ参照しなければならない。resolved State の一つの Native UI plan 内では、この対応は injective とし、複数 Text Node が同じ `semanticNodeId` を参照できない。さらに、同じ Semantic Surface / State に対して一つの ProjectionProfile が同時選択する全 Native UI artifact を横断しても injective とする。Compiler は artifact ごとの制約を、Control Plane は profile selection 後のartifact組合せを検証する。異なる ProjectionProfile は別々に検証する。literal は対応する `SemanticNode.text` と同じ値を持つ。dynamic value は `SemanticNode.text` を omit し、client が同じ formatted value を visual text と Participant Runtime View から派生する effective Semantic Tree text の両方へ適用する。canonical Semantic Tree の構造と ID は変えず、renderer が意味を推測しない。effective text は Snapshot の Variable / clock / progression から再現できる。Native UI v1 は non-interactive なので、参照する Semantic Node は `interactionId` を持てない。crossfade 中の effective semantic value は 12.4 の canonical Surface State 規則に従い、遷移先 State を有効な意味状態として使用し、旧 / 新 plan 間で別の Variable / clock snapshot を使わない。
+各 Native UI text はその State の完成 Semantic Tree に含まれる `semanticNodeId` を一つだけ参照しなければならない。resolved State の一つの Native UI plan 内では、この対応は injective とし、複数 Text Node が同じ `semanticNodeId` を参照できない。さらに、同じ Semantic Surface / State に対して一つの ProjectionProfile が同時選択する全 Native UI artifact を横断しても injective とする。Compiler は artifact ごとの制約を、Control Plane は profile selection 後のartifact組合せを検証する。異なる ProjectionProfile は別々に検証する。literal は対応する `CompletedSemanticNode.text` と同じ値を持つ。dynamic valueでは`CompletedSemanticNode.text`をnon-empty accessibility fallbackとして保持し、clientが同じnon-empty formatted valueをvisual textとParticipant Runtime Viewから派生するeffective Semantic Tree textへ適用する。formatted valueがemptyまたは利用不能ならvisual textはその結果に従い、effective semantic textだけをfallbackへ戻す。canonical Semantic Treeの構造とIDは変えず、rendererが意味を推測しない。effective textはSnapshotのVariable / clock / progressionから再現できる。Native UI v1はnon-interactiveなので、参照するSemantic Nodeは`interactionId`を持てない。crossfade中のeffective semantic valueは12.4のcanonical Surface State規則に従い、遷移先Stateを有効な意味状態として使用し、旧 / 新plan間で別のVariable / clock snapshotを使わない。
 
 ### 14.4 Video Artifact
 
-Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec capability を保持する。ただし duration と loop は Runtime の意味を所有せず、対応する `SemanticSurface.media` の canonical duration / playback を再掲する派生 metadata とする。Compiler は同じ Semantic Surface に対応する全 Video Artifact の duration と loop が semantic definition と一致することを検証し、不一致を build error とする。artifact 選択や codec capability によって `mediaCompleted` の時刻と有無を変えない。
+Video Artifact は Asset ID、checksum、duration、loop、alpha、audio、codec capability を保持する。Compiler は `loop` が対応する Video content node と一致し、`duration` が参照 Asset の実測 metadata と一致することを検証する。Runtime は admitted artifact の duration と Video content の loop semantics を使い、codec capability や renderer acknowledgement によって `mediaCompleted` の時刻と有無を変えない。`audio` は Video file 内に audio track があることを示し、独立した Audio Asset や音声再生 state を参照しない。
+
+### 14.5 Texture budget と residency
+
+Baked Web v1は各non-empty Render Surface Stateにexactly one 2K-long-edge PNG / RGBA32 textureを持ち、`mipCount = 1`、runtime compressionなしとする。State / partition / binding count、pixel、capture、output、Compiler accounted peak、Delivery GPU / load CPUは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) のchecked byte式とbaseline tierを正本とする。現行PNG encoderの4K / 64 MiB hard capは単一allocationのtrust-boundaryであり、このPresentation budgetを代替しない。
+
+Deliveryはvisibleな全reachable Stateのselected textureをGPU 256 MiB、serial load CPU 256 MiB以内で固定し、Unityはsession開始前にdownload / checksum / decode / uploadを完了してCPU readback copyを破棄する。`downloadReady`、`residentReady`、`sessionReady`を分け、active Session中は全selected hashをpinする。crossfadeのold / newはpreloaded集合内にあり、transition開始時に追加download / allocationしない。encoded cacheはGPU residencyと分離し、baseline 4 GiB hard limit / 512 MiB reserve、active pin、unpinned deterministic LRUを使う。
+
+この描画方針の採用は、すべての方式が v1 Delivery で利用可能であることを意味しない。ADR-0012 の baseline tier は `baked-web` Texture だけを対象とする。Native UI は固有の resource budget tier と consumer 実装が受理されるまで、Video は decoder budget tier と consumer 実装が受理されるまで v1 Delivery で拒否する。budget超過時に暗黙downscale、mipmap削除、renderer変更、crossfadeからcutへの変更を行わず、Bundle / Manifest / readinessのatomic unitをfail closedにする。
 
 ## 15. コンパイルと配信
 
@@ -2349,6 +2500,8 @@ Unity Runtime
 
 Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
+M1 の local process は POSIX filesystem に限定し、明示された absolute project directory の realpath を root とする。同じ root の`unframe.config.ts`と`unframe.lock`を読み、上方探索はしない。config は AST で読む data-only `export default { entryFile }`、lock は `schemaVersion: 1`、package identity、self-contained package source、integrityを記録する UTF-8 JSON とし、いずれも実行・network lookup・symbolic link traversal を許可しない。`check` はこの入力と Source frontend までを検証して Browser を起動せず、`build` だけが Fixed Browser capture を行う。M1 の公開artifactは`definition.json`、`render-bundle.json`、`assets/*.png`だけであり、root固定の`dist`を今回生成したstagingからatomic replacementして公開する。`usage`、`syntax`、`type`、`semantic`、`renderer`、`io`、`cancel`の failureは family と exit code を区別し、commit point 前に previous output を維持する。正確な lock shape、hash、signal、diagnostic family は ADR-0013 に従う。
+
 ### Control Plane
 
 - Authoring source や renderer implementation を実行しない。
@@ -2374,7 +2527,7 @@ Control Plane は Presentation ごとに現在の PublishedPresentation を一�
 - calibration、viewport、selection、personal annotation、Local Overlay state を Client-local State として所有する。
 - TSX、CSS、React、Component implementation を解釈しない。
 
-## 16. 想定ファイル構成
+## 16. 目標アーキテクチャの想定ファイル構成
 
 ```text
 presentation/
@@ -2395,7 +2548,7 @@ presentation/
 ├─ .unframe-cache/
 │  └─ renderers/
 │     └─ CustomChart.web.bundle.js
-└─ dist/
+└─ dist/                                 # post-M1 full Delivery target
    ├─ presentation.definition.json
    ├─ presentation.render-bundle.json
    ├─ presentation.delivery-manifest.pb
@@ -2404,11 +2557,23 @@ presentation/
 
 `.unframe-cache/renderers/` は Local Compiler が Opaque renderer source から再生成できる中間 bundle を保持できるが、version control や publish には含めない。PublishedPresentation に含める renderer artifact は RenderBundle の一部として hash と provenance を固定する。
 
-`dist/presentation.definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
+### M1 Local Compiler output
+
+M1 の `dist` は managed generation を指す symlink であり、次だけを公開する。これは上記の system target layout と別の local-only artifact layout であり、Delivery artifactを含まない。
+
+```text
+dist/
+├─ definition.json
+├─ render-bundle.json
+└─ assets/
+   └─ <percent-encoded asset id>.png
+```
+
+`definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 
-この文書は目標アーキテクチャである。2026-08-25 時点の現行実装について、次を区別する。
+この文書は目標アーキテクチャである。2026-08-30 時点の現行実装について、次を区別する。
 
 ### Current
 
@@ -2420,26 +2585,30 @@ presentation/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
+- M1 Local Compilerは、reference Authoring Sourceを実行せず、明示filesystem rootのconfig / lockからDefinition、RenderBundle、PNGを生成する。`check`はBrowserを起動せず、`build`はFixed Browserを使用してmanaged `dist`を成功時だけatomic replacementする。
 
-### Target, not implemented
+### Target（目標。初期contract subsetの一部だけが現行実装）
+
+以下は target architecture であり、Current 節または各項目に実装済みと明記した部分以外を、現行機能として扱わない。
 
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
-- Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Opaque renderer bundling の build pipeline
-- Canonical `presentation.definition.json` の deterministic serialization
+- Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Source frontendからCompiler compositionへの接続
+- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成、M1 filesystem config / lockとatomic outputは実装済み。M1 local outputのfile nameは`definition.json`）
 - Component Manifest と package format
 - Structured / Opaque authoring mode
-- Spatial Tree / Surface Tree の canonical schema
+- Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）
+- Model Asset 内蔵 animation clip の限定再生（v2 contract 定義済み、Runtime / consumer は未実装）
 - Frame Layout、Theme、Token、Named Style
 - Surface Render Intent
-- RenderBundle
+- RenderBundle（baked-web artifactの初期subsetは実装済み）
 - 単一の PublishedPresentation、PublicationFence、Waiting Session の owner cancel / bounded expiry、非終了 Session と直列化した publish lock
 - Surface State artifact、semantic tree、hit region
 - v1 Presentation Progression semantic model の実装と、Progression wire / Runtime contract
 - Native UI portable contract
 - DeliveryManifest Protobuf
 - Unity の hybrid renderer graph
-- Deterministic Local Compiler
+- M1を超えるLocal Compiler cache、watch / dev / preview / publish、完全なSemantic / Runtime contract
 
 既存の `PresentationDefinition` schema をこの文書だけで置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI/Protobuf artifact、Web/Unity consumer、contract testを同期する。
 
@@ -2501,34 +2670,32 @@ presentation/
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を 12.4、12.7、12.8、12.12 で定義した。
 - [x] State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を 3.5、3.7、7.4、13.2〜13.3、14.3 で定義した。
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を 12.11 で定義した。
-- [x] Timeline audience と projection closure、Semantic Media の canonical timing、Surface Tree の canonical `contentNodes` 格納契約を 3.7、7.4〜7.5、12.8、14.4 で定義した。
+- [x] Spatial TRS / matrix / Quaternion、Unity handedness、Surface logical / physical / raster / UV変換を [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) で定義した。
+- [x] Surface Partitionのautomatic boundary、Part isolate override、derived ID / layer / region aggregateを [ADR-0011](../decisions/0011-surface-partition-contract.md) で定義した。
+- [x] Texture State artifact数、2K PNG / RGBA32、build / Delivery budget、preload / readiness / evictionを [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) で定義した。
+- [x] Surface Tree の canonical `contentNodes` 格納契約を 7.4〜7.5 で定義した。
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
-1. Timeline の補間結果、停止理由、Run lifecycle の wire 表現
-2. Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限
+1. [x] Timeline の補間結果、停止理由、Run lifecycle の semantic wire contract は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で Accepted とした（具体的な Protobuf は v2 に定義済み、consumer は未接続）。
+2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) で Accepted とした（v2 proto 定義済み、generated consumer は M5 で接続する）。
+3. Timeline audience、profile ごとの Definition / Run projection、role 限定 Timeline の non-blocking 規則を Zod と Delivery / Realtime Protobuf に追加する。
+4. Semantic Surface が artifact 選択から独立して media duration / playback / completion を所有する場合は、Zod、RenderBundle、Runtime wire の authority を同じ contract revision で変更する。
 
 ### Rendering / Delivery の follow-ups
 
-1. role 別 Semantic schema と Hit Region の完全 schema
-2. Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な座標規約
-3. Component から Surface への分割規則、partition の自動化範囲、author override
-4. Texture state artifact 数と GPU / RAM build budget
-5. Resolution、mipmap、compression、preload、eviction policy
+1. [x] role 別 Semantic schema と Hit Region の完全 schemaは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした（current flat schemaの実装置換はM3 Slice B）。
+2. [x] Transform / Quaternion / matrix / Unity / Surface / UV座標規約は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) でAcceptedとした（fixtureとconsumer実装はM3〜M5）。
+3. [x] ComponentからSurfaceへのpartition規則とauthor overrideは [ADR-0011](../decisions/0011-surface-partition-contract.md) でAcceptedとした（実装はM3〜M4）。
+4. [x] Texture state artifact数とGPU / RAM build budgetは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした（実装はM3〜M5）。
+5. [x] Resolution、mipmap、compression、preload、eviction policyも [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。
 6. Component Manifest と renderer implementation の drift 検証
 7. Opaque renderer の Browser capability、module resolution、cache invalidation と Compiler / Browser / Font / Locale の再現性
-8. DeliveryManifest Protobuf schema、capability negotiation、visual regression test
+8. DeliveryManifest v2 / capability 契約に従う実装、visual regression test
 
 ## 20. 次の設計対象
 
-次は Surface Partition ではなく、Progression wire / Runtime contract の blocking follow-ups を順に閉じる。推奨順序は次のとおりである。
-
-1. Timeline / Runtime Run の wire contract
-2. Reliable Event / Snapshot / State Stream の transport contract
-3. role 別 Semantic schema / Hit Region schema
-4. Spatial / Surface coordinate convention
-5. Surface Partition
-6. Texture / GPU / RAM budget
+blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。M1のproject assembly / reference Browser / CLIは実装済みである。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation v2](./DATA_MODEL.md) を正本とし、M3以降で Compiler と consumer を接続する。
 
 中心となる思想は次のとおりである。
 

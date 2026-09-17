@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 2
+    },
+    "capabilityProfileId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+    },
+    "contractVersions": {
+      "type": "object",
+      "properties": {
+        "delivery": {
+          "type": "number",
+          "const": 2
+        },
+        "runtime": {
+          "type": "number",
+          "const": 2
+        },
+        "progression": {
+          "type": "number",
+          "const": 1
+        },
+        "projection": {
+          "type": "number",
+          "const": 1
+        }
+      },
+      "required": ["delivery", "runtime", "progression", "projection"],
+      "additionalProperties": false
+    },
+    "renderers": {
+      "type": "object",
+      "properties": {
+        "bakedWeb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            },
+            "contractVersion": {
+              "type": "number",
+              "const": 1
+            },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["alpha-opaque", "alpha-straight", "png", "srgb"]
+              }
+            }
+          },
+          "required": ["supported", "contractVersion", "features"],
+          "additionalProperties": false
+        },
+        "nativeUi": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            },
+            "contractVersion": {
+              "type": "number",
+              "const": 1
+            },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["clip", "ellipsis", "explicitFontFallback"]
+              }
+            }
+          },
+          "required": ["supported", "contractVersion", "features"],
+          "additionalProperties": false
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            },
+            "contractVersion": {
+              "type": "number",
+              "const": 1
+            },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["alpha", "audio", "h264", "vp9", "av1"]
+              }
+            }
+          },
+          "required": ["supported", "contractVersion", "features"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["bakedWeb", "nativeUi", "video"],
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "supported": {
+          "type": "boolean"
+        },
+        "contractVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "formats": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string",
+              "const": "model/gltf-binary"
+            }
+          ],
+          "items": false,
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "alphaBlend",
+              "alphaMask",
+              "animation",
+              "morphTargets",
+              "pbrMetallicRoughness",
+              "skin",
+              "unlit"
+            ]
+          }
+        }
+      },
+      "required": ["supported", "contractVersion", "formats", "features"],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "texture": {
+          "type": "object",
+          "properties": {
+            "tierId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+            },
+            "maxTextureWidth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxTextureHeight": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxTexturePixels": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxTextureBindings": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxGpuBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxSerialLoadCpuBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxEncodedCacheBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "encodedCacheReserveBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "tierId",
+            "maxTextureWidth",
+            "maxTextureHeight",
+            "maxTexturePixels",
+            "maxTextureBindings",
+            "maxGpuBytes",
+            "maxSerialLoadCpuBytes",
+            "maxEncodedCacheBytes",
+            "encodedCacheReserveBytes"
+          ],
+          "additionalProperties": false
+        },
+        "nativeUi": {
+          "type": "object",
+          "properties": {
+            "tierId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+            },
+            "maxNodesPerArtifact": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxTreeDepth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxTextNodesPerArtifact": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxCodePointsPerText": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxGlyphs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxFontAssets": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "tierId",
+            "maxNodesPerArtifact",
+            "maxTreeDepth",
+            "maxTextNodesPerArtifact",
+            "maxCodePointsPerText",
+            "maxGlyphs",
+            "maxFontAssets"
+          ],
+          "additionalProperties": false
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "tierId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+            },
+            "maxWidth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxHeight": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxPixels": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxConcurrentDecoders": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxEncodedBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxDecodedFrameBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "tierId",
+            "maxWidth",
+            "maxHeight",
+            "maxPixels",
+            "maxConcurrentDecoders",
+            "maxEncodedBytes",
+            "maxDecodedFrameBytes"
+          ],
+          "additionalProperties": false
+        },
+        "model": {
+          "type": "object",
+          "properties": {
+            "tierId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+            },
+            "maxAssets": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxInstances": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxEncodedBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxNodes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxPrimitives": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxVertices": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxTriangles": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxBonesPerSkin": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxMorphTargetsPerPrimitive": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "maxAnimationClipsPerAsset": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "tierId",
+            "maxAssets",
+            "maxInstances",
+            "maxEncodedBytes",
+            "maxNodes",
+            "maxPrimitives",
+            "maxVertices",
+            "maxTriangles",
+            "maxBonesPerSkin",
+            "maxMorphTargetsPerPrimitive",
+            "maxAnimationClipsPerAsset"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["texture", "nativeUi", "video", "model"],
+      "additionalProperties": false
+    },
+    "localOverlaySupported": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "capabilityProfileId",
+    "contractVersions",
+    "renderers",
+    "model",
+    "limits",
+    "localOverlaySupported"
+  ],
+  "additionalProperties": false,
+  "$id": "https://contracts.unframe.dev/presentation/capability-profile.v2.schema.json"
+}

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 2,
+  "capabilityProfileId": "synthetic-test-only",
+  "contractVersions": {
+    "delivery": 2,
+    "runtime": 2,
+    "progression": 1,
+    "projection": 1
+  },
+  "renderers": {
+    "bakedWeb": {
+      "supported": true,
+      "contractVersion": 1,
+      "features": ["alpha-opaque", "alpha-straight", "png", "srgb"]
+    },
+    "nativeUi": {
+      "supported": true,
+      "contractVersion": 1,
+      "features": ["clip", "ellipsis", "explicitFontFallback"]
+    },
+    "video": {
+      "supported": true,
+      "contractVersion": 1,
+      "features": ["audio", "h264"]
+    }
+  },
+  "model": {
+    "supported": true,
+    "contractVersion": 1,
+    "formats": ["model/gltf-binary"],
+    "features": ["animation", "morphTargets", "skin", "unlit"]
+  },
+  "limits": {
+    "texture": {
+      "tierId": "synthetic-test-only",
+      "maxTextureWidth": 2048,
+      "maxTextureHeight": 2048,
+      "maxTexturePixels": 4194304,
+      "maxTextureBindings": 1000000,
+      "maxGpuBytes": 67108864,
+      "maxSerialLoadCpuBytes": 67108864,
+      "maxEncodedCacheBytes": 67108864,
+      "encodedCacheReserveBytes": 1024
+    },
+    "nativeUi": {
+      "tierId": "synthetic-test-only",
+      "maxNodesPerArtifact": 1000000,
+      "maxTreeDepth": 1000000,
+      "maxTextNodesPerArtifact": 1000000,
+      "maxCodePointsPerText": 1000000,
+      "maxGlyphs": 1000000,
+      "maxFontAssets": 1000000
+    },
+    "video": {
+      "tierId": "synthetic-test-only",
+      "maxWidth": 1000000,
+      "maxHeight": 1000000,
+      "maxPixels": 1000000,
+      "maxConcurrentDecoders": 1000000,
+      "maxEncodedBytes": 1000000,
+      "maxDecodedFrameBytes": 1000000
+    },
+    "model": {
+      "tierId": "synthetic-test-only",
+      "maxAssets": 1000000,
+      "maxInstances": 1000000,
+      "maxEncodedBytes": 1000000,
+      "maxVertices": 1000000,
+      "maxTriangles": 1000000,
+      "maxNodes": 1000000,
+      "maxPrimitives": 1000000,
+      "maxBonesPerSkin": 1000000,
+      "maxMorphTargetsPerPrimitive": 1000000,
+      "maxAnimationClipsPerAsset": 1000000
+    }
+  },
+  "localOverlaySupported": false
+}

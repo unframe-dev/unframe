@@ -21,30 +21,30 @@
 - **未実装**: Target Architecture または実装段階にだけ存在する
 - **未決定**: contract、運用値、構成方式の決定が残っている
 
-| 領域 | 状態 | 現在の境界・根拠 |
-| --- | --- | --- |
-| Venue Edge provisioning identity / credential / registration | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`、`migrations/0009_runtime_assignments.sql`。Edge ID / Bearer token は profile 固有の provisioning にだけ使用する |
-| Runtime Assignment lifecycle / bootstrap | 部分実装 | `control-plane/src/modules/runtime-assignments/`、`realtime-bootstrap/` と session bootstrap route。Cloud / Venue Edge 共通の assign / read / bootstrap は `runtimeId`、`runtimeKind`、assignment epoch、Presentation revision を拘束する。target の PublishedPresentation / PublicationFence は未実装。renew / release API は Venue Edge profile だけにあり、Cloud lifecycle は未実装。lease 日時を canonical ISO へ正規化し、Venue Edge renew は5分以内、割当・bootstrapに使える Venue Edge heartbeat は直近60秒以内に制限する |
-| JWT / JWKS / scope 検証と gRPC assignment fencing | 実装済み | `realtime/internal/auth/`、`realtime/internal/assignment/`、gRPC interceptor / service guard。audience は必須設定だが具体値は未決定。JWKS cache は5分で失効し、未知の key ID による refresh は30秒に1回へ制限し、refresh 失敗時は stale key を使用しない。lease 失効時は blocked send も終了する |
-| 共通 Runtime Core composition | 部分実装 | `realtime/internal/runtimecore/` と `cmd/server/`。Cloud / Venue Edge 共通の Coordinator / Guard / gRPC composition は接続済みだが、Step / Cue、State、Snapshot、profile agent は未接続 |
-| application readiness / gRPC health | 実装済み | local assignment lease と JWKS cache を期限付きで継続確認し、確認後だけ `SERVING` とすることで process 起動とは分離する。`NOT_SERVING` 遷移時の既存 idle stream 終了は Runtime lifecycle へ未接続 |
-| stream observability | 部分実装 | structured log と active / completed / auth failure / resource exhausted metrics は gRPC interceptor に接続済み。exporter、trace、alert は未実装 |
-| Control Plane checkpoint / completion | 部分実装 | assignment-fenced callback API と Realtime HTTP client / bounded buffer はあるが、Snapshot schema と session lifecycle へ未接続。現在の API 認証は既存 service identity で、Venue Edge credential / Cloud platform identity への profile 別接続は未実装 |
-| Runtime message / rate abuse protection | 未実装 | protocol 固有の message size、participant ごとの rate、invalid-message count による切断 policy は未接続 |
-| Manifest 検証、content-addressed cache、Range 対応 Asset handler | 部分実装 | `realtime/internal/asset/`。domain と `http.Handler` はあるが、実際の local HTTPS listener、証明書、Cloud Agent、runtime composition へ未接続 |
-| Runtime pause / resume state | 部分実装 | `realtime/internal/session/runtime.go`。状態遷移 primitive はあるが、Presenter 接続、Step / Cue、Snapshot / checkpoint へ未接続 |
-| Element State latest-wins mailbox | 部分実装 | `realtime/internal/state/mailbox.go`。field merge primitive はあるが、State gRPC fan-out へ未接続 |
-| `RuntimeAssignment` / `runtimeId` / `runtimeKind` 一般化 | 実装済み | Control Plane repository / API、bootstrap / JWT、Realtime Guard で共通 contract を使用する |
-| Fly.io Cloud Runtime | 部分実装 | Docker image、H2C service profile、共通 binary と application health はある。app / region / Machine / identity / autoscaling、登録・起動、公開 endpoint、deploy は未実装・未決定 |
-| session 作成時の `Cloud` / `VenueEdge` 選択 | 部分実装 | Control Plane の generic assignment API / repository / bootstrap は両 kind を扱う。session 作成 API と UI からの選択・Runtime 自動選定は未実装 |
-| Unity の Control / State gRPC 接続 | 未実装 | generated client の組み込み、2 connection lifecycle、nonce、再接続、State 適用は未着手 |
-| Presenter Tracking / Input protocol | 未実装 | Pose sample、clock、rate、Unity送信、Runtime受信は Target のみ |
-| Step / Cue / Action / Transition evaluator | 未実装 | canonical evaluation、Cue 選択、Action conflict、Surface transition、Timeline / Runtime Run と Element State 生成は未着手 |
-| Snapshot / Replay / Connection Resume | 未実装 | target のsession-global reliable sequence、ProjectionAdvance、atomic cut、replay queue、Quest適用、durable / local checkpoint への配線は未着手 |
-| Venue Edge Cloud Agent / local HTTPS listener / update | 未実装 | service manager、LAN bind、証明書、fingerprint rotation、health、更新・rollbackは未着手 |
-| Cloud 配置の R2 / CDN signed URL 配信 | 未実装 | Manifest認可、signed URL発行、Quest download / readinessはTargetのみ |
-| Asset cache容量・eviction | 未決定 | hard limit、low-disk threshold、退避順、active session pin、quotaを実測後に決定する |
-| 1 / 10 / 25 / 50 Quest 実機計測 | 未実装 | latency、jitter、fan-out、Asset ready の基準値は未計測 |
+| 領域                                                             | 状態     | 現在の境界・根拠                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Venue Edge provisioning identity / credential / registration     | 実装済み | `control-plane/src/modules/venue-edges/`、`migrations/0008_venue_edges.sql`、`migrations/0009_runtime_assignments.sql`。Edge ID / Bearer token は profile 固有の provisioning にだけ使用する                                                                                                                                                                                                                                                                                                                                     |
+| Runtime Assignment lifecycle / bootstrap                         | 部分実装 | `control-plane/src/modules/runtime-assignments/`、`realtime-bootstrap/` と session bootstrap route。Cloud / Venue Edge 共通の assign / read / bootstrap は `runtimeId`、`runtimeKind`、assignment epoch、Presentation revision を拘束する。target の PublishedPresentation / PublicationFence は未実装。renew / release API は Venue Edge profile だけにあり、Cloud lifecycle は未実装。lease 日時を canonical ISO へ正規化し、Venue Edge renew は5分以内、割当・bootstrapに使える Venue Edge heartbeat は直近60秒以内に制限する |
+| JWT / JWKS / scope 検証と gRPC assignment fencing                | 実装済み | `realtime/internal/auth/`、`realtime/internal/assignment/`、gRPC interceptor / service guard。audience は必須設定だが具体値は未決定。JWKS cache は5分で失効し、未知の key ID による refresh は30秒に1回へ制限し、refresh 失敗時は stale key を使用しない。lease 失効時は blocked send も終了する                                                                                                                                                                                                                                 |
+| 共通 Runtime Core composition                                    | 部分実装 | `realtime/internal/runtimecore/` と `cmd/server/`。Cloud / Venue Edge 共通の Coordinator / Guard / gRPC composition は接続済みだが、Step / Cue、State、Snapshot、profile agent は未接続                                                                                                                                                                                                                                                                                                                                          |
+| application readiness / gRPC health                              | 実装済み | local assignment lease と JWKS cache を期限付きで継続確認し、確認後だけ `SERVING` とすることで process 起動とは分離する。`NOT_SERVING` 遷移時の既存 idle stream 終了は Runtime lifecycle へ未接続                                                                                                                                                                                                                                                                                                                                |
+| stream observability                                             | 部分実装 | structured log と active / completed / auth failure / resource exhausted metrics は gRPC interceptor に接続済み。exporter、trace、alert は未実装                                                                                                                                                                                                                                                                                                                                                                                 |
+| Control Plane checkpoint / completion                            | 部分実装 | assignment-fenced callback API と Realtime HTTP client / bounded buffer はあるが、Snapshot schema と session lifecycle へ未接続。現在の API 認証は既存 service identity で、Venue Edge credential / Cloud platform identity への profile 別接続は未実装                                                                                                                                                                                                                                                                          |
+| Runtime message / rate abuse protection                          | 未実装   | protocol 固有の message size、participant ごとの rate、invalid-message count による切断 policy は未接続                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Manifest 検証、content-addressed cache、Range 対応 Asset handler | 部分実装 | `realtime/internal/asset/`。domain と `http.Handler` はあるが、実際の local HTTPS listener、証明書、Cloud Agent、runtime composition へ未接続                                                                                                                                                                                                                                                                                                                                                                                    |
+| Runtime pause / resume state                                     | 部分実装 | `realtime/internal/session/runtime.go`。状態遷移 primitive はあるが、Presenter 接続、Step / Cue、Snapshot / checkpoint へ未接続                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Element State latest-wins mailbox                                | 部分実装 | `realtime/internal/state/mailbox.go`。field merge primitive はあるが、State gRPC fan-out へ未接続                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `RuntimeAssignment` / `runtimeId` / `runtimeKind` 一般化         | 実装済み | Control Plane repository / API、bootstrap / JWT、Realtime Guard で共通 contract を使用する                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Fly.io Cloud Runtime                                             | 部分実装 | Docker image、H2C service profile、共通 binary と application health はある。app / region / Machine / identity / autoscaling、登録・起動、公開 endpoint、deploy は未実装・未決定                                                                                                                                                                                                                                                                                                                                                 |
+| session 作成時の `Cloud` / `VenueEdge` 選択                      | 部分実装 | Control Plane の generic assignment API / repository / bootstrap は両 kind を扱う。session 作成 API と UI からの選択・Runtime 自動選定は未実装                                                                                                                                                                                                                                                                                                                                                                                   |
+| Unity の Control / State gRPC 接続                               | 未実装   | generated client の組み込み、2 connection lifecycle、nonce、再接続、State 適用は未着手                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Presenter Tracking / Input protocol                              | 未実装   | Pose sample、clock、rate、Unity送信、Runtime受信は Target のみ                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Step / Cue / Action / Transition evaluator                       | 未実装   | canonical evaluation、Cue 選択、Action conflict、Surface transition、Timeline / Runtime Run と Element State 生成は未着手                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Snapshot / Replay / Connection Resume                            | 未実装   | target のsession-global reliable sequence、ProjectionAdvance、atomic cut、replay queue、Quest適用、durable / local checkpoint への配線は未着手                                                                                                                                                                                                                                                                                                                                                                                   |
+| Venue Edge Cloud Agent / local HTTPS listener / update           | 未実装   | service manager、LAN bind、証明書、fingerprint rotation、health、更新・rollbackは未着手                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Cloud 配置の R2 / CDN signed URL 配信                            | 未実装   | Manifest認可、signed URL発行、Quest download / readinessはTargetのみ                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Asset cache容量・eviction                                        | 未実装   | ADR-0012でbaseline policyを確定済み。hard limit 4 GiB、low-space reserve 512 MiB、persistent access sequenceによるunpinned LRU、active / waiting Sessionのselected Asset pinをM4〜M5で接続する。Quest実機計測に基づく別tierは後続判断とする                                                                                                                                                                                                                                                                                      |
+| 1 / 10 / 25 / 50 Quest 実機計測                                  | 未実装   | latency、jitter、fan-out、Asset ready の基準値は未計測                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## 1. 背景
 
@@ -366,6 +366,8 @@ ParticipantCalibration
 - Presenter Quest は最新の `presentationFromQuestLocal` を使って Pose を Presentation Space へ変換してから送信する。Viewer Quest は同じ変換の逆変換を使って Element State を自端末の tracking space へ配置する。
 - participant 単独の再 calibration 後は、保持済みの canonical Element State を新しい変換で再描画するため、session 全体の Snapshot を再生成しない。
 
+Canonical Presentation Spaceのright-handed TRS、Unity handedness変換、Surface plane / ray inverse / Hit Region座標は [ADR-0010](../../../docs/decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。interaction hit-testはcurrent `presentationOriginVersion`、participant calibration、同じruntime cutのeffective Node TransformとAnchor sampleが揃う場合だけ行い、不一致またはunavailable / staleな入力をno-hitとして扱う。現行Realtime foundationはこのcoordinate-aware projectionをまだ配信していない。
+
 ## 7. Session Runtime と Step / Cue 実行モデル
 
 ### 7.1 Runtime state
@@ -392,7 +394,7 @@ stateDiagram-v2
 - **Connection Resume**: participantの通信再接続。Snapshot / replayで同じruntimeへ復帰するが、runtime state自体は変更しない。
 - **Runtime Resume**: presenterだけが要求できる`Paused -> Running`遷移。有効なpresenter connection、有効なassignment lease、Control Plane上で`Presenting`であることを確認してから適用する。
 
-Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続したpresenterがSnapshotとpause理由を確認し、明示的な`ResumeRuntime` commandを送信する。Runtime Coreは`RuntimePaused`、`RuntimeResumed`、`RuntimeTerminating`をReliable Eventとして全participantへ配信する。
+Runtime Resumeはpresenter再接続だけでは自動実行しない。再接続したpresenterがSnapshotとpause理由を確認し、明示的な`ResumeRuntime` commandを送信する。Runtime Coreは`RuntimeStatusChanged(paused / running / terminating)`をReliable Eventとして全participantへ配信する。
 
 Target progression clock は pause-aware な logical runtime time とする。`Running`中だけprocessのmonotonic clock差分で進め、`Paused`と`Terminating`では停止する。process固有のmonotonic timestamp、wall clock、`pausedAt`、累積pause durationはSnapshotへ保存しない。Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindする。process recoveryではcheckpoint時に`Running`であってもlogical timeを進めず、`Paused / processRecovered`として復元する。現行`internal/session/runtime.go`の`time.Time`を使うpause primitiveは部分実装であり、このtarget clock contractが実装済みであるとはみなさない。
 
@@ -403,7 +405,7 @@ Target progression clock は pause-aware な logical runtime time とする。`R
 3. Trigger が成立した Cue を idempotent に発火する。
 4. Cue の Action batch を preflight し、reject する場合は canonical state を変更しない。
 5. 即時 state 変更と Runtime Run の開始を atomic に確定し、Reliable Event と送信 frame へ反映する。
-6. active Run の effective value を logical runtime time から計算し、viewer ごとの State frame へまとめる。
+6. active Run の Timeline effective value は client が Delivery 済み immutable catalog と logical runtime time から local interpolation する。Runtime Core は Timeline 毎 frame値を State frame へ入れず、tracking 等の非 Timeline 連続状態だけを viewer ごとの State frame へまとめる。
 7. Run 完了時は Timeline の最終 Node 値を commit し、Surface transition は Run を除去して interaction / hit region を有効化した後、completion event を確定する。
 8. Snapshot は commit 済み canonical state と active Run を同じ cut で反映する。
 9. Cue の定義に従って次の Step へ遷移する。
@@ -412,7 +414,7 @@ Target progression clock は pause-aware な logical runtime time とする。`R
 
 Runtime Core は正本の Cue 選択、Action preflight、atomic commit を session critical section 内で実行する。batch reject では Cue 消費、cooldown、state、Run、Step を変更せず、別 Cue へ fallback しない。invariant 違反または atomic commit 失敗では partial state を公開せず Runtime を `Paused` にし、理由を Reliable Control で通知する。
 
-Surface transition、Timeline、Media は Runtime Run として追跡し、Run ID、owner epoch、開始 logical runtime time、完了種別を Snapshot へ保存する。即時 canonical state と Run lifecycle は Reliable Event、effective value は State frame、commit 済み state と active Run は Snapshot へそれぞれ fan-out する。個別の conflict、補間、停止規則は Presentation Progression の正本に従う。
+Surface transition、Timeline、Media は Runtime Run として追跡し、Run ID、owner epoch、開始 logical runtime time、完了種別を Snapshot へ保存する。即時 canonical state と Run lifecycle は Reliable Event、Timeline 以外の latest-wins state は State frame、commit 済み state と active Run は Snapshot へそれぞれ fan-out する。State frame と corrective keyframe は Timeline-owned property を含めない。Run ID、停止理由、projection、version policy は [ADR-0007](../../../docs/decisions/0007-timeline-runtime-run-wire-contract.md) を正本とし、現行 `realtime.proto` には未実装である。個別の conflict、補間、停止規則は Presentation Progression の正本に従う。
 
 Native UI の表示に必要な projection は、ProjectionProfileDescriptor が許可する `visibleVariableIds`、pause-aware logical clock sample、timer表示に必要な現在の Group / Step と `stepEnteredAtRuntimeTimeMilliseconds` を含む projected progression fields を含める。二重の timer state は投影しない。割り当て済み Runtime Core は formatter や文字列置換を評価せず、timer完了は canonical Cue evaluation として判定する。client は Projected Runtime Snapshot の clock と progression state から表示だけを計算する。具体的な Native UI / Semantic Tree の意味論は Presentation Architecture を正本とする。
 
@@ -441,7 +443,7 @@ State Connection
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
 - connection間の到着順は仮定せず、Reliable sequenceと`baseReliableSequence`でapplication上の依存関係を解決する。
 
-現行の`realtime.proto`とRealtime実装は、単一双方向streamでpresenterの`PageChangeCommand`をserver採番の`PageChanged`へfan-outするfoundationだけを提供する。ここで定義するControl / State二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run、Progression wireはtarget contractであり、現行protoまたは実装済み挙動ではない。
+現行の`realtime.proto`とRealtime実装は、単一双方向streamでpresenterの`PageChangeCommand`をserver採番の`PageChanged`へfan-outするfoundationだけを提供する。Control / State二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run、Progression wireは [ADR-0007](../../../docs/decisions/0007-timeline-runtime-run-wire-contract.md) と [ADR-0008](../../../docs/decisions/0008-runtime-transport-contract.md) で Accepted のtarget contractだが、現行protoまたは実装済み挙動ではない。
 
 実測で TCP retransmission、head-of-line blocking、write blocking、jitter が UX 上の問題になる場合のみ、State Connection を UDP / QUIC 系 transport へ置き換える。Control Connection は gRPC のまま維持する。
 
@@ -456,7 +458,7 @@ State Connection
 - Element active / visible の確定
 - Transition 開始・完了
 - Presentation Origin 更新
-- Runtime Paused / Resumed / Terminating
+- `RuntimeStatusChanged`（paused / running / terminating）
 - session end
 - participant join / leave
 - snapshot / replay / resync
@@ -477,7 +479,7 @@ ReliableEvent
 - gap 検知時は replay、保持範囲外なら Snapshot を取得する。
 - exactly-once delivery は仮定せず、`eventId` で idempotent に適用する。
 - profile projectionでparticipantに不可視なReliable Eventが発生しても、そのeventごとのControl itemを送信しない。Runtime Coreはconnectionごとに連続する不可視sequence範囲を保持し、次の可視Reliable Eventを送る直前に一つの`ProjectionAdvance { fromExclusive, throughSequence }`へ集約する。不可視eventだけを理由にnetwork writeを開始せず、後続の可視eventがなければmarkerも送らない。新しいConnection Snapshotはcutの`reliableSequence`で未送信範囲を置き換える。markerはpayload、resource ID、event kindを含まず、clientはmarkerと直後の可視eventをControl stream順に適用する。これにより可視同期境界ではcanonical event数の集約差分が分かり得るが、不可視eventごとの発生時刻とtraffic patternは公開しない。
-- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。超過、保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
+- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。v1 の retention、replay / catch-up queue、Snapshot retry、idempotency、State dependency buffer、microstep の値と超過時の挙動は [ADR-0008](../../../docs/decisions/0008-runtime-transport-contract.md) を正本とする。保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
 
 同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 
@@ -539,10 +541,20 @@ PresenterInputEvent
 ```text
 ElementStateFrame
 ├─ frameSequence
-├─ producedAt
-├─ oldestChangeAt
+├─ producedAtRuntimeTime
+├─ producedAtRuntimeMonotonic
+├─ oldestChangeAtRuntimeMonotonic
 ├─ presentationOriginVersion
 ├─ baseReliableSequence
+├─ anchorBindings[]
+│  ├─ nodeId
+│  └─ state
+│     ├─ unavailable
+│     └─ sample
+│        ├─ trackingFrameSequence
+│        ├─ observedAtRuntimeMonotonic
+│        ├─ position?  # followPositionだけ
+│        └─ rotation?  # followRotationだけ
 └─ elements[]
    ├─ elementId
    ├─ changedFields
@@ -550,6 +562,7 @@ ElementStateFrame
    ├─ rotation
    ├─ scale
    ├─ active
+   ├─ visible
    ├─ animationState
    └─ playbackPosition
 ```
@@ -557,12 +570,12 @@ ElementStateFrame
 - 初期検証範囲は 20–60 Hz とする。
 - viewerごとに、gRPCへ渡す前の未送信差分を保持するsingle-slot `StateMailbox`を持つ。
 - `StateMailbox`はframeを丸ごと置き換えず、`elementId`とfieldごとに差分をmergeして最新値を残す。これにより、別々のframeで更新されたElementやfieldをcoalesceしても変更を失わない。
-- `StateMailbox`は未送信差分の最古時刻を`oldestChangeAt`として保持する。`frameSequence`と`producedAt`はmailboxから送信frameを確定する時点で採番・記録し、coalesceしただけではsequence gapを作らない。
+- `StateMailbox`はElementをelement / field単位、Anchor bindingをNode ID単位のsample / tombstone全体としてlatest-wins mergeし、position / rotationを別Tracking Frameから合成しない。両mapの未送信差分の最古monotonic時刻を`oldestChangeAtRuntimeMonotonic`として保持する。dequeueは一つのcritical sectionで両map、logical runtime time、Runtime monotonic time、Reliable / Origin fenceをimmutable frameへfreezeしてから`frameSequence`を採番し、coalesceしただけではsequence gapを作らない。
 - viewerごとに`Send`を実行するgoroutineを一つに限定し、同時に複数のframeをgRPCへ渡さない。送信中のframeはimmutableとし、その間の更新は次の`StateMailbox`へmergeする。
 - latest-winsが保証する範囲はgRPCの`Send`へ渡す前までとする。すでにHTTP/2またはTCP bufferへ渡した古いframeは取り消せない。
 - 変更された Element と field だけを送る。
 - 複数 Element を一つの frame に batch する。
-- `StateMailbox`から取り出す直前に`oldestChangeAt`を検査し、未送信時間が`stateMaxFrameAge`を超えた差分は送らずState Connectionを再確立する。
+- `StateMailbox`から取り出す直前に`oldestChangeAtRuntimeMonotonic`を検査し、未送信時間が`stateMaxFrameAge`を超えた差分は送らずState Connectionを再確立する。
 - `Send`のwrite blockが`stateWriteBlockTimeout`を超えた場合も、該当viewerのState Connectionだけをcancelし、mailboxと送信中frameを破棄する。他viewerとReliable Controlをblockしない。
 - runtimeが`Running`の場合、State Connectionの初回確立と再確立では、`StateReady`後に現在の全Element Stateをkeyframeとして一度送ってから差分配信を開始する。cancel時に送達不明となったframeは、このkeyframeで収束させる。
 - 送信前のcoalesceは許容するが、受信した`frameSequence`にgapがある場合は送達済み差分の欠落とみなし、State Connectionを再確立してkeyframeを取得する。
@@ -570,13 +583,17 @@ ElementStateFrame
 - `baseReliableSequence`は、そのprojected State Frameが実際に前提にする、当該participantへ送信済みまたは同じ送信境界で先行するReliable sequenceである。participantに不可視なeventだけで値を進めない。clientの適用済みReliable sequenceより大きいframeは、その前提となる可視Reliable Eventまたは集約`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
 - `baseReliableSequence`がclientの適用済みsequenceより小さいframe、または`presentationOriginVersion`が一致しないframeはstaleとして破棄し、Control Connection上でState keyframeを要求する。
 - Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable ControlやSession全体をblockしない。
+- `anchorBindings`はraw Presenter poseの一覧ではなく、projection profileでvisibleかつAnchor parentを直接参照するNode IDだけをkeyにしたephemeral parent stateである。Nodeの`followPosition` / `followRotation`が要求する成分だけを運び、参照されないAnchor、profile外Node、追従しない成分を配信しない。追従しないpositionはzero translation、追従しないrotationはidentityとしてparent matrixを組み立てる。`trackingFrameSequence`は元Tracking Frame、`observedAtRuntimeMonotonic`はRuntimeが受理した時点の`producedAtRuntimeMonotonic`と同じmonotonic time domainとする。client申告の`capturedAt`をfreshness authorityにしない。
+- `anchorSampleMaxAgeMilliseconds`はprotocol versionに紐付く`500 ms`とする。frame生成時に`producedAtRuntimeMonotonic - observedAtRuntimeMonotonic > 500 ms`、tracking unavailable、またはOrigin version不一致ならRuntimeは`unavailable` tombstoneを送る。clientも同期済みRuntime monotonic timeで500 msを超えたsampleをlocal expiryし、次のfresh sampleまでAnchor childを描画せずhit-testしない。
+- 初回 / 再接続keyframeは全Element Stateに加えて、そのcutでvisibleな全Anchor-bound Nodeのfresh sampleまたは`unavailable`をexactly onceで含む。Projected Runtime Snapshot自体にはAnchorを含めず、clientは初回keyframeまたは後続fresh sampleの到着まで該当Nodeをunavailableにする。
+- clientは一つのState FrameのElement patch、Anchor patch、`baseReliableSequence`、`presentationOriginVersion`をatomicに適用する。各render / hit sampleでは最後に適用したframeSequence、Control cut、Origin、Anchor setをfreezeし、一つのlogical runtime timeでactive Runを評価する。visual Transformとauthoritative hit-testに別のcutを使わない。
 
 ### 8.5 Clock synchronization
 
 割り当て済み Runtime の clock を active session の基準とする。Quest は定期的な ping / pong で Runtime との clock offset と RTT を推定する。
 
 - Cue / Transition / playback に Runtime 時刻を付ける。
-- Quest は `producedAt` と推定 offset を使って interpolation buffer を制御する。
+- Quest は`producedAtRuntimeMonotonic`と推定offsetをtransport / freshness判定に、`producedAtRuntimeTime`をTimeline / media interpolationに使い、二つのtime domainを減算しない。
 - RTT や jitter の急増時も古い state を順に再生せず、最新 state へ追従する。
 
 ## 9. 高トラフィックへの対応
@@ -589,10 +606,10 @@ Runtime instance の概算 egress は次で決まる。
 
 49 viewer に対する raw payload の例:
 
-| 条件 | 概算 egress |
-| --- | ---: |
-| 60 Hz × 10 Element × 64 B | 約 15 Mbps |
-| 60 Hz × 20 Element × 100 B | 約 47 Mbps |
+| 条件                       | 概算 egress |
+| -------------------------- | ----------: |
+| 60 Hz × 10 Element × 64 B  |  約 15 Mbps |
+| 60 Hz × 20 Element × 100 B |  約 47 Mbps |
 | 60 Hz × 50 Element × 100 B | 約 118 Mbps |
 | 60 Hz × 50 Element × 256 B | 約 301 Mbps |
 
@@ -652,10 +669,10 @@ Durable checkpointもcritical section内ではCanonicalRuntimeSnapshotのimmutab
 
 State Connectionだけが切断された場合、Control Connection上のsession-global Reliable sequence、PublicationFence、`presentationOriginVersion`が引き続き一致していれば、Snapshotを取り直さず新しい`stateConnectionNonce`でState Connectionを再確立できる。runtimeが`Running`なら再確立後のkeyframeを適用してから差分配信へ戻る。`Paused`ならframeを送らず、Runtime Resume時にkeyframeを送ってから差分配信を開始する。Control側にもgapがある場合、PublicationFenceが一致しない場合、または`presentationOriginVersion`が変わった場合は、通常のConnection Resumeとして新しいDeliveryManifest、Connection Snapshot、`connectionId`を取得する。
 
-- runtimeが`Paused`の場合も、leaseが有効なら既存participantのConnection Resumeと新しいviewerのjoinを許可する。Snapshotにpause理由と進行位置を含め、State Connectionは確立するが`RuntimeResumed`まで新しいElement State frameを送らない。
+- runtimeが`Paused`の場合も、leaseが有効なら既存participantのConnection Resumeと新しいviewerのjoinを許可する。Snapshotにpause理由と進行位置を含め、State Connectionは確立するが`RuntimeStatusChanged(running)`まで新しいElement State frameを送らない。
 - lease期限切れによる`Paused`では新しいconnectionとjoinを受け入れない。lease更新後も自動的に`Running`へ戻さず、presenterのRuntime Resumeを要求する。
 - pause開始時はlogical runtime clockを停止する。Transition / TimelineのdeadlineとMedia cursorは同じlogical time基準を使うため、Runごとの`elapsedBeforePause`やpause補正値を持たない。
-- Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindしてから`RuntimeResumed`を配信する。pause中のwall-clock経過はTransition、Timeline、playbackへ加算しない。
+- Runtime Resume時は保存済みlogical timeを新しいmonotonic clock基準へbindしてから`RuntimeStatusChanged(running)`を配信する。pause中のwall-clock経過はTransition、Timeline、playbackへ加算しない。
 
 Connection presenceは接続時点の`presenceAtCut`としてConnectionSnapshotEnvelopeにだけ含め、DurableCheckpointEnvelopeへ保存しない。process recovery後のconnection registryは空から再構築する。
 
@@ -714,9 +731,9 @@ cache/
 
 - 同じ Asset を複数 Presentation / session で再利用する。
 - Cloud からの取得には短命 signed URL を使い、Edge へ恒久 R2 credential を置かない。
-- cache capacity と eviction policy は実機の disk 容量と preload 計測後に決定する。
+- baseline cache capacity、reserve、pin / eviction policyは [ADR-0012](../../../docs/decisions/0012-texture-budget-residency-contract.md) を正本とし、実機計測による変更は新tier / policy versionで行う。
 - active session が参照する Asset は eviction しない。
-- cache の hard limit、low-disk threshold、LRU 等の退避順、partial download の回収、複数 session の quota は未決定事項とする。
+- targetは4 GiB hard limit、512 MiB low-disk reserve、active / waiting Session reference count pin、unpinned content hashのdeterministic LRU、partial / mismatch staging cleanupを実装する。現行cacheにはcapacity / pin / LRUがなく、M5で接続する。
 
 ### 11.4 Venue Edge の Quest 向け endpoint
 
@@ -760,6 +777,8 @@ ViewerReadiness
 ├─ publicationManifestHash
 ├─ availableAssetHashes
 ├─ missingAssetHashes
+├─ downloadReady
+├─ residentReady
 ├─ presentationOriginVersion
 ├─ calibrationRevision
 ├─ calibrationReady
@@ -769,6 +788,7 @@ ViewerReadiness
 
 - Quest cache に存在する hash は再取得しない。
 - 大容量 Asset は session 開始より前に preload する。
+- `downloadReady`はselected Assetのsize / MIME / checksum検証、`residentReady`はADR-0012の全selected texture uploadとCPU readback解放を表す。両方とconnection / fence条件を満たすparticipantだけを`sessionReady`として開始policyのready集合へ数える。
 - Cloud 配置では CDN、Venue Edge 配置では Asset Gateway が 50 台の同時 burst と download concurrency を制御する。
 - session 開始条件を「全 participant ready」または明示した policy として定義する。
 
@@ -841,7 +861,7 @@ Internet 障害中の継続は best-effort であり、offline 対応を正式�
 ### 13.2 Presenter切断
 
 - Runtime は現在のElement State、Transition経過時間、playback位置を固定し、`Running`から`Paused`へ遷移する。
-- viewerの既存connectionは維持し、`RuntimePaused`を配信する。leaseが有効なら新しいviewerもjoinできるが、Paused Snapshotを受け取った状態で待機する。
+- viewerの既存connectionは維持し、`RuntimeStatusChanged(paused)`を配信する。leaseが有効なら新しいviewerもjoinできるが、Paused Snapshotを受け取った状態で待機する。
 - 一定時間presenterのConnection Resumeを待つ。再接続したpresenterへSnapshotとpause理由を返す。
 - presenterが明示的な`ResumeRuntime`を送信し、assignment leaseとControl Plane session stateを確認できた場合だけ`Running`へ戻す。
 - timeout後は`Terminating`へ遷移する。この遷移後はpresenterが戻ってもRuntime Resumeを拒否し、Control Planeへsession completionを送ってdurable stateを`Ended`にする。
@@ -884,15 +904,15 @@ MVP では session 開始前に配置先を選び、実行中に Runtime が復�
 
 Runtime Core に対する環境差は次の deployment profile で扱う。
 
-| 項目 | Fly.io Cloud Runtime | Venue Edge Runtime |
-| --- | --- | --- |
+| 項目       | Fly.io Cloud Runtime                                                      | Venue Edge Runtime                                             |
+| ---------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 起動・登録 | container image の release、Machine 起動、Control Plane への Runtime 登録 | installer / service manager、Edge Bearer credential による登録 |
-| endpoint | Internet 上の公開 TLS gRPC endpoint | 会場 LAN 上の gRPC と local HTTPS endpoint |
-| TLS trust | 公開 CA を基本とする | bootstrap で配布する fingerprint pinning |
-| Asset | Quest が R2 / CDN signed URL から直接取得 | Edge が prefetch、検証、cache して LAN 配信 |
-| health | Fly.io health check と application readiness | Cloud Agent による process、disk、LAN、cache readiness |
-| 更新 | image release と Machine rollout | signed binary / image の段階更新と rollback |
-| recovery | Machine 再起動・再配置と Cloud checkpoint | process supervisor と local checkpoint |
+| endpoint   | Internet 上の公開 TLS gRPC endpoint                                       | 会場 LAN 上の gRPC と local HTTPS endpoint                     |
+| TLS trust  | 公開 CA を基本とする                                                      | bootstrap で配布する fingerprint pinning                       |
+| Asset      | Quest が R2 / CDN signed URL から直接取得                                 | Edge が prefetch、検証、cache して LAN 配信                    |
+| health     | Fly.io health check と application readiness                              | Cloud Agent による process、disk、LAN、cache readiness         |
+| 更新       | image release と Machine rollout                                          | signed binary / image の段階更新と rollback                    |
+| recovery   | Machine 再起動・再配置と Cloud checkpoint                                 | process supervisor と local checkpoint                         |
 
 Cloud Runtime を先に実装し、Quest だけで end-to-end MVP を成立させる。Fly.io 上の初期 profile は単一 Session を明示的な Runtime instance へ割り当て、公開 TLS endpoint、application health、固定した Runtime identity を提供する。region、複数 Session、Machine affinity、autoscaling、durable Snapshot store、rolling update 中の Assignment の扱いは実測後に決定する。
 
@@ -1094,7 +1114,6 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Cue priority、排他、再発火、debounce
 - Transition tick rateとElement種別ごとの配信rate
 - position / rotationの量子化精度
-- ConnectionSnapshotEnvelope / DurableCheckpointEnvelopeの正確なProtobuf schema、Reliable Event保持量、replay上限
 - Cloud durable checkpointとVenue Edge local checkpointにおけるDurableCheckpointEnvelopeの保存先、書き込み頻度、atomic replacement、破損回復
 - Presenter再接続timeout
 - `stateWriteBlockTimeout`と`stateMaxFrameAge`の初期値
@@ -1119,7 +1138,8 @@ Transport変更時も Protocol message と Session Runtime を transport-indepen
 - Internet grace periodとsession停止policy
 - assignment lease duration、renew interval、health freshness。現在のEdge固有renew APIは安全上の暫定上限を5分、割当・bootstrapに使うheartbeat ageは60秒とする
 - Edge tokenの有効期間、rotation interval、overlap期間
-- Asset cacheのhard capacity、low-disk threshold、eviction順、active session pin、partial download回収、session quota
+- ADR-0012のbaseline cache policyをQuest実機計測後も維持するか、別capacity tierを追加するか
+- session単位quotaをbaseline cache policyへ追加するか
 
 ### 18.4 将来の Runtime migration
 

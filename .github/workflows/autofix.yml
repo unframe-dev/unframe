@@ -52,10 +52,11 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Apply autofix (control-plane / realtime / lp / web)
+      - name: Apply autofix (control-plane / realtime / presentation / lp / web)
         run: |
           nix run .#control-plane -- fix
           nix run .#realtime -- fix
+          nix run .#presentation -- fix
           nix run .#lp -- fix
           nix run .#web -- fix
 

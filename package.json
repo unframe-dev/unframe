@@ -11,14 +11,14 @@
     "vite-plus": "catalog:",
     "zod": "4.5.4"
   },
-  "engines": {
-    "node": ">=22"
-  },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
       "version": "11.14.0",
       "onFail": "download"
     }
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

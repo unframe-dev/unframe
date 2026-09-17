@@ -20,7 +20,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply unframe-control-plane --remote",
     "r2:cors:apply": "wrangler r2 bucket cors set unframe-assets --file ./r2-cors.json",
     "r2:cors:list": "wrangler r2 bucket cors list unframe-assets",
-    "contracts:check": "pnpm --filter @unframe/contracts check:control-plane",
+    "contracts:check": "pnpm --filter @unframe/contracts check",
     "client:check": "pnpm --filter @unframe/api-client-typescript check",
     "check": "pnpm types:check && pnpm typecheck && pnpm lint && pnpm test && pnpm contracts:check && pnpm client:check && pnpm build"
   },

@@ -3,10 +3,23 @@
 ワークスペースで共有する TypeScript 設定と git hooks を置きます。
 各アプリ・パッケージはここから設定を extends / import します。
 
+## TypeScript と formatter / lint policy
+
+`tsconfig.base.json` は strictness と module resolution を共有する非runtime基底設定です。
+Node、Workers、Browser、Unity の runtime globals や emit 方針は共有せず、各所有
+package の `tsconfig.json` で `types`、`lib`、`noEmit` を明示します。これにより一つの
+共有設定が別 runtime の global を誤って許可することを防ぎます。
+
+formatter と lint は Vite+ (`vp`) に一本化します。共有の oxc 設定は、現在の package
+で共通ルールを追加する具体的な用途がないため置きません。各 package は対象 source、
+script、test を package script の `vp check` に列挙します。
+
 ## git hooks (`githooks/`)
 
-commit message 先頭に gitmoji を強制する `prepare-commit-msg` フックを提供します。
-conventional commit prefix を gitmoji に置換します。
+`pre-commit` は repository root から `pnpm exec vp staged` を実行します。
+Vite+ の `vite.config.ts` が対象拡張子ごとに formatter / lint を選択します。commit message
+先頭に gitmoji を強制する `prepare-commit-msg` も提供します。conventional commit prefix を
+gitmoji に置換します。
 
 | 入力                   | 結果                   |
 | ---------------------- | ---------------------- |

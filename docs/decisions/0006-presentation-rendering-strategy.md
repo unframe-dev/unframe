@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-25
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
+- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [ADR-0014: Presentation の描画方式を限定する](./0014-presentation-rendering-scope.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
 
 ## Context
 
@@ -87,9 +87,9 @@ Component の抽象を超えた編集は Authoring 上で Detach し、Delivery 
 
 Scene Graph は、空間配置を表す Spatial Tree と、Surface 内の 2D UI を表す Surface Tree から構成する。
 
-Group は物語上の進行スコープであり、Scene Graph の親子関係とは分離する。Spatial Tree は Stage、Anchor、Container、Model、Audio、SurfaceNode などの空間関係を保持する。SurfaceNode と Semantic Surface の組が 3D 空間と 2D UI を接続し、Semantic Surface が物理 size と logical size を持つ。
+Group は物語上の進行スコープであり、Scene Graph の親子関係とは分離する。Spatial Tree は Stage、Anchor、Container、Model、SurfaceNode などの空間関係を保持する。SurfaceNode と Semantic Surface の組が 3D 空間と 2D UI を接続し、Semantic Surface が物理 size と logical size を持つ。
 
-Runtime resource owner は `presentation` または一つの `group` に限定し、Step scope と Group ごとの ID namespace は作らない。Spatial Node、Timeline、Variable、Zone が owner を直接持ち、Semantic Surface、Interaction、Media、Render Surface は親から継承する。Group の owned-resource list は正本にせず、Compiler / Delivery が owner から activation index を派生生成する。
+Runtime resource owner は `presentation` または一つの `group` に限定し、Step scope と Group ごとの ID namespace は作らない。Spatial Node、Timeline、Variable、Zone が owner を直接持ち、Semantic Surface、Interaction、Video playback state、Render Surface は親から継承する。Group の owned-resource list は正本にせず、Compiler / Delivery が owner から activation index を派生生成する。
 
 presentation-owned resource は presentation-owned resource、Group G-owned resource と Group G の Cue は presentation-owned または同じ Group G-owned resource だけを参照できる。ownership は Spatial parent と分離し、group-owned Node は presentation-owned Node を parent にできる。presentation-owned Runtime State と Run は Group をまたいで継続し、group-owned state は exit で破棄して reentry で reset する。Timeline も presentation / group の両 owner を許す。
 
@@ -99,19 +99,19 @@ Component は再利用と編集、SurfaceNode は空間配置と animation、Sem
 
 Surface は、Spatial Tree 上で Transform を所有する SurfaceNode、PresentationDefinition 上で State / Interaction / canonical Surface Tree を所有する Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。v1 は SurfaceNode と Semantic Surface を 1:1、Semantic Surface と Render Surface を 1:N とする。Semantic Surface は `rootFrameId` だけでなく、その参照先と全親子関係・内容を保持する canonical content node map を所有する。
 
-canonical Runtime contract の SurfaceId は SemanticSurfaceId を意味する。Node Action と Timeline は SurfaceNode を含む SpatialNodeId、Surface State、Interaction、media Action、Progression は SemanticSurfaceId を参照する。RenderSurfaceId は compiler-derived な build-local ID とし、Trigger、Guard、Action、Snapshot、Reliable Event に含めない。
+canonical Runtime contract の SurfaceId は SemanticSurfaceId を意味する。Node Action と Timeline は SurfaceNode を含む SpatialNodeId、Surface State、Interaction、Video の media Action、Progression は SemanticSurfaceId を参照する。media Action は Video artifact を持つ Semantic Surface だけを対象とする。RenderSurfaceId は compiler-derived な build-local ID とし、Trigger、Guard、Action、Snapshot、Reliable Event に含めない。
 
 ### Rendering
 
 Semantic Scene Graph を優先し、renderer を Local Compiler と Delivery の出力戦略とする。
 
-3D Model、Shape、Spatial Audio、Transform、Anchor tracking は Unity native で描画する。静的 UI と少数の有限状態 UI は Web で描画して Render Surface 単位に Texture 化する。継続的に変化する限定 UI は portable な Native UI とし、入力非依存の複雑な連続演出は Video とする。
+3D Model、Shape、Transform、Anchor tracking は Unity native で描画する。静的 UI と少数の有限状態 UI は Web で描画して Render Surface 単位に Texture 化する。Timer、Counter、短い動的 Text は portable な Native UI とし、入力非依存の複雑な連続演出は Video とする。独立した音声、BGM、効果音、空間音声は対象外とし、音声は Video artifact 内の audio track としてだけ扱う。
 
 Semantic Surface は具体 renderer ではなく Render Intent を持つ。Concrete renderer と解像度は build 結果と target capability に基づいて RenderBundle と DeliveryManifest で確定する。
 
 Surface State は意味論的な状態として保持し、Texture ID や Unity object を参照しない。Renderer artifact は RenderBundle が Surface State に対応付け、DeliveryManifestはtarget capabilityに応じてRender Surfaceの各到達可能stateへartifactまたは明示的なempty bindingを固定する。
 
-Embedded Browser は v1 の標準 renderer に含めない。Control Plane と Unity Runtime は Authoring Source、React、HTML、CSS、renderer source を実行しない。
+採用する描画方式と適用範囲は [ADR-0014](./0014-presentation-rendering-scope.md) に従う。`embedded-web`、WebView、Unity Runtime で任意の HTML / CSS / JavaScript / WebAssembly を実行する方式はプロジェクトの対象外とし、将来用の artifact kind や予約 field も作らない。Control Plane と Unity Runtime は Authoring Source、React、HTML、CSS、renderer source を実行しない。固定 Browser での Opaque TS / React / CSS 実行は build-time artifact generation の隔離境界に限って許可する。
 
 ### Presentation Progression
 
@@ -124,6 +124,8 @@ Cloud または Venue Edge に配置された割り当て済み Runtime Core を
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
 Runtime State は、割り当て済み Runtime Core が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial Node と Timeline が ProjectionAudience を宣言し、Semantic Surface などの派生 resource は host から継承する。一つの Timeline は同じ audience の Node だけを target とし、Definition と Run を同じ projection closure で配信する。role 限定 Timeline は shared progression を block しない。Media の duration、loop、completion は PresentationDefinition の Semantic Surface が canonical に所有し、renderer artifact 選択から導出しない。ProjectionProfileDescriptor は PublicationFence、projection contract version、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
+
+Timeline audience と Semantic Surface による media timing の所有は、現行 Presentation v2 の後に contract revision を伴って導入する目標である。現行 v2 は Timeline audience と profile 別 Timeline projection を持たず、Video content の `loop` と admitted Video Artifact の `durationMilliseconds` を使用する。現行 contract と後続変更の境界は [Presentation Architecture](../presentation/ARCHITECTURE.md) と [Presentation データ契約 v2](../presentation/DATA_MODEL.md) を正本とする。
 
 Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Session は Presentation を参照し、作成時の PublicationFence を固定する。期限内の `Waiting` Session または `Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Presentation owner / admin は放置された `Waiting` Session を cancel でき、bounded waiting expiryもpublish判定と同じ永続化境界でlockを解放する。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
 
@@ -179,9 +181,9 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 この ADR は目標アーキテクチャを採用するものであり、すべてが現行コードへ実装済みであることを意味しない。
 
-2026-08-25 時点では、現行 PresentationDefinition は ADR-0005 の Group、Step、Cue、Element を中心とした JSON / OpenAPI 契約である。Semantic Authoring IR、Component package、Spatial Tree / Surface Tree、RenderBundle、DeliveryManifest、hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
+2026-09-15 時点では、Authoring Source の virtual resolution、typecheck、Static DSL lowering から、固定 Browser capture、deterministic PNG encode、`definition.json`、`render-bundle.json`、`assets/*.png` の atomic output までを M1 Local Compiler として実装済みである。現行 contract と renderer は static な `baked-web` 初期 subset に限られる。完全版 contract、DeliveryManifest、Native UI / Video consumer、Unity hybrid renderer、v1 Presentation Progression の wire / runtime schema は target design であり、完成した production contract ではない。
 
-この ADR だけで既存 schema を置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI / Protobuf artifact、Web / Unity / Realtime consumer、contract test を同期する。
+この ADR だけで既存 schema を置き換えたとはみなさない。実装時は契約変更、migration、OpenAPI / Protobuf artifact、Web / Unity / Realtime consumer、contract test を同期する。既存 Unity code に独立音声の実装が残っていても、Target contract の採用範囲には含めない。
 
 ## Follow-ups
 
@@ -197,11 +199,11 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 - [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を [Surface State](../presentation/ARCHITECTURE.md#124-surface-state)、[Action](../presentation/ARCHITECTURE.md#127-action)、[Timeline](../presentation/ARCHITECTURE.md#128-timeline) で定義する。
 - [x] Surface State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#132-semantic-tree)、[Native UI Artifact](../presentation/ARCHITECTURE.md#143-native-ui-artifact)、[DeliveryManifest](../presentation/ARCHITECTURE.md#35-deliverymanifest) で定義する。
 - [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#surface-transition--interaction-wire-contract) で定義する。
-- [ ] Component から Render Surface への partition 規則、自動化範囲、author override を決定する。
-- [ ] ADR-0005 で固定済みの座標系を前提に、Transform 合成、Quaternion 乗算、matrix layout、Unity 変換、Surface / UV 変換の完全な規約を定義する。
+- [x] ComponentからRender Surfaceへのpartition規則、自動化範囲、author overrideを [ADR-0011](0011-surface-partition-contract.md) で定義する。
+- [x] ADR-0005の基礎座標系を前提に、Transform / matrix / Quaternion / Unity / Surface / UVの完全な規約を [ADR-0010](0010-spatial-surface-coordinate-contract.md) で定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。
-- [ ] Texture build budget、resolution、mipmap、compression、preload、eviction policy を定義する。
-- [ ] role 別 Semantic schema と Hit Region の完全な schema を定義する。
+- [x] Texture build budget、resolution、mipmap、compression、preload、eviction policyを [ADR-0012](0012-texture-budget-residency-contract.md) で定義する。
+- [x] role 別 Semantic schema と Hit Region の完全なschemaを [ADR-0009](0009-semantic-tree-hit-region-contract.md) で定義する。
 - [ ] Opaque renderer の Browser capability、module resolution、cache invalidation と Component / renderer drift 検証を設計する。
 - [ ] DeliveryManifest Protobuf schema と capability negotiation を定義する。
 - [ ] v1 Presentation Progression の意味論を Progression wire / Runtime contract、Realtime protocol、Snapshot、consumer へ落とし込む。

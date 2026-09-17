@@ -18,6 +18,10 @@ export LP_DIR="${REPO_ROOT}/lp"
 export LP_FILTER="@unframe/site"
 # packages/contracts (future API / protocol boundaries)
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
+# packages/config (shared TypeScript and repository tooling configuration)
+export CONFIG_FILTER="@unframe/config"
+# packages/unframe-* (Presentation build pipeline packages)
+export PRESENTATION_PACKAGES_FILTER="@unframe/unframe-*"
 # Notion 同期 (scripts/docs/notion-sync)
 export NOTION_SYNC_FILTER="unframe-notion-sync"
 # 共有 git hooks (packages/config/githooks)。core.hooksPath はリポジトリ相対で設定する。
