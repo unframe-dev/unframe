@@ -1,0 +1,29 @@
+{
+  "name": "@unframe/unframe-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "vp check src test",
+    "test": "vp test run",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.3.0",
+    "@unframe/unframe-assets": "workspace:*",
+    "@unframe/unframe-authoring": "workspace:*",
+    "@unframe/unframe-core": "workspace:*",
+    "@unframe/unframe-renderer-api": "workspace:*",
+    "typescript": "6.0.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@unframe/unframe-components": "workspace:*",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

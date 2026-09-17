@@ -20,10 +20,8 @@ export LP_FILTER="@unframe/site"
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
 # packages/config (shared TypeScript and repository tooling configuration)
 export CONFIG_FILTER="@unframe/config"
-# packages/presentation-authoring (public SDK name: @unframe/presentation)
-export PRESENTATION_AUTHORING_FILTER="@unframe/presentation"
-# packages/presentation-* (Presentation build pipeline packages)
-export PRESENTATION_PACKAGES_FILTER="@unframe/presentation-*"
+# packages/unframe-* (Presentation build pipeline packages)
+export PRESENTATION_PACKAGES_FILTER="@unframe/unframe-*"
 # Notion 同期 (scripts/docs/notion-sync)
 export NOTION_SYNC_FILTER="unframe-notion-sync"
 # 共有 git hooks (packages/config/githooks)。core.hooksPath はリポジトリ相対で設定する。

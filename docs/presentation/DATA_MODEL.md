@@ -47,4 +47,4 @@ Definition にダウンロード URL、端末 capability、現在の再生時刻
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。
 
-Core の最初の v2 実装は [公開物の整合性検証](../../packages/presentation-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) である。成果物間の参照・hash を検証し、完全な意味検証や既存 Compiler / consumer の v2 接続とは区別する。
+Core の最初の v2 実装は [公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) である。成果物間の参照・hash を検証し、完全な意味検証や既存 Compiler / consumer の v2 接続とは区別する。

@@ -1,4 +1,4 @@
-import { defineComponentStructure } from "@unframe/presentation";
+import { defineComponentStructure } from "@unframe/unframe-authoring";
 
 export default defineComponentStructure({
   id: "reference-surface",

@@ -47,13 +47,13 @@ pnpm --filter @unframe/contracts test:presentation
 `fixtures/minimal.*.v1.json` は一つの Stage、SurfaceNode、Semantic Surface、root Frame/Text、
 State、baked-web intent、空 Cue の Group/Step を表す最小fixtureです。Zodと生成JSON Schemaの両方で
 同じvalid/invalid結果になることを検証します。schema はportable な構造だけを検証し、ID の相互参照、ownership、State の意味的整合性、canonicalization
-は `presentation-core` が担当します。これらのTarget schemaは既存Control Plane OpenAPI形式を
+は `unframe-core` が担当します。これらのTarget schemaは既存Control Plane OpenAPI形式を
 置き換えず、consumer migrationもまだ含みません。
 
 最初のmilestoneではCueの詳細なTrigger / Guard / Action contractは未実装です。`cues` は
 `maxItems: 0` とし、任意objectを受け入れません。Frameは`absolute` layout、Textは親Frame内の
 `absolute` placementを持つ親子構造に限定します。ID参照、treeの循環、Quaternionの正規化、Scalar型とinitialValueの一致は
-構造schemaの外であり、`presentation-core` が検証します。
+構造schemaの外であり、`unframe-core` が検証します。
 
 ## Realtime v1（既存 foundation）
 

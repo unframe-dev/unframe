@@ -7,4 +7,4 @@ source "${DIR}/../lib/paths.sh"
 
 export PLAYWRIGHT_BROWSERS_PATH="${REPO_ROOT}/.cache/playwright"
 mkdir -p "${PLAYWRIGHT_BROWSERS_PATH}"
-pnpm --dir "${REPO_ROOT}" --filter @unframe/presentation-renderer-web exec playwright-core install chromium --only-shell
+pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-renderer-web exec playwright-core install chromium --only-shell

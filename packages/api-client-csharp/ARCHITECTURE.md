@@ -30,7 +30,7 @@ Generated file は手編集しない。必要な behavior 変更は `packages/co
 - authentication credential の安全な保存: Unity application adapter
 - retry、reconnect、snapshot application: Unity runtime layer
 - portable wire compatibility policy: `packages/contracts`
-- semantic invariant の定義と authoritative evaluation: `presentation-core`、Compiler、Realtime など各 ownership boundary
+- semantic invariant の定義と authoritative evaluation: `unframe-core`、Compiler、Realtime など各 ownership boundary
 
 C# consumer は generated model が保持する contract と fence を検証に利用するが、この package や Unity adapter が canonical semantic rule の正本になることはない。
 

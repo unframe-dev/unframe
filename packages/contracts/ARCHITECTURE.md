@@ -51,18 +51,18 @@
 
 `packages/contracts` が所有するのは portable な構造と wire compatibility である。次は各 consumer が所有する。
 
-- semantic invariant、reference validation、canonicalization: `presentation-core`
+- semantic invariant、reference validation、canonicalization: `unframe-core`
 - HTTP route behavior、authorization、publication policy: Control Plane
 - progression evaluation、actor resolution、snapshot cut: Realtime
 - Unity object、renderer graph、runtime cache: Unity
 
-Schema generator は `presentation-core` を import しない。`presentation-core` が generated TypeScript contract を利用する一方向に固定し、serialized contract と semantic implementation の循環した正本を作らない。
+Schema generator は `unframe-core` を import しない。`unframe-core` が generated TypeScript contract を利用する一方向に固定し、serialized contract と semantic implementation の循環した正本を作らない。
 
 ## 4. Generated artifact destinations
 
 ```text
 Zod Presentation schema
-├─ infer    → TypeScript model → presentation-core / Control Plane
+├─ infer    → TypeScript model → unframe-core / Control Plane
 └─ generate → JSON Schema artifact
 
 Protocol Buffers
@@ -87,7 +87,7 @@ Generated file は手編集しない。生成先には generator、source contra
 
 ## 6. Dependency rules
 
-Target の Presentation schema と Protocol Buffers は、consumer が generated artifact または schema を参照する向きだけを許可する。これらの source / generator から application implementation、`presentation-core`、renderer、Compiler、Unity adapter への依存は禁止する。
+Target の Presentation schema と Protocol Buffers は、consumer が generated artifact または schema を参照する向きだけを許可する。これらの source / generator から application implementation、`unframe-core`、renderer、Compiler、Unity adapter への依存は禁止する。
 
 現行 Control Plane OpenAPI は application の型付き route が source of truth であり、`scripts/generate-control-plane.ts` は route application を読み込んで文書と型を生成する repository adapter である。この Current generation path は Target の portable Presentation schema generator と同一視せず、Control Plane implementation を `packages/contracts` の runtime dependency として公開しない。
 
@@ -102,6 +102,6 @@ Target の Presentation schema と Protocol Buffers は、consumer が generated
 
 ## 8. Current gap
 
-PresentationDefinition / baked-web first RenderBundle のZod 4 source、最小fixture、生成JSON Schema、schema validationとdrift checkは実装済みである。初期subsetの参照整合性とcanonicalizationは`presentation-core`に実装済みである。Timeline catalog / Runtime Run wire の accepted semantics は [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)、Reliable Event / Snapshot / State Stream の exact envelope、retention、microstep上限は [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md)、role別Semantic Tree / Hit Regionのtarget schemaは [ADR-0009](../../docs/decisions/0009-semantic-tree-hit-region-contract.md)、Spatial / Surface / Unity座標変換は [ADR-0010](../../docs/decisions/0010-spatial-surface-coordinate-contract.md)、Surface Partition / Part isolate overrideは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)、Texture metadata / budget / residencyは [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) に定義した。現行texture schemaはsize / mip / memory estimateを持たず`premultiplied`を許可する初期subsetである。現行Compilerは一Surface一partition、Semantic Tree / Hit Regionはflat initial subset、Quaternionはshapeとnorm検証だけ、Unity sample importerは旧contractのままであり、M3〜M5でfixtureと実装を接続する。v2 は完全版の構造と意味規則を定義し、JSON Schema / Protobuf descriptor と fixture を生成・検証する。Delivery projection、version negotiation、v2 Go / C# consumer generation と実行処理は未実装である。`realtime/v1/realtime.proto` は既存 foundation として残る。
+PresentationDefinition / baked-web first RenderBundle のZod 4 source、最小fixture、生成JSON Schema、schema validationとdrift checkは実装済みである。初期subsetの参照整合性とcanonicalizationは`unframe-core`に実装済みである。Timeline catalog / Runtime Run wire の accepted semantics は [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)、Reliable Event / Snapshot / State Stream の exact envelope、retention、microstep上限は [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md)、role別Semantic Tree / Hit Regionのtarget schemaは [ADR-0009](../../docs/decisions/0009-semantic-tree-hit-region-contract.md)、Spatial / Surface / Unity座標変換は [ADR-0010](../../docs/decisions/0010-spatial-surface-coordinate-contract.md)、Surface Partition / Part isolate overrideは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)、Texture metadata / budget / residencyは [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) に定義した。現行texture schemaはsize / mip / memory estimateを持たず`premultiplied`を許可する初期subsetである。現行Compilerは一Surface一partition、Semantic Tree / Hit Regionはflat initial subset、Quaternionはshapeとnorm検証だけ、Unity sample importerは旧contractのままであり、M3〜M5でfixtureと実装を接続する。v2 は完全版の構造と意味規則を定義し、JSON Schema / Protobuf descriptor と fixture を生成・検証する。Delivery projection、version negotiation、v2 Go / C# consumer generation と実行処理は未実装である。`realtime/v1/realtime.proto` は既存 foundation として残る。
 
-最初のmilestoneではCueの詳細contractをまだ固定しない。schemaは`cues`を空配列に限定し、任意のCue objectを受け入れない。Frame layoutとText placementは`absolute` subsetのみを構造契約に含める。参照整合性、所有権、tree不変条件、Quaternion正規化、Scalar値の型整合性は`presentation-core`のsemantic validationへ委譲する。
+最初のmilestoneではCueの詳細contractをまだ固定しない。schemaは`cues`を空配列に限定し、任意のCue objectを受け入れない。Frame layoutとText placementは`absolute` subsetのみを構造契約に含める。参照整合性、所有権、tree不変条件、Quaternion正規化、Scalar値の型整合性は`unframe-core`のsemantic validationへ委譲する。

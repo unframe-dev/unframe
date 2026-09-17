@@ -508,14 +508,14 @@ importers:
         specifier: 'catalog:'
         version: 0.3.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(svelte@5.57.0)(tsx@4.23.12)(typescript@5.9.3)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))(yaml@2.9.0)
 
-  packages/presentation-assets:
+  packages/unframe-assets:
     dependencies:
       '@noble/hashes':
         specifier: 2.3.0
         version: 2.3.0
-      '@unframe/presentation-core':
+      '@unframe/unframe-core':
         specifier: workspace:*
-        version: link:../presentation-core
+        version: link:../unframe-core
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -533,11 +533,11 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@7.0.2)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-authoring:
+  packages/unframe-authoring:
     dependencies:
-      '@unframe/presentation-core':
+      '@unframe/unframe-core':
         specifier: workspace:*
-        version: link:../presentation-core
+        version: link:../unframe-core
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -552,7 +552,7 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@7.0.2)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-cli:
+  packages/unframe-cli:
     dependencies:
       '@opentui/core':
         specifier: 0.4.5
@@ -563,15 +563,15 @@ importers:
       '@opentui/solid':
         specifier: 0.4.5
         version: 0.4.5(solid-js@1.9.12)(supports-color@10.2.2)(typescript@5.9.3)(web-tree-sitter@0.25.10)
-      '@unframe/presentation-compiler':
+      '@unframe/unframe-compiler':
         specifier: workspace:*
-        version: link:../presentation-compiler
-      '@unframe/presentation-core':
+        version: link:../unframe-compiler
+      '@unframe/unframe-core':
         specifier: workspace:*
-        version: link:../presentation-core
-      '@unframe/presentation-renderer-web':
+        version: link:../unframe-core
+      '@unframe/unframe-renderer-web':
         specifier: workspace:*
-        version: link:../presentation-renderer-web
+        version: link:../unframe-renderer-web
       solid-js:
         specifier: 1.9.12
         version: 1.9.12
@@ -585,9 +585,9 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
-      '@unframe/presentation-components':
+      '@unframe/unframe-components':
         specifier: workspace:*
-        version: link:../presentation-components
+        version: link:../unframe-components
       vite-plus:
         specifier: 'catalog:'
         version: 0.3.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(svelte@5.57.0)(tsx@4.23.13)(typescript@5.9.3)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)
@@ -595,23 +595,23 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@5.9.3)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-compiler:
+  packages/unframe-compiler:
     dependencies:
       '@noble/hashes':
         specifier: 2.3.0
         version: 2.3.0
-      '@unframe/presentation':
+      '@unframe/unframe-assets':
         specifier: workspace:*
-        version: link:../presentation-authoring
-      '@unframe/presentation-assets':
+        version: link:../unframe-assets
+      '@unframe/unframe-authoring':
         specifier: workspace:*
-        version: link:../presentation-assets
-      '@unframe/presentation-core':
+        version: link:../unframe-authoring
+      '@unframe/unframe-core':
         specifier: workspace:*
-        version: link:../presentation-core
-      '@unframe/presentation-renderer-api':
+        version: link:../unframe-core
+      '@unframe/unframe-renderer-api':
         specifier: workspace:*
-        version: link:../presentation-renderer-api
+        version: link:../unframe-renderer-api
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -619,9 +619,9 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
-      '@unframe/presentation-components':
+      '@unframe/unframe-components':
         specifier: workspace:*
-        version: link:../presentation-components
+        version: link:../unframe-components
       vite-plus:
         specifier: 'catalog:'
         version: 0.3.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(svelte@5.57.0)(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)
@@ -629,11 +629,11 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@6.0.3)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-components:
+  packages/unframe-components:
     dependencies:
-      '@unframe/presentation':
+      '@unframe/unframe-authoring':
         specifier: workspace:*
-        version: link:../presentation-authoring
+        version: link:../unframe-authoring
     devDependencies:
       typescript:
         specifier: ^7.0.0
@@ -645,7 +645,7 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@7.0.2)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-core:
+  packages/unframe-core:
     dependencies:
       '@noble/hashes':
         specifier: 2.3.0
@@ -673,11 +673,11 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@7.0.2)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-renderer-api:
+  packages/unframe-renderer-api:
     dependencies:
-      '@unframe/presentation-core':
+      '@unframe/unframe-core':
         specifier: workspace:*
-        version: link:../presentation-core
+        version: link:../unframe-core
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -695,14 +695,14 @@ importers:
         specifier: 'catalog:'
         version: '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0))(tsx@4.23.13)(typescript@7.0.2)(vite@8.0.13(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))(yaml@2.9.0)'
 
-  packages/presentation-renderer-web:
+  packages/unframe-renderer-web:
     dependencies:
       '@noble/hashes':
         specifier: 2.3.0
         version: 2.3.0
-      '@unframe/presentation-renderer-api':
+      '@unframe/unframe-renderer-api':
         specifier: workspace:*
-        version: link:../presentation-renderer-api
+        version: link:../unframe-renderer-api
       playwright-core:
         specifier: 1.62.1
         version: 1.62.1

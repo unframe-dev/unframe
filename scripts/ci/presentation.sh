@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# packages/presentation-* の品質処理。
+# packages/unframe-* の品質処理。
 #   check (既定): 実装済み package の check
 #   fix         : Vite+ formatter
 set -euo pipefail
@@ -31,12 +31,12 @@ reference_acceptance() {
   trap 'rm -rf -- "$temp"' RETURN
   cp -R "${REPO_ROOT}/examples/presentation/." "${temp}/"
   log "presentation(check): reference project check"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/presentation-cli run presentation -- check "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation -- check "${temp}"
   log "presentation(check): Fixed Browser reference build (first)"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/presentation-cli run presentation -- build "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation -- build "${temp}"
   first_manifest="$(manifest "${temp}")"
   log "presentation(check): Fixed Browser reference build (second)"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/presentation-cli run presentation -- build "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation -- build "${temp}"
   second_manifest="$(manifest "${temp}")"
   test "${first_manifest}" = "${second_manifest}"
   trap - RETURN
@@ -48,13 +48,12 @@ case "${mode}" in
   fix)
     log "presentation(fix): vp fmt"
     pnpm --config.verify-deps-before-run=false exec vp fmt \
-      "${REPO_ROOT}"/packages/presentation-*
+      "${REPO_ROOT}"/packages/unframe-*
     ;;
   check)
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false \
-      --filter "${PRESENTATION_AUTHORING_FILTER}" \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
     reference_acceptance

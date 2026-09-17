@@ -106,14 +106,14 @@ unframe/
 │  │  ├─ presentation/                        # portable artifact contract sources
 │  │  └─ proto/unframe/                       # delivery and runtime wire sources
 │  ├─ api-client-csharp/                      # generated C# contract artifacts
-│  ├─ presentation-core/                      # pure semantic model
-│  ├─ presentation-authoring/                 # authoring SDK and component SDK
-│  ├─ presentation-components/                # built-in primitives and components
-│  ├─ presentation-renderer-api/              # renderer plugin boundary
-│  ├─ presentation-renderer-web/              # baked-web build implementation
-│  ├─ presentation-assets/                    # deterministic asset transforms
-│  ├─ presentation-compiler/                  # compiler pipeline library
-│  └─ presentation-cli/                       # user-facing executable
+│  ├─ unframe-core/                           # pure semantic model
+│  ├─ unframe-authoring/                      # authoring SDK and component SDK
+│  ├─ unframe-components/                     # built-in primitives and components
+│  ├─ unframe-renderer-api/                   # renderer plugin boundary
+│  ├─ unframe-renderer-web/                   # baked-web build implementation
+│  ├─ unframe-assets/                         # deterministic asset transforms
+│  ├─ unframe-compiler/                       # compiler pipeline library
+│  └─ unframe-cli/                            # user-facing executable
 ├─ examples/
 │  └─ presentation/                           # end-to-end reference Authoring Project
 ├─ scripts/
@@ -129,7 +129,7 @@ Target implementation directory は担当実装を開始する時点で追加す
 
 ## 4. Shared package responsibilities
 
-### 4.1 `packages/presentation-core`
+### 4.1 `packages/unframe-core`
 
 Presentation の pure TypeScript semantic core を所有する。
 
@@ -160,11 +160,11 @@ Presentation の pure TypeScript semantic core を所有する。
 
 この package は Node.js、DOM、React、Cloudflare Workers に依存しない。Web、Compiler、Control Plane から利用できるが、Go と C# には generated contract artifact を介して接続する。
 
-`presentation-core` の public `index.ts` は公開 API の export だけを集約する。contract-derived model、schema boundary adapter、semantic validator、canonicalizer は責務別 module に分離する。serialized input の構造 validation は `packages/contracts` の Zod 4 schema source と、そこから生成した portable JSON Schema を正本とし、Core に重複 schema を手書きしない。
+`unframe-core` の public `index.ts` は公開 API の export だけを集約する。contract-derived model、schema boundary adapter、semantic validator、canonicalizer は責務別 module に分離する。serialized input の構造 validation は `packages/contracts` の Zod 4 schema source と、そこから生成した portable JSON Schema を正本とし、Core に重複 schema を手書きしない。
 
-### 4.2 `packages/presentation-authoring`
+### 4.2 `packages/unframe-authoring`
 
-利用者向け import 名を `@unframe/presentation` とし、Authoring Source を Declaration Graph と Semantic Authoring IRへ接続する SDK を所有する。
+利用者向け import 名を `@unframe/unframe-authoring` とし、Authoring Source を Declaration Graph と Semantic Authoring IRへ接続する SDK を所有する。
 
 **Responsibilities**
 
@@ -189,9 +189,9 @@ Presentation の pure TypeScript semantic core を所有する。
 - Control Plane persistence
 - Runtime progression evaluation
 
-この package は `presentation-core` に依存する。Compiler、Web Editor、Component package が利用するが、Compiler やWeb Editorへ逆依存しない。
+この package は `unframe-core` に依存する。Compiler、Web Editor、Component package が利用するが、Compiler やWeb Editorへ逆依存しない。
 
-### 4.3 `packages/presentation-components`
+### 4.3 `packages/unframe-components`
 
 Unframe が提供する標準 Primitive、Component、Theme を所有する。
 
@@ -211,11 +211,11 @@ Unframe が提供する標準 Primitive、Component、Theme を所有する。
 - renderer plugin selection
 - product-specific template と user content
 
-この package は `presentation-authoring`と`presentation-core`に依存する。Manifestはrenderer IDとcapabilityをdataとして宣言するが、Compiler plugin用の`presentation-renderer-api`には依存しない。
+この package は `unframe-authoring`と`unframe-core`に依存する。Manifestはrenderer IDとcapabilityをdataとして宣言するが、Compiler plugin用の`unframe-renderer-api`には依存しない。
 
 Structured Component は `*.structure.tsx` を所有し、Component 固有 renderer implementation を持たない。generic renderer が structured Primitive graph を描画する。Opaque Component だけが `*.web.tsx` などの Component 固有 renderer entry とReact等の実装依存を持てるが、Unframe Compilerやconcrete renderer packageへ依存しない。
 
-### 4.4 `packages/presentation-renderer-api`
+### 4.4 `packages/unframe-renderer-api`
 
 Compiler と concrete renderer の間の plugin contract を所有する。
 
@@ -236,9 +236,9 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - rendererの自動選択 policy
 - CLI
 
-この package は `presentation-core` にだけ依存する。Compiler と concrete renderer の双方が依存し、concrete renderer 同士は依存しない。
+この package は `unframe-core` にだけ依存する。Compiler と concrete renderer の双方が依存し、concrete renderer 同士は依存しない。
 
-### 4.5 `packages/presentation-renderer-web`
+### 4.5 `packages/unframe-renderer-web`
 
 `baked-web` renderer と、固定 Browser 環境での capture を所有する。
 
@@ -262,11 +262,11 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - Unity rendering
 - Native UI、Video renderer の実装
 
-この package は `presentation-core`、`presentation-renderer-api`、`presentation-assets`に依存する。Capture結果のresize、encode、checksumは`presentation-assets`へ委譲する。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
+この package は `unframe-core`、`unframe-renderer-api`、`unframe-assets`に依存する。Capture結果のresize、encode、checksumは`unframe-assets`へ委譲する。Compilerからはpluginとして注入され、Compilerへimplementationを逆流させない。
 
-Native UI と Video renderer は、実装開始時にそれぞれ独立 package として追加する。`presentation-renderer-web` に仮実装を置かない。`embedded-web`、WebView、任意の Runtime HTML / JavaScript renderer package は追加しない。
+Native UI と Video renderer は、実装開始時にそれぞれ独立 package として追加する。`unframe-renderer-web` に仮実装を置かない。`embedded-web`、WebView、任意の Runtime HTML / JavaScript renderer package は追加しない。
 
-### 4.6 `packages/presentation-assets`
+### 4.6 `packages/unframe-assets`
 
 Compiler build 中に使用する deterministic asset transformation を所有する。
 
@@ -286,13 +286,13 @@ Compiler build 中に使用する deterministic asset transformation を所有�
 - Unity runtime cache
 - renderer selection
 
-OS toolやcodec依存はこのpackageかそのadapterに閉じ込め、`presentation-core`へ持ち込まない。
+OS toolやcodec依存はこのpackageかそのadapterに閉じ込め、`unframe-core`へ持ち込まない。
 
-`presentation-renderer-web`はBrowser上のlayout、capture条件、Hit Region geometryを所有する。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`presentation-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
+`unframe-renderer-web`はBrowser上のlayout、capture条件、Hit Region geometryを所有する。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`unframe-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
 
-このpackageはartifact descriptorとdiagnosticsの型に限って`presentation-core`へ依存する。
+このpackageはartifact descriptorとdiagnosticsの型に限って`unframe-core`へ依存する。
 
-### 4.7 `packages/presentation-compiler`
+### 4.7 `packages/unframe-compiler`
 
 Authoring Project から PresentationDefinition と RenderBundle を生成するprogrammatic compiler pipelineを所有する。
 
@@ -322,9 +322,9 @@ Authoring Project から PresentationDefinition と RenderBundle を生成する
 - Web Editor UI
 - Runtime progression evaluation
 
-Compiler は `presentation-core`、`presentation-authoring`、`presentation-renderer-api`、`presentation-assets`と固定 version の TypeScript に依存する。concrete renderer はhostから注入する。
+Compiler は `unframe-core`、`unframe-authoring`、`unframe-renderer-api`、`unframe-assets`と固定 version の TypeScript に依存する。concrete renderer はhostから注入する。
 
-### 4.8 `packages/presentation-cli`
+### 4.8 `packages/unframe-cli`
 
 Authoring Projectを操作する利用者向け executable と、automation 向け headless application boundary を所有する。
 
@@ -346,7 +346,7 @@ Authoring Projectを操作する利用者向け executable と、automation 向�
 - renderer artifact generation
 - durable PublishedPresentation state、publicationEpoch、active-use lock
 
-CLIは`presentation-compiler`と、既定で有効にするconcrete rendererに依存する。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
+CLIは`unframe-compiler`と、既定で有効にするconcrete rendererに依存する。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
 
 Current implementation は filesystem host と Fixed Browser を接続した `check` / `build` process entry、atomic output、および command selection 用の TUI shell を持つ。TUI と process command の接続、publish、preview は未実装である。
 
@@ -368,8 +368,8 @@ packages/contracts/
 ```
 
 - PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/presentation/`をsource of truthとする。
-- `presentation-core`はcontractから生成または導出したTypeScript modelを使用し、serialized fieldを独自に再定義しない。
-- `presentation-core`は、portable structural schemaだけでは表せないreference validation、semantic invariant、canonicalizationを所有する。
+- `unframe-core`はcontractから生成または導出したTypeScript modelを使用し、serialized fieldを独自に再定義しない。
+- `unframe-core`は、portable structural schemaだけでは表せないreference validation、semantic invariant、canonicalizationを所有する。
 - DeliveryManifest、Reliable Event、ConnectionSnapshotEnvelope、DurableCheckpointEnvelope、State Streamなどのwire sourceは`packages/contracts/proto/`に置く。CanonicalRuntimeSnapshot は renderer、participant、connection、transport、serialization format から独立した semantic model とし、用途別 envelope の内側へ encode する。
 - OpenAPIはControl Plane route contractから生成する。
 - generated fileは手編集しない。
@@ -377,7 +377,7 @@ packages/contracts/
 - schemaから生成したfixtureをGo、C#、TypeScript consumerのconformance testで共有する。
 - Go Protobufは`app/server/realtime/internal/gen/`、C# artifactは`packages/api-client-csharp/`へ生成する。
 
-依存方向は`packages/contracts`から生成されたTypeScript contractを`presentation-core`が利用する向きに固定する。`packages/contracts`のgeneratorは`presentation-core`をimportしない。これによりserialized contractとsemantic implementationの循環したsource of truthを避ける。
+依存方向は`packages/contracts`から生成されたTypeScript contractを`unframe-core`が利用する向きに固定する。`packages/contracts`のgeneratorは`unframe-core`をimportしない。これによりserialized contractとsemantic implementationの循環したsource of truthを避ける。
 
 ### 5.2 `packages/api-client-csharp`
 
@@ -445,7 +445,7 @@ Contract generationは次の一方向とする。
 
 ```text
 packages/contracts source
-├─ generate → TypeScript contract → presentation-core / Control Plane
+├─ generate → TypeScript contract → unframe-core / Control Plane
 ├─ generate → Go contract         → Realtime
 └─ generate → C# contract         → packages/api-client-csharp → Unity
 ```
@@ -453,38 +453,38 @@ packages/contracts source
 TypeScript packageのruntime / build dependencyは次のとおりとする。
 
 ```text
-presentation-core ──────────────→ generated TypeScript presentation contract
-presentation-authoring ────────→ presentation-core
-presentation-components ───────→ presentation-authoring
-presentation-components ───────→ presentation-core
-presentation-renderer-api ─────→ presentation-core
-presentation-assets ────────────→ presentation-core
-presentation-renderer-web ──────→ presentation-renderer-api
-presentation-renderer-web ──────→ presentation-assets
-presentation-renderer-web ──────→ presentation-core
+unframe-core ──────────────→ generated TypeScript presentation contract
+unframe-authoring ────────→ unframe-core
+unframe-components ───────→ unframe-authoring
+unframe-components ───────→ unframe-core
+unframe-renderer-api ─────→ unframe-core
+unframe-assets ────────────→ unframe-core
+unframe-renderer-web ──────→ unframe-renderer-api
+unframe-renderer-web ──────→ unframe-assets
+unframe-renderer-web ──────→ unframe-core
 
-presentation-compiler ──────────→ presentation-core
-presentation-compiler ──────────→ presentation-authoring
-presentation-compiler ──────────→ presentation-renderer-api
-presentation-compiler ──────────→ presentation-assets
+unframe-compiler ──────────→ unframe-core
+unframe-compiler ──────────→ unframe-authoring
+unframe-compiler ──────────→ unframe-renderer-api
+unframe-compiler ──────────→ unframe-assets
 
-presentation-cli ───────────────→ presentation-compiler
-presentation-cli ───────────────→ presentation-renderer-web
-presentation-cli ───────────────→ Control Plane API client adapter
-presentation-cli TUI ───────────→ Bun / OpenTUI core / Solid / keymap
+unframe-cli ───────────────→ unframe-compiler
+unframe-cli ───────────────→ unframe-renderer-web
+unframe-cli ───────────────→ Control Plane API client adapter
+unframe-cli TUI ───────────→ Bun / OpenTUI core / Solid / keymap
 
-Web Editor ─────────────────────→ presentation-core / presentation-authoring
-Control Plane ──────────────────→ presentation-core / generated contracts
+Web Editor ─────────────────────→ unframe-core / unframe-authoring
+Control Plane ──────────────────→ unframe-core / generated contracts
 Realtime ───────────────────────→ generated Go contracts
 Unity ──────────────────────────→ generated C# contracts
 ```
 
 `A → B`は`A`が`B`に依存することを表す。次を禁止する。
 
-- `presentation-core`からAuthoring、Compiler、Renderer、CLIへの依存
-- `packages/contracts`のgeneratorから`presentation-core`への依存
-- `presentation-authoring`からCompiler、Web Editorへの依存
-- `presentation-compiler`からconcrete rendererへのhard dependency
+- `unframe-core`からAuthoring、Compiler、Renderer、CLIへの依存
+- `packages/contracts`のgeneratorから`unframe-core`への依存
+- `unframe-authoring`からCompiler、Web Editorへの依存
+- `unframe-compiler`からconcrete rendererへのhard dependency
 - concrete renderer間の依存
 - Web EditorからCompiler内部moduleへの依存
 - Control PlaneからCompiler、Authoring SDK、rendererへの依存
@@ -561,14 +561,14 @@ Cross-boundaryな選択理由は`docs/decisions/`のADRへ置く。`ARCHITECTURE
 ```text
 packages/contracts/ARCHITECTURE.md
 packages/api-client-csharp/ARCHITECTURE.md
-packages/presentation-core/ARCHITECTURE.md
-packages/presentation-authoring/ARCHITECTURE.md
-packages/presentation-components/ARCHITECTURE.md
-packages/presentation-renderer-api/ARCHITECTURE.md
-packages/presentation-renderer-web/ARCHITECTURE.md
-packages/presentation-assets/ARCHITECTURE.md
-packages/presentation-compiler/ARCHITECTURE.md
-packages/presentation-cli/ARCHITECTURE.md
+packages/unframe-core/ARCHITECTURE.md
+packages/unframe-authoring/ARCHITECTURE.md
+packages/unframe-components/ARCHITECTURE.md
+packages/unframe-renderer-api/ARCHITECTURE.md
+packages/unframe-renderer-web/ARCHITECTURE.md
+packages/unframe-assets/ARCHITECTURE.md
+packages/unframe-compiler/ARCHITECTURE.md
+packages/unframe-cli/ARCHITECTURE.md
 app/web/ARCHITECTURE.md
 app/server/control-plane/ARCHITECTURE.md
 app/server/realtime/ARCHITECTURE.md
@@ -585,14 +585,14 @@ app/unity/ARCHITECTURE.md
 Directoryとpackageは次の順序で実装を開始する。
 
 1. `packages/contracts/presentation`の最小serialized contract
-2. `presentation-core`
-3. `presentation-authoring`
-4. `presentation-renderer-api`
-5. `presentation-components`の最小Primitive
-6. `presentation-assets`のTextureに必要な最小処理
-7. `presentation-compiler`
-8. `presentation-renderer-web`
-9. `presentation-cli`
+2. `unframe-core`
+3. `unframe-authoring`
+4. `unframe-renderer-api`
+5. `unframe-components`の最小Primitive
+6. `unframe-assets`のTextureに必要な最小処理
+7. `unframe-compiler`
+8. `unframe-renderer-web`
+9. `unframe-cli`
 10. `examples/presentation`
 11. `packages/contracts`のDelivery / Runtime拡張
 12. Control Plane Build / Publication / Delivery

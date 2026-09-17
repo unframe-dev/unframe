@@ -91,7 +91,7 @@ jobs:
               - 'scripts/ci/presentation.sh'
               - 'packages/contracts/**'
               - 'packages/api-client-csharp/**'
-              - 'packages/presentation-*/**'
+              - 'packages/unframe-*/**'
             lp:
               - *shared
               - *js-shared
