@@ -1,10 +1,11 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type { Diagnostic, ValidationResult } from "@unframe/unframe-core";
-import { z } from "zod";
+import type * as z from "zod";
 
 import { INTERNAL_PNG_HARD_CAPS, PNG_ENCODER_IDENTITY } from "./constants.js";
 import type { EncodedTextureArtifact, EncodeLimits, EncodeRequest } from "../public-types.js";
+import { encodeRequestSchema } from "../validation/schemas.js";
 
 type ValidatedRequest = {
   sourceId: string;
@@ -74,25 +75,6 @@ const copyUint8Array = (value: unknown): Uint8Array | undefined => {
     return undefined;
   }
 };
-
-const positiveSafeIntegerSchema = z.number().int().safe().positive();
-const encodeLimitsSchema = z.strictObject({
-  maxWidth: positiveSafeIntegerSchema,
-  maxHeight: positiveSafeIntegerSchema,
-  maxPixels: positiveSafeIntegerSchema,
-  maxInputBytes: positiveSafeIntegerSchema,
-  maxOutputBytes: positiveSafeIntegerSchema,
-});
-const encodeRequestSchema = z.strictObject({
-  sourceId: z.string().trim().min(1),
-  rgba: z.instanceof(Uint8Array),
-  pixelSize: z.tuple([positiveSafeIntegerSchema, positiveSafeIntegerSchema]),
-  colorSpace: z.literal("srgb"),
-  alphaMode: z.enum(["opaque", "straight", "premultiplied"]),
-  limits: encodeLimitsSchema,
-});
-
-type ParsedEncodeRequest = z.infer<typeof encodeRequestSchema>;
 
 const createPngPlan = (width: number, height: number): PngPlan => {
   const rowBytes = width * 4;
@@ -198,9 +180,7 @@ const validationIssue = (parsed: z.ZodSafeParseError<unknown>): Diagnostic => {
   return diagnostic("invalid-encode-request", path, "Encode request must be an object.");
 };
 
-const validateLimits = (
-  limits: z.infer<typeof encodeLimitsSchema>,
-): ValidationResult<EncodeLimits> => {
+const validateLimits = (limits: EncodeLimits): ValidationResult<EncodeLimits> => {
   for (const [key, limit] of Object.entries(limits) as [keyof EncodeLimits, number][]) {
     if (limit > INTERNAL_PNG_HARD_CAPS[key])
       return invalid(
@@ -215,7 +195,7 @@ const validateLimits = (
 const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => {
   const parsed = encodeRequestSchema.safeParse(snapshotRequest(value));
   if (!parsed.success) return { valid: false, diagnostics: [validationIssue(parsed)] };
-  const { sourceId, rgba, pixelSize, alphaMode } = parsed.data as ParsedEncodeRequest;
+  const { sourceId, rgba, pixelSize, alphaMode } = parsed.data;
   if (alphaMode === "premultiplied")
     return invalid(
       "unsupported-alpha-mode",

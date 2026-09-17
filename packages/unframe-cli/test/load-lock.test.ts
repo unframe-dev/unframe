@@ -111,6 +111,51 @@ describe("unframe.lock v1 boundary", () => {
   });
 
   it.each([
+    [
+      JSON.stringify(validLock()).replace(
+        '{"schemaVersion":1',
+        '{"__proto__":{},"schemaVersion":1',
+      ),
+      "cli-lock-shape-invalid",
+    ],
+    [
+      JSON.stringify(validLock()).replace('"files":[', '"__proto__":{},"files":['),
+      "cli-lock-package-shape-invalid",
+    ],
+  ])("rejects own __proto__ fields omitted by Zod object parsing", (source, code) => {
+    expect(loadUnframeLock(new TextEncoder().encode(source))).toMatchObject({
+      ok: false,
+      diagnostic: { code },
+    });
+  });
+
+  it("preserves an asset named __proto__", () => {
+    const lock = validLock();
+    lock.assets = Object.fromEntries([
+      [
+        "__proto__",
+        { id: "prototype-asset", mediaType: "image/png", checksum: `sha256:${"1".repeat(64)}` },
+      ],
+    ]);
+
+    const result = loadUnframeLock(bytes(lock));
+
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(Object.hasOwn(result.value.assemblyCarrier.assets, "__proto__")).toBe(true);
+    expect(result.value.assemblyCarrier.assets["__proto__"]?.id).toBe("prototype-asset");
+  });
+
+  it("reports the root shape before an invalid schema version when a key is missing", () => {
+    const { assets: _missing, ...lock } = { ...validLock(), schemaVersion: 2 };
+
+    expect(loadUnframeLock(bytes(lock))).toMatchObject({
+      ok: false,
+      diagnostic: { code: "cli-lock-shape-invalid" },
+    });
+  });
+
+  it.each([
     ['{"schemaVersion":1,"schemaVersion":1}', "cli-lock-json-duplicate-key"],
     ["{", "cli-lock-json-syntax"],
   ])("preserves strict JSON failure as syntax diagnostic", (source, code) => {

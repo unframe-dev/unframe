@@ -1,23 +1,19 @@
 import type { TextureArtifact } from "@unframe/unframe-core";
+import type * as z from "zod";
 
-export type RgbaInput = Uint8Array;
+import type { encodeRequestSchema } from "./validation/schemas.js";
 
-export type EncodeLimits = {
-  readonly maxWidth: number;
-  readonly maxHeight: number;
-  readonly maxPixels: number;
-  readonly maxInputBytes: number;
-  readonly maxOutputBytes: number;
-};
+type DeepReadonly<T> = T extends Uint8Array
+  ? Uint8Array
+  : T extends readonly unknown[]
+    ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
 
-export type EncodeRequest = {
-  readonly sourceId: string;
-  readonly rgba: RgbaInput;
-  readonly pixelSize: readonly [number, number];
-  readonly colorSpace: "srgb";
-  readonly alphaMode: "opaque" | "straight" | "premultiplied";
-  readonly limits: EncodeLimits;
-};
+export type EncodeRequest = DeepReadonly<z.input<typeof encodeRequestSchema>>;
+export type EncodeLimits = EncodeRequest["limits"];
+export type RgbaInput = EncodeRequest["rgba"];
 
 export type EncodedTextureArtifact = {
   readonly descriptor: TextureArtifact;

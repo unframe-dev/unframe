@@ -1,75 +1,47 @@
 import type {
   CompletedSemanticTree,
   Diagnostic,
-  HitRegion,
   SemanticSurface,
   SurfaceRenderIntent,
   ValidationResult,
 } from "@unframe/unframe-core";
+import type * as z from "zod";
+
+import type {
+  rendererBuildInputSchema,
+  rendererBuildResultSchema,
+  rendererCapabilitiesSchema,
+  rendererIdentitySchema,
+  rendererSupportDecisionSchema,
+} from "./validation/schemas.js";
 
 export type { Diagnostic, ValidationResult };
 
-export type RendererIdentity = {
-  readonly id: string;
-  readonly version: string;
-  readonly contractVersion: string;
-  readonly implementationHash: string;
-};
+type DeepReadonly<T> = T extends Uint8Array
+  ? Uint8Array
+  : T extends readonly unknown[]
+    ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
 
-export type RendererCapabilities = {
-  readonly inputKinds: readonly ["structured"];
-  readonly updateModels: readonly ["static"];
-  readonly interactions: readonly ["none"];
-  readonly internalAnimations: readonly ["none"];
-  readonly rendererPreferences: readonly ["baked-web"];
-  readonly fallbackPolicies: readonly ["reject"];
-  readonly deterministic: true;
-};
+type RendererBuildInput = z.input<typeof rendererBuildInputSchema>;
+type SchemaRendererBuildResult = z.output<typeof rendererBuildResultSchema>;
+type SchemaRendererBuildSuccess = Extract<SchemaRendererBuildResult, { ok: true }>;
 
-export type RendererBuildContext = {
-  readonly locale: string;
-  readonly timezone: string;
-  readonly colorScheme: "light" | "dark";
-  readonly themeId: string;
-  readonly themeHash: string;
-  readonly inputHash: string;
-  readonly buildContextHash: string;
-  readonly environmentHash: string;
-  readonly rendererConfigHash: string;
-  readonly rendererFingerprint: string;
-  readonly pixelTarget: readonly [width: number, height: number];
-};
-
-export type LogicalBounds = {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-};
-
-export type RenderStatePlan = { readonly kind: "capture" } | { readonly kind: "empty" };
-
-export type RenderSurfacePlan = {
-  readonly id: string;
-  readonly semanticSurfaceId: string;
-  readonly logicalBounds: LogicalBounds;
-  readonly layer: number;
-  readonly contentNodeIds: readonly string[];
-  readonly states: Readonly<Record<string, RenderStatePlan>>;
-};
-
-export type RendererEntry =
-  | { readonly kind: "structured" }
-  | { readonly kind: "opaque"; readonly entryId: string; readonly moduleHash: string };
-
-export type ResolvedRendererIntent = {
-  readonly updateModel: SurfaceRenderIntent["updateModel"];
-  readonly interaction: SurfaceRenderIntent["interaction"];
-  readonly internalAnimation: SurfaceRenderIntent["internalAnimation"];
-  readonly selectedRendererId: string;
-  readonly fallbackPolicy: SurfaceRenderIntent["fallbackPolicy"];
-};
-
+export type RendererIdentity = DeepReadonly<z.input<typeof rendererIdentitySchema>>;
+export type RendererCapabilities = DeepReadonly<z.input<typeof rendererCapabilitiesSchema>>;
+export type RendererBuildContext = DeepReadonly<RendererBuildInput["context"]>;
+export type LogicalBounds = DeepReadonly<RendererBuildInput["plan"]["logicalBounds"]>;
+export type RenderStatePlan = DeepReadonly<RendererBuildInput["plan"]["states"][string]>;
+export type RenderSurfacePlan = DeepReadonly<RendererBuildInput["plan"]>;
+export type RendererEntry = DeepReadonly<RendererBuildInput["entry"]>;
+type SchemaResolvedRendererIntent = DeepReadonly<RendererBuildInput["resolvedIntent"]>;
+export type ResolvedRendererIntent = Omit<
+  SchemaResolvedRendererIntent,
+  "updateModel" | "interaction" | "internalAnimation" | "fallbackPolicy"
+> &
+  Pick<SurfaceRenderIntent, "updateModel" | "interaction" | "internalAnimation" | "fallbackPolicy">;
 export type CompilerResolvedSurfaceInput = {
   readonly surface: SemanticSurface;
   readonly sourceIntent: SurfaceRenderIntent;
@@ -79,50 +51,25 @@ export type CompilerResolvedSurfaceInput = {
   readonly entry: RendererEntry;
   readonly context: RendererBuildContext;
 };
-
-export type RawSurfaceCapture = {
-  readonly id: string;
-  readonly stateId: string;
-  readonly rgba: Uint8Array;
-  readonly pixelSize: readonly [width: number, height: number];
-  readonly colorSpace: "srgb";
-  readonly alphaMode: "opaque" | "straight" | "premultiplied";
-};
-
-export type RendererProvenance = RendererIdentity & {
-  readonly inputHash: string;
-  readonly buildContextHash: string;
-  readonly environmentHash: string;
-  readonly rendererConfigHash: string;
-  readonly rendererFingerprint: string;
-};
-
-export type ResolvedRenderSurface = {
-  readonly id: string;
-  readonly semanticSurfaceId: string;
-  readonly logicalBounds: LogicalBounds;
-  readonly layer: number;
-};
-
-export type RendererBuildSuccess = {
-  readonly ok: true;
-  readonly renderSurface: ResolvedRenderSurface;
-  readonly captures: readonly RawSurfaceCapture[];
-  readonly hitRegionsByState: Readonly<Record<string, readonly HitRegion[]>>;
-  readonly provenance: RendererProvenance;
+export type RawSurfaceCapture = DeepReadonly<SchemaRendererBuildSuccess["captures"][number]>;
+export type RendererProvenance = DeepReadonly<SchemaRendererBuildSuccess["provenance"]>;
+export type ResolvedRenderSurface = DeepReadonly<SchemaRendererBuildSuccess["renderSurface"]>;
+export type RendererBuildSuccess = Omit<DeepReadonly<SchemaRendererBuildSuccess>, "diagnostics"> & {
   readonly diagnostics: readonly Diagnostic[];
 };
-
-export type RendererBuildFailure = {
-  readonly ok: false;
-  readonly diagnostics: readonly Diagnostic[];
-};
-
+export type RendererBuildFailure = Omit<
+  DeepReadonly<Extract<SchemaRendererBuildResult, { ok: false }>>,
+  "diagnostics"
+> & { readonly diagnostics: readonly Diagnostic[] };
 export type RendererBuildResult = RendererBuildSuccess | RendererBuildFailure;
 export type RendererSupportRequest = Pick<CompilerResolvedSurfaceInput, "entry" | "resolvedIntent">;
+type SchemaRendererSupportDecision = z.output<typeof rendererSupportDecisionSchema>;
 export type RendererSupportDecision =
-  | { readonly supported: true; readonly diagnostics: readonly [] }
-  | { readonly supported: false; readonly diagnostics: readonly Diagnostic[] };
+  | DeepReadonly<Extract<SchemaRendererSupportDecision, { supported: true }>>
+  | (Omit<
+      DeepReadonly<Extract<SchemaRendererSupportDecision, { supported: false }>>,
+      "diagnostics"
+    > & { readonly diagnostics: readonly Diagnostic[] });
 
 export type RendererPlugin = {
   readonly identity: RendererIdentity;

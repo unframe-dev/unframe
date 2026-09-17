@@ -125,4 +125,16 @@ export const opaqueRendererBundleInputSchema = z
       });
   });
 
+type DeepReadonly<T> = T extends Uint8Array
+  ? Uint8Array
+  : T extends readonly unknown[]
+    ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
+
+export type OpaqueRendererModule = DeepReadonly<z.input<typeof opaqueRendererModuleSchema>>;
+export type OpaqueRendererBundleInput = DeepReadonly<
+  z.input<typeof opaqueRendererBundleInputSchema>
+>;
 export type ParsedOpaqueRendererBundleInput = z.output<typeof opaqueRendererBundleInputSchema>;

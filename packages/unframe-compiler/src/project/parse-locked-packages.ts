@@ -1,12 +1,44 @@
 import type * as ts from "typescript";
+import { z } from "zod";
 
 import { parseAuthoringSource } from "../syntax/parse-authoring-source.js";
 
-export type LockedPackageIdentity = {
-  readonly packageName: string;
-  readonly packageVersion: string;
-  readonly packageIntegrity: string;
+// Zod ignores an own `__proto__` key while parsing objects, so reject it before strict parsing.
+const noOwnProtoFieldSchema = z
+  .unknown()
+  .refine(
+    (value) =>
+      typeof value !== "object" ||
+      value === null ||
+      Array.isArray(value) ||
+      !Object.hasOwn(value, "__proto__"),
+  );
+const identityShape = {
+  packageName: z.string(),
+  packageVersion: z.string(),
+  packageIntegrity: z.string(),
 };
+const lockedPackageIdentitySchema = noOwnProtoFieldSchema.pipe(z.strictObject(identityShape));
+
+const packageInputSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({
+    ...identityShape,
+    files: z.array(
+      noOwnProtoFieldSchema.pipe(z.strictObject({ fileName: z.string(), sourceText: z.string() })),
+    ),
+    exports: z.array(
+      noOwnProtoFieldSchema.pipe(z.strictObject({ subpath: z.string(), targetFile: z.string() })),
+    ),
+    dependencies: z.array(lockedPackageIdentitySchema),
+  }),
+);
+
+const lockedPackagesInputSchema = z.strictObject({
+  packageDependencies: z.array(lockedPackageIdentitySchema),
+  packages: z.array(packageInputSchema),
+});
+
+export type LockedPackageIdentity = Readonly<z.output<typeof lockedPackageIdentitySchema>>;
 
 export type ParsedLockedPackage = LockedPackageIdentity & {
   readonly files: Readonly<Record<string, ts.SourceFile>>;
@@ -35,11 +67,7 @@ export type ParsedLockedPackages =
   | { readonly valid: false; readonly diagnostics: readonly LockedPackageDiagnostic[] };
 
 type UnknownRecord = Record<string, unknown>;
-type PackageInput = LockedPackageIdentity & {
-  files: { fileName: string; sourceText: string }[];
-  exports: { subpath: string; targetFile: string }[];
-  dependencies: LockedPackageIdentity[];
-};
+type PackageInput = z.output<typeof packageInputSchema>;
 
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
@@ -60,55 +88,6 @@ const diagnostic = (code: string, message: string, fileName = ""): LockedPackage
   line: 1,
   column: 1,
 });
-
-const hasExactOwnKeys = (value: unknown, expected: readonly string[]) =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  Object.keys(value).length === expected.length &&
-  Object.keys(value).every((key) => expected.includes(key));
-
-const isIdentity = (value: unknown): value is LockedPackageIdentity =>
-  hasExactOwnKeys(value, ["packageName", "packageVersion", "packageIntegrity"]) &&
-  typeof (value as UnknownRecord).packageName === "string" &&
-  typeof (value as UnknownRecord).packageVersion === "string" &&
-  typeof (value as UnknownRecord).packageIntegrity === "string";
-
-const isPackageInput = (value: unknown): value is PackageInput => {
-  if (
-    !hasExactOwnKeys(value, [
-      "packageName",
-      "packageVersion",
-      "packageIntegrity",
-      "files",
-      "exports",
-      "dependencies",
-    ])
-  )
-    return false;
-  const input = value as UnknownRecord;
-  return (
-    typeof input.packageName === "string" &&
-    typeof input.packageVersion === "string" &&
-    typeof input.packageIntegrity === "string" &&
-    Array.isArray(input.files) &&
-    input.files.every(
-      (file) =>
-        hasExactOwnKeys(file, ["fileName", "sourceText"]) &&
-        typeof (file as UnknownRecord).fileName === "string" &&
-        typeof (file as UnknownRecord).sourceText === "string",
-    ) &&
-    Array.isArray(input.exports) &&
-    input.exports.every(
-      (entry) =>
-        hasExactOwnKeys(entry, ["subpath", "targetFile"]) &&
-        typeof (entry as UnknownRecord).subpath === "string" &&
-        typeof (entry as UnknownRecord).targetFile === "string",
-    ) &&
-    Array.isArray(input.dependencies) &&
-    input.dependencies.every(isIdentity)
-  );
-};
 
 const packageNamePattern =
   /^(?:@[-a-z0-9][a-z0-9._-]*\/[-a-z0-9._][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/;
@@ -150,20 +129,18 @@ const packageVirtualFileName = (item: LockedPackageIdentity, fileName: string) =
   `unframe-package://${encodeVirtualPathSegment(item.packageName)}/${encodeVirtualPathSegment(item.packageVersion)}/${encodeVirtualPathSegment(item.packageIntegrity)}/${fileName}`;
 
 export const parseLockedPackages = (value: UnknownRecord): ParsedLockedPackages => {
-  const dependencies = value.packageDependencies;
-  const packages = value.packages;
-  if (
-    !Array.isArray(dependencies) ||
-    !dependencies.every(isIdentity) ||
-    !Array.isArray(packages) ||
-    !packages.every(isPackageInput)
-  )
+  const parsedInput = lockedPackagesInputSchema.safeParse({
+    packageDependencies: value.packageDependencies,
+    packages: value.packages,
+  });
+  if (!parsedInput.success)
     return {
       valid: false,
       diagnostics: [
         diagnostic("compiler-invalid-input", "Project input has an invalid package shape."),
       ],
     };
+  const { packageDependencies: dependencies, packages } = parsedInput.data;
 
   const diagnostics: LockedPackageDiagnostic[] = [];
   const identities = [

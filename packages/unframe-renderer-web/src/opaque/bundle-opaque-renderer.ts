@@ -3,7 +3,7 @@ import { rolldown, type RolldownBuild, type RolldownOutput } from "rolldown";
 import {
   extensionOf,
   opaqueRendererBundleInputSchema,
-  type SourceModuleType,
+  type OpaqueRendererModule,
 } from "./input-schema.js";
 import {
   copyUint8Array,
@@ -11,26 +11,11 @@ import {
   snapshotStrictRecord,
 } from "../validation/safe-data.js";
 
-export type { OpaqueRendererModuleType } from "./input-schema.js";
-
-type OpaqueRendererAssetModule = {
-  readonly path: string;
-  readonly source: string | Uint8Array;
-  readonly moduleType: "asset";
-};
-
-type OpaqueRendererSourceModule = {
-  readonly path: string;
-  readonly source: string;
-  readonly moduleType: SourceModuleType;
-};
-
-export type OpaqueRendererModule = OpaqueRendererAssetModule | OpaqueRendererSourceModule;
-
-export type OpaqueRendererBundleInput = {
-  readonly entry: string;
-  readonly modules: readonly OpaqueRendererModule[];
-};
+export type {
+  OpaqueRendererBundleInput,
+  OpaqueRendererModule,
+  OpaqueRendererModuleType,
+} from "./input-schema.js";
 
 export type OpaqueBundleDiagnostic = {
   readonly code:

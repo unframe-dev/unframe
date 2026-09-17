@@ -50,16 +50,7 @@ const idSchema = z.string().min(1);
 const finiteNumberSchema = z.number().finite();
 const nonNegativeIntegerSchema = z.number().int().safe().nonnegative();
 const positiveSafeIntegerSchema = z.number().int().safe().positive();
-const jsonValueSchema: z.ZodType = z.lazy(() =>
-  z.union([
-    z.null(),
-    z.boolean(),
-    finiteNumberSchema,
-    z.string(),
-    z.array(jsonValueSchema),
-    z.record(z.string(), jsonValueSchema),
-  ]),
-);
+const jsonValueSchema = z.json();
 const stringPropSchema = z.object({
   required: z.boolean().optional(),
   default: z.string().optional(),

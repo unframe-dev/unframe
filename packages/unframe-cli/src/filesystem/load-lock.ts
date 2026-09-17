@@ -1,20 +1,113 @@
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import type { DeclarationProjectAssemblyCarrier } from "@unframe/unframe-compiler";
+import { z } from "zod";
 
-import { parseStrictJson, type StrictJsonRecord, type StrictJsonValue } from "./strict-json.js";
+import { parseStrictJson } from "./strict-json.js";
 
-type ContentHash = `sha256:${string}`;
-type PackageIdentity = Readonly<{
-  packageName: string;
-  packageVersion: string;
-  packageIntegrity: ContentHash;
-}>;
-type LockedPackage = PackageIdentity &
-  Readonly<{
-    files: readonly Readonly<{ fileName: string; sourceText: string }>[];
-    exports: readonly Readonly<{ subpath: string; targetFile: string }>[];
+// Zod ignores an own `__proto__` key while parsing objects, so reject it before strict parsing.
+const noOwnProtoFieldSchema = z
+  .unknown()
+  .refine(
+    (value) =>
+      typeof value !== "object" ||
+      value === null ||
+      Array.isArray(value) ||
+      !Object.hasOwn(value, "__proto__"),
+  );
+const contentHashSchema = z.templateLiteral(["sha256:", z.string().regex(/^[0-9a-f]{64}$/u)]);
+const nonemptyStringSchema = z.string().min(1);
+const relativePathSchema = nonemptyStringSchema.refine(
+  (value) =>
+    !value.startsWith("/") &&
+    !value.includes("\\") &&
+    !value.includes("\0") &&
+    value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== ".."),
+);
+const identityShape = {
+  packageName: nonemptyStringSchema,
+  packageVersion: nonemptyStringSchema,
+  packageIntegrity: contentHashSchema,
+};
+const packageIdentitySchema = noOwnProtoFieldSchema.pipe(z.strictObject(identityShape));
+const packageFileSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({ fileName: relativePathSchema, sourceText: z.string() }),
+);
+const packageExportSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({
+    subpath: nonemptyStringSchema.refine(
+      (value) =>
+        value === "." ||
+        (value.startsWith("./") && relativePathSchema.safeParse(value.slice(2)).success),
+    ),
+    targetFile: relativePathSchema,
+  }),
+);
+const packageEnvelopeSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({
+    packageName: z.unknown(),
+    packageVersion: z.unknown(),
+    packageIntegrity: z.unknown(),
+    files: z.unknown(),
+    exports: z.unknown(),
+    dependencies: z.unknown(),
+  }),
+);
+const rootEnvelopeShape = {
+  schemaVersion: z.unknown(),
+  packageDependencies: z.unknown(),
+  packages: z.unknown(),
+  themeHashes: z.unknown(),
+  componentLocks: z.unknown(),
+  assets: z.unknown(),
+};
+const assetRecordSchema = z.custom<Record<string, unknown>>(
+  (value) => typeof value === "object" && value !== null && !Array.isArray(value),
+);
+const rootEnvelopeSchema = noOwnProtoFieldSchema.pipe(z.strictObject(rootEnvelopeShape));
+const rootCollectionsSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({
+    ...rootEnvelopeShape,
+    packageDependencies: z.array(z.unknown()),
+    packages: z.array(z.unknown()),
+    themeHashes: z.array(z.unknown()),
+    componentLocks: z.array(z.unknown()),
+    assets: assetRecordSchema,
+  }),
+);
+const themeHashSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({ themeId: nonemptyStringSchema, hash: contentHashSchema }),
+);
+const componentLockSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({
+    componentId: nonemptyStringSchema,
+    version: z.number().int().positive(),
+    lock: noOwnProtoFieldSchema.pipe(
+      z.strictObject({
+        packageVersion: nonemptyStringSchema,
+        packageIntegrity: contentHashSchema,
+        manifestHash: contentHashSchema,
+        structureHash: contentHashSchema,
+      }),
+    ),
+  }),
+);
+const assetSchema = noOwnProtoFieldSchema.pipe(
+  z.strictObject({
+    id: nonemptyStringSchema,
+    mediaType: nonemptyStringSchema,
+    checksum: contentHashSchema,
+  }),
+);
+
+type ContentHash = z.output<typeof contentHashSchema>;
+type PackageIdentity = Readonly<z.output<typeof packageIdentitySchema>>;
+type LockedPackage = Readonly<
+  PackageIdentity & {
+    files: readonly Readonly<z.output<typeof packageFileSchema>>[];
+    exports: readonly Readonly<z.output<typeof packageExportSchema>>[];
     dependencies: readonly PackageIdentity[];
-  }>;
+  }
+>;
 
 export type LoadedUnframeLock = Readonly<{
   virtualSource: Readonly<{
@@ -35,26 +128,7 @@ export type LoadUnframeLockResult =
   | Readonly<{ ok: true; value: LoadedUnframeLock }>
   | Readonly<{ ok: false; diagnostic: LockDiagnostic }>;
 
-const contentHashPattern = /^sha256:[0-9a-f]{64}$/u;
 const compare = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
-const isRecord = (value: StrictJsonValue): value is StrictJsonRecord =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-const exactKeys = (value: StrictJsonValue, keys: readonly string[]): value is StrictJsonRecord =>
-  isRecord(value) &&
-  Object.keys(value).length === keys.length &&
-  Object.keys(value).every((key) => keys.includes(key));
-const contentHash = (value: StrictJsonValue | undefined): value is ContentHash =>
-  typeof value === "string" && contentHashPattern.test(value);
-const nonemptyString = (value: StrictJsonValue | undefined): value is string =>
-  typeof value === "string" && value.length > 0;
-const positiveInteger = (value: StrictJsonValue | undefined): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-const path = (value: StrictJsonValue | undefined) =>
-  nonemptyString(value) &&
-  !value.startsWith("/") &&
-  !value.includes("\\") &&
-  !value.includes("\0") &&
-  value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
 const identityKey = (value: PackageIdentity) =>
   `${value.packageName}\0${value.packageVersion}\0${value.packageIntegrity}`;
 const identityCompare = (left: PackageIdentity, right: PackageIdentity) =>
@@ -66,23 +140,6 @@ const failure = (code: string, message: string): LoadUnframeLockResult => ({
   diagnostic: { family: "semantic", code, message },
 });
 
-// The Compiler owns package-name and version grammar; this boundary only fixes the serialized lock shape.
-const parseIdentity = (value: StrictJsonValue): PackageIdentity | undefined => {
-  if (!exactKeys(value, ["packageName", "packageVersion", "packageIntegrity"])) return undefined;
-  const record = value;
-  if (
-    !nonemptyString(record.packageName) ||
-    !nonemptyString(record.packageVersion) ||
-    !contentHash(record.packageIntegrity)
-  )
-    return undefined;
-  return {
-    packageName: record.packageName,
-    packageVersion: record.packageVersion,
-    packageIntegrity: record.packageIntegrity,
-  };
-};
-
 const unique = <T>(items: readonly T[], key: (item: T) => string) => {
   const seen = new Set<string>();
   return items.every((item) => !seen.has(key(item)) && (seen.add(key(item)), true));
@@ -92,65 +149,37 @@ type PackageParseResult =
   | { readonly ok: true; readonly value: LockedPackage }
   | { readonly ok: false; readonly code: string };
 
-const parsePackage = (value: StrictJsonValue): PackageParseResult => {
-  if (
-    !exactKeys(value, [
-      "packageName",
-      "packageVersion",
-      "packageIntegrity",
-      "files",
-      "exports",
-      "dependencies",
-    ])
-  )
-    return { ok: false, code: "cli-lock-package-shape-invalid" };
-  const record = value;
-  const identity = parseIdentity({
-    packageName: record.packageName!,
-    packageVersion: record.packageVersion!,
-    packageIntegrity: record.packageIntegrity!,
+const parsePackage = (value: unknown): PackageParseResult => {
+  const envelope = packageEnvelopeSchema.safeParse(value);
+  if (!envelope.success) return { ok: false, code: "cli-lock-package-shape-invalid" };
+  const record = envelope.data;
+  const identity = packageIdentitySchema.safeParse({
+    packageName: record.packageName,
+    packageVersion: record.packageVersion,
+    packageIntegrity: record.packageIntegrity,
   });
+  const files = z.array(packageFileSchema).safeParse(record.files);
+  const exports = z.array(packageExportSchema).safeParse(record.exports);
+  const dependencies = z.array(packageIdentitySchema).safeParse(record.dependencies);
   if (
-    !identity ||
+    !identity.success ||
     !Array.isArray(record.files) ||
     !Array.isArray(record.exports) ||
     !Array.isArray(record.dependencies)
   )
     return {
       ok: false,
-      code: !contentHash(record.packageIntegrity)
+      code: !contentHashSchema.safeParse(record.packageIntegrity).success
         ? "cli-lock-content-hash-invalid"
         : "cli-lock-package-shape-invalid",
     };
-  const files = record.files.map((file) => {
-    if (
-      !exactKeys(file, ["fileName", "sourceText"]) ||
-      !path(file.fileName) ||
-      typeof file.sourceText !== "string"
-    )
-      return undefined;
-    return { fileName: file.fileName, sourceText: file.sourceText };
-  });
-  const exports = record.exports.map((entry) => {
-    if (
-      !exactKeys(entry, ["subpath", "targetFile"]) ||
-      !nonemptyString(entry.subpath) ||
-      !path(entry.targetFile) ||
-      (entry.subpath !== "." && !(entry.subpath.startsWith("./") && path(entry.subpath.slice(2))))
-    )
-      return undefined;
-    return { subpath: entry.subpath, targetFile: entry.targetFile };
-  });
-  const dependencies = record.dependencies.map(parseIdentity);
-  if (files.some((file) => !file))
-    return { ok: false, code: "cli-lock-package-file-shape-invalid" };
-  if (exports.some((entry) => !entry))
-    return { ok: false, code: "cli-lock-package-export-shape-invalid" };
-  if (dependencies.some((item) => !item))
+  if (!files.success) return { ok: false, code: "cli-lock-package-file-shape-invalid" };
+  if (!exports.success) return { ok: false, code: "cli-lock-package-export-shape-invalid" };
+  if (!dependencies.success)
     return { ok: false, code: "cli-lock-package-dependency-shape-invalid" };
-  const normalizedFiles = files as { fileName: string; sourceText: string }[];
-  const normalizedExports = exports as { subpath: string; targetFile: string }[];
-  const normalizedDependencies = dependencies as PackageIdentity[];
+  const normalizedFiles = files.data;
+  const normalizedExports = exports.data;
+  const normalizedDependencies = dependencies.data;
   if (
     !unique(normalizedFiles, (item) => item.fileName) ||
     !unique(normalizedExports, (item) => item.subpath) ||
@@ -165,18 +194,20 @@ const parsePackage = (value: StrictJsonValue): PackageParseResult => {
           : "cli-lock-duplicate-package-dependency",
     };
   const normalized = {
-    ...identity,
+    ...identity.data,
     files: [...normalizedFiles].sort((left, right) => compare(left.fileName, right.fileName)),
     exports: [...normalizedExports].sort((left, right) => compare(left.subpath, right.subpath)),
     dependencies: [...normalizedDependencies].sort(identityCompare),
   };
-  const expectedIntegrity = hashCanonicalJsonPayload({
-    packageName: normalized.packageName,
-    packageVersion: normalized.packageVersion,
-    files: normalized.files,
-    exports: normalized.exports,
-    dependencies: normalized.dependencies,
-  }) as ContentHash;
+  const expectedIntegrity = contentHashSchema.parse(
+    hashCanonicalJsonPayload({
+      packageName: normalized.packageName,
+      packageVersion: normalized.packageVersion,
+      files: normalized.files,
+      exports: normalized.exports,
+      dependencies: normalized.dependencies,
+    }),
+  );
   return expectedIntegrity === normalized.packageIntegrity
     ? { ok: true, value: normalized }
     : { ok: false, code: "cli-lock-package-integrity-mismatch" };
@@ -193,49 +224,35 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
         message: "unframe.lock must be strict UTF-8 JSON.",
       },
     };
-  if (
-    !exactKeys(parsed.value, [
-      "schemaVersion",
-      "packageDependencies",
-      "packages",
-      "themeHashes",
-      "componentLocks",
-      "assets",
-    ])
-  )
+  const envelope = rootEnvelopeSchema.safeParse(parsed.value);
+  if (!envelope.success)
     return failure(
       "cli-lock-shape-invalid",
       "unframe.lock must match the v1 serialized shape exactly.",
     );
-  const root = parsed.value;
-  if (root.schemaVersion !== 1)
+  if (envelope.data.schemaVersion !== 1)
     return failure("cli-lock-schema-version-invalid", "unframe.lock schemaVersion must be 1.");
-  if (
-    !Array.isArray(root.packageDependencies) ||
-    !Array.isArray(root.packages) ||
-    !Array.isArray(root.themeHashes) ||
-    !Array.isArray(root.componentLocks) ||
-    root.assets === undefined ||
-    !isRecord(root.assets)
-  )
+  const collections = rootCollectionsSchema.safeParse(envelope.data);
+  if (!collections.success)
     return failure(
       "cli-lock-shape-invalid",
       "unframe.lock must match the v1 serialized shape exactly.",
     );
-  const packageDependencies = root.packageDependencies.map(parseIdentity);
-  if (packageDependencies.some((item) => !item))
+  const root = collections.data;
+  const packageDependencies = z.array(packageIdentitySchema).safeParse(root.packageDependencies);
+  if (!packageDependencies.success)
     return failure(
       "cli-lock-content-hash-invalid",
       "Package identities must contain valid content hashes.",
     );
-  const packages = root.packages.map(parsePackage);
-  const invalidPackage = packages.find((item) => !item.ok);
-  if (invalidPackage && !invalidPackage.ok)
-    return failure(invalidPackage.code, "Locked package does not match the v1 contract.");
-  const dependencies = packageDependencies as PackageIdentity[];
-  const lockedPackages = packages.map(
-    (item) => (item as Extract<PackageParseResult, { ok: true }>).value,
-  );
+  const dependencies = packageDependencies.data;
+  const lockedPackages: LockedPackage[] = [];
+  for (const value of root.packages) {
+    const parsedPackage = parsePackage(value);
+    if (!parsedPackage.ok)
+      return failure(parsedPackage.code, "Locked package does not match the v1 contract.");
+    lockedPackages.push(parsedPackage.value);
+  }
   if (!unique(dependencies, identityKey) || !unique(lockedPackages, identityKey))
     return failure(
       "cli-lock-duplicate-package-identity",
@@ -266,80 +283,31 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
       "Package export targets must name a locked package file.",
     );
 
-  const themeHashes = root.themeHashes.map((value) => {
-    if (
-      !exactKeys(value, ["themeId", "hash"]) ||
-      !nonemptyString(value.themeId) ||
-      !contentHash(value.hash)
-    )
-      return undefined;
-    return { themeId: value.themeId, hash: value.hash };
-  });
-  if (themeHashes.some((item) => !item))
+  const themeHashes = z.array(themeHashSchema).safeParse(root.themeHashes);
+  if (!themeHashes.success)
     return failure("cli-lock-content-hash-invalid", "Theme hashes must be valid content hashes.");
-  const themes = themeHashes as { themeId: string; hash: ContentHash }[];
+  const themes = themeHashes.data;
   if (!unique(themes, (item) => item.themeId))
     return failure("cli-lock-duplicate-theme-id", "Theme ids must be unique.");
 
-  const componentLocks = root.componentLocks.map((value) => {
-    const lockValue = isRecord(value) ? value.lock : undefined;
-    if (
-      !exactKeys(value, ["componentId", "version", "lock"]) ||
-      !nonemptyString(value.componentId) ||
-      !positiveInteger(value.version) ||
-      lockValue === undefined ||
-      !exactKeys(lockValue, ["packageVersion", "packageIntegrity", "manifestHash", "structureHash"])
-    )
-      return undefined;
-    const lock = lockValue;
-    if (
-      !nonemptyString(lock.packageVersion) ||
-      !contentHash(lock.packageIntegrity) ||
-      !contentHash(lock.manifestHash) ||
-      !contentHash(lock.structureHash)
-    )
-      return undefined;
-    return {
-      componentId: value.componentId,
-      version: value.version,
-      lock: {
-        packageVersion: lock.packageVersion,
-        packageIntegrity: lock.packageIntegrity,
-        manifestHash: lock.manifestHash,
-        structureHash: lock.structureHash,
-      },
-    };
-  });
-  if (componentLocks.some((item) => !item))
+  const componentLocks = z.array(componentLockSchema).safeParse(root.componentLocks);
+  if (!componentLocks.success)
     return failure(
       "cli-lock-content-hash-invalid",
       "Component locks must contain valid content hashes.",
     );
-  const components = componentLocks as NonNullable<(typeof componentLocks)[number]>[];
+  const components = componentLocks.data;
   if (!unique(components, (item) => `${item.componentId}\0${item.version}`))
     return failure("cli-lock-duplicate-component-lock", "Component locks must be unique.");
 
-  const assetEntries = Object.entries(root.assets).map(([key, value]) => {
-    if (
-      !nonemptyString(key) ||
-      !exactKeys(value, ["id", "mediaType", "checksum"]) ||
-      !nonemptyString(value.id) ||
-      !nonemptyString(value.mediaType) ||
-      !contentHash(value.checksum)
-    )
-      return undefined;
-    return [key, { id: value.id, mediaType: value.mediaType, checksum: value.checksum }] as const;
-  });
-  if (assetEntries.some((entry) => !entry))
-    return failure("cli-lock-content-hash-invalid", "Assets must contain valid content hashes.");
-  const assets = Object.fromEntries(
-    [
-      ...(assetEntries as readonly (readonly [
-        string,
-        { id: string; mediaType: string; checksum: ContentHash },
-      ])[]),
-    ].sort(([left], [right]) => compare(left, right)),
-  );
+  const assetEntries: [string, z.output<typeof assetSchema>][] = [];
+  for (const [key, value] of Object.entries(root.assets)) {
+    const parsedAsset = assetSchema.safeParse(value);
+    if (key.length === 0 || !parsedAsset.success)
+      return failure("cli-lock-content-hash-invalid", "Assets must contain valid content hashes.");
+    assetEntries.push([key, parsedAsset.data]);
+  }
+  const assets = Object.fromEntries(assetEntries.sort(([left], [right]) => compare(left, right)));
   if (!unique(Object.values(assets), (asset) => asset.id))
     return failure("cli-lock-duplicate-asset-id", "Asset ids must be unique.");
 
@@ -357,7 +325,7 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
       ),
     ),
   });
-  const assemblyCarrier = Object.freeze({
+  const assemblyCarrier: DeclarationProjectAssemblyCarrier = Object.freeze({
     themeHashes: Object.freeze(
       [...themes]
         .sort((left, right) => compare(left.themeId, right.themeId))
@@ -376,7 +344,7 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
         Object.entries(assets).map(([key, asset]) => [key, Object.freeze({ ...asset })]),
       ),
     ),
-  }) as DeclarationProjectAssemblyCarrier;
+  });
   const normalizedLock = {
     schemaVersion: 1,
     ...virtualSource,
@@ -384,7 +352,7 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
     componentLocks: assemblyCarrier.componentLocks,
     assets,
   };
-  const lockHash = hashCanonicalJsonPayload(normalizedLock) as ContentHash;
+  const lockHash = contentHashSchema.parse(hashCanonicalJsonPayload(normalizedLock));
   const value = Object.freeze({ virtualSource, assemblyCarrier, lockHash });
   return { ok: true, value };
 };

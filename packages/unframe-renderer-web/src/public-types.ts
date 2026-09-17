@@ -1,19 +1,20 @@
-export type FixedBrowserEnvironment = {
-  readonly browser: {
-    readonly id: string;
-    readonly version: string;
-    readonly fontFingerprint: string;
-  };
-  readonly locale: string;
-  readonly timezone: string;
-  readonly colorSpace: "srgb";
-  readonly deviceScaleFactor: 1;
-  readonly network: "deny";
-  readonly filesystem: "deny";
-  readonly clock: "fixed";
-  readonly random: "fixed";
-};
+import type * as z from "zod";
 
+import type {
+  adapterIdentitySchema,
+  fixedBrowserEnvironmentSchema,
+  webRendererConfigSchema,
+} from "./validation/schemas.js";
+
+type DeepReadonly<T> = T extends Uint8Array
+  ? Uint8Array
+  : T extends readonly unknown[]
+    ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
+
+export type FixedBrowserEnvironment = DeepReadonly<z.input<typeof fixedBrowserEnvironmentSchema>>;
 export type BrowserCaptureRequest = {
   readonly stateId: string;
   readonly document: string;
@@ -34,10 +35,7 @@ export type BrowserRgbaCapture = {
 };
 
 export type FixedBrowserAdapter = {
-  readonly identity: {
-    readonly id: string;
-    readonly implementationHash: string;
-  };
+  readonly identity: DeepReadonly<z.input<typeof adapterIdentitySchema>>;
   readonly environment: FixedBrowserEnvironment;
   capture(
     request: BrowserCaptureRequest,
@@ -49,10 +47,7 @@ export type FixedBrowserSession = FixedBrowserAdapter & {
   close(): Promise<void>;
 };
 
-export type WebRendererConfig = {
-  readonly documentBackground: readonly [red: number, green: number, blue: number, alpha: number];
-  readonly fontFamily: string;
-};
+export type WebRendererConfig = DeepReadonly<z.input<typeof webRendererConfigSchema>>;
 
 export type CreateBakedWebRendererOptions = {
   readonly adapter: FixedBrowserAdapter;
