@@ -11,5 +11,5 @@ if [ ! -d "${PLAYWRIGHT_BROWSERS_PATH}" ]; then
   exit 1
 fi
 
-pnpm --dir "${REPO_ROOT}" --filter @unframe/presentation-renderer-web exec vp test run \
+pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-renderer-web exec vp test run \
   test/playwright-fixed-browser.integration.test.ts

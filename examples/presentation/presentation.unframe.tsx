@@ -1,4 +1,4 @@
-import { definePresentation } from "@unframe/presentation";
+import { definePresentation } from "@unframe/unframe-authoring";
 
 export default definePresentation({
   id: "reference-presentation",
@@ -35,7 +35,7 @@ export default definePresentation({
         packageLock: {
           packageVersion: "1.0.0",
           packageIntegrity:
-            "sha256:c548b342a5dda6934c12afa6d5fb6e8ba01ba808375a7cda5a02867441213bf7",
+            "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
           manifestHash: "sha256:e88ff72e1a1a4b10d580d7b6a16ab6ac6e1c001041797db151ce5ca31f086f62",
           structureHash: "sha256:27ea8d8ee71ccd11ef9a2199b462f746e1a236f42689c774bb41cc4977432b1c",
         },

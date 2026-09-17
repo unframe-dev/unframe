@@ -7,7 +7,7 @@
 
 ## Context
 
-現行`presentation-assets`は一回のPNG encodeに4,096 x 4,096、16,777,216 pixels、64 MiB input、65 MiB outputのtrust-boundary hard capを持つ。しかしCompilerはcapture前に全体budgetを検査せず、State数、Render Surface数、capture RGBA、保持するencoded output、Delivery選択、Unity residencyを制限していない。このper-encode capは未trusted inputによる単一allocation防止であり、Presentationの品質・build・device budgetではない。
+現行`unframe-assets`は一回のPNG encodeに4,096 x 4,096、16,777,216 pixels、64 MiB input、65 MiB outputのtrust-boundary hard capを持つ。しかしCompilerはcapture前に全体budgetを検査せず、State数、Render Surface数、capture RGBA、保持するencoded output、Delivery選択、Unity residencyを制限していない。このper-encode capは未trusted inputによる単一allocation防止であり、Presentationの品質・build・device budgetではない。
 
 ArchitectureはTexture dimension / format / mipmap / GPU / RAM budget tierをCapability Profileに持たせる一方、exact resolution、State artifact数、decoded memory、crossfade peak、preload readiness、active pin / evictionを未定義としていた。本ADRはM2 item 6として保守的なBaked Web v1 contractを固定する。M2では文書だけをAcceptedにし、schema / Compiler / Delivery / Realtime cache / Unity Asset ManagerはM3〜M5で同じ変更系列として実装する。
 
@@ -117,7 +117,7 @@ buildAccountedPeakBytes =
   + current encode encodedSizeBytes
 ```
 
-renderer / encodeは一Render Surfaceずつ実行し、次へ進む前にcaptureを解放する。Compiler APIは失敗時にpartial RenderBundle / Asset Setを返さず、CLIは将来temporary workspaceをcleanupして成功時だけatomic renameする。deterministic count / byte budgetはCompiler、format固有byte planは`presentation-assets`、wall-time / abort / process-tree RSS hard killはRenderer isolated hostが所有する。`maxBuildHostRssBytes`はCompilerとそのBrowser / codec child process treeのresident set合計をhostが観測するavailability guardであり、portable memory estimateやoutput identityには含めない。超過時はprocess treeを終了して`renderer-resource-exceeded`とし、partial outputをpublishしない。
+renderer / encodeは一Render Surfaceずつ実行し、次へ進む前にcaptureを解放する。Compiler APIは失敗時にpartial RenderBundle / Asset Setを返さず、CLIは将来temporary workspaceをcleanupして成功時だけatomic renameする。deterministic count / byte budgetはCompiler、format固有byte planは`unframe-assets`、wall-time / abort / process-tree RSS hard killはRenderer isolated hostが所有する。`maxBuildHostRssBytes`はCompilerとそのBrowser / codec child process treeのresident set合計をhostが観測するavailability guardであり、portable memory estimateやoutput identityには含めない。超過時はprocess treeを終了して`renderer-resource-exceeded`とし、partial outputをpublishしない。
 
 ### Delivery budget tier
 

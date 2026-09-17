@@ -444,7 +444,7 @@ Presenter control の押下は認証済み Logical Input へ変換できるが�
 Component 内部の Frame、Text、装飾などを Presentation Orchestrator へ展開して記述しない。
 
 ```tsx
-import { definePresentation } from "@unframe/presentation";
+import { definePresentation } from "@unframe/unframe-authoring";
 import { Hero } from "./components/Hero/Hero.manifest";
 import { Counter } from "./components/Counter/Counter.manifest";
 

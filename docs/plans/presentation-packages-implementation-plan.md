@@ -20,7 +20,7 @@
 
 ## 2. 現在地
 
-Presentation Implementation Design が定義する初期実装順のうち、`packages/contracts/presentation` から `presentation-cli` までの M1 subset は実装済みである。その縦断経路と、先に残る分断は次のとおりである。
+Presentation Implementation Design が定義する初期実装順のうち、`packages/contracts/presentation` から `unframe-cli` までの M1 subset は実装済みである。その縦断経路と、先に残る分断は次のとおりである。
 
 ```text
 presentation.unframe.tsx
@@ -36,20 +36,20 @@ consumer
 
 ### 2.1 Package inventory
 
-| Package                              | Current                                                                                                  | 主な未実装                                                                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `packages/contracts`                 | Control Plane OpenAPI、PresentationDefinition / baked-web RenderBundle 初期 schema、Realtime foundation  | Cue / Trigger / Action / Timeline、DeliveryManifest、Snapshot / State Stream、完全な Runtime contract、cross-language fixture |
-| `packages/api-client-csharp`         | 生成先の責務を定義した placeholder                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                                            |
-| `packages/api-client-typescript`     | Hono RPC と Better Auth client                                                                           | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                                                |
-| `packages/presentation-core`         | 初期 Definition / RenderBundle 検証、Semantic Tree materialization、canonical JSON / hash                | Cue / Action / Timeline、Projection、Runtime Snapshot、migration、完全な lifetime / visibility closure                        |
-| `packages/presentation-authoring`    | Manifest、Structure、Theme、Presentation declaration API                                                 | Static DSL の確定、Source との接続、Lossless Syntax Tree / source patch、lock / distribution                                  |
-| `packages/presentation-components`   | static な標準 Surface / Frame / Text                                                                     | Props / Slots / Variants、型付き Theme、Spatial、Interaction、Action / Output、Opaque component、migration                    |
-| `packages/presentation-compiler`     | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | cache、M1より広いStatic DSL                                                                                                   |
-| `packages/presentation-renderer-api` | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability                             |
-| `packages/presentation-renderer-web` | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                                        |
-| `packages/presentation-assets`       | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                                                |
-| `packages/presentation-cli`          | filesystem check / build、process signal / build lock、atomic output、TUI command selector               | TUIとprocess commandの接続、watch / dev / preview / test / publish                                                            |
-| `packages/config`                    | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備                        |
+| Package                          | Current                                                                                                  | 主な未実装                                                                                                                    |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `packages/contracts`             | Control Plane OpenAPI、PresentationDefinition / baked-web RenderBundle 初期 schema、Realtime foundation  | Cue / Trigger / Action / Timeline、DeliveryManifest、Snapshot / State Stream、完全な Runtime contract、cross-language fixture |
+| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                                            |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                           | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                                                |
+| `packages/unframe-core`          | 初期 Definition / RenderBundle 検証、Semantic Tree materialization、canonical JSON / hash                | Cue / Action / Timeline、Projection、Runtime Snapshot、migration、完全な lifetime / visibility closure                        |
+| `packages/unframe-authoring`     | Manifest、Structure、Theme、Presentation declaration API                                                 | Static DSL の確定、Source との接続、Lossless Syntax Tree / source patch、lock / distribution                                  |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                     | Props / Slots / Variants、型付き Theme、Spatial、Interaction、Action / Output、Opaque component、migration                    |
+| `packages/unframe-compiler`      | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | cache、M1より広いStatic DSL                                                                                                   |
+| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability                             |
+| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                                        |
+| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                                                |
+| `packages/unframe-cli`           | filesystem check / build、process signal / build lock、atomic output、TUI command selector               | TUIとprocess commandの接続、watch / dev / preview / test / publish                                                            |
+| `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備                        |
 
 ## 3. 実装原則
 
@@ -59,10 +59,10 @@ Semantic 機能は、原則として次の依存順を一つの変更系列と�
 
 ```text
 contracts
-  → presentation-core
-  → presentation-authoring
-  → presentation-components
-  → presentation-compiler
+  → unframe-core
+  → unframe-authoring
+  → unframe-components
+  → unframe-compiler
   → renderer / assets
   → CLI / reference project
 ```

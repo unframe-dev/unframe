@@ -1,4 +1,4 @@
-import { defineComponentManifest } from "@unframe/presentation";
+import { defineComponentManifest } from "@unframe/unframe-authoring";
 
 export default defineComponentManifest({
   componentId: "reference-surface",

@@ -4,7 +4,7 @@
   "sourceHash": "sha256:source",
   "definitionHash": "sha256:definition",
   "compiler": {
-    "name": "@unframe/presentation-compiler",
+    "name": "@unframe/unframe-compiler",
     "version": "0.1.0",
     "environmentHash": "sha256:environment"
   },
