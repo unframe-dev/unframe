@@ -97,7 +97,7 @@ Surface 内部の Layout は absolute、stack、grid から始め、最終座標
 
 Component は再利用と編集、SurfaceNode は空間配置と animation、Semantic Surface は意味状態と interaction、Render Surface は描画 partition の境界とする。一つの Component が複数 Surface や Native Node へ展開されることを許す。
 
-Surface は、Spatial Tree 上で Transform を所有する SurfaceNode、PresentationDefinition 上で State / Interaction を所有する Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。v1 は SurfaceNode と Semantic Surface を 1:1、Semantic Surface と Render Surface を 1:N とする。
+Surface は、Spatial Tree 上で Transform を所有する SurfaceNode、PresentationDefinition 上で State / Interaction / canonical Surface Tree を所有する Semantic Surface、RenderBundle 内部の派生的な Render Surface に分ける。v1 は SurfaceNode と Semantic Surface を 1:1、Semantic Surface と Render Surface を 1:N とする。Semantic Surface は `rootFrameId` だけでなく、その参照先と全親子関係・内容を保持する canonical content node map を所有する。
 
 canonical Runtime contract の SurfaceId は SemanticSurfaceId を意味する。Node Action と Timeline は SurfaceNode を含む SpatialNodeId、Surface State、Interaction、Video の media Action、Progression は SemanticSurfaceId を参照する。media Action は Video artifact を持つ Semantic Surface だけを対象とする。RenderSurfaceId は compiler-derived な build-local ID とし、Trigger、Guard、Action、Snapshot、Reliable Event に含めない。
 
@@ -123,7 +123,9 @@ Cloud または Venue Edge に配置された割り当て済み Runtime Core を
 
 Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した client が同じ Presentation 進行と Surface State へ収束できるようにする。
 
-Runtime State は、割り当て済み Runtime Core が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial NodeがProjectionAudienceを宣言し、Semantic Surfaceなどの派生resourceはhostから継承する。ProjectionProfileDescriptorはPublicationFence、projection contract version、role、capability profileごとに共有し、participant / assignment固有のProjectionInstanceと分離する。Client-local State は Shared Progression を直接変更しない。
+Runtime State は、割り当て済み Runtime Core が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial Node と Timeline が ProjectionAudience を宣言し、Semantic Surface などの派生 resource は host から継承する。一つの Timeline は同じ audience の Node だけを target とし、Definition と Run を同じ projection closure で配信する。role 限定 Timeline は shared progression を block しない。Media の duration、loop、completion は PresentationDefinition の Semantic Surface が canonical に所有し、renderer artifact 選択から導出しない。ProjectionProfileDescriptor は PublicationFence、projection contract version、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
+
+Timeline audience と Semantic Surface による media timing の所有は、現行 Presentation v2 の後に contract revision を伴って導入する目標である。現行 v2 は Timeline audience と profile 別 Timeline projection を持たず、Video content の `loop` と admitted Video Artifact の `durationMilliseconds` を使用する。現行 contract と後続変更の境界は [Presentation Architecture](../presentation/ARCHITECTURE.md) と [Presentation データ契約 v2](../presentation/DATA_MODEL.md) を正本とする。
 
 Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Session は Presentation を参照し、作成時の PublicationFence を固定する。期限内の `Waiting` Session または `Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Presentation owner / admin は放置された `Waiting` Session を cancel でき、bounded waiting expiryもpublish判定と同じ永続化境界でlockを解放する。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
 

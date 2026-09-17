@@ -44,6 +44,7 @@ Semantic Authoring IR と PresentationDefinition は同じものではない。�
 
 ```text
 src/
+├─ index.ts            # reviewed public exports only
 ├─ values/             # IDs, scalar, references, transforms
 ├─ authoring/          # normalized Semantic Authoring IR model
 ├─ definition/         # PresentationDefinition semantic model
@@ -53,6 +54,8 @@ src/
 ├─ canonicalization/   # stable ordering, serialization, hashing
 └─ migration/          # versioned pure migrations
 ```
+
+`index.ts` は public export の集約だけを担う。型、contract schema boundary、semantic validation、canonicalization は変更理由の異なる責務として owning model の近くへ分離し、単一の entrypoint や package 共通の巨大な `types.ts` に集約しない。小さな value object は型と constructor を同じ module に置いてよく、実装前に空 directory を作る必要はない。
 
 初期実装は、Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashを実装する。現在の実装はdomain model、Definition / RenderBundle / artifact validation、Semantic Tree materialization、canonicalizationへ責務を分け、Presentation固有の意味上のset正規化後に`canonicalize`でRFC 8785 JSONへ直列化する。
 

@@ -33,6 +33,8 @@
 
 新しい directory は、独立した責務、依存方向、公開 API、品質ゲートのいずれかを持つ場合に作る。単にファイル数を減らすための階層や、将来使うかもしれない空 package は作らない。
 
+この原則は package / directory の ownership boundary に対するものであり、package 内の責務別 module を単一ファイルへ畳み込む根拠にはしない。実装開始時点で contract-derived type、runtime schema、semantic validation、canonicalization などの変更理由が異なる場合は、public `index.ts` を export barrel とし、型・schema・validator を owning responsibility の近くへ分離する。逆に、単一の小さな value object のためだけに空階層や全 package 共通の巨大な `types.ts` は作らない。
+
 実装前に責務をレビューする必要がある Target package は、`Proposal / Target, not implemented` と明記した `ARCHITECTURE.md` だけを先行して置ける。この directory は `package.json`、public entrypoint、workspace package を持つまでは実装済み package とみなさない。
 
 ### 2.2 Package は実行環境をまたいで implementation を共有しない
@@ -157,6 +159,8 @@ Presentation の pure TypeScript semantic core を所有する。
 - Delivery 時だけ存在する Signed URL
 
 この package は Node.js、DOM、React、Cloudflare Workers に依存しない。Web、Compiler、Control Plane から利用できるが、Go と C# には generated contract artifact を介して接続する。
+
+`presentation-core` の public `index.ts` は公開 API の export だけを集約する。contract-derived model、schema boundary adapter、semantic validator、canonicalizer は責務別 module に分離する。serialized input の構造 validation は `packages/contracts` の Zod 4 schema source と、そこから生成した portable JSON Schema を正本とし、Core に重複 schema を手書きしない。
 
 ### 4.2 `packages/presentation-authoring`
 

@@ -9,10 +9,7 @@
   },
   "devDependencies": {
     "vite-plus": "catalog:",
-    "zod": "4.4.3"
-  },
-  "engines": {
-    "node": ">=22"
+    "zod": "4.5.4"
   },
   "devEngines": {
     "packageManager": {
@@ -20,5 +17,8 @@
       "version": "11.14.0",
       "onFail": "download"
     }
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
