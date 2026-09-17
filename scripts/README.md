@@ -19,4 +19,6 @@ nix run .#notion-sync
 nix flake check
 ```
 
+GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し、`magic-nix-cache-action` で Nix store をキャッシュします。
+
 `packages/contracts/` は次の Control Plane OpenAPI と Realtime Protocol Buffers の共有境界です。source of truth と生成手順は、対応する component 実装と合わせて定義します。

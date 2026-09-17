@@ -35,7 +35,9 @@ jobs:
           ref: ${{ github.head_ref }}
           persist-credentials: false
 
-      - uses: DeterminateSystems/nix-installer-action@b67ad2f0e8376a0bc947db191e4484285b6f5b56 # main
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+        with:
+          github_access_token: ""
       - uses: DeterminateSystems/magic-nix-cache-action@2cdbb78a6eed25b3bc8b97f863549be5f6567e55 # main
 
       - name: Cache Realtime Go build and module downloads
