@@ -22,7 +22,6 @@ import {
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
 import {
-  emptyRecord,
   isRecord,
   nonEmptyString,
   renderIntent,
@@ -30,12 +29,17 @@ import {
   sameLock,
   projectEnvelopeDiagnostics,
 } from "../lowering/support.js";
-import type { CheckedDeclarationProject, CompilerDeclarationProject } from "./types.js";
+import type {
+  CheckedDeclarationProject,
+  CompilerDeclarationProject,
+  CompilerWarning,
+} from "./types.js";
 import {
   checksumBytes,
   decodeCanonicalBase64,
   hasValidFontSignature,
 } from "../validation/source-assets.js";
+import { resolveStructuredComponent } from "../resolution/resolve-structured-component.js";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -89,6 +93,7 @@ const checkDeclarationProjectUnchecked = (
   // Declaration API owns the detailed Authoring contracts; this schema owns the public envelope.
   const project = parsedProject.data as unknown as CompilerDeclarationProject;
   const diagnostics: Diagnostic[] = [];
+  const warnings: CompilerWarning[] = [];
   const rawPresentation = project.presentation;
   const presentation = rawPresentation as PresentationDeclaration;
   const themes = project.themes as CompilerDeclarationProject["themes"];
@@ -197,6 +202,148 @@ const checkDeclarationProjectUnchecked = (
       ),
     );
   const spatialById = new Map((presentation.scene?.spatial ?? []).map((node) => [node.id, node]));
+  const instances = presentation.scene?.components ?? [];
+  const instanceById = new Map(instances.map((instance) => [instance.id, instance]));
+  const instanceIndexById = new Map(instances.map((instance, index) => [instance.id, index]));
+  const nestedInstanceIds = new Set<string>();
+  const slotEdges = new Map<string, string[]>();
+  const sameOwner = (
+    left: (typeof instances)[number]["owner"],
+    right: (typeof instances)[number]["owner"],
+  ) =>
+    left.kind === right.kind &&
+    (left.kind === "presentation" || (right.kind === "group" && left.groupId === right.groupId));
+  const collectSlotIds = (
+    node: import("@unframe/unframe-authoring").ContentNodeDeclaration,
+  ): string[] => {
+    if (node.kind === "slot-placeholder") return [node.slotId];
+    if (node.kind === "text") return [];
+    return node.children.flatMap(collectSlotIds);
+  };
+  for (const [index, instance] of instances.entries()) {
+    const path = ["presentation", "scene", "components", index] as const;
+    const entries = components.filter(
+      (candidate) =>
+        candidate.manifest.componentId === instance.componentId &&
+        candidate.manifest.version === instance.version,
+    );
+    if (entries.length !== 1) continue;
+    const entry = entries[0]!;
+    const slotIds = collectSlotIds(
+      entry.structure.root.kind === "surface" ? entry.structure.root.root : entry.structure.root,
+    );
+    const declaredSlotIds = Object.keys(entry.manifest.slots);
+    if (
+      new Set(slotIds).size !== slotIds.length ||
+      [...new Set(slotIds)].sort().join("\0") !== [...declaredSlotIds].sort().join("\0")
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-slot-placeholder-set-mismatch",
+          [...path, "structure"],
+          "Each declared Slot must have exactly one Frame child placeholder.",
+        ),
+      );
+    const children: string[] = [];
+    for (const [slotId, childIds] of Object.entries(instance.slots)) {
+      if (!Object.hasOwn(entry.manifest.slots, slotId))
+        diagnostics.push(
+          diagnostic(
+            "compiler-slot-not-found",
+            [...path, "slots", slotId],
+            "Instance Slot values must name a declared Slot.",
+          ),
+        );
+      for (const childId of childIds) {
+        const child = instanceById.get(childId);
+        if (!child)
+          diagnostics.push(
+            diagnostic(
+              "compiler-slot-instance-not-found",
+              [...path, "slots", slotId],
+              "Slotted Component instance IDs must resolve.",
+            ),
+          );
+        else {
+          if (childId === instance.id)
+            diagnostics.push(
+              diagnostic(
+                "compiler-slot-self-reference",
+                [...path, "slots", slotId],
+                "A Component instance cannot slot itself.",
+              ),
+            );
+          if (!sameOwner(child.owner, instance.owner))
+            diagnostics.push(
+              diagnostic(
+                "compiler-slot-owner-mismatch",
+                [...path, "slots", slotId],
+                "Slotted Component instances must have the same owner.",
+              ),
+            );
+          if (nestedInstanceIds.has(childId))
+            diagnostics.push(
+              diagnostic(
+                "compiler-slot-instance-duplicate",
+                [...path, "slots", slotId],
+                "A Component instance may appear in only one Slot position.",
+              ),
+            );
+          nestedInstanceIds.add(childId);
+          children.push(childId);
+        }
+      }
+    }
+    slotEdges.set(instance.id, children);
+  }
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visitSlots = (instanceId: string): void => {
+    if (visiting.has(instanceId)) {
+      diagnostics.push(
+        diagnostic(
+          "compiler-slot-cycle",
+          ["presentation", "scene", "components", instanceIndexById.get(instanceId) ?? 0, "slots"],
+          "Slot composition must not contain a cycle.",
+        ),
+      );
+      return;
+    }
+    if (visited.has(instanceId)) return;
+    visiting.add(instanceId);
+    for (const childId of slotEdges.get(instanceId) ?? []) visitSlots(childId);
+    visiting.delete(instanceId);
+    visited.add(instanceId);
+  };
+  for (const instance of instances) visitSlots(instance.id);
+  for (const [index, instance] of instances.entries()) {
+    const nested = nestedInstanceIds.has(instance.id);
+    const entry = components.find(
+      (candidate) =>
+        candidate.manifest.componentId === instance.componentId &&
+        candidate.manifest.version === instance.version,
+    );
+    if (!entry) continue;
+    if (nested && (instance.spatialNodeId !== undefined || entry.structure.root.kind !== "frame"))
+      diagnostics.push(
+        diagnostic(
+          "compiler-slotted-component-invalid",
+          ["presentation", "scene", "components", index],
+          "Slotted instances must omit spatialNodeId and use a Frame-root Component.",
+        ),
+      );
+    if (
+      !nested &&
+      (instance.spatialNodeId === undefined || entry.structure.root.kind !== "surface")
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-top-level-component-invalid",
+          ["presentation", "scene", "components", index],
+          "Top-level instances must reference a Spatial node and use a Surface-root Component.",
+        ),
+      );
+  }
   const mappedSpatialIds = new Set<string>();
   const used = new Set<string>();
   for (const [index, instance] of (presentation.scene?.components ?? []).entries()) {
@@ -236,26 +383,155 @@ const checkDeclarationProjectUnchecked = (
           "Component structure and exact package lock must match.",
         ),
       );
-    if (!emptyRecord(instance.props))
-      diagnostics.push(
-        diagnostic(
-          "compiler-nonempty-props-unsupported",
-          [...path, "props"],
-          "Props are not supported.",
-        ),
-      );
+    const componentSemanticTree =
+      entry.structure.root.kind === "surface"
+        ? entry.structure.root.baseSemanticTree
+        : entry.structure.baseSemanticTree!;
+    const componentSemanticEntries = Object.entries(componentSemanticTree.nodes);
+    uniqueIds(
+      componentSemanticEntries.map(([, semantic]) => ({ id: semantic.id })),
+      [...path, "structure", "baseSemanticTree", "nodes"],
+      "compiler-duplicate-semantic-node-id",
+    );
+    for (const [semanticId, semantic] of componentSemanticEntries)
+      if (semanticId !== semantic.id)
+        diagnostics.push(
+          diagnostic(
+            "compiler-record-key-id-mismatch",
+            [...path, "structure", "baseSemanticTree", "nodes", semanticId],
+            "Semantic Tree record keys must match semantic node IDs.",
+          ),
+        );
+    for (const [variantId, declaration] of Object.entries(entry.manifest.variants)) {
+      const styles = entry.structure.variantStyles[variantId];
+      if (
+        styles === undefined ||
+        Object.keys(styles).sort().join("\0") !== [...declaration.values].sort().join("\0")
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-variant-style-set-mismatch",
+            [...path, "structure", "variantStyles", variantId],
+            "Every Variant value must have exactly one style mapping.",
+          ),
+        );
+    }
+    for (const variantId of Object.keys(entry.structure.variantStyles))
+      if (!Object.hasOwn(entry.manifest.variants, variantId))
+        diagnostics.push(
+          diagnostic(
+            "compiler-variant-style-set-mismatch",
+            [...path, "structure", "variantStyles", variantId],
+            "Variant style mappings must be declared by the manifest.",
+          ),
+        );
     if (
-      !emptyRecord(instance.slots) ||
-      !emptyRecord(instance.variants) ||
-      instance.partOverrides.length !== 0
+      Object.keys(entry.manifest.parts).sort().join("\0") !==
+      Object.keys(entry.structure.partBindings).sort().join("\0")
     )
       diagnostics.push(
         diagnostic(
-          "compiler-component-feature-unsupported",
-          path,
-          "Slots, variants, and overrides are not supported.",
+          "compiler-part-binding-set-mismatch",
+          [...path, "structure", "partBindings"],
+          "Every manifest Part must have exactly one structure binding.",
         ),
       );
+    for (const propName of Object.keys(instance.props))
+      if (!Object.hasOwn(entry.manifest.props, propName))
+        diagnostics.push(
+          diagnostic(
+            "compiler-prop-not-found",
+            [...path, "props", propName],
+            "Component props must be declared by the manifest.",
+          ),
+        );
+    for (const [propName, declaration] of Object.entries(entry.manifest.props)) {
+      if (!Object.hasOwn(instance.props, propName)) {
+        if ("required" in declaration && declaration.required === true)
+          diagnostics.push(
+            diagnostic(
+              "compiler-required-prop-missing",
+              [...path, "props", propName],
+              "A required Component prop is missing.",
+            ),
+          );
+        else if ("default" in declaration)
+          warnings.push({
+            code: "compiler-prop-default-applied",
+            message: "An omitted Component prop used its manifest default.",
+            path: [...path, "props", propName],
+            componentInstanceId: instance.id,
+            propName,
+            defaultValue: declaration.default,
+            ...(instance.source === undefined ? {} : { source: instance.source }),
+          });
+        continue;
+      }
+      const value = instance.props[propName];
+      if (typeof value !== declaration.kind)
+        diagnostics.push(
+          diagnostic(
+            "compiler-prop-type-mismatch",
+            [...path, "props", propName],
+            "Component prop values must match their manifest declaration.",
+          ),
+        );
+    }
+    for (const variantName of Object.keys(instance.variants))
+      if (!Object.hasOwn(entry.manifest.variants, variantName))
+        diagnostics.push(
+          diagnostic(
+            "compiler-variant-not-found",
+            [...path, "variants", variantName],
+            "Component variants must be declared by the manifest.",
+          ),
+        );
+    for (const [variantName, declaration] of Object.entries(entry.manifest.variants)) {
+      if (!Object.hasOwn(instance.variants, variantName)) {
+        if (declaration.default !== undefined)
+          warnings.push({
+            code: "compiler-variant-default-applied",
+            message: "An omitted Component variant used its manifest default.",
+            path: [...path, "variants", variantName],
+            componentInstanceId: instance.id,
+            variantName,
+            defaultValue: declaration.default,
+            ...(instance.source === undefined ? {} : { source: instance.source }),
+          });
+        continue;
+      }
+      if (!declaration.values.includes(instance.variants[variantName]!))
+        diagnostics.push(
+          diagnostic(
+            "compiler-variant-value-invalid",
+            [...path, "variants", variantName],
+            "Selected Component variants must use a declared value.",
+          ),
+        );
+    }
+    if (
+      Object.keys(entry.manifest.actions).length ||
+      Object.keys(entry.manifest.outputs).length ||
+      entry.structure.timelines.length
+    )
+      diagnostics.push(
+        diagnostic(
+          "compiler-manifest-feature-unsupported",
+          path,
+          "Actions, outputs, and timelines are not supported.",
+        ),
+      );
+    if (nestedInstanceIds.has(instance.id)) continue;
+    if (instance.spatialNodeId === undefined) {
+      diagnostics.push(
+        diagnostic(
+          "compiler-spatial-required",
+          [...path, "spatialNodeId"],
+          "Top-level Surface instances require one Spatial node.",
+        ),
+      );
+      continue;
+    }
     const spatial = spatialById.get(instance.spatialNodeId);
     if (!spatial || spatial.kind !== "spatial") {
       diagnostics.push(
@@ -267,7 +543,7 @@ const checkDeclarationProjectUnchecked = (
       );
       continue;
     }
-    if (JSON.stringify(spatial.owner) !== JSON.stringify(instance.owner))
+    if (!sameOwner(spatial.owner, instance.owner))
       diagnostics.push(
         diagnostic("compiler-owner-mismatch", path, "Component and Spatial owner must match."),
       );
@@ -289,16 +565,12 @@ const checkDeclarationProjectUnchecked = (
       );
     mappedSpatialIds.add(spatial.id);
     const root = entry.structure.root;
-    if (
-      root.kind !== "surface" ||
-      root.root.kind !== "frame" ||
-      root.root.children.some((child) => child.kind !== "text")
-    )
+    if (root.kind !== "surface")
       diagnostics.push(
         diagnostic(
           "compiler-structure-unsupported",
           path,
-          "Only Surface to Frame to direct Text is supported.",
+          "Top-level Component instances must produce a Surface.",
         ),
       );
     if (
@@ -313,27 +585,6 @@ const checkDeclarationProjectUnchecked = (
         ),
       );
     if (root.kind !== "surface") continue;
-    const localIds = [root.id, root.root.id, ...root.root.children.map((child) => child.id)];
-    uniqueIds(
-      localIds.map((id) => ({ id })),
-      [...path, "structure"],
-      "compiler-duplicate-content-id",
-    );
-    const semanticEntries = Object.entries(root.baseSemanticTree.nodes);
-    uniqueIds(
-      semanticEntries.map(([, semantic]) => ({ id: semantic.id })),
-      [...path, "structure", "baseSemanticTree", "nodes"],
-      "compiler-duplicate-semantic-node-id",
-    );
-    for (const [semanticId, semantic] of semanticEntries)
-      if (semanticId !== semantic.id)
-        diagnostics.push(
-          diagnostic(
-            "compiler-record-key-id-mismatch",
-            [...path, "structure", "baseSemanticTree", "nodes", semanticId],
-            "Semantic Tree record keys must match semantic node IDs.",
-          ),
-        );
     const stateEntries = Object.entries(root.states);
     uniqueIds(
       stateEntries.map(([, state]) => ({ id: state.id })),
@@ -364,14 +615,7 @@ const checkDeclarationProjectUnchecked = (
           "Only static, non-interactive baked-web surfaces are supported.",
         ),
       );
-    if (
-      Object.keys(entry.manifest.actions).length ||
-      Object.keys(entry.manifest.outputs).length ||
-      Object.keys(entry.manifest.props).length ||
-      Object.keys(entry.manifest.slots).length ||
-      Object.keys(entry.manifest.variants).length ||
-      Object.keys(entry.manifest.parts).length
-    )
+    if (Object.keys(entry.manifest.actions).length || Object.keys(entry.manifest.outputs).length)
       diagnostics.push(
         diagnostic(
           "compiler-manifest-feature-unsupported",
@@ -398,24 +642,6 @@ const checkDeclarationProjectUnchecked = (
           "Timelines and operations are not supported.",
         ),
       );
-    for (const namedStyle of [
-      root.root.namedStyle,
-      ...root.root.children.map((child) => child.namedStyle),
-    ]) {
-      if (
-        namedStyle &&
-        (!theme[0] ||
-          !(namedStyle.styleId in theme[0].declaration.namedStyles) ||
-          !emptyRecord(theme[0].declaration.namedStyles[namedStyle.styleId]!))
-      )
-        diagnostics.push(
-          diagnostic(
-            "compiler-named-style-unsupported",
-            path,
-            "Named styles must resolve to empty records.",
-          ),
-        );
-    }
     const surfaceId = resourceId(instance.id, root.id);
     const nodeId = resourceId(instance.id, spatial.id);
     if (surfaceId === nodeId || used.has(surfaceId) || used.has(nodeId))
@@ -424,98 +650,206 @@ const checkDeclarationProjectUnchecked = (
       );
     used.add(surfaceId);
     used.add(nodeId);
-    const contentNodes: PresentationDefinition["scene"]["surfaces"][string]["contentNodes"] = {};
-    const frameId = resourceId(instance.id, root.root.id);
-    const childIds: string[] = [];
-    for (const [childOrder, child] of root.root.children.entries()) {
-      if (child.kind !== "text") continue;
-      const id = resourceId(instance.id, child.id);
-      childIds.push(id);
-      if (
-        child.semanticNodeId === undefined ||
-        !Object.hasOwn(root.baseSemanticTree.nodes, child.semanticNodeId)
-      )
+    if (!theme[0]) continue;
+    const resolved = resolveStructuredComponent({
+      instance,
+      manifest: entry.manifest,
+      structure: entry.structure,
+      theme: theme[0]!.declaration,
+      path,
+    });
+    diagnostics.push(...resolved.diagnostics);
+    const contentNodes = resolved.contentNodes;
+    const frameId = resolved.rootFrameId;
+    const nestedSemanticFragments: {
+      instance: (typeof instances)[number];
+      tree: import("@unframe/unframe-authoring").BaseSemanticTreeDeclaration;
+      props: ReadonlyMap<string, string | number | boolean>;
+      semanticParentId?: string;
+    }[] = [];
+    const expandingInstanceIds = new Set<string>([instance.id]);
+    const expandSlots = (
+      parentInstance: (typeof instances)[number],
+      parentResolved: ReturnType<typeof resolveStructuredComponent>,
+    ): void => {
+      const placeholdersByParent = new Map<
+        string,
+        (typeof parentResolved.slotPlaceholders)[number][]
+      >();
+      for (const placeholder of parentResolved.slotPlaceholders) {
+        const group = placeholdersByParent.get(placeholder.parentFrameId) ?? [];
+        group.push(placeholder);
+        placeholdersByParent.set(placeholder.parentFrameId, group);
+      }
+      for (const [parentFrameId, placeholders] of placeholdersByParent) {
+        const parentFrame = contentNodes[parentFrameId];
+        if (!parentFrame || parentFrame.kind !== "frame") continue;
+        const sequenceItems: { order: number; ids: string[] }[] = parentFrame.children.map(
+          (id) => ({ order: contentNodes[id]?.order ?? 0, ids: [id] }),
+        );
+        for (const placeholder of placeholders) {
+          const insertedIds: string[] = [];
+          for (const childInstanceId of parentInstance.slots[placeholder.slotId] ?? []) {
+            const childInstance = instanceById.get(childInstanceId);
+            if (!childInstance || expandingInstanceIds.has(childInstance.id)) continue;
+            const entries = components.filter(
+              (candidate) =>
+                candidate.manifest.componentId === childInstance.componentId &&
+                candidate.manifest.version === childInstance.version,
+            );
+            if (entries.length !== 1 || entries[0]!.structure.root.kind !== "frame") continue;
+            const childEntry = entries[0]!;
+            const childResolved = resolveStructuredComponent({
+              instance: childInstance,
+              manifest: childEntry.manifest,
+              structure: childEntry.structure,
+              theme: theme[0]!.declaration,
+              path: [
+                "presentation",
+                "scene",
+                "components",
+                instanceIndexById.get(childInstance.id) ?? 0,
+              ],
+            });
+            diagnostics.push(...childResolved.diagnostics);
+            for (const [contentId, content] of Object.entries(childResolved.contentNodes)) {
+              if (Object.hasOwn(contentNodes, contentId))
+                diagnostics.push(
+                  diagnostic(
+                    "compiler-resource-id-collision",
+                    path,
+                    "Lowered resource IDs must be unique.",
+                  ),
+                );
+              contentNodes[contentId] = content;
+            }
+            const childRoot = contentNodes[childResolved.rootFrameId];
+            if (childRoot) childRoot.parentId = parentFrameId;
+            insertedIds.push(childResolved.rootFrameId);
+            nestedSemanticFragments.push({
+              instance: childInstance,
+              tree: childEntry.structure.baseSemanticTree!,
+              props: childResolved.resolvedProps,
+              ...(placeholder.semanticParentId === undefined
+                ? {}
+                : {
+                    semanticParentId: resourceId(parentInstance.id, placeholder.semanticParentId),
+                  }),
+            });
+            expandingInstanceIds.add(childInstance.id);
+            expandSlots(childInstance, childResolved);
+            expandingInstanceIds.delete(childInstance.id);
+          }
+          sequenceItems.push({ order: placeholder.order, ids: insertedIds });
+        }
+        const sequence = sequenceItems
+          .sort((left, right) => left.order - right.order)
+          .flatMap((item) => item.ids);
+        parentFrame.children = sequence;
+        sequence.forEach((contentId, order) => {
+          const content = contentNodes[contentId];
+          if (content) content.order = order;
+        });
+      }
+    };
+    expandSlots(instance, resolved);
+    const semanticNodes: PresentationDefinition["scene"]["surfaces"][string]["baseSemanticTree"]["nodes"] =
+      {};
+    const semanticRootNodeIds: string[] = [];
+    const appendSemanticTree = (
+      semanticInstance: (typeof instances)[number],
+      tree: import("@unframe/unframe-authoring").BaseSemanticTreeDeclaration,
+      props: ReadonlyMap<string, string | number | boolean>,
+      semanticParentId?: string,
+    ) => {
+      const existingAttachedChildren =
+        semanticParentId === undefined
+          ? []
+          : Object.values(semanticNodes)
+              .filter((node) => node.parentId === semanticParentId)
+              .sort(
+                (left, right) =>
+                  left.order - right.order ||
+                  (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+              );
+      existingAttachedChildren.forEach((node, order) => {
+        node.order = order;
+      });
+      const rootOrderBase =
+        semanticParentId === undefined
+          ? semanticRootNodeIds.length
+          : existingAttachedChildren.length;
+      const rootOrderById = new Map(
+        tree.rootNodeIds.map((id, index) => [id, rootOrderBase + index]),
+      );
+      if (semanticParentId === undefined)
+        semanticRootNodeIds.push(
+          ...tree.rootNodeIds.map((id) => resourceId(semanticInstance.id, id)),
+        );
+      for (const semantic of Object.values(tree.nodes)) {
+        const id = resourceId(semanticInstance.id, semantic.id);
+        const semanticWithoutSource = { ...semantic } as Record<string, unknown>;
+        delete semanticWithoutSource.source;
+        const textValue = semanticWithoutSource.text;
+        if (
+          textValue &&
+          typeof textValue === "object" &&
+          (textValue as { kind?: unknown }).kind === "prop-ref"
+        ) {
+          const propId = (textValue as { propId: string }).propId;
+          const resolvedText = props.get(propId);
+          if (typeof resolvedText !== "string" || resolvedText.length === 0)
+            diagnostics.push(
+              diagnostic(
+                "compiler-semantic-text-prop-invalid",
+                [...path, "structure", "baseSemanticTree", semantic.id, "text"],
+                "Semantic text Props must resolve to a non-empty string.",
+              ),
+            );
+          semanticWithoutSource.text = typeof resolvedText === "string" ? resolvedText : "invalid";
+        }
+        semanticNodes[id] = {
+          ...semanticWithoutSource,
+          id,
+          order:
+            semantic.parentId === null
+              ? (rootOrderById.get(semantic.id) ?? semantic.order)
+              : semantic.order,
+          parentId:
+            semantic.parentId === null
+              ? (semanticParentId ?? null)
+              : resourceId(semanticInstance.id, semantic.parentId),
+        } as (typeof semanticNodes)[string];
+      }
+    };
+    appendSemanticTree(instance, root.baseSemanticTree, resolved.resolvedProps);
+    for (const fragment of nestedSemanticFragments)
+      appendSemanticTree(
+        fragment.instance,
+        fragment.tree,
+        fragment.props,
+        fragment.semanticParentId,
+      );
+    for (const [contentId, content] of Object.entries(contentNodes)) {
+      if (content.kind === "text" && content.semanticNodeId === undefined)
         diagnostics.push(
           diagnostic(
             "compiler-semantic-node-required",
-            [...path, "structure", "root", "root", "children", childOrder, "semanticNodeId"],
-            "Direct Text requires an explicit Semantic Node reference.",
+            [...path, "structure", contentId, "semanticNodeId"],
+            "Text requires an explicit Semantic Node reference.",
           ),
         );
       if (
-        child.style?.fontAssetId === undefined ||
-        child.style.fontSize === undefined ||
-        child.style.lineHeight === undefined
+        content.semanticNodeId !== undefined &&
+        !Object.hasOwn(semanticNodes, content.semanticNodeId)
       )
         diagnostics.push(
           diagnostic(
-            "compiler-text-style-incomplete",
-            [...path, "structure", "root", "root", "children", childOrder, "style"],
-            "Resolved Text style requires a font, font size, and line height.",
+            "compiler-semantic-node-not-found",
+            [...path, "structure", contentId, "semanticNodeId"],
+            "Primitive Semantic Node references must resolve in the Component semantic tree.",
           ),
         );
-      contentNodes[id] = {
-        id,
-        kind: "text",
-        parentId: frameId,
-        order: childOrder,
-        placement: { ...child.layout },
-        ...(child.semanticNodeId === undefined
-          ? {}
-          : { semanticNodeId: resourceId(instance.id, child.semanticNodeId) }),
-        visible: child.visible ?? true,
-        opacity: child.opacity ?? 1,
-        value: { kind: "literal", value: child.value },
-        maxCodePoints: child.maxCodePoints,
-        style: {
-          fontAssetId: child.style?.fontAssetId ?? "invalid-missing-font",
-          fallbackFontAssetIds: [...(child.style?.fallbackFontAssetIds ?? [])],
-          fontSize: child.style?.fontSize ?? 1,
-          lineHeight: child.style?.lineHeight ?? 1,
-          color: child.style?.color ?? { red: 0, green: 0, blue: 0, alpha: 1 },
-          weight: child.style?.weight ?? "regular",
-          align: child.style?.align ?? "start",
-          overflow: child.style?.overflow ?? "clip",
-        },
-      };
-    }
-    contentNodes[frameId] = {
-      id: frameId,
-      kind: "frame",
-      parentId: null,
-      order: 0,
-      ...(root.root.semanticNodeId === undefined
-        ? {}
-        : { semanticNodeId: resourceId(instance.id, root.root.semanticNodeId) }),
-      visible: root.root.visible ?? true,
-      opacity: root.root.opacity ?? 1,
-      placement: { ...root.root.layout },
-      layout: { kind: "absolute" },
-      children: childIds,
-      backgroundColor: root.root.style?.backgroundColor ?? {
-        red: 0,
-        green: 0,
-        blue: 0,
-        alpha: 0,
-      },
-      border: root.root.style?.border ?? {
-        color: { red: 0, green: 0, blue: 0, alpha: 0 },
-        width: 0,
-        radius: 0,
-      },
-      clip: root.root.style?.clip ?? false,
-    };
-    const semanticNodes: PresentationDefinition["scene"]["surfaces"][string]["baseSemanticTree"]["nodes"] =
-      {};
-    for (const semantic of Object.values(root.baseSemanticTree.nodes)) {
-      const id = resourceId(instance.id, semantic.id);
-      const semanticWithoutSource = { ...semantic };
-      delete semanticWithoutSource.source;
-      semanticNodes[id] = {
-        ...semanticWithoutSource,
-        id,
-        parentId: semantic.parentId === null ? null : resourceId(instance.id, semantic.parentId),
-      };
     }
     const states: PresentationDefinition["scene"]["surfaces"][string]["states"] = {};
     for (const state of Object.values(root.states))
@@ -570,13 +904,13 @@ const checkDeclarationProjectUnchecked = (
     surfaces[surfaceId] = {
       id: surfaceId,
       hostNodeId: nodeId,
-      physicalSizeMeters: [...root.physicalSizeMeters],
-      logicalSize: [...root.logicalSize],
+      physicalSizeMeters: [...(resolved.physicalSizeMeters ?? [1, 1])],
+      logicalSize: [...(resolved.logicalSize ?? [1, 1])],
       fit: root.fit,
       rootFrameId: frameId,
       contentNodes,
       baseSemanticTree: {
-        rootNodeIds: root.baseSemanticTree.rootNodeIds.map((id) => resourceId(instance.id, id)),
+        rootNodeIds: semanticRootNodeIds,
         nodes: semanticNodes,
       },
       interactions: {},
@@ -723,6 +1057,11 @@ const checkDeclarationProjectUnchecked = (
       sourceHash: hashCanonicalJsonPayload(cloned.value),
       definitionHash: definitionHash.value,
       assetSet: { schemaVersion: 2, assets: assetSetAssets },
+      warnings: [...warnings].sort((left, right) => {
+        const leftKey = `${left.path.join("/")}\0${left.code}`;
+        const rightKey = `${right.path.join("/")}\0${right.code}`;
+        return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+      }),
     },
     diagnostics: [],
   };

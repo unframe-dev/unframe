@@ -39,6 +39,51 @@ describe("unframe-core v2", () => {
     expect(materializeCompletedSemanticTree(surface, "missing")).toMatchObject({ valid: false });
   });
 
+  it.each([
+    ["heading", { role: "heading", level: 2, text: "Heading" }],
+    ["paragraph", { role: "paragraph", text: "Paragraph", language: "ja" }],
+    ["image", { role: "image", alt: "Image", language: "en" }],
+    ["button", { role: "button", interactionId: "activate", text: "Button" }],
+    ["list", { role: "list", ordered: true }],
+    ["listItem", { role: "listItem", text: "Item" }],
+    ["table", { role: "table", label: "Table", language: "en" }],
+    ["row", { role: "row" }],
+    ["cell", { role: "cell", text: "Cell" }],
+    ["columnHeader", { role: "columnHeader", text: "Column" }],
+    ["rowHeader", { role: "rowHeader", text: "Row" }],
+  ] as const)("materializes the v2 %s role-specific fields", (_role, fields) => {
+    const surface = makeM3AArtifacts().definition.scene.surfaces.baked!;
+    surface.baseSemanticTree = {
+      rootNodeIds: ["node"],
+      nodes: {
+        node: { id: "node", parentId: null, order: 0, ...fields },
+      },
+    } as typeof surface.baseSemanticTree;
+
+    const result = materializeCompletedSemanticTree(surface, "default");
+
+    expect(result).toMatchObject({ valid: true });
+    if (result.valid) expect(result.value.nodes.node).toMatchObject(fields);
+  });
+
+  it.each([
+    ["heading without level", { role: "heading", text: "Heading" }],
+    ["paragraph with level", { role: "paragraph", level: 1, text: "Paragraph" }],
+    ["list without ordered", { role: "list" }],
+    ["row with ordered", { role: "row", ordered: false }],
+    ["empty table label", { role: "table", label: "" }],
+  ])("rejects invalid v2 role fields: %s", (_name, fields) => {
+    const surface = makeM3AArtifacts().definition.scene.surfaces.baked!;
+    surface.baseSemanticTree = {
+      rootNodeIds: ["node"],
+      nodes: {
+        node: { id: "node", parentId: null, order: 0, ...fields },
+      },
+    } as typeof surface.baseSemanticTree;
+
+    expect(materializeCompletedSemanticTree(surface, "default")).toMatchObject({ valid: false });
+  });
+
   it("fails closed for hostile materialization input", () => {
     const hostile = new Proxy(
       {},

@@ -1,6 +1,6 @@
 # M3A Structured Authoring Contract
 
-- **Status**: Accepted design; schema and wiring not implemented
+- **Status**: Implemented for static baked-web; runtime features deferred
 - **Scope**: Static `baked-web` Theme and Structured composition
 - **Related**: [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md), [Presentation v2](./DATA_MODEL.md), [Presentation Architecture](./ARCHITECTURE.md)
 
@@ -39,6 +39,10 @@ default のある Prop を Instance が省略した場合は build を継続し�
 ## Slots and nested components
 
 Slot binding は順序付きの Component Instance ID 配列とし、省略と空配列を許可する。`cardinality`、`required`、Component の許可リスト `accepts` は削除し、M3A の入力では旧 field を拒否する。
+
+配置先は親 Frame の `children` 内の明示 Slot placeholder とする。Compiler はその位置を binding 配列順の子 Instance に置き換え、既存 children との前後関係を保持する。省略または空配列の Slot は子を挿入しない。
+
+Slot placeholder は同じ Component の Semantic Node ID を `semanticParentId` として指定できる。指定した場合、子 Instance の semantic roots をその Node の既存の子の後へ binding 配列順で接続する。参照先の欠落は build error とする。省略時は親 Surface の追加 semantic roots として結合する。
 
 参照先が存在し配置可能であることを検証する。一つの Instance の配置先は一つだけとし、同じ Slot 内または別 Slot での重複、自己参照、循環参照を build error にする。同じ Component を複数箇所へ置く場合は別の Instance ID を使う。Slot の親子は同じ resource owner を持たなければならず、Compiler は owner を暗黙に変更しない。
 
@@ -80,4 +84,4 @@ Component migration metadata と自動変換は後続へ延期する。State、I
 
 ## Implementation prerequisite
 
-Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition の解決は未実装であり、M3A の各機能を実装するまでは Compiler の拒否制限を維持する。
+Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な v2 値へ解決する。M3A の範囲外にある動的機能の拒否制限は維持する。

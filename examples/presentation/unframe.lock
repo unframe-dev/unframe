@@ -30,7 +30,7 @@
   "themeHashes": [
     {
       "themeId": "reference-theme",
-      "hash": "sha256:ad2ce030f24df3aeb16f38bf7913b40a40195c28f553a1015d7bf943ec30b244"
+      "hash": "sha256:b464096ae6fad4b56115049af721dcbe02a1064602b3e8c097d3bd36646b4349"
     }
   ],
   "componentLocks": [
@@ -40,8 +40,18 @@
       "lock": {
         "packageVersion": "1.0.0",
         "packageIntegrity": "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
-        "manifestHash": "sha256:e88ff72e1a1a4b10d580d7b6a16ab6ac6e1c001041797db151ce5ca31f086f62",
-        "structureHash": "sha256:26d2afa9ca62162d8b995a86fcb088ba0169e28db60c4d325b7fedc210ca476c"
+        "manifestHash": "sha256:9beade0acd726c3b65ef1be48e023f7a5de4e233e035d960be176c38cfb846d4",
+        "structureHash": "sha256:30bad08e64082d8044428fc8157437401db3aa9763fc56dd33646ea40de97e92"
+      }
+    },
+    {
+      "componentId": "reference-badge",
+      "version": 1,
+      "lock": {
+        "packageVersion": "1.0.0",
+        "packageIntegrity": "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
+        "manifestHash": "sha256:b2c6d8daa2c8019317c322c670ac454ae2b98033e49deee926aab158e9675d7d",
+        "structureHash": "sha256:016c24e97b0b91c95b005df605cb83efd929d922a511391f5f27b19a15210c8c"
       }
     }
   ],

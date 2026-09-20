@@ -123,7 +123,7 @@ const surfaceStructure = defineComponentStructure({
   componentId: surfaceManifest.componentId,
   root: titleSurface,
   partBindings: { root: titleSurface.id },
-  slotPlacements: { content: root.id },
+  variantStyles: {},
   timelines: [{ id: "reveal" }],
 });
 const titleInstance = componentInstance({
@@ -138,10 +138,16 @@ const titleInstance = componentInstance({
   },
   owner: { kind: "presentation" },
   spatialNodeId: surfaceNode.id,
-  props: { width: 1920, height: 1080, logo: assetRef({ assetId: "logo" }) },
+  props: { width: 1920, height: 1080, logo: "logo" },
   slots: { content: [title.id] },
   variants: { fit: "contain" },
-  partOverrides: [{ partId: "root", style: { opacity: 1 } }],
+  partOverrides: [
+    {
+      partId: "root",
+      targetKind: "frame",
+      style: { backgroundColor: { red: 1, green: 1, blue: 1, alpha: 1 } },
+    },
+  ],
 });
 
 const referencePresentation = {
@@ -189,8 +195,8 @@ describe("reference authoring project", () => {
     expect(presentation.scene.spatial[0]?.id).toBe("surface-node-title");
     expect(presentation.scene.components[0]?.componentId).toBe("@unframe/components/Surface");
     expect(presentation.flow.groups["group-intro"]?.steps["step-intro"]?.cues).toEqual([]);
-    expect(surfaceStructure.root.baseSemanticTree.nodes["semantic-title"]?.role).toBe("heading");
-    expect(surfaceStructure.root.initialStateId).toBe("state-default");
+    expect(titleSurface.baseSemanticTree.nodes["semantic-title"]?.role).toBe("heading");
+    expect(titleSurface.initialStateId).toBe("state-default");
     expectTypeOf(presentation.id).toEqualTypeOf<"presentation-intro">();
     expect(JSON.parse(JSON.stringify({ presentation, surfaceManifest, surfaceStructure }))).toEqual(
       {
@@ -259,7 +265,7 @@ describe("component contract", () => {
   it("carries owner, package lock, variants, slots, and bounded Part overrides on instances", () => {
     expect(titleInstance.owner).toEqual({ kind: "presentation" });
     expect(titleInstance.packageLock.structureHash).toBe("sha256-structure");
-    expect(titleInstance.partOverrides).toEqual([{ partId: "root", style: { opacity: 1 } }]);
+    expect(titleInstance.partOverrides[0]?.targetKind).toBe("frame");
   });
 
   it("limits semantic overrides and detach to explicit structured operations", () => {
@@ -323,13 +329,25 @@ describe("theme and reference vocabulary", () => {
   it("creates typed Theme, Prop, State, and reference declarations", () => {
     const theme = defineTheme({
       id: "default-theme",
-      tokens: { accent: "#ff00ff", spacing: 8 },
-      namedStyles: { heading: { color: "#ff00ff", fontSize: 64 } },
+      tokens: {
+        accent: { category: "color", value: { red: 1, green: 0, blue: 1, alpha: 1 } },
+        spacing: { category: "logicalLength", value: 8 },
+      },
+      namedStyles: {
+        heading: {
+          kind: "text",
+          style: { color: tokenRef({ category: "color", tokenId: "accent" }), fontSize: 64 },
+        },
+      },
     });
 
-    expect(theme.tokens.accent).toBe("#ff00ff");
+    expect(theme.tokens.accent.category).toBe("color");
     expect(stringProp({ required: true })).toEqual({ kind: "string", required: true });
-    expect(tokenRef({ tokenId: "accent" })).toEqual({ kind: "token-ref", tokenId: "accent" });
+    expect(tokenRef({ category: "color", tokenId: "accent" })).toEqual({
+      kind: "token-ref",
+      category: "color",
+      tokenId: "accent",
+    });
     expect(namedStyleRef({ styleId: "heading" })).toEqual({
       kind: "named-style-ref",
       styleId: "heading",
@@ -353,12 +371,13 @@ describe("theme and reference vocabulary", () => {
       componentId: "@example/missing-manifest",
       root,
       partBindings: { missingPart: "missing-node" },
-      slotPlacements: { missingSlot: "missing-node" },
+      baseSemanticTree: { rootNodeIds: [], nodes: {} },
+      variantStyles: {},
       timelines: [],
     });
 
     expect(unresolved.partBindings.missingPart).toBe("missing-node");
-    expect(tokenRef({ tokenId: "missing-token" }).tokenId).toBe("missing-token");
+    expect(tokenRef({ category: "color", tokenId: "missing-token" }).tokenId).toBe("missing-token");
   });
 
   it("accepts concrete v2 primitive inputs without resolving Named Styles", () => {
@@ -371,8 +390,8 @@ describe("theme and reference vocabulary", () => {
       semanticNodeId: "semantic-styled-text",
       maxCodePoints: 64,
       style: {
-        fontAssetId: "reference-font",
-        fallbackFontAssetIds: [],
+        font: assetRef({ assetId: "reference-font" }),
+        fallbackFonts: [],
         fontSize: 32,
         lineHeight: 40,
         color: { red: 0, green: 0, blue: 0, alpha: 1 },
@@ -400,7 +419,7 @@ describe("theme and reference vocabulary", () => {
       },
     });
 
-    expect(styledText.style.fontAssetId).toBe("reference-font");
+    expect(styledText.style.font?.kind).toBe("asset-ref");
     expect(styledText.namedStyle?.styleId).toBe("heading");
     expect(styledFrame.style?.clip).toBe(true);
   });
@@ -448,7 +467,13 @@ describe("theme and reference vocabulary", () => {
 
 describe("local declaration boundary", () => {
   it("exposes non-mutating declaration guards with builder-equivalent acceptance", () => {
-    const theme = { id: "default-theme", tokens: { accent: "#ff00ff" }, namedStyles: {} };
+    const theme = {
+      id: "default-theme",
+      tokens: {
+        accent: { category: "color" as const, value: { red: 1, green: 0, blue: 1, alpha: 1 } },
+      },
+      namedStyles: {},
+    };
     const before = JSON.stringify({
       referencePresentation,
       surfaceManifest,
@@ -550,7 +575,9 @@ describe("local declaration boundary", () => {
   it("accepts normalized null-prototype declarations", () => {
     const theme = Object.assign(Object.create(null), {
       id: "theme",
-      tokens: Object.assign(Object.create(null), { accent: "#ff00ff" }),
+      tokens: Object.assign(Object.create(null), {
+        accent: { category: "color", value: { red: 1, green: 0, blue: 1, alpha: 1 } },
+      }),
       namedStyles: Object.create(null),
     });
 
@@ -609,8 +636,9 @@ describe("local declaration boundary", () => {
         id: "bad-structure",
         componentId: surfaceManifest.componentId,
         root,
+        baseSemanticTree: { rootNodeIds: [], nodes: {} },
         partBindings: {},
-        slotPlacements: {},
+        variantStyles: {},
         timelines: [{ id: "" }],
       }),
     ).toThrow(/timeline id/);

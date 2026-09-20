@@ -701,6 +701,30 @@ describe("first-milestone plugin contract", () => {
     expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
   });
 
+  it("prepare rejects Frame children outside canonical sibling order", () => {
+    const text = input.surface.contentNodes["text-title"];
+    const malformed: CompilerResolvedSurfaceInput = {
+      ...input,
+      surface: {
+        ...input.surface,
+        contentNodes: {
+          ...input.surface.contentNodes,
+          "text-second": { ...text, id: "text-second", order: 1 },
+          "frame-root": {
+            ...input.surface.contentNodes["frame-root"],
+            children: ["text-second", "text-title"],
+          },
+        },
+      },
+      plan: {
+        ...input.plan,
+        contentNodeIds: ["frame-root", "text-second", "text-title"],
+      },
+    };
+
+    expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
+  });
+
   it("RGBA output の偽装 brand と iterator を実行せず拒否する", async () => {
     let iteratorCalls = 0;
     const bytes = new Uint8ClampedArray(8);

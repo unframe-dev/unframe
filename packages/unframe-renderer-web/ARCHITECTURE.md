@@ -21,7 +21,7 @@
 
 M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque renderer execution自体は引き続きDeferredである。
 
-Structured path は Presentation v2 の absolute root `Frame` と、その直接の absolute literal `Text` 子だけを deterministic な HTML/CSS に lower する。root Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State visual variation、Interaction、Theme / composition、nested Frame と他のPrimitiveはfail closedにする。
+Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State visual variation、Interaction、Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
 
 renderer config は CSS やfont familyを受け取らず、document backgroundの`[r, g, b, a]` 0–255 byteだけを持つ。Fontは入力`fontAssets`のcanonical base64、SHA-256、TTF/OTF signature、Unicode `cmap` format 4/12を検証し、全literal code pointがprimaryまたは明示fallbackのglyphへ解決できる場合だけdata URIの`@font-face`を生成する。Browser adapterは全faceの`FontFace.load()`と`document.fonts.ready`を待ち、失敗をcapture failureにする。CSS family列にhost fontやgeneric familyを追加しない。
 
@@ -42,7 +42,7 @@ Compiler が決定した Render Surface partition を build input として受�
 ### Current
 
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
-- absolute root `Frame` と direct `Text` の HTML/CSS lower、state capture、raw RGBA ownership transfer
+- absolute root `Frame` と任意深度の absolute `Frame` / literal `Text` tree の HTML/CSS lower、state capture、raw RGBA ownership transfer
 - locked virtual packageからのOpaque TS/TSX/JS/JSX/JSON bundleとCSS/asset emit
 - Compilerが入力を検証し、現行subsetではSemantic Surface全体を一partitionにして、`unframe-assets`へのencode / checksum委譲とRenderBundle組立を行う
 
@@ -77,7 +77,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` とその direct `Text` だけを扱う。semantic tree の意味は入力として比較するだけで DOM から推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
+Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。semantic tree の意味は入力として比較するだけで DOM から推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
 
 ### Target
 
@@ -153,4 +153,4 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 - ADR-0011で確定したmulti-partition plan / private region aggregateの実装
 - ADR-0012で確定した2K capture resolution / capture budgetの実装
 - visual regression tolerance と platform baseline
-- nested Frame、Frame/Text 以外の Structured Primitive、Theme / composition、state variation、interaction Hit Region
+- Frame/Text 以外の Structured Primitive、Stack / Grid、state variation、interaction Hit Region

@@ -85,8 +85,9 @@ const structure = (componentId: string) =>
       layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 },
       children: [],
     }),
+    baseSemanticTree: { rootNodeIds: [], nodes: {} },
     partBindings: {},
-    slotPlacements: {},
+    variantStyles: {},
     timelines: [],
   });
 

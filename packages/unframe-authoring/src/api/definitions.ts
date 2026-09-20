@@ -7,6 +7,7 @@ import type {
   StringPropDeclaration,
   NumberPropDeclaration,
   BooleanPropDeclaration,
+  PropReference,
   SlotDeclaration,
   PartDeclaration,
   VariantDeclaration,
@@ -24,6 +25,7 @@ import type {
   SemanticOverrideDeclaration,
   FrameDeclaration,
   TextDeclaration,
+  SlotPlaceholderDeclaration,
   SurfaceDeclaration,
   ContentNodeDeclaration,
   ComponentInstanceDeclaration,
@@ -104,7 +106,33 @@ const resourceOwnerSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("presentation") }),
   z.strictObject({ kind: z.literal("group"), groupId: idSchema }),
 ]);
+const stringPropReferenceSchema = z.strictObject({
+  kind: z.literal("prop-ref"),
+  propId: idSchema,
+  expectedType: z.literal("string"),
+});
+const numberPropReferenceSchema = z.strictObject({
+  kind: z.literal("prop-ref"),
+  propId: idSchema,
+  expectedType: z.literal("number"),
+});
+const booleanPropReferenceSchema = z.strictObject({
+  kind: z.literal("prop-ref"),
+  propId: idSchema,
+  expectedType: z.literal("boolean"),
+});
+const stringValueSchema = z.union([z.string(), stringPropReferenceSchema]);
+const nonEmptyStringValueSchema = z.union([idSchema, stringPropReferenceSchema]);
+const numberValueSchema = z.union([finiteNumberSchema, numberPropReferenceSchema]);
+const booleanValueSchema = z.union([z.boolean(), booleanPropReferenceSchema]);
 const absoluteLayoutSchema = z.strictObject({
+  kind: z.literal("absolute"),
+  x: numberValueSchema,
+  y: numberValueSchema,
+  width: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  height: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+});
+const concreteAbsoluteLayoutSchema = z.strictObject({
   kind: z.literal("absolute"),
   x: finiteNumberSchema,
   y: finiteNumberSchema,
@@ -115,38 +143,104 @@ const namedStyleReferenceSchema = z.strictObject({
   kind: z.literal("named-style-ref"),
   styleId: idSchema,
 });
-const tokenReferenceSchema = z.strictObject({ kind: z.literal("token-ref"), tokenId: idSchema });
+const tokenReferenceSchemaFor = <const C extends string>(category: C) =>
+  z.strictObject({
+    kind: z.literal("token-ref"),
+    category: z.literal(category),
+    tokenId: idSchema,
+  });
+const colorTokenReferenceSchema = tokenReferenceSchemaFor("color");
+const logicalLengthTokenReferenceSchema = tokenReferenceSchemaFor("logicalLength");
+const spatialLengthTokenReferenceSchema = tokenReferenceSchemaFor("spatialLength");
+const fontFaceTokenReferenceSchema = tokenReferenceSchemaFor("fontFace");
+const durationTokenReferenceSchema = tokenReferenceSchemaFor("duration");
+const easingTokenReferenceSchema = tokenReferenceSchemaFor("easing");
+const tokenReferenceSchema = z.discriminatedUnion("category", [
+  colorTokenReferenceSchema,
+  logicalLengthTokenReferenceSchema,
+  spatialLengthTokenReferenceSchema,
+  fontFaceTokenReferenceSchema,
+  durationTokenReferenceSchema,
+  easingTokenReferenceSchema,
+]);
 const assetReferenceSchema = z.strictObject({ kind: z.literal("asset-ref"), assetId: idSchema });
 const unitIntervalSchema = finiteNumberSchema.min(0).max(1);
-const srgbaColorSchema = z.strictObject({
+const concreteSrgbaColorSchema = z.strictObject({
   red: unitIntervalSchema,
   green: unitIntervalSchema,
   blue: unitIntervalSchema,
   alpha: unitIntervalSchema,
 });
+const srgbaColorSchema = z.strictObject({
+  red: z.union([unitIntervalSchema, numberPropReferenceSchema]),
+  green: z.union([unitIntervalSchema, numberPropReferenceSchema]),
+  blue: z.union([unitIntervalSchema, numberPropReferenceSchema]),
+  alpha: z.union([unitIntervalSchema, numberPropReferenceSchema]),
+});
+const colorValueSchema = z.union([srgbaColorSchema, colorTokenReferenceSchema]);
+const concreteColorValueSchema = z.union([concreteSrgbaColorSchema, colorTokenReferenceSchema]);
+const positiveLogicalLengthValueSchema = z.union([
+  finiteNumberSchema.positive(),
+  numberPropReferenceSchema,
+  logicalLengthTokenReferenceSchema,
+]);
+const nonNegativeLogicalLengthValueSchema = z.union([
+  finiteNumberSchema.nonnegative(),
+  numberPropReferenceSchema,
+  logicalLengthTokenReferenceSchema,
+]);
+const positiveConcreteLogicalLengthValueSchema = z.union([
+  finiteNumberSchema.positive(),
+  logicalLengthTokenReferenceSchema,
+]);
+const nonNegativeConcreteLogicalLengthValueSchema = z.union([
+  finiteNumberSchema.nonnegative(),
+  logicalLengthTokenReferenceSchema,
+]);
+const fontReferenceSchema = z.union([assetReferenceSchema, fontFaceTokenReferenceSchema]);
 const borderSchema = z.strictObject({
-  color: srgbaColorSchema,
-  width: finiteNumberSchema.nonnegative(),
-  radius: finiteNumberSchema.nonnegative(),
+  color: colorValueSchema,
+  width: nonNegativeLogicalLengthValueSchema,
+  radius: nonNegativeLogicalLengthValueSchema,
 });
 const textStyleSchema = z.strictObject({
-  fontAssetId: idSchema.optional(),
-  fallbackFontAssetIds: z.array(idSchema).optional(),
-  fontSize: finiteNumberSchema.positive().optional(),
-  lineHeight: finiteNumberSchema.positive().optional(),
-  color: srgbaColorSchema.optional(),
+  font: fontReferenceSchema.optional(),
+  fallbackFonts: z.array(fontReferenceSchema).optional(),
+  fontSize: positiveLogicalLengthValueSchema.optional(),
+  lineHeight: positiveLogicalLengthValueSchema.optional(),
+  color: colorValueSchema.optional(),
+  weight: z.union([z.enum(["regular", "bold"]), stringPropReferenceSchema]).optional(),
+  align: z.union([z.enum(["start", "center", "end"]), stringPropReferenceSchema]).optional(),
+  overflow: z.union([z.enum(["clip", "ellipsis"]), stringPropReferenceSchema]).optional(),
+});
+const frameStyleSchema = z.strictObject({
+  backgroundColor: colorValueSchema.optional(),
+  border: borderSchema.optional(),
+  clip: booleanValueSchema.optional(),
+});
+const namedBorderSchema = z.strictObject({
+  color: concreteColorValueSchema,
+  width: nonNegativeConcreteLogicalLengthValueSchema,
+  radius: nonNegativeConcreteLogicalLengthValueSchema,
+});
+const namedTextStyleSchema = z.strictObject({
+  font: fontReferenceSchema.optional(),
+  fallbackFonts: z.array(fontReferenceSchema).optional(),
+  fontSize: positiveConcreteLogicalLengthValueSchema.optional(),
+  lineHeight: positiveConcreteLogicalLengthValueSchema.optional(),
+  color: concreteColorValueSchema.optional(),
   weight: z.enum(["regular", "bold"]).optional(),
   align: z.enum(["start", "center", "end"]).optional(),
   overflow: z.enum(["clip", "ellipsis"]).optional(),
 });
-const frameStyleSchema = z.strictObject({
-  backgroundColor: srgbaColorSchema.optional(),
-  border: borderSchema.optional(),
+const namedFrameStyleSchema = z.strictObject({
+  backgroundColor: concreteColorValueSchema.optional(),
+  border: namedBorderSchema.optional(),
   clip: z.boolean().optional(),
 });
 const primitiveShape = {
-  visible: z.boolean().optional(),
-  opacity: unitIntervalSchema.optional(),
+  visible: booleanValueSchema.optional(),
+  opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
   semanticNodeId: idSchema.optional(),
 };
 const semanticOverrideSchema = z.strictObject({
@@ -165,7 +259,7 @@ const semanticNodeBaseShape = {
   order: z.number().int().min(0).max(4_294_967_295),
 };
 const semanticLanguageShape = { language: z.string().min(1).optional() };
-const semanticTextShape = { text: z.string().min(1), ...semanticLanguageShape };
+const semanticTextShape = { text: nonEmptyStringValueSchema, ...semanticLanguageShape };
 const semanticNodeSchema = z.discriminatedUnion("role", [
   z.strictObject({
     ...semanticNodeBaseShape,
@@ -250,11 +344,17 @@ const contentNodeSchema: z.ZodType = z.lazy(() =>
       ...stableShape,
       ...primitiveShape,
       kind: z.literal("text"),
-      value: z.string(),
+      value: stringValueSchema,
       layout: absoluteLayoutSchema,
-      maxCodePoints: positiveSafeIntegerSchema,
+      maxCodePoints: z.union([positiveSafeIntegerSchema, numberPropReferenceSchema]),
       style: textStyleSchema.optional(),
       namedStyle: namedStyleReferenceSchema.optional(),
+    }),
+    z.strictObject({
+      ...stableShape,
+      kind: z.literal("slot-placeholder"),
+      slotId: idSchema,
+      semanticParentId: idSchema.optional(),
     }),
   ]),
 );
@@ -270,8 +370,14 @@ const frameDeclarationSchema = z.strictObject({
 const surfaceDeclarationSchema = z.strictObject({
   ...stableShape,
   kind: z.literal("surface"),
-  physicalSizeMeters: z.tuple([finiteNumberSchema.positive(), finiteNumberSchema.positive()]),
-  logicalSize: z.tuple([finiteNumberSchema.positive(), finiteNumberSchema.positive()]),
+  physicalSizeMeters: z.tuple([
+    z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+    z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  ]),
+  logicalSize: z.tuple([
+    z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+    z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  ]),
   fit: z.enum(["contain", "cover", "stretch"]),
   root: frameDeclarationSchema,
   baseSemanticTree: baseSemanticTreeSchema,
@@ -332,17 +438,26 @@ const componentInstanceSchema = z.strictObject({
     structureHash: idSchema.optional(),
   }),
   owner: resourceOwnerSchema,
-  spatialNodeId: idSchema,
-  props: z.record(idSchema, jsonValueSchema),
+  spatialNodeId: idSchema.optional(),
+  props: z.record(idSchema, z.union([z.string(), finiteNumberSchema, z.boolean()])),
   slots: z.record(idSchema, z.array(idSchema)),
   variants: z.record(idSchema, idSchema),
   partOverrides: z.array(
-    z.strictObject({
-      partId: idSchema,
-      content: jsonValueSchema.optional(),
-      placement: absoluteLayoutSchema.optional(),
-      style: z.record(z.string(), jsonValueSchema).optional(),
-    }),
+    z.discriminatedUnion("targetKind", [
+      z.strictObject({
+        partId: idSchema,
+        targetKind: z.literal("frame"),
+        placement: concreteAbsoluteLayoutSchema.optional(),
+        style: namedFrameStyleSchema.optional(),
+      }),
+      z.strictObject({
+        partId: idSchema,
+        targetKind: z.literal("text"),
+        content: z.string().optional(),
+        placement: concreteAbsoluteLayoutSchema.optional(),
+        style: namedTextStyleSchema.optional(),
+      }),
+    ]),
   ),
 });
 const detachSchema = z.strictObject({
@@ -445,14 +560,25 @@ const componentManifestSchema = z.union([
     }),
   }),
 ]);
-const componentStructureSchema = z.strictObject({
+const variantStyleOverrideSchema = z.discriminatedUnion("targetKind", [
+  z.strictObject({ targetId: idSchema, targetKind: z.literal("frame"), style: frameStyleSchema }),
+  z.strictObject({ targetId: idSchema, targetKind: z.literal("text"), style: textStyleSchema }),
+]);
+const componentStructureShape = {
   ...stableShape,
   componentId: idSchema,
-  root: z.union([surfaceDeclarationSchema, frameDeclarationSchema]),
   partBindings: z.record(idSchema, idSchema),
-  slotPlacements: z.record(idSchema, idSchema),
+  variantStyles: z.record(idSchema, z.record(idSchema, z.array(variantStyleOverrideSchema))),
   timelines: z.array(z.strictObject(stableShape)),
-});
+};
+const componentStructureSchema = z.union([
+  z.strictObject({ ...componentStructureShape, root: surfaceDeclarationSchema }),
+  z.strictObject({
+    ...componentStructureShape,
+    root: frameDeclarationSchema,
+    baseSemanticTree: baseSemanticTreeSchema,
+  }),
+]);
 const cueTriggerSchema = z.union([
   z.strictObject({ kind: z.literal("event"), event: idSchema }),
   z.strictObject({
@@ -542,8 +668,45 @@ const presentationSchema = z.strictObject({
 });
 const themeSchema = z.strictObject({
   ...stableShape,
-  tokens: z.record(idSchema, jsonValueSchema),
-  namedStyles: z.record(idSchema, z.record(z.string(), jsonValueSchema)),
+  tokens: z.record(
+    idSchema,
+    z.discriminatedUnion("category", [
+      z.strictObject({
+        category: z.literal("color"),
+        value: z.union([concreteSrgbaColorSchema, colorTokenReferenceSchema]),
+      }),
+      z.strictObject({
+        category: z.literal("logicalLength"),
+        value: z.union([finiteNumberSchema, logicalLengthTokenReferenceSchema]),
+      }),
+      z.strictObject({
+        category: z.literal("spatialLength"),
+        value: z.union([finiteNumberSchema, spatialLengthTokenReferenceSchema]),
+      }),
+      z.strictObject({
+        category: z.literal("fontFace"),
+        value: z.union([assetReferenceSchema, fontFaceTokenReferenceSchema]),
+      }),
+      z.strictObject({
+        category: z.literal("duration"),
+        value: z.union([finiteNumberSchema, durationTokenReferenceSchema]),
+      }),
+      z.strictObject({
+        category: z.literal("easing"),
+        value: z.union([
+          z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]),
+          easingTokenReferenceSchema,
+        ]),
+      }),
+    ]),
+  ),
+  namedStyles: z.record(
+    idSchema,
+    z.discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("text"), style: namedTextStyleSchema }),
+      z.strictObject({ kind: z.literal("frame"), style: namedFrameStyleSchema }),
+    ]),
+  ),
 });
 
 const assertSchema = (schema: z.ZodType, value: unknown, message: string): void => {
@@ -617,15 +780,7 @@ const assertOwner = (owner: ResourceOwner): void => {
   if (!result.success) invalid("owner.groupId must be a non-empty id.");
 };
 const assertLayout = (layout: AbsoluteLayoutDeclaration): void => {
-  const result = z
-    .object({
-      kind: z.literal("absolute"),
-      x: finiteNumberSchema,
-      y: finiteNumberSchema,
-      width: finiteNumberSchema.positive(),
-      height: finiteNumberSchema.positive(),
-    })
-    .safeParse(layout);
+  const result = absoluteLayoutSchema.safeParse(layout);
   if (!result.success) {
     const dimensions = result.error.issues.some(
       ({ path }) => path[0] === "width" || path[0] === "height",
@@ -652,7 +807,7 @@ const assertSpatialFields = (value: SpatialDeclaration): void => {
 const assertComponentInstanceIds = (value: ComponentInstanceDeclaration): void => {
   assertStableNested(value, "component instance id");
   assertId(value.componentId, "componentId");
-  assertId(value.spatialNodeId, "spatialNodeId");
+  if (value.spatialNodeId !== undefined) assertId(value.spatialNodeId, "spatialNodeId");
   assertOwner(value.owner);
   assertId(value.packageLock.packageVersion, "packageLock.packageVersion");
   assertId(value.packageLock.packageIntegrity, "packageLock.packageIntegrity");
@@ -669,6 +824,11 @@ const assertComponentInstanceIds = (value: ComponentInstanceDeclaration): void =
 };
 const assertContentIds = (node: ContentNodeDeclaration): void => {
   assertStableNested(node, "content node id");
+  if (node.kind === "slot-placeholder") {
+    assertId(node.slotId, "slotId");
+    if (node.semanticParentId !== undefined) assertId(node.semanticParentId, "semanticParentId");
+    return;
+  }
   assertLayout(node.layout);
   if (node.kind === "frame") for (const child of node.children) assertContentIds(child);
 };
@@ -688,8 +848,22 @@ const assertSurfaceIds = (
 ): void => {
   assertStableNested(value, "surface id");
   assertContentIds(value.root);
-  assertVector(value.physicalSizeMeters, 2, "physicalSizeMeters", true);
-  assertVector(value.logicalSize, 2, "logicalSize", true);
+  assertSchema(
+    z.tuple([
+      z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+      z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+    ]),
+    value.physicalSizeMeters,
+    "physicalSizeMeters must contain positive finite numbers or number Prop references.",
+  );
+  assertSchema(
+    z.tuple([
+      z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+      z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+    ]),
+    value.logicalSize,
+    "logicalSize must contain positive finite numbers or number Prop references.",
+  );
   assertSurfaceSemanticIds(value);
 };
 const assertSurfaceSemanticIds = (
@@ -857,9 +1031,6 @@ const assertComponentStructure = (value: unknown): void => {
   assertRecordKeys(declaration.partBindings, "part binding id");
   for (const targetId of Object.values(declaration.partBindings))
     assertId(targetId, "part binding targetId");
-  assertRecordKeys(declaration.slotPlacements, "slot placement id");
-  for (const targetId of Object.values(declaration.slotPlacements))
-    assertId(targetId, "slot placement targetId");
   for (const timeline of declaration.timelines) assertStableNested(timeline, "timeline id");
   if (declaration.root.kind === "surface") assertSurfaceIds(declaration.root);
   else assertContentIds(declaration.root);
@@ -1030,6 +1201,25 @@ export const tokenRef = <const T extends WithoutKind<TokenReference>>(value: T) 
   assertSchema(tokenReferenceSchema, result, "Invalid Token reference.");
   return build(result);
 };
+export const propRef = <
+  const T extends WithoutKind<PropReference<"string" | "number" | "boolean">>,
+>(
+  value: T,
+) => {
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.propId, "propId");
+  const result = { ...declaration, kind: "prop-ref" as const };
+  assertSchema(
+    z.discriminatedUnion("expectedType", [
+      stringPropReferenceSchema,
+      numberPropReferenceSchema,
+      booleanPropReferenceSchema,
+    ]),
+    result,
+    "Invalid Prop reference.",
+  );
+  return build(result);
+};
 export const namedStyleRef = <const T extends WithoutKind<NamedStyleReference>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertId(declaration.styleId, "styleId");
@@ -1066,6 +1256,17 @@ export const text = <const T extends WithoutStableKind<TextDeclaration>>(value: 
   assertSchema(contentNodeSchema, result, "Invalid text declaration.");
   return defineStable(result);
 };
+export const slotPlaceholder = <const T extends WithoutStableKind<SlotPlaceholderDeclaration>>(
+  value: T,
+) => {
+  const declaration = assertJsonSafe(value);
+  assertId(declaration.slotId, "slotId");
+  if (declaration.semanticParentId !== undefined)
+    assertId(declaration.semanticParentId, "semanticParentId");
+  const result = { ...declaration, kind: "slot-placeholder" as const };
+  assertSchema(contentNodeSchema, result, "Invalid Slot placeholder declaration.");
+  return defineStable(result);
+};
 export const surface = <const T extends WithoutStableKind<SurfaceDeclaration>>(value: T) => {
   const snapshot = assertJsonSafe(value);
   const declaration = { ...snapshot, kind: "surface" as const };
@@ -1087,7 +1288,7 @@ export const componentInstance = <const T extends WithoutStableKind<ComponentIns
 ) => {
   const snapshot = assertJsonSafe(value);
   assertId(snapshot.componentId, "componentId");
-  assertId(snapshot.spatialNodeId, "spatialNodeId");
+  if (snapshot.spatialNodeId !== undefined) assertId(snapshot.spatialNodeId, "spatialNodeId");
   const declaration = { ...snapshot, kind: "component-instance" as const };
   assertComponentInstanceIds(declaration);
   assertSchema(componentInstanceSchema, declaration, "Invalid Component Instance declaration.");

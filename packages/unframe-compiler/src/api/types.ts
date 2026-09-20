@@ -4,6 +4,7 @@ import type {
   ComponentStructure,
   PresentationDeclaration,
   ThemeDeclaration,
+  SourceMetadata,
 } from "@unframe/unframe-authoring";
 import type { EncodeLimits } from "@unframe/unframe-assets";
 import type { BuildArtifactsV2, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
@@ -56,12 +57,32 @@ export type AuthoringProjectPipelineResult<T> =
       readonly phase: "assembly" | "compile";
       readonly diagnostics: readonly Diagnostic[];
     };
+export type CompilerWarning =
+  | {
+      readonly code: "compiler-prop-default-applied";
+      readonly message: string;
+      readonly path: readonly (string | number)[];
+      readonly componentInstanceId: string;
+      readonly propName: string;
+      readonly defaultValue: string | number | boolean;
+      readonly source?: SourceMetadata;
+    }
+  | {
+      readonly code: "compiler-variant-default-applied";
+      readonly message: string;
+      readonly path: readonly (string | number)[];
+      readonly componentInstanceId: string;
+      readonly variantName: string;
+      readonly defaultValue: string;
+      readonly source?: SourceMetadata;
+    };
 export type CheckedDeclarationProject = {
   definition: PresentationDefinition;
   definitionJson: string;
   sourceHash: string;
   definitionHash: string;
   assetSet: BuildArtifactsV2["assetSet"];
+  warnings: readonly CompilerWarning[];
 };
 export type CompilerBuildOptions = {
   readonly compiler: {

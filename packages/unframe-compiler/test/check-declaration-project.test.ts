@@ -6,7 +6,7 @@ import {
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
-import type { CompilerSourceAsset } from "../src/index.js";
+import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
   createRendererFingerprint,
@@ -137,6 +137,58 @@ describe("checkDeclarationProject", () => {
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
   });
 
+  it("reports defaults only for omitted props and variants", () => {
+    const input = project();
+    const component = input.components[0]!;
+    component.manifest = {
+      ...component.manifest,
+      props: {
+        title: { kind: "string", default: "Default" },
+        count: { kind: "number", default: 0 },
+        enabled: { kind: "boolean", default: false },
+      },
+      variants: {
+        tone: { kind: "variant", values: ["quiet", "loud"], default: "quiet" },
+        explicitTone: { kind: "variant", values: ["quiet", "loud"], default: "quiet" },
+        density: { kind: "variant", values: ["compact", "roomy"] },
+        optional: { kind: "variant", values: ["on", "off"] },
+      },
+    };
+    component.structure = {
+      ...component.structure,
+      variantStyles: {
+        tone: { quiet: [], loud: [] },
+        explicitTone: { quiet: [], loud: [] },
+        density: { compact: [], roomy: [] },
+        optional: { on: [], off: [] },
+      },
+    } as never;
+    input.presentation.scene.components[0]!.props = { count: 0, enabled: false };
+    input.presentation.scene.components[0]!.variants = {
+      explicitTone: "quiet",
+      density: "compact",
+    };
+
+    const result = checkDeclarationProject(input);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.value.warnings).toEqual([
+      expect.objectContaining({
+        code: "compiler-prop-default-applied",
+        componentInstanceId: "instance",
+        propName: "title",
+        defaultValue: "Default",
+      }),
+      expect.objectContaining({
+        code: "compiler-variant-default-applied",
+        componentInstanceId: "instance",
+        variantName: "tone",
+        defaultValue: "quiet",
+      }),
+    ]);
+  });
+
   it.each([
     ["noncanonical base64", { dataBase64: "AAEAAAAAAAAAAAA" }],
     ["encoded length mismatch", { encodedSizeBytes: 11 }],
@@ -181,23 +233,514 @@ describe("checkDeclarationProject", () => {
     ).toContain("compiler-invalid-declaration");
   });
 
-  it("keeps valid Props unsupported until their lowering is implemented", () => {
+  it("resolves a required string Prop into Text content", () => {
     const input = project();
     const component = input.components[0]!;
-    expect(
-      codes({
-        ...input,
-        components: [
-          {
-            ...component,
-            manifest: {
-              ...component.manifest,
-              props: { title: { kind: "string", required: true } },
+    component.manifest = {
+      ...component.manifest,
+      props: {
+        title: { kind: "string", required: true },
+        x: { kind: "number", required: true },
+        visible: { kind: "boolean", required: true },
+        opacity: { kind: "number", required: true },
+        limit: { kind: "number", required: true },
+      },
+    };
+    component.structure = {
+      ...component.structure,
+      root: {
+        ...component.structure.root,
+        baseSemanticTree: {
+          ...component.structure.root.baseSemanticTree,
+          nodes: {
+            "semantic-text": {
+              ...component.structure.root.baseSemanticTree.nodes["semantic-text"]!,
+              text: { kind: "prop-ref", propId: "title", expectedType: "string" },
             },
           },
-        ],
-      }),
-    ).toContain("compiler-manifest-feature-unsupported");
+        },
+        root: {
+          ...component.structure.root.root,
+          children: component.structure.root.root.children.map((child) =>
+            child.kind === "text"
+              ? {
+                  ...child,
+                  value: { kind: "prop-ref", propId: "title", expectedType: "string" },
+                  visible: { kind: "prop-ref", propId: "visible", expectedType: "boolean" },
+                  opacity: { kind: "prop-ref", propId: "opacity", expectedType: "number" },
+                  maxCodePoints: { kind: "prop-ref", propId: "limit", expectedType: "number" },
+                  layout: {
+                    ...child.layout,
+                    x: { kind: "prop-ref", propId: "x", expectedType: "number" },
+                  },
+                }
+              : child,
+          ),
+        },
+      },
+    } as never;
+    input.presentation.scene.components[0]!.props = {
+      title: "Resolved",
+      x: 12,
+      visible: false,
+      opacity: 0,
+      limit: 80,
+    };
+
+    const result = checkDeclarationProject(input);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(
+      Object.values(result.value.definition.scene.surfaces)[0]!.contentNodes[
+        "instance:text-content"
+      ],
+    ).toMatchObject({
+      value: { kind: "literal", value: "Resolved" },
+      visible: false,
+      opacity: 0,
+      maxCodePoints: 80,
+      placement: { x: 12 },
+    });
+    expect(
+      Object.values(result.value.definition.scene.surfaces)[0]!.baseSemanticTree.nodes[
+        "instance:semantic-text"
+      ],
+    ).toMatchObject({ text: "Resolved" });
+  });
+
+  it("resolves Theme aliases, NamedStyle, Variant, and Part overrides in contract order", () => {
+    const input = project();
+    input.themes[0]!.declaration = {
+      ...input.themes[0]!.declaration,
+      tokens: {
+        ink: { category: "color", value: { red: 1, green: 0, blue: 0, alpha: 1 } },
+        inkAlias: {
+          category: "color",
+          value: { kind: "token-ref", category: "color", tokenId: "ink" },
+        },
+        size: { category: "logicalLength", value: 24 },
+        sizeAlias: {
+          category: "logicalLength",
+          value: { kind: "token-ref", category: "logicalLength", tokenId: "size" },
+        },
+        face: {
+          category: "fontFace",
+          value: { kind: "asset-ref", assetId: "reference-font" },
+        },
+        meter: { category: "spatialLength", value: 1 },
+        pause: { category: "duration", value: 100 },
+        ease: { category: "easing", value: "linear" },
+      },
+      namedStyles: {
+        title: {
+          kind: "text",
+          style: {
+            font: { kind: "token-ref", category: "fontFace", tokenId: "face" },
+            fallbackFonts: [{ kind: "asset-ref", assetId: "reference-font" }],
+            fontSize: { kind: "token-ref", category: "logicalLength", tokenId: "sizeAlias" },
+            lineHeight: 32,
+            color: { kind: "token-ref", category: "color", tokenId: "inkAlias" },
+          },
+        },
+      },
+    };
+    const component = input.components[0]!;
+    component.manifest = {
+      ...component.manifest,
+      variants: { emphasis: { kind: "variant", values: ["normal", "strong"] } },
+      parts: { title: { kind: "part" } },
+    };
+    const text = component.structure.root.root.children[0]!;
+    component.structure = {
+      ...component.structure,
+      root: {
+        ...component.structure.root,
+        root: {
+          ...component.structure.root.root,
+          children: [
+            {
+              ...text,
+              namedStyle: { kind: "named-style-ref", styleId: "title" },
+              style: {
+                ...text.style,
+                fallbackFonts: [],
+                fontSize: 28,
+                align: "center",
+              },
+            },
+          ],
+        },
+      },
+      variantStyles: {
+        emphasis: {
+          normal: [],
+          strong: [
+            {
+              targetId: "text-content",
+              targetKind: "text",
+              style: { fontSize: 30, weight: "bold" },
+            },
+          ],
+        },
+      },
+      partBindings: { title: "text-content" },
+    } as never;
+    input.presentation.scene.components[0]!.variants = { emphasis: "strong" };
+    input.presentation.scene.components[0]!.partOverrides = [
+      {
+        partId: "title",
+        targetKind: "text",
+        content: "Overridden",
+        style: { fontSize: 36 },
+      },
+    ];
+
+    const result = checkDeclarationProject(input);
+
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      result.value.definition.scene.surfaces["instance:surface-root"]?.contentNodes[
+        "instance:text-content"
+      ],
+    ).toMatchObject({
+      value: { kind: "literal", value: "Overridden" },
+      style: {
+        fontAssetId: "reference-font",
+        fallbackFontAssetIds: [],
+        fontSize: 36,
+        lineHeight: 40,
+        color: { red: 1, green: 0, blue: 0, alpha: 1 },
+        weight: "bold",
+        align: "center",
+      },
+    });
+  });
+
+  it("rejects Theme reference failures and conflicting selected Variants", () => {
+    const missing = project();
+    missing.themes[0]!.declaration = {
+      ...missing.themes[0]!.declaration,
+      tokens: {
+        missing: {
+          category: "color",
+          value: { kind: "token-ref", category: "color", tokenId: "absent" },
+        },
+      },
+    };
+    expect(codes(missing)).toContain("compiler-token-not-found");
+
+    const cycle = project();
+    cycle.themes[0]!.declaration = {
+      ...cycle.themes[0]!.declaration,
+      tokens: {
+        a: {
+          category: "duration",
+          value: { kind: "token-ref", category: "duration", tokenId: "b" },
+        },
+        b: {
+          category: "duration",
+          value: { kind: "token-ref", category: "duration", tokenId: "a" },
+        },
+      },
+    };
+    expect(codes(cycle)).toContain("compiler-token-cycle");
+
+    const conflict = project();
+    conflict.components[0]!.manifest = {
+      ...conflict.components[0]!.manifest,
+      variants: {
+        first: { kind: "variant", values: ["on"] },
+        second: { kind: "variant", values: ["on"] },
+      },
+    };
+    conflict.components[0]!.structure = {
+      ...conflict.components[0]!.structure,
+      variantStyles: {
+        first: {
+          on: [{ targetId: "text-content", targetKind: "text", style: { fontSize: 20 } }],
+        },
+        second: {
+          on: [{ targetId: "text-content", targetKind: "text", style: { fontSize: 21 } }],
+        },
+      },
+    };
+    conflict.presentation.scene.components[0]!.variants = { first: "on", second: "on" };
+    expect(codes(conflict)).toContain("compiler-variant-style-conflict");
+
+    const unselected = project();
+    unselected.components[0]!.manifest = {
+      ...unselected.components[0]!.manifest,
+      variants: { tone: { kind: "variant", values: ["quiet", "loud"] } },
+    };
+    unselected.components[0]!.structure = {
+      ...unselected.components[0]!.structure,
+      variantStyles: {
+        tone: {
+          quiet: [{ targetId: "missing", targetKind: "text", style: { fontSize: 20 } }],
+          loud: [],
+        },
+      },
+    };
+    expect(codes(unselected)).toContain("compiler-variant-target-not-found");
+  });
+
+  it("rejects duplicate and non-primitive Part bindings even without overrides", () => {
+    const missing = project();
+    missing.components[0]!.manifest = {
+      ...missing.components[0]!.manifest,
+      parts: { title: { kind: "part" } },
+    };
+    expect(codes(missing)).toContain("compiler-part-binding-set-mismatch");
+
+    const duplicate = project();
+    duplicate.components[0]!.manifest = {
+      ...duplicate.components[0]!.manifest,
+      parts: { first: { kind: "part" }, second: { kind: "part" } },
+    };
+    duplicate.components[0]!.structure = {
+      ...duplicate.components[0]!.structure,
+      partBindings: { first: "text-content", second: "text-content" },
+    } as never;
+    expect(codes(duplicate)).toContain("compiler-part-binding-duplicate");
+
+    const placeholder = project();
+    placeholder.components[0]!.manifest = {
+      ...placeholder.components[0]!.manifest,
+      slots: { badge: { kind: "slot" } },
+      parts: { badgePlacement: { kind: "part" } },
+    };
+    placeholder.components[0]!.structure = {
+      ...placeholder.components[0]!.structure,
+      root: {
+        ...placeholder.components[0]!.structure.root,
+        root: {
+          ...placeholder.components[0]!.structure.root.root,
+          children: [
+            ...placeholder.components[0]!.structure.root.root.children,
+            { id: "badge-placement", kind: "slot-placeholder", slotId: "badge" },
+          ],
+        },
+      },
+      partBindings: { badgePlacement: "badge-placement" },
+    } as never;
+    expect(codes(placeholder)).toContain("compiler-part-binding-invalid");
+  });
+
+  it("expands slotted Frame Components at the placeholder order and adds their semantic roots", () => {
+    const input = project();
+    const top = input.components[0]!;
+    top.manifest = {
+      ...top.manifest,
+      slots: { badge: { kind: "slot" } },
+    };
+    top.structure = {
+      ...top.structure,
+      root: {
+        ...top.structure.root,
+        baseSemanticTree: {
+          rootNodeIds: ["semantic-text"],
+          nodes: {
+            "semantic-text": {
+              id: "semantic-text",
+              parentId: null,
+              order: 0,
+              role: "heading",
+              level: 1,
+              text: "Unframe",
+            },
+            "existing-child": {
+              id: "existing-child",
+              parentId: "semantic-text",
+              order: 0,
+              role: "paragraph",
+              text: "Existing",
+            },
+          },
+        },
+        root: {
+          ...top.structure.root.root,
+          children: [
+            top.structure.root.root.children[0]!,
+            {
+              ...top.structure.root.root.children[0]!,
+              id: "existing-text",
+              semanticNodeId: "existing-child",
+              value: "Existing",
+            },
+            { id: "badge-slot", kind: "slot-placeholder", slotId: "badge" },
+          ],
+        },
+      },
+    } as never;
+    input.presentation.scene.components[0]!.slots = { badge: ["badge-instance"] };
+    (
+      input.presentation.scene
+        .components as unknown as PresentationDeclaration["scene"]["components"][number][]
+    ).push({
+      id: "badge-instance",
+      kind: "component-instance",
+      componentId: "badge",
+      version: 1,
+      owner: { kind: "presentation" },
+      packageLock: {
+        packageVersion: "1",
+        packageIntegrity: "badge-integrity",
+        manifestHash: "badge-manifest",
+        structureHash: "badge-structure",
+      },
+      props: {},
+      slots: {},
+      variants: {},
+      partOverrides: [],
+    });
+    (input.components as unknown as CompilerDeclarationProject["components"][number][]).push({
+      manifest: {
+        componentId: "badge",
+        version: 1,
+        authoring: { mode: "structured", structure: "./badge.structure.ts" },
+        props: {},
+        slots: {},
+        parts: {},
+        variants: {},
+        states: {},
+        actions: {},
+        outputs: {},
+        renderers: ["baked-web"],
+      },
+      structure: {
+        id: "badge-structure",
+        componentId: "badge",
+        root: {
+          id: "badge-frame",
+          kind: "frame",
+          layout: { kind: "absolute", x: 100, y: 100, width: 300, height: 100 },
+          children: [
+            {
+              id: "badge-text",
+              kind: "text",
+              value: "Badge",
+              semanticNodeId: "badge-semantic",
+              maxCodePoints: 16,
+              layout: { kind: "absolute", x: 0, y: 0, width: 300, height: 100 },
+              style: {
+                font: { kind: "asset-ref", assetId: "reference-font" },
+                fontSize: 24,
+                lineHeight: 30,
+              },
+            },
+          ],
+        },
+        baseSemanticTree: {
+          rootNodeIds: ["badge-semantic"],
+          nodes: {
+            "badge-semantic": {
+              id: "badge-semantic",
+              parentId: null,
+              order: 0,
+              role: "paragraph",
+              text: "Badge",
+            },
+          },
+        },
+        partBindings: {},
+        variantStyles: {},
+        timelines: [],
+      },
+      lock: {
+        packageVersion: "1",
+        packageIntegrity: "badge-integrity",
+        manifestHash: "badge-manifest",
+        structureHash: "badge-structure",
+      },
+    });
+
+    const result = checkDeclarationProject(input);
+
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
+    expect(surface.contentNodes["instance:frame-root"]).toMatchObject({
+      children: ["instance:text-content", "instance:existing-text", "badge-instance:badge-frame"],
+    });
+    expect(surface.contentNodes["badge-instance:badge-frame"]).toMatchObject({
+      parentId: "instance:frame-root",
+      order: 2,
+    });
+    expect(surface.baseSemanticTree.rootNodeIds).toEqual([
+      "instance:semantic-text",
+      "badge-instance:badge-semantic",
+    ]);
+
+    const topStructure = (
+      input.components as unknown as CompilerDeclarationProject["components"][number][]
+    )[0]!.structure;
+    if (topStructure.root.kind !== "surface") return;
+    const slotPlaceholder = topStructure.root.root.children[2];
+    if (slotPlaceholder?.kind !== "slot-placeholder") return;
+    slotPlaceholder.semanticParentId = "missing";
+    expect(codes(input)).toContain("compiler-slot-semantic-parent-not-found");
+    slotPlaceholder.semanticParentId = "semantic-text";
+    const attached = checkDeclarationProject(input);
+    expect(attached.valid ? [] : attached.diagnostics).toEqual([]);
+    if (!attached.valid) return;
+    const attachedTree =
+      attached.value.definition.scene.surfaces["instance:surface-root"]!.baseSemanticTree;
+    expect(attachedTree.rootNodeIds).toEqual(["instance:semantic-text"]);
+    expect(attachedTree.nodes["badge-instance:badge-semantic"]).toMatchObject({
+      parentId: "instance:semantic-text",
+      order: 1,
+    });
+
+    const badgeStructure = (
+      input.components as unknown as CompilerDeclarationProject["components"][number][]
+    )[1]!.structure;
+    if (badgeStructure.root.kind !== "frame") return;
+    const badgeSemanticTree = badgeStructure.baseSemanticTree!;
+    badgeStructure.baseSemanticTree = {
+      rootNodeIds: badgeSemanticTree.rootNodeIds,
+      nodes: {
+        ...badgeSemanticTree.nodes,
+        alias: badgeSemanticTree.nodes["badge-semantic"]!,
+      },
+    };
+    expect(codes(input)).toEqual(
+      expect.arrayContaining([
+        "compiler-duplicate-semantic-node-id",
+        "compiler-record-key-id-mismatch",
+      ]),
+    );
+  });
+
+  it("rejects missing and self-referencing Slot instance IDs", () => {
+    const input = project();
+    input.components[0]!.manifest = {
+      ...input.components[0]!.manifest,
+      slots: { self: { kind: "slot" }, missing: { kind: "slot" } },
+    };
+    input.components[0]!.structure = {
+      ...input.components[0]!.structure,
+      root: {
+        ...input.components[0]!.structure.root,
+        root: {
+          ...input.components[0]!.structure.root.root,
+          children: [
+            input.components[0]!.structure.root.root.children[0]!,
+            { id: "self-slot", kind: "slot-placeholder", slotId: "self" },
+            { id: "missing-slot", kind: "slot-placeholder", slotId: "missing" },
+          ],
+        },
+      },
+    } as never;
+    input.presentation.scene.components[0]!.slots = {
+      self: ["instance"],
+      missing: ["absent"],
+    };
+
+    expect(codes(input)).toEqual(
+      expect.arrayContaining(["compiler-slot-self-reference", "compiler-slot-instance-not-found"]),
+    );
   });
 
   it("rejects accessor-backed project data without executing the accessor", () => {
@@ -247,7 +790,7 @@ describe("checkDeclarationProject", () => {
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
-      "sha256:c4557303d809d84bf27fb14e2441e4300920147b15879196246330961dd9c368",
+      "sha256:3cdb6cdf49879b2e4295026604001240919fbcc434433e2e04e502159354be6f",
     );
     expect(result.value.definitionHash).toBe(
       "sha256:b3f125bede221d2e4af53a0363dc88bd427897145e369756f8a551dbaa363ad4",
@@ -325,8 +868,8 @@ describe("checkDeclarationProject", () => {
     const text = structure.root.root.children[0]!;
     (text as unknown as { style: Record<string, unknown> }).style = {
       ...text.style!,
-      fontAssetId: "asset-a",
-      fallbackFontAssetIds: ["asset-b"],
+      font: { kind: "asset-ref", assetId: "asset-a" },
+      fallbackFonts: [{ kind: "asset-ref", assetId: "asset-b" }],
     };
     firstProject.components[0]!.structure = structure;
     firstProject.assets = { "asset-a": validAssetA, "asset-b": validAssetB };
@@ -436,7 +979,7 @@ describe("checkDeclarationProject", () => {
 
     const props = project();
     props.presentation.scene.components[0]!.props = { title: "not supported" };
-    expect(codes(props)).toContain("compiler-nonempty-props-unsupported");
+    expect(codes(props)).toContain("compiler-prop-not-found");
 
     const owner = project();
     owner.presentation.scene.components[0]!.owner = { kind: "group", groupId: "group" };
@@ -509,38 +1052,41 @@ describe("checkDeclarationProject", () => {
           },
         ],
       }),
-    ).toContain("compiler-named-style-unsupported");
+    ).toContain("compiler-named-style-not-found");
   });
 
-  it("rejects nested structures and nonempty actions, outputs, cues, and operations", () => {
+  it("lowers nested absolute Frames and rejects nonempty actions, outputs, cues, and operations", () => {
     const nested = project();
-    expect(
-      codes({
-        ...nested,
-        components: [
-          {
-            ...nested.components[0]!,
-            structure: {
-              ...nested.components[0]!.structure,
+    const nestedResult = checkDeclarationProject({
+      ...nested,
+      components: [
+        {
+          ...nested.components[0]!,
+          structure: {
+            ...nested.components[0]!.structure,
+            root: {
+              ...standardComponents.surface.structure.root,
               root: {
-                ...standardComponents.surface.structure.root,
-                root: {
-                  ...standardComponents.surface.structure.root.root,
-                  children: [
-                    {
-                      id: "nested",
-                      kind: "frame",
-                      layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 },
-                      children: [],
-                    },
-                  ],
-                },
+                ...standardComponents.surface.structure.root.root,
+                children: [
+                  {
+                    id: "nested",
+                    kind: "frame",
+                    layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 },
+                    children: [standardComponents.surface.structure.root.root.children[0]!],
+                  },
+                ],
               },
-            } as never,
-          },
-        ],
-      }),
-    ).toContain("compiler-structure-unsupported");
+            },
+          } as never,
+        },
+      ],
+    });
+    expect(nestedResult.valid).toBe(true);
+    if (nestedResult.valid)
+      expect(
+        Object.values(nestedResult.value.definition.scene.surfaces)[0]!.contentNodes,
+      ).toHaveProperty("instance:nested");
 
     const features = project();
     expect(

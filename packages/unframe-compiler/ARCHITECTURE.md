@@ -1,6 +1,6 @@
 # Presentation Compiler Architecture
 
-- **Status**: Initial implementation
+- **Status**: M3A structured authoring implementation
 - **Scope**: Authoring Project から canonical PresentationDefinition と RenderBundle を生成する library
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -9,6 +9,7 @@
   - [Renderer API Architecture](../unframe-renderer-api/ARCHITECTURE.md)
   - [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)
   - [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)
+  - [ADR-0017](../../docs/decisions/0017-m3a-structured-authoring-contract.md)
 
 ## 1. Role
 
@@ -59,7 +60,11 @@ src/
 
 ## 4. Current implementation
 
-`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font Asset carrier を解決する。cross-reference、duplicate、initial subset の制約だけは semantic invariant として個別に検査する。実装済み subset は具体的な Text style と literal value を持つ Structured `Surface → Frame → direct Text`、静的・非対話・baked-web のみである。結果には v2 Definition、Core canonical JSON、source hash、definition hash、font AssetSet を含む。Theme token / named style、Props、Slots、Parts、Variants、nested Frame / Text は解決しない。
+`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font Asset carrier を解決する。cross-reference、duplicate、M3A subset の制約は semantic invariant として個別に検査する。実装済み subset は型付き Theme token と同category alias、NamedStyle、scalar Props、style Variants、Parts、absolute な nested Frame / Text、明示 Slot placeholder による Frame-root Component composition を扱う。解決順は default、NamedStyle、inline、Variant、Part であり、配列は全置換する。選択済み Variant が同じ node/property を変更する場合は拒否する。
+
+Slot の子は placeholder の children 位置で順序付きに展開する。`semanticParentId` がある場合は子 Component の Semantic Tree roots を親 Component 内の該当 node の既存 children 後へ接続し、省略時は親 Surface の roots へ追加する。どちらも sibling order を決定論的に再採番する。top-level instance は Surface root と Spatial node を必須とし、slotted instance は Frame root かつ Spatial node なしを必須とする。欠落・重複・self reference・cycle・owner mismatch を build error にする。
+
+すべての Authoring 値は具体的な v2 Text / Frame 値へ解決してから Core validation へ渡す。省略した Prop / default 付き Variant は `CheckedDeclarationProject.warnings` に instance ID、宣言名、default 値、利用可能な source metadata を記録する。明示された空文字、`0`、`false`、または default と同じ値は warning にしない。結果には v2 Definition、Core canonical JSON、source hash、definition hash、font AssetSet と warnings を含む。
 
 `compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
@@ -79,7 +84,7 @@ project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、
 
 `checkAuthoringProject(unknown)` は virtual Source frontend の公開 pure boundary として parse、typecheck、lower、normalize、collect、pair を接続し、成功時は TypeScript の `Program` / `TypeChecker` を含まない plain declaration catalog、失敗時は source range 付き diagnostic を返す。builder implementation、filesystem、Browser は実行しない。
 
-`assembleDeclarationProject(unknown)` は paired catalog と、Theme ID ごとの hash、Component `(componentId, version)` ごとの完全 package lock、Asset carrier を明示的に受け取る pure boundary である。catalog の source-map wrapper を出力に持ち込まず、carrier の欠落・余分・重複・identity mismatch を fail closed で拒否する。Theme、Manifest、Structure はそれぞれの declaration semantic payload を Core の canonical JSON SHA-256 で再計算し、lock hash mismatch を stable diagnostic として拒否する。declaration node の `source` metadata は hash から除くが、Theme token / named-style 等の任意 JSON にある同名のデータは保持する。入力順に依存せず canonical envelope を組み立て、`checkDeclarationProject` で再検証する。package integrity と asset checksum は計算も推測もしない。
+`assembleDeclarationProject(unknown)` は paired catalog と、Theme ID ごとの hash、Component `(componentId, version)` ごとの完全 package lock、Asset carrier を明示的に受け取る pure boundary である。catalog の source-map wrapper を出力に持ち込まず、carrier の欠落・余分・重複・identity mismatch を fail closed で拒否する。Theme、Manifest、Structure はそれぞれの declaration semantic payload を Core の canonical JSON SHA-256 で再計算し、lock hash mismatch を stable diagnostic として拒否する。declaration node、Slot placeholder、Surface-root と Frame-root の Semantic Tree node の `source` metadata は hash から除き、Theme token / NamedStyle と Prop reference を含む意味値は保持する。入力順に依存せず canonical envelope を組み立て、`checkDeclarationProject` で再検証する。package integrity と asset checksum は計算も推測もしない。
 
 post-lowering declaration の検査は Authoring package の pure type guard を利用し、definition builder を呼び出さない。Compiler の plain-data clone は `Object.prototype` と null-prototype の record を受理し、descriptor だけから null-prototype clone を作る。custom prototype、accessor、cycle、sparse array、symbol key、非 JSON 値は Zod や semantic validation に渡す前に拒否し、caller-owned getter や Proxy の `get` trap を実行しない。
 

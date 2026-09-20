@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PresentationDeclaration } from "@unframe/unframe-authoring";
 
 import {
   checkAuthoringProject,
@@ -81,7 +82,9 @@ describe("checkAuthoringProject", () => {
     });
     if (!result.valid) return;
     const catalog: PairedAuthoringDeclarationCatalog = result.value;
+    const copiedPresentation: PresentationDeclaration = { ...catalog.presentation.value };
     const component: PairedComponentDeclaration | undefined = catalog.components[0];
+    expect(copiedPresentation.id).toBe("presentation");
     expect(component).toBeUndefined();
     expect(JSON.parse(JSON.stringify(result.value))).toEqual(result.value);
   });

@@ -305,23 +305,18 @@ const documentFor = (
       "contentNodeIds",
     ]);
   const planned = new Set(input.plan.contentNodeIds);
-  const children = [...root.children];
-  if (new Set(children).size !== children.length)
+  if (planned.size !== input.plan.contentNodeIds.length)
+    return failure("unsupported-structured-tree", "Render plan node IDs must be unique.", [
+      "plan",
+      "contentNodeIds",
+    ]);
+  if (new Set(root.children).size !== root.children.length)
     return failure("unsupported-structured-tree", "Root Frame children must be unique.", [
       "surface",
       "contentNodes",
       root.id,
       "children",
     ]);
-  if (
-    children.some((id) => !planned.has(id)) ||
-    [...planned].some((id) => id !== root.id && !children.includes(id))
-  )
-    return failure(
-      "unsupported-structured-tree",
-      "Initial renderer accepts only root Frame direct children.",
-      ["plan", "contentNodeIds"],
-    );
 
   const bounds = input.plan.logicalBounds;
   const xScale = input.context.pixelTarget[0] / bounds.width;
@@ -349,33 +344,23 @@ const documentFor = (
     readonly value: string;
     readonly fontIds: readonly string[];
   }[] = [];
-  const textNodes: string[] = [];
-  for (const id of children) {
+  const renderedNodeIds = new Set([root.id]);
+  const renderNode = (id: string, parentId: string): string | RendererBuildFailure => {
     const node = input.surface.contentNodes[id];
-    if (
-      !node ||
-      node.kind !== "text" ||
-      node.parentId !== root.id ||
-      node.placement.kind !== "absolute" ||
-      node.value.kind !== "literal"
-    )
+    if (!planned.has(id) || !node || node.parentId !== parentId || renderedNodeIds.has(id))
       return failure(
         "unsupported-structured-tree",
-        "Initial renderer accepts direct absolute Text children only.",
+        "Render plan must contain one connected Frame/Text tree.",
         ["surface", "contentNodes", id],
       );
-    const placement = node.placement;
-    if (
-      placement.x < 0 ||
-      placement.y < 0 ||
-      placement.x + placement.width > rootPlacement.width ||
-      placement.y + placement.height > rootPlacement.height
-    )
+    renderedNodeIds.add(id);
+    if (node.placement.kind !== "absolute")
       return failure(
-        "text-outside-render-surface",
-        "Text placement must fit inside the Render Surface bounds.",
+        "unsupported-structured-tree",
+        "Structured rendering accepts absolute placement only.",
         ["surface", "contentNodes", id, "placement"],
       );
+    const placement = node.placement;
     const [left, top, width, height] = [
       placement.x * xScale,
       placement.y * yScale,
@@ -389,6 +374,28 @@ const documentFor = (
         id,
         "placement",
       ]);
+    if (node.kind === "frame") {
+      if (node.layout.kind !== "absolute" || new Set(node.children).size !== node.children.length)
+        return failure(
+          "unsupported-structured-tree",
+          "Structured rendering accepts absolute Frame children only.",
+          ["surface", "contentNodes", id],
+        );
+      const children: string[] = [];
+      for (const childId of node.children) {
+        const child = renderNode(childId, id);
+        if (typeof child !== "string") return child;
+        children.push(child);
+      }
+      const borderWidth = node.border.width * yScale;
+      return `<div class="frame" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};background:${rgbaCss(node.backgroundColor)};border:${cssNumber(borderWidth)}px solid ${rgbaCss(node.border.color)};border-radius:${cssNumber(node.border.radius * yScale)}px;overflow:${node.clip ? "hidden" : "visible"}"><div class="frame-children" style="left:${cssNumber(-borderWidth)}px;top:${cssNumber(-borderWidth)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px">${children.join("")}</div></div>`;
+    }
+    if (node.kind !== "text" || node.value.kind !== "literal")
+      return failure(
+        "unsupported-structured-tree",
+        "Structured rendering accepts literal Text children only.",
+        ["surface", "contentNodes", id],
+      );
     if (Array.from(node.value.value).length > node.maxCodePoints)
       return failure("text-max-code-points-exceeded", "Literal Text exceeds maxCodePoints.", [
         "surface",
@@ -409,10 +416,20 @@ const documentFor = (
       node.style.overflow === "ellipsis"
         ? "overflow:hidden;white-space:nowrap;text-overflow:ellipsis"
         : "overflow:hidden;white-space:pre-wrap";
-    textNodes.push(
-      `<div class="text" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};font-family:${families};font-size:${cssNumber(node.style.fontSize * yScale)}px;line-height:${cssNumber(node.style.lineHeight * yScale)}px;color:${rgbaCss(node.style.color)};font-weight:${node.style.weight === "bold" ? "700" : "400"};text-align:${node.style.align};${overflow}">${escapeHtml(node.value.value)}</div>`,
-    );
+    return `<div class="text" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};font-family:${families};font-size:${cssNumber(node.style.fontSize * yScale)}px;line-height:${cssNumber(node.style.lineHeight * yScale)}px;color:${rgbaCss(node.style.color)};font-weight:${node.style.weight === "bold" ? "700" : "400"};text-align:${node.style.align};${overflow}">${escapeHtml(node.value.value)}</div>`;
+  };
+  const renderedChildren: string[] = [];
+  for (const childId of root.children) {
+    const child = renderNode(childId, root.id);
+    if (typeof child !== "string") return child;
+    renderedChildren.push(child);
   }
+  if (renderedNodeIds.size !== planned.size || [...planned].some((id) => !renderedNodeIds.has(id)))
+    return failure(
+      "unsupported-structured-tree",
+      "Render plan must contain one connected Frame/Text tree.",
+      ["plan", "contentNodeIds"],
+    );
   const fontFaces: string[] = [];
   const coverageByAssetId = new Map<string, FontCoverage>();
   for (const assetId of referencedFontIds) {
@@ -452,9 +469,10 @@ const documentFor = (
   const rootTop = (rootPlacement.y - bounds.y) * yScale;
   const rootWidth = rootPlacement.width * xScale;
   const rootHeight = rootPlacement.height * yScale;
-  const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(${red},${green},${blue},${cssNumber(alpha / 255)});color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rgbaCss(root.backgroundColor)};border:${cssNumber(root.border.width * yScale)}px solid ${rgbaCss(root.border.color)};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.text{position:absolute;box-sizing:border-box}`;
+  const rootBorderWidth = root.border.width * yScale;
+  const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(${red},${green},${blue},${cssNumber(alpha / 255)});color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rgbaCss(root.backgroundColor)};border:${cssNumber(rootBorderWidth)}px solid ${rgbaCss(root.border.color)};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.frame,.frame-children,.text{position:absolute;box-sizing:border-box}`;
   return Object.freeze({
-    document: `<!doctype html><html lang="${escapeHtml(input.context.locale)}"><head><meta charset="utf-8"><style>${style}</style></head><body><main id="viewport"><div id="surface">${textNodes.join("")}</div></main></body></html>`,
+    document: `<!doctype html><html lang="${escapeHtml(input.context.locale)}"><head><meta charset="utf-8"><style>${style}</style></head><body><main id="viewport"><div id="surface"><div class="frame-children" style="left:${cssNumber(-rootBorderWidth)}px;top:${cssNumber(-rootBorderWidth)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px">${renderedChildren.join("")}</div></div></main></body></html>`,
     fontFaceCount: fontFaces.length,
   });
 };

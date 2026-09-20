@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: Initial declaration API and M1 compiler integration implemented; M3A contract not implemented
+- **Status**: M3A declaration API and local validation implemented; compiler integration in progress
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -23,6 +23,7 @@
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - Spatial / Surface / Layout primitive の authoring declaration
 - Theme、Token、Named Style、Asset reference
+- 型付き Prop / Token reference と Slot placeholder
 - Stable ID、source metadata、Component Instance operation
 - Structured / Opaque authoring mode
 - override、Detach、semantic command が共有する operation vocabulary
@@ -117,24 +118,28 @@ definition ごとの pure type guard は builder と同じ local declaration val
 
 ## 10. Current implementation
 
-現在は最初の reference Authoring Project に必要な次の宣言 API を提供する。
+現在は M3A の reference Authoring Project に必要な次の宣言 API を提供する。
 
 - `definePresentation`、`defineTheme`、`defineComponentManifest`、`defineComponentStructure`
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
-- Token、Named Style、Asset reference
+- 6 category の Theme Token、同 category alias、Text / Frame の部分 Named Style
+- `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
 - Stage、Flow、resource owner / audience、Component Instance と package lock
-- Spatial、Semantic Surface、absolute layout の Frame / Text。Text は concrete style、`maxCodePoints`、明示 Semantic Node を持ち、Frame / Text は concrete style と表示属性を宣言できる
-- Structured Component の Part / Slot mapping と Opaque Component の semantic binding
+- Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
+- Structured Component の typed Variant style、typed Part override、Frame children 内の明示 `slot-placeholder` と Opaque Component の semantic binding
+- Surface root が持つ semantic tree と、Frame-root Structure が持つ `baseSemanticTree`
 - topology を変更しない semantic override と Structured Component の Detach vocabulary
 
 Topology を持つ宣言は explicit ID を必須とする。source metadata は Compiler が AST から付与するため入力では任意とし、source correlation と diagnostic に共有できる型を提供する。API は finite な JSON plain data だけを受け取り、import 時登録、暗黙 ID、入力 mutation、function 値を持たない。
 
-最初の実装は static / non-interactive / baked-web Surface、absolute layout、flat Scalar payload に限定する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値を拒否する。参照の存在、一意性、tree、owner 継承、Manifest と Structure の整合性は declaration を横断するため、ここでは検証せず Compiler / Core の semantic validation に残す。
+現行実装は static / non-interactive / baked-web Surface、absolute layout、primitive な string / number / boolean Prop に限定する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値、旧 Slot / Part field、category のない Token reference、任意の style property を拒否する。参照の存在、一意性、alias cycle、tree、owner 継承、Manifest と Structure の整合性、解決後の値域は declaration を横断するため、Compiler / Core の semantic validation に残す。
 
 parse、AST lowering、reference resolution、normalization、renderer、filesystem は実装せず、それぞれ Compiler、Core、concrete renderer の境界に残す。
 
-package test の inline fixture に加え、公開用の `examples/presentation/` source が存在し、Compiler / CLI の品質ゲートで二回 build した成果物の一致を検証する。
+package test の inline fixture に加え、公開用の `examples/presentation/` source が存在する。Compiler による解決と composition はこの fixture から v2 artifact まで接続し、Fixed Browser の反復 build で検証する。
 
-M3A で追加する Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。現行宣言型がこれらの vocabulary を一部持つことは、Structureへの値注入やv2出力接続が実装済みであることを意味しない。
+Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。default、Named Style、inline style、Variant、Part の優先適用、Prop / Token 解決、Slot 展開、Part / Variant conflict、v2 出力接続は Compiler の責務であり、宣言 API の存在だけでは完了を意味しない。
 
-個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とし、Slot の `accepts` / `cardinality` / `required`、Part の `overridable` は受理しない。Named Style は現行公開型の JSON object として検証する。型付き Theme の解決と composition の lowering は未実装であり、Compiler の機能拒否は維持する。
+個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とする。Slot は `slot-placeholder` の `id` / `slotId` で Frame children 内の挿入位置を表し、任意の `semanticParentId` で同じ Component の semantic node を親として参照する。`slotPlacements` と旧 `accepts` / `cardinality` / `required` は受理しない。Part は target kind ごとの content / placement / style だけを受け取り、旧 `overridable` を受理しない。
+
+Frame-root Structure の semantic tree を宣言できる。Slot placeholder に `semanticParentId` があれば nested Component の semantic root をその node の子へ接続し、省略時は Surface の追加 root として扱う。参照先の存在と接続規則の検証は Compiler が所有する。State variation、Interaction、Timeline、migration、自動変換、Part partition isolate は後続範囲である。

@@ -1,4 +1,10 @@
-import { defineComponentStructure, frame, surface, text } from "@unframe/unframe-authoring";
+import {
+  assetRef,
+  defineComponentStructure,
+  frame,
+  surface,
+  text,
+} from "@unframe/unframe-authoring";
 
 const textContent = text({
   id: "text-content",
@@ -8,7 +14,7 @@ const textContent = text({
   semanticNodeId: "semantic-text",
   maxCodePoints: 64,
   style: {
-    fontAssetId: "reference-font",
+    font: assetRef({ assetId: "reference-font" }),
     fontSize: 32,
     lineHeight: 40,
   },
@@ -64,6 +70,6 @@ export const standardSurfaceStructure = defineComponentStructure({
   source: { file: "standard-surface.structure.ts" },
   root: rootSurface,
   partBindings: {},
-  slotPlacements: {},
+  variantStyles: {},
   timelines: [],
 });

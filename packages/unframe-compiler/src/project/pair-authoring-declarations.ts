@@ -15,7 +15,7 @@ import type {
   DeclarationCollectionDiagnostic,
 } from "./collect-authoring-declarations.js";
 
-type TypedDeclaration<T> = CollectedAuthoringDeclaration & { readonly value: T };
+type TypedDeclaration<T> = Omit<CollectedAuthoringDeclaration, "value"> & { readonly value: T };
 
 export type PairedComponentDeclaration = {
   readonly manifest: TypedDeclaration<ComponentManifest>;

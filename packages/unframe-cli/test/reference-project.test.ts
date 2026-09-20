@@ -16,8 +16,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
 import { verifyBuildIntegrityV2 } from "@unframe/unframe-core";
+import { checkAuthoringProject, hashComponentManifestDeclaration } from "@unframe/unframe-compiler";
 
 import { runPresentationCli } from "../src/index.js";
+import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
+import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 
 const referenceDirectory = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -29,6 +32,67 @@ const projectCopy = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-reference-project-"));
   temporaryDirectories.push(directory);
   await cp(referenceDirectory, directory, { recursive: true });
+  return directory;
+};
+
+const defaultPropsProject = async (explicit = false) => {
+  const directory = await projectCopy();
+  const discovered = await discoverPresentationProjectFiles(directory);
+  if (!discovered.ok) throw new Error(discovered.code);
+  const loaded = loadUnframeLock(discovered.lockBytes);
+  if (!loaded.ok) throw new Error(loaded.diagnostic.code);
+  const checked = checkAuthoringProject({
+    projectRoot: discovered.projectDirectory,
+    entryFile: discovered.entryFile,
+    files: discovered.files,
+    ...loaded.value.virtualSource,
+  });
+  if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
+  const component = checked.value.components.find(
+    ({ manifest }) => manifest.value.componentId === "reference-surface",
+  )!;
+  const manifest = {
+    ...component.manifest.value,
+    props: {
+      ...component.manifest.value.props,
+      defaultLabel: { kind: "string" as const, default: "Default" },
+      defaultCount: { kind: "number" as const, default: 0 },
+      defaultVisible: { kind: "boolean" as const, default: false },
+    },
+  };
+  const manifestHash = hashComponentManifestDeclaration(manifest);
+  const presentation = {
+    ...checked.value.presentation.value,
+    scene: {
+      ...checked.value.presentation.value.scene,
+      components: checked.value.presentation.value.scene.components.map((instance) =>
+        instance.componentId === "reference-surface"
+          ? {
+              ...instance,
+              packageLock: { ...instance.packageLock, manifestHash },
+              props: {
+                ...instance.props,
+                ...(explicit ? { defaultLabel: "", defaultCount: 0, defaultVisible: false } : {}),
+              },
+            }
+          : instance,
+      ),
+    },
+  };
+  const lock = JSON.parse(new TextDecoder().decode(discovered.lockBytes));
+  for (const entry of lock.componentLocks)
+    if (entry.componentId === "reference-surface") entry.lock.manifestHash = manifestHash;
+  await Promise.all([
+    writeFile(
+      join(directory, component.manifest.fileName),
+      `import { defineComponentManifest } from "@unframe/unframe-authoring";\nexport default defineComponentManifest(${JSON.stringify(manifest)});\n`,
+    ),
+    writeFile(
+      join(directory, checked.value.presentation.fileName),
+      `import { definePresentation } from "@unframe/unframe-authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
+    ),
+    writeFile(join(directory, "unframe.lock"), JSON.stringify(lock)),
+  ]);
   return directory;
 };
 
@@ -112,6 +176,89 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
+  it.each(["check", "build"] as const)(
+    "%s reports omitted defaults once without failing",
+    async (command) => {
+      const directory = await defaultPropsProject();
+      const browser = fakeBrowser();
+      const result = await runPresentationCli({
+        args: [command, directory, "--format", "json"],
+        host: { openFixedBrowser: async () => browser.session, buildContext },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: true,
+        diagnostics: [],
+        warnings: [
+          {
+            code: "compiler-prop-default-applied",
+            componentInstanceId: "reference-surface",
+            propName: "defaultCount",
+            defaultValue: 0,
+          },
+          {
+            code: "compiler-prop-default-applied",
+            componentInstanceId: "reference-surface",
+            propName: "defaultLabel",
+            defaultValue: "Default",
+          },
+          {
+            code: "compiler-prop-default-applied",
+            componentInstanceId: "reference-surface",
+            propName: "defaultVisible",
+            defaultValue: false,
+          },
+        ],
+      });
+      expect(browser.observed.capture).toBe(command === "build" ? 1 : 0);
+    },
+  );
+
+  it("does not warn for explicit empty, zero, false, or values equal to defaults", async () => {
+    const directory = await defaultPropsProject(true);
+    const result = await runPresentationCli({ args: ["check", directory, "--format", "json"] });
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).warnings).toEqual([]);
+  });
+
+  it("prints default warnings to stderr while keeping successful text output", async () => {
+    const directory = await defaultPropsProject();
+    const result = await runPresentationCli({ args: ["check", directory] });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("check: ok\n");
+    expect(result.stderr).toContain("warning/semantic/compiler-prop-default-applied");
+    expect(result.stderr).toContain("reference-surface");
+    expect(result.stderr).toContain("defaultCount");
+    expect(result.stderr).toContain("defaultLabel");
+    expect(result.stderr).toContain("defaultVisible");
+  });
+
+  it("preserves Variant default metadata in JSON and text warnings", async () => {
+    const directory = await projectCopy();
+    const path = join(directory, "presentation.unframe.tsx");
+    const source = await readFile(path, "utf8");
+    const omitted = source.replace(
+      /"?variants"?:\s*\{\s*"?tone"?:\s*"accent",?\s*\}/u,
+      "variants: {}",
+    );
+    expect(omitted).not.toBe(source);
+    await writeFile(path, omitted);
+    const json = await runPresentationCli({ args: ["check", directory, "--format", "json"] });
+    expect(json.exitCode).toBe(0);
+    expect(JSON.parse(json.stdout).warnings).toMatchObject([
+      {
+        code: "compiler-variant-default-applied",
+        componentInstanceId: "reference-surface",
+        variantName: "tone",
+        defaultValue: "quiet",
+      },
+    ]);
+    const text = await runPresentationCli({ args: ["check", directory] });
+    expect(text.exitCode).toBe(0);
+    expect(text.stderr).toContain('variant="tone" default="quiet"');
+  });
+
   it("reports malformed font tables as a renderer error without capturing", async () => {
     const directory = await projectCopy();
     const path = join(directory, "unframe.lock");
@@ -212,6 +359,37 @@ describe("reference Authoring Project", () => {
       assetSet: JSON.parse(firstAssetSet.toString()),
       buildManifest: JSON.parse(firstBuild.toString()),
     };
+    const definition = buildArtifacts.definition;
+    expect(Object.keys(definition.scene.nodes)).toHaveLength(1);
+    expect(Object.keys(definition.scene.surfaces)).toHaveLength(1);
+    const surface = Object.values(definition.scene.surfaces)[0] as {
+      contentNodes: Record<string, unknown>;
+      baseSemanticTree: { nodes: Record<string, unknown> };
+    };
+    expect(surface.contentNodes["reference-surface:reference-text"]).toMatchObject({
+      value: { kind: "literal", value: "Structured authoring" },
+      style: { fontAssetId: "reference-font", fontSize: 72 },
+    });
+    expect(surface.contentNodes["reference-surface:card"]).toMatchObject({
+      placement: { x: 64, y: 184 },
+      clip: true,
+      children: [
+        "reference-surface:summary",
+        "reference-surface:inner",
+        "reference-badge:badge-frame",
+      ],
+    });
+    expect(surface.contentNodes["reference-badge:badge-frame"]).toMatchObject({
+      parentId: "reference-surface:card",
+      placement: { x: 32, y: 264 },
+    });
+    expect(surface.contentNodes["reference-badge:badge-text"]).toMatchObject({
+      value: { kind: "literal", value: "One nested Component, one placement" },
+    });
+    expect(surface.baseSemanticTree.nodes["reference-badge:badge-label"]).toMatchObject({
+      text: "One nested Component, one placement",
+      parentId: "reference-surface:heading",
+    });
     expect(verifyBuildIntegrityV2(buildArtifacts).valid).toBe(true);
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(

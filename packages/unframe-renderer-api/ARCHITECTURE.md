@@ -104,17 +104,17 @@ Conformance harness は renderer implementation の process topology を固定�
 - ADR-0012のcapture前budget、deadline / abort、resource guard APIの実装
 - Native UI / Video renderer API の追加時期
 - Compiler cache key への `rendererFingerprint` 結合と integration test
-- nested Frame / Text、Theme / Props / Slots / Variants / Parts の接続
+- Theme / Props / Slots / Variants / Parts の宣言入力（Compiler が concrete tree へ解決する）
 
 ## 9. Current implementation
 
-現在はCompilerが一つのv2 Semantic Surface全体を一つのRender Surface planへlowerし、`static` / `interaction: none` / `internalAnimation: none` / `baked-web` / `reject`のabsolute root Frameとdirect literal Textへ渡すsubsetを実装する。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。
+現在はCompilerが一つのv2 Semantic Surface全体を一つのRender Surface planへlowerし、`static` / `interaction: none` / `internalAnimation: none` / `baked-web` / `reject`のabsolute root Frameと任意深度のabsolute Frame / literal Text treeへ渡すsubsetを実装する。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。
 
 現行Rendererはstateごとの未encode RGBA captureとSemantic Surface normalized `HitRegion`を返す一partition subsetである。M3でplanのowned/context分離とpartition-local `RendererPrivateHitRegion`へ置換し、Compiler aggregateによるportable `HitRegion`生成と同時に移行する。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
 `unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler cache 自体は未実装であり、cache keyへの結合とintegration testは後続である。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 
-Theme、Props、Slots、Variants、Parts、nested Frame と State visual variation は未接続であり、現行subsetで受理しない。
+Theme、Props、Slots、Variants、Parts の宣言はRenderer入力に含めずCompilerがconcrete treeへ解決する。State visual variation、Stack / Grid、Frame / Text以外のPrimitiveは現行subsetで受理しない。
 
 共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、Hit Region の有効性と completeness、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
 

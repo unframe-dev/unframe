@@ -20,6 +20,7 @@ export type {
   DeclarationProjectThemeHash,
   DeclarationProjectAssemblyCarrier,
   AuthoringProjectPipelineResult,
+  CompilerWarning,
 } from "./api/types.js";
 export type {
   AuthoringProjectDiagnostic,

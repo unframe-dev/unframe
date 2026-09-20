@@ -3,7 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current milestone**: Milestone 3A（v2 基盤移行済み、Theme / composition は未実装）。Milestone 3B〜6 は未完了の後続として保持する
+- **Current milestone**: Milestone 3A 完了（静的 baked-web の Theme / composition）。Milestone 3B〜6 は未完了の後続として保持する
 - **Architecture source**:
   - [Presentation Architecture](../presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../presentation/DESIGN.md)
@@ -14,7 +14,7 @@
 
 ## 1. 目的
 
-現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition、Delivery の実行処理、C# generation は後続に残る。
+現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition も静的 v2 経路へ接続し、Delivery の実行処理と C# generation は後続に残る。
 
 本計画は、未実装事項を package ごとの独立した TODO として消化するのではなく、各段階で利用可能な結果を残す縦断的な milestone として整理する。
 
@@ -44,13 +44,13 @@ consumer
 | `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                          | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                     |
 | `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                              | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                         |
 | `packages/unframe-core`          | 静的 v2 Definition / RenderBundle 検証、build / publication integrity、Semantic Tree、canonical JSON / hash | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration                  |
-| `packages/unframe-authoring`     | Manifest、Structure、Theme、Presentation declaration API                                                    | M3A Theme / composition、より広いStatic DSL、Lossless Syntax Tree / source patch、distribution         |
-| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | M3A Theme / composition、Spatial、Interaction、Action / Output、Opaque component、migration            |
-| `packages/unframe-compiler`      | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile    | cache、M1より広いStatic DSL                                                                            |
+| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、宣言共通 schema                                             | より広いStatic DSL、Lossless Syntax Tree / source patch、distribution                                  |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | Spatial、Interaction、Action / Output、Opaque component、migration                                     |
+| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition 解決、default warning、v2 compile                         | cache、M1より広いStatic DSL                                                                            |
 | `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                       | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability      |
 | `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                      | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                 |
 | `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                       | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                         |
-| `packages/unframe-cli`           | filesystem check / build、process signal / build lock、atomic output、TUI command selector                  | TUIとprocess commandの接続、watch / dev / preview / test / publish                                     |
+| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                           | TUIとprocess commandの接続、watch / dev / preview / test / publish                                     |
 | `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                                  | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備 |
 
 ## 3. 実装原則
@@ -154,7 +154,7 @@ contracts
 
 - project discovery、`unframe.config.ts`、`unframe.lock` の読取り境界を [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md) に従って実装する。
 - `check` は Browser を起動せず Source frontend まで検証する。
-- `build` は `definition.json`、`render-bundle.json`、`assets/*.png` だけを一時 staging directory へ生成し、成功時だけ root 固定の`dist`をatomicに置き換える。manifest / Delivery artifactはM1の出力に含めない。
+- M1 完了時の `build` は Definition / RenderBundle / PNG を一時 staging directory へ生成し、成功時だけ `dist` を atomic に置き換えた。現在の v2 経路は AssetSet / BuildManifest / Font も出力する。Delivery artifact は対象外である。
 - signal、Browser cleanup、失敗時の partial output 非公開を検証する。
 
 ### 5.5 実装進捗と未決定事項
@@ -202,7 +202,7 @@ JSX-first authoring とより広い static expression は M1 に含めず、Mile
 
 ### 完了条件
 
-- [x] reference `.unframe.tsx` から CLI で Definition、RenderBundle、PNG を生成できる。
+- [x] reference `.unframe.tsx` から CLI で Definition、RenderBundle、PNG を生成できる（現在は v2 の AssetSet / BuildManifest / Font も出力）。
 - [x] 同一 toolchain と同一入力を二回 build した artifact hash が一致する。
 - [x] Authoring declaration codeを実行せずに buildできる。
 - [x] `usage`、syntax、type、semantic、renderer、I/O、cancel の failure family が区別された stable diagnostic になる。
@@ -235,11 +235,11 @@ Spatial TRS / matrix合成、Quaternion canonical sign、Canonical↔UnityのZ r
 
 Surface Partitionのcanonical paint run、required renderer / compositing boundary、公開Partの`isolate` override、state-invariant bounds / layer、derived ID、cross-partition Hit Region aggregateは [ADR-0011](../decisions/0011-surface-partition-contract.md) でAcceptedとした。current Compilerは一Surface一partitionのM1 subsetであり、target implementationはM3〜M4で接続する。
 
-Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compiler aggregate budget、Delivery GPU / load CPU tier、全State preload、readiness、active pin / LRU evictionは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。current実装はper-encode PNG hard capだけを持ち、Compiler / Delivery / Realtime / Unityへのtarget実装はM3〜M5で接続する。
+Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compiler aggregate budget、Delivery GPU / load CPU tier、全State preload、readiness、active pin / LRU evictionは [ADR-0012](../decisions/0012-texture-budget-residency-contract.md) でAcceptedとした。Compiler は長辺 2048 の raster policy、artifact / capture / output / peak budget を検証する。Delivery / Realtime / Unity の residency 実装は M5 の後続に残る。
 
 Native 3D、`baked-web`、限定 `native-ui`、`video` の責務と、Runtime Web を対象外にする境界は [ADR-0014](../decisions/0014-presentation-rendering-scope.md) でAcceptedとした。方式の採用は実装や実機性能の完了を意味しない。現行 Local Compiler は `baked-web` 初期 subset だけを実装し、ADR-0012 の v1 Delivery baseline も `baked-web` だけを対象とする。Native UI と Video は固有 budget と consumer が受理されるまで Delivery で拒否する。
 
-M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。現在はM3Aの設計を確定し、静的描画の v2 基盤移行を実装した。Theme / composition の機能実装は未着手である。
+M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。現在は M3A の設計を確定し、静的描画の v2 基盤移行と Theme / composition を実装した。
 
 ### 完了条件
 
@@ -253,15 +253,17 @@ M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のG
 
 ### Slice A: Theme と Structured composition
 
-基盤移行では、Authoring の型・builder・guard を共通 schema へ揃え、Core の公開 model / validation / JCS を v2 へ切り替えた。Compiler の literal style / explicit font 入力と ADR-0012 の texture policy、Renderer の font load、CLI の4成果物出力を接続し、静的な direct Text の reference project で検証した。以下の M3A 機能は未実装である。
+基盤移行では、Authoring の型・builder・guard を共通 schema へ揃え、Core の公開 model / validation / JCS を v2 へ切り替えた。Compiler の literal style / explicit font 入力と ADR-0012 の texture policy、Renderer の font load、CLI の4成果物出力を接続し、静的な direct Text の reference project で検証した。その上で以下の M3A 機能を実装した。reference project は Theme、Props、Variant、Part、Slot と nested Frame を一つの Surface へ展開する。
 
 - [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) と [Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md) を正本にする。
 - static `baked-web` の Authoring → v2 Definition / RenderBundle / AssetSet / Build artifact を縦断接続し、v1互換出力は追加しない。
-- 6 categoryのToken、Text / Frame Named Style、明示Font Asset解決を実装する。
-- Props / Slots / Parts / Variants の値注入、absoluteなnested Frame / Text、default warningと参照・衝突・循環・owner検証を実装する。
+- 6 categoryのToken、Text / Frame Named Style、明示Font Asset解決。
+- Props / Slots / Parts / Variants の値注入、absoluteなnested Frame / Text、default warningと参照・衝突・循環・owner検証。
 - component version、package lock、integrityを検証する。package内容とTheme / Manifest / Structureのhash検証は現行実装を再利用し、v2出力との整合を追加する。
 - Authoringの公開型、builder、runtime schema、post-lowering guardの検証差を先に解消する。
 - migration metadata / 自動変換、partition permission / isolate、State visual variation以降は後続へ延期する。
+
+Authoring / Core / Compiler / Renderer / CLI の対象テスト、Contracts v2 の生成物 drift / fixture 検証、独立コード・文書レビュー、`nix run .#check` を完了した。Fixed Browser で reference を二回 build し、4 JSON と PNG / Font の全成果物が同一になることを検証した。
 
 ### Slice B: State、Interaction、Hit Region
 
@@ -467,7 +469,7 @@ GoalでMilestoneを実行する場合も、この終了条件をGoalの完了条
 - [x] Milestone 0: 品質基盤の補修
 - [x] Milestone 1: `.unframe.tsx`からartifactまでのLocal Compiler縦断経路
 - [x] Milestone 2: Blocking contractの確定
-- [ ] Milestone 3A: ThemeとStructured composition
+- [x] Milestone 3A: ThemeとStructured composition
 - [ ] Milestone 3B: State、Interaction、Hit Region
 - [ ] Milestone 3C: Action、Output、Trigger、Cue
 - [ ] Milestone 3D: TimelineとRuntime projection

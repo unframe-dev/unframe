@@ -32,6 +32,14 @@ export type PropDeclaration =
   | StringPropDeclaration
   | NumberPropDeclaration
   | BooleanPropDeclaration;
+export type PropReference<T extends "string" | "number" | "boolean"> = {
+  kind: "prop-ref";
+  propId: string;
+  expectedType: T;
+};
+export type StringValueDeclaration = string | PropReference<"string">;
+export type NumberValueDeclaration = number | PropReference<"number">;
+export type BooleanValueDeclaration = boolean | PropReference<"boolean">;
 
 export type SlotDeclaration = {
   kind: "slot";
@@ -85,7 +93,18 @@ export type OutputDeclaration = {
   producer: OutputProducer;
 };
 
-export type TokenReference = { kind: "token-ref"; tokenId: string };
+export type TokenCategory =
+  | "color"
+  | "logicalLength"
+  | "spatialLength"
+  | "fontFace"
+  | "duration"
+  | "easing";
+export type TokenReference<C extends TokenCategory = TokenCategory> = {
+  kind: "token-ref";
+  category: C;
+  tokenId: string;
+};
 export type NamedStyleReference = { kind: "named-style-ref"; styleId: string };
 export type AssetReference = { kind: "asset-ref"; assetId: string };
 
@@ -118,6 +137,13 @@ export type SpatialDeclaration = StableDeclaration & {
 };
 export type AbsoluteLayoutDeclaration = {
   kind: "absolute";
+  x: NumberValueDeclaration;
+  y: NumberValueDeclaration;
+  width: NumberValueDeclaration;
+  height: NumberValueDeclaration;
+};
+export type ConcreteAbsoluteLayoutDeclaration = {
+  kind: "absolute";
   x: number;
   y: number;
   width: number;
@@ -128,7 +154,7 @@ type SemanticNodeBase = StableDeclaration & {
   parentId: string | null;
   order: number;
 };
-type SemanticText = { text: string; language?: string };
+type SemanticText = { text: StringValueDeclaration; language?: string };
 export type SemanticNodeDeclaration = SemanticNodeBase &
   (
     | ({ role: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6 } & SemanticText)
@@ -161,35 +187,46 @@ export type SurfaceStateDeclaration = StableDeclaration & {
   enabledInteractionIds: readonly string[];
 };
 
-export type SrgbaColorDeclaration = {
+export type ConcreteSrgbaColorDeclaration = {
   red: number;
   green: number;
   blue: number;
   alpha: number;
 };
+export type SrgbaColorDeclaration = {
+  red: NumberValueDeclaration;
+  green: NumberValueDeclaration;
+  blue: NumberValueDeclaration;
+  alpha: NumberValueDeclaration;
+};
+export type FontReference = AssetReference | TokenReference<"fontFace">;
+export type ColorValueDeclaration = SrgbaColorDeclaration | TokenReference<"color">;
+export type LogicalLengthValueDeclaration =
+  | NumberValueDeclaration
+  | TokenReference<"logicalLength">;
 export type BorderDeclaration = {
-  color: SrgbaColorDeclaration;
-  width: number;
-  radius: number;
+  color: ColorValueDeclaration;
+  width: LogicalLengthValueDeclaration;
+  radius: LogicalLengthValueDeclaration;
 };
 export type TextStyleDeclaration = {
-  fontAssetId?: string;
-  fallbackFontAssetIds?: readonly string[];
-  fontSize?: number;
-  lineHeight?: number;
-  color?: SrgbaColorDeclaration;
-  weight?: "regular" | "bold";
-  align?: "start" | "center" | "end";
-  overflow?: "clip" | "ellipsis";
+  font?: FontReference;
+  fallbackFonts?: readonly FontReference[];
+  fontSize?: LogicalLengthValueDeclaration;
+  lineHeight?: LogicalLengthValueDeclaration;
+  color?: ColorValueDeclaration;
+  weight?: "regular" | "bold" | PropReference<"string">;
+  align?: "start" | "center" | "end" | PropReference<"string">;
+  overflow?: "clip" | "ellipsis" | PropReference<"string">;
 };
 export type FrameStyleDeclaration = {
-  backgroundColor?: SrgbaColorDeclaration;
+  backgroundColor?: ColorValueDeclaration;
   border?: BorderDeclaration;
-  clip?: boolean;
+  clip?: BooleanValueDeclaration;
 };
 type CommonPrimitiveDeclaration = {
-  visible?: boolean;
-  opacity?: number;
+  visible?: BooleanValueDeclaration;
+  opacity?: NumberValueDeclaration;
   semanticNodeId?: string;
 };
 
@@ -201,25 +238,27 @@ export type FrameDeclaration = StableDeclaration &
     style?: FrameStyleDeclaration;
     namedStyle?: NamedStyleReference;
   };
+export type SlotPlaceholderDeclaration = StableDeclaration & {
+  kind: "slot-placeholder";
+  slotId: string;
+  semanticParentId?: string;
+};
 export type TextDeclaration = StableDeclaration &
   CommonPrimitiveDeclaration & {
     kind: "text";
-    value: string;
+    value: StringValueDeclaration;
     layout: AbsoluteLayoutDeclaration;
-    maxCodePoints: number;
+    maxCodePoints: NumberValueDeclaration;
     style?: TextStyleDeclaration;
     namedStyle?: NamedStyleReference;
   };
 export type SurfaceDeclaration = StableDeclaration & {
   kind: "surface";
-  physicalSizeMeters: readonly [number, number];
-  logicalSize: readonly [number, number];
+  physicalSizeMeters: readonly [NumberValueDeclaration, NumberValueDeclaration];
+  logicalSize: readonly [NumberValueDeclaration, NumberValueDeclaration];
   fit: "contain" | "cover" | "stretch";
   root: FrameDeclaration;
-  baseSemanticTree: {
-    rootNodeIds: readonly string[];
-    nodes: Readonly<Record<string, SemanticNodeDeclaration>>;
-  };
+  baseSemanticTree: BaseSemanticTreeDeclaration;
   interactions: Readonly<Record<string, never>>;
   initialStateId: string;
   states: Readonly<Record<string, SurfaceStateDeclaration>>;
@@ -231,15 +270,52 @@ export type SurfaceDeclaration = StableDeclaration & {
     fallbackPolicy: "reject";
   };
 };
-export type ContentNodeDeclaration = FrameDeclaration | TextDeclaration;
+export type ContentNodeDeclaration =
+  | FrameDeclaration
+  | TextDeclaration
+  | SlotPlaceholderDeclaration;
 export type StructureRootDeclaration = SurfaceDeclaration | FrameDeclaration;
 
-export type PartOverrideDeclaration = {
-  partId: string;
-  content?: Json;
-  placement?: AbsoluteLayoutDeclaration;
-  style?: Readonly<Record<string, Json>>;
+export type BaseSemanticTreeDeclaration = {
+  rootNodeIds: readonly string[];
+  nodes: Readonly<Record<string, SemanticNodeDeclaration>>;
 };
+export type ConcreteColorValueDeclaration = ConcreteSrgbaColorDeclaration | TokenReference<"color">;
+export type ConcreteLogicalLengthValueDeclaration = number | TokenReference<"logicalLength">;
+export type NamedBorderDeclaration = {
+  color: ConcreteColorValueDeclaration;
+  width: ConcreteLogicalLengthValueDeclaration;
+  radius: ConcreteLogicalLengthValueDeclaration;
+};
+export type NamedTextStyleDeclaration = {
+  font?: FontReference;
+  fallbackFonts?: readonly FontReference[];
+  fontSize?: ConcreteLogicalLengthValueDeclaration;
+  lineHeight?: ConcreteLogicalLengthValueDeclaration;
+  color?: ConcreteColorValueDeclaration;
+  weight?: "regular" | "bold";
+  align?: "start" | "center" | "end";
+  overflow?: "clip" | "ellipsis";
+};
+export type NamedFrameStyleDeclaration = {
+  backgroundColor?: ConcreteColorValueDeclaration;
+  border?: NamedBorderDeclaration;
+  clip?: boolean;
+};
+export type PartOverrideDeclaration =
+  | {
+      partId: string;
+      targetKind: "frame";
+      placement?: ConcreteAbsoluteLayoutDeclaration;
+      style?: NamedFrameStyleDeclaration;
+    }
+  | {
+      partId: string;
+      targetKind: "text";
+      content?: string;
+      placement?: ConcreteAbsoluteLayoutDeclaration;
+      style?: NamedTextStyleDeclaration;
+    };
 export type ComponentPackageLock = {
   packageVersion: string;
   packageIntegrity: string;
@@ -252,8 +328,8 @@ export type ComponentInstanceDeclaration = StableDeclaration & {
   version: number;
   packageLock: ComponentPackageLock;
   owner: ResourceOwner;
-  spatialNodeId: string;
-  props: Readonly<Record<string, Json | AssetReference | TokenReference>>;
+  spatialNodeId?: string;
+  props: Readonly<Record<string, string | number | boolean>>;
   slots: Readonly<Record<string, readonly string[]>>;
   variants: Readonly<Record<string, string>>;
   partOverrides: readonly PartOverrideDeclaration[];
@@ -265,9 +341,25 @@ export type DetachDeclaration = StableDeclaration & {
   provenance: { componentId: string; version: number };
 };
 
+export type ThemeTokenDeclaration =
+  | {
+      category: "color";
+      value: ConcreteSrgbaColorDeclaration | TokenReference<"color">;
+    }
+  | { category: "logicalLength"; value: number | TokenReference<"logicalLength"> }
+  | { category: "spatialLength"; value: number | TokenReference<"spatialLength"> }
+  | { category: "fontFace"; value: AssetReference | TokenReference<"fontFace"> }
+  | { category: "duration"; value: number | TokenReference<"duration"> }
+  | {
+      category: "easing";
+      value: "linear" | "cubicIn" | "cubicOut" | "cubicInOut" | TokenReference<"easing">;
+    };
+export type NamedStyleDeclaration =
+  | { kind: "text"; style: NamedTextStyleDeclaration }
+  | { kind: "frame"; style: NamedFrameStyleDeclaration };
 export type ThemeDeclaration = StableDeclaration & {
-  tokens: Readonly<Record<string, Json>>;
-  namedStyles: Readonly<Record<string, Readonly<Record<string, Json>>>>;
+  tokens: Readonly<Record<string, ThemeTokenDeclaration>>;
+  namedStyles: Readonly<Record<string, NamedStyleDeclaration>>;
 };
 
 export type ComponentManifestMembers = {
@@ -312,13 +404,22 @@ export type ComponentManifest = ComponentManifestMembers & {
       }
   );
 
-export type ComponentStructure = StableDeclaration & {
+export type VariantStyleOverride =
+  | { targetId: string; targetKind: "frame"; style: FrameStyleDeclaration }
+  | { targetId: string; targetKind: "text"; style: TextStyleDeclaration };
+type ComponentStructureBase = StableDeclaration & {
   componentId: string;
-  root: StructureRootDeclaration;
   partBindings: Readonly<Record<string, string>>;
-  slotPlacements: Readonly<Record<string, string>>;
+  variantStyles: Readonly<
+    Record<string, Readonly<Record<string, readonly VariantStyleOverride[]>>>
+  >;
   timelines: readonly StableDeclaration[];
 };
+export type ComponentStructure = ComponentStructureBase &
+  (
+    | { root: SurfaceDeclaration; baseSemanticTree?: never }
+    | { root: FrameDeclaration; baseSemanticTree: BaseSemanticTreeDeclaration }
+  );
 
 export type ComponentActionInvocation = {
   kind: "component.action";

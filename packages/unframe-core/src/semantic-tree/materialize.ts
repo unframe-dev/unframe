@@ -16,11 +16,65 @@ import {
   pathSegment,
   recordEntries,
   semanticOverrideFields,
-  semanticRoles,
   sorted,
   validateTree,
   type JsonRecord,
 } from "../validation/shared.js";
+
+const semanticNodeFields = {
+  heading: ["id", "parentId", "order", "role", "level", "text", "language"],
+  paragraph: ["id", "parentId", "order", "role", "text", "language"],
+  image: ["id", "parentId", "order", "role", "alt", "language"],
+  button: ["id", "parentId", "order", "role", "interactionId", "text", "language"],
+  list: ["id", "parentId", "order", "role", "ordered"],
+  listItem: ["id", "parentId", "order", "role", "text", "language"],
+  table: ["id", "parentId", "order", "role", "label", "language"],
+  row: ["id", "parentId", "order", "role"],
+  cell: ["id", "parentId", "order", "role", "text", "language"],
+  columnHeader: ["id", "parentId", "order", "role", "text", "language"],
+  rowHeader: ["id", "parentId", "order", "role", "text", "language"],
+} as const;
+
+const nonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
+
+const hasValidRoleFields = (node: JsonRecord): boolean => {
+  const role = node.role;
+  if (typeof role !== "string" || !Object.hasOwn(semanticNodeFields, role)) return false;
+  const fields = semanticNodeFields[role as keyof typeof semanticNodeFields];
+  if (
+    !hasOnlyFields(node, fields) ||
+    (node.language !== undefined && !nonEmptyString(node.language))
+  )
+    return false;
+  switch (role) {
+    case "heading":
+      return (
+        Number.isInteger(node.level) &&
+        (node.level as number) >= 1 &&
+        (node.level as number) <= 6 &&
+        nonEmptyString(node.text)
+      );
+    case "paragraph":
+    case "listItem":
+    case "cell":
+    case "columnHeader":
+    case "rowHeader":
+      return nonEmptyString(node.text);
+    case "image":
+      return nonEmptyString(node.alt);
+    case "button":
+      return id(node.interactionId) && nonEmptyString(node.text);
+    case "list":
+      return typeof node.ordered === "boolean";
+    case "table":
+      return node.label === undefined || nonEmptyString(node.label);
+    case "row":
+      return true;
+    default:
+      return false;
+  }
+};
 
 const cloneJsonValue = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(cloneJsonValue);
@@ -63,27 +117,12 @@ export const validateMaterializableSemanticTree = (
       continue;
     }
     if (
-      !hasOnlyFields(node, [
-        "id",
-        "parentId",
-        "order",
-        "role",
-        "text",
-        "language",
-        "alt",
-        "label",
-        "interactionId",
-      ]) ||
       !hasOwnFields(node, ["id", "parentId", "order", "role"]) ||
       node.id !== nodeId ||
       (node.parentId !== null && !id(node.parentId)) ||
       !Number.isInteger(node.order) ||
       (node.order as number) < 0 ||
-      !semanticRoles.has(node.role as string) ||
-      (node.text !== undefined && typeof node.text !== "string") ||
-      (node.language !== undefined && (!id(node.language) || typeof node.language !== "string")) ||
-      (node.alt !== undefined && typeof node.alt !== "string") ||
-      (node.interactionId !== undefined && !id(node.interactionId))
+      !hasValidRoleFields(node)
     )
       diagnostics.push(diagnostic("invalid-semantic-node", nodePath, "Semantic node is invalid."));
   }

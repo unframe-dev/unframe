@@ -260,7 +260,7 @@ describe("assembleDeclarationProject", () => {
     expect(
       hashThemeDeclaration({
         ...standardComponents.theme,
-        tokens: { source: "token-content" },
+        tokens: { spacing: { category: "logicalLength", value: 12 } },
       }),
     ).not.toBe(hashThemeDeclaration(standardComponents.theme));
 
@@ -282,6 +282,27 @@ describe("assembleDeclarationProject", () => {
     };
     expect(hashComponentStructureDeclaration(structureWithDifferentLocations)).toBe(
       hashComponentStructureDeclaration(standardComponents.surface.structure),
+    );
+
+    const frameStructure = {
+      ...standardComponents.surface.structure,
+      root: standardComponents.surface.structure.root.root,
+      baseSemanticTree: standardComponents.surface.structure.root.baseSemanticTree,
+    };
+    const frameStructureWithDifferentSemanticLocations = {
+      ...frameStructure,
+      baseSemanticTree: {
+        ...frameStructure.baseSemanticTree,
+        nodes: {
+          "semantic-text": {
+            ...frameStructure.baseSemanticTree.nodes["semantic-text"]!,
+            source: { file: "another-semantic.ts" },
+          },
+        },
+      },
+    };
+    expect(hashComponentStructureDeclaration(frameStructureWithDifferentSemanticLocations)).toBe(
+      hashComponentStructureDeclaration(frameStructure),
     );
   });
 
@@ -439,8 +460,8 @@ describe("assembleDeclarationProject", () => {
       const text = structure.root.root.children[0]!;
       (text as unknown as { style: Record<string, unknown> }).style = {
         ...text.style,
-        fontAssetId: "asset-a",
-        fallbackFontAssetIds: ["asset-b"],
+        font: { kind: "asset-ref", assetId: "asset-a" },
+        fallbackFonts: [{ kind: "asset-ref", assetId: "asset-b" }],
       };
       result.components[0]!.structure.value = structure;
       const structureHash = hashComponentStructureDeclaration(structure);
@@ -702,11 +723,11 @@ export default defineComponentStructure({
   id: "surface-structure", componentId: "surface",
   root: {
     id: "surface-root", kind: "surface", physicalSizeMeters: [1, 1], logicalSize: [1, 1], fit: "contain",
-    root: { id: "frame-root", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Presentation", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { fontAssetId: "reference-font", fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
+    root: { id: "frame-root", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Presentation", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { font: { kind: "asset-ref", assetId: "reference-font" }, fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
     baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "Presentation" } } },
     interactions: {}, initialStateId: "default", states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
     renderIntent: { updateModel: "static", interaction: "none", internalAnimation: "none", rendererPreference: "baked-web", fallbackPolicy: "reject" }
-  }, partBindings: {}, slotPlacements: {}, timelines: []
+  }, partBindings: {}, variantStyles: {}, timelines: []
 });`,
         },
       ],

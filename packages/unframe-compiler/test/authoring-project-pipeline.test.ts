@@ -56,11 +56,11 @@ export default defineComponentStructure({
   id: "${structureId}", componentId: "${componentId}",
   root: {
     id: "${structureId}-root", kind: "surface", physicalSizeMeters: [1, 1], logicalSize: [1, 1], fit: "contain",
-    root: { id: "${structureId}-frame", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Pipeline", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { fontAssetId: "reference-font", fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
+    root: { id: "${structureId}-frame", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Pipeline", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { font: { kind: "asset-ref", assetId: "reference-font" }, fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
     baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "Pipeline" } } },
     interactions: {}, initialStateId: "default", states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
     renderIntent: { updateModel: "static", interaction: "none", internalAnimation: "none", rendererPreference: "baked-web", fallbackPolicy: "reject" }
-  }, partBindings: {}, slotPlacements: {}, timelines: []
+  }, partBindings: {}, variantStyles: {}, timelines: []
 });`;
 
 type VirtualFile = { readonly fileName: string; readonly sourceText: string };

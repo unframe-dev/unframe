@@ -3,6 +3,7 @@ import {
   compileAuthoringProject,
   type AuthoringProjectPipelineResult,
   type CompiledDeclarationProject,
+  type CompilerWarning,
 } from "@unframe/unframe-compiler";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import {
@@ -117,7 +118,7 @@ const diagnostic = (
 ): PresentationCliDiagnostic => ({ family, code, message, path });
 const pathText = (path: readonly (string | number)[]) =>
   path.length ? `$/` + path.map(String).join("/") : "$";
-const ordered = (items: readonly PresentationCliDiagnostic[]) =>
+const ordered = <T extends PresentationCliDiagnostic>(items: readonly T[]) =>
   [...items].sort((a, b) => {
     const left = `${pathText(a.path)}\0${a.family}\0${a.code}\0${a.message}`;
     const right = `${pathText(b.path)}\0${b.family}\0${b.code}\0${b.message}`;
@@ -128,16 +129,36 @@ const output = (
   command: Command["command"] | undefined,
   format: Command["format"],
   diagnostics: readonly PresentationCliDiagnostic[] = [],
+  warnings: readonly CompilerWarning[] = [],
 ): PresentationCliResult => {
   const list = ordered(diagnostics);
+  const warningList = ordered(
+    warnings.map((warning) => ({ ...warning, family: "semantic" as const })),
+  );
   if (exitCode === 0)
     return {
       exitCode,
       stdout:
         format === "json"
-          ? `${JSON.stringify({ ok: true, command, diagnostics: [] })}\n`
+          ? `${JSON.stringify({ ok: true, command, diagnostics: [], warnings: warningList })}\n`
           : `${command}: ok\n`,
-      stderr: "",
+      stderr:
+        format === "text" && warningList.length
+          ? warningList
+              .map((warning) => {
+                const subject =
+                  "propName" in warning
+                    ? `prop=${JSON.stringify(warning.propName)}`
+                    : `variant=${JSON.stringify(warning.variantName)}`;
+                return [
+                  `${pathText(warning.path)}: warning/${warning.family}/${warning.code}: ${warning.message}`,
+                  `instance=${JSON.stringify(warning.componentInstanceId)}`,
+                  subject,
+                  `default=${JSON.stringify(warning.defaultValue)}`,
+                ].join(" ");
+              })
+              .join("\n") + "\n"
+          : "",
     };
   const stderr =
     format === "json"
@@ -291,7 +312,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   });
   const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
-  if (command === "check") return output(0, command, format);
+  if (command === "check") return output(0, command, format, [], checked.value.warnings);
   const acquired = await acquireBuildLock(discovered.projectDirectory);
   if (!acquired.ok)
     return output(3, command, format, [
@@ -404,7 +425,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
               : "Build artifacts could not be published.",
           ),
         ]);
-      return output(0, command, format);
+      return output(0, command, format, [], compiled.value.warnings);
     } catch (error) {
       const cancel =
         host.signal?.aborted || (error instanceof Error && error.name === "AbortError");

@@ -50,9 +50,18 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
     if (contentOrders.has(orderKey)) return false;
     contentOrders.add(orderKey);
     if (node.kind === "frame") {
+      const canonicalChildren = [...node.children].sort((left, right) => {
+        const orderDifference =
+          (surface.contentNodes[left]?.order ?? Number.POSITIVE_INFINITY) -
+          (surface.contentNodes[right]?.order ?? Number.POSITIVE_INFINITY);
+        return orderDifference || compareStrings(left, right);
+      });
       if (
         new Set(node.children).size !== node.children.length ||
-        node.children.some((childId) => surface.contentNodes[childId]?.parentId !== id)
+        node.children.some(
+          (childId, index) =>
+            surface.contentNodes[childId]?.parentId !== id || childId !== canonicalChildren[index],
+        )
       )
         return false;
     } else {

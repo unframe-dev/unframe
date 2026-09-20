@@ -1,6 +1,6 @@
 # Presentation Components Architecture
 
-- **Status**: Initial Structured Surface primitive implemented
+- **Status**: M3A Authoring API に同期した初期 Structured Surface Primitive を実装済み
 - **Scope**: Unframe 標準 Primitive、Component、Theme の package
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -100,12 +100,12 @@ Opaque source が React などを必要とする場合、その依存は Compone
 
 ## 10. Current implementation
 
-最初の milestone は `@unframe/unframe-components` から `standardSurfaceManifest`、`standardSurfaceStructure`、`standardTheme` と、それらを束ねる `standardComponents` を公開する。Structure は固定の `Surface → Frame → Text` Primitive graph、absolute layout、一つの `default` state、空の Interaction、`static / none / baked-web / reject` Render Intent だけを持つ。
+現在は `@unframe/unframe-components` から `standardSurfaceManifest`、`standardSurfaceStructure`、`standardTheme` と、それらを束ねる `standardComponents` を公開する。Structure は固定の `Surface → Frame → Text` Primitive graph、absolute layout、一つの `default` state、空の Interaction、`static / none / baked-web / reject` Render Intent を持つ。Text の primary font は Authoring の `AssetReference` で明示し、Structure は必須の `variantStyles` record を宣言する。
 
-Manifest は実際に Structure へ結合できない Props、Slots、Parts、Variants、Actions、Outputs を先行公開しない。Structure の local ID はすべて source に明示し、Frame / Text は Standard Theme の Named Style ID だけを参照する。Renderer compatibility は `baked-web` という data で宣言し、renderer API や concrete renderer へ依存しない。
+Manifest は実際に Structure へ結合できない Props、Slots、Parts、Variants、Actions、Outputs を先行公開しない。Structure の local ID と Text の font Asset reference は source に明示する。Renderer compatibility は `baked-web` という data で宣言し、renderer API や concrete renderer へ依存しない。
 
-現行 Authoring SDK の型 / runtime schema は Theme Token category と Named Style property schema をまだ実装していないため、Standard Theme は参照可能な空の Named Style record だけを提供する。これは generic renderer default を選ぶための最小 fixture であり、[Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) の型付き Theme や標準 visual design を実装済みとは扱わない。
+Authoring SDK は 6 category の Theme Token、同 category alias、Text / Frame Named Style、型付き Prop / Token reference、Variant style、typed Part override、Slot placeholder、nested Frame / Text を表現し、strict schema で検証する。Standard Theme 自体は空の Token / Named Style record のままであり、標準 visual design はまだ提供しない。
 
-Component Props / Variant の Structure への値注入、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity、migration、preview、visual regression は含めない。これらを暗黙の名前規約で補わず、Authoring / Compiler / Renderer の対応 contract が実装された後に追加する。
+Component Props / Variant / Part / Slot の解決と展開、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity の縦断検証、migration、preview、visual regression はこの package の実装完了範囲に含めない。これらを暗黙の名前規約で補わず、Compiler / Renderer の対応 contract が実装された後に検証する。
 
-M3Aで追加する型付きTheme、Props / Slots / Parts / Variants、nested Frame / Textの規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。migration metadata / 自動変換とPart partition isolateはM3Aに含めない。
+型付き Theme、Props / Slots / Parts / Variants、nested Frame / Text の規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。Slot は Frame children 内の明示 placeholder を挿入位置とする。placeholder の `semanticParentId` は nested semantic roots の接続先を指定し、省略時は Surface の追加 roots として扱う。migration metadata / 自動変換と Part partition isolate は M3A に含めない。

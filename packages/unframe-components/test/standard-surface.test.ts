@@ -32,6 +32,7 @@ describe("standard Surface contract", () => {
 
   it("owns an explicit Surface to Frame to Text primitive graph", () => {
     const surface = standardSurfaceStructure.root;
+    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
     expect(surface).toMatchObject({
       id: "surface-root",
       kind: "surface",
@@ -61,7 +62,7 @@ describe("standard Surface contract", () => {
       semanticNodeId: "semantic-text",
       maxCodePoints: 64,
       style: {
-        fontAssetId: "reference-font",
+        font: { kind: "asset-ref", assetId: "reference-font" },
         fontSize: 32,
         lineHeight: 40,
       },
@@ -70,6 +71,7 @@ describe("standard Surface contract", () => {
 
   it("keeps state and semantic meaning static and non-interactive", () => {
     const surface = standardSurfaceStructure.root;
+    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
     expect(Object.keys(surface.states)).toEqual(["default"]);
     expect(Object.keys(standardSurfaceManifest.states)).toEqual(Object.keys(surface.states));
     expect(surface.states.default).toEqual({
@@ -94,6 +96,7 @@ describe("standard Surface contract", () => {
 
   it("uses explicit unique local IDs instead of position-derived identity", () => {
     const surface = standardSurfaceStructure.root;
+    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
     const ids = [
       standardSurfaceStructure.id,
       surface.id,
@@ -108,12 +111,14 @@ describe("standard Surface contract", () => {
 
   it("uses concrete text inputs without applying unresolved Named Styles", () => {
     const surface = standardSurfaceStructure.root;
+    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
     const text = surface.root.children[0];
+    if (text?.kind !== "text") throw new Error("standard Surface child must be Text");
 
     expect(surface.root).not.toHaveProperty("namedStyle");
     expect(text).not.toHaveProperty("namedStyle");
     expect(text?.style).toEqual({
-      fontAssetId: "reference-font",
+      font: { kind: "asset-ref", assetId: "reference-font" },
       fontSize: 32,
       lineHeight: 40,
     });

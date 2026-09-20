@@ -88,5 +88,18 @@ export const hashComponentStructureDeclaration = (declaration: ComponentStructur
   hashCanonicalJsonPayload({
     ...withoutSource(declaration),
     root: structureRoot(declaration.root),
+    ...(declaration.root.kind === "frame"
+      ? {
+          baseSemanticTree: {
+            ...declaration.baseSemanticTree!,
+            nodes: Object.fromEntries(
+              Object.entries(declaration.baseSemanticTree!.nodes).map(([id, node]) => [
+                id,
+                semanticNode(node),
+              ]),
+            ),
+          },
+        }
+      : {}),
     timelines: declaration.timelines.map((timeline) => withoutSource(timeline)),
   });

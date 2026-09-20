@@ -74,6 +74,8 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 `"usage" | "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel"` の `family` field を必ず持ち、text diagnostics は
 `path: family/code: message` の一行形式である。family と順序は ADR-0013 に従う。
 
+Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
+
 `unframe.lock` の source asset は `font/ttf` / `font/otf` の `id`、`checksum`、`encodedSizeBytes`、canonical `dataBase64` を持つ。Compiler が bytes と参照を検証し、出力 AssetSet には descriptor だけを残す。raster size は CLI option ではなく ADR-0012 の長辺 2048 policy から導出する。
 
 ## 3. Artifact boundary
