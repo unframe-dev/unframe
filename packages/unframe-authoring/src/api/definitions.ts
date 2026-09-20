@@ -38,7 +38,7 @@ import type {
   PresentationDeclaration,
 } from "../domain/declarations.js";
 
-type WithoutKind<T extends { kind: string }> = Omit<T, "kind">;
+type WithoutKind<T extends { kind: string }> = T extends unknown ? Omit<T, "kind"> : never;
 type WithoutStableKind<T extends StableDeclaration & { kind: string }> = Omit<T, "kind">;
 type Exact<T, Shape> = T & Record<Exclude<keyof T, keyof Shape>, never>;
 
@@ -51,26 +51,500 @@ const finiteNumberSchema = z.number().finite();
 const nonNegativeIntegerSchema = z.number().int().safe().nonnegative();
 const positiveSafeIntegerSchema = z.number().int().safe().positive();
 const jsonValueSchema = z.json();
-const stringPropSchema = z.object({
-  required: z.boolean().optional(),
-  default: z.string().optional(),
+const sourceSchema = z.strictObject({
+  file: idSchema,
+  range: z
+    .tuple([nonNegativeIntegerSchema, nonNegativeIntegerSchema])
+    .refine(([start, end]) => start <= end)
+    .optional(),
 });
-const numberPropSchema = z.object({
-  required: z.boolean().optional(),
-  default: finiteNumberSchema.optional(),
+const stableShape = { id: idSchema, source: sourceSchema.optional() };
+const requiredPropSchema = z.strictObject({ required: z.literal(true) });
+const defaultStringPropSchema = z.strictObject({ default: z.string() });
+const defaultNumberPropSchema = z.strictObject({ default: finiteNumberSchema });
+const defaultBooleanPropSchema = z.strictObject({ default: z.boolean() });
+const stringPropSchema = z.union([requiredPropSchema, defaultStringPropSchema]);
+const numberPropSchema = z.union([requiredPropSchema, defaultNumberPropSchema]);
+const booleanPropSchema = z.union([requiredPropSchema, defaultBooleanPropSchema]);
+const propDeclarationSchema = z.union([
+  requiredPropSchema.extend({ kind: z.literal("string") }),
+  defaultStringPropSchema.extend({ kind: z.literal("string") }),
+  requiredPropSchema.extend({ kind: z.literal("number") }),
+  defaultNumberPropSchema.extend({ kind: z.literal("number") }),
+  requiredPropSchema.extend({ kind: z.literal("boolean") }),
+  defaultBooleanPropSchema.extend({ kind: z.literal("boolean") }),
+]);
+const slotSchema = z.strictObject({});
+const slotDeclarationSchema = slotSchema.extend({ kind: z.literal("slot") });
+const partSchema = z.strictObject({});
+const partDeclarationSchema = partSchema.extend({ kind: z.literal("part") });
+const variantShape = { values: z.array(idSchema), default: idSchema.optional() };
+const hasDeclaredVariantDefault = ({
+  values,
+  default: defaultValue,
+}: {
+  values: string[];
+  default?: string | undefined;
+}) => defaultValue === undefined || values.includes(defaultValue);
+const variantSchema = z.strictObject(variantShape).refine(hasDeclaredVariantDefault);
+const variantDeclarationSchema = z
+  .strictObject({
+    kind: z.literal("variant"),
+    ...variantShape,
+  })
+  .refine(hasDeclaredVariantDefault);
+const stateShape = { initial: z.boolean().optional() };
+const stateSchema = z.strictObject(stateShape);
+const stateDeclarationSchema = z.strictObject({
+  kind: z.literal("state"),
+  ...stateShape,
 });
-const booleanPropSchema = z.object({
-  required: z.boolean().optional(),
-  default: z.boolean().optional(),
+
+const resourceOwnerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("presentation") }),
+  z.strictObject({ kind: z.literal("group"), groupId: idSchema }),
+]);
+const absoluteLayoutSchema = z.strictObject({
+  kind: z.literal("absolute"),
+  x: finiteNumberSchema,
+  y: finiteNumberSchema,
+  width: finiteNumberSchema.positive(),
+  height: finiteNumberSchema.positive(),
 });
-const slotSchema = z.object({
-  accepts: z.array(idSchema),
-  cardinality: z.enum(["one", "many"]),
-  required: z.boolean().optional(),
+const namedStyleReferenceSchema = z.strictObject({
+  kind: z.literal("named-style-ref"),
+  styleId: idSchema,
 });
-const partSchema = z.object({ overridable: z.array(z.enum(["content", "placement", "style"])) });
-const variantSchema = z.object({ values: z.array(idSchema), default: idSchema.optional() });
-const stateSchema = z.object({ initial: z.boolean().optional() });
+const tokenReferenceSchema = z.strictObject({ kind: z.literal("token-ref"), tokenId: idSchema });
+const assetReferenceSchema = z.strictObject({ kind: z.literal("asset-ref"), assetId: idSchema });
+const unitIntervalSchema = finiteNumberSchema.min(0).max(1);
+const srgbaColorSchema = z.strictObject({
+  red: unitIntervalSchema,
+  green: unitIntervalSchema,
+  blue: unitIntervalSchema,
+  alpha: unitIntervalSchema,
+});
+const borderSchema = z.strictObject({
+  color: srgbaColorSchema,
+  width: finiteNumberSchema.nonnegative(),
+  radius: finiteNumberSchema.nonnegative(),
+});
+const textStyleSchema = z.strictObject({
+  fontAssetId: idSchema.optional(),
+  fallbackFontAssetIds: z.array(idSchema).optional(),
+  fontSize: finiteNumberSchema.positive().optional(),
+  lineHeight: finiteNumberSchema.positive().optional(),
+  color: srgbaColorSchema.optional(),
+  weight: z.enum(["regular", "bold"]).optional(),
+  align: z.enum(["start", "center", "end"]).optional(),
+  overflow: z.enum(["clip", "ellipsis"]).optional(),
+});
+const frameStyleSchema = z.strictObject({
+  backgroundColor: srgbaColorSchema.optional(),
+  border: borderSchema.optional(),
+  clip: z.boolean().optional(),
+});
+const primitiveShape = {
+  visible: z.boolean().optional(),
+  opacity: unitIntervalSchema.optional(),
+  semanticNodeId: idSchema.optional(),
+};
+const semanticOverrideSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("semantic-override"),
+  targetId: idSchema,
+  included: z.boolean().optional(),
+  text: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  alt: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+});
+const semanticNodeBaseShape = {
+  ...stableShape,
+  parentId: idSchema.nullable(),
+  order: z.number().int().min(0).max(4_294_967_295),
+};
+const semanticLanguageShape = { language: z.string().min(1).optional() };
+const semanticTextShape = { text: z.string().min(1), ...semanticLanguageShape };
+const semanticNodeSchema = z.discriminatedUnion("role", [
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("heading"),
+    level: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+      z.literal(6),
+    ]),
+    ...semanticTextShape,
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("paragraph"),
+    ...semanticTextShape,
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("image"),
+    alt: z.string().min(1),
+    ...semanticLanguageShape,
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("button"),
+    interactionId: idSchema,
+    ...semanticTextShape,
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("list"),
+    ordered: z.boolean(),
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("listItem"),
+    ...semanticTextShape,
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("table"),
+    label: z.string().min(1).optional(),
+    ...semanticLanguageShape,
+  }),
+  z.strictObject({ ...semanticNodeBaseShape, role: z.literal("row") }),
+  z.strictObject({ ...semanticNodeBaseShape, role: z.literal("cell"), ...semanticTextShape }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("columnHeader"),
+    ...semanticTextShape,
+  }),
+  z.strictObject({
+    ...semanticNodeBaseShape,
+    role: z.literal("rowHeader"),
+    ...semanticTextShape,
+  }),
+]);
+const surfaceStateSchema = z.strictObject({
+  ...stableShape,
+  semanticOverrides: z.array(semanticOverrideSchema),
+  enabledInteractionIds: z.array(idSchema).length(0),
+});
+const baseSemanticTreeSchema = z.strictObject({
+  rootNodeIds: z.array(idSchema),
+  nodes: z.record(idSchema, semanticNodeSchema),
+});
+const contentNodeSchema: z.ZodType = z.lazy(() =>
+  z.discriminatedUnion("kind", [
+    z.strictObject({
+      ...stableShape,
+      ...primitiveShape,
+      kind: z.literal("frame"),
+      layout: absoluteLayoutSchema,
+      children: z.array(contentNodeSchema),
+      style: frameStyleSchema.optional(),
+      namedStyle: namedStyleReferenceSchema.optional(),
+    }),
+    z.strictObject({
+      ...stableShape,
+      ...primitiveShape,
+      kind: z.literal("text"),
+      value: z.string(),
+      layout: absoluteLayoutSchema,
+      maxCodePoints: positiveSafeIntegerSchema,
+      style: textStyleSchema.optional(),
+      namedStyle: namedStyleReferenceSchema.optional(),
+    }),
+  ]),
+);
+const frameDeclarationSchema = z.strictObject({
+  ...stableShape,
+  ...primitiveShape,
+  kind: z.literal("frame"),
+  layout: absoluteLayoutSchema,
+  children: z.array(contentNodeSchema),
+  style: frameStyleSchema.optional(),
+  namedStyle: namedStyleReferenceSchema.optional(),
+});
+const surfaceDeclarationSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("surface"),
+  physicalSizeMeters: z.tuple([finiteNumberSchema.positive(), finiteNumberSchema.positive()]),
+  logicalSize: z.tuple([finiteNumberSchema.positive(), finiteNumberSchema.positive()]),
+  fit: z.enum(["contain", "cover", "stretch"]),
+  root: frameDeclarationSchema,
+  baseSemanticTree: baseSemanticTreeSchema,
+  interactions: z.record(idSchema, z.never()),
+  initialStateId: idSchema,
+  states: z.record(idSchema, surfaceStateSchema),
+  renderIntent: z.strictObject({
+    updateModel: z.literal("static"),
+    interaction: z.literal("none"),
+    internalAnimation: z.literal("none"),
+    rendererPreference: z.literal("baked-web"),
+    fallbackPolicy: z.literal("reject"),
+  }),
+});
+
+const projectionAudienceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("all") }),
+  z.strictObject({ kind: z.literal("role"), role: z.enum(["presenter", "viewer"]) }),
+]);
+const spatialDeclarationSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("spatial"),
+  name: z.string(),
+  owner: resourceOwnerSchema,
+  audience: projectionAudienceSchema,
+  parent: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("stage") }),
+    z.strictObject({ kind: z.literal("node"), nodeId: idSchema }),
+  ]),
+  order: nonNegativeIntegerSchema,
+  transform: z.strictObject({
+    position: z.tuple([finiteNumberSchema, finiteNumberSchema, finiteNumberSchema]),
+    rotation: z.tuple([
+      finiteNumberSchema,
+      finiteNumberSchema,
+      finiteNumberSchema,
+      finiteNumberSchema,
+    ]),
+    scale: z.tuple([
+      finiteNumberSchema.positive(),
+      finiteNumberSchema.positive(),
+      finiteNumberSchema.positive(),
+    ]),
+  }),
+  active: z.boolean(),
+  visible: z.boolean(),
+  opacity: finiteNumberSchema.min(0).max(1),
+});
+const componentInstanceSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("component-instance"),
+  componentId: idSchema,
+  version: finiteNumberSchema,
+  packageLock: z.strictObject({
+    packageVersion: idSchema,
+    packageIntegrity: idSchema,
+    manifestHash: idSchema,
+    structureHash: idSchema.optional(),
+  }),
+  owner: resourceOwnerSchema,
+  spatialNodeId: idSchema,
+  props: z.record(idSchema, jsonValueSchema),
+  slots: z.record(idSchema, z.array(idSchema)),
+  variants: z.record(idSchema, idSchema),
+  partOverrides: z.array(
+    z.strictObject({
+      partId: idSchema,
+      content: jsonValueSchema.optional(),
+      placement: absoluteLayoutSchema.optional(),
+      style: z.record(z.string(), jsonValueSchema).optional(),
+    }),
+  ),
+});
+const detachSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("detach"),
+  mode: z.literal("structured"),
+  instanceId: idSchema,
+  provenance: z.strictObject({ componentId: idSchema, version: finiteNumberSchema }),
+});
+
+const actionValueSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("literal"),
+    value: z.union([z.null(), z.boolean(), finiteNumberSchema, z.string()]),
+  }),
+  z.strictObject({ kind: z.literal("eventPayload"), field: idSchema }),
+  z.strictObject({ kind: z.literal("variable"), variableId: idSchema }),
+]);
+const actionPreconditionSchema = z.strictObject({
+  kind: z.literal("surfaceState"),
+  surfaceId: idSchema,
+  stateId: idSchema,
+});
+const actionEffectSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("setSurfaceState"), surfaceId: idSchema, stateId: idSchema }),
+  z.strictObject({
+    kind: z.literal("playTimeline"),
+    timelineId: idSchema,
+    completion: z.enum(["blocking", "nonBlocking"]),
+  }),
+]);
+const actionDeclarationSchema = z.strictObject({
+  kind: z.literal("action"),
+  inputs: z.record(idSchema, z.enum(["null", "boolean", "number", "string"])),
+  preconditions: z.array(actionPreconditionSchema),
+  effects: z.array(actionEffectSchema).min(1),
+});
+const outputPayloadFieldSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("null"), value: z.null() }),
+  z.strictObject({ type: z.literal("boolean"), value: z.boolean() }),
+  z.strictObject({ type: z.literal("number"), value: finiteNumberSchema }),
+  z.strictObject({ type: z.literal("string"), value: z.string() }),
+]);
+const outputProducerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("surfaceInteraction"), interactionId: idSchema }),
+  z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: idSchema }),
+  z.strictObject({ kind: z.literal("mediaCompleted"), surfaceId: idSchema }),
+  z.strictObject({ kind: z.literal("timer"), afterMilliseconds: finiteNumberSchema.nonnegative() }),
+]);
+const outputDeclarationSchema = z.strictObject({
+  kind: z.literal("output"),
+  payload: z.record(idSchema, outputPayloadFieldSchema),
+  producer: outputProducerSchema,
+});
+const manifestMembersShape = {
+  props: z.record(idSchema, propDeclarationSchema),
+  slots: z.record(idSchema, slotDeclarationSchema),
+  parts: z.record(idSchema, partDeclarationSchema),
+  variants: z.record(idSchema, variantDeclarationSchema),
+  states: z.record(idSchema, stateDeclarationSchema),
+  actions: z.record(idSchema, actionDeclarationSchema),
+  outputs: z.record(idSchema, outputDeclarationSchema),
+};
+const opaqueSemanticSurfaceSchema = z.strictObject({
+  id: idSchema,
+  bindingKey: idSchema,
+  baseSemanticTree: baseSemanticTreeSchema,
+  interactions: z.record(idSchema, z.never()),
+  initialStateId: idSchema,
+  states: z.record(idSchema, surfaceStateSchema),
+});
+const componentManifestSchema = z.union([
+  z.strictObject({
+    componentId: idSchema,
+    version: positiveSafeIntegerSchema,
+    source: sourceSchema.optional(),
+    ...manifestMembersShape,
+    authoring: z.strictObject({ mode: z.literal("structured"), structure: idSchema }),
+    renderers: z.array(idSchema),
+  }),
+  z.strictObject({
+    componentId: idSchema,
+    version: positiveSafeIntegerSchema,
+    source: sourceSchema.optional(),
+    ...manifestMembersShape,
+    authoring: z.strictObject({ mode: z.literal("opaque") }),
+    renderers: z.record(
+      idSchema,
+      z.strictObject({ entry: idSchema, bindingKeys: z.array(idSchema) }),
+    ),
+    semantics: z.strictObject({
+      targets: z.array(
+        z.strictObject({
+          id: idSchema,
+          kind: z.enum(["node", "timeline", "variable", "media"]),
+          bindingKey: idSchema.optional(),
+        }),
+      ),
+      surfaces: z.array(opaqueSemanticSurfaceSchema),
+    }),
+  }),
+]);
+const componentStructureSchema = z.strictObject({
+  ...stableShape,
+  componentId: idSchema,
+  root: z.union([surfaceDeclarationSchema, frameDeclarationSchema]),
+  partBindings: z.record(idSchema, idSchema),
+  slotPlacements: z.record(idSchema, idSchema),
+  timelines: z.array(z.strictObject(stableShape)),
+});
+const cueTriggerSchema = z.union([
+  z.strictObject({ kind: z.literal("event"), event: idSchema }),
+  z.strictObject({
+    kind: z.literal("component.output"),
+    componentInstanceId: idSchema,
+    outputId: idSchema,
+  }),
+]);
+const componentActionInvocationSchema = z.strictObject({
+  kind: z.literal("component.action"),
+  componentInstanceId: idSchema,
+  actionId: idSchema,
+  arguments: z.record(idSchema, actionValueSchema),
+});
+const componentOutputReferenceSchema = z.strictObject({
+  kind: z.literal("component.output"),
+  componentInstanceId: idSchema,
+  outputId: idSchema,
+});
+const cueSchema = z.strictObject({
+  ...stableShape,
+  trigger: cueTriggerSchema,
+  actions: z.array(componentActionInvocationSchema),
+  toStepId: idSchema.optional(),
+  toGroupId: idSchema.optional(),
+});
+const flowStepSchema = z.strictObject({ ...stableShape, cues: z.array(cueSchema) });
+const flowGroupSchema = z.strictObject({
+  ...stableShape,
+  initialStepId: idSchema,
+  steps: z.record(idSchema, flowStepSchema),
+});
+const variableSchema = z.union([
+  z.strictObject({
+    ...stableShape,
+    owner: resourceOwnerSchema,
+    type: z.literal("null"),
+    initialValue: z.null(),
+  }),
+  z.strictObject({
+    ...stableShape,
+    owner: resourceOwnerSchema,
+    type: z.literal("boolean"),
+    initialValue: z.boolean(),
+  }),
+  z.strictObject({
+    ...stableShape,
+    owner: resourceOwnerSchema,
+    type: z.literal("number"),
+    initialValue: finiteNumberSchema,
+  }),
+  z.strictObject({
+    ...stableShape,
+    owner: resourceOwnerSchema,
+    type: z.literal("string"),
+    initialValue: z.string(),
+  }),
+]);
+const presentationSchema = z.strictObject({
+  ...stableShape,
+  metadata: z.strictObject({ title: z.string().min(1) }),
+  stage: z.strictObject({
+    coordinateSystem: z.strictObject({
+      unit: z.literal("meter"),
+      handedness: z.literal("right"),
+      upAxis: z.literal("+Y"),
+      forwardAxis: z.literal("-Z"),
+    }),
+    size: z.tuple([
+      finiteNumberSchema.positive(),
+      finiteNumberSchema.positive(),
+      finiteNumberSchema.positive(),
+    ]),
+  }),
+  scene: z.strictObject({
+    spatial: z.array(spatialDeclarationSchema),
+    components: z.array(componentInstanceSchema),
+  }),
+  theme: z.strictObject({ themeId: idSchema }).optional(),
+  assets: z.array(z.strictObject({ kind: z.literal("asset-ref"), assetId: idSchema })),
+  flow: z.strictObject({
+    initialGroupId: idSchema,
+    groups: z.record(idSchema, flowGroupSchema),
+    variables: z.record(idSchema, variableSchema),
+  }),
+  operations: z.array(detachSchema),
+});
+const themeSchema = z.strictObject({
+  ...stableShape,
+  tokens: z.record(idSchema, jsonValueSchema),
+  namedStyles: z.record(idSchema, z.record(z.string(), jsonValueSchema)),
+});
 
 const assertSchema = (schema: z.ZodType, value: unknown, message: string): void => {
   if (!schema.safeParse(value).success) invalid(message);
@@ -233,7 +707,7 @@ const assertSurfaceSemanticIds = (
   for (const node of Object.values(value.baseSemanticTree.nodes)) {
     assertStableNested(node, "semantic node id");
     if (node.parentId !== null) assertId(node.parentId, "semantic parentId");
-    if (node.interactionId !== undefined)
+    if ("interactionId" in node)
       invalid("The initial non-interactive Surface milestone forbids semantic interactionId.");
   }
   assertRecordKeys(value.states, "surface state record key");
@@ -300,12 +774,14 @@ const assertPresentationDeclaration = (value: unknown): void => {
     assertId(operation.provenance.componentId, "operation provenance componentId");
   }
   assertStableNested(declaration, "id");
+  assertSchema(presentationSchema, declaration, "Invalid Presentation declaration.");
 };
 const assertThemeDeclaration = (value: unknown): void => {
   const declaration = assertJsonSafe(value) as ThemeDeclaration;
   assertRecordKeys(declaration.tokens, "theme token id");
   assertRecordKeys(declaration.namedStyles, "named style id");
   assertStableNested(declaration, "id");
+  assertSchema(themeSchema, declaration, "Invalid Theme declaration.");
 };
 const assertComponentManifest = (value: unknown): void => {
   const declaration = assertJsonSafe(value) as ComponentManifest;
@@ -338,8 +814,6 @@ const assertComponentManifest = (value: unknown): void => {
       } else assertId(effect.timelineId, "action effect timelineId");
     }
   }
-  for (const slotValue of Object.values(declaration.slots))
-    for (const accepted of slotValue.accepts) assertId(accepted, "slot accepted kind");
   for (const variantValue of Object.values(declaration.variants)) {
     for (const option of variantValue.values) assertId(option, "variant value");
     if (variantValue.default !== undefined) assertId(variantValue.default, "variant default");
@@ -375,6 +849,7 @@ const assertComponentManifest = (value: unknown): void => {
       assertSurfaceSemanticIds(semanticSurface);
     }
   }
+  assertSchema(componentManifestSchema, declaration, "Invalid Component Manifest declaration.");
 };
 const assertComponentStructure = (value: unknown): void => {
   const declaration = assertJsonSafe(value) as ComponentStructure;
@@ -389,6 +864,7 @@ const assertComponentStructure = (value: unknown): void => {
   if (declaration.root.kind === "surface") assertSurfaceIds(declaration.root);
   else assertContentIds(declaration.root);
   assertStableNested(declaration, "id");
+  assertSchema(componentStructureSchema, declaration, "Invalid Component Structure declaration.");
 };
 
 export const isPresentationDeclaration = (value: unknown): value is PresentationDeclaration =>
@@ -417,27 +893,37 @@ export const defineComponentStructure = <const T extends ComponentStructure>(val
   return value;
 };
 
-export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(value: T) => {
+export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(
+  value: Exact<T, WithoutKind<StringPropDeclaration>>,
+) => {
   const declaration = assertJsonSafe(value);
   assertSchema(stringPropSchema, declaration, "Invalid string prop declaration.");
   return build({ ...declaration, kind: "string" as const });
 };
-export const numberProp = <const T extends WithoutKind<NumberPropDeclaration>>(value: T) => {
+export const numberProp = <const T extends WithoutKind<NumberPropDeclaration>>(
+  value: Exact<T, WithoutKind<NumberPropDeclaration>>,
+) => {
   const declaration = assertJsonSafe(value);
   assertSchema(numberPropSchema, declaration, "Invalid number prop declaration.");
   return build({ ...declaration, kind: "number" as const });
 };
-export const booleanProp = <const T extends WithoutKind<BooleanPropDeclaration>>(value: T) => {
+export const booleanProp = <const T extends WithoutKind<BooleanPropDeclaration>>(
+  value: Exact<T, WithoutKind<BooleanPropDeclaration>>,
+) => {
   const declaration = assertJsonSafe(value);
   assertSchema(booleanPropSchema, declaration, "Invalid boolean prop declaration.");
   return build({ ...declaration, kind: "boolean" as const });
 };
-export const slot = <const T extends WithoutKind<SlotDeclaration>>(value: T) => {
+export const slot = <const T extends WithoutKind<SlotDeclaration>>(
+  value: Exact<T, WithoutKind<SlotDeclaration>>,
+) => {
   const declaration = assertJsonSafe(value);
   assertSchema(slotSchema, declaration, "Invalid slot declaration.");
   return build({ ...declaration, kind: "slot" as const });
 };
-export const part = <const T extends WithoutKind<PartDeclaration>>(value: T) => {
+export const part = <const T extends WithoutKind<PartDeclaration>>(
+  value: Exact<T, WithoutKind<PartDeclaration>>,
+) => {
   const declaration = assertJsonSafe(value);
   assertSchema(partSchema, declaration, "Invalid part declaration.");
   return build({ ...declaration, kind: "part" as const });
@@ -460,11 +946,15 @@ export const action = <const T extends WithoutKind<ActionDeclaration>>(value: T)
   const declaration = assertJsonSafe(value);
   if (!z.array(z.unknown()).min(1).safeParse(declaration.effects).success)
     invalid("Component actions must declare at least one effect.");
-  return build({ ...declaration, kind: "action" as const });
+  const result = { ...declaration, kind: "action" as const };
+  assertSchema(actionDeclarationSchema, result, "Invalid action declaration.");
+  return build(result);
 };
 export const output = <const T extends WithoutKind<OutputDeclaration>>(value: T) => {
   const declaration = assertJsonSafe(value);
-  return build({ ...declaration, kind: "output" as const });
+  const result = { ...declaration, kind: "output" as const };
+  assertSchema(outputDeclarationSchema, result, "Invalid output declaration.");
+  return build(result);
 };
 
 export const surfaceState = (surfaceId: string, stateId: string): ActionPrecondition => {
@@ -483,7 +973,10 @@ export const playTimeline = (
 ): ActionEffect => {
   assertId(timelineId, "timelineId");
   const declaration = assertJsonSafe(options);
-  if (!z.object({ completion: z.enum(["blocking", "nonBlocking"]) }).safeParse(declaration).success)
+  if (
+    !z.strictObject({ completion: z.enum(["blocking", "nonBlocking"]) }).safeParse(declaration)
+      .success
+  )
     invalid("completion must be blocking or nonBlocking.");
   return build({ kind: "playTimeline", timelineId, ...declaration });
 };
@@ -510,7 +1003,9 @@ export const invokeComponentAction = <const T extends Omit<ComponentActionInvoca
   const declaration = assertJsonSafe(value);
   assertId(declaration.componentInstanceId, "componentInstanceId");
   assertId(declaration.actionId, "actionId");
-  return build({ ...declaration, kind: "component.action" as const });
+  const result = { ...declaration, kind: "component.action" as const };
+  assertSchema(componentActionInvocationSchema, result, "Invalid Component Action invocation.");
+  return build(result);
 };
 export const componentOutput = <const T extends Omit<ComponentOutputReference, "kind">>(
   value: T,
@@ -518,46 +1013,64 @@ export const componentOutput = <const T extends Omit<ComponentOutputReference, "
   const declaration = assertJsonSafe(value);
   assertId(declaration.componentInstanceId, "componentInstanceId");
   assertId(declaration.outputId, "outputId");
-  return build({ ...declaration, kind: "component.output" as const });
+  const result = { ...declaration, kind: "component.output" as const };
+  assertSchema(componentOutputReferenceSchema, result, "Invalid Component Output reference.");
+  return build(result);
 };
-export const cue = <const T extends CueDeclaration>(value: T): T => defineStable(value);
+export const cue = <const T extends CueDeclaration>(value: T): T => {
+  const declaration = assertJsonSafe(value);
+  assertSchema(cueSchema, declaration, "Invalid cue declaration.");
+  return defineStable(value);
+};
 
 export const tokenRef = <const T extends WithoutKind<TokenReference>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertId(declaration.tokenId, "tokenId");
-  return build({ ...declaration, kind: "token-ref" as const });
+  const result = { ...declaration, kind: "token-ref" as const };
+  assertSchema(tokenReferenceSchema, result, "Invalid Token reference.");
+  return build(result);
 };
 export const namedStyleRef = <const T extends WithoutKind<NamedStyleReference>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertId(declaration.styleId, "styleId");
-  return build({ ...declaration, kind: "named-style-ref" as const });
+  const result = { ...declaration, kind: "named-style-ref" as const };
+  assertSchema(namedStyleReferenceSchema, result, "Invalid Named Style reference.");
+  return build(result);
 };
 export const assetRef = <const T extends WithoutKind<AssetReference>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertId(declaration.assetId, "assetId");
-  return build({ ...declaration, kind: "asset-ref" as const });
+  const result = { ...declaration, kind: "asset-ref" as const };
+  assertSchema(assetReferenceSchema, result, "Invalid Asset reference.");
+  return build(result);
 };
 
 export const spatial = <const T extends WithoutStableKind<SpatialDeclaration>>(value: T) => {
   const snapshot = assertJsonSafe(value);
   const declaration = { ...snapshot, kind: "spatial" as const };
   assertSpatialFields(declaration);
+  assertSchema(spatialDeclarationSchema, declaration, "Invalid spatial declaration.");
   return defineStable(declaration);
 };
 export const frame = <const T extends WithoutStableKind<FrameDeclaration>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertLayout(declaration.layout);
-  return defineStable({ ...declaration, kind: "frame" as const });
+  const result = { ...declaration, kind: "frame" as const };
+  assertSchema(frameDeclarationSchema, result, "Invalid frame declaration.");
+  return defineStable(result);
 };
 export const text = <const T extends WithoutStableKind<TextDeclaration>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertLayout(declaration.layout);
-  return defineStable({ ...declaration, kind: "text" as const });
+  const result = { ...declaration, kind: "text" as const };
+  assertSchema(contentNodeSchema, result, "Invalid text declaration.");
+  return defineStable(result);
 };
 export const surface = <const T extends WithoutStableKind<SurfaceDeclaration>>(value: T) => {
   const snapshot = assertJsonSafe(value);
   const declaration = { ...snapshot, kind: "surface" as const };
   assertSurfaceIds(declaration);
+  assertSchema(surfaceDeclarationSchema, declaration, "Invalid Surface declaration.");
   return defineStable(declaration);
 };
 export const semanticOverride = <const T extends WithoutStableKind<SemanticOverrideDeclaration>>(
@@ -565,7 +1078,9 @@ export const semanticOverride = <const T extends WithoutStableKind<SemanticOverr
 ) => {
   const declaration = assertJsonSafe(value);
   assertId(declaration.targetId, "targetId");
-  return defineStable({ ...declaration, kind: "semantic-override" as const });
+  const result = { ...declaration, kind: "semantic-override" as const };
+  assertSchema(semanticOverrideSchema, result, "Invalid semantic override declaration.");
+  return defineStable(result);
 };
 export const componentInstance = <const T extends WithoutStableKind<ComponentInstanceDeclaration>>(
   value: T,
@@ -575,11 +1090,14 @@ export const componentInstance = <const T extends WithoutStableKind<ComponentIns
   assertId(snapshot.spatialNodeId, "spatialNodeId");
   const declaration = { ...snapshot, kind: "component-instance" as const };
   assertComponentInstanceIds(declaration);
+  assertSchema(componentInstanceSchema, declaration, "Invalid Component Instance declaration.");
   return defineStable(declaration);
 };
 export const detach = <const T extends WithoutStableKind<DetachDeclaration>>(value: T) => {
   const declaration = assertJsonSafe(value);
   assertId(declaration.instanceId, "instanceId");
   assertId(declaration.provenance.componentId, "provenance.componentId");
-  return defineStable({ ...declaration, kind: "detach" as const });
+  const result = { ...declaration, kind: "detach" as const };
+  assertSchema(detachSchema, result, "Invalid detach declaration.");
+  return defineStable(result);
 };

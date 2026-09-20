@@ -23,9 +23,11 @@ export type AuthoringDiagnostic = Diagnostic & {
 export type ResourceOwner = { kind: "presentation" } | { kind: "group"; groupId: string };
 export type ProjectionAudience = { kind: "all" } | { kind: "role"; role: "presenter" | "viewer" };
 
-export type StringPropDeclaration = { kind: "string"; required?: boolean; default?: string };
-export type NumberPropDeclaration = { kind: "number"; required?: boolean; default?: number };
-export type BooleanPropDeclaration = { kind: "boolean"; required?: boolean; default?: boolean };
+type RequiredProp = { required: true; default?: never };
+type DefaultProp<T> = { required?: never; default: T };
+export type StringPropDeclaration = { kind: "string" } & (RequiredProp | DefaultProp<string>);
+export type NumberPropDeclaration = { kind: "number" } & (RequiredProp | DefaultProp<number>);
+export type BooleanPropDeclaration = { kind: "boolean" } & (RequiredProp | DefaultProp<boolean>);
 export type PropDeclaration =
   | StringPropDeclaration
   | NumberPropDeclaration
@@ -33,13 +35,9 @@ export type PropDeclaration =
 
 export type SlotDeclaration = {
   kind: "slot";
-  accepts: readonly string[];
-  cardinality: "one" | "many";
-  required?: boolean;
 };
 export type PartDeclaration = {
   kind: "part";
-  overridable: readonly ("content" | "placement" | "style")[];
 };
 export type VariantDeclaration = {
   kind: "variant";
@@ -126,15 +124,25 @@ export type AbsoluteLayoutDeclaration = {
   height: number;
 };
 
-export type SemanticNodeDeclaration = StableDeclaration & {
+type SemanticNodeBase = StableDeclaration & {
   parentId: string | null;
   order: number;
-  role: "heading" | "paragraph" | "image" | "button" | "table" | "list" | "listItem";
-  text?: string;
-  language?: string;
-  alt?: string;
-  interactionId?: never;
 };
+type SemanticText = { text: string; language?: string };
+export type SemanticNodeDeclaration = SemanticNodeBase &
+  (
+    | ({ role: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6 } & SemanticText)
+    | ({ role: "paragraph" } & SemanticText)
+    | { role: "image"; alt: string; language?: string }
+    | ({ role: "button"; interactionId: string } & SemanticText)
+    | { role: "list"; ordered: boolean }
+    | ({ role: "listItem" } & SemanticText)
+    | { role: "table"; label?: string; language?: string }
+    | { role: "row" }
+    | ({ role: "cell" } & SemanticText)
+    | ({ role: "columnHeader" } & SemanticText)
+    | ({ role: "rowHeader" } & SemanticText)
+  );
 export type InteractionDeclaration = StableDeclaration & {
   kind: "click";
   event: string;
@@ -146,24 +154,62 @@ export type SemanticOverrideDeclaration = StableDeclaration & {
   text?: string | null;
   language?: string | null;
   alt?: string | null;
+  label?: string | null;
 };
 export type SurfaceStateDeclaration = StableDeclaration & {
   semanticOverrides: readonly SemanticOverrideDeclaration[];
   enabledInteractionIds: readonly string[];
 };
 
-export type FrameDeclaration = StableDeclaration & {
-  kind: "frame";
-  layout: AbsoluteLayoutDeclaration;
-  children: readonly ContentNodeDeclaration[];
-  style?: NamedStyleReference;
+export type SrgbaColorDeclaration = {
+  red: number;
+  green: number;
+  blue: number;
+  alpha: number;
 };
-export type TextDeclaration = StableDeclaration & {
-  kind: "text";
-  value: string;
-  layout: AbsoluteLayoutDeclaration;
-  style?: NamedStyleReference;
+export type BorderDeclaration = {
+  color: SrgbaColorDeclaration;
+  width: number;
+  radius: number;
 };
+export type TextStyleDeclaration = {
+  fontAssetId?: string;
+  fallbackFontAssetIds?: readonly string[];
+  fontSize?: number;
+  lineHeight?: number;
+  color?: SrgbaColorDeclaration;
+  weight?: "regular" | "bold";
+  align?: "start" | "center" | "end";
+  overflow?: "clip" | "ellipsis";
+};
+export type FrameStyleDeclaration = {
+  backgroundColor?: SrgbaColorDeclaration;
+  border?: BorderDeclaration;
+  clip?: boolean;
+};
+type CommonPrimitiveDeclaration = {
+  visible?: boolean;
+  opacity?: number;
+  semanticNodeId?: string;
+};
+
+export type FrameDeclaration = StableDeclaration &
+  CommonPrimitiveDeclaration & {
+    kind: "frame";
+    layout: AbsoluteLayoutDeclaration;
+    children: readonly ContentNodeDeclaration[];
+    style?: FrameStyleDeclaration;
+    namedStyle?: NamedStyleReference;
+  };
+export type TextDeclaration = StableDeclaration &
+  CommonPrimitiveDeclaration & {
+    kind: "text";
+    value: string;
+    layout: AbsoluteLayoutDeclaration;
+    maxCodePoints: number;
+    style?: TextStyleDeclaration;
+    namedStyle?: NamedStyleReference;
+  };
 export type SurfaceDeclaration = StableDeclaration & {
   kind: "surface";
   physicalSizeMeters: readonly [number, number];

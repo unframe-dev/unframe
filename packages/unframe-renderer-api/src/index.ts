@@ -25,6 +25,7 @@ export type {
   RendererCapabilities,
   RendererConformanceFixture,
   RendererEntry,
+  RendererFontAssets,
   RendererIdentity,
   RendererPlugin,
   RendererProvenance,

@@ -7,8 +7,10 @@ import {
 } from "@unframe/unframe-authoring";
 import {
   canonicalizePresentationDefinition,
+  hashCanonicalJsonPayload,
   hashPresentationDefinition,
   validatePresentationDefinition,
+  type BuildArtifactsV2,
   type Diagnostic,
   type PresentationDefinition,
   type ValidationResult,
@@ -21,18 +23,44 @@ import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
 import {
   emptyRecord,
-  hashJson,
   isRecord,
   nonEmptyString,
   renderIntent,
   resourceId,
   sameLock,
-  hasValidInitialPresentationShape,
   projectEnvelopeDiagnostics,
 } from "../lowering/support.js";
 import type { CheckedDeclarationProject, CompilerDeclarationProject } from "./types.js";
+import {
+  checksumBytes,
+  decodeCanonicalBase64,
+  hasValidFontSignature,
+} from "../validation/source-assets.js";
 
 type UnknownRecord = Record<string, unknown>;
+const canonicalQuaternion = (
+  value: readonly [number, number, number, number],
+): [number, number, number, number] | undefined => {
+  const magnitude = Math.hypot(...value);
+  if (!Number.isFinite(magnitude) || magnitude === 0) return undefined;
+  let normalized = value.map((component) => component / magnitude) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  const firstNonZero = [normalized[3], normalized[0], normalized[1], normalized[2]].find(
+    (component) => component !== 0,
+  );
+  if ((firstNonZero ?? 1) < 0)
+    normalized = normalized.map((component) => -component) as [number, number, number, number];
+  return normalized.map((component) => (component === 0 ? 0 : component)) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+};
 const checkDeclarationProjectUnchecked = (
   input: unknown,
 ): ValidationResult<CheckedDeclarationProject> => {
@@ -79,18 +107,7 @@ const checkDeclarationProjectUnchecked = (
     }
     return true;
   };
-  const presentationValid = validateDeclaration(
-    ["presentation"],
-    isPresentationDeclaration(presentation),
-  );
-  if (presentationValid && !hasValidInitialPresentationShape(presentation))
-    diagnostics.push(
-      diagnostic(
-        "compiler-invalid-presentation-shape",
-        ["presentation"],
-        "Presentation fields do not match the initial declaration contract.",
-      ),
-    );
+  validateDeclaration(["presentation"], isPresentationDeclaration(presentation));
   for (const [index, candidate] of themes.entries()) {
     validateDeclaration(
       ["themes", index, "declaration"],
@@ -381,12 +398,15 @@ const checkDeclarationProjectUnchecked = (
           "Timelines and operations are not supported.",
         ),
       );
-    for (const style of [root.root.style, ...root.root.children.map((child) => child.style)]) {
+    for (const namedStyle of [
+      root.root.namedStyle,
+      ...root.root.children.map((child) => child.namedStyle),
+    ]) {
       if (
-        style &&
+        namedStyle &&
         (!theme[0] ||
-          !(style.styleId in theme[0].declaration.namedStyles) ||
-          !emptyRecord(theme[0].declaration.namedStyles[style.styleId]!))
+          !(namedStyle.styleId in theme[0].declaration.namedStyles) ||
+          !emptyRecord(theme[0].declaration.namedStyles[namedStyle.styleId]!))
       )
         diagnostics.push(
           diagnostic(
@@ -411,13 +431,52 @@ const checkDeclarationProjectUnchecked = (
       if (child.kind !== "text") continue;
       const id = resourceId(instance.id, child.id);
       childIds.push(id);
+      if (
+        child.semanticNodeId === undefined ||
+        !Object.hasOwn(root.baseSemanticTree.nodes, child.semanticNodeId)
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-semantic-node-required",
+            [...path, "structure", "root", "root", "children", childOrder, "semanticNodeId"],
+            "Direct Text requires an explicit Semantic Node reference.",
+          ),
+        );
+      if (
+        child.style?.fontAssetId === undefined ||
+        child.style.fontSize === undefined ||
+        child.style.lineHeight === undefined
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-text-style-incomplete",
+            [...path, "structure", "root", "root", "children", childOrder, "style"],
+            "Resolved Text style requires a font, font size, and line height.",
+          ),
+        );
       contentNodes[id] = {
         id,
         kind: "text",
         parentId: frameId,
         order: childOrder,
         placement: { ...child.layout },
-        text: child.value,
+        ...(child.semanticNodeId === undefined
+          ? {}
+          : { semanticNodeId: resourceId(instance.id, child.semanticNodeId) }),
+        visible: child.visible ?? true,
+        opacity: child.opacity ?? 1,
+        value: { kind: "literal", value: child.value },
+        maxCodePoints: child.maxCodePoints,
+        style: {
+          fontAssetId: child.style?.fontAssetId ?? "invalid-missing-font",
+          fallbackFontAssetIds: [...(child.style?.fallbackFontAssetIds ?? [])],
+          fontSize: child.style?.fontSize ?? 1,
+          lineHeight: child.style?.lineHeight ?? 1,
+          color: child.style?.color ?? { red: 0, green: 0, blue: 0, alpha: 1 },
+          weight: child.style?.weight ?? "regular",
+          align: child.style?.align ?? "start",
+          overflow: child.style?.overflow ?? "clip",
+        },
       };
     }
     contentNodes[frameId] = {
@@ -425,15 +484,35 @@ const checkDeclarationProjectUnchecked = (
       kind: "frame",
       parentId: null,
       order: 0,
+      ...(root.root.semanticNodeId === undefined
+        ? {}
+        : { semanticNodeId: resourceId(instance.id, root.root.semanticNodeId) }),
+      visible: root.root.visible ?? true,
+      opacity: root.root.opacity ?? 1,
+      placement: { ...root.root.layout },
       layout: { kind: "absolute" },
       children: childIds,
+      backgroundColor: root.root.style?.backgroundColor ?? {
+        red: 0,
+        green: 0,
+        blue: 0,
+        alpha: 0,
+      },
+      border: root.root.style?.border ?? {
+        color: { red: 0, green: 0, blue: 0, alpha: 0 },
+        width: 0,
+        radius: 0,
+      },
+      clip: root.root.style?.clip ?? false,
     };
     const semanticNodes: PresentationDefinition["scene"]["surfaces"][string]["baseSemanticTree"]["nodes"] =
       {};
     for (const semantic of Object.values(root.baseSemanticTree.nodes)) {
       const id = resourceId(instance.id, semantic.id);
+      const semanticWithoutSource = { ...semantic };
+      delete semanticWithoutSource.source;
       semanticNodes[id] = {
-        ...semantic,
+        ...semanticWithoutSource,
         id,
         parentId: semantic.parentId === null ? null : resourceId(instance.id, semantic.parentId),
       };
@@ -442,18 +521,31 @@ const checkDeclarationProjectUnchecked = (
     for (const state of Object.values(root.states))
       states[resourceId(instance.id, state.id)] = {
         id: resourceId(instance.id, state.id),
+        contentOverrides: {},
         semanticOverrides: state.semanticOverrides.map((override) => ({
           nodes: {
             [resourceId(instance.id, override.targetId)]: {
               ...(override.included === undefined ? {} : { included: override.included }),
-              ...(override.text === undefined ? {} : { text: override.text }),
+              ...(override.text === undefined || override.text === null
+                ? {}
+                : { text: override.text }),
               ...(override.language === undefined ? {} : { language: override.language }),
-              ...(override.alt === undefined ? {} : { alt: override.alt }),
+              ...(override.alt === undefined || override.alt === null ? {} : { alt: override.alt }),
+              ...(override.label === undefined ? {} : { label: override.label }),
             },
           },
         })),
         enabledInteractionIds: [],
       };
+    const rotation = canonicalQuaternion(spatial.transform.rotation);
+    if (!rotation)
+      diagnostics.push(
+        diagnostic(
+          "compiler-invalid-quaternion",
+          ["presentation", "scene", "spatial", spatial.id, "transform", "rotation"],
+          "Spatial rotation must be a finite nonzero quaternion.",
+        ),
+      );
     nodes[nodeId] = {
       id: nodeId,
       kind: "surface",
@@ -466,7 +558,7 @@ const checkDeclarationProjectUnchecked = (
           : spatial.parent,
       transform: {
         position: [...spatial.transform.position],
-        rotation: [...spatial.transform.rotation],
+        rotation: rotation ?? [0, 0, 0, 1],
         scale: [...spatial.transform.scale],
       },
       order: spatial.order,
@@ -511,13 +603,53 @@ const checkDeclarationProjectUnchecked = (
       ),
     );
   const referencedAssetIds = new Set(presentation.assets.map((asset) => asset.assetId));
+  const referencedFontIds = new Set<string>();
+  for (const surface of Object.values(surfaces))
+    for (const node of Object.values(surface.contentNodes))
+      if (node.kind === "text") {
+        referencedFontIds.add(node.style.fontAssetId);
+        for (const fontAssetId of node.style.fallbackFontAssetIds)
+          referencedFontIds.add(fontAssetId);
+      }
+  for (const fontAssetId of referencedFontIds)
+    if (!referencedAssetIds.has(fontAssetId))
+      diagnostics.push(
+        diagnostic(
+          "compiler-font-asset-not-declared",
+          ["presentation", "assets"],
+          "Every resolved Text font must be declared by the Presentation.",
+        ),
+      );
+  for (const assetId of referencedAssetIds)
+    if (!referencedFontIds.has(assetId))
+      diagnostics.push(
+        diagnostic(
+          "compiler-asset-unreferenced",
+          ["presentation", "assets", assetId],
+          "Every declared source Asset must be referenced by resolved content.",
+        ),
+      );
+  const assetSetAssets: BuildArtifactsV2["assetSet"]["assets"] = {};
   for (const [assetId, asset] of Object.entries(assets)) {
+    const validShape =
+      isRecord(asset) &&
+      Object.keys(asset).every((key) =>
+        ["id", "mediaType", "checksum", "encodedSizeBytes", "dataBase64"].includes(key),
+      ) &&
+      Object.keys(asset).length === 5 &&
+      asset.id === assetId &&
+      (asset.mediaType === "font/ttf" || asset.mediaType === "font/otf") &&
+      nonEmptyString(asset.checksum) &&
+      Number.isSafeInteger(asset.encodedSizeBytes) &&
+      (asset.encodedSizeBytes as number) >= 0 &&
+      typeof asset.dataBase64 === "string";
+    const bytes = validShape ? decodeCanonicalBase64(asset.dataBase64 as string) : undefined;
     if (
-      !isRecord(asset) ||
-      Object.keys(asset).some((key) => !["id", "mediaType", "checksum"].includes(key)) ||
-      asset.id !== assetId ||
-      !nonEmptyString(asset.mediaType) ||
-      !nonEmptyString(asset.checksum)
+      !validShape ||
+      bytes === undefined ||
+      bytes.length !== asset.encodedSizeBytes ||
+      checksumBytes(bytes) !== asset.checksum ||
+      !hasValidFontSignature(bytes, asset.mediaType as string)
     )
       diagnostics.push(
         diagnostic(
@@ -526,6 +658,12 @@ const checkDeclarationProjectUnchecked = (
           "Asset descriptors must match their key and portable contract shape.",
         ),
       );
+    else
+      assetSetAssets[assetId] = {
+        checksum: asset.checksum as `sha256:${string}`,
+        mediaType: asset.mediaType as "font/ttf" | "font/otf",
+        encodedSizeBytes: asset.encodedSizeBytes as number,
+      };
     if (!referencedAssetIds.has(assetId))
       diagnostics.push(
         diagnostic(
@@ -560,13 +698,12 @@ const checkDeclarationProjectUnchecked = (
       initialValue: variable.initialValue,
     };
   const definition: PresentationDefinition = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     presentationId: presentation.id,
     metadata: presentation.metadata,
     stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
-    assets,
     scene: { nodes, surfaces },
-    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables },
+    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines: {} },
   };
   const validated = validatePresentationDefinition(definition);
   if (!validated.valid)
@@ -583,8 +720,9 @@ const checkDeclarationProjectUnchecked = (
     value: {
       definition: validated.value,
       definitionJson: canonical.value,
-      sourceHash: hashJson(JSON.stringify(cloned.value)),
+      sourceHash: hashCanonicalJsonPayload(cloned.value),
       definitionHash: definitionHash.value,
+      assetSet: { schemaVersion: 2, assets: assetSetAssets },
     },
     diagnostics: [],
   };

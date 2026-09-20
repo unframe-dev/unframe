@@ -15,6 +15,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
+import { verifyBuildIntegrityV2 } from "@unframe/unframe-core";
+
 import { runPresentationCli } from "../src/index.js";
 
 const referenceDirectory = join(
@@ -39,10 +41,8 @@ const buildContext = {
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  pixelTarget: [2, 2] as const,
   webRendererConfig: {
     documentBackground: [0, 0, 0, 255] as const,
-    fontFamily: "Noto Sans CJK JP",
   },
 };
 
@@ -112,6 +112,51 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
+  it("reports malformed font tables as a renderer error without capturing", async () => {
+    const directory = await projectCopy();
+    const path = join(directory, "unframe.lock");
+    const lock = JSON.parse(await readFile(path, "utf8"));
+    lock.assets["reference-font"] = {
+      id: "reference-font",
+      mediaType: "font/ttf",
+      dataBase64: "AAEAAAAAAAAAAAAA",
+      encodedSizeBytes: 12,
+      checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+    };
+    await writeFile(path, JSON.stringify(lock));
+    const browser = fakeBrowser();
+    const result = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: { openFixedBrowser: async () => browser.session, buildContext },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(diagnostics(result)).toContainEqual(
+      expect.objectContaining({ family: "renderer", code: "invalid-font-asset" }),
+    );
+    expect(diagnostics(result).every((item) => item.family === "renderer")).toBe(true);
+    expect(browser.observed).toMatchObject({ capture: 0, close: 1 });
+  });
+  it("rejects corrupted font source bytes before opening a Browser", async () => {
+    const directory = await projectCopy();
+    const lockPath = join(directory, "unframe.lock");
+    const lock = JSON.parse(await readFile(lockPath, "utf8"));
+    lock.assets["reference-font"].dataBase64 = "AAEAAAAAAAAAAAAA";
+    await writeFile(lockPath, JSON.stringify(lock));
+    let calls = 0;
+    const result = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: {
+        openFixedBrowser: async () => {
+          calls += 1;
+          return fakeBrowser().session;
+        },
+      },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(calls).toBe(0);
+    expect(diagnostics(result).some((item) => item.family === "semantic")).toBe(true);
+    await expect(lstat(join(directory, "dist"))).rejects.toThrow();
+  });
   it("checks without reading or launching a Browser", async () => {
     let browserReads = 0;
     const result = await runPresentationCli({
@@ -128,7 +173,7 @@ describe("reference Authoring Project", () => {
     expect(browserReads).toBe(0);
   });
 
-  it("builds deterministic Definition, RenderBundle, and PNG assets into managed dist", async () => {
+  it("builds deterministic v2 manifests, PNG and Font assets into managed dist", async () => {
     const directory = await projectCopy();
     const first = fakeBrowser();
     const second = fakeBrowser();
@@ -150,18 +195,50 @@ describe("reference Authoring Project", () => {
     const firstTarget = await readlink(join(directory, "dist"));
     expect(firstTarget).toMatch(/^\.unframe\/generations\/[0-9a-f]{32}$/u);
     const assetNames = await readdir(join(directory, "dist", "assets"));
-    expect(assetNames).toHaveLength(1);
-    expect(assetNames[0]).toMatch(/\.png$/u);
-    const assetName = assetNames[0]!;
+    expect(assetNames).toHaveLength(2);
+    expect(assetNames).toContain("reference-font.ttf");
+    const assetName = assetNames.find((name) => name.endsWith(".png"))!;
+    const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
+    const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
+    expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(2);
+    expect(JSON.parse(firstBuild.toString())).toMatchObject({
+      schemaVersion: 2,
+      sourceDraftRevision: 0,
+    });
     const firstPng = await readFile(join(directory, "dist", "assets", assetName));
+    const buildArtifacts = {
+      definition: JSON.parse(firstDefinition.toString()),
+      renderBundle: JSON.parse(firstBundle.toString()),
+      assetSet: JSON.parse(firstAssetSet.toString()),
+      buildManifest: JSON.parse(firstBuild.toString()),
+    };
+    expect(verifyBuildIntegrityV2(buildArtifacts).valid).toBe(true);
+    const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
+    expect(
+      (await readFile(join(directory, "dist/assets/reference-font.ttf"))).equals(
+        Buffer.from(sourceLock.assets["reference-font"].dataBase64, "base64"),
+      ),
+    ).toBe(true);
     expect(first.observed).toMatchObject({ capture: 1, close: 1 });
     expect(first.observed.signals).toEqual([controller.signal]);
 
     expect((await build(second)).exitCode).toBe(0);
-    expect(await readFile(join(directory, "dist", "definition.json"))).toEqual(firstDefinition);
-    expect(await readFile(join(directory, "dist", "render-bundle.json"))).toEqual(firstBundle);
-    expect(await readdir(join(directory, "dist", "assets"))).toEqual([assetName]);
-    expect(await readFile(join(directory, "dist", "assets", assetName))).toEqual(firstPng);
+    expect(
+      (await readFile(join(directory, "dist", "definition.json"))).equals(firstDefinition),
+    ).toBe(true);
+    expect(
+      (await readFile(join(directory, "dist", "render-bundle.json"))).equals(firstBundle),
+    ).toBe(true);
+    expect(await readdir(join(directory, "dist", "assets"))).toEqual(assetNames);
+    expect((await readFile(join(directory, "dist", "assets", assetName))).equals(firstPng)).toBe(
+      true,
+    );
+    expect((await readFile(join(directory, "dist/asset-set.json"))).equals(firstAssetSet)).toBe(
+      true,
+    );
+    expect((await readFile(join(directory, "dist/build-manifest.json"))).equals(firstBuild)).toBe(
+      true,
+    );
     expect(second.observed).toMatchObject({ capture: 1, close: 1 });
     expect(second.observed.signals).toEqual([controller.signal]);
   });

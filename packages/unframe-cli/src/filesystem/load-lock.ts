@@ -94,8 +94,10 @@ const componentLockSchema = noOwnProtoFieldSchema.pipe(
 const assetSchema = noOwnProtoFieldSchema.pipe(
   z.strictObject({
     id: nonemptyStringSchema,
-    mediaType: nonemptyStringSchema,
+    mediaType: z.enum(["font/ttf", "font/otf"]),
     checksum: contentHashSchema,
+    encodedSizeBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    dataBase64: nonemptyStringSchema,
   }),
 );
 

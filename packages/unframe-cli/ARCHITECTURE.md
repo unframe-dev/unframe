@@ -1,6 +1,6 @@
 # Presentation CLI Architecture
 
-- **Status**: M1 filesystem-backed headless application boundary
+- **Status**: v2 static build filesystem boundary
 - **Scope**: Authoring Project を Compiler / Web Renderer に接続し、Bun 上の OpenTUI command selector と headless API を提供する
 - **Related**:
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
@@ -63,7 +63,7 @@ build <absolute-project-directory> [--format text|json]
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
-`build` だけが Fixed Browser adapter と build context から baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+`build` も同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
@@ -74,17 +74,21 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 `"usage" | "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel"` の `family` field を必ず持ち、text diagnostics は
 `path: family/code: message` の一行形式である。family と順序は ADR-0013 に従う。
 
+`unframe.lock` の source asset は `font/ttf` / `font/otf` の `id`、`checksum`、`encodedSizeBytes`、canonical `dataBase64` を持つ。Compiler が bytes と参照を検証し、出力 AssetSet には descriptor だけを残す。raster size は CLI option ではなく ADR-0012 の長辺 2048 policy から導出する。
+
 ## 3. Artifact boundary
 
 build の成功時だけ、CLI は次の deterministic な全ファイルを辞書順 path で一度に `publishAtomicArtifacts` へ渡す。
 
 - `definition.json`
 - `render-bundle.json`
-- `assets/<percent-encoded asset id>.png`
+- `asset-set.json`
+- `build-manifest.json`
+- `assets/<percent-encoded asset id>.<png|ttf|otf>`
 
 filesystem host は root 固定の `dist` に対し complete artifact set を `.unframe/generations/<generation-id>` に閉じ、成功時だけ validated
 relative target の managed `dist` symlink を atomic replacement する。失敗または cancel では previous `dist` を維持し、今回の
-staging を公開しない。manifest と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
+staging を公開しない。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
 discovery / read / write I/O は exit code `3` とする。
 
 ## 4. Interactive TUI boundary
@@ -117,7 +121,7 @@ Node.js の両方を提供する。
 常に解除し、`process.exit()` は呼ばず `process.exitCode` と stdout/stderr の stable result を使う。
 
 `nix run .#presentation` の check mode は通常の package check の後、provision 済み repository-local Fixed Browser
-で reference project の check と temp copy への build を2回行う。`definition.json`、`render-bundle.json`、PNG asset set
+で reference project の check と temp copy への build を2回行う。4つの v2 JSON と PNG / Font asset set
 の relative path と SHA-256 manifest が完全一致することを検証する。fix mode と通常 package check は Browser を起動しない。
 
 ## 7. Deferred

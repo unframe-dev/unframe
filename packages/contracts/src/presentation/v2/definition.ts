@@ -223,7 +223,7 @@ const videoContentSchema = z.strictObject({
   loop: z.boolean(),
   style: videoStyleSchema,
 });
-const surfaceContentNodeSchema = z.discriminatedUnion("kind", [
+export const surfaceContentNodeV2Schema = z.discriminatedUnion("kind", [
   frameContentSchema,
   textContentSchema,
   imageContentSchema,
@@ -517,14 +517,14 @@ const renderIntentSchema = z.strictObject({
   rendererPreference: z.enum(["auto", "baked-web", "native-ui", "video"]),
   fallbackPolicy: z.enum(["reject", "degrade"]),
 });
-const semanticSurfaceSchema = z.strictObject({
+export const semanticSurfaceV2Schema = z.strictObject({
   id: idV2Schema,
   hostNodeId: idV2Schema,
   physicalSizeMeters: positiveVector2V2Schema,
   logicalSize: positiveVector2V2Schema,
   fit: z.enum(["contain", "cover", "stretch"]),
   rootFrameId: idV2Schema,
-  contentNodes: z.record(idV2Schema, surfaceContentNodeSchema),
+  contentNodes: z.record(idV2Schema, surfaceContentNodeV2Schema),
   baseSemanticTree: semanticTreeDefinitionV2Schema,
   interactions: z.record(
     idV2Schema,
@@ -630,7 +630,7 @@ export const presentationDefinitionV2Schema = z.strictObject({
   }),
   scene: z.strictObject({
     nodes: z.record(idV2Schema, spatialNodeSchema),
-    surfaces: z.record(idV2Schema, semanticSurfaceSchema),
+    surfaces: z.record(idV2Schema, semanticSurfaceV2Schema),
   }),
   flow: z.strictObject({
     initialGroupId: idV2Schema,
@@ -648,3 +648,5 @@ export const presentationDefinitionV2Schema = z.strictObject({
 });
 
 export type PresentationDefinitionV2 = z.infer<typeof presentationDefinitionV2Schema>;
+export type SemanticSurfaceV2 = z.infer<typeof semanticSurfaceV2Schema>;
+export type SurfaceContentNodeV2 = z.infer<typeof surfaceContentNodeV2Schema>;

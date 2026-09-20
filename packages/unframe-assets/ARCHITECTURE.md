@@ -90,7 +90,7 @@ PNGがunassociated alphaを表すため、`opaque`は全alpha channelが255で�
 
 Callerはwidth、height、pixel数、input byte数、output byte数の上限を明示する。さらにpackage trust boundaryとして4,096 x 4,096、16,777,216 pixels、64 MiB input、65 MiB outputの絶対上限を超えられない。これはGPUやDeliveryの品質budgetではなく、未trusted inputによる過大allocationを防ぐ初期上限である。
 
-最終PNG bytesのchecksumをlowercase hexの`sha256:<digest>`とし、first milestoneのderived `assetId`にも同じ値を使う。source ID、derived ID、Compiler cache keyは別概念であり、encoder version / fingerprintはprovenanceとして返す。現行RenderBundleに独立provenance fieldがないため、Compilerが将来cache/environment hashへ結合する。
+最終PNG bytesのchecksumをlowercase hexの`sha256:<digest>`とし、derived `assetId`にも同じ値を使う。v2 `TextureArtifact` descriptorにはencoded byte数、`mipCount: 1`、RGBA8の`gpuBytes = 4 * width * height`も格納する。source ID、derived ID、Compiler cache keyは別概念であり、encoder version / fingerprintはprovenanceとして返す。
 
 返却された`bytes`はcallerが所有し、別のencode結果や入力bufferとは共有しない。callerはchecksum検証後のbytesを変更できるが、descriptor/checksumを永続化または後段へ渡した後は変更してはならない。mutable/untrustedなbytesを受け取る永続化・Delivery境界はdescriptorのchecksumを再検証する。
 

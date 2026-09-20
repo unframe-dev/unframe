@@ -6,6 +6,7 @@ import {
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
+import type { CompilerSourceAsset } from "../src/index.js";
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
   createRendererFingerprint,
@@ -59,7 +60,7 @@ const presentation = (): PresentationDeclaration => ({
       },
     ],
   },
-  assets: [],
+  assets: [{ kind: "asset-ref", assetId: "reference-font" }],
   flow: {
     initialGroupId: "group",
     groups: {
@@ -72,7 +73,12 @@ const presentation = (): PresentationDeclaration => ({
 
 const project = () => ({
   presentation: presentation(),
-  themes: [{ declaration: standardComponents.theme, hash: "theme" }],
+  themes: [
+    {
+      declaration: standardComponents.theme,
+      hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    },
+  ],
   components: [
     {
       manifest: standardComponents.surface.manifest,
@@ -85,7 +91,15 @@ const project = () => ({
       },
     },
   ],
-  assets: {},
+  assets: {
+    "reference-font": {
+      id: "reference-font",
+      mediaType: "font/ttf" as const,
+      dataBase64: "AAEAAAAAAAAAAAAA",
+      encodedSizeBytes: 12,
+      checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+    },
+  } as Record<string, CompilerSourceAsset>,
 });
 
 const nullPrototype = (value: unknown): unknown => {
@@ -103,6 +117,89 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("lowers only v2 artifacts with explicit literal fonts and external assets", () => {
+    const input = project();
+    input.presentation.assets = [{ kind: "asset-ref", assetId: "reference-font" }];
+    input.assets = {
+      "reference-font": {
+        id: "reference-font",
+        mediaType: "font/ttf",
+        dataBase64: "AAEAAAAAAAAAAAAA",
+        encodedSizeBytes: 12,
+        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+      },
+    };
+    const result = checkDeclarationProject(input);
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.value.definition.schemaVersion).toBe(2);
+    expect(result.value.definition).not.toHaveProperty("assets");
+    expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
+  });
+
+  it.each([
+    ["noncanonical base64", { dataBase64: "AAEAAAAAAAAAAAA" }],
+    ["encoded length mismatch", { encodedSizeBytes: 11 }],
+    [
+      "checksum mismatch",
+      { checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    ],
+    [
+      "font signature mismatch",
+      {
+        dataBase64: "T1RUAAAAAAAAAAAA",
+        checksum: "sha256:a1f098f0b83e4000e5265942ea3a38af0c92d06425a754ba6f28c301a66388c0",
+      },
+    ],
+  ])("rejects %s in a self-contained source font", (_, change) => {
+    const input = project();
+    input.assets["reference-font"] = { ...input.assets["reference-font"]!, ...change };
+    expect(codes(input)).toContain("compiler-invalid-asset");
+  });
+  it("rejects an empty title at the shared declaration boundary", () => {
+    const input = project();
+    input.presentation.metadata.title = "";
+    expect(codes(input)).toEqual(["compiler-invalid-declaration"]);
+  });
+
+  it("rejects malformed Prop declarations before checking supported features", () => {
+    const input = project();
+    const component = input.components[0]!;
+    expect(
+      codes({
+        ...input,
+        components: [
+          {
+            ...component,
+            manifest: {
+              ...component.manifest,
+              props: { title: { kind: "string", default: 42 } },
+            },
+          },
+        ],
+      }),
+    ).toContain("compiler-invalid-declaration");
+  });
+
+  it("keeps valid Props unsupported until their lowering is implemented", () => {
+    const input = project();
+    const component = input.components[0]!;
+    expect(
+      codes({
+        ...input,
+        components: [
+          {
+            ...component,
+            manifest: {
+              ...component.manifest,
+              props: { title: { kind: "string", required: true } },
+            },
+          },
+        ],
+      }),
+    ).toContain("compiler-manifest-feature-unsupported");
+  });
+
   it("rejects accessor-backed project data without executing the accessor", () => {
     let reads = 0;
     const input = {
@@ -150,10 +247,10 @@ describe("checkDeclarationProject", () => {
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
-      "sha256:f062c195c245585f457c5c9ebc420f663375f15e4379a14ceab5f58e7dd047ac",
+      "sha256:c4557303d809d84bf27fb14e2441e4300920147b15879196246330961dd9c368",
     );
     expect(result.value.definitionHash).toBe(
-      "sha256:498e988f6967fb310feb236b2627ff724d1b0875eaf6506fa56a4d073a962403",
+      "sha256:b3f125bede221d2e4af53a0363dc88bd427897145e369756f8a551dbaa363ad4",
     );
   });
 
@@ -162,6 +259,21 @@ describe("checkDeclarationProject", () => {
     const result = checkDeclarationProject(normalized);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
+  });
+
+  it("normalizes Spatial rotations to the v2 canonical quaternion form", () => {
+    const input = project();
+    input.presentation.scene.spatial[0]!.transform.rotation = [-2, -0, -0, -0];
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(result.value.definition.scene.nodes["instance:spatial"]?.transform.rotation).toEqual([
+      1, 0, 0, 0,
+    ]);
+
+    const zero = project();
+    zero.presentation.scene.spatial[0]!.transform.rotation = [0, 0, 0, 0];
+    expect(codes(zero)).toContain("compiler-invalid-quaternion");
   });
 
   it("does not read length through declaration Array Proxies", () => {
@@ -206,15 +318,25 @@ describe("checkDeclarationProject", () => {
       { kind: "asset-ref", assetId: "asset-a" },
       { kind: "asset-ref", assetId: "asset-b" },
     ];
-    const assetA = { id: "asset-a", mediaType: "image/png", checksum: "sha256:a" };
-    const assetB = { id: "asset-b", mediaType: "image/png", checksum: "sha256:b" };
-    firstProject.assets = { "asset-a": assetA, "asset-b": assetB };
+    const sourceAsset = project().assets["reference-font"]!;
+    const validAssetA = { ...sourceAsset, id: "asset-a" };
+    const validAssetB = { ...sourceAsset, id: "asset-b" };
+    const structure = structuredClone(firstProject.components[0]!.structure);
+    const text = structure.root.root.children[0]!;
+    (text as unknown as { style: Record<string, unknown> }).style = {
+      ...text.style!,
+      fontAssetId: "asset-a",
+      fallbackFontAssetIds: ["asset-b"],
+    };
+    firstProject.components[0]!.structure = structure;
+    firstProject.assets = { "asset-a": validAssetA, "asset-b": validAssetB };
     const first = checkDeclarationProject(firstProject);
     const secondProject = project();
+    secondProject.components[0]!.structure = structure;
     secondProject.presentation.assets = [...firstProject.presentation.assets];
     secondProject.assets = {
-      "asset-b": assetB,
-      "asset-a": assetA,
+      "asset-b": validAssetB,
+      "asset-a": validAssetA,
     };
     const second = checkDeclarationProject(secondProject);
     expect(first).toMatchObject({ valid: true });
@@ -380,7 +502,7 @@ describe("checkDeclarationProject", () => {
                 ...style.components[0]!.structure.root,
                 root: {
                   ...standardComponents.surface.structure.root.root,
-                  style: { kind: "named-style-ref", styleId: "missing" },
+                  namedStyle: { kind: "named-style-ref", styleId: "missing" },
                 },
               },
             } as never,
@@ -492,7 +614,7 @@ describe("checkDeclarationProject", () => {
     const result = checkDeclarationProject(escaped);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (result.valid)
-      expect(result.value.definition.scene.surfaces).toHaveProperty("instance%2Fa:surface-root");
+      expect(result.value.definition.scene.surfaces).toHaveProperty("instance/a:surface-root");
 
     const collision = project();
     collision.presentation.scene.spatial[0]!.id = "surface-root";
@@ -505,7 +627,7 @@ describe("checkDeclarationProject", () => {
 
     const unreferencedAsset = project();
     unreferencedAsset.assets = {
-      unused: { id: "unused", mediaType: "image/png", checksum: "checksum" },
+      unused: { ...project().assets["reference-font"]!, id: "unused" },
     };
     expect(codes(unreferencedAsset)).toContain("compiler-asset-unreferenced");
 
@@ -569,6 +691,66 @@ describe("checkDeclarationProject", () => {
     expect(codes(customObject)).toContain("compiler-invalid-input");
   });
 
+  it("keeps instance and local ID tuples distinct when either segment contains a colon", () => {
+    const input = project();
+    const baseSpatial = input.presentation.scene.spatial[0]!;
+    const baseInstance = input.presentation.scene.components[0]!;
+    const baseComponent = input.components[0]!;
+    const makeComponent = (
+      componentId: string,
+      instanceId: string,
+      spatialId: string,
+      surfaceId: string,
+      suffix: string,
+    ) => {
+      const manifest = { ...baseComponent.manifest, componentId };
+      const structure = {
+        ...baseComponent.structure,
+        componentId,
+        root: {
+          ...baseComponent.structure.root,
+          id: surfaceId,
+          root: {
+            ...baseComponent.structure.root.root,
+            id: `frame-${suffix}`,
+            children: baseComponent.structure.root.root.children.map((child) => ({
+              ...child,
+              id: `text-${suffix}`,
+            })),
+          },
+        },
+      };
+      const lock = {
+        packageVersion: `1-${suffix}`,
+        packageIntegrity: `integrity-${suffix}`,
+        manifestHash: `manifest-${suffix}`,
+        structureHash: `structure-${suffix}`,
+      };
+      return {
+        spatial: { ...baseSpatial, id: spatialId, order: suffix === "one" ? 0 : 1 },
+        instance: {
+          ...baseInstance,
+          id: instanceId,
+          componentId,
+          spatialNodeId: spatialId,
+          packageLock: lock,
+        },
+        catalog: { manifest, structure, lock },
+      };
+    };
+    const first = makeComponent("surface-one", "a:b", "spatial-one", "c", "one");
+    const second = makeComponent("surface-two", "a", "spatial-two", "b:c", "two");
+    input.presentation.scene.spatial = [first.spatial, second.spatial];
+    input.presentation.scene.components = [first.instance, second.instance];
+    (input as unknown as { components: unknown[] }).components = [first.catalog, second.catalog];
+
+    const result = checkDeclarationProject(input);
+
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(Object.keys(result.value.definition.scene.surfaces)).toHaveLength(2);
+  });
+
   it("rejects duplicate lowering identifiers and operations without component instances", () => {
     const duplicateSpatial = project();
     duplicateSpatial.presentation.scene.spatial = [
@@ -609,25 +791,29 @@ describe("checkDeclarationProject", () => {
   it("rejects malformed presentation fields, assets, and duplicate asset references", () => {
     const metadata = project();
     (metadata.presentation.metadata as unknown as { title: unknown }).title = 1;
-    expect(codes(metadata)).toContain("compiler-invalid-presentation-shape");
+    expect(codes(metadata)).toContain("compiler-invalid-declaration");
 
     const coordinateSystem = project();
     (
       coordinateSystem.presentation.stage.coordinateSystem as unknown as { handedness: string }
     ).handedness = "left";
-    expect(codes(coordinateSystem)).toContain("compiler-invalid-presentation-shape");
+    expect(codes(coordinateSystem)).toContain("compiler-invalid-declaration");
 
     const audience = project();
     (audience.presentation.scene.spatial[0] as unknown as { audience: unknown }).audience = {
       kind: "role",
       role: "operator",
     };
-    expect(codes(audience)).toContain("compiler-invalid-presentation-shape");
+    expect(codes(audience)).toContain("compiler-invalid-declaration");
 
     const malformedAsset = project() as ReturnType<typeof project> & {
       assets: Record<string, unknown>;
     };
-    malformedAsset.assets["asset"] = { id: "asset", mediaType: 123, checksum: null };
+    (malformedAsset.assets as Record<string, unknown>)["asset"] = {
+      id: "asset",
+      mediaType: 123,
+      checksum: null,
+    };
     expect(codes(malformedAsset)).toContain("compiler-invalid-asset");
 
     const duplicateReference = project();
@@ -637,7 +823,7 @@ describe("checkDeclarationProject", () => {
     ];
     (duplicateReference as typeof duplicateReference & { assets: Record<string, unknown> }).assets =
       {
-        asset: { id: "asset", mediaType: "image/png", checksum: "sha256:asset" },
+        asset: { ...project().assets["reference-font"]!, id: "asset" },
       };
     expect(codes(duplicateReference)).toContain("compiler-duplicate-asset-reference");
   });
@@ -700,10 +886,57 @@ describe("compileDeclarationProject", () => {
     locale: "ja-JP",
     timezone: "Asia/Tokyo",
     colorScheme: "dark" as const,
-    pixelTarget: [2, 2] as const,
     rendererConfigHash: "sha256:config",
     renderers: [renderer],
     encodeLimits: PNG_ABSOLUTE_LIMITS,
+  });
+
+  it("reports every preflight texture budget violation before invoking a renderer", async () => {
+    const input = project();
+    const states = Object.fromEntries(
+      Array.from({ length: 17 }, (_, index) => {
+        const id = index === 0 ? "default" : `state-${index}`;
+        return [id, { id, semanticOverrides: [], enabledInteractionIds: [] }];
+      }),
+    );
+    const manifestStates = Object.fromEntries(
+      Object.keys(states).map((id) => [
+        id,
+        { kind: "state" as const, ...(id === "default" ? { initial: true } : {}) },
+      ]),
+    );
+    input.components[0]!.manifest = {
+      ...input.components[0]!.manifest,
+      states: manifestStates as never,
+    };
+    input.components[0]!.structure = {
+      ...input.components[0]!.structure,
+      root: {
+        ...input.components[0]!.structure.root,
+        logicalSize: [1, 1] as never,
+        states: states as never,
+      },
+    };
+    let calls = 0;
+    const countingRenderer: RendererPlugin = {
+      ...renderer,
+      build: (rendererInput) => {
+        calls++;
+        return renderer.build(rendererInput);
+      },
+    };
+    const result = await compileDeclarationProject(input, {
+      ...options(),
+      renderers: [countingRenderer],
+    });
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toEqual([
+        "compiler-budget-rendered-pixels-exceeded",
+        "compiler-budget-capture-bytes-exceeded",
+        "compiler-budget-state-count-exceeded",
+      ]);
+    expect(calls).toBe(0);
   });
 
   it("renders every Surface state into a canonical valid RenderBundle without changing check", async () => {
@@ -713,9 +946,25 @@ describe("compileDeclarationProject", () => {
     if (!result.valid) return;
     expect(result.value.renderBundleHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.renderBundleJson).toBeTruthy();
-    expect(Object.keys(result.value.assets)).toHaveLength(1);
+    expect(Object.keys(result.value.assets)).toHaveLength(2);
+    expect(result.value.renderBundle.schemaVersion).toBe(2);
+    expect(result.value.renderBundle.models).toEqual({});
+    expect(result.value.renderBundle.buildContext.textureBuildPolicy.longEdgePixels).toBe(2048);
+    expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
+    expect(result.value.assetSetJson).toBeTruthy();
+    expect(result.value.buildManifest).toMatchObject({
+      schemaVersion: 2,
+      sourceDraftRevision: 0,
+      definitionHash: result.value.definitionHash,
+      renderBundleHash: result.value.renderBundleHash,
+      assetSetHash: result.value.assetSetHash,
+    });
+    expect(result.value.buildManifestJson).toBeTruthy();
     const surface = result.value.renderBundle.surfaces["instance:surface-root"]!;
     const renderSurface = surface.renderSurfaces["instance:surface-root:render"]!;
+    expect(renderSurface.artifacts["instance:surface-root:render:artifact"]).toHaveProperty(
+      "states.instance:default.texture",
+    );
     expect(renderSurface.stateBindings).toEqual({
       "instance:default": {
         kind: "artifacts",
@@ -723,7 +972,23 @@ describe("compileDeclarationProject", () => {
       },
     });
     expect(checkDeclarationProject(project())).toEqual(before);
-    expect(await compileDeclarationProject(project(), options())).toEqual(result);
+    const repeated = await compileDeclarationProject(project(), options());
+    expect(repeated.valid).toBe(true);
+    if (!repeated.valid) return;
+    expect({ ...repeated.value, assets: undefined }).toEqual({
+      ...result.value,
+      assets: undefined,
+    });
+    expect(Object.keys(repeated.value.assets).sort()).toEqual(
+      Object.keys(result.value.assets).sort(),
+    );
+    for (const [assetId, bytes] of Object.entries(result.value.assets)) {
+      const repeatedBytes = repeated.value.assets[assetId]!;
+      expect(
+        repeatedBytes.length === bytes.length &&
+          repeatedBytes.every((byte, index) => byte === bytes[index]),
+      ).toBe(true);
+    }
   });
 
   it("rejects accessor-backed build options without invoking the accessor", async () => {

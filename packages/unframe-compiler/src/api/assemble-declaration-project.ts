@@ -83,8 +83,10 @@ const componentLockSchema = z
 const assetCarrierSchema = z
   .object({
     id: nonEmptyStringSchema,
-    mediaType: nonEmptyStringSchema,
+    mediaType: z.enum(["font/ttf", "font/otf"]),
     checksum: nonEmptyStringSchema,
+    encodedSizeBytes: z.int().nonnegative(),
+    dataBase64: z.string(),
   })
   .strict();
 const assemblyInputSchema = z

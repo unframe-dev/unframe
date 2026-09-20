@@ -1,25 +1,23 @@
-import {
-  defineComponentStructure,
-  frame,
-  namedStyleRef,
-  surface,
-  text,
-} from "@unframe/unframe-authoring";
-import { standardThemeStyleIds } from "./standard-theme.js";
+import { defineComponentStructure, frame, surface, text } from "@unframe/unframe-authoring";
 
 const textContent = text({
   id: "text-content",
   source: { file: "standard-surface.structure.ts" },
-  value: "",
+  value: "Unframe",
   layout: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
-  style: namedStyleRef({ styleId: standardThemeStyleIds.surfaceText }),
+  semanticNodeId: "semantic-text",
+  maxCodePoints: 64,
+  style: {
+    fontAssetId: "reference-font",
+    fontSize: 32,
+    lineHeight: 40,
+  },
 });
 
 const rootFrame = frame({
   id: "frame-root",
   source: { file: "standard-surface.structure.ts" },
   layout: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
-  style: namedStyleRef({ styleId: standardThemeStyleIds.surfaceRoot }),
   children: [textContent],
 });
 
@@ -38,7 +36,7 @@ const rootSurface = surface({
         parentId: null,
         order: 0,
         role: "paragraph",
-        text: "",
+        text: "Unframe",
       },
     },
   },

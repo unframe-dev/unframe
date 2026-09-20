@@ -34,7 +34,7 @@ type BrowserLaunchOptions = {
 
 type BrowserPage = {
   setContent(document: string, options: { readonly waitUntil: "load" }): Promise<void>;
-  evaluate(): Promise<void>;
+  evaluate(expectedFontFaceCount?: number): Promise<void>;
   screenshot(options: {
     readonly type: "png";
     readonly scale: "css";
@@ -263,8 +263,16 @@ const contextFor = (context: PlaywrightBrowserContext): BrowserContext => ({
 
 const pageFor = (page: PlaywrightPage): BrowserPage => ({
   setContent: async (document, options) => page.setContent(document, options),
-  evaluate: async () => {
-    await page.evaluate("document.fonts.ready");
+  evaluate: async (expectedFontFaceCount = 0) => {
+    await page.evaluate(`(async () => {
+      const faces = [...document.fonts];
+      if (faces.length !== ${expectedFontFaceCount})
+        throw new TypeError("Document font faces do not match the renderer request.");
+      await Promise.all(faces.map((face) => face.load()));
+      await document.fonts.ready;
+      if (faces.some((face) => face.status !== "loaded"))
+        throw new TypeError("A renderer font face failed to load.");
+    })()`);
   },
   screenshot: async (options) => Uint8Array.from(await page.screenshot(options)),
 });
@@ -375,6 +383,8 @@ export const createPlaywrightFixedBrowserFactory =
         !hasFixedEnvironment(request, fontFingerprint) ||
         request.environment.browser.version !== environment.browser.version ||
         !hasPixelTarget(request.pixelTarget) ||
+        !Number.isSafeInteger(request.fontFaceCount) ||
+        request.fontFaceCount < 0 ||
         (request.colorScheme !== "light" && request.colorScheme !== "dark") ||
         (externalSignal !== undefined && !isAbortSignal(externalSignal))
       )
@@ -414,7 +424,7 @@ export const createPlaywrightFixedBrowserFactory =
         );
         const page = await abortable(context.newPage(), signal);
         await abortable(page.setContent(request.document, { waitUntil: "load" }), signal);
-        await abortable(page.evaluate(), signal);
+        await abortable(page.evaluate(request.fontFaceCount), signal);
         const screenshot = await abortable(page.screenshot(screenshotOptions), signal);
         preflightPng(screenshot);
         const decoded = driver.decodePng(screenshot);

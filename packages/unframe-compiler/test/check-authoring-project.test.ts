@@ -51,6 +51,28 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
 });
 
 describe("checkAuthoringProject", () => {
+  it("rejects a malformed named style after static lowering without executing builders", () => {
+    const result = checkAuthoringProject(
+      project([
+        { fileName: "entry.ts", sourceText: presentationSource },
+        {
+          fileName: "theme.unframe.ts",
+          sourceText:
+            'import { defineTheme } from "@unframe/unframe-authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: { title: 42 } });',
+        },
+      ]),
+    );
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "compiler-invalid-declaration",
+          fileName: "theme.unframe.ts",
+        }),
+      ]),
+    );
+  });
+
   it("connects the virtual source frontend without executing builder implementations", () => {
     const result = checkAuthoringProject(project());
     expect(result).toMatchObject({

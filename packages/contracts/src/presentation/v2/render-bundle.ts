@@ -18,7 +18,7 @@ import { completedSemanticTreeV2Schema } from "./semantics";
 const requiredBakedFeatureSchema = z.enum(["alpha-opaque", "alpha-straight", "png", "srgb"]);
 const requiredNativeFeatureSchema = z.enum(["clip", "ellipsis", "explicitFontFallback"]);
 const requiredVideoFeatureSchema = z.enum(["alpha", "audio", "h264", "vp9", "av1"]);
-const textureSchema = z.strictObject({
+export const textureArtifactV2Schema = z.strictObject({
   assetId: idV2Schema,
   mediaType: z.literal("image/png"),
   pixelSize: z.tuple([positiveSafeUIntV2Schema, positiveSafeUIntV2Schema]),
@@ -29,12 +29,15 @@ const textureSchema = z.strictObject({
   mipCount: z.literal(1),
   gpuBytes: safeUIntV2Schema,
 });
-const bakedArtifactSchema = z.strictObject({
+export const bakedWebArtifactV2Schema = z.strictObject({
   id: idV2Schema,
   kind: z.literal("baked-web"),
   contractVersion: z.literal(1),
   requiredFeatures: z.array(requiredBakedFeatureSchema),
-  states: z.record(idV2Schema, z.strictObject({ stateId: idV2Schema, texture: textureSchema })),
+  states: z.record(
+    idV2Schema,
+    z.strictObject({ stateId: idV2Schema, texture: textureArtifactV2Schema }),
+  ),
 });
 const codePointRangeSchema = z.tuple([
   uint32V2Schema.max(1_114_111),
@@ -140,7 +143,7 @@ const videoArtifactSchema = z.strictObject({
   pixelSize: z.tuple([positiveSafeUIntV2Schema, positiveSafeUIntV2Schema]),
 });
 const artifactSchema = z.discriminatedUnion("kind", [
-  bakedArtifactSchema,
+  bakedWebArtifactV2Schema,
   nativeArtifactSchema,
   videoArtifactSchema,
 ]);
@@ -260,3 +263,4 @@ export const renderBundleV2Schema = z.strictObject({
 });
 
 export type RenderBundleV2 = z.infer<typeof renderBundleV2Schema>;
+export type TextureArtifactV2 = z.infer<typeof textureArtifactV2Schema>;

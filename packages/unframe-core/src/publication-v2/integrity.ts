@@ -17,11 +17,14 @@ import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { snapshotPlainJson } from "./plain-json.js";
 
-export type PublicationArtifactsV2 = {
+export type BuildArtifactsV2 = {
   definition: PresentationDefinitionV2;
   renderBundle: RenderBundleV2;
   assetSet: AssetSetManifestV2;
   buildManifest: BuildManifestV2;
+};
+
+export type PublicationArtifactsV2 = BuildArtifactsV2 & {
   publishedPresentation: PublishedPresentationV2;
 };
 
@@ -32,6 +35,8 @@ export type PublicationIntegrityInputV2 = {
   buildManifest: unknown;
   publishedPresentation: unknown;
 };
+
+export type BuildIntegrityInputV2 = Omit<PublicationIntegrityInputV2, "publishedPresentation">;
 
 type ArtifactName = keyof PublicationIntegrityInputV2;
 type Path = readonly (string | number)[];
@@ -406,7 +411,7 @@ const verifyModelReferences = (
       }
 };
 
-const verifyHashes = (artifacts: PublicationArtifactsV2, diagnostics: Diagnostic[]) => {
+const verifyHashes = (artifacts: BuildArtifactsV2, diagnostics: Diagnostic[]) => {
   const definitionHash = hashCanonicalJsonPayload(artifacts.definition);
   const renderBundleHash = hashCanonicalJsonPayload(artifacts.renderBundle);
   const assetSetHash = hashCanonicalJsonPayload(artifacts.assetSet);
@@ -431,7 +436,7 @@ const verifyHashes = (artifacts: PublicationArtifactsV2, diagnostics: Diagnostic
       );
 };
 
-const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagnostic[]) => {
+const verifyBuildIdentity = (artifacts: BuildArtifactsV2, diagnostics: Diagnostic[]) => {
   if (artifacts.definition.presentationId !== artifacts.buildManifest.presentationId)
     diagnostics.push(
       diagnostic(
@@ -440,7 +445,9 @@ const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagn
         "BuildManifest presentationId must equal PresentationDefinition presentationId.",
       ),
     );
+};
 
+const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagnostic[]) => {
   const sharedFields = [
     "schemaVersion",
     "buildId",
@@ -515,9 +522,15 @@ const verifyUnparsedPublicationAgreement = (
   }
 };
 
-export const verifyPublicationIntegrityV2 = (
-  input: PublicationIntegrityInputV2,
-): ValidationResult<PublicationArtifactsV2> => {
+function verifyIntegrity(
+  input: unknown,
+  publication: true,
+): ValidationResult<PublicationArtifactsV2>;
+function verifyIntegrity(input: unknown, publication: false): ValidationResult<BuildArtifactsV2>;
+function verifyIntegrity(
+  input: unknown,
+  publication: boolean,
+): ValidationResult<BuildArtifactsV2 | PublicationArtifactsV2> {
   const snapshot = snapshotPlainJson(input);
   if (!snapshot.valid)
     return {
@@ -533,17 +546,16 @@ export const verifyPublicationIntegrityV2 = (
     };
 
   const diagnostics: Diagnostic[] = [];
-  const expectedNames = new Set<string>(artifactNames);
+  const names = publication
+    ? artifactNames
+    : artifactNames.filter((name) => name !== "publishedPresentation");
+  const expectedNames = new Set<string>(names);
   for (const key of Object.keys(snapshot.value))
     if (!expectedNames.has(key))
-      diagnostics.push(
-        diagnostic("structure.invalid", [key], `Unknown publication artifact ${key}.`),
-      );
-  for (const name of artifactNames)
+      diagnostics.push(diagnostic("structure.invalid", [key], `Unknown artifact ${key}.`));
+  for (const name of names)
     if (!(name in snapshot.value))
-      diagnostics.push(
-        diagnostic("structure.invalid", [name], `Publication artifact ${name} is required.`),
-      );
+      diagnostics.push(diagnostic("structure.invalid", [name], `Artifact ${name} is required.`));
 
   const definition = parseArtifact(
     "definition",
@@ -569,20 +581,22 @@ export const verifyPublicationIntegrityV2 = (
     snapshot.value.buildManifest,
     diagnostics,
   );
-  const publishedPresentation = parseArtifact(
-    "publishedPresentation",
-    publishedPresentationV2Schema,
-    snapshot.value.publishedPresentation,
-    diagnostics,
-  );
+  const publishedPresentation = publication
+    ? parseArtifact(
+        "publishedPresentation",
+        publishedPresentationV2Schema,
+        snapshot.value.publishedPresentation,
+        diagnostics,
+      )
+    : undefined;
   if (
     definition === undefined ||
     renderBundle === undefined ||
     assetSet === undefined ||
     buildManifest === undefined ||
-    publishedPresentation === undefined
+    (publication && publishedPresentation === undefined)
   ) {
-    if (buildManifest !== undefined && publishedPresentation === undefined)
+    if (publication && buildManifest !== undefined && publishedPresentation === undefined)
       verifyUnparsedPublicationAgreement(
         buildManifest,
         snapshot.value.publishedPresentation,
@@ -596,13 +610,22 @@ export const verifyPublicationIntegrityV2 = (
     renderBundle,
     assetSet,
     buildManifest,
-    publishedPresentation,
+    ...(publishedPresentation === undefined ? {} : { publishedPresentation }),
   };
   verifyAssetClosure(definition, renderBundle, assetSet, diagnostics);
   verifyModelReferences(definition, renderBundle, diagnostics);
   verifyHashes(artifacts, diagnostics);
-  verifyPublication(artifacts, diagnostics);
+  verifyBuildIdentity(artifacts, diagnostics);
+  if (publishedPresentation !== undefined)
+    verifyPublication({ ...artifacts, publishedPresentation }, diagnostics);
   return diagnostics.length === 0
     ? { valid: true, value: artifacts, diagnostics: [] }
     : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
-};
+}
+
+export const verifyBuildIntegrityV2 = (input: unknown): ValidationResult<BuildArtifactsV2> =>
+  verifyIntegrity(input, false);
+
+export const verifyPublicationIntegrityV2 = (
+  input: PublicationIntegrityInputV2,
+): ValidationResult<PublicationArtifactsV2> => verifyIntegrity(input, true);

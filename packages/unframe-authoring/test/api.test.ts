@@ -38,7 +38,7 @@ import {
 } from "../src/index.js";
 
 const absolute = { kind: "absolute" as const, x: 0, y: 0, width: 1920, height: 1080 };
-const title = text({ id: "text-title", value: "Hello", layout: absolute });
+const title = text({ id: "text-title", value: "Hello", layout: absolute, maxCodePoints: 64 });
 const root = frame({ id: "frame-root", layout: absolute, children: [title] });
 const defaultState = {
   id: "state-default",
@@ -59,6 +59,7 @@ const titleSurface = surface({
         parentId: null,
         order: 0,
         role: "heading",
+        level: 1,
         text: "Hello",
       },
     },
@@ -95,8 +96,8 @@ const surfaceManifest = defineComponentManifest({
     width: numberProp({ required: true }),
     height: numberProp({ required: true }),
   },
-  slots: { content: slot({ accepts: ["frame", "text"], cardinality: "many" }) },
-  parts: { root: part({ overridable: ["placement", "style"] }) },
+  slots: { content: slot({}) },
+  parts: { root: part({}) },
   variants: { fit: variant({ values: ["contain", "cover", "stretch"], default: "contain" }) },
   states: { hidden: state(), shown: state({ initial: true }) },
   actions: {
@@ -336,11 +337,11 @@ describe("theme and reference vocabulary", () => {
   });
 
   it("does not mutate builder inputs or retain registry state", () => {
-    const input = { id: "copy", value: "Copy", layout: absolute } as const;
+    const input = { id: "copy", value: "Copy", layout: absolute, maxCodePoints: 64 } as const;
     const first = text(input);
     const second = text(input);
 
-    expect(input).toEqual({ id: "copy", value: "Copy", layout: absolute });
+    expect(input).toEqual({ id: "copy", value: "Copy", layout: absolute, maxCodePoints: 64 });
     expect(first).not.toBe(input);
     expect(second).not.toBe(first);
     expect(second).toEqual(first);
@@ -358,6 +359,90 @@ describe("theme and reference vocabulary", () => {
 
     expect(unresolved.partBindings.missingPart).toBe("missing-node");
     expect(tokenRef({ tokenId: "missing-token" }).tokenId).toBe("missing-token");
+  });
+
+  it("accepts concrete v2 primitive inputs without resolving Named Styles", () => {
+    const styledText = text({
+      id: "styled-text",
+      value: "Unframe",
+      layout: absolute,
+      visible: false,
+      opacity: 0.5,
+      semanticNodeId: "semantic-styled-text",
+      maxCodePoints: 64,
+      style: {
+        fontAssetId: "reference-font",
+        fallbackFontAssetIds: [],
+        fontSize: 32,
+        lineHeight: 40,
+        color: { red: 0, green: 0, blue: 0, alpha: 1 },
+        weight: "regular",
+        align: "start",
+        overflow: "clip",
+      },
+      namedStyle: namedStyleRef({ styleId: "heading" }),
+    });
+    const styledFrame = frame({
+      id: "styled-frame",
+      layout: absolute,
+      children: [styledText],
+      visible: true,
+      opacity: 1,
+      semanticNodeId: "semantic-frame",
+      style: {
+        backgroundColor: { red: 1, green: 1, blue: 1, alpha: 1 },
+        border: {
+          color: { red: 0, green: 0, blue: 0, alpha: 1 },
+          width: 1,
+          radius: 4,
+        },
+        clip: true,
+      },
+    });
+
+    expect(styledText.style.fontAssetId).toBe("reference-font");
+    expect(styledText.namedStyle?.styleId).toBe("heading");
+    expect(styledFrame.style?.clip).toBe(true);
+  });
+
+  it("accepts v2 semantic role fields on Surface semantic nodes", () => {
+    expect(() =>
+      surface({
+        ...titleSurface,
+        id: "heading-surface",
+        baseSemanticTree: {
+          rootNodeIds: ["heading"],
+          nodes: {
+            heading: {
+              id: "heading",
+              parentId: null,
+              order: 0,
+              role: "heading",
+              level: 1,
+              text: "Unframe",
+            },
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects invalid concrete primitive limits at the authoring boundary", () => {
+    expect(() =>
+      text({ id: "bad-limit", value: "Unframe", layout: absolute, maxCodePoints: 0 }),
+    ).toThrow(/text declaration/);
+    expect(() =>
+      text({
+        id: "bad-font-size",
+        value: "Unframe",
+        layout: absolute,
+        maxCodePoints: 64,
+        style: { fontSize: 0 },
+      }),
+    ).toThrow(/text declaration/);
+    expect(() => frame({ id: "bad-opacity", layout: absolute, children: [], opacity: 2 })).toThrow(
+      /frame declaration/,
+    );
   });
 });
 
@@ -432,14 +517,14 @@ describe("local declaration boundary", () => {
 
   it("does not read length through a nested Array Proxy", () => {
     let reads = 0;
-    const accepts = new Proxy(["frame"], {
+    const values = new Proxy(["primary"], {
       get() {
         reads++;
         throw new Error("must not read array length");
       },
     });
 
-    expect(() => slot({ accepts: accepts as never, cardinality: "many" })).not.toThrow();
+    expect(() => variant({ values, default: "primary" })).not.toThrow();
     expect(reads).toBe(0);
   });
 
@@ -454,7 +539,7 @@ describe("local declaration boundary", () => {
     });
 
     try {
-      expect(() => stringProp({})).not.toThrow();
+      expect(() => slot({})).not.toThrow();
       expect(isThemeDeclaration({ id: "theme", tokens: {}, namedStyles: {} })).toBe(true);
       expect(reads).toBe(0);
     } finally {
@@ -496,9 +581,9 @@ describe("local declaration boundary", () => {
         namedStyles: {},
       }),
     ).toThrow(/source.range/);
-    expect(() => text({ id: "bad", value: "bad", layout: { ...absolute, width: 0 } })).toThrow(
-      /layout size/,
-    );
+    expect(() =>
+      text({ id: "bad", value: "bad", layout: { ...absolute, width: 0 }, maxCodePoints: 64 }),
+    ).toThrow(/layout size/);
     expect(() =>
       spatial({
         ...surfaceNode,
@@ -591,8 +676,87 @@ describe("local declaration boundary", () => {
       /completion/,
     );
     expect(() => stringProp({ default: 1 } as never)).toThrow(/string prop/);
-    expect(() => slot({ accepts: ["frame"], cardinality: "optional" } as never)).toThrow(
+    expect(() => slot({ accepts: ["frame"], cardinality: "many" } as never)).toThrow(
       /slot declaration/,
+    );
+  });
+
+  it("enforces the same Prop, Slot, Part, and Variant contract at builders and Manifest guards", () => {
+    expect(() => stringProp({ required: true, default: "fallback" } as never)).toThrow(
+      /string prop/,
+    );
+    expect(() => numberProp({} as never)).toThrow(/number prop/);
+    expect(() => booleanProp({ required: false } as never)).toThrow(/boolean prop/);
+    expect(() => slot({})).not.toThrow();
+    expect(() => slot({ accepts: ["frame"], cardinality: "many" } as never)).toThrow(
+      /slot declaration/,
+    );
+    expect(() => part({})).not.toThrow();
+    expect(() => part({ overridable: ["style"] } as never)).toThrow(/part declaration/);
+    expect(() => variant({ values: ["primary"], default: "secondary" })).toThrow(
+      /variant declaration/,
+    );
+
+    expect(
+      isComponentManifest({
+        ...surfaceManifest,
+        props: { title: { kind: "string", default: 1 } },
+        slots: { content: { kind: "slot", accepts: ["frame"], cardinality: "many" } },
+        parts: { root: { kind: "part", overridable: ["style"] } },
+        variants: { tone: { kind: "variant", values: ["primary"], default: "secondary" } },
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects malformed Theme style records and Structure nodes through public guards", () => {
+    expect(isThemeDeclaration({ id: "theme", tokens: {}, namedStyles: { heading: "bold" } })).toBe(
+      false,
+    );
+    expect(
+      isComponentStructure({
+        ...surfaceStructure,
+        root: {
+          id: "root",
+          kind: "frame",
+          layout: absolute,
+          children: [{ id: "title", kind: "text", value: 42, layout: absolute, maxCodePoints: 64 }],
+        },
+      }),
+    ).toBe(false);
+    expect(() =>
+      text({ id: "title", value: 42, layout: absolute, maxCodePoints: 64 } as never),
+    ).toThrow(/text declaration/);
+  });
+
+  it("rejects Presentation members that do not match their public declaration types", () => {
+    expect(
+      isPresentationDeclaration({
+        ...referencePresentation,
+        metadata: { title: 42 },
+        scene: {
+          ...referencePresentation.scene,
+          spatial: [{ ...surfaceNode, kind: "frame" }],
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects an empty Presentation title through the builder and public guard", () => {
+    const emptyTitle = { ...referencePresentation, metadata: { title: "" } };
+
+    expect(() => definePresentation(emptyTitle)).toThrow(/Presentation declaration/);
+    expect(isPresentationDeclaration(emptyTitle)).toBe(false);
+  });
+
+  it("rejects unknown fields before a builder result reaches a strict declaration guard", () => {
+    expect(() => tokenRef({ tokenId: "accent", fallback: "red" } as never)).toThrow(
+      /Token reference/,
+    );
+    expect(() => namedStyleRef({ styleId: "heading", className: "title" } as never)).toThrow(
+      /Named Style reference/,
+    );
+    expect(() => assetRef({ assetId: "logo", url: "logo.png" } as never)).toThrow(
+      /Asset reference/,
     );
   });
 });
@@ -602,8 +766,42 @@ const typeContractChecks = () => {
   defineComponentManifest({ id: "legacy" });
   // @ts-expect-error string prop defaults must be strings
   stringProp({ default: 1 });
-  // @ts-expect-error slot cardinality is explicit and closed
-  slot({ accepts: [], cardinality: "optional" });
+  // @ts-expect-error Props must be either required or supply a default
+  numberProp({});
+  // @ts-expect-error required Props cannot also supply a default
+  booleanProp({ required: true, default: false });
+  // @ts-expect-error required must be the literal true
+  stringProp({ required: false });
+  // @ts-expect-error Slot declarations do not constrain placement cardinality or accepted kinds
+  slot({ accepts: [], cardinality: "many" });
+  // @ts-expect-error Part declarations do not expose a property permission list
+  part({ overridable: ["style"] });
+  // @ts-expect-error Text bounds require an explicit positive code point limit
+  text({ id: "missing-limit", value: "Unframe", layout: absolute });
+  text({
+    id: "legacy-text-style",
+    value: "Unframe",
+    layout: absolute,
+    maxCodePoints: 64,
+    // @ts-expect-error style is a concrete Text Style; Named Style references use namedStyle
+    style: namedStyleRef({ styleId: "heading" }),
+  });
+  surface({
+    ...titleSurface,
+    baseSemanticTree: {
+      rootNodeIds: ["heading"],
+      nodes: {
+        // @ts-expect-error heading semantic nodes require a level
+        heading: {
+          id: "heading",
+          parentId: null,
+          order: 0,
+          role: "heading",
+          text: "Unframe",
+        },
+      },
+    },
+  });
   // @ts-expect-error semantic overrides cannot alter topology or roles
   semanticOverride({ id: "bad", targetId: "node", parentId: "other" });
   // @ts-expect-error a Surface is a Structure root and cannot be nested inside Frame content

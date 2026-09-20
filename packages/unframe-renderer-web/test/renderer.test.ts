@@ -1,4 +1,6 @@
 import { runInNewContext } from "node:vm";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createBakedWebRenderer,
@@ -9,13 +11,13 @@ import {
 } from "../src/index.js";
 import {
   createRendererFingerprint,
+  executeRendererPlugin,
   runRendererConformance,
   type CompilerResolvedSurfaceInput,
 } from "@unframe/unframe-renderer-api";
 
 const config = {
   documentBackground: [0, 0, 0, 255],
-  fontFamily: "Unframe Fixed",
 } as const satisfies WebRendererConfig;
 
 const environment = {
@@ -30,6 +32,40 @@ const environment = {
   random: "fixed",
 } as const;
 const adapterIdentity = { id: "test-adapter", implementationHash: "sha256:adapter" } as const;
+
+const testFontAsset = (characters: string) => {
+  const codePoints = [...new Set(Array.from(characters, (value) => value.codePointAt(0)!))].sort(
+    (left, right) => left - right,
+  );
+  const cmapLength = 12 + 16 + codePoints.length * 12;
+  const bytes = new Uint8Array(28 + cmapLength);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(0, 0x0001_0000);
+  view.setUint16(4, 1);
+  bytes.set(new TextEncoder().encode("cmap"), 12);
+  view.setUint32(20, 28);
+  view.setUint32(24, cmapLength);
+  view.setUint16(30, 1);
+  view.setUint16(32, 3);
+  view.setUint16(34, 10);
+  view.setUint32(36, 12);
+  view.setUint16(40, 12);
+  view.setUint32(44, 16 + codePoints.length * 12);
+  view.setUint32(52, codePoints.length);
+  codePoints.forEach((codePoint, index) => {
+    const offset = 56 + index * 12;
+    view.setUint32(offset, codePoint);
+    view.setUint32(offset + 4, codePoint);
+    view.setUint32(offset + 8, index + 1);
+  });
+  return {
+    mediaType: "font/ttf" as const,
+    dataBase64: Buffer.from(bytes).toString("base64"),
+    checksum: `sha256:${bytesToHex(sha256(bytes))}`,
+  };
+};
+
+const fontMain = testFontAsset("<&>\"'");
 
 const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInput => {
   const identity = {
@@ -52,24 +88,47 @@ const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInput => {
           kind: "frame",
           parentId: null,
           order: 0,
+          visible: true,
+          opacity: 1,
+          placement: { kind: "absolute", x: 0, y: 0, width: 100, height: 50 },
           layout: { kind: "absolute" },
           children: ["text"],
+          backgroundColor: { red: 0, green: 0, blue: 0, alpha: 1 },
+          border: {
+            color: { red: 0, green: 0, blue: 0, alpha: 0 },
+            width: 0,
+            radius: 0,
+          },
+          clip: false,
         },
         text: {
           id: "text",
           kind: "text",
           parentId: "root",
           order: 0,
+          visible: true,
+          opacity: 1,
           placement: { kind: "absolute", x: 10, y: 5, width: 40, height: 20 },
-          text: "<&>\"'",
+          value: { kind: "literal", value: "<&>\"'" },
+          maxCodePoints: 100,
+          style: {
+            fontAssetId: "font-main",
+            fallbackFontAssetIds: [],
+            fontSize: 10,
+            lineHeight: 12,
+            color: { red: 1, green: 1, blue: 1, alpha: 1 },
+            weight: "regular",
+            align: "start",
+            overflow: "clip",
+          },
         },
       },
       baseSemanticTree: { rootNodeIds: [], nodes: {} },
       interactions: {},
       initialStateId: "a",
       states: {
-        a: { id: "a", semanticOverrides: [], enabledInteractionIds: [] },
-        z: { id: "z", semanticOverrides: [], enabledInteractionIds: [] },
+        a: { id: "a", contentOverrides: {}, semanticOverrides: [], enabledInteractionIds: [] },
+        z: { id: "z", contentOverrides: {}, semanticOverrides: [], enabledInteractionIds: [] },
       },
       renderIntent: {
         updateModel: { kind: "static" },
@@ -94,6 +153,9 @@ const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInput => {
       fallbackPolicy: "reject",
     },
     semanticsByState: { a: { rootNodeIds: [], nodes: {} }, z: { rootNodeIds: [], nodes: {} } },
+    fontAssets: {
+      "font-main": fontMain,
+    },
     plan: {
       id: "render",
       semanticSurfaceId: "surface",
@@ -148,10 +210,49 @@ const withRendererFingerprint = (
 });
 
 describe("baked web renderer", () => {
+  it("2K static captureを通常実行境界でbounded memoryのcaller-owned RGBAとして返す", async () => {
+    let adapterBytes: Uint8Array | undefined;
+    const renderer = createBakedWebRenderer({
+      adapter: {
+        identity: adapterIdentity,
+        environment,
+        capture(request) {
+          adapterBytes = new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4).fill(
+            255,
+          );
+          return {
+            rgba: adapterBytes,
+            pixelSize: request.pixelTarget,
+            colorSpace: "srgb",
+            alphaMode: "opaque",
+          };
+        },
+      },
+      config,
+    });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      context: { ...source.context, pixelTarget: [2048, 2048] },
+    };
+
+    const result = await executeRendererPlugin(renderer, input);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    const rgba = result.value.captures[0]?.rgba;
+    expect(rgba !== undefined).toBe(true);
+    expect(rgba !== adapterBytes).toBe(true);
+    expect(rgba?.byteLength === 16 * 1024 * 1024).toBe(true);
+    expect(rgba?.[0] === 255).toBe(true);
+    expect(rgba?.at(-1) === 255).toBe(true);
+    expect(input.context.pixelTarget).toEqual([2048, 2048]);
+  });
+
   it("固定環境と設定から決定論的な plugin を作り、capture を状態順に生成する", async () => {
     const requests: BrowserCaptureRequest[] = [];
     const hash = createWebRendererConfigHash(config);
-    expect(hash).toBe("sha256:e3a9a16a67ed2193c6871e66fafe5f506a833e7f667d3c80ce69215669921d23");
+    expect(hash).toBe("sha256:3a5eb53c58755df665e1be21fe56d96f4f63c2cfda60a9b7203c3c869ad54075");
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const input = withRendererFingerprint(inputFor(hash), renderer);
     const result = await renderer.build(input);
@@ -161,11 +262,21 @@ describe("baked web renderer", () => {
     const firstRequest = requests[0];
     expect(firstRequest).toMatchObject({
       pixelTarget: [2, 1],
+      fontFaceCount: 1,
       colorScheme: "dark",
       capabilities: { network: "deny", filesystem: "deny", clock: "fixed", random: "fixed" },
     });
-    expect(firstRequest?.document).toBe(
-      '<!doctype html><html lang="ja-JP"><head><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}#surface{position:relative;width:2px;height:1px;background:rgba(0,0,0,1);font-family:"Unframe Fixed";color-scheme:dark}.text{position:absolute;overflow:hidden;white-space:pre-wrap;box-sizing:border-box}</style></head><body><main id="surface"><div class="text" data-node-id="text" style="left:0.2px;top:0.1px;width:0.8px;height:0.4px">&lt;&amp;&gt;&quot;&#39;</div></main></body></html>',
+    expect(firstRequest?.document).toContain('@font-face{font-family:"unframe-font-');
+    expect(firstRequest?.document).toContain("data:font/ttf;base64,");
+    expect(firstRequest?.document).toMatch(
+      /data-node-id="text"[^>]+style="[^"]*font-family:unframe-font-[0-9a-f]+;font-size:0\.2px;/,
+    );
+    expect(firstRequest?.document).not.toMatch(/style="[^"]*font-family:"unframe-font-/);
+    expect(firstRequest?.document).toContain(
+      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:block;opacity:1;background:rgba(0,0,0,1);border:0px solid rgba(0,0,0,0);border-radius:0px;overflow:visible}",
+    );
+    expect(firstRequest?.document).toContain(
+      'font-size:0.2px;line-height:0.24px;color:rgba(255,255,255,1);font-weight:400;text-align:start;overflow:hidden;white-space:pre-wrap">&lt;&amp;&gt;&quot;&#39;',
     );
     expect(result.captures.map((capture) => capture.stateId)).toEqual(["a", "z"]);
     expect(result.hitRegionsByState).toEqual({ a: [], z: [] });
@@ -198,6 +309,65 @@ describe("baked web renderer", () => {
     const before = JSON.stringify(input);
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
     expect(JSON.stringify(input)).toBe(before);
+  });
+
+  it.each([
+    ["canonical base64", { ...fontMain, dataBase64: "AAEAAA" }, "invalid-font-asset"],
+    [
+      "checksum",
+      { ...fontMain, checksum: `sha256:${"0".repeat(64)}` },
+      "font-asset-checksum-mismatch",
+    ],
+    [
+      "media signature",
+      { ...fontMain, mediaType: "font/otf" as const },
+      "font-asset-signature-mismatch",
+    ],
+    ["glyph coverage", testFontAsset("x"), "font-glyph-missing"],
+  ])("Font Assetの%s違反をcapture前に拒否する", async (_name, fontAsset, code) => {
+    let captures = 0;
+    const renderer = createBakedWebRenderer({
+      adapter: {
+        ...adapter(),
+        capture: () => {
+          captures++;
+          throw new Error("must not capture");
+        },
+      },
+      config,
+    });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    await expect(
+      renderer.build({ ...source, fontAssets: { "font-main": fontAsset } }),
+    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code }] });
+    expect(captures).toBe(0);
+  });
+
+  it("primaryと明示fallbackのcmapだけでliteral Textを覆う", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const text = source.surface.contentNodes.text;
+    if (!text || text.kind !== "text") throw new Error("expected Text fixture");
+    const result = await renderer.build({
+      ...source,
+      surface: {
+        ...source.surface,
+        contentNodes: {
+          ...source.surface.contentNodes,
+          text: {
+            ...text,
+            style: { ...text.style, fallbackFontAssetIds: ["font-fallback"] },
+          },
+        },
+      },
+      fontAssets: {
+        "font-main": testFontAsset("<"),
+        "font-fallback": testFontAsset("&>\"'"),
+      },
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(requests[0]).toMatchObject({ fontFaceCount: 2 });
   });
 
   it("作成時の Browser environment と frozen receiver を capture に渡す", async () => {
@@ -235,9 +405,12 @@ describe("baked web renderer", () => {
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
   });
 
-  it("visual state 差分と unsafe font config を fail closed にする", async () => {
+  it("visual state 差分と未知 config を fail closed にする", async () => {
     expect(() =>
-      createWebRendererConfigHash({ documentBackground: [0, 0, 0, 255], fontFamily: "x</style>" }),
+      createWebRendererConfigHash({
+        documentBackground: [0, 0, 0, 255],
+        fontFamily: "unexpected",
+      } as unknown as WebRendererConfig),
     ).toThrow();
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
@@ -268,7 +441,6 @@ describe("baked web renderer", () => {
   it("factory config と capture bytes の所有権を固定し、cross-realm Uint8Array を受け取る", async () => {
     const mutableConfig = {
       documentBackground: [0, 0, 0, 255] as [number, number, number, number],
-      fontFamily: "Unframe Fixed",
     };
     const requests: BrowserCaptureRequest[] = [];
     const foreignBytes = runInNewContext(
@@ -296,7 +468,6 @@ describe("baked web renderer", () => {
       inputFor(
         createWebRendererConfigHash({
           documentBackground: [0, 0, 0, 255],
-          fontFamily: "Unframe Fixed",
         } as const),
       ),
       renderer,
@@ -367,6 +538,8 @@ describe("baked web renderer", () => {
       config,
     });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const text = input.surface.contentNodes.text;
+    if (!text || text.kind !== "text") throw new Error("expected Text fixture");
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
     await expect(
       renderer.build({
@@ -377,10 +550,7 @@ describe("baked web renderer", () => {
           contentNodes: {
             ...input.surface.contentNodes,
             text: {
-              id: "text",
-              kind: "text",
-              parentId: "root",
-              order: 0,
+              ...text,
               placement: {
                 kind: "absolute",
                 x: 0,
@@ -388,7 +558,7 @@ describe("baked web renderer", () => {
                 width: Number.MIN_VALUE,
                 height: 20,
               },
-              text: "scaled",
+              value: { kind: "literal", value: "scaled" },
             },
           },
         },
@@ -535,23 +705,28 @@ describe("baked web renderer", () => {
     const states = Object.create(null);
     const surfaceStates = Object.create(null);
     const semantics = Object.create(null);
-    Object.defineProperty(states, "__proto__", { value: { kind: "capture" }, enumerable: true });
-    Object.defineProperty(surfaceStates, "__proto__", {
-      value: { id: "__proto__", semanticOverrides: [], enabledInteractionIds: [] },
+    Object.defineProperty(states, "constructor", { value: { kind: "capture" }, enumerable: true });
+    Object.defineProperty(surfaceStates, "constructor", {
+      value: {
+        id: "constructor",
+        contentOverrides: {},
+        semanticOverrides: [],
+        enabledInteractionIds: [],
+      },
       enumerable: true,
     });
-    Object.defineProperty(semantics, "__proto__", {
+    Object.defineProperty(semantics, "constructor", {
       value: { rootNodeIds: [], nodes: {} },
       enumerable: true,
     });
     const result = await renderer.build({
       ...input,
-      surface: { ...input.surface, initialStateId: "__proto__", states: surfaceStates },
+      surface: { ...input.surface, initialStateId: "constructor", states: surfaceStates },
       plan: { ...input.plan, states },
       semanticsByState: semantics,
     } as CompilerResolvedSurfaceInput);
     expect(result).toMatchObject({ ok: true });
-    if (result.ok) expect(Object.hasOwn(result.hitRegionsByState, "__proto__")).toBe(true);
+    if (result.ok) expect(Object.hasOwn(result.hitRegionsByState, "constructor")).toBe(true);
   });
 
   it("config と opaque capture の厳格な byte 境界を検証する", async () => {
@@ -559,12 +734,14 @@ describe("baked web renderer", () => {
     expect(() =>
       createWebRendererConfigHash({
         documentBackground: sparse,
-        fontFamily: "x",
       } as unknown as WebRendererConfig),
     ).toThrow();
-    expect(
-      createWebRendererConfigHash({ documentBackground: [0, 0, 0, 255], fontFamily: " x " }),
-    ).toBe(createWebRendererConfigHash({ documentBackground: [0, 0, 0, 255], fontFamily: "x" }));
+    expect(() =>
+      createWebRendererConfigHash({
+        documentBackground: [0, 0, 0, 255],
+        fontFamily: "unexpected",
+      } as unknown as WebRendererConfig),
+    ).toThrow();
     const opaque = createBakedWebRenderer({
       adapter: {
         identity: adapterIdentity,
@@ -719,7 +896,7 @@ describe("baked web renderer", () => {
         ...source.surface,
         contentNodes: {
           ...source.surface.contentNodes,
-          text: { ...source.surface.contentNodes.text, text: 1 },
+          text: { ...source.surface.contentNodes.text, value: 1 },
         },
       },
     } as unknown as CompilerResolvedSurfaceInput;

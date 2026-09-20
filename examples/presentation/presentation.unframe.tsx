@@ -37,7 +37,7 @@ export default definePresentation({
           packageIntegrity:
             "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
           manifestHash: "sha256:e88ff72e1a1a4b10d580d7b6a16ab6ac6e1c001041797db151ce5ca31f086f62",
-          structureHash: "sha256:27ea8d8ee71ccd11ef9a2199b462f746e1a236f42689c774bb41cc4977432b1c",
+          structureHash: "sha256:26d2afa9ca62162d8b995a86fcb088ba0169e28db60c4d325b7fedc210ca476c",
         },
         props: {},
         slots: {},
@@ -46,7 +46,7 @@ export default definePresentation({
       },
     ],
   },
-  assets: [],
+  assets: [{ kind: "asset-ref", assetId: "reference-font" }],
   flow: {
     initialGroupId: "main",
     groups: {

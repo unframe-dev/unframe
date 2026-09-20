@@ -4,6 +4,7 @@ import type {
   SemanticSurface,
   ValidationResult,
 } from "../domain/model.js";
+import { completedSemanticTreeV2Schema } from "@unframe/contracts/presentation/v2";
 import { parseIdInput, parseSemanticSurfaceInput } from "../validation/contract-input.js";
 import {
   diagnostic,
@@ -70,6 +71,7 @@ export const validateMaterializableSemanticTree = (
         "text",
         "language",
         "alt",
+        "label",
         "interactionId",
       ]) ||
       !hasOwnFields(node, ["id", "parentId", "order", "role"]) ||
@@ -143,9 +145,10 @@ export const validateMaterializableSemanticOverrides = (
         (Object.hasOwn(override, "language") &&
           override.language !== null &&
           (!id(override.language) || typeof override.language !== "string")) ||
-        (Object.hasOwn(override, "alt") &&
-          override.alt !== null &&
-          typeof override.alt !== "string")
+        (Object.hasOwn(override, "alt") && typeof override.alt !== "string") ||
+        (Object.hasOwn(override, "label") &&
+          override.label !== null &&
+          typeof override.label !== "string")
       )
         diagnostics.push(
           diagnostic("invalid-semantic-override", overridePath, "Node override is invalid."),
@@ -217,7 +220,7 @@ export const materializeSemanticTree = (
       if (override.included === false) excluded.add(nodeId);
       const node = Object.hasOwn(nodes, nodeId) ? nodes[nodeId] : undefined;
       if (node === undefined) continue;
-      for (const field of ["text", "language", "alt"] as const)
+      for (const field of ["text", "language", "alt", "label"] as const)
         if (Object.hasOwn(override, field)) {
           if (override[field] === null) delete node[field];
           else node[field] = override[field];
@@ -270,8 +273,21 @@ export const materializeCompletedSemanticTree = (
       diagnostics,
       `/states/${pathSegment(stateId)}/semanticOverrides`,
     );
-    return diagnostics.length === 0
-      ? { valid: true, value: tree as CompletedSemanticTree, diagnostics: [] }
+    const enabledInteractions = new Set(state.enabledInteractionIds);
+    for (const node of Object.values(tree.nodes ?? {}))
+      if (isRecord(node) && node.role === "button" && id(node.interactionId))
+        node.stateEnabled = enabledInteractions.has(node.interactionId);
+    const completed = completedSemanticTreeV2Schema.safeParse(tree);
+    if (!completed.success)
+      diagnostics.push(
+        diagnostic(
+          "invalid-completed-semantic-tree",
+          "",
+          "Materialized semantic tree does not satisfy the v2 completed tree contract.",
+        ),
+      );
+    return diagnostics.length === 0 && completed.success
+      ? { valid: true, value: completed.data as CompletedSemanticTree, diagnostics: [] }
       : { valid: false, diagnostics: sorted(diagnostics) };
   } catch {
     return {

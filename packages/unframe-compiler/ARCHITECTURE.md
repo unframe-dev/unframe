@@ -59,9 +59,9 @@ src/
 
 ## 4. Current implementation
 
-`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、Asset reference を解決する。cross-reference、duplicate、initial subset の制約だけは semantic invariant として個別に検査する。実装済み subset は Structured `Surface → Frame → direct Text`、静的・非対話・baked-web のみである。結果には Core canonical JSON、source hash、definition hash を含む。
+`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font Asset carrier を解決する。cross-reference、duplicate、initial subset の制約だけは semantic invariant として個別に検査する。実装済み subset は具体的な Text style と literal value を持つ Structured `Surface → Frame → direct Text`、静的・非対話・baked-web のみである。結果には v2 Definition、Core canonical JSON、source hash、definition hash、font AssetSet を含む。Theme token / named style、Props、Slots、Parts、Variants、nested Frame / Text は解決しない。
 
-`compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。注入された `baked-web` Renderer の raw RGBA capture を `unframe-assets` で決定論的な PNG に encode し、Core で検証済みの canonical RenderBundle と asset bytes を返す。Renderer / encoder / malformed input の失敗は diagnostics として返す。
+`compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
@@ -92,7 +92,7 @@ M1 Static DSL は、各 declaration file の default export を、provenance 検
 - `assembleDeclarationProject`: checked catalog と明示 carrier から、source-map を含まない canonical `CompilerDeclarationProject` を返す
 - `checkAuthoringProjectAssembly`: virtual source と catalog を上書きできない carrier を接続し、phase 付き失敗または Checked Definition を返す
 - `compileAuthoringProject`: 同じ source-to-assembly 経路を Renderer / PNG compilation へ接続する
-- `compileDeclarationProject`: 明示された build context、Renderer plugin、encoder limits から Definition、RenderBundle、PNG asset bytes を返す
+- `compileDeclarationProject`: 明示された build context、Renderer plugin、encoder limits から v2 の Definition、RenderBundle、AssetSet、BuildManifest と font / PNG asset bytes を返す
 - diagnostics: stable code、severity、semantic path、source range
 - build metadata: source、lock、config、Compiler、renderer environment の hash / provenance
 
@@ -143,7 +143,6 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 - M1 より広い Static DSL、named entry export、TSX / JSX lowering
 - plugin discovery と version negotiation
 - ADR-0011でAcceptedになったSurface partition / author isolate overrideのM3〜M4実装
-- ADR-0012でAcceptedになったresolution / count / aggregate build budgetのM3〜M4実装
 - cache layout と remote cache policy
 - M1後のBrowser pooling / multi-project isolate topology
 - release間のdiagnostic compatibility policy

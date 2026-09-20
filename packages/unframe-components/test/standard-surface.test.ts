@@ -4,7 +4,6 @@ import {
   standardSurfaceManifest,
   standardSurfaceStructure,
   standardTheme,
-  standardThemeStyleIds,
 } from "../src/index.js";
 
 describe("standard Surface contract", () => {
@@ -57,8 +56,15 @@ describe("standard Surface contract", () => {
     expect(surface.root.children[0]).toMatchObject({
       id: "text-content",
       kind: "text",
-      value: "",
+      value: "Unframe",
       layout: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
+      semanticNodeId: "semantic-text",
+      maxCodePoints: 64,
+      style: {
+        fontAssetId: "reference-font",
+        fontSize: 32,
+        lineHeight: 40,
+      },
     });
   });
 
@@ -80,7 +86,7 @@ describe("standard Surface contract", () => {
           parentId: null,
           order: 0,
           role: "paragraph",
-          text: "",
+          text: "Unframe",
         },
       },
     });
@@ -100,17 +106,18 @@ describe("standard Surface contract", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("resolves every Named Style reference from the standard Theme", () => {
+  it("uses concrete text inputs without applying unresolved Named Styles", () => {
     const surface = standardSurfaceStructure.root;
-    const styleIds = [surface.root.style?.styleId, surface.root.children[0]?.style?.styleId];
-    expect(styleIds).toEqual([
-      standardThemeStyleIds.surfaceRoot,
-      standardThemeStyleIds.surfaceText,
-    ]);
-    for (const styleId of styleIds) {
-      expect(styleId).toBeDefined();
-      expect(standardTheme.namedStyles).toHaveProperty(styleId as string);
-    }
+    const text = surface.root.children[0];
+
+    expect(surface.root).not.toHaveProperty("namedStyle");
+    expect(text).not.toHaveProperty("namedStyle");
+    expect(text?.style).toEqual({
+      fontAssetId: "reference-font",
+      fontSize: 32,
+      lineHeight: 40,
+    });
+    expect(standardTheme.namedStyles).toEqual({});
   });
 
   it("exports stable JSON-safe plain data without hidden registry state", () => {

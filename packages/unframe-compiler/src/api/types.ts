@@ -6,7 +6,7 @@ import type {
   ThemeDeclaration,
 } from "@unframe/unframe-authoring";
 import type { EncodeLimits } from "@unframe/unframe-assets";
-import type { PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
+import type { BuildArtifactsV2, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
 import type { Diagnostic } from "@unframe/unframe-core";
 import type { RendererPlugin } from "@unframe/unframe-renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
@@ -19,7 +19,14 @@ export type CompilerDeclarationProject = {
     structure: ComponentStructure;
     lock: Required<ComponentPackageLock>;
   }[];
-  assets: Readonly<Record<string, PresentationDefinition["assets"][string]>>;
+  assets: Readonly<Record<string, CompilerSourceAsset>>;
+};
+export type CompilerSourceAsset = {
+  readonly id: string;
+  readonly mediaType: "font/ttf" | "font/otf";
+  readonly checksum: string;
+  readonly encodedSizeBytes: number;
+  readonly dataBase64: string;
 };
 export type DeclarationProjectThemeHash = {
   readonly themeId: string;
@@ -34,7 +41,7 @@ export type DeclarationProjectAssemblyInput = {
   readonly catalog: PairedAuthoringDeclarationCatalog;
   readonly themeHashes: readonly DeclarationProjectThemeHash[];
   readonly componentLocks: readonly DeclarationProjectComponentLock[];
-  readonly assets: Readonly<Record<string, PresentationDefinition["assets"][string]>>;
+  readonly assets: Readonly<Record<string, CompilerSourceAsset>>;
 };
 export type DeclarationProjectAssemblyCarrier = Omit<DeclarationProjectAssemblyInput, "catalog">;
 export type AuthoringProjectPipelineResult<T> =
@@ -54,6 +61,7 @@ export type CheckedDeclarationProject = {
   definitionJson: string;
   sourceHash: string;
   definitionHash: string;
+  assetSet: BuildArtifactsV2["assetSet"];
 };
 export type CompilerBuildOptions = {
   readonly compiler: {
@@ -64,7 +72,6 @@ export type CompilerBuildOptions = {
   readonly locale: string;
   readonly timezone: string;
   readonly colorScheme: "light" | "dark";
-  readonly pixelTarget: readonly [width: number, height: number];
   readonly rendererConfigHash: string;
   readonly renderers: readonly RendererPlugin[];
   readonly encodeLimits: EncodeLimits;
@@ -73,5 +80,10 @@ export type CompiledDeclarationProject = CheckedDeclarationProject & {
   readonly renderBundle: RenderBundle;
   readonly renderBundleJson: string;
   readonly renderBundleHash: string;
+  readonly assetSetJson: string;
+  readonly assetSetHash: string;
+  readonly buildManifest: BuildArtifactsV2["buildManifest"];
+  readonly buildManifestJson: string;
+  readonly buildManifestHash: string;
   readonly assets: Readonly<Record<string, Uint8Array>>;
 };

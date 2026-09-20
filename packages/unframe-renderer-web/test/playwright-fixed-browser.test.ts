@@ -9,6 +9,7 @@ import type { FixedBrowserSession } from "../src/index.js";
 const request = {
   stateId: "default",
   document: "<!doctype html><html><body>capture</body></html>",
+  fontFaceCount: 0,
   pixelTarget: [2, 1] as const,
   colorScheme: "dark" as const,
   environment: {
@@ -231,6 +232,7 @@ describe("Playwright Fixed Browser", () => {
     expect(fake.context.route).toHaveBeenCalledWith("**/*", expect.any(Function));
     expect(fake.page.setContent).toHaveBeenCalledWith(request.document, { waitUntil: "load" });
     expect(fake.page.evaluate).toHaveBeenCalledTimes(2);
+    expect(fake.page.evaluate).toHaveBeenLastCalledWith(0);
     expect(fake.page.screenshot).toHaveBeenCalledWith({
       type: "png",
       scale: "css",
@@ -281,6 +283,19 @@ describe("Playwright Fixed Browser", () => {
       "PNG dimensions must match",
     );
     expect(fake.context.close).toHaveBeenCalledTimes(2);
+    await session.close();
+  });
+
+  it("FontFace load failureをcapture failureとして返してcontextを閉じる", async () => {
+    const fake = driver();
+    const session = await createPlaywrightFixedBrowserFactory(fake.value)();
+    fake.page.screenshot.mockClear();
+    fake.page.evaluate.mockRejectedValueOnce(new Error("font load failed"));
+    await expect(session.capture({ ...captureRequest(session), fontFaceCount: 1 })).rejects.toThrow(
+      "font load failed",
+    );
+    expect(fake.context.close).toHaveBeenCalledTimes(2);
+    expect(fake.page.screenshot).not.toHaveBeenCalled();
     await session.close();
   });
 

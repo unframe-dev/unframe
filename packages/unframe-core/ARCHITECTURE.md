@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: v1 semantic core and v2 publication integrity boundary
+- **Status**: Presentation v2 M3A semantic core and v2 publication integrity boundary
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -24,7 +24,7 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 - generated contractから導出したPresentationDefinition / RenderBundle model
 - Stage、SurfaceNode、Frame / Text、Surface State、baked-web artifactのsemantic invariant
 - stable diagnostic codeとsemantic path
-- Presentation固有の意味上のset正規化、RFC 8785 canonical JSON、SHA-256 content hash
+- 配列順を保持するRFC 8785 canonical JSON、SHA-256 content hash
 
 ### Target extensions
 
@@ -58,32 +58,41 @@ src/
 
 `index.ts` は public export の集約だけを担う。型、contract schema boundary、semantic validation、canonicalization は変更理由の異なる責務として owning model の近くへ分離し、単一の entrypoint や package 共通の巨大な `types.ts` に集約しない。小さな value object は型と constructor を同じ module に置いてよく、実装前に空 directory を作る必要はない。
 
-初期実装は、Stage、SurfaceNode、Frame / Text、Surface State、baked-web RenderBundle subsetのsemantic validation、canonical JSON、SHA-256 hashを実装する。現在の実装はdomain model、Definition / RenderBundle / artifact validation、Semantic Tree materialization、canonicalizationへ責務を分け、Presentation固有の意味上のset正規化後に`canonicalize`でRFC 8785 JSONへ直列化する。
+現在の実装は、Stage、SurfaceNode、Frame / Text、基本Surface State、baked-web RenderBundle
+subsetのsemantic validation、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
+canonicalizationは配列を並べ替えず、契約上の順序を保持してRFC 8785 JSONへ直列化する。
 
 ## 4. Public API
 
-初期実装は `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、`canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、`hashRenderBundle` を公開する。入力型は`@unframe/contracts/presentation`のZod schemaから推論した型を正本とし、Core内でserialized modelを再定義しない。
+`validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、
+`canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、
+`hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation/v2`のZod schemaから
+推論した型を正本とし、Core内でserialized modelを再定義しない。v1入力の受理・変換経路は持たない。
 
 Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
-上記の validation / canonicalization / hash APIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。低水準の`hashCanonicalJsonPayload`だけは文字列を直接返し、不正なplain JSON入力でthrowし得るため、trust boundaryでは先にvalidation APIを通す。
+上記の validation / canonicalization / hash APIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。低水準の`canonicalizeJsonPayload`と`hashCanonicalJsonPayload`は文字列を直接返し、不正なplain JSON入力でthrowし得るため、trust boundaryでは先にvalidation APIを通す。
 
 公開validation APIは、descriptor-safeなplain JSON snapshotを作成した後、`packages/contracts`が正本として公開するZod 4 schemaで構造を検証する。Zodへcaller-owned objectを直接渡さないため、accessor、sparse array、symbol、cycle、非plain prototypeを実行時データへ混入させない。構造検証済みの値に対して、Coreは参照、cardinality、tree、lifetime、cross-artifact整合などのsemantic invariantだけを検証する。JSON parse、I/O、renderer、transport adapterは公開しない。
 
 ## 5. Invariants
 
-初期実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、Group ownerとSpatial parent lifetime、State / Interaction / override、DefinitionとRenderBundleのsurface / state / semantic tree / hit region対応を検証する。canonicalizationはRecord挿入順に依存せず、意味上のsetだけをsortし、semantic overrideのlayer順を保持する。
+現在のM3A実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、
+Group ownerとSpatial parent、基本State、DefinitionとRenderBundleのsurface / state / semantic tree対応、
+baked-webの単一texture、feature、descriptor、GPU byte、bindingを検証する。State visual variation、
+Interaction、Hit Region、Cue / Action、Timeline、Native UI、Video、Modelは通常validation入口で
+`feature.unsupported`として明示的に拒否する。
 
 次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
 
-- SurfaceNode と SemanticSurface は v1 で 1:1、SemanticSurface と RenderSurface は 1:N とする。
+- SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:N とする。
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
 - Resource owner は `presentation` または一つの `group` に限定する。
 - reference は同じか長い lifetime の resource へだけ向ける。
 - ProjectionAudience は host Spatial Node から派生 resource へ継承し、profile ごとの visibility closure が参照 closure を満たす。
 - actor、subject、Anchor owner は canonical identity と resource ownership に従い、client payload から任意値として受理しない。
 - Component Action / Output は Runtime model に残さず、canonical Action / Trigger へ lower 済みとする。
-- v1 canonicalization は意味上の set の入力順と object insertion order に依存しない。v2 の JCS hash は配列順を保持する。
+- v2 のJCS hashはobject insertion orderに依存せず、配列順を保持する。
 - CanonicalRuntimeSnapshot は renderer、participant、connection、transport から独立させる。
 
 ## 6. Non-responsibilities
@@ -92,6 +101,7 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 - Lossless Syntax Tree と source patching
 - filesystem、cache、network、process environment
 - Browser capture、texture / video encoding
+- Font binaryの解決、読込、subset生成。Coreは`fontAssetId`参照をAssetSet closureで検証する
 - renderer plugin orchestration
 - progression の authoritative evaluation
 - D1、R2、HTTP、gRPC、Unity object
@@ -114,13 +124,18 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 9. Deferred decisions
 
-- Cue / Trigger / Guard / Action、Timeline、Native UI、Video artifactのsemantic validation
+- State visual variation、Interaction、Hit Region、Cue / Trigger / Guard / Action、Timeline、Native UI、Video、Model artifactの完全なsemantic validation
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window
-- [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) の完全な意味検証と既存Compilerへの接続
+- Structured AuthoringのTheme、Props、Slots、Parts、Variants解決。Coreは解決済みv2成果物だけを検証する
 
 ## 10. v2 公開物の整合性検証
+
+`verifyBuildIntegrityV2` は、公開前の `definition`、`renderBundle`、`assetSet`、
+`buildManifest` を受け取り、`ValidationResult<BuildArtifactsV2>` を返す。
+公開 epoch や `publishedPresentation` は要求せず、入力に含まれる場合は拒否する。
+素材参照・descriptor・モデル参照・成果物 hash・presentation ID の検証を公開物の入口と共有する。
 
 `verifyPublicationIntegrityV2` は、`definition`、`renderBundle`、`assetSet`、`buildManifest`、
 `publishedPresentation` をまとめて受け取り、`ValidationResult<PublicationArtifactsV2>` を返す。
@@ -131,4 +146,5 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 入力はデコード済みの値である。raw JSON の重複 key 検出はデコードする adapter が担当する。
 成功は公開権限、epoch の更新可否、素材バイトの形式、端末への配信可否を保証しない。
-Scene / Flow / State の完全な意味検証と既存 Compiler の v2 出力への移行も別途必要になる。
+この入口はhash closureを対象とし、通常validation入口が拒否するM3B以降の構造も受理し得る。
+Scene / Flow / State の完全な意味検証やCompilerによるv2成果物生成の実装状況は、各packageで別途記述する。

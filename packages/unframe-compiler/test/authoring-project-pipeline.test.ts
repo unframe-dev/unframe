@@ -32,7 +32,7 @@ export default definePresentation({
   scene: {
     spatial: [{ id: "spatial", kind: "spatial", name: "Surface", owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, order: 0, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }, active: true, visible: true, opacity: 1 }],
     components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", packageLock: { packageVersion: "1", packageIntegrity: "integrity", manifestHash: "__MANIFEST_HASH__", structureHash: "__STRUCTURE_HASH__" }, props: {}, slots: {}, variants: {}, partOverrides: [] }]
-  }, assets: [],
+  }, assets: [{ kind: "asset-ref", assetId: "reference-font" }],
   flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []
 });`;
 
@@ -56,8 +56,8 @@ export default defineComponentStructure({
   id: "${structureId}", componentId: "${componentId}",
   root: {
     id: "${structureId}-root", kind: "surface", physicalSizeMeters: [1, 1], logicalSize: [1, 1], fit: "contain",
-    root: { id: "${structureId}-frame", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
-    baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "" } } },
+    root: { id: "${structureId}-frame", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Pipeline", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { fontAssetId: "reference-font", fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
+    baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "Pipeline" } } },
     interactions: {}, initialStateId: "default", states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
     renderIntent: { updateModel: "static", interaction: "none", internalAnimation: "none", rendererPreference: "baked-web", fallbackPolicy: "reject" }
   }, partBindings: {}, slotPlacements: {}, timelines: []
@@ -144,7 +144,15 @@ const carrier = (): DeclarationProjectAssemblyCarrier => {
         structureHash: hashComponentStructureDeclaration(component.structure.value),
       },
     })),
-    assets: {},
+    assets: {
+      "reference-font": {
+        id: "reference-font",
+        mediaType: "font/ttf",
+        dataBase64: "AAEAAAAAAAAAAAAA",
+        encodedSizeBytes: 12,
+        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+      },
+    },
   };
 };
 
@@ -153,7 +161,6 @@ const options = (renderer: RendererPlugin) => ({
   locale: "ja-JP",
   timezone: "Asia/Tokyo",
   colorScheme: "dark" as const,
-  pixelTarget: [2, 2] as const,
   rendererConfigHash: "renderer-config",
   renderers: [renderer],
   encodeLimits: PNG_ABSOLUTE_LIMITS,
@@ -246,8 +253,12 @@ describe("Authoring source to compiler pipeline", () => {
     expect(result.valid).toBe(true);
     expect(calls.count).toBeGreaterThan(0);
     if (!result.valid) return;
-    expect(Object.keys(result.value.assets)).toHaveLength(1);
-    const bytes = Object.values(result.value.assets)[0]!;
+    expect(Object.keys(result.value.assets)).toHaveLength(2);
+    const pngAssetId = Object.entries(result.value.assetSet.assets).find(
+      ([, descriptor]) => descriptor.mediaType === "image/png",
+    )?.[0];
+    expect(pngAssetId).toBeTruthy();
+    const bytes = result.value.assets[pngAssetId!]!;
     expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   });
 
@@ -407,6 +418,16 @@ describe("Authoring source to compiler pipeline", () => {
       options(makeRenderer()),
     );
 
-    expect(second).toEqual(first);
+    expect(first.valid && second.valid).toBe(true);
+    if (!first.valid || !second.valid) return;
+    expect({ ...second.value, assets: undefined }).toEqual({ ...first.value, assets: undefined });
+    expect(Object.keys(second.value.assets).sort()).toEqual(Object.keys(first.value.assets).sort());
+    for (const [assetId, bytes] of Object.entries(first.value.assets)) {
+      const secondBytes = second.value.assets[assetId]!;
+      expect(
+        secondBytes.length === bytes.length &&
+          secondBytes.every((byte, index) => byte === bytes[index]),
+      ).toBe(true);
+    }
   });
 });

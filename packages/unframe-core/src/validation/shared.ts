@@ -214,6 +214,10 @@ const validateTree = (
   const rootIds = Array.isArray(roots) ? roots.filter(id) : [];
   const rootSet = new Set(rootIds);
   const parentById = new Map<string, string | null>();
+  if (rootSet.size !== rootIds.length)
+    diagnostics.push(
+      diagnostic("duplicate-root", `${path}/rootNodeIds`, "Root IDs must be unique."),
+    );
 
   for (const [nodeId, node] of entries) {
     const parentId = node.parentId;
@@ -284,6 +288,19 @@ const validateTree = (
   for (const rootId of rootIds)
     if (!nodeIds.has(rootId))
       diagnostics.push(diagnostic("missing-root", `${path}/rootNodeIds`, "Root does not exist."));
+  const canonicalRoots = [...rootIds].sort((left, right) => {
+    const leftOrder = entries.find(([nodeId]) => nodeId === left)?.[1].order;
+    const rightOrder = entries.find(([nodeId]) => nodeId === right)?.[1].order;
+    return Number(leftOrder) - Number(rightOrder) || compareStrings(left, right);
+  });
+  if (rootIds.some((rootId, index) => rootId !== canonicalRoots[index]))
+    diagnostics.push(
+      diagnostic(
+        "invalid-root-order",
+        `${path}/rootNodeIds`,
+        "Root IDs must follow node order with ID as the deterministic tie-break.",
+      ),
+    );
   const siblingOrders = new Map<string, Set<number>>();
   for (const [nodeId, node] of entries) {
     const parentId = parentById.get(nodeId);
@@ -319,9 +336,67 @@ const validateTree = (
       current = parentById.get(current);
     }
   }
+  if (childField !== undefined) {
+    const listedParent = new Map<string, string>();
+    for (const [nodeId, node] of entries) {
+      const children = node[childField];
+      if (!Array.isArray(children) || !children.every(id)) continue;
+      if (new Set(children).size !== children.length)
+        diagnostics.push(
+          diagnostic(
+            "duplicate-child",
+            `${path}/nodes/${pathSegment(nodeId)}/${childField}`,
+            "Child IDs must be unique.",
+          ),
+        );
+      const canonicalChildren = [...children].sort((left, right) => {
+        const leftOrder = entries.find(([childId]) => childId === left)?.[1].order;
+        const rightOrder = entries.find(([childId]) => childId === right)?.[1].order;
+        return Number(leftOrder) - Number(rightOrder) || compareStrings(left, right);
+      });
+      if (children.some((childId, index) => childId !== canonicalChildren[index]))
+        diagnostics.push(
+          diagnostic(
+            "invalid-child-order",
+            `${path}/nodes/${pathSegment(nodeId)}/${childField}`,
+            "Children must follow sibling order.",
+          ),
+        );
+      for (const childId of children) {
+        const previous = listedParent.get(childId);
+        if (previous !== undefined && previous !== nodeId)
+          diagnostics.push(
+            diagnostic(
+              "multiple-parents",
+              `${path}/nodes/${pathSegment(nodeId)}/${childField}`,
+              "A child may be listed by only one parent.",
+              `${path}/nodes/${pathSegment(previous)}/${childField}`,
+            ),
+          );
+        else listedParent.set(childId, nodeId);
+        if (parentById.get(childId) !== nodeId)
+          diagnostics.push(
+            diagnostic(
+              "parent-child-mismatch",
+              `${path}/nodes/${pathSegment(nodeId)}/${childField}`,
+              "Child listing and parentId must agree.",
+            ),
+          );
+      }
+    }
+    for (const [nodeId, parentId] of parentById)
+      if (parentId !== null && listedParent.get(nodeId) !== parentId)
+        diagnostics.push(
+          diagnostic(
+            "parent-child-mismatch",
+            `${path}/nodes/${pathSegment(nodeId)}/parentId`,
+            "Every parented node must be listed by its parent.",
+          ),
+        );
+  }
 };
 
-const semanticOverrideFields = ["included", "text", "language", "alt"] as const;
+const semanticOverrideFields = ["included", "text", "language", "alt", "label"] as const;
 
 const semanticRoles = new Set([
   "heading",
@@ -329,6 +404,10 @@ const semanticRoles = new Set([
   "image",
   "button",
   "table",
+  "row",
+  "cell",
+  "columnHeader",
+  "rowHeader",
   "list",
   "listItem",
 ]);

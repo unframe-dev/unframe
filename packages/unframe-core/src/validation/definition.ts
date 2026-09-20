@@ -1,251 +1,138 @@
-import type { SerializedPresentationDefinitionV1 } from "@unframe/contracts/presentation";
+import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
+import { parsePresentationDefinitionInput } from "./contract-input.js";
 import {
-  compareStrings,
   diagnostic,
-  finite,
-  hasOnlyFields,
-  id,
-  isRecord,
   pathSegment,
-  positive,
-  recordEntries,
-  recordKeys,
   sorted,
   structuralDiagnostic,
   validateGroupOwner,
-  validateQuaternion,
   validateRecordIds,
-  validateReferences,
   validateTree,
-  validateVector,
-  type JsonRecord,
 } from "./shared.js";
-import {
-  materializeSemanticTree,
-  validateMaterializableSemanticOverrides,
-  validateMaterializableSemanticTree,
-} from "../semantic-tree/materialize.js";
-import { parsePresentationDefinitionInput } from "./contract-input.js";
+
+const unsupported = (diagnostics: Diagnostic[], path: string, message: string) =>
+  diagnostics.push(diagnostic("feature.unsupported", path, message));
+
+const semanticRolesByContentKind: Record<"frame" | "text", ReadonlySet<string>> = {
+  frame: new Set(["button", "list", "row", "table"]),
+  text: new Set([
+    "button",
+    "cell",
+    "columnHeader",
+    "heading",
+    "listItem",
+    "paragraph",
+    "rowHeader",
+  ]),
+};
+
+const validateCanonicalQuaternion = (
+  diagnostics: Diagnostic[],
+  quaternion: readonly [number, number, number, number],
+  path: string,
+) => {
+  const magnitude = Math.hypot(...quaternion);
+  if (Math.abs(magnitude - 1) > 1e-9)
+    diagnostics.push(
+      diagnostic(
+        "graph.invalid",
+        path,
+        "Quaternion must have unit length within an absolute tolerance of 1e-9.",
+      ),
+    );
+  const [x, y, z, w] = quaternion;
+  const firstNonZero = [w, x, y, z].find((component) => component !== 0);
+  if (quaternion.some((component) => Object.is(component, -0)) || (firstNonZero ?? 1) < 0)
+    diagnostics.push(
+      diagnostic(
+        "graph.invalid",
+        path,
+        "Quaternion must use the canonical sign and must not contain negative zero.",
+      ),
+    );
+};
+
 export const validatePresentationDefinition = (
   input: unknown,
-): ValidationResult<SerializedPresentationDefinitionV1> => {
+): ValidationResult<PresentationDefinitionV2> => {
   const parsed = parsePresentationDefinitionInput(input);
-  if (!parsed.success && parsed.snapshot === undefined)
+  if (!parsed.success)
     return {
       valid: false,
       diagnostics: sorted(parsed.issues.map((issue) => structuralDiagnostic("definition", issue))),
     };
-  input = parsed.success ? parsed.data : parsed.snapshot;
-  const diagnostics: Diagnostic[] = parsed.success
-    ? []
-    : parsed.issues.map((issue) => structuralDiagnostic("definition", issue));
-  if (!isRecord(input))
-    return {
-      valid: false,
-      diagnostics: [
-        diagnostic("invalid-definition", "", "PresentationDefinition must be an object."),
-      ],
-    };
-  const scene = input.scene;
-  const flow = input.flow;
-  if (!isRecord(scene) || !isRecord(flow))
-    return {
-      valid: false,
-      diagnostics: [
-        diagnostic("invalid-definition", "", "PresentationDefinition is missing scene or flow."),
-      ],
-    };
-  const nodes = scene.nodes;
-  const surfaces = scene.surfaces;
-  validateRecordIds(diagnostics, nodes, "/scene/nodes");
-  validateRecordIds(diagnostics, surfaces, "/scene/surfaces");
-  const nodeEntries = recordEntries(nodes);
-  const surfaceEntries = recordEntries(surfaces);
-  const nodeIds = new Set(nodeEntries.map(([key]) => key));
-  const surfaceIds = new Set(surfaceEntries.map(([key]) => key));
-  const groupIds = new Set(recordEntries(flow.groups).map(([key]) => key));
-  const resourceIds = new Map<string, string>();
-  const registerResourceIds = (record: unknown, path: string) => {
-    for (const resourceId of recordKeys(record).sort(compareStrings)) {
-      const previousPath = resourceIds.get(resourceId);
-      const currentPath = `${path}/${pathSegment(resourceId)}`;
-      if (previousPath !== undefined)
-        diagnostics.push(
-          diagnostic(
-            "duplicate-resource-id",
-            currentPath,
-            "Presentation resource IDs must be globally unique.",
-            previousPath,
-          ),
-        );
-      else resourceIds.set(resourceId, currentPath);
-    }
-  };
-  registerResourceIds(input.assets, "/assets");
-  registerResourceIds(isRecord(input.stage) ? input.stage.zones : undefined, "/stage/zones");
-  registerResourceIds(nodes, "/scene/nodes");
-  registerResourceIds(surfaces, "/scene/surfaces");
-  registerResourceIds(flow.groups, "/flow/groups");
-  registerResourceIds(flow.variables, "/flow/variables");
-  const surfaceHosts = new Map<string, string>();
-  const spatialParents = new Map<string, string | null>();
-  const spatialOrders = new Map<string, Set<number>>();
 
-  const stage = isRecord(input.stage) ? input.stage : undefined;
-  validateVector(diagnostics, stage?.size, 3, "/stage/size", true);
-  validateRecordIds(diagnostics, stage?.zones, "/stage/zones");
-  for (const [zoneId, zone] of recordEntries(stage?.zones)) {
+  const definition = parsed.data;
+  const diagnostics: Diagnostic[] = [];
+  const groupIds = new Set(Object.keys(definition.flow.groups));
+  const nodeIds = new Set(Object.keys(definition.scene.nodes));
+  const surfaceIds = new Set(Object.keys(definition.scene.surfaces));
+
+  validateRecordIds(diagnostics, definition.stage.zones, "/stage/zones");
+  validateRecordIds(diagnostics, definition.scene.nodes, "/scene/nodes");
+  validateRecordIds(diagnostics, definition.scene.surfaces, "/scene/surfaces");
+  validateRecordIds(diagnostics, definition.flow.groups, "/flow/groups");
+  validateRecordIds(diagnostics, definition.flow.variables, "/flow/variables");
+  validateRecordIds(diagnostics, definition.flow.timelines, "/flow/timelines");
+
+  if (!groupIds.has(definition.flow.initialGroupId))
+    diagnostics.push(
+      diagnostic(
+        "reference.invalid",
+        "/flow/initialGroupId",
+        "initialGroupId must reference a declared group.",
+      ),
+    );
+
+  for (const [zoneId, zone] of Object.entries(definition.stage.zones))
     validateGroupOwner(diagnostics, zone, groupIds, `/stage/zones/${pathSegment(zoneId)}`);
-    validateVector(diagnostics, zone.center, 3, `/stage/zones/${pathSegment(zoneId)}/center`);
-    validateVector(diagnostics, zone.size, 3, `/stage/zones/${pathSegment(zoneId)}/size`, true);
-  }
-  validateRecordIds(diagnostics, input.assets, "/assets");
-  for (const [assetId, value] of Object.entries(isRecord(input.assets) ? input.assets : {})) {
-    const asset = isRecord(value) ? value : undefined;
-    if (
-      asset === undefined ||
-      !hasOnlyFields(asset, ["id", "mediaType", "checksum"]) ||
-      asset.id !== assetId ||
-      !id(asset.mediaType) ||
-      !id(asset.checksum)
-    )
-      diagnostics.push(
-        diagnostic(
-          "invalid-asset",
-          `/assets/${pathSegment(assetId)}`,
-          "Asset descriptor must match the portable contract shape.",
-        ),
-      );
-  }
 
-  for (const [nodeId, node] of nodeEntries) {
-    if (
-      !hasOnlyFields(node, [
-        "id",
-        "name",
-        "kind",
-        "owner",
-        "audience",
-        "parent",
-        "order",
-        "transform",
-        "active",
-        "visible",
-        "opacity",
-        "surfaceId",
-      ])
-    )
+  const parentByNode = new Map<string, string | null>();
+  const siblingOrders = new Map<string, Set<number>>();
+  const hostBySurface = new Map<string, string>();
+  for (const [nodeId, node] of Object.entries(definition.scene.nodes)) {
+    const path = `/scene/nodes/${pathSegment(nodeId)}`;
+    validateGroupOwner(diagnostics, node, groupIds, path);
+    validateCanonicalQuaternion(diagnostics, node.transform.rotation, `${path}/transform/rotation`);
+    if (node.kind !== "container" && node.kind !== "surface")
+      unsupported(diagnostics, `${path}/kind`, "M3A supports container and surface nodes only.");
+    const parentId = node.parent.kind === "node" ? node.parent.nodeId : null;
+    parentByNode.set(nodeId, parentId);
+    if (parentId !== null && !nodeIds.has(parentId))
       diagnostics.push(
-        diagnostic(
-          "unknown-surface-node-property",
-          `/scene/nodes/${pathSegment(nodeId)}`,
-          "SurfaceNode contains an unknown property.",
-        ),
+        diagnostic("reference.invalid", `${path}/parent/nodeId`, "Spatial parent does not exist."),
       );
-    validateGroupOwner(diagnostics, node, groupIds, `/scene/nodes/${pathSegment(nodeId)}`);
-    const surfaceId = node.surfaceId;
-    if (!id(surfaceId) || !surfaceIds.has(surfaceId))
+    const sibling = parentId ?? `<${node.parent.kind}>`;
+    const orders = siblingOrders.get(sibling) ?? new Set<number>();
+    if (orders.has(node.order))
       diagnostics.push(
-        diagnostic(
-          "missing-surface",
-          `/scene/nodes/${pathSegment(nodeId)}/surfaceId`,
-          "SurfaceNode must reference a SemanticSurface.",
-        ),
+        diagnostic("identity.invalid", `${path}/order`, "Sibling spatial order must be unique."),
       );
-    else if (surfaceHosts.has(surfaceId))
-      diagnostics.push(
-        diagnostic(
-          "surface-node-cardinality",
-          `/scene/nodes/${pathSegment(nodeId)}/surfaceId`,
-          "A SemanticSurface may have one host node.",
-          `/scene/nodes/${pathSegment(surfaceHosts.get(surfaceId))}`,
-        ),
-      );
-    else surfaceHosts.set(surfaceId, nodeId);
-    const parent = node.parent;
-    const parentId =
-      isRecord(parent) && parent.kind === "node" && id(parent.nodeId) ? parent.nodeId : null;
-    spatialParents.set(nodeId, parentId);
-    if (
-      isRecord(parent) &&
-      parent.kind === "node" &&
-      (!id(parent.nodeId) || !nodeIds.has(parent.nodeId))
-    )
-      diagnostics.push(
-        diagnostic(
-          "missing-spatial-parent",
-          `/scene/nodes/${pathSegment(nodeId)}/parent/nodeId`,
-          "Spatial parent does not exist.",
-        ),
-      );
-    if (!Number.isInteger(node.order) || (node.order as number) < 0)
-      diagnostics.push(
-        diagnostic(
-          "invalid-order",
-          `/scene/nodes/${pathSegment(nodeId)}/order`,
-          "order must be a non-negative integer.",
-        ),
-      );
-    else {
-      const siblingKey = parentId ?? "<root>";
-      const orders = spatialOrders.get(siblingKey) ?? new Set<number>();
-      if (orders.has(node.order as number))
+    orders.add(node.order);
+    siblingOrders.set(sibling, orders);
+    if (node.kind === "surface") {
+      if (!surfaceIds.has(node.surfaceId))
         diagnostics.push(
           diagnostic(
-            "duplicate-sibling-order",
-            `/scene/nodes/${pathSegment(nodeId)}/order`,
-            "Sibling order must be unique.",
+            "reference.invalid",
+            `${path}/surfaceId`,
+            "Surface node target does not exist.",
           ),
         );
-      orders.add(node.order as number);
-      spatialOrders.set(siblingKey, orders);
+      const previous = hostBySurface.get(node.surfaceId);
+      if (previous !== undefined)
+        diagnostics.push(
+          diagnostic(
+            "identity.invalid",
+            `${path}/surfaceId`,
+            "A SemanticSurface must have exactly one host node.",
+            `/scene/nodes/${pathSegment(previous)}/surfaceId`,
+          ),
+        );
+      else hostBySurface.set(node.surfaceId, nodeId);
     }
-    validateVector(
-      diagnostics,
-      isRecord(node.transform) ? node.transform.position : undefined,
-      3,
-      `/scene/nodes/${pathSegment(nodeId)}/transform/position`,
-    );
-    validateQuaternion(
-      diagnostics,
-      isRecord(node.transform) ? node.transform.rotation : undefined,
-      `/scene/nodes/${pathSegment(nodeId)}/transform/rotation`,
-    );
-    validateVector(
-      diagnostics,
-      isRecord(node.transform) ? node.transform.scale : undefined,
-      3,
-      `/scene/nodes/${pathSegment(nodeId)}/transform/scale`,
-      true,
-    );
-  }
-  for (const [nodeId, node] of nodeEntries) {
-    const parent = isRecord(node.parent) ? node.parent : undefined;
-    if (parent?.kind !== "node" || !id(parent.nodeId)) continue;
-    const target = recordEntries(nodes).find(([key]) => key === parent.nodeId)?.[1];
-    const sourceOwner = isRecord(node.owner) ? node.owner : undefined;
-    const targetOwner = isRecord(target?.owner) ? target.owner : undefined;
-    if (sourceOwner?.kind === "presentation" && targetOwner?.kind === "group")
-      diagnostics.push(
-        diagnostic(
-          "invalid-owner-parent-lifetime",
-          `/scene/nodes/${pathSegment(nodeId)}/parent/nodeId`,
-          "Presentation-owned nodes cannot parent under group-owned nodes.",
-        ),
-      );
-    if (
-      sourceOwner?.kind === "group" &&
-      targetOwner?.kind === "group" &&
-      sourceOwner.groupId !== targetOwner.groupId
-    )
-      diagnostics.push(
-        diagnostic(
-          "invalid-owner-parent-lifetime",
-          `/scene/nodes/${pathSegment(nodeId)}/parent/nodeId`,
-          "Nodes from different groups cannot form a parent relation.",
-        ),
-      );
   }
   for (const nodeId of nodeIds) {
     const visited = new Set<string>();
@@ -254,275 +141,245 @@ export const validatePresentationDefinition = (
       if (visited.has(current)) {
         diagnostics.push(
           diagnostic(
-            "spatial-cycle",
+            "graph.invalid",
             `/scene/nodes/${pathSegment(nodeId)}`,
-            "Spatial tree must not contain a cycle.",
+            "Spatial parent graph must be acyclic.",
           ),
         );
         break;
       }
       visited.add(current);
-      current = spatialParents.get(current);
+      current = parentByNode.get(current);
     }
   }
-  for (const [surfaceId, surface] of surfaceEntries) {
-    if (!id(surface.hostNodeId) || surfaceHosts.get(surfaceId) !== surface.hostNodeId)
+  for (const [nodeId, node] of Object.entries(definition.scene.nodes)) {
+    if (node.parent.kind !== "node") continue;
+    const parent = definition.scene.nodes[node.parent.nodeId];
+    if (parent === undefined) continue;
+    if (parent.kind === "surface")
       diagnostics.push(
         diagnostic(
-          "surface-node-cardinality",
-          `/scene/surfaces/${pathSegment(surfaceId)}/hostNodeId`,
-          "SemanticSurface and SurfaceNode must form a 1:1 relation.",
+          "graph.invalid",
+          `/scene/nodes/${pathSegment(nodeId)}/parent/nodeId`,
+          "SurfaceNode must be a spatial leaf.",
         ),
       );
-    validateVector(
-      diagnostics,
-      surface.physicalSizeMeters,
-      2,
-      `/scene/surfaces/${pathSegment(surfaceId)}/physicalSizeMeters`,
-      true,
-    );
-    validateVector(
-      diagnostics,
-      surface.logicalSize,
-      2,
-      `/scene/surfaces/${pathSegment(surfaceId)}/logicalSize`,
-      true,
-    );
-    validateRecordIds(
-      diagnostics,
-      surface.contentNodes,
-      `/scene/surfaces/${pathSegment(surfaceId)}/contentNodes`,
-    );
-    const contentNodes = recordEntries(surface.contentNodes);
-    const contentIds = new Set(contentNodes.map(([key]) => key));
-    const rootFrameId = surface.rootFrameId;
-    if (!id(rootFrameId) || !contentIds.has(rootFrameId))
-      diagnostics.push(
-        diagnostic(
-          "missing-root-frame",
-          `/scene/surfaces/${pathSegment(surfaceId)}/rootFrameId`,
-          "rootFrameId must exist.",
-        ),
-      );
-    const rootFrame = id(rootFrameId)
-      ? recordEntries(surface.contentNodes).find(([key]) => key === rootFrameId)?.[1]
-      : undefined;
-    if (rootFrame?.kind !== "frame" || rootFrame.parentId !== null)
-      diagnostics.push(
-        diagnostic(
-          "invalid-root-frame",
-          `/scene/surfaces/${pathSegment(surfaceId)}/rootFrameId`,
-          "rootFrameId must reference a parentless Frame.",
-        ),
-      );
-    const pseudoNodes: Record<string, JsonRecord> = {};
-    for (const [contentId, content] of contentNodes)
-      pseudoNodes[contentId] = { ...content, children: content.children ?? [] };
-    validateTree(
-      diagnostics,
-      pseudoNodes,
-      rootFrameId && id(rootFrameId) ? [rootFrameId] : [],
-      `/scene/surfaces/${pathSegment(surfaceId)}/contentNodes`,
-      "children",
-    );
-    for (const [contentId, content] of contentNodes) {
-      const children = Array.isArray(content.children) ? content.children.filter(id) : [];
-      for (const childId of children)
-        if (
-          recordEntries(surface.contentNodes).find(([key]) => key === childId)?.[1].parentId !==
-          contentId
-        )
-          diagnostics.push(
-            diagnostic(
-              "content-parent-child-mismatch",
-              `/scene/surfaces/${pathSegment(surfaceId)}/contentNodes/${pathSegment(contentId)}/children`,
-              "Child must reference this Frame as parent.",
-            ),
-          );
-      const parentChildren = id(content.parentId)
-        ? recordEntries(surface.contentNodes).find(([key]) => key === content.parentId)?.[1]
-            .children
-        : undefined;
-      if (
-        id(content.parentId) &&
-        (!Array.isArray(parentChildren) || !parentChildren.includes(contentId))
-      )
-        diagnostics.push(
-          diagnostic(
-            "orphan-content-node",
-            `/scene/surfaces/${pathSegment(surfaceId)}/contentNodes/${pathSegment(contentId)}`,
-            "Non-root content node must appear in its parent children.",
-          ),
-        );
-      if (content.kind === "text") {
-        const parent = id(content.parentId)
-          ? recordEntries(surface.contentNodes).find(([key]) => key === content.parentId)?.[1]
-          : undefined;
-        if (parent?.kind !== "frame")
-          diagnostics.push(
-            diagnostic(
-              "invalid-text-parent",
-              `/scene/surfaces/${pathSegment(surfaceId)}/contentNodes/${pathSegment(contentId)}/parentId`,
-              "Text nodes must have a Frame parent.",
-            ),
-          );
-        const placement = isRecord(content.placement) ? content.placement : undefined;
-        if (
-          !finite(placement?.x) ||
-          !finite(placement?.y) ||
-          !positive(placement?.width) ||
-          !positive(placement?.height)
-        )
-          diagnostics.push(
-            diagnostic(
-              "invalid-text-placement",
-              `/scene/surfaces/${pathSegment(surfaceId)}/contentNodes/${pathSegment(contentId)}/placement`,
-              "Text placement must use finite coordinates and positive dimensions.",
-            ),
-          );
-      }
-    }
-    const semanticTree = isRecord(surface.baseSemanticTree) ? surface.baseSemanticTree : undefined;
-    const semanticTreeDiagnosticsStart = diagnostics.length;
-    validateMaterializableSemanticTree(
-      diagnostics,
-      semanticTree,
-      `/scene/surfaces/${pathSegment(surfaceId)}/baseSemanticTree`,
-    );
-    const hasInvalidSemanticTree = diagnostics.length > semanticTreeDiagnosticsStart;
-    validateRecordIds(
-      diagnostics,
-      surface.interactions,
-      `/scene/surfaces/${pathSegment(surfaceId)}/interactions`,
-    );
-    validateRecordIds(
-      diagnostics,
-      surface.states,
-      `/scene/surfaces/${pathSegment(surfaceId)}/states`,
-    );
-    const interactionIds = new Set(recordEntries(surface.interactions).map(([key]) => key));
-    for (const [semanticNodeId, semanticNode] of recordEntries(semanticTree?.nodes))
-      if (
-        semanticNode.interactionId !== undefined &&
-        (!id(semanticNode.interactionId) || !interactionIds.has(semanticNode.interactionId))
-      )
-        diagnostics.push(
-          diagnostic(
-            "missing-interaction",
-            `/scene/surfaces/${pathSegment(surfaceId)}/baseSemanticTree/nodes/${pathSegment(semanticNodeId)}/interactionId`,
-            "Semantic node interaction must exist.",
-          ),
-        );
-    const stateIds = new Set(recordEntries(surface.states).map(([key]) => key));
-    const finiteStateIds =
-      isRecord(surface.renderIntent) &&
-      isRecord(surface.renderIntent.updateModel) &&
-      surface.renderIntent.updateModel.kind === "finite-state" &&
-      Array.isArray(surface.renderIntent.updateModel.stateIds)
-        ? new Set(surface.renderIntent.updateModel.stateIds.filter(id))
-        : undefined;
+    const childOwner = node.owner;
+    const parentOwner = parent.owner;
     if (
-      finiteStateIds !== undefined &&
-      (finiteStateIds.size !== stateIds.size ||
-        [...stateIds].some((stateId) => !finiteStateIds.has(stateId)))
+      (childOwner.kind === "presentation" && parentOwner.kind === "group") ||
+      (childOwner.kind === "group" &&
+        parentOwner.kind === "group" &&
+        childOwner.groupId !== parentOwner.groupId)
     )
       diagnostics.push(
         diagnostic(
-          "render-intent-state-set-mismatch",
-          `/scene/surfaces/${pathSegment(surfaceId)}/renderIntent/updateModel/stateIds`,
-          "finite-state stateIds must exactly match surface states.",
+          "graph.invalid",
+          `/scene/nodes/${pathSegment(nodeId)}/parent/nodeId`,
+          "A spatial child cannot outlive its parent or cross Group ownership.",
         ),
       );
-    if (!id(surface.initialStateId) || !stateIds.has(surface.initialStateId))
+  }
+
+  for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces)) {
+    const path = `/scene/surfaces/${pathSegment(surfaceId)}`;
+    if (hostBySurface.get(surfaceId) !== surface.hostNodeId)
       diagnostics.push(
         diagnostic(
-          "missing-initial-state",
-          `/scene/surfaces/${pathSegment(surfaceId)}/initialStateId`,
-          "initialStateId must exist.",
+          "reference.invalid",
+          `${path}/hostNodeId`,
+          "SemanticSurface and SurfaceNode must form a one-to-one relation.",
         ),
       );
-    for (const [stateId, state] of recordEntries(surface.states)) {
-      const enabled = Array.isArray(state.enabledInteractionIds)
-        ? state.enabledInteractionIds.filter(id)
-        : [];
-      validateReferences(
-        diagnostics,
-        enabled,
-        interactionIds,
-        `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/enabledInteractionIds`,
-        "missing-interaction",
-      );
-      const semanticOverrideDiagnosticsStart = diagnostics.length;
-      validateMaterializableSemanticOverrides(
-        diagnostics,
-        semanticTree,
-        state,
-        `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/semanticOverrides`,
-      );
-      if (hasInvalidSemanticTree || diagnostics.length > semanticOverrideDiagnosticsStart) continue;
-      const materializedTree = materializeSemanticTree(
-        surface,
-        state,
-        diagnostics,
-        `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/semanticOverrides`,
-      );
-      validateTree(
-        diagnostics,
-        materializedTree.nodes,
-        materializedTree.rootNodeIds,
-        `/scene/surfaces/${pathSegment(surfaceId)}/states/${pathSegment(stateId)}/materializedSemanticTree`,
-      );
-    }
-  }
-  validateRecordIds(diagnostics, flow.groups, "/flow/groups");
-  validateRecordIds(diagnostics, flow.variables, "/flow/variables");
-  const groups = recordEntries(flow.groups);
-  const flowGroupIds = new Set(groups.map(([key]) => key));
-  if (!id(flow.initialGroupId) || !flowGroupIds.has(flow.initialGroupId))
-    diagnostics.push(
-      diagnostic("missing-initial-group", "/flow/initialGroupId", "initialGroupId must exist."),
+    validateRecordIds(diagnostics, surface.contentNodes, `${path}/contentNodes`);
+    validateRecordIds(
+      diagnostics,
+      surface.baseSemanticTree.nodes,
+      `${path}/baseSemanticTree/nodes`,
     );
-  for (const [groupId, group] of groups) {
-    validateRecordIds(diagnostics, group.steps, `/flow/groups/${pathSegment(groupId)}/steps`);
-    const stepIds = new Set(recordEntries(group.steps).map(([key]) => key));
-    registerResourceIds(group.steps, `/flow/groups/${pathSegment(groupId)}/steps`);
-    if (!id(group.initialStepId) || !stepIds.has(group.initialStepId))
+    validateRecordIds(diagnostics, surface.interactions, `${path}/interactions`);
+    validateRecordIds(diagnostics, surface.states, `${path}/states`);
+    const contentTreeNodes = Object.fromEntries(
+      Object.entries(surface.contentNodes).map(([contentId, content]) => [
+        contentId,
+        { ...content, children: content.kind === "frame" ? content.children : [] },
+      ]),
+    );
+    validateTree(
+      diagnostics,
+      contentTreeNodes,
+      [surface.rootFrameId],
+      `${path}/contentTree`,
+      "children",
+    );
+    validateTree(
+      diagnostics,
+      surface.baseSemanticTree.nodes,
+      surface.baseSemanticTree.rootNodeIds,
+      `${path}/baseSemanticTree`,
+    );
+    const root = surface.contentNodes[surface.rootFrameId];
+    if (root?.kind !== "frame" || root.parentId !== null)
       diagnostics.push(
         diagnostic(
-          "missing-initial-step",
-          `/flow/groups/${pathSegment(groupId)}/initialStepId`,
-          "initialStepId must exist.",
+          "graph.invalid",
+          `${path}/rootFrameId`,
+          "rootFrameId must be a parentless frame.",
         ),
       );
+    const semanticOwners = new Map<string, string>();
+    for (const [contentId, content] of Object.entries(surface.contentNodes)) {
+      const contentPath = `${path}/contentNodes/${pathSegment(contentId)}`;
+      if (content.kind !== "frame" && content.kind !== "text") {
+        unsupported(
+          diagnostics,
+          `${contentPath}/kind`,
+          "M3A supports frame and text content only.",
+        );
+        continue;
+      }
+      if (content.kind === "frame" && content.layout.kind !== "absolute")
+        unsupported(
+          diagnostics,
+          `${contentPath}/layout/kind`,
+          "M3A supports absolute layout only.",
+        );
+      if (content.placement.kind !== "absolute")
+        unsupported(
+          diagnostics,
+          `${contentPath}/placement/kind`,
+          "M3A supports absolute placement only.",
+        );
+      if (content.semanticNodeId === undefined) continue;
+      const semantic = surface.baseSemanticTree.nodes[content.semanticNodeId];
+      if (semantic === undefined)
+        diagnostics.push(
+          diagnostic(
+            "reference.invalid",
+            `${contentPath}/semanticNodeId`,
+            "semanticNodeId must reference the base semantic tree.",
+          ),
+        );
+      else if (!semanticRolesByContentKind[content.kind].has(semantic.role))
+        diagnostics.push(
+          diagnostic(
+            "graph.invalid",
+            `${contentPath}/semanticNodeId`,
+            "Content kind and semantic role are incompatible.",
+          ),
+        );
+      const previous = semanticOwners.get(content.semanticNodeId);
+      if (previous !== undefined)
+        diagnostics.push(
+          diagnostic(
+            "identity.invalid",
+            `${contentPath}/semanticNodeId`,
+            "A semantic node may be mapped by only one content node.",
+            `${path}/contentNodes/${pathSegment(previous)}/semanticNodeId`,
+          ),
+        );
+      else semanticOwners.set(content.semanticNodeId, contentId);
+    }
+    for (const semanticId of Object.keys(surface.baseSemanticTree.nodes))
+      if (!semanticOwners.has(semanticId))
+        diagnostics.push(
+          diagnostic(
+            "graph.invalid",
+            `${path}/baseSemanticTree/nodes/${pathSegment(semanticId)}`,
+            "Every semantic node must be mapped by exactly one content node.",
+          ),
+        );
+
+    if (Object.keys(surface.interactions).length > 0)
+      unsupported(diagnostics, `${path}/interactions`, "Interactions are deferred to M3B.");
+    if (!Object.hasOwn(surface.states, surface.initialStateId))
+      diagnostics.push(
+        diagnostic("reference.invalid", `${path}/initialStateId`, "Initial State does not exist."),
+      );
+    for (const [stateId, state] of Object.entries(surface.states)) {
+      const statePath = `${path}/states/${pathSegment(stateId)}`;
+      if (Object.keys(state.contentOverrides).length > 0)
+        unsupported(
+          diagnostics,
+          `${statePath}/contentOverrides`,
+          "State visual overrides are deferred to M3B.",
+        );
+      if (state.semanticOverrides.length > 0)
+        unsupported(
+          diagnostics,
+          `${statePath}/semanticOverrides`,
+          "Semantic State overrides are deferred to M3B.",
+        );
+      if (state.enabledInteractionIds.length > 0)
+        unsupported(
+          diagnostics,
+          `${statePath}/enabledInteractionIds`,
+          "State interactions are deferred to M3B.",
+        );
+    }
+    if (
+      surface.renderIntent.updateModel.kind !== "static" ||
+      surface.renderIntent.interaction.kind !== "none" ||
+      surface.renderIntent.internalAnimation.kind !== "none" ||
+      surface.renderIntent.rendererPreference !== "baked-web" ||
+      surface.renderIntent.fallbackPolicy !== "reject"
+    )
+      unsupported(
+        diagnostics,
+        `${path}/renderIntent`,
+        "M3A accepts only static baked-web rendering without interactions or internal animation.",
+      );
   }
-  for (const [variableId, variable] of recordEntries(flow.variables)) {
+
+  for (const [groupId, group] of Object.entries(definition.flow.groups)) {
+    const path = `/flow/groups/${pathSegment(groupId)}`;
+    validateRecordIds(diagnostics, group.steps, `${path}/steps`);
+    if (!Object.hasOwn(group.steps, group.initialStepId))
+      diagnostics.push(
+        diagnostic("reference.invalid", `${path}/initialStepId`, "Initial Step does not exist."),
+      );
+    for (const [stepId, step] of Object.entries(group.steps))
+      if (step.cues.length > 0)
+        unsupported(
+          diagnostics,
+          `${path}/steps/${pathSegment(stepId)}/cues`,
+          "Cues and Actions are deferred to M3C.",
+        );
+  }
+  for (const [variableId, variable] of Object.entries(definition.flow.variables)) {
     validateGroupOwner(
       diagnostics,
       variable,
       groupIds,
       `/flow/variables/${pathSegment(variableId)}`,
     );
-    const type = variable.type;
-    const value = variable.initialValue;
-    if (
-      (type === "string" && typeof value !== "string") ||
-      (type === "boolean" && typeof value !== "boolean") ||
-      (type === "number" && !finite(value)) ||
-      (type === "null" && value !== null)
-    )
+    const matchesType =
+      (variable.type === "null" && variable.initialValue === null) ||
+      (variable.type === "boolean" && typeof variable.initialValue === "boolean") ||
+      (variable.type === "number" && typeof variable.initialValue === "number") ||
+      (variable.type === "string" && typeof variable.initialValue === "string");
+    if (!matchesType)
       diagnostics.push(
         diagnostic(
-          "variable-type-mismatch",
+          "behavior.invalid",
           `/flow/variables/${pathSegment(variableId)}/initialValue`,
-          "initialValue must match the declared scalar type.",
+          "Variable initialValue must match its declared scalar type.",
         ),
       );
   }
+  for (const [timelineId, timeline] of Object.entries(definition.flow.timelines))
+    validateGroupOwner(
+      diagnostics,
+      timeline,
+      groupIds,
+      `/flow/timelines/${pathSegment(timelineId)}`,
+    );
+  if (Object.keys(definition.flow.variables).length > 0)
+    unsupported(diagnostics, "/flow/variables", "Runtime variables are deferred beyond M3A.");
+  if (Object.keys(definition.flow.timelines).length > 0)
+    unsupported(diagnostics, "/flow/timelines", "Timelines are deferred to M3D.");
+
   return diagnostics.length === 0
-    ? {
-        valid: true,
-        value: input as unknown as SerializedPresentationDefinitionV1,
-        diagnostics: [],
-      }
+    ? { valid: true, value: definition, diagnostics: [] }
     : { valid: false, diagnostics: sorted(diagnostics) };
 };

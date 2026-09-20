@@ -3,17 +3,6 @@ import canonicalize from "canonicalize";
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 type JsonRecord = Record<string, unknown>;
 
-const setArrayKeys = new Set([
-  "rootNodeIds",
-  "enabledInteractionIds",
-  "stateIds",
-  "events",
-  "renderSurfaceIds",
-  "artifactIds",
-]);
-
-const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
-
 const isRecord = (value: unknown): value is JsonRecord =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -49,7 +38,7 @@ const assertCanonicalUnicode = (value: unknown): void => {
     }
 };
 
-export const normalizePresentationValue = (value: unknown, key?: string): JsonValue => {
+export const normalizePresentationValue = (value: unknown): JsonValue => {
   if (value === null || typeof value === "boolean") return value;
   if (typeof value === "string") return value;
   if (typeof value === "number") {
@@ -57,46 +46,11 @@ export const normalizePresentationValue = (value: unknown, key?: string): JsonVa
       throw new TypeError("Canonical JSON does not permit non-finite numbers.");
     return value;
   }
-  if (Array.isArray(value)) {
-    const normalized = value.map((item) => normalizePresentationValue(item));
-    return key !== undefined && setArrayKeys.has(key)
-      ? [...normalized].sort((left, right) => compareStrings(String(left), String(right)))
-      : normalized;
-  }
+  if (Array.isArray(value)) return value.map((item) => normalizePresentationValue(item));
   if (isRecord(value)) {
     const result = Object.create(null) as Record<string, JsonValue>;
     for (const entryKey of Object.keys(value))
-      result[entryKey] = normalizePresentationValue(value[entryKey], entryKey);
-
-    const nodes = value.nodes;
-    if (Array.isArray(result.rootNodeIds) && isRecord(nodes)) {
-      result.rootNodeIds.sort((left, right) => {
-        const leftNode = nodes[String(left)];
-        const rightNode = nodes[String(right)];
-        const order =
-          isRecord(leftNode) && isRecord(rightNode)
-            ? Number(leftNode.order) - Number(rightNode.order)
-            : 0;
-        return order === 0 ? compareStrings(String(left), String(right)) : order;
-      });
-    }
-
-    const sourceContentNodes = isRecord(value.contentNodes) ? value.contentNodes : undefined;
-    const resultContentNodes = isRecord(result.contentNodes) ? result.contentNodes : undefined;
-    if (sourceContentNodes !== undefined && resultContentNodes !== undefined)
-      for (const nodeId of Object.keys(sourceContentNodes)) {
-        const resultNode = resultContentNodes[nodeId];
-        if (!isRecord(resultNode) || !Array.isArray(resultNode.children)) continue;
-        resultNode.children.sort((left, right) => {
-          const leftNode = sourceContentNodes[String(left)];
-          const rightNode = sourceContentNodes[String(right)];
-          const order =
-            isRecord(leftNode) && isRecord(rightNode)
-              ? Number(leftNode.order) - Number(rightNode.order)
-              : 0;
-          return order === 0 ? compareStrings(String(left), String(right)) : order;
-        });
-      }
+      result[entryKey] = normalizePresentationValue(value[entryKey]);
     return result;
   }
   throw new TypeError("Canonical JSON only supports JSON values.");

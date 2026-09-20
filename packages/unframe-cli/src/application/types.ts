@@ -28,7 +28,6 @@ export type PresentationCliBuildContext = Readonly<{
   locale: "ja-JP";
   timezone: "Asia/Tokyo";
   colorScheme: "light";
-  pixelTarget: readonly [width: number, height: number];
   webRendererConfig: WebRendererConfig;
 }>;
 

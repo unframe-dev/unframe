@@ -1,6 +1,6 @@
 # Presentation Renderer API Architecture
 
-- **Status**: Initial baked-web plugin contract implemented
+- **Status**: Presentation v2 static baked-web plugin contract implemented
 - **Scope**: Compiler と concrete renderer の間の plugin contract
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
@@ -42,7 +42,9 @@ RendererPlugin
 
 ## 3. Input and output boundary
 
-入力は `unframe-core` の semantic / build model と、Compiler が解決した明示的 build context に限定する。Semantic Surface が宣言した source intent と、Compiler が renderer 選択だけを解決した resolved intent は分離する。これにより `rendererPreference: auto` を元の意味として保持したまま、選択済み renderer ID を plugin に渡せる。Renderer が project filesystem、environment variable、network を暗黙に探索しない。
+入力は `unframe-core` が公開する Presentation v2 の `SemanticSurface` / `CompletedSemanticTree` と、Compiler が解決した明示的 build context に限定する。Renderer API 内に旧 v1 schema の複製や受理経路を持たない。Semantic Surface が宣言した source intent と、Compiler が renderer 選択だけを解決した resolved intent は分離する。これにより `rendererPreference: auto` を元の意味として保持したまま、選択済み renderer ID を plugin に渡せる。Renderer が project filesystem、environment variable、network を暗黙に探索しない。
+
+`fontAssets` は Asset ID を key とする `font/ttf | font/otf` の base64 bytes、checksum の明示入力である。Text の `fontAssetId` / `fallbackFontAssetIds` はこの record 内で閉じなければならず、host font や path は入力に含めない。
 
 公開境界は caller 所有 object を検証した後で再利用しない。`prepareRendererBuildInput` は
 plain own-data descriptor から snapshot を作った後、Zod 4 schema で runtime shape を検証し、元 input の accessor、
@@ -102,17 +104,17 @@ Conformance harness は renderer implementation の process topology を固定�
 - ADR-0012のcapture前budget、deadline / abort、resource guard APIの実装
 - Native UI / Video renderer API の追加時期
 - Compiler cache key への `rendererFingerprint` 結合と integration test
-- M3A v2入力schema、nested Frame / Text、解決済みTheme / Font Assetの接続
+- nested Frame / Text、Theme / Props / Slots / Variants / Parts の接続
 
 ## 9. Current implementation
 
-最初のmilestoneはCompilerが一つのSemantic Surface全体を一つのRender Surface planへlowerし、`static` / `interaction: none` / `internalAnimation: none` / `baked-web` / `reject`のStructured Frame / Text rendererへ渡すsubsetを実装する。ADR-0011のmulti-partition planning、provenance、aggregate regionはM3〜M4で接続する。
+現在はCompilerが一つのv2 Semantic Surface全体を一つのRender Surface planへlowerし、`static` / `interaction: none` / `internalAnimation: none` / `baked-web` / `reject`のabsolute root Frameとdirect literal Textへ渡すsubsetを実装する。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。
 
 現行Rendererはstateごとの未encode RGBA captureとSemantic Surface normalized `HitRegion`を返す一partition subsetである。M3でplanのowned/context分離とpartition-local `RendererPrivateHitRegion`へ置換し、Compiler aggregateによるportable `HitRegion`生成と同時に移行する。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
 `unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler cache 自体は未実装であり、cache keyへの結合とintegration testは後続である。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 
-M3Aでは [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) に従い、v2の解決済みText / Frame graphとFont Asset入力へ移行する。現行APIとrendererはv1の直下Text subsetであり、nested graphや型付きThemeを実装済みとは扱わない。
+Theme、Props、Slots、Variants、Parts、nested Frame と State visual variation は未接続であり、現行subsetで受理しない。
 
 共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、Hit Region の有効性と completeness、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
 

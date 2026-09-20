@@ -1,4 +1,4 @@
-import type { CompletedSemanticTree, Diagnostic, ValidationResult } from "@unframe/unframe-core";
+import type { Diagnostic, ValidationResult } from "@unframe/unframe-core";
 
 import type {
   CompilerResolvedSurfaceInput,
@@ -58,9 +58,24 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
     } else {
       const parent = surface.contentNodes[node.parentId ?? ""];
       if (!parent || parent.kind !== "frame" || !parent.children.includes(id)) return false;
+      if (
+        node.kind === "text" &&
+        [node.style.fontAssetId, ...node.style.fallbackFontAssetIds].some(
+          (assetId) => !Object.hasOwn(input.fontAssets, assetId),
+        )
+      )
+        return false;
     }
   }
-  const validateTree = (tree: CompletedSemanticTree) => {
+  const validateTree = (tree: {
+    readonly rootNodeIds: readonly string[];
+    readonly nodes: Readonly<
+      Record<
+        string,
+        { readonly id: string; readonly parentId: string | null; readonly order: number }
+      >
+    >;
+  }) => {
     const roots = new Set(tree.rootNodeIds);
     if (tree.rootNodeIds.some((id) => !tree.nodes[id])) return false;
     const siblingOrders = new Set<string>();
@@ -95,7 +110,8 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
   for (const intent of [surface.renderIntent, input.sourceIntent, input.resolvedIntent]) {
     if (
       intent.updateModel.kind === "finite-state" &&
-      intent.updateModel.stateIds.some((id) => !surface.states[id])
+      (new Set(intent.updateModel.stateIds).size !== intent.updateModel.stateIds.length ||
+        intent.updateModel.stateIds.some((id) => !surface.states[id]))
     )
       return false;
     if (
@@ -105,7 +121,11 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
       return false;
   }
   for (const [stateId, state] of Object.entries(surface.states)) {
-    if (state.id !== stateId || state.enabledInteractionIds.some((id) => !surface.interactions[id]))
+    if (
+      state.id !== stateId ||
+      new Set(state.enabledInteractionIds).size !== state.enabledInteractionIds.length ||
+      state.enabledInteractionIds.some((id) => !surface.interactions[id])
+    )
       return false;
     if (
       state.semanticOverrides.some(({ nodes }) =>
@@ -116,7 +136,10 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
   }
   return [surface.baseSemanticTree, ...Object.values(semanticsByState)].every((tree) =>
     Object.values(tree.nodes).every(
-      ({ interactionId }) => interactionId === undefined || !!surface.interactions[interactionId],
+      (node) =>
+        !("interactionId" in node) ||
+        typeof node.interactionId !== "string" ||
+        !!surface.interactions[node.interactionId],
     ),
   );
 };

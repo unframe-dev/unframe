@@ -27,9 +27,11 @@ const project = async () => {
 const artifacts = (suffix = "one") => ({
   definition: encoder.encode(`definition-${suffix}`),
   renderBundle: encoder.encode(`bundle-${suffix}`),
+  assetSet: encoder.encode(`assets-${suffix}`),
+  buildManifest: encoder.encode(`build-${suffix}`),
   assets: [
-    { assetId: "z asset", bytes: encoder.encode(`z-${suffix}`) },
-    { assetId: "a/asset", bytes: encoder.encode(`a-${suffix}`) },
+    { assetId: "z asset", mediaType: "image/png" as const, bytes: encoder.encode(`z-${suffix}`) },
+    { assetId: "a/asset", mediaType: "image/png" as const, bytes: encoder.encode(`a-${suffix}`) },
   ],
 });
 
@@ -40,6 +42,26 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("publishes all v2 manifests and preserves font bytes with their media type", async () => {
+    const directory = await project();
+    const value = artifacts();
+    const font = new Uint8Array([0, 1, 0, 0]);
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: {
+        ...value,
+        assets: [...value.assets, { assetId: "font", mediaType: "font/ttf", bytes: font }],
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(await readFile(join(directory, "dist/asset-set.json"))).toEqual(
+      Buffer.from(value.assetSet),
+    );
+    expect(await readFile(join(directory, "dist/build-manifest.json"))).toEqual(
+      Buffer.from(value.buildManifest),
+    );
+    expect(await readFile(join(directory, "dist/assets/font.ttf"))).toEqual(Buffer.from(font));
+  });
   it("writes a complete first generation and atomically replaces it on a second build", async () => {
     const directory = await project();
     await expect(
@@ -163,8 +185,8 @@ describe("atomic artifact publication", () => {
         artifacts: {
           ...artifacts(),
           assets: [
-            { assetId: "x", bytes: encoder.encode("a") },
-            { assetId: "x", bytes: encoder.encode("b") },
+            { assetId: "x", mediaType: "image/png" as const, bytes: encoder.encode("a") },
+            { assetId: "x", mediaType: "image/png" as const, bytes: encoder.encode("b") },
           ],
         },
       }),
@@ -224,7 +246,9 @@ describe("atomic artifact publication", () => {
         generationId: () => "4".repeat(32),
         artifacts: {
           ...artifacts(),
-          assets: [{ assetId: "\ud800", bytes: encoder.encode("asset") }],
+          assets: [
+            { assetId: "\ud800", mediaType: "image/png" as const, bytes: encoder.encode("asset") },
+          ],
         },
       }),
     ).resolves.toMatchObject({ ok: false, family: "io" });

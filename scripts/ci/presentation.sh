@@ -12,6 +12,8 @@ manifest() {
   test -L "${dist}"
   test -f "${dist}/definition.json"
   test -f "${dist}/render-bundle.json"
+  test -f "${dist}/asset-set.json"
+  test -f "${dist}/build-manifest.json"
   test -d "${dist}/assets"
   find "${dist}/assets" -type f -name '*.png' -print -quit | grep -q .
   (

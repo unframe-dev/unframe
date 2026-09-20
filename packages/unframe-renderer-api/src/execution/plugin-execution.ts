@@ -79,7 +79,6 @@ const validateHitRegion = (
   const surfaceState = fixture.input.surface.states[stateId];
   if (
     interaction === undefined ||
-    interaction.event !== region.event ||
     !surfaceState?.enabledInteractionIds.includes(region.interactionId)
   )
     diagnostics.push(
@@ -89,7 +88,11 @@ const validateHitRegion = (
         path,
       ),
     );
-  if (semanticNode === undefined || semanticNode.interactionId !== region.interactionId)
+  if (
+    semanticNode === undefined ||
+    !("interactionId" in semanticNode) ||
+    semanticNode.interactionId !== region.interactionId
+  )
     diagnostics.push(
       diagnostic(
         "invalid-hit-region-semantic-node",

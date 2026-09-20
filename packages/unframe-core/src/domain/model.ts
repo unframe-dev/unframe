@@ -1,7 +1,11 @@
 import type {
-  SerializedPresentationDefinitionV1,
-  SerializedRenderBundleV1,
-} from "@unframe/contracts/presentation";
+  CompletedSemanticTreeV2,
+  PresentationDefinitionV2,
+  RenderBundleV2,
+  SemanticSurfaceV2,
+  SurfaceContentNodeV2,
+  TextureArtifactV2,
+} from "@unframe/contracts/presentation/v2";
 
 type DeepReadonly<T> = T extends readonly unknown[]
   ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
@@ -9,22 +13,16 @@ type DeepReadonly<T> = T extends readonly unknown[]
     ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
     : T;
 
-export type PresentationDefinition = SerializedPresentationDefinitionV1;
-export type RenderBundle = SerializedRenderBundleV1;
-export type SemanticSurface = DeepReadonly<
-  SerializedPresentationDefinitionV1["scene"]["surfaces"][string]
->;
+export type PresentationDefinition = PresentationDefinitionV2;
+export type RenderBundle = RenderBundleV2;
+export type SemanticSurface = DeepReadonly<SemanticSurfaceV2>;
 export type SurfaceRenderIntent = SemanticSurface["renderIntent"];
-export type SurfaceContentNode = SemanticSurface["contentNodes"][string];
-export type CompletedSemanticTree = DeepReadonly<
-  SerializedRenderBundleV1["surfaces"][string]["semanticsByState"][string]
->;
+export type SurfaceContentNode = DeepReadonly<SurfaceContentNodeV2>;
+export type CompletedSemanticTree = DeepReadonly<CompletedSemanticTreeV2>;
 export type HitRegion = DeepReadonly<
-  SerializedRenderBundleV1["surfaces"][string]["interactionsByState"][string][number]
+  RenderBundleV2["surfaces"][string]["interactionsByState"][string][number]
 >;
-export type TextureArtifact = DeepReadonly<
-  SerializedRenderBundleV1["surfaces"][string]["renderSurfaces"][string]["artifacts"][string]["states"][string]["textures"][number]
->;
+export type TextureArtifact = DeepReadonly<TextureArtifactV2>;
 
 export type Diagnostic = {
   code: string;

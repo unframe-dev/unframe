@@ -19,7 +19,13 @@ const MANAGED_DIST_TARGET = /^\.unframe\/generations\/([0-9a-f]{32})$/;
 export type AtomicOutputArtifacts = {
   readonly definition: Uint8Array;
   readonly renderBundle: Uint8Array;
-  readonly assets: readonly { readonly assetId: string; readonly bytes: Uint8Array }[];
+  readonly assetSet: Uint8Array;
+  readonly buildManifest: Uint8Array;
+  readonly assets: readonly {
+    readonly assetId: string;
+    readonly mediaType: string;
+    readonly bytes: Uint8Array;
+  }[];
 };
 
 export type AtomicOutputResult =
@@ -270,6 +276,8 @@ const snapshotArtifacts = (artifacts: AtomicOutputArtifacts): readonly FileArtif
   const output: FileArtifact[] = [
     { path: "definition.json", bytes: artifacts.definition.slice() },
     { path: "render-bundle.json", bytes: artifacts.renderBundle.slice() },
+    { path: "asset-set.json", bytes: artifacts.assetSet.slice() },
+    { path: "build-manifest.json", bytes: artifacts.buildManifest.slice() },
   ];
   const paths = new Set(output.map((artifact) => artifact.path));
   for (const asset of artifacts.assets) {
@@ -281,8 +289,15 @@ const snapshotArtifacts = (artifacts: AtomicOutputArtifacts): readonly FileArtif
       fail();
     }
     if (!encodedAssetId) fail();
-    const path = `assets/${encodedAssetId}.png`;
-    if (!paths.add(path)) fail();
+    const extension = new Map([
+      ["image/png", "png"],
+      ["font/ttf", "ttf"],
+      ["font/otf", "otf"],
+    ]).get(asset.mediaType);
+    if (!extension) fail();
+    const path = `assets/${encodedAssetId}.${extension}`;
+    if (paths.has(path)) fail();
+    paths.add(path);
     output.push({ path, bytes: asset.bytes.slice() });
   }
   return output.sort((left, right) =>

@@ -14,8 +14,9 @@ M3A は静的な `baked-web` の生成経路を Authoring から Presentation v2
 
 1. Primitive default
 2. Named Style
-3. Variant
-4. 公開 Part の Instance override
+3. Primitive の inline style
+4. Variant
+5. 公開 Part の Instance override
 
 Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/v2/definition.ts) に従い、必須値の不足や不正値は build error とする。
 
@@ -79,4 +80,4 @@ Component migration metadata と自動変換は後続へ延期する。State、I
 
 ## Implementation prerequisite
 
-現行 Authoring SDK は個別 builder が拒否する一部の不正な Prop default、Slot / Part field、Named Style 値を declaration 全体の guard が受理できる。M3A の Compiler 拒否制限を外す前に、公開型、builder、runtime schema、post-lowering guard の検証を一致させる。
+Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition の解決は未実装であり、M3A の各機能を実装するまでは Compiler の拒否制限を維持する。

@@ -2,13 +2,9 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import type { ComponentPackageLock } from "@unframe/unframe-authoring";
-import type { PresentationDeclaration } from "@unframe/unframe-authoring";
 import type { Diagnostic } from "@unframe/unframe-core";
 import { diagnostic } from "../diagnostics/diagnostics.js";
-import {
-  initialPresentationShapeSchema,
-  nonEmptyStringSchema,
-} from "../validation/project-schemas.js";
+import { nonEmptyStringSchema } from "../validation/project-schemas.js";
 
 export const hashJson = (json: string) =>
   `sha256:${bytesToHex(sha256(new TextEncoder().encode(json)))}`;
@@ -18,8 +14,27 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const emptyRecord = (value: unknown) => z.strictObject({}).safeParse(value).success;
 export const nonEmptyString = (value: unknown): value is string =>
   nonEmptyStringSchema.safeParse(value).success;
-export const resourceId = (instanceId: string, localId: string) =>
-  `${encodeURIComponent(instanceId)}:${encodeURIComponent(localId)}`;
+const portableId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
+const portableIdSegment = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+const hashedResourceId = (parts: readonly string[]) =>
+  `r:${hashJson(JSON.stringify(parts)).slice("sha256:".length)}`;
+export const resourceId = (instanceId: string, localId: string) => {
+  const candidate = `${instanceId}:${localId}`;
+  if (
+    portableIdSegment.test(instanceId) &&
+    portableIdSegment.test(localId) &&
+    portableId.test(candidate) &&
+    !candidate.startsWith("r:")
+  )
+    return candidate;
+  return hashedResourceId(["resource", instanceId, localId]);
+};
+export const derivedResourceId = (baseId: string, suffix: string) => {
+  const candidate = `${baseId}:${suffix}`;
+  if (portableId.test(candidate) && portableIdSegment.test(suffix) && !candidate.startsWith("r:"))
+    return candidate;
+  return hashedResourceId(["derived", baseId, suffix]);
+};
 export const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock) =>
   left.packageVersion === right.packageVersion &&
   left.packageIntegrity === right.packageIntegrity &&
@@ -33,9 +48,6 @@ export const renderIntent = () => ({
   rendererPreference: "baked-web" as const,
   fallbackPolicy: "reject" as const,
 });
-
-export const hasValidInitialPresentationShape = (presentation: PresentationDeclaration) =>
-  initialPresentationShapeSchema.safeParse(presentation).success;
 
 export const projectEnvelopeDiagnostics = (
   issues: readonly z.core.$ZodIssue[],

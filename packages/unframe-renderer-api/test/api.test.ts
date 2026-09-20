@@ -49,16 +49,40 @@ const input = {
         kind: "frame",
         parentId: null,
         order: 0,
+        visible: true,
+        opacity: 1,
+        placement: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
         layout: { kind: "absolute" },
         children: ["text-title"],
+        backgroundColor: { red: 0, green: 0, blue: 0, alpha: 0 },
+        border: {
+          color: { red: 0, green: 0, blue: 0, alpha: 0 },
+          width: 0,
+          radius: 0,
+        },
+        clip: false,
       },
       "text-title": {
         id: "text-title",
         kind: "text",
         parentId: "frame-root",
         order: 0,
+        semanticNodeId: "semantic-title",
+        visible: true,
+        opacity: 1,
         placement: { kind: "absolute", x: 120, y: 80, width: 1680, height: 200 },
-        text: "Hello",
+        value: { kind: "literal", value: "Hello" },
+        maxCodePoints: 100,
+        style: {
+          fontAssetId: "font-main",
+          fallbackFontAssetIds: [],
+          fontSize: 64,
+          lineHeight: 80,
+          color: { red: 1, green: 1, blue: 1, alpha: 1 },
+          weight: "regular",
+          align: "start",
+          overflow: "clip",
+        },
       },
     },
     baseSemanticTree: {
@@ -69,6 +93,7 @@ const input = {
           parentId: null,
           order: 0,
           role: "heading",
+          level: 1,
           text: "Hello",
         },
       },
@@ -78,6 +103,7 @@ const input = {
     states: {
       "state-default": {
         id: "state-default",
+        contentOverrides: {},
         semanticOverrides: [],
         enabledInteractionIds: [],
       },
@@ -113,9 +139,17 @@ const input = {
           parentId: null,
           order: 0,
           role: "heading",
+          level: 1,
           text: "Hello",
         },
       },
+    },
+  },
+  fontAssets: {
+    "font-main": {
+      mediaType: "font/ttf",
+      dataBase64: "AAEAAA==",
+      checksum: `sha256:${"0".repeat(64)}`,
     },
   },
   plan: {
@@ -211,7 +245,7 @@ describe("first-milestone plugin contract", () => {
       });
     const pixelTarget = [...source.context.pixelTarget];
     const contextTarget = { ...source.context, pixelTarget: denyGet(pixelTarget) };
-    const textTarget = { ...source.surface.contentNodes["text-title"] } as { text?: unknown };
+    const textTarget = { ...source.surface.contentNodes["text-title"] } as { value?: unknown };
     const contentNodesTarget = {
       ...source.surface.contentNodes,
       "text-title": denyGet(textTarget),
@@ -231,11 +265,12 @@ describe("first-milestone plugin contract", () => {
     expect(getTrapCalls).toBe(0);
     if (prepared.valid) {
       contextTarget.locale = "en-US";
-      textTarget.text = "Mutated after preparation";
+      textTarget.value = { kind: "literal", value: "Mutated after preparation" };
       expect(prepared.value.context.locale).toBe("ja-JP");
       const preparedText = prepared.value.surface.contentNodes["text-title"];
       expect(preparedText?.kind).toBe("text");
-      if (preparedText?.kind === "text") expect(preparedText.text).toBe("Hello");
+      if (preparedText?.kind === "text")
+        expect(preparedText.value).toEqual({ kind: "literal", value: "Hello" });
     }
 
     const execution = await executeRendererPlugin(goodPlugin, proxiedInput);
@@ -259,6 +294,42 @@ describe("first-milestone plugin contract", () => {
     const execution = await executeRendererPlugin(proxiedPlugin, input);
     expect(execution.valid).toBe(true);
     expect(getTrapCalls).toBe(0);
+  });
+
+  it("2K opaque RGBAを線形copy・全alpha検証し、正確なcaller-owned bytesを返す", async () => {
+    const pixelTarget = [2048, 2048] as const;
+    const largeInput: CompilerResolvedSurfaceInput = {
+      ...input,
+      context: { ...input.context, pixelTarget },
+    };
+    let emittedBytes: Uint8Array | undefined;
+    const plugin = defineRendererPlugin({
+      ...goodPlugin,
+      build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
+        const result = successfulResult(value);
+        if (!result.ok) return result;
+        return {
+          ...result,
+          captures: result.captures.map((capture) => ({
+            ...capture,
+            rgba: (emittedBytes = new Uint8Array(capture.rgba.byteLength).fill(255)),
+            alphaMode: "opaque" as const,
+          })),
+        };
+      },
+    });
+
+    const result = await executeRendererPlugin(plugin, largeInput);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    const rgba = result.value.captures[0]?.rgba;
+    expect(rgba !== undefined).toBe(true);
+    expect(rgba !== emittedBytes).toBe(true);
+    expect(rgba?.byteLength === 16 * 1024 * 1024).toBe(true);
+    expect(rgba?.[0] === 255).toBe(true);
+    expect(rgba?.at(-1) === 255).toBe(true);
+    expect(largeInput.context.pixelTarget).toEqual(pixelTarget);
   });
 
   it.each([
@@ -517,7 +588,7 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          interactions: { tap: { id: "tap", kind: "click", event: "advance" } },
+          interactions: { tap: { id: "tap", kind: "click", event: "advance", hitPriority: 0 } },
           states: {
             "state-default": {
               ...input.surface.states["state-default"],
@@ -536,6 +607,7 @@ describe("first-milestone plugin contract", () => {
           contentNodes: {
             ...input.surface.contentNodes,
             detached: {
+              ...input.surface.contentNodes["frame-root"],
               id: "detached",
               kind: "frame",
               parentId: null,
@@ -575,7 +647,9 @@ describe("first-milestone plugin contract", () => {
       ...input,
       surface: {
         ...input.surface,
-        interactions: { tap: { id: "different-id", kind: "click", event: "advance" } },
+        interactions: {
+          tap: { id: "different-id", kind: "click", event: "advance", hitPriority: 0 },
+        },
         states: {
           "state-default": {
             ...input.surface.states["state-default"],
@@ -588,6 +662,13 @@ describe("first-milestone plugin contract", () => {
     expect(prepareRendererBuildInput(malformed, goodPlugin)).toMatchObject({ valid: false });
   });
 
+  it("prepare rejects a Text font reference missing from fontAssets", () => {
+    expect(prepareRendererBuildInput({ ...input, fontAssets: {} }, goodPlugin)).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "invalid-renderer-input" }],
+    });
+  });
+
   it("prepare rejects content-node cycles detached from the root frame", () => {
     const malformed = {
       ...input,
@@ -596,6 +677,7 @@ describe("first-milestone plugin contract", () => {
         contentNodes: {
           ...input.surface.contentNodes,
           "detached-a": {
+            ...input.surface.contentNodes["frame-root"],
             id: "detached-a",
             kind: "frame",
             parentId: "detached-b",
@@ -604,6 +686,7 @@ describe("first-milestone plugin contract", () => {
             children: ["detached-b"],
           },
           "detached-b": {
+            ...input.surface.contentNodes["frame-root"],
             id: "detached-b",
             kind: "frame",
             parentId: "detached-a",
@@ -990,7 +1073,7 @@ describe("first-milestone plugin contract", () => {
         entry: input.entry,
         resolvedIntent: {
           ...input.resolvedIntent,
-          updateModel: { kind: "continuous", source: "timeline" },
+          updateModel: { kind: "continuous-native-text", maximumUpdateRateHz: 1 },
         },
       }),
     ).toMatchObject({ supported: false, diagnostics: [{ code: "unsupported-update-model" }] });
@@ -1284,7 +1367,6 @@ describe("conformance diagnostics", () => {
               semanticNodeId: "missing-node",
               bounds: { x: 0.9, y: 0, width: 0.2, height: 1 },
               coordinateSpace: "normalized",
-              event: "missing-event",
               priority: -1,
             },
           ],
@@ -1311,14 +1393,18 @@ describe("conformance diagnostics", () => {
       surface: {
         ...input.surface,
         interactions: {
-          tap: { id: "tap", kind: "click", event: "advance" },
-          other: { id: "other", kind: "click", event: "other" },
+          tap: { id: "tap", kind: "click", event: "advance", hitPriority: 0 },
+          other: { id: "other", kind: "click", event: "other", hitPriority: 0 },
         },
         baseSemanticTree: {
           rootNodeIds: ["semantic-title"],
           nodes: {
             "semantic-title": {
-              ...input.surface.baseSemanticTree.nodes["semantic-title"],
+              id: "semantic-title",
+              parentId: null,
+              order: 0,
+              role: "button",
+              text: "Hello",
               interactionId: "other",
             },
           },
@@ -1335,8 +1421,13 @@ describe("conformance diagnostics", () => {
           rootNodeIds: ["semantic-title"],
           nodes: {
             "semantic-title": {
-              ...input.semanticsByState["state-default"].nodes["semantic-title"],
+              id: "semantic-title",
+              parentId: null,
+              order: 0,
+              role: "button",
+              text: "Hello",
               interactionId: "other",
+              stateEnabled: false,
             },
           },
         },
@@ -1354,7 +1445,6 @@ describe("conformance diagnostics", () => {
               semanticNodeId: "semantic-title",
               bounds: { x: 0, y: 0, width: 1, height: 1 },
               coordinateSpace: "normalized",
-              event: "advance",
               priority: 0,
             },
           ],

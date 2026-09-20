@@ -42,7 +42,6 @@ export const compilerBuildOptionsSchema = z
     locale: nonEmptyStringSchema,
     timezone: nonEmptyStringSchema,
     colorScheme: z.enum(["light", "dark"]),
-    pixelTarget: z.tuple([z.int().positive(), z.int().positive()]),
     rendererConfigHash: nonEmptyStringSchema,
     renderers: z.array(z.unknown()),
     encodeLimits: z.object({}).passthrough(),
@@ -53,41 +52,4 @@ export const diagnosticSchema = z.strictObject({
   path: z.array(z.union([z.string(), z.number()])),
   message: z.string(),
   relatedPath: z.array(z.union([z.string(), z.number()])).optional(),
-});
-export const initialOwnerSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("presentation") }),
-  z.strictObject({ kind: z.literal("group"), groupId: nonEmptyStringSchema }),
-]);
-export const initialAudienceSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("all") }),
-  z.strictObject({ kind: z.literal("role"), role: z.enum(["presenter", "viewer"]) }),
-]);
-export const initialParentSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("stage") }),
-  z.strictObject({ kind: z.literal("node"), nodeId: nonEmptyStringSchema }),
-]);
-export const initialPresentationShapeSchema = z.object({
-  metadata: z.object({ title: nonEmptyStringSchema }),
-  stage: z.object({
-    coordinateSystem: z.strictObject({
-      unit: z.literal("meter"),
-      handedness: z.literal("right"),
-      upAxis: z.literal("+Y"),
-      forwardAxis: z.literal("-Z"),
-    }),
-  }),
-  scene: z.object({
-    spatial: z.array(
-      z.object({
-        kind: z.literal("spatial"),
-        name: z.string(),
-        owner: initialOwnerSchema,
-        audience: initialAudienceSchema,
-        parent: initialParentSchema,
-        active: z.boolean(),
-        visible: z.boolean(),
-      }),
-    ),
-  }),
-  assets: z.array(z.strictObject({ kind: z.literal("asset-ref"), assetId: nonEmptyStringSchema })),
 });

@@ -123,7 +123,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - Token、Named Style、Asset reference
 - Stage、Flow、resource owner / audience、Component Instance と package lock
-- Spatial、Semantic Surface、absolute layout の Frame / Text
+- Spatial、Semantic Surface、absolute layout の Frame / Text。Text は concrete style、`maxCodePoints`、明示 Semantic Node を持ち、Frame / Text は concrete style と表示属性を宣言できる
 - Structured Component の Part / Slot mapping と Opaque Component の semantic binding
 - topology を変更しない semantic override と Structured Component の Detach vocabulary
 
@@ -137,4 +137,4 @@ package test の inline fixture に加え、公開用の `examples/presentation/
 
 M3A で追加する Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。現行宣言型がこれらの vocabulary を一部持つことは、Structureへの値注入やv2出力接続が実装済みであることを意味しない。
 
-現行の宣言全体 guard は、個別 builder が拒否する一部の不正な Prop default、Slot / Part field、Named Style 値を受理できる。M3A の Compiler 拒否制限を外す前に、公開型、builder、runtime schema、post-lowering guardの検証を一致させる。
+個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とし、Slot の `accepts` / `cardinality` / `required`、Part の `overridable` は受理しない。Named Style は現行公開型の JSON object として検証する。型付き Theme の解決と composition の lowering は未実装であり、Compiler の機能拒否は維持する。

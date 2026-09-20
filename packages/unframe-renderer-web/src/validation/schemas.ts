@@ -33,11 +33,6 @@ export const fixedBrowserEnvironmentSchema = z.strictObject({
 
 export const webRendererConfigSchema = z.strictObject({
   documentBackground: z.tuple([rgbaByteSchema, rgbaByteSchema, rgbaByteSchema, rgbaByteSchema]),
-  fontFamily: z
-    .string()
-    .trim()
-    .min(1)
-    .regex(/^[A-Za-z0-9 _-]+$/),
 });
 
 export const browserCaptureSchema = z

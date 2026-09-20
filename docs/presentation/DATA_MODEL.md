@@ -11,7 +11,7 @@ v2 は今回の機能範囲に対するデータ契約である。構造は Zod 
 | DeliveryManifest                                                        | [delivery v2](../../packages/contracts/proto/unframe/delivery/v2/delivery.proto)        | 同上                                    |
 | Command / Event / Run / Snapshot / StateFrame                           | [realtime v2](../../packages/contracts/proto/unframe/realtime/v2/realtime.proto)        | 同上                                    |
 
-型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この v2 契約を優先する。Architecture と ADR は設計理由を説明する。v1 は既存 Compiler / Core が利用する初期 subset であり、v2 の代替表現ではない。アプリケーションを v2 へ移す実装は別途必要である。
+型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この v2 契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の静的 Compiler / Core は v2 だけを生成・検証する。Delivery / Runtime / Unity の接続は別途必要である。
 
 M3A では Theme と Structured composition の静的 `baked-web` 経路を v2 へ接続する。その authoring と compile-time 解決規則は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。v2 schema が定義済みであることは、この接続が実装済みであることを意味しない。
 
@@ -49,4 +49,4 @@ Definition にダウンロード URL、端末 capability、現在の再生時刻
 
 構造テストの合格は、GLB importer、動画 decoder、font atlas、Runtime reducer、再接続、Quest の実機動作が実装済みであることを意味しない。意味検証は Core、投影と admission は Delivery、素材変換は Compiler、描画は各 consumer の責務となる。端末の上限値は検証済み CapabilityProfile の必須入力であり、fixture の合成値を製品設定に使わない。
 
-Core の最初の v2 実装は [公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) である。成果物間の参照・hash を検証し、完全な意味検証や既存 Compiler / consumer の v2 接続とは区別する。
+Core は静的 baked-web subset の意味検証と [build / 公開物の整合性検証](../../packages/unframe-core/ARCHITECTURE.md#10-v2-公開物の整合性検証) を持つ。Compiler / CLI は Definition、RenderBundle、AssetSet、BuildManifest と素材 bytes を出力する。v2 全体の意味検証と Delivery / Runtime consumer の接続は未完了である。

@@ -99,8 +99,11 @@ describe("deterministic PNG encoding", () => {
       mediaType: "image/png",
       pixelSize: [1, 1],
       checksum: first.value.descriptor.checksum,
+      encodedSizeBytes: first.value.bytes.length,
       colorSpace: "srgb",
       alphaMode: "opaque",
+      mipCount: 1,
+      gpuBytes: 4,
     });
     expect(first.value.descriptor.checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(first.value.descriptor.checksum).toBe(

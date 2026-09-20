@@ -18,6 +18,7 @@ export type FixedBrowserEnvironment = DeepReadonly<z.input<typeof fixedBrowserEn
 export type BrowserCaptureRequest = {
   readonly stateId: string;
   readonly document: string;
+  readonly fontFaceCount: number;
   readonly pixelTarget: readonly [width: number, height: number];
   readonly colorScheme: "light" | "dark";
   readonly environment: FixedBrowserEnvironment;

@@ -1,13 +1,10 @@
 import * as z from "zod";
+import { completedSemanticTreeV2Schema, semanticSurfaceV2Schema } from "@unframe/unframe-core";
 
 export const rendererIdSchema = z.string().min(1);
 const finiteNumberSchema = z.number().finite();
 const positiveNumberSchema = finiteNumberSchema.positive();
 const nonNegativeIntegerSchema = z.int().nonnegative();
-const uniqueIdArraySchema = z
-  .array(rendererIdSchema)
-  .refine((values) => new Set(values).size === values.length);
-
 const boundsSchema = z.strictObject({
   x: finiteNumberSchema,
   y: finiteNumberSchema,
@@ -39,69 +36,7 @@ export const logicalBoundsConstraintSchema = z
       bounds.y + bounds.height <= logicalSize[1],
   );
 
-const semanticNodeSchema = z.strictObject({
-  id: rendererIdSchema,
-  parentId: rendererIdSchema.nullable(),
-  order: nonNegativeIntegerSchema,
-  role: z.enum(["heading", "paragraph", "image", "button", "table", "list", "listItem"]),
-  text: z.string().optional(),
-  language: rendererIdSchema.optional(),
-  alt: z.string().optional(),
-  interactionId: rendererIdSchema.optional(),
-});
-
-const semanticTreeSchema = z.strictObject({
-  rootNodeIds: uniqueIdArraySchema,
-  nodes: z.record(rendererIdSchema, semanticNodeSchema),
-});
-
-const interactionSchema = z.strictObject({
-  id: rendererIdSchema,
-  kind: z.literal("click"),
-  event: rendererIdSchema,
-});
-
-const stateSchema = z.strictObject({
-  id: rendererIdSchema,
-  semanticOverrides: z.array(
-    z.strictObject({
-      nodes: z.record(
-        z.string(),
-        z.strictObject({
-          included: z.boolean().optional(),
-          text: z.string().nullable().optional(),
-          language: rendererIdSchema.nullable().optional(),
-          alt: z.string().nullable().optional(),
-        }),
-      ),
-    }),
-  ),
-  enabledInteractionIds: uniqueIdArraySchema,
-});
-
-const sourceIntentSchema = z.strictObject({
-  updateModel: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("static") }),
-    z.strictObject({ kind: z.literal("finite-state"), stateIds: uniqueIdArraySchema.min(1) }),
-    z.strictObject({
-      kind: z.literal("continuous"),
-      source: z.enum(["timeline", "runtime-data", "user-input"]),
-      maximumUpdateRateHz: positiveNumberSchema.optional(),
-    }),
-  ]),
-  interaction: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("none") }),
-    z.strictObject({ kind: z.literal("native-input") }),
-    z.strictObject({ kind: z.literal("regions"), events: uniqueIdArraySchema.min(1) }),
-  ]),
-  internalAnimation: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("none") }),
-    z.strictObject({ kind: z.literal("runtime") }),
-    z.strictObject({ kind: z.literal("precomputed"), durationSeconds: positiveNumberSchema }),
-  ]),
-  rendererPreference: z.enum(["auto", "baked-web", "native-ui", "video"]),
-  fallbackPolicy: z.enum(["reject", "degrade"]),
-});
+const sourceIntentSchema = semanticSurfaceV2Schema.shape.renderIntent;
 
 const resolvedIntentSchema = z.strictObject({
   updateModel: sourceIntentSchema.shape.updateModel,
@@ -109,46 +44,6 @@ const resolvedIntentSchema = z.strictObject({
   internalAnimation: sourceIntentSchema.shape.internalAnimation,
   selectedRendererId: rendererIdSchema,
   fallbackPolicy: z.enum(["reject", "degrade"]),
-});
-
-const contentNodeSchema = z.discriminatedUnion("kind", [
-  z.strictObject({
-    id: rendererIdSchema,
-    kind: z.literal("frame"),
-    parentId: rendererIdSchema.nullable(),
-    order: nonNegativeIntegerSchema,
-    layout: z.strictObject({ kind: z.literal("absolute") }),
-    children: z.array(rendererIdSchema),
-  }),
-  z.strictObject({
-    id: rendererIdSchema,
-    kind: z.literal("text"),
-    parentId: rendererIdSchema.nullable(),
-    order: nonNegativeIntegerSchema,
-    placement: z.strictObject({
-      kind: z.literal("absolute"),
-      x: finiteNumberSchema,
-      y: finiteNumberSchema,
-      width: positiveNumberSchema,
-      height: positiveNumberSchema,
-    }),
-    text: z.string(),
-  }),
-]);
-
-const surfaceSchema = z.strictObject({
-  id: rendererIdSchema,
-  hostNodeId: rendererIdSchema,
-  physicalSizeMeters: z.tuple([positiveNumberSchema, positiveNumberSchema]),
-  logicalSize: z.tuple([positiveNumberSchema, positiveNumberSchema]),
-  fit: z.enum(["contain", "cover", "stretch"]),
-  rootFrameId: rendererIdSchema,
-  contentNodes: z.record(rendererIdSchema, contentNodeSchema),
-  baseSemanticTree: semanticTreeSchema,
-  interactions: z.record(rendererIdSchema, interactionSchema),
-  initialStateId: rendererIdSchema,
-  states: z.record(rendererIdSchema, stateSchema),
-  renderIntent: sourceIntentSchema,
 });
 
 const renderSurfacePlanSchema = z.strictObject({
@@ -195,10 +90,18 @@ export const rendererCapabilitiesSchema = z.strictObject({
 });
 
 export const rendererBuildInputSchema = z.strictObject({
-  surface: surfaceSchema,
+  surface: semanticSurfaceV2Schema,
   sourceIntent: sourceIntentSchema,
   resolvedIntent: resolvedIntentSchema,
-  semanticsByState: z.record(rendererIdSchema, semanticTreeSchema),
+  semanticsByState: z.record(rendererIdSchema, completedSemanticTreeV2Schema),
+  fontAssets: z.record(
+    rendererIdSchema,
+    z.strictObject({
+      mediaType: z.enum(["font/ttf", "font/otf"]),
+      dataBase64: z.string().min(1),
+      checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    }),
+  ),
   plan: renderSurfacePlanSchema,
   entry: rendererEntrySchema,
   context: z.strictObject({
@@ -242,7 +145,6 @@ const hitRegionSchema = z.strictObject({
   semanticNodeId: rendererIdSchema,
   bounds: boundsSchema,
   coordinateSpace: z.literal("normalized"),
-  event: rendererIdSchema,
   priority: finiteNumberSchema,
 });
 

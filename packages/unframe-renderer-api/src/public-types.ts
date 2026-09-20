@@ -36,6 +36,7 @@ export type LogicalBounds = DeepReadonly<RendererBuildInput["plan"]["logicalBoun
 export type RenderStatePlan = DeepReadonly<RendererBuildInput["plan"]["states"][string]>;
 export type RenderSurfacePlan = DeepReadonly<RendererBuildInput["plan"]>;
 export type RendererEntry = DeepReadonly<RendererBuildInput["entry"]>;
+export type RendererFontAssets = DeepReadonly<RendererBuildInput["fontAssets"]>;
 type SchemaResolvedRendererIntent = DeepReadonly<RendererBuildInput["resolvedIntent"]>;
 export type ResolvedRendererIntent = Omit<
   SchemaResolvedRendererIntent,
@@ -47,6 +48,7 @@ export type CompilerResolvedSurfaceInput = {
   readonly sourceIntent: SurfaceRenderIntent;
   readonly resolvedIntent: ResolvedRendererIntent;
   readonly semanticsByState: Readonly<Record<string, CompletedSemanticTree>>;
+  readonly fontAssets: RendererFontAssets;
   readonly plan: RenderSurfacePlan;
   readonly entry: RendererEntry;
   readonly context: RendererBuildContext;

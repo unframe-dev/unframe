@@ -33,19 +33,17 @@ const fixedContext = Object.freeze({
     version: "1",
     baseEnvironmentHash: hashCanonicalJsonPayload({
       browser: "playwright-chromium-fixed",
-      fontProfile: "Noto Sans CJK JP",
+      fontProfile: "explicit-font-assets",
       locale: "ja-JP",
       timezone: "Asia/Tokyo",
-      toolchain: "unframe-presentation-m1",
+      toolchain: "unframe-presentation-v2",
     }),
   }),
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  pixelTarget: [1920, 1080] as const,
   webRendererConfig: Object.freeze({
     documentBackground: [0, 0, 0, 255] as const,
-    fontFamily: "Noto Sans CJK JP",
   }),
 });
 const limits = Object.freeze({
@@ -71,6 +69,13 @@ const rendererDiagnosticCodes = new Set([
   "renderer-invalid-input",
   "browser-capture-failed",
   "invalid-browser-capture",
+  "support-build-mismatch",
+  "invalid-font-asset",
+  "missing-font-asset",
+  "font-asset-checksum-mismatch",
+  "font-asset-signature-mismatch",
+  "font-glyph-missing",
+  "text-max-code-points-exceeded",
 ]);
 
 const safeRecord = (value: unknown): Record<string, unknown> | undefined => {
@@ -220,9 +225,17 @@ const artifacts = (compiled: CompiledDeclarationProject) =>
   Object.freeze({
     definition: encoder.encode(compiled.definitionJson),
     renderBundle: encoder.encode(compiled.renderBundleJson),
+    assetSet: encoder.encode(compiled.assetSetJson),
+    buildManifest: encoder.encode(compiled.buildManifestJson),
     assets: Object.entries(compiled.assets)
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([assetId, bytes]) => Object.freeze({ assetId, bytes: new Uint8Array(bytes) })),
+      .map(([assetId, bytes]) =>
+        Object.freeze({
+          assetId,
+          mediaType: compiled.assetSet.assets[assetId]!.mediaType,
+          bytes: new Uint8Array(bytes),
+        }),
+      ),
   });
 const closeSession = async (session: FixedBrowserSession) => {
   try {
@@ -276,12 +289,9 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     files: discovered.files,
     ...lock.value.virtualSource,
   });
-  if (command === "check") {
-    const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
-    return checked.valid
-      ? output(0, command, format)
-      : output(1, command, format, compilerDiagnostics(checked));
-  }
+  const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
+  if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
+  if (command === "check") return output(0, command, format);
   const acquired = await acquireBuildLock(discovered.projectDirectory);
   if (!acquired.ok)
     return output(3, command, format, [
@@ -359,7 +369,6 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         locale: context.locale,
         timezone: context.timezone,
         colorScheme: context.colorScheme,
-        pixelTarget: context.pixelTarget,
         rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
         renderers: [createBakedWebRenderer({ adapter, config: context.webRendererConfig })],
         encodeLimits: limits,

@@ -11,6 +11,14 @@ import {
   type PairedAuthoringDeclarationCatalog,
 } from "../src/index.js";
 
+const referenceFont = {
+  id: "reference-font",
+  mediaType: "font/ttf" as const,
+  dataBase64: "AAEAAAAAAAAAAAAA",
+  encodedSizeBytes: 12,
+  checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+};
+
 const presentation = (): PresentationDeclaration => ({
   id: "presentation",
   metadata: { title: "Reference" },
@@ -56,7 +64,7 @@ const presentation = (): PresentationDeclaration => ({
       },
     ],
   },
-  assets: [],
+  assets: [{ kind: "asset-ref", assetId: "reference-font" }],
   flow: {
     initialGroupId: "group",
     groups: {
@@ -188,7 +196,7 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
         ],
       }
     : {}),
-  assets: {},
+  assets: { "reference-font": referenceFont },
 });
 
 const codes = (value: unknown) => {
@@ -221,7 +229,7 @@ describe("assembleDeclarationProject", () => {
           },
         },
       ],
-      assets: {},
+      assets: { "reference-font": referenceFont },
     });
     expect(JSON.stringify(result.value)).not.toContain("sourceMap");
   });
@@ -350,6 +358,7 @@ describe("assembleDeclarationProject", () => {
                   parentId: null,
                   order: 0,
                   role: "paragraph" as const,
+                  text: "",
                   source: { file: "first-node.ts" },
                 },
               },
@@ -417,6 +426,7 @@ describe("assembleDeclarationProject", () => {
     const withAssetReferences = () => {
       const result = catalog() as unknown as {
         presentation: { value: PresentationDeclaration };
+        components: { structure: { value: typeof standardComponents.surface.structure } }[];
       };
       result.presentation.value = {
         ...result.presentation.value,
@@ -425,22 +435,57 @@ describe("assembleDeclarationProject", () => {
           { kind: "asset-ref", assetId: "asset-b" },
         ],
       };
-      return result;
+      const structure = structuredClone(result.components[0]!.structure.value);
+      const text = structure.root.root.children[0]!;
+      (text as unknown as { style: Record<string, unknown> }).style = {
+        ...text.style,
+        fontAssetId: "asset-a",
+        fallbackFontAssetIds: ["asset-b"],
+      };
+      result.components[0]!.structure.value = structure;
+      const structureHash = hashComponentStructureDeclaration(structure);
+      result.presentation.value = {
+        ...result.presentation.value,
+        scene: {
+          ...result.presentation.value.scene,
+          components: result.presentation.value.scene.components.map((instance) => ({
+            ...instance,
+            packageLock: { ...instance.packageLock, structureHash },
+          })),
+        },
+      };
+      return { catalog: result, structure };
     };
+    const firstCatalog = withAssetReferences();
     const first = {
       ...input(),
-      catalog: withAssetReferences(),
+      catalog: firstCatalog.catalog,
+      componentLocks: input().componentLocks.map((entry) => ({
+        ...entry,
+        lock: {
+          ...entry.lock,
+          structureHash: hashComponentStructureDeclaration(firstCatalog.structure),
+        },
+      })),
       assets: {
-        "asset-a": { id: "asset-a", mediaType: "image/png", checksum: "checksum-a" },
-        "asset-b": { id: "asset-b", mediaType: "image/png", checksum: "checksum-b" },
+        "asset-a": { ...referenceFont, id: "asset-a" },
+        "asset-b": { ...referenceFont, id: "asset-b" },
       },
     };
+    const secondCatalog = withAssetReferences();
     const second = {
       ...input(),
-      catalog: withAssetReferences(),
+      catalog: secondCatalog.catalog,
+      componentLocks: input().componentLocks.map((entry) => ({
+        ...entry,
+        lock: {
+          ...entry.lock,
+          structureHash: hashComponentStructureDeclaration(secondCatalog.structure),
+        },
+      })),
       assets: {
-        "asset-b": { id: "asset-b", mediaType: "image/png", checksum: "checksum-b" },
-        "asset-a": { id: "asset-a", mediaType: "image/png", checksum: "checksum-a" },
+        "asset-b": { ...referenceFont, id: "asset-b" },
+        "asset-a": { ...referenceFont, id: "asset-a" },
       },
     };
     const firstResult = assembleDeclarationProject(first);
@@ -636,7 +681,7 @@ export default definePresentation({
   scene: {
     spatial: [{ id: "spatial", kind: "spatial", name: "Surface", owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, order: 0, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }, active: true, visible: true, opacity: 1 }],
     components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", packageLock: { packageVersion: "1", packageIntegrity: "integrity", manifestHash: "manifest", structureHash: "structure" }, props: {}, slots: {}, variants: {}, partOverrides: [] }]
-  }, assets: [],
+  }, assets: [{ kind: "asset-ref", assetId: "reference-font" }],
   flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []
 });`,
         },
@@ -657,8 +702,8 @@ export default defineComponentStructure({
   id: "surface-structure", componentId: "surface",
   root: {
     id: "surface-root", kind: "surface", physicalSizeMeters: [1, 1], logicalSize: [1, 1], fit: "contain",
-    root: { id: "frame-root", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
-    baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "" } } },
+    root: { id: "frame-root", kind: "frame", layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 }, children: [{ id: "text", kind: "text", value: "Presentation", semanticNodeId: "semantic-text", maxCodePoints: 64, style: { fontAssetId: "reference-font", fontSize: 32, lineHeight: 40 }, layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 } }] },
+    baseSemanticTree: { rootNodeIds: ["semantic-text"], nodes: { "semantic-text": { id: "semantic-text", parentId: null, order: 0, role: "paragraph", text: "Presentation" } } },
     interactions: {}, initialStateId: "default", states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
     renderIntent: { updateModel: "static", interaction: "none", internalAnimation: "none", rendererPreference: "baked-web", fallbackPolicy: "reject" }
   }, partBindings: {}, slotPlacements: {}, timelines: []
@@ -723,7 +768,7 @@ export default defineComponentStructure({
           },
         },
       ],
-      assets: {},
+      assets: { "reference-font": referenceFont },
     });
     expect(result.valid).toBe(true);
     if (result.valid) expect(JSON.stringify(result.value)).not.toContain("sourceMap");

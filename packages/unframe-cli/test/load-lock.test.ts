@@ -45,9 +45,30 @@ const validLock = () => {
       },
     ],
     assets: {
-      "asset-b": { id: "asset-b", mediaType: "image/png", checksum: `sha256:${"f".repeat(64)}` },
-      "asset-a": { id: "asset-a", mediaType: "image/png", checksum: `sha256:${"0".repeat(64)}` },
-    } as Record<string, { id: string; mediaType: string; checksum: string }>,
+      "asset-b": {
+        id: "asset-b",
+        mediaType: "font/ttf",
+        encodedSizeBytes: 12,
+        dataBase64: "AAEAAAAAAAAAAAAA",
+        checksum: `sha256:${"f".repeat(64)}`,
+      },
+      "asset-a": {
+        id: "asset-a",
+        mediaType: "font/ttf",
+        encodedSizeBytes: 12,
+        dataBase64: "AAEAAAAAAAAAAAAA",
+        checksum: `sha256:${"0".repeat(64)}`,
+      },
+    } as Record<
+      string,
+      {
+        id: string;
+        mediaType: string;
+        checksum: string;
+        encodedSizeBytes: number;
+        dataBase64: string;
+      }
+    >,
   };
 };
 
@@ -134,7 +155,13 @@ describe("unframe.lock v1 boundary", () => {
     lock.assets = Object.fromEntries([
       [
         "__proto__",
-        { id: "prototype-asset", mediaType: "image/png", checksum: `sha256:${"1".repeat(64)}` },
+        {
+          id: "prototype-asset",
+          mediaType: "font/ttf",
+          encodedSizeBytes: 12,
+          dataBase64: "AAEAAAAAAAAAAAAA",
+          checksum: `sha256:${"1".repeat(64)}`,
+        },
       ],
     ]);
 

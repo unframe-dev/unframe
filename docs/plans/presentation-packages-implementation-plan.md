@@ -3,7 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current milestone**: Milestone 3A（設計確定、実装未着手）。Milestone 3B〜6 は未完了の後続として保持する
+- **Current milestone**: Milestone 3A（v2 基盤移行済み、Theme / composition は未実装）。Milestone 3B〜6 は未完了の後続として保持する
 - **Architecture source**:
   - [Presentation Architecture](../presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../presentation/DESIGN.md)
@@ -14,7 +14,7 @@
 
 ## 1. 目的
 
-現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。Compiler / Core の v2 移行、Delivery の実行処理、C# generation は未完成である。
+現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition、Delivery の実行処理、C# generation は後続に残る。
 
 本計画は、未実装事項を package ごとの独立した TODO として消化するのではなく、各段階で利用可能な結果を残す縦断的な milestone として整理する。
 
@@ -29,29 +29,29 @@ presentation.unframe.tsx
         ↓ 実装済み: virtual resolution、typecheck、Static DSL lowering、assembly
 PresentationDefinition
         ↓ 実装済み: Fixed Browser capture と deterministic PNG encode
-RenderBundle + PNG
+RenderBundle + AssetSet + BuildManifest + PNG / Font
         ↓ 実装済み: filesystem CLI の managed staging / atomic dist replacement
-M1 local artifact
+v2 local build artifact
         ↓ 未接続: cache、publish / delivery
 consumer
 ```
 
 ### 2.1 Package inventory
 
-| Package                          | Current                                                                                                  | 主な未実装                                                                                             |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                      | v2 consumer 接続、完全な意味検証、cross-language fixture                                               |
-| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                     |
-| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                           | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                         |
-| `packages/unframe-core`          | 初期 Definition / RenderBundle 検証、v2 publication integrity、Semantic Tree、canonical JSON / hash      | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration                  |
-| `packages/unframe-authoring`     | Manifest、Structure、Theme、Presentation declaration API                                                 | M3A runtime schema整合、より広いStatic DSL、Lossless Syntax Tree / source patch、distribution          |
-| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                     | M3A Theme / composition、Spatial、Interaction、Action / Output、Opaque component、migration            |
-| `packages/unframe-compiler`      | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | cache、M1より広いStatic DSL                                                                            |
-| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability      |
-| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                 |
-| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                         |
-| `packages/unframe-cli`           | filesystem check / build、process signal / build lock、atomic output、TUI command selector               | TUIとprocess commandの接続、watch / dev / preview / test / publish                                     |
-| `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備 |
+| Package                          | Current                                                                                                     | 主な未実装                                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                         | v2 consumer 接続、完全な意味検証、cross-language fixture                                               |
+| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                          | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                     |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                              | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                         |
+| `packages/unframe-core`          | 静的 v2 Definition / RenderBundle 検証、build / publication integrity、Semantic Tree、canonical JSON / hash | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration                  |
+| `packages/unframe-authoring`     | Manifest、Structure、Theme、Presentation declaration API                                                    | M3A Theme / composition、より広いStatic DSL、Lossless Syntax Tree / source patch、distribution         |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | M3A Theme / composition、Spatial、Interaction、Action / Output、Opaque component、migration            |
+| `packages/unframe-compiler`      | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile    | cache、M1より広いStatic DSL                                                                            |
+| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                       | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability      |
+| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                      | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                 |
+| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                       | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                         |
+| `packages/unframe-cli`           | filesystem check / build、process signal / build lock、atomic output、TUI command selector                  | TUIとprocess commandの接続、watch / dev / preview / test / publish                                     |
+| `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                                  | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備 |
 
 ## 3. 実装原則
 
@@ -239,7 +239,7 @@ Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compil
 
 Native 3D、`baked-web`、限定 `native-ui`、`video` の責務と、Runtime Web を対象外にする境界は [ADR-0014](../decisions/0014-presentation-rendering-scope.md) でAcceptedとした。方式の採用は実装や実機性能の完了を意味しない。現行 Local Compiler は `baked-web` 初期 subset だけを実装し、ADR-0012 の v1 Delivery baseline も `baked-web` だけを対象とする。Native UI と Video は固有 budget と consumer が受理されるまで Delivery で拒否する。
 
-M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。現在はM3Aの設計を確定し、実装は未着手である。
+M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。現在はM3Aの設計を確定し、静的描画の v2 基盤移行を実装した。Theme / composition の機能実装は未着手である。
 
 ### 完了条件
 
@@ -252,6 +252,8 @@ M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のG
 次の順で縦断スライスを追加する。各スライスは Contractsからreference projectまでを同じ変更系列で接続する。
 
 ### Slice A: Theme と Structured composition
+
+基盤移行では、Authoring の型・builder・guard を共通 schema へ揃え、Core の公開 model / validation / JCS を v2 へ切り替えた。Compiler の literal style / explicit font 入力と ADR-0012 の texture policy、Renderer の font load、CLI の4成果物出力を接続し、静的な direct Text の reference project で検証した。以下の M3A 機能は未実装である。
 
 - [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) と [Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md) を正本にする。
 - static `baked-web` の Authoring → v2 Definition / RenderBundle / AssetSet / Build artifact を縦断接続し、v1互換出力は追加しない。

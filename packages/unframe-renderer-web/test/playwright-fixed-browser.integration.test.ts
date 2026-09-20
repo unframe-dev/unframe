@@ -11,6 +11,7 @@ describe("Playwright Fixed Browser integration", () => {
         stateId: "default",
         document:
           '<!doctype html><html><body style="margin:0;background:rgb(255,0,0)"><script>const bytes=new Uint8Array(4);crypto.getRandomValues(bytes);const value=[Date.now(),Date(),performance.now(),performance.timeOrigin,Math.random(),crypto.randomUUID(),...bytes].join(":");let hash=0;for(const char of value)hash=(hash*31+char.charCodeAt(0))>>>0;document.body.style.background=`rgb(${hash&255},${(hash>>>8)&255},1)`</script></body></html>',
+        fontFaceCount: 0,
         pixelTarget: [2, 1],
         colorScheme: "light",
         environment: session.environment,

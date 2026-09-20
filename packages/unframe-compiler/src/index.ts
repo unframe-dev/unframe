@@ -14,6 +14,7 @@ export type {
   CompiledDeclarationProject,
   CompilerBuildOptions,
   CompilerDeclarationProject,
+  CompilerSourceAsset,
   DeclarationProjectAssemblyInput,
   DeclarationProjectComponentLock,
   DeclarationProjectThemeHash,
