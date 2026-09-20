@@ -6,6 +6,7 @@
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Contracts Architecture](../contracts/ARCHITECTURE.md)
+  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 
@@ -65,7 +66,7 @@ src/
 
 Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
-すべてのAPIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。
+上記の validation / canonicalization / hash APIは`ValidationResult<T>`を返す。失敗はthrowせず、stable diagnostic code、semantic path、必要ならrelated pathを返す。semantic pathはIDに`/`を含む場合も一つのsegmentとして保持する。低水準の`hashCanonicalJsonPayload`だけは文字列を直接返し、不正なplain JSON入力でthrowし得るため、trust boundaryでは先にvalidation APIを通す。
 
 公開validation APIは、descriptor-safeなplain JSON snapshotを作成した後、`packages/contracts`が正本として公開するZod 4 schemaで構造を検証する。Zodへcaller-owned objectを直接渡さないため、accessor、sparse array、symbol、cycle、非plain prototypeを実行時データへ混入させない。構造検証済みの値に対して、Coreは参照、cardinality、tree、lifetime、cross-artifact整合などのsemantic invariantだけを検証する。JSON parse、I/O、renderer、transport adapterは公開しない。
 
@@ -117,6 +118,7 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window
+- [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) の完全な意味検証と既存Compilerへの接続
 
 ## 10. v2 公開物の整合性検証
 

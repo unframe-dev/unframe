@@ -6,6 +6,7 @@
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Presentation Authoring Architecture](../unframe-authoring/ARCHITECTURE.md)
+  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 
@@ -37,13 +38,13 @@ Structured Component は Manifest と Structure を正本とし、Component 固�
 
 Opaque Component は Manifest を意味の正本、renderer entry を描画の正本とする。DOM、React tree、CSS、実行結果から Manifest にない State、Interaction、Action、Output を追加しない。
 
-Authoring mode は Component version ごとに固定する。Structured / Opaque の変更は migration を伴う公開 contract 変更として扱う。
+Authoring mode は Component version ごとに固定する。Structured / Opaque の変更は Component version を更新する公開 contract 変更として扱う。migration metadata と自動変換は M3A より後に定義する。
 
 ## 4. Component contract
 
 各 Component は必要な範囲で次を公開する。
 
-- Component ID、version、migration metadata
+- Component ID、version
 - Props、Slots、Parts、Variants
 - Runtime States
 - compile-time Actions と Outputs
@@ -85,7 +86,7 @@ Opaque source が React などを必要とする場合、その依存は Compone
 - package lock と integrity drift test
 - Structured Component の generic renderer conformance test
 - Opaque Manifest と renderer binding の completeness test
-- Component version / migration fixture
+- Component version / lock integrity fixture。migration fixtureはmigration contractの実装時に追加する
 - visual regression は renderer package と共有する fixture に対して実行する
 
 ## 9. Deferred decisions
@@ -94,6 +95,8 @@ Opaque source が React などを必要とする場合、その依存は Compone
 - Component distribution と lockfile format
 - Opaque dependency capability と sandbox policy
 - Component / renderer drift の完全な検証方式
+- Component migration metadata と自動変換
+- Part partition permission / isolate
 
 ## 10. Current implementation
 
@@ -101,6 +104,8 @@ Opaque source が React などを必要とする場合、その依存は Compone
 
 Manifest は実際に Structure へ結合できない Props、Slots、Parts、Variants、Actions、Outputs を先行公開しない。Structure の local ID はすべて source に明示し、Frame / Text は Standard Theme の Named Style ID だけを参照する。Renderer compatibility は `baked-web` という data で宣言し、renderer API や concrete renderer へ依存しない。
 
-現行 Authoring contract は Theme Token category と Named Style property schema をまだ定義していないため、Standard Theme は参照可能な空の Named Style record だけを提供する。これは generic renderer default を選ぶための最小 fixture であり、型付き Theme や標準 visual design を実装済みとは扱わない。
+現行 Authoring SDK の型 / runtime schema は Theme Token category と Named Style property schema をまだ実装していないため、Standard Theme は参照可能な空の Named Style record だけを提供する。これは generic renderer default を選ぶための最小 fixture であり、[Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) の型付き Theme や標準 visual design を実装済みとは扱わない。
 
 Component Props / Variant の Structure への値注入、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity、migration、preview、visual regression は含めない。これらを暗黙の名前規約で補わず、Authoring / Compiler / Renderer の対応 contract が実装された後に追加する。
+
+M3Aで追加する型付きTheme、Props / Slots / Parts / Variants、nested Frame / Textの規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。migration metadata / 自動変換とPart partition isolateはM3Aに含めない。

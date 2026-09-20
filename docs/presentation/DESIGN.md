@@ -8,8 +8,11 @@
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
+  - [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md)
 
 具体的な成果物・配信・Runtime のデータ契約は [Presentation v2](./DATA_MODEL.md) を正本とする。本書は実装配置と責務を説明する。
+
+Theme と Structured composition の M3A 範囲、解決順、拒否条件は [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。M3A は static `baked-web` の v2 縦断接続であり、Runtime / Delivery 接続や v1 互換出力は含めない。
 
 ## 1. この文書の位置付け
 

@@ -16,6 +16,8 @@
   - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
   - [ADR-0015: Definition と素材集合の構造境界を定める](../decisions/0015-presentation-definition-artifact-boundaries.md)
   - [ADR-0016: モデル内蔵アニメーションの範囲を定める](../decisions/0016-model-animation-scope.md)
+  - [ADR-0017: M3A の Structured Authoring 契約を固定する](../decisions/0017-m3a-structured-authoring-contract.md)
+  - [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md)
   - [Repository Architecture](../../ARCHITECTURE.md)
   - [Server Architecture](../../app/server/ARCHITECTURE.md)
 
@@ -113,7 +115,7 @@ Component package の公開契約であり、次を定義する。
 - 必須 Theme Token
 - 対応 renderer
 - Editor metadata
-- Version と migration 情報
+- Version。migration 情報は M3A より後に定義する
 
 Component Action は compile 時に `surface.setState`、Node State、Timeline、Variable などの canonical Action batch へ展開する。Component Output は明示された canonical event source へ展開し、参照箇所では canonical Trigger へ置き換える。どちらも Runtime wire contract に Component 固有の操作として残さない。
 
@@ -486,6 +488,8 @@ Component ごとの test file や test directory はこの source 構成に含�
 
 ### 5.1 Component Manifest
 
+次は後続の State / Action / Timeline を含む目標例である。M3A の受理範囲は [Structured Authoring Contract](./AUTHORING_CONTRACT.md) に従う。
+
 ```ts
 export const Hero = defineComponentManifest({
   componentId: "@unframe/components/Hero",
@@ -498,24 +502,6 @@ export const Hero = defineComponentManifest({
 
   props: {
     title: stringProp({ required: true }),
-    subtitle: stringProp({ required: false }),
-  },
-
-  slots: {
-    media: {
-      accepts: ["image", "video", "modelViewport"],
-      cardinality: "one",
-      required: false,
-    },
-  },
-
-  parts: {
-    root: {
-      overridable: ["placement", "style"],
-    },
-    title: {
-      overridable: ["content", "style"],
-    },
   },
 
   states: {
@@ -549,7 +535,9 @@ export const Hero = defineComponentManifest({
 
 GUI は Manifest から Inspector と編集可能範囲を構築する。Structured Component の `renderers` は対応可能な generic renderer を宣言する compatibility metadata であり、Component 固有 implementation entry ではない。renderer 実装を解析して公開契約を推測しない。
 
-Partの`overridable`は`content`、`placement`、`style`に加えて`partition`を宣言できる。`partition` permissionを持つ公開Partだけがinstance側の`{ kind: "isolate" }`を受けられ、Structure Part bindingが一つのstable subtree rootへ解決する。authorはRenderSurfaceId、bounds、layer、rendererを指定しない。完全なpartition override contractは [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
+M3A の公開 Part は property ごとの permission list を持たず、対象 Primitive に適合する content、placement、style を上書きできる。Part と Primitive Node は一対一で binding し、子 Node は自動公開しない。具体的な M3A 規則は [Structured Authoring Contract](./AUTHORING_CONTRACT.md) を正本とする。
+
+`partition` permission と instance 側の `{ kind: "isolate" }` は [ADR-0011](../decisions/0011-surface-partition-contract.md) の後続設計であり、M3A には含めない。実装時も author は RenderSurfaceId、bounds、layer、renderer を指定しない。
 
 ### 5.2 Structured Component source boundary
 
@@ -565,7 +553,7 @@ v1 の Structured Component は Component 固有の React、CSS、DOM renderer e
 
 Generic renderer は Structure に宣言されていない Semantic Node、State、Interaction、Action、Output を追加できない。Semantic Tree と Hit Region の意味は Structure から生成し、renderer は pixel layout や region bounds などの concrete geometry だけを解決する。renderer output から Structured Component の意味や編集構造を逆推論しない。
 
-authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version と migration を更新する。
+authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version を更新する。migration metadata と自動変換の具体契約は M3A より後に定義する。
 
 Component package lock は Component ID、package version、package integrity、Manifest hash に加え、Structured Component では Structure hash を固定する。公開契約を変えない Structure 変更も package integrity と Structure hash を変更し、Compiler cache と RenderBundle を再生成する。lockfile の serialized format は Authoring contract で別途定義する。
 
@@ -2569,7 +2557,7 @@ dist/
    └─ <percent-encoded asset id>.png
 ```
 
-`definition.json` は v1 の最終的な PresentationDefinition artifact である。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
+この出力構成は M1 のもので、`definition.json` は v1 の PresentationDefinition artifact である。M3A では [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) に従って v2 出力へ移行し、v1 互換出力は維持しない。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 

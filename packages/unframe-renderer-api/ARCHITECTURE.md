@@ -6,6 +6,7 @@
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Presentation Core Architecture](../unframe-core/ARCHITECTURE.md)
+  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 
@@ -100,7 +101,8 @@ Conformance harness は renderer implementation の process topology を固定�
 - capability vocabulary
 - ADR-0012のcapture前budget、deadline / abort、resource guard APIの実装
 - Native UI / Video renderer API の追加時期
-- Compiler cache key と RenderBundle `environmentHash` への `rendererFingerprint` 結合、およびその integration test
+- Compiler cache key への `rendererFingerprint` 結合と integration test
+- M3A v2入力schema、nested Frame / Text、解決済みTheme / Font Assetの接続
 
 ## 9. Current implementation
 
@@ -108,7 +110,9 @@ Conformance harness は renderer implementation の process topology を固定�
 
 現行Rendererはstateごとの未encode RGBA captureとSemantic Surface normalized `HitRegion`を返す一partition subsetである。M3でplanのowned/context分離とpartition-local `RendererPrivateHitRegion`へ置換し、Compiler aggregateによるportable `HitRegion`生成と同時に移行する。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
-`unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を cache key と `environmentHash` の入力に含める責務を持つが、Compiler 未実装の現時点では integration test も未実装であり、この API 単体は hash への包含を検証したとは主張しない。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
+`unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler cache 自体は未実装であり、cache keyへの結合とintegration testは後続である。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
+
+M3Aでは [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) に従い、v2の解決済みText / Frame graphとFont Asset入力へ移行する。現行APIとrendererはv1の直下Text subsetであり、nested graphや型付きThemeを実装済みとは扱わない。
 
 共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、Hit Region の有効性と completeness、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
 

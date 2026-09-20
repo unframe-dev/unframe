@@ -1,12 +1,13 @@
 # Presentation Authoring Architecture
 
-- **Status**: Initial declaration API implemented; compiler integration deferred
+- **Status**: Initial declaration API and M1 compiler integration implemented; M3A contract not implemented
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
   - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
   - [Presentation Core Architecture](../unframe-core/ARCHITECTURE.md)
+  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 
@@ -101,9 +102,9 @@ JSX、任意関数、loop / branch、dynamic import、property access、spread�
 - Structured / Opaque boundary と Action / Output lowering の fixture
 - package import が filesystem、Browser、network side effect を起こさないことのテスト
 
-公開 builder / definition の入力は、descriptor ベースの null-prototype plain-data snapshot で accessor、cycle、sparse array、symbol key、非 JSON 値を先に拒否してから Zod 4 schema に渡す。snapshot 後は caller-owned object を再読せず、配列長も own data descriptor から取得して inherited getter と Proxy の `get` trap を実行しない。Zod は string、number、tuple、record、enum、discriminated union と declaration の構造を検証する。参照の存在、一意性、tree、owner 継承のように複数 declaration を横断する意味論だけは Compiler / Core の責務として残す。
+公開 builder / definition の入力は、descriptor ベースの null-prototype plain-data snapshot で accessor、cycle、sparse array、symbol key、非 JSON 値を先に拒否してから Zod 4 schema に渡さなければならない。snapshot 後は caller-owned object を再読せず、配列長も own data descriptor から取得して inherited getter と Proxy の `get` trap を実行しない。Zod は string、number、tuple、record、enum、discriminated union と declaration の構造を検証する。参照の存在、一意性、tree、owner 継承のように複数 declaration を横断する意味論だけは Compiler / Core の責務として残す。現行実装の例外は「Current implementation」に明記する。
 
-definition ごとの pure type guard は builder と同じ local declaration validation を共有する。Compiler は post-lowering value の検査にこの guard を利用できるが、builder implementation や Authoring Source は実行しない。
+definition ごとの pure type guard は builder と同じ local declaration validation を共有しなければならない。Compiler は post-lowering value の検査にこの guard を利用できるが、builder implementation や Authoring Source は実行しない。
 
 ## 9. Deferred decisions
 
@@ -111,6 +112,8 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Lossless Syntax Tree / source patching library
 - `unframe.lock` と Component package distribution の形式
 - public API の正確な naming と versioning
+- Component migration metadata と自動変換
+- Part partition permission / isolate
 
 ## 10. Current implementation
 
@@ -130,4 +133,8 @@ Topology を持つ宣言は explicit ID を必須とする。source metadata は
 
 parse、AST lowering、reference resolution、normalization、renderer、filesystem は実装せず、それぞれ Compiler、Core、concrete renderer の境界に残す。
 
-現時点の reference Authoring Project は package test 内の inline fixture であり、Stage、Surface Component、Semantic Tree、Flow を current contract へ lower できる入力として固定している。公開用の `examples/presentation/` source は Compiler / CLI と同じ品質ゲートで実行できる段階に追加する。
+package test の inline fixture に加え、公開用の `examples/presentation/` source が存在し、Compiler / CLI の品質ゲートで二回 build した成果物の一致を検証する。
+
+M3A で追加する Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。現行宣言型がこれらの vocabulary を一部持つことは、Structureへの値注入やv2出力接続が実装済みであることを意味しない。
+
+現行の宣言全体 guard は、個別 builder が拒否する一部の不正な Prop default、Slot / Part field、Named Style 値を受理できる。M3A の Compiler 拒否制限を外す前に、公開型、builder、runtime schema、post-lowering guardの検証を一致させる。
