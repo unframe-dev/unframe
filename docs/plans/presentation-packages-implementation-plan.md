@@ -44,9 +44,9 @@ consumer
 | `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                          | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                     |
 | `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                              | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                         |
 | `packages/unframe-core`          | 静的 v2 Definition / RenderBundle 検証、build / publication integrity、Semantic Tree、canonical JSON / hash | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration                  |
-| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、宣言共通 schema                                             | より広いStatic DSL、Lossless Syntax Tree / source patch、distribution                                  |
+| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、宣言共通 schema                                             | Lossless Syntax Tree / source patch、distribution                                                      |
 | `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | Spatial、Interaction、Action / Output、Opaque component、migration                                     |
-| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition 解決、default warning、v2 compile                         | cache、M1より広いStatic DSL                                                                            |
+| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition 解決、default warning、v2 compile                         | cache                                                                                                  |
 | `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                       | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability      |
 | `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                      | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                 |
 | `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                       | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                         |
@@ -190,7 +190,7 @@ Fixed Browser は `playwright-core@1.62.1` のmanaged Chromium headless shellを
 - `examples/presentation`をtemp copyへ2回実buildし、Definition、RenderBundle、全PNGのrelative pathとSHA-256が一致するacceptanceを`nix run .#presentation`へ接続した。
 - `nix flake check`、`nix run .#presentation`、repository-wide `nix run .#check`が成功した。
 
-Static DSL は 2026-08-29 に次の M1 contract で確定した。
+Static DSL は 2026-08-29 に次の M1 contract で確定した（当時の実装記録）。
 
 - 各 declaration file は対応する public definition builder の直接呼出しを default export する。
 - builder 引数は JSON-like literal と provenance 検証済み named builder call だけを許可する。
@@ -198,7 +198,7 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した。
 - named import alias は元の locked package export provenance を保持する場合に限り許可する。
 - JSX-first authoring とより広い static expression は M1 より後へ延期する。
 
-JSX-first authoring とより広い static expression は M1 に含めず、Milestone 3以降の後続Goalまで明示的にdeferする。M1実装の独立Review / Fix loopでは、確認済みの未対応P1/P2がない状態まで収束した。
+その後 [ADR-0018](../decisions/0018-static-typescript-jsx-authoring.md) に従い、`const`、project import、object / array spread、内部構造と配置の JSX を実装した。任意の JavaScript 実行は引き続き許可しない。M1実装の独立Review / Fix loopでは、確認済みの未対応P1/P2がない状態まで収束した。
 
 ### 完了条件
 

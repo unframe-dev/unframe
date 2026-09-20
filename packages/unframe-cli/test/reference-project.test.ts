@@ -16,7 +16,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
 import { verifyBuildIntegrityV2 } from "@unframe/unframe-core";
-import { checkAuthoringProject, hashComponentManifestDeclaration } from "@unframe/unframe-compiler";
+import {
+  checkAuthoringProject,
+  checkAuthoringProjectAssembly,
+  hashComponentManifestDeclaration,
+} from "@unframe/unframe-compiler";
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
@@ -35,19 +39,25 @@ const projectCopy = async () => {
   return directory;
 };
 
-const defaultPropsProject = async (explicit = false) => {
-  const directory = await projectCopy();
+const checkedProject = async (directory: string) => {
   const discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok) throw new Error(discovered.code);
   const loaded = loadUnframeLock(discovered.lockBytes);
   if (!loaded.ok) throw new Error(loaded.diagnostic.code);
-  const checked = checkAuthoringProject({
+  const source = {
     projectRoot: discovered.projectDirectory,
     entryFile: discovered.entryFile,
     files: discovered.files,
     ...loaded.value.virtualSource,
-  });
+  };
+  const checked = checkAuthoringProject(source);
   if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
+  return { discovered, checked, source, loaded };
+};
+
+const defaultPropsProject = async (explicit = false) => {
+  const directory = await projectCopy();
+  const { discovered, checked } = await checkedProject(directory);
   const component = checked.value.components.find(
     ({ manifest }) => manifest.value.componentId === "reference-surface",
   )!;
@@ -176,6 +186,34 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
+  it("keeps definition and source hashes identical across JSX composition and literal builders", async () => {
+    const directory = await projectCopy();
+    const { checked, source, loaded } = await checkedProject(directory);
+    const declarations = [
+      { ...checked.value.presentation, builder: "definePresentation" },
+      ...checked.value.themes.map((theme) => ({ ...theme, builder: "defineTheme" })),
+      ...checked.value.components.flatMap(({ manifest, structure }) => [
+        { ...manifest, builder: "defineComponentManifest" },
+        { ...structure, builder: "defineComponentStructure" },
+      ]),
+    ];
+    const literal = {
+      ...source,
+      files: declarations.map(({ fileName, value, builder }) => ({
+        fileName,
+        sourceText: `import { ${builder} } from "@unframe/unframe-authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
+      })),
+    };
+    const composed = checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier);
+    const direct = checkAuthoringProjectAssembly(literal, loaded.value.assemblyCarrier);
+    expect(composed.valid).toBe(true);
+    expect(direct.valid).toBe(true);
+    if (!composed.valid || !direct.valid) return;
+    expect(composed.value.definition).toEqual(direct.value.definition);
+    expect(composed.value.definitionHash).toBe(direct.value.definitionHash);
+    expect(composed.value.sourceHash).toBe(direct.value.sourceHash);
+  });
+
   it.each(["check", "build"] as const)(
     "%s reports omitted defaults once without failing",
     async (command) => {
@@ -236,14 +274,21 @@ describe("reference Authoring Project", () => {
 
   it("preserves Variant default metadata in JSON and text warnings", async () => {
     const directory = await projectCopy();
-    const path = join(directory, "presentation.unframe.tsx");
-    const source = await readFile(path, "utf8");
-    const omitted = source.replace(
-      /"?variants"?:\s*\{\s*"?tone"?:\s*"accent",?\s*\}/u,
-      "variants: {}",
+    const { checked } = await checkedProject(directory);
+    const presentation = checked.value.presentation.value;
+    const omitted = {
+      ...presentation,
+      scene: {
+        ...presentation.scene,
+        components: presentation.scene.components.map((instance) =>
+          instance.componentId === "reference-surface" ? { ...instance, variants: {} } : instance,
+        ),
+      },
+    };
+    await writeFile(
+      join(directory, checked.value.presentation.fileName),
+      `import { definePresentation } from "@unframe/unframe-authoring";\nexport default definePresentation(${JSON.stringify(omitted)});\n`,
     );
-    expect(omitted).not.toBe(source);
-    await writeFile(path, omitted);
     const json = await runPresentationCli({ args: ["check", directory, "--format", "json"] });
     expect(json.exitCode).toBe(0);
     expect(JSON.parse(json.stdout).warnings).toMatchObject([

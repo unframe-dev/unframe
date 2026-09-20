@@ -5,6 +5,12 @@ minimal `@unframe/unframe-authoring` declaration package and the hashes of the t
 structured component declarations. It also carries the unchanged Liberation Sans TTF bytes with their
 SHA-256 checksum and size; see `FONT-LICENSE.txt`. Generated `.unframe/` and `dist` output are not source.
 
+The source uses typed builders, shared `const` declarations and relative imports, object spread,
+and SDK JSX for both Component internals and Presentation placement. `reference-values.ts` holds
+shared values; `reference-locks.ts` holds the pinned Component references. JSX creates the same
+static declarations as builders and does not require React or execute user code during compilation.
+The local `tsconfig.json` points editors at the workspace SDK for completion and attribute checking.
+
 The surface combines typed Theme tokens and aliases, Text/Frame Named Styles, scalar Props,
 a style Variant, a public Part override, and clipped absolute Frame nesting. A Slot placeholder
 places a separate Frame-root badge Component inside the card. Both Instances retain their IDs in
@@ -19,6 +25,7 @@ From the repository root, `check` validates the static Authoring Source without 
 `render-bundle.json`, `asset-set.json`, `build-manifest.json`, and PNG/Font assets through the managed `dist` symlink.
 
 ```bash
+pnpm exec tsc --noEmit -p examples/presentation/tsconfig.json
 pnpm --filter @unframe/unframe-cli run presentation -- check "$PWD/examples/presentation"
 nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \

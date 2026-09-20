@@ -58,6 +58,7 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
+    pnpm --dir "${REPO_ROOT}" exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
     reference_acceptance
     ;;
   *)

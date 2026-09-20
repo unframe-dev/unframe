@@ -4,24 +4,32 @@
     {
       "packageName": "@unframe/unframe-authoring",
       "packageVersion": "1.0.0",
-      "packageIntegrity": "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50"
+      "packageIntegrity": "sha256:b890146ec13a4009b7491bfe14d2e206a24ce9464ef3c066796732ba4a0b8ebf"
     }
   ],
   "packages": [
     {
       "packageName": "@unframe/unframe-authoring",
       "packageVersion": "1.0.0",
-      "packageIntegrity": "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
+      "packageIntegrity": "sha256:b890146ec13a4009b7491bfe14d2e206a24ce9464ef3c066796732ba4a0b8ebf",
       "files": [
         {
           "fileName": "index.ts",
-          "sourceText": "export const definePresentation = <T>(value: T): T => value;\nexport const defineTheme = <T>(value: T): T => value;\nexport const defineComponentManifest = <T>(value: T): T => value;\nexport const defineComponentStructure = <T>(value: T): T => value;\n"
+          "sourceText": "export type AbsoluteLayoutDeclaration = unknown;\nexport const definePresentation = <T>(value: T): T => value;\nexport const defineTheme = <T>(value: T): T => value;\nexport const defineComponentManifest = <T>(value: T): T => value;\nexport const defineComponentStructure = <T>(value: T): T => value;\nexport const propRef = <T>(value: T): T => value;\nexport const tokenRef = <T>(value: T): T => value;\nexport const namedStyleRef = <T>(value: T): T => value;\nexport const assetRef = <T>(value: T): T => value;\nexport const Surface = (props: unknown): unknown => props;\nexport const Frame = (props: unknown): unknown => props;\nexport const Text = (props: unknown): unknown => props;\nexport const Slot = (props: unknown): unknown => props;\nexport const ComponentInstance = (props: unknown): unknown => props;\n"
+        },
+        {
+          "fileName": "jsx-runtime.ts",
+          "sourceText": "export namespace JSX {\n  export type Element = unknown;\n  export type ElementType = (props: unknown) => unknown;\n  export interface ElementChildrenAttribute { children: unknown; }\n}\nexport declare const jsx: (tag: unknown, props: unknown, key?: unknown) => unknown;\nexport { jsx as jsxs };\n"
         }
       ],
       "exports": [
         {
           "subpath": ".",
           "targetFile": "index.ts"
+        },
+        {
+          "subpath": "./jsx-runtime",
+          "targetFile": "jsx-runtime.ts"
         }
       ],
       "dependencies": []
@@ -39,7 +47,7 @@
       "version": 1,
       "lock": {
         "packageVersion": "1.0.0",
-        "packageIntegrity": "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
+        "packageIntegrity": "sha256:b890146ec13a4009b7491bfe14d2e206a24ce9464ef3c066796732ba4a0b8ebf",
         "manifestHash": "sha256:9beade0acd726c3b65ef1be48e023f7a5de4e233e035d960be176c38cfb846d4",
         "structureHash": "sha256:30bad08e64082d8044428fc8157437401db3aa9763fc56dd33646ea40de97e92"
       }
@@ -49,7 +57,7 @@
       "version": 1,
       "lock": {
         "packageVersion": "1.0.0",
-        "packageIntegrity": "sha256:a8a6ff70bfa6802e795144632428662d872524c21f0f04285a6a8ada41b86c50",
+        "packageIntegrity": "sha256:b890146ec13a4009b7491bfe14d2e206a24ce9464ef3c066796732ba4a0b8ebf",
         "manifestHash": "sha256:b2c6d8daa2c8019317c322c670ac454ae2b98033e49deee926aab158e9675d7d",
         "structureHash": "sha256:016c24e97b0b91c95b005df605cb83efd929d922a511391f5f27b19a15210c8c"
       }
