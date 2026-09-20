@@ -89,6 +89,8 @@ required boundaryとauthor isolate boundaryを反映したcanonical paint atom�
 
 ### Author isolate override
 
+この節は M3A の公開 Part override とは別の後続 contract である。M3A は permission list と isolate を実装せず、[ADR-0017](./0017-m3a-structured-authoring-contract.md) の content / placement / style 規則だけを接続する。partition permission と isolate は multi-partition 実装と同じ後続変更系列で追加する。
+
 v1のauthor overrideは公開Partを境界としてisolated paint intervalを要求する一種類だけとする。次は既存のcontent / placement / style overrideを省略したpartition関連のcontract抜粋である。
 
 ```ts
@@ -226,7 +228,8 @@ renderer detailをinteraction authorityへ混入させるため採用しない�
 
 ## Follow-ups
 
-- M3 Slice AでPart binding / permission / isolate overrideをAuthoring / Components / CompilerへTDDで実装する。
+- M3A では [ADR-0017](./0017-m3a-structured-authoring-contract.md) の Part binding を実装し、partition permission / isolate は実装しない。
+- partition permission / isolate overrideはmulti-partition planningと同じ後続変更系列でAuthoring / Components / CompilerへTDDで実装する。
 - M3 Slice BでADR-0009のHit Region schema移行とpartition aggregate fixtureを同時に実装する。
 - M4でmulti-partition reference project、Browser capture、deterministic ID / paint order fixtureを追加する。
 - M2 item 6でheuristic splitを追加せず、artifact / GPU / RAM budgetと超過diagnosticを固定する。

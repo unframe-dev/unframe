@@ -3,12 +3,14 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current Goal scope**: Milestone 1 完了まで。Milestone 3〜6 は未完了の後続 Goal として保持する
+- **Current milestone**: Milestone 3A（設計確定、実装未着手）。Milestone 3B〜6 は未完了の後続として保持する
 - **Architecture source**:
   - [Presentation Architecture](../presentation/ARCHITECTURE.md)
   - [Presentation Implementation Design](../presentation/DESIGN.md)
   - [ADR-0006](../decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0014](../decisions/0014-presentation-rendering-scope.md)
+  - [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md)
+  - [M3A Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md)
 
 ## 1. 目的
 
@@ -36,20 +38,20 @@ consumer
 
 ### 2.1 Package inventory
 
-| Package                          | Current                                                                                                  | 主な未実装                                                                                                                    |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `packages/contracts`             | Control Plane OpenAPI、PresentationDefinition / baked-web RenderBundle 初期 schema、Realtime foundation  | Cue / Trigger / Action / Timeline、DeliveryManifest、Snapshot / State Stream、完全な Runtime contract、cross-language fixture |
-| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                                            |
-| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                           | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                                                |
-| `packages/unframe-core`          | 初期 Definition / RenderBundle 検証、Semantic Tree materialization、canonical JSON / hash                | Cue / Action / Timeline、Projection、Runtime Snapshot、migration、完全な lifetime / visibility closure                        |
-| `packages/unframe-authoring`     | Manifest、Structure、Theme、Presentation declaration API                                                 | Static DSL の確定、Source との接続、Lossless Syntax Tree / source patch、lock / distribution                                  |
-| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                     | Props / Slots / Variants、型付き Theme、Spatial、Interaction、Action / Output、Opaque component、migration                    |
-| `packages/unframe-compiler`      | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | cache、M1より広いStatic DSL                                                                                                   |
-| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability                             |
-| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                                        |
-| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                                                |
-| `packages/unframe-cli`           | filesystem check / build、process signal / build lock、atomic output、TUI command selector               | TUIとprocess commandの接続、watch / dev / preview / test / publish                                                            |
-| `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備                        |
+| Package                          | Current                                                                                                  | 主な未実装                                                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                      | v2 consumer 接続、完全な意味検証、cross-language fixture                                               |
+| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                     |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                           | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                         |
+| `packages/unframe-core`          | 初期 Definition / RenderBundle 検証、v2 publication integrity、Semantic Tree、canonical JSON / hash      | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration                  |
+| `packages/unframe-authoring`     | Manifest、Structure、Theme、Presentation declaration API                                                 | M3A runtime schema整合、より広いStatic DSL、Lossless Syntax Tree / source patch、distribution          |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                     | M3A Theme / composition、Spatial、Interaction、Action / Output、Opaque component、migration            |
+| `packages/unframe-compiler`      | virtual project resolution / typecheck、Static DSL lowering / normalization、assembly、Sourceからcompile | cache、M1より広いStatic DSL                                                                            |
+| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                    | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability      |
+| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                   | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                 |
+| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                         |
+| `packages/unframe-cli`           | filesystem check / build、process signal / build lock、atomic output、TUI command selector               | TUIとprocess commandの接続、watch / dev / preview / test / publish                                     |
+| `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                               | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備 |
 
 ## 3. 実装原則
 
@@ -237,7 +239,7 @@ Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compil
 
 Native 3D、`baked-web`、限定 `native-ui`、`video` の責務と、Runtime Web を対象外にする境界は [ADR-0014](../decisions/0014-presentation-rendering-scope.md) でAcceptedとした。方式の採用は実装や実機性能の完了を意味しない。現行 Local Compiler は `baked-web` 初期 subset だけを実装し、ADR-0012 の v1 Delivery baseline も `baked-web` だけを対象とする。Native UI と Video は固有 budget と consumer が受理されるまで Delivery で拒否する。
 
-M2のblocking contract 6項目はすべてAcceptedとなった。今回のGoalはM1 project assembly / reference Browser / CLIの完了までに限定した。M3〜M6は後続Goalとして未完了のまま保持し、このGoalでは実装を開始しない。
+M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。現在はM3Aの設計を確定し、実装は未着手である。
 
 ### 完了条件
 
@@ -251,11 +253,13 @@ M2のblocking contract 6項目はすべてAcceptedとなった。今回のGoal�
 
 ### Slice A: Theme と Structured composition
 
-- Token category、Named Style property schema
-- Props / Slots / Parts / Variants の値注入
-- nested Structured Primitive
-- component package lock、integrity、migration metadata
-- generic rendererによるstyle解決
+- [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) と [Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md) を正本にする。
+- static `baked-web` の Authoring → v2 Definition / RenderBundle / AssetSet / Build artifact を縦断接続し、v1互換出力は追加しない。
+- 6 categoryのToken、Text / Frame Named Style、明示Font Asset解決を実装する。
+- Props / Slots / Parts / Variants の値注入、absoluteなnested Frame / Text、default warningと参照・衝突・循環・owner検証を実装する。
+- component version、package lock、integrityを検証する。package内容とTheme / Manifest / Structureのhash検証は現行実装を再利用し、v2出力との整合を追加する。
+- Authoringの公開型、builder、runtime schema、post-lowering guardの検証差を先に解消する。
+- migration metadata / 自動変換、partition permission / isolate、State visual variation以降は後続へ延期する。
 
 ### Slice B: State、Interaction、Hit Region
 
