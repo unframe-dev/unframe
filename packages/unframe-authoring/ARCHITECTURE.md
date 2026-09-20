@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: M3A declaration API and local validation implemented; compiler integration in progress
+- **Status**: M3A declarations and static TypeScript / JSX authoring implemented
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -56,19 +56,11 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 
 具体的な許可構文の判定、parse、typecheck、symbol resolution は Compiler が所有する。
 
-M1 の declaration source は、各 file が対応する public definition builder の直接呼出しを default export する。
+宣言には型付き builder に加え、top-level `const`、project 内 import / re-export、静的 property access、object / array spread、`as const` / `satisfies` を使える。role を持たない `.ts` / `.tsx` は helper module として検証する。
 
-```ts
-import { definePresentation } from "@unframe/unframe-authoring";
+`Surface`、`Frame`、`Text`、`Slot`、`ComponentInstance` を JSX tag として提供する。`jsxImportSource` は `@unframe/unframe-authoring` とし、内部構造と Presentation の配置を同じ canonical declaration に変換する。JSX の opaque Element 型は入力だけに使い、definition builder の戻り値は canonical declaration 型を保つ。
 
-export default definePresentation({
-  // JSON-like declaration
-});
-```
-
-Compiler が認識するのは、locked `@unframe/unframe-authoring` package の root export として TypeChecker で provenance を検証できる named value import だけである。named import alias は元の public export を保持する場合に限り許可する。引数は JSON-like literal と、同じ規則で認識された builder の直接呼出しに限定する。
-
-JSX、任意関数、loop / branch、dynamic import、property access、spread、template expression、local variable / function を経由した builder alias は M1 では lower せず、stable diagnostic で拒否する。Source module と builder function を実行せず、AST から Declaration Graph へ lower する。JSX-first authoring、local const 参照、より広い static expression は後続の明示的な contract 判断まで追加しない。
+Compiler は locked SDK の export provenance を確認し、Source module と builder function を実行せず AST を lower する。任意関数、loop / branch、dynamic import、builder 関数自身の local alias は拒否する。builder の戻り値を `const` で共有することは許可する。許可構文と JSX の children 規則は [Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) と [ADR-0018](../../docs/decisions/0018-static-typescript-jsx-authoring.md) を参照する。
 
 ## 5. Invariants
 
@@ -109,7 +101,6 @@ definition ごとの pure type guard は builder と同じ local declaration val
 
 ## 9. Deferred decisions
 
-- M1 より広い Static DSL、JSX-first authoring、local const / expression evaluation
 - Lossless Syntax Tree / source patching library
 - `unframe.lock` と Component package distribution の形式
 - public API の正確な naming と versioning

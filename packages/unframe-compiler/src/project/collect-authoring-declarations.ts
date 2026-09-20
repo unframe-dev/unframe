@@ -5,7 +5,10 @@ import {
   type NormalizedDeclarationValue,
 } from "../normalization/normalize-declaration-graph.js";
 import type { AnalyzedAuthoringProject } from "../resolution/typecheck-authoring-project.js";
-import { lowerAuthoringDeclarationFile } from "../lowering/lower-authoring-declaration.js";
+import {
+  lowerAuthoringDeclarationFile,
+  validateStaticAuthoringProject,
+} from "../lowering/lower-authoring-declaration.js";
 
 export type AuthoringDeclarationRole =
   | "presentation"
@@ -42,7 +45,10 @@ export type CollectedAuthoringDeclarations =
       readonly declarations: readonly CollectedAuthoringDeclaration[];
       readonly diagnostics: readonly [];
     }
-  | { readonly ok: false; readonly diagnostics: readonly DeclarationCollectionDiagnostic[] };
+  | {
+      readonly ok: false;
+      readonly diagnostics: readonly DeclarationCollectionDiagnostic[];
+    };
 
 export type CollectedAuthoringDeclarationsSuccess = Extract<
   CollectedAuthoringDeclarations,
@@ -55,9 +61,15 @@ const roleFor = (fileName: string, entryFileName: string) => {
   if (fileName.endsWith(".unframe.ts"))
     return { role: "theme", rootBuilder: "defineTheme" } as const;
   if (fileName.endsWith(".manifest.ts"))
-    return { role: "component-manifest", rootBuilder: "defineComponentManifest" } as const;
+    return {
+      role: "component-manifest",
+      rootBuilder: "defineComponentManifest",
+    } as const;
   if (fileName.endsWith(".structure.tsx"))
-    return { role: "component-structure", rootBuilder: "defineComponentStructure" } as const;
+    return {
+      role: "component-structure",
+      rootBuilder: "defineComponentStructure",
+    } as const;
   return undefined;
 };
 
@@ -83,6 +95,7 @@ export const collectAuthoringDeclarations = (
   const { context, entrySourceFile } = analyzed.value;
   const entryFileName = context.displayFileName(entrySourceFile);
   const diagnostics: DeclarationCollectionDiagnostic[] = [];
+  diagnostics.push(...validateStaticAuthoringProject(analyzed));
   if (entryFileName.endsWith(".d.ts"))
     diagnostics.push({
       code: "compiler-declaration-entry-file-unsupported",
@@ -93,9 +106,14 @@ export const collectAuthoringDeclarations = (
       line: 1,
       column: 1,
     });
+  if (diagnostics.length !== 0)
+    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
   const files = [...context.sourceFiles.values()]
     .filter((sourceFile) => context.ownerFor(sourceFile)?.kind === "project")
-    .map((sourceFile) => ({ sourceFile, fileName: context.displayFileName(sourceFile) }))
+    .map((sourceFile) => ({
+      sourceFile,
+      fileName: context.displayFileName(sourceFile),
+    }))
     .sort((left, right) =>
       left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0,
     );
@@ -103,19 +121,8 @@ export const collectAuthoringDeclarations = (
   for (const { sourceFile, fileName } of files) {
     if (fileName.endsWith(".d.ts")) continue;
     const role = roleFor(fileName, entryFileName);
-    if (!role) {
-      diagnostics.push({
-        code: "compiler-declaration-file-role-unsupported",
-        fileName,
-        message: "Project declaration files must use a recognized declaration suffix.",
-        start: 0,
-        end: 0,
-        line: 1,
-        column: 1,
-      });
-      continue;
-    }
-    const lowered = lowerAuthoringDeclarationFile(analyzed, sourceFile);
+    if (!role) continue;
+    const lowered = lowerAuthoringDeclarationFile(analyzed, sourceFile, false);
     if (!lowered.ok) {
       diagnostics.push(...lowered.diagnostics);
       continue;

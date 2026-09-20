@@ -2,7 +2,9 @@
   "extends": "../config/tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@unframe/unframe-authoring"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
 }

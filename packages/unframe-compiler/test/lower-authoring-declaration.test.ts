@@ -56,13 +56,22 @@ const analyze = (
     files = [],
     packages = [],
   }: {
-    readonly files?: readonly { readonly fileName: string; readonly sourceText: string }[];
+    readonly files?: readonly {
+      readonly fileName: string;
+      readonly sourceText: string;
+    }[];
     readonly packages?: readonly {
       readonly packageName: string;
       readonly packageVersion: string;
       readonly packageIntegrity: string;
-      readonly files: readonly { readonly fileName: string; readonly sourceText: string }[];
-      readonly exports: readonly { readonly subpath: string; readonly targetFile: string }[];
+      readonly files: readonly {
+        readonly fileName: string;
+        readonly sourceText: string;
+      }[];
+      readonly exports: readonly {
+        readonly subpath: string;
+        readonly targetFile: string;
+      }[];
       readonly dependencies: readonly unknown[];
     }[];
   } = {},
@@ -208,7 +217,11 @@ describe("lowerAuthoringDeclarationFile", () => {
     ]) {
       expect(lower(sourceText)).toMatchObject({
         ok: false,
-        diagnostics: [{ code: expect.stringMatching(/^compiler-static-/) }],
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({
+            code: expect.stringMatching(/^compiler-static-/),
+          }),
+        ]),
       });
     }
   });
@@ -251,8 +264,8 @@ describe("lowerAuthoringDeclarationFile", () => {
     const root = lower(rootSource);
     expect(root).toEqual({
       ok: false,
-      diagnostics: [
-        {
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({
           code: "compiler-static-builder-arguments-invalid",
           fileName: "presentation.ts",
           message: "Builder arguments do not match the static declaration signature.",
@@ -260,13 +273,13 @@ describe("lowerAuthoringDeclarationFile", () => {
           end: rootSource.length - 1,
           line: 1,
           column: rootSource.indexOf("definePresentation()") + 1,
-        },
-      ],
+        }),
+      ]),
     });
     const nestedSource =
       'import { definePresentation, after } from "@unframe/unframe-authoring"; export default definePresentation({ timer: after("bad") });';
     const nested = lower(nestedSource);
-    const badStart = nestedSource.indexOf('"bad"');
+    const badStart = nestedSource.indexOf("after(");
     expect(nested).toMatchObject({
       ok: false,
       diagnostics: [
@@ -274,7 +287,7 @@ describe("lowerAuthoringDeclarationFile", () => {
           code: "compiler-static-builder-arguments-invalid",
           fileName: "presentation.ts",
           start: badStart,
-          end: badStart + '"bad"'.length,
+          end: badStart + 'after("bad")'.length,
           line: 1,
           column: badStart + 1,
         },
@@ -305,9 +318,9 @@ describe("lowerAuthoringDeclarationFile", () => {
       ok: false,
       diagnostics: [
         {
-          code: "compiler-static-root-invalid",
+          code: "compiler-static-builder-invalid",
           start: rootStart,
-          end: rootSource.length - 1,
+          end: rootStart + "definePresentation".length,
         },
       ],
     });
@@ -321,23 +334,27 @@ describe("lowerAuthoringDeclarationFile", () => {
         {
           code: "compiler-static-builder-invalid",
           start: nestedStart,
-          end: nestedStart + "after?.(1)".length,
+          end: nestedStart + "after".length,
         },
       ],
     });
   });
 
-  it("rejects side-effect, namespace, default, type-only, and non-builder imports", () => {
+  it("rejects side-effect, namespace, default, and non-builder value imports", () => {
     for (const sourceText of [
       'import "@unframe/unframe-authoring"; import { definePresentation } from "@unframe/unframe-authoring"; export default definePresentation({});',
       'import * as builders from "@unframe/unframe-authoring"; import { definePresentation } from "@unframe/unframe-authoring"; export default definePresentation({});',
       'import defaultBuilder, { definePresentation } from "@unframe/unframe-authoring"; export default definePresentation({});',
-      'import type { stringProp } from "@unframe/unframe-authoring"; import { definePresentation } from "@unframe/unframe-authoring"; export default definePresentation({});',
       'import { fakeBuilder, definePresentation } from "@unframe/unframe-authoring"; export default definePresentation({});',
     ]) {
       expect(lower(sourceText)).toMatchObject({
         ok: false,
-        diagnostics: [{ code: "compiler-static-import-invalid", fileName: "presentation.ts" }],
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({
+            code: "compiler-static-import-invalid",
+            fileName: "presentation.ts",
+          }),
+        ]),
       });
     }
   });
@@ -347,25 +364,14 @@ describe("lowerAuthoringDeclarationFile", () => {
       'import { definePresentation } from "@unframe/unframe-authoring"; export default definePresentation(';
     const cases = [
       {
-        value: "{ x: ({ a: 1 }).a }",
-        code: "compiler-static-expression-unsupported",
-        range: "({ a: 1 }).a",
-      },
-      {
         value: "{ __proto__: 1 }",
         code: "compiler-static-object-property-invalid",
         range: "__proto__",
       },
-      { value: "{ values: [1,,2] }", code: "compiler-static-array-hole", range: "" },
       {
-        value: "{ value: {} as unknown }",
-        code: "compiler-static-expression-unsupported",
-        range: "{} as unknown",
-      },
-      {
-        value: "{ value: {} satisfies unknown }",
-        code: "compiler-static-expression-unsupported",
-        range: "{} satisfies unknown",
+        value: "{ values: [1,,2] }",
+        code: "compiler-static-array-hole",
+        range: "",
       },
     ] as const;
     for (const fixture of cases) {
@@ -396,16 +402,15 @@ describe("lowerAuthoringDeclarationFile", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.diagnostics.map(({ code, start }) => ({ code, start }))).toEqual([
-      { code: "compiler-static-object-property-invalid", start: sourceText.indexOf("__proto__") },
-      { code: "compiler-static-expression-unsupported", start: sourceText.indexOf("({ a: 1 }).a") },
-      { code: "compiler-static-array-hole", start: sourceText.indexOf(",,") + 1 },
+      {
+        code: "compiler-static-object-property-invalid",
+        start: sourceText.indexOf("__proto__"),
+      },
+      {
+        code: "compiler-static-array-hole",
+        start: sourceText.indexOf(",,") + 1,
+      },
     ]);
-    expect(result.diagnostics[1]).toMatchObject({
-      start: sourceText.indexOf("({ a: 1 }).a"),
-      end: sourceText.indexOf("({ a: 1 }).a") + "({ a: 1 }).a".length,
-      line: 1,
-      column: sourceText.indexOf("({ a: 1 }).a") + 1,
-    });
   });
 
   it("rejects local aliases at the top-level statement range", () => {
@@ -414,16 +419,18 @@ describe("lowerAuthoringDeclarationFile", () => {
     const result = lower(sourceText);
     expect(result).toMatchObject({
       ok: false,
-      diagnostics: [
-        {
-          code: "compiler-static-top-level-unsupported",
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({
+          code: "compiler-static-reference-invalid",
           fileName: "presentation.ts",
-          start: sourceText.indexOf("const local"),
-          end: sourceText.indexOf("; export") + 1,
+          start: sourceText.indexOf("definePresentation", sourceText.indexOf("const local")),
+          end:
+            sourceText.indexOf("definePresentation", sourceText.indexOf("const local")) +
+            "definePresentation".length,
           line: 1,
-          column: sourceText.indexOf("const local") + 1,
-        },
-      ],
+          column: sourceText.indexOf("definePresentation", sourceText.indexOf("const local")) + 1,
+        }),
+      ]),
     });
   });
 
@@ -437,20 +444,20 @@ describe("lowerAuthoringDeclarationFile", () => {
     const start = sourceText.lastIndexOf("a:");
     expect(result).toMatchObject({
       ok: false,
-      diagnostics: [
-        {
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({
           code: "compiler-static-object-key-duplicate",
           fileName: "presentation.ts",
           start,
           end: start + 1,
           line: 3,
           column: 1,
-        },
-      ],
+        }),
+      ]),
     });
   });
 
-  it("rejects typechecked local and foreign package imports at their import ranges", () => {
+  it("accepts project-relative imports and rejects foreign package values", () => {
     const localSource = [
       'import { definePresentation } from "@unframe/unframe-authoring";',
       'import { localValue } from "./local";',
@@ -459,20 +466,7 @@ describe("lowerAuthoringDeclarationFile", () => {
     const local = lower(localSource, {
       files: [{ fileName: "local.ts", sourceText: "export const localValue = 1;" }],
     });
-    const localStart = localSource.indexOf('import { localValue } from "./local";');
-    expect(local).toMatchObject({
-      ok: false,
-      diagnostics: [
-        {
-          code: "compiler-static-import-invalid",
-          fileName: "presentation.ts",
-          start: localStart,
-          end: localStart + 'import { localValue } from "./local";'.length,
-          line: 2,
-          column: 1,
-        },
-      ],
-    });
+    expect(local).toMatchObject({ ok: true });
 
     const foreignSource = [
       'import { definePresentation } from "@unframe/unframe-authoring";',
@@ -494,16 +488,16 @@ describe("lowerAuthoringDeclarationFile", () => {
     const foreignStart = foreignSource.indexOf('import { foreign } from "foreign";');
     expect(foreign).toMatchObject({
       ok: false,
-      diagnostics: [
-        {
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({
           code: "compiler-static-import-invalid",
           fileName: "presentation.ts",
           start: foreignStart,
           end: foreignStart + 'import { foreign } from "foreign";'.length,
           line: 2,
           column: 1,
-        },
-      ],
+        }),
+      ]),
     });
   });
 });

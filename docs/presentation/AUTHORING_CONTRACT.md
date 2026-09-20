@@ -20,6 +20,21 @@ M3A は静的な `baked-web` の生成経路を Authoring から Presentation v2
 
 Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/v2/definition.ts) に従い、必須値の不足や不正値は build error とする。
 
+## TypeScript / JSX source
+
+Source は静的に解決し、module や builder 関数を実行しない。[ADR-0018](../decisions/0018-static-typescript-jsx-authoring.md) に従い、次の記法を同じ宣言モデルへ lower する。
+
+- top-level `const` と、その値・宣言を共有する project-relative import
+- 静的な property / literal index 参照、object shorthand、object / array spread
+- 型注釈、type-only import、`as const`、`satisfies`
+- SDK の JSX tag による Component 内部の構造と Presentation の Component 配置
+
+object spread は後の property を優先し、array spread は要素順を保持する。宣言 file の default export は root builder の結果、またはその `const` 参照とする。宣言用 suffix 以外の `.ts` / `.tsx` は helper module とし、独立した Theme / Component として収集しない。未使用の helper も同じ静的構文の検査対象とする。
+
+JSX は `Surface`、`Frame`、`Text`、`Slot`、`ComponentInstance` を SDK から import して使う。`Surface` は単一の Frame を子に持ち、`Frame` は子の配列を再帰的に平坦化して順序を保つ。`Text` は `value` 属性か string / Prop reference の子の一方を使う。`Slot` と `ComponentInstance` は子を持たない。属性 spread は後の値を優先し、`children` 属性と本文の子の併用は拒否する。Fragment、独自 tag、HTML tag、`key` / `ref`、`null` / `false` の子は受理しない。 Text 本文の改行・字下げは JSX の空白規則で正規化する。`&` を含む本文は entity 解釈を避け、`value` または `{ "A & B" }` のような文字列式で指定する。
+
+任意関数、可変変数や代入、getter、動的 import、loop / map による topology 生成は拒否する。JSX も同じ非実行の制約に従い、stable ID、Props / Slots / Parts / Variants、lock の検証を省略しない。循環・解決不能な参照は参照位置の source diagnostic とする。展開後の値は定義位置を source map に保持し、記法やファイル分割だけで semantic hash を変えない。型注釈や assertion で runtime schema の検証を回避できない。
+
 ## Theme and font
 
 Token category は `color`、`logicalLength`、`spatialLength`、`fontFace`、`duration`、`easing` とする。同じ Theme 内の同じ category の Token を alias できる。参照先の欠落、category の不一致、循環参照は build error とし、Compiler が具体値まで解決する。計算式と文字列展開は導入しない。

@@ -17,10 +17,16 @@ type AuthoringProjectDiagnostic = {
 
 export type TypecheckedAuthoringProject =
   | { readonly ok: true; readonly diagnostics: [] }
-  | { readonly ok: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] };
+  | {
+      readonly ok: false;
+      readonly diagnostics: readonly AuthoringProjectDiagnostic[];
+    };
 
 export type AnalyzedAuthoringProject =
-  | { readonly ok: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] }
+  | {
+      readonly ok: false;
+      readonly diagnostics: readonly AuthoringProjectDiagnostic[];
+    }
   | {
       readonly ok: true;
       readonly value: {
@@ -42,7 +48,12 @@ const compareDiagnostics = (left: AuthoringProjectDiagnostic, right: AuthoringPr
 
 const rangeFor = (sourceFile: ts.SourceFile, start: number, end: number) => {
   const position = sourceFile.getLineAndCharacterOfPosition(start);
-  return { start, end, line: position.line + 1, column: position.character + 1 };
+  return {
+    start,
+    end,
+    line: position.line + 1,
+    column: position.character + 1,
+  };
 };
 
 export const analyzeAuthoringProject = (
@@ -67,7 +78,8 @@ export const analyzeAuthoringProject = (
   const program = ts.createProgram({
     rootNames: context.projectRootFiles,
     options: {
-      jsx: ts.JsxEmit.Preserve,
+      jsx: ts.JsxEmit.ReactJSX,
+      jsxImportSource: "@unframe/unframe-authoring",
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
       noEmit: true,
@@ -107,7 +119,12 @@ export const analyzeAuthoringProject = (
     };
   return {
     ok: true,
-    value: { program, checker: program.getTypeChecker(), context, entrySourceFile },
+    value: {
+      program,
+      checker: program.getTypeChecker(),
+      context,
+      entrySourceFile,
+    },
     diagnostics: [],
   };
 };

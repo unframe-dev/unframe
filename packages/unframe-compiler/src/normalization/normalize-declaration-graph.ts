@@ -2,6 +2,7 @@ import type {
   DeclarationGraph,
   DeclarationSourceOrigin,
 } from "../lowering/lower-authoring-declaration.js";
+import { builderResultShape } from "./builder-result-shape.js";
 
 export type NormalizedDeclarationValue =
   | null
@@ -46,31 +47,6 @@ const rootBuilders = new Set([
   "defineTheme",
   "defineComponentManifest",
   "defineComponentStructure",
-]);
-const objectBuilders = new Map<string, string>([
-  ["stringProp", "string"],
-  ["numberProp", "number"],
-  ["booleanProp", "boolean"],
-  ["propRef", "prop-ref"],
-  ["slot", "slot"],
-  ["slotPlaceholder", "slot-placeholder"],
-  ["part", "part"],
-  ["variant", "variant"],
-  ["state", "state"],
-  ["action", "action"],
-  ["output", "output"],
-  ["invokeComponentAction", "component.action"],
-  ["componentOutput", "component.output"],
-  ["tokenRef", "token-ref"],
-  ["namedStyleRef", "named-style-ref"],
-  ["assetRef", "asset-ref"],
-  ["spatial", "spatial"],
-  ["frame", "frame"],
-  ["text", "text"],
-  ["surface", "surface"],
-  ["semanticOverride", "semantic-override"],
-  ["componentInstance", "component-instance"],
-  ["detach", "detach"],
 ]);
 const fallbackOrigin: DeclarationSourceOrigin = {
   fileName: "",
@@ -248,13 +224,16 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
       addSource([...path, key], fieldOrigin);
     };
     const arguments_ = node.arguments;
-    const objectKind = objectBuilders.get(node.builder as string);
-    if (objectKind) {
-      const state = node.builder === "state";
+    const shape = builderResultShape(node.builder as string);
+    if (!shape || rootBuilders.has(node.builder as string)) {
+      fail(origin, "Unknown declaration builder.");
+      return undefined;
+    }
+    if (shape.kind === "object") {
       if (
         !requireArguments(
           node,
-          state
+          shape.objectArgumentOptional
             ? arguments_.length <= 1 && (arguments_.length === 0 || isObjectNode(arguments_[0]))
             : arguments_.length === 1 && isObjectNode(arguments_[0]),
         )
@@ -265,100 +244,54 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
           ? createObject()
           : copyObject(arguments_[0], path, materialize, createObject(), new Set(["kind"]));
       if (!result) return undefined;
-      generated(result, "kind", objectKind, origin);
+      generated(result, "kind", shape.resultKind, origin);
       return result;
     }
-    if (node.builder === "cue") {
+    if (shape.kind === "identity") {
       if (!requireArguments(node, arguments_.length === 1 && isObjectNode(arguments_[0])))
         return undefined;
       return copyObject(arguments_[0], path, materialize);
     }
-    if (node.builder === "surfaceState" || node.builder === "setSurfaceState") {
-      if (
-        !requireArguments(
-          node,
-          arguments_.length === 2 &&
-            isStringLiteral(arguments_[0]) &&
-            isStringLiteral(arguments_[1]),
-        )
+    const requiredArguments =
+      Math.max(...shape.fields.map((field) => field.argument), shape.spreadObjectArgument ?? -1) +
+      1;
+    if (
+      !requireArguments(
+        node,
+        arguments_.length === requiredArguments &&
+          shape.fields.every((field) =>
+            field.valueType === "string"
+              ? isStringLiteral(arguments_[field.argument])
+              : isFiniteNumberLiteral(arguments_[field.argument]),
+          ) &&
+          (shape.spreadObjectArgument === undefined ||
+            isObjectNode(arguments_[shape.spreadObjectArgument])),
       )
-        return undefined;
-      const result = createObject();
-      generated(result, "kind", node.builder as string, origin);
-      const surface = materialize(arguments_[0], [...path, "surfaceId"]);
-      const state = materialize(arguments_[1], [...path, "stateId"]);
-      if (surface === undefined || state === undefined) return undefined;
-      Object.defineProperty(result, "surfaceId", {
-        value: surface,
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(result, "stateId", {
-        value: state,
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-      return diagnostics.length === 0 ? result : undefined;
-    }
-    if (node.builder === "playTimeline") {
-      if (
-        !requireArguments(
-          node,
-          arguments_.length === 2 && isStringLiteral(arguments_[0]) && isObjectNode(arguments_[1]),
-        )
-      )
-        return undefined;
-      const result = createObject();
-      generated(result, "kind", "playTimeline", origin);
-      const timeline = materialize(arguments_[0], [...path, "timelineId"]);
-      if (timeline === undefined) return undefined;
-      Object.defineProperty(result, "timelineId", {
-        value: timeline,
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-      return copyObject(arguments_[1], path, materialize, result, new Set(["kind", "timelineId"]));
-    }
-    const stringField = new Map<string, string>([
-      ["surfaceInteraction", "interactionId"],
-      ["timelineCompleted", "timelineId"],
-      ["mediaCompleted", "surfaceId"],
-    ]).get(node.builder as string);
-    if (stringField) {
-      if (!requireArguments(node, arguments_.length === 1 && isStringLiteral(arguments_[0])))
-        return undefined;
-      const result = createObject();
-      generated(result, "kind", node.builder as string, origin);
-      const value = materialize(arguments_[0], [...path, stringField]);
+    )
+      return undefined;
+    const result = createObject();
+    generated(result, "kind", shape.resultKind, origin);
+    for (const field of shape.fields) {
+      const value = materialize(arguments_[field.argument], [...path, field.key]);
       if (value === undefined) return undefined;
-      Object.defineProperty(result, stringField, {
+      Object.defineProperty(result, field.key, {
         value,
         enumerable: true,
         writable: true,
         configurable: true,
       });
-      return diagnostics.length === 0 ? result : undefined;
     }
-    if (node.builder === "after") {
-      if (!requireArguments(node, arguments_.length === 1 && isFiniteNumberLiteral(arguments_[0])))
-        return undefined;
-      const result = createObject();
-      generated(result, "kind", "timer", origin);
-      const value = materialize(arguments_[0], [...path, "afterMilliseconds"]);
-      if (value === undefined) return undefined;
-      Object.defineProperty(result, "afterMilliseconds", {
-        value,
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-      return diagnostics.length === 0 ? result : undefined;
-    }
-    fail(origin, "Unknown declaration builder.");
-    return undefined;
+    return shape.spreadObjectArgument === undefined
+      ? diagnostics.length === 0
+        ? result
+        : undefined
+      : copyObject(
+          arguments_[shape.spreadObjectArgument],
+          path,
+          materialize,
+          result,
+          new Set(["kind", ...shape.fields.map((field) => field.key)]),
+        );
   };
 
   const root = isRecord(graph as unknown)

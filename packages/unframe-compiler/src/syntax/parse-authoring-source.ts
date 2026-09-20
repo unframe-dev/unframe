@@ -136,7 +136,12 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
   );
   const program = ts.createProgram({
     rootNames: [fileName],
-    options: { jsx: ts.JsxEmit.Preserve, noLib: true, noResolve: true },
+    options: {
+      jsx: ts.JsxEmit.ReactJSX,
+      jsxImportSource: "@unframe/unframe-authoring",
+      noLib: true,
+      noResolve: true,
+    },
     host: compilerHostFor(sourceFile, sourceText),
   });
   const diagnostics = program

@@ -1,3 +1,4 @@
+import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
 import { z } from "zod";
 import { isDeclaration, snapshotDeclaration } from "../internal/declaration-validation.js";
 import type {
@@ -713,6 +714,75 @@ const assertSchema = (schema: z.ZodType, value: unknown, message: string): void 
   if (!schema.safeParse(value).success) invalid(message);
 };
 
+const staticBuilderResultSchemas = new Map<string, z.ZodType>([
+  ["definePresentation", presentationSchema],
+  ["defineTheme", themeSchema],
+  ["defineComponentManifest", componentManifestSchema],
+  ["defineComponentStructure", componentStructureSchema],
+  ["stringProp", propDeclarationSchema],
+  ["numberProp", propDeclarationSchema],
+  ["booleanProp", propDeclarationSchema],
+  [
+    "propRef",
+    z.discriminatedUnion("expectedType", [
+      stringPropReferenceSchema,
+      numberPropReferenceSchema,
+      booleanPropReferenceSchema,
+    ]),
+  ],
+  ["slot", slotDeclarationSchema],
+  ["slotPlaceholder", contentNodeSchema],
+  ["part", partDeclarationSchema],
+  ["variant", variantDeclarationSchema],
+  ["state", stateDeclarationSchema],
+  ["action", actionDeclarationSchema],
+  ["output", outputDeclarationSchema],
+  ["surfaceState", actionPreconditionSchema],
+  ["setSurfaceState", actionEffectSchema],
+  ["playTimeline", actionEffectSchema],
+  ["surfaceInteraction", outputProducerSchema],
+  ["timelineCompleted", outputProducerSchema],
+  ["mediaCompleted", outputProducerSchema],
+  ["after", outputProducerSchema],
+  ["invokeComponentAction", componentActionInvocationSchema],
+  ["componentOutput", componentOutputReferenceSchema],
+  ["cue", cueSchema],
+  ["tokenRef", tokenReferenceSchema],
+  ["namedStyleRef", namedStyleReferenceSchema],
+  ["assetRef", assetReferenceSchema],
+  ["spatial", spatialDeclarationSchema],
+  ["frame", frameDeclarationSchema],
+  ["text", contentNodeSchema],
+  ["surface", surfaceDeclarationSchema],
+  ["semanticOverride", semanticOverrideSchema],
+  ["componentInstance", componentInstanceSchema],
+  ["detach", detachSchema],
+]);
+
+export const validateStaticBuilderResult = (builder: string, value: unknown): boolean => {
+  const schema = staticBuilderResultSchemas.get(builder);
+  if (!schema) return false;
+  try {
+    const snapshot = snapshotDeclaration(value);
+    if (!schema.safeParse(snapshot).success) return false;
+    if (builder === "definePresentation") assertPresentationDeclaration(snapshot);
+    else if (builder === "defineTheme") assertThemeDeclaration(snapshot);
+    else if (builder === "defineComponentManifest") assertComponentManifest(snapshot);
+    else if (builder === "defineComponentStructure") assertComponentStructure(snapshot);
+    else if (builder === "surface") assertSurfaceIds(snapshot as SurfaceDeclaration);
+    else if (builder === "spatial") assertSpatialFields(snapshot as SpatialDeclaration);
+    else if (builder === "componentInstance")
+      assertComponentInstanceIds(snapshot as ComponentInstanceDeclaration);
+    else if (
+      ["frame", "text", "slotPlaceholder", "semanticOverride", "detach", "cue"].includes(builder)
+    )
+      assertStableNested(snapshot as StableDeclaration, "id");
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const assertId: (value: unknown, label?: string) => asserts value is string = (
   value,
   label = "id",
@@ -1047,10 +1117,14 @@ export const isComponentManifest = (value: unknown): value is ComponentManifest 
 export const isComponentStructure = (value: unknown): value is ComponentStructure =>
   isDeclaration(value, assertComponentStructure);
 
-export const definePresentation = <const T extends PresentationDeclaration>(value: T): T => {
+export function definePresentation<const T extends PresentationDeclaration>(value: T): T;
+export function definePresentation(value: JsxPresentationInput): PresentationDeclaration;
+export function definePresentation(
+  value: PresentationDeclaration | JsxPresentationInput,
+): PresentationDeclaration {
   assertPresentationDeclaration(value);
-  return value;
-};
+  return value as PresentationDeclaration;
+}
 export const defineTheme = <const T extends ThemeDeclaration>(value: T): T => {
   assertThemeDeclaration(value);
   return value;
@@ -1059,10 +1133,14 @@ export const defineComponentManifest = <const T extends ComponentManifest>(value
   assertComponentManifest(value);
   return value;
 };
-export const defineComponentStructure = <const T extends ComponentStructure>(value: T): T => {
+export function defineComponentStructure<const T extends ComponentStructure>(value: T): T;
+export function defineComponentStructure(value: JsxComponentStructureInput): ComponentStructure;
+export function defineComponentStructure(
+  value: ComponentStructure | JsxComponentStructureInput,
+): ComponentStructure {
   assertComponentStructure(value);
-  return value;
-};
+  return value as ComponentStructure;
+}
 
 export const stringProp = <const T extends WithoutKind<StringPropDeclaration>>(
   value: Exact<T, WithoutKind<StringPropDeclaration>>,

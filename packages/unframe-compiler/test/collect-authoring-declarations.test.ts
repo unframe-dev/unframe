@@ -52,7 +52,12 @@ describe("collectAuthoringDeclarations", () => {
   it("rejects a declaration entry file without treating it as a skipped ambient file", () => {
     const result = collectAuthoringDeclarations(
       analyze(
-        [{ fileName: "entry.d.ts", sourceText: "declare const value: {}; export default value;" }],
+        [
+          {
+            fileName: "entry.d.ts",
+            sourceText: "declare const value: {}; export default value;",
+          },
+        ],
         "entry.d.ts",
       ),
     );
@@ -76,7 +81,10 @@ describe("collectAuthoringDeclarations", () => {
     const result = collectAuthoringDeclarations(
       analyze(
         [
-          { fileName: "entry.d.ts", sourceText: "declare const value: {}; export default value;" },
+          {
+            fileName: "entry.d.ts",
+            sourceText: "declare const value: {}; export default value;",
+          },
           { fileName: "a.ts", sourceText: "export {};" },
           {
             fileName: "z.unframe.ts",
@@ -90,16 +98,27 @@ describe("collectAuthoringDeclarations", () => {
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.diagnostics.map(({ fileName, code }) => ({ fileName, code }))).toEqual([
-      { fileName: "a.ts", code: "compiler-declaration-file-role-unsupported" },
-      { fileName: "entry.d.ts", code: "compiler-declaration-entry-file-unsupported" },
-      { fileName: "z.unframe.ts", code: "compiler-static-builder-arguments-invalid" },
+      {
+        fileName: "entry.d.ts",
+        code: "compiler-declaration-entry-file-unsupported",
+      },
+      {
+        fileName: "z.unframe.ts",
+        code: "compiler-static-builder-arguments-invalid",
+      },
     ]);
   });
 
   it("collects all four roles deterministically without executing builders", () => {
     const files = [
-      { fileName: "entry.ts", sourceText: source("definePresentation", '{ id: "presentation" }') },
-      { fileName: "theme.unframe.ts", sourceText: source("defineTheme", '{ id: "theme" }') },
+      {
+        fileName: "entry.ts",
+        sourceText: source("definePresentation", '{ id: "presentation" }'),
+      },
+      {
+        fileName: "theme.unframe.ts",
+        sourceText: source("defineTheme", '{ id: "theme" }'),
+      },
       {
         fileName: "button.manifest.ts",
         sourceText: source("defineComponentManifest", '{ id: "manifest" }'),
@@ -143,27 +162,20 @@ describe("collectAuthoringDeclarations", () => {
     });
   });
 
-  it("skips ambient declarations and package-owned files while rejecting unsupported project suffixes", () => {
+  it("skips ambient and safe helper modules while collecting declaration suffixes only", () => {
     const result = collectAuthoringDeclarations(
       analyze([
         { fileName: "entry.ts", sourceText: source("definePresentation") },
-        { fileName: "ambient.d.ts", sourceText: "declare const ignored: string;" },
+        {
+          fileName: "ambient.d.ts",
+          sourceText: "declare const ignored: string;",
+        },
         { fileName: "helper.ts", sourceText: "export {};" },
       ]),
     );
-    expect(result).toEqual({
-      ok: false,
-      diagnostics: [
-        {
-          code: "compiler-declaration-file-role-unsupported",
-          fileName: "helper.ts",
-          message: "Project declaration files must use a recognized declaration suffix.",
-          start: 0,
-          end: 0,
-          line: 1,
-          column: 1,
-        },
-      ],
+    expect(result).toMatchObject({
+      ok: true,
+      declarations: [{ fileName: "entry.ts" }],
     });
   });
 
@@ -202,9 +214,10 @@ describe("collectAuthoringDeclarations", () => {
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.diagnostics.map(({ fileName, code }) => ({ fileName, code }))).toEqual([
-      { fileName: "a.ts", code: "compiler-declaration-file-role-unsupported" },
-      { fileName: "entry.ts", code: "compiler-declaration-root-mismatch" },
-      { fileName: "z.unframe.ts", code: "compiler-static-builder-arguments-invalid" },
+      {
+        fileName: "z.unframe.ts",
+        code: "compiler-static-builder-arguments-invalid",
+      },
     ]);
   });
 });

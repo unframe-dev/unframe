@@ -74,11 +74,11 @@ Source frontend は、明示的な logical project root、root-relative TS / TSX
 
 typecheck は strict ES2022、`noLib` で実行し、project root から到達しない package の ambient declaration を semantic program へ混入させない。一方、lock graph 全体の module specifier は preflight し、不正な dependency / export を owner-aware source diagnostic として拒否する。named value import は TypeChecker alias と package identity / export / declaration owner を照合し、plain-data symbol provenance を生成できる。
 
-個別 declaration file については、M1 Static DSL の import、root builder、nested builder、JSON-like expression を fail closed で検証し、source origin 付きの plain-data Declaration Graph へ lower できる。builder signature は現行 public Authoring API の arity と基本 argument shape に固定し、Source module と builder implementation は実行しない。
+個別 declaration file については、Static DSL の import、const 参照、root / nested builder、JSON-like expression、Authoring JSX を fail closed で検証し、source origin 付きの plain-data Declaration Graph へ lower できる。builder signature と JSX tag は現行 public Authoring API に固定し、Source module、JSX runtime、builder implementation は実行しない。
 
 単一 Declaration Graph は、builder call を実行せず null-prototype の plain declaration value へ normalize できる。normalizer は予約 field の衝突と不正 Graph を fail closed で拒否し、正規化後の JSON path と value / property key / generated field の source origin を sidecar source map に保持する。
 
-project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、`*.structure.tsx` の role と root builder を照合し、project-relative filename 順で lower / normalize できる。補助 `.d.ts` と package-owned source は collection から除外し、未対応 suffix や role mismatch は全 file 分を canonical diagnostic として返す。
+project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、`*.structure.tsx` の role と root builder を照合し、project-relative filename 順で lower / normalize できる。補助 `.d.ts` と package-owned source は collection から除外する。ほかの `.ts` / `.tsx` は helper module として root 数を増やさないが、未使用 const を含む全 top-level statement を同じ静的安全規則で検査する。
 
 正規化済み collection は、Presentation 1件、Theme ID、Component `(componentId, version)` を検証し、Structured Manifest が所有する root-contained な `authoring.structure` entry から Structure を決定論的に対応付ける。複数versionが同じ Structure entryを共有することは許可し、Structure の `componentId` は参照元 Manifest と一致させる。pairing は source map 付き canonical diagnostic を全件集約し、失敗時に partial catalog を返さない。
 
@@ -88,7 +88,9 @@ project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、
 
 post-lowering declaration の検査は Authoring package の pure type guard を利用し、definition builder を呼び出さない。Compiler の plain-data clone は `Object.prototype` と null-prototype の record を受理し、descriptor だけから null-prototype clone を作る。custom prototype、accessor、cycle、sparse array、symbol key、非 JSON 値は Zod や semantic validation に渡す前に拒否し、caller-owned getter や Proxy の `get` trap を実行しない。
 
-M1 Static DSL は、各 declaration file の default export を、provenance 検証済みの `@unframe/unframe-authoring` root named value import に対する直接 builder call へ限定する。builder 引数は JSON-like literal と認識済み builder call だけを許可し、JSX、任意関数、control flow、dynamic import、property access、spread、template expression、local alias を stable diagnostic で拒否する。named import alias は元の package export provenance を保持する。Compiler は Authoring Source や builder implementation を実行しない。
+Static DSL は top-level `const`、型注釈、`as const`、`satisfies`、project-relative named / default import、静的 property access、shorthand、object / array spread を解決する。object spread は左から右へ適用し後の値を採用し、raw な重複 explicit key と `__proto__` は拒否する。参照先の値は definition origin、解決不能は use-site origin を保持する。循環参照に加え、展開深さ 128 または Declaration Graph 50,000 node を超える入力を stable diagnostic で停止する。
+
+TSX は `jsxImportSource = "@unframe/unframe-authoring"` で型検査し、provenance 検証済みの `Surface`、`Frame`、`Text`、`Slot`、`ComponentInstance` を builder と同じ Graph へ lower する。Frame children は静的配列を再帰的に flatten して順序を保つ。custom component、Fragment、`key` / `ref`、lowercase tag、children の競合を拒否する。任意関数、可変 binding、代入、getter / method、control flow、dynamic import は拒否し、Compiler は Authoring Source、JSX runtime、SDK 関数を実行しない。
 
 ## 5. Public API
 
@@ -145,7 +147,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 
 ## 10. Deferred decisions
 
-- M1 より広い Static DSL、named entry export、TSX / JSX lowering
+- named entry export
 - plugin discovery と version negotiation
 - ADR-0011でAcceptedになったSurface partition / author isolate overrideのM3〜M4実装
 - cache layout と remote cache policy
