@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: M3A declarations and static TypeScript / JSX authoring implemented
+- **Status**: M3B finite-state and interaction declarations implemented
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -109,7 +109,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 
 ## 10. Current implementation
 
-現在は M3A の reference Authoring Project に必要な次の宣言 API を提供する。
+現在は M3B の reference Authoring Project に必要な次の宣言 API を提供する。
 
 - `definePresentation`、`defineTheme`、`defineComponentManifest`、`defineComponentStructure`
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
@@ -123,7 +123,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 
 Topology を持つ宣言は explicit ID を必須とする。source metadata は Compiler が AST から付与するため入力では任意とし、source correlation と diagnostic に共有できる型を提供する。API は finite な JSON plain data だけを受け取り、import 時登録、暗黙 ID、入力 mutation、function 値を持たない。
 
-現行実装は static / non-interactive / baked-web Surface、absolute layout、primitive な string / number / boolean Prop に限定する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値、旧 Slot / Part field、category のない Token reference、任意の style property を拒否する。参照の存在、一意性、alias cycle、tree、owner 継承、Manifest と Structure の整合性、解決後の値域は declaration を横断するため、Compiler / Core の semantic validation に残す。
+現行実装は static / finite-state、none / regions interaction の baked-web Surface、absolute layout、primitive な string / number / boolean Prop に限定する。State は Frame / Text の visual override、semantic override、enabled Interaction ID を宣言できる。Interaction は click event と hitPriority を明示する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値、旧 Slot / Part field、category のない Token reference、任意の style property を拒否する。参照の存在、一意性、alias cycle、tree、owner 継承、Manifest と Structure の整合性、解決後の値域は declaration を横断するため、Compiler / Core の semantic validation に残す。
 
 parse、AST lowering、reference resolution、normalization、renderer、filesystem は実装せず、それぞれ Compiler、Core、concrete renderer の境界に残す。
 
@@ -133,4 +133,4 @@ Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則�
 
 個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とする。Slot は `slot-placeholder` の `id` / `slotId` で Frame children 内の挿入位置を表し、任意の `semanticParentId` で同じ Component の semantic node を親として参照する。`slotPlacements` と旧 `accepts` / `cardinality` / `required` は受理しない。Part は target kind ごとの content / placement / style だけを受け取り、旧 `overridable` を受理しない。
 
-Frame-root Structure の semantic tree を宣言できる。Slot placeholder に `semanticParentId` があれば nested Component の semantic root をその node の子へ接続し、省略時は Surface の追加 root として扱う。参照先の存在と接続規則の検証は Compiler が所有する。State variation、Interaction、Timeline、migration、自動変換、Part partition isolate は後続範囲である。
+Frame-root Structure の semantic tree を宣言できる。Slot placeholder に `semanticParentId` があれば nested Component の semantic root をその node の子へ接続し、省略時は Surface の追加 root として扱う。参照先の存在と接続規則の検証は Compiler が所有する。Timeline、migration、自動変換、Part partition isolate は後続範囲である。

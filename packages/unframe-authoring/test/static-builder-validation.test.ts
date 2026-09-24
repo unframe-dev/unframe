@@ -23,7 +23,7 @@ describe("static builder result validation", () => {
     );
   });
 
-  it("rejects semantic interactions consistently with Surface and Structure builders", () => {
+  it("accepts semantic interactions at the declaration shape boundary", () => {
     const root = {
       kind: "surface",
       id: "surface",
@@ -60,7 +60,7 @@ describe("static builder result validation", () => {
         fallbackPolicy: "reject",
       },
     };
-    expect(validateStaticBuilderResult("surface", root)).toBe(false);
+    expect(validateStaticBuilderResult("surface", root)).toBe(true);
     expect(
       validateStaticBuilderResult("defineComponentStructure", {
         id: "structure",
@@ -70,7 +70,7 @@ describe("static builder result validation", () => {
         variantStyles: {},
         timelines: [],
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects accessors without invoking them", () => {

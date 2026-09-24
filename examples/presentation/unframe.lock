@@ -48,8 +48,8 @@
       "lock": {
         "packageVersion": "1.0.0",
         "packageIntegrity": "sha256:b890146ec13a4009b7491bfe14d2e206a24ce9464ef3c066796732ba4a0b8ebf",
-        "manifestHash": "sha256:9beade0acd726c3b65ef1be48e023f7a5de4e233e035d960be176c38cfb846d4",
-        "structureHash": "sha256:30bad08e64082d8044428fc8157437401db3aa9763fc56dd33646ea40de97e92"
+        "manifestHash": "sha256:05c0eea80631c2083d17a54b4392aba122eecadb07c84224156ad9183aeb21bc",
+        "structureHash": "sha256:7763cec0bcac12ab868020758ef34ef113d918c463486907fa47ce28750fb0fb"
       }
     },
     {

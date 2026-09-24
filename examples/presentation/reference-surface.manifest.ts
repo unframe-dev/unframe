@@ -43,6 +43,9 @@ export default defineComponentManifest({
       kind: "state",
       initial: true,
     },
+    inactive: {
+      kind: "state",
+    },
   },
   actions: {},
   outputs: {},

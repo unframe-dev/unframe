@@ -1,6 +1,6 @@
 # Presentation CLI Architecture
 
-- **Status**: v2 static build filesystem boundary
+- **Status**: v2 State 別 build filesystem boundary
 - **Scope**: Authoring Project を Compiler / Web Renderer に接続し、Bun 上の OpenTUI command selector と headless API を提供する
 - **Related**:
   - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
@@ -118,7 +118,7 @@ Node.js の両方を提供する。
 
 ## 6. Process and acceptance boundary
 
-`pnpm presentation -- check|build <project>` は Bun process entry である。この entrypoint だけが単一の
+`pnpm presentation check|build <project>` は Bun process entry である。この entrypoint だけが単一の
 `AbortController` と `SIGINT` / `SIGTERM` listener を所有し、同じ signal を application API に渡す。listener は
 常に解除し、`process.exit()` は呼ばず `process.exitCode` と stdout/stderr の stable result を使う。
 

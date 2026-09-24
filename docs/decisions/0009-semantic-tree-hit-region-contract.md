@@ -7,11 +7,11 @@
 
 ## Context
 
-現行 `SemanticNode` は `role` とすべての optional field を一つのflat objectに持つため、heading level、button label / interaction、image alternative、list / tableのrequired owned structureを型で区別できない。`RenderBundle.semanticsByState` もDefinitionと同じschemaを再利用し、Stateごとのinteraction enabled状態を表現しない。
+本ADRの決定時に使っていたv1 `SemanticNode` は `role` とすべての optional field を一つのflat objectに持つため、heading level、button label / interaction、image alternative、list / tableのrequired owned structureを型で区別できなかった。`RenderBundle.semanticsByState` もDefinitionと同じschemaを再利用し、Stateごとのinteraction enabled状態を表現しなかった。
 
-現行Hit Regionはnormalized rectangle、Interaction、Semantic Node、event、priorityを持つが、stable region ID、canonical order、overlap tie-breakがない。`event` はInteraction definitionと重複し、二つの正本を作る。これらを確定しないままM3 Slice Bへ進むと、TypeScript、renderer、Delivery、Unityでaccessibility treeとhit-test結果が分岐する。
+当時のHit Regionはnormalized rectangle、Interaction、Semantic Node、event、priorityを持つが、canonical order、overlap tie-breakがなかった。`event` はInteraction definitionと重複し、二つの正本を作る。これらを確定しないままM3 Slice Bへ進むと、TypeScript、renderer、Delivery、Unityでaccessibility treeとhit-test結果が分岐する。
 
-本ADRはM2 item 3としてportable semantic contractを固定する。M2では設計だけをAcceptedにし、Zod / JSON Schema、Core materialization、Compiler lowering、renderer output、fixtureはM3 Slice Bで同じ変更系列として実装する。現行schemaと実装はinitial flat subsetのままであり、本ADRのtarget contractが実装済みであるとはみなさない。
+本ADRはM2 item 3としてportable semantic contractを固定する。その後、v2のZod / JSON Schemaにはrole別Definition / Completed tree、State override、Interaction priority、portable Hit Regionの構造を追加した。M3 Slice Bで意味検証、Authoring / Compiler lowering、renderer output、fixtureを同じ変更系列として接続した。
 
 ## Decision
 
@@ -123,9 +123,9 @@ type ResolvedInteractiveRegion = {
 };
 ```
 
-`UInt32`はwire上の`0..4_294_967_295`のintegerを表すportable scalarである。Hit Regionはruntime identityを持たず、array positionもcommandやSnapshotから参照しない。現行portable contractが任意number、renderer conformanceがnon-negative integerを要求するdriftはM3でcontract側を`UInt32`へ厳格化して解消する。`event`は持たず、Runtime Coreが`interactionId`からPresentationDefinitionのcanonical eventを解決する。異なるInteractionが同じeventを共有することは許可するが、authorityとhit-test結果は常にInteraction IDで扱う。regionを持つ全Interactionのeventは`SurfaceRenderIntent.interaction.events`に含まれなければならず、rendererはintentにないeventを追加できない。
+`UInt32`はwire上の`0..4_294_967_295`のintegerを表すportable scalarである。Hit Regionはruntime identityを持たず、array positionもcommandやSnapshotから参照しない。v2 portable schemaとrenderer conformanceはpriorityをこの範囲のintegerに制限する。`event`は持たず、Runtime Coreが`interactionId`からPresentationDefinitionのcanonical eventを解決する。異なるInteractionが同じeventを共有することは許可するが、authorityとhit-test結果は常にInteraction IDで扱う。regionを持つ全Interactionのeventは`SurfaceRenderIntent.interaction.events`に含まれなければならず、rendererはintentにないeventを追加できない。
 
-canonical Interaction definitionはrequired `hitPriority: UInt32`を持ち、Authoring `InteractionDeclaration`も同じ値を明示する。Compilerはこの値をprivate / portable regionへcopyし、renderer、Delivery、clientは変更しない。M3では現行Interaction declaration / schemaをbreakingに拡張し、暗黙defaultやsemantic orderからの推測を追加しない。
+canonical Interaction definitionはrequired `hitPriority: UInt32`を持ち、Authoring `InteractionDeclaration`も同じ値を明示する。Compilerはこの値をprivate / portable regionへcopyし、renderer、Delivery、clientは変更しない。v2 Definition schemaとAuthoring declarationは必須fieldを持ち、暗黙defaultやsemantic orderからの推測をしない。
 
 `x` / `y` / `width` / `height` は有限値で、`0 <= x < 1`、`0 <= y < 1`、`0 < width <= 1 - x`、`0 < height <= 1 - y`を満たす。target pipelineではartifact producerがADR-0011のpartition-local private regionを一度だけclipし、Compiler aggregateがSemantic Surface全体のnormalized logical coordinateへ変換する。aggregate後に面積がないregionを出力しない。portable boundsはRender Surface、texture、pixel、UVの座標を持たない。logical / UV / Unity変換とclip authorityはADR-0010、private regionのexact shapeとaggregateはADR-0011を正本とする。
 
@@ -145,7 +145,7 @@ Semantic Surfaceはhost Spatial Nodeの`ProjectionAudience`を全体として継
 
 Definition schemaとCompleted schemaを混同せず、unknown role、unknown required field、roleに禁止されたfield、unsupported schema versionはfail closedとする。同じversionで許可する追加は全consumerが安全に無視できるoptional metadataだけとし、role、required field、parent / child relation、hit-test規則の変更はbreaking changeとする。
 
-現行`schemaVersion: 1`は未公開のinitial subsetであるため、M3ではflat schemaを新しいv1 shapeへ一括置換し、legacy unionやfallbackを追加しない。現行Renderer APIがnormalized `HitRegion`を直接返す一partition contractも同時にprivate region / Compiler aggregateへ置換する。fixture、generated JSON Schema、Core、Compiler、renderer、reference projectを同じcommit系列で更新する。
+v1のflat schemaは未公開のinitial subsetであり、現行buildはv2を出力する。v1互換unionやfallbackは追加しない。Renderer APIはpartition-local private regionを返し、Compilerがportable regionへ集約する。fixture、generated JSON Schema、Core、Compiler、renderer、reference projectを同じ変更系列で更新した。
 
 ## Consumer responsibility
 
@@ -163,7 +163,7 @@ Definition schemaとCompleted schemaを混同せず、unknown role、unknown req
 - invalidなrole / property組合せと不完全なlist / tableをschema / semantic validationで拒否できる。
 - Stateごとのbutton `stateEnabled`、roleごとのprojected `enabled`、Hit Region availabilityが一方向に導出される。
 - Hit Regionからevent重複とarray-position identityを除き、renderer / Unityのoverlap結果を一致させられる。
-- current flat contractに対するbreaking implementationはM3 Slice Bで行い、本ADR自体はcode / generated artifactを変更しない。
+- v2構造schemaを使う各層の意味検証とrenderer region境界の変更はM3 Slice Bで実施した。
 
 ## Alternatives Considered
 
@@ -185,7 +185,7 @@ Interaction definitionとの不一致時にauthorityを選ぶ必要が生じる�
 
 ## Follow-ups
 
-- M3 Slice Bでcontract、Core、Compiler、renderer、fixture、reference projectをTDDで実装する。
+- M3 Slice Bでcontract、Core、Compiler、renderer、fixture、reference projectを接続した。
 - M2 item 4でSemantic Surface logical coordinate、normalized point、UV、Unity local coordinateの完全な変換規則を固定する。
 - M5でDeliveryManifest / C# generated artifactへCompleted treeとHit Regionを接続する。
 - rich text、nested list、rowgroup、interactive grid、toggle button、viewer-local interactionは新しい利用要件とversioned contractを伴うfollow-upとする。

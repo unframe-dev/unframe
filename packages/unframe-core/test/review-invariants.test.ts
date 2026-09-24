@@ -66,14 +66,14 @@ describe("PresentationDefinition v2 semantic invariants", () => {
     );
   });
 
-  it("explicitly rejects features deferred past M3A", () => {
+  it("accepts a valid State visual override", () => {
     const { definition } = makeM3AArtifacts();
     definition.scene.surfaces.baked!.states.default!.contentOverrides.text = {
       kind: "text",
       value: { kind: "literal", value: "changed" },
     };
 
-    expect(codes(validatePresentationDefinition(definition))).toContain("feature.unsupported");
+    expect(validatePresentationDefinition(definition).valid).toBe(true);
   });
 });
 

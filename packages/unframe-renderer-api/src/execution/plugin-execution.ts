@@ -1,10 +1,11 @@
-import type { Diagnostic, HitRegion } from "@unframe/unframe-core";
+import type { Diagnostic } from "@unframe/unframe-core";
 import {
   type CompilerResolvedSurfaceInput,
   type RendererBuildResult,
   type RendererBuildSuccess,
   type RendererConformanceFixture,
   type RendererPlugin,
+  type RendererPrivateHitRegion,
   type RendererSupportDecision,
   type RendererSupportRequest,
   type ValidationResult,
@@ -16,7 +17,7 @@ import {
 import {
   capturePixelSizeSchema,
   hitRegionPrioritySchema,
-  normalizedHitRegionBoundsSchema,
+  privateHitRegionBoundsSchema,
 } from "../validation/schemas.js";
 import {
   parseBuildResult,
@@ -55,7 +56,7 @@ const validateProvenance = (
 const validateHitRegion = (
   fixture: RendererConformanceFixture,
   stateId: string,
-  region: HitRegion,
+  region: RendererPrivateHitRegion,
   diagnostics: Diagnostic[],
 ) => {
   const path = [
@@ -65,16 +66,29 @@ const validateHitRegion = (
     stateId,
     region.interactionId,
   ] as const;
-  if (!normalizedHitRegionBoundsSchema.safeParse(region.bounds).success)
+  const partition = fixture.input.plan.logicalBounds;
+  const clip = fixture.input.plan.clipWindow;
+  const globalX = partition.x + region.bounds.x;
+  const globalY = partition.y + region.bounds.y;
+  if (
+    !privateHitRegionBoundsSchema.safeParse(region.bounds).success ||
+    region.bounds.x + region.bounds.width > partition.width ||
+    region.bounds.y + region.bounds.height > partition.height ||
+    globalX < clip.x ||
+    globalY < clip.y ||
+    globalX + region.bounds.width > clip.x + clip.width ||
+    globalY + region.bounds.height > clip.y + clip.height
+  )
     diagnostics.push(
       diagnostic(
         "invalid-hit-region-bounds",
-        "Hit Region must use finite normalized bounds.",
+        "Hit Region must fit partition-local logical bounds.",
         path,
       ),
     );
 
   const interaction = fixture.input.surface.interactions[region.interactionId];
+  const plannedPriority = fixture.input.plan.hitPriorityByInteractionId[region.interactionId];
   const semanticNode = fixture.input.semanticsByState[stateId]?.nodes[region.semanticNodeId];
   const surfaceState = fixture.input.surface.states[stateId];
   if (
@@ -91,7 +105,12 @@ const validateHitRegion = (
   if (
     semanticNode === undefined ||
     !("interactionId" in semanticNode) ||
-    semanticNode.interactionId !== region.interactionId
+    semanticNode.interactionId !== region.interactionId ||
+    semanticNode.role !== "button" ||
+    !semanticNode.stateEnabled ||
+    !fixture.input.plan.ownedContentNodeIds.some(
+      (id) => fixture.input.surface.contentNodes[id]?.semanticNodeId === region.semanticNodeId,
+    )
   )
     diagnostics.push(
       diagnostic(
@@ -103,6 +122,10 @@ const validateHitRegion = (
   if (!hitRegionPrioritySchema.safeParse(region.priority).success)
     diagnostics.push(
       diagnostic("invalid-hit-region-priority", "Hit Region priority must be non-negative.", path),
+    );
+  else if (plannedPriority !== region.priority)
+    diagnostics.push(
+      diagnostic("hit-region-priority-mismatch", "Hit Region priority must match the plan.", path),
     );
 };
 
@@ -224,16 +247,76 @@ const validateSuccess = (
           [name, "output", "hitRegionsByState", stateId],
         ),
       );
-    const coveredInteractionIds = new Set(regions.map((region) => region.interactionId));
-    for (const interactionId of input.surface.states[stateId]?.enabledInteractionIds ?? [])
-      if (!coveredInteractionIds.has(interactionId))
+    const seen = new Set<string>();
+    for (const region of regions) {
+      const key = JSON.stringify([region.interactionId, region.semanticNodeId, region.bounds]);
+      if (seen.has(key))
+        diagnostics.push(
+          diagnostic("duplicate-hit-region", "Hit Regions must be unique.", [
+            name,
+            "output",
+            "hitRegionsByState",
+            stateId,
+          ]),
+        );
+      seen.add(key);
+    }
+    const sorted = [...regions].sort(
+      (left, right) =>
+        right.priority - left.priority ||
+        (left.interactionId < right.interactionId
+          ? -1
+          : left.interactionId > right.interactionId
+            ? 1
+            : 0) ||
+        (left.semanticNodeId < right.semanticNodeId
+          ? -1
+          : left.semanticNodeId > right.semanticNodeId
+            ? 1
+            : 0) ||
+        left.bounds.x - right.bounds.x ||
+        left.bounds.y - right.bounds.y ||
+        left.bounds.width - right.bounds.width ||
+        left.bounds.height - right.bounds.height,
+    );
+    if (regions.some((region, index) => region !== sorted[index]))
+      diagnostics.push(
+        diagnostic(
+          "noncanonical-hit-region-order",
+          "Hit Regions must use canonical priority and bounds order.",
+          [name, "output", "hitRegionsByState", stateId],
+        ),
+      );
+    const wholeSurfacePlan =
+      input.plan.logicalBounds.x === 0 &&
+      input.plan.logicalBounds.y === 0 &&
+      input.plan.logicalBounds.width === input.surface.logicalSize[0] &&
+      input.plan.logicalBounds.height === input.surface.logicalSize[1] &&
+      input.plan.clipWindow.x === 0 &&
+      input.plan.clipWindow.y === 0 &&
+      input.plan.clipWindow.width === input.surface.logicalSize[0] &&
+      input.plan.clipWindow.height === input.surface.logicalSize[1];
+    for (const interactionId of wholeSurfacePlan
+      ? (input.surface.states[stateId]?.enabledInteractionIds ?? [])
+      : []) {
+      const ownedSemanticIds = new Set(
+        input.plan.ownedContentNodeIds.map((id) => input.surface.contentNodes[id]?.semanticNodeId),
+      );
+      const hasOwnedBinding = [...ownedSemanticIds].some(
+        (id) =>
+          id &&
+          input.semanticsByState[stateId]?.nodes[id]?.role === "button" &&
+          input.semanticsByState[stateId]?.nodes[id]?.interactionId === interactionId,
+      );
+      if (hasOwnedBinding && !regions.some((region) => region.interactionId === interactionId))
         diagnostics.push(
           diagnostic(
             "missing-enabled-interaction-region",
-            "Every enabled interaction must have at least one Hit Region.",
+            "Every locally owned enabled interaction needs a Hit Region.",
             [name, "output", "hitRegionsByState", stateId],
           ),
         );
+    }
   }
   for (const stateId of capturesByState.keys())
     if (!Object.hasOwn(input.plan.states, stateId))

@@ -152,9 +152,10 @@ const fakeBrowser = (
       }
       if (configuration.failCapture) throw new Error("capture failed");
       const [width, height] = request.pixelTarget;
+      const stateRed = request.document.includes("Waiting") ? 1 : 0;
       return {
         rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
-          index % 4 === 3 ? 255 : 0,
+          index % 4 === 3 ? 255 : index % 4 === 0 ? stateRed : 0,
         ),
         pixelSize: [width, height],
         colorSpace: "srgb",
@@ -249,7 +250,7 @@ describe("reference Authoring Project", () => {
           },
         ],
       });
-      expect(browser.observed.capture).toBe(command === "build" ? 1 : 0);
+      expect(browser.observed.capture).toBe(command === "build" ? 2 : 0);
     },
   );
 
@@ -387,9 +388,10 @@ describe("reference Authoring Project", () => {
     const firstTarget = await readlink(join(directory, "dist"));
     expect(firstTarget).toMatch(/^\.unframe\/generations\/[0-9a-f]{32}$/u);
     const assetNames = await readdir(join(directory, "dist", "assets"));
-    expect(assetNames).toHaveLength(2);
+    expect(assetNames).toHaveLength(3);
     expect(assetNames).toContain("reference-font.ttf");
-    const assetName = assetNames.find((name) => name.endsWith(".png"))!;
+    const assetNamesPng = assetNames.filter((name) => name.endsWith(".png"));
+    expect(assetNamesPng).toHaveLength(2);
     const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
     const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
     expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(2);
@@ -397,7 +399,9 @@ describe("reference Authoring Project", () => {
       schemaVersion: 2,
       sourceDraftRevision: 0,
     });
-    const firstPng = await readFile(join(directory, "dist", "assets", assetName));
+    const firstPngs = await Promise.all(
+      assetNamesPng.map((name) => readFile(join(directory, "dist", "assets", name))),
+    );
     const buildArtifacts = {
       definition: JSON.parse(firstDefinition.toString()),
       renderBundle: JSON.parse(firstBundle.toString()),
@@ -410,6 +414,8 @@ describe("reference Authoring Project", () => {
     const surface = Object.values(definition.scene.surfaces)[0] as {
       contentNodes: Record<string, unknown>;
       baseSemanticTree: { nodes: Record<string, unknown> };
+      states: Record<string, unknown>;
+      interactions: Record<string, unknown>;
     };
     expect(surface.contentNodes["reference-surface:reference-text"]).toMatchObject({
       value: { kind: "literal", value: "Structured authoring" },
@@ -433,8 +439,44 @@ describe("reference Authoring Project", () => {
     });
     expect(surface.baseSemanticTree.nodes["reference-badge:badge-label"]).toMatchObject({
       text: "One nested Component, one placement",
-      parentId: "reference-surface:heading",
+      parentId: null,
     });
+    expect(Object.keys(surface.states)).toEqual([
+      "reference-surface:default",
+      "reference-surface:inactive",
+    ]);
+    expect(surface.interactions["reference-surface:continue"]).toMatchObject({
+      kind: "click",
+      hitPriority: 10,
+    });
+    const bundleSurface = Object.values(buildArtifacts.renderBundle.surfaces)[0] as {
+      semanticsByState: Record<string, { nodes: Record<string, unknown> }>;
+      interactionsByState: Record<string, readonly unknown[]>;
+    };
+    expect(
+      bundleSurface.semanticsByState["reference-surface:default"]!.nodes[
+        "reference-surface:continue-button"
+      ],
+    ).toMatchObject({ stateEnabled: true });
+    expect(
+      bundleSurface.semanticsByState["reference-surface:inactive"]!.nodes[
+        "reference-surface:continue-button"
+      ],
+    ).toMatchObject({ stateEnabled: false, text: "Waiting" });
+    const activeRegions = bundleSurface.interactionsByState["reference-surface:default"]!;
+    expect(activeRegions).toHaveLength(1);
+    expect(activeRegions[0]).toMatchObject({
+      interactionId: "reference-surface:continue",
+      semanticNodeId: "reference-surface:continue-button",
+      coordinateSpace: "normalized",
+      priority: 10,
+    });
+    const activeBounds = (activeRegions[0] as { bounds: Record<string, number> }).bounds;
+    expect(activeBounds.x).toBeCloseTo(128 / 1920);
+    expect(activeBounds.y).toBeCloseTo(640 / 1080);
+    expect(activeBounds.width).toBeCloseTo(416 / 1920);
+    expect(activeBounds.height).toBeCloseTo(80 / 1080);
+    expect(bundleSurface.interactionsByState["reference-surface:inactive"]).toEqual([]);
     expect(verifyBuildIntegrityV2(buildArtifacts).valid).toBe(true);
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(
@@ -442,8 +484,8 @@ describe("reference Authoring Project", () => {
         Buffer.from(sourceLock.assets["reference-font"].dataBase64, "base64"),
       ),
     ).toBe(true);
-    expect(first.observed).toMatchObject({ capture: 1, close: 1 });
-    expect(first.observed.signals).toEqual([controller.signal]);
+    expect(first.observed).toMatchObject({ capture: 2, close: 1 });
+    expect(first.observed.signals).toEqual([controller.signal, controller.signal]);
 
     expect((await build(second)).exitCode).toBe(0);
     expect(
@@ -453,17 +495,18 @@ describe("reference Authoring Project", () => {
       (await readFile(join(directory, "dist", "render-bundle.json"))).equals(firstBundle),
     ).toBe(true);
     expect(await readdir(join(directory, "dist", "assets"))).toEqual(assetNames);
-    expect((await readFile(join(directory, "dist", "assets", assetName))).equals(firstPng)).toBe(
-      true,
-    );
+    for (const [index, name] of assetNamesPng.entries())
+      expect(
+        (await readFile(join(directory, "dist", "assets", name))).equals(firstPngs[index]!),
+      ).toBe(true);
     expect((await readFile(join(directory, "dist/asset-set.json"))).equals(firstAssetSet)).toBe(
       true,
     );
     expect((await readFile(join(directory, "dist/build-manifest.json"))).equals(firstBuild)).toBe(
       true,
     );
-    expect(second.observed).toMatchObject({ capture: 1, close: 1 });
-    expect(second.observed.signals).toEqual([controller.signal]);
+    expect(second.observed).toMatchObject({ capture: 2, close: 1 });
+    expect(second.observed.signals).toEqual([controller.signal, controller.signal]);
   });
 
   it.each([

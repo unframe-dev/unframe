@@ -3,13 +3,13 @@ import type { RenderBundleV2 } from "@unframe/contracts/presentation/v2";
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
 import { parseRenderBundleInput } from "./contract-input.js";
+import { validateRegions, validateSemanticRoles } from "./semantic-invariants.js";
 import {
   diagnostic,
   pathSegment,
   sorted,
   structuralDiagnostic,
   validateRecordIds,
-  validateTree,
 } from "./shared.js";
 
 const equalSet = (left: Iterable<string>, right: Iterable<string>) => {
@@ -49,6 +49,9 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
 
   const globalRenderSurfaceIds = new Map<string, string>();
   const globalArtifactIds = new Map<string, string>();
+  let textureBindings = 0;
+  let renderedPixels = 0;
+  let encodedBytes = 0;
   for (const [surfaceId, surface] of Object.entries(bundle.surfaces)) {
     const path = `/surfaces/${pathSegment(surfaceId)}`;
     validateRecordIds(diagnostics, surface.renderSurfaces, `${path}/renderSurfaces`);
@@ -63,16 +66,24 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
           "renderSurfaceIds must list every RenderSurface exactly once.",
         ),
       );
-    if (surface.renderSurfaceIds.length !== 1)
+    if (surface.renderSurfaceIds.length > policy.maxRenderSurfacesPerSemanticSurface)
       diagnostics.push(
         diagnostic(
-          "feature.unsupported",
+          "budget.exceeded",
           `${path}/renderSurfaceIds`,
-          "M3A accepts one full-size RenderSurface per SemanticSurface.",
+          "Surface partition count exceeds texture policy.",
         ),
       );
 
     const stateIds = Object.keys(surface.semanticsByState);
+    if (stateIds.length > policy.maxStatesPerRenderSurface)
+      diagnostics.push(
+        diagnostic(
+          "budget.exceeded",
+          `${path}/semanticsByState`,
+          "State count exceeds texture policy.",
+        ),
+      );
     if (!equalSet(stateIds, Object.keys(surface.interactionsByState)))
       diagnostics.push(
         diagnostic(
@@ -81,22 +92,19 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
           "Semantic and interaction State sets must match.",
         ),
       );
-    for (const [stateId, tree] of Object.entries(surface.semanticsByState))
-      validateTree(
-        diagnostics,
-        tree.nodes,
-        tree.rootNodeIds,
-        `${path}/semanticsByState/${pathSegment(stateId)}`,
-      );
-    for (const [stateId, regions] of Object.entries(surface.interactionsByState))
-      if (regions.length > 0)
-        diagnostics.push(
-          diagnostic(
-            "feature.unsupported",
-            `${path}/interactionsByState/${pathSegment(stateId)}`,
-            "Hit Regions are deferred to M3B.",
-          ),
+    for (const [stateId, tree] of Object.entries(surface.semanticsByState)) {
+      validateSemanticRoles(diagnostics, tree, `${path}/semanticsByState/${pathSegment(stateId)}`);
+    }
+    for (const [stateId, regions] of Object.entries(surface.interactionsByState)) {
+      const tree = surface.semanticsByState[stateId];
+      if (tree)
+        validateRegions(
+          diagnostics,
+          tree,
+          regions,
+          `${path}/interactionsByState/${pathSegment(stateId)}`,
         );
+    }
 
     for (const [renderSurfaceId, renderSurface] of Object.entries(surface.renderSurfaces)) {
       const renderPath = `${path}/renderSurfaces/${pathSegment(renderSurfaceId)}`;
@@ -119,18 +127,18 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
             "RenderSurface must name its enclosing SemanticSurface.",
           ),
         );
+      const bounds = renderSurface.logicalBounds;
       if (
-        renderSurface.logicalBounds.x !== 0 ||
-        renderSurface.logicalBounds.y !== 0 ||
-        renderSurface.logicalBounds.width !== surface.logicalSize[0] ||
-        renderSurface.logicalBounds.height !== surface.logicalSize[1] ||
-        renderSurface.layer !== 0
+        bounds.x < 0 ||
+        bounds.y < 0 ||
+        bounds.x + bounds.width > surface.logicalSize[0] ||
+        bounds.y + bounds.height > surface.logicalSize[1]
       )
         diagnostics.push(
           diagnostic(
             "artifact.invalid",
             `${renderPath}/logicalBounds`,
-            "M3A RenderSurface must cover the complete logical surface at layer zero.",
+            "RenderSurface bounds must lie within the SemanticSurface logical size.",
           ),
         );
       if (!equalSet(stateIds, Object.keys(renderSurface.stateBindings)))
@@ -197,6 +205,22 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
               ),
             );
           const expectedGpuBytes = state.texture.pixelSize[0] * state.texture.pixelSize[1] * 4;
+          const [width, height] = state.texture.pixelSize;
+          renderedPixels += width * height;
+          encodedBytes += state.texture.encodedSizeBytes;
+          if (
+            width > policy.maxTextureWidth ||
+            height > policy.maxTextureHeight ||
+            width * height > policy.maxTexturePixels ||
+            expectedGpuBytes > policy.maxSurfaceCaptureBytes
+          )
+            diagnostics.push(
+              diagnostic(
+                "budget.exceeded",
+                `${statePath}/texture`,
+                "Texture exceeds policy dimensions or capture bytes.",
+              ),
+            );
           if (state.texture.gpuBytes !== expectedGpuBytes)
             diagnostics.push(
               diagnostic(
@@ -218,6 +242,7 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
             ),
           );
         else {
+          textureBindings += binding.artifactIds.length;
           const artifact = artifacts[binding.artifactIds[0]!];
           if (artifact?.kind !== "baked-web" || !Object.hasOwn(artifact.states, stateId))
             diagnostics.push(
@@ -230,7 +255,32 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
         }
       }
     }
+    for (const [index, renderSurfaceId] of surface.renderSurfaceIds.entries())
+      if (surface.renderSurfaces[renderSurfaceId]?.layer !== index)
+        diagnostics.push(
+          diagnostic(
+            "artifact.invalid",
+            `${path}/renderSurfaceIds/${index}`,
+            "RenderSurfaces must be ordered by consecutive layers.",
+          ),
+        );
   }
+  if (globalRenderSurfaceIds.size > policy.maxRenderSurfacesPerBundle)
+    diagnostics.push(
+      diagnostic("budget.exceeded", "/surfaces", "RenderSurface count exceeds texture policy."),
+    );
+  if (
+    textureBindings > policy.maxTextureBindings ||
+    renderedPixels > policy.maxRenderedPixels ||
+    encodedBytes > policy.maxBuildOutputBytes
+  )
+    diagnostics.push(
+      diagnostic(
+        "budget.exceeded",
+        "/buildContext/textureBuildPolicy",
+        "RenderBundle exceeds texture build budget.",
+      ),
+    );
   return diagnostics.length === 0
     ? { valid: true, value: bundle, diagnostics: [] }
     : { valid: false, diagnostics: sorted(diagnostics) };

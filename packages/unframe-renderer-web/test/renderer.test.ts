@@ -289,7 +289,7 @@ describe("baked web renderer", () => {
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
   });
 
-  it("visual state 差分と未知 config を fail closed にする", async () => {
+  it("状態別 Semantic Tree と未知 config を処理する", async () => {
     expect(() =>
       createWebRendererConfigHash({
         documentBackground: [0, 0, 0, 255],
@@ -316,9 +316,305 @@ describe("baked web renderer", () => {
         },
       },
     };
-    await expect(renderer.build(input)).resolves.toMatchObject({
-      ok: false,
-      diagnostics: [{ code: "unsupported-state-visual-variation" }],
+    await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
+  });
+
+  it("State ごとの Text override を各 capture の document に反映する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      surface: {
+        ...source.surface,
+        states: {
+          ...source.surface.states,
+          z: {
+            ...source.surface.states.z!,
+            contentOverrides: { text: { kind: "text", value: { kind: "literal", value: ">" } } },
+          },
+        },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    expect(requests[0]?.document).toContain("&lt;&amp;&gt;&quot;&#39;");
+    expect(requests[1]?.document).toContain(">&gt;</div>");
+  });
+
+  it("State ごとの Frame override を capture に反映する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      surface: {
+        ...source.surface,
+        states: {
+          ...source.surface.states,
+          z: {
+            ...source.surface.states.z!,
+            contentOverrides: { root: { kind: "frame", visible: false } },
+          },
+        },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    expect(requests[0]?.document).toContain(
+      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:block",
+    );
+    expect(requests[1]?.document).toContain(
+      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:none",
+    );
+  });
+
+  it("Frame/Text visual override の全対象 field を State ごとに適用する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const text = source.surface.contentNodes.text;
+    if (!text || text.kind !== "text") throw new Error("expected Text");
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      surface: {
+        ...source.surface,
+        states: {
+          ...source.surface.states,
+          z: {
+            ...source.surface.states.z!,
+            contentOverrides: {
+              root: {
+                kind: "frame",
+                visible: true,
+                opacity: 0.5,
+                placement: { kind: "absolute", x: 5, y: 2, width: 90, height: 45 },
+                layout: { kind: "absolute" },
+                backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 },
+                border: { color: { red: 0, green: 1, blue: 0, alpha: 1 }, width: 2, radius: 3 },
+                clip: true,
+              },
+              text: {
+                kind: "text",
+                visible: true,
+                opacity: 0.25,
+                placement: { kind: "absolute", x: 12, y: 6, width: 30, height: 15 },
+                value: { kind: "literal", value: ">" },
+                style: {
+                  ...text.style,
+                  fontSize: 12,
+                  lineHeight: 14,
+                  color: { red: 0, green: 1, blue: 0, alpha: 1 },
+                  weight: "bold",
+                  align: "end",
+                  overflow: "ellipsis",
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    expect(requests[0]?.document).toContain(
+      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px",
+    );
+    expect(requests[1]?.document).toContain(
+      "#surface{position:absolute;box-sizing:border-box;left:0.1px;top:0.04px;width:1.8px;height:0.9px;display:block;opacity:0.5;background:rgba(255,0,0,1);border:0.04px solid rgba(0,255,0,1);border-radius:0.06px;overflow:hidden}",
+    );
+    expect(requests[1]?.document).toContain(
+      'data-node-id="text" style="left:0.24px;top:0.12px;width:0.6px;height:0.3px;display:block;opacity:0.25;',
+    );
+    expect(requests[1]?.document).toContain(
+      'font-size:0.24px;line-height:0.28px;color:rgba(0,255,0,1);font-weight:700;text-align:end;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">&gt;</div>',
+    );
+  });
+
+  it("owned root Frame の button から private region を生成する", async () => {
+    const renderer = createBakedWebRenderer({ adapter: adapter(), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const root = source.surface.contentNodes.root;
+    if (!root || root.kind !== "frame") throw new Error("expected Frame");
+    const interaction = { kind: "regions" as const, events: ["click"] };
+    const semantic = {
+      id: "root-button",
+      parentId: null,
+      order: 0,
+      role: "button" as const,
+      text: "Open",
+      interactionId: "tap",
+      stateEnabled: true,
+    };
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      surface: {
+        ...source.surface,
+        contentNodes: {
+          ...source.surface.contentNodes,
+          root: { ...root, semanticNodeId: "root-button" },
+        },
+        baseSemanticTree: {
+          rootNodeIds: ["root-button"],
+          nodes: {
+            "root-button": {
+              id: "root-button",
+              parentId: null,
+              order: 0,
+              role: "button",
+              text: "Open",
+              interactionId: "tap",
+            },
+          },
+        },
+        interactions: { tap: { id: "tap", kind: "click", event: "click", hitPriority: 4 } },
+        states: {
+          a: { ...source.surface.states.a!, enabledInteractionIds: ["tap"] },
+          z: { ...source.surface.states.z!, enabledInteractionIds: ["tap"] },
+        },
+        renderIntent: { ...source.surface.renderIntent, interaction },
+      },
+      sourceIntent: { ...source.sourceIntent, interaction },
+      resolvedIntent: { ...source.resolvedIntent, interaction },
+      semanticsByState: {
+        a: { rootNodeIds: ["root-button"], nodes: { "root-button": semantic } },
+        z: { rootNodeIds: ["root-button"], nodes: { "root-button": semantic } },
+      },
+      plan: {
+        ...source.plan,
+        ownedContentNodeIds: ["root", "text"],
+        contextNodeIds: [],
+        hitPriorityByInteractionId: { tap: 4 },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.hitRegionsByState.a).toEqual([
+      {
+        interactionId: "tap",
+        semanticNodeId: "root-button",
+        bounds: { x: 0, y: 0, width: 100, height: 50 },
+        priority: 4,
+      },
+    ]);
+    expect((await executeRendererPlugin(renderer, input)).valid).toBe(true);
+    for (const contentOverride of [
+      { kind: "frame" as const, visible: false },
+      { kind: "frame" as const, opacity: 0 },
+    ]) {
+      const hiddenInput: CompilerResolvedSurfaceInput = {
+        ...input,
+        surface: {
+          ...input.surface,
+          states: {
+            ...input.surface.states,
+            z: { ...input.surface.states.z!, contentOverrides: { root: contentOverride } },
+          },
+        },
+      };
+      const hiddenResult = await renderer.build(hiddenInput);
+      expect(hiddenResult).toMatchObject({
+        ok: false,
+        diagnostics: [{ code: "missing-enabled-interaction-region" }],
+      });
+      expect((await executeRendererPlugin(renderer, hiddenInput)).valid).toBe(false);
+      const partitionResult = await renderer.build({
+        ...hiddenInput,
+        plan: {
+          ...hiddenInput.plan,
+          clipWindow: { x: 0, y: 0, width: 99, height: 50 },
+        },
+      });
+      expect(partitionResult.ok).toBe(true);
+      if (partitionResult.ok) expect(partitionResult.hitRegionsByState.z).toEqual([]);
+    }
+  });
+
+  it("明示 semantic binding の visible geometry を partition-local region にする", async () => {
+    const renderer = createBakedWebRenderer({ adapter: adapter(), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const text = source.surface.contentNodes.text;
+    if (!text || text.kind !== "text") throw new Error("expected Text");
+    const interaction = { kind: "regions" as const, events: ["click"] };
+    const semantic = {
+      id: "button",
+      parentId: null,
+      order: 0,
+      role: "button" as const,
+      text: "Button",
+      interactionId: "tap",
+      stateEnabled: true,
+    };
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      surface: {
+        ...source.surface,
+        contentNodes: {
+          ...source.surface.contentNodes,
+          text: { ...text, semanticNodeId: "button" },
+        },
+        baseSemanticTree: {
+          rootNodeIds: ["button"],
+          nodes: {
+            button: {
+              id: "button",
+              parentId: null,
+              order: 0,
+              role: "button",
+              text: "Button",
+              interactionId: "tap",
+            },
+          },
+        },
+        interactions: { tap: { id: "tap", kind: "click", event: "click", hitPriority: 7 } },
+        states: {
+          a: { ...source.surface.states.a!, enabledInteractionIds: ["tap"] },
+          z: {
+            ...source.surface.states.z!,
+            enabledInteractionIds: ["tap"],
+            contentOverrides: {
+              text: {
+                kind: "text",
+                placement: { kind: "absolute", x: 30, y: 5, width: 40, height: 20 },
+              },
+            },
+          },
+        },
+        renderIntent: { ...source.surface.renderIntent, interaction },
+      },
+      sourceIntent: { ...source.sourceIntent, interaction },
+      resolvedIntent: { ...source.resolvedIntent, interaction },
+      semanticsByState: {
+        a: { rootNodeIds: ["button"], nodes: { button: semantic } },
+        z: { rootNodeIds: ["button"], nodes: { button: semantic } },
+      },
+      plan: {
+        ...source.plan,
+        clipWindow: { x: 20, y: 0, width: 30, height: 50 },
+        hitPriorityByInteractionId: { tap: 7 },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.hitRegionsByState).toEqual({
+      a: [
+        {
+          interactionId: "tap",
+          semanticNodeId: "button",
+          bounds: { x: 20, y: 5, width: 30, height: 20 },
+          priority: 7,
+        },
+      ],
+      z: [
+        {
+          interactionId: "tap",
+          semanticNodeId: "button",
+          bounds: { x: 30, y: 5, width: 20, height: 20 },
+          priority: 7,
+        },
+      ],
     });
   });
 
@@ -449,6 +745,7 @@ describe("baked web renderer", () => {
         plan: {
           ...input.plan,
           logicalBounds: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
+          clipWindow: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
         },
       }),
     ).resolves.toMatchObject({ ok: false, diagnostics: [{ code: "invalid-render-scale" }] });

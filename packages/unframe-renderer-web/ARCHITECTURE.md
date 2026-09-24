@@ -1,6 +1,6 @@
 # Presentation Web Renderer Architecture
 
-- **Status**: Presentation v2 static renderer implemented
+- **Status**: Presentation v2 baked-web renderer implemented
 - **Renderer ID**: `baked-web`
 - **Scope**: Fixed Browser 環境での Web rendering、layout、capture
 - **Related**:
@@ -21,7 +21,7 @@
 
 M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque renderer execution自体は引き続きDeferredである。
 
-Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State visual variation、Interaction、Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
+Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State別のFrame / Text visual overrideとenabled Interactionのprivate Hit Regionを扱う。Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
 
 renderer config は CSS やfont familyを受け取らず、document backgroundの`[r, g, b, a]` 0–255 byteだけを持つ。Fontは入力`fontAssets`のcanonical base64、SHA-256、TTF/OTF signature、Unicode `cmap` format 4/12を検証し、全literal code pointがprimaryまたは明示fallbackのglyphへ解決できる場合だけdata URIの`@font-face`を生成する。Browser adapterは全faceの`FontFace.load()`と`document.fonts.ready`を待ち、失敗をcapture failureにする。CSS family列にhost fontやgeneric familyを追加しない。
 
@@ -51,15 +51,13 @@ Compiler が決定した Render Surface partition を build input として受�
 - generic Web renderer による Structured Primitive graph の描画
 - Opaque renderer TS / React / CSS の isolated execution
 - Opaque renderer向けのBrowser isolate lifecycle
-- Surface State ごとの layout と capture
-- Hit Region の concrete geometry 解決
 - unencoded Surface capture の生成
 - Browser、font、locale、timezone、viewport、layout provenance
 - visual regression fixture
 
 ### Deferred
 
-- Opaque execution と interaction geometry
+- Opaque execution
 
 ```text
 resolved semantic input + renderer source
@@ -77,7 +75,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。semantic tree の意味は入力として比較するだけで DOM から推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
+Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用し、明示された `semanticNodeId` を持つ content の visible geometry から partition-local Hit Region を生成する。DOM から意味は推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
 
 ### Target
 
@@ -87,7 +85,7 @@ Opaque path は Component 固有 renderer entry を bundle / execute できる�
 
 ### Deferred
 
-Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Primitive と state visual variation の lower は未実装である。
+Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Primitive の lower は未実装である。
 
 ## 4. Invariants
 
@@ -130,6 +128,7 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 - Renderer API conformance、fixed adapter / config / environment / fingerprint の境界テスト
 - HTML/CSS golden、state order、capture ownership、hostile output / direct build input の回帰テスト
+- State 別 capture と Semantic Tree / Hit Region binding の整合テスト
 - Zod schemaによるconfig / environment / capture metadataとOpaque module inputのvalidation test
 - Opaque module/asset bundle、field path diagnostic、accessor非実行、capability denyの境界テスト
 
@@ -137,7 +136,6 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 - generic Primitive renderer の conformance fixture
 - Surface State ごとの visual regression
-- Semantic Tree / Hit Region binding の completeness test
 - fixed environment の reproducibility test
 - Opaque capability deny / timeout / failure test
 - renderer / font / locale 変更時の cache invalidation test
@@ -150,7 +148,7 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 ## 9. Deferred decisions
 
 - Opaque bundleとRenderer plugin/Browser isolateの接続
-- ADR-0011で確定したmulti-partition plan / private region aggregateの実装
+- ADR-0011で確定したmulti-partition planのCompiler production
 - ADR-0012で確定した2K capture resolution / capture budgetの実装
 - visual regression tolerance と platform baseline
-- Frame/Text 以外の Structured Primitive、Stack / Grid、state variation、interaction Hit Region
+- Frame/Text 以外の Structured Primitive、Stack / Grid

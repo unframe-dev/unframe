@@ -172,7 +172,24 @@ export type SemanticNodeDeclaration = SemanticNodeBase &
 export type InteractionDeclaration = StableDeclaration & {
   kind: "click";
   event: string;
+  hitPriority: number;
 };
+type CommonContentOverrideDeclaration = {
+  visible?: BooleanValueDeclaration;
+  opacity?: NumberValueDeclaration;
+  placement?: AbsoluteLayoutDeclaration;
+};
+export type ContentOverrideDeclaration = CommonContentOverrideDeclaration &
+  (
+    | {
+        kind: "frame";
+        layout?: { kind: "absolute" };
+        backgroundColor?: ColorValueDeclaration;
+        border?: BorderDeclaration;
+        clip?: BooleanValueDeclaration;
+      }
+    | { kind: "text"; value?: StringValueDeclaration; style?: TextStyleDeclaration }
+  );
 export type SemanticOverrideDeclaration = StableDeclaration & {
   kind: "semantic-override";
   targetId: string;
@@ -183,6 +200,7 @@ export type SemanticOverrideDeclaration = StableDeclaration & {
   label?: string | null;
 };
 export type SurfaceStateDeclaration = StableDeclaration & {
+  contentOverrides?: Readonly<Record<string, ContentOverrideDeclaration>>;
   semanticOverrides: readonly SemanticOverrideDeclaration[];
   enabledInteractionIds: readonly string[];
 };
@@ -259,12 +277,12 @@ export type SurfaceDeclaration = StableDeclaration & {
   fit: "contain" | "cover" | "stretch";
   root: FrameDeclaration;
   baseSemanticTree: BaseSemanticTreeDeclaration;
-  interactions: Readonly<Record<string, never>>;
+  interactions: Readonly<Record<string, InteractionDeclaration>>;
   initialStateId: string;
   states: Readonly<Record<string, SurfaceStateDeclaration>>;
   renderIntent: {
-    updateModel: "static";
-    interaction: "none";
+    updateModel: "static" | "finite-state";
+    interaction: "none" | "regions";
     internalAnimation: "none";
     rendererPreference: "baked-web";
     fallbackPolicy: "reject";

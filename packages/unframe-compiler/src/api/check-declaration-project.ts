@@ -20,7 +20,7 @@ import {
   declarationProjectFieldKeysSchema,
 } from "../validation/project-schemas.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
-import { diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
+import { compareStrings, diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
 import {
   isRecord,
   nonEmptyString,
@@ -129,18 +129,6 @@ const checkDeclarationProjectUnchecked = (
       ["components", index, "structure"],
       isComponentStructure(structure),
     );
-    if (
-      structureValid &&
-      structure.root.kind === "surface" &&
-      Object.values(structure.root.states).some((state) => state.enabledInteractionIds.length !== 0)
-    )
-      diagnostics.push(
-        diagnostic(
-          "compiler-enabled-interactions-unsupported",
-          ["components", index, "structure"],
-          "The initial subset does not support enabled interactions.",
-        ),
-      );
     if (!manifestValid || !structureValid) continue;
   }
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
@@ -573,17 +561,6 @@ const checkDeclarationProjectUnchecked = (
           "Top-level Component instances must produce a Surface.",
         ),
       );
-    if (
-      root.kind === "surface" &&
-      Object.values(root.states).some((state) => state.enabledInteractionIds.length !== 0)
-    )
-      diagnostics.push(
-        diagnostic(
-          "compiler-enabled-interactions-unsupported",
-          path,
-          "The initial subset does not support enabled interactions.",
-        ),
-      );
     if (root.kind !== "surface") continue;
     const stateEntries = Object.entries(root.states);
     uniqueIds(
@@ -601,9 +578,6 @@ const checkDeclarationProjectUnchecked = (
           ),
         );
     if (
-      Object.keys(root.interactions).length ||
-      root.renderIntent.updateModel !== "static" ||
-      root.renderIntent.interaction !== "none" ||
       root.renderIntent.internalAnimation !== "none" ||
       root.renderIntent.rendererPreference !== "baked-web" ||
       root.renderIntent.fallbackPolicy !== "reject"
@@ -612,7 +586,7 @@ const checkDeclarationProjectUnchecked = (
         diagnostic(
           "compiler-surface-feature-unsupported",
           path,
-          "Only static, non-interactive baked-web surfaces are supported.",
+          "Only baked-web surfaces without internal animation are supported.",
         ),
       );
     if (Object.keys(entry.manifest.actions).length || Object.keys(entry.manifest.outputs).length)
@@ -658,7 +632,6 @@ const checkDeclarationProjectUnchecked = (
       theme: theme[0]!.declaration,
       path,
     });
-    diagnostics.push(...resolved.diagnostics);
     const contentNodes = resolved.contentNodes;
     const frameId = resolved.rootFrameId;
     const nestedSemanticFragments: {
@@ -808,6 +781,11 @@ const checkDeclarationProjectUnchecked = (
             );
           semanticWithoutSource.text = typeof resolvedText === "string" ? resolvedText : "invalid";
         }
+        if (semantic.role === "button")
+          semanticWithoutSource.interactionId = resourceId(
+            semanticInstance.id,
+            semantic.interactionId,
+          );
         semanticNodes[id] = {
           ...semanticWithoutSource,
           id,
@@ -852,10 +830,32 @@ const checkDeclarationProjectUnchecked = (
         );
     }
     const states: PresentationDefinition["scene"]["surfaces"][string]["states"] = {};
-    for (const state of Object.values(root.states))
+    for (const state of Object.values(root.states)) {
+      const contentOverrides: (typeof states)[string]["contentOverrides"] = {};
+      for (const [localId, override] of Object.entries(state.contentOverrides ?? {})) {
+        const targetId = resourceId(instance.id, localId);
+        const lowered = resolved.resolveStateContentOverride(localId, override, [
+          ...path,
+          "structure",
+          "states",
+          state.id,
+          "contentOverrides",
+          localId,
+        ]);
+        if (lowered) contentOverrides[targetId] = lowered;
+      }
+      for (const override of state.semanticOverrides)
+        if (override.text === null || override.alt === null)
+          diagnostics.push(
+            diagnostic(
+              "compiler-semantic-override-required-field",
+              [...path, "structure", "states", state.id, "semanticOverrides", override.id],
+              "Required semantic text and alt fields cannot be removed.",
+            ),
+          );
       states[resourceId(instance.id, state.id)] = {
         id: resourceId(instance.id, state.id),
-        contentOverrides: {},
+        contentOverrides,
         semanticOverrides: state.semanticOverrides.map((override) => ({
           nodes: {
             [resourceId(instance.id, override.targetId)]: {
@@ -869,8 +869,10 @@ const checkDeclarationProjectUnchecked = (
             },
           },
         })),
-        enabledInteractionIds: [],
+        enabledInteractionIds: state.enabledInteractionIds.map((id) => resourceId(instance.id, id)),
       };
+    }
+    diagnostics.push(...resolved.diagnostics);
     const rotation = canonicalQuaternion(spatial.transform.rotation);
     if (!rotation)
       diagnostics.push(
@@ -913,10 +915,35 @@ const checkDeclarationProjectUnchecked = (
         rootNodeIds: semanticRootNodeIds,
         nodes: semanticNodes,
       },
-      interactions: {},
+      interactions: Object.fromEntries(
+        Object.entries(root.interactions).map(([id, interaction]) => [
+          resourceId(instance.id, id),
+          {
+            id: resourceId(instance.id, id),
+            kind: interaction.kind,
+            event: interaction.event,
+            hitPriority: interaction.hitPriority,
+          },
+        ]),
+      ),
       initialStateId: resourceId(instance.id, root.initialStateId),
       states,
-      renderIntent: renderIntent(),
+      renderIntent: {
+        ...renderIntent(),
+        updateModel:
+          root.renderIntent.updateModel === "finite-state"
+            ? { kind: "finite-state", stateIds: Object.keys(states).sort(compareStrings) }
+            : { kind: "static" },
+        interaction:
+          root.renderIntent.interaction === "regions"
+            ? {
+                kind: "regions",
+                events: [
+                  ...new Set(Object.values(root.interactions).map(({ event }) => event)),
+                ].sort(compareStrings),
+              }
+            : { kind: "none" },
+      },
     };
   }
   for (const spatial of presentation.scene?.spatial ?? [])
@@ -945,6 +972,14 @@ const checkDeclarationProjectUnchecked = (
         for (const fontAssetId of node.style.fallbackFontAssetIds)
           referencedFontIds.add(fontAssetId);
       }
+  for (const surface of Object.values(surfaces))
+    for (const state of Object.values(surface.states))
+      for (const override of Object.values(state.contentOverrides))
+        if (override.kind === "text" && override.style) {
+          referencedFontIds.add(override.style.fontAssetId);
+          for (const fontAssetId of override.style.fallbackFontAssetIds)
+            referencedFontIds.add(fontAssetId);
+        }
   for (const fontAssetId of referencedFontIds)
     if (!referencedAssetIds.has(fontAssetId))
       diagnostics.push(

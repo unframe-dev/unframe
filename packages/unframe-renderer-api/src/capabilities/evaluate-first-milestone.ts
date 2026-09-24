@@ -23,9 +23,9 @@ export const evaluateFirstMilestoneSupport = (
   request: RendererSupportRequest,
 ): RendererSupportDecision => {
   if (request.entry.kind !== "structured") return unsupported("unsupported-input-kind", ["entry"]);
-  if (request.resolvedIntent.updateModel.kind !== "static")
+  if (!["static", "finite-state"].includes(request.resolvedIntent.updateModel.kind))
     return unsupported("unsupported-update-model", ["resolvedIntent", "updateModel"]);
-  if (request.resolvedIntent.interaction.kind !== "none")
+  if (!["none", "regions"].includes(request.resolvedIntent.interaction.kind))
     return unsupported("unsupported-interaction", ["resolvedIntent", "interaction"]);
   if (request.resolvedIntent.internalAnimation.kind !== "none")
     return unsupported("unsupported-internal-animation", ["resolvedIntent", "internalAnimation"]);

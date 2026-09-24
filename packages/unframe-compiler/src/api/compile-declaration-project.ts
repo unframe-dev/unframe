@@ -25,6 +25,7 @@ import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { decodeCanonicalBase64 } from "../validation/source-assets.js";
 import { derivedResourceId, resourceId } from "../lowering/support.js";
 import { checkDeclarationProject } from "./check-declaration-project.js";
+import { aggregatePrivateRegions } from "./aggregate-private-regions.js";
 import type {
   CheckedDeclarationProject,
   CompiledDeclarationProject,
@@ -289,7 +290,21 @@ const compileUnchecked = async (
           height: surface.logicalSize[1],
         },
         layer: 0,
-        contentNodeIds: Object.keys(surface.contentNodes).sort(compareStrings),
+        ownedContentNodeIds: Object.values(surface.contentNodes)
+          .filter((node) => node.kind !== "frame" || node.semanticNodeId !== undefined)
+          .map((node) => node.id)
+          .sort(compareStrings),
+        contextNodeIds: Object.values(surface.contentNodes)
+          .filter((node) => node.kind === "frame" && node.semanticNodeId === undefined)
+          .map((node) => node.id)
+          .sort(compareStrings),
+        clipWindow: { x: 0, y: 0, width: surface.logicalSize[0], height: surface.logicalSize[1] },
+        hitPriorityByInteractionId: Object.fromEntries(
+          Object.entries(surface.interactions).map(([id, interaction]) => [
+            id,
+            interaction.hitPriority,
+          ]),
+        ),
         states,
       },
       entry: { kind: "structured" },
@@ -413,12 +428,17 @@ const compileUnchecked = async (
         },
       },
       semanticsByState,
-      interactionsByState: Object.fromEntries(
-        Object.entries(rendered.value.hitRegionsByState).map(([stateId, regions]) => [
-          stateId,
-          regions.map((region) => ({ ...region, bounds: { ...region.bounds } })),
-        ]),
-      ),
+      interactionsByState: aggregatePrivateRegions(surface.logicalSize, stateIds, [
+        {
+          logicalBounds: {
+            x: 0,
+            y: 0,
+            width: surface.logicalSize[0],
+            height: surface.logicalSize[1],
+          },
+          hitRegionsByState: rendered.value.hitRegionsByState,
+        },
+      ]),
     };
   }
 

@@ -254,6 +254,32 @@ const semanticOverrideSchema = z.strictObject({
   alt: z.string().nullable().optional(),
   label: z.string().nullable().optional(),
 });
+const contentOverrideSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("frame"),
+    visible: booleanValueSchema.optional(),
+    opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
+    placement: absoluteLayoutSchema.optional(),
+    layout: z.strictObject({ kind: z.literal("absolute") }).optional(),
+    backgroundColor: colorValueSchema.optional(),
+    border: borderSchema.optional(),
+    clip: booleanValueSchema.optional(),
+  }),
+  z.strictObject({
+    kind: z.literal("text"),
+    visible: booleanValueSchema.optional(),
+    opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
+    placement: absoluteLayoutSchema.optional(),
+    value: stringValueSchema.optional(),
+    style: textStyleSchema.optional(),
+  }),
+]);
+const interactionDeclarationSchema = z.strictObject({
+  ...stableShape,
+  kind: z.literal("click"),
+  event: idSchema,
+  hitPriority: z.number().int().safe().min(0).max(4_294_967_295),
+});
 const semanticNodeBaseShape = {
   ...stableShape,
   parentId: idSchema.nullable(),
@@ -323,8 +349,9 @@ const semanticNodeSchema = z.discriminatedUnion("role", [
 ]);
 const surfaceStateSchema = z.strictObject({
   ...stableShape,
+  contentOverrides: z.record(idSchema, contentOverrideSchema).optional(),
   semanticOverrides: z.array(semanticOverrideSchema),
-  enabledInteractionIds: z.array(idSchema).length(0),
+  enabledInteractionIds: z.array(idSchema),
 });
 const baseSemanticTreeSchema = z.strictObject({
   rootNodeIds: z.array(idSchema),
@@ -382,12 +409,12 @@ const surfaceDeclarationSchema = z.strictObject({
   fit: z.enum(["contain", "cover", "stretch"]),
   root: frameDeclarationSchema,
   baseSemanticTree: baseSemanticTreeSchema,
-  interactions: z.record(idSchema, z.never()),
+  interactions: z.record(idSchema, interactionDeclarationSchema),
   initialStateId: idSchema,
   states: z.record(idSchema, surfaceStateSchema),
   renderIntent: z.strictObject({
-    updateModel: z.literal("static"),
-    interaction: z.literal("none"),
+    updateModel: z.enum(["static", "finite-state"]),
+    interaction: z.enum(["none", "regions"]),
     internalAnimation: z.literal("none"),
     rendererPreference: z.literal("baked-web"),
     fallbackPolicy: z.literal("reject"),
@@ -526,7 +553,7 @@ const opaqueSemanticSurfaceSchema = z.strictObject({
   id: idSchema,
   bindingKey: idSchema,
   baseSemanticTree: baseSemanticTreeSchema,
-  interactions: z.record(idSchema, z.never()),
+  interactions: z.record(idSchema, interactionDeclarationSchema),
   initialStateId: idSchema,
   states: z.record(idSchema, surfaceStateSchema),
 });
@@ -942,8 +969,11 @@ const assertSurfaceSemanticIds = (
     "baseSemanticTree" | "initialStateId" | "states" | "interactions"
   >,
 ): void => {
-  if (Object.keys(value.interactions).length !== 0)
-    invalid("The initial non-interactive Surface milestone requires empty interactions.");
+  assertRecordKeys(value.interactions, "interaction record key");
+  for (const interaction of Object.values(value.interactions)) {
+    assertStableNested(interaction, "interaction id");
+    assertId(interaction.event, "interaction event");
+  }
   assertId(value.initialStateId, "initialStateId");
   for (const rootNodeId of value.baseSemanticTree.rootNodeIds)
     assertId(rootNodeId, "semantic root id");
@@ -951,14 +981,13 @@ const assertSurfaceSemanticIds = (
   for (const node of Object.values(value.baseSemanticTree.nodes)) {
     assertStableNested(node, "semantic node id");
     if (node.parentId !== null) assertId(node.parentId, "semantic parentId");
-    if ("interactionId" in node)
-      invalid("The initial non-interactive Surface milestone forbids semantic interactionId.");
+    if ("interactionId" in node) assertId(node.interactionId, "semantic interactionId");
   }
   assertRecordKeys(value.states, "surface state record key");
   for (const stateValue of Object.values(value.states)) {
     assertStableNested(stateValue, "surface state id");
-    if (stateValue.enabledInteractionIds.length !== 0)
-      invalid("The initial non-interactive Surface milestone cannot enable interactions.");
+    if (stateValue.contentOverrides)
+      assertRecordKeys(stateValue.contentOverrides, "content override id");
     for (const interactionId of stateValue.enabledInteractionIds)
       assertId(interactionId, "enabledInteractionId");
     for (const stateOverride of stateValue.semanticOverrides) {

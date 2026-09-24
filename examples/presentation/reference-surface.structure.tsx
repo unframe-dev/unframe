@@ -20,7 +20,7 @@ const canvas = {
   height: 1080,
 } satisfies AbsoluteLayoutDeclaration;
 const semantics = {
-  rootNodeIds: ["heading", "summary", "detail"],
+  rootNodeIds: ["heading", "summary", "detail", "continue-button"],
   nodes: {
     heading: {
       id: "heading",
@@ -48,12 +48,35 @@ const semantics = {
       role: "paragraph",
       text: "Typed themes, explicit fonts, stable artifacts",
     },
+    "continue-button": {
+      id: "continue-button",
+      parentId: null,
+      order: 3,
+      role: "button",
+      text: "Continue",
+      interactionId: "continue",
+    },
   },
 } as const;
 const states = {
   default: {
     id: "default",
     semanticOverrides: [],
+    enabledInteractionIds: ["continue"],
+  },
+  inactive: {
+    id: "inactive",
+    contentOverrides: {
+      "continue-label": { kind: "text", value: "Waiting", opacity: 0.5 },
+    },
+    semanticOverrides: [
+      {
+        id: "inactive-button-label",
+        kind: "semantic-override",
+        targetId: "continue-button",
+        text: "Waiting",
+      },
+    ],
     enabledInteractionIds: [],
   },
 } as const;
@@ -65,10 +88,12 @@ const root = (
     logicalSize={[1920, 1080]}
     fit="contain"
     baseSemanticTree={semantics}
-    interactions={{}}
+    interactions={{
+      continue: { id: "continue", kind: "click", event: "presenter.next", hitPriority: 10 },
+    }}
     initialStateId="default"
     states={states}
-    renderIntent={staticRenderIntent}
+    renderIntent={{ ...staticRenderIntent, updateModel: "finite-state", interaction: "regions" }}
   >
     <Frame
       id="reference-frame"
@@ -125,8 +150,17 @@ const root = (
             Typed themes, explicit fonts, stable artifacts
           </Text>
         </Frame>
-        <Slot id="badge-placement" slotId="badge" semanticParentId="heading" />
+        <Slot id="badge-placement" slotId="badge" />
       </Frame>
+      <Text
+        id="continue-label"
+        layout={{ kind: "absolute", x: 128, y: 640, width: 416, height: 80 }}
+        maxCodePoints={32}
+        semanticNodeId="continue-button"
+        namedStyle={namedStyleRef({ styleId: "body" })}
+      >
+        Continue
+      </Text>
     </Frame>
   </Surface>
 );

@@ -2,6 +2,7 @@ import type {
   ComponentInstanceDeclaration,
   ComponentManifest,
   ComponentStructure,
+  ContentOverrideDeclaration,
   ContentNodeDeclaration,
   FrameStyleDeclaration,
   NamedFrameStyleDeclaration,
@@ -22,6 +23,8 @@ type Path = readonly (string | number)[];
 type CoreContentNodes = PresentationDefinition["scene"]["surfaces"][string]["contentNodes"];
 type CoreTextStyle = Extract<CoreContentNodes[string], { kind: "text" }>["style"];
 type CoreFrame = Extract<CoreContentNodes[string], { kind: "frame" }>;
+type CoreContentOverride =
+  PresentationDefinition["scene"]["surfaces"][string]["states"][string]["contentOverrides"][string];
 type Scalar = string | number | boolean;
 
 export type ResolvedStructuredComponent = {
@@ -39,6 +42,11 @@ export type ResolvedStructuredComponent = {
     readonly order: number;
   }[];
   readonly resolvedProps: ReadonlyMap<string, Scalar>;
+  readonly resolveStateContentOverride: (
+    localId: string,
+    override: ContentOverrideDeclaration,
+    at: Path,
+  ) => CoreContentOverride | undefined;
 };
 
 const transparent = { red: 0, green: 0, blue: 0, alpha: 0 } as const;
@@ -548,6 +556,178 @@ export const resolveStructuredComponent = ({
       );
     return [resolved[0] ?? 1, resolved[1] ?? 1];
   };
+  const resolveStateContentOverride = (
+    localId: string,
+    override: ContentOverrideDeclaration,
+    at: Path,
+  ): CoreContentOverride | undefined => {
+    const target = contentNodes[resourceId(instance.id, localId)];
+    if (!target || target.kind !== override.kind) {
+      failure(
+        "compiler-content-override-target-invalid",
+        at,
+        "Content override target must resolve to a matching content node.",
+      );
+      return undefined;
+    }
+    if (target.placement.kind !== "absolute") {
+      failure(
+        "compiler-content-override-placement-unsupported",
+        at,
+        "State overrides require absolute placement.",
+      );
+      return undefined;
+    }
+    const common = {
+      ...(override.visible === undefined
+        ? {}
+        : { visible: resolveBoolean(override.visible, [...at, "visible"]) ?? target.visible }),
+      ...(override.opacity === undefined
+        ? {}
+        : {
+            opacity:
+              resolveNumber(override.opacity, "logicalLength", [...at, "opacity"]) ??
+              target.opacity,
+          }),
+      ...(override.placement === undefined
+        ? {}
+        : {
+            placement: {
+              kind: "absolute" as const,
+              x:
+                resolveNumber(override.placement.x, "logicalLength", [...at, "placement", "x"]) ??
+                target.placement.x,
+              y:
+                resolveNumber(override.placement.y, "logicalLength", [...at, "placement", "y"]) ??
+                target.placement.y,
+              width:
+                resolveNumber(override.placement.width, "logicalLength", [
+                  ...at,
+                  "placement",
+                  "width",
+                ]) ?? target.placement.width,
+              height:
+                resolveNumber(override.placement.height, "logicalLength", [
+                  ...at,
+                  "placement",
+                  "height",
+                ]) ?? target.placement.height,
+            },
+          }),
+    };
+    if (override.kind === "frame" && target.kind === "frame")
+      return {
+        kind: "frame",
+        ...common,
+        ...(override.layout === undefined ? {} : { layout: override.layout }),
+        ...(override.backgroundColor === undefined
+          ? {}
+          : {
+              backgroundColor:
+                resolveColor(override.backgroundColor, [...at, "backgroundColor"]) ??
+                target.backgroundColor,
+            }),
+        ...(override.border === undefined
+          ? {}
+          : {
+              border: {
+                color:
+                  resolveColor(override.border.color, [...at, "border", "color"]) ??
+                  target.border.color,
+                width:
+                  resolveNumber(override.border.width, "logicalLength", [
+                    ...at,
+                    "border",
+                    "width",
+                  ]) ?? target.border.width,
+                radius:
+                  resolveNumber(override.border.radius, "logicalLength", [
+                    ...at,
+                    "border",
+                    "radius",
+                  ]) ?? target.border.radius,
+              },
+            }),
+        ...(override.clip === undefined
+          ? {}
+          : { clip: resolveBoolean(override.clip, [...at, "clip"]) ?? target.clip }),
+      };
+    if (override.kind !== "text" || target.kind !== "text") return undefined;
+    const style = override.style;
+    const baseStyle = target.style;
+    const resolvedStyle: CoreTextStyle | undefined =
+      style === undefined
+        ? undefined
+        : {
+            ...baseStyle,
+            ...(style.font === undefined
+              ? {}
+              : {
+                  fontAssetId:
+                    resolveFont(style.font, [...at, "style", "font"]) ?? baseStyle.fontAssetId,
+                }),
+            ...(style.fallbackFonts === undefined
+              ? {}
+              : {
+                  fallbackFontAssetIds: style.fallbackFonts.map(
+                    (font, index) =>
+                      resolveFont(font, [...at, "style", "fallbackFonts", index]) ??
+                      "invalid-missing-font",
+                  ),
+                }),
+            ...(style.fontSize === undefined
+              ? {}
+              : {
+                  fontSize:
+                    resolveNumber(style.fontSize, "logicalLength", [...at, "style", "fontSize"]) ??
+                    baseStyle.fontSize,
+                }),
+            ...(style.lineHeight === undefined
+              ? {}
+              : {
+                  lineHeight:
+                    resolveNumber(style.lineHeight, "logicalLength", [
+                      ...at,
+                      "style",
+                      "lineHeight",
+                    ]) ?? baseStyle.lineHeight,
+                }),
+            ...(style.color === undefined
+              ? {}
+              : { color: resolveColor(style.color, [...at, "style", "color"]) ?? baseStyle.color }),
+            ...(style.weight === undefined
+              ? {}
+              : {
+                  weight: (resolveString(style.weight, [...at, "style", "weight"]) ??
+                    baseStyle.weight) as CoreTextStyle["weight"],
+                }),
+            ...(style.align === undefined
+              ? {}
+              : {
+                  align: (resolveString(style.align, [...at, "style", "align"]) ??
+                    baseStyle.align) as CoreTextStyle["align"],
+                }),
+            ...(style.overflow === undefined
+              ? {}
+              : {
+                  overflow: (resolveString(style.overflow, [...at, "style", "overflow"]) ??
+                    baseStyle.overflow) as CoreTextStyle["overflow"],
+                }),
+          };
+    return {
+      kind: "text",
+      ...common,
+      ...(override.value === undefined
+        ? {}
+        : {
+            value: {
+              kind: "literal" as const,
+              value: resolveString(override.value, [...at, "value"]) ?? "",
+            },
+          }),
+      ...(resolvedStyle === undefined ? {} : { style: resolvedStyle }),
+    };
+  };
   return {
     contentNodes,
     rootFrameId: resourceId(instance.id, root.id),
@@ -555,6 +735,7 @@ export const resolveStructuredComponent = ({
     diagnostics,
     slotPlaceholders,
     resolvedProps: props,
+    resolveStateContentOverride,
     ...(structure.root.kind === "surface"
       ? {
           physicalSizeMeters: resolvePositiveTuple(structure.root.physicalSizeMeters, [

@@ -3706,11 +3706,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "level", "text"],
@@ -3745,11 +3746,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "text"],
@@ -3784,11 +3786,12 @@
                             },
                             "alt": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "alt"],
@@ -3827,11 +3830,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "interactionId", "text"],
@@ -3900,11 +3904,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "text"],
@@ -3939,11 +3944,12 @@
                             },
                             "label": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role"],
@@ -4009,11 +4015,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "text"],
@@ -4048,11 +4055,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "text"],
@@ -4087,11 +4095,12 @@
                             },
                             "text": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                             },
                             "language": {
                               "type": "string",
-                              "minLength": 1
+                              "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                             }
                           },
                           "required": ["id", "parentId", "order", "role", "text"],
@@ -5947,13 +5956,14 @@
                                 },
                                 "text": {
                                   "type": "string",
-                                  "minLength": 1
+                                  "minLength": 1,
+                                  "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                                 },
                                 "language": {
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "minLength": 1
+                                      "pattern": "^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$"
                                     },
                                     {
                                       "type": "null"
@@ -5962,13 +5972,15 @@
                                 },
                                 "alt": {
                                   "type": "string",
-                                  "minLength": 1
+                                  "minLength": 1,
+                                  "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                                 },
                                 "label": {
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "minLength": 1
+                                      "minLength": 1,
+                                      "pattern": "^(?:[^\\uD800-\\uDFFF]|[\\uD800-\\uDBFF][\\uDC00-\\uDFFF])*$"
                                     },
                                     {
                                       "type": "null"

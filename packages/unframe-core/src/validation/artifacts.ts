@@ -83,6 +83,29 @@ export const validatePresentationArtifacts = (
             "Bundle semantic tree must equal the materialized Definition State.",
           ),
         );
+      const regions = bundleSurface.interactionsByState[stateId] ?? [];
+      const enabled = new Set(definitionSurface.states[stateId]?.enabledInteractionIds ?? []);
+      const covered = new Set(regions.map((region) => region.interactionId));
+      for (const [index, region] of regions.entries()) {
+        const interaction = definitionSurface.interactions[region.interactionId];
+        if (!enabled.has(region.interactionId) || interaction?.hitPriority !== region.priority)
+          diagnostics.push(
+            diagnostic(
+              "artifact.invalid",
+              `${path}/interactionsByState/${pathSegment(stateId)}/${index}`,
+              "Region must match an enabled Definition Interaction and hit priority.",
+            ),
+          );
+      }
+      for (const interactionId of enabled)
+        if (!covered.has(interactionId))
+          diagnostics.push(
+            diagnostic(
+              "artifact.invalid",
+              `${path}/interactionsByState/${pathSegment(stateId)}`,
+              "Enabled Interaction requires a region.",
+            ),
+          );
     }
   }
 

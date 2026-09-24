@@ -2,6 +2,7 @@ import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v
 
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { parsePresentationDefinitionInput } from "./contract-input.js";
+import { validateSemanticRoles, validateSurfaceStates } from "./semantic-invariants.js";
 import {
   diagnostic,
   pathSegment,
@@ -212,12 +213,7 @@ export const validatePresentationDefinition = (
       `${path}/contentTree`,
       "children",
     );
-    validateTree(
-      diagnostics,
-      surface.baseSemanticTree.nodes,
-      surface.baseSemanticTree.rootNodeIds,
-      `${path}/baseSemanticTree`,
-    );
+    validateSemanticRoles(diagnostics, surface.baseSemanticTree, `${path}/baseSemanticTree`);
     const root = surface.contentNodes[surface.rootFrameId];
     if (root?.kind !== "frame" || root.parentId !== null)
       diagnostics.push(
@@ -290,36 +286,40 @@ export const validatePresentationDefinition = (
           ),
         );
 
-    if (Object.keys(surface.interactions).length > 0)
-      unsupported(diagnostics, `${path}/interactions`, "Interactions are deferred to M3B.");
+    validateSurfaceStates(diagnostics, surface, path);
+    if (surface.renderIntent.updateModel.kind === "finite-state") {
+      const listed = surface.renderIntent.updateModel.stateIds;
+      const actual = Object.keys(surface.states);
+      if (
+        listed.length !== actual.length ||
+        new Set(listed).size !== listed.length ||
+        actual.some((stateId) => !listed.includes(stateId))
+      )
+        diagnostics.push(
+          diagnostic(
+            "behavior.invalid",
+            `${path}/renderIntent/updateModel/stateIds`,
+            "Finite-state render intent must list every State exactly once.",
+          ),
+        );
+    }
+    if (
+      surface.renderIntent.interaction.kind === "none" &&
+      Object.keys(surface.interactions).length > 0
+    )
+      diagnostics.push(
+        diagnostic(
+          "behavior.invalid",
+          `${path}/renderIntent/interaction`,
+          "Interactions require regions render intent.",
+        ),
+      );
     if (!Object.hasOwn(surface.states, surface.initialStateId))
       diagnostics.push(
         diagnostic("reference.invalid", `${path}/initialStateId`, "Initial State does not exist."),
       );
-    for (const [stateId, state] of Object.entries(surface.states)) {
-      const statePath = `${path}/states/${pathSegment(stateId)}`;
-      if (Object.keys(state.contentOverrides).length > 0)
-        unsupported(
-          diagnostics,
-          `${statePath}/contentOverrides`,
-          "State visual overrides are deferred to M3B.",
-        );
-      if (state.semanticOverrides.length > 0)
-        unsupported(
-          diagnostics,
-          `${statePath}/semanticOverrides`,
-          "Semantic State overrides are deferred to M3B.",
-        );
-      if (state.enabledInteractionIds.length > 0)
-        unsupported(
-          diagnostics,
-          `${statePath}/enabledInteractionIds`,
-          "State interactions are deferred to M3B.",
-        );
-    }
     if (
-      surface.renderIntent.updateModel.kind !== "static" ||
-      surface.renderIntent.interaction.kind !== "none" ||
+      surface.renderIntent.updateModel.kind === "continuous-native-text" ||
       surface.renderIntent.internalAnimation.kind !== "none" ||
       surface.renderIntent.rendererPreference !== "baked-web" ||
       surface.renderIntent.fallbackPolicy !== "reject"
@@ -327,7 +327,7 @@ export const validatePresentationDefinition = (
       unsupported(
         diagnostics,
         `${path}/renderIntent`,
-        "M3A accepts only static baked-web rendering without interactions or internal animation.",
+        "This slice accepts static baked-web rendering without internal animation.",
       );
   }
 

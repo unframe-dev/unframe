@@ -16,10 +16,9 @@ export const renderLayerSchema = nonNegativeIntegerSchema;
 export const pixelTargetSchema = z.tuple([z.int().positive(), z.int().positive()]);
 export const renderStateIdsSchema = z.array(rendererIdSchema).min(1);
 export const capturePixelSizeSchema = pixelTargetSchema;
-export const hitRegionPrioritySchema = nonNegativeIntegerSchema;
-export const normalizedHitRegionBoundsSchema = boundsSchema.refine(
-  ({ x, y, width, height }) =>
-    x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1 && y + height <= 1,
+export const hitRegionPrioritySchema = z.int().min(0).max(4_294_967_295);
+export const privateHitRegionBoundsSchema = boundsSchema.refine(
+  ({ x, y, width, height }) => x >= 0 && y >= 0 && width > 0 && height > 0,
 );
 export const logicalBoundsConstraintSchema = z
   .strictObject({
@@ -51,7 +50,10 @@ const renderSurfacePlanSchema = z.strictObject({
   semanticSurfaceId: rendererIdSchema,
   logicalBounds: boundsSchema,
   layer: finiteNumberSchema,
-  contentNodeIds: z.array(z.string()),
+  ownedContentNodeIds: z.array(rendererIdSchema),
+  contextNodeIds: z.array(rendererIdSchema),
+  clipWindow: boundsSchema,
+  hitPriorityByInteractionId: z.record(rendererIdSchema, hitRegionPrioritySchema),
   states: z.record(
     z.string(),
     z.discriminatedUnion("kind", [
@@ -81,8 +83,8 @@ export const rendererFunctionSchema = z.function();
 
 export const rendererCapabilitiesSchema = z.strictObject({
   inputKinds: z.tuple([z.literal("structured")]),
-  updateModels: z.tuple([z.literal("static")]),
-  interactions: z.tuple([z.literal("none")]),
+  updateModels: z.tuple([z.literal("static"), z.literal("finite-state")]),
+  interactions: z.tuple([z.literal("none"), z.literal("regions")]),
   internalAnimations: z.tuple([z.literal("none")]),
   rendererPreferences: z.tuple([z.literal("baked-web")]),
   fallbackPolicies: z.tuple([z.literal("reject")]),
@@ -144,8 +146,7 @@ const hitRegionSchema = z.strictObject({
   interactionId: rendererIdSchema,
   semanticNodeId: rendererIdSchema,
   bounds: boundsSchema,
-  coordinateSpace: z.literal("normalized"),
-  priority: finiteNumberSchema,
+  priority: hitRegionPrioritySchema,
 });
 
 export const rendererBuildResultSchema = z.discriminatedUnion("ok", [

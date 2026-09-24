@@ -8,6 +8,7 @@ import {
   type RendererBuildResult,
   type RendererCapabilities,
   type RendererPlugin,
+  type RendererPrivateHitRegion,
   type RendererSupportRequest,
 } from "@unframe/unframe-renderer-api";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -41,8 +42,8 @@ const CONTRACT_VERSION = "2";
 const applyFunction = Reflect.apply;
 const capabilities = Object.freeze({
   inputKinds: Object.freeze(["structured"] as const),
-  updateModels: Object.freeze(["static"] as const),
-  interactions: Object.freeze(["none"] as const),
+  updateModels: Object.freeze(["static", "finite-state"] as const),
+  interactions: Object.freeze(["none", "regions"] as const),
   internalAnimations: Object.freeze(["none"] as const),
   rendererPreferences: Object.freeze(["baked-web"] as const),
   fallbackPolicies: Object.freeze(["reject"] as const),
@@ -68,8 +69,6 @@ const failure = (
   diagnostics: [diagnostic(code, message, path)],
 });
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 const compare = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 const escapeHtml = (value: string) => {
   let escaped = "";
@@ -97,24 +96,6 @@ const cssNumber = (value: number) => {
   const normalized = Object.is(value, -0) ? 0 : value;
   return String(normalized);
 };
-
-const stableValue = (value: unknown, seen = new Set<object>()): unknown => {
-  if (Array.isArray(value)) return value.map((item) => stableValue(item, seen));
-  if (isRecord(value)) {
-    if (seen.has(value)) throw new TypeError("Cyclic semantic tree.");
-    seen.add(value);
-    const result = Object.fromEntries(
-      Object.keys(value)
-        .sort(compare)
-        .map((key) => [key, stableValue(value[key], seen)]),
-    );
-    seen.delete(value);
-    return result;
-  }
-  return value;
-};
-
-const stableSnapshot = (value: unknown) => JSON.stringify(stableValue(value));
 
 type FontCoverage = (codePoint: number) => boolean;
 
@@ -268,25 +249,42 @@ const rgbaCss = (color: {
 }) =>
   `rgba(${cssNumber(color.red * 255)},${cssNumber(color.green * 255)},${cssNumber(color.blue * 255)},${cssNumber(color.alpha)})`;
 
+type Rect = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
+const intersect = (a: Rect, b: Rect): Rect | undefined => {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : undefined;
+};
+
 const documentFor = (
   input: CompilerResolvedSurfaceInput,
   config: WebRendererConfig,
-): { readonly document: string; readonly fontFaceCount: number } | RendererBuildFailure => {
-  if (
-    Object.keys(input.surface.interactions).length > 0 ||
-    Object.values(input.surface.states).some(
-      (state) =>
-        Object.keys(state.contentOverrides).length > 0 ||
-        state.semanticOverrides.some((override) => Object.keys(override.nodes).length > 0) ||
-        state.enabledInteractionIds.length > 0,
-    )
-  )
-    return failure(
-      "unsupported-state-visual-variation",
-      "Static Structured rendering does not accept content or interaction variation.",
-      ["surface", "states"],
-    );
-  const root = input.surface.contentNodes[input.surface.rootFrameId];
+  stateId: string,
+):
+  | {
+      readonly document: string;
+      readonly fontFaceCount: number;
+      readonly hitRegions: readonly RendererPrivateHitRegion[];
+    }
+  | RendererBuildFailure => {
+  const state = input.surface.states[stateId];
+  if (!state)
+    return failure("missing-render-state", "Planned state is absent.", ["plan", "states", stateId]);
+  const effectiveNode = (id: string) => {
+    const node = input.surface.contentNodes[id];
+    const override = state.contentOverrides[id];
+    if (!node || !override) return node;
+    if (override.kind !== node.kind) return undefined;
+    return { ...node, ...override } as typeof node;
+  };
+  const root = effectiveNode(input.surface.rootFrameId);
   if (
     !root ||
     root.kind !== "frame" ||
@@ -299,16 +297,19 @@ const documentFor = (
       "Structured rendering requires an absolute root Frame.",
       ["surface", "rootFrameId"],
     );
-  if (!input.plan.contentNodeIds.includes(root.id))
+  if (
+    !input.plan.contextNodeIds.includes(root.id) &&
+    !input.plan.ownedContentNodeIds.includes(root.id)
+  )
     return failure("unsupported-structured-tree", "Render plan must include the root Frame.", [
       "plan",
-      "contentNodeIds",
+      "ownedContentNodeIds",
     ]);
-  const planned = new Set(input.plan.contentNodeIds);
-  if (planned.size !== input.plan.contentNodeIds.length)
+  const planned = new Set([...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds]);
+  if (planned.size !== input.plan.ownedContentNodeIds.length + input.plan.contextNodeIds.length)
     return failure("unsupported-structured-tree", "Render plan node IDs must be unique.", [
       "plan",
-      "contentNodeIds",
+      "ownedContentNodeIds",
     ]);
   if (new Set(root.children).size !== root.children.length)
     return failure("unsupported-structured-tree", "Root Frame children must be unique.", [
@@ -327,17 +328,40 @@ const documentFor = (
       "logicalBounds",
     ]);
   const rootPlacement = root.placement;
-  if (
-    rootPlacement.x < bounds.x ||
-    rootPlacement.y < bounds.y ||
-    rootPlacement.x + rootPlacement.width > bounds.x + bounds.width ||
-    rootPlacement.y + rootPlacement.height > bounds.y + bounds.height
-  )
-    return failure(
-      "root-frame-outside-render-surface",
-      "Root Frame must fit inside the Render Surface bounds.",
-      ["surface", "contentNodes", root.id, "placement"],
-    );
+  const hitRegions: RendererPrivateHitRegion[] = [];
+  const visibleWindow = intersect(bounds, input.plan.clipWindow);
+  const addHitRegion = (
+    node: { readonly id: string; readonly semanticNodeId?: string | undefined },
+    global: Rect,
+    visible: Rect | undefined,
+  ) => {
+    if (!node.semanticNodeId || !visible || !input.plan.ownedContentNodeIds.includes(node.id))
+      return;
+    const semantic = input.semanticsByState[stateId]?.nodes[node.semanticNodeId];
+    if (
+      !semantic ||
+      semantic.role !== "button" ||
+      !semantic.stateEnabled ||
+      !semantic.interactionId
+    )
+      return;
+    if (!state.enabledInteractionIds.includes(semantic.interactionId)) return;
+    const priority = input.plan.hitPriorityByInteractionId[semantic.interactionId];
+    if (priority === undefined) return;
+    const rect = intersect(global, visible);
+    if (!rect) return;
+    hitRegions.push({
+      interactionId: semantic.interactionId,
+      semanticNodeId: node.semanticNodeId,
+      bounds: {
+        x: rect.x - bounds.x,
+        y: rect.y - bounds.y,
+        width: rect.width,
+        height: rect.height,
+      },
+      priority,
+    });
+  };
   const referencedFontIds = new Set<string>();
   const textFontRequirements: {
     readonly nodeId: string;
@@ -345,8 +369,14 @@ const documentFor = (
     readonly fontIds: readonly string[];
   }[] = [];
   const renderedNodeIds = new Set([root.id]);
-  const renderNode = (id: string, parentId: string): string | RendererBuildFailure => {
-    const node = input.surface.contentNodes[id];
+  const renderNode = (
+    id: string,
+    parentId: string,
+    parentOrigin: readonly [number, number],
+    clip: Rect | undefined,
+    ancestorVisible: boolean,
+  ): string | RendererBuildFailure => {
+    const node = effectiveNode(id);
     if (!planned.has(id) || !node || node.parentId !== parentId || renderedNodeIds.has(id))
       return failure(
         "unsupported-structured-tree",
@@ -361,6 +391,15 @@ const documentFor = (
         ["surface", "contentNodes", id, "placement"],
       );
     const placement = node.placement;
+    const global: Rect = {
+      x: parentOrigin[0] + placement.x,
+      y: parentOrigin[1] + placement.y,
+      width: placement.width,
+      height: placement.height,
+    };
+    const active = ancestorVisible && node.visible && node.opacity > 0;
+    const visible = active && clip ? intersect(global, clip) : undefined;
+    addHitRegion(node, global, visible);
     const [left, top, width, height] = [
       placement.x * xScale,
       placement.y * yScale,
@@ -383,7 +422,13 @@ const documentFor = (
         );
       const children: string[] = [];
       for (const childId of node.children) {
-        const child = renderNode(childId, id);
+        const child = renderNode(
+          childId,
+          id,
+          [global.x, global.y],
+          node.clip ? visible : clip,
+          active,
+        );
         if (typeof child !== "string") return child;
         children.push(child);
       }
@@ -419,8 +464,24 @@ const documentFor = (
     return `<div class="text" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};font-family:${families};font-size:${cssNumber(node.style.fontSize * yScale)}px;line-height:${cssNumber(node.style.lineHeight * yScale)}px;color:${rgbaCss(node.style.color)};font-weight:${node.style.weight === "bold" ? "700" : "400"};text-align:${node.style.align};${overflow}">${escapeHtml(node.value.value)}</div>`;
   };
   const renderedChildren: string[] = [];
+  const rootRect: Rect = {
+    x: rootPlacement.x,
+    y: rootPlacement.y,
+    width: rootPlacement.width,
+    height: rootPlacement.height,
+  };
+  const rootVisible =
+    root.visible && root.opacity > 0 && visibleWindow
+      ? intersect(rootRect, visibleWindow)
+      : undefined;
   for (const childId of root.children) {
-    const child = renderNode(childId, root.id);
+    const child = renderNode(
+      childId,
+      root.id,
+      [rootRect.x, rootRect.y],
+      root.clip ? rootVisible : visibleWindow,
+      root.visible && root.opacity > 0,
+    );
     if (typeof child !== "string") return child;
     renderedChildren.push(child);
   }
@@ -428,7 +489,7 @@ const documentFor = (
     return failure(
       "unsupported-structured-tree",
       "Render plan must contain one connected Frame/Text tree.",
-      ["plan", "contentNodeIds"],
+      ["plan", "ownedContentNodeIds"],
     );
   const fontFaces: string[] = [];
   const coverageByAssetId = new Map<string, FontCoverage>();
@@ -470,10 +531,22 @@ const documentFor = (
   const rootWidth = rootPlacement.width * xScale;
   const rootHeight = rootPlacement.height * yScale;
   const rootBorderWidth = root.border.width * yScale;
+  addHitRegion(root, rootRect, rootVisible);
+  hitRegions.sort(
+    (left, right) =>
+      right.priority - left.priority ||
+      compare(left.interactionId, right.interactionId) ||
+      compare(left.semanticNodeId, right.semanticNodeId) ||
+      left.bounds.x - right.bounds.x ||
+      left.bounds.y - right.bounds.y ||
+      left.bounds.width - right.bounds.width ||
+      left.bounds.height - right.bounds.height,
+  );
   const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(${red},${green},${blue},${cssNumber(alpha / 255)});color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rgbaCss(root.backgroundColor)};border:${cssNumber(rootBorderWidth)}px solid ${rgbaCss(root.border.color)};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.frame,.frame-children,.text{position:absolute;box-sizing:border-box}`;
   return Object.freeze({
     document: `<!doctype html><html lang="${escapeHtml(input.context.locale)}"><head><meta charset="utf-8"><style>${style}</style></head><body><main id="viewport"><div id="surface"><div class="frame-children" style="left:${cssNumber(-rootBorderWidth)}px;top:${cssNumber(-rootBorderWidth)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px">${renderedChildren.join("")}</div></div></main></body></html>`,
     fontFaceCount: fontFaces.length,
+    hitRegions,
   });
 };
 
@@ -570,30 +643,10 @@ export const createBakedWebRenderer = (options: CreateBakedWebRendererOptions): 
         );
       if (resolvedConfig === undefined)
         return failure("invalid-renderer-config", "Renderer config is invalid.", ["config"]);
-      const rendered = documentFor(input, resolvedConfig);
-      if ("ok" in rendered) return rendered;
-      const captureStateIds = Object.keys(input.plan.states)
-        .filter((stateId) => input.plan.states[stateId]?.kind === "capture")
-        .sort(compare);
-      const firstSemanticState = captureStateIds[0];
-      if (
-        firstSemanticState !== undefined &&
-        captureStateIds.some(
-          (stateId) =>
-            stableSnapshot(input.semanticsByState[stateId]) !==
-            stableSnapshot(input.semanticsByState[firstSemanticState]),
-        )
-      )
-        return failure(
-          "unsupported-state-visual-variation",
-          "Initial Structured rendering cannot represent differing capture-state semantics.",
-          ["semanticsByState"],
-        );
       const captures: RawSurfaceCapture[] = [];
-      const hitRegionsByState: Record<string, readonly []> = Object.create(null) as Record<
-        string,
-        readonly []
-      >;
+      const hitRegionsByState: Record<string, readonly RendererPrivateHitRegion[]> = Object.create(
+        null,
+      ) as Record<string, readonly RendererPrivateHitRegion[]>;
       for (const stateId of Object.keys(input.plan.states).sort(compare)) {
         const state = input.plan.states[stateId];
         if (!state)
@@ -602,8 +655,31 @@ export const createBakedWebRenderer = (options: CreateBakedWebRendererOptions): 
             "states",
             stateId,
           ]);
-        hitRegionsByState[stateId] = [];
-        if (state.kind === "empty") continue;
+        if (state.kind === "empty") {
+          hitRegionsByState[stateId] = [];
+          continue;
+        }
+        const rendered = documentFor(input, resolvedConfig, stateId);
+        if ("ok" in rendered) return rendered;
+        const wholeSurface =
+          input.plan.logicalBounds.x === 0 &&
+          input.plan.logicalBounds.y === 0 &&
+          input.plan.logicalBounds.width === input.surface.logicalSize[0] &&
+          input.plan.logicalBounds.height === input.surface.logicalSize[1] &&
+          input.plan.clipWindow.x === 0 &&
+          input.plan.clipWindow.y === 0 &&
+          input.plan.clipWindow.width === input.surface.logicalSize[0] &&
+          input.plan.clipWindow.height === input.surface.logicalSize[1];
+        if (wholeSurface) {
+          for (const interactionId of input.surface.states[stateId]?.enabledInteractionIds ?? [])
+            if (!rendered.hitRegions.some((region) => region.interactionId === interactionId))
+              return failure(
+                "missing-enabled-interaction-region",
+                "Every enabled interaction needs visible geometry.",
+                ["states", stateId, "enabledInteractionIds", interactionId],
+              );
+        }
+        hitRegionsByState[stateId] = rendered.hitRegions;
         const request: BrowserCaptureRequest = Object.freeze({
           stateId,
           document: rendered.document,

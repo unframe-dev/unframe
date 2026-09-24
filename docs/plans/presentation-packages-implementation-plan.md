@@ -3,7 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current milestone**: Milestone 3A 完了（静的 baked-web の Theme / composition）。Milestone 3B〜6 は未完了の後続として保持する
+- **Current milestone**: Milestone 3B 完了（State / Interaction / Hit Region）。Milestone 3C〜6 は未完了の後続として保持する
 - **Architecture source**:
   - [Presentation Architecture](../packages/ARCHITECTURE.md)
   - [Presentation Implementation Design](../packages/DESIGN.md)
@@ -38,20 +38,20 @@ consumer
 
 ### 2.1 Package inventory
 
-| Package                          | Current                                                                                                     | 主な未実装                                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                         | v2 consumer 接続、完全な意味検証、cross-language fixture                                          |
-| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                          | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                |
-| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                              | Presentation CLI の publish adapter との接続                                                      |
-| `packages/unframe-core`          | 静的 v2 Definition / RenderBundle 検証、build / publication integrity、Semantic Tree、canonical JSON / hash | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration             |
-| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、宣言共通 schema                                             | Lossless Syntax Tree / source patch、distribution                                                 |
-| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | Spatial、Interaction、Action / Output、Opaque component、migration                                |
-| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition 解決、default warning、v2 compile                         | cache                                                                                             |
-| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                       | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability |
-| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                      | Opaque execution / isolation、state variation、generic Primitive、interaction geometry            |
-| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                       | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                    |
-| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                           | TUIとprocess commandの接続、watch / dev / preview / test / publish                                |
-| `packages/config`                | TypeScript 基底設定、Vite+ 共有 lint / formatter、`pre-commit` / `vp staged`、check / test、CI filter       | —                                                                                                 |
+| Package                          | Current                                                                                                              | 主な未実装                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                                  | v2 consumer 接続、完全な意味検証、cross-language fixture                                          |
+| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                                   | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                                       | Presentation CLI の publish adapter との接続                                                      |
+| `packages/unframe-core`          | v2 State / click Interaction / Semantic Tree / Hit Region 検証、build / publication integrity、canonical JSON / hash | Cue / Action / Timeline、Projection、Runtime Snapshot、migration                                  |
+| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、State visual override、click Interaction                             | Lossless Syntax Tree / source patch、distribution                                                 |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                                 | Spatial、Interaction、Action / Output、Opaque component、migration                                |
+| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition / State / Interaction 解決、v2 compile                             | cache、自動 partition                                                                             |
+| `packages/unframe-renderer-api`  | baked-web plugin contract、partition-local region と conformance harness                                             | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability |
+| `packages/unframe-renderer-web`  | Fixed Browser の State 別 Frame / Text capture、click geometry、Opaque bundle                                        | Opaque execution / isolation、generic Primitive                                                   |
+| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                                | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                    |
+| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                                    | TUIとprocess commandの接続、watch / dev / preview / test / publish                                |
+| `packages/config`                | TypeScript 基底設定、Vite+ 共有 lint / formatter、`pre-commit` / `vp staged`、check / test、CI filter                | —                                                                                                 |
 
 ## 3. 実装原則
 
@@ -229,7 +229,7 @@ Timeline catalog、local interpolation、State Stream の非 Timeline 限定、`
 
 Reliable Event / Snapshot / State Stream の envelope、field number、replay / catch-up / idempotency window、State keyframe、runtime microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) で Accepted とした。M2 では設計だけを固定し、現行 foundation proto の置換、Go / C# generation、cross-language fixture は semantic payload が揃う M5 で一括実装する。
 
-Semantic roleごとのstrict union、Definition / Completed treeの分離、required owned structure、Stateごとのbutton enabled導出、normalized Hit Regionのbounds / priority / overlap / tie-breakは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした。current flat schemaはM3 Slice Bでgenerated schema、Core、Compiler、renderer、fixtureと同時に置換する。
+Semantic roleごとのstrict union、Definition / Completed treeの分離、required owned structure、Stateごとのbutton enabled導出、normalized Hit Regionのbounds / priority / overlap / tie-breakは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした。v2 の構造 schema に加え、M3 Slice Bで意味検証、Authoring / Compiler / renderer 接続、fixture を同じ変更系列で完成させた。
 
 Spatial TRS / matrix合成、Quaternion canonical sign、Canonical↔UnityのZ reflection、Semantic Surface logical / physical fit、Render Surface / raster / UV / Hit Region変換は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) でAcceptedとした。M2では設計だけを固定し、cross-language fixtureとContracts / Core / Compiler / renderer / Unity実装はM3〜M5で接続する。
 
@@ -239,7 +239,7 @@ Texture state artifact数、2K resolution、PNG / RGBA32、mipmapなし、Compil
 
 Native 3D、`baked-web`、限定 `native-ui`、`video` の責務と、Runtime Web を対象外にする境界は [ADR-0014](../decisions/0014-presentation-rendering-scope.md) でAcceptedとした。方式の採用は実装や実機性能の完了を意味しない。現行 Local Compiler は `baked-web` 初期 subset だけを実装し、ADR-0012 の v1 Delivery baseline も `baked-web` だけを対象とする。Native UI と Video は固有 budget と consumer が受理されるまで Delivery で拒否する。
 
-M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。現在は M3A の設計を確定し、静的描画の v2 基盤移行と Theme / composition を実装した。
+M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のGoalはM1 project assembly / reference Browser / CLIの完了までに限定し、その時点ではM3〜M6の実装を開始しなかった。その後、M3Aで静的描画の v2 基盤移行と Theme / composition、M3Bで State / Interaction / Hit Regionを実装した。
 
 ### 完了条件
 
@@ -267,11 +267,17 @@ Authoring / Core / Compiler / Renderer / CLI の対象テスト、Contracts v2 �
 
 ### Slice B: State、Interaction、Hit Region
 
-- State visual variation
-- Interaction declaration と enabled interaction
-- role別完成Semantic Tree
-- normalized Hit Regionとresolved geometry
-- renderer captureとsemantic bindingのcompleteness検証
+対象は static `baked-web` の Frame / Text と click Interaction とする。Authoring の明示 `semanticNodeId` を描画対象と Semantic Node の対応の正本とし、renderer の DOM から意味を推測しない。Runtime の入力処理、Delivery の role projection、Unity / C# consumer は M5以降の接続に残す。
+
+1. v2 Contracts / Core で role 別 Tree の親子・参照・accessible value、State の content / semantic override、enabled Interaction と button の整合を検証する。State ごとの完成 Tree は Definition から一方向に導出する。
+2. Authoring / Compiler で State visual variation と click Interaction を宣言・loweringし、全 State の capture plan、Completed Semantic Tree、render intent を決定的に生成する。
+3. Renderer API / Web の normalized region 直接出力を partition-local private region へ変更する。State ごとの capture と geometry は同じ layout result から解決し、Compiler が Semantic Surface 全体の normalized bounds へ集約する。clip は artifact producer で一度だけ行う。
+4. Core / renderer conformance で全 reachable State の binding と region、enabled button の coverage、bounds、重複、priority と canonical order、artifact 参照、State 数と raster budget を検証する。
+5. reference project に少なくとも二つの State と enabled / disabled の click Interaction を加え、全 JSON / PNG / Font 成果物の二回 build 同値を検証する。
+
+production build は一 Surface 一 partitionを維持する。private region の集約は複数 partition のfixtureでも検証し、自動 partition計画と `isolate` overrideはM4に残す。Opaque execution、Action / Output、Trigger / Cue、Timelineは後続sliceで扱う。
+
+M3Bでは Frame / Text の v2 visual override field、role別 Tree、click Interaction とregionを接続した。reference project の二StateをFixed Browserで二回buildし、全7ファイルの相対pathとSHA-256が一致した。Authoring / Components / Compiler / Core / Renderer API / Renderer Web / Contractsの対象checkとCLI check、repository-wide gateは成功した。
 
 ### Slice C: Action、Output、Trigger、Cue
 
@@ -470,7 +476,7 @@ GoalでMilestoneを実行する場合も、この終了条件をGoalの完了条
 - [x] Milestone 1: `.unframe.tsx`からartifactまでのLocal Compiler縦断経路
 - [x] Milestone 2: Blocking contractの確定
 - [x] Milestone 3A: ThemeとStructured composition
-- [ ] Milestone 3B: State、Interaction、Hit Region
+- [x] Milestone 3B: State、Interaction、Hit Region
 - [ ] Milestone 3C: Action、Output、Trigger、Cue
 - [ ] Milestone 3D: TimelineとRuntime projection
 - [ ] Milestone 4: RendererとAsset pipeline

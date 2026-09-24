@@ -630,7 +630,7 @@ describe("local declaration boundary", () => {
     ).toThrow(/exactly 3/);
   });
 
-  it("rejects nested empty ids and interactions in the non-interactive milestone", () => {
+  it("rejects nested empty ids and malformed interactions", () => {
     expect(() =>
       defineComponentStructure({
         id: "bad-structure",
@@ -650,7 +650,7 @@ describe("local declaration boundary", () => {
           click: { id: "click", kind: "click", event: "clicked" },
         },
       } as never),
-    ).toThrow(/non-interactive Surface/);
+    ).toThrow(/Invalid Surface declaration/);
     expect(() =>
       surface({
         ...titleSurface,
@@ -665,7 +665,7 @@ describe("local declaration boundary", () => {
           },
         },
       } as never),
-    ).toThrow(/semantic interactionId/);
+    ).toThrow(/Invalid Surface declaration/);
   });
 
   it("rejects cycles, sparse arrays, and accessor properties", () => {

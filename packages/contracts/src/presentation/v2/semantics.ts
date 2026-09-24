@@ -3,8 +3,13 @@ import * as z from "zod";
 import { idV2Schema, uint32V2Schema } from "./common";
 
 const base = { id: idV2Schema, parentId: idV2Schema.nullable(), order: uint32V2Schema };
-const language = { language: z.string().min(1).optional() };
-const text = { text: z.string().min(1), ...language };
+const scalarText = z.string().regex(/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/);
+const nonEmptyScalarText = scalarText.min(1);
+const languageTag = z
+  .string()
+  .regex(/^(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*|[xX](?:-[A-Za-z0-9]{1,8})+)$/);
+const language = { language: languageTag.optional() };
+const text = { text: nonEmptyScalarText, ...language };
 
 export const semanticNodeDefinitionV2Schema = z.discriminatedUnion("role", [
   z.strictObject({
@@ -21,14 +26,14 @@ export const semanticNodeDefinitionV2Schema = z.discriminatedUnion("role", [
     ...text,
   }),
   z.strictObject({ ...base, role: z.literal("paragraph"), ...text }),
-  z.strictObject({ ...base, role: z.literal("image"), alt: z.string().min(1), ...language }),
+  z.strictObject({ ...base, role: z.literal("image"), alt: nonEmptyScalarText, ...language }),
   z.strictObject({ ...base, role: z.literal("button"), interactionId: idV2Schema, ...text }),
   z.strictObject({ ...base, role: z.literal("list"), ordered: z.boolean() }),
   z.strictObject({ ...base, role: z.literal("listItem"), ...text }),
   z.strictObject({
     ...base,
     role: z.literal("table"),
-    label: z.string().min(1).optional(),
+    label: nonEmptyScalarText.optional(),
     ...language,
   }),
   z.strictObject({ ...base, role: z.literal("row") }),
@@ -57,7 +62,7 @@ export const completedSemanticNodeV2Schema = z.discriminatedUnion("role", [
     ...text,
   }),
   z.strictObject({ ...base, role: z.literal("paragraph"), ...text }),
-  z.strictObject({ ...base, role: z.literal("image"), alt: z.string().min(1), ...language }),
+  z.strictObject({ ...base, role: z.literal("image"), alt: nonEmptyScalarText, ...language }),
   z.strictObject({
     ...base,
     role: z.literal("button"),
@@ -70,7 +75,7 @@ export const completedSemanticNodeV2Schema = z.discriminatedUnion("role", [
   z.strictObject({
     ...base,
     role: z.literal("table"),
-    label: z.string().min(1).optional(),
+    label: nonEmptyScalarText.optional(),
     ...language,
   }),
   z.strictObject({ ...base, role: z.literal("row") }),
@@ -88,10 +93,10 @@ export const surfaceSemanticOverrideV2Schema = z.strictObject({
     idV2Schema,
     z.strictObject({
       included: z.boolean().optional(),
-      text: z.string().min(1).optional(),
-      language: z.string().min(1).nullable().optional(),
-      alt: z.string().min(1).optional(),
-      label: z.string().min(1).nullable().optional(),
+      text: nonEmptyScalarText.optional(),
+      language: languageTag.nullable().optional(),
+      alt: nonEmptyScalarText.optional(),
+      label: nonEmptyScalarText.nullable().optional(),
     }),
   ),
 });

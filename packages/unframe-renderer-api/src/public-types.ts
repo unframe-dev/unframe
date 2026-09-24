@@ -54,6 +54,9 @@ export type CompilerResolvedSurfaceInput = {
   readonly context: RendererBuildContext;
 };
 export type RawSurfaceCapture = DeepReadonly<SchemaRendererBuildSuccess["captures"][number]>;
+export type RendererPrivateHitRegion = DeepReadonly<
+  SchemaRendererBuildSuccess["hitRegionsByState"][string][number]
+>;
 export type RendererProvenance = DeepReadonly<SchemaRendererBuildSuccess["provenance"]>;
 export type ResolvedRenderSurface = DeepReadonly<SchemaRendererBuildSuccess["renderSurface"]>;
 export type RendererBuildSuccess = Omit<DeepReadonly<SchemaRendererBuildSuccess>, "diagnostics"> & {

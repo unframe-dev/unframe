@@ -33,12 +33,12 @@ reference_acceptance() {
   trap 'rm -rf -- "$temp"' RETURN
   cp -R "${REPO_ROOT}/examples/presentation/." "${temp}/"
   log "presentation(check): reference project check"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation -- check "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation check "${temp}"
   log "presentation(check): Fixed Browser reference build (first)"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation -- build "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation build "${temp}"
   first_manifest="$(manifest "${temp}")"
   log "presentation(check): Fixed Browser reference build (second)"
-  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation -- build "${temp}"
+  pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation build "${temp}"
   second_manifest="$(manifest "${temp}")"
   test "${first_manifest}" = "${second_manifest}"
   trap - RETURN
@@ -58,7 +58,7 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
-    pnpm --dir "${REPO_ROOT}" exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
+    pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-compiler exec tsc --noEmit -p "${REPO_ROOT}/examples/presentation/tsconfig.json"
     reference_acceptance
     ;;
   *)

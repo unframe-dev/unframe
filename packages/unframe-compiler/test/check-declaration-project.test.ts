@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/unframe-components";
-import type { PresentationDeclaration } from "@unframe/unframe-authoring";
+import type {
+  ComponentStructure,
+  PresentationDeclaration,
+  SurfaceDeclaration,
+} from "@unframe/unframe-authoring";
 import {
   canonicalizePresentationDefinition,
   validatePresentationDefinition,
@@ -117,6 +121,152 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("lowers finite states, visual changes, semantic changes and interactions", () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const original = input.components[0]!;
+    const root = original.structure.root;
+    if (root.kind !== "surface") throw new Error("fixture must be a surface");
+    (input.themes as CompilerDeclarationProject["themes"][number][])[0] = {
+      ...input.themes[0]!,
+      declaration: {
+        ...input.themes[0]!.declaration,
+        tokens: {
+          accent: { category: "color", value: { red: 0.2, green: 0.3, blue: 0.4, alpha: 1 } },
+        },
+      },
+    };
+    input.components[0] = {
+      ...original,
+      manifest: {
+        ...original.manifest,
+        states: { default: { kind: "state", initial: true }, active: { kind: "state" } },
+      },
+      structure: {
+        ...original.structure,
+        root: {
+          ...root,
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 7 } },
+          baseSemanticTree: {
+            rootNodeIds: ["semantic-text"],
+            nodes: {
+              "semantic-text": {
+                id: "semantic-text",
+                parentId: null,
+                order: 0,
+                role: "button",
+                interactionId: "open",
+                text: "Open",
+              },
+            },
+          },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+            active: {
+              id: "active",
+              contentOverrides: {
+                "frame-root": {
+                  kind: "frame",
+                  visible: true,
+                  opacity: 0.8,
+                  placement: { kind: "absolute", x: 1, y: 2, width: 1600, height: 900 },
+                  layout: { kind: "absolute" },
+                  backgroundColor: { kind: "token-ref", category: "color", tokenId: "accent" },
+                  border: { color: { red: 1, green: 0, blue: 0, alpha: 1 }, width: 2, radius: 3 },
+                  clip: true,
+                },
+                "text-content": {
+                  kind: "text",
+                  visible: true,
+                  opacity: 0.7,
+                  placement: { kind: "absolute", x: 10, y: 20, width: 1000, height: 100 },
+                  value: "Active",
+                  style: {
+                    fontSize: 44,
+                    lineHeight: 50,
+                    color: { kind: "token-ref", category: "color", tokenId: "accent" },
+                    weight: "bold",
+                    align: "center",
+                    overflow: "ellipsis",
+                  },
+                },
+              },
+              semanticOverrides: [
+                {
+                  id: "override",
+                  kind: "semantic-override",
+                  targetId: "semantic-text",
+                  text: "Active",
+                },
+              ],
+              enabledInteractionIds: ["open"],
+            },
+          },
+          renderIntent: {
+            ...root.renderIntent,
+            updateModel: "finite-state",
+            interaction: "regions",
+          },
+        } as SurfaceDeclaration,
+      } as ComponentStructure,
+    };
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
+    expect(surface.interactions["instance:open"]).toMatchObject({ hitPriority: 7, event: "open" });
+    expect(surface.states["instance:active"]).toMatchObject({
+      contentOverrides: {
+        "instance:frame-root": {
+          kind: "frame",
+          placement: { kind: "absolute", x: 1, y: 2, width: 1600, height: 900 },
+          layout: { kind: "absolute" },
+          backgroundColor: { red: 0.2 },
+          border: { width: 2, radius: 3 },
+          clip: true,
+        },
+        "instance:text-content": {
+          kind: "text",
+          value: { kind: "literal", value: "Active" },
+          style: {
+            fontAssetId: "reference-font",
+            fontSize: 44,
+            lineHeight: 50,
+            color: { red: 0.2 },
+            weight: "bold",
+            align: "center",
+            overflow: "ellipsis",
+          },
+        },
+      },
+      enabledInteractionIds: ["instance:open"],
+    });
+  });
+  it("rejects state visual overrides with missing or mismatched targets", () => {
+    for (const [targetId, kind] of [
+      ["missing", "text"],
+      ["text-content", "frame"],
+    ] as const) {
+      const input = project();
+      const entry = input.components[0]!;
+      entry.structure = {
+        ...entry.structure,
+        root: {
+          ...entry.structure.root,
+          states: {
+            default: {
+              id: "default",
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+              contentOverrides: { [targetId]: { kind } },
+            },
+          },
+        },
+      } as never;
+      expect(codes(input)).toContain("compiler-content-override-target-invalid");
+    }
+  });
   it("lowers only v2 artifacts with explicit literal fonts and external assets", () => {
     const input = project();
     input.presentation.assets = [{ kind: "asset-ref", assetId: "reference-font" }];
@@ -540,7 +690,7 @@ describe("checkDeclarationProject", () => {
       root: {
         ...top.structure.root,
         baseSemanticTree: {
-          rootNodeIds: ["semantic-text"],
+          rootNodeIds: ["semantic-text", "existing-child"],
           nodes: {
             "semantic-text": {
               id: "semantic-text",
@@ -552,8 +702,8 @@ describe("checkDeclarationProject", () => {
             },
             "existing-child": {
               id: "existing-child",
-              parentId: "semantic-text",
-              order: 0,
+              parentId: null,
+              order: 1,
               role: "paragraph",
               text: "Existing",
             },
@@ -670,6 +820,7 @@ describe("checkDeclarationProject", () => {
     });
     expect(surface.baseSemanticTree.rootNodeIds).toEqual([
       "instance:semantic-text",
+      "instance:existing-child",
       "badge-instance:badge-semantic",
     ]);
 
@@ -683,15 +834,9 @@ describe("checkDeclarationProject", () => {
     expect(codes(input)).toContain("compiler-slot-semantic-parent-not-found");
     slotPlaceholder.semanticParentId = "semantic-text";
     const attached = checkDeclarationProject(input);
-    expect(attached.valid ? [] : attached.diagnostics).toEqual([]);
-    if (!attached.valid) return;
-    const attachedTree =
-      attached.value.definition.scene.surfaces["instance:surface-root"]!.baseSemanticTree;
-    expect(attachedTree.rootNodeIds).toEqual(["instance:semantic-text"]);
-    expect(attachedTree.nodes["badge-instance:badge-semantic"]).toMatchObject({
-      parentId: "instance:semantic-text",
-      order: 1,
-    });
+    expect(attached.valid ? [] : attached.diagnostics.map(({ code }) => code)).toContain(
+      "graph.invalid",
+    );
 
     const badgeStructure = (
       input.components as unknown as CompilerDeclarationProject["components"][number][]
@@ -942,7 +1087,7 @@ describe("checkDeclarationProject", () => {
           },
         ],
       }),
-    ).toContain("compiler-invalid-declaration");
+    ).toContain("behavior.invalid");
     const parent = project();
     expect(
       codes({
@@ -1385,8 +1530,8 @@ describe("compileDeclarationProject", () => {
     },
     capabilities: {
       inputKinds: ["structured"],
-      updateModels: ["static"],
-      interactions: ["none"],
+      updateModels: ["static", "finite-state"],
+      interactions: ["none", "regions"],
       internalAnimations: ["none"],
       rendererPreferences: ["baked-web"],
       fallbackPolicies: ["reject"],
@@ -1435,6 +1580,60 @@ describe("compileDeclarationProject", () => {
     rendererConfigHash: "sha256:config",
     renderers: [renderer],
     encodeLimits: PNG_ABSOLUTE_LIMITS,
+  });
+
+  it("owns a Frame that binds an enabled button in the renderer plan", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("fixture must be a surface");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: { ...root.root, semanticNodeId: "frame-button" },
+          baseSemanticTree: {
+            rootNodeIds: ["semantic-text", "frame-button"],
+            nodes: {
+              ...root.baseSemanticTree.nodes,
+              "frame-button": {
+                id: "frame-button",
+                parentId: null,
+                order: 1,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 1 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        } as SurfaceDeclaration,
+      } as ComponentStructure,
+    };
+    let owned: readonly string[] = [];
+    let context: readonly string[] = [];
+    const probe: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        owned = value.plan.ownedContentNodeIds;
+        context = value.plan.contextNodeIds;
+        return {
+          ok: false,
+          diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],
+        };
+      },
+    };
+    await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(owned).toContain("instance:frame-root");
+    expect(context).not.toContain("instance:frame-root");
   });
 
   it("reports every preflight texture budget violation before invoking a renderer", async () => {

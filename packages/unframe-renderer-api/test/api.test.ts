@@ -27,8 +27,8 @@ const rendererConfigHash = "sha256:renderer-config";
 
 const capabilities = {
   inputKinds: ["structured"],
-  updateModels: ["static"],
-  interactions: ["none"],
+  updateModels: ["static", "finite-state"],
+  interactions: ["none", "regions"],
   internalAnimations: ["none"],
   rendererPreferences: ["baked-web"],
   fallbackPolicies: ["reject"],
@@ -157,7 +157,10 @@ const input = {
     semanticSurfaceId: "surface-title",
     logicalBounds: { x: 0, y: 0, width: 1920, height: 1080 },
     layer: 0,
-    contentNodeIds: ["frame-root", "text-title"],
+    ownedContentNodeIds: ["text-title"],
+    contextNodeIds: ["frame-root"],
+    clipWindow: { x: 0, y: 0, width: 1920, height: 1080 },
+    hitPriorityByInteractionId: {},
     states: { "state-default": { kind: "capture" } },
   },
   entry: { kind: "structured" },
@@ -718,7 +721,7 @@ describe("first-milestone plugin contract", () => {
       },
       plan: {
         ...input.plan,
-        contentNodeIds: ["frame-root", "text-second", "text-title"],
+        ownedContentNodeIds: ["text-second", "text-title"],
       },
     };
 
@@ -1045,7 +1048,7 @@ describe("first-milestone plugin contract", () => {
     let buildCalls = 0;
     const invalid = {
       ...input,
-      plan: { ...input.plan, contentNodeIds: ["missing-node"] },
+      plan: { ...input.plan, ownedContentNodeIds: ["missing-node"] },
     } as const satisfies CompilerResolvedSurfaceInput;
     const plugin = {
       ...goodPlugin,
@@ -1091,7 +1094,7 @@ describe("first-milestone plugin contract", () => {
           interaction: { kind: "regions", events: ["click"] },
         },
       }),
-    ).toMatchObject({ supported: false, diagnostics: [{ code: "unsupported-interaction" }] });
+    ).toMatchObject({ supported: true, diagnostics: [] });
     expect(
       evaluateFirstMilestoneSupport({
         entry: input.entry,
@@ -1378,7 +1381,7 @@ describe("conformance diagnostics", () => {
       );
   });
 
-  it("validates normalized Hit Region geometry and semantic references", async () => {
+  it("validates partition-local Hit Region geometry and semantic references", async () => {
     const invalidHitRegion = withBuild((value) => {
       const result = successfulResult(value);
       if (!result.ok) return result;
@@ -1389,9 +1392,8 @@ describe("conformance diagnostics", () => {
             {
               interactionId: "missing-interaction",
               semanticNodeId: "missing-node",
-              bounds: { x: 0.9, y: 0, width: 0.2, height: 1 },
-              coordinateSpace: "normalized",
-              priority: -1,
+              bounds: { x: 1919, y: 0, width: 2, height: 1 },
+              priority: 0,
             },
           ],
         },
@@ -1405,15 +1407,51 @@ describe("conformance diagnostics", () => {
         expect.arrayContaining([
           "invalid-hit-region-bounds",
           "invalid-hit-region-interaction",
-          "invalid-hit-region-priority",
+          "hit-region-priority-mismatch",
           "invalid-hit-region-semantic-node",
         ]),
+      );
+  });
+
+  it("rejects duplicate and noncanonical private regions within a State", async () => {
+    const region = {
+      interactionId: "tap",
+      semanticNodeId: "semantic-title",
+      bounds: { x: 20, y: 10, width: 10, height: 10 },
+      priority: 0,
+    };
+    const duplicateRegions = withBuild((value) => {
+      const result = successfulResult(value);
+      if (!result.ok) return result;
+      return { ...result, hitRegionsByState: { "state-default": [region, region] } };
+    });
+    const duplicate = await runRendererConformance(duplicateRegions, [fixture()]);
+    expect(duplicate.valid).toBe(false);
+    if (!duplicate.valid)
+      expect(duplicate.diagnostics.map(({ code }) => code)).toContain("duplicate-hit-region");
+
+    const unorderedRegions = withBuild((value) => {
+      const result = successfulResult(value);
+      if (!result.ok) return result;
+      return {
+        ...result,
+        hitRegionsByState: {
+          "state-default": [region, { ...region, bounds: { x: 10, y: 10, width: 10, height: 10 } }],
+        },
+      };
+    });
+    const unordered = await runRendererConformance(unorderedRegions, [fixture()]);
+    expect(unordered.valid).toBe(false);
+    if (!unordered.valid)
+      expect(unordered.diagnostics.map(({ code }) => code)).toContain(
+        "noncanonical-hit-region-order",
       );
   });
 
   it("requires exact enabled-interaction coverage and semantic binding", async () => {
     const interactiveSurface = {
       ...input,
+      plan: { ...input.plan, hitPriorityByInteractionId: { tap: 0, other: 0 } },
       surface: {
         ...input.surface,
         interactions: {
@@ -1468,7 +1506,6 @@ describe("conformance diagnostics", () => {
               interactionId: "tap",
               semanticNodeId: "semantic-title",
               bounds: { x: 0, y: 0, width: 1, height: 1 },
-              coordinateSpace: "normalized",
               priority: 0,
             },
           ],
@@ -1500,6 +1537,23 @@ describe("conformance diagnostics", () => {
           },
         },
       },
+      plan: interactiveSurface.plan,
+      semanticsByState: {
+        "state-default": {
+          rootNodeIds: ["semantic-title"],
+          nodes: {
+            "semantic-title": {
+              id: "semantic-title",
+              parentId: null,
+              order: 0,
+              role: "button",
+              text: "Hello",
+              interactionId: "tap",
+              stateEnabled: true,
+            },
+          },
+        },
+      },
     } as const satisfies CompilerResolvedSurfaceInput;
     const coverageResult = await runRendererConformance(goodPlugin, [
       fixture(enabledWithoutRegion),
@@ -1517,7 +1571,7 @@ describe("conformance diagnostics", () => {
       plan: {
         ...input.plan,
         semanticSurfaceId: "other-surface",
-        contentNodeIds: ["missing-node"],
+        ownedContentNodeIds: ["missing-node"],
         states: { "missing-state": { kind: "capture" } },
       },
       context: { ...input.context, pixelTarget: [0, 1] },
@@ -1542,7 +1596,7 @@ describe("conformance diagnostics", () => {
       ...input,
       plan: {
         ...input.plan,
-        contentNodeIds: ["frame-root", "frame-root"],
+        ownedContentNodeIds: ["frame-root", "frame-root"],
       },
     } as const satisfies CompilerResolvedSurfaceInput;
 

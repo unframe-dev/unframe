@@ -1,6 +1,6 @@
 # Presentation Compiler Architecture
 
-- **Status**: M3A structured authoring implementation
+- **Status**: M3B finite-state and interaction compilation implemented
 - **Scope**: Authoring Project から canonical PresentationDefinition と RenderBundle を生成する library
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -13,7 +13,7 @@
 
 ## 1. Role
 
-`unframe-compiler` は programmatic Local Compiler pipeline を所有する。現在はTypeScript Compiler APIによるTS/TSXの構文解析境界と、post-lowering の plain-data `PresentationDeclaration` を検査してStatic Structured Surface subsetをcanonical `PresentationDefinition` JSONへlowerする境界を持つ。
+`unframe-compiler` は programmatic Local Compiler pipeline を所有する。現在はTypeScript Compiler APIによるTS/TSXの構文解析境界と、post-lowering の plain-data `PresentationDeclaration` を検査してStructured Surface subsetをcanonical `PresentationDefinition` JSONへlowerする境界を持つ。
 
 CLI command parsing、concrete renderer implementation、publish は所有しない。Compiler は orchestration library であり、concrete renderer は host から plugin として注入する。
 
@@ -60,13 +60,13 @@ src/
 
 ## 4. Current implementation
 
-`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font Asset carrier を解決する。cross-reference、duplicate、M3A subset の制約は semantic invariant として個別に検査する。実装済み subset は型付き Theme token と同category alias、NamedStyle、scalar Props、style Variants、Parts、absolute な nested Frame / Text、明示 Slot placeholder による Frame-root Component composition を扱う。解決順は default、NamedStyle、inline、Variant、Part であり、配列は全置換する。選択済み Variant が同じ node/property を変更する場合は拒否する。
+`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font Asset carrier を解決する。cross-reference、duplicate、M3B subset の制約は semantic invariant として個別に検査する。実装済み subset は型付き Theme token と同category alias、NamedStyle、scalar Props、style Variants、Parts、absolute な nested Frame / Text、明示 Slot placeholder による Frame-root Component composition を扱う。解決順は default、NamedStyle、inline、Variant、Part であり、配列は全置換する。選択済み Variant が同じ node/property を変更する場合は拒否する。
 
 Slot の子は placeholder の children 位置で順序付きに展開する。`semanticParentId` がある場合は子 Component の Semantic Tree roots を親 Component 内の該当 node の既存 children 後へ接続し、省略時は親 Surface の roots へ追加する。どちらも sibling order を決定論的に再採番する。top-level instance は Surface root と Spatial node を必須とし、slotted instance は Frame root かつ Spatial node なしを必須とする。欠落・重複・self reference・cycle・owner mismatch を build error にする。
 
 すべての Authoring 値は具体的な v2 Text / Frame 値へ解決してから Core validation へ渡す。省略した Prop / default 付き Variant は `CheckedDeclarationProject.warnings` に instance ID、宣言名、default 値、利用可能な source metadata を記録する。明示された空文字、`0`、`false`、または default と同じ値は warning にしない。結果には v2 Definition、Core canonical JSON、source hash、definition hash、font AssetSet と warnings を含む。
 
-`compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
+`compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。Renderer の partition-local Hit Region は Compiler が Semantic Surface 全体の normalized 座標へ集約する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
@@ -109,7 +109,7 @@ M1 filesystem hostとprocess entryは`unframe-cli`が所有する。CLIはrefere
 
 ## 6. Invariants
 
-以下は target pipeline 全体の invariant である。現在の初期 subset は Component Action / Output、Interaction、Timeline、Opaque renderer を lower せず、入力で明示的に拒否する。
+以下は target pipeline 全体の invariant である。現在の subset は Component Action / Output、Timeline、Opaque renderer を lower せず、入力で明示的に拒否する。
 
 - static lowering の入力は Source、locked package、Theme、Asset metadata、Compiler configuration に限定する。
 - 同じ明示入力と toolchain version から同じ Declaration Graph と canonical PresentationDefinition を生成する。

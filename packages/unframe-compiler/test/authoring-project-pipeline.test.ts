@@ -180,8 +180,8 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
   } as const;
   const capabilities = {
     inputKinds: ["structured"] as const,
-    updateModels: ["static"] as const,
-    interactions: ["none"] as const,
+    updateModels: ["static", "finite-state"] as const,
+    interactions: ["none", "regions"] as const,
     internalAnimations: ["none"] as const,
     rendererPreferences: ["baked-web"] as const,
     fallbackPolicies: ["reject"] as const,

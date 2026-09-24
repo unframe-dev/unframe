@@ -343,7 +343,7 @@ const validateInput = (
         [...prefix, "resolvedIntent", "selectedRendererId"],
       ),
     );
-  for (const contentNodeId of input.plan.contentNodeIds)
+  for (const contentNodeId of [...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds])
     if (
       !rendererIdSchema.safeParse(contentNodeId).success ||
       !Object.hasOwn(input.surface.contentNodes, contentNodeId)
@@ -352,17 +352,50 @@ const validateInput = (
         diagnostic("missing-content-node", "Render plan references an unknown content node.", [
           ...prefix,
           "plan",
-          "contentNodeIds",
+          "ownedContentNodeIds",
           contentNodeId,
         ]),
       );
-  if (new Set(input.plan.contentNodeIds).size !== input.plan.contentNodeIds.length)
+  if (
+    new Set([...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds]).size !==
+    input.plan.ownedContentNodeIds.length + input.plan.contextNodeIds.length
+  )
     diagnostics.push(
       diagnostic("duplicate-content-node", "Render plan content node IDs must be unique.", [
         ...prefix,
         "plan",
-        "contentNodeIds",
+        "ownedContentNodeIds",
       ]),
+    );
+  if (
+    !logicalBoundsConstraintSchema.safeParse({
+      bounds: input.plan.clipWindow,
+      logicalSize: input.surface.logicalSize,
+    }).success
+  )
+    diagnostics.push(
+      diagnostic("invalid-clip-window", "Partition clip window must fit the Semantic Surface.", [
+        ...prefix,
+        "plan",
+        "clipWindow",
+      ]),
+    );
+  for (const [interactionId, priority] of Object.entries(input.plan.hitPriorityByInteractionId))
+    if (input.surface.interactions[interactionId]?.hitPriority !== priority)
+      diagnostics.push(
+        diagnostic(
+          "invalid-hit-priority-plan",
+          "Planned priority must match the interaction definition.",
+          [...prefix, "plan", "hitPriorityByInteractionId", interactionId],
+        ),
+      );
+  if (!sameKeySet(input.plan.hitPriorityByInteractionId, input.surface.interactions))
+    diagnostics.push(
+      diagnostic(
+        "hit-priority-plan-mismatch",
+        "Planned interaction priorities must cover every interaction.",
+        [...prefix, "plan", "hitPriorityByInteractionId"],
+      ),
     );
 };
 

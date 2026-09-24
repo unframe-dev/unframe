@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Presentation v2 M3A semantic core and v2 publication integrity boundary
+- **Status**: Presentation v2 M3B semantic core and v2 publication integrity boundary
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -77,10 +77,11 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 
 ## 5. Invariants
 
-現在のM3A実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、
-Group ownerとSpatial parent、基本State、DefinitionとRenderBundleのsurface / state / semantic tree対応、
-baked-webの単一texture、feature、descriptor、GPU byte、bindingを検証する。State visual variation、
-Interaction、Hit Region、Cue / Action、Timeline、Native UI、Video、Modelは通常validation入口で
+現在のM3B実装は、Record keyとID、Spatial / content / semantic tree、Surfaceの1:1関係、
+Group ownerとSpatial parent、Stateのcontent / semantic override、click Interaction、
+DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応を検証する。
+Hit Regionのbounds、priority、canonical order、enabled buttonとの整合、全Stateのbindingと
+texture policy予算も検証する。Cue / Action、Timeline、Native UI、Video、Modelは通常validation入口で
 `feature.unsupported`として明示的に拒否する。
 
 次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
@@ -124,7 +125,7 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 9. Deferred decisions
 
-- State visual variation、Interaction、Hit Region、Cue / Trigger / Guard / Action、Timeline、Native UI、Video、Model artifactの完全なsemantic validation
+- Cue / Trigger / Guard / Action、Timeline、Native UI、Video、Model artifactのsemantic validation
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window

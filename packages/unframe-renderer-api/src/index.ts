@@ -28,6 +28,7 @@ export type {
   RendererFontAssets,
   RendererIdentity,
   RendererPlugin,
+  RendererPrivateHitRegion,
   RendererProvenance,
   RendererSupportDecision,
   RendererSupportRequest,
