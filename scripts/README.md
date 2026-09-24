@@ -16,6 +16,8 @@ nix run .#check
 nix run .#control-plane
 nix run .#presentation
 nix run .#realtime
+nix run .#web
+nix run .#lp
 nix run .#notion-sync
 nix flake check
 ```

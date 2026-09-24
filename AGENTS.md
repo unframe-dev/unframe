@@ -12,7 +12,7 @@ Unframe is a monorepo for an MR presentation product. The repository contains:
 app/
 ├── web/       React 19 presentation editor (WIP)
 ├── server/    Control Plane and Realtime Backend (WIP)
-└── unity/     Unity 6000.3.14f1 MR application (WIP)
+└── unity/     Unity 6000.3.22f1 MR application (WIP)
 
 lp/            SvelteKit landing page and documentation site (WIP)
 docs/          Architecture, API, ADR, plan, and synchronized documentation
@@ -26,15 +26,16 @@ scripts/              Development, generation, CI, and documentation scripts
 All applications under `app/` and `lp/` are WIP. The current implementation is
 not equally complete in every area:
 
-- The legacy Go/Huma/Turso/R2 HTTP backend has been removed. `app/server/`
-  contains the Control Plane foundation. `app/server/realtime/` contains the
-  initial independent Go module and gRPC process; its Protobuf service,
-  authentication, session coordination, and persistence behavior remain planned.
-- Authentication, authorization, realtime synchronization, conversion
-  pipelines, and background jobs are not currently implemented. Do not treat
-  planned capabilities as existing behavior.
-- `app/web/` is currently a small editor scaffold. Do not assume that full
-  presentation CRUD or upload workflows already exist.
+- The legacy Go/Huma/Turso/R2 HTTP backend has been removed. The Control Plane
+  implements authentication, Presentation / Asset APIs, Session lifecycle,
+  Venue Edge assignment, and Realtime bootstrap. The independent Go Realtime
+  process implements an authenticated Protobuf bidi service, assignment fencing,
+  and in-memory page-change fan-out. Replay / resume, full Runtime state
+  synchronization, and persistence callback lifecycle integration remain planned.
+- Conversion pipelines and background jobs are not currently implemented. Do
+  not treat planned capabilities as existing behavior.
+- `app/web/` has authentication screens and a fixture-based 3D editor.
+  Presentation server persistence and asset upload are not connected.
 - `lp/` is a static SvelteKit site and remains WIP while product content is being
   developed. Its CI task runs the LP test, check, and build commands.
 - `app/unity/` contains a Unity project and EditMode tests. The generated C#
@@ -230,8 +231,9 @@ Before completing code changes:
 - Run `nix run .#check` for the configured repository-wide gate.
 - Run narrower area checks first when iterating.
 - Run `nix flake check` when changing `flake.nix`, `flake.lock`, or Nix setup.
-- Run Unity EditMode/PlayMode tests in the Unity Editor for Unity behavior
-  changes. The repository Unity workflow currently performs only static checks:
+- Run the existing Unity EditMode tests in the Unity Editor for Unity behavior
+  changes, and any relevant PlayMode tests if they are added. The repository
+  Unity workflow currently performs only static checks:
   `dotnet format`, PowerShell analysis, and `.meta` integrity.
 - Do not describe skipped checks as passing checks.
 - If a check cannot be run, report the exact command, reason, and alternative
@@ -335,8 +337,10 @@ Never commit:
 
 When handling authentication, authorization, file conversion, external URLs,
 uploaded presentation data, or database input, validate data at trust
-boundaries. The current API has no authentication or authorization middleware;
-do not assume that a user identity or access policy exists.
+boundaries. The Control Plane has session-based identity and resource permission
+checks, and Realtime verifies connection identity and assignment. Check the
+policy at each route or transport boundary; do not assume every caller is
+authenticated or authorized.
 
 Do not log secrets, credentials, signed URLs, or sensitive user presentation
 data.

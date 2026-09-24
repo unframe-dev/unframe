@@ -22,8 +22,9 @@ Unframe は次のコンポーネントからなるモノレポです。
 
 旧 Go/Huma/Turso/R2 HTTP backend は削除済みです。Control Plane と Realtime は
 それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。Realtime
-には独立した Go module と gRPC process があり、Protobuf service、認証、session 同期、
-永続化 bridge は未実装です。
+には独立した Go module と gRPC process があり、Protobuf bidi service、JWT 認証、
+assignment fencing、page-change の in-memory fan-out を実装しています。replay / resume、
+完全な Runtime 状態同期、永続化 callback の session lifecycle 接続は未実装です。
 
 ## 開発スタイル: TDD
 
@@ -135,16 +136,17 @@ generated-file notice を保持します。C# generator は未接続のため、
 | `app/web/`             | package script で実行                      | 機能追加に合わせて拡張                      |
 | `app/server/realtime/` | Go `testing`、race detector                | gRPC contract と session 実装に合わせて拡張 |
 | `lp/`                  | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
-| `app/unity/`           | Unity Test Framework の EditMode/PlayMode  | Unity Editor で実行                         |
+| `app/unity/`           | Unity Test Framework の EditMode           | Unity Editor で実行                         |
 
 `nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web
 の検証を実行します。Presentation gate は共有 `packages/config` の hook fixture と設定
 check も実行します。現在は Unity Editor テストを実行しません。ドキュメント link
 check や security check も、この品質ゲートには含まれません。
 
-Unity の動作変更では、Unity `6000.3.14f1` の Editor で EditMode/PlayMode テストを
-実行します。GitHub-hosted runner の Unity workflow は `dotnet format`、PowerShell
-analysis、`.meta` 整合性の静的検査のみを行います。
+Unity の動作変更では、Unity `6000.3.22f1` の Editor で既存の EditMode テストを
+実行し、PlayMode テストが追加された場合は関連するものも実行します。
+GitHub-hosted runner の Unity workflow は `dotnet format`、PowerShell analysis、
+`.meta` 整合性の静的検査のみを行います。
 
 品質コマンドの実行前後に `git status`、`git diff`、`git diff --cached` を確認します。
 
