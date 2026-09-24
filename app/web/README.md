@@ -1,20 +1,24 @@
 # Unframe Web Editor
 
-`app/web` は、3D モデルとテキストをスライド上で編集し、同じブラウザの読み取り専用 Viewer へ確定操作を共有する React SPA です。現在は `demo` fixture の vertical slice であり、API、認証、アップロード、永続サーバー保存は接続していません。
+`app/web` は、空間プレゼンテーションを管理・編集する React SPA です。Home の一覧と新規作成は現在、画面確認用の mock repository を使用しており、Control Plane の Presentation API には接続しません。現在の Editor は `demo` fixture を使う移行前の POC であり、永続モデルの正本ではありません。Device Authorization のブラウザ承認画面は Control Plane の Better Auth に接続しますが、Presentation の取得・保存、アップロードはまだ Editor に接続していません。目標境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を参照してください。
 
 ## 現在の実装
 
-- React 19.2、MUI v9、TanStack Router、Zustand、Zod、React Hook Form
+- React 19.2、Tailwind CSS v4、shadcn/ui（Base UI）、TanStack Router、Zustand、Zod、React Hook Form
 - React Three Fiber / Drei による GLB 表示、選択、移動、回転、拡縮
 - serializable command と revision に基づく Undo / Redo
-- `BroadcastChannel` と `localStorage` snapshot による同一ブラウザ内の Editor / Viewer 同期
-- `/editor` basepath と Cloudflare Workers Static Assets の SPA fallback
+- TanStack Query と mock repository による Presentation 一覧・作成（Editor への遷移は未接続）
+- `/login`、`/signup`、`/recover` と `/recover/reset?token=` の Better Auth browser flow
+- `/settings/profile` の名前更新と、`/settings/security` の password / TOTP / session 操作
+- `/home`、`/devices`、`/rooms` の折り畳み可能なアプリケーションナビゲーションと、設定内ナビゲーション
+- root-based routing と Cloudflare Workers Static Assets の SPA fallback
+- `/device` の Device Authorization 検証・承認・拒否と Google ログインへの復帰 URL 保持
 - Vitest、Testing Library、Playwright Chromium による unit / component / E2E test
 
 次の機能は未実装です。
 
-- Presentation API とサーバー永続化
-- 認証、認可、共同編集、競合解決
+- Presentation の取得・更新・削除と Editor のサーバー永続化
+- editor の認証、認可、共同編集、競合解決
 - asset upload、変換、R2 配信 URL の解決
 - 複数ブラウザや複数端末へのリアルタイム配信
 - Cloudflare への自動デプロイ workflow
@@ -28,30 +32,37 @@ nix run .#setup
 pnpm --filter @unframe/web run dev
 ```
 
-開発 URL は `http://localhost:5173/editor/` です。root の `nix run .#dev` は server と LP だけを起動し、Web Editor は起動しません。
+開発 URL は `http://localhost:5173/` です。Web Editor は package の `dev` script から起動します。
 
 利用できる fixture route は次のとおりです。
 
-| URL                                                | 用途                |
-| -------------------------------------------------- | ------------------- |
-| `/editor/`                                         | fixture の入口      |
-| `/editor/presentations/demo/edit?panel=properties` | Editor              |
-| `/editor/presentations/demo/view`                  | 読み取り専用 Viewer |
+| URL                                         | 用途                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| `/home/`                                    | 認証必須の Presentation 一覧                                       |
+| `/devices/`、`/rooms/`                      | デバイス・Session 管理の準備画面。`/rooms/` は移行前の fixture URL |
+| `/editor/demo/?panel=properties`            | 認証必須の POC Editor                                              |
+| `/device/?user_code=ABCD-EFGH`              | Device Authorization のブラウザ承認                                |
+| `/login/`、`/signup/`、`/recover/`          | public authentication routes                                       |
+| `/settings/profile/`、`/settings/security/` | account settings                                                   |
+
+application route の `beforeLoad` は未認証を LP 所有の `/` へ外部遷移させます。
 
 ## 構成
 
-| 領域                       | 責務                                                        |
-| -------------------------- | ----------------------------------------------------------- |
-| `src/document/`            | versioned document schema、migration、serializer、fixture   |
-| `src/editor/commands/`     | serializable command の検証と適用                           |
-| `src/editor/history/`      | inverse command による Undo / Redo                          |
-| `src/editor/session/`      | 選択、tool、panel、grid、snap などの一時 UI state           |
-| `src/viewer/presentation/` | Editor / Viewer 共通の 3D scene と error fallback           |
-| `src/viewer/stream/`       | revision event、snapshot、同一ブラウザ内配信                |
-| `src/routes/`              | Home、Editor、Viewer の画面 shell                           |
-| `worker/`                  | `/editor` prefix を Static Assets 用 path へ変換する Worker |
+| 領域                          | 責務                                                          |
+| ----------------------------- | ------------------------------------------------------------- |
+| `src/app/`                    | router、provider、application shell の composition            |
+| `src/features/auth/`          | Better Auth browser flow と認証 guard                         |
+| `src/features/device/`        | Device Authorization の承認画面                               |
+| `src/features/presentations/` | Home の一覧・作成と mock repository                           |
+| `src/features/settings/`      | プロフィールとセキュリティー設定                              |
+| `src/features/editor/`        | POC document model、browser persistence、3D canvas、Editor UI |
+| `src/shared/`                 | brand、layout、shadcn/ui primitives、共通 utility             |
+| `worker/`                     | root-based request を Static Assets へ渡す Worker             |
 
 保存対象は `PresentationDocument` だけです。選択状態や gizmo の drag 中 state は保存しません。GLB の runtime URL も document へ保存せず、`AssetResolver` が asset ID から解決します。
+
+`@base-ui/react` は `src/shared/ui/` の shadcn/ui primitives 内に閉じ込めます。feature は `Button`、`Input`、`Label`、`Select`、`Dialog`、`DropdownMenu` を同じ境界から利用します。
 
 ## 検証
 
@@ -70,14 +81,14 @@ nix run .#check
 
 ## Cloudflare 配信
 
-`wrangler.toml` は次の path contract を持ちます。
+`wrangler.toml` は root-based path contract を持ちます。
 
 ```text
-/editor/assets/...  -> /assets/...
-/editor/foo         -> /foo -> SPA index fallback
+/assets/... -> static asset
+/foo        -> SPA index fallback
 ```
 
-`un-fra.me/editor` と `un-fra.me/editor/*` を LP より具体的な Worker route として設定し、Vite の `base` と Router の `basepath` も `/editor` に揃えています。設定変更後は binding 型を再生成してください。
+Vite の `base` は `/` で、Router に `basepath` は設定しません。本番では LP が `/`、`/news/*`、`/docs/*` を所有し、Web Worker は Application route を配信する構成を sibling infra repository と合わせて設定します。Worker 設定変更後は binding 型を再生成してください。
 
 ```bash
 pnpm --filter @unframe/web run cf:types
@@ -91,3 +102,7 @@ pnpm --dir app/web exec wrangler dev --config dist/unframe_web_editor/wrangler.j
 ```
 
 NixOS で配布版 `workerd` を実行するには、host 側で `programs.nix-ld.enable` が必要です。このリポジトリにはデプロイ workflow がないため、公開操作は品質ゲートに含めていません。
+
+## Control Plane の接続先
+
+Device Authorization 画面は `VITE_CONTROL_PLANE_URL` を Control Plane API の origin として使い、未設定時は production の `https://api.un-fra.me` を使います。cookie session を送るため、認証 request は `credentials: "include"` です。Home の Presentation 一覧と新規作成は mock repository 内で完結します。

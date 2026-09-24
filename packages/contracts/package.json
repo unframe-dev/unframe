@@ -2,13 +2,16 @@
   "name": "@unframe/contracts",
   "version": "0.1.0",
   "private": true,
-  "description": "Committed OpenAPI contract and code generation configuration",
   "type": "module",
   "exports": {
-    "./openapi.yaml": "./openapi.yaml"
+    "./control-plane": "./src/control-plane.openapi.ts"
   },
-  "files": [
-    "openapi.yaml",
-    "codegen"
-  ]
+  "scripts": {
+    "generate:control-plane": "tsx scripts/generate-control-plane.ts",
+    "check:control-plane": "tsx scripts/generate-control-plane.ts --check"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.12.0",
+    "tsx": "^4.22.1"
+  }
 }

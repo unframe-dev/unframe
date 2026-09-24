@@ -1,4 +1,5 @@
 # `@unframe/api-client-csharp`
 
-`packages/contracts/openapi.yaml` から生成する Unity / C# クライアントの成果物置き場です。
-生成設定は `packages/contracts/codegen/` に集約します。
+Unity / C# client を生成する場合の成果物置き場です。
+
+旧 OpenAPI contract と生成設定は削除済みです。Control Plane contract と C# client の生成手順は、Unity consumer と Control Plane 実装を接続する変更で定義します。

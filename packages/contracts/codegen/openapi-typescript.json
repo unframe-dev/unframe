@@ -1,4 +1,0 @@
-{
-  "input": "../openapi.yaml",
-  "output": "../../api-client-ts/src/generated/schema.d.ts"
-}

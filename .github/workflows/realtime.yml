@@ -1,0 +1,36 @@
+name: Realtime
+
+# app/server/realtime の Go gRPC backend を検証する reusable workflow。
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: realtime / check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # main
+
+      - name: Cache Realtime Go build and module downloads
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-realtime-go-${{ hashFiles('app/server/realtime/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-realtime-go-
+
+      - name: vet / lint / test / build / race
+        run: nix run .#realtime
+
+      - name: Build container image
+        run: docker build app/server/realtime

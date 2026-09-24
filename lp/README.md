@@ -48,8 +48,9 @@ pnpm --filter @unframe/site run cf:deploy
 ## ルーティング
 
 LPは `un-fra.me/*` をデフォルトルートとして使用します。同じゾーンに別Workerを追加する場合は、
-`un-fra.me/api/*` のようにLPより具体的なパスを割り当ててください。Cloudflareではより具体的な
-ルートが優先されます。Worker名もプロジェクトごとに重複しないようにします。
+`un-fra.me/editor/*` のようにLPより具体的なパスを割り当ててください。Cloudflareではより具体的な
+ルートが優先されます。Worker名もプロジェクトごとに重複しないようにします。DNSレコードとWorker
+routeの正本はリポジトリ外の [`infra`](../../infra/README.md) Terraformです。
 
 本番のデプロイには、対象ゾーンへのアクセス権を持つCloudflare APIトークン、またはWranglerの
 ログインセッションが必要です。
@@ -57,7 +58,8 @@ LPは `un-fra.me/*` をデフォルトルートとして使用します。同じ
 ## DNS
 
 このWorkerはCustom DomainではなくRoute方式を使うため、DNSレコードは自動作成されません。
-Cloudflare DNSに次のレコードを作成し、Proxy statusをProxied（オレンジクラウド）にします。
+`infra` Terraform の `cloudflare_dns_record.apex_worker` で次のレコードを管理し、Proxy statusを
+Proxied（オレンジクラウド）にします。
 
 | Type | Name | IPv6 address | Proxy status | TTL  |
 | ---- | ---- | ------------ | ------------ | ---- |

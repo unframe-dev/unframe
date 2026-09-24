@@ -4,7 +4,7 @@
     "config:recommended",
     ":dependencyDashboard",
     ":semanticCommits",
-    "group:monorepos"
+    "group:all"
   ],
   "timezone": "Asia/Tokyo",
   "schedule": ["before 9am on monday"],
@@ -19,15 +19,18 @@
   },
   "packageRules": [
     {
-      "description": "app/server (Go modules)",
+      "description": "app/server/realtime (Go modules)",
       "matchManagers": ["gomod"],
+      "matchFileNames": ["app/server/realtime/go.mod"],
       "commitMessageTopic": "Go module {{depName}}",
-      "semanticCommitScope": "server"
+      "semanticCommitScope": "realtime"
     },
     {
-      "description": "app/web / lp / packages (npm/pnpm)",
+      "description": "control-plane / app/web / lp / packages (npm/pnpm)",
       "matchManagers": ["npm"],
-      "semanticCommitScope": "deps"
+      "semanticCommitScope": "deps",
+      "minimumReleaseAge": "12 hours",
+      "internalChecksFilter": "strict"
     },
     {
       "description": "app/unity / api-client-csharp (NuGet)",

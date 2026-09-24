@@ -1,0 +1,56 @@
+.main {
+  width: min(100% - 48px, 1200px);
+  margin: 0 auto;
+  padding: 72px 0 128px;
+}
+
+.heading {
+  display: grid;
+  gap: 42px;
+  padding: 52px 0 72px;
+  border-bottom: 1px solid var(--line);
+}
+
+.heading h1 {
+  margin: 0;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(3.25rem, 6vw, 5.25rem);
+  font-weight: 300;
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+@media (min-width: 640px) {
+  .main {
+    width: calc(100% - 80px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .main {
+    width: min(100% - 112px, 1328px);
+  }
+}
+
+@media (max-width: 767px) {
+  .main {
+    width: 100%;
+    padding: 32px 0 88px;
+  }
+
+  .heading {
+    gap: 28px;
+    padding: 32px 0 56px;
+  }
+
+  .heading h1 {
+    font-size: clamp(2.75rem, 14vw, 4rem);
+  }
+}

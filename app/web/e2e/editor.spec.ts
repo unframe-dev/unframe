@@ -1,7 +1,32 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const editorPath = "/editor/presentations/demo/edit?panel=properties";
-const viewerPath = "/editor/presentations/demo/view";
+const editorPath = "/editor/demo?panel=properties";
+
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/auth/get-session", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          id: "test-user",
+          name: "テストユーザー",
+          email: "test@example.com",
+          emailVerified: true,
+          createdAt: "2026-08-17T00:00:00.000Z",
+          updatedAt: "2026-08-17T00:00:00.000Z",
+        },
+        session: {
+          id: "test-session",
+          userId: "test-user",
+          expiresAt: "2026-08-18T00:00:00.000Z",
+          token: "test-token",
+          createdAt: "2026-08-17T00:00:00.000Z",
+          updatedAt: "2026-08-17T00:00:00.000Z",
+        },
+      }),
+    }),
+  );
+});
 
 async function canvasCenter(page: Page) {
   const canvas = page.getByRole("region", { name: "3Dプレゼンテーション" }).locator("canvas");
@@ -14,21 +39,14 @@ async function canvasCenter(page: Page) {
   };
 }
 
-test("Canvas操作をcommandとして確定し、Undo / RedoとViewer同期を行う", async ({
-  context,
-  page,
-}) => {
+test("Canvas操作をcommandとして確定し、Undo / Redoを行う", async ({ page }) => {
   await page.goto(editorPath);
   await expect(page.getByRole("heading", { name: "Spatial story" })).toBeVisible();
 
-  const viewer = await context.newPage();
-  await viewer.goto(viewerPath);
-  await expect(viewer.getByText("Read-only viewer · revision 0")).toBeVisible();
-  await page.bringToFront();
+  await page.getByRole("button", { name: "Unframe sculptureを選択" }).click();
+  await expect(page.getByRole("heading", { name: "Unframe sculpture のプロパティ" })).toBeVisible();
 
   const center = await canvasCenter(page);
-  await page.mouse.click(center.x, center.y);
-  await expect(page.getByRole("heading", { name: "Unframe sculpture のプロパティ" })).toBeVisible();
 
   await page.getByRole("button", { name: "移動" }).click();
   const xAxisHandle = { x: center.x, y: center.y + 10 };
@@ -38,55 +56,12 @@ test("Canvas操作をcommandとして確定し、Undo / RedoとViewer同期を�
   await page.mouse.up();
 
   await expect(page.getByText("Revision 1")).toBeVisible();
-  await expect(viewer.getByText("Read-only viewer · revision 1")).toBeVisible();
 
   await page.getByRole("button", { name: "元に戻す" }).click();
   await expect(page.getByText("Revision 2")).toBeVisible();
-  await expect(viewer.getByText("Read-only viewer · revision 2")).toBeVisible();
 
   await page.getByRole("button", { name: "やり直す" }).click();
   await expect(page.getByText("Revision 3")).toBeVisible();
-  await expect(viewer.getByText("Read-only viewer · revision 3")).toBeVisible();
-});
-
-test("Viewer deep linkをmobile viewportで操作し、revision欠番をsnapshotから復旧する", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(viewerPath);
-
-  await expect(page.getByText("Read-only viewer · revision 0")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "3Dプレゼンテーション" }).locator("canvas"),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "次のスライド" }).click();
-  await expect(page.getByText("2 / 2")).toBeVisible();
-  await expect(page.getByText("Shape the room around your idea.")).toBeVisible();
-
-  await page.evaluate(() => {
-    const key = "unframe:presentation:demo";
-    const serialized = window.localStorage.getItem(key);
-    if (!serialized) throw new Error("Snapshot is missing");
-    const snapshot = JSON.parse(serialized) as { revision: number };
-    snapshot.revision = 5;
-    window.localStorage.setItem(key, JSON.stringify(snapshot));
-
-    const channel = new BroadcastChannel("unframe:document:demo");
-    channel.postMessage({
-      presentationId: "demo",
-      baseRevision: 4,
-      revision: 5,
-      command: {
-        type: "element.update",
-        elementId: "demo-model-element",
-        changes: { visible: false },
-      },
-    });
-    channel.close();
-  });
-
-  await expect(page.getByText("Read-only viewer · revision 5")).toBeVisible();
-  await expect(page.getByText("確定操作を待機中")).toBeVisible();
 });
 
 test("GLB読込失敗時に再試行できるfallbackを表示する", async ({ page }) => {
@@ -100,7 +75,7 @@ test("GLB読込失敗時に再試行できるfallbackを表示する", async ({ 
       return originalFetch(input, init);
     };
   });
-  await page.goto(viewerPath);
+  await page.goto(editorPath);
 
   const fallback = page.getByRole("alert");
   await expect(fallback).toContainText("Unframe sculptureを読み込めません");
@@ -108,7 +83,7 @@ test("GLB読込失敗時に再試行できるfallbackを表示する", async ({ 
 });
 
 test("@webgl-fallback WebGLを利用できない場合に復旧案内を表示する", async ({ page }) => {
-  await page.goto(viewerPath);
+  await page.goto(editorPath);
 
   const fallback = page.getByRole("alert");
   await expect(fallback).toContainText("WebGLを利用できません");

@@ -2,11 +2,17 @@ name: CI
 
 # オーケストレーション。変更のあった領域だけ reusable workflow を呼び、
 # 最後に集約ゲート (job: ci) を必須チェックにする。
-# 各領域の実体: server.yml / web.yml / lp.yml / openapi.yml / unity.yml。
+# 各領域の実体: control-plane.yml / realtime.yml / web.yml / lp.yml / unity.yml。
 #
 # paths-ignore は設けない。docs-only PR でも workflow を起動し、changes で全領域が
 # skip → 集約 job `CI` が成功することで、必須ステータスチェックが常に報告される。
 on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base branch used to detect changed areas
+        required: true
+        type: string
   push:
     branches: [main]
   pull_request:
@@ -29,64 +35,75 @@ jobs:
     # draft PR ではスキップ (ready にした時点で ready_for_review により実行される)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     outputs:
-      server: ${{ steps.filter.outputs.server }}
+      control-plane: ${{ steps.filter.outputs.control-plane }}
+      realtime: ${{ steps.filter.outputs.realtime }}
       web: ${{ steps.filter.outputs.web }}
       lp: ${{ steps.filter.outputs.lp }}
-      openapi: ${{ steps.filter.outputs.openapi }}
       unity: ${{ steps.filter.outputs.unity }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
+          # workflow_dispatch は PR イベント情報を持たないため、Autofix から渡した base を使う。
+          # PR では従来どおり PR API、main への push では直前 commit と比較する。
+          base: ${{ github.event_name == 'workflow_dispatch' && inputs.base_ref || github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch }}
           filters: |
             shared: &shared
               - 'flake.nix'
               - 'flake.lock'
-              - 'scripts/**'
+              - 'scripts/lib/**'
+              - '.github/workflows/ci.yml'
+            js-shared: &js-shared
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'package.json'
-              - 'packages/config/tsconfig.base.json'
+              - 'packages/config/**'
               - 'vite.config.ts'
-              - '.github/workflows/ci.yml'
-            server:
+            control-plane:
               - *shared
-              - '.github/workflows/server.yml'
-              - 'app/server/**'
-            openapi:
-              - *shared
-              - '.github/workflows/openapi.yml'
-              - 'app/server/**'
+              - *js-shared
+              - '.github/workflows/control-plane.yml'
+              - 'scripts/ci/control-plane.sh'
+              - 'app/server/control-plane/**'
               - 'packages/contracts/**'
-              - 'packages/api-client-ts/**'
-              - 'packages/api-client-csharp/**'
+              - 'packages/api-client-typescript/**'
+            realtime:
+              - *shared
+              - '.github/workflows/realtime.yml'
+              - 'scripts/ci/realtime.sh'
+              - 'scripts/contracts/**'
+              - 'app/server/realtime/**'
+              - 'packages/contracts/proto/**'
             web:
               - *shared
+              - *js-shared
               - '.github/workflows/web.yml'
+              - 'scripts/ci/web.sh'
               - 'app/web/**'
-              - 'packages/api-client-ts/**'
-              - 'packages/contracts/**'
+              - 'packages/api-client-typescript/**'
             lp:
               - *shared
+              - *js-shared
               - '.github/workflows/lp.yml'
+              - 'scripts/ci/lp.sh'
               - 'lp/**'
             unity:
               - '.github/workflows/unity.yml'
               - 'app/unity/**'
 
-  server:
-    name: Server
+  control-plane:
+    name: Control Plane
     needs: changes
-    if: needs.changes.outputs.server == 'true'
-    uses: ./.github/workflows/server.yml
+    if: needs.changes.outputs.control-plane == 'true'
+    uses: ./.github/workflows/control-plane.yml
 
-  openapi:
-    name: OpenAPI
+  realtime:
+    name: Realtime
     needs: changes
-    if: needs.changes.outputs.openapi == 'true'
-    uses: ./.github/workflows/openapi.yml
+    if: needs.changes.outputs.realtime == 'true'
+    uses: ./.github/workflows/realtime.yml
 
   web:
     name: Web
@@ -109,7 +126,7 @@ jobs:
   ci:
     name: CI
     # 必須ステータスチェック。全領域の結果を集約する。
-    needs: [changes, server, openapi, web, lp, unity]
+    needs: [changes, control-plane, realtime, web, lp, unity]
     if: always()
     runs-on: ubuntu-latest
     steps:

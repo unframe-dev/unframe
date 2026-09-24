@@ -1,4 +1,6 @@
 <script lang="ts">
+  import iconUrl from "$lib/assets/brand/icon.svg?url";
+
   let { compact = false, class: className = "" } = $props<{
     compact?: boolean;
     class?: string;
@@ -11,7 +13,7 @@
   aria-label="Unframe home"
 >
   <img
-    src="/brand/icon.png"
+    src={iconUrl}
     alt=""
     width="34"
     height="34"

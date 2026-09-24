@@ -13,65 +13,76 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   autofix:
     name: autofix / format + lint --fix
-    # 同一リポジトリの PR のみ (fork は head ブランチへ push 権限が無い)。
+    # 同一リポジトリの人間が作成した PR のみ (fork は head ブランチへ push 権限が無い)。
+    # Renovate の依存定義・lockfile・workflow 更新では、全領域の autofix を重ねて実行しない。
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.draft == false
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login != 'renovate[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       # PR head を checkout するが認証情報は残さない (persist-credentials: false)。
       # fixer は PR 由来のスクリプト (scripts/ci/*.sh) を実行するため、トークンや push 権限を
       # この段階で環境に置かない。push は最終ステップでのみトークンを使う。
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
           persist-credentials: false
 
-      - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
-      - uses: DeterminateSystems/magic-nix-cache-action@55718cd9ebf1737a061487d5ada21abf31e99a98 # main
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+        with:
+          github_access_token: ""
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # main
 
-      - name: Cache Go build and module downloads
-        uses: actions/cache@v4
+      - name: Cache Realtime Go build and module downloads
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('app/server/go.sum') }}
+          key: ${{ runner.os }}-realtime-go-${{ hashFiles('app/server/realtime/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-realtime-go-
 
       # 依存の lifecycle script は実行しない (トークン非公開でも供給元コードの実行を避ける)。
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Apply autofix (server / contracts / lp / web)
+      - name: Apply autofix (control-plane / realtime / lp / web)
         run: |
-          nix run .#server -- fix
-          nix run .#contracts -- fix
+          nix run .#control-plane -- fix
+          nix run .#realtime -- fix
           nix run .#lp -- fix
           nix run .#web -- fix
 
-      # トークンはここ (PR 制御コードの実行後) でのみ環境に入れる。
-      # PAT / GitHub App token (secrets.AUTOFIX_TOKEN) があれば fix commit が CI を
-      # 再トリガーして各チェックが自動で緑になる。未設定なら既定 GITHUB_TOKEN を使い、
-      # fix は commit されるが、この push では CI は再実行されない。
-      - name: Commit and push fixes
+      # GH_TOKEN 環境変数は PR 制御コードの実行後、この step でのみ設定する。
+      # GITHUB_TOKEN による push は workflow を起動しないため、push 後に CI を明示的に起動する。
+      - name: Commit, push, and dispatch CI
         env:
-          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
           REPO: ${{ github.repository }}
         run: |
           if [ -z "$(git status --porcelain)" ]; then
             echo "変更なし"
             exit 0
           fi
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::Autofixで変更が発生しましたが、AUTOFIX_TOKENが設定されていません。"
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "💄 自動整形と lint 修正を適用"
+          git commit -m "style: 自動整形と lint 修正を適用"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:${HEAD_REF}"
+          gh api --method POST "repos/${REPO}/actions/workflows/ci.yml/dispatches" \
+            -f "ref=${HEAD_REF}" \
+            -f "inputs[base_ref]=${BASE_REF}"

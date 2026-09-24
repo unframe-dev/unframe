@@ -1,0 +1,13 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": ["https://un-fra.me"],
+        "methods": ["GET", "PUT"],
+        "headers": ["content-type", "content-length", "x-amz-checksum-sha256"]
+      },
+      "exposeHeaders": ["etag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

@@ -6,13 +6,7 @@ compatibility_date = "2026-07-14"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 
-[[routes]]
-pattern = "un-fra.me/editor"
-zone_name = "un-fra.me"
-
-[[routes]]
-pattern = "un-fra.me/editor/*"
-zone_name = "un-fra.me"
+# DNS records and Worker routes are managed in the sibling unframe-dev/infra repository.
 
 [assets]
 directory = "./dist"

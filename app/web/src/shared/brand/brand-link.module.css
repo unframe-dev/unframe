@@ -1,0 +1,13 @@
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--night);
+  text-decoration: none;
+}
+.link > span:last-child {
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.7rem;
+  font-weight: 300;
+  letter-spacing: -0.065em;
+}

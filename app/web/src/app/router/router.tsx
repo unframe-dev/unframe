@@ -1,152 +1,164 @@
-import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
 import {
-  Link,
   Outlet,
   createRootRoute,
   createRoute,
   createRouter,
   type RouterHistory,
 } from "@tanstack/react-router";
-import { z } from "zod";
 import { lazy, Suspense } from "react";
-import { loadPresentationSnapshot } from "../runtime/document-runtime";
-import { HomePage } from "../../routes/home/home-page";
-
+import { z } from "zod";
+import { requireSession } from "@/features/auth/require-session";
+import { loadPresentationSnapshot } from "@/features/editor/infra/document-runtime";
+import { DeviceAuthorizationPage } from "@/features/device/device-authorization-page";
+import { HomePage } from "@/features/presentations/home-page";
+import { ApplicationShell } from "@/app/shell/application-shell";
+import { DevicesPage, RoomsPage } from "@/app/shell/application-placeholder-pages";
+import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
+import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
+import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
+import routerModuleStyles from "./router.module.css";
+const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
+const styles = { skipLink: routerModuleStyles["skipLink"]! };
 const EditorPage = lazy(() =>
-  import("../../routes/editor/editor-page").then((module) => ({
+  import("@/features/editor/ui/editor-page").then((module) => ({
     default: module.EditorPage,
   })),
 );
-const ViewerPage = lazy(() =>
-  import("../../routes/viewer/viewer-page").then((module) => ({
-    default: module.ViewerPage,
-  })),
-);
-
-function RoutePending() {
-  return (
-    <Box sx={{ minHeight: "100dvh", display: "grid", placeItems: "center" }}>
-      <Stack spacing={1.5} sx={{ alignItems: "center" }}>
-        <CircularProgress size={28} />
-        <Typography color="text.secondary">プレゼンテーションを準備中…</Typography>
-      </Stack>
-    </Box>
-  );
-}
-
-function RootLayout() {
+function Root() {
   return (
     <>
-      <Box component="a" href="#main-content" className="skip-link">
+      <a href="#main-content" className={styles.skipLink}>
         本文へ移動
-      </Box>
+      </a>
       <Outlet />
     </>
   );
 }
-
-function RouteError({ error }: { error: Error }) {
+function ErrorPage() {
   return (
-    <Box
-      component="main"
-      id="main-content"
-      sx={{ minHeight: "100dvh", display: "grid", placeItems: "center", p: 3 }}
-    >
-      <Stack spacing={2} sx={{ maxWidth: 560 }}>
-        <Typography component="h1" variant="h4">
-          プレゼンテーションを開けません
-        </Typography>
-        <Alert severity="error">{error.message}</Alert>
-        <Button component={Link} to="/" variant="contained">
-          ホームへ戻る
-        </Button>
-      </Stack>
-    </Box>
+    <main id="main-content" className={publicStyles.main}>
+      <section className={publicStyles.panel}>
+        <h1>ページを開けません</h1>
+        <p role="alert">読み込みに失敗しました。時間をおいてもう一度お試しください。</p>
+        <a href="/">トップへ戻る</a>
+      </section>
+    </main>
   );
 }
-
 function NotFound() {
   return (
-    <Box
-      component="main"
-      id="main-content"
-      sx={{ minHeight: "100dvh", display: "grid", placeItems: "center", p: 3 }}
-    >
-      <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-        <Typography component="h1" variant="h4">
-          ページが見つかりません
-        </Typography>
-        <Button component={Link} to="/" variant="contained">
-          ホームへ戻る
-        </Button>
-      </Stack>
-    </Box>
+    <main id="main-content" className={publicStyles.main}>
+      <section className={publicStyles.panel}>
+        <h1>ページが見つかりません</h1>
+        <a href="/">トップへ戻る</a>
+      </section>
+    </main>
   );
 }
-
 const rootRoute = createRootRoute({
-  component: RootLayout,
-  errorComponent: ({ error }) => <RouteError error={error} />,
+  component: Root,
+  errorComponent: ErrorPage,
   notFoundComponent: NotFound,
 });
-
-const indexRoute = createRoute({
+const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  path: "login",
+  component: LoginPage,
+});
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "signup",
+  component: SignupPage,
+});
+const recoverRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "recover",
+  component: RecoverPage,
+});
+const resetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "recover/reset",
+  validateSearch: z.object({ token: z.string().catch("") }),
+  component: () => <ResetPage token={resetRoute.useSearch().token} />,
+});
+const deviceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "device",
+  validateSearch: z.object({ user_code: z.string().catch("") }),
+  component: () => <DeviceAuthorizationPage initialUserCode={deviceRoute.useSearch().user_code} />,
+});
+const applicationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "application",
+  beforeLoad: requireSession,
+  component: ApplicationShell,
+});
+const homeRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "home",
   component: HomePage,
 });
-
-const editorSearchSchema = z.object({
-  panel: z.enum(["properties", "assets", "none"]).catch("properties").default("properties"),
+const devicesRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "devices",
+  component: DevicesPage,
 });
-
+const roomsRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "rooms",
+  component: RoomsPage,
+});
+const profileRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "settings/profile",
+  component: ProfilePage,
+});
+const securityRoute = createRoute({
+  getParentRoute: () => applicationRoute,
+  path: "settings/security",
+  component: SecurityPage,
+});
 const editorRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "presentations/$presentationId/edit",
-  validateSearch: editorSearchSchema,
+  getParentRoute: () => applicationRoute,
+  path: "editor/$presentationId",
+  validateSearch: z.object({
+    panel: z.enum(["properties", "assets", "none"]).catch("properties"),
+  }),
   loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
-  component: EditorRouteComponent,
+  component: () => {
+    const document = editorRoute.useLoaderData();
+    const { panel } = editorRoute.useSearch();
+    return (
+      <Suspense fallback={<main>準備中…</main>}>
+        <EditorPage document={document} panel={panel} />
+      </Suspense>
+    );
+  },
 });
-
-function EditorRouteComponent() {
-  const document = editorRoute.useLoaderData();
-  const { panel } = editorRoute.useSearch();
-  return (
-    <Suspense fallback={<RoutePending />}>
-      <EditorPage document={document} panel={panel} />
-    </Suspense>
-  );
-}
-
-const viewerRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "presentations/$presentationId/view",
-  loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
-  component: ViewerRouteComponent,
-});
-
-function ViewerRouteComponent() {
-  return (
-    <Suspense fallback={<RoutePending />}>
-      <ViewerPage document={viewerRoute.useLoaderData()} />
-    </Suspense>
-  );
-}
-
-const routeTree = rootRoute.addChildren([indexRoute, editorRoute, viewerRoute]);
-
+const routeTree = rootRoute.addChildren([
+  loginRoute,
+  signupRoute,
+  recoverRoute,
+  resetRoute,
+  deviceRoute,
+  applicationRoute.addChildren([
+    homeRoute,
+    devicesRoute,
+    roomsRoute,
+    profileRoute,
+    securityRoute,
+    editorRoute,
+  ]),
+]);
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({
     routeTree,
-    basepath: "/editor",
     ...(history ? { history } : {}),
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
   });
 }
-
 export const appRouter = createAppRouter();
-
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof appRouter;

@@ -1,97 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --background: #fff;
+  --foreground: #17181c;
+  --muted: #70737c;
+  --line: #e4e5e9;
+  --line-strong: #cfd2d8;
+  --border: var(--line);
+  --card: #fff;
+  --surface: #fff;
+  --surface-hover: #f7f8fa;
+  --accent: #fbeded;
+  --accent-ink: #98444b;
+  --interactive-blue: #526ee8;
+  --interactive-blue-soft: #eef2ff;
+  --interactive-blue-ink: #304bbd;
+  --night: #111318;
+  --night-soft: #242731;
+  --brand-blue: #7187f5;
+  --brand-red: #df7b80;
+  --primary: var(--brand-red);
+  --primary-hover: #c95f68;
+  --primary-foreground: #fff;
+  --destructive: #b84f5e;
+  --destructive-hover: #9e3d4c;
+  --ring: var(--interactive-blue);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
+}
+
 html,
 body,
 #root {
   min-height: 100%;
 }
-
 html {
-  background: #0b0e14;
+  background: var(--background);
 }
-
 body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: #f7f7f5;
+  background: var(--background);
+  color: var(--foreground);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
-
+* {
+  border-color: var(--border);
+}
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
-
 ::selection {
   color: #fff;
-  background: #9a80d0;
+  background: var(--brand-red);
 }
 
-.skip-link {
-  position: fixed;
-  z-index: 2000;
-  top: 8px;
-  left: 8px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  color: #fff;
-  background: #0b0e14;
-  transform: translateY(-160%);
-  transition: transform 120ms ease;
-}
-
-.skip-link:focus {
-  transform: translateY(0);
-}
-
-.viewport-loading,
-.viewport-error,
-.viewport-text {
-  border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: 8px;
-  color: #fff;
-  background: rgb(17 21 29 / 92%);
-  box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
-  font:
-    600 13px/1.4 Inter,
-    system-ui,
-    sans-serif;
-  white-space: nowrap;
-}
-
-.viewport-loading,
-.viewport-text {
-  padding: 8px 12px;
-}
-
-.viewport-error {
+/* Native controls are shared by public forms and dialog portals. */
+form {
   display: grid;
-  gap: 6px;
-  min-width: 240px;
-  padding: 14px;
-  white-space: normal;
+  gap: 18px;
+  max-width: 560px;
 }
-
-.viewport-error span {
-  color: #c9ccda;
-  font-weight: 400;
+label {
+  display: grid;
+  gap: 8px;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.015em;
 }
-
-.viewport-error button {
-  justify-self: start;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid #a9b5ff;
-  border-radius: 6px;
-  color: #fff;
-  background: transparent;
+input,
+select {
+  min-height: 48px;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0 14px;
+  color: var(--foreground);
   font: inherit;
-  cursor: pointer;
+  font-weight: 400;
+  transition:
+    border-color 140ms ease,
+    background-color 180ms ease,
+    box-shadow 360ms var(--ease-out-expo);
 }
-
-.viewport-error button:focus-visible {
-  outline: 2px solid #df7b80;
-  outline-offset: 3px;
+input:hover,
+select:hover {
+  border-color: color-mix(in srgb, var(--interactive-blue) 62%, var(--line));
+  background: var(--card);
+}
+input:focus,
+select:focus {
+  border-color: var(--interactive-blue);
+  box-shadow: 0 0 0 4px rgb(82 110 232 / 14%);
+  outline: none;
+}
+input[readonly] {
+  color: var(--muted);
+  background: #f0f0ee;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -102,11 +121,5 @@ a {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-  }
-}
-
-@media (forced-colors: active) {
-  .skip-link {
-    border: 2px solid ButtonText;
   }
 }

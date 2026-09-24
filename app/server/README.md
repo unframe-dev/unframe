@@ -1,67 +1,32 @@
 # Unframe Backend
 
-Go 1.25、Huma v2、Chi で構成された API サーバーです。DB は Turso/libSQL、アセットは Cloudflare R2 に保存します。
+`app/server/` は、異なる実行環境を持つ二つの backend component を置く親ディレクトリです。Component 間の境界は [ARCHITECTURE.md](./ARCHITECTURE.md)、内部設計は [Control Plane](./control-plane/ARCHITECTURE.md) と [Realtime Backend](./realtime/ARCHITECTURE.md) の各文書、現在確認されている不整合と完了条件は [todo.md](./todo.md) を参照してください。
 
-## 必要な環境変数
-
-`.env.example` を参考に、実行環境へ次を設定してください。
-
-- `TURSO_DATABASE_URL`: `libsql://...` 形式の remote Turso URL
-- `TURSO_AUTH_TOKEN`: Turso database token
-- `R2_ENDPOINT`: `https://<account-id>.r2.cloudflarestorage.com`
-- `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`: R2 API token の S3 credentials
-- `R2_BUCKET`: アセット用 bucket
-- `CORS_ORIGINS`: 許可する origin のカンマ区切り。未指定時は localhost の 5173/3000
-- `SERVICE_HOST` / `SERVICE_PORT`: listen address。既定値は `0.0.0.0:8080`
-
-シェルへ読み込む例:
-
-```sh
-set -a
-source app/server/.env
-set +a
+```text
+app/server/
+├── ARCHITECTURE.md
+├── README.md
+├── todo.md           # component 間の不整合とArchitecture同期作業
+├── control-plane/
+│   └── ARCHITECTURE.md  # Cloudflare Workers / TypeScript / Hono / D1 / R2
+├── realtime/
+│   └── ARCHITECTURE.md  # Go / gRPC / Venue Edge Runtime
+└── integration/    # planned: component 間 E2E テスト
 ```
 
-## マイグレーションと起動
+- `control-plane/` の目標責務は認証・認可、durable resource、D1/R2、session bootstrap のauthorityです。
+- `realtime/` の目標責務はgRPC接続、session中の一時状態、fan-out、backpressureです。
+- 共有境界は `packages/contracts/` の contract です。TypeScript と Go の実装コードは直接共有しません。
 
-リポジトリルートで Turso に migration を適用してから起動します。
+旧 Go/Huma/Turso/R2 HTTP API は削除済みです。Control Plane は認証、Presentation / Asset API、Session lifecycle、Venue Edge の provisioning / registration / assignment と assignment-bound bootstrap を実装しています。Realtime は独立した Go module、gRPC process、lint設定、Docker build context、品質taskを所有します。Protobuf bidi service、page-change の in-memory fan-out、Venue Edge JWT / JWKS 検証と assignment lease / epoch fencing は実装済みです。Cloud Agent による assignment / Manifest 同期、snapshot / replay、Control / State channel の分離、persistence bridge は未実装です。
 
-```sh
-nix run .#migrate
-nix run .#dev
-```
+## Control Plane
 
-`nix run .#migrate` と server は同じ `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` を使用します。接続時には外部キー制約を有効化します。
-
-## スモークテスト
-
-別ターミナルから liveness と presentation API を確認できます。
+`control-plane/` は独立した pnpm package として Worker entrypoint、Hono application、Better Auth、Presentation / Asset / Session API、D1 migration、R2 adapter、OpenAPI、Workers runtime test を所有します。
 
 ```sh
-curl --fail --silent http://localhost:8080/health
-
-curl --fail --silent \
-  --header 'Content-Type: application/json' \
-  --data '{"title":"Smoke test"}' \
-  http://localhost:8080/presentations
+nix run .#control-plane
+pnpm --filter @unframe/control-plane run dev
 ```
 
-作成レスポンスの `id` を使い、通常 API と MR manifest を確認します。
-
-```sh
-curl --fail --silent http://localhost:8080/presentations/<id>
-curl --fail --silent http://localhost:8080/presentations/<id>/manifest
-```
-
-`POST /assets/init` が返す `uploadUrl` へは、初期化時と同じ `Content-Type` と `Content-Length` で直接 PUT してください。署名は両ヘッダーを拘束します。
-
-本番 Turso/R2 credentials がない環境では remote smoke は実施できません。その場合も CI の modernc in-memory SQLite migration、repository/service 統合テスト、R2 presigner 単体テスト、server build で wiring を自動検証します。
-
-## コンテナ
-
-server directory を build context にします。runtime は distroless の nonroot user です。
-
-```sh
-docker build --tag unframe-server app/server
-docker run --rm --env-file app/server/.env --publish 8080:8080 unframe-server
-```
+`nix run .#control-plane` は binding 型、TypeScript、lint、Workers runtime test、OpenAPI / TypeScript client drift、deploy dry-runを検証します。実環境の resource ID と secret を設定する手順は [`control-plane/README.md`](./control-plane/README.md) を参照してください。

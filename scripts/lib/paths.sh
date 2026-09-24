@@ -5,20 +5,19 @@ set -euo pipefail
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
 export REPO_ROOT
 
-# app/server (Go backend)
-export SERVER_DIR="${REPO_ROOT}/app/server"
+# app/server/control-plane (Cloudflare Workers / Hono)
+export CONTROL_PLANE_DIR="${REPO_ROOT}/app/server/control-plane"
+export CONTROL_PLANE_FILTER="@unframe/control-plane"
+# app/server/realtime (Go gRPC backend)
+export REALTIME_SERVER_DIR="${REPO_ROOT}/app/server/realtime"
 # app/web (React 編集エディタ)
 export WEB_DIR="${REPO_ROOT}/app/web"
 export WEB_FILTER="@unframe/web"
 # lp (SvelteKit SSG)
 export LP_DIR="${REPO_ROOT}/lp"
 export LP_FILTER="@unframe/site"
-# packages/contracts (openapi.yaml + codegen)
+# packages/contracts (future API / protocol boundaries)
 export CONTRACTS_DIR="${REPO_ROOT}/packages/contracts"
-export OPENAPI_YAML="${CONTRACTS_DIR}/openapi.yaml"
-# TS クライアント成果物
-export API_CLIENT_TS_DIR="${REPO_ROOT}/packages/api-client-ts"
-export API_CLIENT_TS_FILTER="@unframe/api-client-ts"
 # Notion 同期 (scripts/docs/notion-sync)
 export NOTION_SYNC_FILTER="unframe-notion-sync"
 # 共有 git hooks (packages/config/githooks)。core.hooksPath はリポジトリ相対で設定する。

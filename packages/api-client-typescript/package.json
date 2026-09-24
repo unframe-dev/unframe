@@ -1,0 +1,26 @@
+{
+  "name": "@unframe/api-client-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
+    "lint": "vp lint",
+    "test": "vp test run",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "dependencies": {
+    "@unframe/control-plane": "workspace:*",
+    "better-auth": "1.7.1",
+    "hono": "^4.13.1"
+  },
+  "devDependencies": {
+    "@unframe/config": "workspace:*",
+    "typescript": "^7.0.0",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}
