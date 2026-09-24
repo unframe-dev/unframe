@@ -239,7 +239,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - rendererの自動選択 policy
 - CLI
 
-この package は `unframe-core` にだけ依存する。Compiler と concrete renderer の双方が依存し、concrete renderer 同士は依存しない。
+この package は `unframe-core` と境界入力の検証に使う Zod に依存する。Compiler と concrete renderer の双方が依存し、concrete renderer 同士は依存しない。
 
 ### 4.5 `packages/unframe-renderer-web`
 

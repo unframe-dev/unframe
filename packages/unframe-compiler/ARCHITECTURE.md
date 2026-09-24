@@ -27,14 +27,14 @@ Lossless Syntax Tree + Source Map
 validated AST
         ↓ context-specific static lowering
 Declaration Graph
-        ↓ normalize / validate
-Semantic Authoring IR
-        ↓ component / theme / layout / surface resolution
-PresentationDefinition semantic model
-        ↓ renderer selection and plugin orchestration
-RenderBundle candidates + Asset Set
-        ↓ canonicalize
-presentation.definition.json + RenderBundle
+        ↓ normalize / collect / pair
+plain declaration catalog + source map
+        ↓ assemble with theme hashes / component locks / asset carriers
+CompilerDeclarationProject
+        ↓ theme / component / layout / surface resolution + Core validation
+v2 PresentationDefinition + font AssetSet
+        ↓ renderer plugin + PNG encode + artifact integrity validation
+v2 RenderBundle + AssetSet + BuildManifest + font / PNG bytes
 ```
 
 Orchestrator、Theme、Manifest、Structure は実行せず、検証済み AST から lower する。通常の TS / React / CSS として bundle / execute できるのは Opaque renderer source に限る。

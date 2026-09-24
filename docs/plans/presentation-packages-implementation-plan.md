@@ -38,20 +38,20 @@ consumer
 
 ### 2.1 Package inventory
 
-| Package                          | Current                                                                                                     | 主な未実装                                                                                             |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                         | v2 consumer 接続、完全な意味検証、cross-language fixture                                               |
-| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                          | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                     |
-| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                              | Presentation CLI の publish adapter との接続。README の依存 version 記述の同期                         |
-| `packages/unframe-core`          | 静的 v2 Definition / RenderBundle 検証、build / publication integrity、Semantic Tree、canonical JSON / hash | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration                  |
-| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、宣言共通 schema                                             | Lossless Syntax Tree / source patch、distribution                                                      |
-| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | Spatial、Interaction、Action / Output、Opaque component、migration                                     |
-| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition 解決、default warning、v2 compile                         | cache                                                                                                  |
-| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                       | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability      |
-| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                      | Opaque execution / isolation、state variation、generic Primitive、interaction geometry                 |
-| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                       | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                         |
-| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                           | TUIとprocess commandの接続、watch / dev / preview / test / publish                                     |
-| `packages/config`                | TypeScript 基底設定、Vite+ 設定、Git hooks                                                                  | `pre-commit` と `vp staged` の接続、package check / test、共有 lint / formatter policy、CI filter 整備 |
+| Package                          | Current                                                                                                     | 主な未実装                                                                                        |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                         | v2 consumer 接続、完全な意味検証、cross-language fixture                                          |
+| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                          | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                              | Presentation CLI の publish adapter との接続                                                      |
+| `packages/unframe-core`          | 静的 v2 Definition / RenderBundle 検証、build / publication integrity、Semantic Tree、canonical JSON / hash | v2 の完全な意味検証、Cue / Action / Timeline、Projection、Runtime Snapshot、migration             |
+| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、宣言共通 schema                                             | Lossless Syntax Tree / source patch、distribution                                                 |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                        | Spatial、Interaction、Action / Output、Opaque component、migration                                |
+| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition 解決、default warning、v2 compile                         | cache                                                                                             |
+| `packages/unframe-renderer-api`  | baked-web 初期 plugin contract と conformance harness                                                       | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability |
+| `packages/unframe-renderer-web`  | injected / Playwright Fixed Browser adapter による Frame / Text capture、Opaque bundle                      | Opaque execution / isolation、state variation、generic Primitive、interaction geometry            |
+| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                       | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                    |
+| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                           | TUIとprocess commandの接続、watch / dev / preview / test / publish                                |
+| `packages/config`                | TypeScript 基底設定、Vite+ 共有 lint / formatter、`pre-commit` / `vp staged`、check / test、CI filter       | —                                                                                                 |
 
 ## 3. 実装原則
 

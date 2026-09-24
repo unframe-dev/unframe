@@ -2557,11 +2557,11 @@ dist/
    └─ <percent-encoded asset id>.png
 ```
 
-この出力構成は M1 のもので、`definition.json` は v1 の PresentationDefinition artifact である。M3A では [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) に従って v2 出力へ移行し、v1 互換出力は維持しない。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
+この出力構成は M1 当時のもので、`definition.json` は v1 の PresentationDefinition artifact である。現行の M3A では [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) に従って v2 出力へ移行済みで、v1 互換出力は維持していない。ただし、GUI / Code 編集を JSON だけで継続することは保証せず、Authoring Source と Semantic Authoring IR の対応情報は別に保持する。
 
 ## 17. 現行実装との関係
 
-この文書は目標アーキテクチャである。2026-08-30 時点の現行実装について、次を区別する。
+この文書は目標アーキテクチャである。以下では現行実装と未実装の目標を区別する。
 
 ### Current
 
@@ -2573,7 +2573,8 @@ dist/
 - Asset URL や object key は Definition に保存せず、Asset IDで参照する。
 - 現行 Web Editor は Slide ベースの PoC model を使用しており、target PresentationDefinitionへ未接続である。
 - Unity の手書き importer は target PresentationDefinition の完成 consumer ではない。
-- M1 Local Compilerは、reference Authoring Sourceを実行せず、明示filesystem rootのconfig / lockからDefinition、RenderBundle、PNGを生成する。`check`はBrowserを起動せず、`build`はFixed Browserを使用してmanaged `dist`を成功時だけatomic replacementする。
+- Local Compiler は reference Authoring Source を実行せず、明示 filesystem root の config / lock から v2 Definition、RenderBundle、AssetSet、BuildManifest と PNG / Font bytes を生成する。`check` は Browser を起動せず、`build` は Fixed Browser を使用して managed `dist` を成功時だけ atomic replacement する。
+- M3A の静的 Authoring subset では、型付き Theme token、Named Style、Props / Variants / Parts、Slot を使う Frame / Text composition と static lowering が実装済みである。
 
 ### Target（目標。初期contract subsetの一部だけが現行実装）
 
@@ -2582,7 +2583,7 @@ dist/
 - Semantic Authoring IR
 - `.unframe.tsx` Orchestrator
 - Orchestrator / Manifest / Structure AST の static lowering、Declaration Graph normalization、Source frontendからCompiler compositionへの接続
-- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成、M1 filesystem config / lockとatomic outputは実装済み。M1 local outputのfile nameは`definition.json`）
+- Canonical PresentationDefinition JSON の deterministic serialization（Core API、post-lowering declaration、Authoring SourceからのCompiler artifact生成、filesystem config / lockとatomic outputは実装済み。現行 local outputのfile nameは`definition.json`）
 - Component Manifest と package format
 - Structured / Opaque authoring mode
 - Spatial Tree / Surface Tree のcanonical schema（Stage、SurfaceNode、Frame / Text、State、baked-web Render Intentの初期subsetはJSON Schema Draft 2020-12として実装済み）
