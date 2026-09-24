@@ -2,6 +2,7 @@ import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v
 
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { parsePresentationDefinitionInput } from "./contract-input.js";
+import { validateCueInvariants } from "./cue-invariants.js";
 import { validateSemanticRoles, validateSurfaceStates } from "./semantic-invariants.js";
 import {
   diagnostic,
@@ -338,13 +339,6 @@ export const validatePresentationDefinition = (
       diagnostics.push(
         diagnostic("reference.invalid", `${path}/initialStepId`, "Initial Step does not exist."),
       );
-    for (const [stepId, step] of Object.entries(group.steps))
-      if (step.cues.length > 0)
-        unsupported(
-          diagnostics,
-          `${path}/steps/${pathSegment(stepId)}/cues`,
-          "Cues and Actions are deferred to M3C.",
-        );
   }
   for (const [variableId, variable] of Object.entries(definition.flow.variables)) {
     validateGroupOwner(
@@ -374,8 +368,7 @@ export const validatePresentationDefinition = (
       groupIds,
       `/flow/timelines/${pathSegment(timelineId)}`,
     );
-  if (Object.keys(definition.flow.variables).length > 0)
-    unsupported(diagnostics, "/flow/variables", "Runtime variables are deferred beyond M3A.");
+  validateCueInvariants(definition, diagnostics);
   if (Object.keys(definition.flow.timelines).length > 0)
     unsupported(diagnostics, "/flow/timelines", "Timelines are deferred to M3D.");
 

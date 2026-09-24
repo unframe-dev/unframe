@@ -47,7 +47,32 @@ export default defineComponentManifest({
       kind: "state",
     },
   },
-  actions: {},
-  outputs: {},
+  actions: {
+    deactivate: {
+      kind: "action",
+      inputs: {},
+      preconditions: [],
+      effects: [
+        { kind: "setSurfaceState", surfaceId: "reference-surface-root", stateId: "inactive" },
+        {
+          kind: "setVariable",
+          variableId: "continued",
+          value: { kind: "eventPayload", field: "accepted" },
+        },
+      ],
+    },
+  },
+  outputs: {
+    continued: {
+      kind: "output",
+      payload: { accepted: { type: "boolean", value: true } },
+      producer: { kind: "surfaceInteraction", interactionId: "continue" },
+    },
+    elapsed: {
+      kind: "output",
+      payload: {},
+      producer: { kind: "timer", afterMilliseconds: 1000 },
+    },
+  },
   renderers: ["baked-web"],
 });

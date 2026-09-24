@@ -1,7 +1,7 @@
 export const surfaceLock = {
   packageVersion: "1.0.0",
   packageIntegrity: "sha256:b890146ec13a4009b7491bfe14d2e206a24ce9464ef3c066796732ba4a0b8ebf",
-  manifestHash: "sha256:05c0eea80631c2083d17a54b4392aba122eecadb07c84224156ad9183aeb21bc",
+  manifestHash: "sha256:c1354f5633ce5632462c59930bc45f341cdf61040fcb12a8a26e4ab75752341f",
   structureHash: "sha256:7763cec0bcac12ab868020758ef34ef113d918c463486907fa47ce28750fb0fb",
 } as const;
 

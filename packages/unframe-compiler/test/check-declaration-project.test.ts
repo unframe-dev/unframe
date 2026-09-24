@@ -121,6 +121,241 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("lowers Component Output payload, Action effects, Guard, and empty Step transition", () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("fixture must be a surface");
+    entry.manifest = {
+      ...entry.manifest,
+      states: { default: { kind: "state", initial: true }, active: { kind: "state" } },
+      actions: {
+        activate: {
+          kind: "action",
+          inputs: { value: "number" },
+          preconditions: [],
+          effects: [
+            { kind: "setSurfaceState", surfaceId: "surface-root", stateId: "active" },
+            {
+              kind: "setVariable",
+              variableId: "count",
+              value: { kind: "input", inputId: "value" },
+            },
+            {
+              kind: "patchNode",
+              nodeId: "spatial",
+              patch: { opacity: { kind: "eventPayload", field: "opacity" } },
+            },
+          ],
+        },
+      },
+      outputs: {
+        clicked: {
+          kind: "output",
+          producer: { kind: "surfaceInteraction", interactionId: "open" },
+          payload: { opacity: { type: "number", value: 0.5 } },
+        },
+      },
+    };
+    entry.structure = {
+      ...entry.structure,
+      root: {
+        ...root,
+        interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 0 } },
+        baseSemanticTree: {
+          rootNodeIds: ["semantic-text"],
+          nodes: {
+            "semantic-text": {
+              id: "semantic-text",
+              parentId: null,
+              order: 0,
+              role: "button",
+              interactionId: "open",
+              text: "Open",
+            },
+          },
+        },
+        states: {
+          default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          active: { id: "active", semanticOverrides: [], enabledInteractionIds: ["open"] },
+        },
+        renderIntent: { ...root.renderIntent, updateModel: "finite-state", interaction: "regions" },
+      },
+    } as ComponentStructure;
+    const cues: PresentationDeclaration["flow"]["groups"][string]["steps"][string]["cues"] = [
+      {
+        id: "activate",
+        trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "clicked" },
+        guard: {
+          kind: "compare",
+          left: { kind: "eventPayload", field: "opacity" },
+          operator: "gt",
+          right: 0,
+        },
+        actions: [
+          {
+            kind: "component.action",
+            componentInstanceId: "instance",
+            actionId: "activate",
+            arguments: { value: { kind: "literal", value: 2 } },
+          },
+        ],
+        next: { kind: "step", stepId: "done" },
+      },
+    ];
+    input.presentation = {
+      ...input.presentation,
+      flow: {
+        ...input.presentation.flow,
+        variables: {
+          count: { id: "count", owner: { kind: "presentation" }, type: "number", initialValue: 0 },
+        },
+        groups: {
+          group: {
+            id: "group",
+            initialStepId: "step",
+            steps: { step: { id: "step", cues }, done: { id: "done", cues: [] } },
+          },
+        },
+      },
+    };
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(result.value.definition.flow.groups.group?.steps.step?.cues).toEqual([
+      expect.objectContaining({
+        fixedPayload: { opacity: 0.5 },
+        trigger: {
+          kind: "surfaceInteraction",
+          actor: { kind: "presenter" },
+          surfaceId: "instance:surface-root",
+          interactionId: "instance:open",
+        },
+        guard: {
+          kind: "compare",
+          left: { kind: "eventPayload", field: "opacity" },
+          operator: "gt",
+          right: 0,
+        },
+        actions: [
+          {
+            kind: "surface.setState",
+            surfaceId: "instance:surface-root",
+            stateId: "instance:active",
+          },
+          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 2 } },
+          {
+            kind: "node.patch",
+            nodeId: "instance:spatial",
+            patch: { opacity: { kind: "eventPayload", field: "opacity" } },
+          },
+        ],
+        next: { kind: "step", stepId: "done" },
+      }),
+    ]);
+    expect(result.value.definition.flow.groups.group?.steps.done?.cues).toEqual([]);
+  });
+  it("lowers a timer Output to an actionless Step transition", () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    entry.manifest = {
+      ...entry.manifest,
+      outputs: {
+        elapsed: {
+          kind: "output",
+          payload: { phase: { type: "string", value: "ready" } },
+          producer: { kind: "timer", afterMilliseconds: 1000 },
+        },
+      },
+    };
+    input.presentation = {
+      ...input.presentation,
+      flow: {
+        ...input.presentation.flow,
+        groups: {
+          group: {
+            id: "group",
+            initialStepId: "step",
+            steps: {
+              step: {
+                id: "step",
+                cues: [
+                  {
+                    id: "advance",
+                    trigger: {
+                      kind: "component.output",
+                      componentInstanceId: "instance",
+                      outputId: "elapsed",
+                    },
+                    guard: {
+                      kind: "compare",
+                      left: { kind: "surfaceState", surfaceId: "surface-root" },
+                      operator: "eq",
+                      right: "default",
+                    },
+                    actions: [],
+                    next: { kind: "step", stepId: "done" },
+                  },
+                ],
+              },
+              done: { id: "done", cues: [] },
+            },
+          },
+        },
+      },
+    };
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(result.value.definition.flow.groups.group?.steps.step?.cues).toEqual([
+      expect.objectContaining({
+        trigger: { kind: "timer", afterMilliseconds: 1000 },
+        fixedPayload: { phase: "ready" },
+        guard: {
+          kind: "compare",
+          left: { kind: "surfaceState", surfaceId: "instance:surface-root" },
+          operator: "eq",
+          right: "instance:default",
+        },
+        actions: [],
+        next: { kind: "step", stepId: "done" },
+      }),
+    ]);
+  });
+  it("rejects timeline effects and media Output producers", () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    entry.manifest = {
+      ...entry.manifest,
+      actions: {
+        animate: {
+          kind: "action",
+          inputs: {},
+          preconditions: [],
+          effects: [{ kind: "playTimeline", timelineId: "animation", completion: "blocking" }],
+        },
+      },
+      outputs: {
+        ended: {
+          kind: "output",
+          payload: {},
+          producer: { kind: "mediaCompleted", surfaceId: "surface-root" },
+        },
+      },
+    };
+    expect(codes(input)).toEqual(
+      expect.arrayContaining([
+        "compiler-action-effect-unsupported",
+        "compiler-output-producer-unsupported",
+      ]),
+    );
+  });
   it("lowers finite states, visual changes, semantic changes and interactions", () => {
     const input = project() as CompilerDeclarationProject & {
       components: CompilerDeclarationProject["components"][number][];
@@ -1290,13 +1525,7 @@ describe("checkDeclarationProject", () => {
           ],
         },
       }),
-    ).toEqual(
-      expect.arrayContaining([
-        "compiler-manifest-feature-unsupported",
-        "compiler-cues-unsupported",
-        "compiler-operations-unsupported",
-      ]),
-    );
+    ).toEqual(expect.arrayContaining(["compiler-operations-unsupported"]));
   });
 
   it("uses escaped instance-local identifiers and rejects hostile boundary values", () => {

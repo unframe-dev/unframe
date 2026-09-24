@@ -112,12 +112,59 @@ export default definePresentation({
         steps: {
           start: {
             id: "start",
-            cues: [],
+            cues: [
+              {
+                id: "continue",
+                trigger: {
+                  kind: "component.output",
+                  componentInstanceId: "reference-surface",
+                  outputId: "continued",
+                },
+                guard: {
+                  kind: "compare",
+                  left: { kind: "eventPayload", field: "accepted" },
+                  operator: "eq",
+                  right: true,
+                },
+                actions: [
+                  {
+                    kind: "component.action",
+                    componentInstanceId: "reference-surface",
+                    actionId: "deactivate",
+                    arguments: {},
+                  },
+                ],
+                next: { kind: "step", stepId: "done" },
+              },
+            ],
           },
+          done: {
+            id: "done",
+            cues: [
+              {
+                id: "finish",
+                trigger: {
+                  kind: "component.output",
+                  componentInstanceId: "reference-surface",
+                  outputId: "elapsed",
+                },
+                actions: [],
+                next: { kind: "step", stepId: "finished" },
+              },
+            ],
+          },
+          finished: { id: "finished", cues: [] },
         },
       },
     },
-    variables: {},
+    variables: {
+      continued: {
+        id: "continued",
+        owner: { kind: "presentation" },
+        type: "boolean",
+        initialValue: false,
+      },
+    },
   },
   operations: [],
   theme: { themeId: theme.id },

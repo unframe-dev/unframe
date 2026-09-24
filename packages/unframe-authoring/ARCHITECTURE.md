@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: M3B finite-state and interaction declarations implemented
+- **Status**: M3C Action / Output / Cue declarations implemented
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -109,13 +109,14 @@ definition ごとの pure type guard は builder と同じ local declaration val
 
 ## 10. Current implementation
 
-現在は M3B の reference Authoring Project に必要な次の宣言 API を提供する。
+現在は M3C の reference Authoring Project に必要な次の宣言 API を提供する。
 
 - `definePresentation`、`defineTheme`、`defineComponentManifest`、`defineComponentStructure`
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - 6 category の Theme Token、同 category alias、Text / Frame の部分 Named Style
 - `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
 - Stage、Flow、resource owner / audience、Component Instance と package lock
+- Component Action の即時 Surface / Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
 - Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
 - Structured Component の typed Variant style、typed Part override、Frame children 内の明示 `slot-placeholder` と Opaque Component の semantic binding
 - Surface root が持つ semantic tree と、Frame-root Structure が持つ `baseSemanticTree`

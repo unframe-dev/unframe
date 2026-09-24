@@ -503,6 +503,7 @@ const actionValueSchema = z.discriminatedUnion("kind", [
   }),
   z.strictObject({ kind: z.literal("eventPayload"), field: idSchema }),
   z.strictObject({ kind: z.literal("variable"), variableId: idSchema }),
+  z.strictObject({ kind: z.literal("input"), inputId: idSchema }),
 ]);
 const actionPreconditionSchema = z.strictObject({
   kind: z.literal("surfaceState"),
@@ -511,6 +512,20 @@ const actionPreconditionSchema = z.strictObject({
 });
 const actionEffectSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("setSurfaceState"), surfaceId: idSchema, stateId: idSchema }),
+  z.strictObject({
+    kind: z.literal("setVariable"),
+    variableId: idSchema,
+    value: actionValueSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("patchNode"),
+    nodeId: idSchema,
+    patch: z.strictObject({
+      active: actionValueSchema.optional(),
+      visible: actionValueSchema.optional(),
+      opacity: actionValueSchema.optional(),
+    }),
+  }),
   z.strictObject({
     kind: z.literal("playTimeline"),
     timelineId: idSchema,
@@ -626,13 +641,61 @@ const componentOutputReferenceSchema = z.strictObject({
   componentInstanceId: idSchema,
   outputId: idSchema,
 });
-const cueSchema = z.strictObject({
-  ...stableShape,
-  trigger: cueTriggerSchema,
-  actions: z.array(componentActionInvocationSchema),
-  toStepId: idSchema.optional(),
-  toGroupId: idSchema.optional(),
-});
+const cueGuardSchema: z.ZodType<import("../domain/declarations.js").CueGuard> = z.lazy(() =>
+  z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("all"), guards: z.array(cueGuardSchema).min(1) }),
+    z.strictObject({ kind: z.literal("any"), guards: z.array(cueGuardSchema).min(1) }),
+    z.strictObject({ kind: z.literal("not"), guard: cueGuardSchema }),
+    z.strictObject({
+      kind: z.literal("compare"),
+      left: z.discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("variable"), variableId: idSchema }),
+        z.strictObject({ kind: z.literal("eventPayload"), field: idSchema }),
+        z.strictObject({ kind: z.literal("surfaceState"), surfaceId: idSchema }),
+        z.strictObject({
+          kind: z.literal("nodeField"),
+          nodeId: idSchema,
+          field: z.enum(["active", "visible", "opacity"]),
+        }),
+      ]),
+      operator: z.enum(["eq", "neq", "gt", "gte", "lt", "lte"]),
+      right: z.union([z.null(), z.boolean(), finiteNumberSchema, z.string()]),
+    }),
+  ]),
+);
+const cueSchema = z
+  .strictObject({
+    ...stableShape,
+    trigger: cueTriggerSchema,
+    actions: z.array(componentActionInvocationSchema),
+    priority: nonNegativeIntegerSchema.optional(),
+    order: nonNegativeIntegerSchema.optional(),
+    guard: cueGuardSchema.optional(),
+    firePolicy: z
+      .discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("oncePerStepEntry") }),
+        z.strictObject({
+          kind: z.literal("repeatable"),
+          cooldownMilliseconds: nonNegativeIntegerSchema,
+        }),
+      ])
+      .optional(),
+    next: z
+      .discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("stay") }),
+        z.strictObject({ kind: z.literal("end") }),
+        z.strictObject({ kind: z.literal("step"), stepId: idSchema }),
+        z.strictObject({ kind: z.literal("group"), groupId: idSchema }),
+      ])
+      .optional(),
+    toStepId: idSchema.optional(),
+    toGroupId: idSchema.optional(),
+  })
+  .refine(
+    (value) =>
+      [value.next, value.toStepId, value.toGroupId].filter((item) => item !== undefined).length <=
+      1,
+  );
 const flowStepSchema = z.strictObject({ ...stableShape, cues: z.array(cueSchema) });
 const flowGroupSchema = z.strictObject({
   ...stableShape,
@@ -1084,7 +1147,10 @@ const assertComponentManifest = (value: unknown): void => {
       if (effect.kind === "setSurfaceState") {
         assertId(effect.surfaceId, "action effect surfaceId");
         assertId(effect.stateId, "action effect stateId");
-      } else assertId(effect.timelineId, "action effect timelineId");
+      } else if (effect.kind === "setVariable")
+        assertId(effect.variableId, "action effect variableId");
+      else if (effect.kind === "patchNode") assertId(effect.nodeId, "action effect nodeId");
+      else assertId(effect.timelineId, "action effect timelineId");
     }
   }
   for (const variantValue of Object.values(declaration.variants)) {

@@ -313,6 +313,26 @@ describe("component contract", () => {
     expect(transition.actions[0]?.kind).toBe("component.action");
   });
 
+  it("accepts canonical cue controls and rejects conflicting transitions", () => {
+    const value = cue({
+      id: "advance",
+      trigger: { kind: "event", event: "advance" },
+      actions: [],
+      priority: 2,
+      order: 1,
+      guard: {
+        kind: "compare",
+        left: { kind: "eventPayload", field: "accepted" },
+        operator: "eq",
+        right: true,
+      },
+      firePolicy: { kind: "repeatable", cooldownMilliseconds: 100 },
+      next: { kind: "step", stepId: "done" },
+    });
+    expect(value.next).toEqual({ kind: "step", stepId: "done" });
+    expect(() => cue({ ...value, toStepId: "other" })).toThrow(/Invalid cue declaration/);
+  });
+
   it("uses null semantic override fields to remove inherited values", () => {
     expect(
       semanticOverride({

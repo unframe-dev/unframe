@@ -57,7 +57,8 @@ export type StateDeclaration = { kind: "state"; initial?: boolean };
 export type ActionValue =
   | { kind: "literal"; value: Scalar }
   | { kind: "eventPayload"; field: string }
-  | { kind: "variable"; variableId: string };
+  | { kind: "variable"; variableId: string }
+  | { kind: "input"; inputId: string };
 export type ActionPrecondition = {
   kind: "surfaceState";
   surfaceId: string;
@@ -65,6 +66,12 @@ export type ActionPrecondition = {
 };
 export type ActionEffect =
   | { kind: "setSurfaceState"; surfaceId: string; stateId: string }
+  | { kind: "setVariable"; variableId: string; value: ActionValue }
+  | {
+      kind: "patchNode";
+      nodeId: string;
+      patch: { active?: ActionValue; visible?: ActionValue; opacity?: ActionValue };
+    }
   | {
       kind: "playTimeline";
       timelineId: string;
@@ -451,9 +458,32 @@ export type ComponentOutputReference = {
   outputId: string;
 };
 export type CueTrigger = { kind: "event"; event: string } | ComponentOutputReference;
+export type CueGuard =
+  | { kind: "all"; guards: readonly CueGuard[] }
+  | { kind: "any"; guards: readonly CueGuard[] }
+  | { kind: "not"; guard: CueGuard }
+  | {
+      kind: "compare";
+      left:
+        | { kind: "variable"; variableId: string }
+        | { kind: "eventPayload"; field: string }
+        | { kind: "surfaceState"; surfaceId: string }
+        | { kind: "nodeField"; nodeId: string; field: "active" | "visible" | "opacity" };
+      operator: "eq" | "neq" | "gt" | "gte" | "lt" | "lte";
+      right: Scalar;
+    };
+export type CueNext =
+  | { kind: "stay" | "end" }
+  | { kind: "step"; stepId: string }
+  | { kind: "group"; groupId: string };
 export type CueDeclaration = StableDeclaration & {
   trigger: CueTrigger;
   actions: readonly ComponentActionInvocation[];
+  priority?: number;
+  order?: number;
+  guard?: CueGuard;
+  firePolicy?: { kind: "oncePerStepEntry" } | { kind: "repeatable"; cooldownMilliseconds: number };
+  next?: CueNext;
   toStepId?: string;
   toGroupId?: string;
 };

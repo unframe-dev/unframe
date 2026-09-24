@@ -40,6 +40,7 @@ import {
   hasValidFontSignature,
 } from "../validation/source-assets.js";
 import { resolveStructuredComponent } from "../resolution/resolve-structured-component.js";
+import { lowerCues } from "../lowering/lower-cues.js";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -497,18 +498,24 @@ const checkDeclarationProjectUnchecked = (
           ),
         );
     }
-    if (
-      Object.keys(entry.manifest.actions).length ||
-      Object.keys(entry.manifest.outputs).length ||
-      entry.structure.timelines.length
-    )
-      diagnostics.push(
-        diagnostic(
-          "compiler-manifest-feature-unsupported",
-          path,
-          "Actions, outputs, and timelines are not supported.",
-        ),
-      );
+    for (const [actionId, action] of Object.entries(entry.manifest.actions))
+      if (action.effects.some((effect) => effect.kind === "playTimeline"))
+        diagnostics.push(
+          diagnostic(
+            "compiler-action-effect-unsupported",
+            [...path, "manifest", "actions", actionId],
+            "Timeline Action effects are not supported.",
+          ),
+        );
+    for (const [outputId, output] of Object.entries(entry.manifest.outputs))
+      if (output.producer.kind === "timelineCompleted" || output.producer.kind === "mediaCompleted")
+        diagnostics.push(
+          diagnostic(
+            "compiler-output-producer-unsupported",
+            [...path, "manifest", "outputs", outputId],
+            "Timeline and media Output producers are not supported.",
+          ),
+        );
     if (nestedInstanceIds.has(instance.id)) continue;
     if (instance.spatialNodeId === undefined) {
       diagnostics.push(
@@ -587,14 +594,6 @@ const checkDeclarationProjectUnchecked = (
           "compiler-surface-feature-unsupported",
           path,
           "Only baked-web surfaces without internal animation are supported.",
-        ),
-      );
-    if (Object.keys(entry.manifest.actions).length || Object.keys(entry.manifest.outputs).length)
-      diagnostics.push(
-        diagnostic(
-          "compiler-manifest-feature-unsupported",
-          path,
-          "Manifest exposes unsupported features.",
         ),
       );
     if (
@@ -1042,14 +1041,6 @@ const checkDeclarationProjectUnchecked = (
         ),
       );
   }
-  if (
-    Object.values(presentation.flow.groups).some((group) =>
-      Object.values(group.steps).some((step) => step.cues.length),
-    )
-  )
-    diagnostics.push(
-      diagnostic("compiler-cues-unsupported", ["presentation", "flow"], "Cues are not supported."),
-    );
   if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
 
   const groups: PresentationDefinition["flow"]["groups"] = {};
@@ -1058,6 +1049,8 @@ const checkDeclarationProjectUnchecked = (
     for (const [stepId, step] of Object.entries(group.steps))
       groups[groupId].steps[stepId] = { id: step.id, cues: [] };
   }
+  diagnostics.push(...lowerCues(presentation, components, groups));
+  if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
   const variables: PresentationDefinition["flow"]["variables"] = {};
   for (const [variableId, variable] of Object.entries(presentation.flow.variables))
     variables[variableId] = {
