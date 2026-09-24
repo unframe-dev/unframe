@@ -2,7 +2,7 @@
 
 - **Status**: Accepted（機能範囲と責務。詳細 schema / wire は Presentation v2）
 - **Date**: 2026-09-15
-- **Related**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0015](./0015-presentation-definition-artifact-boundaries.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md)
+- **Related**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0015](./0015-presentation-definition-artifact-boundaries.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md)
 
 ## Context
 
@@ -36,4 +36,4 @@ Runtime Core が再生・切り替え等を確定し、Unity は配信済みク�
 
 現行 Model loader、Presentation schema、Runtime protocol にこの機能が実装済みとは扱わない。実装時に再生・pause / resume・自然終了 / 明示停止の姿勢保持・切り替え・crossfade 中の要求拒否・途中参加の fixture と、ModelNode transform をクリップが変更しないことを検証する。
 
-配布形式、クリップ ID の対応、ループ・完了通知、保持姿勢と crossfade 停止後の切り替えは [Presentation Data Model](../presentation/DATA_MODEL.md) に従う。形式別 profile / resource budget と Action / Run / Event / Snapshot の schema / wire も同契約に定義する。後続の実装は importer、root motion 変換・検証、Runtime と consumer の接続である。対象外のレイヤーや合成機能でこれらを回避しない。
+配布形式、クリップ ID の対応、ループ・完了通知、保持姿勢と crossfade 停止後の切り替えは [Presentation Data Model](../packages/DATA_MODEL.md) に従う。形式別 profile / resource budget と Action / Run / Event / Snapshot の schema / wire も同契約に定義する。後続の実装は importer、root motion 変換・検証、Runtime と consumer の接続である。対象外のレイヤーや合成機能でこれらを回避しない。

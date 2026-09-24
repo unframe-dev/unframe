@@ -3,8 +3,8 @@
 - **Status**: M3A structured authoring implementation
 - **Scope**: Authoring Project から canonical PresentationDefinition と RenderBundle を生成する library
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Presentation Authoring Architecture](../unframe-authoring/ARCHITECTURE.md)
   - [Renderer API Architecture](../unframe-renderer-api/ARCHITECTURE.md)
   - [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)

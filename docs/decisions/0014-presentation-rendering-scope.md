@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-09-15
 - **Deciders**: Unframe 開発チーム
-- **Related**: [ADR-0006](./0006-presentation-rendering-strategy.md), [Presentation Architecture](../presentation/ARCHITECTURE.md), [描画方式の検証条件](../presentation/UI_RENDERING_COMPARISON.md), [ADR-0012](./0012-texture-budget-residency-contract.md)
+- **Related**: [ADR-0006](./0006-presentation-rendering-strategy.md), [Presentation Architecture](../packages/ARCHITECTURE.md), [描画方式の検証条件](../packages/UI_RENDERING_COMPARISON.md), [ADR-0012](./0012-texture-budget-residency-contract.md)
 
 ## Decision Drivers
 

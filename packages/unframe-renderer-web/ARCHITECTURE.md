@@ -4,8 +4,8 @@
 - **Renderer ID**: `baked-web`
 - **Scope**: Fixed Browser 環境での Web rendering、layout、capture
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Renderer API Architecture](../unframe-renderer-api/ARCHITECTURE.md)
   - [Assets Architecture](../unframe-assets/ARCHITECTURE.md)
 

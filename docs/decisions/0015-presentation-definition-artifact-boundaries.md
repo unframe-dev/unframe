@@ -2,7 +2,7 @@
 
 - **Status**: Accepted（構造境界。具体契約は Presentation v2）
 - **Date**: 2026-09-15
-- **Related**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md), [ADR-0014](./0014-presentation-rendering-scope.md), [ADR-0016](./0016-model-animation-scope.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md)
+- **Related**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md), [ADR-0014](./0014-presentation-rendering-scope.md), [ADR-0016](./0016-model-animation-scope.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md)
 
 ## Context
 
@@ -42,7 +42,7 @@ PresentationDefinition
 - Component Instance、公開 Action / Output は compile 時に展開する。Theme の参照は必要な具体値へ解決し、編集用 Token catalog や Component package を Definition に残さない。描画に必要な内容ツリーと解決済み値は保持し、Theme の build provenance は RenderBundle に記録する。
 - 素材は使用箇所から `assetId` で参照する。現行の top-level `assets` descriptor 辞書は、下記 AssetSetManifest へ移す。
 - 独立 AudioNode、音声専用の素材・操作は持たない。動画に含まれる音声は Video の一部とする。
-- ModelNode は Model Asset の内蔵 animation clip を参照できる。再生の採用範囲と空間 Transform との境界は [ADR-0016](./0016-model-animation-scope.md) に従う。Clip ID の binding と Runtime contract は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。
+- ModelNode は Model Asset の内蔵 animation clip を参照できる。再生の採用範囲と空間 Transform との境界は [ADR-0016](./0016-model-animation-scope.md) に従う。Clip ID の binding と Runtime contract は [Presentation v2](../packages/DATA_MODEL.md) に定義する。
 
 ### AssetSetManifest
 
@@ -80,4 +80,4 @@ Definition の意味が同じでも素材内容が変われば、素材集合と
 
 構造の実装時は Zod / JSON Schema と cross-artifact validation を更新する。生成済み schema を直接編集しない。
 
-Model / Clip binding、素材 profile、Surface State、各 artifact、capability / budget、version の具体契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。Compiler と consumer の移行はこの契約に従って実装する。
+Model / Clip binding、素材 profile、Surface State、各 artifact、capability / budget、version の具体契約は [Presentation v2](../packages/DATA_MODEL.md) に定義する。Compiler と consumer の移行はこの契約に従って実装する。

@@ -4,7 +4,7 @@
 - **Scope**: OpenAPI と Protocol Buffers から生成する C# artifact
 - **Related**:
   - [Contracts Architecture](../contracts/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
 
 ## 1. Role
 

@@ -3,8 +3,8 @@
 - **Status**: Initial memory-only PNG encoder implemented
 - **Scope**: Compiler build 中の deterministic asset transformation
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Presentation Core Architecture](../unframe-core/ARCHITECTURE.md)
   - [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)
 

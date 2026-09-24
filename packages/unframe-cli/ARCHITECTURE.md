@@ -3,7 +3,7 @@
 - **Status**: v2 static build filesystem boundary
 - **Scope**: Authoring Project を Compiler / Web Renderer に接続し、Bun 上の OpenTUI command selector と headless API を提供する
 - **Related**:
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Presentation Compiler Architecture](../unframe-compiler/ARCHITECTURE.md)
   - [Web Renderer Architecture](../unframe-renderer-web/ARCHITECTURE.md)
   - [ADR-0013: Local Compiler の project filesystem contract](../../docs/decisions/0013-local-compiler-project-filesystem-contract.md)

@@ -3,10 +3,10 @@
 - **Status**: Presentation v2 static baked-web plugin contract implemented
 - **Scope**: Compiler と concrete renderer の間の plugin contract
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Presentation Core Architecture](../unframe-core/ARCHITECTURE.md)
-  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
+  - [M3A Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 

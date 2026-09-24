@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-19
-- **Related**: [Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md), [Presentation v2](../presentation/DATA_MODEL.md), [ADR-0011](./0011-surface-partition-contract.md), [ADR-0014](./0014-presentation-rendering-scope.md)
+- **Related**: [Structured Authoring Contract](../packages/AUTHORING_CONTRACT.md), [Presentation v2](../packages/DATA_MODEL.md), [ADR-0011](./0011-surface-partition-contract.md), [ADR-0014](./0014-presentation-rendering-scope.md)
 
 ## Context
 
@@ -14,7 +14,7 @@ M1 の Local Compiler は静的な `Surface → Frame → Text` subset を v1 �
 
 M3A は静的な `baked-web` の Authoring から成果物生成までを Presentation v2 へ縦断接続する。旧 v1 出力の互換経路は追加しない。
 
-M3A で実装する Authoring の意味規則は [Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md) を正本とする。対象は型付き Theme、Props、Slots、Parts、Variants、Frame / Text の absolute な入れ子、Font Asset 解決である。Contracts、Core、Authoring、Components、Compiler、Renderer API、Web renderer、Asset 情報、CLI / reference project を同じ変更系列で接続する。
+M3A で実装する Authoring の意味規則は [Structured Authoring Contract](../packages/AUTHORING_CONTRACT.md) を正本とする。対象は型付き Theme、Props、Slots、Parts、Variants、Frame / Text の absolute な入れ子、Font Asset 解決である。Contracts、Core、Authoring、Components、Compiler、Renderer API、Web renderer、Asset 情報、CLI / reference project を同じ変更系列で接続する。
 
 State の visual variation、Interaction、Timeline、Native UI、Video、Delivery、Runtime、Unity 接続は後続スライスに残す。v2 に型が存在していても M3A が扱わない入力は明示的に拒否する。
 

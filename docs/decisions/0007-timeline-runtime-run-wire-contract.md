@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md), [ADR-0006](./0006-presentation-rendering-strategy.md)
+- **関連**: [Presentation Architecture](../packages/ARCHITECTURE.md), [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md), [ADR-0006](./0006-presentation-rendering-strategy.md)
 
 ## Context
 

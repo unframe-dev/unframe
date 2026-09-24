@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0006](0006-presentation-rendering-strategy.md), [Presentation Architecture](../presentation/ARCHITECTURE.md), [Presentation CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md)
+- **関連**: [ADR-0006](0006-presentation-rendering-strategy.md), [Presentation Architecture](../packages/ARCHITECTURE.md), [Presentation CLI Architecture](../../packages/unframe-cli/ARCHITECTURE.md)
 
 ## Context
 

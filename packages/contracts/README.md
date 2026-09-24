@@ -18,7 +18,7 @@ Control Plane の `src/openapi.ts`、共有 schema、HTTP routeを変更した�
 
 ## Presentation v2
 
-完成版の構造は `src/presentation/v2/` の Zod と `proto/unframe/{presentation,delivery,realtime}/v2/` の Protobuf が正本です。型は `@unframe/contracts/presentation/v2` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/presentation/DATA_MODEL.md) を併読してください。v1 consumer の移行と実機対応は含みません。
+完成版の構造は `src/presentation/v2/` の Zod と `proto/unframe/{presentation,delivery,realtime}/v2/` の Protobuf が正本です。型は `@unframe/contracts/presentation/v2` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/packages/DATA_MODEL.md) を併読してください。v1 consumer の移行と実機対応は含みません。
 
 repository root の Nix development shell で実行します。
 

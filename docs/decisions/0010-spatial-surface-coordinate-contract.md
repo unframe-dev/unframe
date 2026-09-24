@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0005](0005-spatial-presentation-domain-model.md), [ADR-0006](0006-presentation-rendering-strategy.md), [Presentation Architecture](../presentation/ARCHITECTURE.md), [Unity coordinate system](https://docs.unity3d.com/Manual/QuaternionAndEulerRotationsInUnity.html), [Unity Matrix4x4](https://docs.unity3d.com/ScriptReference/Matrix4x4.html), [Unity Mesh UV](https://docs.unity3d.com/ScriptReference/Mesh-uv.html)
+- **関連**: [ADR-0005](0005-spatial-presentation-domain-model.md), [ADR-0006](0006-presentation-rendering-strategy.md), [Presentation Architecture](../packages/ARCHITECTURE.md), [Unity coordinate system](https://docs.unity3d.com/Manual/QuaternionAndEulerRotationsInUnity.html), [Unity Matrix4x4](https://docs.unity3d.com/ScriptReference/Matrix4x4.html), [Unity Mesh UV](https://docs.unity3d.com/ScriptReference/Mesh-uv.html)
 
 ## Context
 

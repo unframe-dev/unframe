@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [Presentation Design](../presentation/DESIGN.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md), [WAI-ARIA 1.2](https://www.w3.org/TR/wai-aria-1.2/)
+- **関連**: [Presentation Architecture](../packages/ARCHITECTURE.md), [Presentation Design](../packages/DESIGN.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md), [WAI-ARIA 1.2](https://www.w3.org/TR/wai-aria-1.2/)
 
 ## Context
 

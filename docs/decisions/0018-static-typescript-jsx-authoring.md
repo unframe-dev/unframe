@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-20
-- **Related**: [Authoring contract](../presentation/AUTHORING_CONTRACT.md), [ADR-0017](./0017-m3a-structured-authoring-contract.md)
+- **Related**: [Authoring contract](../packages/AUTHORING_CONTRACT.md), [ADR-0017](./0017-m3a-structured-authoring-contract.md)
 
 ## Context
 

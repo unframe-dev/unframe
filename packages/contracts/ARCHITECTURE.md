@@ -3,8 +3,8 @@
 - **Status**: Current boundary with Presentation v2 contracts
 - **Scope**: Application、language、runtime をまたぐ serialized artifact と wire contract
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [ADR-0006](../../docs/decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)
   - [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md)
@@ -23,7 +23,7 @@
 
 - Control Plane OpenAPI は Control Plane の型付き route と runtime schema から生成する。
 - Realtime / Delivery の wire contract は Protocol Buffers source を正本とする。
-- Target の PresentationDefinition / RenderBundle / AssetSetManifest は `src/presentation/` 配下の Zod 4 schema を正本とし、portable JSON Schemaを生成する。完全版は `src/presentation/v2/` に置き、詳細な意味規則は [Presentation v2](../../docs/presentation/DATA_MODEL.md) を正本とする。
+- Target の PresentationDefinition / RenderBundle / AssetSetManifest は `src/presentation/` 配下の Zod 4 schema を正本とし、portable JSON Schemaを生成する。完全版は `src/presentation/v2/` に置き、詳細な意味規則は [Presentation v2](../../docs/packages/DATA_MODEL.md) を正本とする。
 
 ## 2. Owned boundaries
 
@@ -78,7 +78,7 @@ Generated file は手編集しない。生成先には generator、source contra
 - Authoring Source、React、DOM、Unity object、D1 / R2 representation を portable contract に含めない。
 - Surface artifact の対象は `baked-web`、限定 `native-ui`、`video` とする。`embedded-web` / WebView はプロジェクト対象外であり、artifact、capability、runtime bridge の拡張口や予約 field を設けない。ビルド時の Opaque renderer の Browser 実行は配布・実行時の契約に含めない。
 - 完全版 Definition の `flow.timelines` と、素材 descriptor を分離する AssetSetManifest の構造境界は ADR-0015 に従う。v2 AssetSet の schema と構造検証は実装済みである。現行 `definition.assets` からの consumer 移行と Compiler の AssetSet 生成は未実装である。
-- Model animation は [ADR-0016](../../docs/decisions/0016-model-animation-scope.md) に従い Model Asset 内蔵 clip に限定し、通常一つ、crossfade 中だけ遷移元・遷移先の二つを同じ ModelNode で再生できる。部位 mask / layer / additive、root motion による Node Transform 変更は許可せず、予約 field も作らない。Clip ID binding と保持姿勢の構造は [Presentation Data Model](../../docs/presentation/DATA_MODEL.md) に従う。具体的な Action / Run / wire は v2 に定義する。root motion 素材の変換と consumer 接続は未実装である。
+- Model animation は [ADR-0016](../../docs/decisions/0016-model-animation-scope.md) に従い Model Asset 内蔵 clip に限定し、通常一つ、crossfade 中だけ遷移元・遷移先の二つを同じ ModelNode で再生できる。部位 mask / layer / additive、root motion による Node Transform 変更は許可せず、予約 field も作らない。Clip ID binding と保持姿勢の構造は [Presentation Data Model](../../docs/packages/DATA_MODEL.md) に従う。具体的な Action / Run / wire は v2 に定義する。root motion 素材の変換と consumer 接続は未実装である。
 - RenderBundle は Signed URL を持たない。取得 binding は Delivery 時に解決する。
 - canonical Runtime model と connection / durable envelope を分離する。
 - wire field の追加だけで semantic compatibility を保証したことにしない。

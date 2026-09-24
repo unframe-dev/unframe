@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-25
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../presentation/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [ADR-0014: Presentation の描画方式を限定する](./0014-presentation-rendering-scope.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
+- **関連**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](./0005-spatial-presentation-domain-model.md), [ADR-0014: Presentation の描画方式を限定する](./0014-presentation-rendering-scope.md), [Repository Architecture](../../ARCHITECTURE.md), [Server Architecture](../../app/server/ARCHITECTURE.md)
 
 ## Context
 
@@ -19,11 +19,11 @@ Unframe のプレゼンテーションは、コードと GUI による authoring
 
 ADR-0005 は Group、Step、Cue、Trigger、Action を中心とした空間プレゼンテーションのドメイン境界を定義した。本 ADR ではそれを拡張し、authoring から Runtime までを接続する Presentation 全体の目標アーキテクチャを決定する。
 
-詳細な型、Scene Graph、Surface、Layout、State Machine、Timeline、RenderBundle、DeliveryManifest の仕様は [Presentation Architecture](../presentation/ARCHITECTURE.md) を正本とする。本 ADR は、そのアーキテクチャを採用する理由と主要な境界だけを記録する。
+詳細な型、Scene Graph、Surface、Layout、State Machine、Timeline、RenderBundle、DeliveryManifest の仕様は [Presentation Architecture](../packages/ARCHITECTURE.md) を正本とする。本 ADR は、そのアーキテクチャを採用する理由と主要な境界だけを記録する。
 
 ## Decision
 
-[Presentation Architecture](../presentation/ARCHITECTURE.md) に記載する目標アーキテクチャを、Unframe の Presentation 設計の正本として採用する。
+[Presentation Architecture](../packages/ARCHITECTURE.md) に記載する目標アーキテクチャを、Unframe の Presentation 設計の正本として採用する。
 
 ### 設計成熟度
 
@@ -125,11 +125,11 @@ Reliable Event、State Stream、Snapshot、Replay を分離し、再接続した
 
 Runtime State は、割り当て済み Runtime Core が authority を持つ Shared Runtime State、profile と Shared Runtime State から生成する authority を持たない Participant Runtime View、各 client が authority を持つ Client-local State に分離する。Spatial Node と Timeline が ProjectionAudience を宣言し、Semantic Surface などの派生 resource は host から継承する。一つの Timeline は同じ audience の Node だけを target とし、Definition と Run を同じ projection closure で配信する。role 限定 Timeline は shared progression を block しない。Media の duration、loop、completion は PresentationDefinition の Semantic Surface が canonical に所有し、renderer artifact 選択から導出しない。ProjectionProfileDescriptor は PublicationFence、projection contract version、role、capability profile ごとに共有し、participant / assignment 固有の ProjectionInstance と分離する。Client-local State は Shared Progression を直接変更しない。
 
-Timeline audience と Semantic Surface による media timing の所有は、現行 Presentation v2 の後に contract revision を伴って導入する目標である。現行 v2 は Timeline audience と profile 別 Timeline projection を持たず、Video content の `loop` と admitted Video Artifact の `durationMilliseconds` を使用する。現行 contract と後続変更の境界は [Presentation Architecture](../presentation/ARCHITECTURE.md) と [Presentation データ契約 v2](../presentation/DATA_MODEL.md) を正本とする。
+Timeline audience と Semantic Surface による media timing の所有は、現行 Presentation v2 の後に contract revision を伴って導入する目標である。現行 v2 は Timeline audience と profile 別 Timeline projection を持たず、Video content の `loop` と admitted Video Artifact の `durationMilliseconds` を使用する。現行 contract と後続変更の境界は [Presentation Architecture](../packages/ARCHITECTURE.md) と [Presentation データ契約 v2](../packages/DATA_MODEL.md) を正本とする。
 
 Presentation は過去の公開版を選択できる履歴を持たず、公開済み実行物を一つだけ保持する。Session は Presentation を参照し、作成時の PublicationFence を固定する。期限内の `Waiting` Session または `Presenting` Session が存在する間は publish を拒否し、Draft 編集と build を実行中 Session へ反映しない。Presentation owner / admin は放置された `Waiting` Session を cancel でき、bounded waiting expiryもpublish判定と同じ永続化境界でlockを解放する。Session 終了後の明示的な publish で現在の PublishedPresentation を atomic に置き換え、次の Session は常にその最新版を使用する。
 
-v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../presentation/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
+v1 の具体的な選択規則、Group lifecycle、Surface State、Timeline、Snapshot は [Presentation Progression の意味論](../packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) に従う。
 
 ### Component ごとの責務
 
@@ -187,18 +187,18 @@ Tracking、input、clock、renderer の差によって Cue と State が分岐�
 
 ## Follow-ups
 
-- [x] Component Action / Output の canonical Action / event source への lowering contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#55-component-action--output-lowering) で定義する。
-- [x] Structured Component の宣言的な内部構造と renderer implementation の source boundary を [Presentation Architecture](../presentation/ARCHITECTURE.md#52-structured-component-source-boundary) で定義する。
-- [x] Static Authoring DSL、AST lowering、Declaration Graph normalization、semantic round-trip、source mapping を [Presentation Architecture](../presentation/ARCHITECTURE.md#6-authoring-compiler-と-gui--code-round-trip)、Detach を [Component Instance と Detach](../presentation/ARCHITECTURE.md#54-component-instance-と-detach) で定義する。
-- [x] SurfaceNode、Semantic Surface、Render Surface の canonical identity、cardinality、lowering、Runtime 参照規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#75-render-surface-lowering-と-runtime-参照) で定義する。
-- [x] Group scope / presentation scope の resource owner、参照方向、lifecycle、Runtime State 保持規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#71-group) で定義する。
-- [x] Presenter / System / participant の actor、subject、Anchor owner と認可規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#125-runtime-input-event-と-trigger) で定義する。
-- [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を [Presentation Architecture](../presentation/ARCHITECTURE.md#37-runtime-state) で定義する。
-- [x] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run、pause-aware logical clock、Canonical Runtime Snapshot、Connection / Durable envelope contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#123-runtime-progression-state) と [Snapshot contract](../presentation/ARCHITECTURE.md#1211-reliable-eventstate-streamsnapshot) で定義する。
-- [x] 単一の PublishedPresentation、PublicationFence、PresentationDefinition / RenderBundle / Asset Set / contract version の原子的な整合性、Session と PublicationFence の参照、Waiting Session の owner cancel / bounded expiry、非終了 Session 中の publish lock、置換後artifactのGCを [Presentation Architecture](../presentation/ARCHITECTURE.md#36-published-presentation-と-active-use-lock) で定義する。
-- [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を [Surface State](../presentation/ARCHITECTURE.md#124-surface-state)、[Action](../presentation/ARCHITECTURE.md#127-action)、[Timeline](../presentation/ARCHITECTURE.md#128-timeline) で定義する。
-- [x] Surface State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を [Presentation Architecture](../presentation/ARCHITECTURE.md#132-semantic-tree)、[Native UI Artifact](../presentation/ARCHITECTURE.md#143-native-ui-artifact)、[DeliveryManifest](../presentation/ARCHITECTURE.md#35-deliverymanifest) で定義する。
-- [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を [Presentation Architecture](../presentation/ARCHITECTURE.md#surface-transition--interaction-wire-contract) で定義する。
+- [x] Component Action / Output の canonical Action / event source への lowering contract を [Presentation Architecture](../packages/ARCHITECTURE.md#55-component-action--output-lowering) で定義する。
+- [x] Structured Component の宣言的な内部構造と renderer implementation の source boundary を [Presentation Architecture](../packages/ARCHITECTURE.md#52-structured-component-source-boundary) で定義する。
+- [x] Static Authoring DSL、AST lowering、Declaration Graph normalization、semantic round-trip、source mapping を [Presentation Architecture](../packages/ARCHITECTURE.md#6-authoring-compiler-と-gui--code-round-trip)、Detach を [Component Instance と Detach](../packages/ARCHITECTURE.md#54-component-instance-と-detach) で定義する。
+- [x] SurfaceNode、Semantic Surface、Render Surface の canonical identity、cardinality、lowering、Runtime 参照規則を [Presentation Architecture](../packages/ARCHITECTURE.md#75-render-surface-lowering-と-runtime-参照) で定義する。
+- [x] Group scope / presentation scope の resource owner、参照方向、lifecycle、Runtime State 保持規則を [Presentation Architecture](../packages/ARCHITECTURE.md#71-group) で定義する。
+- [x] Presenter / System / participant の actor、subject、Anchor owner と認可規則を [Presentation Architecture](../packages/ARCHITECTURE.md#125-runtime-input-event-と-trigger) で定義する。
+- [x] Shared Runtime State、Participant Runtime View、Client-local State の authority、producer、profile / instance、projection schema を [Presentation Architecture](../packages/ARCHITECTURE.md#37-runtime-state) で定義する。
+- [x] Step entry、Timer、Cue consumption、Surface transition、Timeline、Media を復元できる Runtime Run、pause-aware logical clock、Canonical Runtime Snapshot、Connection / Durable envelope contract を [Presentation Architecture](../packages/ARCHITECTURE.md#123-runtime-progression-state) と [Snapshot contract](../packages/ARCHITECTURE.md#1211-reliable-eventstate-streamsnapshot) で定義する。
+- [x] 単一の PublishedPresentation、PublicationFence、PresentationDefinition / RenderBundle / Asset Set / contract version の原子的な整合性、Session と PublicationFence の参照、Waiting Session の owner cancel / bounded expiry、非終了 Session 中の publish lock、置換後artifactのGCを [Presentation Architecture](../packages/ARCHITECTURE.md#36-published-presentation-と-active-use-lock) で定義する。
+- [x] Surface transition、Action batch、active Timeline Run の conflict policy と Timeline の補間・停止規則を [Surface State](../packages/ARCHITECTURE.md#124-surface-state)、[Action](../packages/ARCHITECTURE.md#127-action)、[Timeline](../packages/ARCHITECTURE.md#128-timeline) で定義する。
+- [x] Surface State ごとの完成 Semantic Tree、Hit Region 整合、Native UI v1 subset、text binding、font asset、projection Variable / Clock 規則を [Presentation Architecture](../packages/ARCHITECTURE.md#132-semantic-tree)、[Native UI Artifact](../packages/ARCHITECTURE.md#143-native-ui-artifact)、[DeliveryManifest](../packages/ARCHITECTURE.md#35-deliverymanifest) で定義する。
+- [x] Surface transition の開始・完了、Surface interaction input / outcome、Interaction / Hit Region 有効化の wire contract を [Presentation Architecture](../packages/ARCHITECTURE.md#surface-transition--interaction-wire-contract) で定義する。
 - [x] ComponentからRender Surfaceへのpartition規則、自動化範囲、author overrideを [ADR-0011](0011-surface-partition-contract.md) で定義する。
 - [x] ADR-0005の基礎座標系を前提に、Transform / matrix / Quaternion / Unity / Surface / UVの完全な規約を [ADR-0010](0010-spatial-surface-coordinate-contract.md) で定義する。
 - [ ] SurfaceRenderIntent、Surface State、RenderBundle、DeliveryManifest の schema と versioning を定義する。

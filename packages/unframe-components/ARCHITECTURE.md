@@ -3,10 +3,10 @@
 - **Status**: M3A Authoring API に同期した初期 Structured Surface Primitive を実装済み
 - **Scope**: Unframe 標準 Primitive、Component、Theme の package
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Presentation Authoring Architecture](../unframe-authoring/ARCHITECTURE.md)
-  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
+  - [M3A Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 
@@ -108,4 +108,4 @@ Authoring SDK は 6 category の Theme Token、同 category alias、Text / Frame
 
 Component Props / Variant / Part / Slot の解決と展開、Spatial 3D Primitive、Interaction、Action / Output lowering、Opaque entry、package lock / integrity の縦断検証、migration、preview、visual regression はこの package の実装完了範囲に含めない。これらを暗黙の名前規約で補わず、Compiler / Renderer の対応 contract が実装された後に検証する。
 
-型付き Theme、Props / Slots / Parts / Variants、nested Frame / Text の規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。Slot は Frame children 内の明示 placeholder を挿入位置とする。placeholder の `semanticParentId` は nested semantic roots の接続先を指定し、省略時は Surface の追加 roots として扱う。migration metadata / 自動変換と Part partition isolate は M3A に含めない。
+型付き Theme、Props / Slots / Parts / Variants、nested Frame / Text の規則は [Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) を正本とする。Slot は Frame children 内の明示 placeholder を挿入位置とする。placeholder の `semanticParentId` は nested semantic roots の接続先を指定し、省略時は Surface の追加 roots として扱う。migration metadata / 自動変換と Part partition isolate は M3A に含めない。

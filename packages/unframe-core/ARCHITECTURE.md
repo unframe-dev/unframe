@@ -3,10 +3,10 @@
 - **Status**: Presentation v2 M3A semantic core and v2 publication integrity boundary
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Contracts Architecture](../contracts/ARCHITECTURE.md)
-  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
+  - [M3A Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 

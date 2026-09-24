@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0006](0006-presentation-rendering-strategy.md), [ADR-0009](0009-semantic-tree-hit-region-contract.md), [ADR-0010](0010-spatial-surface-coordinate-contract.md), [Presentation Architecture](../presentation/ARCHITECTURE.md)
+- **関連**: [ADR-0006](0006-presentation-rendering-strategy.md), [ADR-0009](0009-semantic-tree-hit-region-contract.md), [ADR-0010](0010-spatial-surface-coordinate-contract.md), [Presentation Architecture](../packages/ARCHITECTURE.md)
 
 ## Context
 

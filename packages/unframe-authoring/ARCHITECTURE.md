@@ -4,10 +4,10 @@
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
-  - [Presentation Architecture](../../docs/presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../../docs/presentation/DESIGN.md)
+  - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
   - [Presentation Core Architecture](../unframe-core/ARCHITECTURE.md)
-  - [M3A Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md)
+  - [M3A Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md)
 
 ## 1. Role
 
@@ -60,7 +60,7 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 
 `Surface`、`Frame`、`Text`、`Slot`、`ComponentInstance` を JSX tag として提供する。`jsxImportSource` は `@unframe/unframe-authoring` とし、内部構造と Presentation の配置を同じ canonical declaration に変換する。JSX の opaque Element 型は入力だけに使い、definition builder の戻り値は canonical declaration 型を保つ。
 
-Compiler は locked SDK の export provenance を確認し、Source module と builder function を実行せず AST を lower する。任意関数、loop / branch、dynamic import、builder 関数自身の local alias は拒否する。builder の戻り値を `const` で共有することは許可する。許可構文と JSX の children 規則は [Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) と [ADR-0018](../../docs/decisions/0018-static-typescript-jsx-authoring.md) を参照する。
+Compiler は locked SDK の export provenance を確認し、Source module と builder function を実行せず AST を lower する。任意関数、loop / branch、dynamic import、builder 関数自身の local alias は拒否する。builder の戻り値を `const` で共有することは許可する。許可構文と JSX の children 規則は [Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) と [ADR-0018](../../docs/decisions/0018-static-typescript-jsx-authoring.md) を参照する。
 
 ## 5. Invariants
 
@@ -129,7 +129,7 @@ parse、AST lowering、reference resolution、normalization、renderer、filesys
 
 package test の inline fixture に加え、公開用の `examples/presentation/` source が存在する。Compiler による解決と composition はこの fixture から v2 artifact まで接続し、Fixed Browser の反復 build で検証する。
 
-Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/presentation/AUTHORING_CONTRACT.md) を正本とする。default、Named Style、inline style、Variant、Part の優先適用、Prop / Token 解決、Slot 展開、Part / Variant conflict、v2 出力接続は Compiler の責務であり、宣言 API の存在だけでは完了を意味しない。
+Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則は [Structured Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) を正本とする。default、Named Style、inline style、Variant、Part の優先適用、Prop / Token 解決、Slot 展開、Part / Variant conflict、v2 出力接続は Compiler の責務であり、宣言 API の存在だけでは完了を意味しない。
 
 個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とする。Slot は `slot-placeholder` の `id` / `slotId` で Frame children 内の挿入位置を表し、任意の `semanticParentId` で同じ Component の semantic node を親として参照する。`slotPlacements` と旧 `accepts` / `cardinality` / `required` は受理しない。Part は target kind ごとの content / placement / style だけを受け取り、旧 `overridable` を受理しない。
 

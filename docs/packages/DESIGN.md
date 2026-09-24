@@ -542,10 +542,10 @@ presentation/
 ## 10. Documentation hierarchy
 
 ```text
-docs/presentation/ARCHITECTURE.md
+docs/packages/ARCHITECTURE.md
     semantic model and system-wide boundaries
         ↓
-docs/presentation/DESIGN.md
+docs/packages/DESIGN.md
     repository layout, ownership, dependencies
         ↓
 <ownership boundary>/ARCHITECTURE.md

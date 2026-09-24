@@ -5,16 +5,16 @@
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
 - **Current milestone**: Milestone 3A 完了（静的 baked-web の Theme / composition）。Milestone 3B〜6 は未完了の後続として保持する
 - **Architecture source**:
-  - [Presentation Architecture](../presentation/ARCHITECTURE.md)
-  - [Presentation Implementation Design](../presentation/DESIGN.md)
+  - [Presentation Architecture](../packages/ARCHITECTURE.md)
+  - [Presentation Implementation Design](../packages/DESIGN.md)
   - [ADR-0006](../decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0014](../decisions/0014-presentation-rendering-scope.md)
   - [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md)
-  - [M3A Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md)
+  - [M3A Structured Authoring Contract](../packages/AUTHORING_CONTRACT.md)
 
 ## 1. 目的
 
-現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../presentation/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition も静的 v2 経路へ接続し、Delivery の実行処理と C# generation は後続に残る。
+現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../packages/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition も静的 v2 経路へ接続し、Delivery の実行処理と C# generation は後続に残る。
 
 本計画は、未実装事項を package ごとの独立した TODO として消化するのではなく、各段階で利用可能な結果を残す縦断的な milestone として整理する。
 
@@ -255,7 +255,7 @@ M2のblocking contract 6項目はすべてAcceptedとなった。2026-08-29 のG
 
 基盤移行では、Authoring の型・builder・guard を共通 schema へ揃え、Core の公開 model / validation / JCS を v2 へ切り替えた。Compiler の literal style / explicit font 入力と ADR-0012 の texture policy、Renderer の font load、CLI の4成果物出力を接続し、静的な direct Text の reference project で検証した。その上で以下の M3A 機能を実装した。reference project は Theme、Props、Variant、Part、Slot と nested Frame を一つの Surface へ展開する。
 
-- [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) と [Structured Authoring Contract](../presentation/AUTHORING_CONTRACT.md) を正本にする。
+- [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md) と [Structured Authoring Contract](../packages/AUTHORING_CONTRACT.md) を正本にする。
 - static `baked-web` の Authoring → v2 Definition / RenderBundle / AssetSet / Build artifact を縦断接続し、v1互換出力は追加しない。
 - 6 categoryのToken、Text / Frame Named Style、明示Font Asset解決。
 - Props / Slots / Parts / Variants の値注入、absoluteなnested Frame / Text、default warningと参照・衝突・循環・owner検証。
