@@ -1,0 +1,3537 @@
+{
+  "schemaVersion": 2,
+  "deliveryContractVersion": 2,
+  "sessionId": "session:local",
+  "publication": {
+    "presentationId": "presentation:local",
+    "publicationEpoch": "1",
+    "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "capabilityProfile": {
+    "capabilityProfileId": "capability:local"
+  },
+  "projectionProfile": {
+    "projectionProfileId": "profile:local",
+    "key": {
+      "capabilityProfileId": "capability:local"
+    },
+    "requiredRuntimeCapabilities": [
+      "RUNTIME_CAPABILITY_TIMELINE_RUN_V2"
+    ],
+    "runtimeCatalog": {
+      "catalogContractVersion": 2,
+      "nodes": [
+        {
+          "nodeId": "node:local-stage",
+          "parent": {
+            "stage": {}
+          },
+          "container": {}
+        },
+        {
+          "nodeId": "node:opening-panel",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 3.2,
+                "y": 1.6,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:text-greeting",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-greeting"
+          }
+        },
+        {
+          "nodeId": "node:text-self",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-self"
+          }
+        },
+        {
+          "nodeId": "node:text-overview",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-overview"
+          }
+        },
+        {
+          "nodeId": "node:text-only",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-only"
+          }
+        },
+        {
+          "nodeId": "node:text-project",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-project"
+          }
+        },
+        {
+          "nodeId": "node:text-issue",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-issue"
+          }
+        },
+        {
+          "nodeId": "node:text-result",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-result"
+          }
+        },
+        {
+          "nodeId": "node:side-panel-left",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.2,
+                "y": 1.8,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:side-panel-right",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.2,
+                "y": 1.8,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:text-long",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:text-long"
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-1",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-2",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-3",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-4",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-5",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-6",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-7",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:scatter-panel-8",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.25,
+                "y": 0.72,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:vertical-text-1",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:vertical-text-1"
+          }
+        },
+        {
+          "nodeId": "node:vertical-text-2",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:vertical-text-2"
+          }
+        },
+        {
+          "nodeId": "node:vertical-text-3",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:vertical-text-3"
+          }
+        },
+        {
+          "nodeId": "node:vertical-text-4",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:vertical-text-4"
+          }
+        },
+        {
+          "nodeId": "node:vertical-text-new",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "surface": {
+            "semanticSurfaceId": "semantic-surface:vertical-text-new"
+          }
+        },
+        {
+          "nodeId": "node:foreground-panel-1",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 0.95,
+                "y": 1.1,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:foreground-panel-2",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 0.95,
+                "y": 1.1,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:foreground-panel-3",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 0.95,
+                "y": 1.1,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:foreground-panel-4",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 0.95,
+                "y": 1.1,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:cube",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "model": {
+            "modelAssetId": "asset:storyboard-cube"
+          }
+        },
+        {
+          "nodeId": "node:normal-panel",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 3,
+                "y": 1.8,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:quadrant-upper-left",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.2,
+                "y": 0.8,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:quadrant-upper-right",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.2,
+                "y": 0.8,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:quadrant-lower-left",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.2,
+                "y": 0.8,
+                "z": 0.06
+              }
+            }
+          }
+        },
+        {
+          "nodeId": "node:quadrant-lower-right",
+          "parent": {
+            "node": {
+              "nodeId": "node:local-stage"
+            }
+          },
+          "shape": {
+            "box": {
+              "size": {
+                "x": 1.2,
+                "y": 0.8,
+                "z": 0.06
+              }
+            }
+          }
+        }
+      ],
+      "surfaces": [
+        {
+          "surfaceId": "surface:text-greeting",
+          "hostNodeId": "node:text-greeting",
+          "reachableStateIds": [
+            "state:text-greeting"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-self",
+          "hostNodeId": "node:text-self",
+          "reachableStateIds": [
+            "state:text-self"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-overview",
+          "hostNodeId": "node:text-overview",
+          "reachableStateIds": [
+            "state:text-overview"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-only",
+          "hostNodeId": "node:text-only",
+          "reachableStateIds": [
+            "state:text-only"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-project",
+          "hostNodeId": "node:text-project",
+          "reachableStateIds": [
+            "state:text-project"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-issue",
+          "hostNodeId": "node:text-issue",
+          "reachableStateIds": [
+            "state:text-issue"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-result",
+          "hostNodeId": "node:text-result",
+          "reachableStateIds": [
+            "state:text-result"
+          ]
+        },
+        {
+          "surfaceId": "surface:text-long",
+          "hostNodeId": "node:text-long",
+          "reachableStateIds": [
+            "state:text-long"
+          ]
+        },
+        {
+          "surfaceId": "surface:vertical-text-1",
+          "hostNodeId": "node:vertical-text-1",
+          "reachableStateIds": [
+            "state:vertical-text-1"
+          ]
+        },
+        {
+          "surfaceId": "surface:vertical-text-2",
+          "hostNodeId": "node:vertical-text-2",
+          "reachableStateIds": [
+            "state:vertical-text-2"
+          ]
+        },
+        {
+          "surfaceId": "surface:vertical-text-3",
+          "hostNodeId": "node:vertical-text-3",
+          "reachableStateIds": [
+            "state:vertical-text-3"
+          ]
+        },
+        {
+          "surfaceId": "surface:vertical-text-4",
+          "hostNodeId": "node:vertical-text-4",
+          "reachableStateIds": [
+            "state:vertical-text-4"
+          ]
+        },
+        {
+          "surfaceId": "surface:vertical-text-new",
+          "hostNodeId": "node:vertical-text-new",
+          "reachableStateIds": [
+            "state:vertical-text-new"
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "variableId": "variable:local-title"
+        }
+      ],
+      "timelines": [
+        {
+          "timelineId": "timeline:story-01",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:opening-panel",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:text-greeting",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-02",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-greeting",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-03",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-self",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-04",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-self",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-05",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-overview",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-06",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-overview",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-07",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:opening-panel",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-08",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-only",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-09",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-only",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-10",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-project",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-11",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-project",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-12",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-issue",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-13",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-issue",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-14",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-result",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-15",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-result",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:side-panel-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:side-panel-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-16",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:side-panel-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:side-panel-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-17",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-long",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:text-long",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 0,
+                      "y": 2,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 0,
+                      "y": 0.25,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-18",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:text-long",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-19",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-1",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-2",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-3",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-4",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-5",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-6",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-7",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-8",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-20",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-2",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-3",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-4",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-5",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-6",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-7",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-8",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-21",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:scatter-panel-1",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-22",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:vertical-text-1",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-2",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-3",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-4",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-1",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -2.25,
+                      "y": 2.7,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -2.25,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-2",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -0.75,
+                      "y": 2.7,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -0.75,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-3",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 0.75,
+                      "y": 2.7,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 0.75,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-4",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 2.25,
+                      "y": 2.7,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 2.25,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-23",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:vertical-text-new",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-1",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -2.25,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -1,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-2",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -0.75,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 0.5,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-3",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 0.75,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 2,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-4",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 2.25,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 3.5,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-new",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -4,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -2.8,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-24",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:vertical-text-1",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-2",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-3",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-4",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-new",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-1",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-2",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-3",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-4",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-1",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -1,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -1,
+                      "y": 0.3,
+                      "z": 2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-2",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 0.5,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 0.5,
+                      "y": 0.3,
+                      "z": 2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-3",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 2,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 2,
+                      "y": 0.3,
+                      "z": 2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-4",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 3.5,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 3.5,
+                      "y": 0.3,
+                      "z": 2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:vertical-text-new",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -2.8,
+                      "y": 0.3,
+                      "z": 0
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -2.8,
+                      "y": 0.3,
+                      "z": 2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-1",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -1.8,
+                      "y": 0,
+                      "z": -2.2
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -1.8,
+                      "y": 0,
+                      "z": -1.2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-2",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": -0.6000000000000001,
+                      "y": 0,
+                      "z": -2.2
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": -0.6000000000000001,
+                      "y": 0,
+                      "z": -1.2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-3",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 0.5999999999999999,
+                      "y": 0,
+                      "z": -2.2
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 0.5999999999999999,
+                      "y": 0,
+                      "z": -1.2
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-4",
+                "property": "TIMELINE_PROPERTY_TRANSFORM_POSITION"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "vector3": {
+                    "value": {
+                      "x": 1.7999999999999996,
+                      "y": 0,
+                      "z": -2.2
+                    }
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "vector3": {
+                    "value": {
+                      "x": 1.7999999999999996,
+                      "y": 0,
+                      "z": -1.2
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-25",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-1",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-2",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-3",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:foreground-panel-4",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-26",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:cube",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-27",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:cube",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-28",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:normal-panel",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-29",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:normal-panel",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-30",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:quadrant-upper-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-upper-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-31",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:quadrant-upper-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-32",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:quadrant-upper-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-upper-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-33",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:quadrant-upper-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-34",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-left",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            },
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 0
+                  },
+                  "easingToNext": "EASING_CUBIC_OUT"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "timelineId": "timeline:story-35",
+          "durationMs": "650",
+          "owner": {
+            "presentation": {}
+          },
+          "tracks": [
+            {
+              "target": {
+                "nodeId": "node:quadrant-lower-right",
+                "property": "TIMELINE_PROPERTY_OPACITY"
+              },
+              "keyframes": [
+                {
+                  "timeMs": "0",
+                  "number": {
+                    "value": 1
+                  },
+                  "easingToNext": "EASING_CUBIC_IN"
+                },
+                {
+                  "timeMs": "650",
+                  "number": {
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "renderSurfaces": [
+      {
+        "renderSurfaceId": "render-text-greeting",
+        "semanticSurfaceId": "semantic-surface:text-greeting",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-greeting",
+            "artifact": {
+              "artifactId": "artifact:text-greeting"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-greeting",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-greeting",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-greeting",
+                    "semanticNodeId": "semantic:text-greeting",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：挨拶"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-self",
+        "semanticSurfaceId": "semantic-surface:text-self",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-self",
+            "artifact": {
+              "artifactId": "artifact:text-self"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-self",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-self",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-self",
+                    "semanticNodeId": "semantic:text-self",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：自己紹介"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-overview",
+        "semanticSurfaceId": "semantic-surface:text-overview",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-overview",
+            "artifact": {
+              "artifactId": "artifact:text-overview"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-overview",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-overview",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-overview",
+                    "semanticNodeId": "semantic:text-overview",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：概要紹介"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-only",
+        "semanticSurfaceId": "semantic-surface:text-only",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-only",
+            "artifact": {
+              "artifactId": "artifact:text-only"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-only",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-only",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-only",
+                    "semanticNodeId": "semantic:text-only",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：テキストのみ"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-project",
+        "semanticSurfaceId": "semantic-surface:text-project",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-project",
+            "artifact": {
+              "artifactId": "artifact:text-project"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-project",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-project",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-project",
+                    "semanticNodeId": "semantic:text-project",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：プロジェクトの始まり"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-issue",
+        "semanticSurfaceId": "semantic-surface:text-issue",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-issue",
+            "artifact": {
+              "artifactId": "artifact:text-issue"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-issue",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-issue",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-issue",
+                    "semanticNodeId": "semantic:text-issue",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：課題の提示"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-result",
+        "semanticSurfaceId": "semantic-surface:text-result",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-result",
+            "artifact": {
+              "artifactId": "artifact:text-result"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-result",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-result",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-result",
+                    "semanticNodeId": "semantic:text-result",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：結果"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-text-long",
+        "semanticSurfaceId": "semantic-surface:text-long",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:text-long",
+            "artifact": {
+              "artifactId": "artifact:text-long"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:text-long",
+              "contractVersion": 1,
+              "rootNodeId": "ui:text-long",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:text-long",
+                    "semanticNodeId": "semantic:text-long",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：長い説明文"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-vertical-text-1",
+        "semanticSurfaceId": "semantic-surface:vertical-text-1",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:vertical-text-1",
+            "artifact": {
+              "artifactId": "artifact:vertical-text-1"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:vertical-text-1",
+              "contractVersion": 1,
+              "rootNodeId": "ui:vertical-text-1",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:vertical-text-1",
+                    "semanticNodeId": "semantic:vertical-text-1",
+                    "value": {
+                      "literal": {
+                        "value": "仮\nテ\nキ\nス\nト"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-vertical-text-2",
+        "semanticSurfaceId": "semantic-surface:vertical-text-2",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:vertical-text-2",
+            "artifact": {
+              "artifactId": "artifact:vertical-text-2"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:vertical-text-2",
+              "contractVersion": 1,
+              "rootNodeId": "ui:vertical-text-2",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:vertical-text-2",
+                    "semanticNodeId": "semantic:vertical-text-2",
+                    "value": {
+                      "literal": {
+                        "value": "仮\nテ\nキ\nス\nト"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-vertical-text-3",
+        "semanticSurfaceId": "semantic-surface:vertical-text-3",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:vertical-text-3",
+            "artifact": {
+              "artifactId": "artifact:vertical-text-3"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:vertical-text-3",
+              "contractVersion": 1,
+              "rootNodeId": "ui:vertical-text-3",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:vertical-text-3",
+                    "semanticNodeId": "semantic:vertical-text-3",
+                    "value": {
+                      "literal": {
+                        "value": "仮\nテ\nキ\nス\nト"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-vertical-text-4",
+        "semanticSurfaceId": "semantic-surface:vertical-text-4",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:vertical-text-4",
+            "artifact": {
+              "artifactId": "artifact:vertical-text-4"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:vertical-text-4",
+              "contractVersion": 1,
+              "rootNodeId": "ui:vertical-text-4",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:vertical-text-4",
+                    "semanticNodeId": "semantic:vertical-text-4",
+                    "value": {
+                      "literal": {
+                        "value": "仮\nテ\nキ\nス\nト"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "renderSurfaceId": "render-vertical-text-new",
+        "semanticSurfaceId": "semantic-surface:vertical-text-new",
+        "rendererKind": "RENDERER_KIND_NATIVE_UI",
+        "artifactContractVersion": 1,
+        "stateBindings": [
+          {
+            "stateId": "state:vertical-text-new",
+            "artifact": {
+              "artifactId": "artifact:vertical-text-new"
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "nativeUi": {
+              "artifactId": "artifact:vertical-text-new",
+              "contractVersion": 1,
+              "rootNodeId": "ui:vertical-text-new",
+              "nodes": [
+                {
+                  "text": {
+                    "nodeId": "ui:vertical-text-new",
+                    "semanticNodeId": "semantic:vertical-text-new",
+                    "value": {
+                      "literal": {
+                        "value": "仮テキスト：追加テキスト"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "projectionInstance": {
+    "projectionProfileId": "profile:local",
+    "participantId": "participant:local",
+    "assignmentEpoch": "1"
+  },
+  "assetAccess": [
+    {
+      "assetId": "asset:storyboard-cube"
+    }
+  ],
+  "residency": {
+    "models": {
+      "models": [
+        {
+          "assetId": "asset:storyboard-cube"
+        }
+      ]
+    }
+  }
+}

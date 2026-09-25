@@ -1,0 +1,928 @@
+{
+  "connectionSnapshot": {
+    "schemaVersion": 2,
+    "connectionId": "connection:local",
+    "fence": {
+      "sessionId": "session:local",
+      "publication": {
+        "presentationId": "presentation:local",
+        "publicationEpoch": "1",
+        "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "assignmentEpoch": "1",
+      "projectionProfileId": "profile:local"
+    },
+    "projectionInstance": {
+      "projectionProfileId": "profile:local",
+      "participantId": "participant:local",
+      "assignmentEpoch": "1"
+    },
+    "reliableSequence": "0",
+    "snapshot": {
+      "projectionProfileId": "profile:local",
+      "assignmentEpoch": "1",
+      "reliableSequence": "0",
+      "runtimeView": {
+        "projectionProfileId": "profile:local",
+        "assignmentEpoch": "1",
+        "baseReliableSequence": "0",
+        "nodeStates": [
+          {
+            "nodeId": "node:local-stage",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:opening-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.25
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-greeting",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-self",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-overview",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-only",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-project",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-issue",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-result",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:side-panel-left",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -2,
+                "y": 0,
+                "z": 0.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:side-panel-right",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 2,
+                "y": 0,
+                "z": 0.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:text-long",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0.25,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-1",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -2.2,
+                "y": 1.4,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": -0.10452846326765346,
+                "w": 0.9945218953682733
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-2",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -0.8,
+                "y": 1.7,
+                "z": 0.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0.0697564737441253,
+                "w": 0.9975640502598242
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-3",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0.8,
+                "y": 1.5,
+                "z": -0.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": -0.05233595624294383,
+                "w": 0.9986295347545738
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-4",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 2.2,
+                "y": 1.2,
+                "z": 0.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0.12186934340514748,
+                "w": 0.992546151641322
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-5",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -2,
+                "y": -1,
+                "z": 0.15
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0.06104853953485687,
+                "w": 0.9981347984218669
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-6",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -0.65,
+                "y": -1.45,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": -0.13052619222005157,
+                "w": 0.9914448613738104
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-7",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 1,
+                "y": -1.2,
+                "z": 0.15
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0.09584575252022398,
+                "w": 0.9953961983671789
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scatter-panel-8",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 2.35,
+                "y": -0.8,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": -0.07845909572784494,
+                "w": 0.996917333733128
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:vertical-text-1",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -2.25,
+                "y": 0.3,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:vertical-text-2",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -0.75,
+                "y": 0.3,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:vertical-text-3",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0.75,
+                "y": 0.3,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:vertical-text-4",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 2.25,
+                "y": 0.3,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:vertical-text-new",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -2.8,
+                "y": 0.3,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:foreground-panel-1",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -1.8,
+                "y": 0,
+                "z": -1.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:foreground-panel-2",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -0.6000000000000001,
+                "y": 0,
+                "z": -1.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:foreground-panel-3",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0.5999999999999999,
+                "y": 0,
+                "z": -1.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:foreground-panel-4",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 1.7999999999999996,
+                "y": 0,
+                "z": -1.2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:cube",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:normal-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.25
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:quadrant-upper-left",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -1.4,
+                "y": 1.05,
+                "z": 0.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:quadrant-upper-right",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 1.4,
+                "y": 1.05,
+                "z": 0.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:quadrant-lower-left",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -1.4,
+                "y": -1.05,
+                "z": 0.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:quadrant-lower-right",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 1.4,
+                "y": -1.05,
+                "z": 0.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          }
+        ],
+        "surfaceStates": [
+          {
+            "surfaceId": "surface:text-greeting",
+            "stateId": "state:text-greeting"
+          },
+          {
+            "surfaceId": "surface:text-self",
+            "stateId": "state:text-self"
+          },
+          {
+            "surfaceId": "surface:text-overview",
+            "stateId": "state:text-overview"
+          },
+          {
+            "surfaceId": "surface:text-only",
+            "stateId": "state:text-only"
+          },
+          {
+            "surfaceId": "surface:text-project",
+            "stateId": "state:text-project"
+          },
+          {
+            "surfaceId": "surface:text-issue",
+            "stateId": "state:text-issue"
+          },
+          {
+            "surfaceId": "surface:text-result",
+            "stateId": "state:text-result"
+          },
+          {
+            "surfaceId": "surface:text-long",
+            "stateId": "state:text-long"
+          },
+          {
+            "surfaceId": "surface:vertical-text-1",
+            "stateId": "state:vertical-text-1"
+          },
+          {
+            "surfaceId": "surface:vertical-text-2",
+            "stateId": "state:vertical-text-2"
+          },
+          {
+            "surfaceId": "surface:vertical-text-3",
+            "stateId": "state:vertical-text-3"
+          },
+          {
+            "surfaceId": "surface:vertical-text-4",
+            "stateId": "state:vertical-text-4"
+          },
+          {
+            "surfaceId": "surface:vertical-text-new",
+            "stateId": "state:vertical-text-new"
+          }
+        ]
+      }
+    }
+  }
+}

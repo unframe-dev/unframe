@@ -1,0 +1,32 @@
+{
+  "reliableEvent": {
+    "sequence": "31",
+    "eventId": "event:local-story-31",
+    "occurredAtRuntimeTimeMs": "31000",
+    "fence": {
+      "sessionId": "session:local",
+      "publication": {
+        "presentationId": "presentation:local",
+        "publicationEpoch": "1",
+        "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "assignmentEpoch": "1",
+      "projectionProfileId": "profile:local"
+    },
+    "timelineStarted": {
+      "runId": {
+        "assignmentEpoch": "1",
+        "runSequence": "31"
+      },
+      "timelineId": "timeline:story-31",
+      "owner": {
+        "presentation": {}
+      },
+      "cause": {
+        "cueId": "cue:local-story-31"
+      },
+      "completion": "RUN_COMPLETION_NON_BLOCKING",
+      "startedAtRuntimeTimeMs": "31000"
+    }
+  }
+}

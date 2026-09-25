@@ -1,0 +1,330 @@
+syntax = "proto3";
+
+package unframe.presentation.v2;
+
+option go_package = "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2;presentationv2";
+
+// Shared portable types used by the immutable delivery projection and the
+// mutable realtime protocol. This is the first complete contract major; the
+// incomplete realtime.v1 foundation is not wire-compatible with it.
+
+enum SessionRole {
+  SESSION_ROLE_UNSPECIFIED = 0;
+  SESSION_ROLE_PRESENTER = 1;
+  SESSION_ROLE_VIEWER = 2;
+}
+
+enum RuntimeCapability {
+  RUNTIME_CAPABILITY_UNSPECIFIED = 0;
+  RUNTIME_CAPABILITY_RUNTIME_TRANSPORT_V2 = 1;
+  RUNTIME_CAPABILITY_TIMELINE_RUN_V2 = 2;
+  RUNTIME_CAPABILITY_SURFACE_TRANSITION_V2 = 3;
+  RUNTIME_CAPABILITY_VIDEO_PLAYBACK_V2 = 4;
+  RUNTIME_CAPABILITY_MODEL_CLIP_V2 = 5;
+  RUNTIME_CAPABILITY_TRACKING_V2 = 6;
+}
+
+message PublicationFence {
+  string presentation_id = 1;
+  uint64 publication_epoch = 2;
+  string publication_manifest_hash = 3;
+}
+
+message ProjectionInstance {
+  string projection_profile_id = 1;
+  string participant_id = 2;
+  uint64 assignment_epoch = 3;
+}
+
+message RuntimeProjectionFence {
+  string session_id = 1;
+  PublicationFence publication = 2;
+  uint64 assignment_epoch = 3;
+  string projection_profile_id = 4;
+  uint64 presentation_origin_version = 5;
+}
+
+message Vector2 {
+  double x = 1;
+  double y = 2;
+}
+
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Quaternion {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message Transform {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+  Vector3 scale = 3;
+}
+
+message Pose {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+}
+
+message ScalarValue {
+  oneof value {
+    string string_value = 1;
+    double number_value = 2;
+    bool boolean_value = 3;
+    NullScalar null_value = 4;
+  }
+}
+
+message NullScalar {}
+
+enum ScalarType {
+  SCALAR_TYPE_UNSPECIFIED = 0;
+  SCALAR_TYPE_STRING = 1;
+  SCALAR_TYPE_NUMBER = 2;
+  SCALAR_TYPE_BOOLEAN = 3;
+  SCALAR_TYPE_NULL = 4;
+}
+
+enum Easing {
+  EASING_UNSPECIFIED = 0;
+  EASING_LINEAR = 1;
+  EASING_CUBIC_IN = 2;
+  EASING_CUBIC_OUT = 3;
+  EASING_CUBIC_IN_OUT = 4;
+}
+
+message RuntimeRunId {
+  uint64 assignment_epoch = 1;
+  uint64 run_sequence = 2;
+}
+
+message RuntimeRunOwner {
+  oneof scope {
+    PresentationRunOwner presentation = 1;
+    GroupRunOwner group = 2;
+  }
+}
+
+message PresentationRunOwner {}
+
+message GroupRunOwner {
+  string group_id = 1;
+  uint64 group_entry_epoch = 2;
+}
+
+message RuntimeRunCause {
+  string cue_id = 1;
+  string cause_event_id = 2;
+  string group_id = 3;
+  uint64 group_entry_epoch = 4;
+  string step_id = 5;
+  uint64 step_entry_epoch = 6;
+}
+
+enum RunCompletion {
+  RUN_COMPLETION_UNSPECIFIED = 0;
+  RUN_COMPLETION_BLOCKING = 1;
+  RUN_COMPLETION_NON_BLOCKING = 2;
+}
+
+message ResourceOwner {
+  oneof scope {
+    PresentationResourceOwner presentation = 1;
+    GroupResourceOwner group = 2;
+  }
+}
+
+message PresentationResourceOwner {}
+message GroupResourceOwner { string group_id = 1; }
+
+enum TimelineProperty {
+  TIMELINE_PROPERTY_UNSPECIFIED = 0;
+  TIMELINE_PROPERTY_OPACITY = 1;
+  TIMELINE_PROPERTY_TRANSFORM_POSITION = 2;
+  TIMELINE_PROPERTY_TRANSFORM_ROTATION = 3;
+  TIMELINE_PROPERTY_TRANSFORM_SCALE = 4;
+}
+
+message TimelineTrackTarget {
+  string node_id = 1;
+  TimelineProperty property = 2;
+}
+
+message NumberKeyframeValue { double value = 1; }
+message Vector3KeyframeValue { Vector3 value = 1; }
+message QuaternionKeyframeValue { Quaternion value = 1; }
+
+message TimelineKeyframe {
+  uint64 time_ms = 1;
+  oneof value {
+    NumberKeyframeValue number = 2;
+    Vector3KeyframeValue vector3 = 3;
+    QuaternionKeyframeValue quaternion = 4;
+  }
+  optional Easing easing_to_next = 5;
+}
+
+message ProjectedTimelineTrack {
+  TimelineTrackTarget target = 1;
+  repeated TimelineKeyframe keyframes = 2;
+}
+
+message ProjectedTimelineDefinition {
+  string timeline_id = 1;
+  uint64 duration_ms = 2;
+  repeated ProjectedTimelineTrack tracks = 3;
+  ResourceOwner owner = 4;
+}
+
+message ProjectedVariableDefinition {
+  string variable_id = 1;
+  ScalarType type = 2;
+  ResourceOwner owner = 3;
+}
+
+enum AnchorTarget {
+  ANCHOR_TARGET_UNSPECIFIED = 0;
+  ANCHOR_TARGET_HEAD = 1;
+  ANCHOR_TARGET_LEFT_HAND = 2;
+  ANCHOR_TARGET_RIGHT_HAND = 3;
+  ANCHOR_TARGET_BODY = 4;
+}
+
+message StageParent {}
+message NodeParent { string node_id = 1; }
+
+message PresenterAnchorParent {
+  AnchorTarget target = 1;
+  bool follow_position = 2;
+  bool follow_rotation = 3;
+}
+
+message SpatialParent {
+  oneof parent {
+    StageParent stage = 1;
+    NodeParent node = 2;
+    PresenterAnchorParent presenter_anchor = 3;
+  }
+}
+
+message ContainerNode {}
+message SurfaceNode { string semantic_surface_id = 1; }
+message ModelNode { string model_asset_id = 1; }
+
+message BoxGeometry { Vector3 size = 1; }
+message SphereGeometry { double radius = 1; }
+
+message SrgbaColor {
+  double red = 1;
+  double green = 2;
+  double blue = 3;
+  double alpha = 4;
+}
+
+message SrgbColor {
+  double red = 1;
+  double green = 2;
+  double blue = 3;
+}
+
+message UnlitShapeMaterial {
+  SrgbaColor color = 1;
+  bool double_sided = 2;
+  bool casts_shadows = 3;
+  bool receives_shadows = 4;
+}
+
+message ShapeNode {
+  oneof geometry {
+    BoxGeometry box = 1;
+    SphereGeometry sphere = 2;
+  }
+  UnlitShapeMaterial material = 3;
+}
+
+message DirectionalLight {
+  SrgbColor color = 1;
+  double intensity_lux = 2;
+  bool casts_shadows = 3;
+}
+
+message PointLight {
+  SrgbColor color = 1;
+  double intensity_candela = 2;
+  double range_meters = 3;
+  bool casts_shadows = 4;
+}
+
+message SpotLight {
+  SrgbColor color = 1;
+  double intensity_candela = 2;
+  double range_meters = 3;
+  double outer_angle_degrees = 4;
+  double inner_angle_degrees = 5;
+  bool casts_shadows = 6;
+}
+
+message LightNode {
+  oneof light {
+    DirectionalLight directional = 1;
+    PointLight point = 2;
+    SpotLight spot = 3;
+  }
+}
+
+message ProjectedNodeDefinition {
+  string node_id = 1;
+  SpatialParent parent = 2;
+  uint32 order = 3;
+  ResourceOwner owner = 4;
+  oneof node {
+    ContainerNode container = 10;
+    SurfaceNode surface = 11;
+    ModelNode model = 12;
+    ShapeNode shape = 13;
+    LightNode light = 14;
+  }
+}
+
+enum SurfaceFit {
+  SURFACE_FIT_UNSPECIFIED = 0;
+  SURFACE_FIT_CONTAIN = 1;
+  SURFACE_FIT_COVER = 2;
+  SURFACE_FIT_STRETCH = 3;
+}
+
+message ProjectedSurfaceDefinition {
+  string surface_id = 1;
+  string host_node_id = 2;
+  repeated string reachable_state_ids = 3;
+  bool has_video = 4;
+  Vector2 physical_size_meters = 5;
+  Vector2 logical_size = 6;
+  SurfaceFit fit = 7;
+  ResourceOwner owner = 8;
+}
+
+message ProjectedModelClipDefinition {
+  string model_node_id = 1;
+  string model_asset_id = 2;
+  string clip_id = 3;
+  uint32 source_animation_index = 4;
+  uint64 duration_ms = 5;
+  ResourceOwner owner = 6;
+}
+
+message ProjectedRuntimeCatalog {
+  uint32 catalog_contract_version = 1;
+  repeated ProjectedNodeDefinition nodes = 2;
+  repeated ProjectedSurfaceDefinition surfaces = 3;
+  repeated ProjectedVariableDefinition variables = 4;
+  repeated ProjectedTimelineDefinition timelines = 5;
+  repeated ProjectedModelClipDefinition model_clips = 6;
+}
