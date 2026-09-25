@@ -1,6 +1,6 @@
 # Presentation reference project
 
-This is the M3B v2 filesystem Authoring Project acceptance fixture. `unframe.lock` embeds and pins the
+This is the M3C v2 filesystem Authoring Project acceptance fixture. `unframe.lock` embeds and pins the
 minimal `@unframe/unframe-authoring` declaration package and the hashes of the theme and
 structured component declarations. It also carries the unchanged Liberation Sans TTF bytes with their
 SHA-256 checksum and size; see `FONT-LICENSE.txt`. Generated `.unframe/` and `dist` output are not source.
@@ -14,7 +14,7 @@ The local `tsconfig.json` points editors at the workspace SDK for completion and
 The surface combines typed Theme tokens and aliases, Text/Frame Named Styles, scalar Props,
 a style Variant, a public Part override, and clipped absolute Frame nesting. A Slot placeholder
 places a separate Frame-root badge Component inside the card. Both Instances retain their IDs in
-the generated content and share one Surface. The badge semantic node is an additional Surface root. A click button has enabled and disabled States; the disabled State changes its visual and semantic text. The headline demonstrates style precedence: Named
+the generated content and share one Surface. The badge semantic node is an additional Surface root. A click button has enabled and disabled States; the disabled State changes its visual and semantic text. Its Output supplies a fixed scalar payload to the Cue Guard and Action; clicking it changes the Surface State. A later timer Cue advances a Step with no Action. The headline demonstrates style precedence: Named
 Style size 56, inline 64, Variant 68, and Part override 72.
 
 The fixture explicitly supplies its defaulted Props and Variant. Omitting `offset`, `showCard`, or

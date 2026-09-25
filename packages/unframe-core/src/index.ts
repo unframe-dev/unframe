@@ -1,4 +1,5 @@
 export * from "./domain/model.js";
+export * from "./runtime/cue-executor.js";
 export {
   completedSemanticTreeV2Schema,
   semanticSurfaceV2Schema,
