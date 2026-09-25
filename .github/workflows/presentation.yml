@@ -21,5 +21,8 @@ jobs:
       - name: Install JS dependencies
         run: nix develop --command pnpm install --frozen-lockfile
 
+      - name: Install Fixed Browser
+        run: nix develop --command scripts/dev/install-presentation-browser.sh
+
       - name: shared config / typecheck / lint / test
         run: nix run .#presentation
