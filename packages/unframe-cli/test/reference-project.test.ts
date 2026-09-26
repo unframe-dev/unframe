@@ -207,8 +207,8 @@ describe("reference Authoring Project", () => {
     };
     const composed = checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier);
     const direct = checkAuthoringProjectAssembly(literal, loaded.value.assemblyCarrier);
-    expect(composed.valid).toBe(true);
-    expect(direct.valid).toBe(true);
+    expect(composed.valid ? [] : composed.diagnostics).toEqual([]);
+    expect(direct.valid ? [] : direct.diagnostics).toEqual([]);
     if (!composed.valid || !direct.valid) return;
     expect(composed.value.definition).toEqual(direct.value.definition);
     expect(composed.value.definitionHash).toBe(direct.value.definitionHash);
@@ -409,6 +409,21 @@ describe("reference Authoring Project", () => {
       buildManifest: JSON.parse(firstBuild.toString()),
     };
     const definition = buildArtifacts.definition;
+    expect(definition.flow.timelines["reference-surface:fade"]).toMatchObject({
+      owner: { kind: "presentation" },
+      durationMilliseconds: 1000,
+      tracks: [{ target: { nodeId: "reference-surface:surface-node", property: "opacity" } }],
+    });
+    expect(definition.flow.groups.main.steps.start.cues[0].actions).toContainEqual({
+      kind: "timeline.play",
+      timelineId: "reference-surface:fade",
+      completion: "nonBlocking",
+      conflict: "reject",
+    });
+    expect(definition.flow.groups.main.steps.done.cues[0].trigger).toEqual({
+      kind: "timelineCompleted",
+      timelineId: "reference-surface:fade",
+    });
     expect(Object.keys(definition.scene.nodes)).toHaveLength(1);
     expect(Object.keys(definition.scene.surfaces)).toHaveLength(1);
     const surface = Object.values(definition.scene.surfaces)[0] as {

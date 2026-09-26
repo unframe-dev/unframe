@@ -160,6 +160,30 @@ const validateGroupOwner = (
     );
 };
 
+const isUnitQuaternion = (quaternion: readonly number[]) =>
+  Math.abs(Math.hypot(...quaternion) - 1) <= 1e-9;
+
+const hasCanonicalQuaternionSign = (quaternion: readonly number[]) => {
+  const [x, y, z, w] = quaternion;
+  const firstNonZero = [w, x, y, z].find((component) => component !== 0);
+  return !quaternion.some((component) => Object.is(component, -0)) && (firstNonZero ?? 1) > 0;
+};
+
+const canonicalizeQuaternion = (
+  quaternion: readonly [number, number, number, number],
+): [number, number, number, number] => {
+  const magnitude = Math.hypot(...quaternion);
+  if (!Number.isFinite(magnitude) || magnitude === 0)
+    throw new RangeError("Quaternion must be finite and nonzero.");
+  const [x, y, z, w] = quaternion;
+  const firstNonZero = [w, x, y, z].find((component) => component !== 0);
+  const sign = (firstNonZero ?? 1) < 0 ? -1 : 1;
+  return quaternion.map((component) => {
+    const normalized = (component * sign) / magnitude;
+    return Object.is(normalized, -0) ? 0 : normalized;
+  }) as [number, number, number, number];
+};
+
 const validateQuaternion = (diagnostics: Diagnostic[], value: unknown, path: string) => {
   if (!Array.isArray(value) || value.length !== 4 || !value.every(finite)) {
     diagnostics.push(
@@ -424,15 +448,18 @@ const hasOwnFields = (value: JsonRecord, fields: readonly string[]) =>
   fields.every((field) => Object.hasOwn(value, field));
 
 export {
+  canonicalizeQuaternion,
   compareStrings,
   containerPath,
   diagnostic,
   finite,
   hasOnlyFields,
   hasOwnFields,
+  hasCanonicalQuaternionSign,
   id,
   isDenseArray,
   isRecord,
+  isUnitQuaternion,
   pathSegment,
   positive,
   recordEntries,

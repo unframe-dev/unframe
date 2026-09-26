@@ -15,13 +15,8 @@ export const validateCueInvariants = (
   definition: PresentationDefinitionV2,
   diagnostics: Diagnostic[],
 ) => {
-  const { groups, variables } = definition.flow;
+  const { groups, variables, timelines } = definition.flow;
   const { nodes, surfaces } = definition.scene;
-  const interactionEvents = new Set(
-    Object.values(surfaces).flatMap((surface) =>
-      Object.values(surface.interactions).map((interaction) => interaction.event),
-    ),
-  );
   for (const [groupId, group] of Object.entries(groups))
     for (const [stepId, step] of Object.entries(group.steps)) {
       const base = `/flow/groups/${pathSegment(groupId)}/steps/${pathSegment(stepId)}/cues`;
@@ -93,11 +88,22 @@ export const validateCueInvariants = (
                 "/trigger/actor",
                 "Interaction-derived events require a Presenter actor.",
               );
-            if (!interactionEvents.has(trigger.event))
+            if (
+              !Object.values(surfaces).some((surface) => {
+                const owner = nodes[surface.hostNodeId]?.owner;
+                return (
+                  owner !== undefined &&
+                  accessible(owner, groupId) &&
+                  Object.values(surface.interactions).some(
+                    (interaction) => interaction.event === trigger.event,
+                  )
+                );
+              })
+            )
               issue(
                 "reference.invalid",
                 "/trigger/event",
-                "Semantic event must be declared by an Interaction.",
+                "Semantic event must be declared by an accessible Surface Interaction.",
               );
             break;
           case "timer":
@@ -107,16 +113,20 @@ export const validateCueInvariants = (
             break;
           case "motion":
             break;
+          case "timelineCompleted":
+            target(timelines, trigger.timelineId, "/trigger/timelineId");
+            break;
           default:
             issue(
               "feature.unsupported",
               "/trigger",
-              "Timeline, media and model triggers are not executable in this slice.",
+              "Media and model triggers are not executable in this slice.",
             );
         }
         const valueType = (value: Value, suffix: string): string | undefined => {
           if (value.kind === "literal") return scalarType(value.value);
           if (value.kind === "eventPayload") {
+            if (cue.fixedPayload === undefined && trigger.kind === "logicalInput") return undefined;
             if (!cue.fixedPayload || !Object.hasOwn(cue.fixedPayload, value.field)) {
               issue(
                 "reference.invalid",
@@ -229,11 +239,20 @@ export const validateCueInvariants = (
                   claim(`node:${action.nodeId}:transform.${field}`, suffix);
               break;
             }
+            case "timeline.play":
+            case "timeline.stop": {
+              const timeline = target(timelines, action.timelineId, `${suffix}/timelineId`);
+              claim(`timeline:${action.timelineId}:lifecycle`, suffix);
+              if (timeline)
+                for (const track of timeline.tracks)
+                  claim(`node:${track.target.nodeId}:${track.target.property}`, suffix);
+              break;
+            }
             default:
               issue(
                 "feature.unsupported",
                 suffix,
-                "Timeline, media and model actions are not executable in this slice.",
+                "Media and model actions are not executable in this slice.",
               );
           }
         });

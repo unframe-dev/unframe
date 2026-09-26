@@ -114,12 +114,28 @@ export const lowerCues = (
             };
           else if (output.producer.kind === "timer")
             trigger = { kind: "timer", afterMilliseconds: output.producer.afterMilliseconds };
-          else {
+          else if (output.producer.kind === "timelineCompleted") {
+            const timelineId = output.producer.timelineId;
+            if (!target!.entry.structure.timelines.some((timeline) => timeline.id === timelineId)) {
+              diagnostics.push(
+                diagnostic(
+                  "compiler-timeline-not-found",
+                  [...path, "trigger"],
+                  "Timeline Output must reference a Timeline in the same Component.",
+                ),
+              );
+              continue;
+            }
+            trigger = {
+              kind: "timelineCompleted",
+              timelineId: resourceId(target!.instance.id, output.producer.timelineId),
+            };
+          } else {
             diagnostics.push(
               diagnostic(
                 "compiler-output-producer-unsupported",
                 [...path, "trigger"],
-                "Timeline and media Output producers are not supported.",
+                "Media Output producers are not supported.",
               ),
             );
             continue;
@@ -220,14 +236,27 @@ export const lowerCues = (
                   ]),
                 ),
               });
-            else
-              diagnostics.push(
-                diagnostic(
-                  "compiler-action-effect-unsupported",
-                  effectPath,
-                  "Timeline Action effects are not supported.",
-                ),
-              );
+            else if (effect.kind === "playTimeline") {
+              if (
+                !target!.entry.structure.timelines.some(
+                  (timeline) => timeline.id === effect.timelineId,
+                )
+              )
+                diagnostics.push(
+                  diagnostic(
+                    "compiler-timeline-not-found",
+                    effectPath,
+                    "Timeline Action must reference a Timeline in the same Component.",
+                  ),
+                );
+              else
+                actions.push({
+                  kind: "timeline.play",
+                  timelineId: resourceId(target!.instance.id, effect.timelineId),
+                  completion: effect.completion,
+                  conflict: "reject",
+                });
+            }
           }
         }
         const next: CanonicalCue["next"] =

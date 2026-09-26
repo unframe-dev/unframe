@@ -1,6 +1,6 @@
 # Presentation Authoring Architecture
 
-- **Status**: M3C Action / Output / Cue declarations implemented
+- **Status**: M3D host Timeline declarations implemented
 - **Public package name**: `@unframe/unframe-authoring`
 - **Scope**: 利用者向け Authoring SDK、制限付き DSL、semantic authoring operation
 - **Related**:
@@ -109,7 +109,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 
 ## 10. Current implementation
 
-現在は M3C の reference Authoring Project に必要な次の宣言 API を提供する。
+現在は reference Authoring Project に必要な次の宣言 API を提供する。
 
 - `definePresentation`、`defineTheme`、`defineComponentManifest`、`defineComponentStructure`
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
@@ -117,6 +117,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
 - Stage、Flow、resource owner / audience、Component Instance と package lock
 - Component Action の即時 Surface / Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
+- Structured Surface Component の host Spatial Node を対象とする Timeline、`playTimeline` Action、`timelineCompleted` Output
 - Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
 - Structured Component の typed Variant style、typed Part override、Frame children 内の明示 `slot-placeholder` と Opaque Component の semantic binding
 - Surface root が持つ semantic tree と、Frame-root Structure が持つ `baseSemanticTree`
@@ -134,4 +135,6 @@ Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則�
 
 個別 builder と宣言全体 guard は strict な runtime schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop は `required: true` または型が適合する `default` の一方を必須とする。Slot は `slot-placeholder` の `id` / `slotId` で Frame children 内の挿入位置を表し、任意の `semanticParentId` で同じ Component の semantic node を親として参照する。`slotPlacements` と旧 `accepts` / `cardinality` / `required` は受理しない。Part は target kind ごとの content / placement / style だけを受け取り、旧 `overridable` を受理しない。
 
-Frame-root Structure の semantic tree を宣言できる。Slot placeholder に `semanticParentId` があれば nested Component の semantic root をその node の子へ接続し、省略時は Surface の追加 root として扱う。参照先の存在と接続規則の検証は Compiler が所有する。Timeline、migration、自動変換、Part partition isolate は後続範囲である。
+Frame-root Structure の semantic tree を宣言できる。Slot placeholder に `semanticParentId` があれば nested Component の semantic root をその node の子へ接続し、省略時は Surface の追加 root として扱う。参照先の存在と接続規則の検証は Compiler が所有する。
+
+Structured Surface Component の Timeline track は `target: { kind: "host", property }` として Component Instance の host Spatial Node だけを対象にする。対応 property は `opacity`、`transform.position`、`transform.rotation`、`transform.scale` である。Slotted / Opaque Component の Timeline、別 Spatial Node への target、migration、自動変換、Part partition isolate は未対応である。

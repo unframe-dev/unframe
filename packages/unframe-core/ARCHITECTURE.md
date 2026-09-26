@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Presentation v2 M3C Cue validation and pure immediate-action execution
+- **Status**: Presentation v2 M3D Timeline validation and Runtime Run execution in progress
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -58,8 +58,8 @@ src/
 
 `index.ts` は public export の集約だけを担う。型、contract schema boundary、semantic validation、canonicalization は変更理由の異なる責務として owning model の近くへ分離し、単一の entrypoint や package 共通の巨大な `types.ts` に集約しない。小さな value object は型と constructor を同じ module に置いてよく、実装前に空 directory を作る必要はない。
 
-現在の実装は、Stage、SurfaceNode、Frame / Text、Surface State、Cue / Guard / 即時 Action、baked-web RenderBundle
-subsetのsemantic validation、純粋な Cue 実行、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
+現在の実装は、Stage、SurfaceNode、Frame / Text、Surface State、Cue / Guard / Action、Timeline catalog、baked-web RenderBundle
+subsetのsemantic validation、純粋な Cue / Runtime Run 実行、Timeline track 補間、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
 canonicalizationは配列を並べ替えず、契約上の順序を保持してRFC 8785 JSONへ直列化する。
 
 ## 4. Public API
@@ -69,7 +69,9 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 `hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation/v2`のZod schemaから
 推論した型を正本とし、Core内でserialized modelを再定義しない。v1入力の受理・変換経路は持たない。
 
-`createCueState`、`executeCueEvent`、`advanceCueClock`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋なM3C実行器である。Cueの選択、Guard、即時Action batch、Step / Group entry、消費、cooldown、timerを扱う。認証、接続、永続化、Runtime Run、projectionは呼び出し側または後続段階の責務とする。
+`createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event、projectionは呼び出し側または後続段階の責務とする。
+
+`evaluateTimelineTrack`は検証済みTimeline trackと経過時間から表示値を計算する純粋関数である。Run停止・完了時のNode stateへのcommitは実行器が扱う。
 
 Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
@@ -83,7 +85,7 @@ Compiler、renderer、asset transformer の read boundary には、この生成�
 Group ownerとSpatial parent、Stateのcontent / semantic override、click Interaction、
 DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応を検証する。
 Hit Regionのbounds、priority、canonical order、enabled buttonとの整合、全Stateのbindingと
-texture policy予算も検証する。M3CではCueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut、Variable、Nodeの即時Actionだけを実行する。Timeline / Run、crossfade、Media、Modelに依存する操作は`feature.unsupported`で拒否する。
+texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Media、Modelに依存する操作は`feature.unsupported`で拒否する。
 
 次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
 
@@ -105,7 +107,7 @@ texture policy予算も検証する。M3CではCueの参照・型・owner・acto
 - Browser capture、texture / video encoding
 - Font binaryの解決、読込、subset生成。Coreは`fontAssetId`参照をAssetSet closureで検証する
 - renderer plugin orchestration
-- progression の authoritative evaluation
+- 接続・配信を伴う authoritative runtime coordination
 - D1、R2、HTTP、gRPC、Unity object
 
 ## 7. Dependency rules
@@ -126,7 +128,7 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 9. Deferred decisions
 
-- Cue / Trigger / Guard / Action、Timeline、Native UI、Video、Model artifactのsemantic validation
+- Native UI、Video、Model artifactのsemantic validation
 - Spatial parent以外のResource lifetimeとProjectionAudienceの参照閉包
 - data constructor、normalize、pure migration API
 - migration support window

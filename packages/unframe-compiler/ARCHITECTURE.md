@@ -1,6 +1,6 @@
 # Presentation Compiler Architecture
 
-- **Status**: M3C Action / Output / Cue lowering implemented
+- **Status**: M3D host Timeline lowering implemented
 - **Scope**: Authoring Project から canonical PresentationDefinition と RenderBundle を生成する library
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -66,7 +66,7 @@ Slot の子は placeholder の children 位置で順序付きに展開する。`
 
 すべての Authoring 値は具体的な v2 Text / Frame 値へ解決してから Core validation へ渡す。省略した Prop / default 付き Variant は `CheckedDeclarationProject.warnings` に instance ID、宣言名、default 値、利用可能な source metadata を記録する。明示された空文字、`0`、`false`、または default と同じ値は warning にしない。結果には v2 Definition、Core canonical JSON、source hash、definition hash、font AssetSet と warnings を含む。
 
-M3CではComponent ActionをSurface / Variable / Nodeの即時canonical Actionへ、Component OutputをSurface InteractionまたはStep timerのTriggerと固定Scalar payloadへ展開する。CueのGuard、priority、fire policy、空ActionのStep遷移を保持し、Coreの意味検証へ渡す。
+Component ActionをSurface / Variable / Nodeの即時Actionとhost Timelineのplay Actionへ、Component OutputをSurface Interaction、Step timer、Timeline completionのTriggerと固定Scalar payloadへ展開する。Surface State 変更は現在cut相当であり、Authoring / Compilerからcrossfadeを宣言・lowerする経路はない。CueのGuard、priority、fire policy、空ActionのStep遷移を保持し、Coreの意味検証へ渡す。Structured Surface Component の Timeline は instance host Spatial Node、instance owner、canonical resource ID に lower する。Slotted / Opaque Component の Timeline は拒否する。
 
 `compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。Renderer の partition-local Hit Region は Compiler が Semantic Surface 全体の normalized 座標へ集約する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
@@ -111,7 +111,7 @@ M1 filesystem hostとprocess entryは`unframe-cli`が所有する。CLIはrefere
 
 ## 6. Invariants
 
-以下は target pipeline 全体の invariant である。現在の subset は Component Action / Output と Cue を lower する。Timeline / Run、crossfade、Media、Model に依存する操作は拒否する。
+以下は target pipeline 全体の invariant である。現在の subset は Component Action / Output、Cue、host Timeline を lower する。Media、Model に依存する操作は拒否する。
 
 - static lowering の入力は Source、locked package、Theme、Asset metadata、Compiler configuration に限定する。
 - 同じ明示入力と toolchain version から同じ Declaration Graph と canonical PresentationDefinition を生成する。

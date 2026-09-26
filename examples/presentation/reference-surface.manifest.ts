@@ -48,6 +48,12 @@ export default defineComponentManifest({
     },
   },
   actions: {
+    fade: {
+      kind: "action",
+      inputs: {},
+      preconditions: [],
+      effects: [{ kind: "playTimeline", timelineId: "fade", completion: "nonBlocking" }],
+    },
     deactivate: {
       kind: "action",
       inputs: {},
@@ -63,6 +69,11 @@ export default defineComponentManifest({
     },
   },
   outputs: {
+    faded: {
+      kind: "output",
+      payload: {},
+      producer: { kind: "timelineCompleted", timelineId: "fade" },
+    },
     continued: {
       kind: "output",
       payload: { accepted: { type: "boolean", value: true } },

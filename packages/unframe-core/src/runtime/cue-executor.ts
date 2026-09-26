@@ -1,17 +1,87 @@
 import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
 
+import { evaluateTimelineTrack } from "./timeline-interpolation.js";
+
 type Cue = PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["cues"][number];
 type Scalar = string | number | boolean | null;
 type Transform = PresentationDefinitionV2["scene"]["nodes"][string]["transform"];
+type Next = Cue["next"];
+type Timeline = PresentationDefinitionV2["flow"]["timelines"][string];
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const checkedTimeAddition = (start: number, duration: number): number => {
+  if (
+    !Number.isSafeInteger(start) ||
+    start < 0 ||
+    !Number.isSafeInteger(duration) ||
+    duration < 0 ||
+    duration > Number.MAX_SAFE_INTEGER - start
+  )
+    throw new RangeError("Logical runtime deadline exceeds the safe integer range.");
+  return start + duration;
+};
+
+export type RuntimeRunId = { assignmentEpoch: number; runSequence: number };
+export type RuntimeRunOwner =
+  | { kind: "presentation" }
+  | { kind: "group"; groupId: string; groupEntryEpoch: number };
+export type RuntimeRunCause = {
+  cueId: string;
+  causeEventId: string;
+  groupId: string;
+  groupEntryEpoch: number;
+  stepId: string;
+  stepEntryEpoch: number;
+};
+type RuntimeRunBase = {
+  runId: RuntimeRunId;
+  owner: RuntimeRunOwner;
+  cause: RuntimeRunCause;
+  startedAtRuntimeTimeMilliseconds: number;
+};
+export type RuntimeRun =
+  | (RuntimeRunBase & {
+      kind: "timeline";
+      timelineId: string;
+      completion: "blocking" | "nonBlocking";
+    })
+  | (RuntimeRunBase & {
+      kind: "surfaceTransition";
+      completion: "blocking";
+      surfaceId: string;
+      fromStateId: string;
+      toStateId: string;
+      durationMilliseconds: number;
+      easing: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
+    });
+type PendingRun =
+  | Omit<Extract<RuntimeRun, { kind: "timeline" }>, "runId">
+  | Omit<Extract<RuntimeRun, { kind: "surfaceTransition" }>, "runId">;
+export type ProgressionPhase =
+  | { kind: "stable" }
+  | {
+      kind: "transitioning";
+      cueId: string;
+      causeEventId: string;
+      stepEntryEpoch: number;
+      blockingRunIds: RuntimeRunId[];
+      pendingNext: Next;
+    };
 
 export type CueInput = {
-  kind: "logicalInput" | "semanticEvent" | "surfaceInteraction" | "zoneEdge" | "motion" | "timer";
+  kind:
+    | "logicalInput"
+    | "semanticEvent"
+    | "surfaceInteraction"
+    | "zoneEdge"
+    | "motion"
+    | "timer"
+    | "timelineCompleted";
   action?: string;
   event?: string;
   surfaceId?: string;
   interactionId?: string;
   cueId?: string;
+  timelineId?: string;
   zoneId?: string;
   edge?: "enter" | "exit";
   distanceMeters?: number;
@@ -27,6 +97,7 @@ export type CueInput = {
     | { kind: "participant"; role: "presenter" | "viewer" }
     | { kind: "system"; source: "tracking" | "timer" | "timeline" | "media" | "runtime" };
   payload: Record<string, Scalar>;
+  causeEventId: string;
 };
 
 export type CueState = {
@@ -37,6 +108,10 @@ export type CueState = {
   stepEntryEpoch: number;
   stepEnteredAtRuntimeTimeMilliseconds: number;
   ended: boolean;
+  assignmentEpoch: number;
+  lastRunSequence: number;
+  activeRuns: RuntimeRun[];
+  phase: ProgressionPhase;
   surfaces: Record<string, string>;
   variables: Record<string, Scalar>;
   nodes: Record<
@@ -101,11 +176,19 @@ const enterStep = (definition: PresentationDefinitionV2, state: CueState, stepId
     if (cue.trigger.kind === "timer")
       state.timerStates[cue.id] = {
         kind: "armed",
-        dueAtRuntimeTimeMilliseconds: state.runtimeTimeMilliseconds + cue.trigger.afterMilliseconds,
+        dueAtRuntimeTimeMilliseconds: checkedTimeAddition(
+          state.runtimeTimeMilliseconds,
+          cue.trigger.afterMilliseconds,
+        ),
       };
 };
 
-export const createCueState = (definition: PresentationDefinitionV2): CueState => {
+export const createCueState = (
+  definition: PresentationDefinitionV2,
+  assignmentEpoch: number,
+): CueState => {
+  if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0)
+    throw new RangeError("Assignment epoch must be a positive safe integer.");
   const groupId = definition.flow.initialGroupId;
   const state: CueState = {
     runtimeTimeMilliseconds: 0,
@@ -115,6 +198,10 @@ export const createCueState = (definition: PresentationDefinitionV2): CueState =
     stepEntryEpoch: 0,
     stepEnteredAtRuntimeTimeMilliseconds: 0,
     ended: false,
+    assignmentEpoch,
+    lastRunSequence: 0,
+    activeRuns: [],
+    phase: { kind: "stable" },
     surfaces: {},
     variables: {},
     nodes: {},
@@ -175,6 +262,12 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
     case "timer":
       return (
         cue.id === input.cueId && input.actor.kind === "system" && input.actor.source === "timer"
+      );
+    case "timelineCompleted":
+      return (
+        trigger.timelineId === input.timelineId &&
+        input.actor.kind === "system" &&
+        input.actor.source === "timeline"
       );
     default:
       return false;
@@ -250,6 +343,109 @@ const actionValue = (
 
 const scalarType = (value: unknown) => (value === null ? "null" : typeof value);
 const compareId = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+const runIdEquals = (a: RuntimeRunId, b: RuntimeRunId) =>
+  a.assignmentEpoch === b.assignmentEpoch && a.runSequence === b.runSequence;
+const runTarget = (run: RuntimeRun | PendingRun) =>
+  run.kind === "timeline" ? `timeline:${run.timelineId}` : `surface:${run.surfaceId}`;
+const trackClaim = (nodeId: string, property: string) => `node:${nodeId}:${property}`;
+const runClaims = (definition: PresentationDefinitionV2, run: RuntimeRun): string[] =>
+  run.kind === "timeline"
+    ? definition.flow.timelines[run.timelineId]!.tracks.map((track) =>
+        trackClaim(track.target.nodeId, track.target.property),
+      )
+    : [`surface:${run.surfaceId}`];
+const timelineClaims = (timeline: Timeline) =>
+  timeline.tracks.map((track) => trackClaim(track.target.nodeId, track.target.property));
+const claimConflicts = (a: string, b: string) =>
+  a === b ||
+  (a.endsWith(":transform") && b.startsWith(`${a}.`)) ||
+  (b.endsWith(":transform") && a.startsWith(`${b}.`));
+const ownerAtStart = (owner: Timeline["owner"], state: CueState): RuntimeRunOwner =>
+  owner.kind === "presentation"
+    ? { kind: "presentation" }
+    : { kind: "group", groupId: owner.groupId, groupEntryEpoch: state.groupEntryEpoch };
+const runCause = (cue: Cue, input: CueInput, state: CueState): RuntimeRunCause => ({
+  cueId: cue.id,
+  causeEventId: input.causeEventId,
+  groupId: state.currentGroupId,
+  groupEntryEpoch: state.groupEntryEpoch,
+  stepId: state.currentStepId,
+  stepEntryEpoch: state.stepEntryEpoch,
+});
+const allocateRun = (state: CueState): RuntimeRunId => {
+  if (
+    !Number.isSafeInteger(state.lastRunSequence) ||
+    state.lastRunSequence < 0 ||
+    state.lastRunSequence === Number.MAX_SAFE_INTEGER
+  )
+    throw new RangeError("Runtime Run sequence exceeds the safe integer range.");
+  return { assignmentEpoch: state.assignmentEpoch, runSequence: ++state.lastRunSequence };
+};
+const timelineRunValue = (
+  definition: PresentationDefinitionV2,
+  state: CueState,
+  run: Extract<RuntimeRun, { kind: "timeline" }>,
+) => {
+  const timeline = definition.flow.timelines[run.timelineId]!;
+  for (const track of timeline.tracks) {
+    const node = state.nodes[track.target.nodeId]!;
+    const value = evaluateTimelineTrack(
+      track,
+      timeline.durationMilliseconds,
+      state.runtimeTimeMilliseconds - run.startedAtRuntimeTimeMilliseconds,
+    );
+    if (track.target.property === "opacity") node.opacity = value as number;
+    else {
+      const key = track.target.property.split(".")[1] as "position" | "rotation" | "scale";
+      node.transform[key] = value as never;
+    }
+  }
+};
+const removeRun = (
+  definition: PresentationDefinitionV2,
+  state: CueState,
+  run: RuntimeRun,
+  commit: boolean,
+) => {
+  if (commit && run.kind === "timeline") timelineRunValue(definition, state, run);
+  state.activeRuns = state.activeRuns.filter((active) => !runIdEquals(active.runId, run.runId));
+};
+const applyNext = (definition: PresentationDefinitionV2, state: CueState, next: Next) => {
+  switch (next.kind) {
+    case "stay":
+      break;
+    case "step":
+      enterStep(definition, state, next.stepId);
+      break;
+    case "group": {
+      const oldGroup = state.currentGroupId;
+      for (const run of state.activeRuns)
+        if (run.owner.kind === "group" && run.owner.groupId === oldGroup) {
+          if (run.completion === "blocking") throw new Error("Blocking Run survived Group exit.");
+          removeRun(definition, state, run, true);
+        }
+      for (const [id, node] of Object.entries(definition.scene.nodes))
+        if (node.owner.kind === "group" && node.owner.groupId === oldGroup) delete state.nodes[id];
+      for (const [id, surface] of Object.entries(definition.scene.surfaces)) {
+        const host = definition.scene.nodes[surface.hostNodeId];
+        if (host?.owner.kind === "group" && host.owner.groupId === oldGroup)
+          delete state.surfaces[id];
+      }
+      for (const [id, variable] of Object.entries(definition.flow.variables))
+        if (variable.owner.kind === "group" && variable.owner.groupId === oldGroup)
+          delete state.variables[id];
+      state.currentGroupId = next.groupId;
+      state.groupEntryEpoch += 1;
+      initializeResources(definition, state, next.groupId, false);
+      enterStep(definition, state, definition.flow.groups[next.groupId]!.initialStepId);
+      break;
+    }
+    case "end":
+      state.activeRuns = [];
+      state.ended = true;
+      break;
+  }
+};
 
 const evaluateCueEvent = (
   definition: PresentationDefinitionV2,
@@ -257,12 +453,18 @@ const evaluateCueEvent = (
   input: CueInput,
   allowTimer: boolean,
 ): { state: CueState; outcome: CueOutcome } => {
-  if (state.ended) return { state, outcome: { kind: "none" } };
+  if (state.ended || state.phase.kind === "transitioning")
+    return { state, outcome: { kind: "none" } };
   if (input.kind === "timer" && !allowTimer) return { state, outcome: { kind: "none" } };
   if (input.kind === "surfaceInteraction") {
     const surface = definition.scene.surfaces[input.surfaceId ?? ""];
     const currentState = surface?.states[state.surfaces[input.surfaceId ?? ""] ?? ""];
-    if (!currentState?.enabledInteractionIds.includes(input.interactionId ?? ""))
+    if (
+      !currentState?.enabledInteractionIds.includes(input.interactionId ?? "") ||
+      state.activeRuns.some(
+        (run) => run.kind === "surfaceTransition" && run.surfaceId === input.surfaceId,
+      )
+    )
       return { state, outcome: { kind: "none" } };
   }
   const cues = definition.flow.groups[state.currentGroupId]?.steps[state.currentStepId]?.cues ?? [];
@@ -284,19 +486,53 @@ const evaluateCueEvent = (
   const payload = cue.fixedPayload ?? input.payload;
   const next = clone(state);
   const claims = new Set<string>();
-  const claim = (key: string) => {
-    if (claims.has(key)) return false;
+  const pendingRuns: PendingRun[] = [];
+  const claim = (key: string, stoppedRun?: RuntimeRun) => {
+    if ([...claims].some((existing) => claimConflicts(existing, key))) return false;
+    if (
+      state.activeRuns.some(
+        (run) =>
+          run !== stoppedRun &&
+          runClaims(definition, run).some((existing) => claimConflicts(existing, key)),
+      )
+    )
+      return false;
     claims.add(key);
     return true;
   };
   for (const action of cue.actions) {
     switch (action.kind) {
       case "surface.setState": {
-        if (action.transition?.kind === "crossfade" || !claim(`surface:${action.surfaceId}`))
+        if (!claim(`surface:${action.surfaceId}`))
           return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
         const surface = definition.scene.surfaces[action.surfaceId];
         if (!surface?.states[action.stateId] || next.surfaces[action.surfaceId] === undefined)
           return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
+        if (action.transition?.kind === "crossfade") {
+          if (
+            next.surfaces[action.surfaceId] === action.stateId ||
+            !Number.isSafeInteger(action.transition.durationMilliseconds) ||
+            action.transition.durationMilliseconds <= 0
+          )
+            return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+          const host = definition.scene.nodes[surface.hostNodeId]!;
+          checkedTimeAddition(
+            state.runtimeTimeMilliseconds,
+            action.transition.durationMilliseconds,
+          );
+          pendingRuns.push({
+            kind: "surfaceTransition",
+            completion: "blocking",
+            owner: ownerAtStart(host.owner, state),
+            cause: runCause(cue, input, state),
+            startedAtRuntimeTimeMilliseconds: state.runtimeTimeMilliseconds,
+            surfaceId: action.surfaceId,
+            fromStateId: next.surfaces[action.surfaceId]!,
+            toStateId: action.stateId,
+            durationMilliseconds: action.transition.durationMilliseconds,
+            easing: action.transition.easing,
+          });
+        }
         next.surfaces[action.surfaceId] = action.stateId;
         break;
       }
@@ -324,7 +560,7 @@ const evaluateCueEvent = (
         if (!node)
           return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
         for (const [field, expression] of Object.entries(action.patch)) {
-          if (!claim(`node:${action.nodeId}:${field}`))
+          if (!claim(trackClaim(action.nodeId, field)))
             return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
           if (field === "transform") {
             node.transform = clone(expression as Transform);
@@ -350,42 +586,70 @@ const evaluateCueEvent = (
         }
         break;
       }
+      case "timeline.play": {
+        const timeline = definition.flow.timelines[action.timelineId];
+        if (!timeline || !ownerActive(timeline.owner, state.currentGroupId))
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
+        checkedTimeAddition(state.runtimeTimeMilliseconds, timeline.durationMilliseconds);
+        if (
+          state.activeRuns.some(
+            (run) => run.kind === "timeline" && run.timelineId === action.timelineId,
+          ) ||
+          !claim(`timeline:${action.timelineId}`) ||
+          timelineClaims(timeline).some((key) => !claim(key))
+        )
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+        pendingRuns.push({
+          kind: "timeline",
+          completion: action.completion,
+          owner: ownerAtStart(timeline.owner, state),
+          cause: runCause(cue, input, state),
+          startedAtRuntimeTimeMilliseconds: state.runtimeTimeMilliseconds,
+          timelineId: action.timelineId,
+        });
+        break;
+      }
+      case "timeline.stop": {
+        const timeline = definition.flow.timelines[action.timelineId];
+        if (!timeline)
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
+        const active = state.activeRuns.find(
+          (run) => run.kind === "timeline" && run.timelineId === action.timelineId,
+        );
+        if (
+          !claim(`timeline:${action.timelineId}`, active) ||
+          timelineClaims(timeline).some((key) => !claim(key, active))
+        )
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+        if (active) removeRun(definition, next, active, true);
+        break;
+      }
       default:
         return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
     }
   }
   if (cue.firePolicy.kind === "oncePerStepEntry") next.consumedCueIds.push(cue.id);
   else
-    next.cooldownUntilRuntimeTimeMilliseconds[cue.id] =
-      next.runtimeTimeMilliseconds + cue.firePolicy.cooldownMilliseconds;
-  switch (cue.next.kind) {
-    case "stay":
-      break;
-    case "step":
-      enterStep(definition, next, cue.next.stepId);
-      break;
-    case "group": {
-      const oldGroup = next.currentGroupId;
-      for (const [id, node] of Object.entries(definition.scene.nodes))
-        if (node.owner.kind === "group" && node.owner.groupId === oldGroup) delete next.nodes[id];
-      for (const [id, surface] of Object.entries(definition.scene.surfaces)) {
-        const host = definition.scene.nodes[surface.hostNodeId];
-        if (host?.owner.kind === "group" && host.owner.groupId === oldGroup)
-          delete next.surfaces[id];
-      }
-      for (const [id, variable] of Object.entries(definition.flow.variables))
-        if (variable.owner.kind === "group" && variable.owner.groupId === oldGroup)
-          delete next.variables[id];
-      next.currentGroupId = cue.next.groupId;
-      next.groupEntryEpoch += 1;
-      initializeResources(definition, next, cue.next.groupId, false);
-      enterStep(definition, next, definition.flow.groups[cue.next.groupId]!.initialStepId);
-      break;
-    }
-    case "end":
-      next.ended = true;
-      break;
+    next.cooldownUntilRuntimeTimeMilliseconds[cue.id] = checkedTimeAddition(
+      next.runtimeTimeMilliseconds,
+      cue.firePolicy.cooldownMilliseconds,
+    );
+  const blockingRunIds: RuntimeRunId[] = [];
+  for (const run of pendingRuns.sort((a, b) => compareId(runTarget(a), runTarget(b)))) {
+    const active = { ...run, runId: allocateRun(next) } as RuntimeRun;
+    next.activeRuns.push(active);
+    if (active.completion === "blocking") blockingRunIds.push(active.runId);
   }
+  if (blockingRunIds.length)
+    next.phase = {
+      kind: "transitioning",
+      cueId: cue.id,
+      causeEventId: input.causeEventId,
+      stepEntryEpoch: state.stepEntryEpoch,
+      blockingRunIds,
+      pendingNext: cue.next,
+    };
+  else applyNext(definition, next, cue.next);
   return { state: next, outcome: { kind: "accepted", cueId: cue.id } };
 };
 
@@ -394,6 +658,40 @@ export const executeCueEvent = (
   state: CueState,
   input: CueInput,
 ): { state: CueState; outcome: CueOutcome } => evaluateCueEvent(definition, state, input, false);
+
+export const completeRuntimeRun = (
+  definition: PresentationDefinitionV2,
+  state: CueState,
+  runId: RuntimeRunId,
+): { state: CueState; completed: boolean } => {
+  const run = state.activeRuns.find((active) => runIdEquals(active.runId, runId));
+  if (
+    !run ||
+    runId.assignmentEpoch !== state.assignmentEpoch ||
+    state.runtimeTimeMilliseconds <
+      checkedTimeAddition(
+        run.startedAtRuntimeTimeMilliseconds,
+        run.kind === "timeline"
+          ? definition.flow.timelines[run.timelineId]!.durationMilliseconds
+          : run.durationMilliseconds,
+      ) ||
+    (run.owner.kind === "group" &&
+      (run.owner.groupId !== state.currentGroupId ||
+        run.owner.groupEntryEpoch !== state.groupEntryEpoch))
+  )
+    return { state, completed: false };
+  const next = clone(state);
+  removeRun(definition, next, run, true);
+  if (next.phase.kind === "transitioning") {
+    next.phase.blockingRunIds = next.phase.blockingRunIds.filter((id) => !runIdEquals(id, runId));
+    if (next.phase.blockingRunIds.length === 0) {
+      const pending = next.phase.pendingNext;
+      next.phase = { kind: "stable" };
+      applyNext(definition, next, pending);
+    }
+  }
+  return { state: next, completed: true };
+};
 
 export const advanceCueClock = (
   definition: PresentationDefinitionV2,
@@ -408,8 +706,27 @@ export const advanceCueClock = (
   let current = clone(state);
   const outcomes: CueOutcome[] = [];
   let firedCount = 0;
+  let completionBatchDeadline: number | undefined;
+  let suppressCompletionCues = false;
   while (!current.ended) {
     if (++firedCount > 1_000) throw new RangeError("Cue timer microstep limit exceeded.");
+    const nextRun = current.activeRuns
+      .map((run) => ({
+        run,
+        deadline: checkedTimeAddition(
+          run.startedAtRuntimeTimeMilliseconds,
+          run.kind === "timeline"
+            ? definition.flow.timelines[run.timelineId]!.durationMilliseconds
+            : run.durationMilliseconds,
+        ),
+      }))
+      .filter(({ deadline }) => deadline <= toRuntimeTimeMilliseconds)
+      .sort(
+        (a, b) =>
+          a.deadline - b.deadline ||
+          compareId(runTarget(a.run), runTarget(b.run)) ||
+          a.run.runId.runSequence - b.run.runId.runSequence,
+      )[0];
     const nextTimer = Object.entries(current.timerStates)
       .filter(
         ([, timer]) =>
@@ -421,6 +738,33 @@ export const advanceCueClock = (
             (b[1] as { dueAtRuntimeTimeMilliseconds: number }).dueAtRuntimeTimeMilliseconds ||
           compareId(a[0], b[0]),
       )[0];
+    const timerDeadline =
+      nextTimer?.[1].kind === "armed" ? nextTimer[1].dueAtRuntimeTimeMilliseconds : Infinity;
+    if (nextRun && nextRun.deadline <= timerDeadline) {
+      if (completionBatchDeadline !== nextRun.deadline) {
+        completionBatchDeadline = nextRun.deadline;
+        suppressCompletionCues = current.phase.kind === "transitioning";
+      }
+      current.runtimeTimeMilliseconds = nextRun.deadline;
+      current = completeRuntimeRun(definition, current, nextRun.run.runId).state;
+      if (!suppressCompletionCues && nextRun.run.kind === "timeline") {
+        const result = evaluateCueEvent(
+          definition,
+          current,
+          {
+            kind: "timelineCompleted",
+            timelineId: nextRun.run.timelineId,
+            actor: { kind: "system", source: "timeline" },
+            payload: {},
+            causeEventId: `${nextRun.run.runId.assignmentEpoch}:${nextRun.run.runId.runSequence}:completed`,
+          },
+          false,
+        );
+        current = result.state;
+        if (result.outcome.kind !== "none") outcomes.push(result.outcome);
+      }
+      continue;
+    }
     if (!nextTimer) break;
     const [cueId, timer] = nextTimer;
     current.runtimeTimeMilliseconds = (
@@ -435,6 +779,7 @@ export const advanceCueClock = (
         cueId,
         actor: { kind: "system", source: "timer" },
         payload: {},
+        causeEventId: `${current.stepEntryEpoch}:${cueId}:timer`,
       },
       true,
     );

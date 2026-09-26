@@ -3,9 +3,13 @@ import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { parsePresentationDefinitionInput } from "./contract-input.js";
 import { validateCueInvariants } from "./cue-invariants.js";
+import { validateProjectionAudienceInvariants } from "./projection-audience-invariants.js";
 import { validateSemanticRoles, validateSurfaceStates } from "./semantic-invariants.js";
+import { validateTimelineInvariants } from "./timeline-invariants.js";
 import {
   diagnostic,
+  hasCanonicalQuaternionSign,
+  isUnitQuaternion,
   pathSegment,
   sorted,
   structuralDiagnostic,
@@ -35,8 +39,7 @@ const validateCanonicalQuaternion = (
   quaternion: readonly [number, number, number, number],
   path: string,
 ) => {
-  const magnitude = Math.hypot(...quaternion);
-  if (Math.abs(magnitude - 1) > 1e-9)
+  if (!isUnitQuaternion(quaternion))
     diagnostics.push(
       diagnostic(
         "graph.invalid",
@@ -44,9 +47,7 @@ const validateCanonicalQuaternion = (
         "Quaternion must have unit length within an absolute tolerance of 1e-9.",
       ),
     );
-  const [x, y, z, w] = quaternion;
-  const firstNonZero = [w, x, y, z].find((component) => component !== 0);
-  if (quaternion.some((component) => Object.is(component, -0)) || (firstNonZero ?? 1) < 0)
+  if (!hasCanonicalQuaternionSign(quaternion))
     diagnostics.push(
       diagnostic(
         "graph.invalid",
@@ -182,6 +183,7 @@ export const validatePresentationDefinition = (
         ),
       );
   }
+  validateProjectionAudienceInvariants(definition, diagnostics);
 
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces)) {
     const path = `/scene/surfaces/${pathSegment(surfaceId)}`;
@@ -368,9 +370,8 @@ export const validatePresentationDefinition = (
       groupIds,
       `/flow/timelines/${pathSegment(timelineId)}`,
     );
+  validateTimelineInvariants(definition, diagnostics);
   validateCueInvariants(definition, diagnostics);
-  if (Object.keys(definition.flow.timelines).length > 0)
-    unsupported(diagnostics, "/flow/timelines", "Timelines are deferred to M3D.");
 
   return diagnostics.length === 0
     ? { valid: true, value: definition, diagnostics: [] }

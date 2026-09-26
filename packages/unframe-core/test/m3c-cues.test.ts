@@ -78,6 +78,7 @@ describe("M3C Cue invariants", () => {
 
   it("checks payload and variable types", () => {
     const { definition, cue } = fixture();
+    cue.fixedPayload = { other: 1 };
     cue.guard = {
       kind: "compare",
       left: { kind: "eventPayload", field: "value" },
@@ -98,6 +99,30 @@ describe("M3C Cue invariants", () => {
       { kind: "variable.set", variableId: "flag", value: { kind: "literal", value: 3 } },
     ];
     expect(codes(definition)).toContain("behavior.invalid");
+  });
+
+  it("accepts an unknown ingress payload field for a Logical Input Cue without fixedPayload", () => {
+    const { definition, cue } = fixture();
+    definition.flow.variables.count = {
+      id: "count",
+      owner: { kind: "presentation" },
+      type: "number",
+      initialValue: 0,
+    };
+    cue.guard = {
+      kind: "compare",
+      left: { kind: "eventPayload", field: "amount" },
+      operator: "gt",
+      right: 1,
+    };
+    cue.actions = [
+      {
+        kind: "variable.set",
+        variableId: "count",
+        value: { kind: "eventPayload", field: "amount" },
+      },
+    ];
+    expect(codes(definition)).toEqual([]);
   });
 
   it("validates trigger producer, semantic event and node field claims", () => {
@@ -148,6 +173,50 @@ describe("M3C Cue invariants", () => {
     expect(
       presenterResult.diagnostics.some((item) => item.path.join("/").endsWith("trigger/actor")),
     ).toBe(false);
+  });
+
+  it("requires semantic events to be declared on a Surface accessible from the Cue Group", () => {
+    const { definition, cue } = fixture();
+    definition.flow.groups.other = {
+      ...structuredClone(definition.flow.groups.intro!),
+      id: "other",
+      steps: {
+        start: { ...structuredClone(definition.flow.groups.intro!.steps.start!), cues: [] },
+      },
+    };
+    const otherNode = structuredClone(definition.scene.nodes["node-baked"]!);
+    if (otherNode.kind !== "surface") throw new TypeError("Expected a SurfaceNode.");
+    otherNode.id = "node-other";
+    otherNode.surfaceId = "other";
+    otherNode.owner = { kind: "group", groupId: "other" };
+    otherNode.order = 2;
+    definition.scene.nodes["node-other"] = otherNode;
+    const otherSurface = structuredClone(definition.scene.surfaces.baked!);
+    otherSurface.id = "other";
+    otherSurface.hostNodeId = "node-other";
+    otherSurface.interactions.click = {
+      id: "click",
+      kind: "click",
+      event: "activate",
+      hitPriority: 1,
+    };
+    otherSurface.renderIntent.interaction = { kind: "regions", events: ["activate"] };
+    definition.scene.surfaces.other = otherSurface;
+    cue.trigger = { kind: "semanticEvent", event: "activate", actor: { kind: "presenter" } };
+    cue.actions = [];
+
+    expect(codes(definition)).toContain("reference.invalid");
+    definition.scene.surfaces.baked!.interactions.click = {
+      id: "click",
+      kind: "click",
+      event: "activate",
+      hitPriority: 1,
+    };
+    definition.scene.surfaces.baked!.renderIntent.interaction = {
+      kind: "regions",
+      events: ["activate"],
+    };
+    expect(codes(definition)).toEqual([]);
   });
 
   it("rejects opacity values outside 0..1 and empty Node patches", () => {
@@ -204,10 +273,10 @@ describe("M3C Cue invariants", () => {
     expect(codes(definition)).toEqual([]);
   });
 
-  it("rejects unsupported producers and actions explicitly", () => {
+  it("rejects unsupported media producers and actions explicitly", () => {
     const { definition, cue } = fixture();
-    cue.trigger = { kind: "timelineCompleted", timelineId: "missing" };
-    cue.actions = [{ kind: "timeline.stop", timelineId: "missing" }];
+    cue.trigger = { kind: "mediaCompleted", surfaceId: "baked" };
+    cue.actions = [{ kind: "media.play", surfaceId: "baked" }];
     expect(codes(definition)).toContain("feature.unsupported");
   });
 });

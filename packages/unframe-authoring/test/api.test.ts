@@ -124,7 +124,21 @@ const surfaceStructure = defineComponentStructure({
   root: titleSurface,
   partBindings: { root: titleSurface.id },
   variantStyles: {},
-  timelines: [{ id: "reveal" }],
+  timelines: [
+    {
+      id: "reveal",
+      durationMilliseconds: 100,
+      tracks: [
+        {
+          target: { kind: "host", property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { timeMilliseconds: 100, value: 1 },
+          ],
+        },
+      ],
+    },
+  ],
 });
 const titleInstance = componentInstance({
   id: "title-component",
@@ -659,7 +673,21 @@ describe("local declaration boundary", () => {
         baseSemanticTree: { rootNodeIds: [], nodes: {} },
         partBindings: {},
         variantStyles: {},
-        timelines: [{ id: "" }],
+        timelines: [
+          {
+            id: "",
+            durationMilliseconds: 100,
+            tracks: [
+              {
+                target: { kind: "host", property: "opacity" },
+                keyframes: [
+                  { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+                  { timeMilliseconds: 100, value: 1 },
+                ],
+              },
+            ],
+          },
+        ],
       }),
     ).toThrow(/timeline id/);
     expect(() =>

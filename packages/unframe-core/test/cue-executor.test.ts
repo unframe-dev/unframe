@@ -25,6 +25,7 @@ const input = {
   action: "next",
   actor: { kind: "participant" as const, role: "presenter" as const },
   payload: {},
+  causeEventId: "input-1",
 };
 
 describe("pure Cue executor", () => {
@@ -54,7 +55,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const first = executeCueEvent(definition, createCueState(definition), input);
+    const first = executeCueEvent(definition, createCueState(definition, 1), input);
     expect(first.outcome).toEqual({ kind: "accepted", cueId: "high" });
     expect(first.state.variables.count).toBe(2);
     expect(first.state.consumedCueIds).toEqual(["high"]);
@@ -92,7 +93,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const state = createCueState(definition);
+    const state = createCueState(definition, 1);
     const result = executeCueEvent(definition, state, input);
     expect(result.outcome).toEqual({
       kind: "rejected",
@@ -116,7 +117,7 @@ describe("pure Cue executor", () => {
         next: { kind: "step", stepId: "next" },
       },
     ];
-    const result = executeCueEvent(definition, createCueState(definition), input);
+    const result = executeCueEvent(definition, createCueState(definition, 1), input);
     expect(result.outcome).toEqual({ kind: "accepted", cueId: "advance" });
     expect(result.state.currentStepId).toBe("next");
     expect(result.state.stepEntryEpoch).toBe(2);
@@ -136,7 +137,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const state = createCueState(definition);
+    const state = createCueState(definition, 1);
     const result = executeCueEvent(definition, state, input);
     expect(result.outcome).toEqual({ kind: "accepted", cueId: "ack" });
     expect(result.state.currentStepId).toBe("start");
@@ -163,7 +164,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const first = advanceCueClock(definition, createCueState(definition), 10);
+    const first = advanceCueClock(definition, createCueState(definition, 1), 10);
     expect(first.state.timerStates.timer).toEqual({ kind: "fired" });
     expect(first.outcomes).toEqual([]);
     const again = advanceCueClock(definition, first.state, 20);
@@ -174,6 +175,7 @@ describe("pure Cue executor", () => {
         cueId: "timer",
         actor: { kind: "system", source: "timer" },
         payload: {},
+        causeEventId: "timer-1",
       }).outcome,
     ).toEqual({ kind: "none" });
   });
@@ -204,7 +206,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const first = executeCueEvent(definition, createCueState(definition), {
+    const first = executeCueEvent(definition, createCueState(definition, 1), {
       ...input,
       payload: { value: 9 },
     });
@@ -243,7 +245,7 @@ describe("pure Cue executor", () => {
         next: { kind: "group", groupId: "other" },
       },
     ];
-    const result = executeCueEvent(definition, createCueState(definition), input);
+    const result = executeCueEvent(definition, createCueState(definition, 1), input);
     expect(result.state).toMatchObject({
       currentGroupId: "other",
       groupEntryEpoch: 2,
@@ -277,7 +279,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const result = executeCueEvent(definition, createCueState(definition), input);
+    const result = executeCueEvent(definition, createCueState(definition, 1), input);
     expect(result.state.nodes["node-baked"]?.visible).toBe(false);
     expect(result.state.surfaces.baked).toBe("shown");
   });
@@ -303,7 +305,7 @@ describe("pure Cue executor", () => {
         next: { kind: "stay" },
       },
     ];
-    const state = createCueState(definition);
+    const state = createCueState(definition, 1);
     const event = {
       kind: "zoneEdge" as const,
       zoneId: "front",
@@ -315,6 +317,7 @@ describe("pure Cue executor", () => {
       },
       actor: { kind: "system" as const, source: "tracking" as const },
       payload: {},
+      causeEventId: "zone-1",
     };
     expect(
       executeCueEvent(definition, state, { ...event, actor: { kind: "system", source: "runtime" } })

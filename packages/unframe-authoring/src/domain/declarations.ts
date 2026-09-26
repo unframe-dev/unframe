@@ -438,7 +438,21 @@ type ComponentStructureBase = StableDeclaration & {
   variantStyles: Readonly<
     Record<string, Readonly<Record<string, readonly VariantStyleOverride[]>>>
   >;
-  timelines: readonly StableDeclaration[];
+  timelines: readonly ComponentTimelineDeclaration[];
+};
+export type ComponentTimelineDeclaration = StableDeclaration & {
+  durationMilliseconds: number;
+  tracks: readonly {
+    target: {
+      kind: "host";
+      property: "opacity" | "transform.position" | "transform.rotation" | "transform.scale";
+    };
+    keyframes: readonly {
+      timeMilliseconds: number;
+      value: number | readonly [number, number, number] | readonly [number, number, number, number];
+      easingToNext?: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
+    }[];
+  }[];
 };
 export type ComponentStructure = ComponentStructureBase &
   (

@@ -121,6 +121,155 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("lowers a host Timeline and its local Action and Output references", () => {
+    const input = project() as CompilerDeclarationProject;
+    const entry = input.components[0]!;
+    entry.structure = {
+      ...entry.structure,
+      timelines: [
+        {
+          id: "fade",
+          durationMilliseconds: 100,
+          tracks: [
+            {
+              target: { kind: "host", property: "opacity" },
+              keyframes: [
+                { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+                { timeMilliseconds: 100, value: 1 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    entry.manifest = {
+      ...entry.manifest,
+      actions: {
+        ...entry.manifest.actions,
+        play: {
+          kind: "action",
+          inputs: {},
+          preconditions: [],
+          effects: [{ kind: "playTimeline", timelineId: "fade", completion: "nonBlocking" }],
+        },
+      },
+      outputs: {
+        ...entry.manifest.outputs,
+        started: { kind: "output", payload: {}, producer: { kind: "timer", afterMilliseconds: 1 } },
+        finished: {
+          kind: "output",
+          payload: {},
+          producer: { kind: "timelineCompleted", timelineId: "fade" },
+        },
+      },
+    };
+    (
+      input.presentation.flow.groups.group!.steps.step!.cues as unknown as Array<
+        import("@unframe/unframe-authoring").CueDeclaration
+      >
+    ).push({
+      id: "start",
+      trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "started" },
+      actions: [
+        {
+          kind: "component.action",
+          componentInstanceId: "instance",
+          actionId: "play",
+          arguments: {},
+        },
+      ],
+    });
+    (
+      input.presentation.flow.groups.group!.steps.step!.cues as unknown as Array<
+        import("@unframe/unframe-authoring").CueDeclaration
+      >
+    ).push({
+      id: "finished",
+      trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "finished" },
+      actions: [],
+    });
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(result.value.definition.flow.timelines["instance:fade"]).toEqual({
+      id: "instance:fade",
+      owner: { kind: "presentation" },
+      durationMilliseconds: 100,
+      tracks: [
+        {
+          target: { nodeId: "instance:spatial", property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { timeMilliseconds: 100, value: 1 },
+          ],
+        },
+      ],
+    });
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[0]!.actions).toEqual([
+      {
+        kind: "timeline.play",
+        timelineId: "instance:fade",
+        completion: "nonBlocking",
+        conflict: "reject",
+      },
+    ]);
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[1]!.trigger).toEqual({
+      kind: "timelineCompleted",
+      timelineId: "instance:fade",
+    });
+  });
+  it("canonicalizes Timeline rotation and rejects a zero Quaternion", () => {
+    const input = project() as CompilerDeclarationProject;
+    const entry = input.components[0]!;
+    entry.structure = {
+      ...entry.structure,
+      timelines: [
+        {
+          id: "rotate",
+          durationMilliseconds: 100,
+          tracks: [
+            {
+              target: { kind: "host", property: "transform.rotation" },
+              keyframes: [
+                { timeMilliseconds: 0, value: [0, 0, 0, -2], easingToNext: "linear" },
+                { timeMilliseconds: 100, value: [0, 0, 0, 2] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      result.value.definition.flow.timelines["instance:rotate"]!.tracks[0]!.keyframes.map(
+        (frame) => frame.value,
+      ),
+    ).toEqual([
+      [0, 0, 0, 1],
+      [0, 0, 0, 1],
+    ]);
+    const invalid = project() as CompilerDeclarationProject;
+    invalid.components[0]!.structure = {
+      ...entry.structure,
+      timelines: [
+        {
+          ...entry.structure.timelines[0]!,
+          tracks: [
+            {
+              ...entry.structure.timelines[0]!.tracks[0]!,
+              keyframes: [
+                { timeMilliseconds: 0, value: [0, 0, 0, 0], easingToNext: "linear" },
+                { timeMilliseconds: 100, value: [0, 0, 0, 1] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(codes(invalid)).toContain("compiler-timeline-quaternion-invalid");
+  });
   it("lowers Component Output payload, Action effects, Guard, and empty Step transition", () => {
     const input = project() as CompilerDeclarationProject & {
       components: CompilerDeclarationProject["components"][number][];
@@ -326,7 +475,7 @@ describe("checkDeclarationProject", () => {
       }),
     ]);
   });
-  it("rejects timeline effects and media Output producers", () => {
+  it("rejects undeclared Timeline effects and media Output producers", () => {
     const input = project() as CompilerDeclarationProject & {
       components: CompilerDeclarationProject["components"][number][];
     };
@@ -351,7 +500,7 @@ describe("checkDeclarationProject", () => {
     };
     expect(codes(input)).toEqual(
       expect.arrayContaining([
-        "compiler-action-effect-unsupported",
+        "compiler-timeline-not-found",
         "compiler-output-producer-unsupported",
       ]),
     );

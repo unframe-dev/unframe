@@ -155,6 +155,7 @@ const checkDeclarationProjectUnchecked = (
 
   const nodes: PresentationDefinition["scene"]["nodes"] = {};
   const surfaces: PresentationDefinition["scene"]["surfaces"] = {};
+  const timelines: PresentationDefinition["flow"]["timelines"] = {};
   const uniqueIds = (
     values: readonly { id: string }[],
     path: readonly (string | number)[],
@@ -353,7 +354,7 @@ const checkDeclarationProjectUnchecked = (
       continue;
     }
     const entry = entries[0]!;
-    if (entry.manifest.authoring.mode !== "structured")
+    if (entry.manifest.authoring.mode !== "structured") {
       diagnostics.push(
         diagnostic(
           "compiler-opaque-component-unsupported",
@@ -361,6 +362,18 @@ const checkDeclarationProjectUnchecked = (
           "Only structured components are supported.",
         ),
       );
+      if (
+        "semantics" in entry.manifest &&
+        entry.manifest.semantics.targets.some((target) => target.kind === "timeline")
+      )
+        diagnostics.push(
+          diagnostic(
+            "compiler-opaque-timeline-unsupported",
+            path,
+            "Opaque Component Timelines cannot be lowered.",
+          ),
+        );
+    }
     if (
       entry.structure.componentId !== entry.manifest.componentId ||
       !sameLock(instance.packageLock, entry.lock)
@@ -499,24 +512,54 @@ const checkDeclarationProjectUnchecked = (
         );
     }
     for (const [actionId, action] of Object.entries(entry.manifest.actions))
-      if (action.effects.some((effect) => effect.kind === "playTimeline"))
+      for (const [effectIndex, effect] of action.effects.entries())
+        if (
+          effect.kind === "playTimeline" &&
+          !entry.structure.timelines.some((timeline) => timeline.id === effect.timelineId)
+        )
+          diagnostics.push(
+            diagnostic(
+              "compiler-timeline-not-found",
+              [...path, "manifest", "actions", actionId, "effects", effectIndex],
+              "Timeline Action must reference a Timeline in the same Component.",
+            ),
+          );
+    for (const [outputId, output] of Object.entries(entry.manifest.outputs))
+      if (
+        output.producer.kind === "timelineCompleted" &&
+        !entry.structure.timelines.some(
+          (timeline) =>
+            timeline.id ===
+            (output.producer as Extract<typeof output.producer, { kind: "timelineCompleted" }>)
+              .timelineId,
+        )
+      )
         diagnostics.push(
           diagnostic(
-            "compiler-action-effect-unsupported",
-            [...path, "manifest", "actions", actionId],
-            "Timeline Action effects are not supported.",
+            "compiler-timeline-not-found",
+            [...path, "manifest", "outputs", outputId],
+            "Timeline Output must reference a Timeline in the same Component.",
           ),
         );
-    for (const [outputId, output] of Object.entries(entry.manifest.outputs))
-      if (output.producer.kind === "timelineCompleted" || output.producer.kind === "mediaCompleted")
+      else if (output.producer.kind === "mediaCompleted")
         diagnostics.push(
           diagnostic(
             "compiler-output-producer-unsupported",
             [...path, "manifest", "outputs", outputId],
-            "Timeline and media Output producers are not supported.",
+            "Media Output producers are not supported.",
           ),
         );
-    if (nestedInstanceIds.has(instance.id)) continue;
+    if (nestedInstanceIds.has(instance.id)) {
+      if (entry.structure.timelines.length)
+        diagnostics.push(
+          diagnostic(
+            "compiler-slotted-timeline-unsupported",
+            [...path, "structure", "timelines"],
+            "Slotted Components cannot declare Timelines.",
+          ),
+        );
+      continue;
+    }
     if (instance.spatialNodeId === undefined) {
       diagnostics.push(
         diagnostic(
@@ -607,16 +650,56 @@ const checkDeclarationProjectUnchecked = (
           "Manifest and Surface state sets must match.",
         ),
       );
-    if (entry.structure.timelines.length)
-      diagnostics.push(
-        diagnostic(
-          "compiler-operations-unsupported",
-          path,
-          "Timelines and operations are not supported.",
-        ),
-      );
     const surfaceId = resourceId(instance.id, root.id);
     const nodeId = resourceId(instance.id, spatial.id);
+    for (const [timelineIndex, timeline] of entry.structure.timelines.entries()) {
+      const timelinePath = [...path, "structure", "timelines", timelineIndex];
+      const id = resourceId(instance.id, timeline.id);
+      if (Object.hasOwn(timelines, id) || id === nodeId || id === surfaceId || used.has(id))
+        diagnostics.push(
+          diagnostic(
+            "compiler-resource-id-collision",
+            timelinePath,
+            "Lowered resource IDs must be unique.",
+          ),
+        );
+      used.add(id);
+      const tracks: (typeof timelines)[string]["tracks"] = [];
+      for (const [trackIndex, track] of timeline.tracks.entries()) {
+        const keyframes: (typeof tracks)[number]["keyframes"] = [];
+        for (const [frameIndex, keyframe] of track.keyframes.entries()) {
+          let value = keyframe.value;
+          if (
+            track.target.property === "transform.rotation" &&
+            Array.isArray(value) &&
+            value.length === 4
+          ) {
+            const rotation = canonicalQuaternion(value as [number, number, number, number]);
+            if (!rotation)
+              diagnostics.push(
+                diagnostic(
+                  "compiler-timeline-quaternion-invalid",
+                  [...timelinePath, "tracks", trackIndex, "keyframes", frameIndex, "value"],
+                  "Timeline rotation must be a finite nonzero Quaternion.",
+                ),
+              );
+            else value = rotation;
+          }
+          keyframes.push({
+            timeMilliseconds: keyframe.timeMilliseconds,
+            value: value as (typeof keyframes)[number]["value"],
+            ...(keyframe.easingToNext === undefined ? {} : { easingToNext: keyframe.easingToNext }),
+          });
+        }
+        tracks.push({ target: { nodeId, property: track.target.property }, keyframes });
+      }
+      timelines[id] = {
+        id,
+        owner: instance.owner,
+        durationMilliseconds: timeline.durationMilliseconds,
+        tracks,
+      };
+    }
     if (surfaceId === nodeId || used.has(surfaceId) || used.has(nodeId))
       diagnostics.push(
         diagnostic("compiler-resource-id-collision", path, "Lowered resource IDs must be unique."),
@@ -1065,7 +1148,7 @@ const checkDeclarationProjectUnchecked = (
     metadata: presentation.metadata,
     stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
     scene: { nodes, surfaces },
-    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines: {} },
+    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines },
   };
   const validated = validatePresentationDefinition(definition);
   if (!validated.valid)

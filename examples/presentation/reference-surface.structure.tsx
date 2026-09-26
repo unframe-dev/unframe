@@ -199,5 +199,19 @@ export default defineComponentStructure({
       ],
     },
   },
-  timelines: [],
+  timelines: [
+    {
+      id: "fade",
+      durationMilliseconds: 1000,
+      tracks: [
+        {
+          target: { kind: "host", property: "opacity" },
+          keyframes: [
+            { timeMilliseconds: 0, value: 1, easingToNext: "cubicInOut" },
+            { timeMilliseconds: 1000, value: 0.5 },
+          ],
+        },
+      ],
+    },
+  ],
 });

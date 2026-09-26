@@ -612,7 +612,45 @@ const componentStructureShape = {
   componentId: idSchema,
   partBindings: z.record(idSchema, idSchema),
   variantStyles: z.record(idSchema, z.record(idSchema, z.array(variantStyleOverrideSchema))),
-  timelines: z.array(z.strictObject(stableShape)),
+  timelines: z.array(
+    z.strictObject({
+      ...stableShape,
+      durationMilliseconds: positiveSafeIntegerSchema,
+      tracks: z
+        .array(
+          z.strictObject({
+            target: z.strictObject({
+              kind: z.literal("host"),
+              property: z.enum([
+                "opacity",
+                "transform.position",
+                "transform.rotation",
+                "transform.scale",
+              ]),
+            }),
+            keyframes: z
+              .array(
+                z.strictObject({
+                  timeMilliseconds: nonNegativeIntegerSchema,
+                  value: z.union([
+                    finiteNumberSchema,
+                    z.tuple([finiteNumberSchema, finiteNumberSchema, finiteNumberSchema]),
+                    z.tuple([
+                      finiteNumberSchema,
+                      finiteNumberSchema,
+                      finiteNumberSchema,
+                      finiteNumberSchema,
+                    ]),
+                  ]),
+                  easingToNext: z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]).optional(),
+                }),
+              )
+              .min(2),
+          }),
+        )
+        .min(1),
+    }),
+  ),
 };
 const componentStructureSchema = z.union([
   z.strictObject({ ...componentStructureShape, root: surfaceDeclarationSchema }),

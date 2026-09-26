@@ -130,6 +130,12 @@ export default definePresentation({
                   {
                     kind: "component.action",
                     componentInstanceId: "reference-surface",
+                    actionId: "fade",
+                    arguments: {},
+                  },
+                  {
+                    kind: "component.action",
+                    componentInstanceId: "reference-surface",
                     actionId: "deactivate",
                     arguments: {},
                   },
@@ -146,7 +152,7 @@ export default definePresentation({
                 trigger: {
                   kind: "component.output",
                   componentInstanceId: "reference-surface",
-                  outputId: "elapsed",
+                  outputId: "faded",
                 },
                 actions: [],
                 next: { kind: "step", stepId: "finished" },
