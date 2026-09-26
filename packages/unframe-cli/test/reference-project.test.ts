@@ -572,6 +572,28 @@ describe("reference Authoring Project", () => {
     expect(diagnostics(first)[0]).toMatchObject(expected);
   });
 
+  it("preserves the source location in JSON and text diagnostics", async () => {
+    const directory = await projectCopy();
+    await writeFile(join(directory, "presentation.unframe.tsx"), "\nexport default (");
+
+    const json = await runPresentationCli({ args: ["check", directory, "--format", "json"] });
+    expect(json.exitCode).toBe(1);
+    expect(diagnostics(json)[0]).toMatchObject({
+      code: "compiler-source-syntax-error",
+      location: {
+        fileName: "presentation.unframe.tsx",
+        line: 2,
+        column: expect.any(Number),
+        start: expect.any(Number),
+        end: expect.any(Number),
+      },
+    });
+
+    const text = await runPresentationCli({ args: ["check", directory, "--format", "text"] });
+    expect(text.exitCode).toBe(1);
+    expect(text.stderr).toMatch(/presentation\.unframe\.tsx:2:\d+:/);
+  });
+
   it("cancels a capture without publishing a partial output", async () => {
     const directory = await projectCopy();
     const controller = new AbortController();

@@ -1912,6 +1912,23 @@ describe("checkDeclarationProject", () => {
       };
     expect(codes(duplicateReference)).toContain("compiler-duplicate-asset-reference");
   });
+
+  it("keeps the asset validation diagnostic code and path", () => {
+    const input = project();
+    input.assets["reference-font"] = {
+      ...input.assets["reference-font"]!,
+      checksum: "sha256:invalid",
+    };
+
+    const result = checkDeclarationProject(input);
+    expect(result.valid ? [] : result.diagnostics).toEqual([
+      {
+        code: "compiler-invalid-asset",
+        path: ["assets", "reference-font"],
+        message: "Asset descriptors must match their key and portable contract shape.",
+      },
+    ]);
+  });
 });
 
 describe("compileDeclarationProject", () => {

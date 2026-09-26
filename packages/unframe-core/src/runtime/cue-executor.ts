@@ -72,38 +72,29 @@ export type ProgressionPhase =
       pendingNext: Next;
     };
 
-export type CueInput = {
-  kind:
-    | "logicalInput"
-    | "semanticEvent"
-    | "surfaceInteraction"
-    | "zoneEdge"
-    | "motion"
-    | "timer"
-    | "timelineCompleted";
-  action?: string;
-  event?: string;
-  surfaceId?: string;
-  interactionId?: string;
-  cueId?: string;
-  timelineId?: string;
-  zoneId?: string;
-  edge?: "enter" | "exit";
-  distanceMeters?: number;
-  windowMilliseconds?: number;
-  subject?:
-    | { kind: "participant"; owner: { kind: "presenter" } }
-    | {
-        kind: "anchor";
-        owner: { kind: "presenter" };
-        target: "head" | "leftHand" | "rightHand" | "body";
-      };
+type CueInputSubject = Extract<Cue["trigger"], { kind: "zoneEdge" | "motion" }>["subject"];
+type CueInputBase = {
   actor:
     | { kind: "participant"; role: "presenter" | "viewer" }
     | { kind: "system"; source: "tracking" | "timer" | "timeline" | "media" | "runtime" };
   payload: Record<string, Scalar>;
   causeEventId: string;
 };
+export type CueInput = CueInputBase &
+  (
+    | { kind: "logicalInput"; action: string }
+    | { kind: "semanticEvent"; event: string }
+    | { kind: "surfaceInteraction"; surfaceId: string; interactionId: string }
+    | { kind: "zoneEdge"; zoneId: string; edge: "enter" | "exit"; subject: CueInputSubject }
+    | {
+        kind: "motion";
+        subject: CueInputSubject;
+        distanceMeters: number;
+        windowMilliseconds: number;
+      }
+    | { kind: "timer"; cueId: string }
+    | { kind: "timelineCompleted"; timelineId: string }
+  );
 
 export type CueState = {
   runtimeTimeMilliseconds: number;
@@ -221,16 +212,17 @@ export const createCueState = (
 
 const triggerMatches = (cue: Cue, input: CueInput) => {
   const trigger = cue.trigger;
-  if (trigger.kind !== input.kind) return false;
-  switch (trigger.kind) {
+  switch (input.kind) {
     case "logicalInput":
       return (
+        trigger.kind === "logicalInput" &&
         trigger.action === input.action &&
         input.actor.kind === "participant" &&
         input.actor.role === "presenter"
       );
     case "semanticEvent":
       return (
+        trigger.kind === "semanticEvent" &&
         trigger.event === input.event &&
         (trigger.actor.kind === "presenter"
           ? input.actor.kind === "participant" && input.actor.role === "presenter"
@@ -239,6 +231,7 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
       );
     case "surfaceInteraction":
       return (
+        trigger.kind === "surfaceInteraction" &&
         trigger.surfaceId === input.surfaceId &&
         trigger.interactionId === input.interactionId &&
         input.actor.kind === "participant" &&
@@ -246,6 +239,7 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
       );
     case "zoneEdge":
       return (
+        trigger.kind === "zoneEdge" &&
         input.actor.kind === "system" &&
         input.actor.source === "tracking" &&
         trigger.zoneId === input.zoneId &&
@@ -254,6 +248,7 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
       );
     case "motion":
       return (
+        trigger.kind === "motion" &&
         input.actor.kind === "system" &&
         input.actor.source === "tracking" &&
         subjectMatches(trigger.subject, input.subject) &&
@@ -266,22 +261,24 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
       );
     case "timer":
       return (
-        cue.id === input.cueId && input.actor.kind === "system" && input.actor.source === "timer"
+        trigger.kind === "timer" &&
+        cue.id === input.cueId &&
+        input.actor.kind === "system" &&
+        input.actor.source === "timer"
       );
     case "timelineCompleted":
       return (
+        trigger.kind === "timelineCompleted" &&
         trigger.timelineId === input.timelineId &&
         input.actor.kind === "system" &&
         input.actor.source === "timeline"
       );
-    default:
-      return false;
   }
 };
 
 const subjectMatches = (
   selector: Extract<Cue["trigger"], { kind: "zoneEdge" | "motion" }>["subject"],
-  subject: CueInput["subject"],
+  subject: CueInputSubject | undefined,
 ) =>
   selector.kind === subject?.kind &&
   selector.owner.kind === subject.owner.kind &&

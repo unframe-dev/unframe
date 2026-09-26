@@ -34,6 +34,7 @@ import {
   text,
   timelineCompleted,
   tokenRef,
+  validateStaticBuilderResult,
   variant,
 } from "../src/index.js";
 
@@ -517,6 +518,26 @@ describe("theme and reference vocabulary", () => {
 });
 
 describe("local declaration boundary", () => {
+  it("keeps Presentation flow validation aligned across builder, guard, and static results", () => {
+    const invalidFlow = {
+      ...referencePresentation,
+      flow: { ...referencePresentation.flow, initialGroupId: "" },
+    };
+    const invalidShape = { ...referencePresentation, unexpected: true };
+
+    expect(isPresentationDeclaration(referencePresentation)).toBe(true);
+    expect(validateStaticBuilderResult("definePresentation", referencePresentation)).toBe(true);
+    expect(() => definePresentation(invalidFlow)).toThrow(
+      "flow.initialGroupId must be a non-empty id.",
+    );
+    expect(isPresentationDeclaration(invalidFlow)).toBe(false);
+    expect(validateStaticBuilderResult("definePresentation", invalidFlow)).toBe(false);
+    expect(() => definePresentation(invalidShape as never)).toThrow(
+      "Invalid Presentation declaration.",
+    );
+    expect(validateStaticBuilderResult("definePresentation", invalidShape)).toBe(false);
+  });
+
   it("exposes non-mutating declaration guards with builder-equivalent acceptance", () => {
     const theme = {
       id: "default-theme",

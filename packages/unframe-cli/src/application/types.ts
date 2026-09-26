@@ -15,6 +15,13 @@ export type PresentationCliDiagnostic = Readonly<{
   code: string;
   message: string;
   path: readonly (string | number)[];
+  location?: Readonly<{
+    fileName: string;
+    start: number;
+    end: number;
+    line: number;
+    column: number;
+  }>;
 }>;
 
 export type PresentationCliResult = Readonly<{
