@@ -1,10 +1,22 @@
 import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
 import { z } from "zod";
 import { isDeclaration, snapshotDeclaration } from "../internal/declaration-validation.js";
+import {
+  assertFlowIds,
+  assertId,
+  assertOwner,
+  assertRecordKeys,
+  assertSource,
+  assertStableNested,
+  assertVector,
+  finiteNumberSchema,
+  idSchema,
+  invalid,
+  nonNegativeIntegerSchema,
+  positiveSafeIntegerSchema,
+} from "../internal/declaration-assertions.js";
 import type {
-  SourceMetadata,
   StableDeclaration,
-  ResourceOwner,
   StringPropDeclaration,
   NumberPropDeclaration,
   BooleanPropDeclaration,
@@ -37,7 +49,6 @@ import type {
   ComponentActionInvocation,
   ComponentOutputReference,
   CueDeclaration,
-  FlowDeclaration,
   PresentationDeclaration,
 } from "../domain/declarations.js";
 
@@ -45,14 +56,6 @@ type WithoutKind<T extends { kind: string }> = T extends unknown ? Omit<T, "kind
 type WithoutStableKind<T extends StableDeclaration & { kind: string }> = Omit<T, "kind">;
 type Exact<T, Shape> = T & Record<Exclude<keyof T, keyof Shape>, never>;
 
-const invalid = (message: string): never => {
-  throw new TypeError(message);
-};
-
-const idSchema = z.string().min(1);
-const finiteNumberSchema = z.number().finite();
-const nonNegativeIntegerSchema = z.number().int().safe().nonnegative();
-const positiveSafeIntegerSchema = z.number().int().safe().positive();
 const jsonValueSchema = z.json();
 const sourceSchema = z.strictObject({
   file: idSchema,
@@ -911,37 +914,6 @@ export const validateStaticBuilderResult = (builder: string, value: unknown): bo
   }
 };
 
-const assertId: (value: unknown, label?: string) => asserts value is string = (
-  value,
-  label = "id",
-) => {
-  if (!idSchema.safeParse(value).success) invalid(`${label} must be a non-empty id.`);
-};
-const assertFinite = (values: readonly number[], label: string, positive = false): void => {
-  const schema = z.array(positive ? finiteNumberSchema.positive() : finiteNumberSchema);
-  if (!schema.safeParse(values).success)
-    invalid(`${label} must contain ${positive ? "positive " : ""}finite numbers.`);
-};
-const assertVector = (
-  values: readonly number[],
-  length: number,
-  label: string,
-  positive = false,
-): void => {
-  if (!z.array(finiteNumberSchema).length(length).safeParse(values).success)
-    invalid(`${label} must contain exactly ${length} numbers.`);
-  assertFinite(values, label, positive);
-};
-const assertSource = (source: SourceMetadata | undefined): void => {
-  if (source === undefined) return;
-  assertId(source.file, "source.file");
-  const rangeSchema = z
-    .tuple([nonNegativeIntegerSchema, nonNegativeIntegerSchema])
-    .refine(([start, end]) => start <= end);
-  if (source.range !== undefined && !rangeSchema.safeParse(source.range).success)
-    invalid("source.range must be ordered non-negative integer offsets.");
-};
-
 const assertJsonSafe = <T>(value: T): T => {
   const snapshot = snapshotDeclaration(value);
   if (!jsonValueSchema.safeParse(snapshot).success)
@@ -960,23 +932,6 @@ const build = <const T>(value: T): T => {
   return value;
 };
 
-const assertStableNested = (value: StableDeclaration, label: string): void => {
-  assertId(value.id, label);
-  assertSource(value.source);
-};
-const assertRecordKeys = (value: Readonly<Record<string, unknown>>, label: string): void => {
-  if (!z.record(idSchema, z.unknown()).safeParse(value).success)
-    invalid(`${label} must be a non-empty id.`);
-};
-const assertOwner = (owner: ResourceOwner): void => {
-  const result = z
-    .discriminatedUnion("kind", [
-      z.object({ kind: z.literal("presentation") }),
-      z.object({ kind: z.literal("group"), groupId: idSchema }),
-    ])
-    .safeParse(owner);
-  if (!result.success) invalid("owner.groupId must be a non-empty id.");
-};
 const assertLayout = (layout: AbsoluteLayoutDeclaration): void => {
   const result = absoluteLayoutSchema.safeParse(layout);
   if (!result.success) {
@@ -1097,39 +1052,6 @@ const assertSurfaceSemanticIds = (
     }
   }
 };
-const assertFlowIds = (flow: FlowDeclaration): void => {
-  assertId(flow.initialGroupId, "flow.initialGroupId");
-  assertRecordKeys(flow.groups, "flow group record key");
-  for (const group of Object.values(flow.groups)) {
-    assertStableNested(group, "flow group id");
-    assertId(group.initialStepId, "flow group initialStepId");
-    assertRecordKeys(group.steps, "flow step record key");
-    for (const step of Object.values(group.steps)) {
-      assertStableNested(step, "flow step id");
-      for (const cueValue of step.cues) {
-        assertStableNested(cueValue, "cue id");
-        if (cueValue.trigger.kind === "event") assertId(cueValue.trigger.event, "cue event");
-        else {
-          assertId(cueValue.trigger.componentInstanceId, "cue output componentInstanceId");
-          assertId(cueValue.trigger.outputId, "cue outputId");
-        }
-        for (const invocation of cueValue.actions) {
-          assertId(invocation.componentInstanceId, "cue action componentInstanceId");
-          assertId(invocation.actionId, "cue actionId");
-          assertRecordKeys(invocation.arguments, "cue action argument id");
-        }
-        if (cueValue.toStepId !== undefined) assertId(cueValue.toStepId, "cue toStepId");
-        if (cueValue.toGroupId !== undefined) assertId(cueValue.toGroupId, "cue toGroupId");
-      }
-    }
-  }
-  assertRecordKeys(flow.variables, "flow variable record key");
-  for (const variable of Object.values(flow.variables)) {
-    assertStableNested(variable, "flow variable id");
-    assertOwner(variable.owner);
-  }
-};
-
 const assertPresentationDeclaration = (value: unknown): void => {
   const declaration = assertJsonSafe(value) as PresentationDeclaration;
   assertVector(declaration.stage.size, 3, "stage.size", true);
