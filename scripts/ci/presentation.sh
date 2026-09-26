@@ -55,6 +55,7 @@ case "${mode}" in
   check)
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
+    pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check
