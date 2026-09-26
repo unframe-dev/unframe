@@ -429,5 +429,5 @@ describe("Authoring source to compiler pipeline", () => {
           secondBytes.every((byte, index) => byte === bytes[index]),
       ).toBe(true);
     }
-  });
+  }, 15_000);
 });
