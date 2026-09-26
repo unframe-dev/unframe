@@ -83,6 +83,9 @@ describe("baked web renderer", () => {
     });
     expect(firstRequest?.document).toContain('@font-face{font-family:"unframe-font-');
     expect(firstRequest?.document).toContain("data:font/ttf;base64,");
+    expect(firstRequest?.document).toContain(
+      `@font-face{font-family:"unframe-font-${fontMain.checksum.slice(7, 23)}";src:url("data:font/ttf;base64,${fontMain.dataBase64}") format("truetype");font-style:normal;font-weight:400 700;font-display:block}`,
+    );
     expect(firstRequest?.document).toMatch(
       /data-node-id="text"[^>]+style="[^"]*font-family:unframe-font-[0-9a-f]+;font-size:0\.2px;/,
     );
@@ -196,19 +199,31 @@ describe("baked web renderer", () => {
   });
 
   it.each([
-    ["canonical base64", { ...fontMain, dataBase64: "AAEAAA" }, "invalid-font-asset"],
+    [
+      "canonical base64",
+      { ...fontMain, dataBase64: "AAEAAA" },
+      "invalid-font-asset",
+      ["fontAssets", "font-main", "dataBase64"],
+    ],
     [
       "checksum",
       { ...fontMain, checksum: `sha256:${"0".repeat(64)}` },
       "font-asset-checksum-mismatch",
+      ["fontAssets", "font-main", "checksum"],
     ],
     [
       "media signature",
       { ...fontMain, mediaType: "font/otf" as const },
       "font-asset-signature-mismatch",
+      ["fontAssets", "font-main", "mediaType"],
     ],
-    ["glyph coverage", testFontAsset("x"), "font-glyph-missing"],
-  ])("Font Assetの%s違反をcapture前に拒否する", async (_name, fontAsset, code) => {
+    [
+      "glyph coverage",
+      testFontAsset("x"),
+      "font-glyph-missing",
+      ["surface", "contentNodes", "text", "value"],
+    ],
+  ])("Font Assetの%s違反をcapture前に拒否する", async (_name, fontAsset, code, path) => {
     let captures = 0;
     const renderer = createBakedWebRenderer({
       adapter: {
@@ -223,7 +238,7 @@ describe("baked web renderer", () => {
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     await expect(
       renderer.build({ ...source, fontAssets: { "font-main": fontAsset } }),
-    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code }] });
+    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code, path }] });
     expect(captures).toBe(0);
   });
 
