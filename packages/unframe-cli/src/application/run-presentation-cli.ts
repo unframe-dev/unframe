@@ -2,6 +2,7 @@ import {
   checkAuthoringProjectAssembly,
   compileAuthoringProject,
   type AuthoringProjectPipelineResult,
+  type AuthoringProjectDiagnostic,
   type CompiledDeclarationProject,
   type CompilerWarning,
 } from "@unframe/unframe-compiler";
@@ -163,8 +164,14 @@ const output = (
   const stderr =
     format === "json"
       ? `${JSON.stringify({ ok: false, command: command ?? null, diagnostics: list })}\n`
-      : list.map((d) => `${pathText(d.path)}: ${d.family}/${d.code}: ${d.message}`).join("\n") +
-        "\n";
+      : list
+          .map((d) => {
+            const where = d.location
+              ? `${d.location.fileName}:${d.location.line}:${d.location.column}`
+              : pathText(d.path);
+            return `${where}: ${d.family}/${d.code}: ${d.message}`;
+          })
+          .join("\n") + "\n";
   return { exitCode, stdout: "", stderr };
 };
 const parse = (
@@ -211,26 +218,34 @@ const compilerDiagnostics = (
 ): readonly PresentationCliDiagnostic[] =>
   result.diagnostics.map((item) => {
     if (result.phase === "source") {
-      const source = item as {
-        code: string;
-        message: string;
-        fileName: string;
-        typescriptCode?: number;
+      const source = item as AuthoringProjectDiagnostic;
+      return {
+        ...diagnostic(
+          source.code === "compiler-source-syntax-error" ||
+            source.code === "compiler-source-kind-unsupported" ||
+            source.code.startsWith("compiler-static-")
+            ? "syntax"
+            : source.code === "compiler-source-type-error" ||
+                source.code.startsWith("compiler-module-") ||
+                source.code === "compiler-project-entry-invariant-invalid"
+              ? "type"
+              : "semantic",
+          source.code,
+          source.message,
+          source.fileName ? [source.fileName] : [],
+        ),
+        ...(source.fileName
+          ? {
+              location: {
+                fileName: source.fileName,
+                start: source.start,
+                end: source.end,
+                line: source.line,
+                column: source.column,
+              },
+            }
+          : {}),
       };
-      return diagnostic(
-        source.code === "compiler-source-syntax-error" ||
-          source.code === "compiler-source-kind-unsupported" ||
-          source.code.startsWith("compiler-static-")
-          ? "syntax"
-          : source.code === "compiler-source-type-error" ||
-              source.code.startsWith("compiler-module-") ||
-              source.code === "compiler-project-entry-invariant-invalid"
-            ? "type"
-            : "semantic",
-        source.code,
-        source.message,
-        source.fileName ? [source.fileName] : [],
-      );
     }
     const domain = item as { code: string; message: string; path: readonly (string | number)[] };
     const rendererCode =

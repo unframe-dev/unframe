@@ -71,8 +71,9 @@ project root の検証後、Browser を起動する前に `.unframe-build.lock` 
 
 Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer`、`2` が `usage`、`3` が `io`、signal cancel の
 `130` が `cancel` である。成功時の JSON output は `ok: true`、失敗時は diagnostic array を持つ。diagnostic JSON は
-`"usage" | "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel"` の `family` field を必ず持ち、text diagnostics は
-`path: family/code: message` の一行形式である。family と順序は ADR-0013 に従う。
+`"usage" | "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel"` の `family` field を必ず持つ。source 診断の JSON には
+`location`（fileName、start、end、line、column）を含め、text では `fileName:line:column: family/code: message` と表示する。
+それ以外の text diagnostics は `path: family/code: message` の一行形式である。family と順序は ADR-0013 に従う。
 
 Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
 
