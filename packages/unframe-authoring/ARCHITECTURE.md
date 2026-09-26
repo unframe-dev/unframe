@@ -116,7 +116,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - 6 category の Theme Token、同 category alias、Text / Frame の部分 Named Style
 - `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
 - Stage、Flow、resource owner / audience、Component Instance と package lock
-- Component Action の即時 Surface / Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
+- Component Action の Surface State cut / crossfade、即時 Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
 - Structured Surface Component の host Spatial Node を対象とする Timeline、`playTimeline` Action、`timelineCompleted` Output
 - Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
 - Structured Component の typed Variant style、typed Part override、Frame children 内の明示 `slot-placeholder` と Opaque Component の semantic binding

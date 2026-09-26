@@ -186,12 +186,6 @@ export const validateCueInvariants = (
               const surface = target(surfaces, action.surfaceId, `${suffix}/surfaceId`);
               if (surface && !Object.hasOwn(surface.states, action.stateId))
                 issue("reference.invalid", `${suffix}/stateId`, "Surface State does not exist.");
-              if (action.transition?.kind === "crossfade")
-                issue(
-                  "feature.unsupported",
-                  `${suffix}/transition`,
-                  "Crossfade is not executable in this slice.",
-                );
               claim(`surface:${action.surfaceId}:state`, suffix);
               break;
             }

@@ -218,6 +218,7 @@ export const lowerCues = (
                 kind: "surface.setState",
                 surfaceId: resourceId(target!.instance.id, effect.surfaceId),
                 stateId: resourceId(target!.instance.id, effect.stateId),
+                ...(effect.transition ? { transition: effect.transition } : {}),
               });
             else if (effect.kind === "setVariable")
               actions.push({

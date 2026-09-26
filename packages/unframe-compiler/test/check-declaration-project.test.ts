@@ -286,7 +286,17 @@ describe("checkDeclarationProject", () => {
           inputs: { value: "number" },
           preconditions: [],
           effects: [
-            { kind: "setSurfaceState", surfaceId: "surface-root", stateId: "active" },
+            {
+              kind: "setSurfaceState",
+              surfaceId: "surface-root",
+              stateId: "active",
+              transition: {
+                kind: "crossfade",
+                durationMilliseconds: 200,
+                easing: "linear",
+                completion: "blocking",
+              },
+            },
             {
               kind: "setVariable",
               variableId: "count",
@@ -393,6 +403,12 @@ describe("checkDeclarationProject", () => {
             kind: "surface.setState",
             surfaceId: "instance:surface-root",
             stateId: "instance:active",
+            transition: {
+              kind: "crossfade",
+              durationMilliseconds: 200,
+              easing: "linear",
+              completion: "blocking",
+            },
           },
           { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 2 } },
           {

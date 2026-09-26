@@ -4,4 +4,5 @@ export * from "./common";
 export * from "./definition";
 export * from "./publication";
 export * from "./render-bundle";
+export * from "./runtime-projection";
 export * from "./semantics";

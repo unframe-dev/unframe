@@ -1,5 +1,12 @@
 export * from "./domain/model.js";
 export * from "./runtime/cue-executor.js";
+export {
+  createM3dCueRuntimeSnapshot,
+  createRuntimeVisibilitySelection,
+  projectM3dCueParticipantRuntimeView,
+  validateM3dCueRuntimeSnapshot,
+  validateRuntimeVisibilitySelection,
+} from "./runtime/projection.js";
 export * from "./runtime/timeline-interpolation.js";
 export {
   completedSemanticTreeV2Schema,

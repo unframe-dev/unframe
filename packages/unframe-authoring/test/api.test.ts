@@ -229,6 +229,23 @@ describe("reference authoring project", () => {
 });
 
 describe("component contract", () => {
+  it("validates a blocking Surface crossfade effect", () => {
+    const transition = {
+      kind: "crossfade" as const,
+      durationMilliseconds: 200,
+      easing: "linear" as const,
+      completion: "blocking" as const,
+    };
+    expect(setSurfaceState("root", "shown", transition)).toEqual({
+      kind: "setSurfaceState",
+      surfaceId: "root",
+      stateId: "shown",
+      transition,
+    });
+    expect(() =>
+      setSurfaceState("root", "shown", { ...transition, durationMilliseconds: 0 }),
+    ).toThrow();
+  });
   it("represents structured Manifest actions, outputs, Parts, Slots, and local semantics", () => {
     expect(surfaceManifest.actions.show.effects).toEqual([
       { kind: "setSurfaceState", surfaceId: "root", stateId: "shown" },

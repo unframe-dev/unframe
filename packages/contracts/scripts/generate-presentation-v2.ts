@@ -8,9 +8,12 @@ import {
   assetSetManifestV2Schema,
   buildManifestV2Schema,
   capabilityProfileV2Schema,
+  m3dCueParticipantRuntimeViewV2Schema,
+  m3dCueRuntimeSnapshotV2Schema,
   presentationDefinitionV2Schema,
   publishedPresentationV2Schema,
   renderBundleV2Schema,
+  runtimeVisibilitySelectionV2Schema,
 } from "../src/presentation/v2/index";
 
 const root = resolve(import.meta.dirname, "..");
@@ -22,6 +25,9 @@ const schemas: ReadonlyArray<readonly [string, z.ZodType]> = [
   ["build-manifest", buildManifestV2Schema],
   ["published-presentation", publishedPresentationV2Schema],
   ["capability-profile", capabilityProfileV2Schema],
+  ["m3d-cue-runtime-snapshot", m3dCueRuntimeSnapshotV2Schema],
+  ["runtime-visibility-selection", runtimeVisibilitySelectionV2Schema],
+  ["m3d-cue-participant-runtime-view", m3dCueParticipantRuntimeViewV2Schema],
 ];
 
 async function output(relative: string, bytes: string | Uint8Array): Promise<void> {

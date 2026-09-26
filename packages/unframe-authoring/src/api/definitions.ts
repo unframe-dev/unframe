@@ -511,7 +511,22 @@ const actionPreconditionSchema = z.strictObject({
   stateId: idSchema,
 });
 const actionEffectSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("setSurfaceState"), surfaceId: idSchema, stateId: idSchema }),
+  z.strictObject({
+    kind: z.literal("setSurfaceState"),
+    surfaceId: idSchema,
+    stateId: idSchema,
+    transition: z
+      .discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("cut") }),
+        z.strictObject({
+          kind: z.literal("crossfade"),
+          durationMilliseconds: z.number().int().positive().safe(),
+          easing: z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]),
+          completion: z.literal("blocking"),
+        }),
+      ])
+      .optional(),
+  }),
   z.strictObject({
     kind: z.literal("setVariable"),
     variableId: idSchema,
@@ -1344,10 +1359,21 @@ export const surfaceState = (surfaceId: string, stateId: string): ActionPrecondi
   assertId(stateId, "stateId");
   return { kind: "surfaceState", surfaceId, stateId };
 };
-export const setSurfaceState = (surfaceId: string, stateId: string): ActionEffect => {
+export const setSurfaceState = (
+  surfaceId: string,
+  stateId: string,
+  transition?: Extract<ActionEffect, { kind: "setSurfaceState" }>["transition"],
+): ActionEffect => {
   assertId(surfaceId, "surfaceId");
   assertId(stateId, "stateId");
-  return { kind: "setSurfaceState", surfaceId, stateId };
+  const effect: Extract<ActionEffect, { kind: "setSurfaceState" }> = {
+    kind: "setSurfaceState",
+    surfaceId,
+    stateId,
+    ...(transition ? { transition } : {}),
+  };
+  assertSchema(actionEffectSchema, effect, "Invalid Surface State effect.");
+  return effect;
 };
 export const playTimeline = (
   timelineId: string,

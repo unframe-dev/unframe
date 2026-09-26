@@ -38,7 +38,7 @@
 
 ### Presentation v2（契約定義済み、consumer 未接続）
 
-- `src/presentation/v2/`: Definition、RenderBundle、AssetSet、Build、Publication、Capability の Zod と導出型
+- `src/presentation/v2/`: Definition、RenderBundle、AssetSet、Build、Publication、Capability と M3D Cue Runtime projection subset の Zod と導出型
 - `presentation/v2/`: 生成 JSON Schema、Protobuf descriptor、portable fixture
 - `proto/unframe/presentation/v2/runtime.proto`: 共通型と投影 catalog
 - `proto/unframe/delivery/v2/delivery.proto`: DeliveryManifest と capability / residency
@@ -46,6 +46,8 @@
 - `scripts/generate-presentation-v2.ts`: JSON Schema / descriptor の生成と drift check
 
 既存 `src/presentation/` 直下と `presentation/` 直下の v1 artifact は M1 consumer の初期 subset である。v2 の正本として参照しない。
+
+M3D の `m3dCueRuntimeSnapshotV2Schema`、`runtimeVisibilitySelectionV2Schema`、`m3dCueParticipantRuntimeViewV2Schema` は、現行 Cue 実行器が扱う純粋な意味モデルと portable fixture を固定する。Media / Model、完全な ProjectionProfileDescriptor、CanonicalRuntimeSnapshot の Protobuf wire 表現を置き換えるものではない。これらの Delivery / Realtime 接続は M5 で扱う。
 
 ## 3. Ownership split
 

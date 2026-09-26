@@ -5,6 +5,7 @@ import {
   completeRuntimeRun,
   createCueState,
   executeCueEvent,
+  validatePresentationDefinition,
 } from "../src/index.js";
 import { makeM3AArtifacts } from "./fixtures.js";
 
@@ -113,6 +114,9 @@ describe("canonical Timeline Run", () => {
     const halfway = advanceCueClock(definition, started.state, 50).state;
     const stopInput = { ...input, action: "stop", causeEventId: "event-2" };
     const stopped = executeCueEvent(definition, halfway, stopInput);
+    expect(stopped.canceledRuns).toEqual([
+      { runId: started.state.activeRuns[0]!.runId, timelineId: "fade", reason: "explicitStop" },
+    ]);
     expect(stopped.state.nodes["node-baked"]?.opacity).toBe(0.5);
     expect(stopped.state.activeRuns).toEqual([]);
     expect(
@@ -189,14 +193,47 @@ describe("canonical Timeline Run", () => {
     });
     const started = executeCueEvent(definition, createCueState(definition, 7), input).state;
     const halfway = advanceCueClock(definition, started, 50).state;
-    const exited = executeCueEvent(definition, halfway, {
+    const exitResult = executeCueEvent(definition, halfway, {
       ...input,
       action: "exit",
       causeEventId: "exit-1",
-    }).state;
+    });
+    expect(exitResult.canceledRuns).toEqual([
+      { runId: started.activeRuns[0]!.runId, timelineId: "fade", reason: "groupExit" },
+    ]);
+    const exited = exitResult.state;
     expect(exited.activeRuns).toEqual([]);
     expect(exited.nodes["node-baked"]?.opacity).toBe(0.5);
     expect(exited.currentGroupId).toBe("other");
+  });
+
+  it("cancels active Timelines in Run ID order without committing values when presentation ends", () => {
+    const definition = setup();
+    definition.flow.groups.intro!.steps.start!.cues[0]!.actions[0] = {
+      kind: "timeline.play",
+      timelineId: "fade",
+      completion: "nonBlocking",
+      conflict: "reject",
+    };
+    definition.flow.groups.intro!.steps.start!.cues[0]!.next = { kind: "stay" };
+    definition.flow.groups.intro!.steps.start!.cues.push({
+      id: "end",
+      priority: 0,
+      order: 1,
+      trigger: { kind: "logicalInput", action: "end", actor: { kind: "presenter" } },
+      firePolicy: { kind: "oncePerStepEntry" },
+      actions: [],
+      next: { kind: "end" },
+    });
+    const started = executeCueEvent(definition, createCueState(definition, 7), input).state;
+    const halfway = advanceCueClock(definition, started, 50).state;
+    const ended = executeCueEvent(definition, halfway, { ...input, action: "end" });
+    expect(ended.canceledRuns).toEqual([
+      { runId: started.activeRuns[0]!.runId, timelineId: "fade", reason: "presentationEnded" },
+    ]);
+    expect(ended.state.activeRuns).toEqual([]);
+    expect(ended.state.nodes["node-baked"]?.opacity).toBe(1);
+    expect(ended.state.ended).toBe(true);
   });
 
   it("waits for all blocking Runs", () => {
@@ -218,6 +255,7 @@ describe("canonical Timeline Run", () => {
         completion: "blocking",
       },
     });
+    expect(validatePresentationDefinition(definition).valid).toBe(true);
     const started = executeCueEvent(definition, createCueState(definition, 7), input).state;
     expect(started.activeRuns).toHaveLength(2);
     expect(started.surfaces.baked).toBe("shown");

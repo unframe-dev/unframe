@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Presentation v2 M3D Timeline validation and Runtime Run execution in progress
+- **Status**: Presentation v2 M3D Timeline / Runtime Run と純粋な Runtime projection subset を実装済み
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -59,7 +59,7 @@ src/
 `index.ts` は public export の集約だけを担う。型、contract schema boundary、semantic validation、canonicalization は変更理由の異なる責務として owning model の近くへ分離し、単一の entrypoint や package 共通の巨大な `types.ts` に集約しない。小さな value object は型と constructor を同じ module に置いてよく、実装前に空 directory を作る必要はない。
 
 現在の実装は、Stage、SurfaceNode、Frame / Text、Surface State、Cue / Guard / Action、Timeline catalog、baked-web RenderBundle
-subsetのsemantic validation、純粋な Cue / Runtime Run 実行、Timeline track 補間、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
+subsetのsemantic validation、純粋な Cue / Runtime Run 実行、Timeline track 補間、M3D Cue Runtime Snapshot の生成・検証、role別 visibility selection と Participant Runtime View の純粋な投影、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
 canonicalizationは配列を並べ替えず、契約上の順序を保持してRFC 8785 JSONへ直列化する。
 
 ## 4. Public API
@@ -69,7 +69,9 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 `hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation/v2`のZod schemaから
 推論した型を正本とし、Core内でserialized modelを再定義しない。v1入力の受理・変換経路は持たない。
 
-`createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event、projectionは呼び出し側または後続段階の責務とする。
+`createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
+
+`createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。Variable の正確な dependency closure、ProjectionProfileDescriptor の identity、Media / Model を含む完全な CanonicalRuntimeSnapshot、Delivery / wire 接続は後続段階の責務とする。
 
 `evaluateTimelineTrack`は検証済みTimeline trackと経過時間から表示値を計算する純粋関数である。Run停止・完了時のNode stateへのcommitは実行器が扱う。
 

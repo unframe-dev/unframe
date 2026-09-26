@@ -21,6 +21,11 @@ const checkedTimeAddition = (start: number, duration: number): number => {
 };
 
 export type RuntimeRunId = { assignmentEpoch: number; runSequence: number };
+export type CanceledRuntimeRun = {
+  runId: RuntimeRunId;
+  timelineId: string;
+  reason: "explicitStop" | "groupExit" | "presentationEnded";
+};
 export type RuntimeRunOwner =
   | { kind: "presentation" }
   | { kind: "group"; groupId: string; groupEntryEpoch: number };
@@ -410,7 +415,12 @@ const removeRun = (
   if (commit && run.kind === "timeline") timelineRunValue(definition, state, run);
   state.activeRuns = state.activeRuns.filter((active) => !runIdEquals(active.runId, run.runId));
 };
-const applyNext = (definition: PresentationDefinitionV2, state: CueState, next: Next) => {
+const applyNext = (
+  definition: PresentationDefinitionV2,
+  state: CueState,
+  next: Next,
+  canceledRuns: CanceledRuntimeRun[],
+) => {
   switch (next.kind) {
     case "stay":
       break;
@@ -423,6 +433,12 @@ const applyNext = (definition: PresentationDefinitionV2, state: CueState, next: 
         if (run.owner.kind === "group" && run.owner.groupId === oldGroup) {
           if (run.completion === "blocking") throw new Error("Blocking Run survived Group exit.");
           removeRun(definition, state, run, true);
+          if (run.kind === "timeline")
+            canceledRuns.push({
+              runId: run.runId,
+              timelineId: run.timelineId,
+              reason: "groupExit",
+            });
         }
       for (const [id, node] of Object.entries(definition.scene.nodes))
         if (node.owner.kind === "group" && node.owner.groupId === oldGroup) delete state.nodes[id];
@@ -441,6 +457,15 @@ const applyNext = (definition: PresentationDefinitionV2, state: CueState, next: 
       break;
     }
     case "end":
+      for (const run of [...state.activeRuns].sort(
+        (a, b) => a.runId.runSequence - b.runId.runSequence,
+      ))
+        if (run.kind === "timeline")
+          canceledRuns.push({
+            runId: run.runId,
+            timelineId: run.timelineId,
+            reason: "presentationEnded",
+          });
       state.activeRuns = [];
       state.ended = true;
       break;
@@ -452,7 +477,7 @@ const evaluateCueEvent = (
   state: CueState,
   input: CueInput,
   allowTimer: boolean,
-): { state: CueState; outcome: CueOutcome } => {
+): { state: CueState; outcome: CueOutcome; canceledRuns?: CanceledRuntimeRun[] } => {
   if (state.ended || state.phase.kind === "transitioning")
     return { state, outcome: { kind: "none" } };
   if (input.kind === "timer" && !allowTimer) return { state, outcome: { kind: "none" } };
@@ -485,6 +510,7 @@ const evaluateCueEvent = (
   if (!cue) return { state, outcome: { kind: "none" } };
   const payload = cue.fixedPayload ?? input.payload;
   const next = clone(state);
+  const canceledRuns: CanceledRuntimeRun[] = [];
   const claims = new Set<string>();
   const pendingRuns: PendingRun[] = [];
   const claim = (key: string, stoppedRun?: RuntimeRun) => {
@@ -621,7 +647,15 @@ const evaluateCueEvent = (
           timelineClaims(timeline).some((key) => !claim(key, active))
         )
           return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
-        if (active) removeRun(definition, next, active, true);
+        if (active) {
+          removeRun(definition, next, active, true);
+          if (active.kind === "timeline")
+            canceledRuns.push({
+              runId: active.runId,
+              timelineId: active.timelineId,
+              reason: "explicitStop",
+            });
+        }
         break;
       }
       default:
@@ -649,21 +683,26 @@ const evaluateCueEvent = (
       blockingRunIds,
       pendingNext: cue.next,
     };
-  else applyNext(definition, next, cue.next);
-  return { state: next, outcome: { kind: "accepted", cueId: cue.id } };
+  else applyNext(definition, next, cue.next, canceledRuns);
+  return {
+    state: next,
+    outcome: { kind: "accepted", cueId: cue.id },
+    ...(canceledRuns.length ? { canceledRuns } : {}),
+  };
 };
 
 export const executeCueEvent = (
   definition: PresentationDefinitionV2,
   state: CueState,
   input: CueInput,
-): { state: CueState; outcome: CueOutcome } => evaluateCueEvent(definition, state, input, false);
+): { state: CueState; outcome: CueOutcome; canceledRuns?: CanceledRuntimeRun[] } =>
+  evaluateCueEvent(definition, state, input, false);
 
 export const completeRuntimeRun = (
   definition: PresentationDefinitionV2,
   state: CueState,
   runId: RuntimeRunId,
-): { state: CueState; completed: boolean } => {
+): { state: CueState; completed: boolean; canceledRuns?: CanceledRuntimeRun[] } => {
   const run = state.activeRuns.find((active) => runIdEquals(active.runId, runId));
   if (
     !run ||
@@ -681,23 +720,24 @@ export const completeRuntimeRun = (
   )
     return { state, completed: false };
   const next = clone(state);
+  const canceledRuns: CanceledRuntimeRun[] = [];
   removeRun(definition, next, run, true);
   if (next.phase.kind === "transitioning") {
     next.phase.blockingRunIds = next.phase.blockingRunIds.filter((id) => !runIdEquals(id, runId));
     if (next.phase.blockingRunIds.length === 0) {
       const pending = next.phase.pendingNext;
       next.phase = { kind: "stable" };
-      applyNext(definition, next, pending);
+      applyNext(definition, next, pending, canceledRuns);
     }
   }
-  return { state: next, completed: true };
+  return { state: next, completed: true, ...(canceledRuns.length ? { canceledRuns } : {}) };
 };
 
 export const advanceCueClock = (
   definition: PresentationDefinitionV2,
   state: CueState,
   toRuntimeTimeMilliseconds: number,
-): { state: CueState; outcomes: CueOutcome[] } => {
+): { state: CueState; outcomes: CueOutcome[]; canceledRuns?: CanceledRuntimeRun[] } => {
   if (
     !Number.isSafeInteger(toRuntimeTimeMilliseconds) ||
     toRuntimeTimeMilliseconds < state.runtimeTimeMilliseconds
@@ -705,6 +745,7 @@ export const advanceCueClock = (
     throw new RangeError("Logical runtime time must increase monotonically.");
   let current = clone(state);
   const outcomes: CueOutcome[] = [];
+  const canceledRuns: CanceledRuntimeRun[] = [];
   let firedCount = 0;
   let completionBatchDeadline: number | undefined;
   let suppressCompletionCues = false;
@@ -746,7 +787,9 @@ export const advanceCueClock = (
         suppressCompletionCues = current.phase.kind === "transitioning";
       }
       current.runtimeTimeMilliseconds = nextRun.deadline;
-      current = completeRuntimeRun(definition, current, nextRun.run.runId).state;
+      const completion = completeRuntimeRun(definition, current, nextRun.run.runId);
+      current = completion.state;
+      canceledRuns.push(...(completion.canceledRuns ?? []));
       if (!suppressCompletionCues && nextRun.run.kind === "timeline") {
         const result = evaluateCueEvent(
           definition,
@@ -761,6 +804,7 @@ export const advanceCueClock = (
           false,
         );
         current = result.state;
+        canceledRuns.push(...(result.canceledRuns ?? []));
         if (result.outcome.kind !== "none") outcomes.push(result.outcome);
       }
       continue;
@@ -784,8 +828,9 @@ export const advanceCueClock = (
       true,
     );
     current = result.state;
+    canceledRuns.push(...(result.canceledRuns ?? []));
     if (result.outcome.kind !== "none") outcomes.push(result.outcome);
   }
   current.runtimeTimeMilliseconds = toRuntimeTimeMilliseconds;
-  return { state: current, outcomes };
+  return { state: current, outcomes, ...(canceledRuns.length ? { canceledRuns } : {}) };
 };

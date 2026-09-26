@@ -3,7 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current milestone**: Milestone 3C 完了（Action / Output / Trigger / Cue と純粋な即時実行器）。Milestone 3D〜6 は未完了の後続として保持する
+- **Current milestone**: Milestone 3D 完了（Timeline / Runtime Run と純粋な Runtime projection subset）。Milestone 4〜6 は未完了の後続として保持する
 - **Architecture source**:
   - [Presentation Architecture](../packages/ARCHITECTURE.md)
   - [Presentation Implementation Design](../packages/DESIGN.md)
@@ -38,20 +38,20 @@ consumer
 
 ### 2.1 Package inventory
 
-| Package                          | Current                                                                                                                                                   | 主な未実装                                                                                        |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 と v2 の Zod / Protobuf、生成物、drift check                                                                       | v2 consumer 接続、完全な意味検証、cross-language fixture                                          |
-| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                                                                        | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                |
-| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                                                                            | Presentation CLI の publish adapter との接続                                                      |
-| `packages/unframe-core`          | v2 State / click Interaction / Semantic Tree / Hit Region / Cue / 即時 Action 検証、純粋な Cue 実行、build / publication integrity、canonical JSON / hash | Timeline / Run、Projection、Runtime Snapshot、migration                                           |
-| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、State visual override、click Interaction、Action / Output / Cue 宣言                                      | Lossless Syntax Tree / source patch、distribution                                                 |
-| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                                                                      | Spatial、Interaction、Action / Output、Opaque component、migration                                |
-| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition / State / Interaction 解決、Action / Output / Cue lowering、v2 compile                                  | cache、自動 partition                                                                             |
-| `packages/unframe-renderer-api`  | baked-web plugin contract、partition-local region と conformance harness                                                                                  | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability |
-| `packages/unframe-renderer-web`  | Fixed Browser の State 別 Frame / Text capture、click geometry、Opaque bundle                                                                             | Opaque execution / isolation、generic Primitive                                                   |
-| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                                                                     | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                    |
-| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                                                                         | TUIとprocess commandの接続、watch / dev / preview / test / publish                                |
-| `packages/config`                | TypeScript 基底設定、Vite+ 共有 lint / formatter、`pre-commit` / `vp staged`、check / test、CI filter                                                     | —                                                                                                 |
+| Package                          | Current                                                                                                                                                  | 主な未実装                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 / v2 の Zod / Protobuf、M3D Cue Runtime subset の Zod / JSON Schema、生成物、drift check                          | v2 consumer 接続、完全な Delivery / wire conformance、cross-language fixture                      |
+| `packages/api-client-csharp`     | 生成先の責務を定義した placeholder                                                                                                                       | OpenAPI / Protobuf generator、C# artifact、compile / test、drift check、Unity 接続                |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                                                                           | Presentation CLI の publish adapter との接続                                                      |
+| `packages/unframe-core`          | v2 Definition / Cue / Timeline 検証、純粋な Cue / Runtime Run 実行、M3D Cue Snapshot / role別 View、build / publication integrity、canonical JSON / hash | Media / Model を含む完全な Snapshot、Delivery projection、migration                               |
+| `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、State visual override、click Interaction、Action / Output / Cue、host Timeline、crossfade 宣言           | Lossless Syntax Tree / source patch、distribution                                                 |
+| `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                                                                     | Spatial、Interaction、Action / Output、Opaque component、migration                                |
+| `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition / State / Interaction 解決、Action / Output / Cue / host Timeline / crossfade lowering、v2 compile     | cache、自動 partition                                                                             |
+| `packages/unframe-renderer-api`  | baked-web plugin contract、partition-local region と conformance harness                                                                                 | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability |
+| `packages/unframe-renderer-web`  | Fixed Browser の State 別 Frame / Text capture、click geometry、Opaque bundle                                                                            | Opaque execution / isolation、generic Primitive                                                   |
+| `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                                                                    | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                    |
+| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                                                                        | TUIとprocess commandの接続、watch / dev / preview / test / publish                                |
+| `packages/config`                | TypeScript 基底設定、Vite+ 共有 lint / formatter、`pre-commit` / `vp staged`、check / test、CI filter                                                    | —                                                                                                 |
 
 ## 3. 実装原則
 
@@ -292,8 +292,10 @@ M3Bでは Frame / Text の v2 visual override field、role別 Tree、click Inter
 
 - Timeline / Runtime Run model
 - transition conflict、completion、stop reason
-- ProjectionAudience、ProjectionProfile、ParticipantRuntimeView
-- CanonicalRuntimeSnapshotのportable fixture
+- ProjectionAudience、role別 visibility selection、ParticipantRuntimeView の純粋な意味モデル
+- M3D Cue Runtime Snapshot の portable fixture と Core invariant
+
+M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface transition Run の subset を検証・投影する。visibility selection の Variable ID は選択済み Native UI artifact の dependency closure を入力として受け、Core は role と Definition に対する上限を検証する。完全な ProjectionProfileDescriptor の renderer / capability 選択と identity、Media / Model を含む CanonicalRuntimeSnapshot の wire encoding、Delivery / Realtime 接続は Milestone 5 に残す。
 
 ### 完了条件
 
@@ -480,7 +482,7 @@ GoalでMilestoneを実行する場合も、この終了条件をGoalの完了条
 - [x] Milestone 3A: ThemeとStructured composition
 - [x] Milestone 3B: State、Interaction、Hit Region
 - [x] Milestone 3C: Action、Output、Trigger、Cue
-- [ ] Milestone 3D: TimelineとRuntime projection
+- [x] Milestone 3D: TimelineとRuntime projection の純粋な意味モデル
 - [ ] Milestone 4: RendererとAsset pipeline
 - [ ] Milestone 5: Delivery / Runtime contractとC# generation
 - [ ] Milestone 6: CLI UXとapplication integrationへの接続

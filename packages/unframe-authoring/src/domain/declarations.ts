@@ -65,7 +65,19 @@ export type ActionPrecondition = {
   stateId: string;
 };
 export type ActionEffect =
-  | { kind: "setSurfaceState"; surfaceId: string; stateId: string }
+  | {
+      kind: "setSurfaceState";
+      surfaceId: string;
+      stateId: string;
+      transition?:
+        | { kind: "cut" }
+        | {
+            kind: "crossfade";
+            durationMilliseconds: number;
+            easing: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
+            completion: "blocking";
+          };
+    }
   | { kind: "setVariable"; variableId: string; value: ActionValue }
   | {
       kind: "patchNode";

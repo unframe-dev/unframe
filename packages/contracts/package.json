@@ -19,7 +19,7 @@
     "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:presentation:v2 && pnpm typecheck && pnpm test:presentation && pnpm test:presentation:v2 && pnpm lint",
     "generate:presentation:v2": "tsx scripts/generate-presentation-v2.ts",
     "check:presentation:v2": "tsx scripts/generate-presentation-v2.ts --check",
-    "test:presentation:v2": "tsx test/presentation-v2.contract.test.ts"
+    "test:presentation:v2": "tsx --test test/presentation-v2.contract.test.ts test/runtime-projection-v2.contract.test.ts"
   },
   "dependencies": {
     "zod": "4.4.3"
