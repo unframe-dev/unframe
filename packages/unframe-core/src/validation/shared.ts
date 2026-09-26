@@ -75,7 +75,7 @@ const structuralDiagnostic = (
         "Quaternion does not match the contract schema.",
       );
     const placementPath = containerPath(path, ["placement"]);
-    if (joined.includes("/contentNodes/") && placementPath)
+    if (joined.includes("/content/nodes/") && placementPath)
       return diagnostic(
         "invalid-text-placement",
         placementPath,

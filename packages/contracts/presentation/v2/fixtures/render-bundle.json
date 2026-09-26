@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "bundleId": "build-1",
   "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "definitionHash": "sha256:b05561ad3155507af6a11a19688607b04a1e4841f91df4470bdd42ad74468e40",
+  "definitionHash": "sha256:86adc688b680f1a55dfc54bb3d04ef757dae7a7275c9079e6a5c8cb25f8e5763",
   "compiler": {
     "name": "fixture",
     "version": "2",

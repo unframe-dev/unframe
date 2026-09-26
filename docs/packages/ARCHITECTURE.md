@@ -977,8 +977,13 @@ type SemanticSurface = {
   physicalSizeMeters: [number, number];
   logicalSize: [number, number];
   fit: "contain" | "cover" | "stretch";
-  rootFrameId: SurfaceContentNodeId;
-  contentNodes: Record<SurfaceContentNodeId, SurfaceContentNode>;
+  content:
+    | {
+        kind: "structured";
+        rootFrameId: SurfaceContentNodeId;
+        nodes: Record<SurfaceContentNodeId, SurfaceContentNode>;
+      }
+    | { kind: "opaque"; bindings: Record<string, SemanticNodeId> };
   baseSemanticTree: SemanticTreeDefinition;
   initialStateId: SurfaceStateId;
   states: Record<SurfaceStateId, SurfaceStateDefinition>;
@@ -986,9 +991,11 @@ type SemanticSurface = {
 };
 ```
 
-`contentNodes` は canonical Surface Tree の正本である。各 Node は `parentId` と `order` を持ち、Frame の `children` が親子関係と sibling 順を固定する。Frame だけが親になれる。`rootFrameId` は `contentNodes` 内の `kind: "frame"` を参照し、その root だけが `parentId: null`、`order: 0` を持つ。root を含む全 Node は親 Frame の layout に対応する `placement` を持ち、root は Surface logical bounds 全体の `absolute` placement を持つ。primitive 固有 payload と `FrameLayout` / `SurfaceNodePlacement` の完全 schema は portable Presentation contract を正本とし、Compiler が解決した layout、内容、Asset 参照を PresentationDefinition から省略して別 artifact に暗黙委譲しない。
+Structured の `content.nodes` は canonical Surface Tree の正本である。各 Node は `parentId` と `order` を持ち、Frame の `children` が親子関係と sibling 順を固定する。Frame だけが親になれる。`content.rootFrameId` は `content.nodes` 内の `kind: "frame"` を参照し、その root だけが `parentId: null`、`order: 0` を持つ。root を含む全 Node は親 Frame の layout に対応する `placement` を持ち、root は Surface logical bounds 全体の `absolute` placement を持つ。primitive 固有 payload と `FrameLayout` / `SurfaceNodePlacement` の完全 schema は portable Presentation contract を正本とし、Compiler が解決した layout、内容、Asset 参照を PresentationDefinition から省略して別 artifact に暗黙委譲しない。
 
-Definition の Surface 要素 ID、親子関係、要素 kind と `baseSemanticTree` の ID / topology は全 State で固定し、State ごとの追加・削除を許可しない。State は既存要素の内容、装飾、表示だけを変更する。非表示指定により派生 `CompletedSemanticTree` から Node を除外できるが、Definition の基底 Node を削除したことにはしない。連続的な Runtime 更新は限定 Native UI の text value だけに許可し、構造、装飾、表示を Runtime 値で変更しない。具体的な State override は [Presentation Data Model](./DATA_MODEL.md) を正本とする。
+Opaque は `content.bindings` に binding key と Semantic Node ID の一対一対応を保存し、Content Tree を持たない。内部 React / CSS / DOM は Definition に含めない。初期 Opaque の `contentOverrides` は空に限定し、Renderer は Surface 全体の宣言済み binding を検証する。形式変更と移行は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) に従う。
+
+Structured の Surface 要素 ID、親子関係、要素 kind と `baseSemanticTree` の ID / topology は全 State で固定し、State ごとの追加・削除を許可しない。State は既存要素の内容、装飾、表示だけを変更する。非表示指定により派生 `CompletedSemanticTree` から Node を除外できるが、Definition の基底 Node を削除したことにはしない。連続的な Runtime 更新は限定 Native UI の text value だけに許可し、構造、装飾、表示を Runtime 値で変更しない。具体的な State override は [Presentation Data Model](./DATA_MODEL.md) を正本とする。
 
 Surface local planeは中心原点、+X right、+Y up、front normal +Zとする。logical-to-meter変換は`fit`に従って中央寄せし、`contain`の余白はnon-content、`cover`のplane外はclip、`stretch`だけはaspect ratioを変更する。Render Surface内のrasterは左上原点、Unity UV0は左下原点として`u = rx`、`v = 1 - ry`で一度だけflipする。raycast、fit inverse、crop、Semantic Surface normalized Hit Regionの完全な式と境界規則は [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。
 
@@ -997,8 +1004,8 @@ Compiler は次の invariant を検証する。
 - `SurfaceNode.surfaceId` と `SemanticSurface.hostNodeId` が双方向に一致する。
 - 一つの SurfaceNode は一つの Semantic Surface だけを host し、一つの Semantic Surface は一つの SurfaceNode だけを参照する。
 - SurfaceNode は Spatial Tree 上の leaf とし、2D 内容を Spatial child として保持しない。
-- `rootFrameId` は `contentNodes` 内の唯一の root Frame であり、全 Node がその root から一度だけ到達できる。存在しない parent、Frame 以外の parent、cycle、複数 root、同じ parent 内の `order` 重複を許可しない。
-- すべての SurfaceContentNode は同じ Semantic Surface の `contentNodes` に所属し、別 Surface の Node を parent にしない。
+- Structured の `content.rootFrameId` は `content.nodes` 内の唯一の root Frame であり、全 Node がその root から一度だけ到達できる。存在しない parent、Frame 以外の parent、cycle、複数 root、同じ parent 内の `order` 重複を許可しない。
+- すべての SurfaceContentNode は同じ Structured Surface の `content.nodes` に所属し、別 Surface の Node を parent にしない。
 - media Action の対象 Surface は Video content node をちょうど一つ持つ。Video content の `loop: false` だけが `mediaCompleted` を発生させ、`loop: true` は自動完了しない。duration は admitted Video Artifact の正の `durationMilliseconds` を使う。
 - `physicalSizeMeters` と `logicalSize` の各要素は有限かつ正である。
 - `baseSemanticTree` と各 State override は 13.2 の stable ID、親子、property conflict 規則に従う。
@@ -1036,7 +1043,7 @@ lowering は次を満たさなければならない。
 - 一つの Render Surface は一つの Semantic Surface だけに所属し、Semantic Surface boundary を越えて内容を統合しない。
 - 複数 Surface の texture atlas や GPU batching は Asset / Runtime 最適化であり、Render Surface identity を統合しない。
 - Render Surface の集合、bounds、layer はすべての Surface State に対して同じ build 内で固定する。状態ごとに内容が存在しない partition は明示的な empty binding を持てる。
-- renderable content NodeはCompiler internal planの`ownedContentNodeIds`で一partitionだけが所有し、structural context Nodeは`contextNodeIds`としてrenderer planへ複製できるがownershipへ重複計上しない。どちらもportable RenderBundle / DeliveryManifestへ出さない。
+- Structured の renderable content NodeはCompiler internal planの`ownership.ownedContentNodeIds`で一partitionだけが所有し、structural context Nodeは`ownership.contextNodeIds`としてrenderer planへ複製できるがownershipへ重複計上しない。どちらもportable RenderBundle / DeliveryManifestへ出さない。
 - partitionはcanonical paint interval順にlayer `0..N-1`を重複なく持ち、小さい値からback-to-frontに合成する。bounds overlapとtransparent gapは許可する。
 - すべての到達可能な Surface State について、各 Render Surface が選択可能な artifact、native plan、または明示的な empty binding を持つ。
 - `artifacts` binding の `artifactIds` は空でなく、同じ Render Surface の `artifacts` に存在しなければならない。
@@ -1059,7 +1066,9 @@ RenderSurfaceId は Trigger、Guard、Action、Timeline、Snapshot、Reliable Ev
 
 `media.play`、`media.pause`、`media.seek` と `mediaCompleted` は、Video content node をちょうど一つ持ち、その content に対応する Video artifact が選択された SemanticSurfaceId だけを参照する。Compiler はそれ以外の Surface への media Action / Trigger を build error とする。同じ Semantic Surface の Video partition は一つの canonical media run として扱い、割り当て済み Runtime Core は admitted Video Artifact の duration と Video content の `loop` を使って再生位置と完了を決定する。`mediaCompleted` Trigger は `loop: false` の Surface だけを参照でき、looping Surface への参照は build error とする。独立した再生位置や完了判定が必要な Video は別 Semantic Surface に分ける。renderer acknowledgement を media authority にしない。本書の `Media` / `media` runtime state、run、event はすべてこの Video playback を意味し、独立音声を含まない。
 
-v1はrequired renderer / compositing boundaryとManifestが許可した公開Partの`isolate`だけでcanonical paint atom列を最大runへ分割する。同じ要件のatomをtexture sizeやNode数のheuristicだけで分けず、authorはRenderSurfaceId、bounds、layer、rendererを指定しない。Compilerが全partitionのprivate regionをSemantic Surface normalized Hit Regionへaggregateし、Coreがreject-onlyで検証する。詳細は [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
+Structured の v1 partition は required renderer / compositing boundaryとManifestが許可した公開Partの`isolate`だけでcanonical paint atom列を最大runへ分割する。同じ要件のatomをtexture sizeやNode数のheuristicだけで分けず、authorはRenderSurfaceId、bounds、layer、rendererを指定しない。Compilerが全partitionのprivate regionをSemantic Surface normalized Hit Regionへaggregateし、Coreがreject-onlyで検証する。詳細は [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
+
+初期 Opaque は Content Tree による partition を行わず、一つの whole-Surface plan が `ownership.bindingKeys` に全 binding を列挙する。対応する Semantic Node の一意性・全対象の被覆を検証し、未宣言の Hit Region を拒否する。
 
 ## 8. Frame Layout
 

@@ -77,6 +77,25 @@ test("scope excludes WebView, standalone audio and animation layers", () => {
   });
 });
 
+test("Surface content is structured or opaque with no portable source code", () => {
+  const opaque = structuredClone(definition);
+  opaque.scene.surfaces.baked.content = {
+    kind: "opaque",
+    bindings: { label: "label" },
+  };
+  assert.equal(presentationDefinitionV2Schema.safeParse(opaque).success, true);
+  assert.equal(validateDefinition(opaque), true, ajv.errorsText(validateDefinition.errors));
+  for (const extra of [{ source: "export default function Surface() {}" }, { nodes: {} }]) {
+    const invalid = structuredClone(opaque);
+    Object.assign(invalid.scene.surfaces.baked.content, extra);
+    assert.equal(presentationDefinitionV2Schema.safeParse(invalid).success, false);
+    assert.equal(validateDefinition(invalid), false);
+  }
+  rejectsDefinition((value) => {
+    value.scene.surfaces.baked.rootFrameId = "root";
+  });
+});
+
 test("state patches cannot replace topology or video identity", () => {
   for (const property of ["parentId", "children", "order"]) {
     rejectsDefinition((value) => {

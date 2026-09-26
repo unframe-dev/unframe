@@ -24,6 +24,11 @@ import {
   type CompilerResolvedSurfaceInput,
 } from "@unframe/unframe-renderer-api";
 
+const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
+  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  return surface.content;
+};
+
 describe("baked web renderer", () => {
   it("2K static captureを通常実行境界でbounded memoryのcaller-owned RGBAとして返す", async () => {
     let adapterBytes: Uint8Array | undefined;
@@ -143,7 +148,7 @@ describe("baked web renderer", () => {
   it("nested Stack layoutを引き続き拒否する", async () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const input = nestedInputFor(createWebRendererConfigHash(config), renderer);
-    const nested = input.surface.contentNodes.nested;
+    const nested = structuredContent(input.surface).nodes.nested;
     if (!nested || nested.kind !== "frame") throw new Error("expected nested Frame fixture");
 
     await expect(
@@ -151,17 +156,20 @@ describe("baked web renderer", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            nested: {
-              ...nested,
-              layout: {
-                kind: "stack",
-                direction: "horizontal",
-                gap: 0,
-                padding: { top: 0, right: 0, bottom: 0, left: 0 },
-                alignItems: "start",
-                justifyContent: "start",
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              nested: {
+                ...nested,
+                layout: {
+                  kind: "stack",
+                  direction: "horizontal",
+                  gap: 0,
+                  padding: { top: 0, right: 0, bottom: 0, left: 0 },
+                  alignItems: "start",
+                  justifyContent: "start",
+                },
               },
             },
           },
@@ -221,7 +229,7 @@ describe("baked web renderer", () => {
       "glyph coverage",
       testFontAsset("x"),
       "font-glyph-missing",
-      ["surface", "contentNodes", "text", "value"],
+      ["surface", "content", "nodes", "text", "value"],
     ],
   ])("Font Assetの%s違反をcapture前に拒否する", async (_name, fontAsset, code, path) => {
     let captures = 0;
@@ -246,17 +254,20 @@ describe("baked web renderer", () => {
     const requests: BrowserCaptureRequest[] = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = source.surface.contentNodes.text;
+    const text = structuredContent(source.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text fixture");
     const result = await renderer.build({
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          text: {
-            ...text,
-            style: { ...text.style, fallbackFontAssetIds: ["font-fallback"] },
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            ...structuredContent(source.surface).nodes,
+            text: {
+              ...text,
+              style: { ...text.style, fallbackFontAssetIds: ["font-fallback"] },
+            },
           },
         },
       },
@@ -388,7 +399,7 @@ describe("baked web renderer", () => {
     const requests: BrowserCaptureRequest[] = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = source.surface.contentNodes.text;
+    const text = structuredContent(source.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text");
     const input: CompilerResolvedSurfaceInput = {
       ...source,
@@ -449,7 +460,7 @@ describe("baked web renderer", () => {
   it("owned root Frame の button から private region を生成する", async () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const root = source.surface.contentNodes.root;
+    const root = structuredContent(source.surface).nodes.root;
     if (!root || root.kind !== "frame") throw new Error("expected Frame");
     const interaction = { kind: "regions" as const, events: ["click"] };
     const semantic = {
@@ -465,9 +476,12 @@ describe("baked web renderer", () => {
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          root: { ...root, semanticNodeId: "root-button" },
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            ...structuredContent(source.surface).nodes,
+            root: { ...root, semanticNodeId: "root-button" },
+          },
         },
         baseSemanticTree: {
           rootNodeIds: ["root-button"],
@@ -497,8 +511,11 @@ describe("baked web renderer", () => {
       },
       plan: {
         ...source.plan,
-        ownedContentNodeIds: ["root", "text"],
-        contextNodeIds: [],
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["root", "text"],
+          contextNodeIds: [],
+        },
         hitPriorityByInteractionId: { tap: 4 },
       },
     };
@@ -549,7 +566,7 @@ describe("baked web renderer", () => {
   it("明示 semantic binding の visible geometry を partition-local region にする", async () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = source.surface.contentNodes.text;
+    const text = structuredContent(source.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text");
     const interaction = { kind: "regions" as const, events: ["click"] };
     const semantic = {
@@ -565,9 +582,12 @@ describe("baked web renderer", () => {
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          text: { ...text, semanticNodeId: "button" },
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            ...structuredContent(source.surface).nodes,
+            text: { ...text, semanticNodeId: "button" },
+          },
         },
         baseSemanticTree: {
           rootNodeIds: ["button"],
@@ -733,7 +753,7 @@ describe("baked web renderer", () => {
       config,
     });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = input.surface.contentNodes.text;
+    const text = structuredContent(input.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text fixture");
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
     await expect(
@@ -742,18 +762,21 @@ describe("baked web renderer", () => {
         surface: {
           ...input.surface,
           logicalSize: [Number.MIN_VALUE, 50],
-          contentNodes: {
-            ...input.surface.contentNodes,
-            text: {
-              ...text,
-              placement: {
-                kind: "absolute",
-                x: 0,
-                y: 0,
-                width: Number.MIN_VALUE,
-                height: 20,
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              text: {
+                ...text,
+                placement: {
+                  kind: "absolute",
+                  x: 0,
+                  y: 0,
+                  width: Number.MIN_VALUE,
+                  height: 20,
+                },
+                value: { kind: "literal", value: "scaled" },
               },
-              value: { kind: "literal", value: "scaled" },
             },
           },
         },
@@ -840,7 +863,12 @@ describe("baked web renderer", () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     await expect(
-      renderer.build({ ...input, entry: { kind: "opaque", entryId: "x", moduleHash: "x" } }),
+      renderer.build({
+        ...input,
+        surface: { ...input.surface, content: { kind: "opaque", bindings: {} } },
+        plan: { ...input.plan, ownership: { kind: "opaque", bindingKeys: [] } },
+        entry: { kind: "opaque", entryId: "x", moduleHash: "x" },
+      }),
     ).resolves.toMatchObject({
       ok: false,
       diagnostics: [{ code: "unsupported-input-kind" }],
@@ -1090,9 +1118,12 @@ describe("baked web renderer", () => {
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          text: { ...source.surface.contentNodes.text, value: 1 },
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            ...structuredContent(source.surface).nodes,
+            text: { ...structuredContent(source.surface).nodes.text, value: 1 },
+          },
         },
       },
     } as unknown as CompilerResolvedSurfaceInput;

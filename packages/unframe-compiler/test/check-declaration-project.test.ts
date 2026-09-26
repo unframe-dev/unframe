@@ -6,6 +6,7 @@ import type {
   SurfaceDeclaration,
 } from "@unframe/unframe-authoring";
 import {
+  type SemanticSurface,
   canonicalizePresentationDefinition,
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
@@ -18,6 +19,11 @@ import {
   type RendererPlugin,
 } from "@unframe/unframe-renderer-api";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
+
+const structuredContent = (surface: SemanticSurface | undefined) => {
+  if (surface?.content.kind !== "structured") throw new Error("Expected structured Surface");
+  return surface.content;
+};
 
 const presentation = (): PresentationDeclaration => ({
   id: "presentation",
@@ -121,6 +127,16 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("identifies the lowered content as a structured tree", () => {
+    const result = checkDeclarationProject(project());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(Object.values(result.value.definition.scene.surfaces)[0]).toHaveProperty(
+      "content.kind",
+      "structured",
+    );
+  });
+
   it("lowers a host Timeline and its local Action and Output references", () => {
     const input = project() as CompilerDeclarationProject;
     const entry = input.components[0]!;
@@ -842,7 +858,7 @@ describe("checkDeclarationProject", () => {
     expect(result.valid).toBe(true);
     if (!result.valid) return;
     expect(
-      Object.values(result.value.definition.scene.surfaces)[0]!.contentNodes[
+      structuredContent(Object.values(result.value.definition.scene.surfaces)[0]).nodes[
         "instance:text-content"
       ],
     ).toMatchObject({
@@ -951,7 +967,7 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(
-      result.value.definition.scene.surfaces["instance:surface-root"]?.contentNodes[
+      structuredContent(result.value.definition.scene.surfaces["instance:surface-root"]).nodes[
         "instance:text-content"
       ],
     ).toMatchObject({
@@ -1211,10 +1227,10 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
-    expect(surface.contentNodes["instance:frame-root"]).toMatchObject({
+    expect(structuredContent(surface).nodes["instance:frame-root"]).toMatchObject({
       children: ["instance:text-content", "instance:existing-text", "badge-instance:badge-frame"],
     });
-    expect(surface.contentNodes["badge-instance:badge-frame"]).toMatchObject({
+    expect(structuredContent(surface).nodes["badge-instance:badge-frame"]).toMatchObject({
       parentId: "instance:frame-root",
       order: 2,
     });
@@ -1326,9 +1342,10 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(validatePresentationDefinition(result.value.definition).valid).toBe(true);
-    expect(result.value.definition.scene.surfaces["instance:surface-root"]?.rootFrameId).toBe(
-      "instance:frame-root",
-    );
+    expect(
+      structuredContent(result.value.definition.scene.surfaces["instance:surface-root"])
+        .rootFrameId,
+    ).toBe("instance:frame-root");
     const canonical = canonicalizePresentationDefinition(result.value.definition);
     expect(canonical).toMatchObject({ valid: true });
     if (canonical.valid) expect(result.value.definitionJson).toBe(canonical.value);
@@ -1338,7 +1355,7 @@ describe("checkDeclarationProject", () => {
       "sha256:3cdb6cdf49879b2e4295026604001240919fbcc434433e2e04e502159354be6f",
     );
     expect(result.value.definitionHash).toBe(
-      "sha256:b3f125bede221d2e4af53a0363dc88bd427897145e369756f8a551dbaa363ad4",
+      "sha256:feeb8319fee482e9d68aaeb3f71546284aa0bc3a1d12f989fac1e67832509ed0",
     );
   });
 
@@ -1630,7 +1647,7 @@ describe("checkDeclarationProject", () => {
     expect(nestedResult.valid).toBe(true);
     if (nestedResult.valid)
       expect(
-        Object.values(nestedResult.value.definition.scene.surfaces)[0]!.contentNodes,
+        structuredContent(Object.values(nestedResult.value.definition.scene.surfaces)[0]).nodes,
       ).toHaveProperty("instance:nested");
 
     const features = project();
@@ -2034,8 +2051,10 @@ describe("compileDeclarationProject", () => {
     const probe: RendererPlugin = {
       ...renderer,
       build: (value) => {
-        owned = value.plan.ownedContentNodeIds;
-        context = value.plan.contextNodeIds;
+        if (value.plan.ownership.kind !== "structured")
+          throw new Error("Expected structured ownership");
+        owned = value.plan.ownership.ownedContentNodeIds;
+        context = value.plan.ownership.contextNodeIds;
         return {
           ok: false,
           diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],

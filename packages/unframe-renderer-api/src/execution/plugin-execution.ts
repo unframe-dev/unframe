@@ -53,6 +53,18 @@ const validateProvenance = (
     );
 };
 
+const ownsSemanticNode = (input: CompilerResolvedSurfaceInput, semanticNodeId: string): boolean => {
+  const { ownership } = input.plan;
+  const { content } = input.surface;
+  if (ownership.kind === "structured" && content.kind === "structured")
+    return ownership.ownedContentNodeIds.some(
+      (id) => content.nodes[id]?.semanticNodeId === semanticNodeId,
+    );
+  if (ownership.kind === "opaque" && content.kind === "opaque")
+    return ownership.bindingKeys.some((key) => content.bindings[key] === semanticNodeId);
+  return false;
+};
+
 const validateHitRegion = (
   fixture: RendererConformanceFixture,
   stateId: string,
@@ -108,9 +120,7 @@ const validateHitRegion = (
     semanticNode.interactionId !== region.interactionId ||
     semanticNode.role !== "button" ||
     !semanticNode.stateEnabled ||
-    !fixture.input.plan.ownedContentNodeIds.some(
-      (id) => fixture.input.surface.contentNodes[id]?.semanticNodeId === region.semanticNodeId,
-    )
+    !ownsSemanticNode(fixture.input, region.semanticNodeId)
   )
     diagnostics.push(
       diagnostic(
@@ -299,14 +309,11 @@ const validateSuccess = (
     for (const interactionId of wholeSurfacePlan
       ? (input.surface.states[stateId]?.enabledInteractionIds ?? [])
       : []) {
-      const ownedSemanticIds = new Set(
-        input.plan.ownedContentNodeIds.map((id) => input.surface.contentNodes[id]?.semanticNodeId),
-      );
-      const hasOwnedBinding = [...ownedSemanticIds].some(
-        (id) =>
-          id &&
-          input.semanticsByState[stateId]?.nodes[id]?.role === "button" &&
-          input.semanticsByState[stateId]?.nodes[id]?.interactionId === interactionId,
+      const hasOwnedBinding = Object.values(input.semanticsByState[stateId]?.nodes ?? {}).some(
+        (node) =>
+          node.role === "button" &&
+          node.interactionId === interactionId &&
+          ownsSemanticNode(input, node.id),
       );
       if (hasOwnedBinding && !regions.some((region) => region.interactionId === interactionId))
         diagnostics.push(

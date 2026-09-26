@@ -55,7 +55,7 @@ prepared input だけを `support` / `build` へ渡す。Concrete renderer が�
 
 現行出力はencode前のRGBA capture、Surface Stateごとのpartition-local `RendererPrivateHitRegion`、resolved geometry、diagnostics、provenanceとする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。RendererはPresentationDefinitionの意味を書き換えず、Asset ID、portable `HitRegion`、最終RenderBundle bindingも決定しない。
 
-Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つのplanだけを処理する。planはexactly-once ownershipの`ownedContentNodeIds`と複製可能な`contextNodeIds`を分離する。renderer outputのregionはpartition-private geometryであり、Compiler aggregate stageが再clipせずSemantic Surface normalized regionへ変換・結合する。APIは別partitionを探索、merge、reorderしない。
+Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つのplanだけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求し、Hit Region を宣言済み意味へ対応付ける。Opaque の capture 実装は未接続である。renderer outputのregionはpartition-private geometryであり、Compiler aggregate stageが再clipせずSemantic Surface normalized regionへ変換・結合する。APIは別partitionを探索、merge、reorderしない。
 
 ## 4. Invariants
 

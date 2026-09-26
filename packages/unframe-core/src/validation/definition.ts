@@ -195,7 +195,8 @@ export const validatePresentationDefinition = (
           "SemanticSurface and SurfaceNode must form a one-to-one relation.",
         ),
       );
-    validateRecordIds(diagnostics, surface.contentNodes, `${path}/contentNodes`);
+    if (surface.content.kind === "structured")
+      validateRecordIds(diagnostics, surface.content.nodes, `${path}/content/nodes`);
     validateRecordIds(
       diagnostics,
       surface.baseSemanticTree.nodes,
@@ -203,81 +204,101 @@ export const validatePresentationDefinition = (
     );
     validateRecordIds(diagnostics, surface.interactions, `${path}/interactions`);
     validateRecordIds(diagnostics, surface.states, `${path}/states`);
-    const contentTreeNodes = Object.fromEntries(
-      Object.entries(surface.contentNodes).map(([contentId, content]) => [
-        contentId,
-        { ...content, children: content.kind === "frame" ? content.children : [] },
-      ]),
-    );
-    validateTree(
-      diagnostics,
-      contentTreeNodes,
-      [surface.rootFrameId],
-      `${path}/contentTree`,
-      "children",
-    );
     validateSemanticRoles(diagnostics, surface.baseSemanticTree, `${path}/baseSemanticTree`);
-    const root = surface.contentNodes[surface.rootFrameId];
-    if (root?.kind !== "frame" || root.parentId !== null)
-      diagnostics.push(
-        diagnostic(
-          "graph.invalid",
-          `${path}/rootFrameId`,
-          "rootFrameId must be a parentless frame.",
-        ),
-      );
     const semanticOwners = new Map<string, string>();
-    for (const [contentId, content] of Object.entries(surface.contentNodes)) {
-      const contentPath = `${path}/contentNodes/${pathSegment(contentId)}`;
-      if (content.kind !== "frame" && content.kind !== "text") {
-        unsupported(
-          diagnostics,
-          `${contentPath}/kind`,
-          "M3A supports frame and text content only.",
-        );
-        continue;
-      }
-      if (content.kind === "frame" && content.layout.kind !== "absolute")
-        unsupported(
-          diagnostics,
-          `${contentPath}/layout/kind`,
-          "M3A supports absolute layout only.",
-        );
-      if (content.placement.kind !== "absolute")
-        unsupported(
-          diagnostics,
-          `${contentPath}/placement/kind`,
-          "M3A supports absolute placement only.",
-        );
-      if (content.semanticNodeId === undefined) continue;
-      const semantic = surface.baseSemanticTree.nodes[content.semanticNodeId];
-      if (semantic === undefined)
-        diagnostics.push(
-          diagnostic(
-            "reference.invalid",
-            `${contentPath}/semanticNodeId`,
-            "semanticNodeId must reference the base semantic tree.",
-          ),
-        );
-      else if (!semanticRolesByContentKind[content.kind].has(semantic.role))
+    if (surface.content.kind === "structured") {
+      const { rootFrameId, nodes } = surface.content;
+      const contentTreeNodes = Object.fromEntries(
+        Object.entries(nodes).map(([contentId, content]) => [
+          contentId,
+          { ...content, children: content.kind === "frame" ? content.children : [] },
+        ]),
+      );
+      validateTree(diagnostics, contentTreeNodes, [rootFrameId], `${path}/contentTree`, "children");
+      const root = nodes[rootFrameId];
+      if (root?.kind !== "frame" || root.parentId !== null)
         diagnostics.push(
           diagnostic(
             "graph.invalid",
-            `${contentPath}/semanticNodeId`,
-            "Content kind and semantic role are incompatible.",
+            `${path}/content/rootFrameId`,
+            "rootFrameId must be a parentless frame.",
           ),
         );
-      const previous = semanticOwners.get(content.semanticNodeId);
-      if (previous !== undefined)
-        diagnostics.push(
-          diagnostic(
-            "identity.invalid",
-            `${contentPath}/semanticNodeId`,
-            "A semantic node may be mapped by only one content node.",
-            `${path}/contentNodes/${pathSegment(previous)}/semanticNodeId`,
-          ),
-        );
-      else semanticOwners.set(content.semanticNodeId, contentId);
+      for (const [contentId, content] of Object.entries(nodes)) {
+        const contentPath = `${path}/content/nodes/${pathSegment(contentId)}`;
+        if (content.kind !== "frame" && content.kind !== "text") {
+          unsupported(
+            diagnostics,
+            `${contentPath}/kind`,
+            "M3A supports frame and text content only.",
+          );
+          continue;
+        }
+        if (content.kind === "frame" && content.layout.kind !== "absolute")
+          unsupported(
+            diagnostics,
+            `${contentPath}/layout/kind`,
+            "M3A supports absolute layout only.",
+          );
+        if (content.placement.kind !== "absolute")
+          unsupported(
+            diagnostics,
+            `${contentPath}/placement/kind`,
+            "M3A supports absolute placement only.",
+          );
+        if (content.semanticNodeId === undefined) continue;
+        const semantic = surface.baseSemanticTree.nodes[content.semanticNodeId];
+        if (semantic === undefined)
+          diagnostics.push(
+            diagnostic(
+              "reference.invalid",
+              `${contentPath}/semanticNodeId`,
+              "semanticNodeId must reference the base semantic tree.",
+            ),
+          );
+        else if (!semanticRolesByContentKind[content.kind].has(semantic.role))
+          diagnostics.push(
+            diagnostic(
+              "graph.invalid",
+              `${contentPath}/semanticNodeId`,
+              "Content kind and semantic role are incompatible.",
+            ),
+          );
+        const previous = semanticOwners.get(content.semanticNodeId);
+        if (previous !== undefined)
+          diagnostics.push(
+            diagnostic(
+              "identity.invalid",
+              `${contentPath}/semanticNodeId`,
+              "A semantic node may be mapped by only one content node.",
+              `${path}/content/nodes/${pathSegment(previous)}/semanticNodeId`,
+            ),
+          );
+        else semanticOwners.set(content.semanticNodeId, contentId);
+      }
+    } else {
+      for (const [bindingKey, semanticId] of Object.entries(surface.content.bindings)) {
+        const bindingPath = `${path}/content/bindings/${pathSegment(bindingKey)}`;
+        if (!Object.hasOwn(surface.baseSemanticTree.nodes, semanticId))
+          diagnostics.push(
+            diagnostic(
+              "reference.invalid",
+              bindingPath,
+              "Binding must reference the base semantic tree.",
+            ),
+          );
+        const previous = semanticOwners.get(semanticId);
+        if (previous !== undefined)
+          diagnostics.push(
+            diagnostic(
+              "identity.invalid",
+              bindingPath,
+              "A semantic node may have only one binding.",
+              `${path}/content/bindings/${pathSegment(previous)}`,
+            ),
+          );
+        else semanticOwners.set(semanticId, bindingKey);
+      }
     }
     for (const semanticId of Object.keys(surface.baseSemanticTree.nodes))
       if (!semanticOwners.has(semanticId))
@@ -285,7 +306,7 @@ export const validatePresentationDefinition = (
           diagnostic(
             "graph.invalid",
             `${path}/baseSemanticTree/nodes/${pathSegment(semanticId)}`,
-            "Every semantic node must be mapped by exactly one content node.",
+            "Every semantic node must have exactly one content mapping.",
           ),
         );
 

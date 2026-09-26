@@ -128,17 +128,25 @@ const documentFor = (
       readonly hitRegions: readonly RendererPrivateHitRegion[];
     }
   | RendererBuildFailure => {
+  if (input.surface.content.kind !== "structured" || input.plan.ownership.kind !== "structured")
+    return failure(
+      "unsupported-structured-tree",
+      "Baked Web requires structured Surface content.",
+      ["surface", "content"],
+    );
+  const content = input.surface.content;
+  const ownership = input.plan.ownership;
   const state = input.surface.states[stateId];
   if (!state)
     return failure("missing-render-state", "Planned state is absent.", ["plan", "states", stateId]);
   const effectiveNode = (id: string) => {
-    const node = input.surface.contentNodes[id];
+    const node = content.nodes[id];
     const override = state.contentOverrides[id];
     if (!node || !override) return node;
     if (override.kind !== node.kind) return undefined;
     return { ...node, ...override } as typeof node;
   };
-  const root = effectiveNode(input.surface.rootFrameId);
+  const root = effectiveNode(content.rootFrameId);
   if (
     !root ||
     root.kind !== "frame" ||
@@ -149,26 +157,29 @@ const documentFor = (
     return failure(
       "unsupported-structured-tree",
       "Structured rendering requires an absolute root Frame.",
-      ["surface", "rootFrameId"],
+      ["surface", "content", "rootFrameId"],
     );
   if (
-    !input.plan.contextNodeIds.includes(root.id) &&
-    !input.plan.ownedContentNodeIds.includes(root.id)
+    !ownership.contextNodeIds.includes(root.id) &&
+    !ownership.ownedContentNodeIds.includes(root.id)
   )
     return failure("unsupported-structured-tree", "Render plan must include the root Frame.", [
       "plan",
+      "ownership",
       "ownedContentNodeIds",
     ]);
-  const planned = new Set([...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds]);
-  if (planned.size !== input.plan.ownedContentNodeIds.length + input.plan.contextNodeIds.length)
+  const planned = new Set([...ownership.ownedContentNodeIds, ...ownership.contextNodeIds]);
+  if (planned.size !== ownership.ownedContentNodeIds.length + ownership.contextNodeIds.length)
     return failure("unsupported-structured-tree", "Render plan node IDs must be unique.", [
       "plan",
+      "ownership",
       "ownedContentNodeIds",
     ]);
   if (new Set(root.children).size !== root.children.length)
     return failure("unsupported-structured-tree", "Root Frame children must be unique.", [
       "surface",
-      "contentNodes",
+      "content",
+      "nodes",
       root.id,
       "children",
     ]);
@@ -189,7 +200,7 @@ const documentFor = (
     global: Rect,
     visible: Rect | undefined,
   ) => {
-    if (!node.semanticNodeId || !visible || !input.plan.ownedContentNodeIds.includes(node.id))
+    if (!node.semanticNodeId || !visible || !ownership.ownedContentNodeIds.includes(node.id))
       return;
     const semantic = input.semanticsByState[stateId]?.nodes[node.semanticNodeId];
     if (
@@ -235,14 +246,14 @@ const documentFor = (
       return failure(
         "unsupported-structured-tree",
         "Render plan must contain one connected Frame/Text tree.",
-        ["surface", "contentNodes", id],
+        ["surface", "content", "nodes", id],
       );
     renderedNodeIds.add(id);
     if (node.placement.kind !== "absolute")
       return failure(
         "unsupported-structured-tree",
         "Structured rendering accepts absolute placement only.",
-        ["surface", "contentNodes", id, "placement"],
+        ["surface", "content", "nodes", id, "placement"],
       );
     const placement = node.placement;
     const global: Rect = {
@@ -263,7 +274,8 @@ const documentFor = (
     if (![left, top, width, height].every(finite))
       return failure("invalid-render-geometry", "Scaled render geometry must remain finite.", [
         "surface",
-        "contentNodes",
+        "content",
+        "nodes",
         id,
         "placement",
       ]);
@@ -272,7 +284,7 @@ const documentFor = (
         return failure(
           "unsupported-structured-tree",
           "Structured rendering accepts absolute Frame children only.",
-          ["surface", "contentNodes", id],
+          ["surface", "content", "nodes", id],
         );
       const children: string[] = [];
       for (const childId of node.children) {
@@ -293,12 +305,13 @@ const documentFor = (
       return failure(
         "unsupported-structured-tree",
         "Structured rendering accepts literal Text children only.",
-        ["surface", "contentNodes", id],
+        ["surface", "content", "nodes", id],
       );
     if (Array.from(node.value.value).length > node.maxCodePoints)
       return failure("text-max-code-points-exceeded", "Literal Text exceeds maxCodePoints.", [
         "surface",
-        "contentNodes",
+        "content",
+        "nodes",
         id,
         "value",
       ]);
@@ -343,7 +356,7 @@ const documentFor = (
     return failure(
       "unsupported-structured-tree",
       "Render plan must contain one connected Frame/Text tree.",
-      ["plan", "ownedContentNodeIds"],
+      ["plan", "ownership", "ownedContentNodeIds"],
     );
   const fontFaces: string[] = [];
   const coverageByAssetId = new Map<string, FontCoverage>();
@@ -375,7 +388,7 @@ const documentFor = (
         return failure(
           "font-glyph-missing",
           "No declared Font Asset contains a glyph required by literal Text.",
-          ["surface", "contentNodes", requirement.nodeId, "value"],
+          ["surface", "content", "nodes", requirement.nodeId, "value"],
         );
     }
   }

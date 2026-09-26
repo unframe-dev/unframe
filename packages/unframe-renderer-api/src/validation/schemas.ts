@@ -50,8 +50,14 @@ const renderSurfacePlanSchema = z.strictObject({
   semanticSurfaceId: rendererIdSchema,
   logicalBounds: boundsSchema,
   layer: finiteNumberSchema,
-  ownedContentNodeIds: z.array(rendererIdSchema),
-  contextNodeIds: z.array(rendererIdSchema),
+  ownership: z.discriminatedUnion("kind", [
+    z.strictObject({
+      kind: z.literal("structured"),
+      ownedContentNodeIds: z.array(rendererIdSchema),
+      contextNodeIds: z.array(rendererIdSchema),
+    }),
+    z.strictObject({ kind: z.literal("opaque"), bindingKeys: z.array(rendererIdSchema) }),
+  ]),
   clipWindow: boundsSchema,
   hitPriorityByInteractionId: z.record(rendererIdSchema, hitRegionPrioritySchema),
   states: z.record(

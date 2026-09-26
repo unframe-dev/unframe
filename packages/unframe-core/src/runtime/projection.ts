@@ -49,7 +49,7 @@ const potentiallyVisibleNativeVariables = (
   for (const id of visibleSurfaceIds) {
     const surface = definition.scene.surfaces[id];
     if (surface?.renderIntent.rendererPreference !== "native-ui") continue;
-    visit(surface.contentNodes);
+    if (surface.content.kind === "structured") visit(surface.content.nodes);
     visit(surface.states);
   }
   return variableIds;

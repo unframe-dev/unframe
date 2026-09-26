@@ -20,7 +20,10 @@ import { diagnostic } from "../diagnostics/diagnostics.js";
 import { resourceId } from "../lowering/support.js";
 
 type Path = readonly (string | number)[];
-type CoreContentNodes = PresentationDefinition["scene"]["surfaces"][string]["contentNodes"];
+type CoreContentNodes = Extract<
+  PresentationDefinition["scene"]["surfaces"][string]["content"],
+  { kind: "structured" }
+>["nodes"];
 type CoreTextStyle = Extract<CoreContentNodes[string], { kind: "text" }>["style"];
 type CoreFrame = Extract<CoreContentNodes[string], { kind: "frame" }>;
 type CoreContentOverride =

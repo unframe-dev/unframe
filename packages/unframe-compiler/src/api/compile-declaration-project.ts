@@ -268,6 +268,12 @@ const compileUnchecked = async (
       themeId: bundleThemeId,
       timezone: buildOptions.timezone,
     });
+    if (surface.content.kind !== "structured")
+      return failure(
+        "compiler-opaque-component-unsupported",
+        ["scene", "surfaces", surfaceId],
+        "Opaque capture is not implemented.",
+      );
     const rendered = await executeRendererPlugin(renderer, {
       surface,
       sourceIntent: surface.renderIntent,
@@ -290,14 +296,17 @@ const compileUnchecked = async (
           height: surface.logicalSize[1],
         },
         layer: 0,
-        ownedContentNodeIds: Object.values(surface.contentNodes)
-          .filter((node) => node.kind !== "frame" || node.semanticNodeId !== undefined)
-          .map((node) => node.id)
-          .sort(compareStrings),
-        contextNodeIds: Object.values(surface.contentNodes)
-          .filter((node) => node.kind === "frame" && node.semanticNodeId === undefined)
-          .map((node) => node.id)
-          .sort(compareStrings),
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: Object.values(surface.content.nodes)
+            .filter((node) => node.kind !== "frame" || node.semanticNodeId !== undefined)
+            .map((node) => node.id)
+            .sort(compareStrings),
+          contextNodeIds: Object.values(surface.content.nodes)
+            .filter((node) => node.kind === "frame" && node.semanticNodeId === undefined)
+            .map((node) => node.id)
+            .sort(compareStrings),
+        },
         clipWindow: { x: 0, y: 0, width: surface.logicalSize[0], height: surface.logicalSize[1] },
         hitPriorityByInteractionId: Object.fromEntries(
           Object.entries(surface.interactions).map(([id, interaction]) => [

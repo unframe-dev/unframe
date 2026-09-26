@@ -427,16 +427,16 @@ describe("reference Authoring Project", () => {
     expect(Object.keys(definition.scene.nodes)).toHaveLength(1);
     expect(Object.keys(definition.scene.surfaces)).toHaveLength(1);
     const surface = Object.values(definition.scene.surfaces)[0] as {
-      contentNodes: Record<string, unknown>;
+      content: { kind: "structured"; nodes: Record<string, unknown> };
       baseSemanticTree: { nodes: Record<string, unknown> };
       states: Record<string, unknown>;
       interactions: Record<string, unknown>;
     };
-    expect(surface.contentNodes["reference-surface:reference-text"]).toMatchObject({
+    expect(surface.content.nodes["reference-surface:reference-text"]).toMatchObject({
       value: { kind: "literal", value: "Structured authoring" },
       style: { fontAssetId: "reference-font", fontSize: 72 },
     });
-    expect(surface.contentNodes["reference-surface:card"]).toMatchObject({
+    expect(surface.content.nodes["reference-surface:card"]).toMatchObject({
       placement: { x: 64, y: 184 },
       clip: true,
       children: [
@@ -445,11 +445,11 @@ describe("reference Authoring Project", () => {
         "reference-badge:badge-frame",
       ],
     });
-    expect(surface.contentNodes["reference-badge:badge-frame"]).toMatchObject({
+    expect(surface.content.nodes["reference-badge:badge-frame"]).toMatchObject({
       parentId: "reference-surface:card",
       placement: { x: 32, y: 264 },
     });
-    expect(surface.contentNodes["reference-badge:badge-text"]).toMatchObject({
+    expect(surface.content.nodes["reference-badge:badge-text"]).toMatchObject({
       value: { kind: "literal", value: "One nested Component, one placement" },
     });
     expect(surface.baseSemanticTree.nodes["reference-badge:badge-label"]).toMatchObject({

@@ -849,8 +849,7 @@ const checkDeclarationProjectUnchecked = (
       physicalSizeMeters: [...(resolved.physicalSizeMeters ?? [1, 1])],
       logicalSize: [...(resolved.logicalSize ?? [1, 1])],
       fit: root.fit,
-      rootFrameId: frameId,
-      contentNodes,
+      content: { kind: "structured", rootFrameId: frameId, nodes: contentNodes },
       baseSemanticTree: {
         rootNodeIds: semanticRootNodeIds,
         nodes: semanticNodes,

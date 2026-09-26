@@ -230,6 +230,17 @@ export const surfaceContentNodeV2Schema = z.discriminatedUnion("kind", [
   shapeContentSchema,
   videoContentSchema,
 ]);
+const surfaceContentV2Schema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("structured"),
+    rootFrameId: idV2Schema,
+    nodes: z.record(idV2Schema, surfaceContentNodeV2Schema),
+  }),
+  z.strictObject({
+    kind: z.literal("opaque"),
+    bindings: z.record(idV2Schema, idV2Schema),
+  }),
+]);
 
 const commonOverride = {
   visible: z.boolean().optional(),
@@ -523,8 +534,7 @@ export const semanticSurfaceV2Schema = z.strictObject({
   physicalSizeMeters: positiveVector2V2Schema,
   logicalSize: positiveVector2V2Schema,
   fit: z.enum(["contain", "cover", "stretch"]),
-  rootFrameId: idV2Schema,
-  contentNodes: z.record(idV2Schema, surfaceContentNodeV2Schema),
+  content: surfaceContentV2Schema,
   baseSemanticTree: semanticTreeDefinitionV2Schema,
   interactions: z.record(
     idV2Schema,

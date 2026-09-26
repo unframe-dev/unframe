@@ -23,6 +23,7 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 
 - generated contractから導出したPresentationDefinition / RenderBundle model
 - Stage、SurfaceNode、Frame / Text、Surface State、baked-web artifactのsemantic invariant
+- Structured の Content Tree と Opaque の semantic binding を区別した Surface 検証（[ADR-0020](../../docs/decisions/0020-structured-and-opaque-surface-content.md)）
 - stable diagnostic codeとsemantic path
 - 配列順を保持するRFC 8785 canonical JSON、SHA-256 content hash
 

@@ -76,7 +76,6 @@ export const validateSurfaceStates = (
   path: string,
 ) => {
   const interactionIds = new Set(Object.keys(surface.interactions));
-  const contentIds = new Set(Object.keys(surface.contentNodes));
   const eventIds = new Set(
     surface.renderIntent.interaction.kind === "regions"
       ? surface.renderIntent.interaction.events
@@ -105,17 +104,26 @@ export const validateSurfaceStates = (
         );
       enabled.add(interactionId);
     }
-    for (const [contentId, override] of Object.entries(state.contentOverrides)) {
-      const content = surface.contentNodes[contentId];
-      if (!contentIds.has(contentId) || content?.kind !== override.kind)
-        diagnostics.push(
-          diagnostic(
-            "reference.invalid",
-            `${statePath}/contentOverrides/${pathSegment(contentId)}`,
-            "Content override must match an existing node kind.",
-          ),
-        );
-    }
+    if (surface.content.kind === "opaque" && Object.keys(state.contentOverrides).length > 0)
+      diagnostics.push(
+        diagnostic(
+          "behavior.invalid",
+          `${statePath}/contentOverrides`,
+          "Opaque Surface State cannot override structured content.",
+        ),
+      );
+    if (surface.content.kind === "structured")
+      for (const [contentId, override] of Object.entries(state.contentOverrides)) {
+        const content = surface.content.nodes[contentId];
+        if (content === undefined || content.kind !== override.kind)
+          diagnostics.push(
+            diagnostic(
+              "reference.invalid",
+              `${statePath}/contentOverrides/${pathSegment(contentId)}`,
+              "Content override must match an existing node kind.",
+            ),
+          );
+      }
     for (const [layerIndex, layer] of state.semanticOverrides.entries())
       for (const [nodeId, override] of Object.entries(layer.nodes)) {
         const node = surface.baseSemanticTree.nodes[nodeId];

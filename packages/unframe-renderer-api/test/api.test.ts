@@ -16,6 +16,11 @@ import {
   type RendererPlugin,
 } from "../src/index.js";
 
+const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
+  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  return surface.content;
+};
+
 const identity = {
   id: "baked-web",
   version: "1.0.0",
@@ -42,46 +47,49 @@ const input = {
     physicalSizeMeters: [1.6, 0.9],
     logicalSize: [1920, 1080],
     fit: "contain",
-    rootFrameId: "frame-root",
-    contentNodes: {
-      "frame-root": {
-        id: "frame-root",
-        kind: "frame",
-        parentId: null,
-        order: 0,
-        visible: true,
-        opacity: 1,
-        placement: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
-        layout: { kind: "absolute" },
-        children: ["text-title"],
-        backgroundColor: { red: 0, green: 0, blue: 0, alpha: 0 },
-        border: {
-          color: { red: 0, green: 0, blue: 0, alpha: 0 },
-          width: 0,
-          radius: 0,
+    content: {
+      kind: "structured",
+      rootFrameId: "frame-root",
+      nodes: {
+        "frame-root": {
+          id: "frame-root",
+          kind: "frame",
+          parentId: null,
+          order: 0,
+          visible: true,
+          opacity: 1,
+          placement: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
+          layout: { kind: "absolute" },
+          children: ["text-title"],
+          backgroundColor: { red: 0, green: 0, blue: 0, alpha: 0 },
+          border: {
+            color: { red: 0, green: 0, blue: 0, alpha: 0 },
+            width: 0,
+            radius: 0,
+          },
+          clip: false,
         },
-        clip: false,
-      },
-      "text-title": {
-        id: "text-title",
-        kind: "text",
-        parentId: "frame-root",
-        order: 0,
-        semanticNodeId: "semantic-title",
-        visible: true,
-        opacity: 1,
-        placement: { kind: "absolute", x: 120, y: 80, width: 1680, height: 200 },
-        value: { kind: "literal", value: "Hello" },
-        maxCodePoints: 100,
-        style: {
-          fontAssetId: "font-main",
-          fallbackFontAssetIds: [],
-          fontSize: 64,
-          lineHeight: 80,
-          color: { red: 1, green: 1, blue: 1, alpha: 1 },
-          weight: "regular",
-          align: "start",
-          overflow: "clip",
+        "text-title": {
+          id: "text-title",
+          kind: "text",
+          parentId: "frame-root",
+          order: 0,
+          semanticNodeId: "semantic-title",
+          visible: true,
+          opacity: 1,
+          placement: { kind: "absolute", x: 120, y: 80, width: 1680, height: 200 },
+          value: { kind: "literal", value: "Hello" },
+          maxCodePoints: 100,
+          style: {
+            fontAssetId: "font-main",
+            fallbackFontAssetIds: [],
+            fontSize: 64,
+            lineHeight: 80,
+            color: { red: 1, green: 1, blue: 1, alpha: 1 },
+            weight: "regular",
+            align: "start",
+            overflow: "clip",
+          },
         },
       },
     },
@@ -157,8 +165,11 @@ const input = {
     semanticSurfaceId: "surface-title",
     logicalBounds: { x: 0, y: 0, width: 1920, height: 1080 },
     layer: 0,
-    ownedContentNodeIds: ["text-title"],
-    contextNodeIds: ["frame-root"],
+    ownership: {
+      kind: "structured",
+      ownedContentNodeIds: ["text-title"],
+      contextNodeIds: ["frame-root"],
+    },
     clipWindow: { x: 0, y: 0, width: 1920, height: 1080 },
     hitPriorityByInteractionId: {},
     states: { "state-default": { kind: "capture" } },
@@ -178,6 +189,19 @@ const input = {
     pixelTarget: [2, 1],
   },
 } as const satisfies CompilerResolvedSurfaceInput;
+
+const opaqueInput: CompilerResolvedSurfaceInput = {
+  ...input,
+  surface: {
+    ...input.surface,
+    content: { kind: "opaque", bindings: { title: "semantic-title" } },
+  },
+  plan: {
+    ...input.plan,
+    ownership: { kind: "opaque", bindingKeys: ["title"] },
+  },
+  entry: { kind: "opaque", entryId: "opaque-entry", moduleHash: "sha256:module" },
+};
 
 const fixture = (value: CompilerResolvedSurfaceInput = input): RendererConformanceFixture => ({
   name: "title-surface",
@@ -236,6 +260,123 @@ const goodPlugin = defineRendererPlugin({
 });
 
 describe("first-milestone plugin contract", () => {
+  it("accepts whole-Surface opaque binding ownership at the input boundary while support remains disabled", () => {
+    const opaque = opaqueInput;
+    expect(prepareRendererBuildInput(opaque, goodPlugin).valid).toBe(true);
+    expect(
+      evaluateFirstMilestoneSupport({ entry: opaque.entry, resolvedIntent: opaque.resolvedIntent }),
+    ).toMatchObject({ supported: false });
+
+    const malformed = [
+      {
+        ...opaque,
+        plan: { ...opaque.plan, ownership: { kind: "opaque", bindingKeys: ["missing"] } },
+      },
+      {
+        ...opaque,
+        plan: { ...opaque.plan, ownership: { kind: "opaque", bindingKeys: ["title", "title"] } },
+      },
+      {
+        ...opaque,
+        plan: { ...opaque.plan, logicalBounds: { x: 0, y: 0, width: 100, height: 100 } },
+      },
+      {
+        ...opaque,
+        plan: {
+          ...opaque.plan,
+          ownership: { kind: "structured", ownedContentNodeIds: [], contextNodeIds: [] },
+        },
+      },
+      {
+        ...opaque,
+        surface: {
+          ...opaque.surface,
+          states: {
+            "state-default": {
+              ...opaque.surface.states["state-default"]!,
+              contentOverrides: { ghost: { kind: "text", visible: false } },
+            },
+          },
+        },
+      },
+      {
+        ...opaque,
+        surface: {
+          ...opaque.surface,
+          content: { kind: "opaque", bindings: { title: "unknown-semantic" } },
+        },
+      },
+    ];
+    for (const candidate of malformed)
+      expect(prepareRendererBuildInput(candidate, goodPlugin).valid).toBe(false);
+  });
+
+  it("opaque bindings must cover base semantic nodes exactly once", () => {
+    const duplicate = {
+      ...opaqueInput,
+      surface: {
+        ...opaqueInput.surface,
+        content: { kind: "opaque", bindings: { title: "semantic-title", copy: "semantic-title" } },
+      },
+      plan: {
+        ...opaqueInput.plan,
+        ownership: { kind: "opaque", bindingKeys: ["title", "copy"] },
+      },
+    };
+    expect(prepareRendererBuildInput(duplicate, goodPlugin).valid).toBe(false);
+
+    const second = {
+      id: "semantic-second",
+      parentId: null,
+      order: 1,
+      role: "heading",
+      level: 2,
+      text: "Second",
+    } as const;
+    const missing = {
+      ...opaqueInput,
+      surface: {
+        ...opaqueInput.surface,
+        baseSemanticTree: {
+          rootNodeIds: ["semantic-title", "semantic-second"],
+          nodes: { ...opaqueInput.surface.baseSemanticTree.nodes, "semantic-second": second },
+        },
+      },
+      semanticsByState: {
+        "state-default": {
+          rootNodeIds: ["semantic-title", "semantic-second"],
+          nodes: {
+            ...opaqueInput.semanticsByState["state-default"]!.nodes,
+            "semantic-second": second,
+          },
+        },
+      },
+    };
+    expect(prepareRendererBuildInput(missing, goodPlugin).valid).toBe(false);
+  });
+
+  it("renderer entry kind must match Surface content before support or build", async () => {
+    let calls = 0;
+    const plugin = {
+      ...goodPlugin,
+      support: (request: Parameters<RendererPlugin["support"]>[0]) => {
+        calls++;
+        return evaluateFirstMilestoneSupport(request);
+      },
+      build: (value: CompilerResolvedSurfaceInput) => {
+        calls++;
+        return successfulResult(value);
+      },
+    };
+    for (const candidate of [
+      { ...input, entry: opaqueInput.entry },
+      { ...opaqueInput, entry: input.entry },
+    ]) {
+      expect(prepareRendererBuildInput(candidate, plugin).valid).toBe(false);
+      expect((await executeRendererPlugin(plugin, candidate)).valid).toBe(false);
+    }
+    expect(calls).toBe(0);
+  });
   it("prepared boundary は nested Proxy の get trap を実行せず入力を独立 snapshot 化する", async () => {
     const source = structuredClone(input) as unknown as CompilerResolvedSurfaceInput;
     let getTrapCalls = 0;
@@ -248,14 +389,16 @@ describe("first-milestone plugin contract", () => {
       });
     const pixelTarget = [...source.context.pixelTarget];
     const contextTarget = { ...source.context, pixelTarget: denyGet(pixelTarget) };
-    const textTarget = { ...source.surface.contentNodes["text-title"] } as { value?: unknown };
+    const textTarget = { ...structuredContent(source.surface).nodes["text-title"] } as {
+      value?: unknown;
+    };
     const contentNodesTarget = {
-      ...source.surface.contentNodes,
+      ...structuredContent(source.surface).nodes,
       "text-title": denyGet(textTarget),
     };
     const surfaceTarget = {
       ...source.surface,
-      contentNodes: denyGet(contentNodesTarget),
+      content: { ...structuredContent(source.surface), nodes: denyGet(contentNodesTarget) },
     };
     const proxiedInput = {
       ...source,
@@ -270,7 +413,7 @@ describe("first-milestone plugin contract", () => {
       contextTarget.locale = "en-US";
       textTarget.value = { kind: "literal", value: "Mutated after preparation" };
       expect(prepared.value.context.locale).toBe("ja-JP");
-      const preparedText = prepared.value.surface.contentNodes["text-title"];
+      const preparedText = structuredContent(prepared.value.surface).nodes["text-title"];
       expect(preparedText?.kind).toBe("text");
       if (preparedText?.kind === "text")
         expect(preparedText.value).toEqual({ kind: "literal", value: "Hello" });
@@ -342,12 +485,17 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            "frame-root": (() => {
-              const { children: _children, ...frame } = input.surface.contentNodes["frame-root"];
-              return frame;
-            })(),
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              "frame-root": (() => {
+                const root = structuredContent(input.surface).nodes["frame-root"];
+                if (root?.kind !== "frame") throw new TypeError("Expected Frame fixture.");
+                const { children: _children, ...frame } = root;
+                return frame;
+              })(),
+            },
           },
         },
       }),
@@ -358,9 +506,15 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            "frame-root": { ...input.surface.contentNodes["frame-root"], children: ["unknown"] },
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              "frame-root": {
+                ...structuredContent(input.surface).nodes["frame-root"],
+                children: ["unknown"],
+              },
+            },
           },
         },
       }),
@@ -371,11 +525,14 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            "text-title": {
-              ...input.surface.contentNodes["text-title"],
-              placement: { kind: "absolute", x: 120, y: 80, width: 1680 },
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              "text-title": {
+                ...structuredContent(input.surface).nodes["text-title"],
+                placement: { kind: "absolute", x: 120, y: 80, width: 1680 },
+              },
             },
           },
         },
@@ -387,11 +544,14 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            "text-title": {
-              ...input.surface.contentNodes["text-title"],
-              placement: { x: 120, y: 80, width: 1680, height: 200 },
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              "text-title": {
+                ...structuredContent(input.surface).nodes["text-title"],
+                placement: { x: 120, y: 80, width: 1680, height: 200 },
+              },
             },
           },
         },
@@ -607,16 +767,19 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            detached: {
-              ...input.surface.contentNodes["frame-root"],
-              id: "detached",
-              kind: "frame",
-              parentId: null,
-              order: 1,
-              layout: { kind: "absolute" },
-              children: [],
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              detached: {
+                ...structuredContent(input.surface).nodes["frame-root"],
+                id: "detached",
+                kind: "frame",
+                parentId: null,
+                order: 1,
+                layout: { kind: "absolute" },
+                children: [],
+              },
             },
           },
         },
@@ -628,12 +791,15 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            "text-title": {
-              ...input.surface.contentNodes["text-title"],
-              parentId: null,
-              order: 2,
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              "text-title": {
+                ...structuredContent(input.surface).nodes["text-title"],
+                parentId: null,
+                order: 2,
+              },
             },
           },
         },
@@ -677,25 +843,28 @@ describe("first-milestone plugin contract", () => {
       ...input,
       surface: {
         ...input.surface,
-        contentNodes: {
-          ...input.surface.contentNodes,
-          "detached-a": {
-            ...input.surface.contentNodes["frame-root"],
-            id: "detached-a",
-            kind: "frame",
-            parentId: "detached-b",
-            order: 0,
-            layout: { kind: "absolute" },
-            children: ["detached-b"],
-          },
-          "detached-b": {
-            ...input.surface.contentNodes["frame-root"],
-            id: "detached-b",
-            kind: "frame",
-            parentId: "detached-a",
-            order: 0,
-            layout: { kind: "absolute" },
-            children: ["detached-a"],
+        content: {
+          ...structuredContent(input.surface),
+          nodes: {
+            ...structuredContent(input.surface).nodes,
+            "detached-a": {
+              ...structuredContent(input.surface).nodes["frame-root"],
+              id: "detached-a",
+              kind: "frame",
+              parentId: "detached-b",
+              order: 0,
+              layout: { kind: "absolute" },
+              children: ["detached-b"],
+            },
+            "detached-b": {
+              ...structuredContent(input.surface).nodes["frame-root"],
+              id: "detached-b",
+              kind: "frame",
+              parentId: "detached-a",
+              order: 0,
+              layout: { kind: "absolute" },
+              children: ["detached-a"],
+            },
           },
         },
       },
@@ -705,23 +874,29 @@ describe("first-milestone plugin contract", () => {
   });
 
   it("prepare rejects Frame children outside canonical sibling order", () => {
-    const text = input.surface.contentNodes["text-title"];
+    const text = structuredContent(input.surface).nodes["text-title"];
+    const root = structuredContent(input.surface).nodes["frame-root"];
+    if (text?.kind !== "text" || root?.kind !== "frame")
+      throw new TypeError("Expected Frame/Text fixture.");
     const malformed: CompilerResolvedSurfaceInput = {
       ...input,
       surface: {
         ...input.surface,
-        contentNodes: {
-          ...input.surface.contentNodes,
-          "text-second": { ...text, id: "text-second", order: 1 },
-          "frame-root": {
-            ...input.surface.contentNodes["frame-root"],
-            children: ["text-second", "text-title"],
+        content: {
+          ...structuredContent(input.surface),
+          nodes: {
+            ...structuredContent(input.surface).nodes,
+            "text-second": { ...text, id: "text-second", order: 1 },
+            "frame-root": {
+              ...root,
+              children: ["text-second", "text-title"],
+            },
           },
         },
       },
       plan: {
         ...input.plan,
-        ownedContentNodeIds: ["text-second", "text-title"],
+        ownership: { ...input.plan.ownership, ownedContentNodeIds: ["text-second", "text-title"] },
       },
     };
 
@@ -880,9 +1055,12 @@ describe("first-milestone plugin contract", () => {
       ...input,
       surface: {
         ...input.surface,
-        contentNodes: {
-          ...input.surface.contentNodes,
-          "text-title": { ...input.surface.contentNodes["text-title"], text: 1 },
+        content: {
+          ...structuredContent(input.surface),
+          nodes: {
+            ...structuredContent(input.surface).nodes,
+            "text-title": { ...structuredContent(input.surface).nodes["text-title"], text: 1 },
+          },
         },
       },
     } as unknown as CompilerResolvedSurfaceInput;
@@ -1048,7 +1226,14 @@ describe("first-milestone plugin contract", () => {
     let buildCalls = 0;
     const invalid = {
       ...input,
-      plan: { ...input.plan, ownedContentNodeIds: ["missing-node"] },
+      plan: {
+        ...input.plan,
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["missing-node"],
+          contextNodeIds: [],
+        },
+      },
     } as const satisfies CompilerResolvedSurfaceInput;
     const plugin = {
       ...goodPlugin,
@@ -1116,12 +1301,7 @@ describe("first-milestone plugin contract", () => {
   });
 
   it("conforms when unsupported inputs return diagnostic failures", async () => {
-    const opaque = {
-      ...input,
-      entry: { kind: "opaque", entryId: "chart", moduleHash: "sha256:module" },
-    } as const satisfies CompilerResolvedSurfaceInput;
-
-    const result = await runRendererConformance(goodPlugin, [fixture(opaque)]);
+    const result = await runRendererConformance(goodPlugin, [fixture(opaqueInput)]);
     expect(result.valid).toBe(true);
     if (result.valid) expect(result.value[0]).toMatchObject({ ok: false });
   });
@@ -1163,11 +1343,17 @@ describe("conformance diagnostics", () => {
       "state-default": input.semanticsByState["state-default"],
     }) as CompilerResolvedSurfaceInput["semanticsByState"];
     const inheritedContentNodes = Object.create({
-      "text-title": input.surface.contentNodes["text-title"],
-    }) as CompilerResolvedSurfaceInput["surface"]["contentNodes"];
+      "text-title": structuredContent(input.surface).nodes["text-title"],
+    }) as Extract<
+      CompilerResolvedSurfaceInput["surface"]["content"],
+      { kind: "structured" }
+    >["nodes"];
     const inheritedInput = {
       ...input,
-      surface: { ...input.surface, contentNodes: inheritedContentNodes },
+      surface: {
+        ...input.surface,
+        content: { ...structuredContent(input.surface), nodes: inheritedContentNodes },
+      },
       semanticsByState: inheritedSemantics,
     } as const satisfies CompilerResolvedSurfaceInput;
     const inputResult = await executeRendererPlugin(goodPlugin, inheritedInput);
@@ -1571,7 +1757,7 @@ describe("conformance diagnostics", () => {
       plan: {
         ...input.plan,
         semanticSurfaceId: "other-surface",
-        ownedContentNodeIds: ["missing-node"],
+        ownership: { ...input.plan.ownership, ownedContentNodeIds: ["missing-node"] },
         states: { "missing-state": { kind: "capture" } },
       },
       context: { ...input.context, pixelTarget: [0, 1] },
@@ -1596,7 +1782,7 @@ describe("conformance diagnostics", () => {
       ...input,
       plan: {
         ...input.plan,
-        ownedContentNodeIds: ["frame-root", "frame-root"],
+        ownership: { ...input.plan.ownership, ownedContentNodeIds: ["frame-root", "frame-root"] },
       },
     } as const satisfies CompilerResolvedSurfaceInput;
 
