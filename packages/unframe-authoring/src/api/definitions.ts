@@ -1,6 +1,13 @@
 import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
+import { validateReactSceneItem } from "./react-component.js";
+import type { ReactPresentationInput, ReactSceneBase } from "./react-component.js";
 import { z } from "zod";
-import { isDeclaration, snapshotDeclaration } from "../internal/declaration-validation.js";
+import {
+  isDeclaration,
+  readOwnDataArray,
+  readOwnDataRecord,
+  snapshotDeclaration,
+} from "../internal/declaration-validation.js";
 import {
   assertFlowIds,
   assertId,
@@ -1189,9 +1196,34 @@ export const isComponentStructure = (value: unknown): value is ComponentStructur
 
 export function definePresentation<const T extends PresentationDeclaration>(value: T): T;
 export function definePresentation(value: JsxPresentationInput): PresentationDeclaration;
+export function definePresentation<const S extends readonly ReactSceneBase[]>(
+  value: ReactPresentationInput<S>,
+): ReactPresentationInput<S>;
 export function definePresentation(
-  value: PresentationDeclaration | JsxPresentationInput,
-): PresentationDeclaration {
+  value:
+    | PresentationDeclaration
+    | JsxPresentationInput
+    | ReactPresentationInput<readonly ReactSceneBase[]>,
+): PresentationDeclaration | ReactPresentationInput<readonly ReactSceneBase[]> {
+  const fields = readOwnDataRecord(value);
+  if (Array.isArray(fields.scene)) {
+    const scene = readOwnDataArray(fields.scene);
+    delete fields.scene;
+    const header = assertJsonSafe(fields) as unknown as Omit<PresentationDeclaration, "scene">;
+    assertSchema(
+      presentationSchema.omit({ scene: true }),
+      header,
+      "Invalid React Presentation header.",
+    );
+    assertFlowIds(header.flow);
+    const instanceIds = new Set<string>();
+    for (const item of scene) {
+      const instanceId = validateReactSceneItem(item);
+      if (instanceIds.has(instanceId)) invalid("Duplicate React Component instance ID.");
+      instanceIds.add(instanceId);
+    }
+    return value as ReactPresentationInput<readonly ReactSceneBase[]>;
+  }
   assertPresentationDeclaration(value);
   return value as PresentationDeclaration;
 }
