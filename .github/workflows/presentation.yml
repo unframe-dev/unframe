@@ -24,5 +24,8 @@ jobs:
       - name: Install Fixed Browser
         run: nix develop --command scripts/dev/install-presentation-browser.sh
 
+      - name: Allow Fixed Browser user namespace
+        run: bash scripts/ci/allow-presentation-browser-userns.sh
+
       - name: shared config / typecheck / lint / test
         run: nix run .#presentation
