@@ -6,6 +6,8 @@ import { extractReactComponents } from "../src/project/extract-react-components.
 import { collectAuthoringDeclarations } from "../src/project/collect-authoring-declarations.js";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
+import { computeFrozenComponentInputs } from "../src/semantic/frozen-component-inputs.js";
+import type { PairedAuthoringDeclarationCatalog } from "../src/project/pair-authoring-declarations.js";
 
 const sdk = `
   export const defineComponent = <T>(value: T): T => value;
@@ -21,12 +23,13 @@ const analyze = (
   presentation?: string,
   rawCss?: string,
   extraFiles: readonly { fileName: string; sourceText: string }[] = [],
+  packaged = false,
 ) => {
-  const parsed = parseAuthoringProject({
+  const input = {
     projectRoot: "/virtual",
     entryFile: presentation ? "presentation.ts" : "Hero.component.tsx",
     files: [
-      { fileName: "Hero.component.tsx", sourceText },
+      ...(packaged ? [] : [{ fileName: "Hero.component.tsx", sourceText }]),
       { fileName: "globals.d.ts", sourceText: "declare class Promise<T> {}" },
       ...(presentation ? [{ fileName: "presentation.ts", sourceText: presentation }] : []),
       ...extraFiles,
@@ -34,6 +37,9 @@ const analyze = (
     rootDependencies: [
       { specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey: hash },
       { specifier: "react", usage: "runtime", packageKey: reactHash },
+      ...(packaged
+        ? [{ specifier: "ui-kit", usage: "runtime", packageKey: `sha256:${"2".repeat(64)}` }]
+        : []),
     ],
     packages: [
       {
@@ -75,6 +81,44 @@ const analyze = (
         ],
         dependencies: [],
       },
+      ...(packaged
+        ? [
+            {
+              key: `sha256:${"2".repeat(64)}`,
+              locator: "ui-kit@1",
+              name: "ui-kit",
+              version: "1",
+              contentIntegrity: `sha256:${"2".repeat(64)}`,
+              files: [
+                {
+                  path: "Hero.component.tsx",
+                  mediaType: "text/tsx",
+                  hash: `sha256:${"2".repeat(64)}`,
+                  encoding: "utf8",
+                  data: sourceText,
+                },
+                {
+                  path: "index.d.ts",
+                  mediaType: "text/typescript",
+                  hash: `sha256:${"2".repeat(64)}`,
+                  encoding: "utf8",
+                  data: 'export { Hero } from "./Hero.component";',
+                },
+              ],
+              exports: [
+                {
+                  subpath: ".",
+                  runtimeImport: "Hero.component.tsx",
+                  runtimeRequire: null,
+                  types: "index.d.ts",
+                },
+              ],
+              dependencies: [
+                { specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey: hash },
+              ],
+            },
+          ]
+        : []),
     ],
     ...(rawCss === undefined
       ? {}
@@ -89,11 +133,12 @@ const analyze = (
             },
           ],
         }),
-  });
+  };
+  const parsed = parseAuthoringProject(input);
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
   const analyzed = analyzeAuthoringProject(parsed.value);
   if (!analyzed.ok) throw new Error(JSON.stringify(analyzed.diagnostics));
-  return analyzed;
+  return { ...analyzed, input };
 };
 
 const component = `
@@ -159,6 +204,129 @@ it("lowers a component import in a presentation to its static descriptor", () =>
     scene: [{ component: { id: "hero", version: 1 } }],
   });
   expect(result.reactComponents).toHaveLength(1);
+});
+
+it("extracts a locked package Component through its explicit export", () => {
+  const presentation = `
+    import {definePresentation} from "@unframe/unframe-authoring";
+    import {Hero} from "ui-kit";
+    export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
+  `;
+  const result = collectAuthoringDeclarations(
+    analyze(component, presentation, undefined, [], true),
+  );
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.ok).toBe(true);
+  expect(result.reactComponents[0]?.fileName).toBe("ui-kit@1/Hero.component.tsx");
+  expect(result.declarations[0]?.value).toMatchObject({
+    scene: [{ component: { id: "hero", version: 1 } }],
+  });
+  const analyzed = analyze(component, presentation, undefined, [], true);
+  const extracted = extractReactComponents(analyzed);
+  if (!extracted.ok) throw new Error(JSON.stringify(extracted.diagnostics));
+  const react = extracted.components[0]!;
+  const frozen = computeFrozenComponentInputs(analyzed.input, {
+    components: [
+      {
+        manifest: { value: react.manifest, fileName: react.fileName },
+        renderer: react.renderer,
+        metadata: react.metadata,
+        rendererEntry: react.manifest.renderers["baked-web"]?.entry,
+      },
+    ],
+    themes: [],
+  } as unknown as PairedAuthoringDeclarationCatalog);
+  expect(frozen.valid).toBe(true);
+  if (!frozen.valid) throw new Error(JSON.stringify(frozen.diagnostics));
+  expect(frozen.value.componentLocks[0]?.origin).toEqual({
+    kind: "package",
+    packageKey: `sha256:${"2".repeat(64)}`,
+    subpath: ".",
+  });
+  const withoutExport = {
+    ...analyzed.input,
+    packages: analyzed.input.packages.map((pkg) =>
+      pkg.name === "ui-kit" ? { ...pkg, exports: [] } : pkg,
+    ),
+  };
+  expect(
+    computeFrozenComponentInputs(withoutExport, {
+      components: [
+        {
+          manifest: { value: react.manifest, fileName: react.fileName },
+          renderer: react.renderer,
+          metadata: react.metadata,
+          rendererEntry: react.manifest.renderers["baked-web"]?.entry,
+        },
+      ],
+      themes: [],
+    } as unknown as PairedAuthoringDeclarationCatalog),
+  ).toMatchObject({
+    valid: false,
+    diagnostics: [{ code: "compiler-frozen-input-invalid" }],
+  });
+  const ambiguous = {
+    ...analyzed.input,
+    files: [
+      ...analyzed.input.files,
+      { fileName: "ui-kit@1/Hero.component.tsx", sourceText: "export const unrelated = 1;" },
+    ],
+  };
+  expect(
+    computeFrozenComponentInputs(ambiguous, {
+      components: [
+        {
+          manifest: { value: react.manifest, fileName: react.fileName },
+          renderer: react.renderer,
+          metadata: react.metadata,
+          rendererEntry: react.manifest.renderers["baked-web"]?.entry,
+        },
+      ],
+      themes: [],
+    } as unknown as PairedAuthoringDeclarationCatalog),
+  ).toMatchObject({
+    valid: false,
+    diagnostics: [{ code: "compiler-frozen-input-invalid" }],
+  });
+}, 20000);
+
+it("typechecks a locked package Component in the React environment", () => {
+  const presentation = `
+    import {definePresentation} from "@unframe/unframe-authoring";
+    import {Hero} from "ui-kit";
+    export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
+  `;
+  expect(() =>
+    analyze(
+      component.replace("decorate(label + texts.title)", "decorate(42)"),
+      presentation,
+      undefined,
+      [],
+      true,
+    ),
+  ).toThrow(/compiler-source-type-error/);
+}, 20000);
+
+it("resolves a package Component through a local named barrel", () => {
+  const presentation = `
+    import {definePresentation} from "@unframe/unframe-authoring";
+    import {Hero} from "./barrel";
+    export default definePresentation({id: "deck", scene: [{id: "opening", component: Hero, props: {title: "Hi"}}]});
+  `;
+  const result = collectAuthoringDeclarations(
+    analyze(
+      component,
+      presentation,
+      undefined,
+      [{ fileName: "barrel.ts", sourceText: 'import {Hero} from "ui-kit"; export {Hero};' }],
+      true,
+    ),
+  );
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.reactComponents).toHaveLength(1);
+  expect(result.declarations[0]?.value).toMatchObject({
+    scene: [{ component: { id: "hero", version: 1 } }],
+  });
 });
 
 it("keeps a referenced render helper out of static DSL validation", () => {

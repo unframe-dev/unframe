@@ -217,7 +217,6 @@
             "maxItems": 2
           },
           "renderSurfaceIds": {
-            "minItems": 1,
             "type": "array",
             "items": {
               "type": "string",
@@ -240,6 +239,10 @@
                 "semanticSurfaceId": {
                   "type": "string",
                   "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                },
+                "partitionStrategyVersion": {
+                  "type": "number",
+                  "const": 1
                 },
                 "logicalBounds": {
                   "type": "object",
@@ -1024,6 +1027,7 @@
               "required": [
                 "id",
                 "semanticSurfaceId",
+                "partitionStrategyVersion",
                 "logicalBounds",
                 "layer",
                 "artifacts",

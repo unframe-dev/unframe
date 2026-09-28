@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   readlink,
   rm,
   symlink,
@@ -42,6 +43,31 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("keeps the successful generation when its source revision expires during staging", async () => {
+    const directory = await project();
+    const initial = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts(),
+    });
+    expect(initial.ok).toBe(true);
+    const previous = await readlink(join(directory, "dist"));
+    let current = true;
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("stale"),
+      isCurrentRevision: async () => current,
+      testing: {
+        onPhase: (phase) => {
+          if (phase === "before-dist-replace") current = false;
+        },
+      },
+    });
+    expect(result).toEqual({ ok: false, family: "io", code: "cli-output-stale" });
+    expect(await readlink(join(directory, "dist"))).toBe(previous);
+    expect(await readdir(join(directory, ".unframe/generations"))).toHaveLength(1);
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-one");
+  });
+
   it("publishes all v2 manifests and preserves font bytes with their media type", async () => {
     const directory = await project();
     const value = artifacts();

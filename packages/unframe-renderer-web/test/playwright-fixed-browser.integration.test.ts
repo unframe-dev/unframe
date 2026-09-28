@@ -6,12 +6,31 @@ import {
   createWebRendererConfigHash,
   openPlaywrightFixedBrowser,
 } from "../src/index.js";
+import type { CompilerResolvedSurfaceInput } from "@unframe/unframe-renderer-api";
 import {
   adapterIdentity,
   config,
   environment,
   nestedInputFor,
 } from "./fixtures/static-renderer.js";
+
+const frameOnlyInput = (source: CompilerResolvedSurfaceInput): CompilerResolvedSurfaceInput => {
+  if (source.surface.content.kind !== "structured") throw new Error("Expected structured fixture.");
+  const { root, nested, clipped } = source.surface.content.nodes;
+  if (!root || root.kind !== "frame" || !nested || nested.kind !== "frame" || !clipped)
+    throw new TypeError("Expected nested Frame fixture.");
+  return {
+    ...source,
+    surface: {
+      ...source.surface,
+      content: {
+        ...source.surface.content,
+        nodes: { root, nested: { ...nested, children: ["clipped"] }, clipped },
+      },
+    },
+    fontAssets: {},
+  };
+};
 
 describe("Playwright Fixed Browser integration", () => {
   it("provision済みmanaged ChromiumでFrame/Text相当のdocumentをPNG captureする", async () => {
@@ -140,7 +159,7 @@ describe("Playwright Fixed Browser integration", () => {
           clippedRect: [130, 20, 40, 20],
           childOrder: ["text-first", "text-second", "clipped"],
           frameStyle: {
-            backgroundColor: "rgba(255, 0, 0, 0.5)",
+            backgroundColor: "rgba(0, 0, 0, 0)",
             borderTopWidth: "4px",
             opacity: "0.75",
             overflow: "hidden",
@@ -154,6 +173,143 @@ describe("Playwright Fixed Browser integration", () => {
         });
     } finally {
       await browser.close();
+    }
+  });
+
+  it("部分partitionのcropでcontext paintを除き、owned Frameをclipとgroup opacityで描画する", async () => {
+    const session = await openPlaywrightFixedBrowser();
+    try {
+      const renderer = createBakedWebRenderer({
+        adapter: {
+          identity: session.identity,
+          environment: session.environment,
+          capture: session.capture,
+        },
+        config,
+      });
+      const source = frameOnlyInput(nestedInputFor(createWebRendererConfigHash(config), renderer));
+      const input: CompilerResolvedSurfaceInput = {
+        ...source,
+        plan: {
+          ...source.plan,
+          logicalBounds: { x: 60, y: 10, width: 10, height: 10 },
+          clipWindow: { x: 60, y: 10, width: 10, height: 10 },
+          ownership: {
+            kind: "structured",
+            ownedContentNodeIds: ["clipped"],
+            contextNodeIds: ["root", "nested"],
+          },
+          states: { a: { kind: "capture" }, z: { kind: "empty" } },
+        },
+        context: { ...source.context, pixelTarget: [10, 10] },
+      };
+
+      const result = await renderer.build(input);
+
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      expect(result.ok).toBe(true);
+      expect(result.captures).toHaveLength(1);
+      expect(result.captures[0]?.pixelSize).toEqual([10, 10]);
+      const rgba = result.captures[0]?.rgba;
+      expect(rgba?.[4 * (5 * 10 + 1) + 3]).toBe(0);
+      expect(rgba?.[4 * (5 * 10 + 6) + 2]).toBe(255);
+      expect(rgba?.[4 * (5 * 10 + 6) + 3]).toBeGreaterThan(0);
+      expect(rgba?.[4 * (5 * 10 + 6) + 3]).toBeLessThan(255);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it("背景と重なるclip/group-opacity Frameのpartition合成画素が全体captureに一致する", async () => {
+    const session = await openPlaywrightFixedBrowser();
+    try {
+      const renderer = createBakedWebRenderer({
+        adapter: {
+          identity: session.identity,
+          environment: session.environment,
+          capture: session.capture,
+        },
+        config,
+      });
+      const source = frameOnlyInput(nestedInputFor(createWebRendererConfigHash(config), renderer));
+      const full: CompilerResolvedSurfaceInput = {
+        ...source,
+        plan: {
+          ...source.plan,
+          ownership: {
+            kind: "structured",
+            ownedContentNodeIds: ["root", "nested", "clipped"],
+            contextNodeIds: [],
+          },
+          states: { a: { kind: "capture" }, z: { kind: "empty" } },
+        },
+      };
+      const background: CompilerResolvedSurfaceInput = {
+        ...full,
+        plan: {
+          ...full.plan,
+          ownership: { kind: "structured", ownedContentNodeIds: ["root"], contextNodeIds: [] },
+        },
+      };
+      const foreground: CompilerResolvedSurfaceInput = {
+        ...full,
+        plan: {
+          ...full.plan,
+          logicalBounds: { x: 10, y: 5, width: 60, height: 30 },
+          clipWindow: { x: 10, y: 5, width: 60, height: 30 },
+          ownership: {
+            kind: "structured",
+            ownedContentNodeIds: ["nested", "clipped"],
+            contextNodeIds: ["root"],
+          },
+        },
+        context: { ...full.context, pixelTarget: [120, 60] },
+      };
+      const [whole, back, front] = await Promise.all([
+        renderer.build(full),
+        renderer.build(background),
+        renderer.build(foreground),
+      ]);
+      if (!whole.ok || !back.ok || !front.ok)
+        throw new Error(JSON.stringify([whole, back, front].filter((result) => !result.ok)));
+      expect(whole.ok && back.ok && front.ok).toBe(true);
+      const wholeRgba = whole.captures[0]?.rgba;
+      const backRgba = back.captures[0]?.rgba;
+      const frontRgba = front.captures[0]?.rgba;
+      expect(wholeRgba).toBeDefined();
+      expect(backRgba).toBeDefined();
+      expect(frontRgba).toBeDefined();
+      if (!wholeRgba || !backRgba || !frontRgba) return;
+      let largestDifference = 0;
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < 200; x++) {
+          const index = 4 * (y * 200 + x);
+          const overX = x - 20;
+          const overY = y - 10;
+          const frontIndex = 4 * (overY * 120 + overX);
+          const alpha =
+            overX >= 0 && overX < 120 && overY >= 0 && overY < 60
+              ? (frontRgba[frontIndex + 3] ?? 0) / 255
+              : 0;
+          for (let channel = 0; channel < 3; channel++) {
+            const expected = Math.round(
+              (frontRgba[frontIndex + channel] ?? 0) * alpha +
+                (backRgba[index + channel] ?? 0) * (1 - alpha),
+            );
+            largestDifference = Math.max(
+              largestDifference,
+              Math.abs((wholeRgba[index + channel] ?? 0) - expected),
+            );
+          }
+          largestDifference = Math.max(
+            largestDifference,
+            Math.abs((wholeRgba[index + 3] ?? 0) - 255),
+          );
+        }
+      }
+      expect(largestDifference).toBeLessThanOrEqual(2);
+    } finally {
+      await session.close();
     }
   });
 });

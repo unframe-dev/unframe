@@ -66,20 +66,21 @@ type ResolvedRenderAtomV1 = {
 };
 
 type CompositingClosureV1 = {
+  stateId: SurfaceStateId;
   ownerNodeId: SurfaceContentNodeId;
   operandNodeIds: readonly SurfaceContentNodeId[];
 } & (
   | { operator: "source-over" }
-  | { operator: "rect-clip"; clipBounds: LogicalBounds }
+  | { operator: "frame-clip"; clipBounds: LogicalBounds; borderWidth: number; borderRadius: number }
   | { operator: "group-opacity"; opacity: number }
 );
 ```
 
 Structured treeはcanonical child orderのdepth-first pre-orderで走査し、各Node自身のpaintをdescendantより先に一atomとしてemitする。paintしないstructural Nodeはemitしない。Opaque entryは一atomとしてemitする。`paintIndex`はarray indexと等しい一意な`0..N-1`で、DOM、object insertion、renderer outputから再導出しない。ordinary source-over paintにはclosure recordを作らず、全atomで共通のno-closure keyを使う。各明示closureのoperandはpaint順、non-empty、duplicateなしとする。Compilerはoperandのpaint indexの最小値から最大値までをintervalにし、overlapするclosureを推移的にunionする。owner、canonical operator tree、operand順をhashした値をそのunion内atomの`compositingGroupKey`とする。
 
-`presentByState`、`visualBoundsByState`、`effectPaddingByState`は全reachable Stateをexactly onceで持つ。presentならboundsはfiniteかつ正、absentならboundsは`null`かつpaddingは全て0とする。paddingはfiniteかつnon-negativeである。closure ownerは同じSurfaceのexpanded content tree、全operandは同じIRのatomを参照し、外部Surface / 未知Node参照を拒否する。`closures`はowner Node IDとoperatorのUTF-16 code-unit順、operand paint index列、operator固有値の順にsortする。各merged closure groupは、この検証・sort後のclosure listをADR-0010の数値規則とRFC 8785 property orderでcanonical JSON化してSHA-256する。no-closure keyはcanonical JSON `{"kind":"no-closure","version":1}`のSHA-256として全buildで固定する。
+`presentByState`、`visualBoundsByState`、`effectPaddingByState`は全reachable Stateをexactly onceで持つ。presentならboundsはfiniteかつ正、absentならboundsは`null`かつpaddingは全て0とする。paddingはfiniteかつnon-negativeである。closure ownerは同じSurfaceのexpanded content tree、全operandは同じIRのatomを参照し、外部Surface / 未知Node参照を拒否する。`closures` は全 reachable State について生成し、owner Node ID、operator、stateId の UTF-16 code-unit 順、operand の canonical paint 順、operator 固有値の順に sort する。State 間で overlap する interval も union し、stateId を含む operator list を hash する。各merged closure groupは、この検証・sort後のclosure listをADR-0010の数値規則とRFC 8785 property orderでcanonical JSON化してSHA-256する。no-closure keyはcanonical JSON `{"kind":"no-closure","version":1}`のSHA-256として全buildで固定する。
 
-v1のclosed operator kindは`source-over`、axis-alignedな`rect-clip`、`group-opacity`だけである。`clipBounds`はfiniteかつ正のlogical bounds、`opacity`はfiniteな`0..1`とする。mask、filter、blend、backdrop、非矩形clip、未宣言・未知operator、closure外のNodeを暗黙参照するparameter、non-contiguous operandは`compiler-partition-compositing-unsupported`で拒否する。Opaque entryは一atom / 一closureとして扱い、別entryとのcross-boundary effectを許可しない。closure内部に任意boundaryを置かず、required renderer boundaryとcompositing closureが衝突する場合は`compiler-partition-compositing-boundary-conflict`でbuild errorとする。
+v1 の closed operator kind は `source-over`、既存 Frame の `frame-clip`、`group-opacity` だけである。`frame-clip` は resolved outer `clipBounds` と `borderWidth` / `borderRadius` を保持し、Renderer の Frame の枠内 clipping に対応する。bounds は finite かつ正、枠幅と半径は finite かつ非負、`opacity` は finite な `0..1` とする。角丸を含む既存 Frame の clip は同じ closure 内で描画し、枠幅と半径の変更も identity に反映する。mask、filter、blend、backdrop、Frame 以外の非矩形 clip、未宣言・未知 operator、closure 外の Node を暗黙参照する parameter、non-contiguous operand は `compiler-partition-compositing-unsupported` で拒否する。Opaque entryは一atom / 一closureとして扱い、別entryとのcross-boundary effectを許可しない。closure内部に任意boundaryを置かず、required renderer boundaryとcompositing closureが衝突する場合は`compiler-partition-compositing-boundary-conflict`でbuild errorとする。
 
 ### v1 automatic partition
 
@@ -162,43 +163,24 @@ DeliveryManifest生成時にreachable Stateの非empty bindingを満たすcompat
 
 非empty state bindingの`artifactIds`はCompilerが選択優先順で並べたnon-empty / duplicate-free listとする。Deliveryはこの順序を変更せず、target capabilityとcompatibleな最初のartifactを選ぶ。後続候補の解像度 / format preferenceはM2 item 6のbudget contractで固定するが、複数compatible候補のtie-break authorityは常にこのordered listであり、record iterationやAsset ID辞書順を使わない。
 
-### Cross-partition semantics と Hit Region
+### Surface semantics と Hit Region
 
-Semantic Tree、Interaction、Surface StateはSemantic Surface全体の正本であり、partitionへ複製して別identityを作らない。target Renderer APIはportable `HitRegion`ではなく、次のbuild-internal shapeをState ID keyed recordで返す。
+[ADR-0021](./0021-surface-interaction-geometry.md) により、Hit Region は画像 partition から独立させる。Structured Frame / Text の Compiler は各 State の layout、visibility / opacity、ancestor clip、surfaceVisibleWindow から Surface 全体の normalized region を一度解決する。Renderer は private region を返さず、描画 partition の追加・分割で操作範囲を変更しない。
 
-```ts
-type RendererPrivateHitRegion = {
-  interactionId: InteractionId;
-  semanticNodeId: SemanticNodeId;
-  bounds: { x: number; y: number; width: number; height: number };
-  priority: UInt32;
-};
+Semantic Tree、Interaction、Surface State は Semantic Surface 全体の正本である。透明 Frame の button も自身の矩形を操作範囲として持ち、描画 atom がないことを理由に除外しない。Core は完成 Tree、enabled Interaction、priority、region の duplicate / canonical order を Surface 全体で検証する。
 
-type RendererPrivateHitRegionsByState = Readonly<
-  Record<SurfaceStateId, readonly RendererPrivateHitRegion[]>
->;
-```
-
-private `bounds`は`RenderSurface.logicalBounds`の左上を`(0, 0)`とするpartition-local logical coordinateであり、normalized `rx / ry`ではない。全値をfinite、`width / height > 0`、`0 <= x < bw`、`0 <= y < bh`、`x + width <= bw`、`y + height <= bh`とし、left / top inclusive、right / bottom exclusiveとする。`priority`はcanonical Interaction definitionの`hitPriority`をCompilerがcopyしてplanへ渡す値であり、rendererは生成・変更しない。`event`、State ID、RenderSurfaceId、layerをregion fieldへ重複させない。artifact producerがCompilerから受け取ったpartition clip windowとのintersectionを一度だけ適用し、clip後に面積0となるregionは出力しない。Compiler aggregate stageは再clipせずSemantic Surface全体のnormalized coordinateへ変換して全partitionのState別regionを結合する。Coreはaggregate後のportable `HitRegion`をreject-onlyで検証し、enabled Interactionのregion completenessをSurface全体で判定する。
-
-Semantic Surface logical sizeを`W, H`、partition boundsを`bx, by, bw, bh`、private boundsを`x, y, width, height`としたaggregate式は`nx = (bx + x) / W`、`ny = (by + y) / H`、`nwidth = width / W`、`nheight = height / H`である。変換後もbinary64を保ち、pixel roundingや再clipを行わない。
-
-現行Renderer APIの`RendererBuildSuccess.hitRegionsByState: HitRegion[]`は、一partition subsetがすでにSemantic Surface normalized regionを返す暫定contractである。M3では`RendererPrivateHitRegion`への置換、aggregate、portable `HitRegion`生成を同一sliceで移行し、local / normalizedの両方を同じfieldで許可しない。
-
-同じbuttonが複数partitionまたはintervalにまたがる場合は、同じ`interactionId` / `semanticNodeId`を持つ複数regionとして表す。aggregate後にADR-0009のduplicate、enabled、button参照、priority / ID / bounds canonical orderをCoreがreject-onlyで検証する。RenderSurfaceId、layer、UV、pixel、partition-local coordinateをpublic Hit Regionへ含めず、visual layerをhit-test winnerに使用しない。
-
-Native UI dynamic semantic textのprofile横断injective検証、enabled Interactionのregion completeness、crossfade中のinteraction無効化もSemantic Surface全体を単位に行う。
+全 State で描画内容がなければ Render Surface は 0 件とし、意味情報と Hit Region は保持する。Native UI / Opaque / Video の geometry 解決は対象 consumer の実装時に Surface 単位の契約へ接続する。
 
 ## Consumer responsibility
 
-| Consumer               | Responsibility                                                                            |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| Authoring / Components | stable Part binding、partition permission、isolate overrideの宣言と静的検証               |
-| Contracts              | policy / provenance / UInt32 layer / state bindingのportable runtime shape                |
-| Presentation Core      | atom coverage、state-invariant topology、layer / bounds / region aggregate invariant      |
-| Compiler               | paint atoms、boundary、renderer選択、ID / bounds / layer、atomic aggregateの唯一authority |
-| Renderer API / Web     | 渡された一partitionだけを描画し、private geometry / regionとprovenanceを返す              |
-| Delivery / Unity       | partitionごとのartifactを再選択せず固定し、layer順に合成する                              |
+| Consumer               | Responsibility                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| Authoring / Components | stable Part binding、partition permission、isolate overrideの宣言と静的検証                          |
+| Contracts              | policy / provenance / UInt32 layer / state bindingのportable runtime shape                           |
+| Presentation Core      | state coverage、state-invariant topology、layer / bounds / Hit Region invariant                      |
+| Compiler               | paint atoms、ownership、boundary、renderer選択、ID / bounds / layer、Surface Hit Region の authority |
+| Renderer API / Web     | 渡された一partitionだけを描画し、capture と provenance を返す                                        |
+| Delivery / Unity       | partitionごとのartifactを再選択せず固定し、layer順に合成する                                         |
 
 ## Consequences
 
@@ -230,6 +212,6 @@ renderer detailをinteraction authorityへ混入させるため採用しない�
 
 - M3A では [ADR-0017](./0017-m3a-structured-authoring-contract.md) の Part binding を実装し、partition permission / isolate は実装しない。
 - partition permission / isolate overrideはmulti-partition planningと同じ後続変更系列でAuthoring / Components / CompilerへTDDで実装する。
-- M3 Slice BでADR-0009のHit Region schema移行とpartition aggregate fixtureを同時に実装する。
+- Hit Region は ADR-0021 の Surface 単位の計測契約と fixture を正本とし、partition-local 集約を再導入しない。
 - M4でmulti-partition reference project、Browser capture、deterministic ID / paint order fixtureを追加する。
 - M2 item 6でheuristic splitを追加せず、artifact / GPU / RAM budgetと超過diagnosticを固定する。

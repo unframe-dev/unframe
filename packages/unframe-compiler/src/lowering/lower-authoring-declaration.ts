@@ -290,6 +290,32 @@ const createEvaluator = (
       );
       return;
     }
+    let symbol = local;
+    while (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    const componentDeclaration = symbol.declarations?.find(
+      (declaration): declaration is ts.VariableDeclaration => ts.isVariableDeclaration(declaration),
+    );
+    if (componentDeclaration) {
+      const facade = reactFacades.get(
+        context.displayFileName(componentDeclaration.getSourceFile()),
+      );
+      if (
+        facade &&
+        ts.isIdentifier(componentDeclaration.name) &&
+        componentDeclaration.name.text === facade.exportName
+      ) {
+        const origin = origins(node);
+        return {
+          kind: "object" as const,
+          origin,
+          properties: (["id", "version"] as const).map((key) => ({
+            key,
+            origin,
+            value: { kind: "literal" as const, origin, value: facade[key] },
+          })),
+        };
+      }
+    }
     if (provenance.has(local)) {
       report(
         node,
@@ -298,8 +324,6 @@ const createEvaluator = (
       );
       return;
     }
-    let symbol = local;
-    while (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
     if (cache.has(symbol)) return cache.get(symbol);
     if (stack.includes(symbol)) {
       report(
@@ -324,26 +348,6 @@ const createEvaluator = (
       (d): d is ts.VariableDeclaration | ts.ExportAssignment =>
         ts.isVariableDeclaration(d) || ts.isExportAssignment(d),
     );
-    if (declaration && ts.isVariableDeclaration(declaration)) {
-      const fileName = context.displayFileName(declaration.getSourceFile());
-      const facade = reactFacades.get(fileName);
-      if (
-        facade &&
-        ts.isIdentifier(declaration.name) &&
-        declaration.name.text === facade.exportName
-      ) {
-        const origin = origins(node);
-        return {
-          kind: "object" as const,
-          origin,
-          properties: (["id", "version"] as const).map((key) => ({
-            key,
-            origin,
-            value: { kind: "literal" as const, origin, value: facade[key] },
-          })),
-        };
-      }
-    }
     const initializer =
       declaration &&
       (ts.isVariableDeclaration(declaration) ? declaration.initializer : declaration.expression);
@@ -896,6 +900,23 @@ const createEvaluator = (
         );
       return;
     }
+    const facade = target && reactFacades.get(context.displayFileName(target));
+    const packageExport = resolved.packageExport;
+    if (
+      owner?.kind === "package" &&
+      facade &&
+      packageExport &&
+      !clause.name &&
+      clause.namedBindings &&
+      ts.isNamedImports(clause.namedBindings) &&
+      clause.namedBindings.elements.every(
+        (item) =>
+          item.isTypeOnly ||
+          ((item.propertyName?.text ?? item.name.text) === facade.exportName &&
+            context.relativeFileName(target) === packageExport.targetFile),
+      )
+    )
+      return;
     if (
       resolved.packageExport?.packageName !== "@unframe/unframe-authoring" ||
       clause.name ||

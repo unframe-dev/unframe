@@ -386,9 +386,7 @@ const renderEntry = (
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([name, value]) => `const ${name} = ${JSON.stringify(value)};`);
   const byName = new Map(
-    [...context.sourceFiles.values()]
-      .filter((file) => context.ownerFor(file)?.kind === "project")
-      .map((file) => [context.displayFileName(file), file] as const),
+    [...context.sourceFiles.values()].map((file) => [context.displayFileName(file), file] as const),
   );
   let usesJsx = false;
   const dynamicModuleUse = (node: ts.Node): Diagnostic | undefined => {
@@ -508,11 +506,29 @@ const renderEntry = (
 export const extractReactComponents = (analyzed: Analyzed): ExtractedReactComponents => {
   const components: ExtractedReactComponent[] = [];
   const diagnostics: Diagnostic[] = [];
-  const files = [...analyzed.value.context.sourceFiles.values()].filter(
-    (file) =>
-      analyzed.value.context.ownerFor(file)?.kind === "project" &&
-      analyzed.value.context.displayFileName(file).endsWith(".component.tsx"),
-  );
+  const files = [...analyzed.value.context.sourceFiles.values()].filter((file) => {
+    const context = analyzed.value.context;
+    const owner = context.ownerFor(file);
+    if (!context.displayFileName(file).endsWith(".component.tsx")) return false;
+    if (owner?.kind === "project") return true;
+    if (owner?.kind !== "package") return false;
+    const path = context.relativeFileName(file);
+    return (
+      analyzed.value.context.projectRootFiles.some((root) => {
+        const source = context.sourceFiles.get(root);
+        return source?.statements.some(
+          (statement) =>
+            ts.isImportDeclaration(statement) &&
+            ts.isStringLiteralLike(statement.moduleSpecifier) &&
+            (() => {
+              const resolved = context.resolve(root, statement.moduleSpecifier.text);
+              return resolved.kind === "resolved" && resolved.fileName === file.fileName;
+            })(),
+        );
+      }) &&
+      owner.package.exports.some((entry) => entry.runtimeImport === path || entry.types === path)
+    );
+  });
   for (const file of files) {
     const found: {
       statement: ts.VariableStatement;

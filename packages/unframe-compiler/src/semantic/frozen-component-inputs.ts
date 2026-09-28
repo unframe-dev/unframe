@@ -34,6 +34,16 @@ const relativePath = (from: string, specifier: string) => {
 };
 const imports = (file: ts.SourceFile, runtimeOnly: boolean): string[] => {
   const result: string[] = [];
+  const checkDynamic = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === "require"))
+    )
+      throw new Error("Component input graph must use static imports.");
+    ts.forEachChild(node, checkDynamic);
+  };
+  checkDynamic(file);
   for (const statement of file.statements) {
     if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
     if (
@@ -48,7 +58,7 @@ const imports = (file: ts.SourceFile, runtimeOnly: boolean): string[] => {
   return result;
 };
 const fileClosure = (
-  source: ParsedAuthoringProjectValue,
+  source: Pick<ParsedAuthoringProjectValue, "files" | "rawFiles">,
   roots: readonly string[],
   runtimeOnly = false,
 ) => {
@@ -83,16 +93,18 @@ const fileClosure = (
     paths.add(path);
     const references = file
       ? imports(file, runtimeOnly)
-      : raw?.mediaType === "text/css" && raw.encoding === "utf8"
-        ? [
-            ...raw.data.matchAll(
-              /(?:@import\s+["']([^"']+)["']|url\(\s*["']?([^"')\s]+)["']?\s*\))/g,
-            ),
-          ].map((match) => match[1] ?? match[2]!)
-        : [];
+      : raw?.mediaType === "text/javascript" && raw.encoding === "utf8"
+        ? imports(ts.createSourceFile(path, raw.data, ts.ScriptTarget.ES2022, true), runtimeOnly)
+        : raw?.mediaType === "text/css" && raw.encoding === "utf8"
+          ? [
+              ...raw.data.matchAll(
+                /(?:@import\s+["']([^"']+)["']|url\(\s*["']?([^"')\s]+)["']?\s*\))/g,
+              ),
+            ].map((match) => match[1] ?? match[2]!)
+          : [];
     for (const specifier of references) {
       if (specifier.startsWith(".")) visit(resolve(path, specifier));
-      else if (raw) {
+      else if (raw?.mediaType === "text/css") {
         if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(specifier))
           throw new Error("CSS assets must use local relative references.");
         visit(resolve(path, `./${specifier}`));
@@ -108,7 +120,11 @@ const fileClosure = (
     bare: [...bare].sort(compare),
   };
 };
-const runtimeGraph = (source: ParsedAuthoringProjectValue, specifiers: readonly string[]) => {
+const runtimeGraph = (
+  source: ParsedAuthoringProjectValue,
+  specifiers: readonly string[],
+  dependencies = source.rootDependencies,
+) => {
   const packages = new Map(source.packages.map((pkg) => [pkg.key, pkg]));
   const reached = new Set<string>();
   const visit = (key: string): void => {
@@ -122,16 +138,14 @@ const runtimeGraph = (source: ParsedAuthoringProjectValue, specifiers: readonly 
   };
   for (const specifier of specifiers) {
     const name = packageName(specifier);
-    const edge = source.rootDependencies.find(
-      (edge) => edge.usage === "runtime" && edge.specifier === name,
-    );
+    const edge = dependencies.find((edge) => edge.usage === "runtime" && edge.specifier === name);
     const pkg = edge && packages.get(edge.packageKey);
     const subpath = specifier === name ? "." : `.${specifier.slice(name.length)}`;
     if (!pkg?.exports.some((entry) => entry.subpath === subpath && entry.runtimeImport !== null))
       throw new Error(`Runtime import export is not locked: ${specifier}`);
   }
   const roots = [...new Set(specifiers.map(packageName))].sort(compare).map((specifier) => {
-    const edge = source.rootDependencies.find(
+    const edge = dependencies.find(
       (edge) => edge.usage === "runtime" && edge.specifier === specifier,
     );
     if (!edge) throw new Error(`Runtime dependency is not locked: ${specifier}`);
@@ -176,21 +190,49 @@ export const computeFrozenComponentInputs = (
       (component) => {
         const manifest = component.manifest.value;
         const entryFile = component.manifest.fileName;
-        if (!source.files[entryFile])
+        const structured = "structure" in component;
+        const packageOrigin = source.packages.flatMap((pkg) =>
+          pkg.exports
+            .filter((entry) => {
+              const target = entry.runtimeImport?.endsWith(".component.tsx")
+                ? entry.runtimeImport
+                : (entry.types ?? entry.runtimeImport);
+              return target !== null && entryFile === `${pkg.name}@${pkg.version}/${target}`;
+            })
+            .map((entry) => ({
+              kind: "package" as const,
+              packageKey: pkg.key,
+              subpath: entry.subpath,
+            })),
+        );
+        if (packageOrigin.length > 1)
+          throw new Error("Component package origin must name exactly one export.");
+        if (source.files[entryFile] && packageOrigin.length)
+          throw new Error(
+            "Component origin is ambiguous between local source and a package export.",
+          );
+        if (!source.files[entryFile] && packageOrigin.length === 0)
           throw new Error(
             "Component origins outside local source require an explicit package export.",
           );
-        const structured = "structure" in component;
-        const closure = fileClosure(
-          source,
-          structured ? [entryFile, component.structure.fileName] : [entryFile],
-        );
-        const origin = {
-          kind: "local" as const,
-          entryFile,
-          files: closure.files,
-          sourceHash: hashCanonicalJsonPayload({ entryFile, files: closure.files }),
-        };
+        const origin =
+          packageOrigin[0] ??
+          (() => {
+            const closure = fileClosure(
+              source,
+              structured ? [entryFile, component.structure.fileName] : [entryFile],
+            );
+            return {
+              kind: "local" as const,
+              entryFile,
+              files: closure.files,
+              sourceHash: hashCanonicalJsonPayload({ entryFile, files: closure.files }),
+            };
+          })();
+        const originPackage =
+          origin.kind === "package"
+            ? source.packages.find((pkg) => pkg.key === origin.packageKey)
+            : undefined;
         const common = {
           componentId: manifest.componentId,
           version: manifest.version,
@@ -213,12 +255,28 @@ export const computeFrozenComponentInputs = (
           }
         ).renderer;
         if (!renderer) throw new Error("Opaque component must carry its extracted renderer.");
-        const renderClosure = fileClosure(source, renderer.localDependencies, true);
+        const renderClosure = originPackage
+          ? fileClosure(
+              originPackage,
+              renderer.localDependencies.map((path) => {
+                const prefix = `${originPackage.name}@${originPackage.version}/`;
+                if (!path.startsWith(prefix))
+                  throw new Error("Package renderer helper must remain in its origin package.");
+                return path.slice(prefix.length);
+              }),
+              true,
+            )
+          : fileClosure(source, renderer.localDependencies, true);
         const rendererInputHash = hashCanonicalJsonPayload({
           extractionProfile: "react-component-v1",
           rendererAst: renderer.entrySource,
           localFiles: renderClosure.files,
-          runtimeGraph: runtimeGraph(source, [...renderer.packageImports, ...renderClosure.bare]),
+          originPackageIntegrity: originPackage?.contentIntegrity ?? null,
+          runtimeGraph: runtimeGraph(
+            source,
+            [...renderer.packageImports, ...renderClosure.bare],
+            originPackage?.dependencies ?? source.rootDependencies,
+          ),
           bundleTool: { name: "unframe-react-extractor", version: 1, typescript: ts.version },
         });
         return { ...common, mode: "opaque" as const, rendererInputHash };

@@ -442,23 +442,28 @@ const validateInput = (
         "clipWindow",
       ]),
     );
-  for (const [interactionId, priority] of Object.entries(input.plan.hitPriorityByInteractionId))
-    if (input.surface.interactions[interactionId]?.hitPriority !== priority)
-      diagnostics.push(
-        diagnostic(
-          "invalid-hit-priority-plan",
-          "Planned priority must match the interaction definition.",
-          [...prefix, "plan", "hitPriorityByInteractionId", interactionId],
-        ),
-      );
-  if (!sameKeySet(input.plan.hitPriorityByInteractionId, input.surface.interactions))
-    diagnostics.push(
-      diagnostic(
-        "hit-priority-plan-mismatch",
-        "Planned interaction priorities must cover every interaction.",
-        [...prefix, "plan", "hitPriorityByInteractionId"],
-      ),
-    );
+  if (ownership.kind === "structured" && input.surface.content.kind === "structured") {
+    const nodes = input.surface.content.nodes;
+    for (const contextNodeId of ownership.contextNodeIds) {
+      const node = nodes[contextNodeId];
+      const ancestorOfOwned = ownership.ownedContentNodeIds.some((ownedId) => {
+        let parentId = nodes[ownedId]?.parentId;
+        while (parentId !== null && parentId !== undefined) {
+          if (parentId === contextNodeId) return true;
+          parentId = nodes[parentId]?.parentId;
+        }
+        return false;
+      });
+      if (node?.kind !== "frame" || !ancestorOfOwned)
+        diagnostics.push(
+          diagnostic(
+            "invalid-context-node",
+            "Context nodes must be ancestor Frames of owned content.",
+            [...prefix, "plan", "ownership", "contextNodeIds", contextNodeId],
+          ),
+        );
+    }
+  }
 };
 
 type PreparedRendererBoundary = {

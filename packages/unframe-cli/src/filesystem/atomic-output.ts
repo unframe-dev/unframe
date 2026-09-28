@@ -33,7 +33,7 @@ export type AtomicOutputResult =
   | {
       readonly ok: false;
       readonly family: "cancel" | "io";
-      readonly code: "cli-output-cancel" | "cli-output-io";
+      readonly code: "cli-output-cancel" | "cli-output-io" | "cli-output-stale";
     };
 
 export type PublishAtomicArtifactsInput = {
@@ -41,6 +41,7 @@ export type PublishAtomicArtifactsInput = {
   readonly artifacts: AtomicOutputArtifacts;
   readonly generationId?: () => string;
   readonly signal?: AbortSignal;
+  readonly isCurrentRevision?: () => Promise<boolean>;
   readonly testing?: {
     readonly onPhase?: (
       phase:
@@ -72,6 +73,8 @@ class PublicationFailure extends Error {
 class PublicationCancelled extends Error {
   override readonly name = "PublicationCancelled";
 }
+
+class PublicationStale extends Error {}
 
 const fail = (): never => {
   throw new PublicationFailure();
@@ -357,6 +360,7 @@ export const publishAtomicArtifacts = async ({
   artifacts,
   generationId = () => randomBytes(16).toString("hex"),
   signal,
+  isCurrentRevision,
   testing,
 }: PublishAtomicArtifactsInput): Promise<AtomicOutputResult> => {
   let staging: DirectoryIdentity | undefined;
@@ -405,6 +409,7 @@ export const publishAtomicArtifacts = async ({
     await requireSameDirectory(generations);
     if (cancelled(signal)) cancel();
     await rename(staging.path, generation).catch(() => fail());
+    staging = { ...staging, path: generation };
     if (
       !(await verifyDirectoryPath(generation)) ||
       !(await sameDirectory(generations)) ||
@@ -426,6 +431,7 @@ export const publishAtomicArtifacts = async ({
     if (cancelled(signal)) cancel();
     await testing?.onPhase?.("before-dist-replace");
     if (cancelled(signal)) cancel();
+    if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
     await requireSameDirectory(project);
     await requireSameDirectory(generations);
     if (!(await unchangedDist(previousDist, readLstat))) fail();
@@ -445,6 +451,8 @@ export const publishAtomicArtifacts = async ({
     await cleanupTemporaryLink(temporaryLink);
     if (error instanceof PublicationCancelled)
       return { ok: false, family: "cancel", code: "cli-output-cancel" };
+    if (error instanceof PublicationStale)
+      return { ok: false, family: "io", code: "cli-output-stale" };
     return { ok: false, family: "io", code: "cli-output-io" };
   } finally {
     await closeDirectories(assets, staging, generations, unframe, project);

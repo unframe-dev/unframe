@@ -68,7 +68,7 @@ Slot の子は placeholder の children 位置で順序付きに展開する。`
 
 Component ActionをSurface State cut / crossfade、Variable / Nodeの即時Actionとhost Timelineのplay Actionへ、Component OutputをSurface Interaction、Step timer、Timeline completionのTriggerと固定Scalar payloadへ展開する。CueのGuard、priority、fire policy、空ActionのStep遷移を保持し、Coreの意味検証へ渡す。Structured Surface Component の Timeline は instance host Spatial Node、instance owner、canonical resource ID に lower する。Slotted / Opaque Component の Timeline は拒否する。
 
-`compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。Renderer の partition-local Hit Region は Compiler が Semantic Surface 全体の normalized 座標へ集約する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
+`compileDeclarationProject(unknown, options)` は同じ subset を canonical paint order と compositing closure から自動 partition し、全 State の完成 Semantic Tree を Core で materialize する。Hit Region は同じ Surface layout の visibility / opacity・ancestor clip から一度生成し、画像 partition の bounds では切り取らない（[ADR-0021](../../docs/decisions/0021-surface-interaction-geometry.md)）。注入された `baked-web` Renderer には検証済み font bytes と、partition bounds から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
@@ -76,7 +76,7 @@ Source frontend は、明示的な logical project root、root-relative TS / TSX
 
 Structured typecheck は strict ES2022、`noLib` で実行し、project root から到達しない package の ambient declaration を semantic program へ混入させない。一方、lock graph 全体の module specifier は preflight し、不正な dependency / export を owner-aware source diagnostic として拒否する。named value import は TypeChecker alias と package identity / export / declaration owner を照合し、plain-data symbol provenance を生成できる。
 
-React Component は公開 metadata と renderer を非実行で分離し、React 用 Program の ES2022 / DOM lib と locked React 型で検査する。local `.component.tsx` は Opaque Manifest と catalog entry を生成し、配置を canonical Surface / host Spatial Node へ変換する。Source closure と描画依存の hash は frozen assembly 前に再計算する。capture は未実装として拒否する。
+React Component は公開 metadata と renderer を非実行で分離し、React 用 Program の ES2022 / DOM lib と locked React 型で検査する。local `.component.tsx` と locked package の明示 export にある Component Source は Opaque Manifest と catalog entry を生成し、配置を canonical Surface / host Spatial Node へ変換する。package Component は named import に対応する。local module で import 後に named export する形は扱うが、package からの直接の `export { Hero } from "ui-kit"` は既存の static 宣言規則に従って拒否する。Source closure と描画依存の hash は frozen assembly 前に再計算する。raw package JS の side-effect import は凍結時に依存を走査するが、その named export の型解決は未対応である。capture は未実装として拒否する。
 
 個別 declaration file については、Static DSL の import、const 参照、root / nested builder、JSON-like expression、Authoring JSX を fail closed で検証し、source origin 付きの plain-data Declaration Graph へ lower できる。builder signature と JSX tag は現行 public Authoring API に固定し、Source module、JSX runtime、builder implementation は実行しない。
 
@@ -153,7 +153,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 
 - named entry export
 - plugin discovery と version negotiation
-- ADR-0011でAcceptedになったSurface partition / author isolate overrideのM3〜M4実装
+- ADR-0011 の author isolate override と異なる renderer 間の required boundary 接続
 - cache layout と remote cache policy
 - M1後のBrowser pooling / multi-project isolate topology
 - release間のdiagnostic compatibility policy

@@ -189,7 +189,7 @@ export class VirtualModuleContext {
           code: "compiler-module-root-escape",
           message: "Relative import must remain inside its virtual owner.",
         };
-      const resolved = (owner.kind === "package" ? [path] : moduleCandidates(path)).find(
+      const resolved = moduleCandidates(path).find(
         (candidate) => owner.files[candidate] !== undefined,
       );
       const raw = owner.rawFiles[path];
@@ -232,7 +232,9 @@ export class VirtualModuleContext {
         code: "compiler-module-deep-import-forbidden",
         message: "Bare imports must resolve through an exact locked package export.",
       };
-    const targetFile = exported.types ?? exported.runtimeImport ?? exported.runtimeRequire;
+    const targetFile = exported.runtimeImport?.endsWith(".component.tsx")
+      ? exported.runtimeImport
+      : (exported.types ?? exported.runtimeImport ?? exported.runtimeRequire);
     if (targetFile === null || pkg.files[targetFile] === undefined)
       return {
         kind: "failed",

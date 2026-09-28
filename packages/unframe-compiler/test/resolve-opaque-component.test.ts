@@ -127,6 +127,12 @@ describe("Opaque React lowering", () => {
     if (heading?.role === "heading") expect(heading.text).toBe("Hello");
     expect(first.value.definition.scene.nodes[hostId]?.transform.rotation).toEqual([0, 0, 0, 1]);
     expect(reordered.value.definition.scene.surfaces[surfaceId]).toEqual(surface);
+    expect(Object.keys(reordered.value.definition.scene.surfaces).sort()).toEqual(
+      Object.keys(first.value.definition.scene.surfaces).sort(),
+    );
+    expect(Object.keys(reordered.value.definition.scene.nodes).sort()).toEqual(
+      Object.keys(first.value.definition.scene.nodes).sort(),
+    );
     expect(reactResourceId("host", "one")).toMatch(/^r:[0-9a-f]{64}$/);
   });
 

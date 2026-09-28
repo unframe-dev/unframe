@@ -103,7 +103,7 @@ ry = (y - by) / bh
 
 rendererのlayout / raster pixel coordinateは左上原点で、`pixelX = rx * pixelWidth`、`pixelY = ry * pixelHeight`とする。pixel domainはhalf-openである。raster artifactはRender Surface bounds全体をedge-to-edgeで表し、artifact内で別のcontain / coverを適用しない。
 
-Semantic Surface全体のnormalized point`(nx, ny)`からpartition-local coordinateへ変換する場合は、いったん`x = nx * W`、`y = ny * H`へ戻して上式を適用する。逆変換は`nx = (bx + rx * bw) / W`、`ny = (by + ry * bh) / H`とする。Hit Region wireへ保存するのはこの逆変換後のSemantic Surface全体基準だけである。
+Semantic Surface全体のnormalized point`(nx, ny)`からpartition-local coordinateへ変換する場合は、いったん`x = nx * W`、`y = ny * H`へ戻して上式を適用する。逆変換は`nx = (bx + rx * bw) / W`、`ny = (by + ry * bh) / H`とする。Hit Region wire は Semantic Surface 全体基準だけを使用し、生成時に partition-local coordinate を経由しない（[ADR-0021](./0021-surface-interaction-geometry.md)）。
 
 Unity mesh UV0は左下原点なので、logical / rasterから次の一回のY flipで変換する。
 
@@ -133,9 +133,9 @@ partitionVisible = geometry
   intersect RenderSurface.logicalBounds
 ```
 
-`contain`のinverse physical viewportはlogical domainより広いためcontent側でclipされ、余りはletterboxになる。`cover`ではinverse physical viewportがlogical domainの部分集合となり、cropされたgeometryとregionを出力しない。複数Render Surfaceへpartitionしてもnormalized Hit RegionはSemantic Surface全体を分母にし、partition-local `rx / ry`やUVをDeliveryへ出さない。partition境界にまたがる一つのbuttonは複数regionへ分割でき、ADR-0009のduplicate / canonical order規則に従う。
+`contain`のinverse physical viewportはlogical domainより広いためcontent側でclipされ、余りはletterboxになる。`cover`ではinverse physical viewportがlogical domainの部分集合となり、cropされたgeometryとregionを出力しない。複数Render Surfaceへpartitionしてもnormalized Hit RegionはSemantic Surface全体を分母にし、partition-local `rx / ry`やUVをDeliveryへ出さない。button の region は画像 partition の境界では分割せず、ADR-0009 の duplicate / canonical order 規則に従う。
 
-clipのauthorityは一方向にする。CompilerはまずRender Surfaceに依存しない`surfaceVisibleWindow`を決定し、raw visual unionとのintersectionから各`RenderSurface.logicalBounds`を導出する。次にそのboundsをpartition clip windowとしてrenderer planへ渡すが、rendererが返すconcrete geometryを先にclipしない。artifact producer（Browser renderer、またはNative UI planを生成するCompiler stage）がこのwindowとのintersectionを一度だけ適用し、partition-local private geometry / regionを出力する。Compiler aggregate stageはregionを再clipせずSemantic Surface normalized coordinateへ変換し、Presentation Coreは出力がwindow内であることを再検証して、補正せず違反をbuild errorにする。
+clip の authority は一方向にする。Compiler は Render Surface に依存しない `surfaceVisibleWindow` を決定し、raw visual union との intersection から各 `RenderSurface.logicalBounds` を導出する。Renderer はこの bounds を描画の clip window として使用する。Hit Region は ADR-0021 に従い、Compiler が Surface 全体の effective placement、visibility / opacity、ancestor clip、surfaceVisibleWindow から一度だけ求め、Surface logical size で正規化する。画像の bounds は Hit Region の計算に使わず、Core は補正せず違反を build error にする。
 
 ### Numeric and validation policy
 
@@ -154,7 +154,7 @@ Cross-language fixtureは少なくともidentity、nested translation / rotation
 | Contracts                | finite local TRS、positive scale / size、Quaternion tuple、logical boundsのportable runtime shape        |
 | Presentation Core        | parent graph、Quaternion norm / sign、TRS / matrix invariant、bounds / fit / regionのsemantic validation |
 | Compiler                 | Quaternion / local TRS canonicalization、world matrix、fit / partition / canonical clip windowの決定     |
-| Renderer API / Web       | top-left logical / pixel geometry、clip windowの一回適用、partition-local private region                 |
+| Renderer API / Web       | top-left logical / pixel geometry、描画 clip window の適用                                               |
 | Control Plane / Delivery | coordinate contract / capability versionの一致とportable artifactのfail-closed validation                |
 | Unity                    | Z reflection、Surface / UV、binary64 authoritative ray inverse / hit-testとvisual float rangeを検証      |
 

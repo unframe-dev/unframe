@@ -91,9 +91,10 @@ export const analyzeAuthoringProject = (
     host,
   });
   const isReactProjectFile = (file: ts.SourceFile, programContext: VirtualModuleContext) => {
-    if (programContext.ownerFor(file)?.kind !== "project") return false;
+    if (!programContext.ownerFor(file)) return false;
     const name = programContext.displayFileName(file);
     if (name.endsWith(".component.tsx")) return true;
+    if (programContext.ownerFor(file)?.kind !== "project") return false;
     if (
       name === project.entryFile ||
       name.endsWith(".manifest.ts") ||
@@ -103,8 +104,8 @@ export const analyzeAuthoringProject = (
       return false;
     return !name.endsWith(".d.ts");
   };
-  const hasReactComponents = Object.keys(project.files).some((name) =>
-    name.endsWith(".component.tsx"),
+  const hasReactComponents = [...context.sourceFiles.values()].some((file) =>
+    context.displayFileName(file).endsWith(".component.tsx"),
   );
   let reactContext: VirtualModuleContext | undefined;
   let reactDiagnostics: readonly ts.Diagnostic[] = [];
