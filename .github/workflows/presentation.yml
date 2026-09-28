@@ -25,4 +25,6 @@ jobs:
         run: nix develop --command scripts/dev/install-presentation-browser.sh
 
       - name: shared config / typecheck / lint / test
+        env:
+          DEBUG: pw:browser
         run: nix run .#presentation
