@@ -560,32 +560,32 @@ function verifyIntegrity(
   const definition = parseArtifact(
     "definition",
     presentationDefinitionV2Schema,
-    snapshot.value.definition,
+    snapshot.value["definition"],
     diagnostics,
   );
   const renderBundle = parseArtifact(
     "renderBundle",
     renderBundleV2Schema,
-    snapshot.value.renderBundle,
+    snapshot.value["renderBundle"],
     diagnostics,
   );
   const assetSet = parseArtifact(
     "assetSet",
     assetSetManifestV2Schema,
-    snapshot.value.assetSet,
+    snapshot.value["assetSet"],
     diagnostics,
   );
   const buildManifest = parseArtifact(
     "buildManifest",
     buildManifestV2Schema,
-    snapshot.value.buildManifest,
+    snapshot.value["buildManifest"],
     diagnostics,
   );
   const publishedPresentation = publication
     ? parseArtifact(
         "publishedPresentation",
         publishedPresentationV2Schema,
-        snapshot.value.publishedPresentation,
+        snapshot.value["publishedPresentation"],
         diagnostics,
       )
     : undefined;
@@ -599,7 +599,7 @@ function verifyIntegrity(
     if (publication && buildManifest !== undefined && publishedPresentation === undefined)
       verifyUnparsedPublicationAgreement(
         buildManifest,
-        snapshot.value.publishedPresentation,
+        snapshot.value["publishedPresentation"],
         diagnostics,
       );
     return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
