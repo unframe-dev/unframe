@@ -35,7 +35,12 @@ const temporaryDirectories: string[] = [];
 const projectCopy = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-reference-project-"));
   temporaryDirectories.push(directory);
-  await cp(referenceDirectory, directory, { recursive: true });
+  await cp(referenceDirectory, directory, {
+    recursive: true,
+    filter: (source) =>
+      source !== join(referenceDirectory, "dist") &&
+      source !== join(referenceDirectory, ".unframe"),
+  });
   return directory;
 };
 
