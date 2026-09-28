@@ -26,6 +26,19 @@ const restrictionScript = `(() => {
 const observeScript = `(buttonKeys => {
   if (document.querySelector('video,audio,iframe,canvas,object,embed,svg')) throw new Error('opaque-element-unsupported');
   const root = document.getElementById('unframe-root');
+  const components = value => {
+    const parts=[];let depth=0;let start=0;
+    for (let index=0;index<value.length;index++) {
+      if (value[index]==='(') depth++;
+      else if (value[index]===')') depth--;
+      else if (value[index]===' ' && depth===0) {
+        if (start<index) parts.push(value.slice(start,index));
+        start=index+1;
+      }
+    }
+    if (start<value.length) parts.push(value.slice(start));
+    return parts;
+  };
   const observations = [];
   for (const element of document.querySelectorAll('[data-unframe-binding]')) {
     if (!root.contains(element)) throw new Error('opaque-binding-invalid');
@@ -38,6 +51,12 @@ const observeScript = `(buttonKeys => {
       const style=getComputedStyle(parent);
       if (style.display==='none' || style.visibility!=='visible' || Number(style.opacity)===0) throw new Error('opaque-binding-invisible');
       if (style.clipPath!=='none' || style.perspective!=='none' || style.clip!=='auto') throw new Error('opaque-geometry-unsupported');
+      if (style.rotate!=='none' && !/^[+-]?0+(?:\\.0+)?(?:deg|rad|grad|turn)$/.test(style.rotate)) throw new Error('opaque-geometry-unsupported');
+      if (style.scale!=='none') {
+        const scales=components(style.scale).map(Number);
+        if (scales.length<1 || scales.length>2 || scales.some(value=>!Number.isFinite(value) || value<=0)) throw new Error('opaque-geometry-unsupported');
+      }
+      if (style.translate!=='none' && components(style.translate).length>2) throw new Error('opaque-geometry-unsupported');
       if (style.transform!=='none') {
         const matrix=new DOMMatrixReadOnly(style.transform);
         if (!matrix.is2D || matrix.b!==0 || matrix.c!==0 || matrix.a<=0 || matrix.d<=0) throw new Error('opaque-geometry-unsupported');

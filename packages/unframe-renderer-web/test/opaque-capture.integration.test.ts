@@ -110,6 +110,53 @@ it("rejects transformed and nonrectangular binding geometry", async () => {
     await runtime.close();
   }
 }, 60_000);
+it("rejects individual CSS rotation on a button or its ancestor and 3D transforms", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    for (const [css, onAncestor] of [
+      ["rotate:10deg", false],
+      ["rotate:10deg", true],
+      ["rotate:x 10deg", false],
+      ["scale:1 1 2", false],
+      ["scale:-1 1", false],
+      ["translate:0px 0px 3px", false],
+    ] as const) {
+      const result = await runtime.capture({
+        ...request,
+        expectedBindings: { "node:button": "Go" },
+        buttonBindings: { "node:button": true },
+        javascript: `globalThis.__unframeMount=()=>{
+          const parent=document.createElement('div');const button=document.createElement('button');
+          button.dataset.unframeBinding='node:button';button.textContent='Go';
+          ((${JSON.stringify(onAncestor)})?parent:button).style.cssText=${JSON.stringify(css)};
+          parent.append(button);document.getElementById('unframe-root').append(parent);
+        };`,
+      });
+      expect(result).toMatchObject({ ok: false, code: "opaque-geometry-unsupported" });
+    }
+  } finally {
+    await runtime.close();
+  }
+}, 90_000);
+it("captures axis-aligned individual translate and positive scale", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    const result = await runtime.capture({
+      ...request,
+      expectedBindings: { "node:button": "Go" },
+      buttonBindings: { "node:button": true },
+      javascript: `globalThis.__unframeMount=()=>{
+        const parent=document.createElement('div');parent.style.cssText='transform-origin:0 0;translate:10px 5px;scale:2 2';
+        const button=document.createElement('button');button.dataset.unframeBinding='node:button';
+        button.textContent='Go';button.style.cssText='rotate:0deg;translate:2px 0px';
+        parent.append(button);document.getElementById('unframe-root').append(parent);
+      };`,
+    });
+    assert.isTrue(result.ok, JSON.stringify(result));
+  } finally {
+    await runtime.close();
+  }
+}, 60_000);
 it.each(["open", "closed"])(
   "rejects an author-created %s shadow root",
   async (mode) => {

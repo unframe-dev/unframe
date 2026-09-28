@@ -24,6 +24,22 @@ const failure = (code: string): RendererBuildFailure => ({
   ok: false,
   diagnostics: [{ code, message: "Opaque capture failed.", path: [] }],
 });
+type HitRegion = {
+  interactionId: string;
+  semanticNodeId: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  priority: number;
+  coordinateSpace: "normalized";
+};
+const compareId = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+const compareRegions = (left: HitRegion, right: HitRegion) =>
+  right.priority - left.priority ||
+  compareId(left.interactionId, right.interactionId) ||
+  compareId(left.semanticNodeId, right.semanticNodeId) ||
+  left.bounds.x - right.bounds.x ||
+  left.bounds.y - right.bounds.y ||
+  left.bounds.width - right.bounds.width ||
+  left.bounds.height - right.bounds.height;
 
 export const createOpaqueBakedWebRenderer = (options: {
   readonly programs: readonly OpaqueRenderProgram[];
@@ -66,16 +82,7 @@ export const createOpaqueBakedWebRenderer = (options: {
       const program = programs[0];
       if (programs.length !== 1 || !program) return failure("opaque-entry-missing");
       const captures: RawSurfaceCapture[] = [];
-      const hitRegionsByState: Record<
-        string,
-        {
-          interactionId: string;
-          semanticNodeId: string;
-          bounds: { x: number; y: number; width: number; height: number };
-          priority: number;
-          coordinateSpace: "normalized";
-        }[]
-      > = Object.create(null);
+      const hitRegionsByState: Record<string, HitRegion[]> = Object.create(null);
       try {
         for (const stateId of Object.keys(input.plan.states).sort()) {
           const tree = input.semanticsByState[stateId];
@@ -168,9 +175,7 @@ export const createOpaqueBakedWebRenderer = (options: {
               coordinateSpace: "normalized",
             });
           }
-          hitRegionsByState[stateId] = regions.sort(
-            (a, b) => b.priority - a.priority || a.interactionId.localeCompare(b.interactionId),
-          );
+          hitRegionsByState[stateId] = regions.sort(compareRegions);
           captures.push({
             id: `opaque:${stateId}`,
             stateId,

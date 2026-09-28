@@ -377,6 +377,109 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
       expect(outside.diagnostics.map(({ code }) => code)).toContain("invalid-hit-region");
   });
 
+  it("sorts equal-priority Hit Regions by Core's code-unit interaction and semantic IDs", async () => {
+    const renderer = makeRenderer(async (request) => ({
+      ...validCapture(request),
+      bindings: Object.entries(request.expectedBindings).map(([key, text]) => ({
+        key,
+        text,
+        x: 5,
+        y: 5,
+        width: 20,
+        height: 10,
+        ...(key === "node:z" || key === "node:A" || key === "node:Z" ? { disabled: false } : {}),
+      })),
+    }));
+    const input = inputForRenderer(renderer);
+    const buttons = {
+      "button-z": {
+        id: "button-z",
+        role: "button" as const,
+        parentId: null,
+        order: 2,
+        text: "z",
+        interactionId: "a",
+      },
+      "button-A": {
+        id: "button-A",
+        role: "button" as const,
+        parentId: null,
+        order: 3,
+        text: "A",
+        interactionId: "a",
+      },
+      "button-Z": {
+        id: "button-Z",
+        role: "button" as const,
+        parentId: null,
+        order: 4,
+        text: "Z",
+        interactionId: "Z",
+      },
+    };
+    const rootNodeIds = [...semantics.rootNodeIds, "button-z", "button-A", "button-Z"];
+    const bindings = {
+      "node:title": "heading",
+      "node:body": "paragraph",
+      "node:z": "button-z",
+      "node:A": "button-A",
+      "node:Z": "button-Z",
+    };
+    const interactions = {
+      a: { id: "a", kind: "click" as const, event: "a", hitPriority: 1 },
+      Z: { id: "Z", kind: "click" as const, event: "Z", hitPriority: 1 },
+    };
+    const withButtons: CompilerResolvedSurfaceInput = {
+      ...input,
+      surface: {
+        ...input.surface,
+        content: { kind: "opaque", bindings },
+        baseSemanticTree: { rootNodeIds, nodes: { ...semantics.nodes, ...buttons } },
+        interactions,
+        states: {
+          default: { ...input.surface.states.default!, enabledInteractionIds: ["a", "Z"] },
+        },
+        renderIntent: {
+          ...input.surface.renderIntent,
+          interaction: { kind: "regions", events: ["a", "Z"] },
+        },
+      },
+      sourceIntent: { ...input.sourceIntent, interaction: { kind: "regions", events: ["a", "Z"] } },
+      resolvedIntent: {
+        ...input.resolvedIntent,
+        interaction: { kind: "regions", events: ["a", "Z"] },
+      },
+      semanticsByState: {
+        default: {
+          rootNodeIds,
+          nodes: {
+            ...semantics.nodes,
+            ...Object.fromEntries(
+              Object.entries(buttons).map(([id, button]) => [
+                id,
+                { ...button, stateEnabled: true },
+              ]),
+            ),
+          },
+        },
+      },
+      plan: { ...input.plan, ownership: { kind: "opaque", bindingKeys: Object.keys(bindings) } },
+    };
+    const result = await executeRendererPlugin(renderer, withButtons);
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(
+      result.value.hitRegionsByState?.default?.map(({ interactionId, semanticNodeId }) => [
+        interactionId,
+        semanticNodeId,
+      ]),
+    ).toEqual([
+      ["Z", "button-Z"],
+      ["a", "button-A"],
+      ["a", "button-z"],
+    ]);
+  });
+
   it("reports opaque alpha only when every pixel is fully opaque", async () => {
     const renderer = makeRenderer(async (request) =>
       validCapture(request, [20, 30, 40, 255, 50, 60, 70, 254]),
