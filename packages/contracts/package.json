@@ -25,9 +25,9 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260825.1",
+    "@cloudflare/workers-types": "5.20260928.1",
     "@types/node": "^24.0.0",
-    "ajv": "8.17.1",
+    "ajv": "8.20.0",
     "canonicalize": "3.0.0",
     "openapi-typescript": "^7.12.0",
     "tsx": "^4.22.1",
