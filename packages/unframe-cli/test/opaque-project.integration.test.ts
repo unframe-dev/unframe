@@ -6,7 +6,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
 import { afterEach, assert, expect, it } from "vitest";
-import { canonicalizeJsonPayload } from "@unframe/unframe-core";
+import {
+  canonicalizeJsonPayload,
+  validatePresentationArtifacts,
+  verifyBuildIntegrityV2,
+} from "@unframe/unframe-core";
 import { checkAuthoringProject } from "@unframe/unframe-compiler";
 
 import { runPresentationCli } from "../src/index.js";
@@ -89,7 +93,7 @@ const installFrozenGraph = async (directory: string) => {
   return snapshotInstalledPackages(directory);
 };
 
-const createProject = async () => {
+const createProject = async (mixed = false) => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-integration-"));
   temporary.push(directory);
   await cp(reference, directory, { recursive: true });
@@ -108,15 +112,16 @@ const createProject = async () => {
       compare(`${a.specifier}\0${a.usage}`, `${b.specifier}\0${b.usage}`),
     ),
     packages: [...graph.packages, sdkPackage].sort((a, b) => compare(a.key, b.key)),
-    assets: [],
+    assets: mixed ? loaded.assets : [],
   };
   const fresh: UnframeLockV2 = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
   await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(fresh) + "\n");
   for (const name of await readdir(directory))
     if (
-      name.endsWith(".manifest.ts") ||
-      name.endsWith(".structure.tsx") ||
-      name === "reference-locks.ts"
+      !mixed &&
+      (name.endsWith(".manifest.ts") ||
+        name.endsWith(".structure.tsx") ||
+        name === "reference-locks.ts")
     )
       await rm(join(directory, name));
   const { theme: _unusedTheme, ...initialWithoutTheme } = initial;
@@ -146,7 +151,7 @@ const createProject = async () => {
   };
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
-    `import {definePresentation} from "@unframe/unframe-authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(presentation)};\nconst hero = ${JSON.stringify(presentation.scene[0])};\nexport default definePresentation({...base, scene: [{...hero, component: Hero}]});`,
+    `import {definePresentation} from "@unframe/unframe-authoring";\nimport {Hero} from "./Hero.component";\nconst base = ${JSON.stringify(mixed ? initial : presentation)};\nconst hero = ${JSON.stringify(presentation.scene[0])};\nexport default definePresentation({...base, scene: ${mixed ? "{...base.scene, components: [...base.scene.components, {...hero, component: Hero}]}" : "[{...hero, component: Hero}]"}});`,
   );
   await writeFile(
     join(directory, "Hero.component.tsx"),
@@ -169,8 +174,8 @@ export const Hero = defineComponent({
     `@font-face { font-family: Fixture; src: url("fixture.ttf") format("truetype"); }
 html, body { margin: 0; }
 .hero { width: 800px; height: 450px; padding: 24px; box-sizing: border-box; font-family: Fixture; background: #fff url("fixture.png") no-repeat right bottom; }
-.hero h1 { font-size: 52px; color: #102a43; }
-.hero button { padding: 12px 18px; color: #fff; background: #102a43; border: 0; }`,
+.hero h1 { font-size: 52px; font-weight: 400; color: #102a43; }
+.hero button { font: 400 16px Fixture; padding: 12px 18px; color: #fff; background: #102a43; border: 0; }`,
   );
   await cp(
     join(repository, "app/unity/Assets/TextMesh Pro/Fonts/LiberationSans.ttf"),
@@ -248,3 +253,75 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   expect(blocked.stderr).toContain("opaque-capability-denied");
   expect(await distBytes(directory)).toEqual(bytes);
 }, 240_000);
+
+it("builds Structured and finite-state React together and keeps textures stable after placement edits", async () => {
+  const directory = await createProject(true);
+  await writeFile(
+    join(directory, "Hero.component.tsx"),
+    `import {defineComponent, editableText, prop} from "@unframe/unframe-authoring";
+import "./hero.css";
+export const Hero = defineComponent({
+ id:"hero",version:1,props:{title:editableText({required:true})},surface:{logicalSize:[800,450]},
+ semantics:{rootNodeIds:["title","button"],nodes:{
+  title:{role:"heading",level:1,parentId:null,order:0,text:prop("title")},
+  button:{role:"button",parentId:null,order:1,text:"Reveal",interactionId:"reveal"}
+ }},
+ interactions:{reveal:{kind:"click",event:"reveal",hitPriority:2}},initialState:"hidden",actions:{},outputs:{},
+ states:{hidden:{semanticOverrides:[],enabledInteractionIds:["reveal"]},revealed:{semanticOverrides:[],enabledInteractionIds:[]}},
+ render:({texts,bindings,state}:{texts:{title:string;button:string};bindings:{title:{"data-unframe-binding":string};button:{"data-unframe-binding":string}};state:"hidden"|"revealed"})=><main className="hero"><h1 {...bindings.title} style={{color:state==="hidden"?"red":"blue"}}>{texts.title}</h1><button {...bindings.button} disabled={state!=="hidden"} style={{background:"transparent",width:240,height:60}}>{texts.button}</button></main>
+});`,
+  );
+  const refresh = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refresh.exitCode, refresh.stderr).toBe(0);
+  const checked = await runPresentationCli({ args: ["check", directory] });
+  expect(checked.exitCode, checked.stderr).toBe(0);
+  const started = performance.now();
+  const first = await runPresentationCli({ args: ["build", directory] });
+  expect(first.exitCode, first.stderr).toBe(0);
+  console.info(`Mixed finite-state build: ${Math.round(performance.now() - started)} ms`);
+  const bytes = await distBytes(directory);
+  const readJson = async (name: string) =>
+    JSON.parse(await readFile(join(directory, "dist", name), "utf8")) as unknown;
+  const definition = await readJson("definition.json");
+  const renderBundle = await readJson("render-bundle.json");
+  const semantic = validatePresentationArtifacts(definition, renderBundle);
+  expect(semantic.valid, JSON.stringify(semantic.diagnostics)).toBe(true);
+  assert(semantic.valid);
+  expect(
+    new Set(
+      Object.values(semantic.value.definition.scene.surfaces).map(
+        (surface) => surface.content.kind,
+      ),
+    ),
+  ).toEqual(new Set(["structured", "opaque"]));
+  const opaque = Object.values(semantic.value.definition.scene.surfaces).find(
+    (surface) => surface.content.kind === "opaque",
+  );
+  assert(opaque);
+  expect(Object.keys(opaque.states)).toHaveLength(2);
+  const rendered = semantic.value.renderBundle.surfaces[opaque.id];
+  assert(rendered);
+  expect(
+    Object.values(rendered.interactionsByState)
+      .map((regions) => regions.length)
+      .sort(),
+  ).toEqual([0, 1]);
+  const integrity = verifyBuildIntegrityV2({
+    definition,
+    renderBundle,
+    assetSet: await readJson("asset-set.json"),
+    buildManifest: await readJson("build-manifest.json"),
+  });
+  expect(integrity.valid, JSON.stringify(integrity.diagnostics)).toBe(true);
+  expect(bytes.some(([path]) => /\.(?:tsx?|jsx?|css)$/.test(path))).toBe(false);
+  const entry = join(directory, "presentation.unframe.tsx");
+  await writeFile(
+    entry,
+    (await readFile(entry, "utf8")).replace('"position":[0,1,-2]', '"position":[1,1,-2]'),
+  );
+  const moved = await runPresentationCli({ args: ["build", directory] });
+  expect(moved.exitCode, moved.stderr).toBe(0);
+  expect((await distBytes(directory)).filter(([path]) => path.endsWith(".png"))).toEqual(
+    bytes.filter(([path]) => path.endsWith(".png")),
+  );
+}, 360_000);

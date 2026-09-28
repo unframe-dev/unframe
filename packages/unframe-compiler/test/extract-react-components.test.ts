@@ -14,6 +14,7 @@ const sdk = `
   export const definePresentation = <T>(value: T): T => value;
   export const editableText = (value: {required: true}) => ({kind: "string" as const, ...value, editor: {kind: "text" as const}});
   export const prop = (name: string) => ({kind: "prop-ref" as const, name});
+  export const setState = (stateId: string) => ({kind: "setState" as const, stateId});
 `;
 const hash = `sha256:${"0".repeat(64)}`;
 const reactHash = `sha256:${"1".repeat(64)}`;
@@ -155,6 +156,27 @@ const component = `
     render: ({texts}: {texts: {title: string}}) => decorate(label + texts.title),
   });
 `;
+
+it("extracts finite State declarations without running their SDK builders", () => {
+  const reveal = component
+    .replace("defineComponent, editableText, prop", "defineComponent, editableText, prop, setState")
+    .replace('id: "hero"', 'id: "reveal"')
+    .replace(
+      "    render: ",
+      `    interactions: { reveal: {kind: "click", event: "quiz.reveal", hitPriority: 0} },
+    initialState: "hidden",
+    states: { hidden: {semanticOverrides: [], enabledInteractionIds: ["reveal"]}, revealed: {semanticOverrides: [], enabledInteractionIds: []} },
+    actions: { reveal: {inputs: {}, preconditions: [], effects: [setState("revealed")]} },
+    outputs: { revealRequested: {payload: {}, producer: {kind: "surfaceInteraction", interactionId: "reveal"}} },
+    render: `,
+    );
+  const result = extractReactComponents(analyze(reveal));
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.components[0]?.manifest.actions.reveal?.effects).toEqual([
+    { kind: "setSurfaceState", surfaceId: "surface", stateId: "revealed" },
+  ]);
+  expect(result.components[0]?.renderer.entrySource).not.toContain("setState");
+});
 
 it("extracts public metadata and render dependencies without including contract initializers", () => {
   const result = extractReactComponents(analyze(component));

@@ -49,6 +49,10 @@ const positionalResults = new Map<
   Omit<Extract<BuilderResultShape, { kind: "positional" }>, "kind">
 >([
   [
+    "setState",
+    { resultKind: "setState", fields: [{ key: "stateId", argument: 0, valueType: "string" }] },
+  ],
+  [
     "prop",
     {
       resultKind: "prop-ref",

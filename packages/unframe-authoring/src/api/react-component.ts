@@ -3,8 +3,12 @@ import { z } from "zod";
 import type {
   ComponentManifest,
   PresentationDeclaration,
+  ComponentInstanceDeclaration,
   PropDeclaration,
   SemanticNodeDeclaration,
+  ActionDeclaration,
+  OutputDeclaration,
+  SurfaceStateDeclaration,
 } from "../domain/declarations.js";
 import { readOwnDataRecord, snapshotDeclaration } from "../internal/declaration-validation.js";
 import { defineComponentManifest, stringProp } from "./definitions.js";
@@ -56,6 +60,7 @@ export function editableText(value: { required: true } | { default: string }) {
 
 type SemanticNode = (
   | { readonly role: "heading"; readonly level: 1 | 2 | 3 | 4 | 5 | 6 }
+  | { readonly role: "button"; readonly interactionId: string; readonly level?: never }
   | {
       readonly role: "paragraph";
       readonly level?: never;
@@ -82,19 +87,40 @@ type SyncReactNode =
   | null
   | undefined
   | readonly SyncReactNode[];
-type RenderContext<P, N> = {
+type RenderContext<P, N, S extends string> = {
   readonly props: ResolvedProps<P>;
   readonly texts: Readonly<Record<TextKeys<N>, string>>;
   readonly bindings: Readonly<Record<keyof N, Binding>>;
-  readonly state: "default";
+  readonly state: S;
 };
-export type ReactComponent<P, N> = {
+type StateInput = {
+  readonly semanticOverrides: readonly Omit<
+    import("../domain/declarations.js").SemanticOverrideDeclaration,
+    "kind"
+  >[];
+  readonly enabledInteractionIds: readonly string[];
+};
+type InteractionInput = Omit<import("../domain/declarations.js").InteractionDeclaration, "id">;
+type ActionInput<S extends string> = Omit<
+  ActionDeclaration,
+  "kind" | "effects" | "preconditions"
+> & {
+  readonly preconditions: readonly [];
+  readonly effects: readonly { kind: "setState"; stateId: S }[];
+};
+type OutputInput = Omit<OutputDeclaration, "kind">;
+export type ReactComponent<P, N, S extends string = "default"> = {
   readonly id: string;
   readonly version: number;
   readonly props: P;
   readonly surface: { readonly logicalSize: readonly [number, number] };
   readonly semantics: { readonly rootNodeIds: readonly (keyof N & string)[]; readonly nodes: N };
-  readonly render: (input: RenderContext<P, N>) => SyncReactNode;
+  readonly interactions?: Readonly<Record<string, InteractionInput>>;
+  readonly initialState?: NoInfer<S>;
+  readonly states?: Readonly<Record<S, StateInput>>;
+  readonly actions?: Readonly<Record<string, ActionInput<S>>>;
+  readonly outputs?: Readonly<Record<string, OutputInput>>;
+  readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
   readonly __props?: P;
 };
 
@@ -136,10 +162,20 @@ export type ReactPresentationInput<S extends readonly ReactSceneBase[]> = Omit<
 > & {
   readonly scene: S & CheckScene<S>;
 };
+export type MixedPresentationInput<
+  S extends readonly (ComponentInstanceDeclaration | ReactSceneBase)[],
+> = Omit<PresentationDeclaration, "scene"> & {
+  readonly scene: Omit<PresentationDeclaration["scene"], "components"> & {
+    readonly components: S & {
+      readonly [K in keyof S]: S[K] extends ReactSceneBase ? S[K] & CheckSceneItem<S[K]> : S[K];
+    };
+  };
+};
 
 export const defineComponent = <
   const P extends Record<string, AnyProp>,
   const N extends Record<string, SemanticNode>,
+  const S extends Record<string, StateInput> = Record<"default", StateInput>,
 >(value: {
   readonly id: string;
   readonly version: number;
@@ -149,11 +185,21 @@ export const defineComponent = <
     readonly rootNodeIds: readonly (keyof N & string)[];
     readonly nodes: N & ValidateNodes<P, N>;
   };
-  readonly render: (input: RenderContext<P, N>) => SyncReactNode;
-}): ReactComponent<P, N> => {
+  readonly interactions?: Readonly<Record<string, InteractionInput>>;
+  readonly initialState?: keyof S & string;
+  readonly states?: S;
+  readonly actions?: Readonly<Record<string, ActionInput<NoInfer<keyof S & string>>>>;
+  readonly outputs?: Readonly<Record<string, OutputInput>>;
+  readonly render: (input: RenderContext<P, N, keyof S & string>) => SyncReactNode;
+}): ReactComponent<P, N, keyof S & string> => {
   validateRuntimeReactComponent(value);
   return value;
 };
+
+export const setState = <const S extends string>(stateId: S) => ({
+  kind: "setState" as const,
+  stateId,
+});
 
 const id = z.string().min(1);
 const positive = z.number().finite().positive();
@@ -191,6 +237,37 @@ const nodeSchema = z.union([
     order: z.number().int().nonnegative(),
     text,
   }),
+  z.strictObject({
+    role: z.literal("button"),
+    interactionId: id,
+    parentId: id.nullable(),
+    order: z.number().int().nonnegative(),
+    text,
+  }),
+]);
+const semanticOverrideInputSchema = z.strictObject({
+  id,
+  targetId: id,
+  included: z.boolean().optional(),
+  text: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  alt: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+});
+const finiteStateSchema = z.strictObject({
+  semanticOverrides: z.array(semanticOverrideInputSchema),
+  enabledInteractionIds: z.array(id),
+});
+const actionInputSchema = z.strictObject({
+  inputs: z.record(id, z.enum(["null", "boolean", "number", "string"])),
+  preconditions: z.tuple([]),
+  effects: z.array(z.strictObject({ kind: z.literal("setState"), stateId: id })).min(1),
+});
+const outputPayloadFieldSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("null"), value: z.null() }),
+  z.strictObject({ type: z.literal("boolean"), value: z.boolean() }),
+  z.strictObject({ type: z.literal("number"), value: z.number().finite() }),
+  z.strictObject({ type: z.literal("string"), value: z.string() }),
 ]);
 const metadataSchema = z.strictObject({
   id,
@@ -198,6 +275,28 @@ const metadataSchema = z.strictObject({
   props: z.record(id, propSchema),
   surface: z.strictObject({ logicalSize: z.tuple([positive, positive]) }),
   semantics: z.strictObject({ rootNodeIds: z.array(id), nodes: z.record(id, nodeSchema) }),
+  interactions: z
+    .record(
+      id,
+      z.strictObject({
+        kind: z.literal("click"),
+        event: id,
+        hitPriority: z.number().int().nonnegative(),
+      }),
+    )
+    .optional(),
+  initialState: id.optional(),
+  states: z.record(id, finiteStateSchema).optional(),
+  actions: z.record(id, actionInputSchema).optional(),
+  outputs: z
+    .record(
+      id,
+      z.strictObject({
+        payload: z.record(id, outputPayloadFieldSchema),
+        producer: z.strictObject({ kind: z.literal("surfaceInteraction"), interactionId: id }),
+      }),
+    )
+    .optional(),
 });
 export type StaticComponentMetadata = z.infer<typeof metadataSchema>;
 
@@ -288,6 +387,54 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
       throw new TypeError("Unknown semantic parent.");
     if (typeof node.text !== "string" && metadata.props[node.text.name]?.kind !== "string")
       throw new TypeError("Text must reference a declared string prop.");
+    if (node.role === "button" && !metadata.interactions?.[node.interactionId])
+      throw new TypeError("Button interaction must be declared.");
+  }
+  const finiteFields = [
+    metadata.interactions,
+    metadata.initialState,
+    metadata.states,
+    metadata.actions,
+    metadata.outputs,
+  ];
+  if (
+    finiteFields.some((field) => field !== undefined) &&
+    finiteFields.some((field) => field === undefined)
+  )
+    throw new TypeError(
+      "Finite-state Component requires interactions, initialState, states, actions and outputs.",
+    );
+  if (metadata.states) {
+    if (!metadata.initialState || !metadata.states[metadata.initialState])
+      throw new TypeError("Unknown initial State.");
+    for (const state of Object.values(metadata.states)) {
+      const overrideIds = new Set<string>();
+      const overriddenNodes = new Set<string>();
+      for (const override of state.semanticOverrides) {
+        if (
+          !nodes[override.targetId] ||
+          overrideIds.has(override.id) ||
+          overriddenNodes.has(override.targetId) ||
+          override.text === null ||
+          override.alt === null
+        )
+          throw new TypeError("Invalid semantic override.");
+        overrideIds.add(override.id);
+        overriddenNodes.add(override.targetId);
+      }
+      const enabled = new Set(state.enabledInteractionIds);
+      if (
+        enabled.size !== state.enabledInteractionIds.length ||
+        [...enabled].some((key) => !metadata.interactions?.[key])
+      )
+        throw new TypeError("Invalid enabled Interaction.");
+    }
+    for (const action of Object.values(metadata.actions ?? {}))
+      for (const effect of action.effects)
+        if (!metadata.states[effect.stateId]) throw new TypeError("Unknown Action target State.");
+    for (const output of Object.values(metadata.outputs ?? {}))
+      if (!metadata.interactions?.[output.producer.interactionId])
+        throw new TypeError("Unknown Output Interaction.");
   }
   for (const name of Object.keys(nodes)) {
     const visited = new Set<string>();
@@ -307,21 +454,23 @@ export const buildOpaqueComponentManifest = (
 ): Extract<ComponentManifest, { authoring: { mode: "opaque" } }> => {
   const valid = validateStaticComponentMetadata(metadata);
   const nodes = Object.fromEntries(
-    Object.entries(valid.semantics.nodes).map(([key, node]) => [
-      key,
-      {
-        ...node,
-        id: key,
-        text:
-          typeof node.text === "string"
-            ? node.text
-            : {
-                kind: "prop-ref" as const,
-                propId: node.text.name,
-                expectedType: "string" as const,
-              },
-      },
-    ]),
+    Object.entries(valid.semantics.nodes)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, node]) => [
+        key,
+        {
+          ...node,
+          id: key,
+          text:
+            typeof node.text === "string"
+              ? node.text
+              : {
+                  kind: "prop-ref" as const,
+                  propId: node.text.name,
+                  expectedType: "string" as const,
+                },
+        },
+      ]),
   );
   const props = Object.fromEntries(
     Object.entries(valid.props).map(([key, declaration]) => {
@@ -339,9 +488,39 @@ export const buildOpaqueComponentManifest = (
     slots: {},
     parts: {},
     variants: {},
-    states: {},
-    actions: {},
-    outputs: {},
+    states: valid.states
+      ? Object.fromEntries(
+          Object.keys(valid.states).map((key) => [
+            key,
+            { kind: "state", ...(key === valid.initialState ? { initial: true } : {}) },
+          ]),
+        )
+      : {},
+    actions: valid.actions
+      ? Object.fromEntries(
+          Object.entries(valid.actions).map(([key, action]) => [
+            key,
+            {
+              kind: "action",
+              inputs: action.inputs,
+              preconditions: action.preconditions,
+              effects: action.effects.map((effect) => ({
+                kind: "setSurfaceState",
+                surfaceId: "surface",
+                stateId: effect.stateId,
+              })),
+            },
+          ]),
+        )
+      : {},
+    outputs: valid.outputs
+      ? Object.fromEntries(
+          Object.entries(valid.outputs).map(([key, output]) => [
+            key,
+            { kind: "output", ...output } as OutputDeclaration,
+          ]),
+        )
+      : {},
     authoring: { mode: "opaque" },
     renderers: { "baked-web": { entry, bindingKeys } },
     semantics: {
@@ -358,9 +537,28 @@ export const buildOpaqueComponentManifest = (
             rootNodeIds: valid.semantics.rootNodeIds,
             nodes: nodes as Record<string, SemanticNodeDeclaration>,
           },
-          interactions: {},
-          initialStateId: "default",
-          states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
+          interactions: Object.fromEntries(
+            Object.entries(valid.interactions ?? {}).map(([key, interaction]) => [
+              key,
+              { id: key, ...interaction },
+            ]),
+          ),
+          initialStateId: valid.initialState ?? "default",
+          states: valid.states
+            ? Object.fromEntries(
+                Object.entries(valid.states).map(([key, state]) => [
+                  key,
+                  {
+                    id: key,
+                    semanticOverrides: state.semanticOverrides.map((override) => ({
+                      kind: "semantic-override",
+                      ...override,
+                    })),
+                    enabledInteractionIds: state.enabledInteractionIds,
+                  } as SurfaceStateDeclaration,
+                ]),
+              )
+            : { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
         },
       ],
     },

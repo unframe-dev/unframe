@@ -9,6 +9,7 @@ import {
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import {
   createBakedWebRenderer,
+  combineBakedWebRenderers,
   createWebRendererConfigHash,
   openPlaywrightFixedBrowser,
   type FixedBrowserSession,
@@ -454,7 +455,15 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     let session: { close(): Promise<void> } | undefined;
     try {
       const context = host.buildContext ?? fixedContext;
-      let renderer: ReturnType<typeof createBakedWebRenderer>;
+      let renderer: ReturnType<typeof createBakedWebRenderer> | undefined;
+      const sessions: { close(): Promise<void> }[] = [];
+      session = {
+        close: async () => {
+          const results = await Promise.allSettled(sessions.map((item) => item.close()));
+          if (results.some((result) => result.status === "rejected"))
+            throw new BrowserCleanupFailure();
+        },
+      };
       if (opaque) {
         const prepared = await prepareOpaqueRenderer(
           source,
@@ -462,16 +471,22 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
           host.signal,
           context.webRendererConfig,
         );
-        session = prepared;
+        sessions.push(prepared);
         renderer = prepared.renderer;
-      } else {
+      }
+      if (
+        !opaque ||
+        Object.values(checked.value.definition.scene.surfaces).some(
+          (surface) => surface.content.kind === "structured",
+        )
+      ) {
         let fixedSession: FixedBrowserSession;
         const opener =
           host.openFixedBrowser ??
           ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
         try {
           fixedSession = await opener(host.signal ? { signal: host.signal } : {});
-          session = fixedSession;
+          sessions.push(fixedSession);
         } catch {
           if (host.signal?.aborted)
             return output(130, command, format, [
@@ -492,8 +507,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
               ...(host.signal ? [{ signal: host.signal }] : []),
             ]),
         });
-        renderer = createBakedWebRenderer({ adapter, config: context.webRendererConfig });
+        const structured = createBakedWebRenderer({ adapter, config: context.webRendererConfig });
+        renderer = renderer ? combineBakedWebRenderers(structured, renderer) : structured;
       }
+      if (!renderer) throw new BrowserProvisionFailure();
       const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
         compiler: context.compiler,
         locale: context.locale,

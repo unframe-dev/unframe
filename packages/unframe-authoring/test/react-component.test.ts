@@ -7,6 +7,7 @@ import {
   prop,
   validateStaticComponentMetadata,
   resolveReactComponentProps,
+  setState,
 } from "../src/index.js";
 
 const hero = {
@@ -23,6 +24,112 @@ const hero = {
 } as const;
 
 describe("React Component static metadata", () => {
+  it("lowers finite states and public operations into the canonical opaque manifest", () => {
+    const metadata = validateStaticComponentMetadata({
+      ...hero,
+      semantics: {
+        rootNodeIds: ["title", "button"],
+        nodes: {
+          title: hero.semantics.nodes.title,
+          button: {
+            role: "button",
+            parentId: null,
+            order: 1,
+            text: "Reveal",
+            interactionId: "reveal",
+          },
+        },
+      },
+      interactions: { reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 } },
+      initialState: "hidden",
+      states: {
+        hidden: {
+          semanticOverrides: [{ id: "hide-title", targetId: "title", included: false }],
+          enabledInteractionIds: ["reveal"],
+        },
+        revealed: { semanticOverrides: [], enabledInteractionIds: [] },
+      },
+      actions: { reveal: { inputs: {}, preconditions: [], effects: [setState("revealed")] } },
+      outputs: {
+        revealRequested: {
+          payload: {},
+          producer: { kind: "surfaceInteraction", interactionId: "reveal" },
+        },
+      },
+    });
+    const manifest = buildOpaqueComponentManifest(metadata, "renderer/reveal.js");
+    expect(manifest.states).toEqual({
+      hidden: { kind: "state", initial: true },
+      revealed: { kind: "state" },
+    });
+    expect(manifest.actions.reveal?.effects).toEqual([
+      { kind: "setSurfaceState", surfaceId: "surface", stateId: "revealed" },
+    ]);
+    expect(manifest.outputs.revealRequested?.producer).toEqual({
+      kind: "surfaceInteraction",
+      interactionId: "reveal",
+    });
+    expect(manifest.semantics.surfaces[0]).toMatchObject({
+      initialStateId: "hidden",
+      interactions: { reveal: { id: "reveal", kind: "click" } },
+      states: {
+        hidden: {
+          id: "hidden",
+          semanticOverrides: [{ kind: "semantic-override", targetId: "title", included: false }],
+        },
+      },
+    });
+  });
+  it("rejects dangling State, Interaction and semantic override references", () => {
+    const base = {
+      ...hero,
+      interactions: { reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 } },
+      initialState: "hidden",
+      states: { hidden: { semanticOverrides: [], enabledInteractionIds: ["reveal"] } },
+      actions: { reveal: { inputs: {}, preconditions: [], effects: [setState("hidden")] } },
+      outputs: {
+        revealRequested: {
+          payload: {},
+          producer: { kind: "surfaceInteraction", interactionId: "reveal" },
+        },
+      },
+    } as const;
+    expect(() => validateStaticComponentMetadata({ ...base, initialState: "missing" })).toThrow();
+    expect(() =>
+      validateStaticComponentMetadata({
+        ...base,
+        states: { hidden: { semanticOverrides: [], enabledInteractionIds: ["missing"] } },
+      }),
+    ).toThrow();
+    expect(() =>
+      validateStaticComponentMetadata({
+        ...base,
+        states: {
+          hidden: {
+            semanticOverrides: [{ id: "bad", targetId: "missing", included: false }],
+            enabledInteractionIds: [],
+          },
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      validateStaticComponentMetadata({
+        ...base,
+        actions: { reveal: { inputs: {}, preconditions: [], effects: [setState("missing")] } },
+      }),
+    ).toThrow();
+    expect(() =>
+      validateStaticComponentMetadata({
+        ...base,
+        outputs: {
+          revealRequested: {
+            payload: {},
+            producer: { kind: "surfaceInteraction", interactionId: "missing" },
+          },
+        },
+      }),
+    ).toThrow();
+  });
   it("validates the render-free descriptor and builds an opaque manifest", () => {
     const metadata = validateStaticComponentMetadata(hero);
     const manifest = buildOpaqueComponentManifest(metadata, "renderer/hero.js");

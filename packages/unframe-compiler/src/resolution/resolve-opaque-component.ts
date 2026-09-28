@@ -227,7 +227,9 @@ export const resolveOpaqueProject = (
       );
     const hostId = reactResourceId("host", item.id);
     const surfaceId = reactResourceId("surface", item.id);
-    const stateId = reactResourceId("state", item.id, "default");
+    const initialStateKey = metadata.initialState ?? "default";
+    const stateKeys = Object.keys(metadata.states ?? { default: {} });
+    const stateId = reactResourceId("state", item.id, initialStateKey);
     const semanticNodes: PresentationDefinition["scene"]["surfaces"][string]["baseSemanticTree"]["nodes"] =
       {};
     const bindings: Record<string, string> = {};
@@ -254,10 +256,23 @@ export const resolveOpaqueProject = (
             : reactResourceId("semantic", item.id, semantic.parentId),
         order: semantic.order,
         text,
+        ...(semantic.role === "button"
+          ? { interactionId: reactResourceId("interaction", item.id, semantic.interactionId) }
+          : {}),
       } as (typeof semanticNodes)[string];
       bindings[`node:${key}`] = id;
     }
-    for (const id of [hostId, surfaceId, stateId, ...Object.keys(semanticNodes)]) {
+    for (const id of [
+      hostId,
+      surfaceId,
+      ...stateKeys.map((key) => reactResourceId("state", item.id, key)),
+      ...Object.keys(metadata.interactions ?? {}).map((key) =>
+        reactResourceId("interaction", item.id, key),
+      ),
+      ...Object.keys(metadata.actions ?? {}).map((key) => reactResourceId("action", item.id, key)),
+      ...Object.keys(metadata.outputs ?? {}).map((key) => reactResourceId("output", item.id, key)),
+      ...Object.keys(semanticNodes),
+    ]) {
       if (usedIds.has(id))
         diagnostics.push(
           diagnostic(
@@ -299,32 +314,201 @@ export const resolveOpaqueProject = (
         ),
         nodes: semanticNodes,
       },
-      interactions: {},
+      interactions: Object.fromEntries(
+        Object.entries(metadata.interactions ?? {}).map(([key, interaction]) => {
+          const id = reactResourceId("interaction", item.id, key);
+          return [id, { id, ...interaction }];
+        }),
+      ),
       initialStateId: stateId,
-      states: {
-        [stateId]: {
-          id: stateId,
-          contentOverrides: {},
-          semanticOverrides: [],
-          enabledInteractionIds: [],
-        },
+      states: Object.fromEntries(
+        stateKeys.map((key) => {
+          const state = metadata.states?.[key];
+          const id = reactResourceId("state", item.id, key);
+          return [
+            id,
+            {
+              id,
+              contentOverrides: {},
+              semanticOverrides: (state?.semanticOverrides ?? []).map((override) => ({
+                nodes: {
+                  [reactResourceId("semantic", item.id, override.targetId)]: {
+                    ...(override.included === undefined ? {} : { included: override.included }),
+                    ...(override.text === undefined || override.text === null
+                      ? {}
+                      : { text: override.text }),
+                    ...(override.language === undefined ? {} : { language: override.language }),
+                    ...(override.alt === undefined || override.alt === null
+                      ? {}
+                      : { alt: override.alt }),
+                    ...(override.label === undefined ? {} : { label: override.label }),
+                  },
+                },
+              })),
+              enabledInteractionIds: (state?.enabledInteractionIds ?? []).map((interactionKey) =>
+                reactResourceId("interaction", item.id, interactionKey),
+              ),
+            },
+          ];
+        }),
+      ),
+      renderIntent: {
+        ...renderIntent(),
+        updateModel: metadata.states
+          ? {
+              kind: "finite-state",
+              stateIds: stateKeys.map((key) => reactResourceId("state", item.id, key)).sort(),
+            }
+          : { kind: "static" },
+        interaction:
+          metadata.interactions && Object.keys(metadata.interactions).length
+            ? {
+                kind: "regions",
+                events: [
+                  ...new Set(
+                    Object.values(metadata.interactions).map((interaction) => interaction.event),
+                  ),
+                ].sort(),
+              }
+            : { kind: "none" },
       },
-      renderIntent: renderIntent(),
     };
   }
   const groups: PresentationDefinition["flow"]["groups"] = {};
   for (const [groupId, group] of Object.entries(presentation.flow.groups)) {
     groups[groupId] = { id: group.id, initialStepId: group.initialStepId, steps: {} };
     for (const [stepId, step] of Object.entries(group.steps)) {
-      if (step.cues.length)
-        diagnostics.push(
-          diagnostic(
-            "compiler-opaque-cue-unsupported",
-            ["presentation", "flow", "groups", groupId, "steps", stepId, "cues"],
-            "Initial React Components do not support Cues.",
-          ),
+      const cues: (typeof groups)[string]["steps"][string]["cues"] = [];
+      for (const [index, cue] of step.cues.entries()) {
+        const path = [
+          "presentation",
+          "flow",
+          "groups",
+          groupId,
+          "steps",
+          stepId,
+          "cues",
+          index,
+        ] as const;
+        if (cue.trigger.kind !== "component.output") {
+          diagnostics.push(
+            diagnostic(
+              "compiler-opaque-cue-trigger-invalid",
+              path,
+              "React Cues require a declared Component Output.",
+            ),
+          );
+          continue;
+        }
+        const outputTrigger = cue.trigger;
+        const triggerInstance = presentation.scene.find(
+          (item) => item.id === outputTrigger.componentInstanceId,
         );
-      groups[groupId].steps[stepId] = { id: step.id, cues: [] };
+        const triggerComponent =
+          triggerInstance &&
+          project.components.find(
+            (candidate) =>
+              candidate.manifest.componentId === triggerInstance.component.id &&
+              candidate.manifest.version === triggerInstance.component.version,
+          );
+        const output = triggerComponent?.manifest.outputs[outputTrigger.outputId];
+        if (!triggerInstance || !output || output.producer.kind !== "surfaceInteraction") {
+          diagnostics.push(
+            diagnostic(
+              "compiler-output-not-found",
+              [...path, "trigger"],
+              "Component Output must resolve to a declared surface Interaction.",
+            ),
+          );
+          continue;
+        }
+        const actions: (typeof cues)[number]["actions"] = [];
+        for (const [actionIndex, invocation] of cue.actions.entries()) {
+          const actionPath = [...path, "actions", actionIndex];
+          const targetInstance = presentation.scene.find(
+            (item) => item.id === invocation.componentInstanceId,
+          );
+          const targetComponent =
+            targetInstance &&
+            project.components.find(
+              (candidate) =>
+                candidate.manifest.componentId === targetInstance.component.id &&
+                candidate.manifest.version === targetInstance.component.version,
+            );
+          const declaration = targetComponent?.manifest.actions[invocation.actionId];
+          if (!targetInstance || !declaration) {
+            diagnostics.push(
+              diagnostic(
+                "compiler-action-not-found",
+                actionPath,
+                "Component Action must resolve to a declared Action.",
+              ),
+            );
+            continue;
+          }
+          if (
+            Object.keys(invocation.arguments).length ||
+            Object.keys(declaration.inputs).length ||
+            declaration.preconditions.length ||
+            declaration.effects.some((effect) => effect.kind !== "setSurfaceState")
+          ) {
+            diagnostics.push(
+              diagnostic(
+                "compiler-opaque-action-invalid",
+                actionPath,
+                "React Action requires no inputs or preconditions and only finite State effects.",
+              ),
+            );
+            continue;
+          }
+          for (const effect of declaration.effects)
+            if (effect.kind === "setSurfaceState")
+              actions.push({
+                kind: "surface.setState",
+                surfaceId: reactResourceId("surface", targetInstance.id),
+                stateId: reactResourceId("state", targetInstance.id, effect.stateId),
+                ...(effect.transition ? { transition: effect.transition } : {}),
+              });
+        }
+        if (cue.guard) {
+          diagnostics.push(
+            diagnostic(
+              "compiler-opaque-cue-guard-invalid",
+              [...path, "guard"],
+              "React Cue guards are not supported.",
+            ),
+          );
+          continue;
+        }
+        cues.push({
+          id: cue.id,
+          priority: cue.priority ?? 0,
+          order: cue.order ?? index,
+          trigger: {
+            kind: "surfaceInteraction",
+            actor: { kind: "presenter" },
+            surfaceId: reactResourceId("surface", triggerInstance.id),
+            interactionId: reactResourceId(
+              "interaction",
+              triggerInstance.id,
+              output.producer.interactionId,
+            ),
+          },
+          fixedPayload: Object.fromEntries(
+            Object.entries(output.payload).map(([key, field]) => [key, field.value]),
+          ),
+          firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
+          actions,
+          next:
+            cue.next ??
+            (cue.toStepId
+              ? { kind: "step", stepId: cue.toStepId }
+              : cue.toGroupId
+                ? { kind: "group", groupId: cue.toGroupId }
+                : { kind: "stay" }),
+        });
+      }
+      groups[groupId].steps[stepId] = { id: step.id, cues };
     }
   }
   const variables: PresentationDefinition["flow"]["variables"] = {};

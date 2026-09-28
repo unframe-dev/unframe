@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { assert, expect, it } from "vitest";
 import { testFontAsset } from "./fixtures/static-renderer.js";
 import { openOpaqueCaptureRuntime } from "../src/opaque/capture/runtime.js";
@@ -6,10 +7,24 @@ const script = `globalThis.__unframeMount = () => {
   const h = document.createElement('h1'); h.dataset.unframeBinding='node:title';
   h.textContent='Hello'; h.style.color='white'; document.getElementById('unframe-root').append(h);
 };`;
+const fixtureFont = (
+  await readFile(
+    new URL("../../../app/unity/Assets/TextMesh Pro/Fonts/LiberationSans.ttf", import.meta.url),
+  )
+).toString("base64");
+const fontCss =
+  "@font-face{font-family:Fixture;src:url('/assets/LiberationSans.ttf')}*{font-family:Fixture!important;font-weight:400!important}";
 const request = {
   javascript: script,
-  assets: [],
-  stylesheets: [],
+  assets: [
+    { path: "assets/LiberationSans.ttf", mediaType: "font/ttf", dataBase64: fixtureFont },
+    {
+      path: "assets/font.css",
+      mediaType: "text/css",
+      dataBase64: Buffer.from(fontCss).toString("base64"),
+    },
+  ],
+  stylesheets: ["assets/font.css"],
   props: {},
   texts: { title: "Hello" },
   expectedBindings: { "node:title": "Hello" },
@@ -24,8 +39,8 @@ it("captures identical RGBA in two isolated executions", async () => {
   try {
     const first = await runtime.capture(request);
     const second = await runtime.capture(request);
-    assert.isTrue(first.ok);
-    assert.isTrue(second.ok);
+    assert.isTrue(first.ok, JSON.stringify(first));
+    assert.isTrue(second.ok, JSON.stringify(second));
     expect(first.rgbaBase64).toBe(second.rgbaBase64);
     expect(first.bindings).toEqual(second.bindings);
     expect(Buffer.from(first.rgbaBase64, "base64")).toHaveLength(160 * 90 * 4);
@@ -33,6 +48,88 @@ it("captures identical RGBA in two isolated executions", async () => {
     await runtime.close();
   }
 }, 90_000);
+it("captures transparent button geometry in logical coordinates after viewport and overflow clipping", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    const result = await runtime.capture({
+      ...request,
+      logicalSize: [160, 90],
+      pixelTarget: [320, 180],
+      expectedBindings: { "node:button": "Go" },
+      bindingKeys: ["node:button"],
+      buttonBindings: { "node:button": true },
+      javascript: `globalThis.__unframeMount=()=>{
+        const clip=document.createElement('div');
+        Object.assign(clip.style,{position:'absolute',left:'20px',top:'10px',width:'60px',height:'40px',overflow:'hidden'});
+        const button=document.createElement('button');
+        button.dataset.unframeBinding='node:button';button.textContent='Go';
+        Object.assign(button.style,{position:'absolute',left:'45px',top:'5px',width:'50px',height:'20px',padding:'0',border:'0',background:'transparent'});
+        clip.append(button);document.getElementById('unframe-root').append(clip);
+      };`,
+    });
+    assert.isTrue(result.ok);
+    expect(result.bindings).toEqual([
+      { key: "node:button", text: "Go", x: 65, y: 15, width: 15, height: 20, disabled: false },
+    ]);
+  } finally {
+    await runtime.close();
+  }
+}, 60_000);
+it("passes the local State key and rejects an excluded binding that is rendered", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    const result = await runtime.capture({
+      ...request,
+      stateId: "canonical-state-id",
+      stateKey: "hidden",
+      texts: { title: "Hello", answer: "Answer" },
+      bindingKeys: ["node:title", "node:answer"],
+      javascript: `globalThis.__unframeMount=({state,bindings,texts})=>{
+        const h=document.createElement('h1');h.setAttribute('data-unframe-binding',bindings.title['data-unframe-binding']);h.textContent=texts.title;document.getElementById('unframe-root').append(h);
+        if(state==='hidden'){const p=document.createElement('p');p.setAttribute('data-unframe-binding',bindings.answer['data-unframe-binding']);p.textContent=texts.answer;document.getElementById('unframe-root').append(p);}
+      };`,
+    });
+    expect(result).toMatchObject({ ok: false, code: "opaque-binding-invalid" });
+  } finally {
+    await runtime.close();
+  }
+}, 60_000);
+it("rejects transformed and nonrectangular binding geometry", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    for (const css of ["transform:rotate(10deg)", "clip-path:circle(40%)"]) {
+      const result = await runtime.capture({
+        ...request,
+        javascript: `globalThis.__unframeMount=()=>{
+          const h=document.createElement('h1');h.dataset.unframeBinding='node:title';h.textContent='Hello';h.style.cssText=${JSON.stringify(css)};document.getElementById('unframe-root').append(h);
+        };`,
+      });
+      expect(result).toMatchObject({ ok: false, code: "opaque-geometry-unsupported" });
+    }
+  } finally {
+    await runtime.close();
+  }
+}, 60_000);
+it.each(["open", "closed"])(
+  "rejects an author-created %s shadow root",
+  async (mode) => {
+    const runtime = await openOpaqueCaptureRuntime();
+    try {
+      const result = await runtime.capture({
+        ...request,
+        javascript: `globalThis.__unframeMount=()=>{
+        const h=document.createElement('h1');h.dataset.unframeBinding='node:title';h.textContent='Hello';document.getElementById('unframe-root').append(h);
+        const host=document.createElement('div');const shadow=host.attachShadow({mode:${JSON.stringify(mode)}});
+        shadow.append(document.createElement('canvas'));document.getElementById('unframe-root').append(host);
+      };`,
+      });
+      expect(result).toMatchObject({ ok: false, code: "opaque-element-unsupported" });
+    } finally {
+      await runtime.close();
+    }
+  },
+  60_000,
+);
 it("does not trust renderer replacements of DOM observation APIs", async () => {
   const runtime = await openOpaqueCaptureRuntime();
   try {
@@ -126,7 +223,17 @@ it("reports a font that passes metadata checks but cannot be decoded", async () 
     expect(
       await runtime.capture({
         ...request,
-        assets: [{ path: "invalid.ttf", mediaType: "font/ttf", dataBase64: asset.dataBase64 }],
+        assets: [
+          { path: "invalid.ttf", mediaType: "font/ttf", dataBase64: asset.dataBase64 },
+          {
+            path: "invalid.css",
+            mediaType: "text/css",
+            dataBase64: Buffer.from(
+              "@font-face{font-family:Fixture;src:url('/invalid.ttf')}*{font-family:Fixture!important}",
+            ).toString("base64"),
+          },
+        ],
+        stylesheets: ["invalid.css"],
       }),
     ).toMatchObject({ ok: false, code: "opaque-font-invalid" });
   } finally {
@@ -138,8 +245,9 @@ it("preserves CSS import cascade without linking imported styles twice", async (
   try {
     const result = await runtime.capture({
       ...request,
-      stylesheets: ["assets/parent.css"],
+      stylesheets: [...request.stylesheets, "assets/parent.css"],
       assets: [
+        ...request.assets,
         {
           path: "assets/parent.css",
           mediaType: "text/css",

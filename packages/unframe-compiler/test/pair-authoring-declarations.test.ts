@@ -125,6 +125,62 @@ describe("resolveAuthoringStructurePath", () => {
 });
 
 describe("pairAuthoringDeclarations", () => {
+  it.each([null, 42])("rejects a mixed scene with malformed component item %s", (item) => {
+    const base = presentation();
+    const mixed = {
+      ...base,
+      scene: {
+        ...base.scene,
+        components: [
+          {
+            id: "react-one",
+            component: { id: "react", version: 1 },
+            props: {},
+            owner: { kind: "presentation" },
+            audience: { kind: "all" },
+            parent: { kind: "stage" },
+            physicalSizeMeters: [1, 1],
+            fit: "contain",
+            transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+          },
+          item,
+        ],
+      },
+    };
+    expect(
+      pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", mixed)])),
+    ).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "compiler-invalid-declaration", fileName: "entry.ts" }],
+    });
+  });
+  it("accepts a mixed Presentation descriptor with a React scene item", () => {
+    const base = presentation();
+    const mixed = {
+      ...base,
+      scene: {
+        ...base.scene,
+        components: [
+          {
+            id: "react-one",
+            component: { id: "react", version: 1 },
+            props: {},
+            owner: { kind: "presentation" },
+            audience: { kind: "all" },
+            parent: { kind: "stage" },
+            physicalSizeMeters: [1, 1],
+            fit: "contain",
+            transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+          },
+        ],
+      },
+    };
+    const result = pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", mixed)]));
+    expect(result).toMatchObject({
+      ok: true,
+      catalog: { presentation: { value: { scene: { components: [{ id: "react-one" }] } } } },
+    });
+  });
   it("pairs structured manifest and structure deterministically while retaining collected entries", () => {
     const declarations = [
       entry("component-structure", "components/Button.structure.tsx", structure("button")),

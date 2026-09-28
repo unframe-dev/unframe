@@ -1,12 +1,12 @@
 # React Component Authoring 設計案と実装計画
 
-- **Status**: 採用前提の実装計画 / API 詳細と導入条件は検証待ち。A0 型試作検証済み、canonical Surface 拡張を採用。A1・A2 のローカル検証済み。remote CI は未確認
+- **Status**: 採用前提の実装計画 / API 詳細と導入条件は検証待ち。A0 型試作検証済み、canonical Surface 拡張を採用。A1・A2、および A5 の Core / CLI capture 経路はローカル検証済み。Editor preview と remote CI は未確認
 - **Date**: 2026-09-27
 - **Decision**: [ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。三例の型推論を隔離した宣言型の試作で検証し、未決だった実装方式を関連 contract に記録した。現行 SDK と Compiler は heading / paragraph と単一 default State の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。以下の有限 State の React API と Editor は未実装であり、縦断検証では標準経路として提供できる範囲と残課題を確認する。
+本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。三例の型推論を隔離した宣言型の試作で検証し、未決だった実装方式を関連 contract に記録した。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。Editor 編集・保存は別途接続する。capture の受け入れ範囲と残件は [統合記録](../plans/react-state-capture-acceptance.md) を参照する。
 
 A1 着手前の再確認で、現行 Core がすべての Semantic Node と Content Node の一対一対応を要求することが判明した。React の内部描画構造を保存しない本提案には、そのまま適用できない。Surface の Structured / Opaque 表現と Renderer の binding 検証を分ける追加設計を [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) で確定した。
 
@@ -14,7 +14,7 @@ A1 着手前の再確認で、現行 Core がすべての Semantic Node と Cont
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、静的 default State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Web Editor](../../app/web/src/features/editor/infra/document-runtime.ts) は fixture と browser persistence を使用している。本計画は既存機能を再実装せず、それらへ新しい入力経路を接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Web Editor](../../app/web/src/features/editor/infra/document-runtime.ts) は fixture と browser persistence を使用している。本計画は既存機能を再実装せず、それらへ新しい入力経路を接続する。
 
 ## 2. 作者向け API の三例
 
@@ -128,7 +128,7 @@ export const Reveal = defineComponent({
 });
 ```
 
-State ごとに同じ base Semantic Tree へ既存規則の override を適用する。`setState` はこの単一 Surface の canonical `setSurfaceState` effect へ lower する提案 helper であり、新しい Runtime action ではない。宣言 record の key から State / Interaction / Action / Output の local ID と既存の kind を補う。
+State ごとに同じ base Semantic Tree へ既存規則の override を適用する。`setState` はこの単一 Surface の canonical `setSurfaceState` effect へ lower する helper であり、新しい Runtime action ではない。宣言 record の key から State / Interaction / Action / Output の local ID と既存の kind を補う。
 
 全宣言 State を build 時に描画する。JSX topology は State 間で変わってよいが、基底 Semantic Node の ID・role・親子関係は変えない。非表示の answer は完成 Semantic Tree と描画 binding の両方から除く。`texts` は membership 除外前の全基底 text key と解決済み string を保持するが、除外中 Node の binding の出現は拒否する。非活性の button は意味と描画に残せるが、有効な Hit Region を生成しない。
 
@@ -227,7 +227,7 @@ export default definePresentation({
 
 配置対象ごとの Props 型を推論し、異なる Component が同じ scene 配列にあっても必須値・余分な key・型不一致を拒否する。Flow の Instance / Action / Output 参照は既存の Compiler 検証を通す。作者が接続するのは公開 ID だけであり、内部 Surface ID や package lock は使わない。通常の React の子は scene Instance とは別の型で、独立した配置・owner・Flow target を持たない。
 
-初期の静的検証では Hero 二件だけを配置し、cues を空にする。有限 State の工程で上記の Reveal と Cue を加える。上記例の共有値を含む GUI 編集は、後述の局所 override 対応後に検証する。
+静的 fixture は Hero 二件と空の cues を使用し、有限 State fixture は Reveal と Cue の接続を検証する。上記例の共有値を含む GUI 編集は、後述の局所 override 対応後に検証する。
 
 Opaque の Theme 指定は任意とし、未指定でも宣言検証を通す。明示した場合は参照先が一意に解決することを検証する。Structured の Theme 解決規則は維持する。
 
@@ -306,7 +306,7 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 | A2 静的 capture | Renderer API / Web、CLI の閉じた bundle と隔離実行                                                                           | Hero と実 UI ライブラリ fixture を描画。CSS / font / 画像を固定、外部取得拒否、binding 検証、mount 完了判定、timeout / cancel / cleanup を確認。反復 build の全公開成果物が一致                                                       |
 | A3 直接編集     | Compiler の Source patch、CLI host、Web Inspector / preview                                                                  | 直接 literal の文言・位置を変更して保存・再読込できる。二 Instance が独立。位置のみの変更で PNG が同一。競合・保存失敗・capture 失敗を区別                                                                                            |
 | A4 共有値編集   | 局所 override、同一 session Undo / Redo                                                                                      | 2.3 の sharedTitle と追加の props spread fixture を片方だけ編集でき、共有元と対象外 comment を維持。stale command と古い build 結果を適用しない                                                                                       |
-| A5 有限 State   | Opaque State capture、公開 Action / Output と既存 Flow 接続                                                                  | Reveal の全 State を capture。missing / duplicate / undeclared binding を拒否。既存 Core とローカル preview で Output → Cue → Action → State の経路を確認。React event は使用しない                                                   |
+| A5 有限 State   | Opaque State capture、公開 Action / Output と既存 Flow 接続                                                                  | Reveal の全 State を capture。missing / duplicate / undeclared binding を拒否。既存 Core / CLI build で Output → Cue → Action → State の接続を検証。Editor preview の操作経路は後続。React event は使用しない                         |
 | A6 導入判定     | 検証記録、契約・package 文書・reference 更新                                                                                 | 作者例、visual 結果、再現性、編集往復、cold / warm build と編集から preview までの時間を報告。提供可能な対応範囲、残課題と導入条件を明記                                                                                              |
 
 A2 の同じ入力には明示 source、lock、設定、Compiler / renderer / Browser / encoder、locale、timezone、font と viewport を含む。実装 contract 4節の Linux bubblewrap / cgroup profile と終了条件を実装し、capability 欠落時は実行を拒否する。設計の独立レビューと OS 隔離の実試験は区別し、A2 で runtime を独立レビューする。
@@ -341,4 +341,4 @@ A0 では、Props の必須 / default の排他性と、default 解決後の ren
 
 A1 では、型試作をそのまま export せず、既存 schema / semantic guard と一致する公開型へ統合する。Source 非実行の拒否試験、lock v2 の hash / origin / cycle fixture、Structured 回帰を先に用意し、Component 分類 → Manifest / renderer descriptor 抽出 → Instance / ID lowering → CLI frozen check の順に接続する。capture と Editor はこの工程へ混ぜない。
 
-A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。A2 は閉じた bundle、Linux namespace / cgroup 隔離、binding と二回の RGBA 比較を CLI build に接続した。Base UI Button と CSS / TTF / PNG を使う fixture で、反復 build の全公開成果物一致と、外部通信による失敗時の既存 dist 保持を確認した。Editor と有限 State の React 経路は後続である。
+A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。A2 は閉じた bundle、Linux namespace / cgroup 隔離、binding と二回の RGBA 比較を CLI build に接続した。Base UI Button と CSS / TTF / PNG を使う fixture で、反復 build の全公開成果物一致と、外部通信による失敗時の既存 dist 保持を確認した。有限 State の React capture と公開 Action / Output の接続も実装済み。Editor の操作・保存経路は別作業として進める。

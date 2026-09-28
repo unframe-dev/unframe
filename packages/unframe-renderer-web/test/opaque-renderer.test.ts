@@ -36,7 +36,10 @@ const semantics = {
   },
 } as const;
 
-const makeRenderer = (capture: (request: OpaqueCaptureRequest) => Promise<OpaqueCaptureResult>) => {
+const makeRenderer = (
+  capture: (request: OpaqueCaptureRequest) => Promise<OpaqueCaptureResult>,
+  stateKeysById?: Readonly<Record<string, string>>,
+) => {
   const renderer = createOpaqueBakedWebRenderer({
     programs: [
       {
@@ -46,6 +49,7 @@ const makeRenderer = (capture: (request: OpaqueCaptureRequest) => Promise<Opaque
         assets: [{ path: "hero.png", mediaType: "image/png", dataBase64: "AQ==" }],
         stylesheets: ["theme.css"],
         props: { title: "Prop title", density: 2, featured: true },
+        ...(stateKeysById ? { stateKeysById } : {}),
       } satisfies OpaqueRenderProgram,
     ],
     runtimeFingerprint: "sha256:runtime",
@@ -190,13 +194,20 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
     expect(result.diagnostics.map(({ code }) => code)).toEqual(["opaque-network-denied"]);
   });
 
-  it("rejects additional states before capture", async () => {
+  it("captures every State using its local key while retaining excluded text", async () => {
     const requests: OpaqueCaptureRequest[] = [];
-    const renderer = makeRenderer(async (request) => {
-      requests.push(request);
-      return validCapture(request);
-    });
+    const renderer = makeRenderer(
+      async (request) => {
+        requests.push(request);
+        return validCapture(request);
+      },
+      { default: "initial", alternate: "revealed" },
+    );
     const input = inputForRenderer(renderer);
+    const hiddenTree = {
+      rootNodeIds: ["heading"],
+      nodes: { heading: { ...semantics.nodes.heading, text: "Alternate title" } },
+    };
     const multiStateInput: CompilerResolvedSurfaceInput = {
       ...input,
       surface: {
@@ -206,12 +217,14 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
           alternate: {
             id: "alternate",
             contentOverrides: {},
-            semanticOverrides: [],
+            semanticOverrides: [
+              { nodes: { paragraph: { included: false }, heading: { text: "Alternate title" } } },
+            ],
             enabledInteractionIds: [],
           },
         },
       },
-      semanticsByState: { ...input.semanticsByState, alternate: semantics },
+      semanticsByState: { ...input.semanticsByState, alternate: hiddenTree },
       plan: {
         ...input.plan,
         states: { ...input.plan.states, alternate: { kind: "capture" } },
@@ -220,11 +233,16 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
 
     const result = await executeRendererPlugin(renderer, multiStateInput);
 
-    expect(result.valid).toBe(false);
-    expect(requests).toHaveLength(0);
+    expect(result.valid).toBe(true);
+    expect(requests.map(({ stateKey }) => stateKey)).toEqual(["revealed", "initial"]);
+    expect(requests[0]).toMatchObject({
+      texts: { title: "Alternate title", body: "Opaque body" },
+      expectedBindings: { "node:title": "Alternate title" },
+      bindingKeys: ["node:title", "node:body"],
+    });
   });
 
-  it("rejects finite-state intent before capture", async () => {
+  it("supports finite-state intent", async () => {
     const requests: OpaqueCaptureRequest[] = [];
     const renderer = makeRenderer(async (request) => {
       requests.push(request);
@@ -252,8 +270,111 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
 
     const result = await executeRendererPlugin(renderer, finiteStateInput);
 
-    expect(result.valid).toBe(false);
-    expect(requests).toHaveLength(0);
+    expect(result.valid).toBe(true);
+    expect(requests).toHaveLength(1);
+  });
+
+  it("emits normalized Hit Regions for enabled button bindings with interaction priority", async () => {
+    const renderer = makeRenderer(async (request) => ({
+      ...validCapture(request),
+      bindings: Object.entries(request.expectedBindings).map(([key, text]) => ({
+        key,
+        text,
+        x: 25,
+        y: 10,
+        width: 50,
+        height: 20,
+        ...(key === "node:button" ? { disabled: false } : {}),
+      })),
+    }));
+    const input = inputForRenderer(renderer);
+    const button = {
+      id: "button",
+      role: "button" as const,
+      parentId: null,
+      order: 2,
+      text: "Reveal",
+      interactionId: "reveal",
+    };
+    const completedButton = { ...button, stateEnabled: true };
+    const tree = {
+      rootNodeIds: [...semantics.rootNodeIds, "button"],
+      nodes: { ...semantics.nodes, button: completedButton },
+    };
+    const withButton: CompilerResolvedSurfaceInput = {
+      ...input,
+      surface: {
+        ...input.surface,
+        content: {
+          kind: "opaque",
+          bindings: { "node:title": "heading", "node:body": "paragraph", "node:button": "button" },
+        },
+        baseSemanticTree: { rootNodeIds: tree.rootNodeIds, nodes: { ...semantics.nodes, button } },
+        interactions: { reveal: { id: "reveal", kind: "click", event: "reveal", hitPriority: 3 } },
+        states: {
+          default: { ...input.surface.states.default!, enabledInteractionIds: ["reveal"] },
+        },
+        renderIntent: {
+          ...input.surface.renderIntent,
+          interaction: { kind: "regions", events: ["reveal"] },
+        },
+      },
+      sourceIntent: { ...input.sourceIntent, interaction: { kind: "regions", events: ["reveal"] } },
+      resolvedIntent: {
+        ...input.resolvedIntent,
+        interaction: { kind: "regions", events: ["reveal"] },
+      },
+      semanticsByState: { default: tree },
+      plan: {
+        ...input.plan,
+        ownership: { kind: "opaque", bindingKeys: ["node:title", "node:body", "node:button"] },
+      },
+    };
+    const result = await executeRendererPlugin(renderer, withButton);
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.value.hitRegionsByState).toEqual({
+      default: [
+        {
+          interactionId: "reveal",
+          semanticNodeId: "button",
+          priority: 3,
+          coordinateSpace: "normalized",
+          bounds: { x: 0.25, y: 0.2, width: 0.5, height: 0.4 },
+        },
+      ],
+    });
+    const disabledRenderer = makeRenderer(async (request) => ({
+      ...validCapture(request),
+      bindings: Object.entries(request.expectedBindings).map(([key, text]) => ({
+        key,
+        text,
+        x: 25,
+        y: 10,
+        width: 50,
+        height: 20,
+        ...(key === "node:button" ? { disabled: true } : {}),
+      })),
+    }));
+    const disabled = await executeRendererPlugin(disabledRenderer, withButton);
+    expect(disabled.valid).toBe(true);
+    if (disabled.valid) expect(disabled.value.hitRegionsByState).toEqual({ default: [] });
+    const outsideRenderer = makeRenderer(async (request) => ({
+      ...validCapture(request),
+      bindings: Object.entries(request.expectedBindings).map(([key, text]) => ({
+        key,
+        text,
+        x: 90,
+        y: 10,
+        width: 50,
+        height: 20,
+        ...(key === "node:button" ? { disabled: false } : {}),
+      })),
+    }));
+    const outside = await executeRendererPlugin(outsideRenderer, withButton);
+    expect(outside.valid).toBe(false);
+    if (!outside.valid)
+      expect(outside.diagnostics.map(({ code }) => code)).toContain("invalid-hit-region");
   });
 
   it("reports opaque alpha only when every pixel is fully opaque", async () => {

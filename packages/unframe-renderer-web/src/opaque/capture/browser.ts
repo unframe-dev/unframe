@@ -1,6 +1,7 @@
 import type { Browser } from "playwright-core";
 import { PNG } from "pngjs";
 import { validateOpaqueAsset } from "./assets.js";
+import { createOpaqueFontValidator } from "./fonts.js";
 import { fixedBrowserInitScript } from "../../browser/playwright-fixed-browser.js";
 import { validateOpaqueBindings, type OpaqueBinding } from "./bindings.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
@@ -22,30 +23,38 @@ const restrictionScript = `(() => {
   Object.defineProperty(globalThis,'__unframeViolation',{get:()=>violation,configurable:false});
   addEventListener('securitypolicyviolation', () => { violation = true; });
 })();`;
-const observeScript = `(() => {
+const observeScript = `(buttonKeys => {
   if (document.querySelector('video,audio,iframe,canvas,object,embed,svg')) throw new Error('opaque-element-unsupported');
   const root = document.getElementById('unframe-root');
   const observations = [];
   for (const element of document.querySelectorAll('[data-unframe-binding]')) {
     if (!root.contains(element)) throw new Error('opaque-binding-invalid');
+    const key=element.getAttribute('data-unframe-binding');
+    const isButton=buttonKeys.includes(key);
+    if (isButton && !(element instanceof HTMLButtonElement)) throw new Error('opaque-binding-invalid');
     const rect = element.getBoundingClientRect();
     let left=Math.max(0,rect.left), top=Math.max(0,rect.top), right=Math.min(innerWidth,rect.right), bottom=Math.min(innerHeight,rect.bottom);
     for (let parent=element; parent; parent=parent.parentElement) {
       const style=getComputedStyle(parent);
       if (style.display==='none' || style.visibility!=='visible' || Number(style.opacity)===0) throw new Error('opaque-binding-invisible');
-      if (style.clipPath!=='none' || style.perspective!=='none') throw new Error('opaque-geometry-unsupported');
+      if (style.clipPath!=='none' || style.perspective!=='none' || style.clip!=='auto') throw new Error('opaque-geometry-unsupported');
       if (style.transform!=='none') {
         const matrix=new DOMMatrixReadOnly(style.transform);
         if (!matrix.is2D || matrix.b!==0 || matrix.c!==0 || matrix.a<=0 || matrix.d<=0) throw new Error('opaque-geometry-unsupported');
       }
       const bounds=parent.getBoundingClientRect();
-      if (['hidden','clip','scroll','auto'].includes(style.overflowX)) {left=Math.max(left,bounds.left);right=Math.min(right,bounds.right);}
-      if (['hidden','clip','scroll','auto'].includes(style.overflowY)) {top=Math.max(top,bounds.top);bottom=Math.min(bottom,bounds.bottom);}
+      const clipsX=['hidden','clip','scroll','auto'].includes(style.overflowX);
+      const clipsY=['hidden','clip','scroll','auto'].includes(style.overflowY);
+      if ((clipsX || clipsY) && style.borderRadius!=='0px') throw new Error('opaque-geometry-unsupported');
+      const scaleX=parent.offsetWidth ? bounds.width/parent.offsetWidth : 1;
+      const scaleY=parent.offsetHeight ? bounds.height/parent.offsetHeight : 1;
+      if (clipsX) {left=Math.max(left,bounds.left+parent.clientLeft*scaleX);right=Math.min(right,bounds.left+(parent.clientLeft+parent.clientWidth)*scaleX);}
+      if (clipsY) {top=Math.max(top,bounds.top+parent.clientTop*scaleY);bottom=Math.min(bottom,bounds.top+(parent.clientTop+parent.clientHeight)*scaleY);}
     }
-    observations.push({key:element.getAttribute('data-unframe-binding'),text:element.textContent,x:left,y:top,width:right-left,height:bottom-top});
+    observations.push({key,text:element.textContent,x:left,y:top,width:right-left,height:bottom-top,...(isButton?{disabled:element.disabled}:{})});
   }
   return observations;
-})()`;
+})`;
 const pngBytes = (bytes: Uint8Array, target: readonly [number, number]) => {
   if (
     bytes.length < 24 ||
@@ -115,17 +124,10 @@ export const captureOpaquePage = async (
           `<link rel="stylesheet" href="/${path.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}">`,
       )
       .join("");
-    const fonts = input.assets
-      .filter((a) => a.mediaType === "font/ttf" || a.mediaType === "font/otf")
-      .map(
-        (a, i) =>
-          `@font-face{font-family:unframe-locked-${i};src:url('/${a.path.replaceAll("'", "%27")}')}`,
-      )
-      .join("");
     const scale = input.pixelTarget[0] / input.logicalSize[0];
     if (Math.abs(input.logicalSize[1] * scale - input.pixelTarget[1]) > 1)
       throw new Error("opaque-input-invalid");
-    const html = `<!doctype html><html><head><meta charset="utf-8">${css}<style>${fonts}html,body{margin:0;width:100%;height:100%;overflow:hidden}body{background:rgba(${input.background.slice(0, 3).join(",")},${input.background[3] / 255})}*{animation:none!important;transition:none!important;caret-color:transparent!important}#unframe-root{width:${input.logicalSize[0]}px;height:${input.logicalSize[1]}px;transform-origin:0 0;transform:scale(${scale})}</style></head><body><div id="unframe-root"></div><script src="/__renderer.js"></script></body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8">${css}<style>html,body{margin:0;width:100%;height:100%;overflow:hidden}body{background:rgba(${input.background.slice(0, 3).join(",")},${input.background[3] / 255})}*{animation:none!important;transition:none!important;caret-color:transparent!important;font-synthesis:none!important}#unframe-root{width:${input.logicalSize[0]}px;height:${input.logicalSize[1]}px;transform-origin:0 0;transform:scale(${scale})}</style></head><body><div id="unframe-root"></div><script src="/__renderer.js"></script></body></html>`;
     if (map.has(ORIGIN + "__renderer.js")) throw new Error("opaque-asset-invalid");
     map.set(ORIGIN, { mediaType: "text/html", bytes: Buffer.from(html) });
     map.set(ORIGIN + "__renderer.js", {
@@ -197,16 +199,29 @@ export const captureOpaquePage = async (
     };
 
     const isolated = <T>(expression: string) => evaluate<T>(expression, executionContextId);
+    const rejectAuthorShadowRoots = async () => {
+      const { root } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+      const visit = (node: typeof root): void => {
+        for (const shadow of node.shadowRoots ?? []) {
+          if (shadow.shadowRootType !== "user-agent") throw new Error("opaque-element-unsupported");
+          visit(shadow);
+        }
+        for (const child of node.children ?? []) visit(child);
+        for (const pseudo of node.pseudoElements ?? []) visit(pseudo);
+      };
+      visit(root);
+    };
 
     const bindings = Object.fromEntries(
-      Object.keys(input.expectedBindings).map((key) => [
+      (input.bindingKeys ?? Object.keys(input.expectedBindings)).map((key) => [
         key.slice(5),
         { "data-unframe-binding": key },
       ]),
     );
     await evaluate(
-      `globalThis.__unframeMount(${JSON.stringify({ props: input.props, texts: input.texts, bindings, state: "default" })})`,
+      `globalThis.__unframeMount(${JSON.stringify({ props: input.props, texts: input.texts, bindings, state: input.stateKey ?? "default" })})`,
     );
+    await rejectAuthorShadowRoots();
     const imageUrls = input.assets
       .filter((asset) => asset.mediaType.startsWith("image/"))
       .map((asset) => ORIGIN + asset.path);
@@ -220,13 +235,24 @@ export const captureOpaquePage = async (
     ).catch(() => {
       throw new Error("opaque-image-invalid");
     });
+    const validateFonts = await createOpaqueFontValidator(input.assets, cdp, isolated);
     const observe = async () => {
+      await rejectAuthorShadowRoots();
       const result = validateOpaqueBindings(
         input.expectedBindings,
-        await isolated<OpaqueBinding[]>(observeScript),
+        await isolated<OpaqueBinding[]>(
+          `${observeScript}(${JSON.stringify(Object.keys(input.buttonBindings ?? {}))})`,
+        ),
       );
       if (!result.ok) throw new Error("opaque-binding-invalid");
-      return result.bindings;
+      const scale = input.pixelTarget[0] / input.logicalSize[0];
+      return result.bindings.map((binding) => ({
+        ...binding,
+        x: binding.x / scale,
+        y: binding.y / scale,
+        width: binding.width / scale,
+        height: binding.height / scale,
+      }));
     };
     let previous:
       | { fingerprint: string; rgba: Buffer; bindings: readonly OpaqueBinding[] }
@@ -234,6 +260,7 @@ export const captureOpaquePage = async (
     for (;;) {
       await isolated("new Promise(resolve=>requestAnimationFrame(()=>resolve()))");
       if (await evaluate("__unframeViolation")) throw new Error("opaque-capability-denied");
+      await validateFonts();
       const observed = await observe();
       const fingerprint = JSON.stringify(observed);
       const rgba = pngBytes(

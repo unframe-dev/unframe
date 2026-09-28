@@ -152,6 +152,14 @@ const captureSchema = z.strictObject({
   alphaMode: z.enum(["opaque", "straight", "premultiplied"]),
 });
 
+const hitRegionSchema = z.strictObject({
+  interactionId: rendererIdSchema,
+  semanticNodeId: rendererIdSchema,
+  bounds: boundsSchema,
+  priority: finiteNumberSchema,
+  coordinateSpace: z.literal("normalized"),
+});
+
 export const rendererBuildResultSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(false), diagnostics: z.array(diagnosticSchema) }),
   z.strictObject({
@@ -163,6 +171,7 @@ export const rendererBuildResultSchema = z.discriminatedUnion("ok", [
       layer: finiteNumberSchema,
     }),
     captures: z.array(captureSchema),
+    hitRegionsByState: z.record(rendererIdSchema, z.array(hitRegionSchema)).optional(),
     provenance: rendererIdentitySchema.extend({
       inputHash: rendererIdSchema,
       buildContextHash: rendererIdSchema,
