@@ -157,3 +157,9 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 - cache layout と remote cache policy
 - M1後のBrowser pooling / multi-project isolate topology
 - release間のdiagnostic compatibility policy
+
+## 11. Direct source editing
+
+`readEditableReactScene` は検証済み catalog と最新 Source から公開 scalar Props と host Transform の編集可否を返す。
+`patchEditableReactScene` は対象 Instance の直接 literal だけを置換し、対象外 Source とコメントを保持する。
+共有値や spread に隠れた値は編集を拒否する。保存前の再検証、lock 更新、filesystem transaction は CLI が所有する。
