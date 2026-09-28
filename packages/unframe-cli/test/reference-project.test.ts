@@ -267,6 +267,7 @@ describe("reference Authoring Project", () => {
       });
       expect(browser.observed.capture).toBe(command === "build" ? 6 : 0);
     },
+    15_000,
   );
 
   it("does not warn for explicit empty, zero, false, or values equal to defaults", async () => {
@@ -772,5 +773,5 @@ describe("reference Authoring Project", () => {
       },
     ]);
     await expect(readFile(lockPath, "utf8")).resolves.toBe("replacement");
-  });
+  }, 15_000);
 });

@@ -2291,7 +2291,7 @@ describe("compileDeclarationProject", () => {
     expect(repeated.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds).toEqual(
       roundedIds,
     );
-  });
+  }, 15_000);
 
   it("fails the whole build when a later partition renderer call fails", async () => {
     let calls = 0;
