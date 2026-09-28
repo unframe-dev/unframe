@@ -13,13 +13,13 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
-    "@noble/hashes": "2.3.0",
+    "@noble/hashes": "2.4.0",
     "@unframe/unframe-assets": "workspace:*",
     "@unframe/unframe-authoring": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-api": "workspace:*",
-    "typescript": "6.0.3",
-    "zod": "4.4.3"
+    "typescript": "7.0.2",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@unframe/unframe-components": "workspace:*",

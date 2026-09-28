@@ -13,12 +13,12 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
-    "@noble/hashes": "2.3.0",
+    "@noble/hashes": "2.4.0",
     "@unframe/unframe-renderer-api": "workspace:*",
-    "playwright-core": "1.62.1",
+    "playwright-core": "1.63.0",
     "pngjs": "7.0.0",
-    "rolldown": "1.0.1",
-    "zod": "4.4.3"
+    "rolldown": "1.2.11",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -22,16 +22,16 @@
     "test:presentation:v2": "tsx --test test/presentation-v2.contract.test.ts test/runtime-projection-v2.contract.test.ts"
   },
   "dependencies": {
-    "zod": "4.4.3"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260825.1",
     "@types/node": "^24.0.0",
     "ajv": "8.17.1",
-    "canonicalize": "3.0.0",
+    "canonicalize": "5.1.0",
     "openapi-typescript": "^7.12.0",
     "tsx": "^4.22.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.0",
     "vite-plus": "catalog:"
   }
 }
