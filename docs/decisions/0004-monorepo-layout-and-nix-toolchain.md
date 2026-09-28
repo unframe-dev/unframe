@@ -67,7 +67,7 @@
 
 - [x] `app/backend` → `app/server` のリネームと、参照（README / scripts）の追従。
 - [x] 旧 OpenAPI contract と生成 client を削除し、`packages/contracts` を将来の共有境界として残す。
-- [x] `packages/config` を新設し、共有 tsconfig / Vite+ staged hook を集約。
+- [x] `packages/config` を新設し、runtime-neutral な共有 tsconfig、Vite+ staged 設定、repository-owned hook を集約。
 - [x] `tools/notion-sync` を `scripts/docs/notion-sync` へ移設（完了）。
 - [ ] `flake.lock` を生成し、`nix flake check` をローカルと CI で検証。
 - [x] `app/web`（React 編集エディタ）のワークスペースを新設。

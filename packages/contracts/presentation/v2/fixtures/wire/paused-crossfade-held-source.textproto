@@ -1,0 +1,19 @@
+model_node_id: "model"
+crossfade {
+  from_is_held: true
+  from {
+    clip_id: "idle"
+    playback { paused { position_ms: 200 } }
+    speed: 1
+    loop: false
+  }
+  to {
+    clip_id: "wave"
+    playback { paused { position_ms: 300 } }
+    speed: 0.5
+    loop: false
+  }
+  transition_clock { paused { position_ms: 100 } }
+  duration_ms: 400
+  easing: EASING_LINEAR
+}

@@ -21,13 +21,13 @@ MR デバイス上でプレゼンテーションを表示
 
 ## 構成要素
 
-| コンポーネント | 役割 | 技術 |
-| --- | --- | --- |
-| Web Editor（WIP） | プレゼンテーションの作成・編集 | React 19 |
-| Control Plane（WIP） | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
-| Realtime Backend（WIP） | session 中の低遅延状態同期 | Go / gRPC / container |
-| Unity MR Application（WIP） | MR 表示と realtime session 参加 | Unity / C# |
-| Landing Page（WIP） | プロダクト紹介とドキュメント | SvelteKit |
+| コンポーネント              | 役割                                                   | 技術                                             |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| Web Editor（WIP）           | プレゼンテーションの作成・編集                         | React 19                                         |
+| Control Plane（WIP）        | 認証・認可、durable resource、asset、session bootstrap | Cloudflare Workers / TypeScript / Hono / D1 / R2 |
+| Realtime Backend（WIP）     | session 中の低遅延状態同期                             | Go / gRPC / container                            |
+| Unity MR Application（WIP） | MR 表示と realtime session 参加                        | Unity / C#                                       |
+| Landing Page（WIP）         | プロダクト紹介とドキュメント                           | SvelteKit                                        |
 
 `app/server/` は Control Plane と Realtime Backend の親ディレクトリです。旧 Go/Huma/Turso/R2 HTTP API は削除済みで、各 component は独立した実行・依存・deployment 単位です。Component 間の境界は [app/server/ARCHITECTURE.md](./app/server/ARCHITECTURE.md)、内部設計は [Control Plane](./app/server/control-plane/ARCHITECTURE.md) と [Realtime Backend](./app/server/realtime/ARCHITECTURE.md) の各文書を参照してください。
 
@@ -35,7 +35,7 @@ MR デバイス上でプレゼンテーションを表示
 
 ## 現在のステータス
 
-`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は Workers / Hono の HTTP 境界と `GET /health`、Web Editor は編集機能の scaffold、Unity はローカル JSON importer と presentation element loader の scaffold を実装しています。認証、認可、resource API、realtime 同期、変換 pipeline、background job は未実装です。
+`app/` 配下のアプリケーションと `lp/` は WIP です。Control Plane は認証、Presentation / Asset API、Session lifecycle と Realtime bootstrap を実装しています。Realtime Backend は認証付き gRPC 接続と page-change の in-memory fan-out を実装していますが、replay / resume や完全な Runtime 同期は未実装です。Web Editor は認証画面と fixture を使う 3D Editor を持ち、Presentation のサーバー永続化と asset upload は未接続です。Unity はローカル JSON importer と presentation element loader を実装しています。変換 pipeline と background job は未実装です。
 
 ## リポジトリ
 

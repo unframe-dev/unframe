@@ -19,7 +19,7 @@ if (response.ok) {
 
 ## Better Auth client
 
-認証は Control Plane OpenAPI とは別の、Better Auth `1.6.26` に固定したバージョン付き契約境界です。Google / email-password sign-in、email verification、password reset、session、device authorization、TOTP / backup code MFA を型付きで利用できます。
+認証は Control Plane OpenAPI とは別の、Better Auth `1.7.1` に固定したバージョン付き契約境界です。Google / email-password sign-in、email verification、password reset、session、device authorization、TOTP / backup code MFA を型付きで利用できます。
 
 ```ts
 import { createControlPlaneAuthClient } from "@unframe/api-client-typescript";

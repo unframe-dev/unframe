@@ -1,0 +1,9 @@
+{
+  "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

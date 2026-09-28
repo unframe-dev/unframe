@@ -1,0 +1,557 @@
+syntax = "proto3";
+
+package unframe.delivery.v2;
+
+import "unframe/presentation/v2/runtime.proto";
+
+option go_package = "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery/v2;deliveryv2";
+
+enum RendererKind {
+  RENDERER_KIND_UNSPECIFIED = 0;
+  RENDERER_KIND_BAKED_WEB = 1;
+  RENDERER_KIND_NATIVE_UI = 2;
+  RENDERER_KIND_VIDEO = 3;
+}
+
+enum BakedWebFeature {
+  BAKED_WEB_FEATURE_UNSPECIFIED = 0;
+  BAKED_WEB_FEATURE_PNG = 1;
+  BAKED_WEB_FEATURE_SRGB = 2;
+  BAKED_WEB_FEATURE_ALPHA_OPAQUE = 3;
+  BAKED_WEB_FEATURE_ALPHA_STRAIGHT = 4;
+}
+
+enum NativeUiFeature {
+  NATIVE_UI_FEATURE_UNSPECIFIED = 0;
+  NATIVE_UI_FEATURE_CLIP = 1;
+  NATIVE_UI_FEATURE_ELLIPSIS = 2;
+  NATIVE_UI_FEATURE_EXPLICIT_FONT_FALLBACK = 3;
+}
+
+enum VideoFeature {
+  VIDEO_FEATURE_UNSPECIFIED = 0;
+  VIDEO_FEATURE_H264 = 1;
+  VIDEO_FEATURE_VP9 = 2;
+  VIDEO_FEATURE_AV1 = 3;
+  VIDEO_FEATURE_ALPHA = 4;
+  VIDEO_FEATURE_AUDIO = 5;
+}
+
+enum ModelFeature {
+  MODEL_FEATURE_UNSPECIFIED = 0;
+  MODEL_FEATURE_ANIMATION = 1;
+  MODEL_FEATURE_SKIN = 2;
+  MODEL_FEATURE_MORPH_TARGETS = 3;
+  MODEL_FEATURE_ALPHA_BLEND = 4;
+  MODEL_FEATURE_ALPHA_MASK = 5;
+  MODEL_FEATURE_PBR_METALLIC_ROUGHNESS = 6;
+  MODEL_FEATURE_UNLIT = 7;
+}
+
+enum ModelFormat {
+  MODEL_FORMAT_UNSPECIFIED = 0;
+  MODEL_FORMAT_GLTF_BINARY = 1;
+}
+
+message TextureCapability {
+  bool supported = 1;
+  uint32 contract_version = 2;
+  repeated BakedWebFeature features = 3;
+}
+
+message NativeUiCapability {
+  bool supported = 1;
+  uint32 contract_version = 2;
+  repeated NativeUiFeature features = 3;
+}
+
+message VideoCapability {
+  bool supported = 1;
+  uint32 contract_version = 2;
+  repeated VideoFeature features = 3;
+}
+
+message ModelCapability {
+  bool supported = 1;
+  uint32 contract_version = 2;
+  repeated ModelFormat formats = 3;
+  repeated ModelFeature features = 4;
+}
+
+message ContractVersions {
+  uint32 delivery = 1;
+  uint32 runtime = 2;
+  uint32 progression = 3;
+  uint32 projection = 4;
+}
+
+message RendererCapabilities {
+  TextureCapability baked_web = 1;
+  NativeUiCapability native_ui = 2;
+  VideoCapability video = 3;
+}
+
+message TextureLimits {
+  string tier_id = 1;
+  uint64 max_texture_width = 2;
+  uint64 max_texture_height = 3;
+  uint64 max_texture_pixels = 4;
+  uint64 max_texture_bindings = 5;
+  uint64 max_gpu_bytes = 6;
+  uint64 max_serial_load_cpu_bytes = 7;
+  uint64 max_encoded_cache_bytes = 8;
+  uint64 encoded_cache_reserve_bytes = 9;
+}
+
+message NativeUiLimits {
+  string tier_id = 1;
+  uint64 max_nodes_per_artifact = 2;
+  uint64 max_tree_depth = 3;
+  uint64 max_text_nodes_per_artifact = 4;
+  uint64 max_code_points_per_text = 5;
+  uint64 max_glyphs = 6;
+  uint64 max_font_assets = 7;
+}
+
+message VideoLimits {
+  string tier_id = 1;
+  uint64 max_width = 2;
+  uint64 max_height = 3;
+  uint64 max_pixels = 4;
+  uint64 max_concurrent_decoders = 5;
+  uint64 max_encoded_bytes = 6;
+  uint64 max_decoded_frame_bytes = 7;
+}
+
+message ModelLimits {
+  string tier_id = 1;
+  uint64 max_assets = 2;
+  uint64 max_instances = 3;
+  uint64 max_encoded_bytes = 4;
+  uint64 max_nodes = 5;
+  uint64 max_primitives = 6;
+  uint64 max_vertices = 7;
+  uint64 max_triangles = 8;
+  uint64 max_bones_per_skin = 9;
+  uint64 max_morph_targets_per_primitive = 10;
+  uint64 max_animation_clips_per_asset = 11;
+}
+
+message CapabilityLimits {
+  TextureLimits texture = 1;
+  NativeUiLimits native_ui = 2;
+  VideoLimits video = 3;
+  ModelLimits model = 4;
+}
+
+message CapabilityProfile {
+  uint32 schema_version = 1;
+  string capability_profile_id = 2;
+  ContractVersions contract_versions = 3;
+  RendererCapabilities renderers = 4;
+  ModelCapability model = 5;
+  CapabilityLimits limits = 6;
+  bool local_overlay_supported = 7;
+}
+
+message ProjectionProfileKey {
+  unframe.presentation.v2.PublicationFence publication = 1;
+  uint32 projection_contract_version = 2;
+  unframe.presentation.v2.SessionRole role = 3;
+  string capability_profile_id = 4;
+}
+
+message LogicalBounds {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message PixelSize {
+  uint64 width = 1;
+  uint64 height = 2;
+}
+
+message EmptyStateBinding {}
+
+message ArtifactStateBinding {
+  string artifact_id = 1;
+}
+
+message DeliveredStateBinding {
+  string state_id = 1;
+  oneof binding {
+    EmptyStateBinding empty = 2;
+    ArtifactStateBinding artifact = 3;
+  }
+}
+
+enum TextureAlphaMode {
+  TEXTURE_ALPHA_MODE_UNSPECIFIED = 0;
+  TEXTURE_ALPHA_MODE_OPAQUE = 1;
+  TEXTURE_ALPHA_MODE_STRAIGHT = 2;
+}
+
+message TextureArtifact {
+  string asset_id = 1;
+  string checksum = 2;
+  uint64 encoded_size_bytes = 3;
+  PixelSize pixel_size = 4;
+  TextureAlphaMode alpha_mode = 5;
+  uint32 mip_count = 6;
+  uint64 decoded_gpu_bytes = 7;
+}
+
+message BakedWebStateTexture {
+  string state_id = 1;
+  TextureArtifact texture = 2;
+}
+
+message BakedWebArtifact {
+  string artifact_id = 1;
+  uint32 contract_version = 2;
+  repeated BakedWebFeature required_features = 3;
+  repeated BakedWebStateTexture states = 4;
+}
+
+enum NativeTextAlign {
+  NATIVE_TEXT_ALIGN_UNSPECIFIED = 0;
+  NATIVE_TEXT_ALIGN_START = 1;
+  NATIVE_TEXT_ALIGN_CENTER = 2;
+  NATIVE_TEXT_ALIGN_END = 3;
+}
+
+enum NativeTextOverflow {
+  NATIVE_TEXT_OVERFLOW_UNSPECIFIED = 0;
+  NATIVE_TEXT_OVERFLOW_CLIP = 1;
+  NATIVE_TEXT_OVERFLOW_ELLIPSIS = 2;
+}
+
+message CodePointRange {
+  uint32 first = 1;
+  uint32 last = 2;
+}
+
+message FontFace {
+  string asset_id = 1;
+  repeated CodePointRange supported_code_point_ranges = 2;
+}
+
+message ResolvedFont {
+  FontFace primary = 1;
+  repeated FontFace fallbacks = 2;
+}
+
+message SrgbaColor {
+  double red = 1;
+  double green = 2;
+  double blue = 3;
+  double alpha = 4;
+}
+
+message LiteralText { string value = 1; }
+
+message StringVariableText {
+  string variable_id = 1;
+  repeated CodePointRange allowed_code_point_ranges = 2;
+}
+
+message BooleanVariableText {
+  string variable_id = 1;
+  string true_label = 2;
+  string false_label = 3;
+}
+
+message NumberVariableText {
+  string variable_id = 1;
+  uint32 fraction_digits = 2;
+}
+
+enum TimerFormat {
+  TIMER_FORMAT_UNSPECIFIED = 0;
+  TIMER_FORMAT_MM_SS = 1;
+  TIMER_FORMAT_HH_MM_SS = 2;
+}
+
+enum InactiveTimerValue {
+  INACTIVE_TIMER_VALUE_UNSPECIFIED = 0;
+  INACTIVE_TIMER_VALUE_EMPTY = 1;
+  INACTIVE_TIMER_VALUE_ZERO = 2;
+}
+
+message StepTimerText {
+  string group_id = 1;
+  string step_id = 2;
+  string cue_id = 3;
+  uint64 duration_ms = 4;
+  InactiveTimerValue when_step_inactive = 5;
+  TimerFormat format = 6;
+}
+
+message NativeTextValue {
+  oneof source {
+    LiteralText literal = 1;
+    StringVariableText string_variable = 2;
+    BooleanVariableText boolean_variable = 3;
+    NumberVariableText number_variable = 4;
+    StepTimerText step_timer = 5;
+  }
+}
+
+message NativeUiGroup {
+  string node_id = 1;
+  LogicalBounds bounds = 2;
+  bool clip = 3;
+  repeated string child_node_ids = 4;
+}
+
+message NativeUiText {
+  string node_id = 1;
+  LogicalBounds bounds = 2;
+  string semantic_node_id = 3;
+  NativeTextValue value = 4;
+  ResolvedFont font = 5;
+  SrgbaColor color = 6;
+  double font_size = 7;
+  double line_height = 8;
+  NativeTextAlign align = 9;
+  NativeTextOverflow overflow = 10;
+  uint64 max_code_points = 11;
+}
+
+message NativeUiNode {
+  oneof node {
+    NativeUiGroup group = 1;
+    NativeUiText text = 2;
+  }
+}
+
+message NativeUiArtifact {
+  string artifact_id = 1;
+  uint32 contract_version = 2;
+  repeated NativeUiFeature required_features = 3;
+  string root_node_id = 4;
+  repeated NativeUiNode nodes = 5;
+}
+
+enum VideoCodec {
+  VIDEO_CODEC_UNSPECIFIED = 0;
+  VIDEO_CODEC_H264 = 1;
+  VIDEO_CODEC_VP9 = 2;
+  VIDEO_CODEC_AV1 = 3;
+}
+
+message VideoArtifact {
+  string artifact_id = 1;
+  uint32 contract_version = 2;
+  repeated VideoFeature required_features = 3;
+  string video_asset_id = 4;
+  string checksum = 5;
+  PixelSize pixel_size = 6;
+  uint64 duration_ms = 9;
+  bool loop = 11;
+  bool has_audio = 12;
+  uint64 encoded_size_bytes = 13;
+  VideoCodec codec = 14;
+  bool has_alpha = 15;
+  reserved 7, 8, 10;
+}
+
+message DeliveredArtifact {
+  oneof artifact {
+    BakedWebArtifact baked_web = 1;
+    NativeUiArtifact native_ui = 2;
+    VideoArtifact video = 3;
+  }
+}
+
+message DeliveredRenderSurface {
+  string render_surface_id = 1;
+  string semantic_surface_id = 2;
+  LogicalBounds logical_bounds = 3;
+  uint32 layer = 4;
+  RendererKind renderer_kind = 5;
+  uint32 artifact_contract_version = 6;
+  repeated DeliveredStateBinding state_bindings = 7;
+  repeated DeliveredArtifact artifacts = 8;
+}
+
+enum SemanticRole {
+  SEMANTIC_ROLE_UNSPECIFIED = 0;
+  SEMANTIC_ROLE_HEADING = 1;
+  SEMANTIC_ROLE_PARAGRAPH = 2;
+  SEMANTIC_ROLE_IMAGE = 3;
+  SEMANTIC_ROLE_BUTTON = 4;
+  SEMANTIC_ROLE_LIST = 5;
+  SEMANTIC_ROLE_LIST_ITEM = 6;
+  SEMANTIC_ROLE_TABLE = 7;
+  SEMANTIC_ROLE_ROW = 8;
+  SEMANTIC_ROLE_CELL = 9;
+  SEMANTIC_ROLE_COLUMN_HEADER = 10;
+  SEMANTIC_ROLE_ROW_HEADER = 11;
+}
+
+message ProjectedSemanticNode {
+  string semantic_node_id = 1;
+  optional string parent_node_id = 2;
+  uint32 order = 3;
+  SemanticRole role = 4;
+  optional string text = 5;
+  optional string language = 6;
+  optional string alt = 7;
+  optional string label = 8;
+  optional uint32 heading_level = 9;
+  optional bool ordered = 10;
+  bool interaction_enabled = 11;
+  optional string interaction_id = 12;
+}
+
+message ProjectedSemanticTree {
+  repeated string root_node_ids = 1;
+  repeated ProjectedSemanticNode nodes = 2;
+}
+
+message InteractiveRegion {
+  string interaction_id = 1;
+  string semantic_node_id = 2;
+  LogicalBounds normalized_bounds = 3;
+  uint32 priority = 4;
+}
+
+message SurfaceSemanticState {
+  string state_id = 1;
+  ProjectedSemanticTree semantic_tree = 2;
+  repeated InteractiveRegion interactive_regions = 3;
+}
+
+message ProjectedSemanticSurface {
+  string semantic_surface_id = 1;
+  repeated string render_surface_ids = 2;
+  repeated SurfaceSemanticState states = 3;
+}
+
+message LocalOverlayDefinition {
+  string overlay_id = 1;
+  unframe.presentation.v2.AnchorTarget self_anchor = 2;
+  unframe.presentation.v2.Transform transform = 3;
+  repeated string render_surface_ids = 4;
+}
+
+message ProjectionProfileDescriptor {
+  string projection_profile_id = 1;
+  ProjectionProfileKey key = 2;
+  repeated string visible_node_ids = 3;
+  repeated string visible_surface_ids = 4;
+  repeated string visible_variable_ids = 5;
+  repeated DeliveredRenderSurface render_surfaces = 6;
+  repeated ProjectedSemanticSurface semantic_surfaces = 7;
+  repeated LocalOverlayDefinition local_overlays = 8;
+  repeated unframe.presentation.v2.RuntimeCapability required_runtime_capabilities = 9;
+  unframe.presentation.v2.ProjectedRuntimeCatalog runtime_catalog = 10;
+}
+
+message AssetAccessBinding {
+  string asset_id = 1;
+  string checksum = 2;
+  string media_type = 3;
+  uint64 encoded_size_bytes = 4;
+  string url = 5;
+  uint64 expires_at_unix_ms = 6;
+}
+
+message TextureResidencyBinding {
+  string asset_id = 1;
+  string checksum = 2;
+  PixelSize pixel_size = 3;
+  uint64 decoded_gpu_bytes = 4;
+  uint64 peak_load_cpu_bytes = 5;
+}
+
+message TextureResidencyPlan {
+  string budget_tier_id = 1;
+  repeated TextureResidencyBinding textures = 2;
+  uint64 total_decoded_gpu_bytes = 3;
+  uint64 maximum_peak_load_cpu_bytes = 4;
+}
+
+message ModelResidencyBinding {
+  string asset_id = 1;
+  string checksum = 2;
+  uint64 encoded_size_bytes = 3;
+  ModelFormat format = 4;
+  repeated ModelFeature required_features = 5;
+  uint64 node_count = 6;
+  uint64 primitive_count = 7;
+  uint64 vertex_count = 8;
+  uint64 triangle_count = 9;
+  uint64 maximum_bones_per_skin = 10;
+  uint64 maximum_morph_targets_per_primitive = 11;
+  uint64 animation_clip_count = 12;
+}
+
+message ModelResidencyPlan {
+  string budget_tier_id = 1;
+  repeated ModelResidencyBinding models = 2;
+  uint64 total_encoded_bytes = 3;
+  uint64 total_vertices = 4;
+  uint64 total_triangles = 5;
+  uint64 model_instance_count = 6;
+  uint64 total_nodes = 7;
+  uint64 total_primitives = 8;
+}
+
+message NativeUiResidencyPlan {
+  string budget_tier_id = 1;
+  repeated string font_asset_ids = 2;
+  uint64 maximum_nodes_per_artifact = 5;
+  uint64 maximum_tree_depth = 6;
+  uint64 maximum_text_nodes_per_artifact = 7;
+  repeated GlyphResidencyKey glyphs = 8;
+  uint64 maximum_code_points_per_text = 9;
+  uint64 font_asset_count = 10;
+  reserved 3, 4;
+}
+
+message GlyphResidencyKey {
+  string font_checksum = 1;
+  uint32 unicode_scalar = 2;
+}
+
+message VideoResidencyBinding {
+  string asset_id = 1;
+  string checksum = 2;
+  uint64 encoded_size_bytes = 3;
+  uint64 decoded_frame_bytes = 4;
+}
+
+message VideoResidencyPlan {
+  string budget_tier_id = 1;
+  repeated VideoResidencyBinding videos = 2;
+  uint64 total_encoded_bytes = 3;
+  uint64 maximum_concurrent_decoders = 4;
+  uint64 maximum_decoded_frame_bytes = 5;
+}
+
+message ResidencyPlan {
+  TextureResidencyPlan textures = 1;
+  ModelResidencyPlan models = 2;
+  NativeUiResidencyPlan native_ui = 3;
+  VideoResidencyPlan video = 4;
+  uint64 total_selected_encoded_bytes = 5;
+}
+
+message DeliveryManifest {
+  uint32 schema_version = 1;
+  uint32 delivery_contract_version = 2;
+  string session_id = 3;
+  unframe.presentation.v2.PublicationFence publication = 4;
+  string definition_hash = 5;
+  string render_bundle_hash = 6;
+  string asset_set_hash = 7;
+  CapabilityProfile capability_profile = 8;
+  ProjectionProfileDescriptor projection_profile = 9;
+  unframe.presentation.v2.ProjectionInstance projection_instance = 10;
+  repeated AssetAccessBinding asset_access = 11;
+  ResidencyPlan residency = 12;
+}

@@ -22,6 +22,7 @@
 
         # ツールチェイン。旧 mise.toml のツール固定を置換する。
         toolchain = [
+          pkgs.bun
           pkgs.nodejs_22
           pkgs.pnpm
           pkgs.go
@@ -32,6 +33,7 @@
           pkgs.dotnet-sdk_8
           pkgs.powershell
           pkgs.git
+          pkgs.git-lfs
           pkgs.coreutils
           pkgs.bash
         ];
@@ -40,12 +42,43 @@
         # Linux では nix-ld 経由で GNU 動的リンカーを使用する。
         # /lib64 の shim 自体は NixOS 側の programs.nix-ld.enable で有効化する。
         nixLdPackages = pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.nix-ld ];
+        chromiumRuntime = pkgs.lib.optionals pkgs.stdenv.isLinux [
+          pkgs.glib
+          pkgs.nspr
+          pkgs.nss
+          pkgs.atk
+          pkgs.at-spi2-atk
+          pkgs.dbus.lib
+          pkgs.libX11
+          pkgs.libXcomposite
+          pkgs.libXdamage
+          pkgs.libXext
+          pkgs.libXfixes
+          pkgs.libXrandr
+          pkgs.libxcb
+          pkgs.libgbm
+          pkgs.mesa
+          pkgs.expat
+          pkgs.libxkbcommon
+          pkgs.systemd
+          pkgs.alsa-lib
+          pkgs.fontconfig
+          pkgs.noto-fonts-cjk-sans
+        ];
+        presentationFontconfig = pkgs.writeText "unframe-presentation-fontconfig.conf" ''
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <dir>${pkgs.noto-fonts-cjk-sans}/share/fonts</dir>
+          </fontconfig>
+        '';
         nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
-          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
             pkgs.glibc
             pkgs.stdenv.cc.cc
-          ];
+          ] ++ chromiumRuntime);
+          FONTCONFIG_FILE = presentationFontconfig;
         };
 
         # scripts/ の実処理を flake app としてラップする。
@@ -57,6 +90,11 @@
               name = "unframe-${name}";
               runtimeInputs = toolchain;
               text = ''
+                ${pkgs.lib.concatStringsSep "\n" (
+                  pkgs.lib.mapAttrsToList (
+                    variable: value: "export ${variable}=${pkgs.lib.escapeShellArg value}"
+                  ) nixLdEnvironment
+                )}
                 root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
                 exec "''${root}/scripts/${script}" "$@"
               '';
@@ -91,6 +129,10 @@
           control-plane = mkApp {
             name = "control-plane";
             script = "ci/control-plane.sh";
+          };
+          presentation = mkApp {
+            name = "presentation";
+            script = "ci/presentation.sh";
           };
           realtime = mkApp {
             name = "realtime";

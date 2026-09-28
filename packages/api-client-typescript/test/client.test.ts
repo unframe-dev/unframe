@@ -245,7 +245,10 @@ describe("createControlPlaneAuthClient", () => {
   it("returns the typed API error when device verification is rejected", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
       new Response(
-        JSON.stringify({ error: "expired_token", error_description: "The user code has expired" }),
+        JSON.stringify({
+          error: "expired_token",
+          error_description: "The user code has expired",
+        }),
         { status: 400, headers: { "content-type": "application/json" } },
       ),
     );
@@ -254,6 +257,33 @@ describe("createControlPlaneAuthClient", () => {
     await expect(auth.verifyDeviceAuthorization("ABCD-EFGH")).resolves.toEqual({
       data: null,
       error: { error: "expired_token", error_description: "The user code has expired" },
+    });
+  });
+
+  it.each([
+    { name: "null success", status: 200, body: "null" },
+    { name: "null error", status: 400, body: "null" },
+    { name: "array success", status: 200, body: "[]" },
+    { name: "array error", status: 400, body: "[]" },
+    { name: "primitive success", status: 200, body: '"unexpected"' },
+    { name: "primitive error", status: 400, body: "42" },
+    { name: "non-JSON success", status: 200, body: "not JSON" },
+    { name: "non-JSON error", status: 400, body: "not JSON" },
+    {
+      name: "malformed success",
+      status: 200,
+      body: '{"user_code":"ABCD-EFGH","status":"unknown"}',
+    },
+    { name: "malformed error", status: 400, body: '{"error":42,"error_description":false}' },
+  ])("returns request_failed for $name device verification responses", async ({ status, body }) => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(body, { status }));
+    const auth = createControlPlaneAuthClient({ baseUrl: "https://control-plane.example", fetch });
+
+    await expect(auth.verifyDeviceAuthorization("ABCD-EFGH")).resolves.toEqual({
+      data: null,
+      error: { error: "request_failed" },
     });
   });
 });

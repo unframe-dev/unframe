@@ -1,0 +1,7 @@
+{
+  "projectionProfileId": "m3d-demo-profile",
+  "role": "presenter",
+  "visibleNodeIds": ["model", "node-baked", "node-native", "node-video"],
+  "visibleSurfaceIds": ["baked", "native", "video"],
+  "visibleVariableIds": ["counter"]
+}
