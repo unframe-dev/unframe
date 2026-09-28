@@ -300,6 +300,9 @@ importers:
       '@unframe/api-client-typescript':
         specifier: workspace:*
         version: link:../../packages/api-client-typescript
+      '@unframe/unframe-core':
+        specifier: workspace:*
+        version: link:../../packages/unframe-core
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

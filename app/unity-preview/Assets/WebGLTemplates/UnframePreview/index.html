@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unframe Unity Preview</title>
+    <style>
+      html,
+      body,
+      #unity-canvas {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #070a10;
+      }
+      #unity-canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas"></canvas>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      const source = 'unframe-unity-preview';
+      const report = (type, message) => window.parent.postMessage({ source, type, message }, window.location.origin);
+      const config = {
+        dataUrl: 'Build/{{{ DATA_FILENAME }}}',
+        frameworkUrl: 'Build/{{{ FRAMEWORK_FILENAME }}}',
+        codeUrl: 'Build/{{{ CODE_FILENAME }}}',
+        streamingAssetsUrl: 'StreamingAssets',
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}}
+      };
+      createUnityInstance(document.querySelector('#unity-canvas'), config).then((unity) => {
+        window.addEventListener('message', (event) => {
+          if (event.source !== window.parent || event.origin !== window.location.origin) return;
+          const data = event.data;
+          if (data?.source !== 'unframe-preview-host' || typeof data.payload !== 'string') return;
+          if (!['LoadScene', 'ApplyFrame', 'SetView', 'ClearScene'].includes(data.method)) return;
+          unity.SendMessage('PreviewBridge', data.method, data.payload);
+        });
+        report('ready');
+      }).catch((error) => report('error', String(error)));
+    </script>
+  </body>
+</html>

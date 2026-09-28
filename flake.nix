@@ -74,26 +74,33 @@
         '';
         nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
-          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
-            pkgs.glibc
-            pkgs.stdenv.cc.cc
-          ] ++ chromiumRuntime);
+          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+            [
+              pkgs.glibc
+              pkgs.stdenv.cc.cc
+            ]
+            ++ chromiumRuntime
+          );
           FONTCONFIG_FILE = presentationFontconfig;
         };
 
         # scripts/ の実処理を flake app としてラップする。
         # flake.nix は依存・公開名・接続のみを持ち、ロジックは scripts/ 側にある。
         mkApp =
-          { name, script }:
+          {
+            name,
+            script,
+            environment ? { },
+          }:
           let
             wrapper = pkgs.writeShellApplication {
               name = "unframe-${name}";
               runtimeInputs = toolchain;
               text = ''
                 ${pkgs.lib.concatStringsSep "\n" (
-                  pkgs.lib.mapAttrsToList (
-                    variable: value: "export ${variable}=${pkgs.lib.escapeShellArg value}"
-                  ) nixLdEnvironment
+                  pkgs.lib.mapAttrsToList (variable: value: "export ${variable}=${pkgs.lib.escapeShellArg value}") (
+                    nixLdEnvironment // environment
+                  )
                 )}
                 root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
                 exec "''${root}/scripts/${script}" "$@"
@@ -141,6 +148,13 @@
           web = mkApp {
             name = "web";
             script = "ci/web.sh";
+          };
+          unity-web-preview = mkApp {
+            name = "unity-web-preview";
+            script = "dev/build-unity-web-preview.sh";
+            environment = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
+              UNITY_EDITOR_RUNNER = "${pkgs.unityhub.fhsEnv}/bin/unityhub-fhs-env";
+            };
           };
           lp = mkApp {
             name = "lp";

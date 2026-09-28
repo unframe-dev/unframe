@@ -1,7 +1,7 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/app/providers/app-providers";
 import { requireSession } from "@/features/auth/require-session";
 import { createAppRouter } from "./router";
@@ -19,6 +19,8 @@ vi.mock("@unframe/api-client-typescript", () => ({
 vi.mock("@/features/editor/ui/presentation-canvas", () => ({
   PresentationCanvas: () => <div aria-label="3Dプレゼンテーション">3D viewport</div>,
 }));
+
+afterEach(() => vi.unstubAllGlobals());
 
 async function renderRoute(path: string) {
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
@@ -53,6 +55,22 @@ describe("web editor routes", () => {
 
     await router.load();
     expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("opens the development Unity preview without a session", async () => {
+    auth.getSession.mockResolvedValue({ data: null, error: null });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("<script>createUnityInstance(canvas, config)</script>", {
+          headers: { "content-type": "text/html" },
+        }),
+      ),
+    );
+    const router = await renderRoute("/dev/unity-preview");
+
+    expect(await screen.findByTitle("Unity プレビュー")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dev/unity-preview");
   });
 
   it("keeps the device URL and code in the Google sign-in callback", async () => {
