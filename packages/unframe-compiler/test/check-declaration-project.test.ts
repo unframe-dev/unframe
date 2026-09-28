@@ -200,6 +200,141 @@ describe("checkDeclarationProject", () => {
         .sort(),
     ).toEqual(["opaque", "structured"]);
   });
+  it("preserves source Cue positions across Structured and React lowering", () => {
+    const input = project() as StructuredProject;
+    const structured = input.components[0]!;
+    structured.manifest = {
+      ...structured.manifest,
+      outputs: {
+        advanced: {
+          kind: "output",
+          payload: {},
+          producer: { kind: "timer", afterMilliseconds: 1 },
+        },
+        skipped: { kind: "output", payload: {}, producer: { kind: "timer", afterMilliseconds: 2 } },
+      },
+    };
+    const metadata = validateStaticComponentMetadata({
+      id: "react",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [800, 450] },
+      semantics: {
+        rootNodeIds: ["button"],
+        nodes: {
+          button: {
+            role: "button",
+            parentId: null,
+            order: 0,
+            text: "Next",
+            interactionId: "next",
+          },
+        },
+      },
+      interactions: { next: { kind: "click", event: "next", hitPriority: 0 } },
+      initialState: "ready",
+      states: { ready: { semanticOverrides: [], enabledInteractionIds: ["next"] } },
+      actions: {},
+      outputs: {
+        clicked: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "next" } },
+      },
+    });
+    const reactItem = {
+      id: "react-one",
+      component: { id: "react", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1.6, 0.9],
+      fit: "contain",
+      transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
+        },
+        flow: {
+          ...input.presentation.flow,
+          groups: {
+            group: {
+              id: "group",
+              initialStepId: "step",
+              steps: {
+                step: {
+                  id: "step",
+                  cues: [
+                    {
+                      id: "react-first",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "react-one",
+                        outputId: "clicked",
+                      },
+                      actions: [],
+                    },
+                    {
+                      id: "structured-second",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "instance",
+                        outputId: "advanced",
+                      },
+                      actions: [],
+                    },
+                    {
+                      id: "structured-explicit",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "instance",
+                        outputId: "skipped",
+                      },
+                      actions: [],
+                      order: 7,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      components: [
+        ...input.components,
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "react.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      Object.fromEntries(
+        result.value.definition.flow.groups.group!.steps.step!.cues.map((cue) => [
+          cue.id,
+          cue.order,
+        ]),
+      ),
+    ).toEqual({ "react-first": 0, "structured-second": 1, "structured-explicit": 7 });
+  });
   it("identifies the lowered content as a structured tree", () => {
     const result = checkDeclarationProject(project());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);

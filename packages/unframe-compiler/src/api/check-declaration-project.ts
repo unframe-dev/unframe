@@ -123,18 +123,20 @@ const checkDeclarationProjectUnchecked = (
                 stepId,
                 {
                   ...step,
-                  cues: step.cues.filter((cue) => {
-                    if (cue.trigger.kind === "event") return !react;
-                    const outputTrigger = cue.trigger;
-                    const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
-                    if (
-                      cue.actions.some(
-                        (action) => reactIds.has(action.componentInstanceId) !== belongsToReact,
+                  cues: step.cues
+                    .map((cue, index) => ({ ...cue, order: cue.order ?? index }))
+                    .filter((cue) => {
+                      if (cue.trigger.kind === "event") return !react;
+                      const outputTrigger = cue.trigger;
+                      const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
+                      if (
+                        cue.actions.some(
+                          (action) => reactIds.has(action.componentInstanceId) !== belongsToReact,
+                        )
                       )
-                    )
-                      return false;
-                    return belongsToReact === react;
-                  }),
+                        return false;
+                      return belongsToReact === react;
+                    }),
                 },
               ]),
             ),
