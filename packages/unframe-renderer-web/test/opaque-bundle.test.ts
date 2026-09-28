@@ -8,9 +8,82 @@ const module = (
   moduleType: "asset" | "css" | "js" | "jsx" | "json" | "ts" | "tsx" = "ts",
 ) => ({ path, source, moduleType });
 
+const hash = `sha256:${"a".repeat(64)}`;
+const runtime = [
+  module(
+    "locked/react.js",
+    "export const createElement = (component, props) => component(props); export default {createElement};",
+    "js",
+  ),
+  module(
+    "locked/jsx-runtime.js",
+    "export const jsx = (tag, props) => ({tag, props}); export const jsxs = jsx;",
+    "js",
+  ),
+  module("locked/react-dom.js", "export const flushSync = (callback) => callback();", "js"),
+  module(
+    "locked/react-dom-client.js",
+    "export const createRoot = () => ({render: () => {}});",
+    "js",
+  ),
+];
+const closed = (input: {
+  entry: string;
+  modules: readonly { path: string; source: string | Uint8Array; moduleType: string }[];
+  [key: string]: unknown;
+}) =>
+  bundleOpaqueRenderer({
+    ...input,
+    rendererInputHash: hash,
+    modules: [
+      ...input.modules.map((item) =>
+        item.path === input.entry &&
+        typeof item.source === "string" &&
+        item.moduleType !== "css" &&
+        item.moduleType !== "asset"
+          ? { ...item, source: `${item.source}\nexport const render = () => null;` }
+          : item,
+      ),
+      ...runtime,
+    ],
+    resolutions: [
+      {
+        importerPath: "__unframe__/bootstrap.ts",
+        specifier: "react",
+        kind: "import",
+        targetPath: "locked/react.js",
+      },
+      {
+        importerPath: "__unframe__/bootstrap.ts",
+        specifier: "react-dom",
+        kind: "import",
+        targetPath: "locked/react-dom.js",
+      },
+      {
+        importerPath: "__unframe__/bootstrap.ts",
+        specifier: "react-dom/client",
+        kind: "import",
+        targetPath: "locked/react-dom-client.js",
+      },
+      {
+        importerPath: input.entry,
+        specifier: "react",
+        kind: "import",
+        targetPath: "locked/react.js",
+      },
+      {
+        importerPath: input.entry,
+        specifier: "react/jsx-runtime",
+        kind: "import",
+        targetPath: "locked/jsx-runtime.js",
+      },
+    ],
+    stylesheets: input.modules.filter((item) => item.moduleType === "css").map((item) => item.path),
+  });
+
 describe("bundleOpaqueRenderer", () => {
   it("bundles locked relative TSX, CSS, assets, React, and the fixed renderer runtime", async () => {
-    const result = await bundleOpaqueRenderer({
+    const result = await closed({
       entry: "src/renderer.tsx",
       modules: [
         module(
@@ -20,31 +93,35 @@ describe("bundleOpaqueRenderer", () => {
             'import { defineOpaqueRenderer } from "@unframe/renderer-runtime";',
             'import { label } from "./label";',
             'import "./style.css";',
-            'import iconUrl from "./icon.svg";',
+            'import iconUrl from "./icon.png";',
             "export { React };",
             "export default defineOpaqueRenderer(() => <img alt={label} src={iconUrl} />);",
           ].join("\n"),
           "tsx",
         ),
         module("src/label.ts", 'export const label: string = "locked";'),
-        module("src/style.css", '.root { background-image: url("./icon.svg"); }', "css"),
-        module("src/icon.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>', "asset"),
+        module("src/style.css", '.root { background-image: url("icon.png"); }', "css"),
+        {
+          path: "src/icon.png",
+          source: Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10),
+          moduleType: "asset",
+        },
       ],
     });
 
     expect(result.ok ? [] : result.diagnostics).toEqual([]);
     if (!result.ok) return;
     expect(result.javascript).toContain("locked");
-    expect(result.externalImports).toEqual(["react", "react/jsx-runtime"]);
+    expect(result.externalImports).toEqual([]);
     expect(result.assets.map((asset) => asset.fileName)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/\.css$/), expect.stringMatching(/\.svg$/)]),
+      expect.arrayContaining([expect.stringMatching(/\.css$/), expect.stringMatching(/\.png$/)]),
     );
   });
 
   it.each(["node:fs", "/etc/passwd", "https://example.com/x.js", "lodash", "react-dom"])(
     "denies the unapproved import %s",
     async (specifier) => {
-      const result = await bundleOpaqueRenderer({
+      const result = await closed({
         entry: "renderer.ts",
         modules: [
           module(
@@ -64,7 +141,7 @@ describe("bundleOpaqueRenderer", () => {
   it("denies package traversal and unresolved relative modules", async () => {
     for (const specifier of ["../outside.ts", "./missing.ts"])
       await expect(
-        bundleOpaqueRenderer({
+        closed({
           entry: "renderer.ts",
           modules: [module("renderer.ts", `import ${JSON.stringify(specifier)};`)],
         }),
@@ -82,7 +159,7 @@ describe("bundleOpaqueRenderer", () => {
   it("denies network and untracked references from package CSS", async () => {
     for (const reference of ["https://example.com/image.png", "./missing.png"])
       await expect(
-        bundleOpaqueRenderer({
+        closed({
           entry: "renderer.ts",
           modules: [
             module("renderer.ts", 'import "./style.css";'),
@@ -100,8 +177,8 @@ describe("bundleOpaqueRenderer", () => {
       module("renderer.ts", 'import { value } from "./value"; export default value;'),
       module("value.ts", 'export const value = "stable";'),
     ];
-    const first = await bundleOpaqueRenderer({ entry: "renderer.ts", modules });
-    const second = await bundleOpaqueRenderer({
+    const first = await closed({ entry: "renderer.ts", modules });
+    const second = await closed({
       entry: "renderer.ts",
       modules: [...modules].reverse(),
     });
@@ -111,8 +188,8 @@ describe("bundleOpaqueRenderer", () => {
   });
 
   it("preserves a defensive copy of binary asset bytes", async () => {
-    const source = Uint8Array.of(0x00, 0x80, 0xff, 0x7f);
-    const resultPromise = bundleOpaqueRenderer({
+    const source = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10, 0x80, 0xff);
+    const resultPromise = closed({
       entry: "renderer.ts",
       modules: [
         module("renderer.ts", 'import image from "./image.png"; export default image;'),
@@ -126,18 +203,54 @@ describe("bundleOpaqueRenderer", () => {
     expect(result.ok ? [] : result.diagnostics).toEqual([]);
     if (!result.ok) return;
     const asset = result.assets.find((item) => item.fileName.endsWith(".png"));
-    expect(asset?.source).toEqual(Uint8Array.of(0x00, 0x80, 0xff, 0x7f));
+    expect(asset?.source).toEqual(Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10, 0x80, 0xff));
   });
 
   it("rejects binary source for executable modules", async () => {
     await expect(
       bundleOpaqueRenderer({
         entry: "renderer.ts",
+        rendererInputHash: hash,
+        resolutions: [],
+        stylesheets: [],
         modules: [{ path: "renderer.ts", source: Uint8Array.of(1), moduleType: "ts" }],
       }),
     ).resolves.toMatchObject({
       ok: false,
       diagnostics: [{ code: "opaque-bundle-input-invalid" }],
+    });
+  });
+
+  it.each(["icon.svg", "font.woff2", "movie.gif"])("rejects unsupported asset %s", async (path) => {
+    const result = await closed({
+      entry: "renderer.ts",
+      modules: [
+        module(
+          "renderer.ts",
+          `import asset from ${JSON.stringify(`./${path}`)}; export default asset;`,
+        ),
+        { path, source: Uint8Array.of(1, 2, 3, 4), moduleType: "asset" },
+      ],
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "opaque-bundle-input-invalid" }],
+    });
+  });
+
+  it("rejects a PNG extension with non-PNG bytes", async () => {
+    const result = await closed({
+      entry: "renderer.ts",
+      modules: [
+        module("renderer.ts", 'import image from "./image.png"; export default image;'),
+        { path: "image.png", source: Uint8Array.of(0, 1, 2, 3), moduleType: "asset" },
+      ],
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      diagnostics: [
+        { code: "opaque-bundle-input-invalid", path: ["modules", "image.png", "source"] },
+      ],
     });
   });
 
@@ -159,7 +272,7 @@ describe("bundleOpaqueRenderer", () => {
 
   it("reports the invalid field path from schema validation", async () => {
     await expect(
-      bundleOpaqueRenderer({
+      closed({
         entry: "renderer.ts",
         modules: [module("renderer.ts", "export default {};", "css")],
       }),
@@ -195,7 +308,7 @@ describe("bundleOpaqueRenderer", () => {
 
   it("does not accept runtime plugin injection or configuration module types", async () => {
     await expect(
-      bundleOpaqueRenderer({
+      closed({
         entry: "renderer.ts",
         modules: [module("renderer.ts", "export default {};"), module("theme.scss", "")],
         plugins: [{ name: "untrusted" }],

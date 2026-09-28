@@ -9,10 +9,7 @@ import {
   type RendererSupportRequest,
   type ValidationResult,
 } from "../public-types.js";
-import {
-  diagnostic,
-  evaluateFirstMilestoneSupport,
-} from "../capabilities/evaluate-first-milestone.js";
+import { diagnostic, evaluateRendererSupport } from "../capabilities/evaluate-first-milestone.js";
 import { capturePixelSizeSchema } from "../validation/schemas.js";
 import {
   parseBuildResult,
@@ -212,7 +209,7 @@ export const executeRendererPlugin = async (
       );
     if (diagnostics.length > 0)
       return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
-    const expected = evaluateFirstMilestoneSupport(request);
+    const expected = evaluateRendererSupport(request, preparedPlugin.capabilities);
     if (
       snapshot((supportCall as { readonly value: RendererSupportDecision }).value) !==
       snapshot(expected)
@@ -243,12 +240,8 @@ export const executeRendererPlugin = async (
       );
     if (diagnostics.length > 0)
       return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
-    const support = parseSupportDecision((supportCall as { readonly value: unknown }).value)
-      .data as RendererSupportDecision;
     const result = parseBuildResult((buildCall as { readonly value: unknown }).value)
       .data as RendererBuildResult;
-    if (support.supported !== result.ok)
-      diagnostics.push(diagnostic("support-build-mismatch", "support() and build() disagree.", []));
     if (result.ok) validateSuccess(fixture, preparedPlugin, result, diagnostics);
     else if (result.diagnostics.length === 0)
       diagnostics.push(
@@ -299,7 +292,7 @@ const runRendererConformanceUnchecked = async (
       entry: preparedFixture.input.entry,
       resolvedIntent: preparedFixture.input.resolvedIntent,
     };
-    const expectedSupport = evaluateFirstMilestoneSupport(request);
+    const expectedSupport = evaluateRendererSupport(request, prepared.value.plugin.capabilities);
     const supportCall = callSupport(plugin, request);
     if (supportCall.threw) {
       diagnostics.push(

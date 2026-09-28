@@ -40,13 +40,22 @@ export type SourceOwner =
       readonly display: (fileName: string) => string;
     };
 
-const sourceExtensions = [".ts", ".tsx", ".d.ts"] as const;
+const sourceExtensions = [".ts", ".tsx", ".d.ts", ".mts", ".d.mts", ".cts", ".d.cts"] as const;
 
 const moduleCandidates = (path: string) => {
+  if (path === "") return sourceExtensions.map((extension) => `index${extension}`);
   if (sourceExtensions.some((extension) => path.endsWith(extension))) return [path];
   if (path.endsWith(".js")) {
     const withoutJs = path.slice(0, -3);
-    return sourceExtensions.map((extension) => `${withoutJs}${extension}`);
+    return [path, ...[".ts", ".tsx", ".d.ts"].map((extension) => `${withoutJs}${extension}`)];
+  }
+  if (path.endsWith(".mjs")) {
+    const stem = path.slice(0, -4);
+    return [`${stem}.d.mts`, `${stem}.mts`];
+  }
+  if (path.endsWith(".cjs")) {
+    const stem = path.slice(0, -4);
+    return [`${stem}.d.cts`, `${stem}.cts`];
   }
   return [
     path,
@@ -284,8 +293,16 @@ export const moduleSpecifiersFor = (sourceFile: ts.SourceFile) => {
 };
 
 export const extensionFor = (fileName: string) =>
-  fileName.endsWith(".d.ts")
-    ? ts.Extension.Dts
-    : fileName.endsWith(".tsx")
-      ? ts.Extension.Tsx
-      : ts.Extension.Ts;
+  fileName.endsWith(".d.mts")
+    ? ts.Extension.Dmts
+    : fileName.endsWith(".d.cts")
+      ? ts.Extension.Dcts
+      : fileName.endsWith(".mts")
+        ? ts.Extension.Mts
+        : fileName.endsWith(".cts")
+          ? ts.Extension.Cts
+          : fileName.endsWith(".d.ts")
+            ? ts.Extension.Dts
+            : fileName.endsWith(".tsx")
+              ? ts.Extension.Tsx
+              : ts.Extension.Ts;

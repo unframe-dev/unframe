@@ -55,14 +55,14 @@ prepared input だけを `support` / `build` へ渡す。Concrete renderer が�
 
 現行出力は encode 前の RGBA capture、resolved geometry、diagnostics、provenance とする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。RendererはPresentationDefinitionの意味を書き換えず、Asset ID、portable `HitRegion`、最終RenderBundle bindingも決定しない。
 
-Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つのplanだけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求し、Hit Region を宣言済み意味へ対応付ける。Opaque の capture 実装は未接続である。Structured の Hit Region は Compiler が Surface 全体の layout から解決し、partition の描画 bounds で切り取らない。Opaque は capture 接続時に binding DOM から Surface 単位の geometry を取得する。APIは別partitionを探索、merge、reorderしない。
+Surface Partition の authority は Compiler にあり、Renderer API は [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つの plan だけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求する。Opaque の静的 capture は専用 Web renderer が担当する。Structured の Hit Region は Compiler が Surface 全体の layout から解決し、partition の描画 bounds で切り取らない。現行 Opaque subset は Interaction を扱わない。API は別 partition を探索、merge、reorder しない。
 
 ## 4. Invariants
 
 - Renderer ID / version と output provenance を Compiler の cache key と RenderBundle provenance の明示入力として渡せる。
 - Compiler が選択した renderer ID と実際に呼び出した plugin identity が一致する。
 - `auto` 以外の明示 renderer preference を別 renderer へ暗黙 fallback しない。
-- `support` 判定と `build` 結果が同じ capability contract に従う。
+- `support` 判定と `build` 結果が同じ capability contract に従う。実行境界と conformance は snapshot 済みの宣言 capabilities を基準に判定し、Structured と Opaque の対応範囲を混同しない。通常実行中の asset / Browser / 資源制限の失敗は、対応可否の不一致に置き換えず renderer diagnostic として返す。
 - 検証した input / plugin と実行する input / plugin を同じ prepared snapshot に固定する。
 - plan、Surface、完成 Semantic Tree の state 集合が完全一致する。
 - Hit Region は Renderer の出力に含めず、Compiler / Core が Surface 全体の completeness を検証する。

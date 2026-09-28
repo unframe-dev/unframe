@@ -22,3 +22,9 @@ export type {
   FixedBrowserSession,
   WebRendererConfig,
 } from "./public-types.js";
+
+export { openOpaqueCaptureRuntime } from "./opaque/capture/runtime.js";
+export {
+  createOpaqueBakedWebRenderer,
+  type OpaqueRenderProgram,
+} from "./opaque/capture/renderer.js";

@@ -29,13 +29,13 @@ describe("fixed browser package export resolution", () => {
   it("rejects missing explicit export targets", () => {
     expect(() => resolvePackageExportTargets({ exports: "./missing.js" }, [])).toThrow();
   });
-  it("rejects browser object mappings instead of silently falling back", () => {
-    expect(() =>
+  it("resolves browser object mappings to the locked browser file", () => {
+    expect(
       resolvePackageExportTargets({ browser: { "./a.js": "./b.js" }, main: "./a.js" }, [
         "a.js",
         "b.js",
       ]),
-    ).toThrow();
+    ).toEqual([{ subpath: ".", runtimeImport: "b.js", runtimeRequire: "b.js", types: null }]);
   });
   it("resolves explicit legacy root fields", () => {
     expect(

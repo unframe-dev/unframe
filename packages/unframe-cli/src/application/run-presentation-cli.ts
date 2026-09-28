@@ -14,6 +14,7 @@ import {
   type FixedBrowserSession,
 } from "@unframe/unframe-renderer-web";
 
+import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
@@ -284,7 +285,9 @@ const compilerDiagnostics = (
     }
     const domain = item as { code: string; message: string; path: readonly (string | number)[] };
     const rendererCode =
-      domain.code.startsWith("compiler-renderer-") || rendererDiagnosticCodes.has(domain.code);
+      domain.code.startsWith("compiler-renderer-") ||
+      domain.code.startsWith("opaque-") ||
+      rendererDiagnosticCodes.has(domain.code);
     return diagnostic(
       result.phase === "compile" && rendererCode ? "renderer" : "semantic",
       domain.code,
@@ -308,7 +311,7 @@ const artifacts = (compiled: CompiledDeclarationProject) =>
         }),
       ),
   });
-const closeSession = async (session: FixedBrowserSession) => {
+const closeSession = async (session: Pick<FixedBrowserSession, "close">) => {
   try {
     const close = session.close;
     if (typeof close !== "function") throw new Error("invalid close");
@@ -404,15 +407,6 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   const opaque = Object.values(checked.value.definition.scene.surfaces).find(
     (surface) => surface.content.kind === "opaque",
   );
-  if (opaque)
-    return output(1, command, format, [
-      diagnostic(
-        "renderer",
-        "compiler-opaque-component-unsupported",
-        "Opaque capture is not implemented.",
-        ["scene", "surfaces", opaque.id],
-      ),
-    ]);
   const acquired = await acquireBuildLock(discovered.projectDirectory);
   if (!acquired.ok)
     return output(3, command, format, [
@@ -457,41 +451,56 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
   let cleanupFailed = false;
   const buildResult = await (async (): Promise<PresentationCliResult> => {
-    let session: FixedBrowserSession | undefined;
+    let session: { close(): Promise<void> } | undefined;
     try {
-      const opener =
-        host.openFixedBrowser ??
-        ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
-      try {
-        session = await opener(host.signal ? { signal: host.signal } : {});
-      } catch {
+      const context = host.buildContext ?? fixedContext;
+      let renderer: ReturnType<typeof createBakedWebRenderer>;
+      if (opaque) {
+        const prepared = await prepareOpaqueRenderer(
+          source,
+          lock.value.assemblyCarrier,
+          host.signal,
+          context.webRendererConfig,
+        );
+        session = prepared;
+        renderer = prepared.renderer;
+      } else {
+        let fixedSession: FixedBrowserSession;
+        const opener =
+          host.openFixedBrowser ??
+          ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
+        try {
+          fixedSession = await opener(host.signal ? { signal: host.signal } : {});
+          session = fixedSession;
+        } catch {
+          if (host.signal?.aborted)
+            return output(130, command, format, [
+              diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+            ]);
+          throw new BrowserProvisionFailure();
+        }
         if (host.signal?.aborted)
           return output(130, command, format, [
             diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
           ]);
-        throw new BrowserProvisionFailure();
+        const adapter = Object.freeze({
+          identity: fixedSession.identity,
+          environment: fixedSession.environment,
+          capture: (request: Parameters<FixedBrowserSession["capture"]>[0]) =>
+            Reflect.apply(fixedSession.capture, fixedSession, [
+              request,
+              ...(host.signal ? [{ signal: host.signal }] : []),
+            ]),
+        });
+        renderer = createBakedWebRenderer({ adapter, config: context.webRendererConfig });
       }
-      if (host.signal?.aborted)
-        return output(130, command, format, [
-          diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
-        ]);
-      const context = host.buildContext ?? fixedContext;
-      const adapter = Object.freeze({
-        identity: session.identity,
-        environment: session.environment,
-        capture: (request: Parameters<FixedBrowserSession["capture"]>[0]) =>
-          Reflect.apply(session!.capture, session, [
-            request,
-            ...(host.signal ? [{ signal: host.signal }] : []),
-          ]),
-      });
       const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
         compiler: context.compiler,
         locale: context.locale,
         timezone: context.timezone,
         colorScheme: context.colorScheme,
         rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-        renderers: [createBakedWebRenderer({ adapter, config: context.webRendererConfig })],
+        renderers: [renderer],
         encodeLimits: limits,
       });
       if (!compiled.valid)
@@ -533,10 +542,28 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         ]);
       return output(0, command, format, [], compiled.value.warnings);
     } catch (error) {
+      if (error instanceof OpaquePreparationFailure && !host.signal?.aborted)
+        return output(
+          1,
+          command,
+          format,
+          error.diagnostics.map((item) =>
+            diagnostic("renderer", item.code, item.message, item.path),
+          ),
+        );
+      const opaqueCode =
+        error instanceof Error &&
+        "code" in error &&
+        typeof error.code === "string" &&
+        error.code.startsWith("opaque-")
+          ? error.code
+          : undefined;
       const cancel =
         host.signal?.aborted || (error instanceof Error && error.name === "AbortError");
       const browserFailure =
-        error instanceof BrowserProvisionFailure || error instanceof BrowserCleanupFailure;
+        error instanceof BrowserProvisionFailure ||
+        error instanceof BrowserCleanupFailure ||
+        opaqueCode !== undefined;
       return output(cancel ? 130 : browserFailure ? 1 : 3, command, format, [
         diagnostic(
           cancel ? "cancel" : browserFailure ? "renderer" : "io",
@@ -546,7 +573,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
               ? "cli-browser-cleanup-failed"
               : error instanceof BrowserProvisionFailure
                 ? "cli-browser-provision-failed"
-                : "cli-build-io",
+                : (opaqueCode ?? "cli-build-io"),
           cancel
             ? "Build was cancelled."
             : browserFailure

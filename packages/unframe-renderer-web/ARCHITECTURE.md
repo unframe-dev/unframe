@@ -15,11 +15,11 @@
 
 `unframe-renderer-web` は `baked-web` concrete renderer を実装する。Structured Component から lower された Primitive graph を、固定された Browser 環境で layout / capture し、RenderBundle 候補を生成する。
 
-現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer sourceを実行せずにbundleする境界を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。
+現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer source を非実行で bundle し、Linux の隔離 worker で capture する経路を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。
 
 `openPlaywrightFixedBrowser` は `playwright-core@1.62.1` が managed Chromium headless shell を選択して起動し、外部 binary path / fallback を持たない。`install chromium --only-shell` と headless 起動を対応させるため、adapterはPlaywrightのmanaged browser registryに起動先の選択を委譲する。Chromium sandbox 有効、Node global signal handler 無効で起動し、Noto Sans CJK JP、`ja-JP`、`Asia/Tokyo`、DSF 1、sRGB、2000-01-01T00:00:00Z、seed `0x5eed` を固定する。font fingerprint は固定glyph baselineの実capture RGBAから内部導出し、adapter identity hash に font profile とともに結合する。capture ごとに隔離 context を作成し、offline、service worker block、download deny、全 route abort、clock / random init、font ready の後に CSS scale、背景保持、animation無効、caret非表示の PNG screenshot を decode して所有済み RGBA として返す。capture trust boundary は各辺4096px・総16,777,216pxまでで fail closed とし、これはCompiler の ADR-0012 2K artifact policyとは別の入力上限である。abort または session close は進行中 context を閉じ、context cleanup 後に browser を閉じる。通常 check は `*.integration.test.ts` を除外してこの adapter を fake で検証する unit test だけを実行し、browser binary の provision / 実機 integration は明示 script の後にのみ実行する。
 
-M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque renderer execution自体は引き続きDeferredである。
+M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque もこの固定 script environment を使用する。
 
 Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State 別の Frame / Text visual override を扱う。Hit Region は Compiler が Surface 全体の layout から生成する。Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
 
@@ -43,21 +43,20 @@ Compiler が決定した Render Surface partition を build input として受�
 
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
 - absolute root `Frame` と任意深度の absolute `Frame` / literal `Text` tree の HTML/CSS lower、state capture、raw RGBA ownership transfer
-- locked virtual packageからのOpaque TS/TSX/JS/JSX/JSON bundleとCSS/asset emit
-- Compiler が自動 partition と入力検証を行い、各 capture を `unframe-assets` へ encode / checksum 委譲して RenderBundle を組み立てる
+- locked virtual package からの Opaque TS/TSX/JS/JSX/JSON bundle と CSS/asset emit
+- bubblewrap namespace と cgroup v2 内の Chromium で静的 default State を capture。明示 binding と decoded RGBA の二回一致を検証
+- Compiler が自動 partition と入力検証を行い、各 capture を `unframe-assets` へ encode / checksum 委譲して RenderBundle を組み立てる。現行 Opaque subset は Surface 全体を一つの partition とする
 
 ### Target
 
 - generic Web renderer による Structured Primitive graph の描画
-- Opaque renderer TS / React / CSS の isolated execution
-- Opaque renderer向けのBrowser isolate lifecycle
 - unencoded Surface capture の生成
 - Browser、font、locale、timezone、viewport、layout provenance
 - visual regression fixture
 
 ### Deferred
 
-- Opaque execution
+- Opaque の有限 State / Interaction capture
 
 ```text
 resolved semantic input + renderer source
@@ -75,7 +74,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用する。owned Node だけを paint し、context Frame は配置・clip・opacity を保持する。未描画部分は透明で、背景は Frame の指定を使う。`documentBackground` は受理しない。DOM から意味は推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
+Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用する。owned Node だけを paint し、context Frame は配置・clip・opacity を保持する。未描画部分は透明で、背景は Frame の指定を使う。`documentBackground` は受理しない。Structured の Hit Region は Compiler が Surface 全体の layout から生成し、DOM から意味を推測しない。Opaque は `createOpaqueBakedWebRenderer` が heading / paragraph と静的 default State を扱う。Structured adapter と Opaque worker は別の実行経路を持つ。
 
 ### Target
 
@@ -85,7 +84,9 @@ Opaque path は Component 固有 renderer entry を bundle / execute できる�
 
 ### Deferred
 
-Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Primitive の lower は未実装である。
+Opaque の有限 State / Interaction と Frame/Text 以外の Primitive の lower は未実装である。
+
+隔離条件、asset subset、deadline と資源上限は [React execution contract](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#4-browser-capture-profile) に従う。実行手順は [scripts](../../scripts/README.md) を参照する。
 
 ## 4. Invariants
 
@@ -143,12 +144,9 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 ### Deferred
 
-- real Browser visual regression baseline、Opaque timeout / resource budget、Assets との end-to-end artifact test
+- real Browser visual regression baseline
 
 ## 9. Deferred decisions
 
-- Opaque bundleとRenderer plugin/Browser isolateの接続
-- ADR-0011で確定したmulti-partition planのCompiler production
-- ADR-0012で確定した2K capture resolution / capture budgetの実装
 - visual regression tolerance と platform baseline
 - Frame/Text 以外の Structured Primitive、Stack / Grid

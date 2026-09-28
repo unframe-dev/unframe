@@ -39,3 +39,11 @@ Linuxでは `flake.nix` のNix devShellがmanaged headless shellの共有ライ�
 ```bash
 nix develop --command scripts/dev/test-presentation-browser.sh
 ```
+
+Opaque React capture は Linux の user namespace と、memory / pids controller を委譲できる systemd user manager を必要とします。Browser の provision 後、次で隔離・資源上限・React / Base UI の CLI build を実行します。capability が欠ける環境では skip せず失敗します。
+
+```bash
+nix develop --command scripts/ci/opaque-capture.sh
+```
+
+通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。この wrapper は一時的な delegated scope を作成し、終了時に worker を回収します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可も、この専用 step で使用する executable path に限定します。

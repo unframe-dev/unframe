@@ -83,9 +83,18 @@ export const rendererIdentitySchema = z.strictObject({
 export const rendererFunctionSchema = z.function();
 
 export const rendererCapabilitiesSchema = z.strictObject({
-  inputKinds: z.tuple([z.literal("structured")]),
-  updateModels: z.tuple([z.literal("static"), z.literal("finite-state")]),
-  interactions: z.tuple([z.literal("none"), z.literal("regions")]),
+  inputKinds: z
+    .array(z.enum(["structured", "opaque"]))
+    .min(1)
+    .max(2),
+  updateModels: z
+    .array(z.enum(["static", "finite-state"]))
+    .min(1)
+    .max(2),
+  interactions: z
+    .array(z.enum(["none", "regions"]))
+    .min(1)
+    .max(2),
   internalAnimations: z.tuple([z.literal("none")]),
   rendererPreferences: z.tuple([z.literal("baked-web")]),
   fallbackPolicies: z.tuple([z.literal("reject")]),

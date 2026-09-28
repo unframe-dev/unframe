@@ -1,0 +1,101 @@
+import {
+  assembleAuthoringProject,
+  prepareLockedOpaqueBundleInput,
+} from "@unframe/unframe-compiler";
+import {
+  bundleOpaqueRenderer,
+  createOpaqueBakedWebRenderer,
+  openOpaqueCaptureRuntime,
+  type OpaqueRenderProgram,
+  type WebRendererConfig,
+} from "@unframe/unframe-renderer-web";
+import { mediaTypeFor } from "../filesystem/package-snapshot.js";
+
+export class OpaquePreparationFailure extends Error {
+  constructor(
+    readonly diagnostics: readonly {
+      readonly code: string;
+      readonly message: string;
+      readonly path: readonly (string | number)[];
+    }[],
+  ) {
+    super("Opaque renderer preparation failed.");
+    this.name = "OpaquePreparationFailure";
+  }
+}
+
+export const prepareOpaqueRenderer = async (
+  source: unknown,
+  carrier: unknown,
+  signal: AbortSignal | undefined,
+  config: WebRendererConfig,
+) => {
+  const assembled = assembleAuthoringProject(source, carrier);
+  if (!assembled.valid)
+    throw new OpaquePreparationFailure(
+      assembled.diagnostics.map((item) => ({
+        code: item.code,
+        message: item.message,
+        path: "path" in item ? item.path : [],
+      })),
+    );
+  const { project, checked } = assembled.value;
+  if (!Array.isArray(project.presentation.scene))
+    throw new Error("Opaque scene must be React instances.");
+  const runtime = await openOpaqueCaptureRuntime(signal ? { signal } : {});
+  try {
+    const programs: OpaqueRenderProgram[] = [];
+    for (const surface of Object.values(checked.definition.scene.surfaces)) {
+      const host = checked.definition.scene.nodes[surface.hostNodeId];
+      const instance = project.presentation.scene.find((item) => item.id === host?.name);
+      const component = project.components.find(
+        (item) =>
+          item.manifest.componentId === instance?.component.id &&
+          item.manifest.version === instance?.component.version,
+      );
+      if (!instance || !component || !("rendererSource" in component))
+        throw new Error("Opaque entry missing.");
+      const prepared = prepareLockedOpaqueBundleInput(source, component);
+      if (!prepared.valid) throw new OpaquePreparationFailure(prepared.diagnostics);
+      const bundle = await bundleOpaqueRenderer(prepared.value);
+      if (!bundle.ok) throw new OpaquePreparationFailure(bundle.diagnostics);
+      const props: Record<string, string | number | boolean> = {};
+      for (const [key, declaration] of Object.entries(component.metadata.props)) {
+        const supplied = (instance.props as Record<string, unknown>)[key];
+        const value =
+          supplied === undefined
+            ? "default" in declaration
+              ? declaration.default
+              : undefined
+            : supplied;
+        if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean")
+          throw new Error("Opaque prop missing.");
+        props[key] = value;
+      }
+      programs.push({
+        entryId: surface.id,
+        moduleHash: component.lock.rendererInputHash,
+        javascript: bundle.javascript,
+        stylesheets: bundle.stylesheets,
+        props,
+        assets: bundle.assets.map((asset) => ({
+          path: asset.fileName,
+          mediaType: mediaTypeFor(asset.fileName),
+          dataBase64: Buffer.from(asset.source).toString("base64"),
+        })),
+      });
+    }
+    return {
+      renderer: createOpaqueBakedWebRenderer({
+        programs,
+        config,
+        runtimeFingerprint: runtime.fingerprint,
+        capture: runtime.capture,
+      }),
+      close: runtime.close,
+    };
+  } catch (error) {
+    await runtime.close();
+    throw error;
+  }
+};

@@ -10,6 +10,7 @@ export { executeRendererPlugin, runRendererConformance } from "./execution/plugi
 export {
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
+  evaluateRendererSupport,
 } from "./capabilities/evaluate-first-milestone.js";
 
 export type {

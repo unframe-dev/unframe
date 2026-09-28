@@ -32,3 +32,9 @@ export type {
 } from "./project/pair-authoring-declarations.js";
 
 export { computeFrozenComponentInputs } from "./semantic/frozen-component-inputs.js";
+
+export {
+  prepareLockedOpaqueBundleInput,
+  type LockedOpaqueBundleInput,
+} from "./semantic/prepare-locked-opaque-bundle-input.js";
+export { assembleAuthoringProject } from "./api/authoring-project-pipeline.js";

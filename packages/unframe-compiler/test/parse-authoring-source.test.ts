@@ -57,7 +57,7 @@ describe("parseAuthoringSource", () => {
         {
           code: "compiler-source-kind-unsupported",
           fileName: "presentation.unframe.js",
-          message: "Authoring source must use a .ts, .tsx, or .d.ts file name.",
+          message: "Authoring source must use a TypeScript source or declaration file name.",
           start: 0,
           length: 0,
           line: 1,

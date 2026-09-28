@@ -36,6 +36,9 @@
           pkgs.git-lfs
           pkgs.coreutils
           pkgs.bash
+        ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+          pkgs.bubblewrap
+          pkgs.systemd
         ];
 
         # Vite+ の管理ランタイムは NixOS 用にパッチされていないため、
@@ -72,6 +75,15 @@
             <dir>${pkgs.noto-fonts-cjk-sans}/share/fonts</dir>
           </fontconfig>
         '';
+        opaqueRuntimeClosure = pkgs.closureInfo {
+          rootPaths = [
+            pkgs.nodejs_22
+            pkgs.bash
+            pkgs.nix-ld
+            pkgs.glibc
+            presentationFontconfig
+          ] ++ chromiumRuntime;
+        };
         nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
           NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
@@ -79,6 +91,11 @@
             pkgs.stdenv.cc.cc
           ] ++ chromiumRuntime);
           FONTCONFIG_FILE = presentationFontconfig;
+          UNFRAME_BWRAP_PATH = "${pkgs.bubblewrap}/bin/bwrap";
+          UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
+          UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
+          UNFRAME_NIX_LD_SHIM = "${pkgs.nix-ld}/bin/nix-ld";
+          UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
         };
 
         # scripts/ の実処理を flake app としてラップする。

@@ -4,10 +4,11 @@ import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "no
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { checkAuthoringProject, checkAuthoringProjectAssembly } from "@unframe/unframe-compiler";
 import { runPresentationCli } from "../src/index.js";
+import * as opaquePreparation from "../src/application/opaque-renderer.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import {
@@ -20,6 +21,8 @@ import { lockedFile } from "../src/filesystem/package-snapshot.js";
 const temporary: string[] = [];
 const reference = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/presentation");
 afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
 const component = `import {defineComponent, editableText, prop} from "@unframe/unframe-authoring";
@@ -208,6 +211,7 @@ describe("React frozen CLI path", () => {
     const checked = await runPresentationCli({ args: ["check", directory] });
     expect(checked.stderr).toBe("");
     expect(checked.stdout).toBe("check: ok\n");
+    vi.stubEnv("UNFRAME_BWRAP_PATH", "");
     let opened = false;
     const built = await runPresentationCli({
       args: ["build", directory],
@@ -219,9 +223,29 @@ describe("React frozen CLI path", () => {
       },
     });
     expect(built.exitCode).toBe(1);
-    expect(built.stderr).toContain("compiler-opaque-component-unsupported");
+    expect(built.stderr).toContain("opaque-isolation-unavailable");
     expect(opened).toBe(false);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(frozenLock);
+  });
+  it("retains the bundle preparation diagnostic and existing dist", async () => {
+    const directory = await createProject();
+    expect((await runPresentationCli({ args: ["lock", "refresh", directory] })).exitCode).toBe(0);
+    await mkdir(join(directory, "dist"));
+    await writeFile(join(directory, "dist", "previous.txt"), "previous");
+    vi.spyOn(opaquePreparation, "prepareOpaqueRenderer").mockRejectedValueOnce(
+      new opaquePreparation.OpaquePreparationFailure([
+        {
+          code: "compiler-opaque-bundle-input-invalid",
+          message: "Runtime dependency is not locked: missing",
+          path: ["Hero.component.tsx"],
+        },
+      ]),
+    );
+    const result = await runPresentationCli({ args: ["build", directory] });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("compiler-opaque-bundle-input-invalid");
+    expect(result.stderr).toContain("Runtime dependency is not locked: missing");
+    expect(await readFile(join(directory, "dist", "previous.txt"), "utf8")).toBe("previous");
   });
   it("rejects source drift and preserves the previous lock when refresh fails", async () => {
     const directory = await createProject();

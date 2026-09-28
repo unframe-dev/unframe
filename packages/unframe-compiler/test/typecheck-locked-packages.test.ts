@@ -154,6 +154,58 @@ describe("typecheckAuthoringProject locked packages", () => {
     expect(result).toEqual({ ok: true, diagnostics: [] });
   });
 
+  it("resolves ESM declaration files referenced through .mjs specifiers", () => {
+    const result = typecheckAuthoringProject(
+      project('import { value } from "pkg"; export const total: number = value;', [
+        lockedPackage({
+          packageName: "pkg",
+          files: [
+            { fileName: "index.d.mts", sourceText: 'export { value } from "./value.mjs";' },
+            { fileName: "value.d.mts", sourceText: "export declare const value: number;" },
+          ],
+          exports: [{ subpath: ".", targetFile: "index.d.mts" }],
+        }),
+      ]),
+    );
+
+    expect(result).toEqual({ ok: true, diagnostics: [] });
+  });
+
+  it("resolves a declaration file importing its package root index", () => {
+    const result = typecheckAuthoringProject(
+      project('import { value } from "pkg"; export const total: number = value;', [
+        lockedPackage({
+          packageName: "pkg",
+          files: [
+            {
+              fileName: "index.d.ts",
+              sourceText: 'export declare const value: number; import "./jsx-runtime";',
+            },
+            { fileName: "jsx-runtime.d.ts", sourceText: 'export { value } from ".";' },
+          ],
+          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+        }),
+      ]),
+    );
+    expect(result).toEqual({ ok: true, diagnostics: [] });
+  });
+
+  it("ignores unreachable optional declaration imports in locked packages", () => {
+    const result = typecheckAuthoringProject(
+      project('import { value } from "pkg"; export const total: number = value;', [
+        lockedPackage({
+          packageName: "pkg",
+          files: [
+            { fileName: "index.d.ts", sourceText: "export declare const value: number;" },
+            { fileName: "optional.d.ts", sourceText: 'import "not-installed";' },
+          ],
+          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+        }),
+      ]),
+    );
+    expect(result).toEqual({ ok: true, diagnostics: [] });
+  });
+
   it("resolves a package direct dependency through an explicit deep export", () => {
     const dependency = lockedPackage({
       packageName: "dependency",
@@ -260,7 +312,7 @@ describe("typecheckAuthoringProject locked packages", () => {
     expect(typecheckAuthoringProject(parsed.value)).toEqual({ ok: true, diagnostics: [] });
   });
 
-  it("preflights module specifiers in otherwise unreachable locked packages", () => {
+  it("does not require optional dependencies of otherwise unreachable locked packages", () => {
     const unreachable = lockedPackage({
       packageName: "unreachable",
       files: [{ fileName: "index.ts", sourceText: 'import "unknown"; export {};' }],
@@ -269,12 +321,7 @@ describe("typecheckAuthoringProject locked packages", () => {
 
     const result = typecheckAuthoringProject(project("export {};", [unreachable]));
 
-    expect(result).toMatchObject({
-      ok: false,
-      diagnostics: [
-        { code: "compiler-module-package-unsupported", fileName: "unreachable@1/index.ts" },
-      ],
-    });
+    expect(result).toEqual({ ok: true, diagnostics: [] });
   });
 
   it("keeps package root escape, unresolved relative, and semantic diagnostics in raw package display names", () => {

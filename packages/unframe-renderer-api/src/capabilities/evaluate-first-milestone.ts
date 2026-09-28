@@ -1,6 +1,7 @@
 import type { Diagnostic } from "@unframe/unframe-core";
 import type {
   RendererIdentity,
+  RendererCapabilities,
   RendererSupportDecision,
   RendererSupportRequest,
 } from "../public-types.js";
@@ -19,22 +20,47 @@ const unsupported = (
   diagnostics: [diagnostic(code, "Renderer capability is not supported.", path)],
 });
 
-export const evaluateFirstMilestoneSupport = (
+export const evaluateRendererSupport = (
   request: RendererSupportRequest,
+  capabilities: RendererCapabilities,
 ): RendererSupportDecision => {
-  if (request.entry.kind !== "structured") return unsupported("unsupported-input-kind", ["entry"]);
-  if (!["static", "finite-state"].includes(request.resolvedIntent.updateModel.kind))
+  if (!capabilities.inputKinds.includes(request.entry.kind))
+    return unsupported("unsupported-input-kind", ["entry"]);
+  if (!capabilities.updateModels.some((kind) => kind === request.resolvedIntent.updateModel.kind))
     return unsupported("unsupported-update-model", ["resolvedIntent", "updateModel"]);
-  if (!["none", "regions"].includes(request.resolvedIntent.interaction.kind))
+  if (!capabilities.interactions.some((kind) => kind === request.resolvedIntent.interaction.kind))
     return unsupported("unsupported-interaction", ["resolvedIntent", "interaction"]);
-  if (request.resolvedIntent.internalAnimation.kind !== "none")
+  if (
+    !capabilities.internalAnimations.some(
+      (kind) => kind === request.resolvedIntent.internalAnimation.kind,
+    )
+  )
     return unsupported("unsupported-internal-animation", ["resolvedIntent", "internalAnimation"]);
-  if (request.resolvedIntent.selectedRendererId !== "baked-web")
+  if (
+    !capabilities.rendererPreferences.some((id) => id === request.resolvedIntent.selectedRendererId)
+  )
     return unsupported("unsupported-renderer", ["resolvedIntent", "selectedRendererId"]);
-  if (request.resolvedIntent.fallbackPolicy !== "reject")
+  if (
+    !capabilities.fallbackPolicies.some(
+      (policy) => policy === request.resolvedIntent.fallbackPolicy,
+    )
+  )
     return unsupported("unsupported-fallback-policy", ["resolvedIntent", "fallbackPolicy"]);
   return { supported: true, diagnostics: [] };
 };
+
+export const evaluateFirstMilestoneSupport = (
+  request: RendererSupportRequest,
+): RendererSupportDecision =>
+  evaluateRendererSupport(request, {
+    inputKinds: ["structured"],
+    updateModels: ["static", "finite-state"],
+    interactions: ["none", "regions"],
+    internalAnimations: ["none"],
+    rendererPreferences: ["baked-web"],
+    fallbackPolicies: ["reject"],
+    deterministic: true,
+  });
 
 export const createRendererFingerprint = (
   identity: RendererIdentity,

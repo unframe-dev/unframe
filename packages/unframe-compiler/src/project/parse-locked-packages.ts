@@ -103,7 +103,7 @@ const compare = (left: string, right: string) => (left < right ? -1 : left > rig
 const orderedUnique = <T>(items: readonly T[], key: (item: T) => string) =>
   items.every((item, index) => index === 0 || compare(key(items[index - 1]!), key(item)) < 0);
 const edgeKey = (item: LockedDependency) => `${item.specifier}\0${item.usage}`;
-const sourceFile = (path: string) => /\.(?:tsx?|d\.ts)$/u.test(path);
+const sourceFile = (path: string) => /\.(?:tsx?|[mc]ts|d\.[mc]?ts)$/u.test(path);
 const virtualPath = (key: string, fileName: string) =>
   `unframe-package://${key.slice("sha256:".length)}/${fileName}`;
 

@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test",
-    "test": "vp test run --exclude test/*.integration.test.ts",
+    "test": "vp test run --exclude 'test/*.integration.test.ts'",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {

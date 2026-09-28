@@ -35,21 +35,26 @@ const conditions = {
   runtimeRequire: new Set(["browser", "require", "production", "default"]),
   types: new Set(["types", "import", "default"]),
 };
-const target = (value: unknown, active: Set<string>): string | null => {
-  if (value === null || value === undefined) return null;
+const target = (value: unknown, active: Set<string>): string | null | undefined => {
+  if (value === null || value === undefined) return value;
   if (typeof value === "string") return value;
-  if (Array.isArray(value))
-    throw new Error("Export arrays are not supported by this snapshot profile.");
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const result = target(item, active);
+      if (result !== undefined) return result;
+    }
+    return undefined;
+  }
   for (const [condition, branch] of Object.entries(record(value))) {
     if (active.has(condition)) {
       const result = target(branch, active);
-      if (result !== null) return result;
+      if (result !== undefined) return result;
     }
   }
-  return null;
+  return undefined;
 };
-const pathTarget = (value: string | null, files: readonly string[]): string | null => {
-  if (value === null) return null;
+const pathTarget = (value: string | null | undefined, files: readonly string[]): string | null => {
+  if (value == null) return null;
   const path = value.startsWith("./") ? value.slice(2) : value;
   if (
     !path ||
@@ -64,20 +69,51 @@ export const resolvePackageExportTargets = (
   manifest: Record<string, unknown>,
   files: readonly string[],
 ): PackageSnapshot["exports"] => {
-  if (manifest.browser && typeof manifest.browser !== "string")
-    throw new Error("Browser object mappings are unsupported.");
-  if (manifest.imports) throw new Error("Package # aliases are unsupported.");
+  const browserMap =
+    manifest.browser && typeof manifest.browser === "object" ? record(manifest.browser) : undefined;
+  const browserTarget = (path: string | null) => {
+    if (!path || !browserMap) return path;
+    const mapped = browserMap[`./${path}`];
+    if (mapped === false) return null;
+    return mapped === undefined ? path : pathTarget(mapped as string, files);
+  };
+  if (manifest.browser && typeof manifest.browser === "object") {
+    for (const [from, to] of Object.entries(record(manifest.browser))) {
+      if (!from.startsWith("./") || !files.includes(from.slice(2)))
+        throw new Error("Browser mapping source must name a locked package file.");
+      if (
+        to !== false &&
+        (typeof to !== "string" || !to.startsWith("./") || !files.includes(to.slice(2)))
+      )
+        throw new Error("Browser mapping target must name a locked package file.");
+    }
+  }
+  if (manifest.imports) {
+    for (const name of Object.keys(record(manifest.imports)))
+      if (!name.startsWith("#") || name.includes("*"))
+        throw new Error("Package aliases must be exact # specifiers.");
+  }
   if (manifest.exports === undefined) {
     const first = (...values: unknown[]) =>
-      values.find((v) => typeof v === "string") as string | undefined;
+      values.find((v) => typeof v === "string" && v.length > 0) as string | undefined;
+    const standardIndex = files.includes("index.js") ? "./index.js" : undefined;
     const row = {
       subpath: ".",
-      runtimeImport: pathTarget(
-        first(manifest.browser, manifest.module, manifest.main) ?? null,
+      runtimeImport: browserTarget(
+        pathTarget(
+          first(manifest.browser, manifest.module, manifest.main, standardIndex) ?? null,
+          files,
+        ),
+      ),
+      runtimeRequire: browserTarget(pathTarget(first(manifest.main, standardIndex) ?? null, files)),
+      types: pathTarget(
+        first(
+          manifest.types,
+          manifest.typings,
+          files.includes("index.d.ts") ? "./index.d.ts" : undefined,
+        ) ?? null,
         files,
       ),
-      runtimeRequire: pathTarget(first(manifest.main) ?? null, files),
-      types: pathTarget(first(manifest.types, manifest.typings) ?? null, files),
     };
     if (!row.runtimeImport && !row.runtimeRequire && !row.types)
       throw new Error("Package has no explicit root entry.");
@@ -91,28 +127,108 @@ export const resolvePackageExportTargets = (
     Object.keys(exports).some((k) => k.startsWith("."))
       ? Object.entries(record(exports))
       : ([[".", exports]] as const);
-  return entries
-    .map(([subpath, value]) => {
-      if (
-        subpath !== "." &&
-        (!subpath.startsWith("./") ||
-          subpath.includes("*") ||
-          subpath
-            .split("/")
-            .slice(1)
-            .some((p) => !p || p === "." || p === ".."))
-      )
-        throw new Error("Export subpaths must be explicit relative paths.");
+  const rows = new Map<
+    string,
+    { row: PackageSnapshot["exports"][number]; prefix: number; suffix: number }
+  >();
+  const blockedWildcards: {
+    prefixText: string;
+    suffixText: string;
+    prefix: number;
+    suffix: number;
+  }[] = [];
+  for (const [declaredSubpath, declaredValue] of entries) {
+    const directoryMapping = declaredSubpath.endsWith("/");
+    if (directoryMapping && (typeof declaredValue !== "string" || !declaredValue.endsWith("/")))
+      throw new Error("Directory export must target a package directory.");
+    const subpath = directoryMapping ? `${declaredSubpath}*` : declaredSubpath;
+    const value = directoryMapping ? `${declaredValue}*` : declaredValue;
+    if (
+      subpath !== "." &&
+      (!subpath.startsWith("./") ||
+        subpath
+          .split("/")
+          .slice(1)
+          .some((part) => !part || part === "." || part === ".."))
+    )
+      throw new Error(`Export subpath is invalid: ${subpath}`);
+    const templates = {
+      runtimeImport: target(value, conditions.runtimeImport),
+      runtimeRequire: target(value, conditions.runtimeRequire),
+      types: target(value, conditions.types),
+    };
+    const wildcardCount = subpath.split("*").length - 1;
+    if (wildcardCount > 1) throw new Error("Export subpath may contain one wildcard.");
+    if (wildcardCount === 1 && Object.values(templates).every((template) => template == null)) {
+      const marker = subpath.indexOf("*");
+      blockedWildcards.push({
+        prefixText: subpath.slice(0, marker),
+        suffixText: subpath.slice(marker + 1),
+        prefix: marker,
+        suffix: subpath.length - marker - 1,
+      });
+      continue;
+    }
+    const substitutions = new Set<string>();
+    if (wildcardCount === 0) substitutions.add("");
+    else
+      for (const template of Object.values(templates)) {
+        if (template == null) continue;
+        if (template.split("*").length !== 2 || !template.startsWith("./"))
+          throw new Error("Wildcard export must map to a single relative wildcard target.");
+        const [prefix, suffix] = template.slice(2).split("*") as [string, string];
+        for (const file of files)
+          if (
+            file.startsWith(prefix) &&
+            file.endsWith(suffix) &&
+            file.length > prefix.length + suffix.length
+          )
+            substitutions.add(file.slice(prefix.length, file.length - suffix.length));
+      }
+    for (const replacement of substitutions) {
+      const concreteSubpath = subpath.replace("*", replacement);
+      const resolve = (template: string | null | undefined) =>
+        pathTarget(template?.replace("*", replacement) ?? null, files);
       const row = {
-        subpath,
-        runtimeImport: pathTarget(target(value, conditions.runtimeImport), files),
-        runtimeRequire: pathTarget(target(value, conditions.runtimeRequire), files),
-        types: pathTarget(target(value, conditions.types), files),
+        subpath: concreteSubpath,
+        runtimeImport: browserTarget(resolve(templates.runtimeImport)),
+        runtimeRequire: browserTarget(resolve(templates.runtimeRequire)),
+        types: resolve(templates.types),
       };
-      if (!row.runtimeImport && !row.runtimeRequire && !row.types)
-        throw new Error("Export has no supported target.");
-      return row;
-    })
+      const previous = rows.get(concreteSubpath);
+      const prefix = wildcardCount === 0 ? Infinity : subpath.indexOf("*");
+      const suffix = wildcardCount === 0 ? Infinity : subpath.length - prefix - 1;
+      if (
+        previous &&
+        (previous.prefix > prefix || (previous.prefix === prefix && previous.suffix > suffix))
+      )
+        continue;
+      if (
+        previous &&
+        previous.prefix === prefix &&
+        previous.suffix === suffix &&
+        JSON.stringify(previous.row) !== JSON.stringify(row)
+      )
+        throw new Error(`Overlapping package exports are ambiguous: ${concreteSubpath}`);
+      rows.set(concreteSubpath, { row, prefix, suffix });
+    }
+  }
+  for (const [subpath, selected] of rows) {
+    if (
+      blockedWildcards.some(
+        (blocked) =>
+          subpath.startsWith(blocked.prefixText) &&
+          subpath.endsWith(blocked.suffixText) &&
+          subpath.length > blocked.prefixText.length + blocked.suffixText.length &&
+          (blocked.prefix > selected.prefix ||
+            (blocked.prefix === selected.prefix && blocked.suffix >= selected.suffix)),
+      )
+    )
+      rows.delete(subpath);
+  }
+  return [...rows.values()]
+    .map(({ row }) => row)
+    .filter((row) => row.runtimeImport || row.runtimeRequire || row.types)
     .sort((a, b) => compare(a.subpath, b.subpath));
 };
 export const mediaTypeFor = (path: string): string => {
@@ -122,6 +238,8 @@ export const mediaTypeFor = (path: string): string => {
       {
         ".ts": "text/typescript",
         ".tsx": "text/tsx",
+        ".mts": "text/typescript",
+        ".cts": "text/typescript",
         ".js": "text/javascript",
         ".mjs": "text/javascript",
         ".cjs": "text/javascript",
@@ -234,16 +352,24 @@ export const snapshotInstalledPackages = async (
       throw new Error(
         `Installed package ${name}@${actualVersion} does not match pnpm locator ${locator}.`,
       );
+    let exports: PackageSnapshot["exports"];
+    try {
+      exports = resolvePackageExportTargets(
+        manifest,
+        files.map((f) => f.path),
+      );
+    } catch (error) {
+      throw new Error(
+        `Package ${name}@${actualVersion}: ${error instanceof Error ? error.message : "export resolution failed"}`,
+      );
+    }
     const item: PackageSnapshot = {
       key,
       locator,
       name,
       version: actualVersion,
       files,
-      exports: resolvePackageExportTargets(
-        manifest,
-        files.map((f) => f.path),
-      ),
+      exports,
       dependencies: [],
       contentIntegrity: "sha256:",
     };

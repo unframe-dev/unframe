@@ -1,6 +1,6 @@
 # React Component の抽出・編集・capture 契約
 
-- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路を実装。Browser capture / Editor host は未実装
+- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路と A2 default State capture を実装。Editor host / 有限 State の React 経路は未実装
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 
 この文書は、ADR-0019 の採用前提の方針に沿って A1〜A5 の入力、失敗、保存・実行方式を具体化する。各方式は実装の出発点とし、受け入れ試験で検証・調整する。記述された API・制限値・OS 隔離の詳細がすべて確定したことや、実機動作を確認したことを意味しない。
@@ -177,7 +177,7 @@ receipt と異常 transaction は自動期限切れにしない。正常 transac
 
 ### 入力と資産
 
-入力は frozen lock と抽出 renderer、canonical Props / texts / binding IDs、明示 State、logical size、pixel target、固定 environment。render は physical position / host Transform を受け取らない。React / react-dom / JSX runtime を含めて bundle に閉じ、残った external import は拒否する。bundler の `process.env.NODE_ENV` は production に固定し、CJS の静的 require も locked resolver だけを通す。Node で user module、package lifecycle script、project bundler config を実行しない。
+入力は frozen lock と抽出 renderer、canonical Props / texts / binding IDs、明示 State、logical size、pixel target、固定 environment。render は physical position / host Transform を受け取らない。React / react-dom / JSX runtime を含めて bundle に閉じ、残った external import は拒否する。bundler の `process.env.NODE_ENV` は production に固定し、CJS の静的 require も locked resolver だけを通す。Node で user module、package lifecycle script、project bundler config を実行しない。package metadata の解決は静的 subset に限定し、bare specifier の browser mapping、`imports` wildcard、target を持たない wildcard export は明示的に拒否する。
 
 初期実依存 fixture は repo の pnpm lock で固定した `@base-ui/react` の Button と通常 CSS とする。utility CSS / preprocessor 設定の自動実行は含めない。CSS `url()` / `@import` は固定 asset map に解決し、未解決 URL を拒否する。画像 asset は PNG / JPEG / static WebP、font は TTF / OTF に限定し、signature と mediaType、decode 上限を検証する。外部 SVG、animated image、woff / woff2 はこの profile では拒否する。
 
@@ -195,13 +195,15 @@ mount / 資産待機後に別 animation frame で二回 capture し、binding �
 
 ### 隔離と終了
 
-Opaque 実行の最初の対応 host は Linux とする。A2 で toolchain に固定した [bubblewrap](https://github.com/containers/bubblewrap) を追加し、user / mount / PID / IPC / network namespace、`--unshare-ipc`、`--new-session`、`--die-with-parent` を使う。Chromium sandbox も有効なままにする。Browser worker へは pinned executable / runtime closure と読み取り専用 capture input だけを mount し、private tmpfs と必要最小限の `/proc`・device を与える。home、project root、credentials、D-Bus / desktop socket、host network / IPC を渡さない。bubblewrap 自体に完成した保護 policy があるとは扱わず、この mount / IPC policy を実装・試験する。
+Opaque 実行の最初の対応 host は Linux とする。A2 で toolchain に固定した [bubblewrap](https://github.com/containers/bubblewrap) を追加し、user / mount / PID / IPC / network namespace、`--unshare-ipc`、`--new-session`、`--die-with-parent` を使う。Chromium sandbox も有効なままにする。Browser worker へは pinned executable / runtime closure と worker / Browser snapshot を読み取り専用 mount し、private tmpfs と必要最小限の `/proc`・device を与える。capture input は後述の継承 pipe で渡す。home、project root、credentials、D-Bus / desktop socket、host network / IPC を渡さない。bubblewrap 自体に完成した保護 policy があるとは扱わず、この mount / IPC policy を実装・試験する。
 
 host と worker は継承 pipe で通信し、Browser の任意 JS に host filesystem / API callback を公開しない。worker process group の lifecycle を host が所有する。初期 profile は一 State の mount〜capture 30 秒、build 全体 120 秒、正常 close の猶予 2 秒とする。これは初期の停止上限であり、性能目標ではない。cancel / deadline / worker crash では TERM、猶予後 KILL で子 process を回収する。
 
 hard memory / process limit は `memory.max = 1 GiB`、`pids.max = 128` に設定した cgroup v2 で worker 全体へ適用する。host は起動前に cgroup を作成・設定し、trusted bootstrap だけを起動して所属を確認する。bootstrap は host の許可 barrier を待ち、所属確認後にだけ Chromium を起動する。descendant の所属も検証してから未信頼 bundle を渡す。所属・制限の設定失敗は child を回収して拒否し、制限前に user module を load しない。
 
-既存 Compiler の texture / output / accounted peak budget は別に維持する。必要な user namespace / cgroup delegation がない host は `opaque-isolation-unavailable` で実行前に拒否し、弱い sandbox や sandbox 無効の Chromium へ fallback しない。A2 の Nix 環境 / CI はこの profile が使える専用実行条件を用意し、通常 unit test には権限を要求しない。起動 recipe と Chromium の両立は A2 の runtime 試験対象であり、A0 で動作確認済みとはしない。
+既存 Compiler の texture / output / accounted peak budget は別に維持する。必要な user namespace / cgroup delegation がない host は `opaque-isolation-unavailable` で実行前に拒否し、弱い sandbox や sandbox 無効の Chromium へ fallback しない。A2 の Nix 環境 / CI はこの profile が使える専用実行条件を用意し、通常 unit test には権限を要求しない。起動 recipe と Chromium の両立、memory / pids 上限、timeout / cancel と子 process 回収は隔離 integration test で検証する。
+
+worker とその依存、Chromium と付属ファイルは private directory へ snapshot し、regular file の全 bytes と pinned Nix runtime closure を実行環境 hash に含める。symlink / special file は拒否する。DOM の観測は user script と別の Chromium isolated world から行う。
 
 capture 成功後は raw RGBA を既存 encoder と Core integrity へ渡す。入力不正、binding、font、timeout、cancel、資源上限、隔離 unavailable は区別した diagnostic を返し、成功済み `dist` を変更しない。
 

@@ -1,12 +1,12 @@
 # React Component Authoring 設計案と実装計画
 
-- **Status**: 採用前提の実装計画 / API 詳細と導入条件は検証待ち。A0 型試作検証済み、canonical Surface 拡張を採用。A1 実装中
+- **Status**: 採用前提の実装計画 / API 詳細と導入条件は検証待ち。A0 型試作検証済み、canonical Surface 拡張を採用。A1・A2 のローカル検証済み。remote CI は未確認
 - **Date**: 2026-09-27
 - **Decision**: [ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。三例の型推論を隔離した宣言型の試作で検証し、未決だった実装方式を関連 contract に記録した。現行 SDK と Compiler は heading / paragraph と単一 default State の静的抽出・配置変換を提供する。lock v2 の frozen check を接続し、Opaque の build は capture 未実装として拒否する。以下の有限 State の React API と Editor は未実装であり、縦断検証では標準経路として提供できる範囲と残課題を確認する。
+本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。三例の型推論を隔離した宣言型の試作で検証し、未決だった実装方式を関連 contract に記録した。現行 SDK と Compiler は heading / paragraph と単一 default State の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。以下の有限 State の React API と Editor は未実装であり、縦断検証では標準経路として提供できる範囲と残課題を確認する。
 
 A1 着手前の再確認で、現行 Core がすべての Semantic Node と Content Node の一対一対応を要求することが判明した。React の内部描画構造を保存しない本提案には、そのまま適用できない。Surface の Structured / Opaque 表現と Renderer の binding 検証を分ける追加設計を [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) で確定した。
 
@@ -14,7 +14,7 @@ A1 着手前の再確認で、現行 Core がすべての Semantic Node と Cont
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、capture は明示的に拒否する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は execution / capture に未接続である。[Web Editor](../../app/web/src/features/editor/infra/document-runtime.ts) は fixture と browser persistence を使用している。本計画は既存機能を再実装せず、それらへ新しい入力経路を接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、静的 default State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Web Editor](../../app/web/src/features/editor/infra/document-runtime.ts) は fixture と browser persistence を使用している。本計画は既存機能を再実装せず、それらへ新しい入力経路を接続する。
 
 ## 2. 作者向け API の三例
 
@@ -313,7 +313,7 @@ A2 の同じ入力には明示 source、lock、設定、Compiler / renderer / Br
 
 工程は依存順に進める。契約確定後の型 fixture と renderer fixture の準備は並行できるが、Editor を仮の永続モデルへ接続しない。A1〜A5 は対象を絞った Red → Green → Refactor と各境界の統合試験を行う。既存 Structured の回帰も維持する。包括的な `nix run .#check` は予定差分を終え、明示的にコミットを依頼された段階で実行する。
 
-速度の合否値は未設定であり、測定前に「高速」とは評価しない。A2 で測定方法を固定し、A3 の操作結果を基に必要な応答時間を決める。有限 State の経路をローカルで確認しても、Delivery・Realtime service・Unity / Quest の統合完了とは扱わない。
+速度の合否値は未設定。A2 fixture は依存 install / lock refresh を除き、CLI build 開始から snapshot・bundle・capture・encode・publish 完了までの wall clock を計測する。2026-09-29 の Linux / Nix ローカル試験では同一入力二回が約 15.7 秒 / 14.6 秒だった。これは性能保証ではなく、A3 の操作結果を基に必要な応答時間を決める。有限 State の経路をローカルで確認しても、Delivery・Realtime service・Unity / Quest の統合完了とは扱わない。
 
 ## 7. 対象外と採用時の文書更新
 
@@ -341,4 +341,4 @@ A0 では、Props の必須 / default の排他性と、default 解決後の ren
 
 A1 では、型試作をそのまま export せず、既存 schema / semantic guard と一致する公開型へ統合する。Source 非実行の拒否試験、lock v2 の hash / origin / cycle fixture、Structured 回帰を先に用意し、Component 分類 → Manifest / renderer descriptor 抽出 → Instance / ID lowering → CLI frozen check の順に接続する。capture と Editor はこの工程へ混ぜない。
 
-A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。capture、Editor、実 UI ライブラリの隔離実行は後続で検証する。
+A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。A2 は閉じた bundle、Linux namespace / cgroup 隔離、binding と二回の RGBA 比較を CLI build に接続した。Base UI Button と CSS / TTF / PNG を使う fixture で、反復 build の全公開成果物一致と、外部通信による失敗時の既存 dist 保持を確認した。Editor と有限 State の React 経路は後続である。

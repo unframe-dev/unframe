@@ -2,16 +2,20 @@ import { PNG_ENCODER_IDENTITY, encodeRgbaToPng } from "@unframe/unframe-assets";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
+  materializeCompletedSemanticTree,
   validatePresentationArtifacts,
   verifyBuildIntegrityV2,
   type BuildArtifactsV2,
   type Diagnostic,
   type RenderBundle,
+  type SemanticSurface,
   type ValidationResult,
 } from "@unframe/unframe-core";
 import {
   createRendererFingerprint,
   executeRendererPlugin,
+  type RendererIdentity,
+  type RenderSurfacePlan,
   validateRendererPlugin,
 } from "@unframe/unframe-renderer-api";
 import { compareStrings, diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
@@ -23,7 +27,9 @@ import { safeBuildOptionsSnapshot } from "../validation/safe-build-options.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { decodeCanonicalBase64 } from "../validation/source-assets.js";
 import { derivedResourceId, resourceId } from "../lowering/support.js";
+import { reactResourceId } from "../resolution/resolve-opaque-component.js";
 import { checkDeclarationProject } from "./check-declaration-project.js";
+import { opaquePartitionIdentity } from "./opaque-partition-identity.js";
 import { planSurfacePartitions } from "./plan-surface-partitions.js";
 import type {
   CheckedDeclarationProject,
@@ -61,6 +67,69 @@ const failure = (
 ): ValidationResult<never> => ({ valid: false, diagnostics: [diagnostic(code, path, message)] });
 const budgetFailure = (code: string, path: readonly (string | number)[]) =>
   failure(code, path, "The fixed texture build policy budget was exceeded.");
+type PlannedSurface = Extract<ReturnType<typeof planSurfacePartitions>, { valid: true }>["value"];
+const planOpaqueSurface = (
+  surface: SemanticSurface,
+  renderer: RendererIdentity,
+  moduleHash: string,
+): ValidationResult<PlannedSurface> => {
+  if (surface.content.kind !== "opaque")
+    return failure(
+      "compiler-partition-content-unsupported",
+      ["surface", surface.id],
+      "Opaque content is required.",
+    );
+  const semanticsByState: PlannedSurface["semanticsByState"] = {};
+  const interactionsByState: PlannedSurface["interactionsByState"] = {};
+  const states: Record<string, { kind: "capture" }> = {};
+  for (const stateId of Object.keys(surface.states).sort(compareStrings)) {
+    const materialized = materializeCompletedSemanticTree(surface, stateId);
+    if (!materialized.valid) return materialized;
+    semanticsByState[stateId] = {
+      rootNodeIds: [...materialized.value.rootNodeIds],
+      nodes: Object.fromEntries(
+        Object.entries(materialized.value.nodes).map(([id, node]) => [id, { ...node }]),
+      ),
+    };
+    interactionsByState[stateId] = [];
+    states[stateId] = { kind: "capture" };
+  }
+  const bounds = { x: 0, y: 0, width: surface.logicalSize[0], height: surface.logicalSize[1] };
+  const scale = POLICY.longEdgePixels / Math.max(bounds.width, bounds.height);
+  const pixelTarget = [
+    Math.max(1, Math.floor(bounds.width * scale + 0.5)),
+    Math.max(1, Math.floor(bounds.height * scale + 0.5)),
+  ] as const;
+  const identity = opaquePartitionIdentity(surface.id, bounds, renderer, moduleHash);
+  const plan: RenderSurfacePlan = {
+    id: identity.id,
+    semanticSurfaceId: surface.id,
+    logicalBounds: bounds,
+    layer: 0,
+    ownership: {
+      kind: "opaque",
+      bindingKeys: Object.keys(surface.content.bindings).sort(compareStrings),
+    },
+    clipWindow: bounds,
+    states,
+  };
+  return {
+    valid: true,
+    value: {
+      partitions: [
+        {
+          plan,
+          pixelTarget,
+          partitionRendererKey: identity.partitionRendererKey,
+          identityDescriptor: identity.descriptor,
+        },
+      ],
+      semanticsByState,
+      interactionsByState,
+    },
+    diagnostics: [],
+  };
+};
 const compileUnchecked = async (
   input: unknown,
   options: unknown,
@@ -89,15 +158,16 @@ const compileUnchecked = async (
   const project = parsedProject.data as unknown as CompilerDeclarationProject;
   const themeId = project.presentation.theme?.themeId;
   const theme = project.themes.find(({ declaration }) => declaration.id === themeId);
-  if (!theme)
+  if (!theme && (themeId !== undefined || !Array.isArray(project.presentation.scene)))
     return failure(
       "compiler-theme-not-found",
       ["themes"],
       "Selected theme must resolve exactly once.",
     );
+  const themeHash = theme?.hash ?? hashCanonicalJsonPayload({ kind: "no-theme" });
   const bundleThemeId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(themeId ?? "")
     ? (themeId as string)
-    : resourceId("theme", themeId as string);
+    : resourceId("theme", themeId ?? "opaque-no-theme");
 
   const rendererDiagnostics: Diagnostic[] = [];
   for (const [index, candidate] of buildOptions.renderers.entries())
@@ -159,21 +229,40 @@ const compileUnchecked = async (
   if (!Number.isSafeInteger(outputBytes) || outputBytes > POLICY.maxBuildOutputBytes)
     return budgetFailure("compiler-budget-output-bytes-exceeded", ["assets"]);
   const definitionSurfaces = Object.values(definition.scene.surfaces);
-  const planned = new Map<string, ReturnType<typeof planSurfacePartitions> & { valid: true }>();
+  const planned = new Map<string, PlannedSurface>();
+  const opaqueRendererHashes = new Map<string, string>();
   const preflightDiagnostics: Diagnostic[] = [];
   let preflightBindings = 0;
   let preflightPixels = 0;
   let totalPartitions = 0;
   for (const surface of definitionSurfaces) {
-    if (surface.content.kind !== "structured")
-      return failure(
-        "compiler-opaque-component-unsupported",
-        ["scene", "surfaces", surface.id],
-        "Opaque capture is not implemented.",
-      );
-    const result = planSurfacePartitions(surface, renderer.identity);
+    if (surface.content.kind === "opaque") {
+      const instance = Array.isArray(project.presentation.scene)
+        ? project.presentation.scene.find(
+            (item) => reactResourceId("surface", item.id) === surface.id,
+          )
+        : undefined;
+      const component = instance
+        ? project.components.find(
+            (item) =>
+              item.manifest.componentId === instance.component.id &&
+              item.manifest.version === instance.component.version,
+          )
+        : undefined;
+      if (!component || component.lock.mode !== "opaque")
+        return failure(
+          "compiler-opaque-entry-missing",
+          ["scene", "surfaces", surface.id],
+          "Opaque capture requires its frozen renderer entry.",
+        );
+      opaqueRendererHashes.set(surface.id, component.lock.rendererInputHash);
+    }
+    const result =
+      surface.content.kind === "opaque"
+        ? planOpaqueSurface(surface, renderer.identity, opaqueRendererHashes.get(surface.id)!)
+        : planSurfacePartitions(surface, renderer.identity);
     if (!result.valid) return result;
-    planned.set(surface.id, result);
+    planned.set(surface.id, result.value);
     totalPartitions += result.value.partitions.length;
     const path = ["definition", "scene", "surfaces", surface.id] as const;
     if (result.value.partitions.length > POLICY.maxRenderSurfacesPerSemanticSurface)
@@ -249,14 +338,21 @@ const compileUnchecked = async (
     ([left], [right]) => compareStrings(left, right),
   )) {
     const stateIds = Object.keys(surface.states).sort(compareStrings);
-    const surfacePlan = planned.get(surfaceId)!.value;
+    const surfacePlan = planned.get(surfaceId)!;
     const { semanticsByState, interactionsByState } = surfacePlan;
     const partitions = surfacePlan.partitions;
     const renderSurfaces: RenderBundle["surfaces"][string]["renderSurfaces"] = {};
     for (const { plan, pixelTarget } of partitions) {
       const renderSurfaceId = plan.id;
+      const opaqueRendererHash = opaqueRendererHashes.get(surfaceId);
       const inputHash = hashCanonicalJsonPayload({
         definitionHash: checked.value.definitionHash,
+        ...(opaqueRendererHash
+          ? {
+              rendererInputHash: opaqueRendererHash,
+              sourceHash: checked.value.sourceHash,
+            }
+          : {}),
         surfaceId,
         semanticsByState,
         renderSurfaceId,
@@ -268,7 +364,7 @@ const compileUnchecked = async (
         pixelTarget,
         rendererConfigHash: buildOptions.rendererConfigHash,
         textureBuildPolicy: POLICY,
-        themeHash: theme.hash,
+        themeHash,
         themeId: bundleThemeId,
         timezone: buildOptions.timezone,
       });
@@ -285,13 +381,15 @@ const compileUnchecked = async (
         semanticsByState,
         fontAssets,
         plan,
-        entry: { kind: "structured" },
+        entry: opaqueRendererHash
+          ? { kind: "opaque", entryId: surfaceId, moduleHash: opaqueRendererHash }
+          : { kind: "structured" },
         context: {
           locale: buildOptions.locale,
           timezone: buildOptions.timezone,
           colorScheme: buildOptions.colorScheme,
           themeId: bundleThemeId,
-          themeHash: theme.hash,
+          themeHash,
           inputHash,
           buildContextHash,
           environmentHash,
@@ -342,7 +440,11 @@ const compileUnchecked = async (
             surfaceId,
             capture.stateId,
           ]);
-        const accountedPeakBytes = outputBytes + captureBytes + encoded.value.byteLength;
+        const accountedPeakBytes =
+          outputBytes +
+          captureBytes +
+          encoded.value.byteLength +
+          (surface.content.kind === "opaque" ? capture.rgba.length * 2 : 0);
         if (
           !Number.isSafeInteger(accountedPeakBytes) ||
           accountedPeakBytes > POLICY.maxBuildAccountedPeakBytes
@@ -414,7 +516,7 @@ const compileUnchecked = async (
 
   const bundle: RenderBundle = {
     schemaVersion: 2,
-    bundleId: `b:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, definitionHash: checked.value.definitionHash, environmentHash, locale: buildOptions.locale, timezone: buildOptions.timezone, colorScheme: buildOptions.colorScheme, themeId: bundleThemeId, themeHash: theme.hash, rendererConfigHash: buildOptions.rendererConfigHash, textureBuildPolicy: POLICY }).slice(7)}`,
+    bundleId: `b:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, definitionHash: checked.value.definitionHash, environmentHash, locale: buildOptions.locale, timezone: buildOptions.timezone, colorScheme: buildOptions.colorScheme, themeId: bundleThemeId, themeHash, rendererConfigHash: buildOptions.rendererConfigHash, textureBuildPolicy: POLICY }).slice(7)}`,
     sourceHash: checked.value.sourceHash,
     definitionHash: checked.value.definitionHash,
     compiler: {
@@ -427,7 +529,7 @@ const compileUnchecked = async (
       timezone: buildOptions.timezone,
       colorScheme: buildOptions.colorScheme,
       themeId: bundleThemeId,
-      themeHash: theme.hash,
+      themeHash,
       textureBuildPolicy: POLICY,
     },
     surfaces,

@@ -453,3 +453,5 @@ export const createPlaywrightFixedBrowserFactory =
   };
 
 export const openPlaywrightFixedBrowser = createPlaywrightFixedBrowserFactory(playwrightDriver);
+
+export { initScript as fixedBrowserInitScript };

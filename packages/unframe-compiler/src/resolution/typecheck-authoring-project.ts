@@ -61,10 +61,19 @@ export const analyzeAuthoringProject = (
 ): AnalyzedAuthoringProject => {
   const context = new VirtualModuleContext(project);
   const diagnostics: AuthoringProjectDiagnostic[] = [];
-  for (const sourceFile of context.sourceFiles.values())
+  const pending = context.projectRootFiles.map((name) => context.sourceFiles.get(name)!);
+  const visited = new Set<string>();
+  while (pending.length) {
+    const sourceFile = pending.pop()!;
+    if (visited.has(sourceFile.fileName)) continue;
+    visited.add(sourceFile.fileName);
     for (const specifier of moduleSpecifiersFor(sourceFile)) {
       const resolved = context.resolve(sourceFile.fileName, specifier.text);
-      if (resolved.kind === "resolved") continue;
+      if (resolved.kind === "resolved") {
+        const target = context.sourceFiles.get(resolved.fileName);
+        if (target && !visited.has(target.fileName)) pending.push(target);
+        continue;
+      }
       const start = specifier.getStart(sourceFile) + 1;
       diagnostics.push({
         code: resolved.code,
@@ -73,6 +82,7 @@ export const analyzeAuthoringProject = (
         ...rangeFor(sourceFile, start, specifier.getEnd() - 1),
       });
     }
+  }
   if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
 
   const options = {
@@ -132,6 +142,7 @@ export const analyzeAuthoringProject = (
     });
     const reactOptions = {
       ...options,
+      baseUrl: project.projectRoot,
       noLib: false,
       lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
       jsxImportSource: "react",
@@ -143,14 +154,23 @@ export const analyzeAuthoringProject = (
     });
     reactDiagnostics = reactProgram
       .getSemanticDiagnostics()
-      .filter((item) => item.file && isReactProjectFile(item.file, reactContext!));
+      .filter(
+        (item) =>
+          item.file &&
+          (isReactProjectFile(item.file, reactContext!) ||
+            reactContext!.ownerFor(item.file)?.kind === "package"),
+      );
   }
   const seen = new Set<string>();
   const semanticDiagnostics = [
     ...program
       .getSemanticDiagnostics()
       .filter(
-        (item) => !hasReactComponents || !item.file || !isReactProjectFile(item.file, context),
+        (item) =>
+          !hasReactComponents ||
+          !item.file ||
+          (context.ownerFor(item.file)?.kind === "project" &&
+            !isReactProjectFile(item.file, context)),
       ),
     ...reactDiagnostics,
   ];

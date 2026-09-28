@@ -67,7 +67,7 @@ lock update <absolute-project-directory> [--recreate] [--format text|json]
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
-`build` は Opaque Surface を capture 未実装として Browser 起動前に拒否する。Structured は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+`build` は Opaque Surface の locked renderer を閉じた bundle にして Linux の隔離 worker で capture する。namespace / cgroup が利用できなければ `opaque-isolation-unavailable` を返す。成功後だけ既存の atomic publish へ進む。Structured は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
