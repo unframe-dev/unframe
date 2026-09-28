@@ -1,6 +1,6 @@
 # React Component の抽出・編集・capture 契約
 
-- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路と A2 default State capture を実装。Editor host / 有限 State の React 経路は未実装
+- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路と A2 default State capture を実装。A3 の直接編集用 Editor host を実装・ローカル検証済み。共有値 override / Undo / Redo / 有限 State の React 経路は未実装
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 
 この文書は、ADR-0019 の採用前提の方針に沿って A1〜A5 の入力、失敗、保存・実行方式を具体化する。各方式は実装の出発点とし、受け入れ試験で検証・調整する。記述された API・制限値・OS 隔離の詳細がすべて確定したことや、実機動作を確認したことを意味しない。
@@ -141,7 +141,7 @@ loopback IPv4 のランダム port に bind し、期待する `Host` を完全�
 | `PUT /api/builds/{buildId}/cancellation`        | 空 object → `200 {buildId, status}`                                                                                                | 繰り返しても同じ取消意図。既に terminal なら状態を変えない                                               |
 | `GET /api/builds/{buildId}/artifacts/{assetId}` | 成功済み job の catalog に存在する asset bytes                                                                                     | arbitrary path / Source / renderer JS を配信しない。Editor は認証付き fetch の結果を blob URL で表示     |
 
-`command` は `setProp {instanceId, propId, value}` または `setTransform {instanceId, transform}` の discriminated union。scalar は string / finite number / boolean、Transform は全 position / rotation / scale を持つ。削除、rename、任意 patch / filename は受け付けない。Undo / Redo は host が保持する同一 session の逆 command と新しい commandId / revision を使う。
+`command` は `setProp {instanceId, propId, value}` または `setTransform {instanceId, transform}` の discriminated union。scalar は string / finite number / boolean、Transform は全 position / rotation / scale を持つ。削除、rename、任意 patch / filename は受け付けない。A4 で追加する Undo / Redo は host が保持する同一 session の逆 command と新しい commandId / revision を使う。
 
 commandId / requestId / buildId は 128-bit random を表す lowercase hex 32 桁に限定する。path に入れる前に strict 検証し、値を directory traversal や任意 filename として解釈しない。assetId は canonical catalog の key へ照合し、decoded 値を filesystem path に連結しない。
 
