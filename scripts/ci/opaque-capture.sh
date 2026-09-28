@@ -29,4 +29,4 @@ fi
 pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run \
   test/opaque-isolation.integration.test.ts test/opaque-capture.integration.test.ts
 pnpm --dir "${repo_root}" --filter @unframe/unframe-cli exec vp test run \
-  test/opaque-project.integration.test.ts
+  test/opaque-project.integration.test.ts test/author-capture.integration.test.ts
