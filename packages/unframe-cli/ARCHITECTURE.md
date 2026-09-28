@@ -64,6 +64,7 @@ check <absolute-project-directory> [--format text|json]
 build <absolute-project-directory> [--format text|json]
 lock refresh <absolute-project-directory> [--format text|json]
 lock update <absolute-project-directory> [--recreate] [--format text|json]
+author <absolute-project-directory>
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
@@ -71,7 +72,7 @@ lock update <absolute-project-directory> [--recreate] [--format text|json]
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
-非協調 process が lock path を unlink する攻撃は ADR-0013 の threat model 外である。`check` は lock を取得しない。
+非協調 process が lock path を unlink する攻撃は ADR-0013 の threat model 外である。`check` は build lease を取得せず、snapshot の間だけ source lease を取得する。
 
 Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer`、`2` が `usage`、`3` が `io`、signal cancel の
 `130` が `cancel` である。成功時の JSON output は `ok: true`、失敗時は diagnostic array を持つ。diagnostic JSON は
@@ -126,7 +127,7 @@ Node.js の両方を提供する。
 build は config・Source・lock の bytes から revision を固定し、dist 置換前に再検査する。
 変更を検出した場合は `cli-output-stale` を返し、成功済み dist を保持して未公開 generation を回収する。
 build lease と一時 dist link は revision に含めない。これは外部編集の検出であり、非協調 editor との
-原子的な保存を保証しない。Editor の Source / lock transaction と recovery は未実装である。
+原子的な保存を保証しない。ローカル Author host は source lease と journal により Source / lock の保存と recovery を行う。
 
 `pnpm presentation check|build <project>` は Bun process entry である。この entrypoint だけが単一の
 `AbortController` と `SIGINT` / `SIGTERM` listener を所有し、同じ signal を application API に渡す。listener は
@@ -148,3 +149,16 @@ build lease と一時 dist link は revision に含めない。これは外部�
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
 package に移さない。
+
+## 8. Local Author host
+
+`author` は Linux の loopback に Web Inspector を配信し、`xdg-open` で起動 URL を開く。token 付き URL はログに出さず、origin だけを表示する。
+先に repository root で `pnpm --filter @unframe/web build:author` を実行する。
+起動は `pnpm --filter @unframe/unframe-cli presentation author /absolute/project`。
+Opaque preview には既存の固定 Browser と cgroup / namespace 実行環境が必要である。
+
+`src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/web` が画面を所有する。
+公開 scalar Props の直接 literal と host Transform を編集し、保存後に build を要求する。
+共有値・props spread の局所 override、Undo / Redo、React 内部の CSS 編集は提供しない。
+保存 revision と成功した preview revision を区別し、capture 失敗でも保存済み Source と以前の preview を保持する。
+認証・保存・回復規則は [実装契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) を参照。

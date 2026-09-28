@@ -81,3 +81,21 @@ describe("presentation process entry", () => {
     }
   });
 });
+
+it("routes author startup through the local host and shares process cancellation", async () => {
+  const host = fakeProcess(["bun", "presentation", "author", "/project"]);
+  const result = await runPresentationProcess({
+    process: host.process,
+    author: async (directory, signal) => {
+      expect(directory).toBe("/project");
+      expect(signal.aborted).toBe(false);
+      host.process.emit("SIGTERM");
+      expect(signal.aborted).toBe(true);
+    },
+    run: async () => {
+      throw new Error("must not use check/build parser");
+    },
+  });
+  expect(result.exitCode).toBe(130);
+  expect(host.process.listenerCount("SIGTERM")).toBe(0);
+});
