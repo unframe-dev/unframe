@@ -28,6 +28,4 @@ jobs:
         run: bash scripts/ci/allow-presentation-browser-userns.sh
 
       - name: shared config / typecheck / lint / test
-        env:
-          DEBUG: pw:browser
         run: nix run .#presentation
