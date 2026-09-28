@@ -2,6 +2,8 @@ import type {
   ComponentManifest,
   ComponentPackageLock,
   ComponentStructure,
+  StaticComponentMetadata,
+  StaticReactSceneItem,
   PresentationDeclaration,
   ThemeDeclaration,
   SourceMetadata,
@@ -13,13 +15,26 @@ import type { RendererPlugin } from "@unframe/unframe-renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 
 export type CompilerDeclarationProject = {
-  presentation: PresentationDeclaration;
+  presentation:
+    | PresentationDeclaration
+    | (Omit<PresentationDeclaration, "scene"> & {
+        scene: readonly StaticReactSceneItem[];
+      });
   themes: readonly { declaration: ThemeDeclaration; hash: string }[];
-  components: readonly {
-    manifest: ComponentManifest;
-    structure: ComponentStructure;
-    lock: Required<ComponentPackageLock>;
-  }[];
+  components: readonly (
+    | {
+        manifest: ComponentManifest;
+        structure: ComponentStructure;
+        lock: ComponentPackageLock & { mode: "structured" };
+      }
+    | {
+        manifest: ComponentManifest;
+        metadata: StaticComponentMetadata;
+        rendererEntry: string;
+        rendererSource: string;
+        lock: ComponentPackageLock & { mode: "opaque" };
+      }
+  )[];
   assets: Readonly<Record<string, CompilerSourceAsset>>;
 };
 export type CompilerSourceAsset = {
@@ -33,10 +48,9 @@ export type DeclarationProjectThemeHash = {
   readonly themeId: string;
   readonly hash: string;
 };
-export type DeclarationProjectComponentLock = {
+export type DeclarationProjectComponentLock = ComponentPackageLock & {
   readonly componentId: string;
   readonly version: number;
-  readonly lock: Required<ComponentPackageLock>;
 };
 export type DeclarationProjectAssemblyInput = {
   readonly catalog: PairedAuthoringDeclarationCatalog;

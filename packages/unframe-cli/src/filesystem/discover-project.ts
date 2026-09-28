@@ -1,4 +1,5 @@
 import { join, relative } from "node:path";
+import type { LocalFileSnapshot } from "./frozen-local-files.js";
 import { loadProjectConfig } from "./load-config.js";
 import {
   projectDirectory,
@@ -23,6 +24,7 @@ export type DiscoveredProjectFiles =
       readonly entryFile: string;
       readonly lockBytes: Uint8Array;
       readonly files: readonly ProjectSourceFile[];
+      readonly localFiles: readonly LocalFileSnapshot[];
     }
   | { readonly ok: false; readonly code: ProjectFailureCode; readonly message: string };
 
@@ -50,7 +52,10 @@ const sourceFailure = () =>
 
 const scanAuthoringSources = async (
   root: string,
-): Promise<readonly ProjectSourceFile[] | undefined> => {
+): Promise<
+  { files: readonly ProjectSourceFile[]; localFiles: readonly LocalFileSnapshot[] } | undefined
+> => {
+  const localFiles: LocalFileSnapshot[] = [];
   const files: ProjectSourceFile[] = [];
 
   const scan = async (directory: string): Promise<boolean> => {
@@ -70,6 +75,8 @@ const scanAuthoringSources = async (
 
       const bytes = await readRegularFile(path);
       if (!bytes) return false;
+      if (relativeName !== "unframe.lock" && relativeName !== "unframe.config.ts")
+        localFiles.push({ path: relativeName, bytes });
       if (!sourceFileName(name) || relativeName === "unframe.config.ts") continue;
       try {
         files.push({ fileName: relativeName, sourceText: sourceDecoder.decode(bytes) });
@@ -81,7 +88,10 @@ const scanAuthoringSources = async (
   };
 
   return (await scan(root))
-    ? files.sort((left, right) => compareCodeUnits(left.fileName, right.fileName))
+    ? {
+        files: files.sort((left, right) => compareCodeUnits(left.fileName, right.fileName)),
+        localFiles,
+      }
     : undefined;
 };
 
@@ -114,12 +124,12 @@ export const discoverPresentationProjectFiles = async (
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  const files = await scanAuthoringSources(root);
-  if (!files) return sourceFailure();
-  if (!files.some((file) => file.fileName === entryFile))
+  const snapshot = await scanAuthoringSources(root);
+  if (!snapshot) return sourceFailure();
+  if (!snapshot.files.some((file) => file.fileName === entryFile))
     return failure(
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  return { ok: true, projectDirectory: root, entryFile, lockBytes: lock.slice(), files };
+  return { ok: true, projectDirectory: root, entryFile, lockBytes: lock.slice(), ...snapshot };
 };

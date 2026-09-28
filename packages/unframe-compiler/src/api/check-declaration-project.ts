@@ -20,12 +20,7 @@ import {
 } from "../validation/project-schemas.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { compareStrings, diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
-import {
-  renderIntent,
-  resourceId,
-  sameLock,
-  projectEnvelopeDiagnostics,
-} from "../lowering/support.js";
+import { renderIntent, resourceId, projectEnvelopeDiagnostics } from "../lowering/support.js";
 import type {
   CheckedDeclarationProject,
   CompilerDeclarationProject,
@@ -35,6 +30,7 @@ import { resolveStructuredComponent } from "../resolution/resolve-structured-com
 import { lowerCues } from "../lowering/lower-cues.js";
 import { checkSlotComposition, sameOwner } from "../resolution/check-slot-composition.js";
 import { checkProjectAssets } from "../validation/check-project-assets.js";
+import { resolveOpaqueProject } from "../resolution/resolve-opaque-component.js";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -87,12 +83,24 @@ const checkDeclarationProjectUnchecked = (
 
   // Declaration API owns the detailed Authoring contracts; this schema owns the public envelope.
   const project = parsedProject.data as unknown as CompilerDeclarationProject;
+  if (Array.isArray(project.presentation.scene))
+    return resolveOpaqueProject(
+      project as Parameters<typeof resolveOpaqueProject>[0],
+      cloned.value,
+    );
   const diagnostics: Diagnostic[] = [];
   const warnings: CompilerWarning[] = [];
   const rawPresentation = project.presentation;
   const presentation = rawPresentation as PresentationDeclaration;
   const themes = project.themes as CompilerDeclarationProject["themes"];
-  const components = project.components as CompilerDeclarationProject["components"];
+  const components = project.components.filter(
+    (
+      candidate,
+    ): candidate is Extract<
+      CompilerDeclarationProject["components"][number],
+      { structure: unknown }
+    > => "structure" in candidate,
+  );
   const assets = project.assets as CompilerDeclarationProject["assets"];
   const validateDeclaration = (path: readonly (string | number)[], valid: boolean) => {
     if (!valid) {
@@ -119,6 +127,10 @@ const checkDeclarationProjectUnchecked = (
       ["components", index, "manifest"],
       isComponentManifest(candidate.manifest),
     );
+    if (!("structure" in candidate)) {
+      validateDeclaration(["components", index], false);
+      continue;
+    }
     const structure = candidate.structure;
     const structureValid = validateDeclaration(
       ["components", index, "structure"],
@@ -232,15 +244,12 @@ const checkDeclarationProjectUnchecked = (
           ),
         );
     }
-    if (
-      entry.structure.componentId !== entry.manifest.componentId ||
-      !sameLock(instance.packageLock, entry.lock)
-    )
+    if (entry.structure.componentId !== entry.manifest.componentId)
       diagnostics.push(
         diagnostic(
-          "compiler-component-lock-mismatch",
+          "compiler-component-identity-mismatch",
           path,
-          "Component structure and exact package lock must match.",
+          "Component structure and Manifest must match.",
         ),
       );
     const componentSemanticTree =

@@ -4,6 +4,7 @@ import { parseAuthoringProject } from "../src/project/parse-authoring-project.js
 import { typecheckAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 import { collectPackageValueProvenance } from "../src/resolution/symbol-provenance.js";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 type PackageInput = {
   packageName: string;
@@ -30,18 +31,53 @@ const lockedPackage = ({
   dependencies,
 });
 
-const project = (sourceText: string, packages: readonly ReturnType<typeof lockedPackage>[]) => {
-  const parsed = parseAuthoringProject({
+const virtualInput = (
+  sourceText: string,
+  packages: readonly ReturnType<typeof lockedPackage>[],
+) => {
+  const keyFor = (item: ReturnType<typeof lockedPackage>) =>
+    hashCanonicalJsonPayload([item.packageName, item.packageVersion, item.packageIntegrity]);
+  const snapshots = packages
+    .map((item) => ({
+      key: keyFor(item),
+      locator: `${item.packageName}@${item.packageVersion}`,
+      name: item.packageName,
+      version: item.packageVersion,
+      contentIntegrity: hashCanonicalJsonPayload(item),
+      files: item.files
+        .map((file) => ({
+          path: file.fileName,
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(file.sourceText),
+          encoding: "utf8",
+          data: file.sourceText,
+        }))
+        .sort((a, b) => a.path.localeCompare(b.path)),
+      exports: item.exports.map((entry) => ({
+        subpath: entry.subpath,
+        runtimeImport: entry.targetFile,
+        runtimeRequire: null,
+        types: entry.targetFile,
+      })),
+      dependencies: item.dependencies.map((dependency) => ({
+        specifier: dependency.packageName,
+        usage: "runtime",
+        packageKey: keyFor(dependency as ReturnType<typeof lockedPackage>),
+      })),
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  return {
     projectRoot: "/virtual/presentation",
     entryFile: "presentation.unframe.ts",
     files: [{ fileName: "presentation.unframe.ts", sourceText }],
-    packageDependencies: packages.map(({ packageName, packageVersion, packageIntegrity }) => ({
-      packageName,
-      packageVersion,
-      packageIntegrity,
-    })),
-    packages,
-  });
+    rootDependencies: packages
+      .map((item) => ({ specifier: item.packageName, usage: "runtime", packageKey: keyFor(item) }))
+      .sort((a, b) => a.specifier.localeCompare(b.specifier)),
+    packages: snapshots,
+  };
+};
+const project = (sourceText: string, packages: readonly ReturnType<typeof lockedPackage>[]) => {
+  const parsed = parseAuthoringProject(virtualInput(sourceText, packages));
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
   return parsed.value;
 };
@@ -78,11 +114,7 @@ describe("typecheckAuthoringProject locked packages", () => {
     const packageVersion = "1";
     const packageIntegrity = "integrity";
     const parsed = parseAuthoringProject({
-      projectRoot: "/.unframe/packages/p0070006B0067/p0031/p0069006E0074006500670072006900740079",
-      entryFile: "index.ts",
-      files: [{ fileName: "index.ts", sourceText: "export const projectValue: string = 1;" }],
-      packageDependencies: [{ packageName, packageVersion, packageIntegrity }],
-      packages: [
+      ...virtualInput("export const projectValue: string = 1;", [
         lockedPackage({
           packageName,
           packageVersion,
@@ -90,7 +122,10 @@ describe("typecheckAuthoringProject locked packages", () => {
           files: [{ fileName: "index.ts", sourceText: "export const packageValue = 1;" }],
           exports: [{ subpath: ".", targetFile: "index.ts" }],
         }),
-      ],
+      ]),
+      projectRoot: "/.unframe/packages/p0070006B0067/p0031/p0069006E0074006500670072006900740079",
+      entryFile: "index.ts",
+      files: [{ fileName: "index.ts", sourceText: "export const projectValue: string = 1;" }],
     });
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
 
@@ -108,7 +143,7 @@ describe("typecheckAuthoringProject locked packages", () => {
         lockedPackage({
           packageName: "pkg",
           files: [
-            { fileName: "index.ts", sourceText: 'export { value } from "./inner";' },
+            { fileName: "index.ts", sourceText: 'export { value } from "./inner.ts";' },
             { fileName: "inner.ts", sourceText: "export const value: number = 1;" },
           ],
           exports: [{ subpath: ".", targetFile: "index.ts" }],
@@ -190,6 +225,39 @@ describe("typecheckAuthoringProject locked packages", () => {
       ok: false,
       diagnostics: [{ code: "compiler-module-package-unsupported" }],
     });
+  });
+
+  it("resolves a type edge ahead of a runtime edge for the same specifier", () => {
+    const runtime = lockedPackage({
+      packageName: "runtime-pkg",
+      files: [{ fileName: "index.ts", sourceText: "export const marker = 1;" }],
+      exports: [{ subpath: ".", targetFile: "index.ts" }],
+    });
+    const types = lockedPackage({
+      packageName: "types-pkg",
+      files: [{ fileName: "index.d.ts", sourceText: "export declare const marker: string;" }],
+      exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+    });
+    const value = virtualInput(
+      'import { marker } from "runtime-pkg"; export const text: string = marker;',
+      [runtime, types],
+    );
+    value.rootDependencies = [
+      {
+        specifier: "runtime-pkg",
+        usage: "runtime",
+        packageKey: value.packages.find((pkg) => pkg.name === "runtime-pkg")!.key,
+      },
+      {
+        specifier: "runtime-pkg",
+        usage: "types",
+        packageKey: value.packages.find((pkg) => pkg.name === "types-pkg")!.key,
+      },
+    ];
+    const parsed = parseAuthoringProject(value);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(typecheckAuthoringProject(parsed.value)).toEqual({ ok: true, diagnostics: [] });
   });
 
   it("preflights module specifiers in otherwise unreachable locked packages", () => {

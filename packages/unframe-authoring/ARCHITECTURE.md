@@ -115,7 +115,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - 6 category の Theme Token、同 category alias、Text / Frame の部分 Named Style
 - `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
-- Stage、Flow、resource owner / audience、Component Instance と package lock
+- Stage、Flow、resource owner / audience、Component Instance と catalog が接続する lock v2
 - Component Action の Surface State cut / crossfade、即時 Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
 - Structured Surface Component の host Spatial Node を対象とする Timeline、`playTimeline` Action、`timelineCompleted` Output
 - Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
@@ -139,4 +139,4 @@ Frame-root Structure の semantic tree を宣言できる。Slot placeholder に
 
 Structured Surface Component の Timeline track は `target: { kind: "host", property }` として Component Instance の host Spatial Node だけを対象にする。対応 property は `opacity`、`transform.position`、`transform.rotation`、`transform.scale` である。Slotted / Opaque Component の Timeline、別 Spatial Node への target、migration、自動変換、Part partition isolate は未対応である。
 
-React Component の静的 Hero subset として `defineComponent` / `editableText` / `prop`、scene 配列の Props 型推論、render-free metadata guard と Opaque Manifest 生成を提供する。heading / paragraph と暗黙 default State を扱い、有限 State / Action / Interaction は未対応である。React の関数は宣言の描画 field に限定し、plain metadata と分離して検証する。Compiler の非実行抽出、lock v2、配置変換、capture、Editor への接続は後続であり、この SDK だけで `.component.tsx` の check / build が可能になるわけではない。
+React Component の静的 Hero subset として `defineComponent` / `editableText` / `prop`、scene 配列の Props 型推論、render-free metadata guard と Opaque Manifest 生成を提供する。heading / paragraph と暗黙 default State を扱い、有限 State / Action / Interaction は未対応である。React の関数は宣言の描画 field に限定し、plain metadata と分離して検証する。Compiler の非実行抽出、lock v2、配置変換、CLI frozen check まで接続している。capture と Editor は後続であり、Opaque build は明示的に拒否する。

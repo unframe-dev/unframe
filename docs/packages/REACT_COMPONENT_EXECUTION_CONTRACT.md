@@ -1,9 +1,9 @@
 # React Component の抽出・編集・capture 契約
 
-- **Status**: Proposed / A1 実装中。Browser capture / Editor host は未実装
+- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路を実装。Browser capture / Editor host は未実装
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 
-この文書は A1〜A5 の入力、失敗、保存・実行方式を固定する。ここでの方式選択は実装計画の判断であり、React Authoring の標準採用や実機動作の証明ではない。
+この文書は、ADR-0019 の採用前提の方針に沿って A1〜A5 の入力、失敗、保存・実行方式を具体化する。各方式は実装の出発点とし、受け入れ試験で検証・調整する。記述された API・制限値・OS 隔離の詳細がすべて確定したことや、実機動作を確認したことを意味しない。
 
 ## A1 の前提契約：canonical Surface
 
@@ -79,7 +79,7 @@ type UnframeLockV2 = {
 
 `locator` は pnpm lockfileVersion `9.0` の `snapshots` record key をそのまま使用し、解決済み peer context を省略・並べ替えしない。OS の絶対パスを含む locator は拒否する。profile が違う pnpm lock は明示 update の段階で拒否する。key は `hash(["pnpm-lock9-locator-v1",locator])`。importer と usage ごとに bare specifier を dependency edge に解決し、型だけの依存は runtime graph に入れない。`@types` の対応も types edge として固定し、build 時に自動検索しない。
 
-export subpath は常に `"."` または `"./..."` を明示する。runtime import は browser / import / production / default、静的 require は browser / require / production / default、型は types / import / default の固定条件で package.json の順序規則に従って解決し、最終 file path を exports 表に保存する。三 target の少なくとも一つを必須とする。exports がない package の root は、型は types / typings、runtime import は文字列 browser / module / main、runtime require は main の順で明示 file を選ぶ。対象 subpath を列挙して固定し、未固定の directory / index 探索は build 時に行わない。browser object mapping と未解決の動的 require / import は初期非対応とする。
+export subpath は常に `"."` または `"./..."` を明示する。runtime import は browser / import / production / default、静的 require は browser / require / production / default、型は types / import / default の固定条件で package.json の順序規則に従って解決し、最終 file path を exports 表に保存する。三 target の少なくとも一つを必須とする。exports がない package の root は、型は types / typings、runtime import は文字列 browser / module / main、runtime require は main の順で明示 file を選ぶ。対象 subpath を列挙して固定し、未固定の directory / index 探索は build 時に行わない。browser object mapping、exports の配列・ワイルドカード、`#` package import alias、未解決の動的 require / import は初期非対応とする。
 
 条件解決を通常 build で再実行して node_modules に問い合わせない。local import は relative path のみ、bare specifier は固定 rootDependencies のみとし、任意 tsconfig paths / bundler alias は初期非対応にする。
 
@@ -96,7 +96,7 @@ package 内の relative import は locked files のみとする。初期実装�
 
 package dependency の循環は edge graph として扱い、依存先 integrity を再帰計算しない。異なる peer context は異なる key になる。locked bytes / exports を改変すれば contentIntegrity、runtime 依存辺の付け替えは dependencyGraphHash と rendererInputHash が変わる。型専用 graph の変更は project revision / 型検査に反映し、描画専用 hash から除く。ただし runtime package と同じ snapshot に含まれる型 file は contentIntegrity の変更として保守的に再描画対象にする。Renderer の Browser / font / capture profile は build environment hash に含める。lock 内に lock 全体 hash は保存せず、自己参照を避ける。
 
-通常 check / build は全 hash と参照を再計算する。`lock refresh <project>` は現在の固定 package graph で local Component / Theme hash だけを更新し、`lock update <project>` は明示された pnpm frozen install の結果から外部 bytes / exports / graph を再 snapshot する。どちらも package install script を実行しない。packageManagerLockHash は解決元 `pnpm-lock.yaml` bytes の SHA-256 で、更新時だけ読む。新しい外部 import を local refresh で追加した場合は依存更新を要求する。描画が必要な image/font は lock asset carrier または local files / package files のどれか一つから解決し、bytes と拡張子・mediaType を一致検証する。初期 capture の対応形式は4節で限定する。
+通常 check / build は全 hash と参照を再計算する。実装済みの `lock refresh` は固定 graph を保持し、`lock update` は `pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --force --verify-store-integrity` 後の依存を読み直す。workspace / link 依存の配布 snapshot は未対応であり、明示的に拒否する。reference fixture の SDK は手製の型 snapshot で、実 package 配布の検証を示さない。`lock refresh <project>` は現在の固定 package graph で local Component / Theme hash だけを更新し、`lock update <project>` は明示された pnpm frozen install の結果から外部 bytes / exports / graph を再 snapshot する。どちらも package install script を実行しない。packageManagerLockHash は解決元 `pnpm-lock.yaml` bytes の SHA-256 で、更新時だけ読む。新しい外部 import を local refresh で追加した場合は依存更新を要求する。描画が必要な image/font は lock asset carrier または local files / package files のどれか一つから解決し、bytes と拡張子・mediaType を一致検証する。初期 capture の対応形式は4節で限定する。
 
 Compiler の `ComponentPackageLock` / assembly carrier はこの origin + mode union へ移す。ローカル Component に架空の packageVersion を補わない。Structured の既存 Instance にある packageLock と sample の lock import を取り除き、catalog が origin を決定する。同じ `(componentId,version)` に異なる origin / 内容が解決したら重複定義として拒否する。旧 v1 の読み込み分岐は追加せず、loader、carrier、guard、`sameLock`、reference、fixture、drift test を A1 で一緒に更新する。Structured の宣言と canonical 出力の意味は維持する。
 

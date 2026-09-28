@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { PresentationDeclaration } from "@unframe/unframe-authoring";
 
 import {
   checkAuthoringProject,
@@ -32,20 +31,32 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
   projectRoot: "/virtual/presentation",
   entryFile: "entry.ts",
   files,
-  packageDependencies: [
+  rootDependencies: [
     {
-      packageName: "@unframe/unframe-authoring",
-      packageVersion: "1",
-      packageIntegrity: "integrity",
+      specifier: "@unframe/unframe-authoring",
+      usage: "runtime",
+      packageKey: `sha256:${"a".repeat(64)}`,
     },
   ],
   packages: [
     {
-      packageName: "@unframe/unframe-authoring",
-      packageVersion: "1",
-      packageIntegrity: "integrity",
-      files: [{ fileName: "index.ts", sourceText: builders }],
-      exports: [{ subpath: ".", targetFile: "index.ts" }],
+      key: `sha256:${"a".repeat(64)}`,
+      locator: "@unframe/unframe-authoring@1",
+      name: "@unframe/unframe-authoring",
+      version: "1",
+      contentIntegrity: `sha256:${"b".repeat(64)}`,
+      files: [
+        {
+          path: "index.ts",
+          mediaType: "text/typescript",
+          hash: `sha256:${"c".repeat(64)}`,
+          encoding: "utf8",
+          data: builders,
+        },
+      ],
+      exports: [
+        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+      ],
       dependencies: [],
     },
   ],
@@ -82,7 +93,7 @@ describe("checkAuthoringProject", () => {
     });
     if (!result.valid) return;
     const catalog: PairedAuthoringDeclarationCatalog = result.value;
-    const copiedPresentation: PresentationDeclaration = { ...catalog.presentation.value };
+    const copiedPresentation = { ...catalog.presentation.value };
     const component: PairedComponentDeclaration | undefined = catalog.components[0];
     expect(copiedPresentation.id).toBe("presentation");
     expect(component).toBeUndefined();

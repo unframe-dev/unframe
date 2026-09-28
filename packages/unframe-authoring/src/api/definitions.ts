@@ -469,12 +469,6 @@ const componentInstanceSchema = z.strictObject({
   kind: z.literal("component-instance"),
   componentId: idSchema,
   version: finiteNumberSchema,
-  packageLock: z.strictObject({
-    packageVersion: idSchema,
-    packageIntegrity: idSchema,
-    manifestHash: idSchema,
-    structureHash: idSchema.optional(),
-  }),
   owner: resourceOwnerSchema,
   spatialNodeId: idSchema.optional(),
   props: z.record(idSchema, z.union([z.string(), finiteNumberSchema, z.boolean()])),
@@ -984,11 +978,6 @@ const assertComponentInstanceIds = (value: ComponentInstanceDeclaration): void =
   assertId(value.componentId, "componentId");
   if (value.spatialNodeId !== undefined) assertId(value.spatialNodeId, "spatialNodeId");
   assertOwner(value.owner);
-  assertId(value.packageLock.packageVersion, "packageLock.packageVersion");
-  assertId(value.packageLock.packageIntegrity, "packageLock.packageIntegrity");
-  assertId(value.packageLock.manifestHash, "packageLock.manifestHash");
-  if (value.packageLock.structureHash !== undefined)
-    assertId(value.packageLock.structureHash, "packageLock.structureHash");
   assertRecordKeys(value.slots, "slot binding id");
   for (const targetIds of Object.values(value.slots))
     for (const targetId of targetIds) assertId(targetId, "slot binding targetId");

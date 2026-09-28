@@ -555,7 +555,7 @@ Generic renderer は Structure に宣言されていない Semantic Node、State
 
 authoring mode は Component version ごとに一つに固定し、renderer ごとに Structured / Opaque を切り替えない。Structured と Opaque の変更は公開 authoring contract の破壊的変更として Component version を更新する。migration metadata と自動変換の具体契約は M3A より後に定義する。
 
-Component package lock は Component ID、package version、package integrity、Manifest hash に加え、Structured Component では Structure hash を固定する。公開契約を変えない Structure 変更も package integrity と Structure hash を変更し、Compiler cache と RenderBundle を再生成する。lockfile の serialized format は Authoring contract で別途定義する。
+Component lock v2 は Component ID / version、local file closure または package key / subpath の origin と Manifest hash を固定する。Structured では Structure hash、Opaque では rendererInputHash も固定する。ローカル Component に package version を補わない。正確な hash 入力は React Component 実行契約0節に従う。
 
 Component Structure の共通 DSL 制約、parse / typecheck、static AST lowering は 6.1〜6.3 に従う。具体的な Primitive node union と property schema は Component contract で定義する。
 
@@ -580,7 +580,7 @@ Opaque Manifest は Action / Output lowering に必要な公開 Runtime target �
 
 Opaque renderer は Manifest の binding key に concrete geometry や artifact を対応付けるが、宣言済み target の意味や ID を変更できない。Compiler は Opaque Action / Output template の local target を `semantics` から解決し、参照先の欠落、ID や binding key の重複、必須 binding の未結合、renderer が追加した未宣言 binding を build error とする。
 
-Component package lock は Opaque Component の Manifest hash と renderer entry hash を固定する。renderer source または依存 lock が変わった場合は package integrity と entry hash を変更し、renderer artifact を再生成する。完全な drift 検証と renderer provenance は Rendering / Delivery follow-up で定義する。
+Opaque の lock v2 は origin、Manifest hash と rendererInputHash を固定する。rendererInputHash は抽出 renderer、local 描画依存、runtime package graph、固定 tool identity から計算する。capture artifact の生成とその provenance は A2 で接続する。
 
 Presentation Orchestrator、Theme Declaration、Component Manifest、Structured Component Structure は、GUI の source mapping と意味論的 round-trip を成立させるため、静的解析できる制限付き DSL とする。Local Compiler は import、symbol、型を解決した検証済み AST から Declaration Graph へ直接 lower し、これらの source を JavaScript として実行しない。
 
@@ -590,7 +590,7 @@ Opaque renderer は通常の TS / React / CSS として bundle し、renderer ar
 
 ### 5.4 Component Instance と Detach
 
-Component Instance は Component ID、package lock、Props、Variant、Slot binding、公開 Part override、resource owner を持つ。Component Instance から生成する Spatial Node、Timeline、Variable、Zone は同じ owner を継承し、Component Manifest や Structure が別 scope へ上書きしない。共有 lifetime が必要な内容は別の presentation-owned Component Instance として配置する。
+Structured Component Instance は Component ID / version、Props、Variant、Slot binding、公開 Part override、resource owner を持つ。lock の接続は catalog が生成する。Component Instance から生成する Spatial Node、Timeline、Variable、Zone は同じ owner を継承し、Component Manifest や Structure が別 scope へ上書きしない。共有 lifetime が必要な内容は別の presentation-owned Component Instance として配置する。
 
 Component 内部では local ID を使用し、Compiler が Instance ID と local ID から安定した Runtime ID を生成する。Global Flow は Component 内部 Node を直接参照せず、公開 Part、Action、Output を参照する。
 
@@ -2497,7 +2497,7 @@ Unity Runtime
 
 Static lowering が参照できる入力は、Authoring Source、lock された Component package、Theme、Asset metadata、Compiler configuration に限定する。同じ source、lockfile、compiler version、configuration から同じ Declaration Graph と PresentationDefinition JSON を生成する。Opaque renderer artifact の Browser 実行は別の隔離境界とし、その capability と再現性は Rendering / Delivery contract で固定する。
 
-M1 の local process は POSIX filesystem に限定し、明示された absolute project directory の realpath を root とする。同じ root の`unframe.config.ts`と`unframe.lock`を読み、上方探索はしない。config は AST で読む data-only `export default { entryFile }`、lock は `schemaVersion: 1`、package identity、self-contained package source、integrityを記録する UTF-8 JSON とし、いずれも実行・network lookup・symbolic link traversal を許可しない。`check` はこの入力と Source frontend までを検証して Browser を起動せず、`build` だけが Fixed Browser capture を行う。M1 の公開artifactは`definition.json`、`render-bundle.json`、`assets/*.png`だけであり、root固定の`dist`を今回生成したstagingからatomic replacementして公開する。`usage`、`syntax`、`type`、`semantic`、`renderer`、`io`、`cancel`の failureは family と exit code を区別し、commit point 前に previous output を維持する。正確な lock shape、hash、signal、diagnostic family は ADR-0013 に従う。
+Local process は POSIX filesystem に限定し、明示された absolute project directory を root とする。同じ root の `unframe.config.ts` と `unframe.lock` を読み、上方探索はしない。config は非実行の data-only `export default { entryFile }`、lock v2 は local file hash と self-contained package bytes / graph を固定する。通常 check / build は node_modules / network を参照しない。`check` は React Component の公開契約・renderer 抽出と canonical Opaque Surface への変換までを検証する。Opaque capture は未実装として拒否し、Structured の build は Fixed Browser を使用する。成果物は `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と画像・Font assets であり、管理された `dist` を atomic replacement する。lock の明示更新と filesystem 規則は [ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、React 抽出境界は [実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。
 
 ### Control Plane
 

@@ -69,6 +69,8 @@ const roots = new Set([
   "defineComponentStructure",
 ]);
 const nested = new Set([
+  "editableText",
+  "prop",
   "stringProp",
   "numberProp",
   "booleanProp",
@@ -214,7 +216,15 @@ const unwrap = (value: ts.Expression): ts.Expression =>
 const isSdk = (p: PackageValueProvenance | undefined) =>
   p?.packageName === "@unframe/unframe-authoring" && p.subpath === ".";
 
-const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>) => {
+export type ReactComponentFacade = ReadonlyMap<
+  string,
+  { readonly exportName: string; readonly id: string; readonly version: number }
+>;
+const createEvaluator = (
+  analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>,
+  reactFacades: ReactComponentFacade = new Map(),
+  renderOnlyFiles: ReadonlySet<string> = new Set(),
+) => {
   const { checker, context } = analyzed.value;
   const diagnostics: StaticDeclarationDiagnostic[] = [];
   const origins = (node: ts.Node): DeclarationSourceOrigin => {
@@ -264,6 +274,7 @@ const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true 
   };
   const cache = new Map<ts.Symbol, DeclarationGraphValue | undefined>();
   const stack: ts.Symbol[] = [];
+  const staticReferencedFiles = new Set<ts.SourceFile>();
   let expressionDepth = 0;
   let evaluate: (raw: ts.Expression) => DeclarationGraphValue | undefined;
   const evaluateIdentifier = (node: ts.Identifier) => {
@@ -313,9 +324,31 @@ const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true 
       (d): d is ts.VariableDeclaration | ts.ExportAssignment =>
         ts.isVariableDeclaration(d) || ts.isExportAssignment(d),
     );
+    if (declaration && ts.isVariableDeclaration(declaration)) {
+      const fileName = context.displayFileName(declaration.getSourceFile());
+      const facade = reactFacades.get(fileName);
+      if (
+        facade &&
+        ts.isIdentifier(declaration.name) &&
+        declaration.name.text === facade.exportName
+      ) {
+        const origin = origins(node);
+        return {
+          kind: "object" as const,
+          origin,
+          properties: (["id", "version"] as const).map((key) => ({
+            key,
+            origin,
+            value: { kind: "literal" as const, origin, value: facade[key] },
+          })),
+        };
+      }
+    }
     const initializer =
       declaration &&
       (ts.isVariableDeclaration(declaration) ? declaration.initializer : declaration.expression);
+    if (declaration && context.ownerFor(declaration.getSourceFile())?.kind === "project")
+      staticReferencedFiles.add(declaration.getSourceFile());
     if (!initializer) {
       report(
         node,
@@ -781,15 +814,17 @@ const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true 
       const kinds =
         builder === "state"
           ? [[], ["object"]]
-          : builder === "surfaceState" || builder === "setSurfaceState"
-            ? [["string", "string"]]
-            : builder === "playTimeline"
-              ? [["string", "object"]]
-              : ["surfaceInteraction", "timelineCompleted", "mediaCompleted"].includes(builder)
-                ? [["string"]]
-                : builder === "after"
-                  ? [["number"]]
-                  : [["object"]];
+          : builder === "prop"
+            ? [["string"]]
+            : builder === "surfaceState" || builder === "setSurfaceState"
+              ? [["string", "string"]]
+              : builder === "playTimeline"
+                ? [["string", "object"]]
+                : ["surfaceInteraction", "timelineCompleted", "mediaCompleted"].includes(builder)
+                  ? [["string"]]
+                  : builder === "after"
+                    ? [["number"]]
+                    : [["object"]];
       const matches = (v: DeclarationGraphValue, k: string) =>
         k === "object" ? v.kind === "object" : v.kind === "literal" && typeof v.value === k;
       if (
@@ -902,9 +937,17 @@ const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true 
   };
   const validateProject = () => {
     const files = [...context.sourceFiles.values()]
-      .filter((f) => context.ownerFor(f)?.kind === "project")
+      .filter((f) => {
+        if (context.ownerFor(f)?.kind !== "project") return false;
+        const name = context.displayFileName(f);
+        return !name.endsWith(".component.tsx") && !renderOnlyFiles.has(name);
+      })
       .sort((a, b) => context.displayFileName(a).localeCompare(context.displayFileName(b)));
-    for (const file of files)
+    const inspected = new Set<ts.SourceFile>();
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index]!;
+      if (inspected.has(file)) continue;
+      inspected.add(file);
       if (!file.isDeclarationFile)
         for (const statement of file.statements) {
           if (ts.isImportDeclaration(statement)) validateImport(file, statement);
@@ -943,7 +986,15 @@ const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true 
               "compiler-static-top-level-unsupported",
               "Static modules may contain imports, type declarations, const declarations, and exports only.",
             );
+          for (const referenced of staticReferencedFiles)
+            if (
+              !inspected.has(referenced) &&
+              !files.includes(referenced) &&
+              !context.displayFileName(referenced).endsWith(".component.tsx")
+            )
+              files.push(referenced);
         }
+    }
     return diagnostics.sort(compare);
   };
   return { evaluate, validateProject, diagnostics, origins };
@@ -951,7 +1002,33 @@ const createEvaluator = (analyzed: Extract<AnalyzedAuthoringProject, { ok: true 
 
 export const validateStaticAuthoringProject = (
   analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>,
-) => createEvaluator(analyzed).validateProject();
+  reactFacades?: ReactComponentFacade,
+  renderOnlyFiles?: ReadonlySet<string>,
+) => createEvaluator(analyzed, reactFacades, renderOnlyFiles).validateProject();
+
+export const evaluateStaticAuthoringExpression = (
+  analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>,
+  expression: ts.Expression,
+):
+  | { readonly ok: true; readonly value: DeclarationGraphValue; readonly diagnostics: readonly [] }
+  | { readonly ok: false; readonly diagnostics: readonly StaticDeclarationDiagnostic[] } => {
+  const evaluator = createEvaluator(analyzed);
+  const value = evaluator.evaluate(expression);
+  if (!value || evaluator.diagnostics.length || !graphWithinLimit(value))
+    return {
+      ok: false,
+      diagnostics: evaluator.diagnostics.length
+        ? evaluator.diagnostics.sort(compare)
+        : [
+            {
+              code: "compiler-static-expansion-limit",
+              message: `A declaration graph may contain at most ${MAX_NODES} nodes and ${MAX_DEPTH} levels.`,
+              ...evaluator.origins(expression),
+            },
+          ],
+    };
+  return { ok: true, value, diagnostics: [] };
+};
 const graphWithinLimit = (value: DeclarationGraphValue) => {
   const measures = new WeakMap<object, { readonly nodes: number; readonly levels: number }>();
   const measure = (v: DeclarationGraphValue) => {
@@ -995,8 +1072,9 @@ export const lowerAuthoringDeclarationFile = (
   analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>,
   sourceFile = analyzed.value.entrySourceFile,
   validateProject = true,
+  reactFacades?: ReactComponentFacade,
 ): LoweredAuthoringDeclaration => {
-  const evaluator = createEvaluator(analyzed);
+  const evaluator = createEvaluator(analyzed, reactFacades);
   if (validateProject && evaluator.validateProject().length)
     return { ok: false, diagnostics: evaluator.diagnostics.sort(compare) };
   const defaults = sourceFile.statements.filter(

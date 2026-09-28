@@ -35,11 +35,41 @@ export const derivedResourceId = (baseId: string, suffix: string) => {
     return candidate;
   return hashedResourceId(["derived", baseId, suffix]);
 };
-export const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock) =>
-  left.packageVersion === right.packageVersion &&
-  left.packageIntegrity === right.packageIntegrity &&
-  left.manifestHash === right.manifestHash &&
-  left.structureHash === right.structureHash;
+export const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock) => {
+  if (
+    left.manifestHash !== right.manifestHash ||
+    left.mode !== right.mode ||
+    left.origin.kind !== right.origin.kind
+  )
+    return false;
+  if (
+    left.mode === "structured" &&
+    (right.mode !== "structured" || left.structureHash !== right.structureHash)
+  )
+    return false;
+  if (
+    left.mode === "opaque" &&
+    (right.mode !== "opaque" || left.rendererInputHash !== right.rendererInputHash)
+  )
+    return false;
+  if (left.origin.kind === "package")
+    return (
+      right.origin.kind === "package" &&
+      left.origin.packageKey === right.origin.packageKey &&
+      left.origin.subpath === right.origin.subpath
+    );
+  if (right.origin.kind !== "local") return false;
+  const rightFiles = right.origin.files;
+  return (
+    left.origin.entryFile === right.origin.entryFile &&
+    left.origin.sourceHash === right.origin.sourceHash &&
+    left.origin.files.length === rightFiles.length &&
+    left.origin.files.every(
+      (file, index) =>
+        file.path === rightFiles[index]?.path && file.hash === rightFiles[index]?.hash,
+    )
+  );
+};
 
 export const renderIntent = () => ({
   updateModel: { kind: "static" as const },

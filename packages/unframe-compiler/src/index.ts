@@ -30,3 +30,5 @@ export type {
   PairedAuthoringDeclarationCatalog,
   PairedComponentDeclaration,
 } from "./project/pair-authoring-declarations.js";
+
+export { computeFrozenComponentInputs } from "./semantic/frozen-component-inputs.js";

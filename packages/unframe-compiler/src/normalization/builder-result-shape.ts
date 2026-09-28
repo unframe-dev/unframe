@@ -19,6 +19,7 @@ export type BuilderResultShape =
 
 const objectResults = new Map<string, string>([
   ["stringProp", "string"],
+  ["editableText", "string"],
   ["numberProp", "number"],
   ["booleanProp", "boolean"],
   ["propRef", "prop-ref"],
@@ -47,6 +48,13 @@ const positionalResults = new Map<
   string,
   Omit<Extract<BuilderResultShape, { kind: "positional" }>, "kind">
 >([
+  [
+    "prop",
+    {
+      resultKind: "prop-ref",
+      fields: [{ key: "name", argument: 0, valueType: "string" }],
+    },
+  ],
   [
     "surfaceState",
     {

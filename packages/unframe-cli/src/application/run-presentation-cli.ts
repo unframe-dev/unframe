@@ -17,6 +17,9 @@ import {
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
+import { updateProjectLock } from "../filesystem/update-lock.js";
+import { lockedFile } from "../filesystem/package-snapshot.js";
+import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
 import type {
   PresentationCliDiagnostic,
@@ -25,7 +28,13 @@ import type {
   PresentationCliResult,
 } from "./types.js";
 
-type Command = Readonly<{ command: "check" | "build"; directory: string; format: "text" | "json" }>;
+type Command = Readonly<{
+  command: "check" | "build" | "lock";
+  directory: string;
+  format: "text" | "json";
+  operation?: "refresh" | "update";
+  recreate?: boolean;
+}>;
 class BrowserProvisionFailure extends Error {}
 class BrowserCleanupFailure extends Error {}
 const encoder = new TextEncoder();
@@ -56,7 +65,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe-cli check <absolute-project-directory> [--format text|json]\n       unframe-cli build <absolute-project-directory> [--format text|json]";
+  "Usage: unframe-cli check <absolute-project-directory> [--format text|json]\n       unframe-cli build <absolute-project-directory> [--format text|json]\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",
@@ -193,10 +202,38 @@ const parse = (
         diagnostic("usage", "cli-invalid-arguments", "Arguments must be a dense string array."),
       ],
     };
-  const command = args[0] === "check" || args[0] === "build" ? args[0] : undefined;
+  const command =
+    args[0] === "check" || args[0] === "build" || args[0] === "lock" ? args[0] : undefined;
   const at = args.indexOf("--format");
   const format = at >= 0 && args[at + 1] === "json" ? "json" : "text";
   const positional = at < 0 ? args : args.filter((_, i) => i !== at && i !== at + 1);
+  if (command === "lock") {
+    const operation = positional[1];
+    const recreate = positional[3] === "--recreate";
+    if (
+      (operation === "refresh" || operation === "update") &&
+      positional[2]?.startsWith("/") &&
+      (positional.length === 3 ||
+        (positional.length === 4 && recreate && operation === "update")) &&
+      (at < 0 || (at === args.length - 2 && ["text", "json"].includes(args[at + 1] ?? "")))
+    )
+      return {
+        ok: true,
+        value: { command, operation, directory: positional[2], format, recreate },
+      };
+    return {
+      ok: false,
+      command,
+      format,
+      diagnostics: [
+        diagnostic(
+          "usage",
+          "cli-invalid-usage",
+          "Usage: unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]",
+        ),
+      ],
+    };
+  }
   if (
     !command ||
     (at >= 0 && (at !== args.length - 2 || !["text", "json"].includes(args[at + 1] ?? ""))) ||
@@ -302,6 +339,23 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     return output(130, command, format, [
       diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
     ]);
+  if (command === "lock") {
+    const result = await updateProjectLock(
+      directory,
+      parsed.value.operation!,
+      parsed.value.recreate ?? false,
+      host.signal,
+    );
+    return result.ok
+      ? output(0, command, format)
+      : output(result.code === "cli-cancelled" ? 130 : 1, command, format, [
+          diagnostic(
+            result.code === "cli-cancelled" ? "cancel" : "semantic",
+            result.code,
+            result.message,
+          ),
+        ]);
+  }
   const discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok)
     return output(discovered.code === "cli-config-invalid" ? 1 : 3, command, format, [
@@ -319,15 +373,48 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         "unframe.lock",
       ]),
     ]);
+  const frozenFailures = verifyFrozenLocalFiles(
+    discovered.localFiles,
+    lock.value.assemblyCarrier.componentLocks,
+  );
+  if (frozenFailures.length)
+    return output(
+      1,
+      command,
+      format,
+      frozenFailures.map(({ path, code }) =>
+        diagnostic(
+          "semantic",
+          code,
+          "Local Component inputs differ from the frozen lock. Refresh the lock explicitly.",
+          [path],
+        ),
+      ),
+    );
   const source = Object.freeze({
     projectRoot: discovered.projectDirectory,
     entryFile: discovered.entryFile,
     files: discovered.files,
+    rawFiles: discovered.localFiles
+      .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
+      .map(({ path, bytes }) => lockedFile(path, bytes)),
     ...lock.value.virtualSource,
   });
   const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
   if (command === "check") return output(0, command, format, [], checked.value.warnings);
+  const opaque = Object.values(checked.value.definition.scene.surfaces).find(
+    (surface) => surface.content.kind === "opaque",
+  );
+  if (opaque)
+    return output(1, command, format, [
+      diagnostic(
+        "renderer",
+        "compiler-opaque-component-unsupported",
+        "Opaque capture is not implemented.",
+        ["scene", "surfaces", opaque.id],
+      ),
+    ]);
   const acquired = await acquireBuildLock(discovered.projectDirectory);
   if (!acquired.ok)
     return output(3, command, format, [

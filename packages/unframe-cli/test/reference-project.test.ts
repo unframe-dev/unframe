@@ -12,14 +12,15 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
-import { verifyBuildIntegrityV2 } from "@unframe/unframe-core";
+import { canonicalizeJsonPayload, verifyBuildIntegrityV2 } from "@unframe/unframe-core";
 import {
   checkAuthoringProject,
   checkAuthoringProjectAssembly,
   hashComponentManifestDeclaration,
+  computeFrozenComponentInputs,
 } from "@unframe/unframe-compiler";
 
 import { runPresentationCli } from "../src/index.js";
@@ -71,15 +72,16 @@ const defaultPropsProject = async (explicit = false) => {
     },
   };
   const manifestHash = hashComponentManifestDeclaration(manifest);
+  const original = checked.value.presentation.value;
+  assert("components" in original.scene);
   const presentation = {
-    ...checked.value.presentation.value,
+    ...original,
     scene: {
-      ...checked.value.presentation.value.scene,
-      components: checked.value.presentation.value.scene.components.map((instance) =>
+      ...original.scene,
+      components: original.scene.components.map((instance) =>
         instance.componentId === "reference-surface"
           ? {
               ...instance,
-              packageLock: { ...instance.packageLock, manifestHash },
               props: {
                 ...instance.props,
                 ...(explicit ? { defaultLabel: "", defaultCount: 0, defaultVisible: false } : {}),
@@ -91,7 +93,7 @@ const defaultPropsProject = async (explicit = false) => {
   };
   const lock = JSON.parse(new TextDecoder().decode(discovered.lockBytes));
   for (const entry of lock.componentLocks)
-    if (entry.componentId === "reference-surface") entry.lock.manifestHash = manifestHash;
+    if (entry.componentId === "reference-surface") entry.manifestHash = manifestHash;
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
@@ -101,8 +103,11 @@ const defaultPropsProject = async (explicit = false) => {
       join(directory, checked.value.presentation.fileName),
       `import { definePresentation } from "@unframe/unframe-authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
     ),
-    writeFile(join(directory, "unframe.lock"), JSON.stringify(lock)),
+    writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(lock) + "\n"),
   ]);
+  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refreshed.stderr).toBe("");
+  expect(refreshed.exitCode).toBe(0);
   return directory;
 };
 
@@ -187,16 +192,19 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
-  it("keeps definition and source hashes identical across JSX composition and literal builders", async () => {
+  it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
     const { checked, source, loaded } = await checkedProject(directory);
     const declarations = [
       { ...checked.value.presentation, builder: "definePresentation" },
       ...checked.value.themes.map((theme) => ({ ...theme, builder: "defineTheme" })),
-      ...checked.value.components.flatMap(({ manifest, structure }) => [
-        { ...manifest, builder: "defineComponentManifest" },
-        { ...structure, builder: "defineComponentStructure" },
-      ]),
+      ...checked.value.components.flatMap((component) => {
+        assert("structure" in component);
+        return [
+          { ...component.manifest, builder: "defineComponentManifest" },
+          { ...component.structure, builder: "defineComponentStructure" },
+        ];
+      }),
     ];
     const literal = {
       ...source,
@@ -206,13 +214,20 @@ describe("reference Authoring Project", () => {
       })),
     };
     const composed = checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier);
-    const direct = checkAuthoringProjectAssembly(literal, loaded.value.assemblyCarrier);
+    const literalCatalog = checkAuthoringProject(literal);
+    assert(literalCatalog.valid);
+    const inputs = computeFrozenComponentInputs(literal, literalCatalog.value);
+    assert(inputs.valid);
+    const direct = checkAuthoringProjectAssembly(literal, {
+      ...loaded.value.assemblyCarrier,
+      ...inputs.value,
+    });
     expect(composed.valid ? [] : composed.diagnostics).toEqual([]);
     expect(direct.valid ? [] : direct.diagnostics).toEqual([]);
     if (!composed.valid || !direct.valid) return;
     expect(composed.value.definition).toEqual(direct.value.definition);
     expect(composed.value.definitionHash).toBe(direct.value.definitionHash);
-    expect(composed.value.sourceHash).toBe(direct.value.sourceHash);
+    expect(composed.value.sourceHash).not.toBe(direct.value.sourceHash);
   });
 
   it.each(["check", "build"] as const)(
@@ -277,6 +292,7 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const { checked } = await checkedProject(directory);
     const presentation = checked.value.presentation.value;
+    assert("components" in presentation.scene);
     const omitted = {
       ...presentation,
       scene: {
@@ -309,14 +325,14 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const path = join(directory, "unframe.lock");
     const lock = JSON.parse(await readFile(path, "utf8"));
-    lock.assets["reference-font"] = {
+    lock.assets[lock.assets.findIndex((asset: { id: string }) => asset.id === "reference-font")] = {
       id: "reference-font",
       mediaType: "font/ttf",
       dataBase64: "AAEAAAAAAAAAAAAA",
-      encodedSizeBytes: 12,
-      checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+      size: 12,
+      hash: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
     };
-    await writeFile(path, JSON.stringify(lock));
+    await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
     const browser = fakeBrowser();
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -333,8 +349,9 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const lockPath = join(directory, "unframe.lock");
     const lock = JSON.parse(await readFile(lockPath, "utf8"));
-    lock.assets["reference-font"].dataBase64 = "AAEAAAAAAAAAAAAA";
-    await writeFile(lockPath, JSON.stringify(lock));
+    lock.assets.find((asset: { id: string }) => asset.id === "reference-font").dataBase64 =
+      "AAEAAAAAAAAAAAAA";
+    await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
     let calls = 0;
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -496,7 +513,11 @@ describe("reference Authoring Project", () => {
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(
       (await readFile(join(directory, "dist/assets/reference-font.ttf"))).equals(
-        Buffer.from(sourceLock.assets["reference-font"].dataBase64, "base64"),
+        Buffer.from(
+          sourceLock.assets.find((asset: { id: string }) => asset.id === "reference-font")
+            .dataBase64,
+          "base64",
+        ),
       ),
     ).toBe(true);
     expect(first.observed).toMatchObject({ capture: 2, close: 1 });
@@ -522,7 +543,7 @@ describe("reference Authoring Project", () => {
     );
     expect(second.observed).toMatchObject({ capture: 2, close: 1 });
     expect(second.observed.signals).toEqual([controller.signal, controller.signal]);
-  });
+  }, 15_000);
 
   it.each([
     [
@@ -553,7 +574,7 @@ describe("reference Authoring Project", () => {
           themeHashes: { hash: string }[];
         };
         lock.themeHashes[0]!.hash = `sha256:${"0".repeat(64)}`;
-        await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+        await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
       },
       {
         family: "semantic",

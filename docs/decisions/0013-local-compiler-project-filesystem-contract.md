@@ -29,53 +29,17 @@ export default { entryFile: "presentation.unframe.tsx" };
 
 `entryFile` は project root relative の POSIX path で、regular file を指さなければならない。import、call、identifier、spread、computed property、getter、任意の追加 property を拒否する。設定を TypeScript / JavaScript として evaluate せず、unsupported syntax と値の不正は stable config diagnostic とする。
 
-### `unframe.lock` v1
+### `unframe.lock` v2
 
-`unframe.lock` v1 は UTF-8 の self-contained JSON object であり、network URL、registry lookup、tarball、ローカル package manager state を参照しない。M1 は remote install や plugin discovery を行わない。次が唯一受け入れる serialized shape である。`ContentHash` は `sha256:` に続く 64 桁の小文字 hexadecimal である。
+A1 の lock は self-contained な v2 JSON とする。正確な shape、順序、bytes / graph hash、local / package origin、Structured / Opaque mode は [React Component 実行契約0節](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) を正本とする。通常の check / build は local bytes と lock 内 package bytes だけを使い、node_modules や network に問い合わせない。旧 v1 は拒否する。
 
-```ts
-type ContentHash = `sha256:${string}`;
+`lock refresh` は現在の package graph を保持して local Component と Theme を再計算する。`lock update` は pnpm 9 形式の固定解決から package bytes を取得する明示操作であり、lifecycle script と pnpmfile を実行しない。v1 からは `lock update <project> --recreate` で新規生成し、旧 lock 内だけの資産は引き継がない。入力・検証の失敗時は旧 lock を保持する。
 
-type UnframeLockV1 = {
-  schemaVersion: 1;
-  packageDependencies: readonly PackageIdentity[];
-  packages: readonly LockedPackage[];
-  themeHashes: readonly { themeId: string; hash: ContentHash }[];
-  componentLocks: readonly {
-    componentId: string;
-    version: number;
-    lock: {
-      packageVersion: string;
-      packageIntegrity: ContentHash;
-      manifestHash: ContentHash;
-      structureHash: ContentHash;
-    };
-  }[];
-  assets: Readonly<Record<string, { id: string; mediaType: string; checksum: ContentHash }>>;
-};
-
-type PackageIdentity = {
-  packageName: string;
-  packageVersion: string;
-  packageIntegrity: ContentHash;
-};
-
-type LockedPackage = PackageIdentity & {
-  files: readonly { fileName: string; sourceText: string }[];
-  exports: readonly { subpath: string; targetFile: string }[];
-  dependencies: readonly PackageIdentity[];
-};
-```
-
-`packageDependencies` と `dependencies` は full package identity、`packages` は full identity、`files` は `fileName`、`exports` は `subpath`、`themeHashes` は `themeId`、`componentLocks` は `(componentId, version)` の UTF-16 code-unit 昇順で sort する。`assets` object は record key の UTF-16 code-unit 昇順で canonicalize する。これらの key は duplicate-free でなければならない。asset record key は asset catalog を参照するだけの key であり、checksum 由来とは定義しない。
-
-すべての content hash は canonicalized semantic payload の SHA-256 を用いる。object key は UTF-16 code-unit 昇順、配列は上記の順序、JSON は canonical serialization を使用する。`packageIntegrity` は自身の `packageIntegrity` field だけを除いた flat `packageName`、`packageVersion`、`files`、`exports`、`dependencies` の canonical payload を hash し、dependency identityのintegrityを含める。theme hash は source location 等の metadata を除いた Theme declaration semantic payload、`manifestHash` と `structureHash` はそれぞれの declaration semantic payload を hash する。asset checksum は M1 では lock metadata-only であり、filesystem asset bytes の存在・内容を検証しない。source location、filesystem traversal order、staging directory、wall-clock、process ID は hash input に含めない。Declaration、Definition、RenderBundle は同じ canonical hash rule を用いる。
-
-duplicate JSON key、不正 UTF-8、未知 required version、integrity mismatch、lock 内 package reference の欠落は lock diagnostic として fail closed にする。lock file が指す package source や metadata は source role と integrity を再検証してから virtual project に materialize する。
+React の local CSS / asset も同じ regular-file 規則で bytes を snapshot する。lock に含まれる path / bytes hash と Component の到達 closure を frozen check で照合する。Source と lock を一組で保存する Editor transaction は後続の A3 であり、現行の lock 単体更新とは区別する。
 
 ### Build output と atomic replacement
 
-`generation-id` は 16 random bytes を lowercase hexadecimal で表した `[0-9a-f]{32}` とし、artifact identityではない。M1 の build は project root の `.unframe/generations/.staging-<generation-id>/` に staging を作り、`definition.json`、`render-bundle.json`、`assets/${encodeURIComponent(assetId)}.png` だけを完全に書く。PNG path は内部Compilerが生成した asset ID だけから導出し、全 artifact path を辞書順にする。manifest、Delivery artifact、publish metadata は M1 の公開artifactではない。
+`generation-id` は 16 random bytes を lowercase hexadecimal で表した `[0-9a-f]{32}` とし、artifact identityではない。M1 の build は project root の `.unframe/generations/.staging-<generation-id>/` に staging を作り、`definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json` と PNG / Font assets を完全に書く。asset path は内部Compilerが生成した asset ID と検証済み mediaType から導出し、全 artifact path を辞書順にする。Delivery artifact と publish metadata はこの build の公開artifactではない。
 
 公開前に全 hash と I/O close を検証して staging を `.unframe/generations/<generation-id>/` へ rename する。公開先は root 固定の `dist` であり、CLI が管理する relative symbolic link とする。既存 `dist` が正確に3 segmentの relative target `.unframe/generations/<validated-id>`（`validated-id` は同じ grammar）を指す symlink でない場合は、置換・削除せず I/O diagnostic で拒否する。公開はこの同じ3 segment targetを持つ new symlink を作成して `rename` する一回の atomic replacement とする。root、`.unframe`、`generations`、generation directory はすべて root 内の non-symlink directory であることを `lstat` と open 時に検証し、外部symlinkとpath traversalを拒否する。build は公開済み generation を変更せず、staging / failed generation を公開しない。M1 は persistent managed marker も過去 generation の cleanup も導入せず、cleanup 対象は今回の process が作成した staging だけに限る。
 

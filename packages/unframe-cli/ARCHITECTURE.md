@@ -49,6 +49,8 @@ root export は native module を import しない。OpenTUI の Zig core を必
 または `pnpm tui` を使う。これにより Node / Vitest 上の headless check と build は native TUI lifecycle から
 独立する。
 
+lock v2 は self-contained package bytes と local file hash を検証する。`refresh` は固定依存 graph を保持し、`update` はスクリプト無効の frozen pnpm install 後に snapshot を取り直す。`--recreate` は v1 を読み替えず Source から新規生成し、失敗時は旧 lock を保持する。workspace / link dependency は未対応で、root-relative tarball と registry locator を対象とする。
+
 ## 2. Command contract
 
 現行 public API の `args` は descriptor-safe snapshot の後に検査する dense な string array である。M1
@@ -60,10 +62,12 @@ invocation と Compiler / Renderer の cross-boundary semantic diagnostics は�
 ```text
 check <absolute-project-directory> [--format text|json]
 build <absolute-project-directory> [--format text|json]
+lock refresh <absolute-project-directory> [--format text|json]
+lock update <absolute-project-directory> [--recreate] [--format text|json]
 ```
 
 `check` は discovery、config、lock、Source frontend と assembly を検証するだけで、Browser adapter / Renderer を読まず起動しない。
-`build` も同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
+`build` は Opaque Surface を capture 未実装として Browser 起動前に拒否する。Structured は同じ静的検証を通過してから Fixed Browser adapter と build context で baked-web renderer を作り、Compiler の公開 build API を呼ぶ。
 project root の検証後、Browser を起動する前に `.unframe-build.lock` を `O_CREAT|O_EXCL|O_NOFOLLOW` で取得する。
 同一 project の concurrent build は I/O diagnostic で終了し、output を公開しない。lock は保持した inode が path 上で同一の
 ときだけ finally で削除する。crash 後の stale lock は fail-closed とし、稼働中 build がないことを確認した operator だけが除去する。
@@ -77,7 +81,7 @@ Exit code は `0` が成功、`1` が `syntax` / `type` / `semantic` / `renderer
 
 Prop / Variant の default を省略によって採用した場合、`check` と `build` は exit code `0` のまま warning を返す。成功 JSON の `warnings` は Instance ID、Prop / Variant 名、default 値、path を保持する。text 形式は成功を stdout、warning を stderr に出す。`build` の事前検証と compile で同じ warning を二重表示しない。default と同じ値を明示した場合は warning を出さない。
 
-`unframe.lock` の source asset は `font/ttf` / `font/otf` の `id`、`checksum`、`encodedSizeBytes`、canonical `dataBase64` を持つ。Compiler が bytes と参照を検証し、出力 AssetSet には descriptor だけを残す。raster size は CLI option ではなく ADR-0012 の長辺 2048 policy から導出する。
+`unframe.lock` v2 の asset は `id`、`mediaType`、`hash`、`size`、canonical `dataBase64` を持ち、loader が Compiler の asset carrier へ変換する。現行 compile の source asset は `font/ttf` / `font/otf` に限定する。Compiler が bytes と参照を検証し、出力 AssetSet には descriptor だけを残す。raster size は CLI option ではなく ADR-0012 の長辺 2048 policy から導出する。
 
 ## 3. Artifact boundary
 

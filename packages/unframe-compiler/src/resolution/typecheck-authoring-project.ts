@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 
 import type { ParsedAuthoringProjectValue } from "../project/parse-authoring-project.js";
-import { virtualCompilerHostFor } from "./virtual-compiler-host.js";
+import { reactCompilerHostFor, virtualCompilerHostFor } from "./virtual-compiler-host.js";
 import { moduleSpecifiersFor, VirtualModuleContext } from "./virtual-module-context.js";
 
 type AuthoringProjectDiagnostic = {
@@ -75,26 +75,95 @@ export const analyzeAuthoringProject = (
     }
   if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
 
+  const options = {
+    jsx: ts.JsxEmit.ReactJSX,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    noEmit: true,
+    noLib: true,
+    strict: true,
+    target: ts.ScriptTarget.ES2022,
+  } satisfies ts.CompilerOptions;
+  const host = virtualCompilerHostFor(context);
   const program = ts.createProgram({
     rootNames: context.projectRootFiles,
-    options: {
-      jsx: ts.JsxEmit.ReactJSX,
-      jsxImportSource: "@unframe/unframe-authoring",
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      noEmit: true,
-      noLib: true,
-      strict: true,
-      target: ts.ScriptTarget.ES2022,
-    },
-    host: virtualCompilerHostFor(context),
+    options: { ...options, jsxImportSource: "@unframe/unframe-authoring" },
+    host,
   });
-  for (const item of program.getSemanticDiagnostics()) {
+  const isReactProjectFile = (file: ts.SourceFile, programContext: VirtualModuleContext) => {
+    if (programContext.ownerFor(file)?.kind !== "project") return false;
+    const name = programContext.displayFileName(file);
+    if (name.endsWith(".component.tsx")) return true;
+    if (
+      name === project.entryFile ||
+      name.endsWith(".manifest.ts") ||
+      name.endsWith(".structure.tsx") ||
+      name.endsWith(".unframe.ts")
+    )
+      return false;
+    return !name.endsWith(".d.ts");
+  };
+  const hasReactComponents = Object.keys(project.files).some((name) =>
+    name.endsWith(".component.tsx"),
+  );
+  let reactContext: VirtualModuleContext | undefined;
+  let reactDiagnostics: readonly ts.Diagnostic[] = [];
+  if (hasReactComponents) {
+    const cloneSource = (source: ts.SourceFile) =>
+      ts.createSourceFile(
+        source.fileName,
+        source.text,
+        ts.ScriptTarget.ES2022,
+        true,
+        source.fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+      );
+    reactContext = new VirtualModuleContext({
+      ...project,
+      files: Object.fromEntries(
+        Object.entries(project.files).map(([name, file]) => [name, cloneSource(file)]),
+      ),
+      packages: project.packages.map((pkg) => ({
+        ...pkg,
+        files: Object.fromEntries(
+          Object.entries(pkg.files).map(([name, file]) => [name, cloneSource(file)]),
+        ),
+      })),
+    });
+    const reactOptions = {
+      ...options,
+      noLib: false,
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+      jsxImportSource: "react",
+    } satisfies ts.CompilerOptions;
+    const reactProgram = ts.createProgram({
+      rootNames: reactContext.projectRootFiles,
+      options: reactOptions,
+      host: reactCompilerHostFor(reactContext, reactOptions),
+    });
+    reactDiagnostics = reactProgram
+      .getSemanticDiagnostics()
+      .filter((item) => item.file && isReactProjectFile(item.file, reactContext!));
+  }
+  const seen = new Set<string>();
+  const semanticDiagnostics = [
+    ...program
+      .getSemanticDiagnostics()
+      .filter(
+        (item) => !hasReactComponents || !item.file || !isReactProjectFile(item.file, context),
+      ),
+    ...reactDiagnostics,
+  ];
+  for (const item of semanticDiagnostics) {
     if (!item.file) continue;
     const start = item.start ?? 0;
+    const key = `${item.file.fileName}:${start}:${item.code}:${item.length ?? 0}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     diagnostics.push({
       code: "compiler-source-type-error",
-      fileName: context.displayFileName(item.file),
+      fileName: (reactContext?.ownerFor(item.file) ? reactContext : context).displayFileName(
+        item.file,
+      ),
       message: ts.flattenDiagnosticMessageText(item.messageText, "\n"),
       ...rangeFor(item.file, start, start + (item.length ?? 0)),
       typescriptCode: item.code,

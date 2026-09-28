@@ -7,7 +7,7 @@ const project = (files: readonly { fileName: string; sourceText: string }[]) => 
   const parsed = parseAuthoringProject({
     projectRoot: "/virtual/presentation",
     entryFile: "presentation.unframe.ts",
-    packageDependencies: [],
+    rootDependencies: [],
     packages: [],
     files,
   });

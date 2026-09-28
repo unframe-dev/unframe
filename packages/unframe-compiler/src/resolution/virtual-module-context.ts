@@ -2,6 +2,7 @@ import * as ts from "typescript";
 
 import type { ParsedAuthoringProjectValue } from "../project/parse-authoring-project.js";
 import type { ParsedLockedPackage } from "../project/parse-locked-packages.js";
+import type { RawProjectFile } from "../project/parse-authoring-project.js";
 
 export type ModuleFailureCode =
   | "compiler-module-root-escape"
@@ -20,6 +21,7 @@ export type ModuleResolution =
         readonly subpath: string;
         readonly targetFile: string;
       };
+      readonly rawFile?: RawProjectFile;
     }
   | { readonly kind: "failed"; readonly code: ModuleFailureCode; readonly message: string };
 
@@ -27,24 +29,18 @@ export type SourceOwner =
   | {
       readonly kind: "project";
       readonly files: Readonly<Record<string, ts.SourceFile>>;
+      readonly rawFiles: Readonly<Record<string, RawProjectFile>>;
       readonly display: (fileName: string) => string;
     }
   | {
       readonly kind: "package";
       readonly package: ParsedLockedPackage;
       readonly files: Readonly<Record<string, ts.SourceFile>>;
+      readonly rawFiles: ParsedLockedPackage["rawFiles"];
       readonly display: (fileName: string) => string;
     };
 
 const sourceExtensions = [".ts", ".tsx", ".d.ts"] as const;
-
-const sameIdentity = (
-  left: { packageName: string; packageVersion: string; packageIntegrity: string },
-  right: { packageName: string; packageVersion: string; packageIntegrity: string },
-) =>
-  left.packageName === right.packageName &&
-  left.packageVersion === right.packageVersion &&
-  left.packageIntegrity === right.packageIntegrity;
 
 const moduleCandidates = (path: string) => {
   if (sourceExtensions.some((extension) => path.endsWith(extension))) return [path];
@@ -105,6 +101,7 @@ export class VirtualModuleContext {
     const projectOwner: SourceOwner = {
       kind: "project",
       files: project.files,
+      rawFiles: project.rawFiles,
       display: (fileName) => fileName,
     };
     for (const [fileName, sourceFile] of Object.entries(project.files)) {
@@ -113,18 +110,44 @@ export class VirtualModuleContext {
       this.#owners.set(sourceFile.fileName, projectOwner);
       this.#relativeNames.set(sourceFile.fileName, fileName);
     }
+    for (const file of Object.values(project.rawFiles)) {
+      const virtualName = `${project.projectRoot}/${file.path}.d.ts`;
+      const sourceFile = ts.createSourceFile(
+        virtualName,
+        "declare const asset: string; export default asset;",
+        ts.ScriptTarget.ES2022,
+        true,
+      );
+      this.sourceFiles.set(virtualName, sourceFile);
+      this.#owners.set(virtualName, projectOwner);
+      this.#relativeNames.set(virtualName, file.path);
+    }
     for (const pkg of project.packages) {
-      this.#packages.set(pkg.packageName, pkg);
+      this.#packages.set(pkg.key, pkg);
       const owner: SourceOwner = {
         kind: "package",
         package: pkg,
         files: pkg.files,
-        display: (fileName) => `${pkg.packageName}@${pkg.packageVersion}/${fileName}`,
+        rawFiles: pkg.rawFiles,
+        display: (fileName) => `${pkg.name}@${pkg.version}/${fileName}`,
       };
       for (const [fileName, sourceFile] of Object.entries(pkg.files)) {
         this.sourceFiles.set(sourceFile.fileName, sourceFile);
         this.#owners.set(sourceFile.fileName, owner);
         this.#relativeNames.set(sourceFile.fileName, fileName);
+      }
+      for (const file of Object.values(pkg.rawFiles)) {
+        if (pkg.files[file.path] !== undefined) continue;
+        const virtualName = `unframe-package://${pkg.key.slice("sha256:".length)}/${file.path}.d.ts`;
+        const sourceFile = ts.createSourceFile(
+          virtualName,
+          "declare const asset: string; export default asset;",
+          ts.ScriptTarget.ES2022,
+          true,
+        );
+        this.sourceFiles.set(virtualName, sourceFile);
+        this.#owners.set(virtualName, owner);
+        this.#relativeNames.set(virtualName, file.path);
       }
     }
   }
@@ -166,9 +189,17 @@ export class VirtualModuleContext {
           code: "compiler-module-root-escape",
           message: "Relative import must remain inside its virtual owner.",
         };
-      const resolved = moduleCandidates(path).find(
+      const resolved = (owner.kind === "package" ? [path] : moduleCandidates(path)).find(
         (candidate) => owner.files[candidate] !== undefined,
       );
+      const raw = owner.rawFiles[path];
+      if (resolved === undefined && raw !== undefined) {
+        const virtualName =
+          owner.kind === "project"
+            ? `${this.project.projectRoot}/${path}.d.ts`
+            : `unframe-package://${owner.package.key.slice("sha256:".length)}/${path}.d.ts`;
+        return { kind: "resolved", fileName: virtualName, rawFile: raw };
+      }
       return resolved === undefined
         ? {
             kind: "failed",
@@ -178,10 +209,17 @@ export class VirtualModuleContext {
         : { kind: "resolved", fileName: owner.files[resolved]!.fileName };
     }
     const { packageName, subpath } = parseBareSpecifier(specifier);
-    const pkg = this.#packages.get(packageName);
     const dependencies =
-      owner.kind === "project" ? this.project.packageDependencies : owner.package.dependencies;
-    if (pkg === undefined || !dependencies.some((dependency) => sameIdentity(dependency, pkg)))
+      owner.kind === "project" ? this.project.rootDependencies : owner.package.dependencies;
+    const dependency =
+      dependencies.find(
+        (candidate) => candidate.specifier === packageName && candidate.usage === "types",
+      ) ??
+      dependencies.find(
+        (candidate) => candidate.specifier === packageName && candidate.usage === "runtime",
+      );
+    const pkg = dependency === undefined ? undefined : this.#packages.get(dependency.packageKey);
+    if (pkg === undefined)
       return {
         kind: "failed",
         code: "compiler-module-package-unsupported",
@@ -194,15 +232,22 @@ export class VirtualModuleContext {
         code: "compiler-module-deep-import-forbidden",
         message: "Bare imports must resolve through an exact locked package export.",
       };
+    const targetFile = exported.types ?? exported.runtimeImport ?? exported.runtimeRequire;
+    if (targetFile === null || pkg.files[targetFile] === undefined)
+      return {
+        kind: "failed",
+        code: "compiler-module-unresolved",
+        message: "Locked package export has no TypeScript source target.",
+      };
     return {
       kind: "resolved",
-      fileName: pkg.files[exported.targetFile]!.fileName,
+      fileName: pkg.files[targetFile]!.fileName,
       packageExport: {
-        packageName: pkg.packageName,
-        packageVersion: pkg.packageVersion,
-        packageIntegrity: pkg.packageIntegrity,
+        packageName: pkg.name,
+        packageVersion: pkg.version,
+        packageIntegrity: pkg.contentIntegrity,
         subpath,
-        targetFile: exported.targetFile,
+        targetFile,
       },
     };
   }

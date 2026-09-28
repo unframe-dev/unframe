@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 import { lowerAuthoringDeclarationFile } from "../src/lowering/lower-authoring-declaration.js";
 import { normalizeDeclarationGraph } from "../src/normalization/normalize-declaration-graph.js";
@@ -6,26 +7,10 @@ import { parseAuthoringProject } from "../src/project/parse-authoring-project.js
 import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 
 const analyze = (sourceText: string) => {
-  const parsed = parseAuthoringProject({
-    projectRoot: "/virtual/jsx",
-    entryFile: "entry.structure.tsx",
-    files: [{ fileName: "entry.structure.tsx", sourceText }],
-    packageDependencies: [
-      {
-        packageName: "@unframe/unframe-authoring",
-        packageVersion: "1",
-        packageIntegrity: "integrity",
-      },
-    ],
-    packages: [
-      {
-        packageName: "@unframe/unframe-authoring",
-        packageVersion: "1",
-        packageIntegrity: "integrity",
-        files: [
-          {
-            fileName: "index.ts",
-            sourceText: `
+  const sdkFiles = [
+    {
+      path: "index.ts",
+      data: `
 export const defineComponentStructure = (value: any): any => value;
 export const Surface = (props: any): any => props;
 export const Frame = (props: any): any => props;
@@ -38,18 +23,43 @@ export const frame = (props: any): any => props;
 export const text = (props: any): any => props;
 export const slotPlaceholder = (props: any): any => props;
 export const componentInstance = (props: any): any => props;`,
-          },
-          {
-            fileName: "jsx-runtime.ts",
-            sourceText: `
+    },
+    {
+      path: "jsx-runtime.ts",
+      data: `
 export namespace JSX { export type Element = any; export type ElementType = (props: any) => any; export interface ElementChildrenAttribute { children: unknown } }
 export declare const jsx: (tag: unknown, props: unknown, key?: unknown) => any;
 export { jsx as jsxs };`,
-          },
-        ],
+    },
+  ];
+  const packageKey = hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]);
+  const parsed = parseAuthoringProject({
+    projectRoot: "/virtual/jsx",
+    entryFile: "entry.structure.tsx",
+    files: [{ fileName: "entry.structure.tsx", sourceText }],
+    rootDependencies: [{ specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey }],
+    packages: [
+      {
+        key: packageKey,
+        locator: "@unframe/unframe-authoring@1",
+        name: "@unframe/unframe-authoring",
+        version: "1",
+        contentIntegrity: hashCanonicalJsonPayload(sdkFiles),
+        files: sdkFiles.map((file) => ({
+          path: file.path,
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(file.data),
+          encoding: "utf8",
+          data: file.data,
+        })),
         exports: [
-          { subpath: ".", targetFile: "index.ts" },
-          { subpath: "./jsx-runtime", targetFile: "jsx-runtime.ts" },
+          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+          {
+            subpath: "./jsx-runtime",
+            runtimeImport: "jsx-runtime.ts",
+            runtimeRequire: null,
+            types: "jsx-runtime.ts",
+          },
         ],
         dependencies: [],
       },

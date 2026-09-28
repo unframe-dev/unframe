@@ -3,11 +3,11 @@
 This is the M3C v2 filesystem Authoring Project acceptance fixture. `unframe.lock` embeds and pins the
 minimal `@unframe/unframe-authoring` declaration package and the hashes of the theme and
 structured component declarations. It also carries the unchanged Liberation Sans TTF bytes with their
-SHA-256 checksum and size; see `FONT-LICENSE.txt`. Generated `.unframe/` and `dist` output are not source.
+SHA-256 checksum and size; the SDK snapshot is a fixture, not a published pnpm package; see `FONT-LICENSE.txt`. Generated `.unframe/` and `dist` output are not source.
 
 The source uses typed builders, shared `const` declarations and relative imports, object spread,
 and SDK JSX for both Component internals and Presentation placement. `reference-values.ts` holds
-shared values; `reference-locks.ts` holds the pinned Component references. JSX creates the same
+shared values; the v2 lock connects Component origins and hashes without per-Instance lock imports. JSX creates the same
 static declarations as builders and does not require React or execute user code during compilation.
 The local `tsconfig.json` points editors at the workspace SDK for completion and attribute checking.
 

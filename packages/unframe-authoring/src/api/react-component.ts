@@ -254,6 +254,14 @@ const sceneDataSchema = z.strictObject({
   props: z.record(id, z.union([z.string(), z.number().finite(), z.boolean()])),
 });
 
+const staticSceneItemSchema = sceneDataSchema.extend({
+  component: z.strictObject({ id, version: z.number().int().safe().positive() }),
+});
+export type StaticReactSceneItem = z.infer<typeof staticSceneItemSchema>;
+
+export const validateStaticReactSceneItem = (value: unknown): StaticReactSceneItem =>
+  staticSceneItemSchema.parse(snapshotDeclaration(value));
+
 export const validateReactSceneItem = (value: unknown): string => {
   const fields = readOwnDataRecord(value);
   const component = fields.component;

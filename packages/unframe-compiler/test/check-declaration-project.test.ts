@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/unframe-components";
 import type {
+  ComponentManifest,
+  ComponentPackageLock,
   ComponentStructure,
   PresentationDeclaration,
   SurfaceDeclaration,
@@ -12,6 +14,14 @@ import {
 } from "@unframe/unframe-core";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
+type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
+  presentation: PresentationDeclaration;
+  components: {
+    manifest: ComponentManifest;
+    structure: ComponentStructure;
+    lock: ComponentPackageLock & { mode: "structured" };
+  }[];
+};
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
   createRendererFingerprint,
@@ -57,12 +67,6 @@ const presentation = (): PresentationDeclaration => ({
         version: 1,
         owner: { kind: "presentation" },
         spatialNodeId: "spatial",
-        packageLock: {
-          packageVersion: "1",
-          packageIntegrity: "integrity",
-          manifestHash: "manifest",
-          structureHash: "structure",
-        },
         props: {},
         slots: {},
         variants: {},
@@ -94,8 +98,13 @@ const project = () => ({
       manifest: standardComponents.surface.manifest,
       structure: standardComponents.surface.structure,
       lock: {
-        packageVersion: "1",
-        packageIntegrity: "integrity",
+        mode: "structured" as const,
+        origin: {
+          kind: "local" as const,
+          entryFile: "surface.ts",
+          files: [],
+          sourceHash: "sha256:source",
+        },
         manifestHash: "manifest",
         structureHash: "structure",
       },
@@ -138,7 +147,7 @@ describe("checkDeclarationProject", () => {
   });
 
   it("lowers a host Timeline and its local Action and Output references", () => {
-    const input = project() as CompilerDeclarationProject;
+    const input = project() as StructuredProject;
     const entry = input.components[0]!;
     entry.structure = {
       ...entry.structure,
@@ -235,7 +244,7 @@ describe("checkDeclarationProject", () => {
     });
   });
   it("canonicalizes Timeline rotation and rejects a zero Quaternion", () => {
-    const input = project() as CompilerDeclarationProject;
+    const input = project() as StructuredProject;
     const entry = input.components[0]!;
     entry.structure = {
       ...entry.structure,
@@ -266,7 +275,7 @@ describe("checkDeclarationProject", () => {
       [0, 0, 0, 1],
       [0, 0, 0, 1],
     ]);
-    const invalid = project() as CompilerDeclarationProject;
+    const invalid = project() as StructuredProject;
     invalid.components[0]!.structure = {
       ...entry.structure,
       timelines: [
@@ -287,8 +296,8 @@ describe("checkDeclarationProject", () => {
     expect(codes(invalid)).toContain("compiler-timeline-quaternion-invalid");
   });
   it("lowers Component Output payload, Action effects, Guard, and empty Step transition", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
@@ -439,8 +448,8 @@ describe("checkDeclarationProject", () => {
     expect(result.value.definition.flow.groups.group?.steps.done?.cues).toEqual([]);
   });
   it("lowers a timer Output to an actionless Step transition", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     entry.manifest = {
@@ -508,8 +517,8 @@ describe("checkDeclarationProject", () => {
     ]);
   });
   it("rejects undeclared Timeline effects and media Output producers", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     entry.manifest = {
@@ -538,13 +547,13 @@ describe("checkDeclarationProject", () => {
     );
   });
   it("lowers finite states, visual changes, semantic changes and interactions", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const original = input.components[0]!;
     const root = original.structure.root;
     if (root.kind !== "surface") throw new Error("fixture must be a surface");
-    (input.themes as CompilerDeclarationProject["themes"][number][])[0] = {
+    (input.themes as StructuredProject["themes"][number][])[0] = {
       ...input.themes[0]!,
       declaration: {
         ...input.themes[0]!.declaration,
@@ -1150,18 +1159,12 @@ describe("checkDeclarationProject", () => {
       componentId: "badge",
       version: 1,
       owner: { kind: "presentation" },
-      packageLock: {
-        packageVersion: "1",
-        packageIntegrity: "badge-integrity",
-        manifestHash: "badge-manifest",
-        structureHash: "badge-structure",
-      },
       props: {},
       slots: {},
       variants: {},
       partOverrides: [],
     });
-    (input.components as unknown as CompilerDeclarationProject["components"][number][]).push({
+    (input.components as unknown as StructuredProject["components"][number][]).push({
       manifest: {
         componentId: "badge",
         version: 1,
@@ -1215,8 +1218,8 @@ describe("checkDeclarationProject", () => {
         timelines: [],
       },
       lock: {
-        packageVersion: "1",
-        packageIntegrity: "badge-integrity",
+        mode: "structured",
+        origin: { kind: "local", entryFile: "badge.ts", files: [], sourceHash: "sha256:badge" },
         manifestHash: "badge-manifest",
         structureHash: "badge-structure",
       },
@@ -1241,7 +1244,7 @@ describe("checkDeclarationProject", () => {
     ]);
 
     const topStructure = (
-      input.components as unknown as CompilerDeclarationProject["components"][number][]
+      input.components as unknown as StructuredProject["components"][number][]
     )[0]!.structure;
     if (topStructure.root.kind !== "surface") return;
     const slotPlaceholder = topStructure.root.root.children[2];
@@ -1255,7 +1258,7 @@ describe("checkDeclarationProject", () => {
     );
 
     const badgeStructure = (
-      input.components as unknown as CompilerDeclarationProject["components"][number][]
+      input.components as unknown as StructuredProject["components"][number][]
     )[1]!.structure;
     if (badgeStructure.root.kind !== "frame") return;
     const badgeSemanticTree = badgeStructure.baseSemanticTree!;
@@ -1352,7 +1355,7 @@ describe("checkDeclarationProject", () => {
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
-      "sha256:3cdb6cdf49879b2e4295026604001240919fbcc434433e2e04e502159354be6f",
+      "sha256:aa489f983b548617876a4e79f710321d159d6ebd572b1d39db558806dd64ce01",
     );
     expect(result.value.definitionHash).toBe(
       "sha256:feeb8319fee482e9d68aaeb3f71546284aa0bc3a1d12f989fac1e67832509ed0",
@@ -1479,9 +1482,6 @@ describe("checkDeclarationProject", () => {
         components: [...duplicateComponent.components, duplicateComponent.components[0]!],
       }),
     ).toContain("compiler-component-not-found");
-    const mismatchedLock = project();
-    mismatchedLock.presentation.scene.components[0]!.packageLock.manifestHash = "different";
-    expect(codes(mismatchedLock)).toContain("compiler-component-lock-mismatch");
     const interactions = project();
     expect(
       codes({
@@ -1576,7 +1576,7 @@ describe("checkDeclarationProject", () => {
           },
         ],
       }),
-    ).toContain("compiler-component-lock-mismatch");
+    ).toContain("compiler-component-identity-mismatch");
 
     const missingSpatial = project();
     expect(
@@ -1823,8 +1823,13 @@ describe("checkDeclarationProject", () => {
         },
       };
       const lock = {
-        packageVersion: `1-${suffix}`,
-        packageIntegrity: `integrity-${suffix}`,
+        mode: "structured" as const,
+        origin: {
+          kind: "local" as const,
+          entryFile: `surface-${suffix}.ts`,
+          files: [],
+          sourceHash: `sha256:source-${suffix}`,
+        },
         manifestHash: `manifest-${suffix}`,
         structureHash: `structure-${suffix}`,
       };
@@ -1835,7 +1840,6 @@ describe("checkDeclarationProject", () => {
           id: instanceId,
           componentId,
           spatialNodeId: spatialId,
-          packageLock: lock,
         },
         catalog: { manifest, structure, lock },
       };
@@ -2011,8 +2015,8 @@ describe("compileDeclarationProject", () => {
   });
 
   it("owns a Frame that binds an enabled button in the renderer plan", async () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;

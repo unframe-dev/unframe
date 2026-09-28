@@ -12,7 +12,10 @@ type Instance = PresentationDeclaration["scene"]["components"][number];
 
 export const lowerCues = (
   presentation: PresentationDeclaration,
-  components: CompilerDeclarationProject["components"],
+  components: readonly Extract<
+    CompilerDeclarationProject["components"][number],
+    { structure: unknown }
+  >[],
   groups: PresentationDefinition["flow"]["groups"],
 ): Diagnostic[] => {
   const diagnostics: Diagnostic[] = [];
