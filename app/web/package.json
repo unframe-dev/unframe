@@ -37,8 +37,8 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.57.3",
-    "@cloudflare/workers-types": "5.20260922.1",
+    "@cloudflare/vite-plugin": "1.61.0",
+    "@cloudflare/workers-types": "5.20260927.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.2",
     "@testing-library/jest-dom": "7.0.1",
@@ -54,6 +54,6 @@
     "typescript": "^7.0.0",
     "vite": "catalog:",
     "vitest": "4.1.11",
-    "wrangler": "4.136.3"
+    "wrangler": "4.142.0"
   }
 }
