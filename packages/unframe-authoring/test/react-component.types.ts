@@ -81,6 +81,23 @@ defineComponent({
   render: () => null,
 });
 
+defineComponent({
+  id: "unsupported-output-producers",
+  version: 1,
+  props: {},
+  surface: { logicalSize: [1, 1] },
+  semantics: { rootNodeIds: [], nodes: {} },
+  outputs: {
+    // @ts-expect-error React metadata does not support timer outputs
+    timeout: { payload: {}, producer: { kind: "timer", afterMilliseconds: 1000 } },
+    // @ts-expect-error React metadata does not support timeline completion outputs
+    timeline: { payload: {}, producer: { kind: "timelineCompleted", timelineId: "intro" } },
+    // @ts-expect-error React metadata does not support media completion outputs
+    media: { payload: {}, producer: { kind: "mediaCompleted", surfaceId: "surface" } },
+  },
+  render: () => null,
+});
+
 const placement = {
   owner: { kind: "presentation" },
   audience: { kind: "all" },

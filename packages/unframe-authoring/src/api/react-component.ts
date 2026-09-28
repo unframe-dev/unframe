@@ -108,7 +108,9 @@ type ActionInput<S extends string> = Omit<
   readonly preconditions: readonly [];
   readonly effects: readonly { kind: "setState"; stateId: S }[];
 };
-type OutputInput = Omit<OutputDeclaration, "kind">;
+type OutputInput = Omit<OutputDeclaration, "kind" | "producer"> & {
+  readonly producer: Extract<OutputDeclaration["producer"], { kind: "surfaceInteraction" }>;
+};
 export type ReactComponent<P, N, S extends string = "default"> = {
   readonly id: string;
   readonly version: number;
