@@ -16,6 +16,7 @@ import {
 
 import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
+import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { updateProjectLock } from "../filesystem/update-lock.js";
@@ -367,6 +368,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         [directory],
       ),
     ]);
+  if (host.expectedRevision !== undefined && discovered.revision !== host.expectedRevision)
+    return output(3, command, format, [
+      diagnostic("io", "cli-output-stale", "Project inputs changed after the build was requested."),
+    ]);
   const lock = loadUnframeLock(discovered.lockBytes);
   if (!lock.ok)
     return output(1, command, format, [
@@ -519,15 +524,28 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         return output(130, command, format, [
           diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
         ]);
-      const published = await publishAtomicArtifacts({
-        projectDirectory: discovered.projectDirectory,
-        artifacts: artifacts(compiled.value),
-        isCurrentRevision: async () => {
-          const current = await discoverPresentationProjectFiles(discovered.projectDirectory);
-          return current.ok && current.revision === discovered.revision;
-        },
-        ...(host.signal ? { signal: host.signal } : {}),
-      });
+      const sourceLease = await acquireSourceLock(discovered.projectDirectory);
+      if (!sourceLease.ok)
+        return output(3, command, format, [
+          diagnostic("io", sourceLease.code, "Source is being saved or requires recovery."),
+        ]);
+      const published = await (async () => {
+        try {
+          return await publishAtomicArtifacts({
+            projectDirectory: discovered.projectDirectory,
+            artifacts: artifacts(compiled.value),
+            isCurrentRevision: async () => {
+              const current = await discoverPresentationProjectFiles(discovered.projectDirectory, {
+                sourceLeaseHeld: true,
+              });
+              return current.ok && current.revision === discovered.revision;
+            },
+            ...(host.signal ? { signal: host.signal } : {}),
+          });
+        } finally {
+          await sourceLease.value.release();
+        }
+      })();
       if (!published.ok)
         return output(published.family === "cancel" ? 130 : 3, command, format, [
           diagnostic(

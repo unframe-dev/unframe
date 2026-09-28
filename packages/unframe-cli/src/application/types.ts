@@ -44,6 +44,7 @@ export type PresentationCliHost = Readonly<{
   /** Process owners pass their single cancellation signal through this boundary. */
   signal?: AbortSignal;
   buildContext?: PresentationCliBuildContext;
+  expectedRevision?: string;
 }>;
 
 export type RunPresentationCliInput = Readonly<{

@@ -2,6 +2,7 @@ import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
 import { lstat, readlink } from "node:fs/promises";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
+import { acquireSourceLock } from "./source-lock.js";
 import { loadProjectConfig } from "./load-config.js";
 import {
   projectDirectory,
@@ -11,6 +12,9 @@ import {
 } from "./path-policy.js";
 
 type ProjectFailureCode =
+  | "cli-source-lock-unavailable"
+  | "cli-source-lock-io"
+  | "cli-source-recovery-required"
   | "cli-project-discovery-invalid-directory"
   | "cli-project-discovery-missing-files"
   | "cli-config-invalid"
@@ -68,7 +72,10 @@ const scanAuthoringSources = async (
       const path = join(directory, name);
       const relativeName = relative(root, path).split("\\").join("/");
       if (!relativeName || relativeName.startsWith("../")) return false;
-      if (ignoredDirectoryNames.has(name) || (directory === root && name === ".unframe-build.lock"))
+      if (
+        ignoredDirectoryNames.has(name) ||
+        (directory === root && [".unframe-build.lock", ".unframe-source.lock"].includes(name))
+      )
         continue;
       if (directory === root && /^\.dist-[0-9a-f]{32}$/.test(name)) {
         const stat = await lstat(path).catch(() => undefined);
@@ -108,9 +115,7 @@ const scanAuthoringSources = async (
 };
 
 /** Config parsing and raw file discovery only; lock validation belongs to the next boundary. */
-export const discoverPresentationProjectFiles = async (
-  directory: string,
-): Promise<DiscoveredProjectFiles> => {
+const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjectFiles> => {
   const root = await projectDirectory(directory);
   if (!root)
     return failure(
@@ -165,4 +170,24 @@ export const discoverPresentationProjectFiles = async (
     lockBytes: lock.slice(),
     ...snapshot,
   };
+};
+
+export const discoverPresentationProjectFiles = async (
+  directory: string,
+  options: { sourceLeaseHeld?: boolean } = {},
+): Promise<DiscoveredProjectFiles> => {
+  if (options.sourceLeaseHeld) return discoverWithoutLease(directory);
+  const root = await projectDirectory(directory);
+  if (!root)
+    return failure(
+      "cli-project-discovery-invalid-directory",
+      "Project directory must be an absolute non-symbolic-link directory.",
+    );
+  const lease = await acquireSourceLock(root);
+  if (!lease.ok) return failure(lease.code, "Source is being saved or requires recovery.");
+  try {
+    return await discoverWithoutLease(root);
+  } finally {
+    await lease.value.release();
+  }
 };

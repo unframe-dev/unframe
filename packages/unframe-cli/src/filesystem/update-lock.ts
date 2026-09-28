@@ -12,6 +12,7 @@ import {
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
+import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile } from "./path-policy.js";
 import { digestBytes, lockedFile, snapshotInstalledPackages } from "./package-snapshot.js";
@@ -26,12 +27,19 @@ export const updateProjectLock = async (
   signal?: AbortSignal,
 ): Promise<{ ok: true } | { ok: false; code: string; message: string }> => {
   const failure = (code: string, message: string) => ({ ok: false as const, code, message });
-  const discovered = await discoverPresentationProjectFiles(directory);
+  let discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok) return discovered;
   const acquired = await acquireBuildLock(discovered.projectDirectory);
   if (!acquired.ok) return failure(acquired.code, "Another build or lock update owns the project.");
+  const sourceLease = await acquireSourceLock(discovered.projectDirectory);
+  if (!sourceLease.ok) {
+    await acquired.value.release();
+    return failure(sourceLease.code, "Source is being saved or requires recovery.");
+  }
   let temporary: string | undefined;
   try {
+    discovered = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+    if (!discovered.ok) return discovered;
     if (signal?.aborted) return failure("cli-cancelled", "Lock update was cancelled.");
     const loaded = recreate ? undefined : loadUnframeLock(discovered.lockBytes);
     if (loaded && !loaded.ok) return failure(loaded.diagnostic.code, loaded.diagnostic.message);
@@ -150,6 +158,10 @@ export const updateProjectLock = async (
     );
   } finally {
     if (temporary) await unlink(temporary).catch(() => undefined);
-    await acquired.value.release();
+    try {
+      await sourceLease.value.release();
+    } finally {
+      await acquired.value.release();
+    }
   }
 };
