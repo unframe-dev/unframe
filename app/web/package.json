@@ -14,7 +14,8 @@
     "cf:dev": "wrangler dev",
     "cf:types": "wrangler types --include-runtime=false --env-interface CloudflareBindings",
     "cf:deploy": "wrangler deploy",
-    "cf:deploy:dry-run": "wrangler deploy --dry-run"
+    "cf:deploy:dry-run": "wrangler deploy --dry-run",
+    "build:author": "vp build --config vite.author.config.ts && mv dist-author/author.html dist-author/index.html"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
