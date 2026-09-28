@@ -236,7 +236,7 @@ describe("Playwright Fixed Browser", () => {
     expect(fake.page.screenshot).toHaveBeenCalledWith({
       type: "png",
       scale: "css",
-      omitBackground: false,
+      omitBackground: true,
       animations: "disabled",
       caret: "hide",
     });

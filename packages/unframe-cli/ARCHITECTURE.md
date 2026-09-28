@@ -123,6 +123,11 @@ Node.js の両方を提供する。
 
 ## 6. Process and acceptance boundary
 
+build は config・Source・lock の bytes から revision を固定し、dist 置換前に再検査する。
+変更を検出した場合は `cli-output-stale` を返し、成功済み dist を保持して未公開 generation を回収する。
+build lease と一時 dist link は revision に含めない。これは外部編集の検出であり、非協調 editor との
+原子的な保存を保証しない。Editor の Source / lock transaction と recovery は未実装である。
+
 `pnpm presentation check|build <project>` は Bun process entry である。この entrypoint だけが単一の
 `AbortController` と `SIGINT` / `SIGTERM` listener を所有し、同じ signal を application API に渡す。listener は
 常に解除し、`process.exit()` は呼ばず `process.exitCode` と stdout/stderr の stable result を使う。

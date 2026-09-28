@@ -21,7 +21,7 @@
 
 M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque renderer execution自体は引き続きDeferredである。
 
-Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State別のFrame / Text visual overrideとenabled Interactionのprivate Hit Regionを扱う。Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
+Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State 別の Frame / Text visual override を扱う。Hit Region は Compiler が Surface 全体の layout から生成する。Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
 
 renderer config は CSS やfont familyを受け取らず、document backgroundの`[r, g, b, a]` 0–255 byteだけを持つ。Fontは入力`fontAssets`のcanonical base64、SHA-256、TTF/OTF signature、Unicode `cmap` format 4/12を検証し、全literal code pointがprimaryまたは明示fallbackのglyphへ解決できる場合だけdata URIの`@font-face`を生成する。Browser adapterは全faceの`FontFace.load()`と`document.fonts.ready`を待ち、失敗をcapture failureにする。CSS family列にhost fontやgeneric familyを追加しない。
 
@@ -44,7 +44,7 @@ Compiler が決定した Render Surface partition を build input として受�
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
 - absolute root `Frame` と任意深度の absolute `Frame` / literal `Text` tree の HTML/CSS lower、state capture、raw RGBA ownership transfer
 - locked virtual packageからのOpaque TS/TSX/JS/JSX/JSON bundleとCSS/asset emit
-- Compilerが入力を検証し、現行subsetではSemantic Surface全体を一partitionにして、`unframe-assets`へのencode / checksum委譲とRenderBundle組立を行う
+- Compiler が自動 partition と入力検証を行い、各 capture を `unframe-assets` へ encode / checksum 委譲して RenderBundle を組み立てる
 
 ### Target
 
@@ -64,7 +64,7 @@ resolved semantic input + renderer source
                  ↓
           isolated Browser render
                  ↓
- layout / hit-region geometry / raw capture
+       partition raw RGBA capture
                  ↓
    unframe-assets encode and checksum
                  ↓
@@ -75,7 +75,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用し、明示された `semanticNodeId` を持つ content の visible geometry から partition-local Hit Region を生成する。DOM から意味は推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
+Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用する。owned Node だけを paint し、context Frame は配置・clip・opacity を保持する。未描画部分は透明で、背景は Frame の指定を使う。`documentBackground` は受理しない。DOM から意味は推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
 
 ### Target
 
@@ -91,7 +91,7 @@ Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Pr
 
 - Browser version、font、locale、timezone、viewport、device scale、color space を provenance に固定する。
 - network、clock、randomness、host filesystem などの capability は既定で許可せず、許可時は入力と provenance に含める。
-- State ごとの capture と Hit Region geometry は同じ layout result から生成する。
+- State ごとの capture は Compiler の partition bounds と Node ownership を保持する。
 - 一つの Render Surface の集合、bounds、layer は全 reachable State で共通とし、各 State に artifact または明示的な empty binding を持たせる。
 - semantic information が Manifest / Structure と一致しない場合は build error とする。
 - raw capture の resize、encode、checksum は `unframe-assets` に委譲する。
@@ -128,7 +128,7 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 - Renderer API conformance、fixed adapter / config / environment / fingerprint の境界テスト
 - HTML/CSS golden、state order、capture ownership、hostile output / direct build input の回帰テスト
-- State 別 capture と Semantic Tree / Hit Region binding の整合テスト
+- State 別 capture、context Frame の描画抑止、透明 gap、分割前後の合成結果のテスト
 - Zod schemaによるconfig / environment / capture metadataとOpaque module inputのvalidation test
 - Opaque module/asset bundle、field path diagnostic、accessor非実行、capability denyの境界テスト
 

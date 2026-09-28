@@ -52,6 +52,7 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
   let textureBindings = 0;
   let renderedPixels = 0;
   let encodedBytes = 0;
+  const encodedSizesByChecksum = new Map<string, number>();
   for (const [surfaceId, surface] of Object.entries(bundle.surfaces)) {
     const path = `/surfaces/${pathSegment(surfaceId)}`;
     validateRecordIds(diagnostics, surface.renderSurfaces, `${path}/renderSurfaces`);
@@ -151,6 +152,17 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
         );
       validateRecordIds(diagnostics, renderSurface.artifacts, `${renderPath}/artifacts`);
       const artifacts = renderSurface.artifacts;
+      const nonEmptyBindings = Object.values(renderSurface.stateBindings).filter(
+        (binding) => binding.kind === "artifacts",
+      );
+      if (nonEmptyBindings.length === 0)
+        diagnostics.push(
+          diagnostic(
+            "artifact.invalid",
+            `${renderPath}/stateBindings`,
+            "A RenderSurface must be nonempty in at least one State.",
+          ),
+        );
       for (const [artifactId, artifact] of Object.entries(artifacts)) {
         const artifactPath = `${renderPath}/artifacts/${pathSegment(artifactId)}`;
         const previousArtifact = globalArtifactIds.get(artifactId);
@@ -174,12 +186,21 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
           );
           continue;
         }
-        if (!equalSet(stateIds, Object.keys(artifact.states)))
+        const referencedStates = Object.entries(renderSurface.stateBindings)
+          .filter(
+            ([, binding]) =>
+              binding.kind === "artifacts" && binding.artifactIds.includes(artifactId),
+          )
+          .map(([stateId]) => stateId);
+        if (
+          referencedStates.length === 0 ||
+          !equalSet(referencedStates, Object.keys(artifact.states))
+        )
           diagnostics.push(
             diagnostic(
               "artifact.invalid",
               `${artifactPath}/states`,
-              "A baked-web artifact must contain one texture for every State.",
+              "A baked-web artifact must contain exactly the States that reference it.",
             ),
           );
         for (const [stateId, state] of Object.entries(artifact.states)) {
@@ -207,7 +228,18 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
           const expectedGpuBytes = state.texture.pixelSize[0] * state.texture.pixelSize[1] * 4;
           const [width, height] = state.texture.pixelSize;
           renderedPixels += width * height;
-          encodedBytes += state.texture.encodedSizeBytes;
+          const previousSize = encodedSizesByChecksum.get(state.texture.checksum);
+          if (previousSize === undefined) {
+            encodedSizesByChecksum.set(state.texture.checksum, state.texture.encodedSizeBytes);
+            encodedBytes += state.texture.encodedSizeBytes;
+          } else if (previousSize !== state.texture.encodedSizeBytes)
+            diagnostics.push(
+              diagnostic(
+                "artifact.invalid",
+                `${statePath}/texture/encodedSizeBytes`,
+                "Textures with the same checksum must declare the same encoded size.",
+              ),
+            );
           if (
             width > policy.maxTextureWidth ||
             height > policy.maxTextureHeight ||
@@ -233,12 +265,13 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
       }
       for (const [stateId, binding] of Object.entries(renderSurface.stateBindings)) {
         const bindingPath = `${renderPath}/stateBindings/${pathSegment(stateId)}`;
-        if (binding.kind !== "artifacts" || binding.artifactIds.length !== 1)
+        if (binding.kind === "empty") continue;
+        if (binding.artifactIds.length !== 1)
           diagnostics.push(
             diagnostic(
               "artifact.invalid",
               bindingPath,
-              "M3A requires one baked-web artifact binding per State.",
+              "A nonempty State requires one baked-web artifact binding.",
             ),
           );
         else {

@@ -71,7 +71,7 @@ export const updateProjectLock = async (
       entryFile: discovered.entryFile,
       files: discovered.files,
       rawFiles: discovered.localFiles
-        .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
+        .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
         .map(({ path, bytes }) => lockedFile(path, bytes)),
       rootDependencies: graph.rootDependencies,
       packages: graph.packages,

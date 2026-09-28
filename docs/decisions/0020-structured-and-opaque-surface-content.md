@@ -32,4 +32,4 @@ Contracts、Core、Compiler、Renderer API / Web と fixture を一緒に更新�
 
 ## Adoption
 
-schema と Core の拒否試験、Structured 回帰、Opaque の意味 materialization、Renderer の binding 所有・Hit Region 検証、生成 JSON Schema / fixture の同期で検証する。Opaque の capture 実装と React 標準化の判断は ADR-0019 の後続工程に残す。
+schema と Core の拒否試験、Structured 回帰、Opaque の意味 materialization、Renderer の binding 所有、生成 JSON Schema / fixture の同期で検証する。Hit Region は [ADR-0021](./0021-surface-interaction-geometry.md) に従い、Core が Surface 単位で検証する。Opaque の DOM geometry / capture 実装と React 標準化の判断は ADR-0019 の後続工程に残す。

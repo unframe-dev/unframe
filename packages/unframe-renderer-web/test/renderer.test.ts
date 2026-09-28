@@ -30,6 +30,60 @@ const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => 
 };
 
 describe("baked web renderer", () => {
+  it("nonzero boundsの部分partitionではcontext Frameのpaintを省き、owned childだけを描画する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({
+      adapter: {
+        identity: adapterIdentity,
+        environment,
+        capture(request) {
+          requests.push(request);
+          return {
+            rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4),
+            pixelSize: request.pixelTarget,
+            colorSpace: "srgb" as const,
+            alphaMode: "straight" as const,
+          };
+        },
+      },
+      config,
+    });
+    const source = nestedInputFor(createWebRendererConfigHash(config), renderer);
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      plan: {
+        ...source.plan,
+        logicalBounds: { x: 12, y: 6, width: 20, height: 8 },
+        clipWindow: { x: 12, y: 6, width: 20, height: 8 },
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["text-first"],
+          contextNodeIds: ["root", "nested"],
+        },
+        states: { a: { kind: "capture" }, z: { kind: "empty" } },
+      },
+      context: { ...source.context, pixelTarget: [40, 16] },
+    };
+
+    const result = await renderer.build(input);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.pixelTarget).toEqual([40, 16]);
+    const document = requests[0]?.document ?? "";
+    expect(document).toContain('data-node-id="text-first"');
+    expect(document).not.toContain('data-node-id="text-second"');
+    expect(document).not.toContain('data-node-id="clipped"');
+    expect(document).toMatch(/#surface\{[^}]*left:-24px;top:-12px/);
+    expect(document).toMatch(
+      /data-node-id="nested"[^>]*background:rgba\(0,0,0,0\);border:4px solid rgba\(0,0,0,0\)/,
+    );
+    expect(document).toContain(
+      "body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,0)",
+    );
+    expect(result.captures.map(({ stateId }) => stateId)).toEqual(["a"]);
+  });
   it("2K static captureを通常実行境界でbounded memoryのcaller-owned RGBAとして返す", async () => {
     let adapterBytes: Uint8Array | undefined;
     const renderer = createBakedWebRenderer({
@@ -72,7 +126,7 @@ describe("baked web renderer", () => {
   it("固定環境と設定から決定論的な plugin を作り、capture を状態順に生成する", async () => {
     const requests: BrowserCaptureRequest[] = [];
     const hash = createWebRendererConfigHash(config);
-    expect(hash).toBe("sha256:3a5eb53c58755df665e1be21fe56d96f4f63c2cfda60a9b7203c3c869ad54075");
+    expect(hash).toBe("sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a");
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const input = withRendererFingerprint(inputFor(hash), renderer);
     const result = await renderer.build(input);
@@ -96,13 +150,12 @@ describe("baked web renderer", () => {
     );
     expect(firstRequest?.document).not.toMatch(/style="[^"]*font-family:"unframe-font-/);
     expect(firstRequest?.document).toContain(
-      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:block;opacity:1;background:rgba(0,0,0,1);border:0px solid rgba(0,0,0,0);border-radius:0px;overflow:visible}",
+      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:block;opacity:1;background:rgba(0,0,0,0);border:0px solid rgba(0,0,0,0);border-radius:0px;overflow:visible}",
     );
     expect(firstRequest?.document).toContain(
       'font-size:0.2px;line-height:0.24px;color:rgba(255,255,255,1);font-weight:400;text-align:start;overflow:hidden;white-space:pre-wrap">&lt;&amp;&gt;&quot;&#39;',
     );
     expect(result.captures.map((capture) => capture.stateId)).toEqual(["a", "z"]);
-    expect(result.hitRegionsByState).toEqual({ a: [], z: [] });
     expect(result.provenance.implementationHash).toMatch(/^sha256:/);
     expect(await runRendererConformance(renderer, [{ name: "web", input }])).toMatchObject({
       valid: true,
@@ -133,7 +186,7 @@ describe("baked web renderer", () => {
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const document = requests[0]?.document ?? "";
     expect(document).toContain(
-      'data-node-id="nested" style="left:20px;top:10px;width:120px;height:60px;display:block;opacity:0.75;background:rgba(255,0,0,0.5);border:4px solid rgba(0,255,0,1);border-radius:6px;overflow:hidden"',
+      'data-node-id="nested" style="left:20px;top:10px;width:120px;height:60px;display:block;opacity:0.75;background:rgba(0,0,0,0);border:4px solid rgba(0,0,0,0);border-radius:6px;overflow:hidden"',
     );
     expect(document).toContain(
       'data-node-id="text-second" style="left:14px;top:6px;width:40px;height:16px;',
@@ -319,7 +372,6 @@ describe("baked web renderer", () => {
     expect(() =>
       createWebRendererConfigHash({
         documentBackground: [0, 0, 0, 255],
-        fontFamily: "unexpected",
       } as unknown as WebRendererConfig),
     ).toThrow();
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
@@ -403,6 +455,14 @@ describe("baked web renderer", () => {
     if (!text || text.kind !== "text") throw new Error("expected Text");
     const input: CompilerResolvedSurfaceInput = {
       ...source,
+      plan: {
+        ...source.plan,
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["root", "text"],
+          contextNodeIds: [],
+        },
+      },
       surface: {
         ...source.surface,
         states: {
@@ -457,206 +517,7 @@ describe("baked web renderer", () => {
     );
   });
 
-  it("owned root Frame の button から private region を生成する", async () => {
-    const renderer = createBakedWebRenderer({ adapter: adapter(), config });
-    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const root = structuredContent(source.surface).nodes.root;
-    if (!root || root.kind !== "frame") throw new Error("expected Frame");
-    const interaction = { kind: "regions" as const, events: ["click"] };
-    const semantic = {
-      id: "root-button",
-      parentId: null,
-      order: 0,
-      role: "button" as const,
-      text: "Open",
-      interactionId: "tap",
-      stateEnabled: true,
-    };
-    const input: CompilerResolvedSurfaceInput = {
-      ...source,
-      surface: {
-        ...source.surface,
-        content: {
-          ...structuredContent(source.surface),
-          nodes: {
-            ...structuredContent(source.surface).nodes,
-            root: { ...root, semanticNodeId: "root-button" },
-          },
-        },
-        baseSemanticTree: {
-          rootNodeIds: ["root-button"],
-          nodes: {
-            "root-button": {
-              id: "root-button",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Open",
-              interactionId: "tap",
-            },
-          },
-        },
-        interactions: { tap: { id: "tap", kind: "click", event: "click", hitPriority: 4 } },
-        states: {
-          a: { ...source.surface.states.a!, enabledInteractionIds: ["tap"] },
-          z: { ...source.surface.states.z!, enabledInteractionIds: ["tap"] },
-        },
-        renderIntent: { ...source.surface.renderIntent, interaction },
-      },
-      sourceIntent: { ...source.sourceIntent, interaction },
-      resolvedIntent: { ...source.resolvedIntent, interaction },
-      semanticsByState: {
-        a: { rootNodeIds: ["root-button"], nodes: { "root-button": semantic } },
-        z: { rootNodeIds: ["root-button"], nodes: { "root-button": semantic } },
-      },
-      plan: {
-        ...source.plan,
-        ownership: {
-          kind: "structured",
-          ownedContentNodeIds: ["root", "text"],
-          contextNodeIds: [],
-        },
-        hitPriorityByInteractionId: { tap: 4 },
-      },
-    };
-    const result = await renderer.build(input);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.hitRegionsByState.a).toEqual([
-      {
-        interactionId: "tap",
-        semanticNodeId: "root-button",
-        bounds: { x: 0, y: 0, width: 100, height: 50 },
-        priority: 4,
-      },
-    ]);
-    expect((await executeRendererPlugin(renderer, input)).valid).toBe(true);
-    for (const contentOverride of [
-      { kind: "frame" as const, visible: false },
-      { kind: "frame" as const, opacity: 0 },
-    ]) {
-      const hiddenInput: CompilerResolvedSurfaceInput = {
-        ...input,
-        surface: {
-          ...input.surface,
-          states: {
-            ...input.surface.states,
-            z: { ...input.surface.states.z!, contentOverrides: { root: contentOverride } },
-          },
-        },
-      };
-      const hiddenResult = await renderer.build(hiddenInput);
-      expect(hiddenResult).toMatchObject({
-        ok: false,
-        diagnostics: [{ code: "missing-enabled-interaction-region" }],
-      });
-      expect((await executeRendererPlugin(renderer, hiddenInput)).valid).toBe(false);
-      const partitionResult = await renderer.build({
-        ...hiddenInput,
-        plan: {
-          ...hiddenInput.plan,
-          clipWindow: { x: 0, y: 0, width: 99, height: 50 },
-        },
-      });
-      expect(partitionResult.ok).toBe(true);
-      if (partitionResult.ok) expect(partitionResult.hitRegionsByState.z).toEqual([]);
-    }
-  });
-
-  it("明示 semantic binding の visible geometry を partition-local region にする", async () => {
-    const renderer = createBakedWebRenderer({ adapter: adapter(), config });
-    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = structuredContent(source.surface).nodes.text;
-    if (!text || text.kind !== "text") throw new Error("expected Text");
-    const interaction = { kind: "regions" as const, events: ["click"] };
-    const semantic = {
-      id: "button",
-      parentId: null,
-      order: 0,
-      role: "button" as const,
-      text: "Button",
-      interactionId: "tap",
-      stateEnabled: true,
-    };
-    const input: CompilerResolvedSurfaceInput = {
-      ...source,
-      surface: {
-        ...source.surface,
-        content: {
-          ...structuredContent(source.surface),
-          nodes: {
-            ...structuredContent(source.surface).nodes,
-            text: { ...text, semanticNodeId: "button" },
-          },
-        },
-        baseSemanticTree: {
-          rootNodeIds: ["button"],
-          nodes: {
-            button: {
-              id: "button",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Button",
-              interactionId: "tap",
-            },
-          },
-        },
-        interactions: { tap: { id: "tap", kind: "click", event: "click", hitPriority: 7 } },
-        states: {
-          a: { ...source.surface.states.a!, enabledInteractionIds: ["tap"] },
-          z: {
-            ...source.surface.states.z!,
-            enabledInteractionIds: ["tap"],
-            contentOverrides: {
-              text: {
-                kind: "text",
-                placement: { kind: "absolute", x: 30, y: 5, width: 40, height: 20 },
-              },
-            },
-          },
-        },
-        renderIntent: { ...source.surface.renderIntent, interaction },
-      },
-      sourceIntent: { ...source.sourceIntent, interaction },
-      resolvedIntent: { ...source.resolvedIntent, interaction },
-      semanticsByState: {
-        a: { rootNodeIds: ["button"], nodes: { button: semantic } },
-        z: { rootNodeIds: ["button"], nodes: { button: semantic } },
-      },
-      plan: {
-        ...source.plan,
-        clipWindow: { x: 20, y: 0, width: 30, height: 50 },
-        hitPriorityByInteractionId: { tap: 7 },
-      },
-    };
-    const result = await renderer.build(input);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.hitRegionsByState).toEqual({
-      a: [
-        {
-          interactionId: "tap",
-          semanticNodeId: "button",
-          bounds: { x: 20, y: 5, width: 30, height: 20 },
-          priority: 7,
-        },
-      ],
-      z: [
-        {
-          interactionId: "tap",
-          semanticNodeId: "button",
-          bounds: { x: 30, y: 5, width: 20, height: 20 },
-          priority: 7,
-        },
-      ],
-    });
-  });
-
-  it("factory config と capture bytes の所有権を固定し、cross-realm Uint8Array を受け取る", async () => {
-    const mutableConfig = {
-      documentBackground: [0, 0, 0, 255] as [number, number, number, number],
-    };
+  it("capture bytes の所有権を固定し、cross-realm Uint8Array を受け取る", async () => {
     const requests: BrowserCaptureRequest[] = [];
     const foreignBytes = runInNewContext(
       "new Uint8Array([1, 2, 3, 255, 4, 5, 6, 255])",
@@ -676,21 +537,13 @@ describe("baked web renderer", () => {
           };
         },
       },
-      config: mutableConfig,
+      config,
     });
-    mutableConfig.documentBackground[0] = 255;
-    const input = withRendererFingerprint(
-      inputFor(
-        createWebRendererConfigHash({
-          documentBackground: [0, 0, 0, 255],
-        } as const),
-      ),
-      renderer,
-    );
+    const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const result = await renderer.build(input);
     expect(result).toMatchObject({ ok: true });
     if (!result.ok) return;
-    expect(requests[0]?.document).toContain("background:rgba(0,0,0,1)");
+    expect(requests[0]?.document).toContain("background:rgba(0,0,0,0)");
     foreignBytes[0] = 99;
     foreignPixelSize[0] = 99;
     expect(result.captures[0]?.rgba[0]).toBe(1);
@@ -950,19 +803,17 @@ describe("baked web renderer", () => {
       semanticsByState: semantics,
     } as CompilerResolvedSurfaceInput);
     expect(result).toMatchObject({ ok: true });
-    if (result.ok) expect(Object.hasOwn(result.hitRegionsByState, "constructor")).toBe(true);
+    if (result.ok) expect(result.captures.map(({ stateId }) => stateId)).toContain("constructor");
   });
 
-  it("config と opaque capture の厳格な byte 境界を検証する", async () => {
-    const sparse = Object.assign([], { length: 4, 0: 0, 2: 0, 3: 255 }) as number[];
+  it("空config と opaque capture の厳格な境界を検証する", async () => {
     expect(() =>
       createWebRendererConfigHash({
-        documentBackground: sparse,
+        documentBackground: [0, 0, 0, 255],
       } as unknown as WebRendererConfig),
     ).toThrow();
     expect(() =>
       createWebRendererConfigHash({
-        documentBackground: [0, 0, 0, 255],
         fontFamily: "unexpected",
       } as unknown as WebRendererConfig),
     ).toThrow();

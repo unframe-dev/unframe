@@ -17,9 +17,7 @@ const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => 
   return surface.content;
 };
 
-export const config = {
-  documentBackground: [0, 0, 0, 255],
-} as const satisfies WebRendererConfig;
+export const config = {} as const satisfies WebRendererConfig;
 
 export const environment = {
   browser: { id: "test-browser", version: "1", fontFingerprint: "sha256:fonts" },
@@ -170,7 +168,6 @@ export const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInp
       layer: 0,
       ownership: { kind: "structured", ownedContentNodeIds: ["text"], contextNodeIds: ["root"] },
       clipWindow: { x: 0, y: 0, width: 100, height: 50 },
-      hitPriorityByInteractionId: {},
       states: { z: { kind: "capture" }, a: { kind: "capture" } },
     },
     entry: { kind: "structured" },

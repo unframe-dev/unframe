@@ -1,4 +1,6 @@
 import { join, relative } from "node:path";
+import { createHash } from "node:crypto";
+import { lstat, readlink } from "node:fs/promises";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
 import { loadProjectConfig } from "./load-config.js";
 import {
@@ -22,6 +24,7 @@ export type DiscoveredProjectFiles =
       readonly ok: true;
       readonly projectDirectory: string;
       readonly entryFile: string;
+      readonly revision: string;
       readonly lockBytes: Uint8Array;
       readonly files: readonly ProjectSourceFile[];
       readonly localFiles: readonly LocalFileSnapshot[];
@@ -65,7 +68,16 @@ const scanAuthoringSources = async (
       const path = join(directory, name);
       const relativeName = relative(root, path).split("\\").join("/");
       if (!relativeName || relativeName.startsWith("../")) return false;
-      if (ignoredDirectoryNames.has(name)) continue;
+      if (ignoredDirectoryNames.has(name) || (directory === root && name === ".unframe-build.lock"))
+        continue;
+      if (directory === root && /^\.dist-[0-9a-f]{32}$/.test(name)) {
+        const stat = await lstat(path).catch(() => undefined);
+        if (
+          stat?.isSymbolicLink() &&
+          (await readlink(path).catch(() => undefined)) === `.unframe/generations/${name.slice(6)}`
+        )
+          continue;
+      }
 
       const nestedNames = await readDirectoryNames(path);
       if (nestedNames) {
@@ -131,5 +143,26 @@ export const discoverPresentationProjectFiles = async (
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  return { ok: true, projectDirectory: root, entryFile, lockBytes: lock.slice(), ...snapshot };
+  const inputs = [
+    { path: "unframe.config.ts", bytes: config },
+    { path: "unframe.lock", bytes: lock },
+    ...snapshot.localFiles,
+  ].sort((a, b) => compareCodeUnits(a.path, b.path));
+  const revision =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        JSON.stringify(
+          inputs.map(({ path, bytes }) => [path, createHash("sha256").update(bytes).digest("hex")]),
+        ),
+      )
+      .digest("hex");
+  return {
+    ok: true,
+    projectDirectory: root,
+    entryFile,
+    revision,
+    lockBytes: lock.slice(),
+    ...snapshot,
+  };
 };

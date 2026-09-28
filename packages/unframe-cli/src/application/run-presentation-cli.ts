@@ -53,9 +53,7 @@ const fixedContext = Object.freeze({
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  webRendererConfig: Object.freeze({
-    documentBackground: [0, 0, 0, 255] as const,
-  }),
+  webRendererConfig: Object.freeze({}),
 });
 const limits = Object.freeze({
   maxWidth: 4096,
@@ -396,7 +394,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     entryFile: discovered.entryFile,
     files: discovered.files,
     rawFiles: discovered.localFiles
-      .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
+      .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
       .map(({ path, bytes }) => lockedFile(path, bytes)),
     ...lock.value.virtualSource,
   });
@@ -515,6 +513,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       const published = await publishAtomicArtifacts({
         projectDirectory: discovered.projectDirectory,
         artifacts: artifacts(compiled.value),
+        isCurrentRevision: async () => {
+          const current = await discoverPresentationProjectFiles(discovered.projectDirectory);
+          return current.ok && current.revision === discovered.revision;
+        },
         ...(host.signal ? { signal: host.signal } : {}),
       });
       if (!published.ok)
@@ -524,7 +526,9 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
             published.code,
             published.family === "cancel"
               ? "Build was cancelled."
-              : "Build artifacts could not be published.",
+              : published.code === "cli-output-stale"
+                ? "Project inputs changed during build. Rebuild the current revision."
+                : "Build artifacts could not be published.",
           ),
         ]);
       return output(0, command, format, [], compiled.value.warnings);

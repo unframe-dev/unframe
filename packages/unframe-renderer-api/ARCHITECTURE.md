@@ -22,7 +22,7 @@ conformance harnessの責務に残す。
 - supported Surface Render Intent と capability declaration
 - structured Primitive graph / opaque renderer entry の入力 contract
 - renderer build context
-- raw RGBA capture、Hit Region、resolved geometry の出力 contract
+- raw RGBA capture、resolved geometry の出力 contract
 - deterministic output metadata と provenance
 - stable diagnostic code
 - renderer fixture と conformance harness
@@ -53,9 +53,9 @@ conformance harness も、identity / capabilities / method reference を一度�
 prepared input だけを `support` / `build` へ渡す。Concrete renderer が同じ境界を直接利用する場合も、
 返された prepared input を以後の唯一の入力とする。
 
-現行出力はencode前のRGBA capture、Surface Stateごとのpartition-local `RendererPrivateHitRegion`、resolved geometry、diagnostics、provenanceとする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。RendererはPresentationDefinitionの意味を書き換えず、Asset ID、portable `HitRegion`、最終RenderBundle bindingも決定しない。
+現行出力は encode 前の RGBA capture、resolved geometry、diagnostics、provenance とする。Raw bytesの所有権はbuild resultとともにcallerへ移り、Rendererは返却後にbufferを変更しない。RendererはPresentationDefinitionの意味を書き換えず、Asset ID、portable `HitRegion`、最終RenderBundle bindingも決定しない。
 
-Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つのplanだけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求し、Hit Region を宣言済み意味へ対応付ける。Opaque の capture 実装は未接続である。renderer outputのregionはpartition-private geometryであり、Compiler aggregate stageが再clipせずSemantic Surface normalized regionへ変換・結合する。APIは別partitionを探索、merge、reorderしない。
+Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md) で確定した一つのplanだけを処理する。Structured plan の `ownership` は exactly-once ownership の `ownedContentNodeIds` と複製可能な `contextNodeIds` を分離する。Opaque plan は `ownership.bindingKeys` が Surface 全体の `content.bindings` と一致することを要求し、Hit Region を宣言済み意味へ対応付ける。Opaque の capture 実装は未接続である。Structured の Hit Region は Compiler が Surface 全体の layout から解決し、partition の描画 bounds で切り取らない。Opaque は capture 接続時に binding DOM から Surface 単位の geometry を取得する。APIは別partitionを探索、merge、reorderしない。
 
 ## 4. Invariants
 
@@ -65,7 +65,7 @@ Surface PartitionのauthorityはCompilerにあり、Renderer APIは [ADR-0011](.
 - `support` 判定と `build` 結果が同じ capability contract に従う。
 - 検証した input / plugin と実行する input / plugin を同じ prepared snapshot に固定する。
 - plan、Surface、完成 Semantic Tree の state 集合が完全一致する。
-- Hit Region は state で有効な interaction と、それを参照する Semantic Node に結び付く。partition 間の completeness は Compiler aggregate 後に検証する。
+- Hit Region は Renderer の出力に含めず、Compiler / Core が Surface 全体の completeness を検証する。
 - renderer output から Semantic Tree の意味を推測しない。
 - RenderSurfaceId は build-local であり、canonical progression contract へ漏らさない。
 - deterministic と宣言する plugin は同じ明示入力から同じ raw bytes、geometry、metadata を生成する。
@@ -108,19 +108,19 @@ Conformance harness は renderer implementation の process topology を固定�
 
 ## 9. Current implementation
 
-現在はCompilerが一つのv2 Semantic Surface全体を一つのRender Surface planへlowerし、`static | finite-state` / `interaction: none | regions` / `internalAnimation: none` / `baked-web` / `reject`のabsolute root Frameと任意深度のabsolute Frame / literal Text treeへ渡すsubsetを実装する。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。
+現在は Compiler が v2 Semantic Surface を自動 partition し、各 Render Surface plan を個別に Renderer へ渡す。対応範囲は `static | finite-state` / `interaction: none | regions` / `internalAnimation: none` / `baked-web` / `reject` の absolute Frame / literal Text tree である。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。
 
-現行Rendererはstateごとの未encode RGBA captureとpartition-local `RendererPrivateHitRegion`を返す。Compiler aggregateがportable `HitRegion`へ変換する。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
+現行 Renderer は capture State の未 encode RGBA を返し、empty State の capture は生成しない。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
 `unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler cache 自体は未実装であり、cache keyへの結合とintegration testは後続である。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 
 Theme、Props、Slots、Variants、Parts の宣言はRenderer入力に含めずCompilerがconcrete treeへ解決する。State別のFrame / Text visual overrideは受理し、Stack / Gridと他Primitiveは受理しない。
 
-共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、Hit Region の有効性と completeness、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
+共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
 
 `prepareRendererBuildInput` は現行 contract の Surface、Frame / Text、State、Semantic Tree、
 Render Surface plan、build context の shape を `src/validation/schemas.ts` の Zod schema で検査し、
 参照関係だけを API 固有の invariant として検査する。Plugin capability、support decision、build result、
-diagnostic、capture、Hit Region も同じく Zod schema を通す。各 schema の前段では dense own-data snapshot を
+diagnostic、capture も同じく Zod schema を通す。各 schema の前段では dense own-data snapshot を
 作るため、accessor、Proxy、sparse array、extra array property は value read 前に拒否する。plugin method は固定 receiver から呼び出す。境界通過後の renderer が
 prepared input を変更した場合は `executeRendererPlugin` / conformance harness が diagnostic にする。
