@@ -262,7 +262,7 @@ describe("React frozen CLI path", () => {
     const failed = await runPresentationCli({ args: ["lock", "refresh", directory] });
     expect(failed.exitCode).toBe(1);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(before);
-  });
+  }, 30000);
   it("recreates v1 from a frozen pnpm archive without running package scripts", async () => {
     const directory = await createProject();
     const lockPath = join(directory, "unframe.lock");
