@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectSnapshot } from "../../../../../packages/unframe-cli/src/author/contract";
@@ -76,6 +76,87 @@ describe("Author inspector", () => {
 });
 
 describe("Author preview", () => {
+  it("continues polling when cancellation returns a running job", async () => {
+    const api = apiFor(snapshot());
+    const running = {
+      buildId: "b1",
+      revision: "r1",
+      status: "running" as const,
+      diagnostics: [],
+      artifacts: [],
+    };
+    vi.mocked(api.build).mockResolvedValue(running);
+    vi.mocked(api.cancel).mockResolvedValue(running);
+    vi.mocked(api.job).mockResolvedValue({ ...running, status: "cancelled" });
+    const user = userEvent.setup();
+    render(<AuthorApp api={api} />);
+    await screen.findByRole("button", { name: "alpha" });
+    await user.click(screen.getByRole("button", { name: "Preview を生成" }));
+    await screen.findByText(/build: running/);
+    await user.click(screen.getByRole("button", { name: "中止" }));
+    await screen.findByText(/build: cancelled/);
+    expect(screen.getByRole("button", { name: "Preview を生成" })).toBeEnabled();
+  });
+
+  it("keeps the terminal status when an older cancellation response arrives", async () => {
+    const api = apiFor(snapshot());
+    const running = {
+      buildId: "b1",
+      revision: "r1",
+      status: "running" as const,
+      diagnostics: [],
+      artifacts: [],
+    };
+    let finishCancel!: (job: Awaited<ReturnType<AuthorApi["cancel"]>>) => void;
+    vi.mocked(api.build).mockResolvedValue(running);
+    vi.mocked(api.cancel).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishCancel = resolve;
+        }),
+    );
+    vi.mocked(api.job).mockResolvedValue({ ...running, status: "cancelled" });
+    const user = userEvent.setup();
+    render(<AuthorApp api={api} />);
+    await screen.findByRole("button", { name: "alpha" });
+    await user.click(screen.getByRole("button", { name: "Preview を生成" }));
+    await screen.findByText(/build: running/);
+    await user.click(screen.getByRole("button", { name: "中止" }));
+    await screen.findByText(/build: cancelled/);
+    await act(async () => {
+      finishCancel(running);
+    });
+    expect(screen.getByText(/build: cancelled/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview を生成" })).toBeEnabled();
+  });
+
+  it("accepts only one build request while the first response is pending", async () => {
+    const api = apiFor(snapshot());
+    let resolveBuild!: (job: Awaited<ReturnType<AuthorApi["build"]>>) => void;
+    vi.mocked(api.build).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveBuild = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<AuthorApp api={api} />);
+    await screen.findByRole("button", { name: "alpha" });
+    const button = screen.getByRole("button", { name: "Preview を生成" });
+    await user.click(button);
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(api.build).toHaveBeenCalledTimes(1);
+    resolveBuild({
+      buildId: "b1",
+      revision: "r1",
+      status: "succeeded",
+      diagnostics: [],
+      artifacts: [],
+    });
+    await waitFor(() => expect(button).toBeEnabled());
+  });
+
   it("keeps the last successful PNG when a later build fails", async () => {
     const initial = snapshot();
     let current = initial;

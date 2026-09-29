@@ -24,11 +24,13 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
   const [draft, setDraft] = useState<AuthorInstance | null>(null);
   const [preview, setPreview] = useState<Record<string, Preview>>({});
   const [job, setJob] = useState<BuildJob | null>(null);
+  const [buildStarting, setBuildStarting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const previewRef = useRef(preview);
   const generation = useRef(0);
+  const buildRequestInFlight = useRef(false);
   const mounted = useRef(true);
   const note = useCallback(
     (message: string) => setMessages((old) => [message, ...old].slice(0, 8)),
@@ -57,10 +59,16 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
   }, [selected]);
 
   async function runBuild(revision: string) {
+    if (buildRequestInFlight.current) return;
+    buildRequestInFlight.current = true;
+    setBuildStarting(true);
     const serial = ++generation.current;
     let generated: Preview[] = [];
     try {
-      const started = await api.build(revision, newId());
+      const started = await api.build(revision, newId()).finally(() => {
+        buildRequestInFlight.current = false;
+        if (mounted.current) setBuildStarting(false);
+      });
       if (!mounted.current || serial !== generation.current) return;
       setJob(started);
       let current = started;
@@ -189,9 +197,8 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
   }
   async function cancel() {
     if (!job || terminal(job.status)) return;
-    generation.current++;
     try {
-      setJob(await api.cancel(job.buildId));
+      await api.cancel(job.buildId);
       note("build を中止しました");
     } catch (error) {
       note(`中止失敗: ${errorText(error)}`);
@@ -208,7 +215,11 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
         </button>
         <button
           disabled={
-            busy || !!pendingSave || !project?.irHash || (job !== null && !terminal(job.status))
+            busy ||
+            buildStarting ||
+            !!pendingSave ||
+            !project?.irHash ||
+            (job !== null && !terminal(job.status))
           }
           onClick={() => project && void runBuild(project.revision)}
         >
