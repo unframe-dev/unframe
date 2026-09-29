@@ -222,7 +222,10 @@ const readPublishedArtifacts = async (directory: string, instanceIds: readonly s
 
 export const createAuthorService = async (
   directory: string,
-  options: { run?: (input: RunPresentationCliInput) => ReturnType<typeof runPresentationCli> } = {},
+  options: {
+    run?: (input: RunPresentationCliInput) => ReturnType<typeof runPresentationCli>;
+    readPublishedArtifacts?: typeof readPublishedArtifacts;
+  } = {},
 ): Promise<AuthorService> => {
   await prepareAuthorStorage(directory);
   const initial = await acquireSourceLock(directory, { allowRecovery: true });
@@ -237,6 +240,7 @@ export const createAuthorService = async (
     await initial.value.release();
   }
   const run = options.run ?? runPresentationCli;
+  const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
   const jobs = new Map<
     string,
     {
@@ -439,14 +443,22 @@ export const createAuthorService = async (
               const latest = await withSource(
                 async () => (await readState(directory)).snapshot.revision,
               );
+              if (controller.signal.aborted) {
+                job.status = "cancelled";
+                return;
+              }
               if (latest !== revision) {
                 job.status = "stale";
                 return;
               }
-              const published = await readPublishedArtifacts(
+              const published = await readPublished(
                 directory,
                 current.snapshot.instances.map(({ instanceId }) => instanceId),
               );
+              if (controller.signal.aborted) {
+                job.status = "cancelled";
+                return;
+              }
               job.artifacts = published.catalog;
               record.assets = published.assets;
               job.status = "succeeded";

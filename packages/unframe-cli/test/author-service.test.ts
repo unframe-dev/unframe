@@ -220,4 +220,37 @@ describe("author service with frozen React source", () => {
     first.bytes[0] = 0;
     expect((await service.artifact(job.buildId, assetId)).bytes).toEqual(bytes);
   }, 30000);
+
+  it("keeps a build cancelled when publication finishes after cancellation", async () => {
+    const directory = await createProject();
+    let publicationStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      publicationStarted = resolve;
+    });
+    let finishPublication!: () => void;
+    const finish = new Promise<void>((resolve) => {
+      finishPublication = resolve;
+    });
+    const service = await createAuthorService(directory, {
+      run: async () => ({ exitCode: 0 as const, stdout: "", stderr: "" }),
+      readPublishedArtifacts: async () => {
+        publicationStarted();
+        await finish;
+        return {
+          catalog: [{ assetId: "image", mediaType: "image/png", instanceId: "hero-one" }],
+          assets: new Map([["image", { bytes: new Uint8Array([1]), mediaType: "image/png" }]]),
+        };
+      },
+    });
+    services.push(service);
+    const snapshot = await service.project();
+    const created = await service.build(snapshot.revision, commandId("e"));
+    await started;
+    await service.cancel(created.buildId);
+    finishPublication();
+    await service.close();
+    expect((await service.job(created.buildId)).status).toBe("cancelled");
+    expect((await service.job(created.buildId)).artifacts).toEqual([]);
+    await expect(service.artifact(created.buildId, "image")).rejects.toMatchObject({ status: 404 });
+  }, 30000);
 });
