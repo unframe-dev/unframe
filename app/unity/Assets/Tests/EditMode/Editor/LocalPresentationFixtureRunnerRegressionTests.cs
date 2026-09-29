@@ -1,0 +1,142 @@
+using Google.Protobuf;
+using NUnit.Framework;
+using Unframe.Delivery.V2;
+using Unframe.Presentation.V2;
+using Unframe.Realtime.V2;
+using Unframe.Unity.PresentationRuntime;
+using UnityEngine;
+
+public sealed class LocalPresentationFixtureRunnerRegressionTests
+{
+    [Test]
+    public void SurfaceRefreshPreservesNodeOpacityAndVisibility()
+    {
+        GameObject host = new GameObject("fixture-runner");
+        TextAsset snapshotFixture = null;
+        TextAsset eventFixture = null;
+        try
+        {
+            LocalPresentationFixtureRunner runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(
+                Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text,
+                out DeliveryManifest delivery,
+                out string error), Is.True, error);
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(
+                Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text,
+                out ControlServerItem snapshot,
+                out error), Is.True, error);
+
+            foreach (NodeRuntimeState state in snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates)
+            {
+                if (state.NodeId == "node:text-greeting")
+                {
+                    state.Visible = false;
+                    state.Opacity = 0.5;
+                }
+            }
+
+            snapshotFixture = new TextAsset(JsonFormatter.Default.Format(snapshot));
+            eventFixture = new TextAsset(JsonFormatter.Default.Format(new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = 1,
+                    EventId = "event:surface-refresh",
+                    Fence = CreateFence(delivery),
+                    SurfaceStateChanged = new SurfaceStateChanged
+                    {
+                        SurfaceId = "surface:text-greeting",
+                        StateId = "state:text-greeting",
+                    },
+                },
+            }));
+            runner.SetSnapshotFixture(snapshotFixture);
+            runner.SetReliableEventFixtures(new[] { eventFixture });
+
+            Assert.That(runner.TryLoad(out error), Is.True, error);
+            Assert.That(runner.TryAdvance(out error), Is.True, error);
+            Assert.That(runner.Hierarchy.Registry.TryGet("node:text-greeting", out GameObject node), Is.True);
+            Renderer renderer = node.GetComponentInChildren<TextMesh>(true).GetComponent<Renderer>();
+            Assert.That(renderer.enabled, Is.False);
+            Assert.That(GetAlpha(renderer), Is.EqualTo(0.5f).Within(0.001f));
+        }
+        finally
+        {
+            Object.DestroyImmediate(host);
+            Object.DestroyImmediate(snapshotFixture);
+            Object.DestroyImmediate(eventFixture);
+        }
+    }
+
+    [Test]
+    public void FailedTimelineStartDoesNotConsumeReliableSequence()
+    {
+        GameObject host = new GameObject("fixture-runner");
+        PresentationAnimationPresetLibrary library = null;
+        TextAsset deliveryFixture = null;
+        TextAsset eventFixture = null;
+        try
+        {
+            LocalPresentationFixtureRunner runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(
+                Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text,
+                out DeliveryManifest delivery,
+                out string error), Is.True, error);
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(
+                Resources.Load<TextAsset>("PresentationFixtures/Control/01-opening-greeting-in").text,
+                out ControlServerItem firstEvent,
+                out error), Is.True, error);
+
+            const string presetId = "preset:missing";
+            foreach (Unframe.Presentation.V2.ProjectedTimelineDefinition timeline in delivery.ProjectionProfile.RuntimeCatalog.Timelines)
+            {
+                if (timeline.TimelineId == firstEvent.ReliableEvent.TimelineStarted.TimelineId)
+                {
+                    timeline.TimelineId = presetId;
+                    break;
+                }
+            }
+
+            firstEvent.ReliableEvent.TimelineStarted.TimelineId = presetId;
+            deliveryFixture = new TextAsset(JsonFormatter.Default.Format(delivery));
+            eventFixture = new TextAsset(JsonFormatter.Default.Format(firstEvent));
+            library = ScriptableObject.CreateInstance<PresentationAnimationPresetLibrary>();
+            runner.SetDeliveryFixture(deliveryFixture);
+            runner.SetReliableEventFixtures(new[] { eventFixture });
+            runner.SetAnimationPresetLibrary(library);
+
+            Assert.That(runner.TryLoad(out error), Is.True, error);
+            Assert.That(runner.TryAdvance(out error), Is.False);
+            Assert.That(error, Does.Contain("not registered"));
+            Assert.That(runner.Store.LastReliableSequence, Is.EqualTo(0));
+
+            runner.SetAnimationPresetLibrary(null);
+            Assert.That(runner.TryAdvance(out error), Is.True, error);
+            Assert.That(runner.AppliedEventCount, Is.EqualTo(1));
+        }
+        finally
+        {
+            Object.DestroyImmediate(host);
+            Object.DestroyImmediate(library);
+            Object.DestroyImmediate(deliveryFixture);
+            Object.DestroyImmediate(eventFixture);
+        }
+    }
+
+    private static RuntimeProjectionFence CreateFence(DeliveryManifest delivery)
+    {
+        return new RuntimeProjectionFence
+        {
+            SessionId = delivery.SessionId,
+            Publication = delivery.Publication.Clone(),
+            AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
+            ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
+        };
+    }
+
+    private static float GetAlpha(Renderer renderer)
+    {
+        Material material = renderer.sharedMaterial;
+        return material.GetColor(material.HasProperty("_BaseColor") ? "_BaseColor" : "_Color").a;
+    }
+}

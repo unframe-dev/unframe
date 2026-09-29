@@ -32,15 +32,43 @@ namespace Unframe.Unity.PresentationRuntime
 
         public int ActiveCount { get { return active.Count; } }
 
+        public bool CanStart(ProjectedTimelineDefinition timeline, PresentationNodeHierarchy hierarchy, out string error)
+        {
+            return TryPrepare(timeline, hierarchy, 0d, out _, out error);
+        }
+
         public bool TryStart(ProjectedTimelineDefinition timeline, PresentationNodeHierarchy hierarchy, double startedAtSeconds, out string error)
         {
+            if (!TryPrepare(timeline, hierarchy, startedAtSeconds, out ActiveTimeline next, out error))
+            {
+                return false;
+            }
+
+            Stop(timeline.TimelineId);
+            if (next.IsPresetFadeIn || next.IsPresetFadeOut)
+            {
+                foreach (GameObject target in next.PresetTargets)
+                {
+                    SetTargetVisible(target, true);
+                }
+            }
+
+            active.Add(next);
+            Evaluate(next, 0);
+            error = null;
+            return true;
+        }
+
+        private static bool TryPrepare(ProjectedTimelineDefinition timeline, PresentationNodeHierarchy hierarchy, double startedAtSeconds, out ActiveTimeline next, out string error)
+        {
+            next = null;
             if (timeline == null || String.IsNullOrEmpty(timeline.TimelineId) || timeline.DurationMs == 0 || hierarchy == null || hierarchy.Registry == null)
             {
                 error = "timeline definition or generated hierarchy is missing.";
                 return false;
             }
 
-            ActiveTimeline next = new ActiveTimeline
+            next = new ActiveTimeline
             {
                 TimelineId = timeline.TimelineId,
                 DurationMs = timeline.DurationMs,
@@ -64,17 +92,6 @@ namespace Unframe.Unity.PresentationRuntime
                 }
             }
 
-            Stop(timeline.TimelineId);
-            if (next.IsPresetFadeIn || next.IsPresetFadeOut)
-            {
-                foreach (GameObject target in next.PresetTargets)
-                {
-                    SetTargetVisible(target, true);
-                }
-            }
-
-            active.Add(next);
-            Evaluate(next, 0);
             error = null;
             return true;
         }

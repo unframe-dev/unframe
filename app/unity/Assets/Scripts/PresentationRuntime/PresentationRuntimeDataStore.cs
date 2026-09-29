@@ -50,12 +50,13 @@ namespace Unframe.Unity.PresentationRuntime
 
         public bool TryReceiveDelivery(DeliveryManifest manifest, out string error)
         {
-            if (!TryBuildDeliveryIndexes(manifest, out DeliveryIndexes indexes, out error))
+            DeliveryManifest snapshot = manifest == null ? null : manifest.Clone();
+            if (!TryBuildDeliveryIndexes(snapshot, out DeliveryIndexes indexes, out error))
             {
                 return false;
             }
 
-            Delivery = manifest;
+            Delivery = snapshot;
             Replace(nodes, indexes.Nodes);
             Replace(surfaces, indexes.Surfaces);
             Replace(assets, indexes.Assets);
@@ -195,7 +196,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!TrySetNodeState(reliableEvent.NodeStateCommitted.State, out error)) return false;
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.SurfaceStateChanged:
-                    if (!surfaces.ContainsKey(reliableEvent.SurfaceStateChanged.SurfaceId)) { error = "realtime.event references an unknown surface."; return false; }
+                    if (!IsStateReachable(reliableEvent.SurfaceStateChanged.SurfaceId, reliableEvent.SurfaceStateChanged.StateId)) { error = "realtime.event references an unknown surface state."; return false; }
                     surfaceStates[reliableEvent.SurfaceStateChanged.SurfaceId] = new SurfaceRuntimeState { SurfaceId = reliableEvent.SurfaceStateChanged.SurfaceId, StateId = reliableEvent.SurfaceStateChanged.StateId };
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.VariableChanged:
@@ -209,7 +210,7 @@ namespace Unframe.Unity.PresentationRuntime
                         : reliableEvent.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.TimelineCompleted
                             ? reliableEvent.TimelineCompleted.TimelineId
                             : reliableEvent.TimelineCanceled.TimelineId;
-                    if (!timelines.ContainsKey(timelineId)) { error = "realtime.event references an unknown timeline."; return false; }
+                    if (!IsId(timelineId) || !timelines.ContainsKey(timelineId)) { error = "realtime.event references an unknown timeline."; return false; }
                     break;
             }
 
@@ -232,11 +233,12 @@ namespace Unframe.Unity.PresentationRuntime
                 return true;
             }
 
+            Dictionary<string, NodeRuntimeState> updates = new Dictionary<string, NodeRuntimeState>();
             foreach (ElementStatePatch patch in frame.Elements)
             {
-                if (patch == null || patch.Node == null || !nodeStates.TryGetValue(patch.ElementId, out NodeRuntimeState current))
+                if (patch == null || patch.Node == null || !IsId(patch.ElementId) || !nodeStates.TryGetValue(patch.ElementId, out NodeRuntimeState current) || updates.ContainsKey(patch.ElementId))
                 {
-                    error = "realtime.state_frame references a node without a base state.";
+                    error = "realtime.state_frame references an unknown node, a node without a base state, or a duplicate patch.";
                     return false;
                 }
 
@@ -245,8 +247,13 @@ namespace Unframe.Unity.PresentationRuntime
                 if (source.HasActive) updated.Active = source.Active;
                 if (source.HasVisible) updated.Visible = source.Visible;
                 if (source.HasOpacity) updated.Opacity = source.Opacity;
-                if (source.Transform != null) updated.Transform = source.Transform;
-                nodeStates[patch.ElementId] = updated;
+                if (source.Transform != null) updated.Transform = source.Transform.Clone();
+                updates.Add(patch.ElementId, updated);
+            }
+
+            foreach (KeyValuePair<string, NodeRuntimeState> update in updates)
+            {
+                nodeStates[update.Key] = update.Value;
             }
 
             LastStateFrameSequence = frame.FrameSequence;
@@ -260,37 +267,56 @@ namespace Unframe.Unity.PresentationRuntime
             Dictionary<string, SurfaceRuntimeState> nextSurfaces = new Dictionary<string, SurfaceRuntimeState>();
             Dictionary<string, VariableState> nextVariables = new Dictionary<string, VariableState>();
             Dictionary<string, ModelClipRuntimeState> nextModelClips = new Dictionary<string, ModelClipRuntimeState>();
-            foreach (NodeRuntimeState state in incomingNodes) if (!TryAddState(nextNodes, state == null ? null : state.NodeId, state, nodes, out error)) return false;
-            foreach (SurfaceRuntimeState state in incomingSurfaces) if (!TryAddState(nextSurfaces, state == null ? null : state.SurfaceId, state, surfaces, out error)) return false;
-            foreach (VariableState state in incomingVariables) if (!TryAddState(nextVariables, state == null ? null : state.VariableId, state, variables, out error)) return false;
-            foreach (ModelClipRuntimeState state in incomingModelClips) if (!TryAddState(nextModelClips, state == null ? null : state.ModelNodeId, state, nodes, out error)) return false;
-            Replace(nodeStates, nextNodes); Replace(surfaceStates, nextSurfaces); Replace(variableStates, nextVariables); Replace(modelClipStates, nextModelClips);
+            foreach (NodeRuntimeState state in incomingNodes)
+            {
+                if (!TryAddState(nextNodes, state == null ? null : state.NodeId, state == null ? null : state.Clone(), nodes, out error)) return false;
+            }
+
+            foreach (SurfaceRuntimeState state in incomingSurfaces)
+            {
+                if (!TryAddState(nextSurfaces, state == null ? null : state.SurfaceId, state == null ? null : state.Clone(), surfaces, out error)) return false;
+            }
+
+            foreach (VariableState state in incomingVariables)
+            {
+                if (!TryAddState(nextVariables, state == null ? null : state.VariableId, state == null ? null : state.Clone(), variables, out error)) return false;
+            }
+
+            foreach (ModelClipRuntimeState state in incomingModelClips)
+            {
+                if (!TryAddState(nextModelClips, state == null ? null : state.ModelNodeId, state == null ? null : state.Clone(), nodes, out error)) return false;
+            }
+
+            Replace(nodeStates, nextNodes);
+            Replace(surfaceStates, nextSurfaces);
+            Replace(variableStates, nextVariables);
+            Replace(modelClipStates, nextModelClips);
             error = null;
             return true;
         }
 
         private bool TrySetNodeState(NodeRuntimeState state, out string error)
         {
-            if (state == null || !nodes.ContainsKey(state.NodeId))
+            if (state == null || !IsId(state.NodeId) || !nodes.ContainsKey(state.NodeId))
             {
                 error = "realtime state id is missing or unknown.";
                 return false;
             }
 
-            nodeStates[state.NodeId] = state;
+            nodeStates[state.NodeId] = state.Clone();
             error = null;
             return true;
         }
 
         private bool TrySetVariableState(VariableState state, out string error)
         {
-            if (state == null || !variables.ContainsKey(state.VariableId))
+            if (state == null || !IsId(state.VariableId) || !variables.ContainsKey(state.VariableId))
             {
                 error = "realtime state id is missing or unknown.";
                 return false;
             }
 
-            variableStates[state.VariableId] = state;
+            variableStates[state.VariableId] = state.Clone();
             error = null;
             return true;
         }
@@ -298,6 +324,24 @@ namespace Unframe.Unity.PresentationRuntime
         private bool HasMatchingFence(RuntimeProjectionFence fence)
         {
             return fence != null && Delivery != null && fence.SessionId == Delivery.SessionId && fence.AssignmentEpoch == Delivery.ProjectionInstance.AssignmentEpoch && fence.ProjectionProfileId == Delivery.ProjectionProfile.ProjectionProfileId && fence.Publication != null && Delivery.Publication != null && fence.Publication.Equals(Delivery.Publication);
+        }
+
+        private bool IsStateReachable(string surfaceId, string stateId)
+        {
+            if (!IsId(surfaceId) || !IsId(stateId) || !surfaces.TryGetValue(surfaceId, out ProjectedSurfaceDefinition surface))
+            {
+                return false;
+            }
+
+            foreach (string reachableStateId in surface.ReachableStateIds)
+            {
+                if (reachableStateId == stateId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static bool TryBuildDeliveryIndexes(DeliveryManifest manifest, out DeliveryIndexes indexes, out string error)
@@ -320,32 +364,61 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (ProjectedNodeDefinition node in catalog.Nodes)
             {
                 if (!TryAdd(next.Nodes, node == null ? null : node.NodeId, node, "node", out error)) return false;
-                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.None || node.Parent == null || node.Parent.ParentCase == SpatialParent.ParentOneofCase.None) return Fail("delivery node is incomplete.", out error);
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.None || node.Parent == null || node.Parent.ParentCase == SpatialParent.ParentOneofCase.None)
+                {
+                    return Fail("delivery node is incomplete.", out error);
+                }
             }
-            foreach (ProjectedNodeDefinition node in catalog.Nodes) if (node.Parent.ParentCase == SpatialParent.ParentOneofCase.Node && !next.Nodes.ContainsKey(node.Parent.Node.NodeId)) return Fail("delivery node parent is absent.", out error);
+
+            foreach (ProjectedNodeDefinition node in catalog.Nodes)
+            {
+                if (node.Parent.ParentCase == SpatialParent.ParentOneofCase.Node
+                    && (!IsId(node.Parent.Node.NodeId) || !next.Nodes.ContainsKey(node.Parent.Node.NodeId)))
+                {
+                    return Fail("delivery node parent is absent.", out error);
+                }
+            }
+
             foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
             {
                 if (!TryAdd(next.Surfaces, surface == null ? null : surface.SurfaceId, surface, "surface", out error)) return false;
-                if (!next.Nodes.ContainsKey(surface.HostNodeId)) return Fail("delivery surface host node is absent.", out error);
+                if (!IsId(surface.HostNodeId) || !next.Nodes.ContainsKey(surface.HostNodeId))
+                {
+                    return Fail("delivery surface host node is absent.", out error);
+                }
             }
-            foreach (AssetAccessBinding asset in manifest.AssetAccess) if (!TryAdd(next.Assets, asset == null ? null : asset.AssetId, asset, "asset", out error)) return false;
+
+            foreach (AssetAccessBinding asset in manifest.AssetAccess)
+            {
+                if (!TryAdd(next.Assets, asset == null ? null : asset.AssetId, asset, "asset", out error)) return false;
+            }
+
             if (manifest.Residency.Models == null) return Fail("delivery model residency is required.", out error);
             foreach (ModelResidencyBinding model in manifest.Residency.Models.Models)
             {
                 if (!TryAdd(next.Models, model == null ? null : model.AssetId, model, "model", out error)) return false;
-                if (!next.Assets.ContainsKey(model.AssetId)) return Fail("delivery model asset is absent.", out error);
+                if (!IsId(model.AssetId) || !next.Assets.ContainsKey(model.AssetId))
+                {
+                    return Fail("delivery model asset is absent.", out error);
+                }
             }
+
             foreach (ProjectedTimelineDefinition timeline in catalog.Timelines)
             {
                 if (!TryAdd(next.Timelines, timeline == null ? null : timeline.TimelineId, timeline, "timeline", out error)) return false;
                 if (!TryValidateTimeline(timeline, next.Nodes, out error)) return false;
             }
-            foreach (ProjectedVariableDefinition variable in catalog.Variables) if (!TryAdd(next.Variables, variable == null ? null : variable.VariableId, variable, "variable", out error)) return false;
+
+            foreach (ProjectedVariableDefinition variable in catalog.Variables)
+            {
+                if (!TryAdd(next.Variables, variable == null ? null : variable.VariableId, variable, "variable", out error)) return false;
+            }
+
             foreach (ProjectedModelClipDefinition clip in catalog.ModelClips)
             {
                 if (clip == null || !IsId(clip.ModelNodeId) || !IsId(clip.ClipId) || next.ModelClips.ContainsKey(ModelClipKey(clip.ModelNodeId, clip.ClipId))) return Fail("delivery model clip id is missing or duplicated.", out error);
                 next.ModelClips.Add(ModelClipKey(clip.ModelNodeId, clip.ClipId), clip);
-                if (!next.Nodes.ContainsKey(clip.ModelNodeId) || !next.Assets.ContainsKey(clip.ModelAssetId)) return Fail("delivery model clip reference is absent.", out error);
+                if (!next.Nodes.ContainsKey(clip.ModelNodeId) || !IsId(clip.ModelAssetId) || !next.Assets.ContainsKey(clip.ModelAssetId)) return Fail("delivery model clip reference is absent.", out error);
             }
             indexes = next;
             error = null;
@@ -366,11 +439,25 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
+            HashSet<string> claimedProperties = new HashSet<string>();
             foreach (ProjectedTimelineTrack track in timeline.Tracks)
             {
-                if (track == null || track.Target == null || !knownNodes.ContainsKey(track.Target.NodeId) || track.Keyframes.Count == 0)
+                if (track == null || track.Target == null || !IsId(track.Target.NodeId) || !knownNodes.ContainsKey(track.Target.NodeId) || track.Keyframes.Count < 2)
                 {
                     error = "delivery timeline track is incomplete or references an unknown node.";
+                    return false;
+                }
+
+                string claim = track.Target.NodeId + "\n" + (int)track.Target.Property;
+                if (!claimedProperties.Add(claim))
+                {
+                    error = "delivery timeline tracks claim the same node property.";
+                    return false;
+                }
+
+                if (track.Keyframes[0].TimeMs != 0 || track.Keyframes[track.Keyframes.Count - 1].TimeMs != timeline.DurationMs)
+                {
+                    error = "delivery timeline track is missing its boundary keyframes.";
                     return false;
                 }
 
@@ -378,7 +465,12 @@ namespace Unframe.Unity.PresentationRuntime
                 for (int index = 0; index < track.Keyframes.Count; index++)
                 {
                     TimelineKeyframe keyframe = track.Keyframes[index];
-                    if (keyframe == null || keyframe.TimeMs > timeline.DurationMs || index > 0 && keyframe.TimeMs < previousTimeMs || !HasExpectedTimelineValue(track.Target.Property, keyframe))
+                    bool finalKeyframe = index == track.Keyframes.Count - 1;
+                    if (keyframe == null || keyframe.TimeMs > timeline.DurationMs
+                        || index > 0 && keyframe.TimeMs <= previousTimeMs
+                        || !HasExpectedTimelineValue(track.Target.Property, keyframe)
+                        || finalKeyframe == keyframe.HasEasingToNext
+                        || !finalKeyframe && !IsSupportedEasing(keyframe.EasingToNext))
                     {
                         error = "delivery timeline keyframe is invalid.";
                         return false;
@@ -425,14 +517,35 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static bool HasExpectedTimelineValue(TimelineProperty property, TimelineKeyframe keyframe)
         {
-            return property == TimelineProperty.Opacity && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Number
-                || (property == TimelineProperty.TransformPosition || property == TimelineProperty.TransformScale) && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Vector3
-                || property == TimelineProperty.TransformRotation && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Quaternion;
+            if (property == TimelineProperty.Opacity && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Number)
+            {
+                return IsFinite(keyframe.Number.Value);
+            }
+
+            if ((property == TimelineProperty.TransformPosition || property == TimelineProperty.TransformScale)
+                && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Vector3 && keyframe.Vector3.Value != null)
+            {
+                Vector3 value = keyframe.Vector3.Value;
+                return IsFinite(value.X) && IsFinite(value.Y) && IsFinite(value.Z);
+            }
+
+            if (property == TimelineProperty.TransformRotation
+                && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Quaternion && keyframe.Quaternion.Value != null)
+            {
+                Quaternion value = keyframe.Quaternion.Value;
+                return IsFinite(value.X) && IsFinite(value.Y) && IsFinite(value.Z) && IsFinite(value.W)
+                    && (value.X != 0 || value.Y != 0 || value.Z != 0 || value.W != 0);
+            }
+
+            return false;
         }
 
-        private static bool TryAddState<T>(Dictionary<string, T> target, string id, T value, Dictionary<string, ProjectedNodeDefinition> known, out string error) where T : class { return TryAddStateCore(target, id, value, known.ContainsKey(id), out error); }
-        private static bool TryAddState<T>(Dictionary<string, T> target, string id, T value, Dictionary<string, ProjectedSurfaceDefinition> known, out string error) where T : class { return TryAddStateCore(target, id, value, known.ContainsKey(id), out error); }
-        private static bool TryAddState<T>(Dictionary<string, T> target, string id, T value, Dictionary<string, ProjectedVariableDefinition> known, out string error) where T : class { return TryAddStateCore(target, id, value, known.ContainsKey(id), out error); }
+        private static bool IsFinite(double value) { return !Double.IsNaN(value) && !Double.IsInfinity(value); }
+        private static bool IsSupportedEasing(Easing easing) { return easing == Easing.Linear || easing == Easing.CubicIn || easing == Easing.CubicOut || easing == Easing.CubicInOut; }
+
+        private static bool TryAddState<T>(Dictionary<string, T> target, string id, T value, Dictionary<string, ProjectedNodeDefinition> known, out string error) where T : class { return TryAddStateCore(target, id, value, IsId(id) && known.ContainsKey(id), out error); }
+        private static bool TryAddState<T>(Dictionary<string, T> target, string id, T value, Dictionary<string, ProjectedSurfaceDefinition> known, out string error) where T : class { return TryAddStateCore(target, id, value, IsId(id) && known.ContainsKey(id), out error); }
+        private static bool TryAddState<T>(Dictionary<string, T> target, string id, T value, Dictionary<string, ProjectedVariableDefinition> known, out string error) where T : class { return TryAddStateCore(target, id, value, IsId(id) && known.ContainsKey(id), out error); }
         private static bool TryAddStateCore<T>(Dictionary<string, T> target, string id, T value, bool known, out string error) where T : class { if (!IsId(id) || value == null || !known || target.ContainsKey(id)) { error = "realtime state id is missing, duplicated, or unknown."; return false; } target.Add(id, value); error = null; return true; }
         private static bool IsId(string value) { if (String.IsNullOrEmpty(value) || value.Length > 128 || !IsAsciiAlphaNumeric(value[0])) return false; for (int i = 1; i < value.Length; i++) { char c = value[i]; if (!IsAsciiAlphaNumeric(c) && c != '.' && c != '_' && c != ':' && c != '/' && c != '-') return false; } return true; }
         private static bool IsAsciiAlphaNumeric(char value) { return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z' || value >= '0' && value <= '9'; }

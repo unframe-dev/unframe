@@ -90,6 +90,76 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(error, Does.Contain("timeline track"));
     }
 
+    [TestCase("single keyframe")]
+    [TestCase("missing start")]
+    [TestCase("missing end")]
+    [TestCase("repeated time")]
+    [TestCase("missing easing")]
+    [TestCase("final easing")]
+    [TestCase("unsupported easing")]
+    public void Delivery_RejectsTimelineTracksWithoutCompleteSegments(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        ProjectedTimelineTrack track = delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0];
+        switch (invalidCase)
+        {
+            case "single keyframe": track.Keyframes.RemoveAt(1); break;
+            case "missing start": track.Keyframes[0].TimeMs = 1; break;
+            case "missing end": track.Keyframes[1].TimeMs = 2; break;
+            case "repeated time": track.Keyframes[1].TimeMs = 0; break;
+            case "missing easing": track.Keyframes[0].ClearEasingToNext(); break;
+            case "final easing": track.Keyframes[1].EasingToNext = Easing.Linear; break;
+            case "unsupported easing": track.Keyframes[0].EasingToNext = Easing.Unspecified; break;
+        }
+
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False, invalidCase);
+        Assert.That(error, Does.Contain("timeline"), invalidCase);
+    }
+
+    [Test]
+    public void Delivery_RejectsDuplicateTimelineTargets()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        ProjectedTimelineDefinition timeline = delivery.ProjectionProfile.RuntimeCatalog.Timelines[0];
+        timeline.Tracks.Add(timeline.Tracks[0].Clone());
+
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False);
+        Assert.That(error, Does.Contain("timeline"));
+    }
+
+    [Test]
+    public void Delivery_RejectsNonFiniteTimelineValues()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0].Keyframes[1].Number.Value = double.NaN;
+
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False);
+        Assert.That(error, Does.Contain("timeline"));
+    }
+
+    [Test]
+    public void Delivery_RejectsNonFiniteVectorAndZeroQuaternionTimelineValues()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        ProjectedTimelineTrack track = delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0];
+        track.Target.Property = TimelineProperty.TransformPosition;
+        track.Keyframes[0].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = double.PositiveInfinity } };
+        track.Keyframes[1].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3() };
+
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False);
+        Assert.That(error, Does.Contain("timeline"));
+
+        track.Target.Property = TimelineProperty.TransformRotation;
+        track.Keyframes[0].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.V2.Quaternion() };
+        track.Keyframes[1].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.V2.Quaternion { W = 1 } };
+        Assert.That(store.TryReceiveDelivery(delivery, out error), Is.False);
+        Assert.That(error, Does.Contain("timeline"));
+    }
+
     [Test]
     public void NodeFactory_BuildsTheContractHierarchyWithoutLoadingAssets()
     {
@@ -473,7 +543,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Target = new TimelineTrackTarget { NodeId = "node:model", Property = TimelineProperty.TransformPosition },
             Keyframes =
             {
-                new TimelineKeyframe { TimeMs = 0, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = 0, Y = -1, Z = 0 } } },
+                new TimelineKeyframe { TimeMs = 0, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = 0, Y = -1, Z = 0 } }, EasingToNext = Easing.Linear },
                 new TimelineKeyframe { TimeMs = 1000, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = 0, Y = 0, Z = 0 } } },
             },
         });
@@ -482,7 +552,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Target = new TimelineTrackTarget { NodeId = "node:model", Property = TimelineProperty.Opacity },
             Keyframes =
             {
-                new TimelineKeyframe { TimeMs = 0, Number = new NumberKeyframeValue { Value = 0 } },
+                new TimelineKeyframe { TimeMs = 0, Number = new NumberKeyframeValue { Value = 0 }, EasingToNext = Easing.Linear },
                 new TimelineKeyframe { TimeMs = 1000, Number = new NumberKeyframeValue { Value = 1 } },
             },
         });
@@ -557,6 +627,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     {
         DeliveryManifest delivery = CreateDelivery();
         delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].TimelineId = PresentationAnimationPresetIds.FadeOutUp;
+        delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0].Keyframes[1].Number.Value = 1;
 
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False);
@@ -614,13 +685,17 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         ProjectedTimelineDefinition timeline = new ProjectedTimelineDefinition
         {
             TimelineId = "timeline:main",
-            DurationMs = 1,
+            DurationMs = 3,
             Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() },
         };
         timeline.Tracks.Add(new ProjectedTimelineTrack
         {
             Target = new TimelineTrackTarget { NodeId = "node:model", Property = TimelineProperty.Opacity },
-            Keyframes = { new TimelineKeyframe { TimeMs = 0, Number = new NumberKeyframeValue { Value = 1 } } },
+            Keyframes =
+            {
+                new TimelineKeyframe { TimeMs = 0, Number = new NumberKeyframeValue { Value = 1 }, EasingToNext = Easing.Linear },
+                new TimelineKeyframe { TimeMs = 3, Number = new NumberKeyframeValue { Value = 0 } },
+            },
         });
         catalog.Timelines.Add(timeline);
         catalog.Variables.Add(new ProjectedVariableDefinition { VariableId = "variable:title" });

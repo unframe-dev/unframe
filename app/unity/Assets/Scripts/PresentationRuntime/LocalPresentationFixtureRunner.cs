@@ -16,6 +16,7 @@ namespace Unframe.Unity.PresentationRuntime
         [SerializeField] private TextAsset[] reliableEventFixtures;
         [SerializeField] private Transform hierarchyRoot;
         [SerializeField] private PresentationAnimationPresetLibrary animationPresetLibrary;
+        [SerializeField] private bool startOnPlay;
 
         public PresentationRuntimeDataStore Store { get; } = new PresentationRuntimeDataStore();
         public PresentationNodeHierarchy Hierarchy { get; } = new PresentationNodeHierarchy();
@@ -28,6 +29,19 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationNodeStateApplier stateApplier = new PresentationNodeStateApplier();
         private readonly LocalPresentationPlaceholderRenderer placeholderRenderer = new LocalPresentationPlaceholderRenderer();
         private readonly PresentationTimelinePlayer timelinePlayer = new PresentationTimelinePlayer();
+
+        private void Start()
+        {
+            if (!startOnPlay)
+            {
+                return;
+            }
+
+            if (!TryLoad(out string error) || !TryAdvance(out error))
+            {
+                Debug.LogError("[Presentation] " + error, this);
+            }
+        }
 
         public void SetDeliveryFixture(TextAsset fixture)
         {
@@ -147,6 +161,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             if (!PresentationContractJsonFixtureLoader.TryParseControlItem(fixtures[AppliedEventCount].text, out ControlServerItem item, out error)
+                || !CanApplyTimelineEvent(item, out error)
                 || !Store.TryReceiveControl(item, out error))
             {
                 return false;
@@ -202,13 +217,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 case ProjectedReliableEvent.PayloadOneofCase.TimelineStarted:
                     string timelineId = reliableEvent.TimelineStarted.TimelineId;
-                    if (animationPresetLibrary != null && timelineId.StartsWith("preset:", StringComparison.Ordinal) && !animationPresetLibrary.Contains(timelineId))
-                    {
-                        error = "timeline preset id is not registered in the assigned library.";
-                        return false;
-                    }
-
-                    if (!Store.TryGetTimeline(timelineId, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline)
+                    if (!TryResolveTimeline(timelineId, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out error)
                         || !timelinePlayer.TryStart(timeline, Hierarchy, Time.realtimeSinceStartupAsDouble, out error))
                     {
                         return false;
@@ -229,6 +238,46 @@ namespace Unframe.Unity.PresentationRuntime
                 default:
                     return true;
             }
+        }
+
+        private bool CanApplyTimelineEvent(ControlServerItem item, out string error)
+        {
+            error = null;
+            if (item.ItemCase != ControlServerItem.ItemOneofCase.ReliableEvent
+                || item.ReliableEvent.PayloadCase != ProjectedReliableEvent.PayloadOneofCase.TimelineStarted)
+            {
+                return true;
+            }
+
+            return TryResolveTimeline(item.ReliableEvent.TimelineStarted.TimelineId,
+                    out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out error)
+                && timelinePlayer.CanStart(timeline, Hierarchy, out error);
+        }
+
+        private bool TryResolveTimeline(string timelineId, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out string error)
+        {
+            timeline = null;
+            if (String.IsNullOrEmpty(timelineId))
+            {
+                error = "timeline id is missing.";
+                return false;
+            }
+
+            if (animationPresetLibrary != null && timelineId.StartsWith("preset:", StringComparison.Ordinal)
+                && !animationPresetLibrary.Contains(timelineId))
+            {
+                error = "timeline preset id is not registered in the assigned library.";
+                return false;
+            }
+
+            if (!Store.TryGetTimeline(timelineId, out timeline))
+            {
+                error = "timeline definition is absent from the loaded Delivery.";
+                return false;
+            }
+
+            error = null;
+            return true;
         }
 
         private void Update()

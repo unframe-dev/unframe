@@ -11,6 +11,7 @@ public sealed class PresentationJsonImporter : MonoBehaviour
     private IAssetResolver assetResolver = new ResourcesAssetResolver();
     private IPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
     private IPresentationRuntimeLogger runtimeLogger = new UnityPresentationRuntimeLogger(false);
+    private Transform generatedRoot;
 
     public PresentationDocument Document { get; private set; }
     public ElementRuntimeRegistry Elements { get; } = new ElementRuntimeRegistry();
@@ -59,28 +60,47 @@ public sealed class PresentationJsonImporter : MonoBehaviour
             return null;
         }
 
+        Transform parent = importRoot != null ? importRoot : transform;
+        GameObject stagedRootObject = new GameObject("Presentation Import");
+        Transform stagedRoot = stagedRootObject.transform;
+        stagedRoot.SetParent(parent, false);
+        stagedRootObject.SetActive(false);
+        ElementRuntimeRegistry stagedElements = new ElementRuntimeRegistry();
+        try
+        {
+            ImportGroups(document.presentation, stagedRoot, stagedElements);
+        }
+        catch (Exception exception)
+        {
+            DestroyObject(stagedRootObject);
+            runtimeLogger.Error($"Presentation import failed: {exception.Message}");
+            return null;
+        }
+
+        DestroyObject(generatedRoot != null ? generatedRoot.gameObject : null);
+        generatedRoot = stagedRoot;
         Document = document;
-        Elements.Clear();
+        Elements.ReplaceWith(stagedElements);
+        stagedRootObject.SetActive(true);
         runtimeLogger.Info(
             $"Imported presentation '{document.presentation.id}' (schema {document.schemaVersion ?? "unknown"})."
         );
-        Transform root = importRoot != null ? importRoot : transform;
-        ImportGroups(document.presentation, root);
         Imported?.Invoke(document);
         return document;
     }
 
-    private void ImportGroups(PresentationData presentation, Transform root)
+    private void ImportGroups(PresentationData presentation, Transform root, ElementRuntimeRegistry elements)
     {
         if (presentation.groups == null)
         {
             return;
         }
 
+        bool hasActiveGroup = false;
         for (int i = 0; i < presentation.groups.Length; i++)
         {
             PresentationGroup group = presentation.groups[i];
-            if (group == null)
+            if (group == null || string.IsNullOrEmpty(group.id))
             {
                 continue;
             }
@@ -89,7 +109,8 @@ public sealed class PresentationJsonImporter : MonoBehaviour
                 string.IsNullOrEmpty(group.name) ? group.id : group.name
             );
             groupObject.transform.SetParent(root, false);
-            groupObject.SetActive(i == 0);
+            groupObject.SetActive(!hasActiveGroup);
+            hasActiveGroup = true;
 
             ImportedGroup importedGroup = groupObject.AddComponent<ImportedGroup>();
             importedGroup.GroupId = group.id;
@@ -99,15 +120,16 @@ public sealed class PresentationJsonImporter : MonoBehaviour
                 presentation,
                 assetResolver
             );
-            ImportElements(group.elements, context);
-            ImportDynamicGroups(group.dynamicGroups, groupObject.transform, presentation);
+            ImportElements(group.elements, context, elements);
+            ImportDynamicGroups(group.dynamicGroups, groupObject.transform, presentation, elements);
         }
     }
 
     private void ImportDynamicGroups(
         PresentationDynamicGroup[] dynamicGroups,
         Transform parent,
-        PresentationData presentation
+        PresentationData presentation,
+        ElementRuntimeRegistry elements
     )
     {
         if (dynamicGroups == null)
@@ -131,26 +153,52 @@ public sealed class PresentationJsonImporter : MonoBehaviour
 
             ImportElements(
                 dynamicGroup.elements,
-                new ElementLoadContext(dynamicObject.transform, presentation, assetResolver)
+                new ElementLoadContext(dynamicObject.transform, presentation, assetResolver),
+                elements
             );
         }
     }
 
-    private void ImportElements(PresentationElement[] elements, ElementLoadContext context)
+    private void ImportElements(PresentationElement[] source, ElementLoadContext context, ElementRuntimeRegistry elements)
     {
-        if (elements == null)
+        if (source == null)
         {
             return;
         }
 
-        foreach (PresentationElement element in elements)
+        foreach (PresentationElement element in source)
         {
             GameObject elementObject = registry.Load(element, context);
             if (elementObject == null)
             {
                 runtimeLogger.Error($"Element load failed: id={element?.id ?? "missing"}.");
             }
-            Elements.Register(elementObject);
+            elements.Register(elementObject);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        DestroyObject(generatedRoot != null ? generatedRoot.gameObject : null);
+        generatedRoot = null;
+        Elements.Clear();
+    }
+
+    private static void DestroyObject(GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        target.SetActive(false);
+        if (Application.isPlaying)
+        {
+            UnityEngine.Object.Destroy(target);
+        }
+        else
+        {
+            UnityEngine.Object.DestroyImmediate(target);
         }
     }
 }

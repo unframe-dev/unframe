@@ -58,8 +58,25 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
 
-            foreach (SurfacePlaceholder surface in surfaces.Values)
+            foreach (KeyValuePair<string, SurfacePlaceholder> entry in surfaces)
             {
+                SurfacePlaceholder surface = entry.Value;
+                bool visible = true;
+                float opacity = 1f;
+                Renderer previousRenderer = surface.TextObjects.Count > 0 && surface.TextObjects[0] != null
+                    ? surface.TextObjects[0].GetComponent<Renderer>()
+                    : null;
+                if (previousRenderer != null)
+                {
+                    visible = previousRenderer.enabled;
+                    opacity = GetRendererOpacity(previousRenderer);
+                }
+                else if (store.TryGetNodeState(entry.Key, out Unframe.Realtime.V2.NodeRuntimeState state))
+                {
+                    visible = state.Visible;
+                    opacity = (float)state.Opacity;
+                }
+
                 foreach (GameObject textObject in surface.TextObjects)
                 {
                     DestroyObject(textObject);
@@ -69,9 +86,25 @@ namespace Unframe.Unity.PresentationRuntime
                 int index = 0;
                 foreach (string text in ResolveLiteralText(store, surface.SemanticSurfaceId))
                 {
-                    surface.TextObjects.Add(CreateText(surface.Root, text, index++));
+                    GameObject textObject = CreateText(surface.Root, text, index++);
+                    textObject.GetComponent<Renderer>().enabled = visible;
+                    PresentationVisualOpacity.Apply(textObject, opacity);
+                    surface.TextObjects.Add(textObject);
                 }
             }
+        }
+
+        private static float GetRendererOpacity(Renderer renderer)
+        {
+            Material material = renderer.sharedMaterial;
+            if (material == null)
+            {
+                return 1f;
+            }
+
+            string property = material.HasProperty("_BaseColor") ? "_BaseColor"
+                : material.HasProperty("_Color") ? "_Color" : null;
+            return property == null ? 1f : material.GetColor(property).a;
         }
 
         public void Clear()
@@ -238,6 +271,12 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static void DestroyObject(GameObject target)
         {
+            if (target == null)
+            {
+                return;
+            }
+
+            target.SetActive(false);
             if (Application.isPlaying)
             {
                 UnityEngine.Object.Destroy(target);
