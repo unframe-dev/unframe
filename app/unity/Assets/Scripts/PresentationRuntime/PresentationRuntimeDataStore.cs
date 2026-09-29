@@ -252,7 +252,8 @@ namespace Unframe.Unity.PresentationRuntime
         private bool TryApplyStateFrame(ElementStateFrame frame, out string error)
         {
             if (Delivery == null || frame == null || frame.Kind == StateFrameKind.Unspecified || !HasMatchingFence(frame.Fence)
-                || frame.BaseReliableSequence != LastReliableSequence)
+                || frame.BaseReliableSequence != LastReliableSequence || frame.FrameSequence == 0
+                || frame.Kind != StateFrameKind.Keyframe && frame.Kind != StateFrameKind.Delta)
             {
                 error = "realtime.state_frame is missing, incompatible, or depends on unapplied reliable state.";
                 return false;
@@ -262,6 +263,18 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 error = null;
                 return true;
+            }
+
+            if (LastStateFrameSequence == 0 && frame.Kind != StateFrameKind.Keyframe)
+            {
+                error = "realtime.state_frame must begin with a keyframe.";
+                return false;
+            }
+
+            if (frame.Kind == StateFrameKind.Delta && frame.FrameSequence != LastStateFrameSequence + 1)
+            {
+                error = "realtime.state_frame delta sequence is not contiguous; request a new keyframe.";
+                return false;
             }
 
             Dictionary<string, NodeRuntimeState> updates = new Dictionary<string, NodeRuntimeState>();
@@ -274,6 +287,12 @@ namespace Unframe.Unity.PresentationRuntime
                 }
 
                 NodeStatePatch source = patch.Node;
+                if (!IsValidStatePatch(source))
+                {
+                    error = "realtime.state_frame contains an empty or invalid node state patch.";
+                    return false;
+                }
+
                 NodeRuntimeState updated = current.Clone();
                 if (source.HasActive) updated.Active = source.Active;
                 if (source.HasVisible) updated.Visible = source.Visible;
@@ -290,6 +309,38 @@ namespace Unframe.Unity.PresentationRuntime
             LastStateFrameSequence = frame.FrameSequence;
             error = null;
             return true;
+        }
+
+        private static bool IsValidStatePatch(NodeStatePatch patch)
+        {
+            if (patch == null || !patch.HasActive && !patch.HasVisible && !patch.HasOpacity && patch.Transform == null)
+            {
+                return false;
+            }
+
+            if (patch.HasOpacity && (!IsFinite(patch.Opacity) || patch.Opacity < 0 || patch.Opacity > 1))
+            {
+                return false;
+            }
+
+            if (patch.Transform == null)
+            {
+                return true;
+            }
+
+            Unframe.Presentation.V2.Transform transform = patch.Transform;
+            if (transform.Position == null || transform.Rotation == null || transform.Scale == null)
+            {
+                return false;
+            }
+
+            Unframe.Presentation.V2.Vector3 position = transform.Position;
+            Unframe.Presentation.V2.Quaternion rotation = transform.Rotation;
+            Unframe.Presentation.V2.Vector3 scale = transform.Scale;
+            return IsFinite(position.X) && IsFinite(position.Y) && IsFinite(position.Z)
+                && IsFinite(scale.X) && IsFinite(scale.Y) && IsFinite(scale.Z) && scale.X > 0 && scale.Y > 0 && scale.Z > 0
+                && IsFinite(rotation.X) && IsFinite(rotation.Y) && IsFinite(rotation.Z) && IsFinite(rotation.W)
+                && (rotation.X != 0 || rotation.Y != 0 || rotation.Z != 0 || rotation.W != 0);
         }
 
         private bool TryReplaceRuntimeState(IEnumerable<NodeRuntimeState> incomingNodes, IEnumerable<SurfaceRuntimeState> incomingSurfaces, IEnumerable<VariableState> incomingVariables, IEnumerable<ModelClipRuntimeState> incomingModelClips, out string error)

@@ -176,7 +176,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
     }
 
     [Test]
-    public void StateFrameWithCurrentReliableSequenceApplies()
+    public void InitialKeyframeWithCurrentReliableSequenceApplies()
     {
         PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
         Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
@@ -185,7 +185,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
             StateFrame = new ElementStateFrame
             {
                 Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
-                Kind = StateFrameKind.Delta,
+                Kind = StateFrameKind.Keyframe,
                 FrameSequence = 1,
                 BaseReliableSequence = 0,
                 Elements =

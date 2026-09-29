@@ -70,6 +70,90 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
+    public void StateFrame_RequiresAKeyframeBeforeDeltas()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        ElementStateFrame delta = CreateStateFrame(delivery, 1, StateFrameKind.Delta, new NodeStatePatch { Opacity = 0.5 });
+
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = delta }, out string error), Is.False);
+        Assert.That(error, Does.Contain("keyframe"));
+        Assert.That(store.LastStateFrameSequence, Is.Zero);
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState state), Is.True);
+        Assert.That(state.Opacity, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void StateFrame_RejectsDeltaGapsUntilANewKeyframeArrives()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+
+        Assert.That(store.TryReceiveState(new StateServerItem
+        {
+            StateFrame = CreateStateFrame(delivery, 7, StateFrameKind.Keyframe, new NodeStatePatch { Opacity = 0.75 }),
+        }, out string error), Is.True, error);
+
+        Assert.That(store.TryReceiveState(new StateServerItem
+        {
+            StateFrame = CreateStateFrame(delivery, 9, StateFrameKind.Delta, new NodeStatePatch { Opacity = 0.25 }),
+        }, out error), Is.False);
+        Assert.That(error, Does.Contain("contiguous"));
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(7));
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState afterGap), Is.True);
+        Assert.That(afterGap.Opacity, Is.EqualTo(0.75));
+
+        Assert.That(store.TryReceiveState(new StateServerItem
+        {
+            StateFrame = CreateStateFrame(delivery, 10, StateFrameKind.Keyframe, new NodeStatePatch { Opacity = 0.5 }),
+        }, out error), Is.True, error);
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(10));
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState recovered), Is.True);
+        Assert.That(recovered.Opacity, Is.EqualTo(0.5));
+    }
+
+    [TestCase("empty patch")]
+    [TestCase("NaN opacity")]
+    [TestCase("infinite opacity")]
+    [TestCase("negative opacity")]
+    [TestCase("opacity over one")]
+    [TestCase("missing transform position")]
+    [TestCase("non-finite position")]
+    [TestCase("zero scale")]
+    [TestCase("non-finite scale")]
+    [TestCase("zero quaternion")]
+    [TestCase("non-finite quaternion")]
+    public void StateFrame_RejectsInvalidPatches(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        NodeStatePatch patch = invalidCase == "empty patch"
+            ? new NodeStatePatch()
+            : new NodeStatePatch { Opacity = 0.5 };
+
+        switch (invalidCase)
+        {
+            case "NaN opacity": patch.Opacity = double.NaN; break;
+            case "infinite opacity": patch.Opacity = double.PositiveInfinity; break;
+            case "negative opacity": patch.Opacity = -0.01; break;
+            case "opacity over one": patch.Opacity = 1.01; break;
+            case "missing transform position": patch.Transform = new Unframe.Presentation.V2.Transform(); break;
+            case "non-finite position": patch.Transform = CreateValidTransform(); patch.Transform.Position.X = double.NaN; break;
+            case "zero scale": patch.Transform = CreateValidTransform(); patch.Transform.Scale.X = 0; break;
+            case "non-finite scale": patch.Transform = CreateValidTransform(); patch.Transform.Scale.Y = double.PositiveInfinity; break;
+            case "zero quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation = new Unframe.Presentation.V2.Quaternion(); break;
+            case "non-finite quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation.W = double.NaN; break;
+        }
+
+        ElementStateFrame frame = CreateStateFrame(delivery, 1, StateFrameKind.Keyframe, patch);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out string error), Is.False, invalidCase);
+        Assert.That(error, Does.Contain("patch"), invalidCase);
+        Assert.That(store.LastStateFrameSequence, Is.Zero, invalidCase);
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState state), Is.True);
+        Assert.That(state.Opacity, Is.EqualTo(1), invalidCase);
+    }
+
+    [Test]
     public void Delivery_RejectsDuplicateIds()
     {
         DeliveryManifest delivery = CreateDelivery();
@@ -769,6 +853,60 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact { ArtifactId = "artifact:main", ContractVersion = 1, RootNodeId = "ui:main", Nodes = { new NativeUiNode { Text = new NativeUiText { NodeId = "ui:main", Value = new NativeTextValue { Literal = new LiteralText { Value = "Main" } } } } } } } },
         });
         return delivery;
+    }
+
+    private static PresentationRuntimeDataStore CreateStoreWithNodeState(DeliveryManifest delivery)
+    {
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        ConnectionSnapshotEnvelope snapshot = new ConnectionSnapshotEnvelope
+        {
+            SchemaVersion = 2,
+            Fence = CreateFence(delivery),
+            ProjectionInstance = delivery.ProjectionInstance.Clone(),
+            Snapshot = new ProjectedRuntimeSnapshot
+            {
+                ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
+                AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
+                RuntimeView = new ParticipantRuntimeView
+                {
+                    ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
+                    AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
+                },
+            },
+        };
+        snapshot.Snapshot.RuntimeView.NodeStates.Add(new NodeRuntimeState
+        {
+            NodeId = "node:model",
+            Active = true,
+            Visible = true,
+            Opacity = 1,
+            Transform = CreateValidTransform(),
+        });
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out error), Is.True, error);
+        return store;
+    }
+
+    private static ElementStateFrame CreateStateFrame(DeliveryManifest delivery, ulong sequence, StateFrameKind kind, NodeStatePatch patch)
+    {
+        return new ElementStateFrame
+        {
+            Fence = CreateFence(delivery),
+            FrameSequence = sequence,
+            BaseReliableSequence = 0,
+            Kind = kind,
+            Elements = { new ElementStatePatch { ElementId = "node:model", Node = patch } },
+        };
+    }
+
+    private static Unframe.Presentation.V2.Transform CreateValidTransform()
+    {
+        return new Unframe.Presentation.V2.Transform
+        {
+            Position = new Unframe.Presentation.V2.Vector3(),
+            Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 },
+            Scale = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 },
+        };
     }
 
     private static ProjectedTimelineTrack FindTimelineTrack(ProjectedTimelineDefinition timeline, TimelineProperty property)
