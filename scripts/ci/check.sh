@@ -9,6 +9,7 @@ source "${DIR}/../lib/paths.sh"
 "${DIR}/control-plane.sh" check
 "${DIR}/presentation.sh" check
 "${DIR}/realtime.sh" check
+"${REPO_ROOT}/scripts/contracts/generate-unity-proto.sh" check
 "${DIR}/lp.sh" check
 "${DIR}/web.sh" check
 

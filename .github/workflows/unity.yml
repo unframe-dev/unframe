@@ -5,6 +5,7 @@ name: Unity CI (static)
 # Personal では実行不可能。本 workflow はライセンス不要な静的チェックのみ:
 #
 #   - csharp-format : dotnet format whitespace で Editor / ランタイム C# の整形チェック
+#   - protobuf      : shared contract からの C# generation / copied source drift check
 #   - powershell    : PSScriptAnalyzer で app/unity/scripts/*.ps1 を lint
 #   - meta-check    : Unity プロジェクト初期化後のみ実行する .meta 整合性チェック
 #
@@ -21,6 +22,18 @@ permissions:
   contents: read
 
 jobs:
+  protobuf-contract:
+    name: MR / protobuf-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # main
+
+      - name: Unity protobuf source and C# drift check
+        run: nix run .#unity-proto -- check
+
   csharp-format:
     name: MR / csharp-format
     runs-on: ubuntu-latest

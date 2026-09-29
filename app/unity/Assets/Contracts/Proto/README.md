@@ -1,16 +1,20 @@
-# Presentation Runtime v2 protobuf input
+# Presentation Runtime v2 protobuf inputs
 
-These files are copied unchanged from PR #93's `packages/contracts/proto/` tree.
-`Assets/Scripts/PresentationRuntime/Generated/` is generated from them with `protoc 34.1`:
+The source of truth is `packages/contracts/proto/`. These Unity `.proto` files
+are synchronized copies, and the C# bindings in
+`Assets/Scripts/PresentationRuntime/Generated/` are generated directly from
+the source of truth with the repository's pinned `protoc` version.
+
+From the repository root, check for drift or regenerate after changing a
+contract:
 
 ```sh
-protoc --proto_path=Assets/Contracts/Proto --csharp_out=Assets/Scripts/PresentationRuntime/Generated \
-  unframe/presentation/v2/runtime.proto \
-  unframe/delivery/v2/delivery.proto \
-  unframe/realtime/v2/realtime.proto
+nix run .#unity-proto -- check
+nix run .#unity-proto
 ```
 
-Do not edit generated C# files. Update the source contract and regenerate when the contract changes.
+Do not edit the copied `.proto` files or generated C# files directly. Update
+the source contract and run the generation task instead.
 
 ## Local fixtures
 
