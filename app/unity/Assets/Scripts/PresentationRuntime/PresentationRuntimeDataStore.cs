@@ -101,6 +101,11 @@ namespace Unframe.Unity.PresentationRuntime
                     return TryApplySnapshot(item.ConnectionSnapshot, out error);
                 case ControlServerItem.ItemOneofCase.ReliableEvent:
                     return TryApplyReliableEvent(item.ReliableEvent, out error);
+                case ControlServerItem.ItemOneofCase.ProjectionAdvance:
+                    return TryApplyProjectionAdvance(item.ProjectionAdvance, out error);
+                case ControlServerItem.ItemOneofCase.ResyncRequired:
+                    error = "realtime.control requires a new Delivery and connection snapshot.";
+                    return false;
                 default:
                     error = null;
                     return true;
@@ -111,20 +116,24 @@ namespace Unframe.Unity.PresentationRuntime
         {
             try
             {
-                StateServerItem item = StateServerItem.Parser.ParseFrom(payload);
-                if (item.ItemCase != StateServerItem.ItemOneofCase.StateFrame)
-                {
-                    error = "realtime.state.state_frame is required.";
-                    return false;
-                }
-
-                return TryApplyStateFrame(item.StateFrame, out error);
+                return TryReceiveState(StateServerItem.Parser.ParseFrom(payload), out error);
             }
             catch (InvalidProtocolBufferException exception)
             {
                 error = "realtime.state.protobuf.invalid: " + exception.Message;
                 return false;
             }
+        }
+
+        public bool TryReceiveState(StateServerItem item, out string error)
+        {
+            if (item == null || item.ItemCase != StateServerItem.ItemOneofCase.StateFrame)
+            {
+                error = "realtime.state.state_frame is required.";
+                return false;
+            }
+
+            return TryApplyStateFrame(item.StateFrame, out error);
         }
 
         public bool TryGetNode(string id, out ProjectedNodeDefinition value) { return nodes.TryGetValue(id, out value); }
@@ -141,14 +150,21 @@ namespace Unframe.Unity.PresentationRuntime
 
         private bool TryApplySnapshot(ConnectionSnapshotEnvelope envelope, out string error)
         {
-            if (Delivery == null || envelope == null || envelope.SchemaVersion != RealtimeSnapshotSchemaVersion || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingFence(envelope.Fence))
+            if (Delivery == null || envelope == null || envelope.SchemaVersion != RealtimeSnapshotSchemaVersion
+                || envelope.ProjectionInstance == null || !envelope.ProjectionInstance.Equals(Delivery.ProjectionInstance)
+                || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingFence(envelope.Fence))
             {
                 error = "realtime.snapshot is missing, incompatible, or fenced for another delivery.";
                 return false;
             }
 
             ParticipantRuntimeView view = envelope.Snapshot.RuntimeView;
-            if (view.ProjectionProfileId != Delivery.ProjectionProfile.ProjectionProfileId || view.AssignmentEpoch != Delivery.ProjectionInstance.AssignmentEpoch)
+            if (envelope.Snapshot.ProjectionProfileId != Delivery.ProjectionProfile.ProjectionProfileId
+                || envelope.Snapshot.AssignmentEpoch != Delivery.ProjectionInstance.AssignmentEpoch
+                || envelope.Snapshot.ReliableSequence != envelope.ReliableSequence
+                || view.ProjectionProfileId != Delivery.ProjectionProfile.ProjectionProfileId
+                || view.AssignmentEpoch != Delivery.ProjectionInstance.AssignmentEpoch
+                || view.BaseReliableSequence != envelope.ReliableSequence)
             {
                 error = "realtime.snapshot projection does not match delivery.";
                 return false;
@@ -161,6 +177,20 @@ namespace Unframe.Unity.PresentationRuntime
 
             LastReliableSequence = envelope.ReliableSequence;
             LastStateFrameSequence = 0;
+            return true;
+        }
+
+        private bool TryApplyProjectionAdvance(ProjectionAdvance advance, out string error)
+        {
+            if (Delivery == null || advance == null || !HasMatchingFence(advance.Fence)
+                || advance.FromExclusive != LastReliableSequence || advance.ThroughSequence <= advance.FromExclusive)
+            {
+                error = "realtime.projection_advance is missing, fenced for another delivery, or not contiguous.";
+                return false;
+            }
+
+            LastReliableSequence = advance.ThroughSequence;
+            error = null;
             return true;
         }
 
@@ -221,7 +251,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         private bool TryApplyStateFrame(ElementStateFrame frame, out string error)
         {
-            if (Delivery == null || frame == null || frame.Kind == StateFrameKind.Unspecified || !HasMatchingFence(frame.Fence) || frame.BaseReliableSequence > LastReliableSequence)
+            if (Delivery == null || frame == null || frame.Kind == StateFrameKind.Unspecified || !HasMatchingFence(frame.Fence)
+                || frame.BaseReliableSequence != LastReliableSequence)
             {
                 error = "realtime.state_frame is missing, incompatible, or depends on unapplied reliable state.";
                 return false;
@@ -274,6 +305,12 @@ namespace Unframe.Unity.PresentationRuntime
 
             foreach (SurfaceRuntimeState state in incomingSurfaces)
             {
+                if (state == null || !IsStateReachable(state.SurfaceId, state.StateId))
+                {
+                    error = "realtime snapshot references an unknown surface state.";
+                    return false;
+                }
+
                 if (!TryAddState(nextSurfaces, state == null ? null : state.SurfaceId, state == null ? null : state.Clone(), surfaces, out error)) return false;
             }
 
@@ -354,10 +391,41 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             ProjectedRuntimeCatalog catalog = manifest.ProjectionProfile.RuntimeCatalog;
-            if (catalog.CatalogContractVersion != RuntimeCatalogContractVersion || !IsId(manifest.ProjectionProfile.ProjectionProfileId) || manifest.ProjectionInstance.ProjectionProfileId != manifest.ProjectionProfile.ProjectionProfileId || manifest.ProjectionProfile.Key == null || manifest.ProjectionProfile.Key.CapabilityProfileId != manifest.CapabilityProfile.CapabilityProfileId)
+            if (!IsId(manifest.Publication.PresentationId) || manifest.Publication.PublicationEpoch == 0 || !IsContentHash(manifest.Publication.PublicationManifestHash)
+                || !IsContentHash(manifest.DefinitionHash) || !IsContentHash(manifest.RenderBundleHash) || !IsContentHash(manifest.AssetSetHash))
+            {
+                return Fail("delivery publication or content hash is incomplete.", out error);
+            }
+
+            CapabilityProfile capability = manifest.CapabilityProfile;
+            ContractVersions versions = capability.ContractVersions;
+            if (capability.SchemaVersion != DeliverySchemaVersion || !IsId(capability.CapabilityProfileId) || versions == null
+                || versions.Delivery != DeliveryContractVersion || versions.Runtime != RuntimeCatalogContractVersion
+                || versions.Progression == 0 || versions.Projection == 0)
+            {
+                return Fail("delivery capability profile is incompatible.", out error);
+            }
+
+            ProjectionProfileDescriptor profile = manifest.ProjectionProfile;
+            ProjectionProfileKey key = profile.Key;
+            if (catalog.CatalogContractVersion != RuntimeCatalogContractVersion || !IsId(profile.ProjectionProfileId)
+                || !IsId(manifest.ProjectionInstance.ParticipantId) || manifest.ProjectionInstance.AssignmentEpoch == 0
+                || manifest.ProjectionInstance.ProjectionProfileId != profile.ProjectionProfileId
+                || key == null || key.Publication == null || !key.Publication.Equals(manifest.Publication)
+                || key.ProjectionContractVersion != versions.Projection || key.Role == SessionRole.Unspecified
+                || key.CapabilityProfileId != capability.CapabilityProfileId)
             {
                 error = "delivery projection profile is incompatible.";
                 return false;
+            }
+
+            HashSet<RuntimeCapability> requiredCapabilities = new HashSet<RuntimeCapability>();
+            foreach (RuntimeCapability required in profile.RequiredRuntimeCapabilities)
+            {
+                if (required != RuntimeCapability.TimelineRunV2 || !requiredCapabilities.Add(required))
+                {
+                    return Fail("delivery capability is unsupported or duplicated.", out error);
+                }
             }
 
             DeliveryIndexes next = new DeliveryIndexes();
@@ -382,9 +450,19 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces)
             {
                 if (!TryAdd(next.Surfaces, surface == null ? null : surface.SurfaceId, surface, "surface", out error)) return false;
-                if (!IsId(surface.HostNodeId) || !next.Nodes.ContainsKey(surface.HostNodeId))
+                if (!IsId(surface.HostNodeId) || !next.Nodes.TryGetValue(surface.HostNodeId, out ProjectedNodeDefinition host)
+                    || host.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Surface || host.Surface.SemanticSurfaceId != surface.SurfaceId)
                 {
-                    return Fail("delivery surface host node is absent.", out error);
+                    return Fail("delivery semantic surface host node is absent or mismatched.", out error);
+                }
+            }
+
+            foreach (ProjectedNodeDefinition node in catalog.Nodes)
+            {
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Surface
+                    && (!IsId(node.Surface.SemanticSurfaceId) || !next.Surfaces.ContainsKey(node.Surface.SemanticSurfaceId)))
+                {
+                    return Fail("delivery semantic surface node is unresolved.", out error);
                 }
             }
 
@@ -402,6 +480,18 @@ namespace Unframe.Unity.PresentationRuntime
                     return Fail("delivery model asset is absent.", out error);
                 }
             }
+
+            foreach (ProjectedNodeDefinition node in catalog.Nodes)
+            {
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model
+                    && (!IsId(node.Model.ModelAssetId) || !next.Assets.ContainsKey(node.Model.ModelAssetId)
+                        || !next.Models.ContainsKey(node.Model.ModelAssetId)))
+                {
+                    return Fail("delivery model node asset or residency is absent.", out error);
+                }
+            }
+
+            if (!TryValidateRenderGraph(profile, capability, next.Surfaces, next.Assets, out error)) return false;
 
             foreach (ProjectedTimelineDefinition timeline in catalog.Timelines)
             {
@@ -422,6 +512,136 @@ namespace Unframe.Unity.PresentationRuntime
             }
             indexes = next;
             error = null;
+            return true;
+        }
+
+        private static bool TryValidateRenderGraph(ProjectionProfileDescriptor profile, CapabilityProfile capability,
+            Dictionary<string, ProjectedSurfaceDefinition> surfaces, Dictionary<string, AssetAccessBinding> assets, out string error)
+        {
+            Dictionary<string, DeliveredRenderSurface> renderSurfaces = new Dictionary<string, DeliveredRenderSurface>();
+            Dictionary<string, ProjectedSemanticSurface> semanticSurfaces = new Dictionary<string, ProjectedSemanticSurface>();
+            foreach (ProjectedSemanticSurface semantic in profile.SemanticSurfaces)
+            {
+                if (!TryAdd(semanticSurfaces, semantic == null ? null : semantic.SemanticSurfaceId, semantic, "semantic surface", out error)) return false;
+                if (!surfaces.TryGetValue(semantic.SemanticSurfaceId, out ProjectedSurfaceDefinition catalogSurface))
+                    return Fail("delivery semantic surface is absent from the runtime catalog.", out error);
+
+                HashSet<string> states = new HashSet<string>();
+                foreach (SurfaceSemanticState state in semantic.States)
+                {
+                    if (state == null || !IsId(state.StateId) || !states.Add(state.StateId) || !catalogSurface.ReachableStateIds.Contains(state.StateId))
+                        return Fail("delivery semantic surface state is invalid.", out error);
+                }
+                if (states.Count != catalogSurface.ReachableStateIds.Count)
+                    return Fail("delivery semantic surface states are incomplete.", out error);
+            }
+
+            foreach (DeliveredRenderSurface render in profile.RenderSurfaces)
+            {
+                if (!TryAdd(renderSurfaces, render == null ? null : render.RenderSurfaceId, render, "render surface", out error)) return false;
+                if (!IsId(render.SemanticSurfaceId) || !semanticSurfaces.ContainsKey(render.SemanticSurfaceId))
+                    return Fail("delivery render surface references an unknown semantic surface.", out error);
+                if (render.RendererKind != RendererKind.NativeUi || render.ArtifactContractVersion == 0
+                    || capability.Renderers == null || capability.Renderers.NativeUi == null
+                    || !capability.Renderers.NativeUi.Supported
+                    || capability.Renderers.NativeUi.ContractVersion != render.ArtifactContractVersion)
+                    return Fail("delivery renderer capability is unsupported.", out error);
+
+                ProjectedSurfaceDefinition catalogSurface = surfaces[render.SemanticSurfaceId];
+                Dictionary<string, DeliveredArtifact> artifacts = new Dictionary<string, DeliveredArtifact>();
+                foreach (DeliveredArtifact artifact in render.Artifacts)
+                {
+                    if (artifact == null || artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.NativeUi
+                        || artifact.NativeUi.ContractVersion != render.ArtifactContractVersion)
+                        return Fail("delivery artifact kind or version is incompatible.", out error);
+                    if (!TryAdd(artifacts, artifact.NativeUi.ArtifactId, artifact, "artifact", out error)) return false;
+                    if (!TryValidateNativeUiArtifact(artifact.NativeUi, assets, out error)) return false;
+                }
+
+                HashSet<string> boundStates = new HashSet<string>();
+                foreach (DeliveredStateBinding binding in render.StateBindings)
+                {
+                    if (binding == null || !IsId(binding.StateId) || !boundStates.Add(binding.StateId)
+                        || !catalogSurface.ReachableStateIds.Contains(binding.StateId))
+                        return Fail("delivery state binding is invalid or duplicated.", out error);
+                    if (binding.BindingCase == DeliveredStateBinding.BindingOneofCase.Artifact
+                        && (!IsId(binding.Artifact.ArtifactId) || !artifacts.ContainsKey(binding.Artifact.ArtifactId)))
+                        return Fail("delivery state binding references an unknown artifact.", out error);
+                    if (binding.BindingCase != DeliveredStateBinding.BindingOneofCase.Artifact
+                        && binding.BindingCase != DeliveredStateBinding.BindingOneofCase.Empty)
+                        return Fail("delivery state binding is incomplete.", out error);
+                }
+                if (boundStates.Count != catalogSurface.ReachableStateIds.Count)
+                    return Fail("delivery state bindings are incomplete.", out error);
+            }
+
+            foreach (ProjectedSemanticSurface semantic in semanticSurfaces.Values)
+            {
+                if (semantic.RenderSurfaceIds.Count == 0) return Fail("delivery semantic surface has no render surface.", out error);
+                HashSet<string> ids = new HashSet<string>();
+                foreach (string id in semantic.RenderSurfaceIds)
+                {
+                    if (!IsId(id) || !ids.Add(id) || !renderSurfaces.TryGetValue(id, out DeliveredRenderSurface render)
+                        || render.SemanticSurfaceId != semantic.SemanticSurfaceId)
+                        return Fail("delivery semantic surface render reference is invalid.", out error);
+                }
+            }
+            if (semanticSurfaces.Count != surfaces.Count)
+                return Fail("delivery semantic surface graph is incomplete.", out error);
+            foreach (DeliveredRenderSurface render in renderSurfaces.Values)
+            {
+                if (!semanticSurfaces[render.SemanticSurfaceId].RenderSurfaceIds.Contains(render.RenderSurfaceId))
+                    return Fail("delivery render surface is not listed by its semantic surface.", out error);
+            }
+            error = null;
+            return true;
+        }
+
+        private static bool TryValidateNativeUiArtifact(NativeUiArtifact artifact,
+            Dictionary<string, AssetAccessBinding> assets, out string error)
+        {
+            if (artifact.RequiredFeatures.Count != 0)
+            {
+                return Fail("delivery native UI feature is unsupported by the local renderer.", out error);
+            }
+
+            HashSet<string> nodeIds = new HashSet<string>();
+            foreach (NativeUiNode node in artifact.Nodes)
+            {
+                string id = node == null ? null : node.NodeCase == NativeUiNode.NodeOneofCase.Text ? node.Text.NodeId
+                    : node.NodeCase == NativeUiNode.NodeOneofCase.Group ? node.Group.NodeId : null;
+                if (!IsId(id) || !nodeIds.Add(id)) return Fail("delivery native UI artifact node is invalid.", out error);
+                if (node.NodeCase == NativeUiNode.NodeOneofCase.Text)
+                {
+                    if (node.Text.Value == null || node.Text.Value.SourceCase != NativeTextValue.SourceOneofCase.Literal)
+                        return Fail("delivery native UI text source is unsupported by the local renderer.", out error);
+
+                    if (node.Text.Font != null)
+                    {
+                        if (node.Text.Font.Primary != null && !assets.ContainsKey(node.Text.Font.Primary.AssetId))
+                            return Fail("delivery native UI font asset is absent.", out error);
+                        foreach (FontFace fallback in node.Text.Font.Fallbacks)
+                        {
+                            if (fallback == null || !assets.ContainsKey(fallback.AssetId))
+                                return Fail("delivery native UI fallback font asset is absent.", out error);
+                        }
+                    }
+                }
+            }
+            if (!IsId(artifact.RootNodeId) || !nodeIds.Contains(artifact.RootNodeId))
+                return Fail("delivery native UI artifact root is absent.", out error);
+            error = null;
+            return true;
+        }
+
+        private static bool IsContentHash(string value)
+        {
+            if (value == null || value.Length != 71 || !value.StartsWith("sha256:", StringComparison.Ordinal)) return false;
+            for (int index = 7; index < value.Length; index++)
+            {
+                char digit = value[index];
+                if (!(digit >= '0' && digit <= '9' || digit >= 'a' && digit <= 'f')) return false;
+            }
             return true;
         }
 

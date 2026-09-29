@@ -8,12 +8,32 @@
     "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "capabilityProfile": {
-    "capabilityProfileId": "capability:local"
+    "capabilityProfileId": "capability:local",
+    "schemaVersion": 2,
+    "contractVersions": {
+      "delivery": 2,
+      "runtime": 2,
+      "progression": 2,
+      "projection": 1
+    },
+    "renderers": {
+      "nativeUi": {
+        "supported": true,
+        "contractVersion": 1
+      }
+    }
   },
   "projectionProfile": {
     "projectionProfileId": "profile:local",
     "key": {
-      "capabilityProfileId": "capability:local"
+      "capabilityProfileId": "capability:local",
+      "publication": {
+        "presentationId": "presentation:local",
+        "publicationEpoch": "1",
+        "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "projectionContractVersion": 1,
+      "role": "SESSION_ROLE_PRESENTER"
     },
     "requiredRuntimeCapabilities": [
       "RUNTIME_CAPABILITY_TIMELINE_RUN_V2"
@@ -525,91 +545,91 @@
       ],
       "surfaces": [
         {
-          "surfaceId": "surface:text-greeting",
+          "surfaceId": "semantic-surface:text-greeting",
           "hostNodeId": "node:text-greeting",
           "reachableStateIds": [
             "state:text-greeting"
           ]
         },
         {
-          "surfaceId": "surface:text-self",
+          "surfaceId": "semantic-surface:text-self",
           "hostNodeId": "node:text-self",
           "reachableStateIds": [
             "state:text-self"
           ]
         },
         {
-          "surfaceId": "surface:text-overview",
+          "surfaceId": "semantic-surface:text-overview",
           "hostNodeId": "node:text-overview",
           "reachableStateIds": [
             "state:text-overview"
           ]
         },
         {
-          "surfaceId": "surface:text-only",
+          "surfaceId": "semantic-surface:text-only",
           "hostNodeId": "node:text-only",
           "reachableStateIds": [
             "state:text-only"
           ]
         },
         {
-          "surfaceId": "surface:text-project",
+          "surfaceId": "semantic-surface:text-project",
           "hostNodeId": "node:text-project",
           "reachableStateIds": [
             "state:text-project"
           ]
         },
         {
-          "surfaceId": "surface:text-issue",
+          "surfaceId": "semantic-surface:text-issue",
           "hostNodeId": "node:text-issue",
           "reachableStateIds": [
             "state:text-issue"
           ]
         },
         {
-          "surfaceId": "surface:text-result",
+          "surfaceId": "semantic-surface:text-result",
           "hostNodeId": "node:text-result",
           "reachableStateIds": [
             "state:text-result"
           ]
         },
         {
-          "surfaceId": "surface:text-long",
+          "surfaceId": "semantic-surface:text-long",
           "hostNodeId": "node:text-long",
           "reachableStateIds": [
             "state:text-long"
           ]
         },
         {
-          "surfaceId": "surface:vertical-text-1",
+          "surfaceId": "semantic-surface:vertical-text-1",
           "hostNodeId": "node:vertical-text-1",
           "reachableStateIds": [
             "state:vertical-text-1"
           ]
         },
         {
-          "surfaceId": "surface:vertical-text-2",
+          "surfaceId": "semantic-surface:vertical-text-2",
           "hostNodeId": "node:vertical-text-2",
           "reachableStateIds": [
             "state:vertical-text-2"
           ]
         },
         {
-          "surfaceId": "surface:vertical-text-3",
+          "surfaceId": "semantic-surface:vertical-text-3",
           "hostNodeId": "node:vertical-text-3",
           "reachableStateIds": [
             "state:vertical-text-3"
           ]
         },
         {
-          "surfaceId": "surface:vertical-text-4",
+          "surfaceId": "semantic-surface:vertical-text-4",
           "hostNodeId": "node:vertical-text-4",
           "reachableStateIds": [
             "state:vertical-text-4"
           ]
         },
         {
-          "surfaceId": "surface:vertical-text-new",
+          "surfaceId": "semantic-surface:vertical-text-new",
           "hostNodeId": "node:vertical-text-new",
           "reachableStateIds": [
             "state:vertical-text-new"
@@ -3513,6 +3533,219 @@
           }
         ]
       }
+    ],
+    "visibleNodeIds": [
+      "node:local-stage",
+      "node:opening-panel",
+      "node:text-greeting",
+      "node:text-self",
+      "node:text-overview",
+      "node:text-only",
+      "node:text-project",
+      "node:text-issue",
+      "node:text-result",
+      "node:side-panel-left",
+      "node:side-panel-right",
+      "node:text-long",
+      "node:scatter-panel-1",
+      "node:scatter-panel-2",
+      "node:scatter-panel-3",
+      "node:scatter-panel-4",
+      "node:scatter-panel-5",
+      "node:scatter-panel-6",
+      "node:scatter-panel-7",
+      "node:scatter-panel-8",
+      "node:vertical-text-1",
+      "node:vertical-text-2",
+      "node:vertical-text-3",
+      "node:vertical-text-4",
+      "node:vertical-text-new",
+      "node:foreground-panel-1",
+      "node:foreground-panel-2",
+      "node:foreground-panel-3",
+      "node:foreground-panel-4",
+      "node:cube",
+      "node:normal-panel",
+      "node:quadrant-upper-left",
+      "node:quadrant-upper-right",
+      "node:quadrant-lower-left",
+      "node:quadrant-lower-right"
+    ],
+    "visibleSurfaceIds": [
+      "semantic-surface:text-greeting",
+      "semantic-surface:text-self",
+      "semantic-surface:text-overview",
+      "semantic-surface:text-only",
+      "semantic-surface:text-project",
+      "semantic-surface:text-issue",
+      "semantic-surface:text-result",
+      "semantic-surface:text-long",
+      "semantic-surface:vertical-text-1",
+      "semantic-surface:vertical-text-2",
+      "semantic-surface:vertical-text-3",
+      "semantic-surface:vertical-text-4",
+      "semantic-surface:vertical-text-new"
+    ],
+    "visibleVariableIds": [
+      "variable:local-title"
+    ],
+    "semanticSurfaces": [
+      {
+        "semanticSurfaceId": "semantic-surface:text-greeting",
+        "renderSurfaceIds": [
+          "render-text-greeting"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-greeting",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-self",
+        "renderSurfaceIds": [
+          "render-text-self"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-self",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-overview",
+        "renderSurfaceIds": [
+          "render-text-overview"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-overview",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-only",
+        "renderSurfaceIds": [
+          "render-text-only"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-only",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-project",
+        "renderSurfaceIds": [
+          "render-text-project"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-project",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-issue",
+        "renderSurfaceIds": [
+          "render-text-issue"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-issue",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-result",
+        "renderSurfaceIds": [
+          "render-text-result"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-result",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:text-long",
+        "renderSurfaceIds": [
+          "render-text-long"
+        ],
+        "states": [
+          {
+            "stateId": "state:text-long",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:vertical-text-1",
+        "renderSurfaceIds": [
+          "render-vertical-text-1"
+        ],
+        "states": [
+          {
+            "stateId": "state:vertical-text-1",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:vertical-text-2",
+        "renderSurfaceIds": [
+          "render-vertical-text-2"
+        ],
+        "states": [
+          {
+            "stateId": "state:vertical-text-2",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:vertical-text-3",
+        "renderSurfaceIds": [
+          "render-vertical-text-3"
+        ],
+        "states": [
+          {
+            "stateId": "state:vertical-text-3",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:vertical-text-4",
+        "renderSurfaceIds": [
+          "render-vertical-text-4"
+        ],
+        "states": [
+          {
+            "stateId": "state:vertical-text-4",
+            "semanticTree": {}
+          }
+        ]
+      },
+      {
+        "semanticSurfaceId": "semantic-surface:vertical-text-new",
+        "renderSurfaceIds": [
+          "render-vertical-text-new"
+        ],
+        "states": [
+          {
+            "stateId": "state:vertical-text-new",
+            "semanticTree": {}
+          }
+        ]
+      }
     ]
   },
   "projectionInstance": {
@@ -3533,5 +3766,8 @@
         }
       ]
     }
-  }
+  },
+  "definitionHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "renderBundleHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "assetSetHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 }

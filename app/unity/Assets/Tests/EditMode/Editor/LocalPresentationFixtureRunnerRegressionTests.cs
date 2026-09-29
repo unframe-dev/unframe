@@ -45,7 +45,7 @@ public sealed class LocalPresentationFixtureRunnerRegressionTests
                     Fence = CreateFence(delivery),
                     SurfaceStateChanged = new SurfaceStateChanged
                     {
-                        SurfaceId = "surface:text-greeting",
+                        SurfaceId = "semantic-surface:text-greeting",
                         StateId = "state:text-greeting",
                     },
                 },

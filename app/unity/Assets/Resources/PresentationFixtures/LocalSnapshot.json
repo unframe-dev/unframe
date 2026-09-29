@@ -870,55 +870,55 @@
         ],
         "surfaceStates": [
           {
-            "surfaceId": "surface:text-greeting",
+            "surfaceId": "semantic-surface:text-greeting",
             "stateId": "state:text-greeting"
           },
           {
-            "surfaceId": "surface:text-self",
+            "surfaceId": "semantic-surface:text-self",
             "stateId": "state:text-self"
           },
           {
-            "surfaceId": "surface:text-overview",
+            "surfaceId": "semantic-surface:text-overview",
             "stateId": "state:text-overview"
           },
           {
-            "surfaceId": "surface:text-only",
+            "surfaceId": "semantic-surface:text-only",
             "stateId": "state:text-only"
           },
           {
-            "surfaceId": "surface:text-project",
+            "surfaceId": "semantic-surface:text-project",
             "stateId": "state:text-project"
           },
           {
-            "surfaceId": "surface:text-issue",
+            "surfaceId": "semantic-surface:text-issue",
             "stateId": "state:text-issue"
           },
           {
-            "surfaceId": "surface:text-result",
+            "surfaceId": "semantic-surface:text-result",
             "stateId": "state:text-result"
           },
           {
-            "surfaceId": "surface:text-long",
+            "surfaceId": "semantic-surface:text-long",
             "stateId": "state:text-long"
           },
           {
-            "surfaceId": "surface:vertical-text-1",
+            "surfaceId": "semantic-surface:vertical-text-1",
             "stateId": "state:vertical-text-1"
           },
           {
-            "surfaceId": "surface:vertical-text-2",
+            "surfaceId": "semantic-surface:vertical-text-2",
             "stateId": "state:vertical-text-2"
           },
           {
-            "surfaceId": "surface:vertical-text-3",
+            "surfaceId": "semantic-surface:vertical-text-3",
             "stateId": "state:vertical-text-3"
           },
           {
-            "surfaceId": "surface:vertical-text-4",
+            "surfaceId": "semantic-surface:vertical-text-4",
             "stateId": "state:vertical-text-4"
           },
           {
-            "surfaceId": "surface:vertical-text-new",
+            "surfaceId": "semantic-surface:vertical-text-new",
             "stateId": "state:vertical-text-new"
           }
         ]

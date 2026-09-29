@@ -35,6 +35,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         {
             SchemaVersion = 2,
             Fence = CreateFence(delivery),
+            ProjectionInstance = delivery.ProjectionInstance.Clone(),
             ReliableSequence = 4,
             Snapshot = new ProjectedRuntimeSnapshot
             {
@@ -186,6 +187,12 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Parent = new SpatialParent { Node = new NodeParent { NodeId = "node:parent" } },
             Model = new ModelNode { ModelAssetId = "asset:model" },
         });
+        catalog.Nodes.Add(new ProjectedNodeDefinition
+        {
+            NodeId = "node:surface",
+            Parent = new SpatialParent { Node = new NodeParent { NodeId = "node:model" } },
+            Surface = new SurfaceNode { SemanticSurfaceId = "surface:main" },
+        });
 
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
@@ -205,7 +212,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Assert.That(model.GetComponent<MeshRenderer>(), Is.Null);
             Assert.That(model.GetComponent<PresentationNodeMetadata>().NodeId, Is.EqualTo("node:model"));
             Assert.That(model.GetComponent<PresentationNodeMetadata>().ModelAssetId, Is.EqualTo("asset:model"));
-            Assert.That(model.GetComponent<PresentationSurfaceMetadata>().SurfaceId, Is.EqualTo("surface:main"));
+            Assert.That(registry.TryGet("node:surface", out GameObject surface), Is.True);
+            Assert.That(surface.GetComponent<PresentationSurfaceMetadata>().SurfaceId, Is.EqualTo("surface:main"));
         }
         finally
         {
@@ -681,7 +689,13 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Parent = new SpatialParent { Stage = new StageParent() },
             Model = new ModelNode { ModelAssetId = "asset:model" },
         });
-        catalog.Surfaces.Add(new ProjectedSurfaceDefinition { SurfaceId = "surface:main", HostNodeId = "node:model" });
+        catalog.Nodes.Add(new ProjectedNodeDefinition
+        {
+            NodeId = "node:surface",
+            Parent = new SpatialParent { Node = new NodeParent { NodeId = "node:model" } },
+            Surface = new SurfaceNode { SemanticSurfaceId = "surface:main" },
+        });
+        catalog.Surfaces.Add(new ProjectedSurfaceDefinition { SurfaceId = "surface:main", HostNodeId = "node:surface", ReachableStateIds = { "state:main" } });
         ProjectedTimelineDefinition timeline = new ProjectedTimelineDefinition
         {
             TimelineId = "timeline:main",
@@ -707,11 +721,26 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             DeliveryContractVersion = 2,
             SessionId = "session:main",
             Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-            CapabilityProfile = new CapabilityProfile { CapabilityProfileId = "capability:quest" },
+            DefinitionHash = "sha256:" + new string('b', 64),
+            RenderBundleHash = "sha256:" + new string('c', 64),
+            AssetSetHash = "sha256:" + new string('d', 64),
+            CapabilityProfile = new CapabilityProfile
+            {
+                SchemaVersion = 2,
+                CapabilityProfileId = "capability:quest",
+                ContractVersions = new ContractVersions { Delivery = 2, Runtime = 2, Progression = 2, Projection = 1 },
+                Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
+            },
             ProjectionProfile = new ProjectionProfileDescriptor
             {
                 ProjectionProfileId = "profile:quest",
-                Key = new ProjectionProfileKey { CapabilityProfileId = "capability:quest" },
+                Key = new ProjectionProfileKey
+                {
+                    Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+                    ProjectionContractVersion = 1,
+                    Role = SessionRole.Presenter,
+                    CapabilityProfileId = "capability:quest",
+                },
                 RuntimeCatalog = catalog,
             },
             ProjectionInstance = new ProjectionInstance { ProjectionProfileId = "profile:quest", ParticipantId = "participant:quest", AssignmentEpoch = 7 },
@@ -719,6 +748,26 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         };
         delivery.AssetAccess.Add(new AssetAccessBinding { AssetId = "asset:model" });
         delivery.Residency.Models.Models.Add(new ModelResidencyBinding { AssetId = "asset:model" });
+        delivery.ProjectionProfile.VisibleNodeIds.Add("node:model");
+        delivery.ProjectionProfile.VisibleNodeIds.Add("node:surface");
+        delivery.ProjectionProfile.VisibleSurfaceIds.Add("surface:main");
+        delivery.ProjectionProfile.VisibleVariableIds.Add("variable:title");
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TimelineRunV2);
+        delivery.ProjectionProfile.SemanticSurfaces.Add(new ProjectedSemanticSurface
+        {
+            SemanticSurfaceId = "surface:main",
+            RenderSurfaceIds = { "render:main" },
+            States = { new SurfaceSemanticState { StateId = "state:main", SemanticTree = new ProjectedSemanticTree() } },
+        });
+        delivery.ProjectionProfile.RenderSurfaces.Add(new DeliveredRenderSurface
+        {
+            RenderSurfaceId = "render:main",
+            SemanticSurfaceId = "surface:main",
+            RendererKind = RendererKind.NativeUi,
+            ArtifactContractVersion = 1,
+            StateBindings = { new DeliveredStateBinding { StateId = "state:main", Artifact = new ArtifactStateBinding { ArtifactId = "artifact:main" } } },
+            Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact { ArtifactId = "artifact:main", ContractVersion = 1, RootNodeId = "ui:main", Nodes = { new NativeUiNode { Text = new NativeUiText { NodeId = "ui:main", Value = new NativeTextValue { Literal = new LiteralText { Value = "Main" } } } } } } } },
+        });
         return delivery;
     }
 
