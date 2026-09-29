@@ -154,6 +154,29 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
+    public void DeliveryReplacement_ResetsRuntimeOnlyAfterTheCatalogAcceptsTheDelivery()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveState(new StateServerItem
+        {
+            StateFrame = CreateStateFrame(delivery, 7, StateFrameKind.Keyframe, new NodeStatePatch { Opacity = 0.4 }),
+        }, out string error), Is.True, error);
+
+        DeliveryManifest invalidDelivery = delivery.Clone();
+        invalidDelivery.ProjectionProfile.RuntimeCatalog.Nodes.Add(invalidDelivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Clone());
+        Assert.That(store.TryReceiveDelivery(invalidDelivery, out error), Is.False);
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState retained), Is.True);
+        Assert.That(retained.Opacity, Is.EqualTo(0.4));
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(7));
+
+        Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+        Assert.That(store.TryGetNodeState("node:model", out _), Is.False);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.LastStateFrameSequence, Is.Zero);
+    }
+
+    [Test]
     public void Delivery_RejectsDuplicateIds()
     {
         DeliveryManifest delivery = CreateDelivery();
