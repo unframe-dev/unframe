@@ -4,6 +4,7 @@ import {
   editableText,
   numberProp,
   prop,
+  setState,
 } from "../src/index.js";
 
 const Hero = defineComponent({
@@ -28,6 +29,73 @@ const Hero = defineComponent({
     void texts.missing;
     return null;
   },
+});
+
+defineComponent({
+  id: "reveal",
+  version: 1,
+  props: {},
+  surface: { logicalSize: [1, 1] },
+  semantics: {
+    rootNodeIds: ["button"],
+    nodes: {
+      button: { role: "button", parentId: null, order: 0, text: "Reveal", interactionId: "show" },
+    },
+  },
+  interactions: { show: { kind: "click", event: "quiz.show", hitPriority: 0 } },
+  initialState: "hidden",
+  states: {
+    hidden: { semanticOverrides: [], enabledInteractionIds: ["show"] },
+    shown: { semanticOverrides: [], enabledInteractionIds: [] },
+  },
+  actions: { show: { inputs: {}, preconditions: [], effects: [setState("shown")] } },
+  outputs: {
+    showRequested: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "show" } },
+  },
+  render: ({ state, bindings }) => {
+    const current: "hidden" | "shown" = state;
+    void current;
+    void bindings.button;
+    // @ts-expect-error state is limited to the declared finite keys
+    const missing: "missing" = state;
+    void missing;
+    return null;
+  },
+});
+
+defineComponent({
+  id: "invalid-action-state",
+  version: 1,
+  props: {},
+  surface: { logicalSize: [1, 1] },
+  semantics: {
+    rootNodeIds: ["label"],
+    nodes: { label: { role: "paragraph", parentId: null, order: 0, text: "Label" } },
+  },
+  interactions: {},
+  initialState: "hidden",
+  states: { hidden: { semanticOverrides: [], enabledInteractionIds: [] } },
+  // @ts-expect-error Action target must be a declared State
+  actions: { show: { inputs: {}, preconditions: [], effects: [setState("missing")] } },
+  outputs: {},
+  render: () => null,
+});
+
+defineComponent({
+  id: "unsupported-output-producers",
+  version: 1,
+  props: {},
+  surface: { logicalSize: [1, 1] },
+  semantics: { rootNodeIds: [], nodes: {} },
+  outputs: {
+    // @ts-expect-error React metadata does not support timer outputs
+    timeout: { payload: {}, producer: { kind: "timer", afterMilliseconds: 1000 } },
+    // @ts-expect-error React metadata does not support timeline completion outputs
+    timeline: { payload: {}, producer: { kind: "timelineCompleted", timelineId: "intro" } },
+    // @ts-expect-error React metadata does not support media completion outputs
+    media: { payload: {}, producer: { kind: "mediaCompleted", surfaceId: "surface" } },
+  },
+  render: () => null,
 });
 
 const placement = {

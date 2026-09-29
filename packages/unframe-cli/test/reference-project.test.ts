@@ -79,7 +79,7 @@ const defaultPropsProject = async (explicit = false) => {
     scene: {
       ...original.scene,
       components: original.scene.components.map((instance) =>
-        instance.componentId === "reference-surface"
+        "componentId" in instance && instance.componentId === "reference-surface"
           ? {
               ...instance,
               props: {
@@ -299,7 +299,9 @@ describe("reference Authoring Project", () => {
       scene: {
         ...presentation.scene,
         components: presentation.scene.components.map((instance) =>
-          instance.componentId === "reference-surface" ? { ...instance, variants: {} } : instance,
+          "componentId" in instance && instance.componentId === "reference-surface"
+            ? { ...instance, variants: {} }
+            : instance,
         ),
       },
     };

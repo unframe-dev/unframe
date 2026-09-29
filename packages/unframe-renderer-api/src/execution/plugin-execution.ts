@@ -155,6 +155,49 @@ const validateSuccess = (
           stateId,
         ]),
       );
+  if (result.hitRegionsByState) {
+    if (
+      snapshot(Object.keys(result.hitRegionsByState).sort()) !==
+      snapshot(Object.keys(input.plan.states).sort())
+    )
+      diagnostics.push(
+        diagnostic("hit-region-state-mismatch", "Hit Region states must match the render plan.", [
+          name,
+          "output",
+          "hitRegionsByState",
+        ]),
+      );
+    for (const [stateId, regions] of Object.entries(result.hitRegionsByState)) {
+      const tree = input.semanticsByState[stateId];
+      const enabled = input.surface.states[stateId]?.enabledInteractionIds ?? [];
+      for (const [index, region] of regions.entries()) {
+        const node = tree?.nodes[region.semanticNodeId];
+        const interaction = input.surface.interactions[region.interactionId];
+        const { x, y, width, height } = region.bounds;
+        if (
+          node?.role !== "button" ||
+          !node.stateEnabled ||
+          node.interactionId !== region.interactionId ||
+          !enabled.includes(region.interactionId) ||
+          !interaction ||
+          region.priority !== interaction.hitPriority ||
+          x < 0 ||
+          y < 0 ||
+          width <= 0 ||
+          height <= 0 ||
+          x + width > 1 ||
+          y + height > 1
+        )
+          diagnostics.push(
+            diagnostic(
+              "invalid-hit-region",
+              "Hit Region must match an enabled button within the Surface.",
+              [name, "output", "hitRegionsByState", stateId, index],
+            ),
+          );
+      }
+    }
+  }
 };
 
 type CallResult = { readonly threw: true } | { readonly threw: false; readonly value: unknown };

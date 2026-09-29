@@ -39,9 +39,19 @@ export type PairedComponentDeclaration =
 type ReactPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
   readonly scene: readonly StaticReactSceneItem[];
 };
+type MixedPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
+  readonly scene: Omit<PresentationDeclaration["scene"], "components"> & {
+    readonly components: readonly (
+      | PresentationDeclaration["scene"]["components"][number]
+      | StaticReactSceneItem
+    )[];
+  };
+};
 
 export type PairedAuthoringDeclarationCatalog = {
-  readonly presentation: TypedDeclaration<PresentationDeclaration | ReactPresentationDeclaration>;
+  readonly presentation: TypedDeclaration<
+    PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+  >;
   readonly themes: readonly TypedDeclaration<ThemeDeclaration>[];
   readonly components: readonly PairedComponentDeclaration[];
 };
@@ -183,6 +193,40 @@ const isReactPresentation = (value: unknown): value is ReactPresentationDeclarat
     return false;
   }
 };
+const isMixedPresentation = (value: unknown): value is MixedPresentationDeclaration => {
+  if (value === null || typeof value !== "object") return false;
+  const presentation = value as MixedPresentationDeclaration;
+  if (
+    !presentation.scene ||
+    Array.isArray(presentation.scene) ||
+    !Array.isArray(presentation.scene.components)
+  )
+    return false;
+  if (
+    presentation.scene.components.some(
+      (item) => item === null || typeof item !== "object" || Array.isArray(item),
+    )
+  )
+    return false;
+  const react = presentation.scene.components.filter(
+    (item): item is StaticReactSceneItem => "component" in item,
+  );
+  if (!react.length) return false;
+  const structured = presentation.scene.components.filter((item) => !("component" in item));
+  if (
+    !isPresentationDeclaration({
+      ...presentation,
+      scene: { ...presentation.scene, components: structured },
+    })
+  )
+    return false;
+  try {
+    react.forEach(validateStaticReactSceneItem);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** Pairs already-normalized static declarations without executing Authoring builders. */
 export const pairAuthoringDeclarations = (
@@ -190,8 +234,9 @@ export const pairAuthoringDeclarations = (
 ): PairAuthoringDeclarationsResult => {
   const declarations = [...input.declarations].sort(compareDeclarations);
   const diagnostics: DeclarationCollectionDiagnostic[] = [];
-  const presentations: TypedDeclaration<PresentationDeclaration | ReactPresentationDeclaration>[] =
-    [];
+  const presentations: TypedDeclaration<
+    PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+  >[] = [];
   const themes: TypedDeclaration<ThemeDeclaration>[] = [];
   const manifests: TypedDeclaration<ComponentManifest>[] = [];
   const structures: TypedDeclaration<ComponentStructure>[] = [];
@@ -208,9 +253,15 @@ export const pairAuthoringDeclarations = (
   for (const declaration of declarations) {
     switch (declaration.role) {
       case "presentation":
-        if (isPresentationDeclaration(declaration.value) || isReactPresentation(declaration.value))
+        if (
+          isPresentationDeclaration(declaration.value) ||
+          isReactPresentation(declaration.value) ||
+          isMixedPresentation(declaration.value)
+        )
           presentations.push(
-            declaration as TypedDeclaration<PresentationDeclaration | ReactPresentationDeclaration>,
+            declaration as TypedDeclaration<
+              PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+            >,
           );
         else
           diagnostics.push(

@@ -84,6 +84,7 @@ const nested = new Set([
   "output",
   "surfaceState",
   "setSurfaceState",
+  "setState",
   "playTimeline",
   "surfaceInteraction",
   "timelineCompleted",
@@ -820,15 +821,17 @@ const createEvaluator = (
           ? [[], ["object"]]
           : builder === "prop"
             ? [["string"]]
-            : builder === "surfaceState" || builder === "setSurfaceState"
-              ? [["string", "string"]]
-              : builder === "playTimeline"
-                ? [["string", "object"]]
-                : ["surfaceInteraction", "timelineCompleted", "mediaCompleted"].includes(builder)
-                  ? [["string"]]
-                  : builder === "after"
-                    ? [["number"]]
-                    : [["object"]];
+            : builder === "setState"
+              ? [["string"]]
+              : builder === "surfaceState" || builder === "setSurfaceState"
+                ? [["string", "string"]]
+                : builder === "playTimeline"
+                  ? [["string", "object"]]
+                  : ["surfaceInteraction", "timelineCompleted", "mediaCompleted"].includes(builder)
+                    ? [["string"]]
+                    : builder === "after"
+                      ? [["number"]]
+                      : [["object"]];
       const matches = (v: DeclarationGraphValue, k: string) =>
         k === "object" ? v.kind === "object" : v.kind === "literal" && typeof v.value === k;
       if (

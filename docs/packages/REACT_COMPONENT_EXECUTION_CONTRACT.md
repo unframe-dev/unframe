@@ -1,6 +1,6 @@
 # React Component の抽出・編集・capture 契約
 
-- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路と A2 default State capture を実装。A3 の直接編集用 Editor host を実装・ローカル検証済み。共有値 override / Undo / Redo / 有限 State の React 経路は未実装
+- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路・A2 capture・有限 State の React 描画経路、および A3 の直接編集用 Editor host を実装・ローカル検証済み。共有値 override / Undo / Redo は未実装
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 
 この文書は、ADR-0019 の採用前提の方針に沿って A1〜A5 の入力、失敗、保存・実行方式を具体化する。各方式は実装の出発点とし、受け入れ試験で検証・調整する。記述された API・制限値・OS 隔離の詳細がすべて確定したことや、実機動作を確認したことを意味しない。

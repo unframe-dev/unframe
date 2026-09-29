@@ -156,6 +156,7 @@ const createProject = async () => {
   await writeFile(
     join(directory, "Hero.component.tsx"),
     `import {defineComponent, editableText, prop} from "@unframe/unframe-authoring";
+import "./hero.css";
 export const Hero = defineComponent({
   id: "hero", version: 1,
   props: {title: editableText({required: true})},
@@ -166,6 +167,16 @@ export const Hero = defineComponent({
     return <main style={{width: 800, height: 450, padding: 24, color: "#102a43", background: "white", fontSize: 52}}><h1 {...bindings.title}>{texts.title}</h1></main>;
   },
 });`,
+  );
+  await writeFile(
+    join(directory, "hero.css"),
+    `@font-face { font-family: Fixture; src: url("fixture.ttf") format("truetype"); }
+main { font-family: Fixture; }
+h1 { font-weight: 400; }`,
+  );
+  await cp(
+    join(repository, "app/unity/Assets/TextMesh Pro/Fonts/LiberationSans.ttf"),
+    join(directory, "fixture.ttf"),
   );
   const lock = await runPresentationCli({ args: ["lock", "refresh", directory] });
   expect(lock.exitCode, lock.stderr).toBe(0);
