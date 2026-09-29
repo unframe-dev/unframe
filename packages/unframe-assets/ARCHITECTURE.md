@@ -49,7 +49,7 @@ declared input + transform request + toolchain provenance
 - checksum、media type、size、encoder provenance を出力に含める。
 - temporary output は成功・失敗・cancel のいずれでも cleanup できる。
 - source Asset と derived artifact の対応を追跡できる。
-- renderer capture の layout / Hit Region geometry は renderer が所有し、この package は capture 後の binary 変換だけを所有する。
+- Renderer は partition の描画と capture、Compiler は Surface 全体の Hit Region geometry を所有する。この package は capture 後の binary 変換だけを所有する。
 - Semantic Tree の意味を image、DOM、font output から抽出しない。
 
 ## 5. Non-responsibilities

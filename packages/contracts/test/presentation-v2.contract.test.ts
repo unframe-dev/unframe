@@ -56,6 +56,21 @@ const validateBundle = ajv.getSchema(
   "https://contracts.unframe.dev/presentation/render-bundle.v2.schema.json",
 )!;
 
+test("RenderSurface requires the supported partition strategy version", () => {
+  const supported = structuredClone(bundle);
+  supported.surfaces.baked.renderSurfaces["render-baked"].partitionStrategyVersion = 1;
+  assert.equal(renderBundleV2Schema.safeParse(supported).success, true);
+  assert.equal(validateBundle(supported), true);
+  for (const version of [undefined, 0, 2]) {
+    const invalid = structuredClone(bundle);
+    const partition = invalid.surfaces.baked.renderSurfaces["render-baked"];
+    if (version === undefined) delete partition.partitionStrategyVersion;
+    else partition.partitionStrategyVersion = version;
+    assert.equal(renderBundleV2Schema.safeParse(invalid).success, false);
+    assert.equal(validateBundle(invalid), false);
+  }
+});
+
 function rejectsDefinition(change: (value: typeof definition) => void): void {
   const invalid = structuredClone(definition);
   change(invalid);

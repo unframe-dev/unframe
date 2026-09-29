@@ -251,7 +251,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - Opaque Component web renderer entry の bundle と実行
 - Browser lifecycle と fixed rendering environment
 - Surface State ごとの layout と capture
-- Hit Region geometry の解決
+- Compiler が渡した partition geometry の描画
 - pixel size、color space、alpha modeを持つ未encodeのSurface capture生成
 - Browser、font、locale、timezone、layoutのrenderer provenance
 - visual regression fixture
@@ -291,7 +291,7 @@ Compiler build 中に使用する deterministic asset transformation を所有�
 
 OS toolやcodec依存はこのpackageかそのadapterに閉じ込め、`unframe-core`へ持ち込まない。
 
-`unframe-renderer-web`はBrowser上のlayout、capture条件、Hit Region geometryを所有する。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`unframe-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
+`unframe-renderer-web` は Browser 上の描画と capture 条件を所有する。Structured Frame / Text の Hit Region は Compiler が Surface 全体の layout から解決し、画像 partition から独立させる（[ADR-0019](../decisions/0019-surface-interaction-geometry.md)）。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`unframe-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
 
 このpackageはartifact descriptorとdiagnosticsの型に限って`unframe-core`へ依存する。
 

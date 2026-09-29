@@ -160,7 +160,6 @@ const input = {
     ownedContentNodeIds: ["text-title"],
     contextNodeIds: ["frame-root"],
     clipWindow: { x: 0, y: 0, width: 1920, height: 1080 },
-    hitPriorityByInteractionId: {},
     states: { "state-default": { kind: "capture" } },
   },
   entry: { kind: "structured" },
@@ -213,9 +212,6 @@ const successfulResult = (value: CompilerResolvedSurfaceInput): RendererBuildRes
       colorSpace: "srgb" as const,
       alphaMode: "straight" as const,
     })),
-  hitRegionsByState: Object.fromEntries(
-    Object.keys(value.plan.states).map((stateId) => [stateId, []]),
-  ),
   provenance: provenance(value),
   diagnostics: [],
 });
@@ -987,7 +983,7 @@ describe("first-milestone plugin contract", () => {
     expect((await executeRendererPlugin(plugin, input)).valid).toBe(false);
     expect(calls).toBe(0);
   });
-  it("stops before build when support mutates input", async () => {
+  it("uses the prepared input when support mutates the caller input", async () => {
     let calls = 0;
     const plugin = {
       ...goodPlugin,
@@ -1005,9 +1001,7 @@ describe("first-milestone plugin contract", () => {
     };
     const result = await executeRendererPlugin(plugin, input);
     delete (input.plan.states as Record<string, unknown>).changed;
-    expect(result.valid).toBe(false);
-    if (!result.valid)
-      expect(result.diagnostics.map(({ code }) => code)).not.toContain("renderer-mutated-input");
+    expect(result.valid).toBe(true);
     expect(calls).toBe(1);
   });
   it("does not build unsupported input", async () => {
@@ -1158,7 +1152,7 @@ describe("first-milestone plugin contract", () => {
 describe("conformance diagnostics", () => {
   const withBuild = (build: RendererPlugin["build"]): RendererPlugin => ({ ...goodPlugin, build });
 
-  it("rejects inherited state, content, and Hit Region entries", async () => {
+  it("rejects inherited state and content entries", async () => {
     const inheritedSemantics = Object.create({
       "state-default": input.semanticsByState["state-default"],
     }) as CompilerResolvedSurfaceInput["semanticsByState"];
@@ -1174,17 +1168,6 @@ describe("conformance diagnostics", () => {
     expect(inputResult.valid).toBe(false);
     if (!inputResult.valid)
       expect(inputResult.diagnostics.map(({ code }) => code)).toContain("invalid-renderer-input");
-
-    const inheritedHitRegions = withBuild((value) => ({
-      ...successfulResult(value),
-      hitRegionsByState: Object.create({ "state-default": [] }),
-    }));
-    const outputResult = await runRendererConformance(inheritedHitRegions, [fixture()]);
-    expect(outputResult.valid).toBe(false);
-    if (!outputResult.valid)
-      expect(outputResult.diagnostics.map(({ code }) => code)).toContain(
-        "missing-state-hit-regions",
-      );
   });
 
   it("detects RGBA length, state completeness, duplicate IDs, and provenance drift", async () => {
@@ -1209,7 +1192,6 @@ describe("conformance diagnostics", () => {
           alphaMode: "straight",
         },
       ],
-      hitRegionsByState: {},
       provenance: { ...provenance(value), environmentHash: "wrong" },
       diagnostics: [],
     }));
@@ -1222,7 +1204,6 @@ describe("conformance diagnostics", () => {
           "duplicate-capture-id",
           "invalid-rgba-length",
           "invalid-renderer-provenance",
-          "missing-state-hit-regions",
           "state-capture-mismatch",
         ]),
       );
@@ -1381,190 +1362,6 @@ describe("conformance diagnostics", () => {
       );
   });
 
-  it("validates partition-local Hit Region geometry and semantic references", async () => {
-    const invalidHitRegion = withBuild((value) => {
-      const result = successfulResult(value);
-      if (!result.ok) return result;
-      return {
-        ...result,
-        hitRegionsByState: {
-          "state-default": [
-            {
-              interactionId: "missing-interaction",
-              semanticNodeId: "missing-node",
-              bounds: { x: 1919, y: 0, width: 2, height: 1 },
-              priority: 0,
-            },
-          ],
-        },
-      };
-    });
-
-    const result = await runRendererConformance(invalidHitRegion, [fixture()]);
-    expect(result.valid).toBe(false);
-    if (!result.valid)
-      expect(result.diagnostics.map(({ code }) => code)).toEqual(
-        expect.arrayContaining([
-          "invalid-hit-region-bounds",
-          "invalid-hit-region-interaction",
-          "hit-region-priority-mismatch",
-          "invalid-hit-region-semantic-node",
-        ]),
-      );
-  });
-
-  it("rejects duplicate and noncanonical private regions within a State", async () => {
-    const region = {
-      interactionId: "tap",
-      semanticNodeId: "semantic-title",
-      bounds: { x: 20, y: 10, width: 10, height: 10 },
-      priority: 0,
-    };
-    const duplicateRegions = withBuild((value) => {
-      const result = successfulResult(value);
-      if (!result.ok) return result;
-      return { ...result, hitRegionsByState: { "state-default": [region, region] } };
-    });
-    const duplicate = await runRendererConformance(duplicateRegions, [fixture()]);
-    expect(duplicate.valid).toBe(false);
-    if (!duplicate.valid)
-      expect(duplicate.diagnostics.map(({ code }) => code)).toContain("duplicate-hit-region");
-
-    const unorderedRegions = withBuild((value) => {
-      const result = successfulResult(value);
-      if (!result.ok) return result;
-      return {
-        ...result,
-        hitRegionsByState: {
-          "state-default": [region, { ...region, bounds: { x: 10, y: 10, width: 10, height: 10 } }],
-        },
-      };
-    });
-    const unordered = await runRendererConformance(unorderedRegions, [fixture()]);
-    expect(unordered.valid).toBe(false);
-    if (!unordered.valid)
-      expect(unordered.diagnostics.map(({ code }) => code)).toContain(
-        "noncanonical-hit-region-order",
-      );
-  });
-
-  it("requires exact enabled-interaction coverage and semantic binding", async () => {
-    const interactiveSurface = {
-      ...input,
-      plan: { ...input.plan, hitPriorityByInteractionId: { tap: 0, other: 0 } },
-      surface: {
-        ...input.surface,
-        interactions: {
-          tap: { id: "tap", kind: "click", event: "advance", hitPriority: 0 },
-          other: { id: "other", kind: "click", event: "other", hitPriority: 0 },
-        },
-        baseSemanticTree: {
-          rootNodeIds: ["semantic-title"],
-          nodes: {
-            "semantic-title": {
-              id: "semantic-title",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Hello",
-              interactionId: "other",
-            },
-          },
-        },
-        states: {
-          "state-default": {
-            ...input.surface.states["state-default"],
-            enabledInteractionIds: [],
-          },
-        },
-      },
-      semanticsByState: {
-        "state-default": {
-          rootNodeIds: ["semantic-title"],
-          nodes: {
-            "semantic-title": {
-              id: "semantic-title",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Hello",
-              interactionId: "other",
-              stateEnabled: false,
-            },
-          },
-        },
-      },
-    } as const satisfies CompilerResolvedSurfaceInput;
-    const invalidBinding = withBuild((value) => {
-      const result = successfulResult(value);
-      if (!result.ok) return result;
-      return {
-        ...result,
-        hitRegionsByState: {
-          "state-default": [
-            {
-              interactionId: "tap",
-              semanticNodeId: "semantic-title",
-              bounds: { x: 0, y: 0, width: 1, height: 1 },
-              priority: 0,
-            },
-          ],
-        },
-      };
-    });
-
-    const bindingResult = await runRendererConformance(invalidBinding, [
-      fixture(interactiveSurface),
-    ]);
-    expect(bindingResult.valid).toBe(false);
-    if (!bindingResult.valid)
-      expect(bindingResult.diagnostics.map(({ code }) => code)).toEqual(
-        expect.arrayContaining([
-          "invalid-hit-region-interaction",
-          "invalid-hit-region-semantic-node",
-          "unexpected-hit-region",
-        ]),
-      );
-
-    const enabledWithoutRegion = {
-      ...interactiveSurface,
-      surface: {
-        ...interactiveSurface.surface,
-        states: {
-          "state-default": {
-            ...interactiveSurface.surface.states["state-default"],
-            enabledInteractionIds: ["tap"],
-          },
-        },
-      },
-      plan: interactiveSurface.plan,
-      semanticsByState: {
-        "state-default": {
-          rootNodeIds: ["semantic-title"],
-          nodes: {
-            "semantic-title": {
-              id: "semantic-title",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Hello",
-              interactionId: "tap",
-              stateEnabled: true,
-            },
-          },
-        },
-      },
-    } as const satisfies CompilerResolvedSurfaceInput;
-    const coverageResult = await runRendererConformance(goodPlugin, [
-      fixture(enabledWithoutRegion),
-    ]);
-    expect(coverageResult.valid).toBe(false);
-    if (!coverageResult.valid)
-      expect(coverageResult.diagnostics.map(({ code }) => code)).toContain(
-        "missing-enabled-interaction-region",
-      );
-  });
-
   it("validates Compiler plans before accepting renderer output", async () => {
     const invalidInput = {
       ...input,
@@ -1605,6 +1402,19 @@ describe("conformance diagnostics", () => {
     expect(result.valid).toBe(false);
     if (!result.valid)
       expect(result.diagnostics.map(({ code }) => code)).toContain("duplicate-content-node");
+  });
+
+  it("rejects context nodes that are not ancestor Frames", async () => {
+    const invalid = {
+      ...input,
+      plan: { ...input.plan, ownedContentNodeIds: ["frame-root"], contextNodeIds: ["text-title"] },
+    } as const satisfies CompilerResolvedSurfaceInput;
+
+    const result = await executeRendererPlugin(goodPlugin, invalid);
+
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("invalid-context-node");
   });
 });
 

@@ -38,7 +38,7 @@ type BrowserPage = {
   screenshot(options: {
     readonly type: "png";
     readonly scale: "css";
-    readonly omitBackground: false;
+    readonly omitBackground: true;
     readonly animations: "disabled";
     readonly caret: "hide";
   }): Promise<Uint8Array<ArrayBufferLike>>;
@@ -214,7 +214,7 @@ const FONT_PROBE_DOCUMENT = `<!doctype html><html><head><style>html,body{margin:
 const screenshotOptions = Object.freeze({
   type: "png" as const,
   scale: "css" as const,
-  omitBackground: false as const,
+  omitBackground: true as const,
   animations: "disabled" as const,
   caret: "hide" as const,
 });

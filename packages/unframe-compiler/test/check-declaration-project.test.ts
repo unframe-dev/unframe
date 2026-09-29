@@ -1957,18 +1957,19 @@ describe("compileDeclarationProject", () => {
         logicalBounds: input.plan.logicalBounds,
         layer: input.plan.layer,
       },
-      captures: Object.keys(input.plan.states).map((stateId) => ({
-        id: `${stateId}:capture`,
-        stateId,
-        rgba: Uint8Array.from(
-          { length: input.context.pixelTarget[0] * input.context.pixelTarget[1] * 4 },
-          (_, index) => (index % 4 === 3 ? 255 : 0),
-        ),
-        pixelSize: input.context.pixelTarget,
-        colorSpace: "srgb",
-        alphaMode: "opaque",
-      })),
-      hitRegionsByState: Object.fromEntries(Object.keys(input.plan.states).map((id) => [id, []])),
+      captures: Object.entries(input.plan.states)
+        .filter(([, state]) => state.kind === "capture")
+        .map(([stateId]) => ({
+          id: `${stateId}:capture`,
+          stateId,
+          rgba: Uint8Array.from(
+            { length: input.context.pixelTarget[0] * input.context.pixelTarget[1] * 4 },
+            (_, index) => (index % 4 === 3 ? 255 : 0),
+          ),
+          pixelSize: input.context.pixelTarget,
+          colorSpace: "srgb",
+          alphaMode: "opaque",
+        })),
       provenance: {
         ...renderer.identity,
         inputHash: input.context.inputHash,
@@ -1993,7 +1994,502 @@ describe("compileDeclarationProject", () => {
     encodeLimits: PNG_ABSOLUTE_LIMITS,
   });
 
-  it("owns a Frame that binds an enabled button in the renderer plan", async () => {
+  it("does not render a Surface with no paint in any state", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          states: {
+            default: {
+              id: "default",
+              contentOverrides: { "text-content": { kind: "text", visible: false } },
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+            },
+          },
+        },
+      } as ComponentStructure,
+    };
+    let calls = 0;
+    const observing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        calls++;
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(calls).toBe(0);
+    expect(result.value.renderBundle.surfaces["instance:surface-root"]?.renderSurfaceIds).toEqual(
+      [],
+    );
+    expect(
+      Object.values(result.value.assetSet.assets).filter(
+        ({ mediaType }) => mediaType === "image/png",
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps partition identity and bounds fixed when a later state is empty", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      manifest: {
+        ...entry.manifest,
+        states: { default: { kind: "state", initial: true }, hidden: { kind: "state" } },
+      },
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+            hidden: {
+              id: "hidden",
+              contentOverrides: { "text-content": { kind: "text", visible: false } },
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+            },
+          },
+          renderIntent: { ...root.renderIntent, updateModel: "finite-state" },
+        },
+      } as ComponentStructure,
+    };
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
+    expect(compiled.renderSurfaceIds).toHaveLength(1);
+    const renderSurface = compiled.renderSurfaces[compiled.renderSurfaceIds[0]!]!;
+    expect(renderSurface.stateBindings).toEqual({
+      "instance:default": {
+        kind: "artifacts",
+        artifactIds: [Object.keys(renderSurface.artifacts)[0]!],
+      },
+      "instance:hidden": { kind: "empty" },
+    });
+    const artifact = Object.values(renderSurface.artifacts)[0]!;
+    if (artifact.kind !== "baked-web") throw new Error("Expected baked-web artifact.");
+    expect(Object.keys(artifact.states)).toEqual(["instance:default"]);
+  });
+
+  const partitionedInput = () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected standard Surface.");
+    const text = root.root.children[0]!;
+    const nested = {
+      ...root.root,
+      id: "nested",
+      layout: { kind: "absolute" as const, x: 100, y: 100, width: 800, height: 400 },
+      opacity: 0.5,
+      style: { backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 } },
+      children: [
+        {
+          ...text,
+          id: "inner-text",
+          layout: { kind: "absolute" as const, x: 10, y: 10, width: 100, height: 50 },
+        },
+      ],
+    };
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: {
+            ...root.root,
+            style: { backgroundColor: { red: 0, green: 0, blue: 0, alpha: 1 } },
+            children: [nested],
+          },
+        },
+      } as ComponentStructure,
+    };
+    return input;
+  };
+
+  it("partitions a painted root and a translucent group in canonical paint order", async () => {
+    const input = partitionedInput();
+    const seen: {
+      id: string;
+      owned: readonly string[];
+      context: readonly string[];
+      layer: number;
+    }[] = [];
+    const observing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        seen.push({
+          id: value.plan.id,
+          owned: value.plan.ownedContentNodeIds,
+          context: value.plan.contextNodeIds,
+          layer: value.plan.layer,
+        });
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const compiled = Object.values(result.value.renderBundle.surfaces)[0]!;
+    expect(compiled.renderSurfaceIds).toEqual([
+      "rs_72492e420a8d63224465f844a782dd31ef0c6e948ca29dc6e0571e8cd3ede04c",
+      "rs_4ad6b5a5009dcbbd660389e2de40f038ea3475eefb324c445c6f600d52290982",
+    ]);
+    expect(seen.map(({ layer }) => layer)).toEqual([0, 1]);
+    expect(seen.flatMap(({ owned }) => owned)).toEqual([
+      "instance:frame-root",
+      "instance:nested",
+      "instance:inner-text",
+    ]);
+    expect(seen[1]?.context).toContain("instance:frame-root");
+    expect(compiled.renderSurfaceIds.every((id) => /^rs_[0-9a-f]{64}$/.test(id))).toBe(true);
+  });
+
+  it("derives one Surface button region across multiple image partitions", async () => {
+    const input = partitionedInput();
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected partitioned Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: { ...root.root, semanticNodeId: "button" },
+          baseSemanticTree: {
+            rootNodeIds: ["semantic-text", "button"],
+            nodes: {
+              ...root.baseSemanticTree.nodes,
+              button: {
+                id: "button",
+                parentId: null,
+                order: 1,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 4 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        },
+      } as ComponentStructure,
+    };
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
+    expect(compiled.renderSurfaceIds).toHaveLength(2);
+    expect(compiled.interactionsByState["instance:default"]).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:button",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        priority: 4,
+        coordinateSpace: "normalized",
+      },
+    ]);
+  });
+
+  it("changes the clipped partition identity when only its border radius changes", async () => {
+    const withRadius = (radius: number) => {
+      const input = partitionedInput();
+      const entry = input.components[0]!;
+      const root = entry.structure.root;
+      if (root.kind !== "surface" || root.root.kind !== "frame")
+        throw new Error("Expected partitioned Surface.");
+      const nested = root.root.children[0]!;
+      if (nested.kind !== "frame") throw new Error("Expected nested Frame.");
+      input.components[0] = {
+        ...entry,
+        structure: {
+          ...entry.structure,
+          root: {
+            ...root,
+            root: {
+              ...root.root,
+              children: [
+                {
+                  ...nested,
+                  style: {
+                    ...nested.style,
+                    clip: true,
+                    border: { color: { red: 0, green: 0, blue: 0, alpha: 0 }, width: 2, radius },
+                  },
+                },
+              ],
+            },
+          },
+        } as ComponentStructure,
+      };
+      return input;
+    };
+    const flat = await compileDeclarationProject(withRadius(0), options());
+    const rounded = await compileDeclarationProject(withRadius(3), options());
+    const repeated = await compileDeclarationProject(withRadius(3), options());
+    expect(flat.valid ? [] : flat.diagnostics).toEqual([]);
+    expect(rounded.valid ? [] : rounded.diagnostics).toEqual([]);
+    expect(repeated.valid ? [] : repeated.diagnostics).toEqual([]);
+    if (!flat.valid || !rounded.valid || !repeated.valid) return;
+    const flatIds = flat.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds;
+    const roundedIds =
+      rounded.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds;
+    expect(flatIds).toHaveLength(2);
+    expect(flatIds[0]).toBe(roundedIds[0]);
+    expect(flatIds[1]).not.toBe(roundedIds[1]);
+    expect(repeated.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds).toEqual(
+      roundedIds,
+    );
+  });
+
+  it("fails the whole build when a later partition renderer call fails", async () => {
+    let calls = 0;
+    const failing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        calls++;
+        if (calls === 2)
+          return {
+            ok: false,
+            diagnostics: [
+              { code: "test-renderer-failure", path: [], message: "Second partition failed." },
+            ],
+          };
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(partitionedInput(), {
+      ...options(),
+      renderers: [failing],
+    });
+    expect(calls).toBe(2);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("test-renderer-failure");
+  });
+
+  it("clips partition bounds to the Surface cover window", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: { ...root, physicalSizeMeters: [1, 1], fit: "cover" },
+      } as ComponentStructure,
+    };
+    let bounds: { x: number; y: number; width: number; height: number } | undefined;
+    const probe: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        bounds = value.plan.logicalBounds;
+        return {
+          ok: false,
+          diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],
+        };
+      },
+    };
+    await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(bounds).toEqual({ x: 420, y: 0, width: 1080, height: 1080 });
+  });
+
+  it("clips a button region once by its ancestor Frame", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected standard Surface.");
+    const text = root.root.children[0]!;
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: {
+            ...root.root,
+            style: { clip: true },
+            children: [
+              { ...text, layout: { kind: "absolute", x: 1800, y: 0, width: 240, height: 100 } },
+            ],
+          },
+          baseSemanticTree: {
+            rootNodeIds: ["semantic-text"],
+            nodes: {
+              "semantic-text": {
+                id: "semantic-text",
+                parentId: null,
+                order: 0,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 2 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        },
+      } as ComponentStructure,
+    };
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      result.value.renderBundle.surfaces["instance:surface-root"]?.interactionsByState[
+        "instance:default"
+      ],
+    ).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:semantic-text",
+        bounds: { x: 0.9375, y: 0, width: 0.0625, height: 100 / 1080 },
+        priority: 2,
+        coordinateSpace: "normalized",
+      },
+    ]);
+  });
+
+  it("owns a Frame that paints only through a State override", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          states: {
+            default: {
+              id: "default",
+              contentOverrides: {
+                "frame-root": {
+                  kind: "frame",
+                  backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 },
+                },
+              },
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+            },
+          },
+        },
+      } as ComponentStructure,
+    };
+    let owned: readonly string[] = [];
+    const probe: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        owned = value.plan.ownedContentNodeIds;
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    expect(owned).toEqual(["instance:frame-root", "instance:text-content"]);
+  });
+
+  it("keeps a transparent button clickable without a paint partition", async () => {
+    const input = project() as CompilerDeclarationProject & {
+      components: CompilerDeclarationProject["components"][number][];
+    };
+    input.presentation.assets = [];
+    input.assets = {};
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: { ...root.root, children: [], semanticNodeId: "button" },
+          baseSemanticTree: {
+            rootNodeIds: ["button"],
+            nodes: {
+              button: {
+                id: "button",
+                parentId: null,
+                order: 0,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 3 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        },
+      } as ComponentStructure,
+    };
+    let calls = 0;
+    const observing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        calls++;
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(calls).toBe(0);
+    const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
+    expect(compiled.renderSurfaceIds).toEqual([]);
+    expect(compiled.interactionsByState["instance:default"]).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:button",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        priority: 3,
+        coordinateSpace: "normalized",
+      },
+    ]);
+  });
+
+  it("keeps a non-painting semantic Frame as renderer context", async () => {
     const input = project() as CompilerDeclarationProject & {
       components: CompilerDeclarationProject["components"][number][];
     };
@@ -2036,15 +2532,27 @@ describe("compileDeclarationProject", () => {
       build: (value) => {
         owned = value.plan.ownedContentNodeIds;
         context = value.plan.contextNodeIds;
-        return {
-          ok: false,
-          diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],
-        };
+        return renderer.build(value);
       },
     };
-    await compileDeclarationProject(input, { ...options(), renderers: [probe] });
-    expect(owned).toContain("instance:frame-root");
-    expect(context).not.toContain("instance:frame-root");
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(owned).not.toContain("instance:frame-root");
+    expect(context).toContain("instance:frame-root");
+    expect(
+      result.value.renderBundle.surfaces["instance:surface-root"]?.interactionsByState[
+        "instance:default"
+      ],
+    ).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:frame-button",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        coordinateSpace: "normalized",
+        priority: 1,
+      },
+    ]);
   });
 
   it("reports every preflight texture budget violation before invoking a renderer", async () => {
@@ -2117,14 +2625,15 @@ describe("compileDeclarationProject", () => {
     });
     expect(result.value.buildManifestJson).toBeTruthy();
     const surface = result.value.renderBundle.surfaces["instance:surface-root"]!;
-    const renderSurface = surface.renderSurfaces["instance:surface-root:render"]!;
-    expect(renderSurface.artifacts["instance:surface-root:render:artifact"]).toHaveProperty(
-      "states.instance:default.texture",
-    );
+    const renderSurfaceId = surface.renderSurfaceIds[0]!;
+    const renderSurface = surface.renderSurfaces[renderSurfaceId]!;
+    const artifactId = Object.keys(renderSurface.artifacts)[0]!;
+    expect(renderSurface.artifacts[artifactId]).toHaveProperty("states.instance:default.texture");
+    expect(renderSurface.partitionStrategyVersion).toBe(1);
     expect(renderSurface.stateBindings).toEqual({
       "instance:default": {
         kind: "artifacts",
-        artifactIds: ["instance:surface-root:render:artifact"],
+        artifactIds: [artifactId],
       },
     });
     expect(checkDeclarationProject(project())).toEqual(before);

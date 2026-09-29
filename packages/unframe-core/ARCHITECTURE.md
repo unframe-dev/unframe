@@ -89,9 +89,11 @@ DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応を�
 Hit Regionのbounds、priority、canonical order、enabled buttonとの整合、全Stateのbindingと
 texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Media、Modelに依存する操作は`feature.unsupported`で拒否する。
 
+Render Surface は `partitionStrategyVersion: 1` と全 State の binding を持つ。非表示 State は `empty` とし、artifact は自身を参照する State の texture だけを保持する。全 State で空の partition、未参照 artifact、layer の欠落・重複を拒否する。描画が不要な Surface は partition を持たず、意味情報と Hit Region を保持できる（[ADR-0019](../../docs/decisions/0019-surface-interaction-geometry.md)）。encoded output budget は checksum ごとに一度だけ計上する。
+
 次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
 
-- SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:N とする。
+- SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:0..N とする。
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
 - Resource owner は `presentation` または一つの `group` に限定する。
 - reference は同じか長い lifetime の resource へだけ向ける。

@@ -821,7 +821,7 @@ Surface は次の三層を別の canonical identity として扱う。
 - **Semantic Surface** は PresentationDefinition 上の安定した意味、State、Interaction、Surface Tree、Render Intent を持つ。
 - **Render Surface** は一つの Semantic Surface から Compiler が生成する RenderBundle 内の描画 partition である。
 
-v1 は一つの SurfaceNode と一つの Semantic Surface を 1:1 に対応させ、一つの Semantic Surface を一つ以上の Render Surface へ lower する。同じ Semantic Surface を複数の SurfaceNode へ配置する mirroring は含めず、再利用や複数配置は Component Instance と SurfaceNode をそれぞれ作成して表現する。
+v1 は一つの SurfaceNode と一つの Semantic Surface を 1:1 に対応させ、一つの Semantic Surface を描画に必要な Render Surface へ lower する。全 State で描画がなければ 0 件とする（ADR-0019）。同じ Semantic Surface を複数の SurfaceNode へ配置する mirroring は含めず、再利用や複数配置は Component Instance と SurfaceNode をそれぞれ作成して表現する。
 
 ModelNode は Model Asset に内蔵された animation clip を再生できる。通常は一つの ModelNode で同時に一つの clip だけを再生し、clip crossfade 中だけ遷移元と遷移先の二つを許可する。別 ModelNode の clip は同時に再生できる。部位 mask、animation layer、additive clip 合成は対象外とし、将来用 field や拡張口を作らない。詳細な採用範囲は [ADR-0016](../decisions/0016-model-animation-scope.md) に従う。
 
@@ -1006,7 +1006,7 @@ Compiler は次の invariant を検証する。
 
 ### 7.5 Render Surface lowering と Runtime 参照
 
-一つの Semantic Surface は一つ以上の Render Surface へ lower する。Native UI、Baked Web、Video はいずれも Render Surface の renderer artifact として扱い、Semantic Surface と並列の意味 identity を作らない。
+一つの Semantic Surface は描画に必要な Render Surface へ lower し、全 State で描画がなければ 0 件とする。Native UI、Baked Web、Video はいずれも Render Surface の renderer artifact として扱い、Semantic Surface と並列の意味 identity を作らない。
 
 ```ts
 // Target M3 portable shape. Current generated schema remains the M1 subset.
@@ -1059,7 +1059,7 @@ RenderSurfaceId は Trigger、Guard、Action、Timeline、Snapshot、Reliable Ev
 
 `media.play`、`media.pause`、`media.seek` と `mediaCompleted` は、Video content node をちょうど一つ持ち、その content に対応する Video artifact が選択された SemanticSurfaceId だけを参照する。Compiler はそれ以外の Surface への media Action / Trigger を build error とする。同じ Semantic Surface の Video partition は一つの canonical media run として扱い、割り当て済み Runtime Core は admitted Video Artifact の duration と Video content の `loop` を使って再生位置と完了を決定する。`mediaCompleted` Trigger は `loop: false` の Surface だけを参照でき、looping Surface への参照は build error とする。独立した再生位置や完了判定が必要な Video は別 Semantic Surface に分ける。renderer acknowledgement を media authority にしない。本書の `Media` / `media` runtime state、run、event はすべてこの Video playback を意味し、独立音声を含まない。
 
-v1はrequired renderer / compositing boundaryとManifestが許可した公開Partの`isolate`だけでcanonical paint atom列を最大runへ分割する。同じ要件のatomをtexture sizeやNode数のheuristicだけで分けず、authorはRenderSurfaceId、bounds、layer、rendererを指定しない。Compilerが全partitionのprivate regionをSemantic Surface normalized Hit Regionへaggregateし、Coreがreject-onlyで検証する。詳細は [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
+v1はrequired renderer / compositing boundaryとManifestが許可した公開Partの`isolate`だけでcanonical paint atom列を最大runへ分割する。同じ要件のatomをtexture sizeやNode数のheuristicだけで分けず、authorはRenderSurfaceId、bounds、layer、rendererを指定しない。Compiler が Surface 全体の layout から normalized Hit Region を解決し、Core が reject-only で検証する（[ADR-0019](../decisions/0019-surface-interaction-geometry.md)）。詳細は [ADR-0011](../decisions/0011-surface-partition-contract.md) を正本とする。
 
 ## 8. Frame Layout
 
@@ -2183,7 +2183,7 @@ Semantic Tree は検索、翻訳、読み上げ、caption、presenter notes、Ag
 
 `SurfaceStateDefinition.semanticOverrides` は ordered な override layers である。Compiler は `baseSemanticTree` に layers を順に適用して State ごとの完成 Tree を materializeし、buttonの`stateEnabled`をStateのenabled Interaction集合から導出して、`RenderBundle.semanticsByState`には`CompletedSemanticTree`だけを格納する。DeliveryはSession roleからprojected `enabled`を導出し、viewerのInteraction ID / Hit Regionを配信前に除外する。差分や適用処理をRuntimeへ配信しない。overrideはbase Treeに存在するNodeとroleが許すpropertyだけを参照でき、全layerを通じて同じNode/propertyを重複して変更できない。fieldが存在しない場合だけbase値を保持し、requiredなtext / altは削除できず、optionalなtable labelだけを`null`で削除できる。`included: false`は対象Nodeとすべてのdescendantを派生 Completed Tree から除外するが、Definition の基底 Node は維持する。required list / table structureを壊したり、除外されたNodeのdescendantを個別に再includeしたりできない。State 間の基底 Node ID / role / parent / order / interaction変更はbuild errorとする。
 
-Structured Component の Semantic Tree は Component Structure の semantic Primitive から生成し、Opaque Component は Manifest の `semantics` から生成する。renderer は layout と Hit Region の concrete geometry を解決するだけで、DOM、React tree、CSS、Texture、実行結果から意味を抽出・補完しない。
+Structured Component の Semantic Tree は Component Structure の semantic Primitive から生成し、Opaque Component は Manifest の `semantics` から生成する。Structured Frame / Text の Hit Region は Compiler が Surface 全体の layout から解決する（[ADR-0019](../decisions/0019-surface-interaction-geometry.md)）。renderer は指定された partition を描画し、DOM、React tree、CSS、Texture、実行結果から意味を抽出・補完しない。
 
 ### 13.3 Hit Region
 

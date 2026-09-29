@@ -44,9 +44,7 @@ const fixedContext = Object.freeze({
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  webRendererConfig: Object.freeze({
-    documentBackground: [0, 0, 0, 255] as const,
-  }),
+  webRendererConfig: Object.freeze({}),
 });
 const limits = Object.freeze({
   maxWidth: 4096,

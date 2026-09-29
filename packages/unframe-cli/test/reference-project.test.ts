@@ -115,9 +115,7 @@ const buildContext = {
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  webRendererConfig: {
-    documentBackground: [0, 0, 0, 255] as const,
-  },
+  webRendererConfig: {},
 };
 
 const fakeBrowser = (
@@ -250,7 +248,7 @@ describe("reference Authoring Project", () => {
           },
         ],
       });
-      expect(browser.observed.capture).toBe(command === "build" ? 2 : 0);
+      expect(browser.observed.capture).toBe(command === "build" ? 6 : 0);
     },
   );
 
@@ -388,10 +386,10 @@ describe("reference Authoring Project", () => {
     const firstTarget = await readlink(join(directory, "dist"));
     expect(firstTarget).toMatch(/^\.unframe\/generations\/[0-9a-f]{32}$/u);
     const assetNames = await readdir(join(directory, "dist", "assets"));
-    expect(assetNames).toHaveLength(3);
+    expect(assetNames).toHaveLength(5);
     expect(assetNames).toContain("reference-font.ttf");
     const assetNamesPng = assetNames.filter((name) => name.endsWith(".png"));
-    expect(assetNamesPng).toHaveLength(2);
+    expect(assetNamesPng).toHaveLength(4);
     const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
     const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
     expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(2);
@@ -499,8 +497,8 @@ describe("reference Authoring Project", () => {
         Buffer.from(sourceLock.assets["reference-font"].dataBase64, "base64"),
       ),
     ).toBe(true);
-    expect(first.observed).toMatchObject({ capture: 2, close: 1 });
-    expect(first.observed.signals).toEqual([controller.signal, controller.signal]);
+    expect(first.observed).toMatchObject({ capture: 6, close: 1 });
+    expect(first.observed.signals).toEqual(Array(6).fill(controller.signal));
 
     expect((await build(second)).exitCode).toBe(0);
     expect(
@@ -520,8 +518,8 @@ describe("reference Authoring Project", () => {
     expect((await readFile(join(directory, "dist/build-manifest.json"))).equals(firstBuild)).toBe(
       true,
     );
-    expect(second.observed).toMatchObject({ capture: 2, close: 1 });
-    expect(second.observed.signals).toEqual([controller.signal, controller.signal]);
+    expect(second.observed).toMatchObject({ capture: 6, close: 1 });
+    expect(second.observed.signals).toEqual(Array(6).fill(controller.signal));
   });
 
   it.each([

@@ -125,11 +125,11 @@ type ResolvedInteractiveRegion = {
 
 `UInt32`はwire上の`0..4_294_967_295`のintegerを表すportable scalarである。Hit Regionはruntime identityを持たず、array positionもcommandやSnapshotから参照しない。v2 portable schemaとrenderer conformanceはpriorityをこの範囲のintegerに制限する。`event`は持たず、Runtime Coreが`interactionId`からPresentationDefinitionのcanonical eventを解決する。異なるInteractionが同じeventを共有することは許可するが、authorityとhit-test結果は常にInteraction IDで扱う。regionを持つ全Interactionのeventは`SurfaceRenderIntent.interaction.events`に含まれなければならず、rendererはintentにないeventを追加できない。
 
-canonical Interaction definitionはrequired `hitPriority: UInt32`を持ち、Authoring `InteractionDeclaration`も同じ値を明示する。Compilerはこの値をprivate / portable regionへcopyし、renderer、Delivery、clientは変更しない。v2 Definition schemaとAuthoring declarationは必須fieldを持ち、暗黙defaultやsemantic orderからの推測をしない。
+canonical Interaction definitionはrequired `hitPriority: UInt32`を持ち、Authoring `InteractionDeclaration`も同じ値を明示する。Compilerはこの値をportable regionへcopyし、renderer、Delivery、clientは変更しない。v2 Definition schemaとAuthoring declarationは必須fieldを持ち、暗黙defaultやsemantic orderからの推測をしない。
 
-`x` / `y` / `width` / `height` は有限値で、`0 <= x < 1`、`0 <= y < 1`、`0 < width <= 1 - x`、`0 < height <= 1 - y`を満たす。target pipelineではartifact producerがADR-0011のpartition-local private regionを一度だけclipし、Compiler aggregateがSemantic Surface全体のnormalized logical coordinateへ変換する。aggregate後に面積がないregionを出力しない。portable boundsはRender Surface、texture、pixel、UVの座標を持たない。logical / UV / Unity変換とclip authorityはADR-0010、private regionのexact shapeとaggregateはADR-0011を正本とする。
+`x` / `y` / `width` / `height` は有限値で、`0 <= x < 1`、`0 <= y < 1`、`0 < width <= 1 - x`、`0 < height <= 1 - y`を満たす。[ADR-0019](./0019-surface-interaction-geometry.md) に従い、Compiler が Surface 全体の layout から ancestor clip と surfaceVisibleWindow を適用し、Semantic Surface 全体の normalized logical coordinate へ変換する。面積がない region は出力しない。portable bounds は Render Surface、texture、pixel、UV の座標を持たず、partition の crop で操作範囲を狭めない。logical / UV / Unity 変換は ADR-0010 を正本とする。
 
-一つのInteraction / button Nodeが複数regionを持つこととregion同士のoverlapを許可する。`interactionId + semanticNodeId + x + y + width + height`が同じregionはpriorityにかかわらずduplicateとしてinvalidとする。artifact producerはpartition-local private region内のduplicateを拒否し、Presentation CoreはCompiler aggregate後にRenderBundle全体のcross-partition invariantとして再検証する。canonical array orderとhit-test winnerは`priority`降順、次に`interactionId`、`semanticNodeId`のRFC 8785と同じUTF-16 code-unit昇順、最後に`x`、`y`、`width`、`height`の数値昇順とする。local input pointは`0 <= x < 1`、`0 <= y < 1`とし、rectangleはleft / top inclusive、right / bottom exclusiveで判定する。候補の先頭regionの`interactionId`を選ぶ。
+一つのInteraction / button Nodeが複数regionを持つこととregion同士のoverlapを許可する。`interactionId + semanticNodeId + x + y + width + height`が同じregionはpriorityにかかわらずduplicateとしてinvalidとする。Presentation Core は Compiler が生成した Surface 全体の region の duplicate を拒否する。canonical array orderとhit-test winnerは`priority`降順、次に`interactionId`、`semanticNodeId`のRFC 8785と同じUTF-16 code-unit昇順、最後に`x`、`y`、`width`、`height`の数値昇順とする。local input pointは`0 <= x < 1`、`0 <= y < 1`とし、rectangleはleft / top inclusive、right / bottom exclusiveで判定する。候補の先頭regionの`interactionId`を選ぶ。
 
 各regionは同じStateのCompleted treeにある`stateEnabled: true`のbutton Nodeを参照し、そのbuttonの`interactionId`とregionの`interactionId`が一致しなければならない。enabled Interactionは一つ以上のregionを持ち、disabled / unknown Interaction、excluded / non-button Nodeはregionを持てない。State recordは到達可能な全Stateをexactly onceで含む。
 
@@ -145,7 +145,7 @@ Semantic Surfaceはhost Spatial Nodeの`ProjectionAudience`を全体として継
 
 Definition schemaとCompleted schemaを混同せず、unknown role、unknown required field、roleに禁止されたfield、unsupported schema versionはfail closedとする。同じversionで許可する追加は全consumerが安全に無視できるoptional metadataだけとし、role、required field、parent / child relation、hit-test規則の変更はbreaking changeとする。
 
-v1のflat schemaは未公開のinitial subsetであり、現行buildはv2を出力する。v1互換unionやfallbackは追加しない。Renderer APIはpartition-local private regionを返し、Compilerがportable regionへ集約する。fixture、generated JSON Schema、Core、Compiler、renderer、reference projectを同じ変更系列で更新した。
+v1のflat schemaは未公開のinitial subsetであり、現行buildはv2を出力する。v1互換unionやfallbackは追加しない。M3B の partition-local private region は ADR-0019 で廃止する。Compiler が Surface 全体の region を生成し、Renderer は描画だけを担う。
 
 ## Consumer responsibility
 
@@ -153,8 +153,8 @@ v1のflat schemaは未公開のinitial subsetであり、現行buildはv2を出�
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | Contracts                | Definition / Completed role union、override、Hit Regionのportable Zod sourceとgenerated JSON Schema                              |
 | Presentation Core        | tree / role relation、State materialization、accessible value、button enabled、cross-artifact invariant                          |
-| Compiler                 | authoring role lowering、stable ID、dynamic binding、State completeness、canonical order                                         |
-| Renderer API / Web       | 完成Treeを変更せず、visible geometryをpartition-local private regionへ解決し、local ID / boundsを検証                            |
+| Compiler                 | authoring role lowering、stable ID、dynamic binding、Surface Hit Region、State completeness、canonical order                     |
+| Renderer API / Web       | 完成 Tree を変更せず、Compiler が指定した partition を描画する                                                                   |
 | Control Plane / Delivery | audience / Session role / capability closureを検証し、Projected treeを生成してprofile外Tree / interaction / regionを配信前に除外 |
 | Unity / Web preview      | 同じCompleted treeからplatform semanticsを生成し、同じordered region hit-test fixtureを適用                                      |
 

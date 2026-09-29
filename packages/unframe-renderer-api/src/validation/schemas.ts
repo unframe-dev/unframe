@@ -16,10 +16,6 @@ export const renderLayerSchema = nonNegativeIntegerSchema;
 export const pixelTargetSchema = z.tuple([z.int().positive(), z.int().positive()]);
 export const renderStateIdsSchema = z.array(rendererIdSchema).min(1);
 export const capturePixelSizeSchema = pixelTargetSchema;
-export const hitRegionPrioritySchema = z.int().min(0).max(4_294_967_295);
-export const privateHitRegionBoundsSchema = boundsSchema.refine(
-  ({ x, y, width, height }) => x >= 0 && y >= 0 && width > 0 && height > 0,
-);
 export const logicalBoundsConstraintSchema = z
   .strictObject({
     bounds: boundsSchema,
@@ -53,7 +49,6 @@ const renderSurfacePlanSchema = z.strictObject({
   ownedContentNodeIds: z.array(rendererIdSchema),
   contextNodeIds: z.array(rendererIdSchema),
   clipWindow: boundsSchema,
-  hitPriorityByInteractionId: z.record(rendererIdSchema, hitRegionPrioritySchema),
   states: z.record(
     z.string(),
     z.discriminatedUnion("kind", [
@@ -142,13 +137,6 @@ const captureSchema = z.strictObject({
   alphaMode: z.enum(["opaque", "straight", "premultiplied"]),
 });
 
-const hitRegionSchema = z.strictObject({
-  interactionId: rendererIdSchema,
-  semanticNodeId: rendererIdSchema,
-  bounds: boundsSchema,
-  priority: hitRegionPrioritySchema,
-});
-
 export const rendererBuildResultSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(false), diagnostics: z.array(diagnosticSchema) }),
   z.strictObject({
@@ -160,7 +148,6 @@ export const rendererBuildResultSchema = z.discriminatedUnion("ok", [
       layer: finiteNumberSchema,
     }),
     captures: z.array(captureSchema),
-    hitRegionsByState: z.record(rendererIdSchema, z.array(hitRegionSchema)),
     provenance: rendererIdentitySchema.extend({
       inputHash: rendererIdSchema,
       buildContextHash: rendererIdSchema,

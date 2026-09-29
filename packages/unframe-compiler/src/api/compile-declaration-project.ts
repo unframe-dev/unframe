@@ -2,7 +2,6 @@ import { PNG_ENCODER_IDENTITY, encodeRgbaToPng } from "@unframe/unframe-assets";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
-  materializeCompletedSemanticTree,
   validatePresentationArtifacts,
   verifyBuildIntegrityV2,
   type BuildArtifactsV2,
@@ -25,7 +24,7 @@ import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { decodeCanonicalBase64 } from "../validation/source-assets.js";
 import { derivedResourceId, resourceId } from "../lowering/support.js";
 import { checkDeclarationProject } from "./check-declaration-project.js";
-import { aggregatePrivateRegions } from "./aggregate-private-regions.js";
+import { planSurfacePartitions } from "./plan-surface-partitions.js";
 import type {
   CheckedDeclarationProject,
   CompiledDeclarationProject,
@@ -62,14 +61,6 @@ const failure = (
 ): ValidationResult<never> => ({ valid: false, diagnostics: [diagnostic(code, path, message)] });
 const budgetFailure = (code: string, path: readonly (string | number)[]) =>
   failure(code, path, "The fixed texture build policy budget was exceeded.");
-const pixelTargetFor = ([width, height]: readonly [number, number]): readonly [number, number] => {
-  const scale = POLICY.longEdgePixels / Math.max(width, height);
-  return [
-    Math.max(1, Math.floor(width * scale + 0.5)),
-    Math.max(1, Math.floor(height * scale + 0.5)),
-  ];
-};
-
 const compileUnchecked = async (
   input: unknown,
   options: unknown,
@@ -167,11 +158,62 @@ const compileUnchecked = async (
     }
   if (!Number.isSafeInteger(outputBytes) || outputBytes > POLICY.maxBuildOutputBytes)
     return budgetFailure("compiler-budget-output-bytes-exceeded", ["assets"]);
+  const definitionSurfaces = Object.values(definition.scene.surfaces);
+  const planned = new Map<string, ReturnType<typeof planSurfacePartitions> & { valid: true }>();
+  const preflightDiagnostics: Diagnostic[] = [];
   let preflightBindings = 0;
   let preflightPixels = 0;
-  const definitionSurfaces = Object.values(definition.scene.surfaces);
-  const preflightDiagnostics: Diagnostic[] = [];
-  if (definitionSurfaces.length > POLICY.maxRenderSurfacesPerBundle)
+  let totalPartitions = 0;
+  for (const surface of definitionSurfaces) {
+    const result = planSurfacePartitions(surface, renderer.identity);
+    if (!result.valid) return result;
+    planned.set(surface.id, result);
+    totalPartitions += result.value.partitions.length;
+    const path = ["definition", "scene", "surfaces", surface.id] as const;
+    if (result.value.partitions.length > POLICY.maxRenderSurfacesPerSemanticSurface)
+      preflightDiagnostics.push(
+        diagnostic(
+          "compiler-budget-render-surface-count-exceeded",
+          path,
+          "Render Surface count exceeds the fixed texture build policy.",
+        ),
+      );
+    for (const { plan, pixelTarget } of result.value.partitions) {
+      const stateCount = Object.values(plan.states).filter(({ kind }) => kind === "capture").length;
+      const pixelCount = pixelTarget[0] * pixelTarget[1];
+      preflightBindings += stateCount;
+      preflightPixels += pixelCount * stateCount;
+      if (Object.keys(plan.states).length > POLICY.maxStatesPerRenderSurface)
+        preflightDiagnostics.push(
+          diagnostic(
+            "compiler-budget-state-count-exceeded",
+            [...path, "states"],
+            "State count exceeds the fixed texture build policy.",
+          ),
+        );
+      if (
+        pixelTarget[0] > POLICY.maxTextureWidth ||
+        pixelTarget[1] > POLICY.maxTextureHeight ||
+        pixelCount > POLICY.maxTexturePixels
+      )
+        preflightDiagnostics.push(
+          diagnostic(
+            "compiler-budget-pixel-target-exceeded",
+            [...path, "logicalSize"],
+            "Derived pixel dimensions exceed the fixed texture build policy.",
+          ),
+        );
+      if (pixelCount * stateCount * 4 > POLICY.maxSurfaceCaptureBytes)
+        preflightDiagnostics.push(
+          diagnostic(
+            "compiler-budget-capture-bytes-exceeded",
+            path,
+            "Predicted capture bytes exceed the fixed texture build policy.",
+          ),
+        );
+    }
+  }
+  if (totalPartitions > POLICY.maxRenderSurfacesPerBundle)
     preflightDiagnostics.push(
       diagnostic(
         "compiler-budget-render-surface-count-exceeded",
@@ -179,42 +221,6 @@ const compileUnchecked = async (
         "Render Surface count exceeds the fixed texture build policy.",
       ),
     );
-  for (const surface of definitionSurfaces) {
-    const stateCount = Object.keys(surface.states).length;
-    const pixelTarget = pixelTargetFor(surface.logicalSize);
-    const pixelCount = pixelTarget[0] * pixelTarget[1];
-    preflightBindings += stateCount;
-    preflightPixels += pixelCount * stateCount;
-    const path = ["definition", "scene", "surfaces", surface.id] as const;
-    if (stateCount > POLICY.maxStatesPerRenderSurface)
-      preflightDiagnostics.push(
-        diagnostic(
-          "compiler-budget-state-count-exceeded",
-          [...path, "states"],
-          "State count exceeds the fixed texture build policy.",
-        ),
-      );
-    if (
-      pixelTarget[0] > POLICY.maxTextureWidth ||
-      pixelTarget[1] > POLICY.maxTextureHeight ||
-      pixelCount > POLICY.maxTexturePixels
-    )
-      preflightDiagnostics.push(
-        diagnostic(
-          "compiler-budget-pixel-target-exceeded",
-          [...path, "logicalSize"],
-          "Derived pixel dimensions exceed the fixed texture build policy.",
-        ),
-      );
-    if (pixelCount * stateCount * 4 > POLICY.maxSurfaceCaptureBytes)
-      preflightDiagnostics.push(
-        diagnostic(
-          "compiler-budget-capture-bytes-exceeded",
-          path,
-          "Predicted capture bytes exceed the fixed texture build policy.",
-        ),
-      );
-  }
   if (!Number.isSafeInteger(preflightBindings) || preflightBindings > POLICY.maxTextureBindings)
     preflightDiagnostics.push(
       diagnostic(
@@ -231,214 +237,172 @@ const compileUnchecked = async (
         "Rendered pixels exceed the fixed texture build policy.",
       ),
     );
-  if (preflightDiagnostics.length > 0)
+  if (preflightDiagnostics.length)
     return { valid: false, diagnostics: sortDiagnostics(preflightDiagnostics) };
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces).sort(
     ([left], [right]) => compareStrings(left, right),
   )) {
     const stateIds = Object.keys(surface.states).sort(compareStrings);
-    const pixelTarget = pixelTargetFor(surface.logicalSize);
-    const semanticsByState: RenderBundle["surfaces"][string]["semanticsByState"] = {};
-    const states: Record<string, { kind: "capture" }> = {};
-    for (const stateId of stateIds) {
-      const materialized = materializeCompletedSemanticTree(surface, stateId);
-      if (!materialized.valid) return materialized;
-      semanticsByState[stateId] = {
-        rootNodeIds: [...materialized.value.rootNodeIds],
-        nodes: Object.fromEntries(
-          Object.entries(materialized.value.nodes).map(([id, node]) => [id, { ...node }]),
-        ),
-      };
-      states[stateId] = { kind: "capture" };
-    }
-    const renderSurfaceId = derivedResourceId(surfaceId, "render");
-    const inputHash = hashCanonicalJsonPayload({
-      definitionHash: checked.value.definitionHash,
-      surfaceId,
-      semanticsByState,
-    });
-    const buildContextHash = hashCanonicalJsonPayload({
-      colorScheme: buildOptions.colorScheme,
-      inputHash,
-      locale: buildOptions.locale,
-      pixelTarget,
-      rendererConfigHash: buildOptions.rendererConfigHash,
-      textureBuildPolicy: POLICY,
-      themeHash: theme.hash,
-      themeId: bundleThemeId,
-      timezone: buildOptions.timezone,
-    });
-    const rendered = await executeRendererPlugin(renderer, {
-      surface,
-      sourceIntent: surface.renderIntent,
-      resolvedIntent: {
-        updateModel: surface.renderIntent.updateModel,
-        interaction: surface.renderIntent.interaction,
-        internalAnimation: surface.renderIntent.internalAnimation,
-        selectedRendererId: "baked-web",
-        fallbackPolicy: surface.renderIntent.fallbackPolicy,
-      },
-      semanticsByState,
-      fontAssets,
-      plan: {
+    const surfacePlan = planned.get(surfaceId)!.value;
+    const { semanticsByState, interactionsByState } = surfacePlan;
+    const partitions = surfacePlan.partitions;
+    const renderSurfaces: RenderBundle["surfaces"][string]["renderSurfaces"] = {};
+    for (const { plan, pixelTarget } of partitions) {
+      const renderSurfaceId = plan.id;
+      const inputHash = hashCanonicalJsonPayload({
+        definitionHash: checked.value.definitionHash,
+        surfaceId,
+        semanticsByState,
+        renderSurfaceId,
+      });
+      const buildContextHash = hashCanonicalJsonPayload({
+        colorScheme: buildOptions.colorScheme,
+        inputHash,
+        locale: buildOptions.locale,
+        pixelTarget,
+        rendererConfigHash: buildOptions.rendererConfigHash,
+        textureBuildPolicy: POLICY,
+        themeHash: theme.hash,
+        themeId: bundleThemeId,
+        timezone: buildOptions.timezone,
+      });
+      const rendered = await executeRendererPlugin(renderer, {
+        surface,
+        sourceIntent: surface.renderIntent,
+        resolvedIntent: {
+          updateModel: surface.renderIntent.updateModel,
+          interaction: surface.renderIntent.interaction,
+          internalAnimation: surface.renderIntent.internalAnimation,
+          selectedRendererId: "baked-web",
+          fallbackPolicy: surface.renderIntent.fallbackPolicy,
+        },
+        semanticsByState,
+        fontAssets,
+        plan,
+        entry: { kind: "structured" },
+        context: {
+          locale: buildOptions.locale,
+          timezone: buildOptions.timezone,
+          colorScheme: buildOptions.colorScheme,
+          themeId: bundleThemeId,
+          themeHash: theme.hash,
+          inputHash,
+          buildContextHash,
+          environmentHash,
+          rendererConfigHash: buildOptions.rendererConfigHash,
+          rendererFingerprint,
+          pixelTarget,
+        },
+      });
+      if (!rendered.valid) return rendered;
+      const alphaModes = new Set(rendered.value.captures.map(({ alphaMode }) => alphaMode));
+      if (alphaModes.size !== 1)
+        return failure(
+          "compiler-renderer-output-inconsistent",
+          ["render", surfaceId, "captures"],
+          "All captures in one baked-web artifact must use the same alpha mode.",
+        );
+      const artifactId = derivedResourceId(renderSurfaceId, "artifact");
+      const captureBytes = rendered.value.captures.reduce(
+        (sum, capture) => sum + capture.rgba.length,
+        0,
+      );
+      if (!Number.isSafeInteger(captureBytes) || captureBytes > POLICY.maxSurfaceCaptureBytes)
+        return budgetFailure("compiler-budget-capture-bytes-exceeded", ["render", surfaceId]);
+      const artifactStates: BakedWebArtifact["states"] = {};
+      for (const capture of [...rendered.value.captures].sort((left, right) =>
+        compareStrings(left.stateId, right.stateId),
+      )) {
+        if (capture.pixelSize[0] !== pixelTarget[0] || capture.pixelSize[1] !== pixelTarget[1])
+          return budgetFailure("compiler-budget-pixel-target-exceeded", [
+            "render",
+            surfaceId,
+            capture.stateId,
+          ]);
+        const encoded = encodeRgbaToPng({
+          sourceId: `${surfaceId}:${capture.id}`,
+          rgba: capture.rgba,
+          pixelSize: capture.pixelSize,
+          colorSpace: capture.colorSpace,
+          alphaMode: capture.alphaMode,
+          limits: buildOptions.encodeLimits,
+        });
+        if (!encoded.valid) return encoded;
+        const uniqueOutput = !retainedChecksums.has(encoded.value.descriptor.checksum);
+        const nextOutputBytes = outputBytes + (uniqueOutput ? encoded.value.byteLength : 0);
+        if (!Number.isSafeInteger(nextOutputBytes) || nextOutputBytes > POLICY.maxBuildOutputBytes)
+          return budgetFailure("compiler-budget-output-bytes-exceeded", [
+            "render",
+            surfaceId,
+            capture.stateId,
+          ]);
+        const accountedPeakBytes = outputBytes + captureBytes + encoded.value.byteLength;
+        if (
+          !Number.isSafeInteger(accountedPeakBytes) ||
+          accountedPeakBytes > POLICY.maxBuildAccountedPeakBytes
+        )
+          return budgetFailure("compiler-budget-accounted-peak-exceeded", [
+            "render",
+            surfaceId,
+            capture.stateId,
+          ]);
+        if (uniqueOutput) {
+          retainedChecksums.add(encoded.value.descriptor.checksum);
+          outputBytes = nextOutputBytes;
+        }
+        assets[encoded.value.descriptor.assetId] = encoded.value.bytes;
+        generatedDescriptors[encoded.value.descriptor.assetId] = {
+          checksum: encoded.value.descriptor.checksum,
+          mediaType: "image/png",
+          encodedSizeBytes: encoded.value.byteLength,
+        };
+        artifactStates[capture.stateId] = {
+          stateId: capture.stateId,
+          texture: {
+            ...encoded.value.descriptor,
+            pixelSize: [...encoded.value.descriptor.pixelSize],
+          },
+        };
+      }
+      const stateBindings: Record<
+        string,
+        { kind: "artifacts"; artifactIds: string[] } | { kind: "empty" }
+      > = {};
+      for (const stateId of stateIds)
+        stateBindings[stateId] =
+          plan.states[stateId]?.kind === "empty"
+            ? { kind: "empty" }
+            : { kind: "artifacts", artifactIds: [artifactId] };
+      const alphaFeature =
+        rendered.value.captures[0]?.alphaMode === "straight"
+          ? ("alpha-straight" as const)
+          : ("alpha-opaque" as const);
+      renderSurfaces[renderSurfaceId] = {
         id: renderSurfaceId,
         semanticSurfaceId: surfaceId,
-        logicalBounds: {
-          x: 0,
-          y: 0,
-          width: surface.logicalSize[0],
-          height: surface.logicalSize[1],
+        logicalBounds: plan.logicalBounds,
+        layer: plan.layer,
+        partitionStrategyVersion: 1,
+        artifacts: {
+          [artifactId]: {
+            id: artifactId,
+            kind: "baked-web",
+            contractVersion: 1,
+            requiredFeatures: [alphaFeature, "png", "srgb"],
+            states: artifactStates,
+          },
         },
-        layer: 0,
-        ownedContentNodeIds: Object.values(surface.contentNodes)
-          .filter((node) => node.kind !== "frame" || node.semanticNodeId !== undefined)
-          .map((node) => node.id)
-          .sort(compareStrings),
-        contextNodeIds: Object.values(surface.contentNodes)
-          .filter((node) => node.kind === "frame" && node.semanticNodeId === undefined)
-          .map((node) => node.id)
-          .sort(compareStrings),
-        clipWindow: { x: 0, y: 0, width: surface.logicalSize[0], height: surface.logicalSize[1] },
-        hitPriorityByInteractionId: Object.fromEntries(
-          Object.entries(surface.interactions).map(([id, interaction]) => [
-            id,
-            interaction.hitPriority,
-          ]),
-        ),
-        states,
-      },
-      entry: { kind: "structured" },
-      context: {
-        locale: buildOptions.locale,
-        timezone: buildOptions.timezone,
-        colorScheme: buildOptions.colorScheme,
-        themeId: bundleThemeId,
-        themeHash: theme.hash,
-        inputHash,
-        buildContextHash,
-        environmentHash,
-        rendererConfigHash: buildOptions.rendererConfigHash,
-        rendererFingerprint,
-        pixelTarget,
-      },
-    });
-    if (!rendered.valid) return rendered;
-    const alphaModes = new Set(rendered.value.captures.map(({ alphaMode }) => alphaMode));
-    if (alphaModes.size !== 1)
-      return failure(
-        "compiler-renderer-output-inconsistent",
-        ["render", surfaceId, "captures"],
-        "All captures in one baked-web artifact must use the same alpha mode.",
-      );
-    const artifactId = derivedResourceId(renderSurfaceId, "artifact");
-    const captureBytes = rendered.value.captures.reduce(
-      (sum, capture) => sum + capture.rgba.length,
-      0,
-    );
-    if (!Number.isSafeInteger(captureBytes) || captureBytes > POLICY.maxSurfaceCaptureBytes)
-      return budgetFailure("compiler-budget-capture-bytes-exceeded", ["render", surfaceId]);
-    const artifactStates: BakedWebArtifact["states"] = {};
-    for (const capture of [...rendered.value.captures].sort((left, right) =>
-      compareStrings(left.stateId, right.stateId),
-    )) {
-      if (capture.pixelSize[0] !== pixelTarget[0] || capture.pixelSize[1] !== pixelTarget[1])
-        return budgetFailure("compiler-budget-pixel-target-exceeded", [
-          "render",
-          surfaceId,
-          capture.stateId,
-        ]);
-      const encoded = encodeRgbaToPng({
-        sourceId: `${surfaceId}:${capture.id}`,
-        rgba: capture.rgba,
-        pixelSize: capture.pixelSize,
-        colorSpace: capture.colorSpace,
-        alphaMode: capture.alphaMode,
-        limits: buildOptions.encodeLimits,
-      });
-      if (!encoded.valid) return encoded;
-      const uniqueOutput = !retainedChecksums.has(encoded.value.descriptor.checksum);
-      const nextOutputBytes = outputBytes + (uniqueOutput ? encoded.value.byteLength : 0);
-      if (!Number.isSafeInteger(nextOutputBytes) || nextOutputBytes > POLICY.maxBuildOutputBytes)
-        return budgetFailure("compiler-budget-output-bytes-exceeded", [
-          "render",
-          surfaceId,
-          capture.stateId,
-        ]);
-      const accountedPeakBytes = outputBytes + captureBytes + encoded.value.byteLength;
-      if (
-        !Number.isSafeInteger(accountedPeakBytes) ||
-        accountedPeakBytes > POLICY.maxBuildAccountedPeakBytes
-      )
-        return budgetFailure("compiler-budget-accounted-peak-exceeded", [
-          "render",
-          surfaceId,
-          capture.stateId,
-        ]);
-      if (uniqueOutput) {
-        retainedChecksums.add(encoded.value.descriptor.checksum);
-        outputBytes = nextOutputBytes;
-      }
-      assets[encoded.value.descriptor.assetId] = encoded.value.bytes;
-      generatedDescriptors[encoded.value.descriptor.assetId] = {
-        checksum: encoded.value.descriptor.checksum,
-        mediaType: "image/png",
-        encodedSizeBytes: encoded.value.byteLength,
-      };
-      artifactStates[capture.stateId] = {
-        stateId: capture.stateId,
-        texture: {
-          ...encoded.value.descriptor,
-          pixelSize: [...encoded.value.descriptor.pixelSize],
-        },
+        stateBindings,
       };
     }
-    const stateBindings: Record<string, { kind: "artifacts"; artifactIds: string[] }> = {};
-    for (const stateId of stateIds)
-      stateBindings[stateId] = { kind: "artifacts", artifactIds: [artifactId] };
-    const alphaFeature =
-      rendered.value.captures[0]?.alphaMode === "straight"
-        ? ("alpha-straight" as const)
-        : ("alpha-opaque" as const);
     surfaces[surfaceId] = {
       semanticSurfaceId: surfaceId,
       logicalSize: [...surface.logicalSize],
       physicalSizeMeters: [...surface.physicalSizeMeters],
-      renderSurfaceIds: [renderSurfaceId],
-      renderSurfaces: {
-        [renderSurfaceId]: {
-          id: renderSurfaceId,
-          semanticSurfaceId: surfaceId,
-          logicalBounds: {
-            x: 0,
-            y: 0,
-            width: surface.logicalSize[0],
-            height: surface.logicalSize[1],
-          },
-          layer: 0,
-          artifacts: {
-            [artifactId]: {
-              id: artifactId,
-              kind: "baked-web",
-              contractVersion: 1,
-              requiredFeatures: [alphaFeature, "png", "srgb"],
-              states: artifactStates,
-            },
-          },
-          stateBindings,
-        },
-      },
+      renderSurfaceIds: partitions.map(({ plan }) => plan.id),
+      renderSurfaces,
       semanticsByState,
-      interactionsByState: aggregatePrivateRegions(surface.logicalSize, stateIds, [
-        {
-          logicalBounds: {
-            x: 0,
-            y: 0,
-            width: surface.logicalSize[0],
-            height: surface.logicalSize[1],
-          },
-          hitRegionsByState: rendered.value.hitRegionsByState,
-        },
-      ]),
+      interactionsByState,
     };
   }
 

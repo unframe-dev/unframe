@@ -68,7 +68,7 @@ Slot の子は placeholder の children 位置で順序付きに展開する。`
 
 Component ActionをSurface State cut / crossfade、Variable / Nodeの即時Actionとhost Timelineのplay Actionへ、Component OutputをSurface Interaction、Step timer、Timeline completionのTriggerと固定Scalar payloadへ展開する。CueのGuard、priority、fire policy、空ActionのStep遷移を保持し、Coreの意味検証へ渡す。Structured Surface Component の Timeline は instance host Spatial Node、instance owner、canonical resource ID に lower する。Slotted / Opaque Component の Timeline は拒否する。
 
-`compileDeclarationProject(unknown, options)` は同じ subset を一つの全 Surface RenderSurface に展開し、全 State の完成 Semantic Tree を Core で materialize する。Renderer の partition-local Hit Region は Compiler が Semantic Surface 全体の normalized 座標へ集約する。注入された `baked-web` Renderer には検証済み font bytes と、logical size から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
+`compileDeclarationProject(unknown, options)` は同じ subset を canonical paint order と compositing closure から自動 partition し、全 State の完成 Semantic Tree を Core で materialize する。Hit Region は同じ Surface layout の visibility / opacity・ancestor clip から一度生成し、画像 partition の bounds では切り取らない（[ADR-0019](../../docs/decisions/0019-surface-interaction-geometry.md)）。注入された `baked-web` Renderer には検証済み font bytes と、partition bounds から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
 Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
 
@@ -151,7 +151,7 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 
 - named entry export
 - plugin discovery と version negotiation
-- ADR-0011でAcceptedになったSurface partition / author isolate overrideのM3〜M4実装
+- ADR-0011 の author isolate override と異なる renderer 間の required boundary 接続
 - cache layout と remote cache policy
 - M1後のBrowser pooling / multi-project isolate topology
 - release間のdiagnostic compatibility policy

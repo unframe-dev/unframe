@@ -380,23 +380,25 @@ const validateInput = (
         "clipWindow",
       ]),
     );
-  for (const [interactionId, priority] of Object.entries(input.plan.hitPriorityByInteractionId))
-    if (input.surface.interactions[interactionId]?.hitPriority !== priority)
+  for (const contextNodeId of input.plan.contextNodeIds) {
+    const node = input.surface.contentNodes[contextNodeId];
+    const ancestorOfOwned = input.plan.ownedContentNodeIds.some((ownedId) => {
+      let parentId = input.surface.contentNodes[ownedId]?.parentId;
+      while (parentId !== null && parentId !== undefined) {
+        if (parentId === contextNodeId) return true;
+        parentId = input.surface.contentNodes[parentId]?.parentId;
+      }
+      return false;
+    });
+    if (node?.kind !== "frame" || !ancestorOfOwned)
       diagnostics.push(
         diagnostic(
-          "invalid-hit-priority-plan",
-          "Planned priority must match the interaction definition.",
-          [...prefix, "plan", "hitPriorityByInteractionId", interactionId],
+          "invalid-context-node",
+          "Context nodes must be ancestor Frames of owned content.",
+          [...prefix, "plan", "contextNodeIds", contextNodeId],
         ),
       );
-  if (!sameKeySet(input.plan.hitPriorityByInteractionId, input.surface.interactions))
-    diagnostics.push(
-      diagnostic(
-        "hit-priority-plan-mismatch",
-        "Planned interaction priorities must cover every interaction.",
-        [...prefix, "plan", "hitPriorityByInteractionId"],
-      ),
-    );
+  }
 };
 
 type PreparedRendererBoundary = {

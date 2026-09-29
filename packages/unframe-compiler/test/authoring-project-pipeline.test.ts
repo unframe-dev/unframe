@@ -202,19 +202,18 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
           logicalBounds: input.plan.logicalBounds,
           layer: input.plan.layer,
         },
-        captures: Object.keys(input.plan.states).map((stateId) => ({
-          id: `${stateId}:capture`,
-          stateId,
-          rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
-            index % 4 === 3 ? 255 : 0,
-          ),
-          pixelSize: [width, height] as [number, number],
-          colorSpace: "srgb" as const,
-          alphaMode: "opaque" as const,
-        })),
-        hitRegionsByState: Object.fromEntries(
-          Object.keys(input.plan.states).map((stateId) => [stateId, []]),
-        ),
+        captures: Object.entries(input.plan.states)
+          .filter(([, state]) => state.kind === "capture")
+          .map(([stateId]) => ({
+            id: `${stateId}:capture`,
+            stateId,
+            rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
+              index % 4 === 3 ? 255 : 0,
+            ),
+            pixelSize: [width, height] as [number, number],
+            colorSpace: "srgb" as const,
+            alphaMode: "opaque" as const,
+          })),
         provenance: {
           ...identity,
           inputHash: input.context.inputHash,
