@@ -11,6 +11,7 @@ import {
   symlink,
   unlink,
 } from "node:fs/promises";
+import { constants as osConstants } from "node:os";
 import { isAbsolute, join, parse } from "node:path";
 
 const GENERATION_ID = /^[0-9a-f]{32}$/;
@@ -34,6 +35,11 @@ export type AtomicOutputResult =
       readonly ok: false;
       readonly family: "cancel" | "io";
       readonly code: "cli-output-cancel" | "cli-output-io" | "cli-output-stale";
+      readonly detail?: {
+        readonly stage: PublicationStage;
+        readonly code?: string;
+        readonly operation?: WriteOperation;
+      };
     };
 
 export type PublishAtomicArtifactsInput = {
@@ -54,6 +60,19 @@ export type PublishAtomicArtifactsInput = {
   };
 };
 
+type PublicationStage =
+  | "capture-project"
+  | "prepare-output"
+  | "inspect-dist"
+  | "create-staging"
+  | "write-artifacts"
+  | "rename-generation"
+  | "verify-generation"
+  | "create-dist-link"
+  | "replace-dist";
+
+type WriteOperation = "open" | "stat-opened" | "write" | "sync" | "stat-synced" | "close";
+
 type FileArtifact = { readonly bytes: Uint8Array; readonly path: string };
 type DirectoryIdentity = {
   readonly dev: number;
@@ -68,6 +87,12 @@ type RawLstat = (path: string) => Promise<Stats>;
 
 class PublicationFailure extends Error {
   override readonly name = "PublicationFailure";
+  constructor(
+    readonly code?: string,
+    readonly operation?: WriteOperation,
+  ) {
+    super();
+  }
 }
 
 class PublicationCancelled extends Error {
@@ -76,8 +101,18 @@ class PublicationCancelled extends Error {
 
 class PublicationStale extends Error {}
 
-const fail = (): never => {
-  throw new PublicationFailure();
+const errorCode = (error: unknown): string | undefined => {
+  try {
+    if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+    const code = error.code;
+    return typeof code === "string" && Object.hasOwn(osConstants.errno, code) ? code : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const fail = (error?: unknown, operation?: WriteOperation): never => {
+  throw new PublicationFailure(errorCode(error), operation);
 };
 
 const cancel = (): never => {
@@ -90,7 +125,7 @@ const optionalLstat = async (path: string, readLstat: RawLstat = lstat) => {
   } catch (error) {
     if (typeof error === "object" && error && "code" in error && error.code === "ENOENT")
       return undefined;
-    return fail();
+    return fail(error);
   }
 };
 
@@ -157,7 +192,7 @@ const captureDirectory = async (path: string): Promise<DirectoryIdentity> => {
   const handle = await open(
     path,
     constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-  ).catch(() => fail());
+  ).catch(fail);
   try {
     const opened = await handle.stat();
     const stat = await lstat(path).catch(() => undefined);
@@ -173,9 +208,9 @@ const captureDirectory = async (path: string): Promise<DirectoryIdentity> => {
     // Keeping this descriptor open prevents an unlinked staging inode from
     // being recycled with the same dev/ino pair before the next verification.
     return { path, handle, dev: opened.dev, ino: opened.ino };
-  } catch {
+  } catch (error) {
     await handle.close().catch(() => undefined);
-    return fail();
+    return fail(error);
   }
 };
 
@@ -210,7 +245,7 @@ const ensureDirectory = async (
   const exists = await lstat(directory).catch(() => undefined);
   if (exists) {
     if (exists.isSymbolicLink() || !exists.isDirectory()) fail();
-  } else await mkdir(directory, { mode: 0o700 });
+  } else await mkdir(directory, { mode: 0o700 }).catch(fail);
   return captureDirectory(directory);
 };
 
@@ -220,7 +255,7 @@ const createExclusiveDirectory = async (
 ): Promise<DirectoryIdentity> => {
   await requireSameDirectory(parent);
   const directory = join(parent.path, name);
-  await mkdir(directory, { mode: 0o700 }).catch(() => fail());
+  await mkdir(directory, { mode: 0o700 }).catch(fail);
   return captureDirectory(directory);
 };
 
@@ -235,14 +270,18 @@ const writeExclusiveFile = async (
     path,
     constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
     0o600,
-  ).catch(() => fail());
+  ).catch((error) => fail(error, "open"));
+  let operation: WriteOperation = "stat-opened";
   let opened: { readonly dev: number; readonly ino: number; readonly size: number } | undefined;
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.isSymbolicLink()) fail();
     opened = { dev: stat.dev, ino: stat.ino, size: stat.size };
+    operation = "write";
     await handle.writeFile(bytes);
+    operation = "sync";
     await handle.sync();
+    operation = "stat-synced";
     const synced = await handle.stat();
     if (
       !synced.isFile() ||
@@ -252,14 +291,14 @@ const writeExclusiveFile = async (
       synced.size !== bytes.byteLength
     )
       fail();
-  } catch {
+  } catch (error) {
     await handle.close().catch(() => undefined);
-    fail();
+    fail(error, operation);
   }
   try {
     await handle.close();
-  } catch {
-    fail();
+  } catch (error) {
+    fail(error, "close");
   }
   const stat = await lstat(path).catch(() => undefined);
   if (
@@ -363,6 +402,7 @@ export const publishAtomicArtifacts = async ({
   isCurrentRevision,
   testing,
 }: PublishAtomicArtifactsInput): Promise<AtomicOutputResult> => {
+  let stage: PublicationStage = "capture-project";
   let staging: DirectoryIdentity | undefined;
   let temporaryLink: LinkIdentity | undefined;
   let project: DirectoryIdentity | undefined;
@@ -375,18 +415,22 @@ export const publishAtomicArtifacts = async ({
     const id = generationId();
     if (!GENERATION_ID.test(id)) fail();
     const files = snapshotArtifacts(artifacts);
+    stage = "prepare-output";
     unframe = await ensureDirectory(project, ".unframe");
     generations = await ensureDirectory(unframe, "generations");
+    stage = "inspect-dist";
     const readLstat = testing?.lstat ?? lstat;
     const discoveredDist = await existingDistIsManaged(project.path, generations, readLstat);
     if (discoveredDist === false) return fail();
     const previousDist: ManagedDist | AbsentDist = discoveredDist;
     if (cancelled(signal)) cancel();
 
+    stage = "create-staging";
     staging = await createExclusiveDirectory(generations, `.staging-${id}`);
     await testing?.onPhase?.("staging-created");
     await requireSameDirectory(staging);
     assets = await ensureDirectory(staging, "assets");
+    stage = "write-artifacts";
     for (const file of files) {
       if (cancelled(signal)) cancel();
       await requireSameDirectory(staging);
@@ -402,14 +446,16 @@ export const publishAtomicArtifacts = async ({
     await requireSameDirectory(staging);
 
     const generation = join(generations.path, id);
+    stage = "rename-generation";
     if (await lstat(generation).catch(() => undefined)) fail();
     await testing?.onPhase?.("before-generation-rename");
     if (cancelled(signal)) cancel();
     await requireSameDirectory(staging);
     await requireSameDirectory(generations);
     if (cancelled(signal)) cancel();
-    await rename(staging.path, generation).catch(() => fail());
+    await rename(staging.path, generation).catch(fail);
     staging = { ...staging, path: generation };
+    stage = "verify-generation";
     if (
       !(await verifyDirectoryPath(generation)) ||
       !(await sameDirectory(generations)) ||
@@ -417,9 +463,10 @@ export const publishAtomicArtifacts = async ({
     )
       fail();
 
+    stage = "create-dist-link";
     const temporaryPath = join(project.path, `.dist-${id}`);
     if (await lstat(temporaryPath).catch(() => undefined)) fail();
-    await symlink(`.unframe/generations/${id}`, temporaryPath).catch(() => fail());
+    await symlink(`.unframe/generations/${id}`, temporaryPath).catch(fail);
     const temporaryStat = await lstat(temporaryPath).catch(() => undefined);
     if (!temporaryStat || !temporaryStat.isSymbolicLink()) return fail();
     const createdTemporaryLink: LinkIdentity = {
@@ -432,6 +479,7 @@ export const publishAtomicArtifacts = async ({
     await testing?.onPhase?.("before-dist-replace");
     if (cancelled(signal)) cancel();
     if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
+    stage = "replace-dist";
     await requireSameDirectory(project);
     await requireSameDirectory(generations);
     if (!(await unchangedDist(previousDist, readLstat))) fail();
@@ -443,7 +491,7 @@ export const publishAtomicArtifacts = async ({
     )
       fail();
     if (cancelled(signal)) cancel();
-    await rename(createdTemporaryLink.path, join(project.path, "dist")).catch(() => fail());
+    await rename(createdTemporaryLink.path, join(project.path, "dist")).catch(fail);
     temporaryLink = undefined;
     return { ok: true, generationId: id };
   } catch (error) {
@@ -453,7 +501,14 @@ export const publishAtomicArtifacts = async ({
       return { ok: false, family: "cancel", code: "cli-output-cancel" };
     if (error instanceof PublicationStale)
       return { ok: false, family: "io", code: "cli-output-stale" };
-    return { ok: false, family: "io", code: "cli-output-io" };
+    const code = error instanceof PublicationFailure ? error.code : errorCode(error);
+    const operation = error instanceof PublicationFailure ? error.operation : undefined;
+    return {
+      ok: false,
+      family: "io",
+      code: "cli-output-io",
+      detail: { stage, ...(code ? { code } : {}), ...(operation ? { operation } : {}) },
+    };
   } finally {
     await closeDirectories(assets, staging, generations, unframe, project);
   }

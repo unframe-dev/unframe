@@ -572,7 +572,9 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
               ? "Build was cancelled."
               : published.code === "cli-output-stale"
                 ? "Project inputs changed during build. Rebuild the current revision."
-                : "Build artifacts could not be published.",
+                : published.detail
+                  ? `Build artifacts could not be published. (stage: ${published.detail.stage}${published.detail.operation ? `, operation: ${published.detail.operation}` : ""}${published.detail.code ? `, code: ${published.detail.code}` : ""})`
+                  : "Build artifacts could not be published.",
           ),
         ]);
       return output(0, command, format, [], compiled.value.warnings);
