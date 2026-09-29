@@ -197,9 +197,12 @@ namespace Unframe.Unity.PresentationRuntime
 
         private TextAsset[] ResolveReliableEventFixtures()
         {
-            TextAsset[] fixtures = reliableEventFixtures != null && reliableEventFixtures.Length > 0
-                ? reliableEventFixtures
-                : Resources.LoadAll<TextAsset>("PresentationFixtures/Control");
+            if (reliableEventFixtures != null && reliableEventFixtures.Length > 0)
+            {
+                return reliableEventFixtures;
+            }
+
+            TextAsset[] fixtures = Resources.LoadAll<TextAsset>("PresentationFixtures/Control");
             Array.Sort(fixtures, (left, right) => String.CompareOrdinal(left.name, right.name));
             return fixtures;
         }

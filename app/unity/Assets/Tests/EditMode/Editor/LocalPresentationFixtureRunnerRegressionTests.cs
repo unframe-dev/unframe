@@ -9,6 +9,40 @@ using UnityEngine;
 public sealed class LocalPresentationFixtureRunnerRegressionTests
 {
     [Test]
+    public void ExplicitReliableEventFixturesKeepTheirConfiguredSequenceOrder()
+    {
+        GameObject host = new GameObject("fixture-runner");
+        TextAsset firstFixture = null;
+        TextAsset secondFixture = null;
+        try
+        {
+            LocalPresentationFixtureRunner runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(
+                Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text,
+                out DeliveryManifest delivery,
+                out string error), Is.True, error);
+
+            firstFixture = CreateNodeStateEventFixture(delivery, 1, "event:first", visible: false);
+            firstFixture.name = "z-first";
+            secondFixture = CreateNodeStateEventFixture(delivery, 2, "event:second", visible: true);
+            secondFixture.name = "a-second";
+            runner.SetReliableEventFixtures(new[] { firstFixture, secondFixture });
+
+            Assert.That(runner.TryLoad(out error), Is.True, error);
+            Assert.That(runner.TryAdvance(out error), Is.True, error);
+            Assert.That(runner.Store.LastReliableSequence, Is.EqualTo(1));
+            Assert.That(runner.TryAdvance(out error), Is.True, error);
+            Assert.That(runner.Store.LastReliableSequence, Is.EqualTo(2));
+        }
+        finally
+        {
+            Object.DestroyImmediate(host);
+            Object.DestroyImmediate(firstFixture);
+            Object.DestroyImmediate(secondFixture);
+        }
+    }
+
+    [Test]
     public void SurfaceRefreshPreservesNodeOpacityAndVisibility()
     {
         GameObject host = new GameObject("fixture-runner");
@@ -132,6 +166,29 @@ public sealed class LocalPresentationFixtureRunnerRegressionTests
             AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
             ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
         };
+    }
+
+    private static TextAsset CreateNodeStateEventFixture(DeliveryManifest delivery, ulong sequence, string eventId, bool visible)
+    {
+        return new TextAsset(JsonFormatter.Default.Format(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = sequence,
+                EventId = eventId,
+                Fence = CreateFence(delivery),
+                NodeStateCommitted = new NodeStateCommitted
+                {
+                    State = new NodeRuntimeState
+                    {
+                        NodeId = "node:text-greeting",
+                        Active = true,
+                        Visible = visible,
+                        Opacity = 1,
+                    },
+                },
+            },
+        }));
     }
 
     private static float GetAlpha(Renderer renderer)

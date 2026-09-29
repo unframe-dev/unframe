@@ -59,6 +59,75 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         Assert.That(store.LastReliableSequence, Is.Zero);
     }
 
+    [TestCase(-0.01d)]
+    [TestCase(1.01d)]
+    public void SnapshotRejectsOutOfRangeNodeOpacityWithoutReplacingCurrentState(double opacity)
+    {
+        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        string nodeId = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0].NodeId;
+        Assert.That(store.TryGetNodeState(nodeId, out NodeRuntimeState before), Is.True);
+
+        ControlServerItem invalidSnapshot = snapshot.Clone();
+        invalidSnapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0].Opacity = opacity;
+
+        Assert.That(store.TryReceiveControl(invalidSnapshot, out error), Is.False);
+        Assert.That(error, Does.Contain("state"));
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.TryGetNodeState(nodeId, out NodeRuntimeState after), Is.True);
+        Assert.That(after, Is.EqualTo(before));
+    }
+
+    [Test]
+    public void SnapshotRejectsNonFiniteNodeOpacityWithoutReplacingCurrentState()
+    {
+        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        string nodeId = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0].NodeId;
+        Assert.That(store.TryGetNodeState(nodeId, out NodeRuntimeState before), Is.True);
+
+        ControlServerItem invalidSnapshot = snapshot.Clone();
+        invalidSnapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0].Opacity = double.NaN;
+
+        Assert.That(store.TryReceiveControl(invalidSnapshot, out error), Is.False);
+        Assert.That(error, Does.Contain("state"));
+        Assert.That(store.TryGetNodeState(nodeId, out NodeRuntimeState after), Is.True);
+        Assert.That(after, Is.EqualTo(before));
+    }
+
+    [Test]
+    public void NodeStateCommittedRejectsDegenerateTransformWithoutChangingStateOrSequence()
+    {
+        PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
+        Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
+        NodeRuntimeState previous = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0];
+        Assert.That(store.TryGetNodeState(previous.NodeId, out NodeRuntimeState before), Is.True);
+
+        NodeRuntimeState invalidState = before.Clone();
+        invalidState.Transform = new Unframe.Presentation.V2.Transform
+        {
+            Position = new Unframe.Presentation.V2.Vector3(),
+            Rotation = new Unframe.Presentation.V2.Quaternion(),
+            Scale = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 },
+        };
+        ControlServerItem item = new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                EventId = "event:invalid-node-state",
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                NodeStateCommitted = new NodeStateCommitted { State = invalidState },
+            },
+        };
+
+        Assert.That(store.TryReceiveControl(item, out error), Is.False);
+        Assert.That(error, Does.Contain("state"));
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.TryGetNodeState(previous.NodeId, out NodeRuntimeState after), Is.True);
+        Assert.That(after, Is.EqualTo(before));
+    }
+
     [Test]
     public void ProjectionAdvanceAllowsTheNextVisibleReliableEvent()
     {

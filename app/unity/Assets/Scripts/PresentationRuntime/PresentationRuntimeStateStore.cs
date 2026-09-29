@@ -282,7 +282,18 @@ namespace Unframe.Unity.PresentationRuntime
                 return true;
             }
 
-            Unframe.Presentation.V2.Transform transform = patch.Transform;
+            return IsValidTransform(patch.Transform);
+        }
+
+        private static bool IsValidNodeRuntimeState(NodeRuntimeState state)
+        {
+            return state != null && PresentationDeliveryCatalog.IsId(state.NodeId)
+                && PresentationDeliveryCatalog.IsFinite(state.Opacity) && state.Opacity >= 0 && state.Opacity <= 1
+                && (state.Transform == null || IsValidTransform(state.Transform));
+        }
+
+        private static bool IsValidTransform(Unframe.Presentation.V2.Transform transform)
+        {
             if (transform.Position == null || transform.Rotation == null || transform.Scale == null)
             {
                 return false;
@@ -305,7 +316,13 @@ namespace Unframe.Unity.PresentationRuntime
             Dictionary<string, ModelClipRuntimeState> nextModelClips = new Dictionary<string, ModelClipRuntimeState>();
             foreach (NodeRuntimeState state in incomingNodes)
             {
-                if (!TryAddState(nextNodes, state == null ? null : state.NodeId, state == null ? null : state.Clone(), delivery.ContainsNode(state == null ? null : state.NodeId), out error)) return false;
+                if (!IsValidNodeRuntimeState(state))
+                {
+                    error = "realtime snapshot contains an invalid node state.";
+                    return false;
+                }
+
+                if (!TryAddState(nextNodes, state.NodeId, state.Clone(), delivery.ContainsNode(state.NodeId), out error)) return false;
             }
 
             foreach (SurfaceRuntimeState state in incomingSurfaces)
@@ -339,7 +356,13 @@ namespace Unframe.Unity.PresentationRuntime
 
         private bool TrySetNodeState(NodeRuntimeState state, out string error)
         {
-            if (state == null || !PresentationDeliveryCatalog.IsId(state.NodeId) || !delivery.ContainsNode(state.NodeId))
+            if (!IsValidNodeRuntimeState(state))
+            {
+                error = "realtime node state is invalid.";
+                return false;
+            }
+
+            if (!delivery.ContainsNode(state.NodeId))
             {
                 error = "realtime state id is missing or unknown.";
                 return false;
