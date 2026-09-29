@@ -27,6 +27,7 @@ if [ -z "${UNFRAME_OPAQUE_CGROUP_ROOT:-}" ]; then
 fi
 
 pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run \
-  test/opaque-isolation.integration.test.ts test/opaque-capture.integration.test.ts
+  test/opaque-isolation.integration.test.ts test/opaque-capture.integration.test.ts \
+  test/opaque-fonts.integration.test.ts test/opaque-runtime-lifecycle.integration.test.ts
 pnpm --dir "${repo_root}" --filter @unframe/unframe-cli exec vp test run \
   test/opaque-project.integration.test.ts

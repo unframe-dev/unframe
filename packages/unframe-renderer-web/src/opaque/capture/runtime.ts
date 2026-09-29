@@ -33,6 +33,7 @@ const resultSchema = z.discriminatedUnion("ok", [
           y: z.number().finite(),
           width: z.number().finite().positive(),
           height: z.number().finite().positive(),
+          disabled: z.boolean().optional(),
         }),
       )
       .max(10_000),
@@ -50,14 +51,23 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
   const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-worker-"));
   const workerDirectory = join(directory, "worker");
   const controller = new AbortController();
+  const active = new Set<Promise<OpaqueCaptureResult>>();
+  let closing: Promise<void> | undefined;
+  let closed = false;
   const onAbort = () => controller.abort();
   options.signal?.addEventListener("abort", onAbort, { once: true });
   const timeout = setTimeout(() => controller.abort(), 120_000);
-  const close = async () => {
+  const close = (): Promise<void> => {
+    if (closing) return closing;
+    closed = true;
     clearTimeout(timeout);
     options.signal?.removeEventListener("abort", onAbort);
     controller.abort();
-    await rm(directory, { recursive: true, force: true });
+    closing = (async () => {
+      await Promise.allSettled(active);
+      await rm(directory, { recursive: true, force: true });
+    })();
+    return closing;
   };
   try {
     const require = createRequire(import.meta.url);
@@ -99,27 +109,37 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
     );
     const browserPath = join(browserDirectory, "chrome-headless-shell");
 
+    const capture = async (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
+      if (options.signal?.aborted || controller.signal.aborted)
+        return {
+          ok: false,
+          code:
+            closed || options.signal?.aborted ? "opaque-capture-cancelled" : "opaque-build-timeout",
+        };
+      let result: unknown;
+      try {
+        result = await runIsolatedOpaqueWorker(
+          { workerPath, browserPath, runtimePaths, input },
+          { signal: controller.signal },
+        );
+      } catch (error) {
+        if (controller.signal.aborted && !options.signal?.aborted && !closed)
+          return { ok: false, code: "opaque-build-timeout" };
+        throw error;
+      }
+      const validated = resultSchema.safeParse(result);
+      return validated.success ? validated.data : { ok: false, code: "opaque-capture-invalid" };
+    };
     return {
       fingerprint: hash({ worker: code, browserHash, packageHashes, runtimePaths }),
-      capture: async (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
-        if (options.signal?.aborted || controller.signal.aborted)
-          return {
-            ok: false,
-            code: options.signal?.aborted ? "opaque-capture-cancelled" : "opaque-build-timeout",
-          };
-        let result: unknown;
-        try {
-          result = await runIsolatedOpaqueWorker(
-            { workerPath, browserPath, runtimePaths, input },
-            { signal: controller.signal },
-          );
-        } catch (error) {
-          if (controller.signal.aborted && !options.signal?.aborted)
-            return { ok: false, code: "opaque-build-timeout" };
-          throw error;
-        }
-        const validated = resultSchema.safeParse(result);
-        return validated.success ? validated.data : { ok: false, code: "opaque-capture-invalid" };
+      capture: (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
+        const work = capture(input);
+        active.add(work);
+        void work.then(
+          () => active.delete(work),
+          () => active.delete(work),
+        );
+        return work;
       },
       close,
     };

@@ -11,7 +11,10 @@ export type OpaqueCaptureRequest = {
   readonly props: Readonly<Record<string, string | number | boolean>>;
   readonly texts: Readonly<Record<string, string>>;
   readonly expectedBindings: Readonly<Record<string, string>>;
+  readonly bindingKeys?: readonly string[];
+  readonly buttonBindings?: Readonly<Record<string, boolean>>;
   readonly stateId: string;
+  readonly stateKey?: string;
   readonly logicalSize: readonly [number, number];
   readonly pixelTarget: readonly [number, number];
   readonly background: readonly [number, number, number, number];

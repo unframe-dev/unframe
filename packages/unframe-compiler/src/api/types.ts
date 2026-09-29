@@ -19,6 +19,14 @@ export type CompilerDeclarationProject = {
     | PresentationDeclaration
     | (Omit<PresentationDeclaration, "scene"> & {
         scene: readonly StaticReactSceneItem[];
+      })
+    | (Omit<PresentationDeclaration, "scene"> & {
+        scene: Omit<PresentationDeclaration["scene"], "components"> & {
+          components: readonly (
+            | PresentationDeclaration["scene"]["components"][number]
+            | StaticReactSceneItem
+          )[];
+        };
       });
   themes: readonly { declaration: ThemeDeclaration; hash: string }[];
   components: readonly (

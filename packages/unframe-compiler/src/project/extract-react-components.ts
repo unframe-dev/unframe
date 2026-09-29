@@ -42,6 +42,7 @@ export type ExtractedReactComponents =
   | { readonly ok: false; readonly diagnostics: readonly Diagnostic[] };
 
 const staticFields = new Set(["id", "version", "props", "surface", "semantics"]);
+const finiteFields = new Set(["interactions", "initialState", "states", "actions", "outputs"]);
 const isExported = (statement: ts.VariableStatement) =>
   statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
 
@@ -107,7 +108,7 @@ const staticGraph = (
     value: DeclarationGraphValue;
   }[] = [];
   const diagnostics: Diagnostic[] = [];
-  for (const field of staticFields) {
+  for (const field of [...staticFields, ...finiteFields]) {
     const property = fields.get(field);
     if (!property) continue;
     const evaluated = evaluateStaticAuthoringExpression(analyzed, property.initializer);
@@ -640,7 +641,7 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
         !key ||
         !ts.isPropertyAssignment(property) ||
         fields.has(key) ||
-        (!staticFields.has(key) && key !== "render")
+        (!staticFields.has(key) && !finiteFields.has(key) && key !== "render")
       )
         diagnostics.push(
           diagnostic(
@@ -652,7 +653,11 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
         );
       else fields.set(key, property);
     }
-    if (fields.size !== staticFields.size + 1 || !fields.get("render")) {
+    if (
+      !([...staticFields].every((key) => fields.has(key)) && fields.has("render")) ||
+      ([...finiteFields].some((key) => fields.has(key)) &&
+        ![...finiteFields].every((key) => fields.has(key)))
+    ) {
       diagnostics.push(
         diagnostic(
           analyzed,

@@ -1,4 +1,5 @@
 export { createBakedWebRenderer } from "./rendering/baked-web-renderer.js";
+export { combineBakedWebRenderers } from "./rendering/combined-renderer.js";
 
 export { createWebRendererConfigHash } from "./config/config-environment.js";
 

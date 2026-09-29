@@ -31,6 +31,7 @@ import { lowerCues } from "../lowering/lower-cues.js";
 import { checkSlotComposition, sameOwner } from "../resolution/check-slot-composition.js";
 import { checkProjectAssets } from "../validation/check-project-assets.js";
 import { resolveOpaqueProject } from "../resolution/resolve-opaque-component.js";
+import type { StaticReactSceneItem } from "@unframe/unframe-authoring";
 
 type UnknownRecord = Record<string, unknown>;
 const canonicalQuaternion = (
@@ -88,6 +89,196 @@ const checkDeclarationProjectUnchecked = (
       project as Parameters<typeof resolveOpaqueProject>[0],
       cloned.value,
     );
+  const mixedScene = project.presentation.scene as PresentationDeclaration["scene"];
+  const reactItems = (mixedScene.components as readonly unknown[]).filter(
+    (item): item is StaticReactSceneItem =>
+      typeof item === "object" && item !== null && "component" in item,
+  );
+  if (reactItems.length) {
+    const structuredItems = (mixedScene.components as readonly unknown[]).filter(
+      (item) => !reactItems.includes(item as StaticReactSceneItem),
+    );
+    const structuredIds = new Set(structuredItems.map((item) => (item as { id?: unknown }).id));
+    if (reactItems.some((item) => structuredIds.has(item.id)))
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "compiler-duplicate-component-instance-id",
+            ["presentation", "scene", "components"],
+            "Component Instance IDs must be unique across Structured and React Components.",
+          ),
+        ],
+      };
+    const reactIds = new Set(reactItems.map((item) => item.id));
+    const splitFlow = (react: boolean) => ({
+      ...project.presentation.flow,
+      groups: Object.fromEntries(
+        Object.entries(project.presentation.flow.groups).map(([groupId, group]) => [
+          groupId,
+          {
+            ...group,
+            steps: Object.fromEntries(
+              Object.entries(group.steps).map(([stepId, step]) => [
+                stepId,
+                {
+                  ...step,
+                  cues: step.cues
+                    .map((cue, index) => ({ ...cue, order: cue.order ?? index }))
+                    .filter((cue) => {
+                      if (cue.trigger.kind === "event") return !react;
+                      const outputTrigger = cue.trigger;
+                      const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
+                      if (
+                        cue.actions.some(
+                          (action) => reactIds.has(action.componentInstanceId) !== belongsToReact,
+                        )
+                      )
+                        return false;
+                      return belongsToReact === react;
+                    }),
+                },
+              ]),
+            ),
+          },
+        ]),
+      ),
+    });
+    for (const group of Object.values(project.presentation.flow.groups))
+      for (const step of Object.values(group.steps))
+        for (const cue of step.cues) {
+          const trigger = cue.trigger;
+          if (
+            trigger.kind === "component.output" &&
+            cue.actions.some(
+              (action) =>
+                reactIds.has(action.componentInstanceId) !==
+                reactIds.has(trigger.componentInstanceId),
+            )
+          )
+            return {
+              valid: false,
+              diagnostics: [
+                diagnostic(
+                  "compiler-mixed-cue-unsupported",
+                  ["presentation", "flow"],
+                  "A Cue cannot cross Structured and React Component kinds.",
+                ),
+              ],
+            };
+        }
+    const structured = checkDeclarationProjectUnchecked({
+      ...project,
+      presentation: {
+        ...project.presentation,
+        scene: { ...mixedScene, components: structuredItems },
+        flow: splitFlow(false),
+      },
+      components: project.components.filter((entry) => "structure" in entry),
+    });
+    if (!structured.valid) return structured;
+    const opaque = resolveOpaqueProject(
+      {
+        ...project,
+        presentation: {
+          ...project.presentation,
+          scene: reactItems,
+          assets: [],
+          flow: splitFlow(true),
+        },
+        components: project.components.filter((entry) => "metadata" in entry),
+        assets: {},
+      } as Parameters<typeof resolveOpaqueProject>[0],
+      cloned.value,
+    );
+    if (!opaque.valid) return opaque;
+    const structuredNodeIds = new Set(Object.keys(structured.value.definition.scene.nodes));
+    const structuredSurfaceIds = new Set(Object.keys(structured.value.definition.scene.surfaces));
+    if (
+      Object.keys(opaque.value.definition.scene.nodes).some((id) => structuredNodeIds.has(id)) ||
+      Object.keys(opaque.value.definition.scene.surfaces).some((id) => structuredSurfaceIds.has(id))
+    )
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "compiler-resource-id-collision",
+            ["scene"],
+            "Structured and React resources must have unique IDs.",
+          ),
+        ],
+      };
+    const orderOffset =
+      Math.max(
+        -1,
+        ...Object.values(structured.value.definition.scene.nodes)
+          .filter((node) => node.parent.kind === "stage")
+          .map((node) => node.order),
+      ) + 1;
+    const opaqueNodes = Object.fromEntries(
+      Object.entries(opaque.value.definition.scene.nodes).map(([id, node]) => [
+        id,
+        { ...node, order: node.parent.kind === "stage" ? node.order + orderOffset : node.order },
+      ]),
+    );
+    const definition: PresentationDefinition = {
+      ...structured.value.definition,
+      scene: {
+        nodes: { ...structured.value.definition.scene.nodes, ...opaqueNodes },
+        surfaces: {
+          ...structured.value.definition.scene.surfaces,
+          ...opaque.value.definition.scene.surfaces,
+        },
+      },
+      flow: {
+        ...structured.value.definition.flow,
+        groups: Object.fromEntries(
+          Object.entries(structured.value.definition.flow.groups).map(([groupId, group]) => [
+            groupId,
+            {
+              ...group,
+              steps: Object.fromEntries(
+                Object.entries(group.steps).map(([stepId, step]) => [
+                  stepId,
+                  {
+                    ...step,
+                    cues: [
+                      ...step.cues,
+                      ...(opaque.value.definition.flow.groups[groupId]?.steps[stepId]?.cues ?? []),
+                    ],
+                  },
+                ]),
+              ),
+            },
+          ]),
+        ),
+      },
+    };
+    const validated = validatePresentationDefinition(definition);
+    if (!validated.valid) return validated;
+    const canonical = canonicalizePresentationDefinition(validated.value);
+    const definitionHash = hashPresentationDefinition(validated.value);
+    if (!canonical.valid || !definitionHash.valid)
+      return {
+        valid: false,
+        diagnostics: !canonical.valid ? canonical.diagnostics : definitionHash.diagnostics,
+      };
+    return {
+      valid: true,
+      value: {
+        definition: validated.value,
+        definitionJson: canonical.value,
+        definitionHash: definitionHash.value,
+        sourceHash: hashCanonicalJsonPayload(cloned.value),
+        assetSet: {
+          schemaVersion: 2,
+          assets: { ...structured.value.assetSet.assets, ...opaque.value.assetSet.assets },
+        },
+        warnings: [...structured.value.warnings, ...opaque.value.warnings],
+      },
+      diagnostics: [],
+    };
+  }
   const diagnostics: Diagnostic[] = [];
   const warnings: CompilerWarning[] = [];
   const rawPresentation = project.presentation;

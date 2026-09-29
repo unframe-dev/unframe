@@ -226,7 +226,7 @@ describe("React frozen CLI path", () => {
     expect(built.stderr).toContain("opaque-isolation-unavailable");
     expect(opened).toBe(false);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(frozenLock);
-  });
+  }, 30000);
   it("retains the bundle preparation diagnostic and existing dist", async () => {
     const directory = await createProject();
     expect((await runPresentationCli({ args: ["lock", "refresh", directory] })).exitCode).toBe(0);

@@ -8,6 +8,10 @@ import type {
   SurfaceDeclaration,
 } from "@unframe/unframe-authoring";
 import {
+  buildOpaqueComponentManifest,
+  validateStaticComponentMetadata,
+} from "@unframe/unframe-authoring";
+import {
   type SemanticSurface,
   canonicalizePresentationDefinition,
   validatePresentationDefinition,
@@ -136,6 +140,201 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("keeps Structured and React Surfaces in one Presentation", () => {
+    const input = project();
+    const metadata = validateStaticComponentMetadata({
+      id: "react",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [800, 450] },
+      semantics: {
+        rootNodeIds: ["title"],
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+      },
+    });
+    const reactItem = {
+      id: "react-one",
+      component: { id: "react", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1.6, 0.9],
+      fit: "contain",
+      transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
+        },
+      },
+      components: [
+        ...input.components,
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "react.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    });
+    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    expect(
+      Object.values(result.value.definition.scene.surfaces)
+        .map((surface) => surface.content.kind)
+        .sort(),
+    ).toEqual(["opaque", "structured"]);
+  });
+  it("preserves source Cue positions across Structured and React lowering", () => {
+    const input = project() as StructuredProject;
+    const structured = input.components[0]!;
+    structured.manifest = {
+      ...structured.manifest,
+      outputs: {
+        advanced: {
+          kind: "output",
+          payload: {},
+          producer: { kind: "timer", afterMilliseconds: 1 },
+        },
+        skipped: { kind: "output", payload: {}, producer: { kind: "timer", afterMilliseconds: 2 } },
+      },
+    };
+    const metadata = validateStaticComponentMetadata({
+      id: "react",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [800, 450] },
+      semantics: {
+        rootNodeIds: ["button"],
+        nodes: {
+          button: {
+            role: "button",
+            parentId: null,
+            order: 0,
+            text: "Next",
+            interactionId: "next",
+          },
+        },
+      },
+      interactions: { next: { kind: "click", event: "next", hitPriority: 0 } },
+      initialState: "ready",
+      states: { ready: { semanticOverrides: [], enabledInteractionIds: ["next"] } },
+      actions: {},
+      outputs: {
+        clicked: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "next" } },
+      },
+    });
+    const reactItem = {
+      id: "react-one",
+      component: { id: "react", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1.6, 0.9],
+      fit: "contain",
+      transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
+        },
+        flow: {
+          ...input.presentation.flow,
+          groups: {
+            group: {
+              id: "group",
+              initialStepId: "step",
+              steps: {
+                step: {
+                  id: "step",
+                  cues: [
+                    {
+                      id: "react-first",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "react-one",
+                        outputId: "clicked",
+                      },
+                      actions: [],
+                    },
+                    {
+                      id: "structured-second",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "instance",
+                        outputId: "advanced",
+                      },
+                      actions: [],
+                    },
+                    {
+                      id: "structured-explicit",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "instance",
+                        outputId: "skipped",
+                      },
+                      actions: [],
+                      order: 7,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      components: [
+        ...input.components,
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "react.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      Object.fromEntries(
+        result.value.definition.flow.groups.group!.steps.step!.cues.map((cue) => [
+          cue.id,
+          cue.order,
+        ]),
+      ),
+    ).toEqual({ "react-first": 0, "structured-second": 1, "structured-explicit": 7 });
+  });
   it("identifies the lowered content as a structured tree", () => {
     const result = checkDeclarationProject(project());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
@@ -2630,6 +2829,188 @@ describe("compileDeclarationProject", () => {
         "compiler-budget-capture-bytes-exceeded",
         "compiler-budget-state-count-exceeded",
       ]);
+    expect(calls).toBe(0);
+  });
+  it("rejects opaque stability and encoded output budgets before invoking a renderer", async () => {
+    const states = Object.fromEntries(
+      Array.from({ length: 16 }, (_, index) => [
+        `state-${index}`,
+        { semanticOverrides: [], enabledInteractionIds: [] },
+      ]),
+    );
+    const metadata = validateStaticComponentMetadata({
+      id: "large",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [2048, 2048] },
+      semantics: {
+        rootNodeIds: ["title"],
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+      },
+      interactions: {},
+      initialState: "state-0",
+      states,
+      actions: {},
+      outputs: {},
+    });
+    const input = project();
+    const { theme: _theme, ...header } = input.presentation;
+    const scene = [
+      {
+        id: "large-one",
+        component: { id: "large", version: 1 },
+        props: {},
+        owner: { kind: "presentation" },
+        audience: { kind: "all" },
+        parent: { kind: "stage" },
+        physicalSizeMeters: [1, 1],
+        fit: "contain",
+        transform: { position: [0, 0, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      },
+    ];
+    let calls = 0;
+    const countingRenderer: RendererPlugin = {
+      ...renderer,
+      build: (rendererInput) => {
+        calls++;
+        return renderer.build(rendererInput);
+      },
+    };
+    const result = await compileDeclarationProject(
+      {
+        presentation: { ...header, scene, assets: [] },
+        themes: [],
+        components: [
+          {
+            manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
+            metadata,
+            rendererEntry: "large.component.tsx#render",
+            rendererSource: "export default () => null",
+            lock: {
+              mode: "opaque",
+              origin: {
+                kind: "local",
+                entryFile: "large.component.tsx",
+                files: [],
+                sourceHash: "sha256:source",
+              },
+              manifestHash: "sha256:manifest",
+              rendererInputHash: "sha256:renderer",
+            },
+          },
+        ],
+        assets: {},
+      },
+      { ...options(), renderers: [countingRenderer] },
+    );
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      const codes = result.diagnostics.map((item) => item.code);
+      expect(codes).toContain("compiler-budget-output-bytes-exceeded");
+      expect(codes).toContain("compiler-budget-accounted-peak-exceeded");
+    }
+    expect(calls).toBe(0);
+  });
+
+  it("counts Structured PNG output before a mixed opaque capture", async () => {
+    const input = project();
+    const entry = input.components[0]!;
+    const largeStructure = {
+      ...entry.structure,
+      root: { ...entry.structure.root, logicalSize: [2048, 2048] },
+    } as unknown as ComponentStructure;
+    const states = Object.fromEntries(
+      Array.from({ length: 15 }, (_, index) => [
+        `state-${index}`,
+        { semanticOverrides: [], enabledInteractionIds: [] },
+      ]),
+    );
+    const metadata = validateStaticComponentMetadata({
+      id: "large",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [2048, 2048] },
+      semantics: {
+        rootNodeIds: ["title"],
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+      },
+      interactions: {},
+      initialState: "state-0",
+      states,
+      actions: {},
+      outputs: {},
+    });
+    const reactItem = {
+      id: "large-one",
+      component: { id: "large", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1, 1],
+      fit: "contain",
+      transform: { position: [0, 0, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const mixed = {
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          spatial: [
+            ...input.presentation.scene.spatial,
+            { ...input.presentation.scene.spatial[0]!, id: "spatial-two", order: 1 },
+          ],
+          components: [
+            ...input.presentation.scene.components,
+            {
+              ...input.presentation.scene.components[0]!,
+              id: "instance-two",
+              spatialNodeId: "spatial-two",
+            },
+            reactItem,
+          ],
+        },
+      },
+      components: [
+        { ...entry, structure: largeStructure },
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
+          metadata,
+          rendererEntry: "large.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "large.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    };
+    let calls = 0;
+    const countingRenderer: RendererPlugin = {
+      ...renderer,
+      build: (rendererInput) => {
+        calls++;
+        return renderer.build(rendererInput);
+      },
+    };
+    const result = await compileDeclarationProject(mixed, {
+      ...options(),
+      renderers: [countingRenderer],
+    });
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(
+        result.diagnostics.map((item) => item.code),
+        JSON.stringify(result.diagnostics),
+      ).toContain("compiler-budget-output-bytes-exceeded");
     expect(calls).toBe(0);
   });
 

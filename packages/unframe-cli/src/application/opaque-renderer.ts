@@ -1,6 +1,7 @@
 import {
   assembleAuthoringProject,
   prepareLockedOpaqueBundleInput,
+  reactResourceId,
 } from "@unframe/unframe-compiler";
 import {
   bundleOpaqueRenderer,
@@ -40,21 +41,24 @@ export const prepareOpaqueRenderer = async (
       })),
     );
   const { project, checked } = assembled.value;
-  if (!Array.isArray(project.presentation.scene))
-    throw new Error("Opaque scene must be React instances.");
+  const instances =
+    "components" in project.presentation.scene
+      ? project.presentation.scene.components.filter((item) => "component" in item)
+      : project.presentation.scene;
   const runtime = await openOpaqueCaptureRuntime(signal ? { signal } : {});
   try {
     const programs: OpaqueRenderProgram[] = [];
     for (const surface of Object.values(checked.definition.scene.surfaces)) {
+      if (surface.content.kind !== "opaque") continue;
       const host = checked.definition.scene.nodes[surface.hostNodeId];
-      const instance = project.presentation.scene.find((item) => item.id === host?.name);
+      const instance = instances.find((item) => item.id === host?.name);
+      if (!instance || !("component" in instance)) throw new Error("Opaque instance missing.");
       const component = project.components.find(
         (item) =>
           item.manifest.componentId === instance?.component.id &&
           item.manifest.version === instance?.component.version,
       );
-      if (!instance || !component || !("rendererSource" in component))
-        throw new Error("Opaque entry missing.");
+      if (!component || !("rendererSource" in component)) throw new Error("Opaque entry missing.");
       const prepared = prepareLockedOpaqueBundleInput(source, component);
       if (!prepared.valid) throw new OpaquePreparationFailure(prepared.diagnostics);
       const bundle = await bundleOpaqueRenderer(prepared.value);
@@ -78,6 +82,12 @@ export const prepareOpaqueRenderer = async (
         javascript: bundle.javascript,
         stylesheets: bundle.stylesheets,
         props,
+        stateKeysById: Object.fromEntries(
+          Object.keys(component.metadata.states ?? { default: {} }).map((key) => [
+            reactResourceId("state", instance.id, key),
+            key,
+          ]),
+        ),
         assets: bundle.assets.map((asset) => ({
           path: asset.fileName,
           mediaType: mediaTypeFor(asset.fileName),

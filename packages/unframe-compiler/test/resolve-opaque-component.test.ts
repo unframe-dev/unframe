@@ -91,6 +91,115 @@ const project = (scene: ReturnType<typeof item>[]) => ({
 });
 
 describe("Opaque React lowering", () => {
+  it("lowers finite State, button Interaction and Output-to-Action Cue", () => {
+    const finiteMetadata = validateStaticComponentMetadata({
+      ...metadata,
+      semantics: {
+        rootNodeIds: ["heading", "button"],
+        nodes: {
+          heading: metadata.semantics.nodes.heading,
+          button: {
+            role: "button",
+            parentId: null,
+            order: 1,
+            text: "Reveal",
+            interactionId: "reveal",
+          },
+        },
+      },
+      interactions: { reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 } },
+      initialState: "hidden",
+      states: {
+        hidden: {
+          semanticOverrides: [{ id: "hide-heading", targetId: "heading", included: false }],
+          enabledInteractionIds: ["reveal"],
+        },
+        revealed: { semanticOverrides: [], enabledInteractionIds: [] },
+      },
+      actions: {
+        reveal: {
+          inputs: {},
+          preconditions: [],
+          effects: [{ kind: "setState", stateId: "revealed" }],
+        },
+      },
+      outputs: {
+        revealRequested: {
+          payload: {},
+          producer: { kind: "surfaceInteraction", interactionId: "reveal" },
+        },
+      },
+    });
+    const input = project([item("quiz")]);
+    expect(
+      buildOpaqueComponentManifest(
+        validateStaticComponentMetadata(finiteMetadata),
+        "hero.component.tsx#render",
+      ),
+    ).toEqual(buildOpaqueComponentManifest(finiteMetadata, "hero.component.tsx#render"));
+    const cue = {
+      id: "show",
+      trigger: {
+        kind: "component.output",
+        componentInstanceId: "quiz",
+        outputId: "revealRequested",
+      },
+      actions: [
+        {
+          kind: "component.action",
+          componentInstanceId: "quiz",
+          actionId: "reveal",
+          arguments: {},
+        },
+      ],
+    };
+    const result = checkDeclarationProject({
+      ...input,
+      components: [
+        {
+          ...input.components[0],
+          metadata: finiteMetadata,
+          manifest: buildOpaqueComponentManifest(finiteMetadata, "hero.component.tsx#render"),
+        },
+      ],
+      presentation: {
+        ...input.presentation,
+        flow: {
+          ...input.presentation.flow,
+          groups: {
+            main: {
+              id: "main",
+              initialStepId: "first",
+              steps: { first: { id: "first", cues: [cue] } },
+            },
+          },
+        },
+      },
+    });
+    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    const surface = result.value.definition.scene.surfaces[reactResourceId("surface", "quiz")]!;
+    expect(surface.initialStateId).toBe(reactResourceId("state", "quiz", "hidden"));
+    expect(
+      surface.baseSemanticTree.nodes[reactResourceId("semantic", "quiz", "button")],
+    ).toMatchObject({
+      role: "button",
+      interactionId: reactResourceId("interaction", "quiz", "reveal"),
+    });
+    expect(
+      surface.states[reactResourceId("state", "quiz", "hidden")]?.semanticOverrides[0],
+    ).toMatchObject({
+      nodes: { [reactResourceId("semantic", "quiz", "heading")]: { included: false } },
+    });
+    expect(result.value.definition.flow.groups.main?.steps.first?.cues[0]).toMatchObject({
+      trigger: {
+        kind: "surfaceInteraction",
+        interactionId: reactResourceId("interaction", "quiz", "reveal"),
+      },
+      actions: [
+        { kind: "surface.setState", stateId: reactResourceId("state", "quiz", "revealed") },
+      ],
+    });
+  });
   it("accepts an Opaque project without a selected Theme or Theme catalog", () => {
     const input = project([item("one")]);
     const { theme: _theme, ...presentation } = input.presentation;

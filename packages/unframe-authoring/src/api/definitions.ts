@@ -1,6 +1,10 @@
 import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
 import { validateReactSceneItem } from "./react-component.js";
-import type { ReactPresentationInput, ReactSceneBase } from "./react-component.js";
+import type {
+  ReactPresentationInput,
+  ReactSceneBase,
+  MixedPresentationInput,
+} from "./react-component.js";
 import { z } from "zod";
 import {
   isDeclaration,
@@ -1185,6 +1189,12 @@ export const isComponentStructure = (value: unknown): value is ComponentStructur
 
 export function definePresentation<const T extends PresentationDeclaration>(value: T): T;
 export function definePresentation(value: JsxPresentationInput): PresentationDeclaration;
+export function definePresentation<
+  const S extends readonly (
+    | PresentationDeclaration["scene"]["components"][number]
+    | ReactSceneBase
+  )[],
+>(value: MixedPresentationInput<S>): MixedPresentationInput<S>;
 export function definePresentation<const S extends readonly ReactSceneBase[]>(
   value: ReactPresentationInput<S>,
 ): ReactPresentationInput<S>;
@@ -1192,8 +1202,16 @@ export function definePresentation(
   value:
     | PresentationDeclaration
     | JsxPresentationInput
-    | ReactPresentationInput<readonly ReactSceneBase[]>,
-): PresentationDeclaration | ReactPresentationInput<readonly ReactSceneBase[]> {
+    | ReactPresentationInput<readonly ReactSceneBase[]>
+    | MixedPresentationInput<
+        readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
+      >,
+):
+  | PresentationDeclaration
+  | ReactPresentationInput<readonly ReactSceneBase[]>
+  | MixedPresentationInput<
+      readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
+    > {
   const fields = readOwnDataRecord(value);
   if (Array.isArray(fields.scene)) {
     const scene = readOwnDataArray(fields.scene);
@@ -1212,6 +1230,25 @@ export function definePresentation(
       instanceIds.add(instanceId);
     }
     return value as ReactPresentationInput<readonly ReactSceneBase[]>;
+  }
+  const sceneFields = readOwnDataRecord(fields.scene);
+  const components = readOwnDataArray(sceneFields.components);
+  const reactComponents = components.filter((item) => {
+    const record = readOwnDataRecord(item);
+    return Object.hasOwn(record, "component");
+  });
+  if (reactComponents.length) {
+    const structured = components.filter((item) => !reactComponents.includes(item));
+    assertPresentationDeclaration({ ...fields, scene: { ...sceneFields, components: structured } });
+    const ids = new Set(structured.map((item) => readOwnDataRecord(item).id));
+    for (const item of reactComponents) {
+      const instanceId = validateReactSceneItem(item);
+      if (ids.has(instanceId)) invalid("Duplicate Component instance ID.");
+      ids.add(instanceId);
+    }
+    return value as MixedPresentationInput<
+      readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
+    >;
   }
   assertPresentationDeclaration(value);
   return value as PresentationDeclaration;

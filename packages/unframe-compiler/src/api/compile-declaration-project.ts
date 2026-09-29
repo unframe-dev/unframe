@@ -234,14 +234,20 @@ const compileUnchecked = async (
   const preflightDiagnostics: Diagnostic[] = [];
   let preflightBindings = 0;
   let preflightPixels = 0;
+  let preflightOutputBytes = outputBytes;
+  const hasOpaqueSurface = definitionSurfaces.some((surface) => surface.content.kind === "opaque");
   let totalPartitions = 0;
   for (const surface of definitionSurfaces) {
     if (surface.content.kind === "opaque") {
-      const instance = Array.isArray(project.presentation.scene)
-        ? project.presentation.scene.find(
-            (item) => reactResourceId("surface", item.id) === surface.id,
-          )
-        : undefined;
+      const reactScene = Array.isArray(project.presentation.scene)
+        ? project.presentation.scene
+        : (project.presentation.scene as { components: readonly unknown[] }).components.filter(
+            (item): item is import("@unframe/unframe-authoring").StaticReactSceneItem =>
+              typeof item === "object" && item !== null && "component" in item,
+          );
+      const instance = reactScene.find(
+        (item) => reactResourceId("surface", item.id) === surface.id,
+      );
       const component = instance
         ? project.components.find(
             (item) =>
@@ -306,6 +312,37 @@ const compileUnchecked = async (
             "Predicted capture bytes exceed the fixed texture build policy.",
           ),
         );
+      if (hasOpaqueSurface && stateCount > 0) {
+        const stateBytes = pixelCount * 4;
+        const captureBytes = stateBytes * stateCount;
+        const scanlineBytes = stateBytes + pixelTarget[1];
+        const maxEncodedStateBytes = scanlineBytes + Math.ceil(scanlineBytes / 65_535) * 5 + 80;
+        preflightOutputBytes += maxEncodedStateBytes * stateCount;
+        if (
+          !Number.isSafeInteger(preflightOutputBytes) ||
+          preflightOutputBytes > POLICY.maxBuildOutputBytes
+        )
+          preflightDiagnostics.push(
+            diagnostic(
+              "compiler-budget-output-bytes-exceeded",
+              path,
+              "Predicted encoded output exceeds the fixed texture build policy.",
+            ),
+          );
+        const peakBytes =
+          preflightOutputBytes +
+          captureBytes +
+          maxEncodedStateBytes +
+          (surface.content.kind === "opaque" ? 2 * stateBytes : 0);
+        if (!Number.isSafeInteger(peakBytes) || peakBytes > POLICY.maxBuildAccountedPeakBytes)
+          preflightDiagnostics.push(
+            diagnostic(
+              "compiler-budget-accounted-peak-exceeded",
+              path,
+              "Predicted capture and stability buffers exceed the fixed texture build policy.",
+            ),
+          );
+      }
     }
   }
   if (totalPartitions > POLICY.maxRenderSurfacesPerBundle)
@@ -399,6 +436,23 @@ const compileUnchecked = async (
         },
       });
       if (!rendered.valid) return rendered;
+      if (surface.content.kind === "opaque") {
+        const regionOutput = rendered.value.hitRegionsByState;
+        if (
+          !regionOutput &&
+          Object.values(surface.states).some((state) => state.enabledInteractionIds.length)
+        )
+          return failure(
+            "compiler-opaque-hit-regions-missing",
+            ["render", surfaceId, "hitRegionsByState"],
+            "Opaque Interaction requires measured Hit Regions.",
+          );
+        for (const stateId of stateIds)
+          interactionsByState[stateId] = [...(regionOutput?.[stateId] ?? [])].map((region) => ({
+            ...region,
+            bounds: { ...region.bounds },
+          }));
+      }
       const alphaModes = new Set(rendered.value.captures.map(({ alphaMode }) => alphaMode));
       if (alphaModes.size !== 1)
         return failure(
