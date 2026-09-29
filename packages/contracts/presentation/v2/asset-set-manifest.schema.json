@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 2
+    },
+    "assets": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "checksum": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "font/ttf",
+              "font/otf",
+              "video/mp4",
+              "model/gltf-binary"
+            ]
+          },
+          "encodedSizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["checksum", "mediaType", "encodedSizeBytes"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["schemaVersion", "assets"],
+  "additionalProperties": false,
+  "$id": "https://contracts.unframe.dev/presentation/asset-set-manifest.v2.schema.json"
+}

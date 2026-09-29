@@ -61,7 +61,10 @@ function createDeviceAuthorizationVerifier({
     });
     let body: Record<string, unknown> = {};
     try {
-      body = (await response.json()) as Record<string, unknown>;
+      const parsed: unknown = await response.json();
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        body = parsed as Record<string, unknown>;
+      }
     } catch {
       // Better Auth errors may not have a JSON response body.
     }
@@ -69,9 +72,7 @@ function createDeviceAuthorizationVerifier({
     if (
       response.ok &&
       typeof body["user_code"] === "string" &&
-      (body["status"] === "pending" ||
-        body["status"] === "approved" ||
-        body["status"] === "denied")
+      (body["status"] === "pending" || body["status"] === "approved" || body["status"] === "denied")
     ) {
       return { data: { user_code: body["user_code"], status: body["status"] }, error: null };
     }

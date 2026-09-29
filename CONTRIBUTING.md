@@ -22,8 +22,9 @@ Unframe は次のコンポーネントからなるモノレポです。
 
 旧 Go/Huma/Turso/R2 HTTP backend は削除済みです。Control Plane と Realtime は
 それぞれの component 内で runtime、依存関係、テスト、運用手順を完結させます。Realtime
-には独立した Go module と gRPC process があり、Protobuf service、認証、session 同期、
-永続化 bridge は未実装です。
+には独立した Go module と gRPC process があり、Protobuf bidi service、JWT 認証、
+assignment fencing、page-change の in-memory fan-out を実装しています。replay / resume、
+完全な Runtime 状態同期、永続化 callback の session lifecycle 接続は未実装です。
 
 ## 開発スタイル: TDD
 
@@ -87,17 +88,17 @@ nix run .#setup
 公式のタスク入口は Nix flake apps です。複雑な処理の実体は `scripts/` にあり、
 通常は内部スクリプトを直接実行せず、次の入口を使用します。
 
-| 用途 | コマンド |
-| --- | --- |
-| 開発環境 | `nix develop` |
-| 依存関係と hook のセットアップ | `nix run .#setup` |
-| 全体品質ゲート | `nix run .#check` |
-| Control Plane check / test / build | `nix run .#control-plane` |
-| Realtime check / test / build / race | `nix run .#realtime` |
-| Web check / test / build | `nix run .#web` |
-| LP test / check / build | `nix run .#lp` |
-| Notion 同期 | `nix run .#notion-sync` |
-| flake の評価と formatter 検証 | `nix flake check` |
+| 用途                                 | コマンド                  |
+| ------------------------------------ | ------------------------- |
+| 開発環境                             | `nix develop`             |
+| 依存関係と hook のセットアップ       | `nix run .#setup`         |
+| 全体品質ゲート                       | `nix run .#check`         |
+| Control Plane check / test / build   | `nix run .#control-plane` |
+| Realtime check / test / build / race | `nix run .#realtime`      |
+| Web check / test / build             | `nix run .#web`           |
+| LP test / check / build              | `nix run .#lp`            |
+| Notion 同期                          | `nix run .#notion-sync`   |
+| flake の評価と formatter 検証        | `nix flake check`         |
 
 `nix flake check` は flake の評価と formatter を検証します。アプリケーションの
 品質ゲートではありません。コード変更時の全体品質ゲートは
@@ -130,20 +131,22 @@ generated-file notice を保持します。C# generator は未接続のため、
 各 package の `package.json` にある script を JavaScript の実行方法の正とします。
 テストフレームワークを推測してコマンドを追加しません。
 
-| 対象 | 現在のテスト | 今後の方針 |
-| --- | --- | --- |
-| `app/web/` | package script で実行 | 機能追加に合わせて拡張 |
-| `app/server/realtime/` | Go `testing`、race detector | gRPC contract と session 実装に合わせて拡張 |
-| `lp/` | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張 |
-| `app/unity/` | Unity Test Framework の EditMode/PlayMode | Unity Editor で実行 |
+| 対象                   | 現在のテスト                               | 今後の方針                                  |
+| ---------------------- | ------------------------------------------ | ------------------------------------------- |
+| `app/web/`             | package script で実行                      | 機能追加に合わせて拡張                      |
+| `app/server/realtime/` | Go `testing`、race detector                | gRPC contract と session 実装に合わせて拡張 |
+| `lp/`                  | package script、`svelte-check`、静的 build | ページ追加に合わせて拡張                    |
+| `app/unity/`           | Unity Test Framework の EditMode           | Unity Editor で実行                         |
 
-`nix run .#check` は現在、Control Plane、Realtime、LP、Web の検証を実行します。
-現在は Unity Editor テストを実行しません。ドキュメント link check や security
-check も、この品質ゲートには含まれません。
+`nix run .#check` は現在、Control Plane、Presentation packages、Realtime、LP、Web
+の検証を実行します。Presentation gate は共有 `packages/config` の hook fixture と設定
+check も実行します。現在は Unity Editor テストを実行しません。ドキュメント link
+check や security check も、この品質ゲートには含まれません。
 
-Unity の動作変更では、Unity `6000.3.14f1` の Editor で EditMode/PlayMode テストを
-実行します。GitHub-hosted runner の Unity workflow は `dotnet format`、PowerShell
-analysis、`.meta` 整合性の静的検査のみを行います。
+Unity の動作変更では、Unity `6000.3.22f1` の Editor で既存の EditMode テストを
+実行し、PlayMode テストが追加された場合は関連するものも実行します。
+GitHub-hosted runner の Unity workflow は `dotnet format`、PowerShell analysis、
+`.meta` 整合性の静的検査のみを行います。
 
 品質コマンドの実行前後に `git status`、`git diff`、`git diff --cached` を確認します。
 
@@ -155,6 +158,8 @@ skip された検証を成功したとは報告しません。
 領域別の自動修正は次のコマンドで実行します。
 
 ```bash
+nix run .#control-plane -- fix
+nix run .#presentation -- fix
 nix run .#realtime -- fix
 nix run .#lp -- fix
 nix run .#web -- fix
@@ -167,10 +172,10 @@ Pull Request では `autofix.yml` が format と lint の自動修正を行う�
 `nix develop` または `nix run .#setup` により、repository-local の
 `core.hooksPath=packages/config/githooks` が有効になります。
 
-現在 tracked されている hook は `prepare-commit-msg` です。commit message を変換
-しますが、pre-commit の format や staged file の検証を保証するものではありません。
-Vite+ の staged 設定が存在していても、設定された `core.hooksPath` と hook file を
-確認せずに自動実行を前提にしません。
+tracked hook の `pre-commit` は repository root の Vite+ staged 設定を解決し、対象の
+staged file に `vp check --fix` または `vp fmt` を実行します。`prepare-commit-msg` は
+commit message を変換します。hook を前提にする前に、repository-local の
+`core.hooksPath` が `packages/config/githooks` を指すことを確認します。
 
 現在の変換例は次のとおりです。
 

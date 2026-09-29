@@ -1,0 +1,110 @@
+import type {
+  ComponentManifest,
+  ComponentPackageLock,
+  ComponentStructure,
+  PresentationDeclaration,
+  ThemeDeclaration,
+  SourceMetadata,
+} from "@unframe/unframe-authoring";
+import type { EncodeLimits } from "@unframe/unframe-assets";
+import type { BuildArtifactsV2, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
+import type { Diagnostic } from "@unframe/unframe-core";
+import type { RendererPlugin } from "@unframe/unframe-renderer-api";
+import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
+
+export type CompilerDeclarationProject = {
+  presentation: PresentationDeclaration;
+  themes: readonly { declaration: ThemeDeclaration; hash: string }[];
+  components: readonly {
+    manifest: ComponentManifest;
+    structure: ComponentStructure;
+    lock: Required<ComponentPackageLock>;
+  }[];
+  assets: Readonly<Record<string, CompilerSourceAsset>>;
+};
+export type CompilerSourceAsset = {
+  readonly id: string;
+  readonly mediaType: "font/ttf" | "font/otf";
+  readonly checksum: string;
+  readonly encodedSizeBytes: number;
+  readonly dataBase64: string;
+};
+export type DeclarationProjectThemeHash = {
+  readonly themeId: string;
+  readonly hash: string;
+};
+export type DeclarationProjectComponentLock = {
+  readonly componentId: string;
+  readonly version: number;
+  readonly lock: Required<ComponentPackageLock>;
+};
+export type DeclarationProjectAssemblyInput = {
+  readonly catalog: PairedAuthoringDeclarationCatalog;
+  readonly themeHashes: readonly DeclarationProjectThemeHash[];
+  readonly componentLocks: readonly DeclarationProjectComponentLock[];
+  readonly assets: Readonly<Record<string, CompilerSourceAsset>>;
+};
+export type DeclarationProjectAssemblyCarrier = Omit<DeclarationProjectAssemblyInput, "catalog">;
+export type AuthoringProjectPipelineResult<T> =
+  | { readonly valid: true; readonly value: T; readonly diagnostics: [] }
+  | {
+      readonly valid: false;
+      readonly phase: "source";
+      readonly diagnostics: readonly import("./check-authoring-project.js").AuthoringProjectDiagnostic[];
+    }
+  | {
+      readonly valid: false;
+      readonly phase: "assembly" | "compile";
+      readonly diagnostics: readonly Diagnostic[];
+    };
+export type CompilerWarning =
+  | {
+      readonly code: "compiler-prop-default-applied";
+      readonly message: string;
+      readonly path: readonly (string | number)[];
+      readonly componentInstanceId: string;
+      readonly propName: string;
+      readonly defaultValue: string | number | boolean;
+      readonly source?: SourceMetadata;
+    }
+  | {
+      readonly code: "compiler-variant-default-applied";
+      readonly message: string;
+      readonly path: readonly (string | number)[];
+      readonly componentInstanceId: string;
+      readonly variantName: string;
+      readonly defaultValue: string;
+      readonly source?: SourceMetadata;
+    };
+export type CheckedDeclarationProject = {
+  definition: PresentationDefinition;
+  definitionJson: string;
+  sourceHash: string;
+  definitionHash: string;
+  assetSet: BuildArtifactsV2["assetSet"];
+  warnings: readonly CompilerWarning[];
+};
+export type CompilerBuildOptions = {
+  readonly compiler: {
+    readonly name: string;
+    readonly version: string;
+    readonly baseEnvironmentHash: string;
+  };
+  readonly locale: string;
+  readonly timezone: string;
+  readonly colorScheme: "light" | "dark";
+  readonly rendererConfigHash: string;
+  readonly renderers: readonly RendererPlugin[];
+  readonly encodeLimits: EncodeLimits;
+};
+export type CompiledDeclarationProject = CheckedDeclarationProject & {
+  readonly renderBundle: RenderBundle;
+  readonly renderBundleJson: string;
+  readonly renderBundleHash: string;
+  readonly assetSetJson: string;
+  readonly assetSetHash: string;
+  readonly buildManifest: BuildArtifactsV2["buildManifest"];
+  readonly buildManifestJson: string;
+  readonly buildManifestHash: string;
+  readonly assets: Readonly<Record<string, Uint8Array>>;
+};

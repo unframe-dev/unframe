@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 2,
+  "reliableSequence": 0,
+  "lastIngressSequence": 0,
+  "lastAllocatedRunSequence": 0,
+  "clock": {
+    "runtimeTimeMilliseconds": 0,
+    "lifecycle": {
+      "kind": "running"
+    }
+  },
+  "progression": {
+    "currentGroupId": "intro",
+    "groupEntryEpoch": 1,
+    "currentStepId": "start",
+    "stepEntryEpoch": 1,
+    "stepEnteredAtRuntimeTimeMilliseconds": 0,
+    "phase": {
+      "kind": "stable"
+    }
+  },
+  "stepExecution": {
+    "stepEntryEpoch": 1,
+    "consumedCueIds": [],
+    "cooldownUntilRuntimeTimeMilliseconds": {},
+    "timerStates": {}
+  },
+  "surfaceStates": {
+    "baked": {
+      "stateId": "default"
+    },
+    "native": {
+      "stateId": "default"
+    },
+    "video": {
+      "stateId": "default"
+    }
+  },
+  "nodeStates": {
+    "model": {
+      "active": true,
+      "visible": true,
+      "opacity": 1,
+      "transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "node-baked": {
+      "active": true,
+      "visible": true,
+      "opacity": 1,
+      "transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "node-native": {
+      "active": true,
+      "visible": true,
+      "opacity": 1,
+      "transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "node-video": {
+      "active": true,
+      "visible": true,
+      "opacity": 1,
+      "transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "ghost": {
+      "active": true,
+      "visible": true,
+      "opacity": 1,
+      "transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    }
+  },
+  "mediaStates": {},
+  "variables": {
+    "counter": 0
+  },
+  "activeRuns": [],
+  "presentationOrigin": {
+    "version": 0,
+    "pose": {
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1]
+    }
+  },
+  "recentEventIds": [],
+  "modelClipStates": {}
+}

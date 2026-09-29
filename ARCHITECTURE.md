@@ -85,26 +85,27 @@ unframe/
 
 ツールチェインは Nix flake で固定し、JavaScript workspace は pnpm で管理します。現在の repository-wide entrypoint は次のとおりです。
 
-| 用途 | コマンド |
-| --- | --- |
-| 開発環境 | `nix develop` |
-| 依存関係と Git hook のセットアップ | `nix run .#setup` |
-| 全体品質ゲート | `nix run .#check` |
-| Web の検査・修正 | `nix run .#web` / `nix run .#web -- fix` |
-| LP の検査・修正 | `nix run .#lp` / `nix run .#lp -- fix` |
-| Notion 同期 | `nix run .#notion-sync` |
-| flake の評価と formatter 検証 | `nix flake check` |
+| 用途                               | コマンド                                 |
+| ---------------------------------- | ---------------------------------------- |
+| 開発環境                           | `nix develop`                            |
+| 依存関係と Git hook のセットアップ | `nix run .#setup`                        |
+| 全体品質ゲート                     | `nix run .#check`                        |
+| Web の検査・修正                   | `nix run .#web` / `nix run .#web -- fix` |
+| LP の検査・修正                    | `nix run .#lp` / `nix run .#lp -- fix`   |
+| Notion 同期                        | `nix run .#notion-sync`                  |
+| flake の評価と formatter 検証      | `nix flake check`                        |
 
-Backend 固有の check、development、migration、deployment entrypoint は、各 component の実装とともに追加します。
+Control Plane と Realtime の check entrypoint は実装済みです。開発・migration の手順は各 component の README を参照してください。自動 deployment workflow はありません。
 
 ### GitHub Actions
 
 - `ci.yml`: 変更領域の検出と必須チェックの集約
 - `control-plane.yml`: Control Plane の typecheck / test / deploy dry-run
+- `realtime.yml`: Realtime の vet / lint / test / build / race
 - `web.yml`: Web の check / test / build
 - `lp.yml`: LP の test / check / build
 - `unity.yml`: Unity の静的検査
-- `autofix.yml`: Control Plane / Web / LP の format と lint fix
+- `autofix.yml`: Control Plane / Realtime / Web / LP の format と lint fix
 - `sync-notion.yml`: Notion 同期
 
 ## 移行状況
@@ -114,6 +115,7 @@ Backend 固有の check、development、migration、deployment entrypoint は、
 - [x] 旧 Backend 専用の CI・生成・migration・dev entrypoint を削除
 - [x] `packages/contracts/` を次の contract を定義するための境界として保持
 - [x] Control Plane の HTTP 基盤を `app/server/control-plane/` に実装
-- [ ] Control Plane の contract、認証、D1/R2、resource API を実装
-- [ ] Realtime Backend を `app/server/realtime/` に実装
+- [x] Control Plane の OpenAPI、認証、D1/R2 adapter、Presentation / Asset / Session API を実装
+- [x] Realtime Backend の gRPC 接続、JWT 認証、assignment fencing、page-change fan-out を実装
+- [ ] Realtime の replay / resume、完全な Runtime 状態同期、永続化 callback の session lifecycle 接続を実装
 - [ ] component 間 E2E を `app/server/integration/` に実装

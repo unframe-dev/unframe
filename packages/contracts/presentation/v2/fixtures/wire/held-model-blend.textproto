@@ -1,0 +1,6 @@
+model_node_id: "model"
+held_blend {
+  from { clip_id: "idle" position_ms: 200 }
+  to { clip_id: "wave" position_ms: 300 }
+  to_weight: 0.25
+}

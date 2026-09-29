@@ -10,6 +10,18 @@ const fromBase64Url = (value: string) => {
   return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
 };
 
+const generatePrivateJwk = async () => {
+  const generatedKey = await crypto.subtle.generateKey({ name: "Ed25519" }, true, [
+    "sign",
+    "verify",
+  ]);
+  if (!("privateKey" in generatedKey)) throw new Error("Ed25519 must generate a key pair");
+
+  const exportedKey = await crypto.subtle.exportKey("jwk", generatedKey.privateKey);
+  if (exportedKey instanceof ArrayBuffer) throw new Error("JWK export must return a JSON key");
+  return exportedKey;
+};
+
 describe("RealtimeBootstrapCredentials", () => {
   it("rejects a signing key that is not an Ed25519 private JWK", () => {
     expect(
@@ -26,8 +38,7 @@ describe("RealtimeBootstrapCredentials", () => {
   });
 
   it("issues a verifiable EdDSA session credential and only publishes its public JWK", async () => {
-    const keyPair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
-    const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+    const privateJwk = await generatePrivateJwk();
     const credentials = new RealtimeBootstrapCredentials(privateJwk, {
       issuer: "https://control-plane.example.com",
       keyId: "realtime-2026-08",
@@ -107,8 +118,7 @@ describe("RealtimeBootstrapCredentials", () => {
   });
 
   it("UTF-8 audienceを含むcredentialを発行する", async () => {
-    const keyPair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
-    const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+    const privateJwk = await generatePrivateJwk();
     const credentials = new RealtimeBootstrapCredentials(privateJwk, {
       issuer: "https://control-plane.example.com",
       keyId: "realtime-2026-08",

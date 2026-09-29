@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "buildId": "build-1",
+  "presentationId": "demo",
+  "sourceDraftRevision": 1,
+  "definitionHash": "sha256:b05561ad3155507af6a11a19688607b04a1e4841f91df4470bdd42ad74468e40",
+  "renderBundleHash": "sha256:87765cac5f489f2fb6e176ffa4b743cbc8426c55ad6073d1c501c53ef162adf2",
+  "assetSetHash": "sha256:204a4e2ca13609d961ffb7bbb69646c240286a4242bf0650e725890c78a9e7b8",
+  "contractVersions": {
+    "definition": 2,
+    "renderBundle": 2,
+    "assetSet": 2,
+    "delivery": 2,
+    "runtime": 2,
+    "progression": 1,
+    "projection": 1
+  }
+}

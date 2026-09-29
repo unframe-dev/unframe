@@ -1,0 +1,5 @@
+node_id: "statue"
+parent { stage {} }
+order: 1
+owner { presentation {} }
+model { model_asset_id: "statue-asset" }
