@@ -137,10 +137,19 @@ const readState = async (directory: string): Promise<ProjectState> => {
   const instances = editable?.ok
     ? editable.value.map((item) => ({
         instanceId: item.instanceId,
+        surfaceId: surfaceIdFor(item.instanceId),
         props: Object.fromEntries(
           Object.entries(item.props).map(([id, prop]) => [
             id,
-            { type: prop.kind, value: prop.value, editable: prop.editable },
+            {
+              type: prop.kind,
+              value: prop.value,
+              editable: prop.editable,
+              inherited: prop.inherited,
+              ...(prop.inheritanceExpression
+                ? { inheritanceExpression: prop.inheritanceExpression }
+                : {}),
+            },
           ]),
         ),
         transform: {
@@ -149,6 +158,10 @@ const readState = async (directory: string): Promise<ProjectState> => {
           scale: [...item.transform.scale] as [number, number, number],
         },
         transformEditable: item.transformEditable,
+        transformInherited: item.transformInherited,
+        ...(item.transformInheritanceExpression
+          ? { transformInheritanceExpression: item.transformInheritanceExpression }
+          : {}),
       }))
     : [];
   return {
@@ -160,6 +173,7 @@ const readState = async (directory: string): Promise<ProjectState> => {
       revision: found.revision,
       sourceHash: checked?.valid ? checked.value.sourceHash : fallbackHash,
       irHash: checked?.valid && editable?.ok ? checked.value.definitionHash : null,
+      definition: checked?.valid && editable?.ok ? checked.value.definition : null,
       instances,
       diagnostics,
     },
@@ -200,7 +214,7 @@ const readPublishedArtifacts = async (directory: string, instanceIds: readonly s
     if (!surface) continue;
     for (const renderSurface of Object.values(surface.renderSurfaces))
       for (const artifact of Object.values(renderSurface.artifacts))
-        for (const state of Object.values(artifact.states)) {
+        for (const [stateId, state] of Object.entries(artifact.states)) {
           const assetId = state.texture.assetId;
           const mediaType = assetSet.assets[assetId]?.mediaType;
           if (mediaType !== "image/png") continue;
@@ -210,10 +224,10 @@ const readPublishedArtifacts = async (directory: string, instanceIds: readonly s
             );
             assets.set(assetId, { bytes: new Uint8Array(bytes), mediaType });
           }
-          const key = JSON.stringify([instanceId, assetId]);
+          const key = JSON.stringify([instanceId, stateId, assetId]);
           if (!catalogKeys.has(key)) {
             catalogKeys.add(key);
-            catalog.push({ assetId, mediaType, instanceId });
+            catalog.push({ assetId, mediaType, instanceId, stateId });
           }
         }
   }

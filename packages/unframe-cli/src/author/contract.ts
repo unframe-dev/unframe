@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PresentationDefinition } from "@unframe/unframe-core/domain/model";
 
 const vector3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 export const transformSchema = z
@@ -29,6 +30,29 @@ export const editCommandSchema = z.discriminatedUnion("kind", [
       transform: transformSchema,
     })
     .strict(),
+  z
+    .object({
+      kind: z.literal("inheritProp"),
+      instanceId: z.string().min(1),
+      propId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("restoreProp"),
+      instanceId: z.string().min(1),
+      propId: z.string().min(1),
+      expression: z.string().min(1),
+    })
+    .strict(),
+  z.object({ kind: z.literal("inheritTransform"), instanceId: z.string().min(1) }).strict(),
+  z
+    .object({
+      kind: z.literal("restoreTransform"),
+      instanceId: z.string().min(1),
+      expression: z.string().min(1),
+    })
+    .strict(),
 ]);
 export const randomIdSchema = z.string().regex(/^[0-9a-f]{32}$/);
 export const patchRequestSchema = z
@@ -49,17 +73,27 @@ export type AuthorDiagnostic = {
 };
 export type AuthorInstance = {
   instanceId: string;
+  surfaceId: string;
   props: Record<
     string,
-    { type: "string" | "number" | "boolean"; value: string | number | boolean; editable: boolean }
+    {
+      type: "string" | "number" | "boolean";
+      value: string | number | boolean;
+      editable: boolean;
+      inherited?: boolean;
+      inheritanceExpression?: string;
+    }
   >;
   transform: Transform;
   transformEditable: boolean;
+  transformInherited?: boolean;
+  transformInheritanceExpression?: string;
 };
 export type ProjectSnapshot = {
   revision: string;
   sourceHash: string;
   irHash: string | null;
+  definition: PresentationDefinition | null;
   instances: AuthorInstance[];
   diagnostics: AuthorDiagnostic[];
 };
@@ -74,7 +108,7 @@ export type BuildJob = {
   revision: string;
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "stale";
   diagnostics: AuthorDiagnostic[];
-  artifacts: { assetId: string; mediaType: string; instanceId: string }[];
+  artifacts: { assetId: string; mediaType: string; instanceId: string; stateId: string }[];
 };
 export class AuthorError extends Error {
   constructor(

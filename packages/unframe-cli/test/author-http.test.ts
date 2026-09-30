@@ -13,6 +13,7 @@ const setup = async () => {
       revision: "rev",
       sourceHash: "source",
       irHash: "ir",
+      definition: null,
       instances: [],
       diagnostics: [],
     })),
