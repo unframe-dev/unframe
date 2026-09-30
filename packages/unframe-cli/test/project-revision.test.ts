@@ -6,7 +6,7 @@ import { afterEach, assert, expect, it } from "vitest";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 
-const directories: string[] = [];
+const directories: Array<string> = [];
 const copyProject = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-revision-"));
   directories.push(directory);
@@ -17,7 +17,7 @@ const copyProject = async () => {
 };
 afterEach(async () => {
   await Promise.all(
-    directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+    directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
   );
 });
 

@@ -25,33 +25,33 @@ export type AssetRouteOptions = {
 };
 
 const assetErrorStatus = {
-  not_found: 404,
+  access_unavailable: 503,
   forbidden: 403,
+  not_found: 404,
   referenced: 409,
   verification_failed: 422,
-  access_unavailable: 503,
 } as const satisfies Record<AssetError["code"], 403 | 404 | 409 | 422 | 503>;
 const resource = (asset: Awaited<ReturnType<AssetService["finalize"]>>) => ({
-  id: asset.id,
-  presentationId: asset.presentationId,
-  name: asset.name,
-  mediaType: asset.mediaType,
-  sizeBytes: asset.sizeBytes,
-  sha256Hex: asset.sha256Hex,
-  status: asset.status,
   createdAt: asset.createdAt.toISOString(),
+  id: asset.id,
+  mediaType: asset.mediaType,
+  name: asset.name,
+  presentationId: asset.presentationId,
+  sha256Hex: asset.sha256Hex,
+  sizeBytes: asset.sizeBytes,
+  status: asset.status,
   updatedAt: asset.updatedAt.toISOString(),
 });
 const defaultServices = (context: Context<AppEnvironment>): AssetServices => {
   const config = context.get("config");
   return {
-    repository: new D1AssetRepository(config.DB),
-    permission: new D1PresentationPermission(config.DB),
-    storage: new R2ObjectStorage(config.ASSETS),
-    signedAccess: new R2Presigner(config),
+    audit: (entry) => console.log(JSON.stringify(entry)),
     clock: { now: () => new Date() },
     id: { next: crypto.randomUUID, random: crypto.randomUUID },
-    audit: (entry) => console.log(JSON.stringify(entry)),
+    permission: new D1PresentationPermission(config.DB),
+    repository: new D1AssetRepository(config.DB),
+    signedAccess: new R2Presigner(config),
+    storage: new R2ObjectStorage(config.ASSETS),
   };
 };
 
@@ -68,7 +68,9 @@ export function createAssetRoutes(options: AssetRouteOptions) {
   ) => {
     try {
       const identity = context.get("identity");
-      if (!identity) throw new Error("Authenticated asset identity is missing");
+      if (!identity) {
+        throw new Error("Authenticated asset identity is missing");
+      }
       return await operation(
         identity,
         new AssetService(options.services?.(context) ?? defaultServices(context)),

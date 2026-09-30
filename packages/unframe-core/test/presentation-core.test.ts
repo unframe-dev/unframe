@@ -32,21 +32,21 @@ describe("unframe-core v2", () => {
     const surface = makeM3AArtifacts().definition.scene.surfaces.baked!;
 
     expect(materializeCompletedSemanticTree(surface, "default")).toEqual({
+      diagnostics: [],
       valid: true,
       value: surface.baseSemanticTree,
-      diagnostics: [],
     });
     expect(materializeCompletedSemanticTree(surface, "missing")).toMatchObject({ valid: false });
   });
 
   it.each([
-    ["heading", { role: "heading", level: 2, text: "Heading" }],
-    ["paragraph", { role: "paragraph", text: "Paragraph", language: "ja" }],
-    ["image", { role: "image", alt: "Image", language: "en" }],
-    ["button", { role: "button", interactionId: "activate", text: "Button" }],
-    ["list", { role: "list", ordered: true }],
+    ["heading", { level: 2, role: "heading", text: "Heading" }],
+    ["paragraph", { language: "ja", role: "paragraph", text: "Paragraph" }],
+    ["image", { alt: "Image", language: "en", role: "image" }],
+    ["button", { interactionId: "activate", role: "button", text: "Button" }],
+    ["list", { ordered: true, role: "list" }],
     ["listItem", { role: "listItem", text: "Item" }],
-    ["table", { role: "table", label: "Table", language: "en" }],
+    ["table", { label: "Table", language: "en", role: "table" }],
     ["row", { role: "row" }],
     ["cell", { role: "cell", text: "Cell" }],
     ["columnHeader", { role: "columnHeader", text: "Column" }],
@@ -54,31 +54,33 @@ describe("unframe-core v2", () => {
   ] as const)("materializes the v2 %s role-specific fields", (_role, fields) => {
     const surface = makeM3AArtifacts().definition.scene.surfaces.baked!;
     surface.baseSemanticTree = {
-      rootNodeIds: ["node"],
       nodes: {
-        node: { id: "node", parentId: null, order: 0, ...fields },
+        node: { id: "node", order: 0, parentId: null, ...fields },
       },
+      rootNodeIds: ["node"],
     } as typeof surface.baseSemanticTree;
 
     const result = materializeCompletedSemanticTree(surface, "default");
 
     expect(result).toMatchObject({ valid: true });
-    if (result.valid) expect(result.value.nodes.node).toMatchObject(fields);
+    if (result.valid) {
+      expect(result.value.nodes.node).toMatchObject(fields);
+    }
   });
 
   it.each([
     ["heading without level", { role: "heading", text: "Heading" }],
-    ["paragraph with level", { role: "paragraph", level: 1, text: "Paragraph" }],
+    ["paragraph with level", { level: 1, role: "paragraph", text: "Paragraph" }],
     ["list without ordered", { role: "list" }],
-    ["row with ordered", { role: "row", ordered: false }],
-    ["empty table label", { role: "table", label: "" }],
+    ["row with ordered", { ordered: false, role: "row" }],
+    ["empty table label", { label: "", role: "table" }],
   ])("rejects invalid v2 role fields: %s", (_name, fields) => {
     const surface = makeM3AArtifacts().definition.scene.surfaces.baked!;
     surface.baseSemanticTree = {
-      rootNodeIds: ["node"],
       nodes: {
-        node: { id: "node", parentId: null, order: 0, ...fields },
+        node: { id: "node", order: 0, parentId: null, ...fields },
       },
+      rootNodeIds: ["node"],
     } as typeof surface.baseSemanticTree;
 
     expect(materializeCompletedSemanticTree(surface, "default")).toMatchObject({ valid: false });
@@ -119,9 +121,9 @@ describe("unframe-core v2", () => {
     const { definition } = makeM3AArtifacts();
 
     expect(hashPresentationDefinition(definition)).toEqual({
+      diagnostics: [],
       valid: true,
       value: hashCanonicalJsonPayload(definition),
-      diagnostics: [],
     });
   });
 

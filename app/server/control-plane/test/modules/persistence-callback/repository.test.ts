@@ -17,7 +17,7 @@ const seedSession = async () => {
     ).bind(
       presentationId,
       userId,
-      JSON.stringify({ title: "Presentation", groups: [], assets: [] }),
+      JSON.stringify({ assets: [], groups: [], title: "Presentation" }),
       "2026-01-01",
       "2026-01-01",
     ),
@@ -45,15 +45,15 @@ describe("D1PersistenceCallbackRepository", () => {
   it("deduplicates checkpoints by session version and idempotency key", async () => {
     const sessionId = await seedSession();
     const checkpoint = {
-      sessionId,
+      assignmentEpoch: 1,
+      idempotencyKey: "checkpoint-1",
+      lastSequence: 12,
+      payload: { slide: 2 },
+      presentationRevision: 1,
       runtimeId: "runtime",
       runtimeKind: "Cloud" as const,
-      assignmentEpoch: 1,
-      presentationRevision: 1,
+      sessionId,
       version: 1,
-      lastSequence: 12,
-      idempotencyKey: "checkpoint-1",
-      payload: { slide: 2 },
     };
     await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("applied");
     await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("duplicate");
@@ -65,19 +65,19 @@ describe("D1PersistenceCallbackRepository", () => {
   it("stores completion once and ends the session", async () => {
     const sessionId = await seedSession();
     const completion = {
-      sessionId,
+      assignmentEpoch: 1,
+      checkpointVersion: 1,
+      endedAt: "2026-08-11T00:01:00.000Z",
+      finalCheckpoint: { slide: 2 },
+      idempotencyKey: "completion-1",
+      lastSequence: 12,
+      participantCount: 1,
+      participants: [{ role: "presenter" as const, userId: "presenter" }],
+      presentationRevision: 1,
       runtimeId: "runtime",
       runtimeKind: "Cloud" as const,
-      assignmentEpoch: 1,
-      presentationRevision: 1,
-      checkpointVersion: 1,
-      lastSequence: 12,
-      idempotencyKey: "completion-1",
+      sessionId,
       startedAt: "2026-08-11T00:00:00.000Z",
-      endedAt: "2026-08-11T00:01:00.000Z",
-      participantCount: 1,
-      participants: [{ userId: "presenter", role: "presenter" as const }],
-      finalCheckpoint: { slide: 2 },
     };
     await expect(repository.applyCompletion(completion)).resolves.toBe("applied");
     await expect(repository.applyCompletion(completion)).resolves.toBe("duplicate");
@@ -88,21 +88,21 @@ describe("D1PersistenceCallbackRepository", () => {
         .bind(sessionId)
         .first(),
     ).resolves.toMatchObject({
-      state: "Ended",
       ended_at: completion.endedAt,
       released_at: "2026-08-11T00:00:00.000Z",
+      state: "Ended",
     });
     await expect(
       repository.applyCheckpoint({
-        sessionId,
+        assignmentEpoch: 1,
+        idempotencyKey: "checkpoint-after-completion",
+        lastSequence: 13,
+        payload: { slide: 3 },
+        presentationRevision: 1,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        assignmentEpoch: 1,
-        presentationRevision: 1,
+        sessionId,
         version: 2,
-        lastSequence: 13,
-        idempotencyKey: "checkpoint-after-completion",
-        payload: { slide: 3 },
       }),
     ).resolves.toBe("conflict");
   });
@@ -110,33 +110,33 @@ describe("D1PersistenceCallbackRepository", () => {
   it("rejects callbacks that do not match an active assignment", async () => {
     const sessionId = await seedSession();
     const checkpoint = {
-      sessionId,
+      assignmentEpoch: 1,
+      idempotencyKey: "wrong-runtime",
+      lastSequence: 12,
+      payload: { slide: 2 },
+      presentationRevision: 1,
       runtimeId: "wrong-runtime",
       runtimeKind: "Cloud" as const,
-      assignmentEpoch: 1,
-      presentationRevision: 1,
+      sessionId,
       version: 1,
-      lastSequence: 12,
-      idempotencyKey: "wrong-runtime",
-      payload: { slide: 2 },
     };
 
     await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("conflict");
     await expect(
       repository.applyCompletion({
-        sessionId,
+        assignmentEpoch: 1,
+        checkpointVersion: 1,
+        endedAt: "2026-08-11T00:01:00.000Z",
+        finalCheckpoint: { slide: 2 },
+        idempotencyKey: "wrong-runtime-completion",
+        lastSequence: 12,
+        participantCount: 1,
+        participants: [{ role: "presenter", userId: "presenter" }],
+        presentationRevision: 1,
         runtimeId: "wrong-runtime",
         runtimeKind: "Cloud",
-        assignmentEpoch: 1,
-        presentationRevision: 1,
-        checkpointVersion: 1,
-        lastSequence: 12,
-        idempotencyKey: "wrong-runtime-completion",
+        sessionId,
         startedAt: "2026-08-11T00:00:00.000Z",
-        endedAt: "2026-08-11T00:01:00.000Z",
-        participantCount: 1,
-        participants: [{ userId: "presenter", role: "presenter" }],
-        finalCheckpoint: { slide: 2 },
       }),
     ).resolves.toBe("conflict");
     await expect(
@@ -145,7 +145,7 @@ describe("D1PersistenceCallbackRepository", () => {
       )
         .bind(sessionId)
         .first(),
-    ).resolves.toMatchObject({ state: "Presenting", released_at: null });
+    ).resolves.toMatchObject({ released_at: null, state: "Presenting" });
     await env.DB.prepare(
       "UPDATE runtime_assignments SET released_at = '2026-08-10T00:00:00.000Z' WHERE session_id = ?",
     )
@@ -169,19 +169,19 @@ describe("D1PersistenceCallbackRepository", () => {
 
     await expect(
       repository.applyCompletion({
-        sessionId,
+        assignmentEpoch: 1,
+        checkpointVersion: 1,
+        endedAt: "2026-08-11T00:11:00.000Z",
+        finalCheckpoint: { slide: 2 },
+        idempotencyKey: "stale-completion",
+        lastSequence: 12,
+        participantCount: 1,
+        participants: [{ role: "presenter", userId: "presenter" }],
+        presentationRevision: 1,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        assignmentEpoch: 1,
-        presentationRevision: 1,
-        checkpointVersion: 1,
-        lastSequence: 12,
-        idempotencyKey: "stale-completion",
+        sessionId,
         startedAt: "2026-08-11T00:00:00.000Z",
-        endedAt: "2026-08-11T00:11:00.000Z",
-        participantCount: 1,
-        participants: [{ userId: "presenter", role: "presenter" }],
-        finalCheckpoint: { slide: 2 },
       }),
     ).resolves.toBe("conflict");
     await expect(
@@ -201,15 +201,15 @@ describe("D1PersistenceCallbackRepository", () => {
   it("distinguishes an unknown session from a duplicate", async () => {
     await expect(
       repository.applyCheckpoint({
-        sessionId: crypto.randomUUID(),
+        assignmentEpoch: 1,
+        idempotencyKey: "unknown",
+        lastSequence: 1,
+        payload: {},
+        presentationRevision: 1,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        assignmentEpoch: 1,
-        presentationRevision: 1,
+        sessionId: crypto.randomUUID(),
         version: 1,
-        lastSequence: 1,
-        idempotencyKey: "unknown",
-        payload: {},
       }),
     ).resolves.toBe("not_found");
   });

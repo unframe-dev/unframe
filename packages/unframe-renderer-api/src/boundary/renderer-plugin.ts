@@ -24,32 +24,47 @@ import { copyUint8Array, snapshotUnknown } from "./shared/safe-data.js";
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
 const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean => {
-  const { surface, semanticsByState } = input;
-  if (!Object.hasOwn(surface.states, surface.initialStateId)) return false;
+  const { semanticsByState, surface } = input;
+  if (!Object.hasOwn(surface.states, surface.initialStateId)) {
+    return false;
+  }
   if (surface.content.kind === "structured") {
-    const { rootFrameId, nodes: contentNodes } = surface.content;
+    const { nodes: contentNodes, rootFrameId } = surface.content;
     const root = contentNodes[rootFrameId];
-    if (!root || root.kind !== "frame" || root.parentId !== null) return false;
+    if (!root || root.kind !== "frame" || root.parentId !== null) {
+      return false;
+    }
     const reachableContentNodeIds = new Set<string>();
     const pendingContentNodeIds = [rootFrameId];
     while (pendingContentNodeIds.length > 0) {
       const nodeId = pendingContentNodeIds.pop();
-      if (nodeId === undefined || reachableContentNodeIds.has(nodeId)) continue;
+      if (nodeId === undefined || reachableContentNodeIds.has(nodeId)) {
+        continue;
+      }
       const node = contentNodes[nodeId];
-      if (!node) return false;
+      if (!node) {
+        return false;
+      }
       reachableContentNodeIds.add(nodeId);
-      if (node.kind === "frame") pendingContentNodeIds.push(...node.children);
+      if (node.kind === "frame") {
+        pendingContentNodeIds.push(...node.children);
+      }
     }
-    if (reachableContentNodeIds.size !== Object.keys(contentNodes).length) return false;
+    if (reachableContentNodeIds.size !== Object.keys(contentNodes).length) {
+      return false;
+    }
     const contentOrders = new Set<string>();
     for (const [id, node] of Object.entries(contentNodes)) {
       if (
         node.id !== id ||
         (node.parentId === null ? id !== rootFrameId : !contentNodes[node.parentId])
-      )
+      ) {
         return false;
+      }
       const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
-      if (contentOrders.has(orderKey)) return false;
+      if (contentOrders.has(orderKey)) {
+        return false;
+      }
       contentOrders.add(orderKey);
       if (node.kind === "frame") {
         const canonicalChildren = [...node.children].sort((left, right) => {
@@ -64,51 +79,66 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
             (childId, index) =>
               contentNodes[childId]?.parentId !== id || childId !== canonicalChildren[index],
           )
-        )
+        ) {
           return false;
+        }
       } else {
         const parent = contentNodes[node.parentId ?? ""];
-        if (!parent || parent.kind !== "frame" || !parent.children.includes(id)) return false;
+        if (!parent || parent.kind !== "frame" || !parent.children.includes(id)) {
+          return false;
+        }
         if (
           node.kind === "text" &&
           [node.style.fontAssetId, ...node.style.fallbackFontAssetIds].some(
             (assetId) => !Object.hasOwn(input.fontAssets, assetId),
           )
-        )
+        ) {
           return false;
+        }
       }
     }
   } else {
     if (
       Object.values(surface.states).some((state) => Object.keys(state.contentOverrides).length > 0)
-    )
+    ) {
       return false;
+    }
     const boundSemanticIds = Object.values(surface.content.bindings);
     if (
       boundSemanticIds.length !== Object.keys(surface.baseSemanticTree.nodes).length ||
       new Set(boundSemanticIds).size !== boundSemanticIds.length
-    )
+    ) {
       return false;
-    if (boundSemanticIds.some((id) => !Object.hasOwn(surface.baseSemanticTree.nodes, id)))
+    }
+    if (boundSemanticIds.some((id) => !Object.hasOwn(surface.baseSemanticTree.nodes, id))) {
       return false;
+    }
   }
   const validateTree = (tree: {
-    readonly rootNodeIds: readonly string[];
     readonly nodes: Readonly<
       Record<
         string,
-        { readonly id: string; readonly parentId: string | null; readonly order: number }
+        { readonly id: string; readonly order: number; readonly parentId: string | null }
       >
     >;
+    readonly rootNodeIds: ReadonlyArray<string>;
   }) => {
     const roots = new Set(tree.rootNodeIds);
-    if (tree.rootNodeIds.some((id) => !tree.nodes[id])) return false;
+    if (tree.rootNodeIds.some((id) => !tree.nodes[id])) {
+      return false;
+    }
     const siblingOrders = new Set<string>();
     for (const [id, node] of Object.entries(tree.nodes)) {
-      if (node.id !== id || (node.parentId === null ? !roots.has(id) : !tree.nodes[node.parentId]))
+      if (
+        node.id !== id ||
+        (node.parentId === null ? !roots.has(id) : !tree.nodes[node.parentId])
+      ) {
         return false;
+      }
       const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
-      if (siblingOrders.has(orderKey)) return false;
+      if (siblingOrders.has(orderKey)) {
+        return false;
+      }
       siblingOrders.add(orderKey);
       const seen = new Set([id]);
       for (
@@ -116,7 +146,9 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
         parentId !== null;
         parentId = tree.nodes[parentId]?.parentId ?? null
       ) {
-        if (seen.has(parentId)) return false;
+        if (seen.has(parentId)) {
+          return false;
+        }
         seen.add(parentId);
       }
     }
@@ -127,37 +159,43 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
   if (
     !validateTree(surface.baseSemanticTree) ||
     !Object.values(semanticsByState).every(validateTree)
-  )
+  ) {
     return false;
-  if (Object.entries(surface.interactions).some(([id, interaction]) => interaction.id !== id))
+  }
+  if (Object.entries(surface.interactions).some(([id, interaction]) => interaction.id !== id)) {
     return false;
+  }
   const interactionEvents = new Set(Object.values(surface.interactions).map(({ event }) => event));
   for (const intent of [surface.renderIntent, input.sourceIntent, input.resolvedIntent]) {
     if (
       intent.updateModel.kind === "finite-state" &&
       (new Set(intent.updateModel.stateIds).size !== intent.updateModel.stateIds.length ||
         intent.updateModel.stateIds.some((id) => !surface.states[id]))
-    )
+    ) {
       return false;
+    }
     if (
       intent.interaction.kind === "regions" &&
       intent.interaction.events.some((event) => !interactionEvents.has(event))
-    )
+    ) {
       return false;
+    }
   }
   for (const [stateId, state] of Object.entries(surface.states)) {
     if (
       state.id !== stateId ||
       new Set(state.enabledInteractionIds).size !== state.enabledInteractionIds.length ||
       state.enabledInteractionIds.some((id) => !surface.interactions[id])
-    )
+    ) {
       return false;
+    }
     if (
       state.semanticOverrides.some(({ nodes }) =>
         Object.keys(nodes).some((id) => !surface.baseSemanticTree.nodes[id]),
       )
-    )
+    ) {
       return false;
+    }
   }
   return [surface.baseSemanticTree, ...Object.values(semanticsByState)].every((tree) =>
     Object.values(tree.nodes).every(
@@ -169,7 +207,7 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
   );
 };
 
-export const sortedDiagnostics = (diagnostics: readonly Diagnostic[]) =>
+export const sortedDiagnostics = (diagnostics: ReadonlyArray<Diagnostic>) =>
   [...diagnostics].sort((left, right) => {
     const leftKey = `${JSON.stringify(left.path)}\0${left.code}\0${left.message}`;
     const rightKey = `${JSON.stringify(right.path)}\0${right.code}\0${right.message}`;
@@ -178,14 +216,19 @@ export const sortedDiagnostics = (diagnostics: readonly Diagnostic[]) =>
 
 const comparable = (value: unknown): unknown => {
   const bytes = copyUint8Array(value);
-  if (bytes) return Array.from({ length: bytes.length }, (_, index) => bytes[index]);
-  if (Array.isArray(value)) return value.map(comparable);
-  if (typeof value === "object" && value !== null)
+  if (bytes) {
+    return Array.from({ length: bytes.length }, (_, index) => bytes[index]);
+  }
+  if (Array.isArray(value)) {
+    return value.map(comparable);
+  }
+  if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
       Object.entries(value)
         .sort(([left], [right]) => compareStrings(left, right))
         .map(([key, item]) => [key, comparable(item)]),
     );
+  }
   return value;
 };
 
@@ -198,7 +241,7 @@ export const parseSupportDecision = (value: unknown) => {
   const boundarySnapshot = snapshotUnknown(value);
   const parsed = rendererSupportDecisionSchema.safeParse(boundarySnapshot);
   return parsed.success
-    ? { success: true as const, data: boundarySnapshot as RendererSupportDecision }
+    ? { data: boundarySnapshot as RendererSupportDecision, success: true as const }
     : parsed;
 };
 
@@ -206,17 +249,17 @@ export const parseBuildResult = (value: unknown) => {
   const boundarySnapshot = snapshotUnknown(value);
   const parsed = rendererBuildResultSchema.safeParse(boundarySnapshot);
   return parsed.success
-    ? { success: true as const, data: boundarySnapshot as RendererBuildResult }
+    ? { data: boundarySnapshot as RendererBuildResult, success: true as const }
     : parsed;
 };
 
 const validateInput = (
   input: CompilerResolvedSurfaceInput,
   plugin: RendererPlugin,
-  diagnostics: Diagnostic[],
-  prefix: readonly (string | number)[],
+  diagnostics: Array<Diagnostic>,
+  prefix: ReadonlyArray<string | number>,
 ) => {
-  if (input.plan.semanticSurfaceId !== input.surface.id)
+  if (input.plan.semanticSurfaceId !== input.surface.id) {
     diagnostics.push(
       diagnostic(
         "surface-plan-mismatch",
@@ -224,13 +267,14 @@ const validateInput = (
         [...prefix, "plan", "semanticSurfaceId"],
       ),
     );
+  }
 
   if (
     !logicalBoundsConstraintSchema.safeParse({
       bounds: input.plan.logicalBounds,
       logicalSize: input.surface.logicalSize,
     }).success
-  )
+  ) {
     diagnostics.push(
       diagnostic("invalid-logical-bounds", "Logical bounds must be finite and positive.", [
         ...prefix,
@@ -238,12 +282,13 @@ const validateInput = (
         "logicalBounds",
       ]),
     );
+  }
 
   const expectedFingerprint = createRendererFingerprint(
     plugin.identity,
     input.context.rendererConfigHash,
   );
-  if (input.context.rendererFingerprint !== expectedFingerprint)
+  if (input.context.rendererFingerprint !== expectedFingerprint) {
     diagnostics.push(
       diagnostic(
         "renderer-fingerprint-mismatch",
@@ -251,7 +296,8 @@ const validateInput = (
         [...prefix, "context", "rendererFingerprint"],
       ),
     );
-  if (!renderLayerSchema.safeParse(input.plan.layer).success)
+  }
+  if (!renderLayerSchema.safeParse(input.plan.layer).success) {
     diagnostics.push(
       diagnostic("invalid-render-layer", "Render layer must be a non-negative integer.", [
         ...prefix,
@@ -259,7 +305,8 @@ const validateInput = (
         "layer",
       ]),
     );
-  if (!pixelTargetSchema.safeParse(input.context.pixelTarget).success)
+  }
+  if (!pixelTargetSchema.safeParse(input.context.pixelTarget).success) {
     diagnostics.push(
       diagnostic("invalid-pixel-target", "Pixel target must contain positive integers.", [
         ...prefix,
@@ -267,6 +314,7 @@ const validateInput = (
         "pixelTarget",
       ]),
     );
+  }
 
   const stateIds = Object.keys(input.plan.states);
   if (!renderStateIdsSchema.safeParse(stateIds).success) {
@@ -281,8 +329,8 @@ const validateInput = (
       ),
     );
   }
-  for (const stateId of Object.keys(input.plan.states))
-    if (!Object.hasOwn(input.semanticsByState, stateId))
+  for (const stateId of Object.keys(input.plan.states)) {
+    if (!Object.hasOwn(input.semanticsByState, stateId)) {
       diagnostics.push(
         diagnostic("missing-state-semantics", "Planned state has no completed Semantic Tree.", [
           ...prefix,
@@ -290,10 +338,12 @@ const validateInput = (
           stateId,
         ]),
       );
+    }
+  }
   if (
     !sameKeySet(input.plan.states, input.surface.states) ||
     !sameKeySet(input.plan.states, input.semanticsByState)
-  )
+  ) {
     diagnostics.push(
       diagnostic(
         "surface-state-set-mismatch",
@@ -301,8 +351,9 @@ const validateInput = (
         [...prefix, "plan", "states"],
       ),
     );
-  for (const [stateId, state] of Object.entries(input.surface.states))
-    if (state.id !== stateId)
+  }
+  for (const [stateId, state] of Object.entries(input.surface.states)) {
+    if (state.id !== stateId) {
       diagnostics.push(
         diagnostic("surface-state-id-mismatch", "Surface state keys must match state IDs.", [
           ...prefix,
@@ -312,7 +363,9 @@ const validateInput = (
           "id",
         ]),
       );
-  if (snapshot(input.sourceIntent) !== snapshot(input.surface.renderIntent))
+    }
+  }
+  if (snapshot(input.sourceIntent) !== snapshot(input.surface.renderIntent)) {
     diagnostics.push(
       diagnostic(
         "source-render-intent-mismatch",
@@ -320,19 +373,20 @@ const validateInput = (
         [...prefix, "sourceIntent"],
       ),
     );
+  }
   const expectedResolvedIntent = {
-    updateModel: input.sourceIntent.updateModel,
+    fallbackPolicy: input.sourceIntent.fallbackPolicy,
     interaction: input.sourceIntent.interaction,
     internalAnimation: input.sourceIntent.internalAnimation,
-    fallbackPolicy: input.sourceIntent.fallbackPolicy,
+    updateModel: input.sourceIntent.updateModel,
   };
   const actualResolvedIntent = {
-    updateModel: input.resolvedIntent.updateModel,
+    fallbackPolicy: input.resolvedIntent.fallbackPolicy,
     interaction: input.resolvedIntent.interaction,
     internalAnimation: input.resolvedIntent.internalAnimation,
-    fallbackPolicy: input.resolvedIntent.fallbackPolicy,
+    updateModel: input.resolvedIntent.updateModel,
   };
-  if (snapshot(actualResolvedIntent) !== snapshot(expectedResolvedIntent))
+  if (snapshot(actualResolvedIntent) !== snapshot(expectedResolvedIntent)) {
     diagnostics.push(
       diagnostic(
         "resolved-render-intent-mismatch",
@@ -340,7 +394,8 @@ const validateInput = (
         [...prefix, "resolvedIntent"],
       ),
     );
-  if (input.resolvedIntent.selectedRendererId !== plugin.identity.id)
+  }
+  if (input.resolvedIntent.selectedRendererId !== plugin.identity.id) {
     diagnostics.push(
       diagnostic(
         "selected-renderer-plugin-mismatch",
@@ -348,10 +403,11 @@ const validateInput = (
         [...prefix, "resolvedIntent", "selectedRendererId"],
       ),
     );
+  }
   if (
     input.sourceIntent.rendererPreference !== "auto" &&
     input.sourceIntent.rendererPreference !== input.resolvedIntent.selectedRendererId
-  )
+  ) {
     diagnostics.push(
       diagnostic(
         "renderer-preference-mismatch",
@@ -359,15 +415,17 @@ const validateInput = (
         [...prefix, "resolvedIntent", "selectedRendererId"],
       ),
     );
+  }
   const ownership = input.plan.ownership;
-  if (input.entry.kind !== input.surface.content.kind)
+  if (input.entry.kind !== input.surface.content.kind) {
     diagnostics.push(
       diagnostic("surface-entry-mismatch", "Renderer entry must match Surface content.", [
         ...prefix,
         "entry",
       ]),
     );
-  if (ownership.kind !== input.surface.content.kind)
+  }
+  if (ownership.kind !== input.surface.content.kind) {
     diagnostics.push(
       diagnostic("surface-ownership-mismatch", "Plan ownership must match Surface content.", [
         ...prefix,
@@ -375,13 +433,14 @@ const validateInput = (
         "ownership",
       ]),
     );
+  }
   if (ownership.kind === "structured" && input.surface.content.kind === "structured") {
     const nodeIds = [...ownership.ownedContentNodeIds, ...ownership.contextNodeIds];
-    for (const contentNodeId of nodeIds)
+    for (const contentNodeId of nodeIds) {
       if (
         !rendererIdSchema.safeParse(contentNodeId).success ||
         !Object.hasOwn(input.surface.content.nodes, contentNodeId)
-      )
+      ) {
         diagnostics.push(
           diagnostic("missing-content-node", "Render plan references an unknown content node.", [
             ...prefix,
@@ -391,7 +450,9 @@ const validateInput = (
             contentNodeId,
           ]),
         );
-    if (new Set(nodeIds).size !== nodeIds.length)
+      }
+    }
+    if (new Set(nodeIds).size !== nodeIds.length) {
       diagnostics.push(
         diagnostic("duplicate-content-node", "Render plan content node IDs must be unique.", [
           ...prefix,
@@ -400,13 +461,14 @@ const validateInput = (
           "ownedContentNodeIds",
         ]),
       );
+    }
   }
   if (ownership.kind === "opaque" && input.surface.content.kind === "opaque") {
     const bindings = input.surface.content.bindings;
     if (
       new Set(ownership.bindingKeys).size !== ownership.bindingKeys.length ||
       !sameKeySet(Object.fromEntries(ownership.bindingKeys.map((key) => [key, true])), bindings)
-    )
+    ) {
       diagnostics.push(
         diagnostic("invalid-opaque-bindings", "Opaque plan must own every binding exactly once.", [
           ...prefix,
@@ -415,12 +477,13 @@ const validateInput = (
           "bindingKeys",
         ]),
       );
+    }
     const wholeSurface = (bounds: typeof input.plan.logicalBounds) =>
       bounds.x === 0 &&
       bounds.y === 0 &&
       bounds.width === input.surface.logicalSize[0] &&
       bounds.height === input.surface.logicalSize[1];
-    if (!wholeSurface(input.plan.logicalBounds) || !wholeSurface(input.plan.clipWindow))
+    if (!wholeSurface(input.plan.logicalBounds) || !wholeSurface(input.plan.clipWindow)) {
       diagnostics.push(
         diagnostic(
           "opaque-surface-must-be-whole",
@@ -428,13 +491,14 @@ const validateInput = (
           [...prefix, "plan", "logicalBounds"],
         ),
       );
+    }
   }
   if (
     !logicalBoundsConstraintSchema.safeParse({
       bounds: input.plan.clipWindow,
       logicalSize: input.surface.logicalSize,
     }).success
-  )
+  ) {
     diagnostics.push(
       diagnostic("invalid-clip-window", "Partition clip window must fit the Semantic Surface.", [
         ...prefix,
@@ -442,6 +506,7 @@ const validateInput = (
         "clipWindow",
       ]),
     );
+  }
   if (ownership.kind === "structured" && input.surface.content.kind === "structured") {
     const nodes = input.surface.content.nodes;
     for (const contextNodeId of ownership.contextNodeIds) {
@@ -449,12 +514,14 @@ const validateInput = (
       const ancestorOfOwned = ownership.ownedContentNodeIds.some((ownedId) => {
         let parentId = nodes[ownedId]?.parentId;
         while (parentId !== null && parentId !== undefined) {
-          if (parentId === contextNodeId) return true;
+          if (parentId === contextNodeId) {
+            return true;
+          }
           parentId = nodes[parentId]?.parentId;
         }
         return false;
       });
-      if (node?.kind !== "frame" || !ancestorOfOwned)
+      if (node?.kind !== "frame" || !ancestorOfOwned) {
         diagnostics.push(
           diagnostic(
             "invalid-context-node",
@@ -462,6 +529,7 @@ const validateInput = (
             [...prefix, "plan", "ownership", "contextNodeIds", contextNodeId],
           ),
         );
+      }
     }
   }
 };
@@ -474,48 +542,50 @@ type PreparedRendererBoundary = {
 export const prepareRendererBoundary = (
   input: unknown,
   plugin: unknown,
-  prefix: readonly (string | number)[],
+  prefix: ReadonlyArray<string | number>,
   preparedPlugin?: RendererPlugin,
 ): ValidationResult<PreparedRendererBoundary> => {
   try {
     const pluginResult = preparedPlugin
       ? { valid: true as const, value: preparedPlugin }
       : prepareRendererPlugin(plugin);
-    if (!pluginResult.valid) return pluginResult;
+    if (!pluginResult.valid) {
+      return pluginResult;
+    }
     const inputSnapshot = snapshotUnknown(input);
     const inputResult = rendererBuildInputSchema.safeParse(inputSnapshot);
     if (!inputResult.success) {
       return {
-        valid: false,
         diagnostics: [
           diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
         ],
+        valid: false,
       };
     }
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: Array<Diagnostic> = [];
     const preparedInput = inputSnapshot as CompilerResolvedSurfaceInput;
     if (!validateInputReferences(preparedInput)) {
       return {
-        valid: false,
         diagnostics: [
           diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
         ],
+        valid: false,
       };
     }
     validateInput(preparedInput, pluginResult.value, diagnostics, prefix);
     return diagnostics.length === 0
       ? {
+          diagnostics: [],
           valid: true,
           value: Object.freeze({ input: preparedInput, plugin: pluginResult.value }),
-          diagnostics: [],
         }
-      : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+      : { diagnostics: sortedDiagnostics(diagnostics), valid: false };
   } catch {
     return {
-      valid: false,
       diagnostics: [
         diagnostic("invalid-renderer-input", "Renderer build input is invalid.", prefix),
       ],
+      valid: false,
     };
   }
 };
@@ -526,11 +596,11 @@ export const prepareRendererBuildInput = (
 ): ValidationResult<CompilerResolvedSurfaceInput> => {
   const prepared = prepareRendererBoundary(input, plugin, []);
   return prepared.valid
-    ? { valid: true, value: prepared.value.input, diagnostics: [] }
-    : { valid: false, diagnostics: prepared.diagnostics };
+    ? { diagnostics: [], valid: true, value: prepared.value.input }
+    : { diagnostics: prepared.diagnostics, valid: false };
 };
 
 export const validateRendererBuildInput = (
   input: unknown,
   plugin: unknown,
-): readonly Diagnostic[] => prepareRendererBuildInput(input, plugin).diagnostics;
+): ReadonlyArray<Diagnostic> => prepareRendererBuildInput(input, plugin).diagnostics;

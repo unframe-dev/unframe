@@ -6,10 +6,10 @@ describe("opaque worker isolation", () => {
     await expect(
       runIsolatedOpaqueWorker(
         {
-          workerPath: "/does-not-exist/worker.mjs",
           browserPath: "/does-not-exist/chrome-headless-shell",
-          runtimePaths: [],
           input: {},
+          runtimePaths: [],
+          workerPath: "/does-not-exist/worker.mjs",
         },
         { cgroupRoot: "/tmp" },
       ),

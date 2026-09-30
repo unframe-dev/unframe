@@ -38,22 +38,16 @@ import {
   variant,
 } from "../src/index.js";
 
-const absolute = { kind: "absolute" as const, x: 0, y: 0, width: 1920, height: 1080 };
-const title = text({ id: "text-title", value: "Hello", layout: absolute, maxCodePoints: 64 });
-const root = frame({ id: "frame-root", layout: absolute, children: [title] });
+const absolute = { height: 1080, kind: "absolute" as const, width: 1920, x: 0, y: 0 };
+const title = text({ id: "text-title", layout: absolute, maxCodePoints: 64, value: "Hello" });
+const root = frame({ children: [title], id: "frame-root", layout: absolute });
 const defaultState = {
+  enabledInteractionIds: [],
   id: "state-default",
   semanticOverrides: [],
-  enabledInteractionIds: [],
 } as const;
 const titleSurface = surface({
-  id: "surface-title",
-  physicalSizeMeters: [1.6, 0.9],
-  logicalSize: [1920, 1080],
-  fit: "contain",
-  root,
   baseSemanticTree: {
-    rootNodeIds: ["semantic-title"],
     nodes: {
       "semantic-title": {
         id: "semantic-title",
@@ -64,118 +58,110 @@ const titleSurface = surface({
         text: "Hello",
       },
     },
+    rootNodeIds: ["semantic-title"],
   },
-  interactions: {},
+  fit: "contain",
+  id: "surface-title",
   initialStateId: defaultState.id,
-  states: { [defaultState.id]: defaultState },
+  interactions: {},
+  logicalSize: [1920, 1080],
+  physicalSizeMeters: [1.6, 0.9],
   renderIntent: {
-    updateModel: "static",
+    fallbackPolicy: "reject",
     interaction: "none",
     internalAnimation: "none",
     rendererPreference: "baked-web",
-    fallbackPolicy: "reject",
+    updateModel: "static",
   },
+  root,
+  states: { [defaultState.id]: defaultState },
 });
 const surfaceNode = spatial({
+  active: true,
+  audience: { kind: "all" },
   id: "surface-node-title",
   name: "Title surface",
-  owner: { kind: "presentation" },
-  audience: { kind: "all" },
-  parent: { kind: "stage" },
-  order: 0,
-  transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-  active: true,
-  visible: true,
   opacity: 1,
+  order: 0,
+  owner: { kind: "presentation" },
+  parent: { kind: "stage" },
+  transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+  visible: true,
 });
 
 const surfaceManifest = defineComponentManifest({
-  componentId: "@unframe/components/Surface",
-  version: 1,
-  authoring: { mode: "structured", structure: "./Surface.structure.ts" },
-  props: {
-    width: numberProp({ required: true }),
-    height: numberProp({ required: true }),
-  },
-  slots: { content: slot({}) },
-  parts: { root: part({}) },
-  variants: { fit: variant({ values: ["contain", "cover", "stretch"], default: "contain" }) },
-  states: { hidden: state(), shown: state({ initial: true }) },
   actions: {
     show: action({
-      inputs: {},
-      preconditions: [surfaceState("root", "hidden")],
       effects: [
         setSurfaceState("root", "shown"),
         playTimeline("reveal", { completion: "blocking" }),
       ],
+      inputs: {},
+      preconditions: [surfaceState("root", "hidden")],
     }),
   },
+  authoring: { mode: "structured", structure: "./Surface.structure.ts" },
+  componentId: "@unframe/components/Surface",
   outputs: {
     completed: output({
       payload: { reason: { type: "string", value: "timeline" } },
       producer: timelineCompleted("reveal"),
     }),
   },
+  parts: { root: part({}) },
+  props: {
+    height: numberProp({ required: true }),
+    width: numberProp({ required: true }),
+  },
   renderers: ["baked-web"],
+  slots: { content: slot({}) },
+  states: { hidden: state(), shown: state({ initial: true }) },
+  variants: { fit: variant({ default: "contain", values: ["contain", "cover", "stretch"] }) },
+  version: 1,
 });
 const surfaceStructure = defineComponentStructure({
-  id: "surface-structure",
   componentId: surfaceManifest.componentId,
-  root: titleSurface,
+  id: "surface-structure",
   partBindings: { root: titleSurface.id },
-  variantStyles: {},
+  root: titleSurface,
   timelines: [
     {
-      id: "reveal",
       durationMilliseconds: 100,
+      id: "reveal",
       tracks: [
         {
-          target: { kind: "host", property: "opacity" },
           keyframes: [
             { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
             { timeMilliseconds: 100, value: 1 },
           ],
+          target: { kind: "host", property: "opacity" },
         },
       ],
     },
   ],
+  variantStyles: {},
 });
 const titleInstance = componentInstance({
-  id: "title-component",
   componentId: surfaceManifest.componentId,
-  version: 1,
+  id: "title-component",
   owner: { kind: "presentation" },
-  spatialNodeId: surfaceNode.id,
-  props: { width: 1920, height: 1080, logo: "logo" },
-  slots: { content: [title.id] },
-  variants: { fit: "contain" },
   partOverrides: [
     {
       partId: "root",
-      targetKind: "frame",
       style: { backgroundColor: { red: 1, green: 1, blue: 1, alpha: 1 } },
+      targetKind: "frame",
     },
   ],
+  props: { height: 1080, logo: "logo", width: 1920 },
+  slots: { content: [title.id] },
+  spatialNodeId: surfaceNode.id,
+  variants: { fit: "contain" },
+  version: 1,
 });
 
 const referencePresentation = {
-  id: "presentation-intro",
-  source: { file: "presentation.unframe.tsx", range: [0, 42] as const },
-  metadata: { title: "Intro" },
-  stage: {
-    coordinateSystem: {
-      unit: "meter" as const,
-      handedness: "right" as const,
-      upAxis: "+Y" as const,
-      forwardAxis: "-Z" as const,
-    },
-    size: [4, 3, 2] as const,
-  },
-  scene: { spatial: [surfaceNode], components: [titleInstance] },
   assets: [assetRef({ assetId: "logo" })],
   flow: {
-    initialGroupId: "group-intro",
     groups: {
       "group-intro": {
         id: "group-intro",
@@ -183,16 +169,30 @@ const referencePresentation = {
         steps: { "step-intro": { id: "step-intro", cues: [] } },
       },
     },
+    initialGroupId: "group-intro",
     variables: {
       "optional-subtitle": {
         id: "optional-subtitle",
+        initialValue: null,
         owner: { kind: "presentation" as const },
         type: "null" as const,
-        initialValue: null,
       },
     },
   },
+  id: "presentation-intro",
+  metadata: { title: "Intro" },
   operations: [],
+  scene: { components: [titleInstance], spatial: [surfaceNode] },
+  source: { file: "presentation.unframe.tsx", range: [0, 42] as const },
+  stage: {
+    coordinateSystem: {
+      forwardAxis: "-Z" as const,
+      handedness: "right" as const,
+      unit: "meter" as const,
+      upAxis: "+Y" as const,
+    },
+    size: [4, 3, 2] as const,
+  },
 } as const;
 
 describe("reference authoring project", () => {
@@ -226,15 +226,15 @@ describe("reference authoring project", () => {
 describe("component contract", () => {
   it("validates a blocking Surface crossfade effect", () => {
     const transition = {
-      kind: "crossfade" as const,
+      completion: "blocking" as const,
       durationMilliseconds: 200,
       easing: "linear" as const,
-      completion: "blocking" as const,
+      kind: "crossfade" as const,
     };
     expect(setSurfaceState("root", "shown", transition)).toEqual({
       kind: "setSurfaceState",
-      surfaceId: "root",
       stateId: "shown",
+      surfaceId: "root",
       transition,
     });
     expect(() =>
@@ -243,8 +243,8 @@ describe("component contract", () => {
   });
   it("represents structured Manifest actions, outputs, Parts, Slots, and local semantics", () => {
     expect(surfaceManifest.actions.show.effects).toEqual([
-      { kind: "setSurfaceState", surfaceId: "root", stateId: "shown" },
-      { kind: "playTimeline", timelineId: "reveal", completion: "blocking" },
+      { kind: "setSurfaceState", stateId: "shown", surfaceId: "root" },
+      { completion: "blocking", kind: "playTimeline", timelineId: "reveal" },
     ]);
     expect(surfaceManifest.outputs.completed.producer).toEqual({
       kind: "timelineCompleted",
@@ -256,21 +256,16 @@ describe("component contract", () => {
 
   it("represents Opaque renderer entries only through declared binding keys and semantics", () => {
     const manifest = defineComponentManifest({
-      componentId: "@example/opaque-chart",
-      version: 1,
-      authoring: { mode: "opaque" },
-      props: { interactive: booleanProp({ default: false }) },
-      slots: {},
-      parts: {},
-      variants: {},
-      states: {},
       actions: {},
+      authoring: { mode: "opaque" },
+      componentId: "@example/opaque-chart",
       outputs: { refresh: output({ payload: {}, producer: after(1000) }) },
+      parts: {},
+      props: { interactive: booleanProp({ default: false }) },
       renderers: {
-        "baked-web": { entry: "./Chart.web.tsx", bindingKeys: ["chart-root"] },
+        "baked-web": { bindingKeys: ["chart-root"], entry: "./Chart.web.tsx" },
       },
       semantics: {
-        targets: [],
         surfaces: [
           {
             id: "root",
@@ -281,7 +276,12 @@ describe("component contract", () => {
             states: titleSurface.states,
           },
         ],
+        targets: [],
       },
+      slots: {},
+      states: {},
+      variants: {},
+      version: 1,
     });
 
     expect(manifest.authoring.mode).toBe("opaque");
@@ -296,23 +296,23 @@ describe("component contract", () => {
   it("limits semantic overrides and detach to explicit structured operations", () => {
     const changed = semanticOverride({
       id: "rename-title",
+      included: true,
       targetId: "semantic-title",
       text: "Welcome",
-      included: true,
     });
     const detached = detach({
       id: "detach-title",
-      mode: "structured",
       instanceId: titleInstance.id,
+      mode: "structured",
       provenance: { componentId: surfaceManifest.componentId, version: 1 },
     });
 
     expect(changed).toEqual({
-      kind: "semantic-override",
       id: "rename-title",
+      included: true,
+      kind: "semantic-override",
       targetId: "semantic-title",
       text: "Welcome",
-      included: true,
     });
     expect(detached.mode).toBe("structured");
   });
@@ -323,15 +323,15 @@ describe("component contract", () => {
       outputId: "completed",
     });
     const show = invokeComponentAction({
-      componentInstanceId: titleInstance.id,
       actionId: "show",
       arguments: {},
+      componentInstanceId: titleInstance.id,
     });
     const transition = cue({
-      id: "show-after-complete",
-      trigger: completed,
       actions: [show],
+      id: "show-after-complete",
       toStepId: "step-shown",
+      trigger: completed,
     });
 
     expect(transition.trigger.kind).toBe("component.output");
@@ -340,19 +340,19 @@ describe("component contract", () => {
 
   it("accepts canonical cue controls and rejects conflicting transitions", () => {
     const value = cue({
-      id: "advance",
-      trigger: { kind: "event", event: "advance" },
       actions: [],
-      priority: 2,
-      order: 1,
+      firePolicy: { cooldownMilliseconds: 100, kind: "repeatable" },
       guard: {
         kind: "compare",
-        left: { kind: "eventPayload", field: "accepted" },
+        left: { field: "accepted", kind: "eventPayload" },
         operator: "eq",
         right: true,
       },
-      firePolicy: { kind: "repeatable", cooldownMilliseconds: 100 },
+      id: "advance",
       next: { kind: "step", stepId: "done" },
+      order: 1,
+      priority: 2,
+      trigger: { event: "advance", kind: "event" },
     });
     expect(value.next).toEqual({ kind: "step", stepId: "done" });
     expect(() => cue({ ...value, toStepId: "other" })).toThrow(/Invalid cue declaration/);
@@ -361,10 +361,10 @@ describe("component contract", () => {
   it("uses null semantic override fields to remove inherited values", () => {
     expect(
       semanticOverride({
-        id: "remove-alt",
-        targetId: "semantic-title",
         alt: null,
+        id: "remove-alt",
         language: null,
+        targetId: "semantic-title",
       }),
     ).toMatchObject({ alt: null, language: null });
   });
@@ -374,23 +374,23 @@ describe("theme and reference vocabulary", () => {
   it("creates typed Theme, Prop, State, and reference declarations", () => {
     const theme = defineTheme({
       id: "default-theme",
-      tokens: {
-        accent: { category: "color", value: { red: 1, green: 0, blue: 1, alpha: 1 } },
-        spacing: { category: "logicalLength", value: 8 },
-      },
       namedStyles: {
         heading: {
           kind: "text",
           style: { color: tokenRef({ category: "color", tokenId: "accent" }), fontSize: 64 },
         },
       },
+      tokens: {
+        accent: { category: "color", value: { alpha: 1, blue: 1, green: 0, red: 1 } },
+        spacing: { category: "logicalLength", value: 8 },
+      },
     });
 
     expect(theme.tokens.accent.category).toBe("color");
     expect(stringProp({ required: true })).toEqual({ kind: "string", required: true });
     expect(tokenRef({ category: "color", tokenId: "accent" })).toEqual({
-      kind: "token-ref",
       category: "color",
+      kind: "token-ref",
       tokenId: "accent",
     });
     expect(namedStyleRef({ styleId: "heading" })).toEqual({
@@ -400,11 +400,11 @@ describe("theme and reference vocabulary", () => {
   });
 
   it("does not mutate builder inputs or retain registry state", () => {
-    const input = { id: "copy", value: "Copy", layout: absolute, maxCodePoints: 64 } as const;
+    const input = { id: "copy", layout: absolute, maxCodePoints: 64, value: "Copy" } as const;
     const first = text(input);
     const second = text(input);
 
-    expect(input).toEqual({ id: "copy", value: "Copy", layout: absolute, maxCodePoints: 64 });
+    expect(input).toEqual({ id: "copy", layout: absolute, maxCodePoints: 64, value: "Copy" });
     expect(first).not.toBe(input);
     expect(second).not.toBe(first);
     expect(second).toEqual(first);
@@ -412,13 +412,13 @@ describe("theme and reference vocabulary", () => {
 
   it("preserves unresolved cross-declaration references for Compiler validation", () => {
     const unresolved = defineComponentStructure({
-      id: "unresolved-structure",
+      baseSemanticTree: { nodes: {}, rootNodeIds: [] },
       componentId: "@example/missing-manifest",
-      root,
+      id: "unresolved-structure",
       partBindings: { missingPart: "missing-node" },
-      baseSemanticTree: { rootNodeIds: [], nodes: {} },
-      variantStyles: {},
+      root,
       timelines: [],
+      variantStyles: {},
     });
 
     expect(unresolved.partBindings.missingPart).toBe("missing-node");
@@ -428,40 +428,40 @@ describe("theme and reference vocabulary", () => {
   it("accepts concrete v2 primitive inputs without resolving Named Styles", () => {
     const styledText = text({
       id: "styled-text",
-      value: "Unframe",
       layout: absolute,
-      visible: false,
+      maxCodePoints: 64,
+      namedStyle: namedStyleRef({ styleId: "heading" }),
       opacity: 0.5,
       semanticNodeId: "semantic-styled-text",
-      maxCodePoints: 64,
       style: {
-        font: assetRef({ assetId: "reference-font" }),
+        align: "start",
+        color: { red: 0, green: 0, blue: 0, alpha: 1 },
         fallbackFonts: [],
+        font: assetRef({ assetId: "reference-font" }),
         fontSize: 32,
         lineHeight: 40,
-        color: { red: 0, green: 0, blue: 0, alpha: 1 },
-        weight: "regular",
-        align: "start",
         overflow: "clip",
+        weight: "regular",
       },
-      namedStyle: namedStyleRef({ styleId: "heading" }),
+      value: "Unframe",
+      visible: false,
     });
     const styledFrame = frame({
+      children: [styledText],
       id: "styled-frame",
       layout: absolute,
-      children: [styledText],
-      visible: true,
       opacity: 1,
       semanticNodeId: "semantic-frame",
       style: {
-        backgroundColor: { red: 1, green: 1, blue: 1, alpha: 1 },
+        backgroundColor: { alpha: 1, blue: 1, green: 1, red: 1 },
         border: {
-          color: { red: 0, green: 0, blue: 0, alpha: 1 },
-          width: 1,
+          color: { alpha: 1, blue: 0, green: 0, red: 0 },
           radius: 4,
+          width: 1,
         },
         clip: true,
       },
+      visible: true,
     });
 
     expect(styledText.style.font?.kind).toBe("asset-ref");
@@ -473,9 +473,7 @@ describe("theme and reference vocabulary", () => {
     expect(() =>
       surface({
         ...titleSurface,
-        id: "heading-surface",
         baseSemanticTree: {
-          rootNodeIds: ["heading"],
           nodes: {
             heading: {
               id: "heading",
@@ -486,25 +484,27 @@ describe("theme and reference vocabulary", () => {
               text: "Unframe",
             },
           },
+          rootNodeIds: ["heading"],
         },
+        id: "heading-surface",
       }),
     ).not.toThrow();
   });
 
   it("rejects invalid concrete primitive limits at the authoring boundary", () => {
     expect(() =>
-      text({ id: "bad-limit", value: "Unframe", layout: absolute, maxCodePoints: 0 }),
+      text({ id: "bad-limit", layout: absolute, maxCodePoints: 0, value: "Unframe" }),
     ).toThrow(/text declaration/);
     expect(() =>
       text({
         id: "bad-font-size",
-        value: "Unframe",
         layout: absolute,
         maxCodePoints: 64,
         style: { fontSize: 0 },
+        value: "Unframe",
       }),
     ).toThrow(/text declaration/);
-    expect(() => frame({ id: "bad-opacity", layout: absolute, children: [], opacity: 2 })).toThrow(
+    expect(() => frame({ children: [], id: "bad-opacity", layout: absolute, opacity: 2 })).toThrow(
       /frame declaration/,
     );
   });
@@ -534,10 +534,10 @@ describe("local declaration boundary", () => {
   it("exposes non-mutating declaration guards with builder-equivalent acceptance", () => {
     const theme = {
       id: "default-theme",
-      tokens: {
-        accent: { category: "color" as const, value: { red: 1, green: 0, blue: 1, alpha: 1 } },
-      },
       namedStyles: {},
+      tokens: {
+        accent: { category: "color" as const, value: { alpha: 1, blue: 1, green: 0, red: 1 } },
+      },
     };
     const before = JSON.stringify({
       referencePresentation,
@@ -563,14 +563,14 @@ describe("local declaration boundary", () => {
 
   it("returns false without evaluating malformed declaration accessors", () => {
     let reads = 0;
-    const accessor = Object.defineProperty({ id: "theme", tokens: {}, namedStyles: {} }, "tokens", {
+    const accessor = Object.defineProperty({ id: "theme", namedStyles: {}, tokens: {} }, "tokens", {
       enumerable: true,
       get() {
         reads++;
         return {};
       },
     });
-    const cyclic: Record<string, unknown> = { id: "theme", tokens: {}, namedStyles: {} };
+    const cyclic: Record<string, unknown> = { id: "theme", namedStyles: {}, tokens: {} };
     cyclic.self = cyclic;
 
     expect(isThemeDeclaration(accessor)).toBe(false);
@@ -579,8 +579,8 @@ describe("local declaration boundary", () => {
     expect(
       isThemeDeclaration({
         id: "theme",
-        tokens: { invalid: Number.POSITIVE_INFINITY },
         namedStyles: {},
+        tokens: { invalid: Number.POSITIVE_INFINITY },
       }),
     ).toBe(false);
   });
@@ -599,9 +599,9 @@ describe("local declaration boundary", () => {
     expect(() => assetRef(proxy({ assetId: "logo" }))).not.toThrow();
     expect(() => semanticOverride(proxy({ id: "override", targetId: "target" }))).not.toThrow();
     expect(() =>
-      cue(proxy({ id: "cue", trigger: { kind: "event", event: "ready" }, actions: [] })),
+      cue(proxy({ actions: [], id: "cue", trigger: { event: "ready", kind: "event" } })),
     ).not.toThrow();
-    expect(isThemeDeclaration(proxy({ id: "theme", tokens: {}, namedStyles: {} }))).toBe(true);
+    expect(isThemeDeclaration(proxy({ id: "theme", namedStyles: {}, tokens: {} }))).toBe(true);
     expect(reads).toBe(0);
   });
 
@@ -614,7 +614,7 @@ describe("local declaration boundary", () => {
       },
     });
 
-    expect(() => variant({ values, default: "primary" })).not.toThrow();
+    expect(() => variant({ default: "primary", values })).not.toThrow();
     expect(reads).toBe(0);
   });
 
@@ -630,7 +630,7 @@ describe("local declaration boundary", () => {
 
     try {
       expect(() => slot({})).not.toThrow();
-      expect(isThemeDeclaration({ id: "theme", tokens: {}, namedStyles: {} })).toBe(true);
+      expect(isThemeDeclaration({ id: "theme", namedStyles: {}, tokens: {} })).toBe(true);
       expect(reads).toBe(0);
     } finally {
       delete (Object.prototype as { required?: unknown }).required;
@@ -640,10 +640,10 @@ describe("local declaration boundary", () => {
   it("accepts normalized null-prototype declarations", () => {
     const theme = Object.assign(Object.create(null), {
       id: "theme",
-      tokens: Object.assign(Object.create(null), {
-        accent: { category: "color", value: { red: 1, green: 0, blue: 1, alpha: 1 } },
-      }),
       namedStyles: Object.create(null),
+      tokens: Object.assign(Object.create(null), {
+        accent: { category: "color", value: { alpha: 1, blue: 1, green: 0, red: 1 } },
+      }),
     });
 
     expect(isThemeDeclaration(theme)).toBe(true);
@@ -659,7 +659,7 @@ describe("local declaration boundary", () => {
     ["Date", new Date(0)],
   ])("rejects non-JSON %s values", (_label, invalid) => {
     expect(() =>
-      defineTheme({ id: "theme", tokens: { invalid }, namedStyles: {} } as never),
+      defineTheme({ id: "theme", namedStyles: {}, tokens: { invalid } } as never),
     ).toThrow(TypeError);
   });
 
@@ -668,13 +668,13 @@ describe("local declaration boundary", () => {
     expect(() =>
       defineTheme({
         id: "theme",
+        namedStyles: {},
         source: { file: "theme.ts", range: [2, 1] },
         tokens: {},
-        namedStyles: {},
       }),
     ).toThrow(/source.range/);
     expect(() =>
-      text({ id: "bad", value: "bad", layout: { ...absolute, width: 0 }, maxCodePoints: 64 }),
+      text({ id: "bad", layout: { ...absolute, width: 0 }, maxCodePoints: 64, value: "bad" }),
     ).toThrow(/layout size/);
     expect(() =>
       spatial({
@@ -683,7 +683,7 @@ describe("local declaration boundary", () => {
         transform: { ...surfaceNode.transform, scale: [1, 0, 1] },
       }),
     ).toThrow(/transform.scale/);
-    expect(() => action({ inputs: {}, preconditions: [], effects: [] })).toThrow(
+    expect(() => action({ effects: [], inputs: {}, preconditions: [] })).toThrow(
       /at least one effect/,
     );
     expect(() =>
@@ -698,27 +698,27 @@ describe("local declaration boundary", () => {
   it("rejects nested empty ids and malformed interactions", () => {
     expect(() =>
       defineComponentStructure({
-        id: "bad-structure",
+        baseSemanticTree: { nodes: {}, rootNodeIds: [] },
         componentId: surfaceManifest.componentId,
-        root,
-        baseSemanticTree: { rootNodeIds: [], nodes: {} },
+        id: "bad-structure",
         partBindings: {},
-        variantStyles: {},
+        root,
         timelines: [
           {
-            id: "",
             durationMilliseconds: 100,
+            id: "",
             tracks: [
               {
-                target: { kind: "host", property: "opacity" },
                 keyframes: [
                   { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
                   { timeMilliseconds: 100, value: 1 },
                 ],
+                target: { kind: "host", property: "opacity" },
               },
             ],
           },
         ],
+        variantStyles: {},
       }),
     ).toThrow(/timeline id/);
     expect(() =>
@@ -726,14 +726,13 @@ describe("local declaration boundary", () => {
         ...titleSurface,
         id: "interactive-surface",
         interactions: {
-          click: { id: "click", kind: "click", event: "clicked" },
+          click: { event: "clicked", id: "click", kind: "click" },
         },
       } as never),
     ).toThrow(/Invalid Surface declaration/);
     expect(() =>
       surface({
         ...titleSurface,
-        id: "semantic-interaction-surface",
         baseSemanticTree: {
           ...titleSurface.baseSemanticTree,
           nodes: {
@@ -743,6 +742,7 @@ describe("local declaration boundary", () => {
             },
           },
         },
+        id: "semantic-interaction-surface",
       } as never),
     ).toThrow(/Invalid Surface declaration/);
   });
@@ -750,18 +750,18 @@ describe("local declaration boundary", () => {
   it("rejects cycles, sparse arrays, and accessor properties", () => {
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
-    expect(() => defineTheme({ id: "theme", tokens: cyclic, namedStyles: {} } as never)).toThrow(
+    expect(() => defineTheme({ id: "theme", namedStyles: {}, tokens: cyclic } as never)).toThrow(
       /cycles/,
     );
 
-    const sparse: unknown[] = [];
+    const sparse: Array<unknown> = [];
     sparse.length = 2;
     expect(() =>
-      defineTheme({ id: "theme", tokens: { sparse }, namedStyles: {} } as never),
+      defineTheme({ id: "theme", namedStyles: {}, tokens: { sparse } } as never),
     ).toThrow(/sparse arrays/);
 
     const accessor = Object.defineProperty({}, "value", { enumerable: true, get: () => "hidden" });
-    expect(() => defineTheme({ id: "theme", tokens: accessor, namedStyles: {} } as never)).toThrow(
+    expect(() => defineTheme({ id: "theme", namedStyles: {}, tokens: accessor } as never)).toThrow(
       /data properties/,
     );
   });
@@ -789,7 +789,7 @@ describe("local declaration boundary", () => {
   });
 
   it("enforces the same Prop, Slot, Part, and Variant contract at builders and Manifest guards", () => {
-    expect(() => stringProp({ required: true, default: "fallback" } as never)).toThrow(
+    expect(() => stringProp({ default: "fallback", required: true } as never)).toThrow(
       /string prop/,
     );
     expect(() => numberProp({} as never)).toThrow(/number prop/);
@@ -800,38 +800,38 @@ describe("local declaration boundary", () => {
     );
     expect(() => part({})).not.toThrow();
     expect(() => part({ overridable: ["style"] } as never)).toThrow(/part declaration/);
-    expect(() => variant({ values: ["primary"], default: "secondary" })).toThrow(
+    expect(() => variant({ default: "secondary", values: ["primary"] })).toThrow(
       /variant declaration/,
     );
 
     expect(
       isComponentManifest({
         ...surfaceManifest,
-        props: { title: { kind: "string", default: 1 } },
-        slots: { content: { kind: "slot", accepts: ["frame"], cardinality: "many" } },
         parts: { root: { kind: "part", overridable: ["style"] } },
-        variants: { tone: { kind: "variant", values: ["primary"], default: "secondary" } },
+        props: { title: { default: 1, kind: "string" } },
+        slots: { content: { accepts: ["frame"], cardinality: "many", kind: "slot" } },
+        variants: { tone: { default: "secondary", kind: "variant", values: ["primary"] } },
       }),
     ).toBe(false);
   });
 
   it("rejects malformed Theme style records and Structure nodes through public guards", () => {
-    expect(isThemeDeclaration({ id: "theme", tokens: {}, namedStyles: { heading: "bold" } })).toBe(
+    expect(isThemeDeclaration({ id: "theme", namedStyles: { heading: "bold" }, tokens: {} })).toBe(
       false,
     );
     expect(
       isComponentStructure({
         ...surfaceStructure,
         root: {
+          children: [{ id: "title", kind: "text", layout: absolute, maxCodePoints: 64, value: 42 }],
           id: "root",
           kind: "frame",
           layout: absolute,
-          children: [{ id: "title", kind: "text", value: 42, layout: absolute, maxCodePoints: 64 }],
         },
       }),
     ).toBe(false);
     expect(() =>
-      text({ id: "title", value: 42, layout: absolute, maxCodePoints: 64 } as never),
+      text({ id: "title", layout: absolute, maxCodePoints: 64, value: 42 } as never),
     ).toThrow(/text declaration/);
   });
 
@@ -856,10 +856,10 @@ describe("local declaration boundary", () => {
   });
 
   it("rejects unknown fields before a builder result reaches a strict declaration guard", () => {
-    expect(() => tokenRef({ tokenId: "accent", fallback: "red" } as never)).toThrow(
+    expect(() => tokenRef({ fallback: "red", tokenId: "accent" } as never)).toThrow(
       /Token reference/,
     );
-    expect(() => namedStyleRef({ styleId: "heading", className: "title" } as never)).toThrow(
+    expect(() => namedStyleRef({ className: "title", styleId: "heading" } as never)).toThrow(
       /Named Style reference/,
     );
     expect(() => assetRef({ assetId: "logo", url: "logo.png" } as never)).toThrow(
@@ -876,7 +876,7 @@ const typeContractChecks = () => {
   // @ts-expect-error Props must be either required or supply a default
   numberProp({});
   // @ts-expect-error required Props cannot also supply a default
-  booleanProp({ required: true, default: false });
+  booleanProp({ default: false, required: true });
   // @ts-expect-error required must be the literal true
   stringProp({ required: false });
   // @ts-expect-error Slot declarations do not constrain placement cardinality or accepted kinds
@@ -884,55 +884,55 @@ const typeContractChecks = () => {
   // @ts-expect-error Part declarations do not expose a property permission list
   part({ overridable: ["style"] });
   // @ts-expect-error Text bounds require an explicit positive code point limit
-  text({ id: "missing-limit", value: "Unframe", layout: absolute });
+  text({ id: "missing-limit", layout: absolute, value: "Unframe" });
   text({
     id: "legacy-text-style",
-    value: "Unframe",
     layout: absolute,
     maxCodePoints: 64,
+    value: "Unframe",
     // @ts-expect-error style is a concrete Text Style; Named Style references use namedStyle
     style: namedStyleRef({ styleId: "heading" }),
   });
   surface({
     ...titleSurface,
     baseSemanticTree: {
-      rootNodeIds: ["heading"],
       nodes: {
         // @ts-expect-error heading semantic nodes require a level
         heading: {
           id: "heading",
-          parentId: null,
           order: 0,
+          parentId: null,
           role: "heading",
           text: "Unframe",
         },
       },
+      rootNodeIds: ["heading"],
     },
   });
   // @ts-expect-error semantic overrides cannot alter topology or roles
-  semanticOverride({ id: "bad", targetId: "node", parentId: "other" });
+  semanticOverride({ id: "bad", parentId: "other", targetId: "node" });
   // @ts-expect-error a Surface is a Structure root and cannot be nested inside Frame content
-  frame({ id: "bad-frame", layout: absolute, children: [titleSurface] });
+  frame({ children: [titleSurface], id: "bad-frame", layout: absolute });
   surface({
     ...titleSurface,
     // @ts-expect-error the initial milestone cannot declare Surface interactions
-    interactions: { click: { id: "click", kind: "click", event: "clicked" } },
+    interactions: { click: { event: "clicked", id: "click", kind: "click" } },
   });
   // @ts-expect-error output payload types and fixed scalar values must agree
   output({ payload: { count: { type: "number", value: "one" } }, producer: after(1) });
   // @ts-expect-error opaque manifests must declare semantic bindings
   defineComponentManifest({
-    componentId: "@example/opaque",
-    version: 1,
-    authoring: { mode: "opaque" },
-    props: {},
-    slots: {},
-    parts: {},
-    variants: {},
-    states: {},
     actions: {},
+    authoring: { mode: "opaque" },
+    componentId: "@example/opaque",
     outputs: {},
+    parts: {},
+    props: {},
     renderers: {},
+    slots: {},
+    states: {},
+    variants: {},
+    version: 1,
   });
 };
 

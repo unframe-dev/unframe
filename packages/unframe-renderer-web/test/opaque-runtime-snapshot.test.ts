@@ -15,7 +15,7 @@ it("rejects a dependency symlink to a file outside its runtime root", async () =
       snapshotOpaqueRuntimeDirectory(source, join(directory, "snapshot")),
     ).rejects.toThrow("regular");
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    await rm(directory, { force: true, recursive: true });
   }
 });
 it("fingerprints file contents independently of the snapshot directory", async () => {
@@ -29,6 +29,6 @@ it("fingerprints file contents independently of the snapshot directory", async (
     await writeFile(join(source, "index.js"), "two");
     expect(await snapshotOpaqueRuntimeDirectory(source, join(directory, "c"))).not.toBe(first);
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    await rm(directory, { force: true, recursive: true });
   }
 });

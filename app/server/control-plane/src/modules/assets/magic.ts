@@ -1,6 +1,6 @@
 import type { AssetMediaType } from "./schema";
 
-const startsWith = (bytes: Uint8Array, signature: number[]) =>
+const startsWith = (bytes: Uint8Array, signature: Array<number>) =>
   signature.every((value, index) => bytes[index] === value);
 const ascii = (value: string) => [...value].map((character) => character.charCodeAt(0));
 

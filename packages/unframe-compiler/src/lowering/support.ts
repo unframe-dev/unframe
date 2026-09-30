@@ -16,7 +16,7 @@ export const nonEmptyString = (value: unknown): value is string =>
   nonEmptyStringSchema.safeParse(value).success;
 const portableId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const portableIdSegment = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
-const hashedResourceId = (parts: readonly string[]) =>
+const hashedResourceId = (parts: ReadonlyArray<string>) =>
   `r:${hashJson(JSON.stringify(parts)).slice("sha256:".length)}`;
 export const resourceId = (instanceId: string, localId: string) => {
   const candidate = `${instanceId}:${localId}`;
@@ -25,14 +25,16 @@ export const resourceId = (instanceId: string, localId: string) => {
     portableIdSegment.test(localId) &&
     portableId.test(candidate) &&
     !candidate.startsWith("r:")
-  )
+  ) {
     return candidate;
+  }
   return hashedResourceId(["resource", instanceId, localId]);
 };
 export const derivedResourceId = (baseId: string, suffix: string) => {
   const candidate = `${baseId}:${suffix}`;
-  if (portableId.test(candidate) && portableIdSegment.test(suffix) && !candidate.startsWith("r:"))
+  if (portableId.test(candidate) && portableIdSegment.test(suffix) && !candidate.startsWith("r:")) {
     return candidate;
+  }
   return hashedResourceId(["derived", baseId, suffix]);
 };
 export const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock) => {
@@ -40,25 +42,31 @@ export const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock
     left.manifestHash !== right.manifestHash ||
     left.mode !== right.mode ||
     left.origin.kind !== right.origin.kind
-  )
+  ) {
     return false;
+  }
   if (
     left.mode === "structured" &&
     (right.mode !== "structured" || left.structureHash !== right.structureHash)
-  )
+  ) {
     return false;
+  }
   if (
     left.mode === "opaque" &&
     (right.mode !== "opaque" || left.rendererInputHash !== right.rendererInputHash)
-  )
+  ) {
     return false;
-  if (left.origin.kind === "package")
+  }
+  if (left.origin.kind === "package") {
     return (
       right.origin.kind === "package" &&
       left.origin.packageKey === right.origin.packageKey &&
       left.origin.subpath === right.origin.subpath
     );
-  if (right.origin.kind !== "local") return false;
+  }
+  if (right.origin.kind !== "local") {
+    return false;
+  }
   const rightFiles = right.origin.files;
   return (
     left.origin.entryFile === right.origin.entryFile &&
@@ -72,36 +80,39 @@ export const sameLock = (left: ComponentPackageLock, right: ComponentPackageLock
 };
 
 export const renderIntent = () => ({
-  updateModel: { kind: "static" as const },
+  fallbackPolicy: "reject" as const,
   interaction: { kind: "none" as const },
   internalAnimation: { kind: "none" as const },
   rendererPreference: "baked-web" as const,
-  fallbackPolicy: "reject" as const,
+  updateModel: { kind: "static" as const },
 });
 
 export const projectEnvelopeDiagnostics = (
-  issues: readonly z.core.$ZodIssue[],
-): readonly Diagnostic[] => {
+  issues: ReadonlyArray<z.core.$ZodIssue>,
+): ReadonlyArray<Diagnostic> => {
   const mapped = issues.map((issue) => {
     const [section, index] = issue.path;
-    if (section === "components")
+    if (section === "components") {
       return diagnostic(
         "compiler-invalid-component-entry",
         ["components", typeof index === "number" ? index : 0],
         "Component entries require declarations and a complete non-empty lock.",
       );
-    if (section === "themes")
+    }
+    if (section === "themes") {
       return diagnostic(
         "compiler-invalid-theme-entry",
         ["themes", typeof index === "number" ? index : 0],
         "Theme entries require a declaration and non-empty hash.",
       );
-    if (issue.code === "unrecognized_keys" && issue.path.length === 0)
+    }
+    if (issue.code === "unrecognized_keys" && issue.path.length === 0) {
       return diagnostic(
         "compiler-invalid-project-field",
         [],
         "Project contains an unknown top-level field.",
       );
+    }
     return diagnostic(
       "compiler-invalid-input",
       issue.path.map((segment) => (typeof segment === "number" ? segment : String(segment))),

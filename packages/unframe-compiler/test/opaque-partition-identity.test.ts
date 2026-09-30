@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { opaquePartitionIdentity } from "../src/api/opaque-partition-identity.js";
 
 describe("opaquePartitionIdentity", () => {
-  const bounds = { x: 0, y: 0, width: 100, height: 50 };
+  const bounds = { height: 50, width: 100, x: 0, y: 0 };
   const renderer = {
-    id: "baked-web",
-    version: "1",
     contractVersion: "1",
+    id: "baked-web",
     implementationHash: "sha256:renderer-a",
+    version: "1",
   };
 
   it("derives a whole-entry identity that changes with module and renderer implementation", () => {
@@ -25,8 +25,8 @@ describe("opaquePartitionIdentity", () => {
       initial,
     );
     expect(initial.descriptor.renderer.entry).toEqual({
-      kind: "opaque",
       entryId: "surface",
+      kind: "opaque",
       moduleHash: "sha256:module-a",
     });
     expect(changedModule.id).not.toBe(initial.id);

@@ -13,14 +13,17 @@ export const assembleAuthoringProject = (
   source: unknown,
   carrier: unknown,
 ): AuthoringProjectPipelineResult<{
-  project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
+  project: CompilerDeclarationProject;
 }> => {
   const catalog = checkAuthoringProject(source);
-  if (!catalog.valid) return { valid: false, phase: "source", diagnostics: catalog.diagnostics };
+  if (!catalog.valid) {
+    return { diagnostics: catalog.diagnostics, phase: "source", valid: false };
+  }
   const snapshot = safePlainClone(carrier);
-  if (!snapshot.valid)
-    return { valid: false, phase: "assembly", diagnostics: snapshot.diagnostics };
+  if (!snapshot.valid) {
+    return { diagnostics: snapshot.diagnostics, phase: "assembly", valid: false };
+  }
   if (
     snapshot.value === null ||
     typeof snapshot.value !== "object" ||
@@ -28,10 +31,8 @@ export const assembleAuthoringProject = (
     Object.keys(snapshot.value).some(
       (key) => !["themeHashes", "componentLocks", "assets"].includes(key),
     )
-  )
+  ) {
     return {
-      valid: false,
-      phase: "assembly",
       diagnostics: [
         {
           code: "compiler-invalid-input",
@@ -39,18 +40,20 @@ export const assembleAuthoringProject = (
           message: "Assembly carrier must contain only explicit carrier fields.",
         },
       ],
+      phase: "assembly",
+      valid: false,
     };
+  }
   const expected = computeFrozenComponentInputs(source, catalog.value);
-  if (!expected.valid)
-    return { valid: false, phase: "assembly", diagnostics: expected.diagnostics };
+  if (!expected.valid) {
+    return { diagnostics: expected.diagnostics, phase: "assembly", valid: false };
+  }
   const supplied = snapshot.value as { componentLocks?: unknown };
   if (
     hashCanonicalJsonPayload(supplied.componentLocks ?? null) !==
     hashCanonicalJsonPayload(expected.value.componentLocks)
-  )
+  ) {
     return {
-      valid: false,
-      phase: "assembly",
       diagnostics: [
         {
           code: "compiler-frozen-component-lock-mismatch",
@@ -59,12 +62,15 @@ export const assembleAuthoringProject = (
             "Component origins, source closure, or renderer inputs differ from the frozen lock. Refresh the lock explicitly.",
         },
       ],
+      phase: "assembly",
+      valid: false,
     };
+  }
   const assembled = assembleDeclarationProjectValidated({
     ...(snapshot.value as object),
     catalog: catalog.value,
   });
   return assembled.valid
-    ? { valid: true, value: assembled.value, diagnostics: [] }
-    : { valid: false, phase: "assembly", diagnostics: assembled.diagnostics };
+    ? { diagnostics: [], valid: true, value: assembled.value }
+    : { diagnostics: assembled.diagnostics, phase: "assembly", valid: false };
 };

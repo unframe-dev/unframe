@@ -7,10 +7,10 @@ import { requireSession } from "@/features/auth/require-session";
 import { createAppRouter } from "./router";
 
 const auth = vi.hoisted(() => ({
+  device: { deny: vi.fn() },
   getSession: vi.fn(),
   signIn: { social: vi.fn() },
   verifyDeviceAuthorization: vi.fn(),
-  device: { deny: vi.fn() },
 }));
 vi.mock("@unframe/api-client-typescript", () => ({
   createControlPlaneAuthClient: vi.fn(() => auth),
@@ -63,8 +63,8 @@ describe("web editor routes", () => {
     await user.click(await screen.findByRole("button", { name: "Google でログイン" }));
 
     expect(auth.signIn.social).toHaveBeenCalledWith({
-      provider: "google",
       callbackURL: `${window.location.origin}/device?user_code=ABCD-EFGH`,
+      provider: "google",
     });
   });
 
@@ -94,7 +94,7 @@ describe("web editor routes", () => {
   it("can deny a pending authorization and prevents double submission while loading", async () => {
     const user = userEvent.setup();
     auth.verifyDeviceAuthorization.mockResolvedValue({
-      data: { user_code: "ABCD-EFGH", status: "pending" },
+      data: { status: "pending", user_code: "ABCD-EFGH" },
       error: null,
     });
     let resolveDeny: (value: { data: { success: boolean }; error: null }) => void;

@@ -11,20 +11,20 @@ describe("venue edge HTTP routes", () => {
     const app = createApp({
       identityProvider: async (context) => {
         const userId = context.req.header("x-user");
-        return userId ? { userId, globalRole: userId === "admin" ? "admin" : "user" } : undefined;
+        return userId ? { globalRole: userId === "admin" ? "admin" : "user", userId } : undefined;
       },
       sessionNow: () => new Date("2026-08-20T00:00:00.000Z"),
-      venueEdgeCredential: () => ({ tokenId: "token-id", secret: new Uint8Array(32).fill(1) }),
+      venueEdgeCredential: () => ({ secret: new Uint8Array(32).fill(1), tokenId: "token-id" }),
     });
     const request = (path: string, method: string, user?: string, body?: unknown, token?: string) =>
       app.fetch(
         new Request(`https://api.example.com${path}`, {
-          method,
           headers: {
             "content-type": "application/json",
             ...(user ? { "x-user": user } : {}),
             ...(token ? { authorization: `Bearer ${token}` } : {}),
           },
+          method,
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         }),
         runtimeEnvironment(),
@@ -49,13 +49,13 @@ describe("venue edge HTTP routes", () => {
     expect(
       (
         await request(`/venue-edges/${credential.edge.id}/register`, "POST", undefined, {
-          runtimeId: `runtime-${suffix}`,
-          runtimeVersion: "1",
-          protocolVersion: "v1",
           capacity: 10,
-          localEndpoint: "https://edge.example.com",
           certificateFingerprint: "sha256:test",
           health: "healthy",
+          localEndpoint: "https://edge.example.com",
+          protocolVersion: "v1",
+          runtimeId: `runtime-${suffix}`,
+          runtimeVersion: "1",
         })
       ).status,
     ).toBe(401);
@@ -66,13 +66,13 @@ describe("venue edge HTTP routes", () => {
           "POST",
           undefined,
           {
-            runtimeId: `runtime-${suffix}`,
-            runtimeVersion: "1",
-            protocolVersion: "v1",
             capacity: 10,
-            localEndpoint: "http://edge.example.com",
             certificateFingerprint: "sha256:test",
             health: "healthy",
+            localEndpoint: "http://edge.example.com",
+            protocolVersion: "v1",
+            runtimeId: `runtime-${suffix}`,
+            runtimeVersion: "1",
           },
           credential.token,
         )
@@ -85,13 +85,13 @@ describe("venue edge HTTP routes", () => {
           "POST",
           undefined,
           {
-            runtimeId: `runtime-${suffix}`,
-            runtimeVersion: "1",
-            protocolVersion: "v1",
             capacity: 10,
-            localEndpoint: "https://edge.example.com",
             certificateFingerprint: "sha256:test",
             health: "healthy",
+            localEndpoint: "https://edge.example.com",
+            protocolVersion: "v1",
+            runtimeId: `runtime-${suffix}`,
+            runtimeVersion: "1",
           },
           credential.token,
         )
@@ -113,10 +113,10 @@ describe("venue edge HTTP routes", () => {
       .bind(sessionId, `presentation-${suffix}`, `user-${suffix}`, `code-${suffix}`)
       .run();
     const assignment = await request(`/sessions/${sessionId}/runtime-assignment`, "POST", "admin", {
+      leaseExpiresAt: "2026-08-20T00:02:00.000Z",
+      presentationRevision: 1,
       runtimeId: `runtime-${suffix}`,
       runtimeKind: "VenueEdge",
-      presentationRevision: 1,
-      leaseExpiresAt: "2026-08-20T00:02:00.000Z",
     });
     expect(assignment.status).toBe(201);
     const value = await assignment.json<{ assignmentEpoch: number }>();
@@ -160,15 +160,15 @@ describe("venue edge HTTP routes", () => {
 
   it("normalizes malformed Venue Edge JSON as a validation error", async () => {
     const app = createApp({
-      identityProvider: async () => ({ userId: "admin", globalRole: "admin" }),
+      identityProvider: async () => ({ globalRole: "admin", userId: "admin" }),
       sessionNow: () => new Date("2026-08-20T00:00:00.000Z"),
     });
 
     const response = await app.fetch(
       new Request("https://api.example.com/venue-edges", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: "{",
+        headers: { "content-type": "application/json" },
+        method: "POST",
       }),
       runtimeEnvironment(),
     );

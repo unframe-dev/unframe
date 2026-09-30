@@ -13,15 +13,29 @@ import { palette, staticRenderIntent } from "./reference-values";
 import manifest from "./reference-surface.manifest";
 
 const canvas = {
+  height: 1080,
   kind: "absolute",
+  width: 1920,
   x: 0,
   y: 0,
-  width: 1920,
-  height: 1080,
 } satisfies AbsoluteLayoutDeclaration;
 const semantics = {
-  rootNodeIds: ["heading", "summary", "detail", "continue-button"],
   nodes: {
+    "continue-button": {
+      id: "continue-button",
+      parentId: null,
+      order: 3,
+      role: "button",
+      text: "Continue",
+      interactionId: "continue",
+    },
+    detail: {
+      id: "detail",
+      parentId: null,
+      order: 2,
+      role: "paragraph",
+      text: "Typed themes, explicit fonts, stable artifacts",
+    },
     heading: {
       id: "heading",
       parentId: null,
@@ -41,34 +55,21 @@ const semantics = {
         expectedType: "string",
       },
     },
-    detail: {
-      id: "detail",
-      parentId: null,
-      order: 2,
-      role: "paragraph",
-      text: "Typed themes, explicit fonts, stable artifacts",
-    },
-    "continue-button": {
-      id: "continue-button",
-      parentId: null,
-      order: 3,
-      role: "button",
-      text: "Continue",
-      interactionId: "continue",
-    },
   },
+  rootNodeIds: ["heading", "summary", "detail", "continue-button"],
 } as const;
 const states = {
   default: {
+    enabledInteractionIds: ["continue"],
     id: "default",
     semanticOverrides: [],
-    enabledInteractionIds: ["continue"],
   },
   inactive: {
-    id: "inactive",
     contentOverrides: {
-      "continue-label": { kind: "text", value: "Waiting", opacity: 0.5 },
+      "continue-label": { kind: "text", opacity: 0.5, value: "Waiting" },
     },
+    enabledInteractionIds: [],
+    id: "inactive",
     semanticOverrides: [
       {
         id: "inactive-button-label",
@@ -77,23 +78,22 @@ const states = {
         text: "Waiting",
       },
     ],
-    enabledInteractionIds: [],
   },
 } as const;
 
 const root = (
   <Surface
-    id="reference-surface-root"
-    physicalSizeMeters={[1, 0.5625]}
-    logicalSize={[1920, 1080]}
-    fit="contain"
     baseSemanticTree={semantics}
-    interactions={{
-      continue: { id: "continue", kind: "click", event: "presenter.next", hitPriority: 10 },
-    }}
+    fit="contain"
+    id="reference-surface-root"
     initialStateId="default"
+    interactions={{
+      continue: { event: "presenter.next", hitPriority: 10, id: "continue", kind: "click" },
+    }}
+    logicalSize={[1920, 1080]}
+    physicalSizeMeters={[1, 0.5625]}
+    renderIntent={{ ...staticRenderIntent, interaction: "regions", updateModel: "finite-state" }}
     states={states}
-    renderIntent={{ ...staticRenderIntent, updateModel: "finite-state", interaction: "regions" }}
   >
     <Frame
       id="reference-frame"
@@ -102,10 +102,10 @@ const root = (
     >
       <Text
         id="reference-text"
-        layout={{ ...canvas, x: 64, y: 48, width: 1792, height: 104 }}
+        layout={{ ...canvas, height: 104, width: 1792, x: 64, y: 48 }}
         maxCodePoints={96}
-        semanticNodeId="heading"
         namedStyle={namedStyleRef({ styleId: "heading" })}
+        semanticNodeId="heading"
         style={{ fontSize: 64 }}
       >
         Unframe
@@ -113,27 +113,27 @@ const root = (
       <Frame
         id="card"
         layout={{
-          kind: "absolute",
-          x: propRef({ propId: "offset", expectedType: "number" }),
-          y: 184,
-          width: 1792,
           height: 392,
+          kind: "absolute",
+          width: 1792,
+          x: propRef({ expectedType: "number", propId: "offset" }),
+          y: 184,
         }}
-        visible={propRef({ propId: "showCard", expectedType: "boolean" })}
         namedStyle={namedStyleRef({ styleId: "card" })}
+        visible={propRef({ expectedType: "boolean", propId: "showCard" })}
       >
         <Text
           id="summary"
-          layout={{ kind: "absolute", x: 32, y: 24, width: 1728, height: 64 }}
+          layout={{ height: 64, kind: "absolute", width: 1728, x: 32, y: 24 }}
           maxCodePoints={96}
-          semanticNodeId="summary"
           namedStyle={namedStyleRef({ styleId: "body" })}
+          semanticNodeId="summary"
         >
-          {propRef({ propId: "title", expectedType: "string" })}
+          {propRef({ expectedType: "string", propId: "title" })}
         </Text>
         <Frame
           id="inner"
-          layout={{ kind: "absolute", x: 32, y: 112, width: 1728, height: 112 }}
+          layout={{ height: 112, kind: "absolute", width: 1728, x: 32, y: 112 }}
           style={{
             backgroundColor: tokenRef({ category: "color", tokenId: "highlight" }),
             clip: true,
@@ -141,10 +141,10 @@ const root = (
         >
           <Text
             id="detail"
-            layout={{ kind: "absolute", x: 24, y: 24, width: 1680, height: 64 }}
+            layout={{ height: 64, kind: "absolute", width: 1680, x: 24, y: 24 }}
             maxCodePoints={120}
-            semanticNodeId="detail"
             namedStyle={namedStyleRef({ styleId: "body" })}
+            semanticNodeId="detail"
             style={{ color: palette.white }}
           >
             Typed themes, explicit fonts, stable artifacts
@@ -154,10 +154,10 @@ const root = (
       </Frame>
       <Text
         id="continue-label"
-        layout={{ kind: "absolute", x: 128, y: 640, width: 416, height: 80 }}
+        layout={{ height: 80, kind: "absolute", width: 416, x: 128, y: 640 }}
         maxCodePoints={32}
-        semanticNodeId="continue-button"
         namedStyle={namedStyleRef({ styleId: "body" })}
+        semanticNodeId="continue-button"
       >
         Continue
       </Text>
@@ -166,23 +166,29 @@ const root = (
 );
 
 export default defineComponentStructure({
-  id: "reference-surface",
   componentId: manifest.componentId,
-  root,
+  id: "reference-surface",
   partBindings: {
     headline: "reference-text",
   },
-  variantStyles: {
-    tone: {
-      quiet: [
+  root,
+  timelines: [
+    {
+      durationMilliseconds: 1000,
+      id: "fade",
+      tracks: [
         {
-          targetId: "reference-text",
-          targetKind: "text",
-          style: {
-            fontSize: 60,
-          },
+          keyframes: [
+            { timeMilliseconds: 0, value: 1, easingToNext: "cubicInOut" },
+            { timeMilliseconds: 1000, value: 0.5 },
+          ],
+          target: { kind: "host", property: "opacity" },
         },
       ],
+    },
+  ],
+  variantStyles: {
+    tone: {
       accent: [
         {
           targetId: "reference-text",
@@ -197,21 +203,15 @@ export default defineComponentStructure({
           },
         },
       ],
-    },
-  },
-  timelines: [
-    {
-      id: "fade",
-      durationMilliseconds: 1000,
-      tracks: [
+      quiet: [
         {
-          target: { kind: "host", property: "opacity" },
-          keyframes: [
-            { timeMilliseconds: 0, value: 1, easingToNext: "cubicInOut" },
-            { timeMilliseconds: 1000, value: 0.5 },
-          ],
+          targetId: "reference-text",
+          targetKind: "text",
+          style: {
+            fontSize: 60,
+          },
         },
       ],
     },
-  ],
+  },
 });

@@ -8,20 +8,20 @@ import type { EncodedTextureArtifact, EncodeLimits, EncodeRequest } from "../pub
 import { encodeRequestSchema } from "../validation/schemas.js";
 
 type ValidatedRequest = {
-  sourceId: string;
-  rgba: Uint8Array;
-  width: number;
-  height: number;
   alphaMode: "opaque" | "straight";
+  height: number;
   outputBytes: number;
+  rgba: Uint8Array;
+  sourceId: string;
+  width: number;
 };
 
 type PngPlan = {
+  blockCount: number;
+  outputBytes: number;
   rowBytes: number;
   scanlineBytes: number;
-  blockCount: number;
   zlibBytes: number;
-  outputBytes: number;
 };
 
 const PNG_SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
@@ -32,28 +32,29 @@ const STORED_BLOCK_SIZE = 65_535;
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, value) => {
   let current = value;
-  for (let bit = 0; bit < 8; bit++)
-    current = current & 1 ? 0xedb88320 ^ (current >>> 1) : current >>> 1;
+  for (let bit = 0; bit < 8; bit++) {
+    current = current & 1 ? 0xed_b8_83_20 ^ (current >>> 1) : current >>> 1;
+  }
   return current >>> 0;
 });
 
 const diagnostic = (
   code: string,
-  path: readonly (string | number)[],
+  path: ReadonlyArray<string | number>,
   message: string,
 ): Diagnostic => ({
   code,
-  path,
   message,
+  path,
 });
 
 const invalid = <T>(
   code: string,
-  path: readonly (string | number)[],
+  path: ReadonlyArray<string | number>,
   message: string,
 ): ValidationResult<T> => ({
-  valid: false,
   diagnostics: [diagnostic(code, path, message)],
+  valid: false,
 });
 
 const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
@@ -64,10 +65,16 @@ const typedArrayByteLength = Object.getOwnPropertyDescriptor(
 const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
 const copyUint8Array = (value: unknown): Uint8Array | undefined => {
   try {
-    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
-    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) {
+      return undefined;
+    }
+    if (typedArrayTag.call(value) !== "Uint8Array") {
+      return undefined;
+    }
     const byteLength = typedArrayByteLength.call(value);
-    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
+      return undefined;
+    }
     const copy = new Uint8Array(byteLength);
     Uint8Array.prototype.set.call(copy, value as Uint8Array);
     return copy;
@@ -82,28 +89,35 @@ const createPngPlan = (width: number, height: number): PngPlan => {
   const blockCount = Math.ceil(scanlineBytes / STORED_BLOCK_SIZE);
   const zlibBytes = 2 + blockCount * 5 + scanlineBytes + 4;
   return {
+    blockCount,
+    outputBytes: 70 + zlibBytes,
     rowBytes,
     scanlineBytes,
-    blockCount,
     zlibBytes,
-    outputBytes: 70 + zlibBytes,
   };
 };
 
 const snapshotRecord = (value: unknown): Record<string, unknown> | undefined => {
   try {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return undefined;
+    }
     const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) return undefined;
-    if (Object.getOwnPropertySymbols(value).length !== 0) return undefined;
+    if (prototype !== Object.prototype && prototype !== null) {
+      return undefined;
+    }
+    if (Object.getOwnPropertySymbols(value).length !== 0) {
+      return undefined;
+    }
     const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
     if (
       Object.values(descriptors).some(
         (descriptor) =>
           descriptor.get !== undefined || descriptor.set !== undefined || !descriptor.enumerable,
       )
-    )
+    ) {
       return undefined;
+    }
     return Object.fromEntries(
       Object.entries(descriptors).map(([key, descriptor]) => [key, descriptor.value]),
     );
@@ -112,12 +126,16 @@ const snapshotRecord = (value: unknown): Record<string, unknown> | undefined => 
   }
 };
 
-const snapshotDenseArray = (value: unknown): readonly unknown[] | undefined => {
+const snapshotDenseArray = (value: unknown): ReadonlyArray<unknown> | undefined => {
   try {
-    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return undefined;
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) {
+      return undefined;
+    }
     const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
     const length = descriptors["length"]?.value;
-    if (!Number.isSafeInteger(length) || length < 0) return undefined;
+    if (!Number.isSafeInteger(length) || length < 0) {
+      return undefined;
+    }
     const keys = Array.from({ length }, (_, index) => String(index));
     if (
       Object.getOwnPropertySymbols(value).length !== 0 ||
@@ -126,8 +144,9 @@ const snapshotDenseArray = (value: unknown): readonly unknown[] | undefined => {
         const descriptor = descriptors[key];
         return !descriptor || descriptor.get !== undefined || descriptor.set !== undefined;
       })
-    )
+    ) {
       return undefined;
+    }
     return keys.map((key) => descriptors[key]!.value);
   } catch {
     return undefined;
@@ -136,75 +155,90 @@ const snapshotDenseArray = (value: unknown): readonly unknown[] | undefined => {
 
 const snapshotRequest = (value: unknown): unknown => {
   const request = snapshotRecord(value);
-  if (!request) return undefined;
+  if (!request) {
+    return undefined;
+  }
   return {
     ...request,
-    rgba: copyUint8Array(request.rgba),
-    pixelSize: snapshotDenseArray(request.pixelSize),
     limits: snapshotRecord(request.limits),
+    pixelSize: snapshotDenseArray(request.pixelSize),
+    rgba: copyUint8Array(request.rgba),
   };
 };
 
 const validationIssue = (parsed: z.ZodSafeParseError<unknown>): Diagnostic => {
-  if (parsed.error.issues.length > 1)
+  if (parsed.error.issues.length > 1) {
     return diagnostic("invalid-encode-request", [], "Encode request must be an object.");
+  }
   const issue = parsed.error.issues[0];
   const path = (issue?.path ?? []).filter(
     (segment): segment is string | number =>
       typeof segment === "string" || typeof segment === "number",
   );
-  if (path[0] === "sourceId")
+  if (path[0] === "sourceId") {
     return diagnostic("invalid-source-id", path, "Source ID must be a non-empty string.");
-  if (path[0] === "rgba")
+  }
+  if (path[0] === "rgba") {
     return diagnostic("invalid-rgba", path, "RGBA input must be a Uint8Array.");
-  if (path[0] === "pixelSize")
+  }
+  if (path[0] === "pixelSize") {
     return diagnostic(
       "invalid-pixel-size",
       ["pixelSize"],
       "Pixel size must contain two positive safe integers.",
     );
-  if (path[0] === "colorSpace")
+  }
+  if (path[0] === "colorSpace") {
     return diagnostic("unsupported-color-space", path, "Only the sRGB color space is supported.");
-  if (path[0] === "alphaMode")
+  }
+  if (path[0] === "alphaMode") {
     return diagnostic(
       "invalid-alpha-mode",
       path,
       "Alpha mode must be opaque, straight, or premultiplied.",
     );
-  if (path[0] === "limits")
+  }
+  if (path[0] === "limits") {
     return diagnostic(
       "invalid-encode-limits",
       path,
       "Encode limits must be positive safe integers.",
     );
+  }
   return diagnostic("invalid-encode-request", path, "Encode request must be an object.");
 };
 
 const validateLimits = (limits: EncodeLimits): ValidationResult<EncodeLimits> => {
-  for (const [key, limit] of Object.entries(limits) as [keyof EncodeLimits, number][]) {
-    if (limit > INTERNAL_PNG_HARD_CAPS[key])
+  for (const [key, limit] of Object.entries(limits) as Array<[keyof EncodeLimits, number]>) {
+    if (limit > INTERNAL_PNG_HARD_CAPS[key]) {
       return invalid(
         "encode-limit-above-hard-cap",
         ["limits", key],
         "Caller limits cannot exceed the package hard cap.",
       );
+    }
   }
-  return { valid: true, value: limits, diagnostics: [] };
+  return { diagnostics: [], valid: true, value: limits };
 };
 
 const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => {
   const parsed = encodeRequestSchema.safeParse(snapshotRequest(value));
-  if (!parsed.success) return { valid: false, diagnostics: [validationIssue(parsed)] };
-  const { sourceId, rgba, pixelSize, alphaMode } = parsed.data;
-  if (alphaMode === "premultiplied")
+  if (!parsed.success) {
+    return { diagnostics: [validationIssue(parsed)], valid: false };
+  }
+  const { alphaMode, pixelSize, rgba, sourceId } = parsed.data;
+  if (alphaMode === "premultiplied") {
     return invalid(
       "unsupported-alpha-mode",
       ["alphaMode"],
       "Premultiplied alpha conversion is not defined by this encoder version.",
     );
+  }
 
   const limits = validateLimits(parsed.data.limits);
-  if (!limits.valid) return limits;
+  if (!limits.valid) {
+    return limits;
+  }
 
   const [width, height] = pixelSize;
   const pixels = width * height;
@@ -214,61 +248,66 @@ const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => 
     height > INTERNAL_PNG_HARD_CAPS.maxHeight ||
     pixels > INTERNAL_PNG_HARD_CAPS.maxPixels ||
     inputBytes > INTERNAL_PNG_HARD_CAPS.maxInputBytes
-  )
+  ) {
     return invalid(
       "png-hard-cap-exceeded",
       ["pixelSize"],
       "PNG dimensions or input bytes exceed the package hard cap.",
     );
-  if (rgba.length !== inputBytes)
+  }
+  if (rgba.length !== inputBytes) {
     return invalid(
       "rgba-length-mismatch",
       ["rgba"],
       "RGBA byte length must equal width multiplied by height multiplied by four.",
     );
+  }
 
   const plan = createPngPlan(width, height);
-  if (plan.outputBytes > INTERNAL_PNG_HARD_CAPS.maxOutputBytes)
+  if (plan.outputBytes > INTERNAL_PNG_HARD_CAPS.maxOutputBytes) {
     return invalid(
       "png-hard-cap-exceeded",
       ["limits", "maxOutputBytes"],
       "Predicted PNG bytes exceed the package hard cap.",
     );
+  }
   if (
     width > limits.value.maxWidth ||
     height > limits.value.maxHeight ||
     pixels > limits.value.maxPixels ||
     inputBytes > limits.value.maxInputBytes ||
     plan.outputBytes > limits.value.maxOutputBytes
-  )
+  ) {
     return invalid(
       "encode-limit-exceeded",
       ["limits"],
       "Input or predicted output exceeds the caller-provided encode limits.",
     );
+  }
 
   if (alphaMode === "opaque") {
     for (let offset = 3; offset < rgba.length; offset += 4) {
-      if (rgba[offset] !== 255)
+      if (rgba[offset] !== 255) {
         return invalid(
           "opaque-alpha-mismatch",
           ["rgba", offset],
           "Opaque RGBA input must use alpha 255 for every pixel.",
         );
+      }
     }
   }
 
   return {
+    diagnostics: [],
     valid: true,
     value: {
-      sourceId,
-      rgba,
-      width,
-      height,
       alphaMode,
+      height,
       outputBytes: plan.outputBytes,
+      rgba,
+      sourceId,
+      width,
     },
-    diagnostics: [],
   };
 };
 
@@ -282,14 +321,17 @@ const writeU16Le = (bytes: Uint8Array, offset: number, value: number) => {
 };
 
 const writeAscii = (bytes: Uint8Array, offset: number, value: string) => {
-  for (let index = 0; index < value.length; index++)
+  for (let index = 0; index < value.length; index++) {
     bytes[offset + index] = value.charCodeAt(index);
+  }
 };
 
 const crc32 = (bytes: Uint8Array) => {
-  let checksum = 0xffffffff;
-  for (const byte of bytes) checksum = crcTable[(checksum ^ byte) & 0xff]! ^ (checksum >>> 8);
-  return (checksum ^ 0xffffffff) >>> 0;
+  let checksum = 0xff_ff_ff_ff;
+  for (const byte of bytes) {
+    checksum = crcTable[(checksum ^ byte) & 0xff]! ^ (checksum >>> 8);
+  }
+  return (checksum ^ 0xff_ff_ff_ff) >>> 0;
 };
 
 const writeChunk = (output: Uint8Array, offset: number, type: string, data: Uint8Array) => {
@@ -321,7 +363,7 @@ const writeIdat = (output: Uint8Array, offset: number, rgba: Uint8Array, plan: P
     output[cursor++] = blockIndex === plan.blockCount - 1 ? 1 : 0;
     writeU16Le(output, cursor, blockLength);
     cursor += 2;
-    writeU16Le(output, cursor, ~blockLength & 0xffff);
+    writeU16Le(output, cursor, ~blockLength & 0xff_ff);
     cursor += 2;
 
     for (let index = 0; index < blockLength; index++, scanlineOffset++) {
@@ -341,8 +383,9 @@ const writeIdat = (output: Uint8Array, offset: number, rgba: Uint8Array, plan: P
 
 const encodeValidated = (request: ValidatedRequest): ValidationResult<EncodedTextureArtifact> => {
   const plan = createPngPlan(request.width, request.height);
-  if (plan.outputBytes !== request.outputBytes)
+  if (plan.outputBytes !== request.outputBytes) {
     return invalid("png-encode-failed", [], "Validated PNG plan changed before encoding.");
+  }
 
   const output = new Uint8Array(plan.outputBytes);
   output.set(PNG_SIGNATURE);
@@ -355,13 +398,17 @@ const encodeValidated = (request: ValidatedRequest): ValidationResult<EncodedTex
   cursor = writeChunk(output, cursor, "sRGB", SRGB_INTENT);
   cursor = writeIdat(output, cursor, request.rgba, plan);
   cursor = writeChunk(output, cursor, "IEND", EMPTY_BYTES);
-  if (cursor !== output.length)
+  if (cursor !== output.length) {
     return invalid("png-encode-failed", [], "PNG encoder produced an unexpected byte length.");
+  }
 
   const checksum = `sha256:${bytesToHex(sha256(output))}`;
   return {
+    diagnostics: [],
     valid: true,
     value: {
+      byteLength: output.length,
+      bytes: output,
       descriptor: {
         assetId: checksum,
         mediaType: "image/png",
@@ -373,14 +420,11 @@ const encodeValidated = (request: ValidatedRequest): ValidationResult<EncodedTex
         mipCount: 1,
         gpuBytes: request.width * request.height * 4,
       },
-      bytes: output,
-      byteLength: output.length,
-      sourceId: request.sourceId,
       provenance: {
         ...PNG_ENCODER_IDENTITY,
       },
+      sourceId: request.sourceId,
     },
-    diagnostics: [],
   };
 };
 
@@ -389,7 +433,9 @@ export function encodeRgbaToPng(input: unknown): ValidationResult<EncodedTexture
 export function encodeRgbaToPng(input: unknown): ValidationResult<EncodedTextureArtifact> {
   try {
     const validation = validateRequest(input);
-    if (!validation.valid) return validation;
+    if (!validation.valid) {
+      return validation;
+    }
     try {
       return encodeValidated(validation.value);
     } catch {

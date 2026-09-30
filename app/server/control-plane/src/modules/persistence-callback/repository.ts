@@ -43,7 +43,9 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
         receivedAt,
       )
       .run();
-    if (result.meta.changes === 1) return "applied";
+    if (result.meta.changes === 1) {
+      return "applied";
+    }
     return this.checkpointFailure(input);
   }
 
@@ -109,7 +111,9 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
           input.idempotencyKey,
         ),
     ]);
-    if (inserted?.meta.changes === 1) return "applied";
+    if (inserted?.meta.changes === 1) {
+      return "applied";
+    }
     return this.completionFailure(input);
   }
 
@@ -129,8 +133,9 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
         )
         .bind(input.sessionId, input.version, input.idempotencyKey)
         .first()
-    )
+    ) {
       return "duplicate";
+    }
     return (await this.sessionExists(input.sessionId)) ? "conflict" : "not_found";
   }
 
@@ -140,8 +145,9 @@ export class D1PersistenceCallbackRepository implements PersistenceCallbackRepos
         .prepare("SELECT 1 FROM session_completions WHERE session_id = ?")
         .bind(input.sessionId)
         .first()
-    )
+    ) {
       return "duplicate";
+    }
     return (await this.sessionExists(input.sessionId)) ? "conflict" : "not_found";
   }
 }

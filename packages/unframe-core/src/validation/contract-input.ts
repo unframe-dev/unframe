@@ -12,11 +12,11 @@ import type * as z from "zod";
 type SnapshotResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
 
 type ContractParseResult<T> =
-  | { readonly success: true; readonly data: T }
+  | { readonly data: T; readonly success: true }
   | {
-      readonly success: false;
-      readonly issues: readonly z.core.$ZodIssue[];
+      readonly issues: ReadonlyArray<z.core.$ZodIssue>;
       readonly snapshot?: unknown;
+      readonly success: false;
     };
 
 const invalidSnapshot: SnapshotResult = Object.freeze({ ok: false });
@@ -30,19 +30,28 @@ const snapshotJsonData = (input: unknown): SnapshotResult => {
       typeof value === "string" ||
       typeof value === "number" ||
       typeof value === "boolean"
-    )
+    ) {
       return { ok: true, value };
-    if (typeof value !== "object" || ancestors.has(value)) return invalidSnapshot;
+    }
+    if (typeof value !== "object" || ancestors.has(value)) {
+      return invalidSnapshot;
+    }
 
     try {
       ancestors.add(value);
       const descriptors = Object.getOwnPropertyDescriptors(value);
-      if (Object.getOwnPropertySymbols(value).length !== 0) return invalidSnapshot;
+      if (Object.getOwnPropertySymbols(value).length !== 0) {
+        return invalidSnapshot;
+      }
 
       if (Array.isArray(value)) {
-        if (Object.getPrototypeOf(value) !== Array.prototype) return invalidSnapshot;
+        if (Object.getPrototypeOf(value) !== Array.prototype) {
+          return invalidSnapshot;
+        }
         const length = descriptors["length"]?.value;
-        if (!Number.isSafeInteger(length) || length < 0) return invalidSnapshot;
+        if (!Number.isSafeInteger(length) || length < 0) {
+          return invalidSnapshot;
+        }
         const keys = Array.from({ length }, (_, index) => String(index));
         if (
           Object.keys(descriptors).length !== length + 1 ||
@@ -55,19 +64,24 @@ const snapshotJsonData = (input: unknown): SnapshotResult => {
               !descriptor.enumerable
             );
           })
-        )
+        ) {
           return invalidSnapshot;
-        const result: unknown[] = [];
+        }
+        const result: Array<unknown> = [];
         for (const key of keys) {
           const item = visit(descriptors[key]!.value);
-          if (!item.ok) return invalidSnapshot;
+          if (!item.ok) {
+            return invalidSnapshot;
+          }
           result.push(item.value);
         }
         return { ok: true, value: result };
       }
 
       const prototype = Object.getPrototypeOf(value);
-      if (prototype !== Object.prototype && prototype !== null) return invalidSnapshot;
+      if (prototype !== Object.prototype && prototype !== null) {
+        return invalidSnapshot;
+      }
       const result = Object.create(null) as Record<string, unknown>;
       for (const [key, descriptor] of Object.entries(descriptors)) {
         if (
@@ -75,14 +89,17 @@ const snapshotJsonData = (input: unknown): SnapshotResult => {
           descriptor.set !== undefined ||
           !descriptor.enumerable ||
           !("value" in descriptor)
-        )
+        ) {
           return invalidSnapshot;
+        }
         const item = visit(descriptor.value);
-        if (!item.ok) return invalidSnapshot;
+        if (!item.ok) {
+          return invalidSnapshot;
+        }
         Object.defineProperty(result, key, {
-          value: item.value,
-          enumerable: true,
           configurable: true,
+          enumerable: true,
+          value: item.value,
           writable: true,
         });
       }
@@ -99,15 +116,16 @@ const snapshotJsonData = (input: unknown): SnapshotResult => {
 
 const parseContract = <T>(input: unknown, schema: z.ZodType<T>): ContractParseResult<T> => {
   const snapshot = snapshotJsonData(input);
-  if (!snapshot.ok)
+  if (!snapshot.ok) {
     return {
-      success: false,
       issues: [{ code: "custom", path: [], message: "Input must be safe plain JSON data." }],
+      success: false,
     };
+  }
   const parsed = schema.safeParse(snapshot.value);
   return parsed.success
-    ? { success: true, data: snapshot.value as T }
-    : { success: false, issues: parsed.error.issues, snapshot: snapshot.value };
+    ? { data: snapshot.value as T, success: true }
+    : { issues: parsed.error.issues, snapshot: snapshot.value, success: false };
 };
 
 export const parsePresentationDefinitionInput = (

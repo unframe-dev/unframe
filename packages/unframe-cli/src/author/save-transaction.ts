@@ -18,45 +18,52 @@ const storageNames = [
 ];
 
 const anchoredParent = async (path: string) => {
-  if (!isAbsolute(path) || basename(path) === "." || basename(path) === "..")
+  if (!isAbsolute(path) || basename(path) === "." || basename(path) === "..") {
     throw new Error("Author path is invalid.");
+  }
   const parent = dirname(path);
   const root = parse(parent).root;
-  const handles: FileHandle[] = [];
+  const handles: Array<FileHandle> = [];
   try {
     let handle = await open(
       root,
       constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
     );
     handles.push(handle);
-    const identities: { path: string; dev: number; ino: number }[] = [];
+    const identities: Array<{ dev: number; ino: number; path: string }> = [];
     const rootStat = await handle.stat();
-    identities.push({ path: root, dev: rootStat.dev, ino: rootStat.ino });
+    identities.push({ dev: rootStat.dev, ino: rootStat.ino, path: root });
     let currentPath = root;
     for (const segment of parent.slice(root.length).split("/").filter(Boolean)) {
-      if (segment === "." || segment === "..") throw new Error("Author path is invalid.");
+      if (segment === "." || segment === "..") {
+        throw new Error("Author path is invalid.");
+      }
       currentPath = join(currentPath, segment);
       const next = "/proc/self/fd/" + handle.fd + "/" + segment;
       const before = await lstat(next);
-      if (!before.isDirectory() || before.isSymbolicLink())
+      if (!before.isDirectory() || before.isSymbolicLink()) {
         throw new Error("Author parent directory is unsafe.");
+      }
       const privateDirectory = currentPath.includes("/.unframe/authoring");
       if (
         privateDirectory &&
         (before.uid !== process.getuid?.() || (before.mode & 0o777) !== 0o700)
-      )
+      ) {
         throw new Error("Author storage permissions are unsafe.");
+      }
       const opened = await open(
         next,
         constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
       );
       handles.push(opened);
       const stat = await opened.stat();
-      if (!stat.isDirectory() || stat.dev !== before.dev || stat.ino !== before.ino)
+      if (!stat.isDirectory() || stat.dev !== before.dev || stat.ino !== before.ino) {
         throw new Error("Author parent directory changed.");
-      if (privateDirectory && (stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700))
+      }
+      if (privateDirectory && (stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700)) {
         throw new Error("Author storage permissions are unsafe.");
-      identities.push({ path: currentPath, dev: stat.dev, ino: stat.ino });
+      }
+      identities.push({ dev: stat.dev, ino: stat.ino, path: currentPath });
       handle = opened;
     }
     const identity = await handle.stat();
@@ -68,8 +75,9 @@ const anchoredParent = async (path: string) => {
           currentAncestor.isSymbolicLink() ||
           currentAncestor.dev !== ancestor.dev ||
           currentAncestor.ino !== ancestor.ino
-        )
+        ) {
           throw new Error("Author parent directory changed.");
+        }
       }
       const current = await lstat(parent);
       if (
@@ -77,37 +85,45 @@ const anchoredParent = async (path: string) => {
         current.isSymbolicLink() ||
         current.dev !== identity.dev ||
         current.ino !== identity.ino
-      )
+      ) {
         throw new Error("Author parent directory changed.");
+      }
       if (
         parent.includes("/.unframe/authoring") &&
         (current.uid !== process.getuid?.() || (current.mode & 0o777) !== 0o700)
-      )
+      ) {
         throw new Error("Author storage permissions are unsafe.");
+      }
     };
     await verify();
     return {
+      close: async () => {
+        for (const item of handles.reverse()) {
+          await item.close();
+        }
+      },
       path: "/proc/self/fd/" + handle.fd + "/" + basename(path),
-      verify,
       sync: async () => {
         await handle.sync();
       },
-      close: async () => {
-        for (const item of handles.reverse()) await item.close();
-      },
+      verify,
     };
   } catch (error) {
-    for (const item of handles.reverse()) await item.close().catch(() => undefined);
+    for (const item of handles.reverse()) {
+      await item.close().catch(() => undefined);
+    }
     throw error;
   }
 };
 
 const safeDirectory = async (path: string, privateDirectory: boolean) => {
   const stat = await lstat(path);
-  if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.())
+  if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.()) {
     throw new Error("Author storage directory is unsafe.");
-  if (privateDirectory && (stat.mode & 0o777) !== 0o700)
+  }
+  if (privateDirectory && (stat.mode & 0o777) !== 0o700) {
     throw new Error("Author storage permissions are unsafe.");
+  }
 };
 
 const syncDirectory = async (path: string) => {
@@ -203,8 +219,9 @@ const removePrivateDirectory = async (path: string) => {
       stat.isSymbolicLink() ||
       stat.uid !== process.getuid?.() ||
       (stat.mode & 0o777) !== 0o700
-    )
+    ) {
       throw new Error("Author transaction directory is unsafe.");
+    }
     await rm(parent.path, { recursive: true });
     await parent.verify();
     await parent.sync();
@@ -217,14 +234,16 @@ const jsonBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(va
 const selectedEntryFile = async (root: string) => {
   const config = await readRegularFile(join(root, "unframe.config.ts"));
   const entryFile = config ? loadProjectConfig(config) : undefined;
-  if (!entryFile || !rootRelativePosix(root, entryFile))
+  if (!entryFile || !rootRelativePosix(root, entryFile)) {
     throw new Error("Author project entry is invalid.");
+  }
   return entryFile;
 };
 
 export const prepareAuthorStorage = async (root: string) => {
-  if ((await projectDirectory(root)) !== root)
+  if ((await projectDirectory(root)) !== root) {
     throw new Error("Author project directory is unsafe.");
+  }
   for (const [index, name] of storageNames.entries()) {
     const path = join(root, name);
     const parent = await anchoredParent(path);
@@ -237,8 +256,9 @@ export const prepareAuthorStorage = async (root: string) => {
             "code" in error &&
             error.code === "EEXIST"
           )
-        )
+        ) {
           throw error;
+        }
       });
       await parent.verify();
     } finally {
@@ -249,15 +269,15 @@ export const prepareAuthorStorage = async (root: string) => {
 };
 
 type Journal = {
-  version: 1;
-  state: "prepared" | "applying" | "committed";
-  sourcePath: string;
-  beforeSourceHash: string;
+  afterLockHash: string;
   afterSourceHash: string;
   beforeLockHash: string;
-  afterLockHash: string;
+  beforeSourceHash: string;
   requestHash: string;
   saved: SavedCommand;
+  sourcePath: string;
+  state: "prepared" | "applying" | "committed";
+  version: 1;
 };
 
 const transactionPath = (root: string, commandId: string) =>
@@ -273,12 +293,17 @@ const readJournal = async (path: string): Promise<Journal> => {
     journalStat.isSymbolicLink() ||
     journalStat.uid !== process.getuid?.() ||
     (journalStat.mode & 0o777) !== 0o600
-  )
+  ) {
     throw new Error("Author journal file is unsafe.");
+  }
   const raw = await readRegularFile(join(path, "journal.json"));
-  if (!raw) throw new Error("Author journal is missing.");
+  if (!raw) {
+    throw new Error("Author journal is missing.");
+  }
   const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
-  if (!value || typeof value !== "object") throw new Error("Author journal is invalid.");
+  if (!value || typeof value !== "object") {
+    throw new Error("Author journal is invalid.");
+  }
   const journal = value as Journal;
   if (
     journal.version !== 1 ||
@@ -289,8 +314,9 @@ const readJournal = async (path: string): Promise<Journal> => {
     !/^[0-9a-f]{64}$/.test(journal.beforeLockHash) ||
     !/^[0-9a-f]{64}$/.test(journal.afterLockHash) ||
     !/^[0-9a-f]{64}$/.test(journal.requestHash)
-  )
+  ) {
     throw new Error("Author journal is invalid.");
+  }
   return journal;
 };
 
@@ -301,20 +327,25 @@ const checkedBackup = async (path: string, expectedHash: string) => {
     stat.isSymbolicLink() ||
     stat.uid !== process.getuid?.() ||
     (stat.mode & 0o777) !== 0o600
-  )
+  ) {
     throw new Error("Author journal backup is unsafe.");
+  }
   const bytes = await readRegularFile(path);
-  if (!bytes || hash(bytes) !== expectedHash) throw new Error("Author journal backup is invalid.");
+  if (!bytes || hash(bytes) !== expectedHash) {
+    throw new Error("Author journal backup is invalid.");
+  }
   return bytes;
 };
 
 const replaceChecked = async (path: string, expectedHash: string, bytes: Uint8Array) => {
   const current = await readRegularFile(path);
-  if (!current || hash(current) !== expectedHash)
+  if (!current || hash(current) !== expectedHash) {
     throw new AuthorTransactionConflict("Author transaction target changed externally.");
+  }
   const stat = await lstat(path);
-  if (!stat.isFile() || stat.isSymbolicLink() || stat.uid !== process.getuid?.())
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.uid !== process.getuid?.()) {
     throw new Error("Author transaction target is unsafe.");
+  }
   await writeAtomic(path, bytes, stat.mode & 0o777);
 };
 
@@ -329,9 +360,12 @@ const writeReceipt = async (root: string, journal: Journal) => {
       stat.isSymbolicLink() ||
       stat.uid !== process.getuid?.() ||
       (stat.mode & 0o777) !== 0o600
-    )
+    ) {
       throw new Error("Author receipt is unsafe.");
-    if (hash(previous) !== hash(bytes)) throw new Error("Author receipt conflicts with journal.");
+    }
+    if (hash(previous) !== hash(bytes)) {
+      throw new Error("Author receipt conflicts with journal.");
+    }
     return;
   }
   await writeNew(path, bytes);
@@ -343,48 +377,66 @@ export const recoverAuthorTransactions = async (root: string) => {
   const entryFile = await selectedEntryFile(root);
   const staging = join(root, ".unframe/authoring/staging");
   for (const name of await readdir(staging)) {
-    if (!idPattern.test(name)) throw new Error("Author staging directory is invalid.");
+    if (!idPattern.test(name)) {
+      throw new Error("Author staging directory is invalid.");
+    }
     await removePrivateDirectory(join(staging, name));
   }
   const directory = join(root, ".unframe/authoring/transactions");
   for (const name of (await readdir(directory)).sort()) {
-    if (!idPattern.test(name)) throw new Error("Author transaction directory is invalid.");
+    if (!idPattern.test(name)) {
+      throw new Error("Author transaction directory is invalid.");
+    }
     const path = transactionPath(root, name);
     const journal = await readJournal(path);
-    if (journal.saved.commandId !== name) throw new Error("Author journal identity is invalid.");
-    if (journal.sourcePath !== entryFile)
+    if (journal.saved.commandId !== name) {
+      throw new Error("Author journal identity is invalid.");
+    }
+    if (journal.sourcePath !== entryFile) {
       throw new Error("Author journal source does not match the project entry.");
+    }
     if (journal.state === "prepared") {
       await removePrivateDirectory(path);
       continue;
     }
-    if (journal.state === "committed" && (await readAuthorReceipt(root, name))) continue;
+    if (journal.state === "committed" && (await readAuthorReceipt(root, name))) {
+      continue;
+    }
     const sourcePath = rootRelativePosix(root, journal.sourcePath);
-    if (!sourcePath) throw new Error("Author journal source path is invalid.");
+    if (!sourcePath) {
+      throw new Error("Author journal source path is invalid.");
+    }
     const lockPath = join(root, "unframe.lock");
     const source = await readRegularFile(sourcePath);
     const lock = await readRegularFile(lockPath);
-    if (!source || !lock) throw new Error("Author transaction target is missing.");
+    if (!source || !lock) {
+      throw new Error("Author transaction target is missing.");
+    }
     const sourceHash = hash(source);
     const lockHash = hash(lock);
     if (
       ![journal.beforeSourceHash, journal.afterSourceHash].includes(sourceHash) ||
       ![journal.beforeLockHash, journal.afterLockHash].includes(lockHash)
-    )
+    ) {
       throw new Error("Author transaction target changed externally.");
+    }
     if (journal.state === "applying") {
       const beforeSource = await checkedBackup(
         join(path, "source.before"),
         journal.beforeSourceHash,
       );
       const beforeLock = await checkedBackup(join(path, "lock.before"), journal.beforeLockHash);
-      if (sourceHash !== journal.beforeSourceHash)
+      if (sourceHash !== journal.beforeSourceHash) {
         await replaceChecked(sourcePath, sourceHash, beforeSource);
-      if (lockHash !== journal.beforeLockHash) await replaceChecked(lockPath, lockHash, beforeLock);
+      }
+      if (lockHash !== journal.beforeLockHash) {
+        await replaceChecked(lockPath, lockHash, beforeLock);
+      }
       await removePrivateDirectory(path);
     } else if (journal.state === "committed") {
-      if (sourceHash !== journal.afterSourceHash || lockHash !== journal.afterLockHash)
+      if (sourceHash !== journal.afterSourceHash || lockHash !== journal.afterLockHash) {
         throw new Error("Committed author transaction target changed externally.");
+      }
       await writeReceipt(root, journal);
     }
   }
@@ -394,59 +446,70 @@ export const readAuthorReceipt = async (
   root: string,
   commandId: string,
 ): Promise<{ requestHash: string; saved: SavedCommand } | undefined> => {
-  if (!idPattern.test(commandId)) throw new Error("Command identity is invalid.");
+  if (!idPattern.test(commandId)) {
+    throw new Error("Command identity is invalid.");
+  }
   const bytes = await readRegularFile(receiptPath(root, commandId));
-  if (!bytes) return undefined;
+  if (!bytes) {
+    return undefined;
+  }
   const stat = await lstat(receiptPath(root, commandId));
   if (
     !stat.isFile() ||
     stat.isSymbolicLink() ||
     stat.uid !== process.getuid?.() ||
     (stat.mode & 0o777) !== 0o600
-  )
+  ) {
     throw new Error("Author receipt is unsafe.");
+  }
   const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   if (
     !value ||
     typeof value !== "object" ||
     (value as { saved?: SavedCommand }).saved?.commandId !== commandId ||
     typeof (value as { requestHash?: unknown }).requestHash !== "string"
-  )
+  ) {
     throw new Error("Author receipt is invalid.");
+  }
   return value as { requestHash: string; saved: SavedCommand };
 };
 
 export const commitAuthorPair = async (input: {
-  root: string;
-  sourcePath: string;
-  beforeSource: Uint8Array;
+  afterLock: Uint8Array;
   afterSource: Uint8Array;
   beforeLock: Uint8Array;
-  afterLock: Uint8Array;
+  beforeSource: Uint8Array;
   requestHash: string;
+  root: string;
   saved: SavedCommand;
+  sourcePath: string;
 }) => {
   const { root, saved } = input;
-  if (!idPattern.test(saved.commandId)) throw new Error("Command identity is invalid.");
+  if (!idPattern.test(saved.commandId)) {
+    throw new Error("Command identity is invalid.");
+  }
   await prepareAuthorStorage(root);
-  if (input.sourcePath !== (await selectedEntryFile(root)))
+  if (input.sourcePath !== (await selectedEntryFile(root))) {
     throw new Error("Author source does not match the project entry.");
+  }
   const sourcePath = rootRelativePosix(root, input.sourcePath);
-  if (!sourcePath) throw new Error("Author source path is invalid.");
+  if (!sourcePath) {
+    throw new Error("Author source path is invalid.");
+  }
   const lockPath = join(root, "unframe.lock");
   const path = transactionPath(root, saved.commandId);
   const stagingParent = join(root, ".unframe/authoring/staging");
   const stagedPath = join(stagingParent, saved.commandId);
   const journal: Journal = {
-    version: 1,
-    state: "prepared",
-    sourcePath: input.sourcePath,
-    beforeSourceHash: hash(input.beforeSource),
+    afterLockHash: hash(input.afterLock),
     afterSourceHash: hash(input.afterSource),
     beforeLockHash: hash(input.beforeLock),
-    afterLockHash: hash(input.afterLock),
+    beforeSourceHash: hash(input.beforeSource),
     requestHash: input.requestHash,
     saved,
+    sourcePath: input.sourcePath,
+    state: "prepared",
+    version: 1,
   };
   const stageParent = await anchoredParent(stagedPath);
   try {
@@ -477,8 +540,9 @@ export const commitAuthorPair = async (input: {
       !currentLock ||
       hash(currentSource) !== journal.beforeSourceHash ||
       hash(currentLock) !== journal.beforeLockHash
-    )
+    ) {
       throw new AuthorTransactionConflict("Author transaction target changed externally.");
+    }
     journal.state = "applying";
     await writeAtomic(join(path, "journal.json"), jsonBytes(journal));
     await replaceChecked(sourcePath, journal.beforeSourceHash, input.afterSource);
@@ -490,8 +554,9 @@ export const commitAuthorPair = async (input: {
       !finalLock ||
       hash(finalSource) !== journal.afterSourceHash ||
       hash(finalLock) !== journal.afterLockHash
-    )
+    ) {
       throw new Error("Author transaction output changed externally.");
+    }
     journal.state = "committed";
     await writeAtomic(join(path, "journal.json"), jsonBytes(journal));
     await writeReceipt(root, journal);

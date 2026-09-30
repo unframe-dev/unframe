@@ -19,7 +19,7 @@ describe("presentation TUI model", () => {
 
   it("marks selection and quit as explicit effects", () => {
     const selected = reducePresentationTuiState(initialPresentationTuiState, { type: "select" });
-    expect(selected.effect).toEqual({ type: "command-selected", command: "check" });
+    expect(selected.effect).toEqual({ command: "check", type: "command-selected" });
 
     const cleared = reducePresentationTuiState(selected, { type: "effect-handled" });
     expect(cleared.effect).toBeUndefined();

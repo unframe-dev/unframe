@@ -4,18 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 import { ProfilePage, SecurityPage } from "./settings-pages";
 
 const auth = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  updateUser: vi.fn(),
   changePassword: vi.fn(),
+  getSession: vi.fn(),
   listSessions: vi.fn(),
   revokeOtherSessions: vi.fn(),
   twoFactor: {
+    disable: vi.fn(),
     enable: vi.fn(),
+    generateBackupCodes: vi.fn(),
     getTotpUri: vi.fn(),
     verifyTotp: vi.fn(),
-    generateBackupCodes: vi.fn(),
-    disable: vi.fn(),
   },
+  updateUser: vi.fn(),
 }));
 vi.mock("@/features/auth/control-plane-auth", () => ({
   controlPlaneAuth: auth,
@@ -26,9 +26,9 @@ describe("ProfilePage", () => {
     auth.getSession.mockResolvedValue({
       data: {
         user: {
-          name: "旧名",
           email: "a@example.test",
           image: "https://example.test/old.png",
+          name: "旧名",
         },
       },
     });
@@ -52,15 +52,15 @@ describe("ProfilePage", () => {
     expect(screen.getByRole("status")).toHaveTextContent("未保存");
     await user.click(screen.getByRole("button", { name: "保存" }));
     expect(auth.updateUser).toHaveBeenCalledWith({
-      name: "新名",
       image: "https://example.test/new.png",
+      name: "新名",
     });
   });
 
   it("keeps edits made during a save marked as unsaved", async () => {
     let resolveUpdate!: (result: { error: null }) => void;
     auth.getSession.mockResolvedValue({
-      data: { user: { name: "旧名", image: null } },
+      data: { user: { image: null, name: "旧名" } },
       error: null,
     });
     auth.updateUser.mockImplementation(
@@ -88,7 +88,7 @@ describe("ProfilePage", () => {
   it("shows a retry action when getSession returns a structured error", async () => {
     auth.getSession
       .mockResolvedValueOnce({ data: null, error: { code: "NETWORK_ERROR" } })
-      .mockResolvedValueOnce({ data: { user: { name: "回復後", image: null } }, error: null });
+      .mockResolvedValueOnce({ data: { user: { image: null, name: "回復後" } }, error: null });
     render(<ProfilePage />);
     const user = userEvent.setup();
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -102,17 +102,17 @@ describe("SecurityPage", () => {
   it("sets up TOTP, displays backup codes, and lists sessions", async () => {
     auth.twoFactor.enable.mockResolvedValue({ error: null });
     auth.twoFactor.getTotpUri.mockResolvedValue({
-      error: null,
       data: { totpURI: "otpauth://test" },
+      error: null,
     });
     auth.twoFactor.verifyTotp.mockResolvedValue({ error: null });
     auth.twoFactor.generateBackupCodes.mockResolvedValue({
-      error: null,
       data: { backupCodes: ["ABC"] },
+      error: null,
     });
     auth.listSessions.mockResolvedValue({
+      data: [{ createdAt: "now", id: "s" }],
       error: null,
-      data: [{ id: "s", createdAt: "now" }],
     });
     render(<SecurityPage />);
     const user = userEvent.setup();

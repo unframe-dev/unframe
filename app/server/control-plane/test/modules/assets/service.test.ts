@@ -9,13 +9,13 @@ import {
 } from "../../../src/modules/assets/service";
 
 const now = new Date("2026-01-01T00:00:00.000Z");
-const editor = { userId: "editor", globalRole: "user" as const };
+const editor = { globalRole: "user" as const, userId: "editor" };
 const input = {
-  presentationId: "presentation",
-  name: "image.png",
   mediaType: "image/png" as const,
-  sizeBytes: 8,
+  name: "image.png",
+  presentationId: "presentation",
   sha256Hex: "a".repeat(64),
+  sizeBytes: 8,
 };
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -32,16 +32,22 @@ class Repository implements AssetRepository {
     return [...this.records.values()].find((record) => record.objectKey === objectKey) ?? null;
   }
   async save(record: AssetRecord) {
-    if (this.records.get(record.id)?.status !== "pending") return false;
+    if (this.records.get(record.id)?.status !== "pending") {
+      return false;
+    }
     this.records.set(record.id, record);
     return true;
   }
   async deleteClaimed(id: string) {
-    if (this.records.get(id)?.status === "deleting") this.records.delete(id);
+    if (this.records.get(id)?.status === "deleting") {
+      this.records.delete(id);
+    }
   }
-  async claimDeletion(id: string, statuses: AssetRecord["status"][]) {
+  async claimDeletion(id: string, statuses: Array<AssetRecord["status"]>) {
     const value = this.records.get(id);
-    if (!value || !statuses.includes(value.status) || this.references.has(id)) return null;
+    if (!value || !statuses.includes(value.status) || this.references.has(id)) {
+      return null;
+    }
     const claimed = { ...value, status: "deleting" as const, updatedAt: now };
     this.records.set(id, claimed);
     return claimed;
@@ -62,13 +68,13 @@ class Repository implements AssetRepository {
 class Storage implements ObjectStorage {
   readonly objects = new Map<
     string,
-    { sizeBytes: number; mediaType: string; sha256Hex: string; prefix: Uint8Array }
+    { mediaType: string; prefix: Uint8Array; sha256Hex: string; sizeBytes: number }
   >();
-  readonly deleted: string[] = [];
+  readonly deleted: Array<string> = [];
   async head(objectKey: string) {
     const object = this.objects.get(objectKey);
     return object
-      ? { sizeBytes: object.sizeBytes, mediaType: object.mediaType, sha256Hex: object.sha256Hex }
+      ? { mediaType: object.mediaType, sha256Hex: object.sha256Hex, sizeBytes: object.sizeBytes }
       : null;
   }
   async prefix(objectKey: string) {
@@ -86,36 +92,36 @@ const setup = () => {
   const repository = new Repository();
   const storage = new Storage();
   const signed = {
-    issuePut: async () => ({
-      method: "PUT" as const,
+    issueDownload: async () => ({
+      expiresAt: new Date("2026-01-01T00:10:00.000Z"),
+      method: "GET" as const,
       url: "https://signed.example/secret",
+    }),
+    issuePut: async () => ({
       expiresAt: new Date("2026-01-01T00:10:00.000Z"),
       headers: {
         "content-type": input.mediaType,
         "content-length": String(input.sizeBytes),
         "x-amz-checksum-sha256": input.sha256Hex,
       },
-    }),
-    issueDownload: async () => ({
-      method: "GET" as const,
+      method: "PUT" as const,
       url: "https://signed.example/secret",
-      expiresAt: new Date("2026-01-01T00:10:00.000Z"),
     }),
   };
   const services: AssetServices = {
-    repository,
+    clock: { now: () => now },
+    id: { next: () => "asset-1", random: () => "random-value" },
     permission: {
       canEdit: async (identity, presentationId) =>
         identity.userId === "editor" && presentationId === "presentation",
       canRead: async (identity, presentationId) =>
         identity.userId === "editor" && presentationId === "presentation",
     },
-    storage,
+    repository,
     signedAccess: signed,
-    clock: { now: () => now },
-    id: { next: () => "asset-1", random: () => "random-value" },
+    storage,
   };
-  return { repository, services, storage, service: new AssetService(services) };
+  return { repository, service: new AssetService(services), services, storage };
 };
 
 describe("AssetService", () => {
@@ -123,11 +129,11 @@ describe("AssetService", () => {
     const { repository, service } = setup();
     const result = await service.init(editor, input);
     expect(result.asset).toMatchObject({
+      expiresAt: "2026-01-01T00:10:00.000Z",
       id: "asset-1",
+      objectKey: "assets/asset-1/random-value",
       ownerId: "editor",
       status: "pending",
-      objectKey: "assets/asset-1/random-value",
-      expiresAt: "2026-01-01T00:10:00.000Z",
     });
     expect(result.putAccess.expiresAt.toISOString()).toBe("2026-01-01T00:10:00.000Z");
     expect(repository.records.get("asset-1")?.objectKey).toBe("assets/asset-1/random-value");
@@ -136,17 +142,17 @@ describe("AssetService", () => {
   it("denies initialization without editor permission", async () => {
     const { service } = setup();
     await expect(
-      service.init({ userId: "other", globalRole: "user" }, input),
+      service.init({ globalRole: "user", userId: "other" }, input),
     ).rejects.toMatchObject({ code: "forbidden" } satisfies Partial<AssetError>);
   });
 
   it("does not expose a signed access failure", async () => {
     const { services } = setup();
     services.signedAccess = {
+      issueDownload: async () => ({ expiresAt: now, method: "GET", url: "" }),
       issuePut: async () => {
         throw new Error("https://signed.example/secret");
       },
-      issueDownload: async () => ({ method: "GET", url: "", expiresAt: now }),
     };
     const service = new AssetService(services);
     await expect(service.init(editor, input)).rejects.toMatchObject({
@@ -156,7 +162,7 @@ describe("AssetService", () => {
   });
 
   it("finalizes only matching stored objects and makes ready finalization idempotent", async () => {
-    const { storage, service } = setup();
+    const { service, storage } = setup();
     const initialized = await service.init(editor, input);
     storage.objects.set(initialized.asset.objectKey, { ...input, prefix: png });
     await expect(service.finalize(editor, "asset-1")).resolves.toMatchObject({ status: "ready" });
@@ -167,39 +173,41 @@ describe("AssetService", () => {
     ["missing object", undefined],
     [
       "different size",
-      { sizeBytes: 7, mediaType: input.mediaType, sha256Hex: input.sha256Hex, prefix: png },
+      { mediaType: input.mediaType, prefix: png, sha256Hex: input.sha256Hex, sizeBytes: 7 },
     ],
     [
       "different MIME",
       {
-        sizeBytes: input.sizeBytes,
         mediaType: "image/jpeg",
-        sha256Hex: input.sha256Hex,
         prefix: png,
+        sha256Hex: input.sha256Hex,
+        sizeBytes: input.sizeBytes,
       },
     ],
     [
       "different checksum",
       {
-        sizeBytes: input.sizeBytes,
         mediaType: input.mediaType,
-        sha256Hex: "b".repeat(64),
         prefix: png,
+        sha256Hex: "b".repeat(64),
+        sizeBytes: input.sizeBytes,
       },
     ],
     [
       "wrong magic bytes",
       {
-        sizeBytes: input.sizeBytes,
         mediaType: input.mediaType,
-        sha256Hex: input.sha256Hex,
         prefix: new Uint8Array([0xff, 0xd8, 0xff]),
+        sha256Hex: input.sha256Hex,
+        sizeBytes: input.sizeBytes,
       },
     ],
   ])("marks an asset failed for %s", async (_name, object) => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const initialized = await service.init(editor, input);
-    if (object) storage.objects.set(initialized.asset.objectKey, object);
+    if (object) {
+      storage.objects.set(initialized.asset.objectKey, object);
+    }
     await expect(service.finalize(editor, "asset-1")).rejects.toMatchObject({
       code: "verification_failed",
     } satisfies Partial<AssetError>);
@@ -207,7 +215,7 @@ describe("AssetService", () => {
   });
 
   it("fails finalization at the PUT expiry boundary before reading object storage", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const initialized = await service.init(editor, input);
     repository.records.set(initialized.asset.id, {
       ...initialized.asset,
@@ -221,8 +229,8 @@ describe("AssetService", () => {
   });
 
   it("rejects referenced asset deletion and otherwise removes object and metadata idempotently", async () => {
-    const { repository, services, storage, service } = setup();
-    const audit: Record<string, string>[] = [];
+    const { repository, service, services, storage } = setup();
+    const audit: Array<Record<string, string>> = [];
     services.audit = (entry) => audit.push(entry);
     const initialized = await service.init(editor, input);
     repository.references.add("asset-1");
@@ -235,12 +243,12 @@ describe("AssetService", () => {
     expect(storage.deleted).toEqual([initialized.asset.objectKey]);
     expect(repository.records.has("asset-1")).toBe(false);
     expect(audit).toEqual([
-      { event: "asset_delete", actorId: "editor", assetId: "asset-1", result: "deleted" },
+      { actorId: "editor", assetId: "asset-1", event: "asset_delete", result: "deleted" },
     ]);
   });
 
   it("does not delete an object when a reference is added before deletion is claimed", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const initialized = await service.init(editor, input);
     const originalFind = repository.findById.bind(repository);
     repository.findById = async (id) => {
@@ -256,7 +264,7 @@ describe("AssetService", () => {
   });
 
   it("makes concurrent deletion idempotent", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const initialized = await service.init(editor, input);
     await Promise.all([
       service.delete(editor, initialized.asset.id),
@@ -267,7 +275,7 @@ describe("AssetService", () => {
   });
 
   it("keeps a claimed deletion for retry after object storage fails", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const initialized = await service.init(editor, input);
     let fail = true;
     storage.delete = async (objectKey) => {
@@ -286,7 +294,7 @@ describe("AssetService", () => {
   });
 
   it("issues downloads only for ready assets referenced by their presentation", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const initialized = await service.init(editor, input);
     storage.objects.set(initialized.asset.objectKey, { ...input, prefix: png });
     await service.finalize(editor, initialized.asset.id);
@@ -300,19 +308,19 @@ describe("AssetService", () => {
   });
 
   it("collects unreferenced pending or failed assets 24 hours after expiry", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     repository.records.set("old-pending", {
+      createdAt: now,
+      expiresAt: new Date("2025-12-30T23:59:59.999Z").toISOString(),
       id: "old-pending",
+      mediaType: "image/png",
+      name: "old",
+      objectKey: "assets/old",
       ownerId: "owner",
       presentationId: "presentation",
-      name: "old",
-      mediaType: "image/png",
-      sizeBytes: 1,
       sha256Hex: "a".repeat(64),
-      objectKey: "assets/old",
+      sizeBytes: 1,
       status: "pending",
-      expiresAt: new Date("2025-12-30T23:59:59.999Z").toISOString(),
-      createdAt: now,
       updatedAt: now,
     });
     repository.records.set("old-failed", {
@@ -323,9 +331,9 @@ describe("AssetService", () => {
     });
     repository.records.set("recent", {
       ...repository.records.get("old-pending")!,
+      expiresAt: now.toISOString(),
       id: "recent",
       objectKey: "assets/recent",
-      expiresAt: now.toISOString(),
     });
     repository.references.add("old-failed");
     await expect(service.collectOrphans()).resolves.toEqual({
@@ -337,19 +345,19 @@ describe("AssetService", () => {
   });
 
   it("skips an orphan candidate finalized before deletion is claimed", async () => {
-    const { repository, storage, service } = setup();
+    const { repository, service, storage } = setup();
     const candidate = {
+      createdAt: now,
+      expiresAt: new Date("2025-12-30T23:59:59.999Z").toISOString(),
       id: "old",
+      mediaType: "image/png" as const,
+      name: "old",
+      objectKey: "assets/old",
       ownerId: "owner",
       presentationId: "presentation",
-      name: "old",
-      mediaType: "image/png" as const,
-      sizeBytes: 1,
       sha256Hex: "a".repeat(64),
-      objectKey: "assets/old",
+      sizeBytes: 1,
       status: "pending" as const,
-      expiresAt: new Date("2025-12-30T23:59:59.999Z").toISOString(),
-      createdAt: now,
       updatedAt: now,
     };
     repository.records.set(candidate.id, candidate);
@@ -368,8 +376,8 @@ describe("AssetService", () => {
   });
 
   it("collects metadata-less R2 objects older than 24 hours and records auditable deletion", async () => {
-    const { services, storage, service } = setup();
-    const audit: Record<string, string>[] = [];
+    const { service, services, storage } = setup();
+    const audit: Array<Record<string, string>> = [];
     services.audit = (entry) => audit.push(entry);
     storage.objects.set("assets/untracked", { ...input, prefix: png });
     storage.list = async () => [

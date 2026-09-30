@@ -26,8 +26,9 @@ const ease = (kind: NonNullable<Track["keyframes"][number]["easingToNext"]>, u: 
 
 const normalize = (value: Quaternion): Quaternion => {
   const length = Math.hypot(...value);
-  if (length === 0 || !Number.isFinite(length))
+  if (length === 0 || !Number.isFinite(length)) {
     throw new RangeError("Invalid Timeline Quaternion.");
+  }
   return value.map((component) => component / length) as Quaternion;
 };
 
@@ -39,10 +40,11 @@ const interpolateRotation = (fromValue: Quaternion, toValue: Quaternion, fractio
     to = to.map((component) => -component) as Quaternion;
     dot = -dot;
   }
-  if (dot > 0.9995)
+  if (dot > 0.9995) {
     return canonicalizeQuaternion(
       from.map((component, index) => component + (to[index]! - component) * fraction) as Quaternion,
     );
+  }
 
   const theta = Math.acos(Math.min(1, dot));
   const sinTheta = Math.sin(theta);
@@ -58,12 +60,16 @@ export const evaluateTimelineTrack = (
   durationMilliseconds: number,
   elapsedMilliseconds: number,
 ): Value => {
-  if (!Number.isFinite(elapsedMilliseconds))
+  if (!Number.isFinite(elapsedMilliseconds)) {
     throw new RangeError("Timeline elapsed time must be finite.");
+  }
   const keyframes = track.keyframes;
-  if (elapsedMilliseconds <= 0) return copyValue(keyframes[0]!.value);
-  if (elapsedMilliseconds >= durationMilliseconds)
-    return copyValue(keyframes[keyframes.length - 1]!.value);
+  if (elapsedMilliseconds <= 0) {
+    return copyValue(keyframes[0]!.value);
+  }
+  if (elapsedMilliseconds >= durationMilliseconds) {
+    return copyValue(keyframes.at(-1)!.value);
+  }
 
   const endIndex = keyframes.findIndex(
     (keyframe) => keyframe.timeMilliseconds > elapsedMilliseconds,
@@ -73,10 +79,12 @@ export const evaluateTimelineTrack = (
   const u =
     (elapsedMilliseconds - from.timeMilliseconds) / (to.timeMilliseconds - from.timeMilliseconds);
   const fraction = ease(from.easingToNext!, u);
-  if (track.target.property === "transform.rotation")
+  if (track.target.property === "transform.rotation") {
     return interpolateRotation(from.value as Quaternion, to.value as Quaternion, fraction);
-  if (track.target.property === "opacity")
+  }
+  if (track.target.property === "opacity") {
     return (from.value as number) + ((to.value as number) - (from.value as number)) * fraction;
+  }
   const start = from.value as Vector;
   const finish = to.value as Vector;
   return start.map(

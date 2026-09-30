@@ -11,43 +11,43 @@ export type PresentationDiagnosticFamily =
   | "cancel";
 
 export type PresentationCliDiagnostic = Readonly<{
-  family: PresentationDiagnosticFamily;
   code: string;
-  message: string;
-  path: readonly (string | number)[];
+  family: PresentationDiagnosticFamily;
   location?: Readonly<{
-    fileName: string;
-    start: number;
-    end: number;
-    line: number;
     column: number;
+    end: number;
+    fileName: string;
+    line: number;
+    start: number;
   }>;
+  message: string;
+  path: ReadonlyArray<string | number>;
 }>;
 
 export type PresentationCliResult = Readonly<{
   exitCode: PresentationCliExitCode;
-  stdout: string;
   stderr: string;
+  stdout: string;
 }>;
 
 export type PresentationCliBuildContext = Readonly<{
-  compiler: Readonly<{ name: string; version: string; baseEnvironmentHash: string }>;
+  colorScheme: "light";
+  compiler: Readonly<{ baseEnvironmentHash: string; name: string; version: string }>;
   locale: "ja-JP";
   timezone: "Asia/Tokyo";
-  colorScheme: "light";
   webRendererConfig: WebRendererConfig;
 }>;
 
 export type PresentationCliHost = Readonly<{
+  buildContext?: PresentationCliBuildContext;
+  expectedRevision?: string;
   /** Test seam. Production opens the packaged Fixed Browser. */
   openFixedBrowser?: (input: Readonly<{ signal?: AbortSignal }>) => Promise<FixedBrowserSession>;
   /** Process owners pass their single cancellation signal through this boundary. */
   signal?: AbortSignal;
-  buildContext?: PresentationCliBuildContext;
-  expectedRevision?: string;
 }>;
 
 export type RunPresentationCliInput = Readonly<{
-  args: readonly string[];
+  args: ReadonlyArray<string>;
   host?: PresentationCliHost;
 }>;

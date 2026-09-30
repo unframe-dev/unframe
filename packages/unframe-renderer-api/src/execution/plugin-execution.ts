@@ -25,17 +25,17 @@ const validateProvenance = (
   fixture: RendererConformanceFixture,
   plugin: RendererPlugin,
   result: RendererBuildSuccess,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
   const expected = {
     ...plugin.identity,
-    inputHash: fixture.input.context.inputHash,
     buildContextHash: fixture.input.context.buildContextHash,
     environmentHash: fixture.input.context.environmentHash,
+    inputHash: fixture.input.context.inputHash,
     rendererConfigHash: fixture.input.context.rendererConfigHash,
     rendererFingerprint: fixture.input.context.rendererFingerprint,
   };
-  if (snapshot(result.provenance) !== snapshot(expected))
+  if (snapshot(result.provenance) !== snapshot(expected)) {
     diagnostics.push(
       diagnostic(
         "invalid-renderer-provenance",
@@ -43,22 +43,23 @@ const validateProvenance = (
         [fixture.name, "output", "provenance"],
       ),
     );
+  }
 };
 
 const validateSuccess = (
   fixture: RendererConformanceFixture,
   plugin: RendererPlugin,
   result: RendererBuildSuccess,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
   const { input, name } = fixture;
   const expectedSurface = {
     id: input.plan.id,
-    semanticSurfaceId: input.plan.semanticSurfaceId,
-    logicalBounds: input.plan.logicalBounds,
     layer: input.plan.layer,
+    logicalBounds: input.plan.logicalBounds,
+    semanticSurfaceId: input.plan.semanticSurfaceId,
   };
-  if (snapshot(result.renderSurface) !== snapshot(expectedSurface))
+  if (snapshot(result.renderSurface) !== snapshot(expectedSurface)) {
     diagnostics.push(
       diagnostic("render-surface-plan-mismatch", "Renderer changed the Compiler render plan.", [
         name,
@@ -66,13 +67,14 @@ const validateSuccess = (
         "renderSurface",
       ]),
     );
+  }
 
   validateProvenance(fixture, plugin, result, diagnostics);
 
   const captureIds = new Set<string>();
   const capturesByState = new Map<string, number>();
   for (const capture of result.captures) {
-    if (captureIds.has(capture.id))
+    if (captureIds.has(capture.id)) {
       diagnostics.push(
         diagnostic("duplicate-capture-id", "Capture IDs must be unique and non-empty.", [
           name,
@@ -81,9 +83,10 @@ const validateSuccess = (
           capture.id,
         ]),
       );
+    }
     captureIds.add(capture.id);
     capturesByState.set(capture.stateId, (capturesByState.get(capture.stateId) ?? 0) + 1);
-    if (!capturePixelSizeSchema.safeParse(capture.pixelSize).success)
+    if (!capturePixelSizeSchema.safeParse(capture.pixelSize).success) {
       diagnostics.push(
         diagnostic("invalid-capture-size", "Capture size must contain positive integers.", [
           name,
@@ -93,7 +96,7 @@ const validateSuccess = (
           "pixelSize",
         ]),
       );
-    else if (snapshot(capture.pixelSize) !== snapshot(input.context.pixelTarget))
+    } else if (snapshot(capture.pixelSize) !== snapshot(input.context.pixelTarget)) {
       diagnostics.push(
         diagnostic("capture-size-mismatch", "Capture size must match the requested pixel target.", [
           name,
@@ -103,9 +106,10 @@ const validateSuccess = (
           "pixelSize",
         ]),
       );
+    }
     const rgba = copyUint8Array(capture.rgba);
     const expectedBytes = capture.pixelSize[0] * capture.pixelSize[1] * 4;
-    if (rgba && rgba.length !== expectedBytes)
+    if (rgba && rgba.length !== expectedBytes) {
       diagnostics.push(
         diagnostic("invalid-rgba-length", "Raw RGBA byte length does not match pixel size.", [
           name,
@@ -115,11 +119,12 @@ const validateSuccess = (
           "rgba",
         ]),
       );
+    }
     if (
       rgba &&
       capture.alphaMode === "opaque" &&
       rgba.some((_, index) => index % 4 === 3 && rgba[index] !== 255)
-    )
+    ) {
       diagnostics.push(
         diagnostic("invalid-opaque-alpha", "Opaque captures must use alpha 255 for every pixel.", [
           name,
@@ -129,6 +134,7 @@ const validateSuccess = (
           "rgba",
         ]),
       );
+    }
   }
 
   for (const [stateId, statePlan] of Object.entries(input.plan.states)) {
@@ -136,7 +142,7 @@ const validateSuccess = (
     if (
       (statePlan.kind === "capture" && count !== 1) ||
       (statePlan.kind === "empty" && count !== 0)
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "state-capture-mismatch",
@@ -144,9 +150,10 @@ const validateSuccess = (
           [name, "output", "captures", stateId],
         ),
       );
+    }
   }
-  for (const stateId of capturesByState.keys())
-    if (!Object.hasOwn(input.plan.states, stateId))
+  for (const stateId of capturesByState.keys()) {
+    if (!Object.hasOwn(input.plan.states, stateId)) {
       diagnostics.push(
         diagnostic("unexpected-capture-state", "Capture references an unplanned state.", [
           name,
@@ -155,11 +162,13 @@ const validateSuccess = (
           stateId,
         ]),
       );
+    }
+  }
   if (result.hitRegionsByState) {
     if (
       snapshot(Object.keys(result.hitRegionsByState).sort()) !==
       snapshot(Object.keys(input.plan.states).sort())
-    )
+    ) {
       diagnostics.push(
         diagnostic("hit-region-state-mismatch", "Hit Region states must match the render plan.", [
           name,
@@ -167,13 +176,14 @@ const validateSuccess = (
           "hitRegionsByState",
         ]),
       );
+    }
     for (const [stateId, regions] of Object.entries(result.hitRegionsByState)) {
       const tree = input.semanticsByState[stateId];
       const enabled = input.surface.states[stateId]?.enabledInteractionIds ?? [];
       for (const [index, region] of regions.entries()) {
         const node = tree?.nodes[region.semanticNodeId];
         const interaction = input.surface.interactions[region.interactionId];
-        const { x, y, width, height } = region.bounds;
+        const { height, width, x, y } = region.bounds;
         if (
           node?.role !== "button" ||
           !node.stateEnabled ||
@@ -187,7 +197,7 @@ const validateSuccess = (
           height <= 0 ||
           x + width > 1 ||
           y + height > 1
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               "invalid-hit-region",
@@ -195,6 +205,7 @@ const validateSuccess = (
               [name, "output", "hitRegionsByState", stateId, index],
             ),
           );
+        }
       }
     }
   }
@@ -226,19 +237,21 @@ export const executeRendererPlugin = async (
   input: CompilerResolvedSurfaceInput,
 ): Promise<ValidationResult<RendererBuildSuccess>> => {
   try {
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: Array<Diagnostic> = [];
     const prepared = prepareRendererBoundary(input, plugin, ["single", "input"]);
-    if (!prepared.valid) return { valid: false, diagnostics: [...prepared.diagnostics] };
-    const fixture: RendererConformanceFixture = { name: "single", input: prepared.value.input };
+    if (!prepared.valid) {
+      return { diagnostics: [...prepared.diagnostics], valid: false };
+    }
+    const fixture: RendererConformanceFixture = { input: prepared.value.input, name: "single" };
     const preparedPlugin = prepared.value.plugin;
     const before = snapshot(fixture.input);
     const request = { entry: fixture.input.entry, resolvedIntent: fixture.input.resolvedIntent };
     const supportCall = callSupport(preparedPlugin, request);
-    if (supportCall.threw)
+    if (supportCall.threw) {
       diagnostics.push(
         diagnostic("renderer-support-threw", "support() must return a diagnostic decision.", []),
       );
-    else if (!parseSupportDecision(supportCall.value).success)
+    } else if (!parseSupportDecision(supportCall.value).success) {
       diagnostics.push(
         diagnostic(
           "malformed-support-decision",
@@ -246,30 +259,36 @@ export const executeRendererPlugin = async (
           [],
         ),
       );
-    if (snapshot(fixture.input) !== before)
+    }
+    if (snapshot(fixture.input) !== before) {
       diagnostics.push(
         diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", []),
       );
-    if (diagnostics.length > 0)
-      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics: sortedDiagnostics(diagnostics), valid: false };
+    }
     const expected = evaluateRendererSupport(request, preparedPlugin.capabilities);
     if (
       snapshot((supportCall as { readonly value: RendererSupportDecision }).value) !==
       snapshot(expected)
-    )
+    ) {
       diagnostics.push(
         diagnostic("invalid-support-decision", "support() must follow declared capabilities.", []),
       );
-    if (diagnostics.length > 0)
-      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
-    if (!expected.supported)
-      return { valid: false, diagnostics: sortedDiagnostics([...expected.diagnostics]) };
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics: sortedDiagnostics(diagnostics), valid: false };
+    }
+    if (!expected.supported) {
+      return { diagnostics: sortedDiagnostics([...expected.diagnostics]), valid: false };
+    }
     const buildCall = await callBuild(preparedPlugin, fixture.input);
-    if (buildCall.threw)
+    if (buildCall.threw) {
       diagnostics.push(
         diagnostic("renderer-threw", "Renderer failures must be returned as diagnostics.", []),
       );
-    else if (!parseBuildResult(buildCall.value).success)
+    } else if (!parseBuildResult(buildCall.value).success) {
       diagnostics.push(
         diagnostic(
           "malformed-renderer-output",
@@ -277,43 +296,49 @@ export const executeRendererPlugin = async (
           [],
         ),
       );
-    if (snapshot(fixture.input) !== before)
+    }
+    if (snapshot(fixture.input) !== before) {
       diagnostics.push(
         diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", []),
       );
-    if (diagnostics.length > 0)
-      return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics: sortedDiagnostics(diagnostics), valid: false };
+    }
     const result = parseBuildResult((buildCall as { readonly value: unknown }).value)
       .data as RendererBuildResult;
-    if (result.ok) validateSuccess(fixture, preparedPlugin, result, diagnostics);
-    else if (result.diagnostics.length === 0)
+    if (result.ok) {
+      validateSuccess(fixture, preparedPlugin, result, diagnostics);
+    } else if (result.diagnostics.length === 0) {
       diagnostics.push(
         diagnostic("missing-failure-diagnostic", "Renderer failure must include a diagnostic.", []),
       );
-    if (!result.ok)
+    }
+    if (!result.ok) {
       return {
-        valid: false,
         diagnostics: sortedDiagnostics([...diagnostics, ...result.diagnostics]),
+        valid: false,
       };
+    }
     return diagnostics.length === 0
-      ? { valid: true, value: result, diagnostics: [] }
-      : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+      ? { diagnostics: [], valid: true, value: result }
+      : { diagnostics: sortedDiagnostics(diagnostics), valid: false };
   } catch {
     return {
-      valid: false,
       diagnostics: [
         diagnostic("invalid-renderer-boundary", "Renderer boundary input is invalid.", []),
       ],
+      valid: false,
     };
   }
 };
 
 const runRendererConformanceUnchecked = async (
   plugin: RendererPlugin,
-  fixtures: readonly RendererConformanceFixture[],
-): Promise<ValidationResult<readonly RendererBuildResult[]>> => {
-  const diagnostics: Diagnostic[] = [];
-  const results: RendererBuildResult[] = [];
+  fixtures: ReadonlyArray<RendererConformanceFixture>,
+): Promise<ValidationResult<ReadonlyArray<RendererBuildResult>>> => {
+  const diagnostics: Array<Diagnostic> = [];
+  const results: Array<RendererBuildResult> = [];
 
   for (const fixture of fixtures) {
     const prepared = prepareRendererBoundary(
@@ -327,8 +352,8 @@ const runRendererConformanceUnchecked = async (
       continue;
     }
     const preparedFixture: RendererConformanceFixture = {
-      name: fixture.name,
       input: prepared.value.input,
+      name: fixture.name,
     };
     const inputSnapshot = snapshot(preparedFixture.input);
     const request = {
@@ -344,13 +369,14 @@ const runRendererConformanceUnchecked = async (
           "support",
         ]),
       );
-      if (snapshot(preparedFixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot) {
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
             "input",
           ]),
         );
+      }
       continue;
     }
     const supportResult = parseSupportDecision(supportCall.value);
@@ -362,23 +388,25 @@ const runRendererConformanceUnchecked = async (
           [fixture.name, "support"],
         ),
       );
-      if (snapshot(preparedFixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot) {
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
             "input",
           ]),
         );
+      }
       continue;
     }
     const support = supportResult.data as RendererSupportDecision;
-    if (snapshot(support) !== snapshot(expectedSupport))
+    if (snapshot(support) !== snapshot(expectedSupport)) {
       diagnostics.push(
         diagnostic("invalid-support-decision", "support() must follow declared capabilities.", [
           fixture.name,
           "support",
         ]),
       );
+    }
 
     const firstCall = await callBuild(plugin, preparedFixture.input);
     if (firstCall.threw) {
@@ -388,13 +416,14 @@ const runRendererConformanceUnchecked = async (
           "build",
         ]),
       );
-      if (snapshot(preparedFixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot) {
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
             "input",
           ]),
         );
+      }
       continue;
     }
     const firstResult = parseBuildResult(firstCall.value);
@@ -406,29 +435,31 @@ const runRendererConformanceUnchecked = async (
           [fixture.name, "build"],
         ),
       );
-      if (snapshot(preparedFixture.input) !== inputSnapshot)
+      if (snapshot(preparedFixture.input) !== inputSnapshot) {
         diagnostics.push(
           diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
             fixture.name,
             "input",
           ]),
         );
+      }
       continue;
     }
     const first = firstResult.data as RendererBuildResult;
     const firstSnapshot = snapshot(first);
     results.push(first);
 
-    if (support.supported !== first.ok)
+    if (support.supported !== first.ok) {
       diagnostics.push(
         diagnostic("support-build-mismatch", "support() and build() disagree.", [
           fixture.name,
           "build",
         ]),
       );
+    }
 
     if (!first.ok) {
-      if (first.diagnostics.length === 0)
+      if (first.diagnostics.length === 0) {
         diagnostics.push(
           diagnostic("missing-failure-diagnostic", "Renderer failure must include a diagnostic.", [
             fixture.name,
@@ -436,14 +467,17 @@ const runRendererConformanceUnchecked = async (
             "diagnostics",
           ]),
         );
-    } else validateSuccess(preparedFixture, plugin, first, diagnostics);
+      }
+    } else {
+      validateSuccess(preparedFixture, plugin, first, diagnostics);
+    }
     if (plugin.capabilities.deterministic) {
       const secondCall = await callBuild(plugin, preparedFixture.input);
       if (
         secondCall.threw ||
         !parseBuildResult(secondCall.value).success ||
         firstSnapshot !== snapshot(parseBuildResult(secondCall.value).data)
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "non-deterministic-renderer-output",
@@ -451,36 +485,39 @@ const runRendererConformanceUnchecked = async (
             [fixture.name, "build"],
           ),
         );
+      }
     }
-    if (snapshot(preparedFixture.input) !== inputSnapshot)
+    if (snapshot(preparedFixture.input) !== inputSnapshot) {
       diagnostics.push(
         diagnostic("renderer-mutated-input", "Renderer mutated Compiler-owned input.", [
           fixture.name,
           "input",
         ]),
       );
+    }
   }
 
   return diagnostics.length === 0
-    ? { valid: true, value: results, diagnostics: [] }
-    : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    ? { diagnostics: [], valid: true, value: results }
+    : { diagnostics: sortedDiagnostics(diagnostics), valid: false };
 };
 
 export const runRendererConformance = async (
   plugin: RendererPlugin,
-  fixtures: readonly RendererConformanceFixture[],
-): Promise<ValidationResult<readonly RendererBuildResult[]>> => {
+  fixtures: ReadonlyArray<RendererConformanceFixture>,
+): Promise<ValidationResult<ReadonlyArray<RendererBuildResult>>> => {
   try {
     const preparedPlugin = prepareRendererPlugin(plugin);
-    if (!preparedPlugin.valid)
-      return { valid: false, diagnostics: [...preparedPlugin.diagnostics] };
+    if (!preparedPlugin.valid) {
+      return { diagnostics: [...preparedPlugin.diagnostics], valid: false };
+    }
     return await runRendererConformanceUnchecked(preparedPlugin.value, fixtures);
   } catch {
     return {
-      valid: false,
       diagnostics: [
         diagnostic("invalid-renderer-boundary", "Renderer boundary input is invalid.", []),
       ],
+      valid: false,
     };
   }
 };

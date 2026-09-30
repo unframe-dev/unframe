@@ -8,11 +8,11 @@ import {
 import type { AnalyzedAuthoringProject } from "../resolution/typecheck-authoring-project.js";
 
 export type DeclarationSourceOrigin = {
-  readonly fileName: string;
-  readonly start: number;
-  readonly end: number;
-  readonly line: number;
   readonly column: number;
+  readonly end: number;
+  readonly fileName: string;
+  readonly line: number;
+  readonly start: number;
 };
 type Property = {
   readonly key: string;
@@ -28,18 +28,18 @@ export type DeclarationGraphValue =
   | {
       readonly kind: "array";
       readonly origin: DeclarationSourceOrigin;
-      readonly values: readonly DeclarationGraphValue[];
+      readonly values: ReadonlyArray<DeclarationGraphValue>;
     }
   | {
       readonly kind: "object";
       readonly origin: DeclarationSourceOrigin;
-      readonly properties: readonly Property[];
+      readonly properties: ReadonlyArray<Property>;
     }
   | {
-      readonly kind: "builder-call";
+      readonly arguments: ReadonlyArray<DeclarationGraphValue>;
       readonly builder: string;
+      readonly kind: "builder-call";
       readonly origin: DeclarationSourceOrigin;
-      readonly arguments: readonly DeclarationGraphValue[];
     };
 export type DeclarationGraph = {
   readonly fileName: string;
@@ -51,13 +51,13 @@ export type StaticDeclarationDiagnostic = DeclarationSourceOrigin & {
 };
 export type LoweredAuthoringDeclaration =
   | {
-      readonly ok: true;
-      readonly graph: DeclarationGraph;
       readonly diagnostics: [];
+      readonly graph: DeclarationGraph;
+      readonly ok: true;
     }
   | {
+      readonly diagnostics: ReadonlyArray<StaticDeclarationDiagnostic>;
       readonly ok: false;
-      readonly diagnostics: readonly StaticDeclarationDiagnostic[];
     };
 
 const MAX_DEPTH = 128;
@@ -113,7 +113,9 @@ const jsxTags = new Map([
   ["ComponentInstance", "componentInstance"],
 ]);
 const objectLiteralKind = (value: DeclarationGraphValue) => {
-  if (value.kind !== "object") return undefined;
+  if (value.kind !== "object") {
+    return undefined;
+  }
   const kind = value.properties.find((property) => property.key === "kind")?.value;
   return kind?.kind === "literal" && typeof kind.value === "string" ? kind.value : undefined;
 };
@@ -121,23 +123,37 @@ const isBuilderOrCanonicalKind = (value: DeclarationGraphValue, builder: string,
   (value.kind === "builder-call" && value.builder === builder) || objectLiteralKind(value) === kind;
 const canonicalBuilderProperties = (
   value: DeclarationGraphValue,
-): readonly Property[] | undefined => {
-  if (value.kind !== "builder-call") return undefined;
+): ReadonlyArray<Property> | undefined => {
+  if (value.kind !== "builder-call") {
+    return undefined;
+  }
   const shape = builderResultShape(value.builder);
-  if (!shape) return undefined;
+  if (!shape) {
+    return undefined;
+  }
   const properties = new Map<string, Property>();
-  const copyObject = (argument: number, rejectedKeys: readonly string[] = []) => {
+  const copyObject = (argument: number, rejectedKeys: ReadonlyArray<string> = []) => {
     const object = value.arguments[argument];
-    if (object?.kind !== "object") return false;
-    if (object.properties.some((property) => rejectedKeys.includes(property.key))) return false;
-    for (const property of object.properties) properties.set(property.key, property);
+    if (object?.kind !== "object") {
+      return false;
+    }
+    if (object.properties.some((property) => rejectedKeys.includes(property.key))) {
+      return false;
+    }
+    for (const property of object.properties) {
+      properties.set(property.key, property);
+    }
     return true;
   };
   if (shape.kind === "identity") {
-    if (!copyObject(shape.objectArgument)) return undefined;
+    if (!copyObject(shape.objectArgument)) {
+      return undefined;
+    }
   } else if (shape.kind === "object") {
     const omittedOptionalInput = value.arguments.length === 0 && shape.objectArgumentOptional;
-    if (!omittedOptionalInput && !copyObject(shape.objectArgument, ["kind"])) return undefined;
+    if (!omittedOptionalInput && !copyObject(shape.objectArgument, ["kind"])) {
+      return undefined;
+    }
     properties.set("kind", {
       key: "kind",
       origin: value.origin,
@@ -151,14 +167,17 @@ const canonicalBuilderProperties = (
     });
     for (const field of shape.fields) {
       const argument = value.arguments[field.argument];
-      if (!argument) return undefined;
+      if (!argument) {
+        return undefined;
+      }
       properties.set(field.key, { key: field.key, origin: argument.origin, value: argument });
     }
     if (
       shape.spreadObjectArgument !== undefined &&
       !copyObject(shape.spreadObjectArgument, ["kind", ...shape.fields.map((field) => field.key)])
-    )
+    ) {
       return undefined;
+    }
   }
   return [...properties.values()];
 };
@@ -166,35 +185,46 @@ const invalidStaticValue = Symbol("invalid-static-value");
 const materializeStaticValue = (
   value: DeclarationGraphValue,
 ): unknown | typeof invalidStaticValue => {
-  if (value.kind === "literal") return value.value;
+  if (value.kind === "literal") {
+    return value.value;
+  }
   if (value.kind === "array") {
-    const result: unknown[] = [];
+    const result: Array<unknown> = [];
     for (const child of value.values) {
       const materialized = materializeStaticValue(child);
-      if (materialized === invalidStaticValue) return invalidStaticValue;
+      if (materialized === invalidStaticValue) {
+        return invalidStaticValue;
+      }
       result.push(materialized);
     }
     return result;
   }
   const properties = value.kind === "object" ? value.properties : canonicalBuilderProperties(value);
-  if (!properties) return invalidStaticValue;
+  if (!properties) {
+    return invalidStaticValue;
+  }
   const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const property of properties) {
     const materialized = materializeStaticValue(property.value);
-    if (materialized === invalidStaticValue) return invalidStaticValue;
+    if (materialized === invalidStaticValue) {
+      return invalidStaticValue;
+    }
     Object.defineProperty(result, property.key, {
-      value: materialized,
-      enumerable: true,
-      writable: true,
       configurable: true,
+      enumerable: true,
+      value: materialized,
+      writable: true,
     });
   }
-  if (value.kind === "builder-call" && !validateStaticBuilderResult(value.builder, result))
+  if (value.kind === "builder-call" && !validateStaticBuilderResult(value.builder, result)) {
     return invalidStaticValue;
+  }
   return result;
 };
-const builderProperties = (value: DeclarationGraphValue): readonly Property[] | undefined => {
-  if (!graphWithinLimit(value)) return undefined;
+const builderProperties = (value: DeclarationGraphValue): ReadonlyArray<Property> | undefined => {
+  if (!graphWithinLimit(value)) {
+    return undefined;
+  }
   const properties = canonicalBuilderProperties(value);
   return properties && materializeStaticValue(value) !== invalidStaticValue
     ? properties
@@ -227,17 +257,17 @@ const createEvaluator = (
   renderOnlyFiles: ReadonlySet<string> = new Set(),
 ) => {
   const { checker, context } = analyzed.value;
-  const diagnostics: StaticDeclarationDiagnostic[] = [];
+  const diagnostics: Array<StaticDeclarationDiagnostic> = [];
   const origins = (node: ts.Node): DeclarationSourceOrigin => {
     const file = node.getSourceFile();
     const start = node.getStart(file);
     const pos = file.getLineAndCharacterOfPosition(start);
     return {
-      fileName: context.displayFileName(file),
-      start,
-      end: node.getEnd(),
-      line: pos.line + 1,
       column: pos.character + 1,
+      end: node.getEnd(),
+      fileName: context.displayFileName(file),
+      line: pos.line + 1,
+      start,
     };
   };
   const report = (node: ts.Node, code: string, message: string) =>
@@ -246,8 +276,8 @@ const createEvaluator = (
     collectPackageValueProvenance(analyzed).map((p) => [`${p.fileName}:${p.start}:${p.end}`, p]),
   );
   const provenance = new Map<ts.Symbol, PackageValueProvenance>();
-  for (const file of context.sourceFiles.values())
-    for (const statement of file.statements)
+  for (const file of context.sourceFiles.values()) {
+    for (const statement of file.statements) {
       if (
         ts.isImportDeclaration(statement) &&
         statement.importClause?.namedBindings &&
@@ -260,21 +290,27 @@ const createEvaluator = (
           );
           if (symbol && p) provenance.set(symbol, p);
         }
+    }
+  }
   const builderFor = (raw: ts.Expression) => {
     const node = unwrap(raw);
-    if (!ts.isIdentifier(node)) return;
+    if (!ts.isIdentifier(node)) {
+      return;
+    }
     const symbol = checker.getSymbolAtLocation(node);
     const p = symbol ? provenance.get(symbol) : undefined;
     return isSdk(p) && p && builders.has(p.exportName) ? p.exportName : undefined;
   };
   const jsxTagFor = (name: ts.JsxTagNameExpression) => {
-    if (!ts.isIdentifier(name)) return undefined;
+    if (!ts.isIdentifier(name)) {
+      return undefined;
+    }
     const symbol = checker.getSymbolAtLocation(name);
     const p = symbol ? provenance.get(symbol) : undefined;
     return isSdk(p) && p ? jsxTags.get(p.exportName) : undefined;
   };
   const cache = new Map<ts.Symbol, DeclarationGraphValue | undefined>();
-  const stack: ts.Symbol[] = [];
+  const stack: Array<ts.Symbol> = [];
   const staticReferencedFiles = new Set<ts.SourceFile>();
   let expressionDepth = 0;
   let evaluate: (raw: ts.Expression) => DeclarationGraphValue | undefined;
@@ -292,7 +328,9 @@ const createEvaluator = (
       return;
     }
     let symbol = local;
-    while (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    while (symbol.flags & ts.SymbolFlags.Alias) {
+      symbol = checker.getAliasedSymbol(symbol);
+    }
     const componentDeclaration = symbol.declarations?.find(
       (declaration): declaration is ts.VariableDeclaration => ts.isVariableDeclaration(declaration),
     );
@@ -325,7 +363,9 @@ const createEvaluator = (
       );
       return;
     }
-    if (cache.has(symbol)) return cache.get(symbol);
+    if (cache.has(symbol)) {
+      return cache.get(symbol);
+    }
     if (stack.includes(symbol)) {
       report(
         node,
@@ -352,8 +392,9 @@ const createEvaluator = (
     const initializer =
       declaration &&
       (ts.isVariableDeclaration(declaration) ? declaration.initializer : declaration.expression);
-    if (declaration && context.ownerFor(declaration.getSourceFile())?.kind === "project")
+    if (declaration && context.ownerFor(declaration.getSourceFile())?.kind === "project") {
       staticReferencedFiles.add(declaration.getSourceFile());
+    }
     if (!initializer) {
       report(
         node,
@@ -389,14 +430,17 @@ const createEvaluator = (
           const spread = evaluate(attribute.expression);
           const spreadProperties =
             spread && (spread.kind === "object" ? spread.properties : builderProperties(spread));
-          if (spreadProperties)
-            for (const property of spreadProperties) properties.set(property.key, property);
-          else
+          if (spreadProperties) {
+            for (const property of spreadProperties) {
+              properties.set(property.key, property);
+            }
+          } else {
             report(
               attribute,
               "compiler-static-object-spread-invalid",
               "JSX attribute spread requires a static object value.",
             );
+          }
           continue;
         }
         if (!ts.isIdentifier(attribute.name)) {
@@ -424,35 +468,40 @@ const createEvaluator = (
         }
         explicit.add(key);
         let value: DeclarationGraphValue | undefined;
-        if (!attribute.initializer)
+        if (!attribute.initializer) {
           value = { kind: "literal", origin: origins(attribute), value: true };
-        else if (ts.isStringLiteral(attribute.initializer))
+        } else if (ts.isStringLiteral(attribute.initializer)) {
           value = {
             kind: "literal",
             origin: origins(attribute.initializer),
             value: attribute.initializer.text,
           };
-        else if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression)
+        } else if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
           value = evaluate(attribute.initializer.expression);
-        else
+        } else {
           report(
             attribute,
             "compiler-static-jsx-attribute-invalid",
             "JSX attributes require static values.",
           );
-        if (value) properties.set(key, { key, origin: origins(attribute.name), value });
+        }
+        if (value) {
+          properties.set(key, { key, origin: origins(attribute.name), value });
+        }
       }
-      const body: DeclarationGraphValue[] = [];
+      const body: Array<DeclarationGraphValue> = [];
       let hasBodyChild = false;
-      if (ts.isJsxElement(node))
+      if (ts.isJsxElement(node)) {
         for (const child of node.children) {
           if (ts.isJsxText(child)) {
             const lines = child.text.split(/\r\n?|\n/u);
             let lastNonEmptyLine = lines.length - 1;
-            while (lastNonEmptyLine > 0 && !lines[lastNonEmptyLine]!.trim()) lastNonEmptyLine -= 1;
+            while (lastNonEmptyLine > 0 && !lines[lastNonEmptyLine]!.trim()) {
+              lastNonEmptyLine -= 1;
+            }
             const text = lines
               .map((line, index) => {
-                const withoutTabs = line.replace(/\t/gu, " ");
+                const withoutTabs = line.replaceAll("	", " ");
                 const left = index === 0 ? withoutTabs : withoutTabs.replace(/^ +/u, "");
                 const trimmed = index === lines.length - 1 ? left : left.replace(/ +$/u, "");
                 return trimmed && index !== lastNonEmptyLine ? `${trimmed} ` : trimmed;
@@ -489,20 +538,24 @@ const createEvaluator = (
             }
           }
         }
+      }
       const attributeChildren = properties.get("children");
-      for (const forbidden of ["key", "ref", "kind", "__proto__"])
-        if (properties.has(forbidden))
+      for (const forbidden of ["key", "ref", "kind", "__proto__"]) {
+        if (properties.has(forbidden)) {
           report(
             opening,
             "compiler-static-jsx-attribute-invalid",
             "JSX attributes may not use key, ref, kind, or unsafe names.",
           );
-      if (attributeChildren && hasBodyChild)
+        }
+      }
+      if (attributeChildren && hasBodyChild) {
         report(
           opening,
           "compiler-static-jsx-child-invalid",
           "JSX body children conflict with the children attribute.",
         );
+      }
       const suppliedChildren = attributeChildren
         ? hasBodyChild
           ? body
@@ -512,39 +565,46 @@ const createEvaluator = (
       const set = (key: string, value: DeclarationGraphValue) =>
         properties.set(key, { key, origin: origins(opening), value });
       if (builder === "surface") {
-        if (properties.has("root"))
+        if (properties.has("root")) {
           report(
             opening,
             "compiler-static-jsx-attribute-invalid",
             "Surface uses its JSX child as root.",
           );
+        }
         if (
           suppliedChildren.length !== 1 ||
           !suppliedChildren[0] ||
           !isBuilderOrCanonicalKind(suppliedChildren[0], "frame", "frame")
-        )
+        ) {
           report(
             opening,
             "compiler-static-jsx-child-invalid",
             "Surface requires exactly one Frame child.",
           );
-        else set("root", suppliedChildren[0]);
+        } else {
+          set("root", suppliedChildren[0]);
+        }
       } else if (builder === "frame") {
-        const children: DeclarationGraphValue[] = [];
+        const children: Array<DeclarationGraphValue> = [];
         let flattened = 0;
         const appendChild = (value: DeclarationGraphValue, depth = 0): boolean => {
-          if (depth > MAX_DEPTH || ++flattened > MAX_NODES) return false;
-          if (value.kind === "array")
+          if (depth > MAX_DEPTH || ++flattened > MAX_NODES) {
+            return false;
+          }
+          if (value.kind === "array") {
             return value.values.every((child) => appendChild(child, depth + 1));
+          }
           children.push(value);
           return true;
         };
-        if (!suppliedChildren.every((child) => appendChild(child)))
+        if (!suppliedChildren.every((child) => appendChild(child))) {
           report(
             opening,
             "compiler-static-expansion-limit",
             `Frame children may contain at most ${MAX_NODES} expanded values and ${MAX_DEPTH} levels.`,
           );
+        }
         const contentKinds = new Map([
           ["frame", "frame"],
           ["text", "text"],
@@ -558,60 +618,63 @@ const createEvaluator = (
                 isBuilderOrCanonicalKind(child, childBuilder, kind),
               ),
           )
-        )
+        ) {
           report(
             opening,
             "compiler-static-jsx-child-invalid",
             "Frame children must be Authoring content elements.",
           );
-        else
+        } else {
           set("children", {
             kind: "array",
             origin: origins(opening),
             values: children,
           });
+        }
       } else if (builder === "text") {
         const existing = properties.get("value");
-        if (existing && (attributeChildren !== undefined || hasBodyChild))
+        if (existing && (attributeChildren !== undefined || hasBodyChild)) {
           report(
             opening,
             "compiler-static-jsx-child-invalid",
             "Text accepts either value or children.",
           );
-        else if (
+        } else if (
           !existing &&
           suppliedChildren.length === 1 &&
           ((suppliedChildren[0]?.kind === "literal" &&
             typeof suppliedChildren[0].value === "string") ||
             (suppliedChildren[0] !== undefined &&
               isBuilderOrCanonicalKind(suppliedChildren[0], "propRef", "prop-ref")))
-        )
+        ) {
           set("value", suppliedChildren[0]);
-        else if (!existing)
+        } else if (!existing) {
           report(opening, "compiler-static-jsx-child-invalid", "Text requires value or one child.");
+        }
         if (
           existing &&
           !(
             (existing.value.kind === "literal" && typeof existing.value.value === "string") ||
             isBuilderOrCanonicalKind(existing.value, "propRef", "prop-ref")
           )
-        )
+        ) {
           report(
             opening,
             "compiler-static-jsx-child-invalid",
             "Text value must be a string or Prop reference.",
           );
-      } else if (attributeChildren !== undefined || hasBodyChild)
+        }
+      } else if (attributeChildren !== undefined || hasBodyChild) {
         report(
           opening,
           "compiler-static-jsx-child-invalid",
           "This JSX tag does not accept children.",
         );
-      if (diagnostics.length !== diagnosticCount) return;
+      }
+      if (diagnostics.length !== diagnosticCount) {
+        return;
+      }
       return {
-        kind: "builder-call",
-        builder,
-        origin: origins(node),
         arguments: [
           {
             kind: "object",
@@ -619,13 +682,19 @@ const createEvaluator = (
             properties: [...properties.values()],
           },
         ],
+        builder,
+        kind: "builder-call",
+        origin: origins(node),
       };
     }
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       return { kind: "literal", origin: origins(node), value: node.text };
+    }
     if (ts.isNumericLiteral(node)) {
       const value = Number(node.text);
-      if (Number.isFinite(value)) return { kind: "literal", origin: origins(node), value };
+      if (Number.isFinite(value)) {
+        return { kind: "literal", origin: origins(node), value };
+      }
       report(node, "compiler-static-number-invalid", "Numbers must be finite.");
       return;
     }
@@ -633,7 +702,7 @@ const createEvaluator = (
       node.kind === ts.SyntaxKind.TrueKeyword ||
       node.kind === ts.SyntaxKind.FalseKeyword ||
       node.kind === ts.SyntaxKind.NullKeyword
-    )
+    ) {
       return {
         kind: "literal",
         origin: origins(node),
@@ -644,15 +713,17 @@ const createEvaluator = (
               ? false
               : null,
       };
+    }
     if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken) {
       if (ts.isNumericLiteral(node.operand)) {
         const value = -Number(node.operand.text);
-        if (Number.isFinite(value))
+        if (Number.isFinite(value)) {
           return {
             kind: "literal",
             origin: origins(node),
             value: Object.is(value, -0) ? 0 : value,
           };
+        }
       }
       report(
         node,
@@ -661,32 +732,39 @@ const createEvaluator = (
       );
       return;
     }
-    if (ts.isIdentifier(node)) return evaluateIdentifier(node);
+    if (ts.isIdentifier(node)) {
+      return evaluateIdentifier(node);
+    }
     if (ts.isArrayLiteralExpression(node)) {
       const diagnosticCount = diagnostics.length;
-      const values: DeclarationGraphValue[] = [];
+      const values: Array<DeclarationGraphValue> = [];
       for (const item of node.elements) {
-        if (ts.isOmittedExpression(item))
+        if (ts.isOmittedExpression(item)) {
           report(item, "compiler-static-array-hole", "Arrays must be dense.");
-        else if (ts.isSpreadElement(item)) {
+        } else if (ts.isSpreadElement(item)) {
           const spread = evaluate(item.expression);
           if (spread?.kind === "array") {
-            if (values.length + spread.values.length > MAX_NODES)
+            if (values.length + spread.values.length > MAX_NODES) {
               report(
                 item,
                 "compiler-static-expansion-limit",
                 `A static array may contain at most ${MAX_NODES} expanded values.`,
               );
-            else values.push(...spread.values);
-          } else
+            } else {
+              values.push(...spread.values);
+            }
+          } else {
             report(
               item,
               "compiler-static-array-spread-invalid",
               "Array spread requires a static array value.",
             );
+          }
         } else {
           const value = evaluate(item);
-          if (value) values.push(value);
+          if (value) {
+            values.push(value);
+          }
         }
       }
       return diagnostics.length !== diagnosticCount
@@ -702,14 +780,17 @@ const createEvaluator = (
           const spread = evaluate(item.expression);
           const spreadProperties =
             spread && (spread.kind === "object" ? spread.properties : builderProperties(spread));
-          if (spreadProperties)
-            for (const property of spreadProperties) properties.set(property.key, property);
-          else
+          if (spreadProperties) {
+            for (const property of spreadProperties) {
+              properties.set(property.key, property);
+            }
+          } else {
             report(
               item,
               "compiler-static-object-spread-invalid",
               "Object spread requires a static object value.",
             );
+          }
           continue;
         }
         let key: string | undefined;
@@ -754,7 +835,9 @@ const createEvaluator = (
         }
         explicit.add(key);
         const value = evaluate(init);
-        if (value) properties.set(key, { key, origin: origins(keyNode), value });
+        if (value) {
+          properties.set(key, { key, origin: origins(keyNode), value });
+        }
       }
       return diagnostics.length !== diagnosticCount
         ? undefined
@@ -775,15 +858,21 @@ const createEvaluator = (
           : undefined;
       if (key !== undefined && target?.kind === "object") {
         const found = target.properties.find((p) => p.key === key);
-        if (found) return found.value;
+        if (found) {
+          return found.value;
+        }
       }
       if (key !== undefined && target?.kind === "builder-call") {
         const found = builderProperties(target)?.find((property) => property.key === key);
-        if (found) return found.value;
+        if (found) {
+          return found.value;
+        }
       }
       if (key !== undefined && target?.kind === "array" && /^\d+$/.test(key)) {
         const found = target.values[Number(key)];
-        if (found) return found;
+        if (found) {
+          return found;
+        }
       }
       report(
         node,
@@ -802,20 +891,25 @@ const createEvaluator = (
         );
         return;
       }
-      const args: DeclarationGraphValue[] = [];
+      const args: Array<DeclarationGraphValue> = [];
       const diagnosticCount = diagnostics.length;
-      for (const argument of node.arguments)
-        if (ts.isSpreadElement(argument))
+      for (const argument of node.arguments) {
+        if (ts.isSpreadElement(argument)) {
           report(
             argument,
             "compiler-static-builder-arguments-invalid",
             "Builder arguments cannot use spread syntax.",
           );
-        else {
+        } else {
           const value = evaluate(argument);
-          if (value) args.push(value);
+          if (value) {
+            args.push(value);
+          }
         }
-      if (diagnostics.length !== diagnosticCount) return;
+      }
+      if (diagnostics.length !== diagnosticCount) {
+        return;
+      }
       const kinds =
         builder === "state"
           ? [[], ["object"]]
@@ -851,10 +945,10 @@ const createEvaluator = (
       return diagnostics.length
         ? undefined
         : {
-            kind: "builder-call",
-            builder,
-            origin: origins(node),
             arguments: args,
+            builder,
+            kind: "builder-call",
+            origin: origins(node),
           };
     }
     report(
@@ -889,18 +983,23 @@ const createEvaluator = (
       );
       return;
     }
-    if (clause.isTypeOnly) return;
+    if (clause.isTypeOnly) {
+      return;
+    }
     const resolved = context.resolve(file.fileName, statement.moduleSpecifier.text);
-    if (resolved.kind !== "resolved") return;
+    if (resolved.kind !== "resolved") {
+      return;
+    }
     const target = context.sourceFiles.get(resolved.fileName);
     const owner = target && context.ownerFor(target);
     if (owner?.kind === "project") {
-      if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings))
+      if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
         report(
           clause.namedBindings,
           "compiler-static-import-invalid",
           "Project value imports must be named or default imports.",
         );
+      }
       return;
     }
     const facade = target && reactFacades.get(context.displayFileName(target));
@@ -918,8 +1017,9 @@ const createEvaluator = (
           ((item.propertyName?.text ?? item.name.text) === facade.exportName &&
             context.relativeFileName(target) === packageExport.targetFile),
       )
-    )
+    ) {
       return;
+    }
     if (
       resolved.packageExport?.packageName !== "@unframe/unframe-authoring" ||
       clause.name ||
@@ -933,36 +1033,49 @@ const createEvaluator = (
       );
       return;
     }
-    for (const item of clause.namedBindings.elements)
+    for (const item of clause.namedBindings.elements) {
       if (!item.isTypeOnly) {
         const symbol = checker.getSymbolAtLocation(item.name);
         const p = symbol ? provenance.get(symbol) : undefined;
-        if (!isSdk(p) || !p || (!builders.has(p.exportName) && !jsxTags.has(p.exportName)))
+        if (!isSdk(p) || !p || (!builders.has(p.exportName) && !jsxTags.has(p.exportName))) {
           report(
             item,
             "compiler-static-import-invalid",
             "Package value imports are limited to verified Authoring SDK builders.",
           );
+        }
       }
+    }
   };
   const validExport = (file: ts.SourceFile, statement: ts.ExportDeclaration) => {
-    if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) return false;
-    if (!statement.moduleSpecifier) return true;
-    if (!ts.isStringLiteralLike(statement.moduleSpecifier)) return false;
+    if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) {
+      return false;
+    }
+    if (!statement.moduleSpecifier) {
+      return true;
+    }
+    if (!ts.isStringLiteralLike(statement.moduleSpecifier)) {
+      return false;
+    }
     const resolved = context.resolve(file.fileName, statement.moduleSpecifier.text);
-    if (resolved.kind !== "resolved") return false;
+    if (resolved.kind !== "resolved") {
+      return false;
+    }
     if (
       statement.isTypeOnly ||
       statement.exportClause.elements.every((element) => element.isTypeOnly)
-    )
+    ) {
       return true;
+    }
     const target = context.sourceFiles.get(resolved.fileName);
     return target !== undefined && context.ownerFor(target)?.kind === "project";
   };
   const validateProject = () => {
     const files = [...context.sourceFiles.values()]
       .filter((f) => {
-        if (context.ownerFor(f)?.kind !== "project") return false;
+        if (context.ownerFor(f)?.kind !== "project") {
+          return false;
+        }
         const name = context.displayFileName(f);
         return !name.endsWith(".component.tsx") && !renderOnlyFiles.has(name);
       })
@@ -970,21 +1083,24 @@ const createEvaluator = (
     const inspected = new Set<ts.SourceFile>();
     for (let index = 0; index < files.length; index++) {
       const file = files[index]!;
-      if (inspected.has(file)) continue;
+      if (inspected.has(file)) {
+        continue;
+      }
       inspected.add(file);
-      if (!file.isDeclarationFile)
+      if (!file.isDeclarationFile) {
         for (const statement of file.statements) {
-          if (ts.isImportDeclaration(statement)) validateImport(file, statement);
-          else if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement))
+          if (ts.isImportDeclaration(statement)) {
+            validateImport(file, statement);
+          } else if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) {
             continue;
-          else if (ts.isVariableStatement(statement)) {
-            if (!(statement.declarationList.flags & ts.NodeFlags.Const))
+          } else if (ts.isVariableStatement(statement)) {
+            if (!(statement.declarationList.flags & ts.NodeFlags.Const)) {
               report(
                 statement,
                 "compiler-static-top-level-unsupported",
                 "Static modules may declare top-level const bindings only.",
               );
-            else
+            } else {
               for (const declaration of statement.declarationList.declarations)
                 if (!ts.isIdentifier(declaration.name) || !declaration.initializer)
                   report(
@@ -1001,27 +1117,32 @@ const createEvaluator = (
                       `A declaration graph may contain at most ${MAX_NODES} nodes and ${MAX_DEPTH} levels.`,
                     );
                 }
-          } else if (ts.isExportAssignment(statement) && !statement.isExportEquals)
+            }
+          } else if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
             evaluate(statement.expression);
-          else if (ts.isExportDeclaration(statement) && validExport(file, statement)) continue;
-          else
+          } else if (ts.isExportDeclaration(statement) && validExport(file, statement)) {
+            continue;
+          } else {
             report(
               statement,
               "compiler-static-top-level-unsupported",
               "Static modules may contain imports, type declarations, const declarations, and exports only.",
             );
-          for (const referenced of staticReferencedFiles)
+          }
+          for (const referenced of staticReferencedFiles) {
             if (
               !inspected.has(referenced) &&
               !files.includes(referenced) &&
               !context.displayFileName(referenced).endsWith(".component.tsx")
             )
               files.push(referenced);
+          }
         }
+      }
     }
     return diagnostics.sort(compare);
   };
-  return { evaluate, validateProject, diagnostics, origins };
+  return { diagnostics, evaluate, origins, validateProject };
 };
 
 export const validateStaticAuthoringProject = (
@@ -1034,13 +1155,12 @@ export const evaluateStaticAuthoringExpression = (
   analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>,
   expression: ts.Expression,
 ):
-  | { readonly ok: true; readonly value: DeclarationGraphValue; readonly diagnostics: readonly [] }
-  | { readonly ok: false; readonly diagnostics: readonly StaticDeclarationDiagnostic[] } => {
+  | { readonly diagnostics: readonly []; readonly ok: true; readonly value: DeclarationGraphValue }
+  | { readonly diagnostics: ReadonlyArray<StaticDeclarationDiagnostic>; readonly ok: false } => {
   const evaluator = createEvaluator(analyzed);
   const value = evaluator.evaluate(expression);
-  if (!value || evaluator.diagnostics.length || !graphWithinLimit(value))
+  if (!value || evaluator.diagnostics.length || !graphWithinLimit(value)) {
     return {
-      ok: false,
       diagnostics: evaluator.diagnostics.length
         ? evaluator.diagnostics.sort(compare)
         : [
@@ -1050,14 +1170,18 @@ export const evaluateStaticAuthoringExpression = (
               ...evaluator.origins(expression),
             },
           ],
+      ok: false,
     };
-  return { ok: true, value, diagnostics: [] };
+  }
+  return { diagnostics: [], ok: true, value };
 };
 const graphWithinLimit = (value: DeclarationGraphValue) => {
-  const measures = new WeakMap<object, { readonly nodes: number; readonly levels: number }>();
+  const measures = new WeakMap<object, { readonly levels: number; readonly nodes: number }>();
   const measure = (v: DeclarationGraphValue) => {
     const cached = measures.get(v);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) {
+      return cached;
+    }
     let nodes = 1;
     let levels = 1;
     const children =
@@ -1072,10 +1196,11 @@ const graphWithinLimit = (value: DeclarationGraphValue) => {
       const childMeasure = measure(child);
       nodes += childMeasure.nodes;
       levels = Math.max(levels, childMeasure.levels + 1);
-      if (nodes > MAX_NODES || levels > MAX_DEPTH + 1)
-        return { nodes: MAX_NODES + 1, levels: MAX_DEPTH + 2 };
+      if (nodes > MAX_NODES || levels > MAX_DEPTH + 1) {
+        return { levels: MAX_DEPTH + 2, nodes: MAX_NODES + 1 };
+      }
     }
-    const result = { nodes, levels };
+    const result = { levels, nodes };
     measures.set(v, result);
     return result;
   };
@@ -1083,7 +1208,9 @@ const graphWithinLimit = (value: DeclarationGraphValue) => {
   return result.nodes <= MAX_NODES && result.levels <= MAX_DEPTH + 1;
 };
 const hasNestedRootBuilder = (value: DeclarationGraphValue, isRoot = true): boolean => {
-  if (!isRoot && value.kind === "builder-call" && roots.has(value.builder)) return true;
+  if (!isRoot && value.kind === "builder-call" && roots.has(value.builder)) {
+    return true;
+  }
   return value.kind === "array"
     ? value.values.some((child) => hasNestedRootBuilder(child, false))
     : value.kind === "object"
@@ -1099,15 +1226,15 @@ export const lowerAuthoringDeclarationFile = (
   reactFacades?: ReactComponentFacade,
 ): LoweredAuthoringDeclaration => {
   const evaluator = createEvaluator(analyzed, reactFacades);
-  if (validateProject && evaluator.validateProject().length)
-    return { ok: false, diagnostics: evaluator.diagnostics.sort(compare) };
+  if (validateProject && evaluator.validateProject().length) {
+    return { diagnostics: evaluator.diagnostics.sort(compare), ok: false };
+  }
   const defaults = sourceFile.statements.filter(
     (s): s is ts.ExportAssignment => ts.isExportAssignment(s) && !s.isExportEquals,
   );
   if (defaults.length !== 1) {
     const node = defaults[1] ?? sourceFile;
     return {
-      ok: false,
       diagnostics: [
         {
           code: "compiler-static-root-invalid",
@@ -1115,10 +1242,11 @@ export const lowerAuthoringDeclarationFile = (
           ...evaluator.origins(node),
         },
       ],
+      ok: false,
     };
   }
   const value = evaluator.evaluate(defaults[0]!.expression);
-  if (value && (value.kind !== "builder-call" || !roots.has(value.builder)))
+  if (value && (value.kind !== "builder-call" || !roots.has(value.builder))) {
     evaluator.diagnostics.push({
       code: "compiler-static-root-invalid",
       message: "Default export must resolve to a verified root builder call.",
@@ -1126,26 +1254,28 @@ export const lowerAuthoringDeclarationFile = (
         ? value.origin
         : evaluator.origins(defaults[0]!.expression)),
     });
-  else if (value && !graphWithinLimit(value))
+  } else if (value && !graphWithinLimit(value)) {
     evaluator.diagnostics.push({
       code: "compiler-static-expansion-limit",
       message: `A declaration graph may contain at most ${MAX_NODES} nodes and ${MAX_DEPTH} levels.`,
       ...value.origin,
     });
-  else if (value && hasNestedRootBuilder(value))
+  } else if (value && hasNestedRootBuilder(value)) {
     evaluator.diagnostics.push({
       code: "compiler-static-builder-invalid",
       message: "Root declaration builders may not be nested as values.",
       ...value.origin,
     });
-  if (!value || value.kind !== "builder-call" || evaluator.diagnostics.length)
-    return { ok: false, diagnostics: evaluator.diagnostics.sort(compare) };
+  }
+  if (!value || value.kind !== "builder-call" || evaluator.diagnostics.length) {
+    return { diagnostics: evaluator.diagnostics.sort(compare), ok: false };
+  }
   return {
-    ok: true,
+    diagnostics: [],
     graph: {
       fileName: analyzed.value.context.displayFileName(sourceFile),
       root: value,
     },
-    diagnostics: [],
+    ok: true,
   };
 };

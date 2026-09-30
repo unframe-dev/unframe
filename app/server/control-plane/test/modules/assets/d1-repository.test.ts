@@ -8,17 +8,17 @@ const asset = (
   status: AssetRecord["status"] = "pending",
   createdAt = "2026-01-01T00:00:00.000Z",
 ): AssetRecord => ({
+  createdAt: new Date(createdAt),
+  expiresAt: "2026-01-01T00:10:00.000Z",
   id: `asset-${suffix}`,
+  mediaType: "image/png",
+  name: "image.png",
+  objectKey: `assets/${suffix}`,
   ownerId: `owner-${suffix}`,
   presentationId: `presentation-${suffix}`,
-  name: "image.png",
-  mediaType: "image/png",
-  sizeBytes: 8,
   sha256Hex: "a".repeat(64),
-  objectKey: `assets/${suffix}`,
+  sizeBytes: 8,
   status,
-  expiresAt: "2026-01-01T00:10:00.000Z",
-  createdAt: new Date(createdAt),
   updatedAt: new Date(createdAt),
 });
 async function persistOwnerAndPresentation(value: AssetRecord) {
@@ -34,7 +34,7 @@ async function persistOwnerAndPresentation(value: AssetRecord) {
       value.presentationId,
       value.ownerId,
       1,
-      JSON.stringify({ metadata: { title: "Test" }, slides: [], assets: [] }),
+      JSON.stringify({ assets: [], metadata: { title: "Test" }, slides: [] }),
       "2026-01-01",
       "2026-01-01",
     )
@@ -76,7 +76,9 @@ describe("D1AssetRepository", () => {
     const suffix = crypto.randomUUID();
     const pending = asset(`${suffix}-pending`);
     const ready = asset(`${suffix}-ready`, "ready");
-    for (const value of [pending, ready]) await persistOwnerAndPresentation(value);
+    for (const value of [pending, ready]) {
+      await persistOwnerAndPresentation(value);
+    }
     const repository = new D1AssetRepository(env.DB);
     await repository.create(pending);
     await repository.create(ready);
@@ -114,7 +116,9 @@ describe("D1AssetRepository", () => {
       await persistOwnerAndPresentation(value);
     }
     const repository = new D1AssetRepository(env.DB);
-    for (const value of [oldPending, oldFailed, ready]) await repository.create(value);
+    for (const value of [oldPending, oldFailed, ready]) {
+      await repository.create(value);
+    }
     await env.DB.prepare(
       "INSERT INTO presentation_asset_refs (presentation_id, asset_id) VALUES (?, ?)",
     )

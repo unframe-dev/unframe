@@ -6,36 +6,36 @@ import { moduleSpecifiersFor, VirtualModuleContext } from "./virtual-module-cont
 
 type AuthoringProjectDiagnostic = {
   readonly code: string;
+  readonly column: number;
+  readonly end: number;
   readonly fileName: string;
+  readonly line: number;
   readonly message: string;
   readonly start: number;
-  readonly end: number;
-  readonly line: number;
-  readonly column: number;
   readonly typescriptCode?: number;
 };
 
 export type TypecheckedAuthoringProject =
-  | { readonly ok: true; readonly diagnostics: [] }
+  | { readonly diagnostics: []; readonly ok: true }
   | {
+      readonly diagnostics: ReadonlyArray<AuthoringProjectDiagnostic>;
       readonly ok: false;
-      readonly diagnostics: readonly AuthoringProjectDiagnostic[];
     };
 
 export type AnalyzedAuthoringProject =
   | {
+      readonly diagnostics: ReadonlyArray<AuthoringProjectDiagnostic>;
       readonly ok: false;
-      readonly diagnostics: readonly AuthoringProjectDiagnostic[];
     }
   | {
+      readonly diagnostics: [];
       readonly ok: true;
       readonly value: {
-        readonly program: ts.Program;
         readonly checker: ts.TypeChecker;
         readonly context: VirtualModuleContext;
         readonly entrySourceFile: ts.SourceFile;
+        readonly program: ts.Program;
       };
-      readonly diagnostics: [];
     };
 
 const compareDiagnostics = (left: AuthoringProjectDiagnostic, right: AuthoringProjectDiagnostic) =>
@@ -49,10 +49,10 @@ const compareDiagnostics = (left: AuthoringProjectDiagnostic, right: AuthoringPr
 const rangeFor = (sourceFile: ts.SourceFile, start: number, end: number) => {
   const position = sourceFile.getLineAndCharacterOfPosition(start);
   return {
-    start,
+    column: position.character + 1,
     end,
     line: position.line + 1,
-    column: position.character + 1,
+    start,
   };
 };
 
@@ -60,18 +60,22 @@ export const analyzeAuthoringProject = (
   project: ParsedAuthoringProjectValue,
 ): AnalyzedAuthoringProject => {
   const context = new VirtualModuleContext(project);
-  const diagnostics: AuthoringProjectDiagnostic[] = [];
+  const diagnostics: Array<AuthoringProjectDiagnostic> = [];
   const pending = context.projectRootFiles.map((name) => context.sourceFiles.get(name)!);
   const visited = new Set<string>();
   while (pending.length) {
     const sourceFile = pending.pop()!;
-    if (visited.has(sourceFile.fileName)) continue;
+    if (visited.has(sourceFile.fileName)) {
+      continue;
+    }
     visited.add(sourceFile.fileName);
     for (const specifier of moduleSpecifiersFor(sourceFile)) {
       const resolved = context.resolve(sourceFile.fileName, specifier.text);
       if (resolved.kind === "resolved") {
         const target = context.sourceFiles.get(resolved.fileName);
-        if (target && !visited.has(target.fileName)) pending.push(target);
+        if (target && !visited.has(target.fileName)) {
+          pending.push(target);
+        }
         continue;
       }
       const start = specifier.getStart(sourceFile) + 1;
@@ -83,7 +87,9 @@ export const analyzeAuthoringProject = (
       });
     }
   }
-  if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  if (diagnostics.length) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
 
   const options = {
     jsx: ts.JsxEmit.ReactJSX,
@@ -96,29 +102,36 @@ export const analyzeAuthoringProject = (
   } satisfies ts.CompilerOptions;
   const host = virtualCompilerHostFor(context);
   const program = ts.createProgram({
-    rootNames: context.projectRootFiles,
-    options: { ...options, jsxImportSource: "@unframe/unframe-authoring" },
     host,
+    options: { ...options, jsxImportSource: "@unframe/unframe-authoring" },
+    rootNames: context.projectRootFiles,
   });
   const isReactProjectFile = (file: ts.SourceFile, programContext: VirtualModuleContext) => {
-    if (!programContext.ownerFor(file)) return false;
+    if (!programContext.ownerFor(file)) {
+      return false;
+    }
     const name = programContext.displayFileName(file);
-    if (name.endsWith(".component.tsx")) return true;
-    if (programContext.ownerFor(file)?.kind !== "project") return false;
+    if (name.endsWith(".component.tsx")) {
+      return true;
+    }
+    if (programContext.ownerFor(file)?.kind !== "project") {
+      return false;
+    }
     if (
       name === project.entryFile ||
       name.endsWith(".manifest.ts") ||
       name.endsWith(".structure.tsx") ||
       name.endsWith(".unframe.ts")
-    )
+    ) {
       return false;
+    }
     return !name.endsWith(".d.ts");
   };
   const hasReactComponents = [...context.sourceFiles.values()].some((file) =>
     context.displayFileName(file).endsWith(".component.tsx"),
   );
   let reactContext: VirtualModuleContext | undefined;
-  let reactDiagnostics: readonly ts.Diagnostic[] = [];
+  let reactDiagnostics: ReadonlyArray<ts.Diagnostic> = [];
   if (hasReactComponents) {
     const cloneSource = (source: ts.SourceFile) =>
       ts.createSourceFile(
@@ -143,14 +156,14 @@ export const analyzeAuthoringProject = (
     const reactOptions = {
       ...options,
       baseUrl: project.projectRoot,
-      noLib: false,
-      lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
       jsxImportSource: "react",
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+      noLib: false,
     } satisfies ts.CompilerOptions;
     const reactProgram = ts.createProgram({
-      rootNames: reactContext.projectRootFiles,
-      options: reactOptions,
       host: reactCompilerHostFor(reactContext, reactOptions),
+      options: reactOptions,
+      rootNames: reactContext.projectRootFiles,
     });
     reactDiagnostics = reactProgram
       .getSemanticDiagnostics()
@@ -175,10 +188,14 @@ export const analyzeAuthoringProject = (
     ...reactDiagnostics,
   ];
   for (const item of semanticDiagnostics) {
-    if (!item.file) continue;
+    if (!item.file) {
+      continue;
+    }
     const start = item.start ?? 0;
     const key = `${item.file.fileName}:${start}:${item.code}:${item.length ?? 0}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
     diagnostics.push({
       code: "compiler-source-type-error",
@@ -190,11 +207,12 @@ export const analyzeAuthoringProject = (
       typescriptCode: item.code,
     });
   }
-  if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  if (diagnostics.length) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
   const entrySourceFile = project.files[project.entryFile];
-  if (!entrySourceFile)
+  if (!entrySourceFile) {
     return {
-      ok: false,
       diagnostics: [
         {
           code: "compiler-project-entry-invariant-invalid",
@@ -206,16 +224,18 @@ export const analyzeAuthoringProject = (
           column: 1,
         },
       ],
+      ok: false,
     };
+  }
   return {
+    diagnostics: [],
     ok: true,
     value: {
-      program,
       checker: program.getTypeChecker(),
       context,
       entrySourceFile,
+      program,
     },
-    diagnostics: [],
   };
 };
 
@@ -223,5 +243,5 @@ export const typecheckAuthoringProject = (
   project: ParsedAuthoringProjectValue,
 ): TypecheckedAuthoringProject => {
   const analyzed = analyzeAuthoringProject(project);
-  return analyzed.ok ? { ok: true, diagnostics: [] } : analyzed;
+  return analyzed.ok ? { diagnostics: [], ok: true } : analyzed;
 };

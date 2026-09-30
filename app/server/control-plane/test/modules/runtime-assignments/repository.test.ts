@@ -26,16 +26,16 @@ const cloudAssignment = (
   runtimeId: string,
   issuedAt = "2026-08-20T00:00:00.000Z",
 ) => ({
-  sessionId,
-  runtimeId,
-  runtimeKind: "Cloud" as const,
-  endpoint: "https://runtime.example.com",
   certificateFingerprint: null,
-  provisioningEdgeId: null,
-  presentationRevision: 1,
+  edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
+  endpoint: "https://runtime.example.com",
   issuedAt,
   leaseExpiresAt: "2026-08-21T00:00:00.000Z",
-  edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
+  presentationRevision: 1,
+  provisioningEdgeId: null,
+  runtimeId,
+  runtimeKind: "Cloud" as const,
+  sessionId,
 });
 
 const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
@@ -44,7 +44,7 @@ const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
     new Proxy(statement, {
       get(target, property, receiver) {
         if (property === "bind") {
-          return (...values: unknown[]) => wrapStatement(target.bind(...values));
+          return (...values: Array<unknown>) => wrapStatement(target.bind(...values));
         }
         if (property === "run") {
           return async <T = Record<string, unknown>>() => {
@@ -129,13 +129,13 @@ describe("D1RuntimeAssignmentRepository", () => {
     await expect(
       repository.assign(cloudAssignment(sessionId, firstRuntimeId)),
     ).resolves.toMatchObject({
-      runtimeId: firstRuntimeId,
       assignmentEpoch: 1,
       releasedAt: null,
+      runtimeId: firstRuntimeId,
     });
     await expect(
       repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2026-08-20T00:59:00.000Z"),
-    ).resolves.toMatchObject({ runtimeId: nextRuntimeId, assignmentEpoch: 2 });
+    ).resolves.toMatchObject({ assignmentEpoch: 2, runtimeId: nextRuntimeId });
   });
 
   it("returns only the public assignment shape while the session and lease remain active", async () => {
@@ -177,59 +177,59 @@ describe("D1RuntimeAssignmentRepository", () => {
     const repository = new D1RuntimeAssignmentRepository(env.DB);
     await expect(
       repository.assign({
-        sessionId,
-        runtimeId,
-        runtimeKind: "VenueEdge",
-        endpoint: "https://edge.example.com",
         certificateFingerprint: "sha256:test",
-        provisioningEdgeId: edgeId,
-        presentationRevision: 1,
+        edgeHealthyAfter: "2025-12-31T23:59:00.000Z",
+        endpoint: "https://edge.example.com",
         issuedAt: "2026-08-20T00:00:00.000Z",
         leaseExpiresAt: "2026-08-21T00:00:00.000Z",
-        edgeHealthyAfter: "2025-12-31T23:59:00.000Z",
+        presentationRevision: 1,
+        provisioningEdgeId: edgeId,
+        runtimeId,
+        runtimeKind: "VenueEdge",
+        sessionId,
       }),
     ).resolves.toMatchObject({ assignmentEpoch: 1, provisioningEdgeId: edgeId });
     await expect(
       repository.renew({
-        sessionId,
+        assignmentEpoch: 1,
+        leaseExpiresAt: "2026-08-21T01:00:00.000Z",
+        now: "2026-08-20T01:00:00.000Z",
         provisioningEdgeId: "wrong-edge",
-        assignmentEpoch: 1,
-        now: "2026-08-20T01:00:00.000Z",
-        leaseExpiresAt: "2026-08-21T01:00:00.000Z",
+        sessionId,
       }),
     ).resolves.toBeNull();
     await expect(
       repository.renew({
-        sessionId,
-        provisioningEdgeId: edgeId,
         assignmentEpoch: 1,
-        now: "2026-08-20T01:00:00.000Z",
         leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+        now: "2026-08-20T01:00:00.000Z",
+        provisioningEdgeId: edgeId,
+        sessionId,
       }),
     ).resolves.toBeNull();
     await expect(
       repository.renew({
-        sessionId,
-        provisioningEdgeId: edgeId,
         assignmentEpoch: 1,
-        now: "2026-08-20T01:00:00.000Z",
         leaseExpiresAt: "2026-08-21T01:00:00.000Z",
+        now: "2026-08-20T01:00:00.000Z",
+        provisioningEdgeId: edgeId,
+        sessionId,
       }),
     ).resolves.toMatchObject({ leaseExpiresAt: "2026-08-21T01:00:00.000Z" });
     await expect(
       repository.release({
-        sessionId,
-        provisioningEdgeId: edgeId,
         assignmentEpoch: 2,
         now: "2026-08-20T02:00:00.000Z",
+        provisioningEdgeId: edgeId,
+        sessionId,
       }),
     ).resolves.toBe(false);
     await expect(
       repository.release({
-        sessionId,
-        provisioningEdgeId: edgeId,
         assignmentEpoch: 1,
         now: "2026-08-20T02:00:00.000Z",
+        provisioningEdgeId: edgeId,
+        sessionId,
       }),
     ).resolves.toBe(true);
   });
@@ -246,16 +246,16 @@ describe("D1RuntimeAssignmentRepository", () => {
       .run();
     const repository = new D1RuntimeAssignmentRepository(env.DB);
     await repository.assign({
-      sessionId,
-      runtimeId,
-      runtimeKind: "VenueEdge",
-      endpoint: "https://edge.example.com",
       certificateFingerprint: "sha256:test",
-      provisioningEdgeId: edgeId,
-      presentationRevision: 1,
+      edgeHealthyAfter: "2025-12-31T23:59:00.000Z",
+      endpoint: "https://edge.example.com",
       issuedAt: "2026-08-20T00:00:00.000Z",
       leaseExpiresAt: "2026-08-21T00:00:00.000Z",
-      edgeHealthyAfter: "2025-12-31T23:59:00.000Z",
+      presentationRevision: 1,
+      provisioningEdgeId: edgeId,
+      runtimeId,
+      runtimeKind: "VenueEdge",
+      sessionId,
     });
     await env.DB.prepare("UPDATE venue_edges SET health = 'unhealthy' WHERE id = ?")
       .bind(edgeId)
@@ -266,11 +266,11 @@ describe("D1RuntimeAssignmentRepository", () => {
     ).resolves.toBeNull();
     await expect(
       repository.renew({
-        sessionId,
-        provisioningEdgeId: edgeId,
         assignmentEpoch: 1,
-        now: "2026-08-20T01:00:00.000Z",
         leaseExpiresAt: "2026-08-21T01:00:00.000Z",
+        now: "2026-08-20T01:00:00.000Z",
+        provisioningEdgeId: edgeId,
+        sessionId,
       }),
     ).resolves.toBeNull();
   });
@@ -287,16 +287,16 @@ describe("D1RuntimeAssignmentRepository", () => {
       .run();
     const repository = new D1RuntimeAssignmentRepository(env.DB);
     const input = {
-      sessionId,
-      runtimeId,
-      runtimeKind: "VenueEdge" as const,
-      endpoint: "https://edge.example.com",
       certificateFingerprint: "sha256:test",
-      provisioningEdgeId: edgeId,
-      presentationRevision: 1,
+      edgeHealthyAfter: "2026-08-20T00:01:00.000Z",
+      endpoint: "https://edge.example.com",
       issuedAt: "2026-08-20T00:02:00.000Z",
       leaseExpiresAt: "2026-08-21T00:00:00.000Z",
-      edgeHealthyAfter: "2026-08-20T00:01:00.000Z",
+      presentationRevision: 1,
+      provisioningEdgeId: edgeId,
+      runtimeId,
+      runtimeKind: "VenueEdge" as const,
+      sessionId,
     };
 
     await expect(repository.assign(input)).resolves.toBeNull();

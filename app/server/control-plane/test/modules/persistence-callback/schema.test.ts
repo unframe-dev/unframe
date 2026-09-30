@@ -9,29 +9,29 @@ describe("persistence callback schemas", () => {
   it("accepts bounded checkpoint metadata", () => {
     expect(
       checkpointInputSchema.parse({
-        sessionId: crypto.randomUUID(),
+        assignmentEpoch: 1,
+        idempotencyKey: "checkpoint-2",
+        lastSequence: 10,
+        payload: { page: 3 },
+        presentationRevision: 1,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        assignmentEpoch: 1,
-        presentationRevision: 1,
+        sessionId: crypto.randomUUID(),
         version: 2,
-        lastSequence: 10,
-        idempotencyKey: "checkpoint-2",
-        payload: { page: 3 },
       }),
-    ).toMatchObject({ version: 2, lastSequence: 10 });
+    ).toMatchObject({ lastSequence: 10, version: 2 });
   });
 
   it("requires an opaque JSON snapshot without defining its object shape", () => {
     const checkpoint = {
-      sessionId: crypto.randomUUID(),
+      assignmentEpoch: 1,
+      idempotencyKey: "checkpoint-2",
+      lastSequence: 10,
+      presentationRevision: 1,
       runtimeId: "runtime",
       runtimeKind: "Cloud",
-      assignmentEpoch: 1,
-      presentationRevision: 1,
+      sessionId: crypto.randomUUID(),
       version: 2,
-      lastSequence: 10,
-      idempotencyKey: "checkpoint-2",
     } as const;
 
     expect(checkpointInputSchema.safeParse(checkpoint).success).toBe(false);
@@ -42,19 +42,19 @@ describe("persistence callback schemas", () => {
 
   it("rejects inconsistent completion summaries", () => {
     const completion = {
-      sessionId: crypto.randomUUID(),
+      assignmentEpoch: 1,
+      checkpointVersion: 2,
+      endedAt: "2026-08-10T00:00:00.000Z",
+      finalCheckpoint: {},
+      idempotencyKey: "completion-2",
+      lastSequence: 10,
+      participantCount: 2,
+      participants: [{ role: "viewer", userId: "viewer" }],
+      presentationRevision: 1,
       runtimeId: "runtime",
       runtimeKind: "Cloud",
-      assignmentEpoch: 1,
-      presentationRevision: 1,
-      checkpointVersion: 2,
-      lastSequence: 10,
-      idempotencyKey: "completion-2",
+      sessionId: crypto.randomUUID(),
       startedAt: "2026-08-11T00:00:00.000Z",
-      endedAt: "2026-08-10T00:00:00.000Z",
-      participantCount: 2,
-      participants: [{ userId: "viewer", role: "viewer" }],
-      finalCheckpoint: {},
     };
 
     expect(completionInputSchema.safeParse(completion).success).toBe(false);
@@ -64,8 +64,8 @@ describe("persistence callback schemas", () => {
         endedAt: "2026-08-12T00:00:00.000Z",
         participantCount: 51,
         participants: Array.from({ length: 51 }, (_, index) => ({
-          userId: `viewer-${index}`,
           role: "viewer",
+          userId: `viewer-${index}`,
         })),
       }).success,
     ).toBe(false);
@@ -75,40 +75,40 @@ describe("persistence callback schemas", () => {
 
   it("requires the assignment identity used to fence completion", () => {
     const completion = {
-      sessionId: crypto.randomUUID(),
       checkpointVersion: 2,
-      lastSequence: 10,
-      idempotencyKey: "completion-2",
-      startedAt: "2026-08-11T00:00:00.000Z",
       endedAt: "2026-08-11T00:01:00.000Z",
-      participantCount: 1,
-      participants: [{ userId: "presenter", role: "presenter" }],
       finalCheckpoint: {},
+      idempotencyKey: "completion-2",
+      lastSequence: 10,
+      participantCount: 1,
+      participants: [{ role: "presenter", userId: "presenter" }],
+      sessionId: crypto.randomUUID(),
+      startedAt: "2026-08-11T00:00:00.000Z",
     };
 
     expect(completionInputSchema.safeParse(completion).success).toBe(false);
     expect(
       completionInputSchema.safeParse({
         ...completion,
-        runtimeId: "runtime",
-        runtimeKind: "Cloud",
         assignmentEpoch: 1,
         presentationRevision: 1,
+        runtimeId: "runtime",
+        runtimeKind: "Cloud",
       }).success,
     ).toBe(true);
   });
 
   it("rejects invalid runtime identifiers at the callback boundary", () => {
     const input = {
-      sessionId: crypto.randomUUID(),
+      assignmentEpoch: 1,
+      idempotencyKey: "checkpoint-1",
+      lastSequence: 1,
+      payload: {},
+      presentationRevision: 1,
       runtimeId: "invalid runtime id",
       runtimeKind: "Cloud",
-      assignmentEpoch: 1,
-      presentationRevision: 1,
+      sessionId: crypto.randomUUID(),
       version: 1,
-      lastSequence: 1,
-      idempotencyKey: "checkpoint-1",
-      payload: {},
     };
 
     expect(checkpointInputSchema.safeParse(input).success).toBe(false);

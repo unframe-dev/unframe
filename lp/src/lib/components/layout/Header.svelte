@@ -6,11 +6,11 @@
   let menuOpen = $state(false);
 
   const links = [
-    { label: "コンセプト", href: "/#concept" },
-    { label: "特徴", href: "/#features" },
-    { label: "ビジョン", href: "/#vision" },
-    { label: "News", href: "/news/" },
-    { label: "Docs", href: "/docs/" },
+    { href: "/#concept", label: "コンセプト" },
+    { href: "/#features", label: "特徴" },
+    { href: "/#vision", label: "ビジョン" },
+    { href: "/news/", label: "News" },
+    { href: "/docs/", label: "Docs" },
   ];
 </script>
 

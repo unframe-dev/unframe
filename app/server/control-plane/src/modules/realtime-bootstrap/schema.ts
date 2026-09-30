@@ -11,20 +11,20 @@ export const realtimeScopeSchema = z.enum(["realtime:connect", "assets:read"]);
 
 export const realtimeBootstrapCredentialInputSchema = z
   .object({
-    sessionId: identifier,
-    userId: identifier,
+    assignmentEpoch: z.number().int().positive(),
+    expiresAt: z.number().int().positive(),
+    presentationId: identifier,
+    presentationRevision: z.number().int().positive(),
     role: realtimeParticipantRoleSchema,
     runtimeId: identifier,
     runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-    assignmentEpoch: z.number().int().positive(),
-    presentationId: identifier,
-    presentationRevision: z.number().int().positive(),
     scopes: z
       .array(realtimeScopeSchema)
       .min(1)
       .max(2)
       .refine((scopes) => new Set(scopes).size === scopes.length),
-    expiresAt: z.number().int().positive(),
+    sessionId: identifier,
+    userId: identifier,
   })
   .strict();
 

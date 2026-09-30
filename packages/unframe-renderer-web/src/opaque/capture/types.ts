@@ -1,31 +1,31 @@
 import type { OpaqueBinding } from "./bindings.js";
 
 export type OpaqueCaptureRequest = {
-  readonly javascript: string;
-  readonly stylesheets: readonly string[];
-  readonly assets: readonly {
+  readonly assets: ReadonlyArray<{
     readonly path: string;
     readonly mediaType: string;
     readonly dataBase64: string;
-  }[];
-  readonly props: Readonly<Record<string, string | number | boolean>>;
-  readonly texts: Readonly<Record<string, string>>;
-  readonly expectedBindings: Readonly<Record<string, string>>;
-  readonly bindingKeys?: readonly string[];
+  }>;
+  readonly background: readonly [number, number, number, number];
+  readonly bindingKeys?: ReadonlyArray<string>;
   readonly buttonBindings?: Readonly<Record<string, boolean>>;
-  readonly stateId: string;
-  readonly stateKey?: string;
+  readonly colorScheme: "light" | "dark";
+  readonly expectedBindings: Readonly<Record<string, string>>;
+  readonly javascript: string;
   readonly logicalSize: readonly [number, number];
   readonly pixelTarget: readonly [number, number];
-  readonly background: readonly [number, number, number, number];
-  readonly colorScheme: "light" | "dark";
+  readonly props: Readonly<Record<string, string | number | boolean>>;
+  readonly stateId: string;
+  readonly stateKey?: string;
+  readonly stylesheets: ReadonlyArray<string>;
+  readonly texts: Readonly<Record<string, string>>;
 };
 export type OpaqueCaptureResult =
   | {
-      readonly ok: true;
-      readonly rgbaBase64: string;
-      readonly pixelSize: readonly [number, number];
-      readonly bindings: readonly OpaqueBinding[];
+      readonly bindings: ReadonlyArray<OpaqueBinding>;
       readonly browserVersion: string;
+      readonly ok: true;
+      readonly pixelSize: readonly [number, number];
+      readonly rgbaBase64: string;
     }
-  | { readonly ok: false; readonly code: string };
+  | { readonly code: string; readonly ok: false };

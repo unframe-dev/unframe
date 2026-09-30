@@ -12,8 +12,9 @@ if (process.argv.includes("--check")) {
   if (
     (await readFile(specPath, "utf8")) !== document ||
     (await readFile(typePath, "utf8")) !== types
-  )
+  ) {
     process.exitCode = 1;
+  }
 } else {
   await mkdir(resolve(root, "openapi"), { recursive: true });
   await mkdir(resolve(root, "src"), { recursive: true });

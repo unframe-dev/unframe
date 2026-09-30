@@ -79,11 +79,13 @@ const pngBytes = (bytes: Uint8Array, target: readonly [number, number]) => {
     bytes.length < 24 ||
     bytes.length > MAX_BYTES ||
     Buffer.from(bytes.subarray(0, 8)).toString("hex") !== "89504e470d0a1a0a"
-  )
+  ) {
     throw new Error("opaque-capture-invalid");
+  }
   const buffer = Buffer.from(bytes);
-  if (buffer.readUInt32BE(16) !== target[0] || buffer.readUInt32BE(20) !== target[1])
+  if (buffer.readUInt32BE(16) !== target[0] || buffer.readUInt32BE(20) !== target[1]) {
     throw new Error("opaque-capture-invalid");
+  }
   return PNG.sync.read(buffer).data;
 };
 
@@ -95,16 +97,17 @@ export const captureOpaquePage = async (
     !input.pixelTarget.every((n) => Number.isSafeInteger(n) && n > 0 && n <= 2048) ||
     input.pixelTarget[0] * input.pixelTarget[1] > MAX_PIXELS ||
     !input.logicalSize.every((n) => Number.isFinite(n) && n > 0)
-  )
-    return { ok: false, code: "opaque-input-invalid" };
+  ) {
+    return { code: "opaque-input-invalid", ok: false };
+  }
   const context = await browser.newContext({
-    viewport: { width: input.pixelTarget[0], height: input.pixelTarget[1] },
+    acceptDownloads: false,
+    colorScheme: input.colorScheme,
     deviceScaleFactor: 1,
     locale: "ja-JP",
-    timezoneId: "Asia/Tokyo",
-    colorScheme: input.colorScheme,
     serviceWorkers: "block",
-    acceptDownloads: false,
+    timezoneId: "Asia/Tokyo",
+    viewport: { height: input.pixelTarget[1], width: input.pixelTarget[0] },
   });
   let violation: string | undefined;
   const reject = (code: string) => {
@@ -113,30 +116,37 @@ export const captureOpaquePage = async (
   };
   const timeout = setTimeout(() => reject("opaque-capture-timeout"), 30_000);
   try {
-    const map = new Map<string, { mediaType: string; bytes: Buffer }>();
+    const map = new Map<string, { bytes: Buffer; mediaType: string }>();
     let size = Buffer.byteLength(input.javascript);
-    if (size > MAX_BYTES) throw new Error("opaque-input-invalid");
+    if (size > MAX_BYTES) {
+      throw new Error("opaque-input-invalid");
+    }
     for (const asset of input.assets) {
-      if (!validateOpaqueAsset(asset)) throw new Error("opaque-asset-invalid");
+      if (!validateOpaqueAsset(asset)) {
+        throw new Error("opaque-asset-invalid");
+      }
       if (
         !asset.path ||
         asset.path.startsWith("/") ||
         asset.path.split("/").some((p) => p === ".." || p === "." || p === "") ||
         /[\\?#:]/.test(asset.path) ||
         map.has(ORIGIN + asset.path)
-      )
+      ) {
         throw new Error("opaque-asset-invalid");
+      }
       const bytes = Buffer.from(asset.dataBase64, "base64");
       size += bytes.length;
-      if (bytes.toString("base64") !== asset.dataBase64 || size > MAX_BYTES)
+      if (bytes.toString("base64") !== asset.dataBase64 || size > MAX_BYTES) {
         throw new Error("opaque-asset-invalid");
-      map.set(ORIGIN + asset.path, { mediaType: asset.mediaType, bytes });
+      }
+      map.set(ORIGIN + asset.path, { bytes, mediaType: asset.mediaType });
     }
     if (
       new Set(input.stylesheets).size !== input.stylesheets.length ||
       input.stylesheets.some((path) => map.get(ORIGIN + path)?.mediaType !== "text/css")
-    )
+    ) {
       throw new Error("opaque-asset-invalid");
+    }
     const css = input.stylesheets
       .map(
         (path) =>
@@ -144,14 +154,17 @@ export const captureOpaquePage = async (
       )
       .join("");
     const scale = input.pixelTarget[0] / input.logicalSize[0];
-    if (Math.abs(input.logicalSize[1] * scale - input.pixelTarget[1]) > 1)
+    if (Math.abs(input.logicalSize[1] * scale - input.pixelTarget[1]) > 1) {
       throw new Error("opaque-input-invalid");
+    }
     const html = `<!doctype html><html><head><meta charset="utf-8">${css}<style>html,body{margin:0;width:100%;height:100%;overflow:hidden}body{background:rgba(${input.background.slice(0, 3).join(",")},${input.background[3] / 255})}*{animation:none!important;transition:none!important;caret-color:transparent!important;font-synthesis:none!important}#unframe-root{width:${input.logicalSize[0]}px;height:${input.logicalSize[1]}px;transform-origin:0 0;transform:scale(${scale})}</style></head><body><div id="unframe-root"></div><script src="/__renderer.js"></script></body></html>`;
-    if (map.has(ORIGIN + "__renderer.js")) throw new Error("opaque-asset-invalid");
-    map.set(ORIGIN, { mediaType: "text/html", bytes: Buffer.from(html) });
+    if (map.has(ORIGIN + "__renderer.js")) {
+      throw new Error("opaque-asset-invalid");
+    }
+    map.set(ORIGIN, { bytes: Buffer.from(html), mediaType: "text/html" });
     map.set(ORIGIN + "__renderer.js", {
-      mediaType: "text/javascript",
       bytes: Buffer.from(input.javascript),
+      mediaType: "text/javascript",
     });
     await context.addInitScript({ content: fixedBrowserInitScript + "\n" + restrictionScript });
     await context.routeWebSocket("**/*", (ws) => {
@@ -171,26 +184,30 @@ export const captureOpaquePage = async (
         return;
       }
       await route.fulfill({
-        status: 200,
-        contentType: asset.mediaType,
         body: asset.bytes,
+        contentType: asset.mediaType,
         headers: {
           "Content-Security-Policy":
             "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
         },
+        status: 200,
       });
     });
     const page = await context.newPage();
     context.on("page", (other) => {
-      if (other !== page) reject("opaque-capability-denied");
+      if (other !== page) {
+        reject("opaque-capability-denied");
+      }
     });
     page.on("worker", () => reject("opaque-capability-denied"));
     page.on("download", () => reject("opaque-capability-denied"));
     page.on("pageerror", () => reject("opaque-render-failed"));
     page.on("framenavigated", (frame) => {
-      if (frame !== page.mainFrame() || frame.url() !== ORIGIN) reject("opaque-navigation-denied");
+      if (frame !== page.mainFrame() || frame.url() !== ORIGIN) {
+        reject("opaque-navigation-denied");
+      }
     });
-    await page.goto(ORIGIN, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(ORIGIN, { timeout: 30_000, waitUntil: "load" });
     const cdp = await context.newCDPSession(page);
     const { frameTree } = await cdp.send("Page.getFrameTree");
     const { executionContextId } = await cdp.send("Page.createIsolatedWorld", {
@@ -222,11 +239,17 @@ export const captureOpaquePage = async (
       const { root } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
       const visit = (node: typeof root): void => {
         for (const shadow of node.shadowRoots ?? []) {
-          if (shadow.shadowRootType !== "user-agent") throw new Error("opaque-element-unsupported");
+          if (shadow.shadowRootType !== "user-agent") {
+            throw new Error("opaque-element-unsupported");
+          }
           visit(shadow);
         }
-        for (const child of node.children ?? []) visit(child);
-        for (const pseudo of node.pseudoElements ?? []) visit(pseudo);
+        for (const child of node.children ?? []) {
+          visit(child);
+        }
+        for (const pseudo of node.pseudoElements ?? []) {
+          visit(pseudo);
+        }
       };
       visit(root);
     };
@@ -238,7 +261,7 @@ export const captureOpaquePage = async (
       ]),
     );
     await evaluate(
-      `globalThis.__unframeMount(${JSON.stringify({ props: input.props, texts: input.texts, bindings, state: input.stateKey ?? "default" })})`,
+      `globalThis.__unframeMount(${JSON.stringify({ bindings, props: input.props, state: input.stateKey ?? "default", texts: input.texts })})`,
     );
     await rejectAuthorShadowRoots();
     const imageUrls = input.assets
@@ -259,36 +282,40 @@ export const captureOpaquePage = async (
       await rejectAuthorShadowRoots();
       const result = validateOpaqueBindings(
         input.expectedBindings,
-        await isolated<OpaqueBinding[]>(
+        await isolated<Array<OpaqueBinding>>(
           `${observeScript}(${JSON.stringify(Object.keys(input.buttonBindings ?? {}))})`,
         ),
       );
-      if (!result.ok) throw new Error("opaque-binding-invalid");
+      if (!result.ok) {
+        throw new Error("opaque-binding-invalid");
+      }
       const scale = input.pixelTarget[0] / input.logicalSize[0];
       return result.bindings.map((binding) => ({
         ...binding,
+        height: binding.height / scale,
+        width: binding.width / scale,
         x: binding.x / scale,
         y: binding.y / scale,
-        width: binding.width / scale,
-        height: binding.height / scale,
       }));
     };
     let previous:
-      | { fingerprint: string; rgba: Buffer; bindings: readonly OpaqueBinding[] }
+      | { bindings: ReadonlyArray<OpaqueBinding>; fingerprint: string; rgba: Buffer }
       | undefined;
     for (;;) {
       await isolated("new Promise(resolve=>requestAnimationFrame(()=>resolve()))");
-      if (await evaluate("__unframeViolation")) throw new Error("opaque-capability-denied");
+      if (await evaluate("__unframeViolation")) {
+        throw new Error("opaque-capability-denied");
+      }
       await validateFonts();
       const observed = await observe();
       const fingerprint = JSON.stringify(observed);
       const rgba = pngBytes(
         await page.screenshot({
-          type: "png",
           animations: "disabled",
           caret: "hide",
-          scale: "css",
           omitBackground: true,
+          scale: "css",
+          type: "png",
         }),
         input.pixelTarget,
       );
@@ -296,17 +323,22 @@ export const captureOpaquePage = async (
         previous = undefined;
         continue;
       }
-      if (violation) throw new Error(violation);
-      if (await evaluate("__unframeViolation")) throw new Error("opaque-capability-denied");
-      if (previous?.fingerprint === fingerprint && previous.rgba.equals(rgba))
+      if (violation) {
+        throw new Error(violation);
+      }
+      if (await evaluate("__unframeViolation")) {
+        throw new Error("opaque-capability-denied");
+      }
+      if (previous?.fingerprint === fingerprint && previous.rgba.equals(rgba)) {
         return {
-          ok: true,
-          rgbaBase64: rgba.toString("base64"),
-          pixelSize: input.pixelTarget,
           bindings: observed,
           browserVersion: browser.version(),
+          ok: true,
+          pixelSize: input.pixelTarget,
+          rgbaBase64: rgba.toString("base64"),
         };
-      previous = { fingerprint, rgba, bindings: observed };
+      }
+      previous = { bindings: observed, fingerprint, rgba };
     }
   } catch (error) {
     const code =
@@ -314,7 +346,7 @@ export const captureOpaquePage = async (
       (error instanceof Error && /^opaque-[a-z-]+$/.test(error.message)
         ? error.message
         : "opaque-render-failed");
-    return { ok: false, code };
+    return { code, ok: false };
   } finally {
     clearTimeout(timeout);
     await context.close();

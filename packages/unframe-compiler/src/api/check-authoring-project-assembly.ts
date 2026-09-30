@@ -7,6 +7,8 @@ export const checkAuthoringProjectAssembly = (
   carrier: unknown,
 ): AuthoringProjectPipelineResult<CheckedDeclarationProject> => {
   const assembled = assembleAuthoringProject(source, carrier);
-  if (!assembled.valid) return assembled;
-  return { valid: true, value: assembled.value.checked, diagnostics: [] };
+  if (!assembled.valid) {
+    return assembled;
+  }
+  return { diagnostics: [], valid: true, value: assembled.value.checked };
 };

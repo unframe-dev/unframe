@@ -24,8 +24,8 @@ describe("Resend authentication mailer", () => {
     expect(fetch).toHaveBeenLastCalledWith(
       "https://api.resend.com/emails",
       expect.objectContaining({
-        method: "POST",
         headers: expect.objectContaining({ Authorization: "Bearer re_test_key" }),
+        method: "POST",
       }),
     );
   });

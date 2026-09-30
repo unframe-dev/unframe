@@ -24,8 +24,8 @@ export async function identityFromSession(
     return undefined;
   }
   return {
-    userId: session.user.id,
     globalRole:
       "globalRole" in session.user && session.user.globalRole === "admin" ? "admin" : "user",
+    userId: session.user.id,
   };
 }

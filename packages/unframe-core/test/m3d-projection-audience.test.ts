@@ -6,7 +6,9 @@ import { makeM3AArtifacts } from "./fixtures.js";
 const fixture = () => {
   const { definition } = makeM3AArtifacts();
   const surfaceNode = definition.scene.nodes["node-baked"]!;
-  if (surfaceNode.kind !== "surface") throw new TypeError("Expected a SurfaceNode.");
+  if (surfaceNode.kind !== "surface") {
+    throw new TypeError("Expected a SurfaceNode.");
+  }
   const { surfaceId: _surfaceId, ...container } = surfaceNode;
   definition.scene.nodes.ancestor = {
     ...structuredClone(container),
@@ -16,7 +18,7 @@ const fixture = () => {
   };
   surfaceNode.parent = { kind: "node", nodeId: "ancestor" };
   surfaceNode.order = 0;
-  return { definition, surfaceNode, ancestor: definition.scene.nodes.ancestor! };
+  return { ancestor: definition.scene.nodes.ancestor!, definition, surfaceNode };
 };
 
 const issues = (definition: unknown) => {
@@ -26,7 +28,7 @@ const issues = (definition: unknown) => {
 
 describe("M3D ProjectionAudience reference closure", () => {
   it("accepts all-to-all, role-to-all and same-role Spatial parent references", () => {
-    const { definition, surfaceNode, ancestor } = fixture();
+    const { ancestor, definition, surfaceNode } = fixture();
     expect(issues(definition)).toEqual([]);
     surfaceNode.audience = { kind: "role", role: "presenter" };
     expect(issues(definition)).toEqual([]);
@@ -35,7 +37,7 @@ describe("M3D ProjectionAudience reference closure", () => {
   });
 
   it("rejects an all-audience child beneath a role-limited ancestor", () => {
-    const { definition, ancestor } = fixture();
+    const { ancestor, definition } = fixture();
     ancestor.audience = { kind: "role", role: "presenter" };
     expect(issues(definition)).toEqual(
       expect.arrayContaining([
@@ -48,7 +50,7 @@ describe("M3D ProjectionAudience reference closure", () => {
   });
 
   it("rejects a Spatial reference across Presenter and Viewer roles", () => {
-    const { definition, surfaceNode, ancestor } = fixture();
+    const { ancestor, definition, surfaceNode } = fixture();
     surfaceNode.audience = { kind: "role", role: "presenter" };
     ancestor.audience = { kind: "role", role: "viewer" };
     expect(issues(definition)).toEqual(
@@ -71,16 +73,16 @@ describe("M3D ProjectionAudience reference closure", () => {
     const { definition, surfaceNode } = fixture();
     surfaceNode.audience = { kind: "role", role: "presenter" };
     definition.flow.timelines.reveal = {
+      durationMilliseconds: 100,
       id: "reveal",
       owner: { kind: "presentation" },
-      durationMilliseconds: 100,
       tracks: [
         {
-          target: { nodeId: "node-baked", property: "opacity" },
           keyframes: [
-            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
             { timeMilliseconds: 100, value: 1 },
           ],
+          target: { nodeId: "node-baked", property: "opacity" },
         },
       ],
     };

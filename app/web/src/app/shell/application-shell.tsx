@@ -19,109 +19,109 @@ import { BrandLink } from "@/shared/brand/brand-link";
 import { Button } from "@/shared/ui/button";
 import moduleStyles from "./application-shell.module.css";
 const styles = {
-  sidebar: moduleStyles["sidebar"]!,
-  sidebarBrand: moduleStyles["sidebarBrand"]!,
+  back: moduleStyles["back"]!,
   brand: moduleStyles["brand"]!,
   collapse: moduleStyles["collapse"]!,
-  back: moduleStyles["back"]!,
-  label: moduleStyles["label"]!,
-  navigation: moduleStyles["navigation"]!,
-  title: moduleStyles["title"]!,
-  links: moduleStyles["links"]!,
-  link: moduleStyles["link"]!,
-  sidebarAccount: moduleStyles["sidebarAccount"]!,
-  menuTrigger: moduleStyles["menuTrigger"]!,
-  menuPositioner: moduleStyles["menuPositioner"]!,
-  menuPopup: moduleStyles["menuPopup"]!,
-  menuItem: moduleStyles["menuItem"]!,
-  menuSeparator: moduleStyles["menuSeparator"]!,
-  menuLogout: moduleStyles["menuLogout"]!,
-  shell: moduleStyles["shell"]!,
-  layout: moduleStyles["layout"]!,
   content: moduleStyles["content"]!,
   error: moduleStyles["error"]!,
+  label: moduleStyles["label"]!,
+  layout: moduleStyles["layout"]!,
+  link: moduleStyles["link"]!,
+  links: moduleStyles["links"]!,
+  menuItem: moduleStyles["menuItem"]!,
+  menuLogout: moduleStyles["menuLogout"]!,
+  menuPopup: moduleStyles["menuPopup"]!,
+  menuPositioner: moduleStyles["menuPositioner"]!,
+  menuSeparator: moduleStyles["menuSeparator"]!,
+  menuTrigger: moduleStyles["menuTrigger"]!,
+  navigation: moduleStyles["navigation"]!,
+  shell: moduleStyles["shell"]!,
+  sidebar: moduleStyles["sidebar"]!,
+  sidebarAccount: moduleStyles["sidebarAccount"]!,
+  sidebarBrand: moduleStyles["sidebarBrand"]!,
+  title: moduleStyles["title"]!,
 };
 
 type NavigationLink = {
-  to: "/home" | "/settings/profile" | "/settings/security" | "/devices" | "/rooms";
-  label: string;
   icon: Icon;
+  label: string;
+  to: "/home" | "/settings/profile" | "/settings/security" | "/devices" | "/rooms";
 };
 
-const mainLinks: NavigationLink[] = [
-  { to: "/home", label: "ホーム", icon: HouseIcon },
-  { to: "/settings/profile", label: "設定", icon: GearSixIcon },
-  { to: "/devices", label: "デバイス", icon: DeviceMobileIcon },
-  { to: "/rooms", label: "ルーム", icon: CubeIcon },
+const mainLinks: Array<NavigationLink> = [
+  { icon: HouseIcon, label: "ホーム", to: "/home" },
+  { icon: GearSixIcon, label: "設定", to: "/settings/profile" },
+  { icon: DeviceMobileIcon, label: "デバイス", to: "/devices" },
+  { icon: CubeIcon, label: "ルーム", to: "/rooms" },
 ];
 
-const settingsLinks: NavigationLink[] = [
-  { to: "/settings/profile", label: "プロフィール", icon: UserCircleIcon },
-  { to: "/settings/security", label: "セキュリティー", icon: ShieldCheckIcon },
+const settingsLinks: Array<NavigationLink> = [
+  { icon: UserCircleIcon, label: "プロフィール", to: "/settings/profile" },
+  { icon: ShieldCheckIcon, label: "セキュリティー", to: "/settings/security" },
 ];
 
 const sidebarStorageKey = "unframe-sidebar-collapsed";
 
 function SidebarNavigation({
-  pathname,
   collapsed,
-  onToggle,
   onLogout,
+  onToggle,
+  pathname,
 }: {
-  pathname: string;
   collapsed: boolean;
-  onToggle: () => void;
   onLogout: () => void;
+  onToggle: () => void;
+  pathname: string;
 }) {
   const isSettings = pathname.startsWith("/settings/");
   const links = isSettings ? settingsLinks : mainLinks;
 
   return (
     <aside
+      aria-label="アプリケーションサイドバー"
       className={styles.sidebar}
       data-collapsed={collapsed}
-      aria-label="アプリケーションサイドバー"
     >
       <div className={styles.sidebarBrand}>
         <BrandLink application className={styles.brand} />
       </div>
       <Button
-        variant="ghost"
-        size="icon"
-        className={styles.collapse}
-        type="button"
-        aria-label={collapsed ? "サイドバーを展開" : "サイドバーを折り畳む"}
         aria-expanded={!collapsed}
+        aria-label={collapsed ? "サイドバーを展開" : "サイドバーを折り畳む"}
+        className={styles.collapse}
         onClick={onToggle}
+        size="icon"
+        type="button"
+        variant="ghost"
       >
         {collapsed ? <CaretRightIcon aria-hidden="true" /> : <CaretLeftIcon aria-hidden="true" />}
       </Button>
       {isSettings && (
         <Link
+          aria-label={collapsed ? "メインメニューへ戻る" : undefined}
           className={styles.back}
           to="/home"
-          aria-label={collapsed ? "メインメニューへ戻る" : undefined}
         >
           <ArrowLeftIcon aria-hidden="true" />
           <span className={styles.label}>メインメニューへ戻る</span>
         </Link>
       )}
       <nav
-        className={styles.navigation}
         aria-label={isSettings ? "設定ナビゲーション" : "メインナビゲーション"}
+        className={styles.navigation}
       >
         {isSettings && <p className={styles.title}>設定</p>}
         <div className={styles.links}>
-          {links.map(({ to, label, icon: Icon }) => {
+          {links.map(({ icon: Icon, label, to }) => {
             const isCurrent =
               pathname === to || (to === "/settings/profile" && pathname === "/settings");
             return (
               <Link
-                key={to}
-                className={styles.link}
-                to={to}
                 aria-current={isCurrent ? "page" : undefined}
                 aria-label={collapsed ? label : undefined}
+                className={styles.link}
+                key={to}
+                to={to}
               >
                 <Icon aria-hidden="true" />
                 <span className={styles.label}>{label}</span>
@@ -135,10 +135,10 @@ function SidebarNavigation({
           <DropdownMenu.Trigger
             render={
               <Button
-                className={styles.menuTrigger}
-                variant="outline"
-                size="icon"
                 aria-label="アカウントメニュー"
+                className={styles.menuTrigger}
+                size="icon"
+                variant="outline"
               />
             }
           >
@@ -146,15 +146,15 @@ function SidebarNavigation({
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Positioner
+              align="end"
               className={styles.menuPositioner}
               side="bottom"
-              align="end"
               sideOffset={10}
             >
               <DropdownMenu.Popup className={styles.menuPopup}>
                 <DropdownMenu.LinkItem
-                  closeOnClick
                   className={styles.menuItem}
+                  closeOnClick
                   render={<Link to="/settings/profile" />}
                 >
                   設定
@@ -208,14 +208,14 @@ export function ApplicationShell() {
     <div className={styles.shell}>
       <div className={styles.layout} data-sidebar-collapsed={sidebarCollapsed}>
         <SidebarNavigation
-          pathname={pathname}
           collapsed={sidebarCollapsed}
-          onToggle={toggleSidebar}
           onLogout={() => void logout()}
+          onToggle={toggleSidebar}
+          pathname={pathname}
         />
         <div className={styles.content}>
           {logoutError ? (
-            <p role="alert" className={styles.error}>
+            <p className={styles.error} role="alert">
               {logoutError}
             </p>
           ) : null}

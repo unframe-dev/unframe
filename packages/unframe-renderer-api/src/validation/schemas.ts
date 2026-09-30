@@ -6,10 +6,10 @@ const finiteNumberSchema = z.number().finite();
 const positiveNumberSchema = finiteNumberSchema.positive();
 const nonNegativeIntegerSchema = z.int().nonnegative();
 const boundsSchema = z.strictObject({
+  height: finiteNumberSchema,
+  width: finiteNumberSchema,
   x: finiteNumberSchema,
   y: finiteNumberSchema,
-  width: finiteNumberSchema,
-  height: finiteNumberSchema,
 });
 
 export const renderLayerSchema = nonNegativeIntegerSchema;
@@ -34,27 +34,27 @@ export const logicalBoundsConstraintSchema = z
 const sourceIntentSchema = semanticSurfaceV2Schema.shape.renderIntent;
 
 const resolvedIntentSchema = z.strictObject({
-  updateModel: sourceIntentSchema.shape.updateModel,
+  fallbackPolicy: z.enum(["reject", "degrade"]),
   interaction: sourceIntentSchema.shape.interaction,
   internalAnimation: sourceIntentSchema.shape.internalAnimation,
   selectedRendererId: rendererIdSchema,
-  fallbackPolicy: z.enum(["reject", "degrade"]),
+  updateModel: sourceIntentSchema.shape.updateModel,
 });
 
 const renderSurfacePlanSchema = z.strictObject({
+  clipWindow: boundsSchema,
   id: rendererIdSchema,
-  semanticSurfaceId: rendererIdSchema,
-  logicalBounds: boundsSchema,
   layer: finiteNumberSchema,
+  logicalBounds: boundsSchema,
   ownership: z.discriminatedUnion("kind", [
     z.strictObject({
+      contextNodeIds: z.array(rendererIdSchema),
       kind: z.literal("structured"),
       ownedContentNodeIds: z.array(rendererIdSchema),
-      contextNodeIds: z.array(rendererIdSchema),
     }),
-    z.strictObject({ kind: z.literal("opaque"), bindingKeys: z.array(rendererIdSchema) }),
+    z.strictObject({ bindingKeys: z.array(rendererIdSchema), kind: z.literal("opaque") }),
   ]),
-  clipWindow: boundsSchema,
+  semanticSurfaceId: rendererIdSchema,
   states: z.record(
     z.string(),
     z.discriminatedUnion("kind", [
@@ -67,28 +67,26 @@ const renderSurfacePlanSchema = z.strictObject({
 const rendererEntrySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("structured") }),
   z.strictObject({
-    kind: z.literal("opaque"),
     entryId: rendererIdSchema,
+    kind: z.literal("opaque"),
     moduleHash: rendererIdSchema,
   }),
 ]);
 
 export const rendererIdentitySchema = z.strictObject({
-  id: rendererIdSchema,
-  version: rendererIdSchema,
   contractVersion: rendererIdSchema,
+  id: rendererIdSchema,
   implementationHash: rendererIdSchema,
+  version: rendererIdSchema,
 });
 
 export const rendererFunctionSchema = z.function();
 
 export const rendererCapabilitiesSchema = z.strictObject({
+  deterministic: z.literal(true),
+  fallbackPolicies: z.tuple([z.literal("reject")]),
   inputKinds: z
     .array(z.enum(["structured", "opaque"]))
-    .min(1)
-    .max(2),
-  updateModels: z
-    .array(z.enum(["static", "finite-state"]))
     .min(1)
     .max(2),
   interactions: z
@@ -97,88 +95,90 @@ export const rendererCapabilitiesSchema = z.strictObject({
     .max(2),
   internalAnimations: z.tuple([z.literal("none")]),
   rendererPreferences: z.tuple([z.literal("baked-web")]),
-  fallbackPolicies: z.tuple([z.literal("reject")]),
-  deterministic: z.literal(true),
+  updateModels: z
+    .array(z.enum(["static", "finite-state"]))
+    .min(1)
+    .max(2),
 });
 
 export const rendererBuildInputSchema = z.strictObject({
-  surface: semanticSurfaceV2Schema,
-  sourceIntent: sourceIntentSchema,
-  resolvedIntent: resolvedIntentSchema,
-  semanticsByState: z.record(rendererIdSchema, completedSemanticTreeV2Schema),
+  context: z.strictObject({
+    buildContextHash: rendererIdSchema,
+    colorScheme: z.enum(["light", "dark"]),
+    environmentHash: rendererIdSchema,
+    inputHash: rendererIdSchema,
+    locale: rendererIdSchema,
+    pixelTarget: z.tuple([finiteNumberSchema, finiteNumberSchema]),
+    rendererConfigHash: rendererIdSchema,
+    rendererFingerprint: rendererIdSchema,
+    themeHash: rendererIdSchema,
+    themeId: rendererIdSchema,
+    timezone: rendererIdSchema,
+  }),
+  entry: rendererEntrySchema,
   fontAssets: z.record(
     rendererIdSchema,
     z.strictObject({
-      mediaType: z.enum(["font/ttf", "font/otf"]),
-      dataBase64: z.string().min(1),
       checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+      dataBase64: z.string().min(1),
+      mediaType: z.enum(["font/ttf", "font/otf"]),
     }),
   ),
   plan: renderSurfacePlanSchema,
-  entry: rendererEntrySchema,
-  context: z.strictObject({
-    locale: rendererIdSchema,
-    timezone: rendererIdSchema,
-    colorScheme: z.enum(["light", "dark"]),
-    themeId: rendererIdSchema,
-    themeHash: rendererIdSchema,
-    inputHash: rendererIdSchema,
-    buildContextHash: rendererIdSchema,
-    environmentHash: rendererIdSchema,
-    rendererConfigHash: rendererIdSchema,
-    rendererFingerprint: rendererIdSchema,
-    pixelTarget: z.tuple([finiteNumberSchema, finiteNumberSchema]),
-  }),
+  resolvedIntent: resolvedIntentSchema,
+  semanticsByState: z.record(rendererIdSchema, completedSemanticTreeV2Schema),
+  sourceIntent: sourceIntentSchema,
+  surface: semanticSurfaceV2Schema,
 });
 
 export const diagnosticSchema = z.strictObject({
   code: z.string(),
-  path: z.array(z.union([z.string(), finiteNumberSchema])),
   message: z.string(),
+  path: z.array(z.union([z.string(), finiteNumberSchema])),
   relatedPath: z.array(z.union([z.string(), finiteNumberSchema])).optional(),
 });
 
 export const rendererSupportDecisionSchema = z.discriminatedUnion("supported", [
-  z.strictObject({ supported: z.literal(true), diagnostics: z.tuple([]) }),
-  z.strictObject({ supported: z.literal(false), diagnostics: z.array(diagnosticSchema) }),
+  z.strictObject({ diagnostics: z.tuple([]), supported: z.literal(true) }),
+  z.strictObject({ diagnostics: z.array(diagnosticSchema), supported: z.literal(false) }),
 ]);
 
 const captureSchema = z.strictObject({
-  id: rendererIdSchema,
-  stateId: rendererIdSchema,
-  rgba: z.instanceof(Uint8Array),
-  pixelSize: z.tuple([finiteNumberSchema, finiteNumberSchema]),
-  colorSpace: z.literal("srgb"),
   alphaMode: z.enum(["opaque", "straight", "premultiplied"]),
+  colorSpace: z.literal("srgb"),
+  id: rendererIdSchema,
+  pixelSize: z.tuple([finiteNumberSchema, finiteNumberSchema]),
+  rgba: z.instanceof(Uint8Array),
+  stateId: rendererIdSchema,
 });
 
 const hitRegionSchema = z.strictObject({
-  interactionId: rendererIdSchema,
-  semanticNodeId: rendererIdSchema,
   bounds: boundsSchema,
-  priority: finiteNumberSchema,
   coordinateSpace: z.literal("normalized"),
+  interactionId: rendererIdSchema,
+  priority: finiteNumberSchema,
+  semanticNodeId: rendererIdSchema,
 });
 
 export const rendererBuildResultSchema = z.discriminatedUnion("ok", [
-  z.strictObject({ ok: z.literal(false), diagnostics: z.array(diagnosticSchema) }),
+  z.strictObject({ diagnostics: z.array(diagnosticSchema), ok: z.literal(false) }),
   z.strictObject({
-    ok: z.literal(true),
-    renderSurface: z.strictObject({
-      id: rendererIdSchema,
-      semanticSurfaceId: rendererIdSchema,
-      logicalBounds: boundsSchema,
-      layer: finiteNumberSchema,
-    }),
     captures: z.array(captureSchema),
+    diagnostics: z.array(diagnosticSchema),
     hitRegionsByState: z.record(rendererIdSchema, z.array(hitRegionSchema)).optional(),
+    ok: z.literal(true),
     provenance: rendererIdentitySchema.extend({
-      inputHash: rendererIdSchema,
       buildContextHash: rendererIdSchema,
       environmentHash: rendererIdSchema,
+      inputHash: rendererIdSchema,
       rendererConfigHash: rendererIdSchema,
       rendererFingerprint: rendererIdSchema,
     }),
-    diagnostics: z.array(diagnosticSchema),
+    renderSurface: z.strictObject({
+      id: rendererIdSchema,
+      layer: finiteNumberSchema,
+      logicalBounds: boundsSchema,
+      semanticSurfaceId: rendererIdSchema,
+    }),
   }),
 ]);

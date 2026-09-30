@@ -12,8 +12,8 @@ import type {
 } from "../../../src/modules/sessions/repository";
 import { SessionError, SessionService } from "../../../src/modules/sessions/service";
 
-const owner = { userId: "owner", globalRole: "user" } as const;
-const admin = { userId: "admin", globalRole: "admin" } as const;
+const owner = { globalRole: "user", userId: "owner" } as const;
+const admin = { globalRole: "admin", userId: "admin" } as const;
 
 class FakePresentations implements Pick<PresentationRepository, "findById" | "roleFor"> {
   async findById(id: string) {
@@ -28,7 +28,7 @@ class FakePresentations implements Pick<PresentationRepository, "findById" | "ro
 class FakeSessions implements SessionRepository {
   records = new Map<string, SessionRecord>();
   participants = new Map<string, SessionParticipant>();
-  attempts: Array<{ codeHash: string; userId: string; ipAddress: string; attemptedAt: number }> =
+  attempts: Array<{ attemptedAt: number; codeHash: string; ipAddress: string; userId: string }> =
     [];
 
   async create(record: SessionRecord, presenter: SessionParticipant) {
@@ -50,24 +50,32 @@ class FakeSessions implements SessionRepository {
   }
   async join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult> {
     const session = this.records.get(sessionId);
-    if (!session) return "not_found";
-    if (session.state === "Ended") return "ended";
-    if (await this.participantFor(sessionId, userId)) return "existing";
-    if (session.participantCount === session.maxParticipants) return "full";
+    if (!session) {
+      return "not_found";
+    }
+    if (session.state === "Ended") {
+      return "ended";
+    }
+    if (await this.participantFor(sessionId, userId)) {
+      return "existing";
+    }
+    if (session.participantCount === session.maxParticipants) {
+      return "full";
+    }
     this.participants.set(`${sessionId}:${userId}`, {
+      joinedAt,
+      role: "viewer",
       sessionId,
       userId,
-      role: "viewer",
-      joinedAt,
     });
     session.participantCount += 1;
     return "joined";
   }
   async consumeJoinAttempt(input: {
-    codeHash: string;
-    userId: string;
-    ipAddress: string;
     attemptedAt: number;
+    codeHash: string;
+    ipAddress: string;
+    userId: string;
     windowStart: number;
   }) {
     const count = this.attempts.filter(
@@ -77,19 +85,25 @@ class FakeSessions implements SessionRepository {
           attempt.userId === input.userId ||
           attempt.ipAddress === input.ipAddress),
     ).length;
-    if (count >= 10) return false;
+    if (count >= 10) {
+      return false;
+    }
     this.attempts.push(input);
     return true;
   }
   async start(id: string) {
     const session = this.records.get(id);
-    if (!session || session.state !== "Waiting") return null;
+    if (!session || session.state !== "Waiting") {
+      return null;
+    }
     session.state = "Presenting";
     return session;
   }
   async end(id: string, endedAt: string) {
     const session = this.records.get(id);
-    if (!session) return null;
+    if (!session) {
+      return null;
+    }
     session.state = "Ended";
     session.endedAt = endedAt;
     return session;
@@ -115,7 +129,7 @@ describe("SessionService", () => {
     const { service, sessions } = setup();
     await expect(service.create(owner, "presentation")).resolves.toMatchObject({
       joinCode: "ABCD-EFGH",
-      session: { state: "Waiting", presenterId: "owner", participantCount: 1 },
+      session: { participantCount: 1, presenterId: "owner", state: "Waiting" },
     });
     await expect(sessions.participantFor("session-1", "owner")).resolves.toMatchObject({
       role: "presenter",
@@ -125,7 +139,7 @@ describe("SessionService", () => {
   it("allows only an administrator or a presentation member to create", async () => {
     const { service } = setup();
     await expect(
-      service.create({ userId: "other", globalRole: "user" }, "presentation"),
+      service.create({ globalRole: "user", userId: "other" }, "presentation"),
     ).rejects.toMatchObject({
       code: "forbidden",
     } satisfies Partial<SessionError>);
@@ -138,7 +152,7 @@ describe("SessionService", () => {
     const { service } = setup();
     const created = await service.create(owner, "presentation");
     await expect(
-      service.get({ userId: "viewer", globalRole: "user" }, created.session.id),
+      service.get({ globalRole: "user", userId: "viewer" }, created.session.id),
     ).rejects.toMatchObject({
       code: "forbidden",
     } satisfies Partial<SessionError>);
@@ -162,14 +176,14 @@ describe("SessionService", () => {
     const created = await service.create(owner, "presentation");
     expect(created.session).not.toHaveProperty("joinCodeHash");
     await expect(
-      service.join({ userId: "viewer", globalRole: "user" }, created.joinCode, "127.0.0.1"),
+      service.join({ globalRole: "user", userId: "viewer" }, created.joinCode, "127.0.0.1"),
     ).resolves.toEqual(expect.objectContaining({ participantCount: 2 }));
     await expect(
-      service.join({ userId: "viewer", globalRole: "user" }, created.joinCode, "127.0.0.1"),
+      service.join({ globalRole: "user", userId: "viewer" }, created.joinCode, "127.0.0.1"),
     ).resolves.toEqual(expect.objectContaining({ participantCount: 2 }));
     await service.end(owner, created.session.id);
     await expect(
-      service.join({ userId: "other", globalRole: "user" }, created.joinCode, "127.0.0.2"),
+      service.join({ globalRole: "user", userId: "other" }, created.joinCode, "127.0.0.2"),
     ).rejects.toMatchObject({
       code: "not_found",
     } satisfies Partial<SessionError>);
@@ -179,7 +193,7 @@ describe("SessionService", () => {
     const { service } = setup();
     const created = await service.create(owner, "presentation");
     await expect(
-      service.start({ userId: "viewer", globalRole: "user" }, created.session.id),
+      service.start({ globalRole: "user", userId: "viewer" }, created.session.id),
     ).rejects.toMatchObject({
       code: "forbidden",
     } satisfies Partial<SessionError>);
@@ -197,13 +211,13 @@ describe("SessionService", () => {
     const created = await service.create(owner, "presentation");
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await service.join(
-        { userId: `viewer-${attempt}`, globalRole: "user" },
+        { globalRole: "user", userId: `viewer-${attempt}` },
         created.joinCode,
         `10.0.0.${attempt}`,
       );
     }
     await expect(
-      service.join({ userId: "viewer-11", globalRole: "user" }, created.joinCode, "10.0.0.11"),
+      service.join({ globalRole: "user", userId: "viewer-11" }, created.joinCode, "10.0.0.11"),
     ).rejects.toMatchObject({
       code: "rate_limited",
     } satisfies Partial<SessionError>);

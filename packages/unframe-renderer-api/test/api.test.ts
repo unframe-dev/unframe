@@ -17,36 +17,109 @@ import {
 } from "../src/index.js";
 
 const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
-  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  if (surface.content.kind !== "structured") {
+    throw new TypeError("Expected structured fixture.");
+  }
   return surface.content;
 };
 
 const identity = {
-  id: "baked-web",
-  version: "1.0.0",
   contractVersion: "1",
+  id: "baked-web",
   implementationHash: "sha256:renderer",
+  version: "1.0.0",
 } as const;
 
 const rendererConfigHash = "sha256:renderer-config";
 
 const capabilities = {
+  deterministic: true,
+  fallbackPolicies: ["reject"],
   inputKinds: ["structured"],
-  updateModels: ["static", "finite-state"],
   interactions: ["none", "regions"],
   internalAnimations: ["none"],
   rendererPreferences: ["baked-web"],
-  fallbackPolicies: ["reject"],
-  deterministic: true,
+  updateModels: ["static", "finite-state"],
 } as const satisfies RendererCapabilities;
 
 const input = {
+  context: {
+    buildContextHash: "sha256:context",
+    colorScheme: "dark",
+    environmentHash: "sha256:environment",
+    inputHash: "sha256:input",
+    locale: "ja-JP",
+    pixelTarget: [2, 1],
+    rendererConfigHash,
+    rendererFingerprint: createRendererFingerprint(identity, rendererConfigHash),
+    themeHash: "sha256:theme",
+    themeId: "theme-default",
+    timezone: "Asia/Tokyo",
+  },
+  entry: { kind: "structured" },
+  fontAssets: {
+    "font-main": {
+      checksum: `sha256:${"0".repeat(64)}`,
+      dataBase64: "AAEAAA==",
+      mediaType: "font/ttf",
+    },
+  },
+  plan: {
+    clipWindow: { x: 0, y: 0, width: 1920, height: 1080 },
+    id: "render-surface-title",
+    layer: 0,
+    logicalBounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    ownership: {
+      kind: "structured",
+      ownedContentNodeIds: ["text-title"],
+      contextNodeIds: ["frame-root"],
+    },
+    semanticSurfaceId: "surface-title",
+    states: { "state-default": { kind: "capture" } },
+  },
+  resolvedIntent: {
+    fallbackPolicy: "reject",
+    interaction: { kind: "none" },
+    internalAnimation: { kind: "none" },
+    selectedRendererId: "baked-web",
+    updateModel: { kind: "static" },
+  },
+  semanticsByState: {
+    "state-default": {
+      nodes: {
+        "semantic-title": {
+          id: "semantic-title",
+          parentId: null,
+          order: 0,
+          role: "heading",
+          level: 1,
+          text: "Hello",
+        },
+      },
+      rootNodeIds: ["semantic-title"],
+    },
+  },
+  sourceIntent: {
+    fallbackPolicy: "reject",
+    interaction: { kind: "none" },
+    internalAnimation: { kind: "none" },
+    rendererPreference: "auto",
+    updateModel: { kind: "static" },
+  },
   surface: {
-    id: "surface-title",
-    hostNodeId: "surface-node-title",
-    physicalSizeMeters: [1.6, 0.9],
-    logicalSize: [1920, 1080],
-    fit: "contain",
+    baseSemanticTree: {
+      rootNodeIds: ["semantic-title"],
+      nodes: {
+        "semantic-title": {
+          id: "semantic-title",
+          parentId: null,
+          order: 0,
+          role: "heading",
+          level: 1,
+          text: "Hello",
+        },
+      },
+    },
     content: {
       kind: "structured",
       rootFrameId: "frame-root",
@@ -93,21 +166,20 @@ const input = {
         },
       },
     },
-    baseSemanticTree: {
-      rootNodeIds: ["semantic-title"],
-      nodes: {
-        "semantic-title": {
-          id: "semantic-title",
-          parentId: null,
-          order: 0,
-          role: "heading",
-          level: 1,
-          text: "Hello",
-        },
-      },
-    },
-    interactions: {},
+    fit: "contain",
+    hostNodeId: "surface-node-title",
+    id: "surface-title",
     initialStateId: "state-default",
+    interactions: {},
+    logicalSize: [1920, 1080],
+    physicalSizeMeters: [1.6, 0.9],
+    renderIntent: {
+      updateModel: { kind: "static" },
+      interaction: { kind: "none" },
+      internalAnimation: { kind: "none" },
+      rendererPreference: "auto",
+      fallbackPolicy: "reject",
+    },
     states: {
       "state-default": {
         id: "state-default",
@@ -116,134 +188,61 @@ const input = {
         enabledInteractionIds: [],
       },
     },
-    renderIntent: {
-      updateModel: { kind: "static" },
-      interaction: { kind: "none" },
-      internalAnimation: { kind: "none" },
-      rendererPreference: "auto",
-      fallbackPolicy: "reject",
-    },
-  },
-  sourceIntent: {
-    updateModel: { kind: "static" },
-    interaction: { kind: "none" },
-    internalAnimation: { kind: "none" },
-    rendererPreference: "auto",
-    fallbackPolicy: "reject",
-  },
-  resolvedIntent: {
-    updateModel: { kind: "static" },
-    interaction: { kind: "none" },
-    internalAnimation: { kind: "none" },
-    selectedRendererId: "baked-web",
-    fallbackPolicy: "reject",
-  },
-  semanticsByState: {
-    "state-default": {
-      rootNodeIds: ["semantic-title"],
-      nodes: {
-        "semantic-title": {
-          id: "semantic-title",
-          parentId: null,
-          order: 0,
-          role: "heading",
-          level: 1,
-          text: "Hello",
-        },
-      },
-    },
-  },
-  fontAssets: {
-    "font-main": {
-      mediaType: "font/ttf",
-      dataBase64: "AAEAAA==",
-      checksum: `sha256:${"0".repeat(64)}`,
-    },
-  },
-  plan: {
-    id: "render-surface-title",
-    semanticSurfaceId: "surface-title",
-    logicalBounds: { x: 0, y: 0, width: 1920, height: 1080 },
-    layer: 0,
-    ownership: {
-      kind: "structured",
-      ownedContentNodeIds: ["text-title"],
-      contextNodeIds: ["frame-root"],
-    },
-    clipWindow: { x: 0, y: 0, width: 1920, height: 1080 },
-    states: { "state-default": { kind: "capture" } },
-  },
-  entry: { kind: "structured" },
-  context: {
-    locale: "ja-JP",
-    timezone: "Asia/Tokyo",
-    colorScheme: "dark",
-    themeId: "theme-default",
-    themeHash: "sha256:theme",
-    inputHash: "sha256:input",
-    buildContextHash: "sha256:context",
-    environmentHash: "sha256:environment",
-    rendererConfigHash,
-    rendererFingerprint: createRendererFingerprint(identity, rendererConfigHash),
-    pixelTarget: [2, 1],
   },
 } as const satisfies CompilerResolvedSurfaceInput;
 
 const opaqueInput: CompilerResolvedSurfaceInput = {
   ...input,
-  surface: {
-    ...input.surface,
-    content: { kind: "opaque", bindings: { title: "semantic-title" } },
-  },
+  entry: { entryId: "opaque-entry", kind: "opaque", moduleHash: "sha256:module" },
   plan: {
     ...input.plan,
-    ownership: { kind: "opaque", bindingKeys: ["title"] },
+    ownership: { bindingKeys: ["title"], kind: "opaque" },
   },
-  entry: { kind: "opaque", entryId: "opaque-entry", moduleHash: "sha256:module" },
+  surface: {
+    ...input.surface,
+    content: { bindings: { title: "semantic-title" }, kind: "opaque" },
+  },
 };
 
 const fixture = (value: CompilerResolvedSurfaceInput = input): RendererConformanceFixture => ({
-  name: "title-surface",
   input: value,
+  name: "title-surface",
 });
 
 const provenance = (value: CompilerResolvedSurfaceInput) => ({
   ...identity,
-  inputHash: value.context.inputHash,
   buildContextHash: value.context.buildContextHash,
   environmentHash: value.context.environmentHash,
+  inputHash: value.context.inputHash,
   rendererConfigHash: value.context.rendererConfigHash,
   rendererFingerprint: value.context.rendererFingerprint,
 });
 
 const renderSurface = (value: CompilerResolvedSurfaceInput) => ({
   id: value.plan.id,
-  semanticSurfaceId: value.plan.semanticSurfaceId,
-  logicalBounds: value.plan.logicalBounds,
   layer: value.plan.layer,
+  logicalBounds: value.plan.logicalBounds,
+  semanticSurfaceId: value.plan.semanticSurfaceId,
 });
 
 const successfulResult = (value: CompilerResolvedSurfaceInput): RendererBuildResult => ({
-  ok: true,
-  renderSurface: renderSurface(value),
   captures: Object.entries(value.plan.states)
     .filter(([, statePlan]) => statePlan.kind === "capture")
     .map(([stateId]) => ({
-      id: `capture-${stateId}`,
-      stateId,
-      rgba: new Uint8Array(value.context.pixelTarget[0] * value.context.pixelTarget[1] * 4),
-      pixelSize: value.context.pixelTarget,
-      colorSpace: "srgb" as const,
       alphaMode: "straight" as const,
+      colorSpace: "srgb" as const,
+      id: `capture-${stateId}`,
+      pixelSize: value.context.pixelTarget,
+      rgba: new Uint8Array(value.context.pixelTarget[0] * value.context.pixelTarget[1] * 4),
+      stateId,
     })),
-  provenance: provenance(value),
   diagnostics: [],
+  ok: true,
+  provenance: provenance(value),
+  renderSurface: renderSurface(value),
 });
 
 const goodPlugin = defineRendererPlugin({
-  identity,
-  capabilities,
-  support: evaluateFirstMilestoneSupport,
   build: (value) => {
     const support = evaluateFirstMilestoneSupport({
       entry: value.entry,
@@ -251,8 +250,11 @@ const goodPlugin = defineRendererPlugin({
     });
     return support.supported
       ? successfulResult(value)
-      : { ok: false, diagnostics: support.diagnostics };
+      : { diagnostics: support.diagnostics, ok: false };
   },
+  capabilities,
+  identity,
+  support: evaluateFirstMilestoneSupport,
 });
 
 describe("first-milestone plugin contract", () => {
@@ -266,21 +268,21 @@ describe("first-milestone plugin contract", () => {
     const malformed = [
       {
         ...opaque,
-        plan: { ...opaque.plan, ownership: { kind: "opaque", bindingKeys: ["missing"] } },
+        plan: { ...opaque.plan, ownership: { bindingKeys: ["missing"], kind: "opaque" } },
       },
       {
         ...opaque,
-        plan: { ...opaque.plan, ownership: { kind: "opaque", bindingKeys: ["title", "title"] } },
+        plan: { ...opaque.plan, ownership: { bindingKeys: ["title", "title"], kind: "opaque" } },
       },
       {
         ...opaque,
-        plan: { ...opaque.plan, logicalBounds: { x: 0, y: 0, width: 100, height: 100 } },
+        plan: { ...opaque.plan, logicalBounds: { height: 100, width: 100, x: 0, y: 0 } },
       },
       {
         ...opaque,
         plan: {
           ...opaque.plan,
-          ownership: { kind: "structured", ownedContentNodeIds: [], contextNodeIds: [] },
+          ownership: { contextNodeIds: [], kind: "structured", ownedContentNodeIds: [] },
         },
       },
       {
@@ -299,52 +301,53 @@ describe("first-milestone plugin contract", () => {
         ...opaque,
         surface: {
           ...opaque.surface,
-          content: { kind: "opaque", bindings: { title: "unknown-semantic" } },
+          content: { bindings: { title: "unknown-semantic" }, kind: "opaque" },
         },
       },
     ];
-    for (const candidate of malformed)
+    for (const candidate of malformed) {
       expect(prepareRendererBuildInput(candidate, goodPlugin).valid).toBe(false);
+    }
   });
 
   it("opaque bindings must cover base semantic nodes exactly once", () => {
     const duplicate = {
       ...opaqueInput,
-      surface: {
-        ...opaqueInput.surface,
-        content: { kind: "opaque", bindings: { title: "semantic-title", copy: "semantic-title" } },
-      },
       plan: {
         ...opaqueInput.plan,
-        ownership: { kind: "opaque", bindingKeys: ["title", "copy"] },
+        ownership: { bindingKeys: ["title", "copy"], kind: "opaque" },
+      },
+      surface: {
+        ...opaqueInput.surface,
+        content: { bindings: { title: "semantic-title", copy: "semantic-title" }, kind: "opaque" },
       },
     };
     expect(prepareRendererBuildInput(duplicate, goodPlugin).valid).toBe(false);
 
     const second = {
       id: "semantic-second",
-      parentId: null,
-      order: 1,
-      role: "heading",
       level: 2,
+      order: 1,
+      parentId: null,
+      role: "heading",
       text: "Second",
     } as const;
     const missing = {
       ...opaqueInput,
-      surface: {
-        ...opaqueInput.surface,
-        baseSemanticTree: {
-          rootNodeIds: ["semantic-title", "semantic-second"],
-          nodes: { ...opaqueInput.surface.baseSemanticTree.nodes, "semantic-second": second },
-        },
-      },
       semanticsByState: {
         "state-default": {
-          rootNodeIds: ["semantic-title", "semantic-second"],
           nodes: {
             ...opaqueInput.semanticsByState["state-default"]!.nodes,
             "semantic-second": second,
           },
+          rootNodeIds: ["semantic-title", "semantic-second"],
+        },
+      },
+      surface: {
+        ...opaqueInput.surface,
+        baseSemanticTree: {
+          nodes: { ...opaqueInput.surface.baseSemanticTree.nodes, "semantic-second": second },
+          rootNodeIds: ["semantic-title", "semantic-second"],
         },
       },
     };
@@ -355,13 +358,13 @@ describe("first-milestone plugin contract", () => {
     let calls = 0;
     const plugin = {
       ...goodPlugin,
-      support: (request: Parameters<RendererPlugin["support"]>[0]) => {
-        calls++;
-        return evaluateFirstMilestoneSupport(request);
-      },
       build: (value: CompilerResolvedSurfaceInput) => {
         calls++;
         return successfulResult(value);
+      },
+      support: (request: Parameters<RendererPlugin["support"]>[0]) => {
+        calls++;
+        return evaluateFirstMilestoneSupport(request);
       },
     };
     for (const candidate of [
@@ -411,8 +414,9 @@ describe("first-milestone plugin contract", () => {
       expect(prepared.value.context.locale).toBe("ja-JP");
       const preparedText = structuredContent(prepared.value.surface).nodes["text-title"];
       expect(preparedText?.kind).toBe("text");
-      if (preparedText?.kind === "text")
+      if (preparedText?.kind === "text") {
         expect(preparedText.value).toEqual({ kind: "literal", value: "Hello" });
+      }
     }
 
     const execution = await executeRendererPlugin(goodPlugin, proxiedInput);
@@ -449,13 +453,15 @@ describe("first-milestone plugin contract", () => {
       ...goodPlugin,
       build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
         const result = successfulResult(value);
-        if (!result.ok) return result;
+        if (!result.ok) {
+          return result;
+        }
         return {
           ...result,
           captures: result.captures.map((capture) => ({
             ...capture,
-            rgba: (emittedBytes = new Uint8Array(capture.rgba.byteLength).fill(255)),
             alphaMode: "opaque" as const,
+            rgba: (emittedBytes = new Uint8Array(capture.rgba.byteLength).fill(255)),
           })),
         };
       },
@@ -464,7 +470,9 @@ describe("first-milestone plugin contract", () => {
     const result = await executeRendererPlugin(plugin, largeInput);
 
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const rgba = result.value.captures[0]?.rgba;
     expect(rgba !== undefined).toBe(true);
     expect(rgba !== emittedBytes).toBe(true);
@@ -487,7 +495,9 @@ describe("first-milestone plugin contract", () => {
               ...structuredContent(input.surface).nodes,
               "frame-root": (() => {
                 const root = structuredContent(input.surface).nodes["frame-root"];
-                if (root?.kind !== "frame") throw new TypeError("Expected Frame fixture.");
+                if (root?.kind !== "frame") {
+                  throw new TypeError("Expected Frame fixture.");
+                }
                 const { children: _children, ...frame } = root;
                 return frame;
               })(),
@@ -527,7 +537,7 @@ describe("first-milestone plugin contract", () => {
               ...structuredContent(input.surface).nodes,
               "text-title": {
                 ...structuredContent(input.surface).nodes["text-title"],
-                placement: { kind: "absolute", x: 120, y: 80, width: 1680 },
+                placement: { kind: "absolute", width: 1680, x: 120, y: 80 },
               },
             },
           },
@@ -546,7 +556,7 @@ describe("first-milestone plugin contract", () => {
               ...structuredContent(input.surface).nodes,
               "text-title": {
                 ...structuredContent(input.surface).nodes["text-title"],
-                placement: { x: 120, y: 80, width: 1680, height: 200 },
+                placement: { height: 200, width: 1680, x: 120, y: 80 },
               },
             },
           },
@@ -616,10 +626,11 @@ describe("first-milestone plugin contract", () => {
     const result = prepareRendererBuildInput(malformed, goodPlugin);
 
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics).toContainEqual(
         expect.objectContaining({ code: "invalid-renderer-input", path: [] }),
       );
+    }
   });
 
   it.each([
@@ -680,8 +691,8 @@ describe("first-milestone plugin contract", () => {
     expect(
       prepareRendererBuildInput(malformed as unknown as CompilerResolvedSurfaceInput, goodPlugin),
     ).toMatchObject({
-      valid: false,
       diagnostics: [expect.objectContaining({ code: "invalid-renderer-input" })],
+      valid: false,
     });
   });
 
@@ -692,20 +703,20 @@ describe("first-milestone plugin contract", () => {
       "duplicate finite states",
       {
         ...input,
+        resolvedIntent: {
+          ...input.resolvedIntent,
+          updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
+        },
+        sourceIntent: {
+          ...input.sourceIntent,
+          updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
+        },
         surface: {
           ...input.surface,
           renderIntent: {
             ...input.surface.renderIntent,
             updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
           },
-        },
-        sourceIntent: {
-          ...input.sourceIntent,
-          updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
-        },
-        resolvedIntent: {
-          ...input.resolvedIntent,
-          updateModel: { kind: "finite-state", stateIds: ["state-default", "state-default"] },
         },
       },
     ],
@@ -715,11 +726,11 @@ describe("first-milestone plugin contract", () => {
         ...input,
         semanticsByState: {
           "state-default": {
-            rootNodeIds: [],
             nodes: {
-              a: { id: "a", parentId: "b", order: 0, role: "paragraph" },
-              b: { id: "b", parentId: "a", order: 0, role: "paragraph" },
+              a: { id: "a", order: 0, parentId: "b", role: "paragraph" },
+              b: { id: "b", order: 0, parentId: "a", role: "paragraph" },
             },
+            rootNodeIds: [],
           },
         },
       },
@@ -747,7 +758,7 @@ describe("first-milestone plugin contract", () => {
         ...input,
         surface: {
           ...input.surface,
-          interactions: { tap: { id: "tap", kind: "click", event: "advance", hitPriority: 0 } },
+          interactions: { tap: { event: "advance", hitPriority: 0, id: "tap", kind: "click" } },
           states: {
             "state-default": {
               ...input.surface.states["state-default"],
@@ -769,12 +780,12 @@ describe("first-milestone plugin contract", () => {
               ...structuredContent(input.surface).nodes,
               detached: {
                 ...structuredContent(input.surface).nodes["frame-root"],
+                children: [],
                 id: "detached",
                 kind: "frame",
-                parentId: null,
-                order: 1,
                 layout: { kind: "absolute" },
-                children: [],
+                order: 1,
+                parentId: null,
               },
             },
           },
@@ -793,8 +804,8 @@ describe("first-milestone plugin contract", () => {
               ...structuredContent(input.surface).nodes,
               "text-title": {
                 ...structuredContent(input.surface).nodes["text-title"],
-                parentId: null,
                 order: 2,
+                parentId: null,
               },
             },
           },
@@ -813,7 +824,7 @@ describe("first-milestone plugin contract", () => {
       surface: {
         ...input.surface,
         interactions: {
-          tap: { id: "different-id", kind: "click", event: "advance", hitPriority: 0 },
+          tap: { event: "advance", hitPriority: 0, id: "different-id", kind: "click" },
         },
         states: {
           "state-default": {
@@ -829,8 +840,8 @@ describe("first-milestone plugin contract", () => {
 
   it("prepare rejects a Text font reference missing from fontAssets", () => {
     expect(prepareRendererBuildInput({ ...input, fontAssets: {} }, goodPlugin)).toMatchObject({
-      valid: false,
       diagnostics: [{ code: "invalid-renderer-input" }],
+      valid: false,
     });
   });
 
@@ -845,21 +856,21 @@ describe("first-milestone plugin contract", () => {
             ...structuredContent(input.surface).nodes,
             "detached-a": {
               ...structuredContent(input.surface).nodes["frame-root"],
+              children: ["detached-b"],
               id: "detached-a",
               kind: "frame",
-              parentId: "detached-b",
-              order: 0,
               layout: { kind: "absolute" },
-              children: ["detached-b"],
+              order: 0,
+              parentId: "detached-b",
             },
             "detached-b": {
               ...structuredContent(input.surface).nodes["frame-root"],
+              children: ["detached-a"],
               id: "detached-b",
               kind: "frame",
-              parentId: "detached-a",
-              order: 0,
               layout: { kind: "absolute" },
-              children: ["detached-a"],
+              order: 0,
+              parentId: "detached-a",
             },
           },
         },
@@ -872,27 +883,28 @@ describe("first-milestone plugin contract", () => {
   it("prepare rejects Frame children outside canonical sibling order", () => {
     const text = structuredContent(input.surface).nodes["text-title"];
     const root = structuredContent(input.surface).nodes["frame-root"];
-    if (text?.kind !== "text" || root?.kind !== "frame")
+    if (text?.kind !== "text" || root?.kind !== "frame") {
       throw new TypeError("Expected Frame/Text fixture.");
+    }
     const malformed: CompilerResolvedSurfaceInput = {
       ...input,
+      plan: {
+        ...input.plan,
+        ownership: { ...input.plan.ownership, ownedContentNodeIds: ["text-second", "text-title"] },
+      },
       surface: {
         ...input.surface,
         content: {
           ...structuredContent(input.surface),
           nodes: {
             ...structuredContent(input.surface).nodes,
-            "text-second": { ...text, id: "text-second", order: 1 },
             "frame-root": {
               ...root,
               children: ["text-second", "text-title"],
             },
+            "text-second": { ...text, id: "text-second", order: 1 },
           },
         },
-      },
-      plan: {
-        ...input.plan,
-        ownership: { ...input.plan.ownership, ownedContentNodeIds: ["text-second", "text-title"] },
       },
     };
 
@@ -903,19 +915,21 @@ describe("first-milestone plugin contract", () => {
     let iteratorCalls = 0;
     const bytes = new Uint8ClampedArray(8);
     Object.defineProperties(bytes, {
-      [Symbol.toStringTag]: { value: "Uint8Array" },
       [Symbol.iterator]: {
         value() {
           iteratorCalls++;
           throw new Error("must not iterate hostile bytes");
         },
       },
+      [Symbol.toStringTag]: { value: "Uint8Array" },
     });
     const hostile = defineRendererPlugin({
       ...goodPlugin,
       build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
         const result = successfulResult(value);
-        if (!result.ok) return result;
+        if (!result.ok) {
+          return result;
+        }
         return {
           ...result,
           captures: [{ ...result.captures[0]!, rgba: bytes as unknown as Uint8Array }],
@@ -925,8 +939,9 @@ describe("first-milestone plugin contract", () => {
     const result = await runRendererConformance(hostile, [fixture()]);
     expect(result.valid).toBe(false);
     expect(iteratorCalls).toBe(0);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+    }
   });
 
   it("sparse failure diagnostics と不透明でない opaque capture を拒否する", async () => {
@@ -934,50 +949,55 @@ describe("first-milestone plugin contract", () => {
       ...goodPlugin,
       build: () =>
         ({
-          ok: false,
           diagnostics: Object.assign([], { length: 1 }),
+          ok: false,
         }) as RendererBuildResult,
     });
     const sparseResult = await runRendererConformance(sparseFailure, [fixture()]);
     expect(sparseResult.valid).toBe(false);
-    if (!sparseResult.valid)
+    if (!sparseResult.valid) {
       expect(sparseResult.diagnostics.map(({ code }) => code)).toContain(
         "malformed-renderer-output",
       );
+    }
 
     const invalidOpaque = defineRendererPlugin({
       ...goodPlugin,
       build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
         const result = successfulResult(value);
-        if (!result.ok) return result;
+        if (!result.ok) {
+          return result;
+        }
         const rgba = new Uint8Array(result.captures[0]!.rgba);
         rgba[3] = 1;
         return {
           ...result,
-          captures: [{ ...result.captures[0]!, rgba, alphaMode: "opaque" as const }],
+          captures: [{ ...result.captures[0]!, alphaMode: "opaque" as const, rgba }],
         };
       },
     });
     const opaqueResult = await runRendererConformance(invalidOpaque, [fixture()]);
     expect(opaqueResult.valid).toBe(false);
-    if (!opaqueResult.valid)
+    if (!opaqueResult.valid) {
       expect(opaqueResult.diagnostics.map(({ code }) => code)).toContain("invalid-opaque-alpha");
+    }
   });
 
   it("sparse または非有限な diagnostic path を拒否する", async () => {
-    const sparsePath = Object.assign([], { length: 1 }) as unknown as (string | number)[];
+    const sparsePath = Object.assign([], { length: 1 }) as unknown as Array<string | number>;
     for (const path of [sparsePath, [Number.NaN], [Number.POSITIVE_INFINITY]]) {
       const plugin = defineRendererPlugin({
         ...goodPlugin,
         build: () => ({
-          ok: false as const,
           diagnostics: [{ code: "failure", message: "failure", path }],
+          ok: false as const,
         }),
       });
       const result = await runRendererConformance(plugin, [fixture()]);
       expect(result.valid).toBe(false);
-      if (!result.valid)
+      if (!result.valid) {
         expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+      }
     }
   });
 
@@ -987,7 +1007,9 @@ describe("first-milestone plugin contract", () => {
       ...goodPlugin,
       build(value: CompilerResolvedSurfaceInput): RendererBuildResult {
         const result = successfulResult(value);
-        if (!result.ok) return result;
+        if (!result.ok) {
+          return result;
+        }
         return Object.defineProperties(
           { ...result, unexpected: true },
           {
@@ -1005,8 +1027,9 @@ describe("first-milestone plugin contract", () => {
     const result = await runRendererConformance(hostileOutput, [fixture()]);
     expect(accessorReads).toBe(0);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+    }
   });
 
   it("固定した method の mutable call property を参照しない", async () => {
@@ -1015,7 +1038,7 @@ describe("first-milestone plugin contract", () => {
     const build = (value: CompilerResolvedSurfaceInput) => successfulResult(value);
     Object.defineProperty(support, "call", { value: () => Promise.reject(new Error("unused")) });
     Object.defineProperty(build, "call", { value: () => Promise.reject(new Error("unused")) });
-    const plugin = defineRendererPlugin({ ...goodPlugin, support, build });
+    const plugin = defineRendererPlugin({ ...goodPlugin, build, support });
     await expect(executeRendererPlugin(plugin, input)).resolves.toMatchObject({ valid: true });
   });
 
@@ -1023,7 +1046,7 @@ describe("first-milestone plugin contract", () => {
     expect(validateRendererBuildInput(null, {})).toMatchObject([
       { code: "invalid-renderer-plugin" },
     ]);
-    expect(validateRendererBuildInput({ plan: {} }, { identity, capabilities })).toMatchObject([
+    expect(validateRendererBuildInput({ plan: {} }, { capabilities, identity })).toMatchObject([
       { code: "invalid-renderer-plugin" },
     ]);
     let contextReads = 0;
@@ -1039,7 +1062,7 @@ describe("first-milestone plugin contract", () => {
     expect(contextReads).toBe(0);
   });
   it("sparse boundary values と malformed Text node を prefix 付きで拒否する", async () => {
-    const sparsePixelTarget = [2, undefined] as unknown as number[];
+    const sparsePixelTarget = [2, undefined] as unknown as Array<number>;
     delete sparsePixelTarget[1];
     expect(
       validateRendererBuildInput(
@@ -1064,17 +1087,18 @@ describe("first-milestone plugin contract", () => {
       expect.objectContaining({ code: "invalid-renderer-input", path: [] }),
     );
     const malformedFixture = await runRendererConformance(goodPlugin, [
-      { name: "malformed-fixture", input: malformedText },
+      { input: malformedText, name: "malformed-fixture" },
     ]);
     expect(malformedFixture.valid).toBe(false);
-    if (!malformedFixture.valid)
+    if (!malformedFixture.valid) {
       expect(malformedFixture.diagnostics).toContainEqual(
         expect.objectContaining({
           code: "invalid-renderer-input",
           path: ["malformed-fixture", "input"],
         }),
       );
-    const sparseCapabilities = [undefined] as unknown as string[];
+    }
+    const sparseCapabilities = [undefined] as unknown as Array<string>;
     delete sparseCapabilities[0];
     expect(
       validateRendererPlugin({
@@ -1095,24 +1119,26 @@ describe("first-milestone plugin contract", () => {
     );
     const execution = await executeRendererPlugin(goodPlugin, invalid);
     expect(execution.valid).toBe(false);
-    if (!execution.valid)
+    if (!execution.valid) {
       expect(execution.diagnostics).toContainEqual(
         expect.objectContaining({
           code: "source-render-intent-mismatch",
           path: ["single", "input", "sourceIntent"],
         }),
       );
+    }
     const result = await runRendererConformance(goodPlugin, [
-      { name: "fixture-a", input: invalid },
+      { input: invalid, name: "fixture-a" },
     ]);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics).toContainEqual(
         expect.objectContaining({
           code: "source-render-intent-mismatch",
           path: ["fixture-a", "input", "sourceIntent"],
         }),
       );
+    }
   });
   it("rejects malformed plugins before invoking them", async () => {
     const invalid = { ...goodPlugin, identity: { ...identity, id: "" } };
@@ -1150,12 +1176,12 @@ describe("first-milestone plugin contract", () => {
     let calls = 0;
     const plugin = {
       ...goodPlugin,
-      support: () => {
-        throw new Error("no");
-      },
       build: () => {
         calls++;
         return successfulResult(input);
+      },
+      support: () => {
+        throw new Error("no");
       },
     };
     expect((await executeRendererPlugin(plugin, input)).valid).toBe(false);
@@ -1165,16 +1191,16 @@ describe("first-milestone plugin contract", () => {
     let calls = 0;
     const plugin = {
       ...goodPlugin,
+      build: () => {
+        calls++;
+        return successfulResult(input);
+      },
       support: () => {
         (input.plan.states as Record<string, unknown>).changed = {};
         return evaluateFirstMilestoneSupport({
           entry: input.entry,
           resolvedIntent: input.resolvedIntent,
         });
-      },
-      build: () => {
-        calls++;
-        return successfulResult(input);
       },
     };
     const result = await executeRendererPlugin(plugin, input);
@@ -1186,7 +1212,7 @@ describe("first-milestone plugin contract", () => {
     let calls = 0;
     const unsupported = {
       ...input,
-      entry: { kind: "opaque" as const, entryId: "x", moduleHash: "h" },
+      entry: { entryId: "x", kind: "opaque" as const, moduleHash: "h" },
     };
     const plugin = {
       ...goodPlugin,
@@ -1206,11 +1232,11 @@ describe("first-milestone plugin contract", () => {
     } as never as CompilerResolvedSurfaceInput;
     const plugin = {
       ...goodPlugin,
+      build: () => successfulResult(input),
       support: () => {
         calls++;
-        return { supported: true, diagnostics: [] } as const;
+        return { diagnostics: [], supported: true } as const;
       },
-      build: () => successfulResult(input),
     };
     expect((await executeRendererPlugin(plugin, invalid)).valid).toBe(false);
     expect(calls).toBe(0);
@@ -1223,21 +1249,21 @@ describe("first-milestone plugin contract", () => {
       plan: {
         ...input.plan,
         ownership: {
+          contextNodeIds: [],
           kind: "structured",
           ownedContentNodeIds: ["missing-node"],
-          contextNodeIds: [],
         },
       },
     } as const satisfies CompilerResolvedSurfaceInput;
     const plugin = {
       ...goodPlugin,
-      support: () => {
-        supportCalls++;
-        return { supported: true, diagnostics: [] } as const;
-      },
       build: () => {
         buildCalls++;
         return successfulResult(input);
+      },
+      support: () => {
+        supportCalls++;
+        return { diagnostics: [], supported: true } as const;
       },
     };
 
@@ -1252,8 +1278,8 @@ describe("first-milestone plugin contract", () => {
     if (result.valid) {
       expect(result.value[0]).toMatchObject({
         ok: true,
-        renderSurface: { id: "render-surface-title", semanticSurfaceId: "surface-title" },
         provenance: identity,
+        renderSurface: { id: "render-surface-title", semanticSurfaceId: "surface-title" },
       });
     }
   });
@@ -1261,19 +1287,19 @@ describe("first-milestone plugin contract", () => {
   it("rejects unsupported input and intent variants with stable decisions", () => {
     expect(
       evaluateFirstMilestoneSupport({
-        entry: { kind: "opaque", entryId: "chart", moduleHash: "h" },
+        entry: { entryId: "chart", kind: "opaque", moduleHash: "h" },
         resolvedIntent: input.resolvedIntent,
       }),
-    ).toMatchObject({ supported: false, diagnostics: [{ code: "unsupported-input-kind" }] });
+    ).toMatchObject({ diagnostics: [{ code: "unsupported-input-kind" }], supported: false });
     expect(
       evaluateFirstMilestoneSupport({
         entry: input.entry,
         resolvedIntent: {
           ...input.resolvedIntent,
-          interaction: { kind: "regions", events: ["click"] },
+          interaction: { events: ["click"], kind: "regions" },
         },
       }),
-    ).toMatchObject({ supported: true, diagnostics: [] });
+    ).toMatchObject({ diagnostics: [], supported: true });
     expect(
       evaluateFirstMilestoneSupport({
         entry: input.entry,
@@ -1282,38 +1308,41 @@ describe("first-milestone plugin contract", () => {
           updateModel: { kind: "continuous-native-text", maximumUpdateRateHz: 1 },
         },
       }),
-    ).toMatchObject({ supported: false, diagnostics: [{ code: "unsupported-update-model" }] });
+    ).toMatchObject({ diagnostics: [{ code: "unsupported-update-model" }], supported: false });
     expect(
       evaluateFirstMilestoneSupport({
         entry: input.entry,
         resolvedIntent: { ...input.resolvedIntent, selectedRendererId: "video" },
       }),
     ).toMatchObject({
-      supported: false,
       diagnostics: [{ code: "unsupported-renderer" }],
+      supported: false,
     });
   });
 
   it("conforms when unsupported inputs return diagnostic failures", async () => {
     const result = await runRendererConformance(goodPlugin, [fixture(opaqueInput)]);
     expect(result.valid).toBe(true);
-    if (result.valid) expect(result.value[0]).toMatchObject({ ok: false });
+    if (result.valid) {
+      expect(result.value[0]).toMatchObject({ ok: false });
+    }
   });
 
   it("rejects implicit fallback from an explicit renderer preference", async () => {
     const explicitNative = {
       ...input,
+      sourceIntent: { ...input.sourceIntent, rendererPreference: "native-ui" },
       surface: {
         ...input.surface,
         renderIntent: { ...input.surface.renderIntent, rendererPreference: "native-ui" },
       },
-      sourceIntent: { ...input.sourceIntent, rendererPreference: "native-ui" },
     } as const satisfies CompilerResolvedSurfaceInput;
 
     const result = await runRendererConformance(goodPlugin, [fixture(explicitNative)]);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain("renderer-preference-mismatch");
+    }
   });
 
   it("rejects incomplete identity and capability declarations", () => {
@@ -1344,47 +1373,48 @@ describe("conformance diagnostics", () => {
     >["nodes"];
     const inheritedInput = {
       ...input,
+      semanticsByState: inheritedSemantics,
       surface: {
         ...input.surface,
         content: { ...structuredContent(input.surface), nodes: inheritedContentNodes },
       },
-      semanticsByState: inheritedSemantics,
     } as const satisfies CompilerResolvedSurfaceInput;
     const inputResult = await executeRendererPlugin(goodPlugin, inheritedInput);
     expect(inputResult.valid).toBe(false);
-    if (!inputResult.valid)
+    if (!inputResult.valid) {
       expect(inputResult.diagnostics.map(({ code }) => code)).toContain("invalid-renderer-input");
+    }
   });
 
   it("detects RGBA length, state completeness, duplicate IDs, and provenance drift", async () => {
     const invalid = withBuild((value) => ({
-      ok: true,
-      renderSurface: renderSurface(value),
       captures: [
         {
-          id: "duplicate",
-          stateId: "state-default",
-          rgba: new Uint8Array(1),
-          pixelSize: [2, 1],
-          colorSpace: "srgb",
           alphaMode: "straight",
+          colorSpace: "srgb",
+          id: "duplicate",
+          pixelSize: [2, 1],
+          rgba: new Uint8Array(1),
+          stateId: "state-default",
         },
         {
-          id: "duplicate",
-          stateId: "state-default",
-          rgba: new Uint8Array(8),
-          pixelSize: [2, 1],
-          colorSpace: "srgb",
           alphaMode: "straight",
+          colorSpace: "srgb",
+          id: "duplicate",
+          pixelSize: [2, 1],
+          rgba: new Uint8Array(8),
+          stateId: "state-default",
         },
       ],
-      provenance: { ...provenance(value), environmentHash: "wrong" },
       diagnostics: [],
+      ok: true,
+      provenance: { ...provenance(value), environmentHash: "wrong" },
+      renderSurface: renderSurface(value),
     }));
 
     const result = await runRendererConformance(invalid, [fixture()]);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toEqual(
         expect.arrayContaining([
           "duplicate-capture-id",
@@ -1393,6 +1423,7 @@ describe("conformance diagnostics", () => {
           "state-capture-mismatch",
         ]),
       );
+    }
   });
 
   it("detects input mutation, thrown errors, and support/build disagreement", async () => {
@@ -1403,16 +1434,18 @@ describe("conformance diagnostics", () => {
     });
     const mutation = await runRendererConformance(mutating, [fixture(mutable)]);
     expect(mutation.valid).toBe(false);
-    if (!mutation.valid)
+    if (!mutation.valid) {
       expect(mutation.diagnostics.map(({ code }) => code)).toContain("renderer-mutated-input");
+    }
 
     const throwing = withBuild(() => {
       throw new Error("browser crashed");
     });
     const thrown = await runRendererConformance(throwing, [fixture()]);
     expect(thrown.valid).toBe(false);
-    if (!thrown.valid)
+    if (!thrown.valid) {
       expect(thrown.diagnostics.map(({ code }) => code)).toContain("renderer-threw");
+    }
 
     const supportThrowing: RendererPlugin = {
       ...goodPlugin,
@@ -1422,16 +1455,18 @@ describe("conformance diagnostics", () => {
     };
     const supportThrown = await runRendererConformance(supportThrowing, [fixture()]);
     expect(supportThrown.valid).toBe(false);
-    if (!supportThrown.valid)
+    if (!supportThrown.valid) {
       expect(supportThrown.diagnostics.map(({ code }) => code)).toContain("renderer-support-threw");
+    }
 
-    const disagreeing = withBuild(() => ({ ok: false, diagnostics: [] }));
+    const disagreeing = withBuild(() => ({ diagnostics: [], ok: false }));
     const disagreement = await runRendererConformance(disagreeing, [fixture()]);
     expect(disagreement.valid).toBe(false);
-    if (!disagreement.valid)
+    if (!disagreement.valid) {
       expect(disagreement.diagnostics.map(({ code }) => code)).toEqual(
         expect.arrayContaining(["missing-failure-diagnostic", "support-build-mismatch"]),
       );
+    }
   });
 
   it("reports malformed support and build values without throwing", async () => {
@@ -1441,22 +1476,26 @@ describe("conformance diagnostics", () => {
     };
     const supportResult = await runRendererConformance(malformedSupport, [fixture()]);
     expect(supportResult.valid).toBe(false);
-    if (!supportResult.valid)
+    if (!supportResult.valid) {
       expect(supportResult.diagnostics.map(({ code }) => code)).toContain(
         "malformed-support-decision",
       );
+    }
 
     const malformedBuild = withBuild(() => null as never);
     const buildResult = await runRendererConformance(malformedBuild, [fixture()]);
     expect(buildResult.valid).toBe(false);
-    if (!buildResult.valid)
+    if (!buildResult.valid) {
       expect(buildResult.diagnostics.map(({ code }) => code)).toContain(
         "malformed-renderer-output",
       );
+    }
 
     const nonByteCapture = withBuild((value) => {
       const result = successfulResult(value);
-      if (!result.ok) return result;
+      if (!result.ok) {
+        return result;
+      }
       return {
         ...result,
         captures: [{ ...result.captures[0], rgba: Array(8).fill(0) }],
@@ -1464,8 +1503,9 @@ describe("conformance diagnostics", () => {
     });
     const byteResult = await runRendererConformance(nonByteCapture, [fixture()]);
     expect(byteResult.valid).toBe(false);
-    if (!byteResult.valid)
+    if (!byteResult.valid) {
       expect(byteResult.diagnostics.map(({ code }) => code)).toContain("malformed-renderer-output");
+    }
   });
 
   it("accepts Uint8Array bytes restored from another JavaScript realm", async () => {
@@ -1473,7 +1513,9 @@ describe("conformance diagnostics", () => {
     expect(crossRealmBytes).not.toBeInstanceOf(Uint8Array);
     const crossRealmRenderer = withBuild((value) => {
       const result = successfulResult(value);
-      if (!result.ok) return result;
+      if (!result.ok) {
+        return result;
+      }
       return {
         ...result,
         captures: [{ ...result.captures[0], rgba: crossRealmBytes }],
@@ -1491,10 +1533,11 @@ describe("conformance diagnostics", () => {
     } as const satisfies CompilerResolvedSurfaceInput;
     const staleResult = await runRendererConformance(goodPlugin, [fixture(staleContext)]);
     expect(staleResult.valid).toBe(false);
-    if (!staleResult.valid)
+    if (!staleResult.valid) {
       expect(staleResult.diagnostics.map(({ code }) => code)).toContain(
         "renderer-fingerprint-mismatch",
       );
+    }
 
     const upgradedPlugin = defineRendererPlugin({
       ...goodPlugin,
@@ -1502,17 +1545,20 @@ describe("conformance diagnostics", () => {
     });
     const upgradedResult = await runRendererConformance(upgradedPlugin, [fixture()]);
     expect(upgradedResult.valid).toBe(false);
-    if (!upgradedResult.valid)
+    if (!upgradedResult.valid) {
       expect(upgradedResult.diagnostics.map(({ code }) => code)).toContain(
         "renderer-fingerprint-mismatch",
       );
+    }
   });
 
   it("detects non-deterministic bytes and produces stable diagnostic ordering", async () => {
     let byte = 0;
     const nondeterministic = withBuild((value) => {
       const result = successfulResult(value);
-      if (result.ok) result.captures[0]?.rgba.fill(byte++);
+      if (result.ok) {
+        result.captures[0]?.rgba.fill(byte++);
+      }
       return result;
     });
 
@@ -1521,10 +1567,11 @@ describe("conformance diagnostics", () => {
     const second = await runRendererConformance(nondeterministic, [fixture()]);
     expect(first.valid).toBe(false);
     expect(second).toEqual(first);
-    if (!first.valid)
+    if (!first.valid) {
       expect(first.diagnostics.map(({ code }) => code)).toContain(
         "non-deterministic-renderer-output",
       );
+    }
   });
 
   it("detects non-determinism when builds reuse and mutate the same byte buffer", async () => {
@@ -1533,7 +1580,9 @@ describe("conformance diagnostics", () => {
     const sharedBufferRenderer = withBuild((value) => {
       sharedBytes.fill(byte++);
       const result = successfulResult(value);
-      if (!result.ok) return result;
+      if (!result.ok) {
+        return result;
+      }
       return {
         ...result,
         captures: [{ ...result.captures[0], rgba: sharedBytes }],
@@ -1542,27 +1591,28 @@ describe("conformance diagnostics", () => {
 
     const result = await runRendererConformance(sharedBufferRenderer, [fixture()]);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain(
         "non-deterministic-renderer-output",
       );
+    }
   });
 
   it("validates Compiler plans before accepting renderer output", async () => {
     const invalidInput = {
       ...input,
+      context: { ...input.context, pixelTarget: [0, 1] },
       plan: {
         ...input.plan,
-        semanticSurfaceId: "other-surface",
         ownership: { ...input.plan.ownership, ownedContentNodeIds: ["missing-node"] },
+        semanticSurfaceId: "other-surface",
         states: { "missing-state": { kind: "capture" } },
       },
-      context: { ...input.context, pixelTarget: [0, 1] },
     } as const satisfies CompilerResolvedSurfaceInput;
 
     const result = await runRendererConformance(goodPlugin, [fixture(invalidInput)]);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toEqual(
         expect.arrayContaining([
           "invalid-pixel-target",
@@ -1572,6 +1622,7 @@ describe("conformance diagnostics", () => {
           "surface-plan-mismatch",
         ]),
       );
+    }
   });
 
   it("rejects duplicate content nodes in Compiler plans", async () => {
@@ -1586,8 +1637,9 @@ describe("conformance diagnostics", () => {
     const result = await executeRendererPlugin(goodPlugin, duplicateContent);
 
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain("duplicate-content-node");
+    }
   });
 
   it("rejects context nodes that are not ancestor Frames", async () => {
@@ -1596,9 +1648,9 @@ describe("conformance diagnostics", () => {
       plan: {
         ...input.plan,
         ownership: {
+          contextNodeIds: ["text-title"],
           kind: "structured",
           ownedContentNodeIds: ["frame-root"],
-          contextNodeIds: ["text-title"],
         },
       },
     } as const satisfies CompilerResolvedSurfaceInput;
@@ -1606,8 +1658,9 @@ describe("conformance diagnostics", () => {
     const result = await executeRendererPlugin(goodPlugin, invalid);
 
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain("invalid-context-node");
+    }
   });
 });
 

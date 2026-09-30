@@ -15,27 +15,19 @@ const builders = [
   .join("\n");
 
 const analyze = (
-  files: readonly { readonly fileName: string; readonly sourceText: string }[],
+  files: ReadonlyArray<{ readonly fileName: string; readonly sourceText: string }>,
   entryFile = "entry.ts",
 ) => {
   const parsed = parseAuthoringProject({
-    projectRoot: "/virtual/presentation",
     entryFile,
     files,
-    rootDependencies: [
-      {
-        specifier: "@unframe/unframe-authoring",
-        usage: "runtime",
-        packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-      },
-    ],
     packages: [
       {
-        key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-        locator: "@unframe/unframe-authoring@1",
-        name: "@unframe/unframe-authoring",
-        version: "1",
         contentIntegrity: hashCanonicalJsonPayload(builders),
+        dependencies: [],
+        exports: [
+          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+        ],
         files: [
           {
             path: "index.ts",
@@ -45,16 +37,28 @@ const analyze = (
             data: builders,
           },
         ],
-        exports: [
-          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
-        ],
-        dependencies: [],
+        key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+        locator: "@unframe/unframe-authoring@1",
+        name: "@unframe/unframe-authoring",
+        version: "1",
+      },
+    ],
+    projectRoot: "/virtual/presentation",
+    rootDependencies: [
+      {
+        packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+        specifier: "@unframe/unframe-authoring",
+        usage: "runtime",
       },
     ],
   });
-  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  if (!parsed.ok) {
+    throw new Error(JSON.stringify(parsed.diagnostics));
+  }
   const result = analyzeAuthoringProject(parsed.value);
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   return result;
 };
 
@@ -75,18 +79,18 @@ describe("collectAuthoringDeclarations", () => {
       ),
     );
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-declaration-entry-file-unsupported",
+          column: 1,
+          end: 0,
           fileName: "entry.d.ts",
+          line: 1,
           message: "The declaration entry file must not use the .d.ts suffix.",
           start: 0,
-          end: 0,
-          line: 1,
-          column: 1,
         },
       ],
+      ok: false,
     });
   });
 
@@ -109,15 +113,17 @@ describe("collectAuthoringDeclarations", () => {
       ),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
-    expect(result.diagnostics.map(({ fileName, code }) => ({ fileName, code }))).toEqual([
+    if (result.ok) {
+      return;
+    }
+    expect(result.diagnostics.map(({ code, fileName }) => ({ code, fileName }))).toEqual([
       {
-        fileName: "entry.d.ts",
         code: "compiler-declaration-entry-file-unsupported",
+        fileName: "entry.d.ts",
       },
       {
-        fileName: "z.unframe.ts",
         code: "compiler-static-builder-arguments-invalid",
+        fileName: "z.unframe.ts",
       },
     ]);
   });
@@ -145,33 +151,33 @@ describe("collectAuthoringDeclarations", () => {
     const second = collectAuthoringDeclarations(analyze([...files].reverse()));
     expect(first).toEqual(second);
     expect(first).toMatchObject({
-      ok: true,
       declarations: [
         {
-          role: "component-manifest",
           fileName: "button.manifest.ts",
+          role: "component-manifest",
           rootBuilder: "defineComponentManifest",
           value: { id: "manifest" },
         },
         {
-          role: "component-structure",
           fileName: "button.structure.tsx",
+          role: "component-structure",
           rootBuilder: "defineComponentStructure",
           value: { id: "structure" },
         },
         {
-          role: "presentation",
           fileName: "entry.ts",
+          role: "presentation",
           rootBuilder: "definePresentation",
           value: { id: "presentation" },
         },
         {
-          role: "theme",
           fileName: "theme.unframe.ts",
+          role: "theme",
           rootBuilder: "defineTheme",
           value: { id: "theme" },
         },
       ],
+      ok: true,
     });
   });
 
@@ -187,8 +193,8 @@ describe("collectAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({
-      ok: true,
       declarations: [{ fileName: "entry.ts" }],
+      ok: true,
     });
   });
 
@@ -197,18 +203,18 @@ describe("collectAuthoringDeclarations", () => {
     const result = collectAuthoringDeclarations(analyze([{ fileName: "entry.ts", sourceText }]));
     const start = sourceText.lastIndexOf("defineTheme({})");
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-declaration-root-mismatch",
+          column: start + 1,
+          end: start + "defineTheme({})".length,
           fileName: "entry.ts",
+          line: 1,
           message: "Declaration file root builder does not match its file role.",
           start,
-          end: start + "defineTheme({})".length,
-          line: 1,
-          column: start + 1,
         },
       ],
+      ok: false,
     });
   });
 
@@ -225,11 +231,13 @@ describe("collectAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
-    expect(result.diagnostics.map(({ fileName, code }) => ({ fileName, code }))).toEqual([
+    if (result.ok) {
+      return;
+    }
+    expect(result.diagnostics.map(({ code, fileName }) => ({ code, fileName }))).toEqual([
       {
-        fileName: "z.unframe.ts",
         code: "compiler-static-builder-arguments-invalid",
+        fileName: "z.unframe.ts",
       },
     ]);
   });

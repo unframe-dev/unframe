@@ -12,7 +12,9 @@ describe("strict JSON lock boundary", () => {
     const result = parseStrictJson(input);
 
     expect(result).toMatchObject({ ok: true });
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(Object.getPrototypeOf(result.value)).toBe(null);
     const record = result.value as Record<string, unknown>;
     expect(Object.hasOwn(record, "__proto__")).toBe(true);
@@ -28,15 +30,17 @@ describe("strict JSON lock boundary", () => {
     [bytes('{"a":1,// comment\n"b":2}'), "cli-lock-json-syntax"],
     [bytes('{"n":NaN}'), "cli-lock-json-syntax"],
     [bytes('{"n":Infinity}'), "cli-lock-json-syntax"],
-    [bytes('{"a":1,"\\u0061":2}'), "cli-lock-json-duplicate-key"],
-    [bytes('{"value":"\\ud800"}'), "cli-lock-json-lone-surrogate"],
+    [bytes(String.raw`{"a":1,"\u0061":2}`), "cli-lock-json-duplicate-key"],
+    [bytes(String.raw`{"value":"\ud800"}`), "cli-lock-json-lone-surrogate"],
     [bytes('{"value":1e999}'), "cli-lock-json-number"],
   ] as const)("rejects unsafe input with stable code %s", (input, code) => {
-    expect(parseStrictJson(input)).toEqual({ ok: false, code });
+    expect(parseStrictJson(input)).toEqual({ code, ok: false });
   });
 
   it("accepts an escaped surrogate pair", () => {
-    expect(parseStrictJson(bytes('{"value":"\\ud83d\\ude00"}'))).toMatchObject({ ok: true });
+    expect(parseStrictJson(bytes(String.raw`{"value":"\ud83d\ude00"}`))).toMatchObject({
+      ok: true,
+    });
   });
 
   it("accepts actual UTF-8 non-BMP characters in keys and values", () => {
@@ -48,6 +52,6 @@ describe("strict JSON lock boundary", () => {
 
   it("rejects resource-limit input without exposing host errors", () => {
     const input = bytes(`[${"[".repeat(100)}${"0"}${"]".repeat(100)}]`);
-    expect(parseStrictJson(input)).toEqual({ ok: false, code: "cli-lock-json-resource-limit" });
+    expect(parseStrictJson(input)).toEqual({ code: "cli-lock-json-resource-limit", ok: false });
   });
 });

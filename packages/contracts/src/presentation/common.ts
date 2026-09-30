@@ -12,24 +12,24 @@ export const positiveVector3Schema = z.tuple([
 export const quaternionSchema = z.tuple([z.number(), z.number(), z.number(), z.number()]);
 
 export const semanticNodeSchema = z.strictObject({
+  alt: z.string().optional(),
   id: idSchema,
-  parentId: idSchema.nullable(),
+  interactionId: idSchema.optional(),
+  language: z.string().optional(),
   order: z.number(),
+  parentId: idSchema.nullable(),
   role: z.enum(["heading", "paragraph", "image", "button", "table", "list", "listItem"]),
   text: z.string().optional(),
-  language: z.string().optional(),
-  alt: z.string().optional(),
-  interactionId: idSchema.optional(),
 });
 
 export const semanticTreeSchema = z.strictObject({
-  rootNodeIds: z.array(idSchema),
   nodes: z.record(z.string(), semanticNodeSchema),
+  rootNodeIds: z.array(idSchema),
 });
 
 export const boundsSchema = z.strictObject({
+  height: positiveNumberSchema,
+  width: positiveNumberSchema,
   x: z.number(),
   y: z.number(),
-  width: positiveNumberSchema,
-  height: positiveNumberSchema,
 });

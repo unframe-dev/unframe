@@ -12,14 +12,13 @@ type Instance = PresentationDeclaration["scene"]["components"][number];
 
 export const lowerCues = (
   presentation: PresentationDeclaration,
-  components: readonly Extract<
-    CompilerDeclarationProject["components"][number],
-    { structure: unknown }
-  >[],
+  components: ReadonlyArray<
+    Extract<CompilerDeclarationProject["components"][number], { structure: unknown }>
+  >,
   groups: PresentationDefinition["flow"]["groups"],
-): Diagnostic[] => {
-  const diagnostics: Diagnostic[] = [];
-  const resolve = (instanceId: string, path: (string | number)[]) => {
+): Array<Diagnostic> => {
+  const diagnostics: Array<Diagnostic> = [];
+  const resolve = (instanceId: string, path: Array<string | number>) => {
     const instance = presentation.scene.components.find((candidate) => candidate.id === instanceId);
     const matches =
       instance &&
@@ -38,33 +37,38 @@ export const lowerCues = (
       );
       return undefined;
     }
-    return { instance, entry: matches[0]! };
+    return { entry: matches[0]!, instance };
   };
   const lowerGuard = (guard: CueGuard, instance?: Instance): CanonicalGuard => {
-    if (guard.kind === "all" || guard.kind === "any")
-      return { kind: guard.kind, guards: guard.guards.map((child) => lowerGuard(child, instance)) };
-    if (guard.kind === "not") return { kind: "not", guard: lowerGuard(guard.guard, instance) };
+    if (guard.kind === "all" || guard.kind === "any") {
+      return { guards: guard.guards.map((child) => lowerGuard(child, instance)), kind: guard.kind };
+    }
+    if (guard.kind === "not") {
+      return { guard: lowerGuard(guard.guard, instance), kind: "not" };
+    }
     const left = guard.left;
     return {
       ...guard,
-      right:
-        left.kind === "surfaceState" && instance && typeof guard.right === "string"
-          ? resourceId(instance.id, guard.right)
-          : guard.right,
       left:
         left.kind === "surfaceState" && instance
           ? { ...left, surfaceId: resourceId(instance.id, left.surfaceId) }
           : left.kind === "nodeField" && instance
             ? { ...left, nodeId: resourceId(instance.id, left.nodeId) }
             : left,
+      right:
+        left.kind === "surfaceState" && instance && typeof guard.right === "string"
+          ? resourceId(instance.id, guard.right)
+          : guard.right,
     } as CanonicalGuard;
   };
   const lowerValue = (
     value: ActionValue,
     args: Readonly<Record<string, ActionValue>>,
-    path: (string | number)[],
+    path: Array<string | number>,
   ): Exclude<ActionValue, { kind: "input" }> => {
-    if (value.kind !== "input") return value;
+    if (value.kind !== "input") {
+      return value;
+    }
     const argument = args[value.inputId];
     if (!argument || argument.kind === "input") {
       diagnostics.push(
@@ -78,8 +82,8 @@ export const lowerCues = (
     }
     return argument;
   };
-  for (const [groupId, group] of Object.entries(presentation.flow.groups))
-    for (const [stepId, step] of Object.entries(group.steps))
+  for (const [groupId, group] of Object.entries(presentation.flow.groups)) {
+    for (const [stepId, step] of Object.entries(group.steps)) {
       for (const [index, cue] of step.cues.entries()) {
         const path = ["presentation", "flow", "groups", groupId, "steps", stepId, "cues", index];
         let trigger: CanonicalCue["trigger"];
@@ -284,5 +288,7 @@ export const lowerCues = (
           next,
         });
       }
+    }
+  }
   return diagnostics;
 };

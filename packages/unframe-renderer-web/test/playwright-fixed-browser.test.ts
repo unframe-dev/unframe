@@ -7,34 +7,34 @@ import {
 import type { FixedBrowserSession } from "../src/index.js";
 
 const request = {
-  stateId: "default",
-  document: "<!doctype html><html><body>capture</body></html>",
-  fontFaceCount: 0,
-  pixelTarget: [2, 1] as const,
+  capabilities: {
+    clock: "fixed" as const,
+    colorSpace: "srgb" as const,
+    deviceScaleFactor: 1 as const,
+    filesystem: "deny" as const,
+    network: "deny" as const,
+    random: "fixed" as const,
+  },
   colorScheme: "dark" as const,
+  document: "<!doctype html><html><body>capture</body></html>",
   environment: {
     browser: {
+      fontFingerprint: "sha256:477649c3440112aa6ceb0ec1967fd774def2a28b041fcd29030879d6f32ef398",
       id: "playwright-chromium",
       version: "123.4.5",
-      fontFingerprint: "sha256:477649c3440112aa6ceb0ec1967fd774def2a28b041fcd29030879d6f32ef398",
     },
+    clock: "fixed" as const,
+    colorSpace: "srgb" as const,
+    deviceScaleFactor: 1 as const,
+    filesystem: "deny" as const,
     locale: "ja-JP",
+    network: "deny" as const,
+    random: "fixed" as const,
     timezone: "Asia/Tokyo",
-    colorSpace: "srgb" as const,
-    deviceScaleFactor: 1 as const,
-    network: "deny" as const,
-    filesystem: "deny" as const,
-    clock: "fixed" as const,
-    random: "fixed" as const,
   },
-  capabilities: {
-    network: "deny" as const,
-    filesystem: "deny" as const,
-    clock: "fixed" as const,
-    random: "fixed" as const,
-    deviceScaleFactor: 1 as const,
-    colorSpace: "srgb" as const,
-  },
+  fontFaceCount: 0,
+  pixelTarget: [2, 1] as const,
+  stateId: "default",
 };
 
 const png = Uint8Array.of(
@@ -119,23 +119,22 @@ probePng.set([0, 0, 0, 64], 20);
 const driver = (probeValue = 0) => {
   let screenshotCount = 0;
   const page = {
-    setContent: vi.fn(async () => undefined),
     evaluate: vi.fn(async () => undefined),
     screenshot: vi.fn(async () => (screenshotCount++ === 0 ? probePng : png)),
+    setContent: vi.fn(async () => undefined),
   };
   const context = {
     addInitScript: vi.fn(async () => undefined),
-    route: vi.fn(async () => undefined),
-    newPage: vi.fn(async () => page),
     close: vi.fn(async () => undefined),
+    newPage: vi.fn(async () => page),
+    route: vi.fn(async () => undefined),
   };
   const browser = {
-    version: vi.fn(() => "123.4.5"),
-    newContext: vi.fn(async () => context),
     close: vi.fn(async () => undefined),
+    newContext: vi.fn(async () => context),
+    version: vi.fn(() => "123.4.5"),
   };
   const value: BrowserDriver = {
-    launch: vi.fn(async () => browser),
     decodePng: vi.fn((bytes) => {
       const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       const width = view.getUint32(16);
@@ -146,16 +145,17 @@ const driver = (probeValue = 0) => {
           data[index] = probeValue;
           data[index + 3] = 255;
         }
-        return { width, height, data };
+        return { data, height, width };
       }
       return {
-        width: 2,
-        height: 1,
         data: Uint8Array.of(1, 2, 3, 255, 4, 5, 6, 255),
+        height: 1,
+        width: 2,
       };
     }),
+    launch: vi.fn(async () => browser),
   };
-  return { value, page, context, browser };
+  return { browser, context, page, value };
 };
 
 const captureRequest = (session: FixedBrowserSession) => ({
@@ -188,38 +188,38 @@ describe("Playwright Fixed Browser", () => {
     const session = await createPlaywrightFixedBrowserFactory(fake.value)();
 
     expect(fake.value.launch).toHaveBeenCalledWith({
-      headless: true,
       chromiumSandbox: true,
+      handleSIGHUP: false,
       handleSIGINT: false,
       handleSIGTERM: false,
-      handleSIGHUP: false,
+      headless: true,
     });
     expect(session.environment).toMatchObject({
       browser: {
+        fontFingerprint: expect.stringMatching(/^sha256:/),
         id: "playwright-chromium",
         version: "123.4.5",
-        fontFingerprint: expect.stringMatching(/^sha256:/),
       },
+      deviceScaleFactor: 1,
       locale: "ja-JP",
       timezone: "Asia/Tokyo",
-      deviceScaleFactor: 1,
     });
 
     await expect(session.capture(captureRequest(session))).resolves.toEqual({
-      rgba: Uint8Array.of(1, 2, 3, 255, 4, 5, 6, 255),
-      pixelSize: [2, 1],
-      colorSpace: "srgb",
       alphaMode: "opaque",
+      colorSpace: "srgb",
+      pixelSize: [2, 1],
+      rgba: Uint8Array.of(1, 2, 3, 255, 4, 5, 6, 255),
     });
     expect(fake.browser.newContext).toHaveBeenCalledWith({
-      viewport: { width: 2, height: 1 },
+      acceptDownloads: false,
+      colorScheme: "dark",
       deviceScaleFactor: 1,
       locale: "ja-JP",
-      timezoneId: "Asia/Tokyo",
-      colorScheme: "dark",
       offline: true,
-      acceptDownloads: false,
       serviceWorkers: "block",
+      timezoneId: "Asia/Tokyo",
+      viewport: { height: 1, width: 2 },
     });
     expect(fake.context.addInitScript).toHaveBeenCalledTimes(2);
     const init = fake.context.addInitScript.mock.calls[1] as unknown as [string];
@@ -234,11 +234,11 @@ describe("Playwright Fixed Browser", () => {
     expect(fake.page.evaluate).toHaveBeenCalledTimes(2);
     expect(fake.page.evaluate).toHaveBeenLastCalledWith(0);
     expect(fake.page.screenshot).toHaveBeenCalledWith({
-      type: "png",
-      scale: "css",
-      omitBackground: true,
       animations: "disabled",
       caret: "hide",
+      omitBackground: true,
+      scale: "css",
+      type: "png",
     });
     expect(fake.value.decodePng).toHaveBeenCalledWith(png);
     expect(fake.context.close).toHaveBeenCalledTimes(2);
@@ -275,9 +275,9 @@ describe("Playwright Fixed Browser", () => {
     const fake = driver();
     const session = await createPlaywrightFixedBrowserFactory(fake.value)();
     fake.value.decodePng = vi.fn(() => ({
-      width: 1,
-      height: 1,
       data: Uint8Array.of(0, 0, 0, 255),
+      height: 1,
+      width: 1,
     }));
     await expect(session.capture(captureRequest(session))).rejects.toThrow(
       "PNG dimensions must match",
@@ -318,9 +318,9 @@ describe("Playwright Fixed Browser", () => {
     const fake = driver();
     const session = await createPlaywrightFixedBrowserFactory(fake.value)();
     fake.value.decodePng = vi.fn(() => ({
-      width: 2,
-      height: 1,
       data: Uint8Array.of(1, 2, 3, 128, 4, 5, 6, 255),
+      height: 1,
+      width: 2,
     }));
     await expect(session.capture(captureRequest(session))).resolves.toMatchObject({
       alphaMode: "straight",
@@ -357,7 +357,7 @@ describe("Playwright Fixed Browser", () => {
       session.capture({ ...captureRequest(session), pixelTarget: [4096, 4096] }),
     ).rejects.toThrow("PNG dimensions must match");
     expect(fake.browser.newContext).toHaveBeenCalledWith(
-      expect.objectContaining({ viewport: { width: 4096, height: 4096 } }),
+      expect.objectContaining({ viewport: { height: 4096, width: 4096 } }),
     );
     await session.close();
   });
@@ -376,9 +376,9 @@ describe("Playwright Fixed Browser", () => {
   it("不完全なfont probeをidentityとして公開せずcontextとbrowserを閉じる", async () => {
     const fake = driver();
     fake.value.decodePng = vi.fn(() => ({
-      width: 2,
-      height: 1,
       data: Uint8Array.of(1, 2, 3, 255, 4, 5, 6, 255),
+      height: 1,
+      width: 2,
     }));
 
     await expect(createPlaywrightFixedBrowserFactory(fake.value)()).rejects.toThrow(

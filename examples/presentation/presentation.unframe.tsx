@@ -6,27 +6,13 @@ import { presentationOwner } from "./reference-values";
 
 const components = [
   <ComponentInstance
-    id="reference-surface"
     componentId={surfaceManifest.componentId}
-    version={surfaceManifest.version}
+    id="reference-surface"
     owner={presentationOwner}
-    spatialNodeId="surface-node"
-    props={{
-      title: "Unframe / M3A",
-      offset: 64,
-      showCard: true,
-    }}
-    slots={{
-      badge: ["reference-badge"],
-    }}
-    variants={{
-      tone: "accent",
-    }}
     partOverrides={[
       {
-        partId: "headline",
-        targetKind: "text",
         content: "Structured authoring",
+        partId: "headline",
         style: {
           fontSize: 72,
           color: {
@@ -35,73 +21,73 @@ const components = [
             tokenId: "ink",
           },
         },
+        targetKind: "text",
       },
     ]}
+    props={{
+      offset: 64,
+      showCard: true,
+      title: "Unframe / M3A",
+    }}
+    slots={{
+      badge: ["reference-badge"],
+    }}
+    spatialNodeId="surface-node"
+    variants={{
+      tone: "accent",
+    }}
+    version={surfaceManifest.version}
   />,
   <ComponentInstance
-    id="reference-badge"
     componentId={badgeManifest.componentId}
-    version={badgeManifest.version}
+    id="reference-badge"
     owner={presentationOwner}
+    partOverrides={[]}
     props={{
       label: "One nested Component, one placement",
     }}
     slots={{}}
     variants={{}}
-    partOverrides={[]}
+    version={badgeManifest.version}
   />,
 ];
 const scene = {
+  components,
   spatial: [
     {
+      active: true,
+      audience: {
+        kind: "all",
+      },
       id: "surface-node",
       kind: "spatial",
       name: "Reference surface",
+      opacity: 1,
+      order: 0,
       owner: {
         kind: "presentation",
-      },
-      audience: {
-        kind: "all",
       },
       parent: {
         kind: "stage",
       },
-      order: 0,
       transform: {
         position: [0, 0, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
-      active: true,
       visible: true,
-      opacity: 1,
     },
   ],
-  components,
 } as const;
 
 export default definePresentation({
-  id: "reference-presentation",
-  metadata: {
-    title: "Unframe Reference",
-  },
-  stage: {
-    coordinateSystem: {
-      unit: "meter",
-      handedness: "right",
-      upAxis: "+Y",
-      forwardAxis: "-Z",
-    },
-    size: [1, 1, 1],
-  },
   assets: [
     {
-      kind: "asset-ref",
       assetId: "reference-font",
+      kind: "asset-ref",
     },
   ],
   flow: {
-    initialGroupId: "main",
     groups: {
       main: {
         id: "main",
@@ -160,16 +146,30 @@ export default definePresentation({
         },
       },
     },
+    initialGroupId: "main",
     variables: {
       continued: {
         id: "continued",
+        initialValue: false,
         owner: { kind: "presentation" },
         type: "boolean",
-        initialValue: false,
       },
     },
   },
+  id: "reference-presentation",
+  metadata: {
+    title: "Unframe Reference",
+  },
   operations: [],
-  theme: { themeId: theme.id },
   scene,
+  stage: {
+    coordinateSystem: {
+      forwardAxis: "-Z",
+      handedness: "right",
+      unit: "meter",
+      upAxis: "+Y",
+    },
+    size: [1, 1, 1],
+  },
+  theme: { themeId: theme.id },
 });

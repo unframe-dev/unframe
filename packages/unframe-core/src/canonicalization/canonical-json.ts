@@ -1,6 +1,6 @@
 import canonicalize from "canonicalize";
 
-type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+type JsonValue = null | boolean | number | string | Array<JsonValue> | { [key: string]: JsonValue };
 type JsonRecord = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is JsonRecord =>
@@ -9,14 +9,16 @@ const isRecord = (value: unknown): value is JsonRecord =>
 const assertValidUnicode = (value: string) => {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
-    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
-      if (index + 1 >= value.length)
+    if (codeUnit >= 0xd8_00 && codeUnit <= 0xdb_ff) {
+      if (index + 1 >= value.length) {
         throw new TypeError("Canonical JSON does not permit lone Unicode surrogates.");
+      }
       const next = value.charCodeAt(index + 1);
-      if (next < 0xdc00 || next > 0xdfff)
+      if (next < 0xdc_00 || next > 0xdf_ff) {
         throw new TypeError("Canonical JSON does not permit lone Unicode surrogates.");
+      }
       index += 1;
-    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+    } else if (codeUnit >= 0xdc_00 && codeUnit <= 0xdf_ff) {
       throw new TypeError("Canonical JSON does not permit lone Unicode surrogates.");
     }
   }
@@ -28,29 +30,40 @@ const assertCanonicalUnicode = (value: unknown): void => {
     return;
   }
   if (Array.isArray(value)) {
-    for (const item of value) assertCanonicalUnicode(item);
+    for (const item of value) {
+      assertCanonicalUnicode(item);
+    }
     return;
   }
-  if (isRecord(value))
+  if (isRecord(value)) {
     for (const [key, item] of Object.entries(value)) {
       assertValidUnicode(key);
       assertCanonicalUnicode(item);
     }
+  }
 };
 
 export const normalizePresentationValue = (value: unknown): JsonValue => {
-  if (value === null || typeof value === "boolean") return value;
-  if (typeof value === "string") return value;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value))
-      throw new TypeError("Canonical JSON does not permit non-finite numbers.");
+  if (value === null || typeof value === "boolean") {
     return value;
   }
-  if (Array.isArray(value)) return value.map((item) => normalizePresentationValue(item));
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new TypeError("Canonical JSON does not permit non-finite numbers.");
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizePresentationValue(item));
+  }
   if (isRecord(value)) {
     const result = Object.create(null) as Record<string, JsonValue>;
-    for (const entryKey of Object.keys(value))
+    for (const entryKey of Object.keys(value)) {
       result[entryKey] = normalizePresentationValue(value[entryKey]);
+    }
     return result;
   }
   throw new TypeError("Canonical JSON only supports JSON values.");
@@ -58,8 +71,9 @@ export const normalizePresentationValue = (value: unknown): JsonValue => {
 
 export const normalizedJson = (value: unknown): string => {
   const serialized = canonicalize(normalizePresentationValue(value));
-  if (serialized === undefined)
+  if (serialized === undefined) {
     throw new TypeError("Canonical JSON serialization did not produce a value.");
+  }
   return serialized;
 };
 
@@ -73,68 +87,98 @@ const invalidPayload = (): never => {
 };
 
 const arrayIndex = (key: string): number | undefined => {
-  if (key === "0") return 0;
-  if (!/^[1-9][0-9]*$/u.test(key)) return undefined;
+  if (key === "0") {
+    return 0;
+  }
+  if (!/^[1-9][0-9]*$/u.test(key)) {
+    return undefined;
+  }
   const value = Number(key);
   return Number.isSafeInteger(value) && value < 2 ** 32 - 1 ? value : undefined;
 };
 
 const observedJsonValue = (value: unknown, ancestors: WeakSet<object>): JsonValue => {
-  if (value === null || typeof value === "boolean") return value;
+  if (value === null || typeof value === "boolean") {
+    return value;
+  }
   if (typeof value === "string") {
     assertValidUnicode(value);
     return value;
   }
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) invalidPayload();
+    if (!Number.isFinite(value)) {
+      invalidPayload();
+    }
     return value;
   }
-  if (typeof value !== "object" || value === null) return invalidPayload();
+  if (typeof value !== "object" || value === null) {
+    return invalidPayload();
+  }
 
   try {
-    if (ancestors.has(value)) return invalidPayload();
+    if (ancestors.has(value)) {
+      return invalidPayload();
+    }
     ancestors.add(value);
     try {
       if (Array.isArray(value)) {
-        if (Object.getPrototypeOf(value) !== Array.prototype) return invalidPayload();
+        if (Object.getPrototypeOf(value) !== Array.prototype) {
+          return invalidPayload();
+        }
         const keys = Reflect.ownKeys(value);
         const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
-        if (lengthDescriptor === undefined || !("value" in lengthDescriptor))
+        if (lengthDescriptor === undefined || !("value" in lengthDescriptor)) {
           return invalidPayload();
+        }
         const length = lengthDescriptor.value;
-        if (!Number.isSafeInteger(length) || length < 0 || length >= 2 ** 32)
+        if (!Number.isSafeInteger(length) || length < 0 || length >= 2 ** 32) {
           return invalidPayload();
-        const result: JsonValue[] = Array.from({ length });
+        }
+        const result: Array<JsonValue> = Array.from({ length });
         const seen = new Set<number>();
         for (const key of keys) {
-          if (key === "length") continue;
-          if (typeof key !== "string") return invalidPayload();
+          if (key === "length") {
+            continue;
+          }
+          if (typeof key !== "string") {
+            return invalidPayload();
+          }
           const index = arrayIndex(key);
-          if (index === undefined || index >= length) return invalidPayload();
+          if (index === undefined || index >= length) {
+            return invalidPayload();
+          }
           const descriptor = Object.getOwnPropertyDescriptor(value, key);
           if (
             descriptor === undefined ||
             !descriptor.enumerable ||
             !("value" in descriptor) ||
             seen.has(index)
-          )
+          ) {
             return invalidPayload();
+          }
           seen.add(index);
           result[index] = observedJsonValue(descriptor.value, ancestors);
         }
-        if (seen.size !== length) return invalidPayload();
+        if (seen.size !== length) {
+          return invalidPayload();
+        }
         return result;
       }
 
       const prototype = Object.getPrototypeOf(value);
-      if (prototype !== Object.prototype && prototype !== null) return invalidPayload();
+      if (prototype !== Object.prototype && prototype !== null) {
+        return invalidPayload();
+      }
       const result = Object.create(null) as Record<string, JsonValue>;
       for (const key of Reflect.ownKeys(value)) {
-        if (typeof key !== "string") return invalidPayload();
+        if (typeof key !== "string") {
+          return invalidPayload();
+        }
         assertValidUnicode(key);
         const descriptor = Object.getOwnPropertyDescriptor(value, key);
-        if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor))
+        if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor)) {
           return invalidPayload();
+        }
         result[key] = observedJsonValue(descriptor.value, ancestors);
       }
       return result;
@@ -142,7 +186,9 @@ const observedJsonValue = (value: unknown, ancestors: WeakSet<object>): JsonValu
       ancestors.delete(value);
     }
   } catch (error) {
-    if (error instanceof TypeError) throw error;
+    if (error instanceof TypeError) {
+      throw error;
+    }
     return invalidPayload();
   }
 };

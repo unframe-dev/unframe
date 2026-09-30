@@ -25,17 +25,10 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
 type AssertFalse<T extends false> = T;
 
 const presentation: CreatePresentationRequest = {
-  schemaVersion: 1,
-  metadata: { title: "Demo" },
-  stage: {
-    coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-    size: [10, 3, 10],
-    zones: [],
-  },
   assets: [],
   groups: [
     {
-      id: "group-1",
+      anchoredElementGroups: [],
       elements: [
         {
           id: "text-1",
@@ -49,10 +42,9 @@ const presentation: CreatePresentationRequest = {
           },
         },
       ],
-      anchoredElementGroups: [],
+      id: "group-1",
       steps: [
         {
-          id: "step-1",
           cues: [
             {
               id: "cue-1",
@@ -61,10 +53,18 @@ const presentation: CreatePresentationRequest = {
               next: { kind: "end" },
             },
           ],
+          id: "step-1",
         },
       ],
     },
   ],
+  metadata: { title: "Demo" },
+  schemaVersion: 1,
+  stage: {
+    coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+    size: [10, 3, 10],
+    zones: [],
+  },
 };
 
 describe("createControlPlaneClient", () => {
@@ -87,66 +87,68 @@ describe("createControlPlaneClient", () => {
       .fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ id: "presentation-1", revision: 1, definition: presentation }),
-          { status: 201, headers: { "content-type": "application/json" } },
+          JSON.stringify({ definition: presentation, id: "presentation-1", revision: 1 }),
+          { headers: { "content-type": "application/json" }, status: 201 },
         ),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ asset: { id: "asset-1" } }), {
-          status: 201,
           headers: { "content-type": "application/json" },
+          status: 201,
         }),
       );
     const client = createControlPlaneClient({
       baseUrl: "https://control-plane.example",
-      fetch,
       credentials: "include",
+      fetch,
     });
 
     const createdPresentation = await client.presentations.$post({ json: presentation });
     const initializedUpload = await client.assets.uploads.$post({
       json: {
-        presentationId: "presentation-1",
-        name: "image.png",
         mediaType: "image/png",
-        sizeBytes: 42,
+        name: "image.png",
+        presentationId: "presentation-1",
         sha256Hex: "a".repeat(64),
+        sizeBytes: 42,
       },
     });
 
     const [presentationUrl, presentationInit] = fetch.mock.calls[0] ?? [];
     const [assetUrl, assetInit] = fetch.mock.calls[1] ?? [];
-    if (!presentationInit || !assetInit) throw new Error("Expected request options");
+    if (!presentationInit || !assetInit) {
+      throw new Error("Expected request options");
+    }
 
     expect({
-      url: presentationUrl,
-      method: presentationInit.method,
-      credentials: presentationInit.credentials,
-      body: JSON.parse(String(presentationInit.body)),
       authorization: new Headers(presentationInit.headers).get("authorization"),
+      body: JSON.parse(String(presentationInit.body)),
+      credentials: presentationInit.credentials,
+      method: presentationInit.method,
+      url: presentationUrl,
     }).toEqual({
-      url: "https://control-plane.example/presentations",
-      method: "POST",
-      credentials: "include",
-      body: presentation,
       authorization: null,
+      body: presentation,
+      credentials: "include",
+      method: "POST",
+      url: "https://control-plane.example/presentations",
     });
     expect({
-      url: assetUrl,
-      method: assetInit.method,
-      body: JSON.parse(String(assetInit.body)),
       authorization: new Headers(assetInit.headers).get("authorization"),
+      body: JSON.parse(String(assetInit.body)),
+      method: assetInit.method,
+      url: assetUrl,
     }).toEqual({
-      url: "https://control-plane.example/assets/uploads",
-      method: "POST",
-      body: {
-        presentationId: "presentation-1",
-        name: "image.png",
-        mediaType: "image/png",
-        sizeBytes: 42,
-        sha256Hex: "a".repeat(64),
-      },
       authorization: null,
+      body: {
+        mediaType: "image/png",
+        name: "image.png",
+        presentationId: "presentation-1",
+        sha256Hex: "a".repeat(64),
+        sizeBytes: 42,
+      },
+      method: "POST",
+      url: "https://control-plane.example/assets/uploads",
     });
 
     if (createdPresentation.status !== 201 || initializedUpload.status !== 201) {
@@ -170,8 +172,8 @@ describe("createControlPlaneAuthClient", () => {
     const onAuthToken = vi.fn();
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
       new Response(JSON.stringify({ token: "session-token", user: { id: "user-1" } }), {
-        status: 200,
         headers: { "content-type": "application/json", "set-auth-token": "bearer-token" },
+        status: 200,
       }),
     );
     const auth = createControlPlaneAuthClient({
@@ -193,9 +195,9 @@ describe("createControlPlaneAuthClient", () => {
       const session = auth.getSession();
       const deviceCode = auth.device.code({ client_id: "unframe-unity" });
       const deviceToken = auth.device.token({
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
         client_id: "unframe-unity",
         device_code: "device-code",
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       });
       const verifyTotp = auth.twoFactor.verifyTotp({ code: "123456", trustDevice: true });
       const backupCode = auth.twoFactor.verifyBackupCode({
@@ -221,19 +223,19 @@ describe("createControlPlaneAuthClient", () => {
 
   it("verifies a device code with the configured fetch and credentials", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ user_code: "ABCD-EFGH", status: "pending" }), {
-        status: 200,
+      new Response(JSON.stringify({ status: "pending", user_code: "ABCD-EFGH" }), {
         headers: { "content-type": "application/json" },
+        status: 200,
       }),
     );
     const auth = createControlPlaneAuthClient({
       baseUrl: "https://control-plane.example",
-      fetch,
       credentials: "include",
+      fetch,
     });
 
     await expect(auth.verifyDeviceAuthorization("A+B C")).resolves.toEqual({
-      data: { user_code: "ABCD-EFGH", status: "pending" },
+      data: { status: "pending", user_code: "ABCD-EFGH" },
       error: null,
     });
     expect(fetch).toHaveBeenCalledWith(
@@ -249,7 +251,7 @@ describe("createControlPlaneAuthClient", () => {
           error: "expired_token",
           error_description: "The user code has expired",
         }),
-        { status: 400, headers: { "content-type": "application/json" } },
+        { headers: { "content-type": "application/json" }, status: 400 },
       ),
     );
     const auth = createControlPlaneAuthClient({ baseUrl: "https://control-plane.example", fetch });
@@ -261,21 +263,21 @@ describe("createControlPlaneAuthClient", () => {
   });
 
   it.each([
-    { name: "null success", status: 200, body: "null" },
-    { name: "null error", status: 400, body: "null" },
-    { name: "array success", status: 200, body: "[]" },
-    { name: "array error", status: 400, body: "[]" },
-    { name: "primitive success", status: 200, body: '"unexpected"' },
-    { name: "primitive error", status: 400, body: "42" },
-    { name: "non-JSON success", status: 200, body: "not JSON" },
-    { name: "non-JSON error", status: 400, body: "not JSON" },
+    { body: "null", name: "null success", status: 200 },
+    { body: "null", name: "null error", status: 400 },
+    { body: "[]", name: "array success", status: 200 },
+    { body: "[]", name: "array error", status: 400 },
+    { body: '"unexpected"', name: "primitive success", status: 200 },
+    { body: "42", name: "primitive error", status: 400 },
+    { body: "not JSON", name: "non-JSON success", status: 200 },
+    { body: "not JSON", name: "non-JSON error", status: 400 },
     {
+      body: '{"user_code":"ABCD-EFGH","status":"unknown"}',
       name: "malformed success",
       status: 200,
-      body: '{"user_code":"ABCD-EFGH","status":"unknown"}',
     },
-    { name: "malformed error", status: 400, body: '{"error":42,"error_description":false}' },
-  ])("returns request_failed for $name device verification responses", async ({ status, body }) => {
+    { body: '{"error":42,"error_description":false}', name: "malformed error", status: 400 },
+  ])("returns request_failed for $name device verification responses", async ({ body, status }) => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValue(new Response(body, { status }));

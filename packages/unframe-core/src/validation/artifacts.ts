@@ -19,11 +19,12 @@ export const validatePresentationArtifacts = (
   const definitionResult = validatePresentationDefinition(definition);
   const bundleResult = validateRenderBundle(renderBundle);
   const diagnostics = [...definitionResult.diagnostics, ...bundleResult.diagnostics];
-  if (!definitionResult.valid || !bundleResult.valid)
-    return { valid: false, diagnostics: sorted(diagnostics) };
+  if (!definitionResult.valid || !bundleResult.valid) {
+    return { diagnostics: sorted(diagnostics), valid: false };
+  }
 
   const expectedHash = hashPresentationDefinition(definitionResult.value);
-  if (!expectedHash.valid || bundleResult.value.definitionHash !== expectedHash.value)
+  if (!expectedHash.valid || bundleResult.value.definitionHash !== expectedHash.value) {
     diagnostics.push(
       diagnostic(
         "hash.invalid",
@@ -31,10 +32,11 @@ export const validatePresentationArtifacts = (
         "RenderBundle definitionHash must match the canonical PresentationDefinition hash.",
       ),
     );
+  }
 
   const definitionSurfaces = definitionResult.value.scene.surfaces;
   const bundleSurfaces = bundleResult.value.surfaces;
-  if (!sameSet(Object.keys(definitionSurfaces), Object.keys(bundleSurfaces)))
+  if (!sameSet(Object.keys(definitionSurfaces), Object.keys(bundleSurfaces))) {
     diagnostics.push(
       diagnostic(
         "artifact.invalid",
@@ -42,25 +44,29 @@ export const validatePresentationArtifacts = (
         "Definition and RenderBundle must contain the same SemanticSurface set.",
       ),
     );
+  }
 
   for (const [surfaceId, definitionSurface] of Object.entries(definitionSurfaces)) {
     const bundleSurface = bundleSurfaces[surfaceId];
-    if (bundleSurface === undefined) continue;
+    if (bundleSurface === undefined) {
+      continue;
+    }
     const path = `/surfaces/${pathSegment(surfaceId)}`;
     if (
       canonicalizeJsonPayload(bundleSurface.logicalSize) !==
         canonicalizeJsonPayload(definitionSurface.logicalSize) ||
       canonicalizeJsonPayload(bundleSurface.physicalSizeMeters) !==
         canonicalizeJsonPayload(definitionSurface.physicalSizeMeters)
-    )
+    ) {
       diagnostics.push(
         diagnostic("artifact.invalid", path, "Compiled surface sizes must match the Definition."),
       );
+    }
     const stateIds = Object.keys(definitionSurface.states);
     if (
       !sameSet(stateIds, Object.keys(bundleSurface.semanticsByState)) ||
       !sameSet(stateIds, Object.keys(bundleSurface.interactionsByState))
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "artifact.invalid",
@@ -68,6 +74,7 @@ export const validatePresentationArtifacts = (
           "Compiled State records must exactly match the Definition State set.",
         ),
       );
+    }
     for (const stateId of stateIds) {
       const materialized = materializeCompletedSemanticTree(definitionSurface, stateId);
       const actual = bundleSurface.semanticsByState[stateId];
@@ -75,7 +82,7 @@ export const validatePresentationArtifacts = (
         !materialized.valid ||
         actual === undefined ||
         canonicalizeJsonPayload(materialized.value) !== canonicalizeJsonPayload(actual)
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "artifact.invalid",
@@ -83,12 +90,13 @@ export const validatePresentationArtifacts = (
             "Bundle semantic tree must equal the materialized Definition State.",
           ),
         );
+      }
       const regions = bundleSurface.interactionsByState[stateId] ?? [];
       const enabled = new Set(definitionSurface.states[stateId]?.enabledInteractionIds ?? []);
       const covered = new Set(regions.map((region) => region.interactionId));
       for (const [index, region] of regions.entries()) {
         const interaction = definitionSurface.interactions[region.interactionId];
-        if (!enabled.has(region.interactionId) || interaction?.hitPriority !== region.priority)
+        if (!enabled.has(region.interactionId) || interaction?.hitPriority !== region.priority) {
           diagnostics.push(
             diagnostic(
               "artifact.invalid",
@@ -96,9 +104,10 @@ export const validatePresentationArtifacts = (
               "Region must match an enabled Definition Interaction and hit priority.",
             ),
           );
+        }
       }
-      for (const interactionId of enabled)
-        if (!covered.has(interactionId))
+      for (const interactionId of enabled) {
+        if (!covered.has(interactionId)) {
           diagnostics.push(
             diagnostic(
               "artifact.invalid",
@@ -106,14 +115,16 @@ export const validatePresentationArtifacts = (
               "Enabled Interaction requires a region.",
             ),
           );
+        }
+      }
     }
   }
 
   return diagnostics.length === 0
     ? {
+        diagnostics: [],
         valid: true,
         value: { definition: definitionResult.value, renderBundle: bundleResult.value },
-        diagnostics: [],
       }
-    : { valid: false, diagnostics: sorted(diagnostics) };
+    : { diagnostics: sorted(diagnostics), valid: false };
 };

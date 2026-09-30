@@ -2,17 +2,17 @@ import { describe, expect, it } from "vitest";
 import { presentationDefinitionSchema } from "../../src/presentation/schema";
 
 export const definition = {
-  schemaVersion: 1,
-  metadata: { title: "Demo" },
-  stage: {
-    coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-    size: [10, 3, 10],
-    zones: [{ id: "stage", bounds: { min: [-1, 0, -1], max: [1, 2, 1] } }],
-  },
   assets: [{ assetId: "image-1" }],
   groups: [
     {
-      id: "group-1",
+      anchoredElementGroups: [
+        {
+          id: "head-content",
+          anchor: "head",
+          transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+          elementIds: ["image"],
+        },
+      ],
       elements: [
         {
           id: "image",
@@ -26,17 +26,9 @@ export const definition = {
           },
         },
       ],
-      anchoredElementGroups: [
-        {
-          id: "head-content",
-          anchor: "head",
-          transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-          elementIds: ["image"],
-        },
-      ],
+      id: "group-1",
       steps: [
         {
-          id: "step-1",
           cues: [
             {
               id: "cue-1",
@@ -52,10 +44,18 @@ export const definition = {
               next: { kind: "end" },
             },
           ],
+          id: "step-1",
         },
       ],
     },
   ],
+  metadata: { title: "Demo" },
+  schemaVersion: 1,
+  stage: {
+    coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+    size: [10, 3, 10],
+    zones: [{ bounds: { min: [-1, 0, -1], max: [1, 2, 1] }, id: "stage" }],
+  },
 } as const;
 const invalid = (change: (copy: any) => void) => {
   const copy = structuredClone(definition);

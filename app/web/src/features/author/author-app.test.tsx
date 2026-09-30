@@ -6,30 +6,30 @@ import { AuthorApp } from "./author-app";
 import { AuthorApiError, type AuthorApi } from "./api";
 
 const snapshot = (): ProjectSnapshot => ({
-  revision: "r1",
-  sourceHash: "s1",
-  irHash: "i1",
   diagnostics: [],
   instances: ["alpha", "beta"].map((instanceId) => ({
     instanceId,
-    props: { title: { type: "string" as const, value: instanceId, editable: true } },
+    props: { title: { editable: true, type: "string" as const, value: instanceId } },
     transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     transformEditable: true,
   })),
+  irHash: "i1",
+  revision: "r1",
+  sourceHash: "s1",
 });
 const apiFor = (project: ProjectSnapshot): AuthorApi => ({
-  project: vi.fn(async () => project),
-  patch: vi.fn(async () => ({ revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" })),
+  artifact: vi.fn(),
   build: vi.fn(async () => ({
+    artifacts: [],
     buildId: "b1",
+    diagnostics: [],
     revision: "r2",
     status: "failed" as const,
-    diagnostics: [],
-    artifacts: [],
   })),
-  job: vi.fn(),
   cancel: vi.fn(),
-  artifact: vi.fn(),
+  job: vi.fn(),
+  patch: vi.fn(async () => ({ commandId: "c", irHash: "i2", revision: "r2", sourceHash: "s2" })),
+  project: vi.fn(async () => project),
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -50,7 +50,7 @@ describe("Author inspector", () => {
       expect(api.patch).toHaveBeenCalledWith(
         "r1",
         expect.objectContaining({
-          command: { kind: "setProp", instanceId: "beta", propId: "title", value: "B" },
+          command: { instanceId: "beta", kind: "setProp", propId: "title", value: "B" },
         }),
       ),
     );
@@ -61,8 +61,8 @@ describe("Author inspector", () => {
     const api = apiFor(old);
     vi.mocked(api.project).mockImplementation(async () => current);
     vi.mocked(api.patch).mockImplementation(async () => {
-      current = { ...old, revision: "r2", sourceHash: "s2", irHash: "i2" };
-      return { revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" };
+      current = { ...old, irHash: "i2", revision: "r2", sourceHash: "s2" };
+      return { commandId: "c", irHash: "i2", revision: "r2", sourceHash: "s2" };
     });
     const user = userEvent.setup();
     render(<AuthorApp api={api} />);
@@ -79,11 +79,11 @@ describe("Author preview", () => {
   it("continues polling when cancellation returns a running job", async () => {
     const api = apiFor(snapshot());
     const running = {
+      artifacts: [],
       buildId: "b1",
+      diagnostics: [],
       revision: "r1",
       status: "running" as const,
-      diagnostics: [],
-      artifacts: [],
     };
     vi.mocked(api.build).mockResolvedValue(running);
     vi.mocked(api.cancel).mockResolvedValue(running);
@@ -101,11 +101,11 @@ describe("Author preview", () => {
   it("keeps the terminal status when an older cancellation response arrives", async () => {
     const api = apiFor(snapshot());
     const running = {
+      artifacts: [],
       buildId: "b1",
+      diagnostics: [],
       revision: "r1",
       status: "running" as const,
-      diagnostics: [],
-      artifacts: [],
     };
     let finishCancel!: (job: Awaited<ReturnType<AuthorApi["cancel"]>>) => void;
     vi.mocked(api.build).mockResolvedValue(running);
@@ -148,11 +148,11 @@ describe("Author preview", () => {
     await user.click(button);
     expect(api.build).toHaveBeenCalledTimes(1);
     resolveBuild({
+      artifacts: [],
       buildId: "b1",
+      diagnostics: [],
       revision: "r1",
       status: "succeeded",
-      diagnostics: [],
-      artifacts: [],
     });
     await waitFor(() => expect(button).toBeEnabled());
   });
@@ -165,21 +165,21 @@ describe("Author preview", () => {
     let edits = 0;
     vi.mocked(api.patch).mockImplementation(async () => {
       edits++;
-      current = { ...current, revision: `r${edits + 1}`, irHash: `i${edits + 1}` };
+      current = { ...current, irHash: `i${edits + 1}`, revision: `r${edits + 1}` };
       return {
+        commandId: "c",
+        irHash: current.irHash!,
         revision: current.revision,
         sourceHash: current.sourceHash,
-        irHash: current.irHash!,
-        commandId: "c",
       };
     });
     vi.mocked(api.build).mockImplementation(async (revision) => ({
-      buildId: "b1",
-      revision,
-      status: edits === 1 ? "succeeded" : "failed",
-      diagnostics: [],
       artifacts:
         edits === 1 ? [{ assetId: "a1", instanceId: "alpha", mediaType: "image/png" }] : [],
+      buildId: "b1",
+      diagnostics: [],
+      revision,
+      status: edits === 1 ? "succeeded" : "failed",
     }));
     vi.mocked(api.artifact).mockResolvedValue(new Blob(["png"], { type: "image/png" }));
     vi.stubGlobal(
@@ -221,7 +221,7 @@ describe("uncertain save response", () => {
     const api = apiFor(snapshot());
     vi.mocked(api.patch)
       .mockRejectedValueOnce(new TypeError("connection lost"))
-      .mockResolvedValueOnce({ revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" });
+      .mockResolvedValueOnce({ commandId: "c", irHash: "i2", revision: "r2", sourceHash: "s2" });
     const user = userEvent.setup();
     render(<AuthorApp api={api} />);
     await user.click(await screen.findByRole("button", { name: "alpha" }));

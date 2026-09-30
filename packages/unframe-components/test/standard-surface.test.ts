@@ -9,12 +9,12 @@ import {
 describe("standard Surface contract", () => {
   it("exposes only the implemented structured baked-web contract", () => {
     expect(standardSurfaceManifest).toMatchObject({
-      componentId: "@unframe/components/Surface",
-      version: 1,
       authoring: {
         mode: "structured",
         structure: "./standard-surface.structure.ts",
       },
+      componentId: "@unframe/components/Surface",
+      version: 1,
     });
     expect(standardSurfaceManifest.props).toEqual({});
     expect(standardSurfaceManifest.slots).toEqual({});
@@ -23,7 +23,7 @@ describe("standard Surface contract", () => {
     expect(standardSurfaceManifest.actions).toEqual({});
     expect(standardSurfaceManifest.outputs).toEqual({});
     expect(standardSurfaceManifest.states).toEqual({
-      default: { kind: "state", initial: true },
+      default: { initial: true, kind: "state" },
     });
     expect(standardSurfaceManifest.renderers).toEqual(["baked-web"]);
     expect(standardSurfaceManifest).not.toHaveProperty("semantics");
@@ -32,71 +32,77 @@ describe("standard Surface contract", () => {
 
   it("owns an explicit Surface to Frame to Text primitive graph", () => {
     const surface = standardSurfaceStructure.root;
-    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
+    if (surface.kind !== "surface") {
+      throw new Error("standard Surface must have a Surface root");
+    }
     expect(surface).toMatchObject({
-      id: "surface-root",
-      kind: "surface",
-      physicalSizeMeters: [1.6, 0.9],
-      logicalSize: [1920, 1080],
       fit: "contain",
+      id: "surface-root",
       initialStateId: "default",
+      kind: "surface",
+      logicalSize: [1920, 1080],
+      physicalSizeMeters: [1.6, 0.9],
       renderIntent: {
-        updateModel: "static",
+        fallbackPolicy: "reject",
         interaction: "none",
         internalAnimation: "none",
         rendererPreference: "baked-web",
-        fallbackPolicy: "reject",
+        updateModel: "static",
       },
     });
     expect(surface.root).toMatchObject({
       id: "frame-root",
       kind: "frame",
-      layout: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
+      layout: { height: 1080, kind: "absolute", width: 1920, x: 0, y: 0 },
     });
     expect(surface.root.children).toHaveLength(1);
     expect(surface.root.children[0]).toMatchObject({
       id: "text-content",
       kind: "text",
-      value: "Unframe",
-      layout: { kind: "absolute", x: 0, y: 0, width: 1920, height: 1080 },
-      semanticNodeId: "semantic-text",
+      layout: { height: 1080, kind: "absolute", width: 1920, x: 0, y: 0 },
       maxCodePoints: 64,
+      semanticNodeId: "semantic-text",
       style: {
-        font: { kind: "asset-ref", assetId: "reference-font" },
+        font: { assetId: "reference-font", kind: "asset-ref" },
         fontSize: 32,
         lineHeight: 40,
       },
+      value: "Unframe",
     });
   });
 
   it("keeps state and semantic meaning static and non-interactive", () => {
     const surface = standardSurfaceStructure.root;
-    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
+    if (surface.kind !== "surface") {
+      throw new Error("standard Surface must have a Surface root");
+    }
     expect(Object.keys(surface.states)).toEqual(["default"]);
     expect(Object.keys(standardSurfaceManifest.states)).toEqual(Object.keys(surface.states));
     expect(surface.states.default).toEqual({
+      enabledInteractionIds: [],
       id: "default",
       semanticOverrides: [],
-      enabledInteractionIds: [],
     });
     expect(surface.interactions).toEqual({});
     expect(surface.baseSemanticTree).toEqual({
-      rootNodeIds: ["semantic-text"],
       nodes: {
         "semantic-text": {
           id: "semantic-text",
-          parentId: null,
           order: 0,
+          parentId: null,
           role: "paragraph",
           text: "Unframe",
         },
       },
+      rootNodeIds: ["semantic-text"],
     });
   });
 
   it("uses explicit unique local IDs instead of position-derived identity", () => {
     const surface = standardSurfaceStructure.root;
-    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
+    if (surface.kind !== "surface") {
+      throw new Error("standard Surface must have a Surface root");
+    }
     const ids = [
       standardSurfaceStructure.id,
       surface.id,
@@ -111,14 +117,18 @@ describe("standard Surface contract", () => {
 
   it("uses concrete text inputs without applying unresolved Named Styles", () => {
     const surface = standardSurfaceStructure.root;
-    if (surface.kind !== "surface") throw new Error("standard Surface must have a Surface root");
+    if (surface.kind !== "surface") {
+      throw new Error("standard Surface must have a Surface root");
+    }
     const text = surface.root.children[0];
-    if (text?.kind !== "text") throw new Error("standard Surface child must be Text");
+    if (text?.kind !== "text") {
+      throw new Error("standard Surface child must be Text");
+    }
 
     expect(surface.root).not.toHaveProperty("namedStyle");
     expect(text).not.toHaveProperty("namedStyle");
     expect(text?.style).toEqual({
-      font: { kind: "asset-ref", assetId: "reference-font" },
+      font: { assetId: "reference-font", kind: "asset-ref" },
       fontSize: 32,
       lineHeight: 40,
     });

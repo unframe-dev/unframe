@@ -4,17 +4,17 @@
   type AnimatedIconProps = {
     alt?: string;
     class?: string;
-    size?: string;
-    duration?: string;
     delay?: string;
+    duration?: string;
+    size?: string;
   };
 
   let {
     alt = "",
     class: className = "",
-    size = "10rem",
-    duration = "1.4s",
     delay = "0s",
+    duration = "1.4s",
+    size = "10rem",
   }: AnimatedIconProps = $props();
 </script>
 

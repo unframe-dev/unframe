@@ -1,18 +1,20 @@
 export type OpaqueBinding = {
+  readonly disabled?: boolean | undefined;
+  readonly height: number;
   readonly key: string;
   readonly text: string;
+  readonly width: number;
   readonly x: number;
   readonly y: number;
-  readonly width: number;
-  readonly height: number;
-  readonly disabled?: boolean | undefined;
 };
 
 export const validateOpaqueBindings = (
   expected: Readonly<Record<string, string>>,
-  observed: readonly OpaqueBinding[],
-): { ok: true; bindings: readonly OpaqueBinding[] } | { ok: false } => {
-  if (Object.keys(expected).length !== observed.length) return { ok: false };
+  observed: ReadonlyArray<OpaqueBinding>,
+): { bindings: ReadonlyArray<OpaqueBinding>; ok: true } | { ok: false } => {
+  if (Object.keys(expected).length !== observed.length) {
+    return { ok: false };
+  }
   const seen = new Set<string>();
   for (const item of observed) {
     if (
@@ -22,12 +24,13 @@ export const validateOpaqueBindings = (
       ![item.x, item.y, item.width, item.height].every(Number.isFinite) ||
       item.width <= 0 ||
       item.height <= 0
-    )
+    ) {
       return { ok: false };
+    }
     seen.add(item.key);
   }
   return {
-    ok: true,
     bindings: [...observed].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+    ok: true,
   };
 };

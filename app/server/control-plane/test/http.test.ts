@@ -19,12 +19,12 @@ describe("control plane HTTP boundary", () => {
 
   it("allows credentialed browser requests from the configured web origin", async () => {
     const response = await SELF.fetch("https://api.un-fra.me/presentations", {
-      method: "OPTIONS",
       headers: {
-        origin: "https://un-fra.me",
-        "access-control-request-method": "GET",
         "access-control-request-headers": "authorization,content-type",
+        "access-control-request-method": "GET",
+        origin: "https://un-fra.me",
       },
+      method: "OPTIONS",
     });
 
     expect(response.status).toBe(204);
@@ -35,8 +35,8 @@ describe("control plane HTTP boundary", () => {
 
   it("does not grant CORS access to an untrusted origin", async () => {
     const response = await SELF.fetch("https://api.un-fra.me/presentations", {
+      headers: { "access-control-request-method": "GET", origin: "https://attacker.example" },
       method: "OPTIONS",
-      headers: { origin: "https://attacker.example", "access-control-request-method": "GET" },
     });
 
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
@@ -48,13 +48,13 @@ describe("control plane HTTP boundary", () => {
 
     const response = await app.fetch(
       new Request("https://api.un-fra.me/cookie-write", {
-        method: "POST",
+        body: "cross-site form body",
         headers: {
+          "content-type": "text/plain",
           cookie: "better-auth.session_token=session",
           origin: "https://evil.un-fra.me",
-          "content-type": "text/plain",
         },
-        body: "cross-site form body",
+        method: "POST",
       }),
       { ...runtimeEnvironment(), WEB_ORIGIN: "https://un-fra.me" },
     );
@@ -71,9 +71,9 @@ describe("control plane HTTP boundary", () => {
 
     const response = await app.fetch(
       new Request("https://api.un-fra.me/bearer-write", {
-        method: "POST",
-        headers: { authorization: "Bearer session", "content-type": "text/plain" },
         body: "device request",
+        headers: { authorization: "Bearer session", "content-type": "text/plain" },
+        method: "POST",
       }),
       { ...runtimeEnvironment(), WEB_ORIGIN: "https://un-fra.me" },
     );
@@ -110,8 +110,8 @@ describe("control plane HTTP boundary", () => {
 
     const log = JSON.parse(String(errorLog.mock.calls[0]?.[0]));
     expect(log).toEqual({
-      event: "unhandled_error",
       errorName: "Error",
+      event: "unhandled_error",
       incidentId: expect.stringMatching(
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
       ),

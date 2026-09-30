@@ -5,27 +5,27 @@ import { runtimeAssignments } from "../../adapters/d1/schema";
 
 export type RuntimeKind = "Cloud" | "VenueEdge";
 export type RuntimeAssignment = {
-  sessionId: string;
-  runtimeId: string;
-  runtimeKind: RuntimeKind;
-  endpoint: string;
-  certificateFingerprint: string | null;
-  provisioningEdgeId: string | null;
   assignmentEpoch: number;
-  presentationRevision: number;
+  certificateFingerprint: string | null;
+  endpoint: string;
   issuedAt: string;
   leaseExpiresAt: string;
+  presentationRevision: number;
+  provisioningEdgeId: string | null;
   releasedAt: string | null;
+  runtimeId: string;
+  runtimeKind: RuntimeKind;
+  sessionId: string;
 };
 export type AssignmentRequest = Omit<RuntimeAssignment, "assignmentEpoch" | "releasedAt"> & {
   edgeHealthyAfter: string;
 };
 export type LeaseRequest = {
-  sessionId: string;
-  provisioningEdgeId: string;
   assignmentEpoch: number;
-  now: string;
   leaseExpiresAt?: string;
+  now: string;
+  provisioningEdgeId: string;
+  sessionId: string;
 };
 
 export interface RuntimeAssignmentRepository {
@@ -35,9 +35,9 @@ export interface RuntimeAssignmentRepository {
     now: string,
     edgeHealthyAfter: string,
   ): Promise<RuntimeAssignment | null>;
-  renew(input: Required<LeaseRequest>): Promise<RuntimeAssignment | null>;
   release(input: Omit<LeaseRequest, "leaseExpiresAt">): Promise<boolean>;
   releaseSession(sessionId: string, now: string): Promise<void>;
+  renew(input: Required<LeaseRequest>): Promise<RuntimeAssignment | null>;
 }
 
 export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepository {
@@ -91,11 +91,11 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
     );
   }
   async renew({
-    sessionId,
-    provisioningEdgeId,
     assignmentEpoch,
-    now,
     leaseExpiresAt,
+    now,
+    provisioningEdgeId,
+    sessionId,
   }: Required<LeaseRequest>) {
     const result = await this.database
       .prepare(
@@ -115,10 +115,10 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
     return result.meta.changes === 1 ? this.byEpoch(sessionId, assignmentEpoch) : null;
   }
   async release({
-    sessionId,
-    provisioningEdgeId,
     assignmentEpoch,
     now,
+    provisioningEdgeId,
+    sessionId,
   }: Omit<LeaseRequest, "leaseExpiresAt">) {
     const result = await this.database
       .prepare(
@@ -142,7 +142,9 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
       .from(runtimeAssignments)
       .where(and(eq(runtimeAssignments.sessionId, sessionId), eq(runtimeAssignments.epoch, epoch)))
       .get();
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     const { epoch: storedEpoch, revision, ...assignment } = value;
     return { ...assignment, assignmentEpoch: storedEpoch, presentationRevision: revision };
   }

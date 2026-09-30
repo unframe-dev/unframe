@@ -10,13 +10,14 @@ import {
 
 type Asset = { bytes: Uint8Array; mediaType: string };
 const jsonBody = async (request: IncomingMessage): Promise<unknown> => {
-  const chunks: Buffer[] = [];
+  const chunks: Array<Buffer> = [];
   let size = 0;
   for await (const chunk of request) {
     const bytes = Buffer.from(chunk);
     size += bytes.byteLength;
-    if (size > 256 * 1024)
+    if (size > 256 * 1024) {
       throw new AuthorError(413, "author-input-too-large", "Command exceeds 256 KiB.");
+    }
     chunks.push(bytes);
   }
   try {
@@ -27,22 +28,23 @@ const jsonBody = async (request: IncomingMessage): Promise<unknown> => {
 };
 const expectedRevision = (request: IncomingMessage) => {
   const value = request.headers["if-match"];
-  if (typeof value !== "string" || !/^"[^"\r\n]+"$/.test(value))
+  if (typeof value !== "string" || !/^"[^"\r\n]+"$/.test(value)) {
     throw new AuthorError(
       412,
       "author-revision-required",
       "A current If-Match revision is required.",
     );
+  }
   return value.slice(1, -1);
 };
 const invalid = () => new AuthorError(400, "author-invalid-request", "Request shape is invalid.");
 
 export const startAuthorHost = async ({
-  service,
   assets,
+  service,
 }: {
-  service: AuthorService;
   assets: ReadonlyMap<string, Asset>;
+  service: AuthorService;
 }) => {
   const token = randomBytes(32).toString("hex");
   let origin = "";
@@ -60,27 +62,35 @@ export const startAuthorHost = async ({
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
     void (async () => {
-      if (request.headers.host !== authority)
+      if (request.headers.host !== authority) {
         throw new AuthorError(403, "author-host-rejected", "Host does not match this session.");
+      }
       const url = new URL(request.url ?? "/", origin);
       const path = url.pathname;
-      if (url.search) throw invalid();
+      if (url.search) {
+        throw invalid();
+      }
       if (!path.startsWith("/api/")) {
         const asset = request.method === "GET" ? assets.get(path) : undefined;
-        if (!asset) throw new AuthorError(404, "author-not-found", "Resource was not found.");
+        if (!asset) {
+          throw new AuthorError(404, "author-not-found", "Resource was not found.");
+        }
         response.writeHead(200, { "content-type": asset.mediaType });
         response.end(asset.bytes);
         return;
       }
       const supplied = Buffer.from(request.headers.authorization ?? "");
       const expected = Buffer.from(`Bearer ${token}`);
-      if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected))
+      if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
         throw new AuthorError(401, "author-token-required", "A valid session token is required.");
+      }
       if (request.method !== "GET") {
-        if (request.headers.origin !== origin)
+        if (request.headers.origin !== origin) {
           throw new AuthorError(403, "author-origin-rejected", "Writes require the same origin.");
-        if (request.headers["content-type"]?.split(";")[0]?.trim() !== "application/json")
+        }
+        if (request.headers["content-type"]?.split(";")[0]?.trim() !== "application/json") {
           throw invalid();
+        }
       }
       if (path === "/api/project" && request.method === "GET") {
         const project = await service.project();
@@ -91,7 +101,9 @@ export const startAuthorHost = async ({
       if (path === "/api/project" && request.method === "PATCH") {
         const revision = expectedRevision(request);
         const parsed = patchRequestSchema.safeParse(await jsonBody(request));
-        if (!parsed.success) throw invalid();
+        if (!parsed.success) {
+          throw invalid();
+        }
         const saved = await service.patch(revision, parsed.data);
         response.setHeader("etag", `"${saved.revision}"`);
         sendJson(response, 200, saved);
@@ -100,7 +112,9 @@ export const startAuthorHost = async ({
       if (path === "/api/builds" && request.method === "POST") {
         const revision = expectedRevision(request);
         const parsed = buildRequestSchema.safeParse(await jsonBody(request));
-        if (!parsed.success) throw invalid();
+        if (!parsed.success) {
+          throw invalid();
+        }
         const job = await service.build(revision, parsed.data.requestId);
         response.setHeader("location", `/api/builds/${job.buildId}`);
         sendJson(response, 202, job);
@@ -115,8 +129,14 @@ export const startAuthorHost = async ({
         }
         if (match[2] === "cancellation" && request.method === "PUT") {
           const body = await jsonBody(request);
-          if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length)
+          if (
+            !body ||
+            typeof body !== "object" ||
+            Array.isArray(body) ||
+            Object.keys(body).length
+          ) {
             throw invalid();
+          }
           sendJson(response, 200, await service.cancel(buildId));
           return;
         }
@@ -143,14 +163,16 @@ export const startAuthorHost = async ({
               "author-io-failed",
               "The local author host could not complete the operation.",
             );
-      if (!response.headersSent)
+      if (!response.headersSent) {
         sendJson(response, failure.status, {
           code: failure.code,
-          message: failure.message,
           details: failure.details,
+          message: failure.message,
           retryable: failure.retryable,
         });
-      else response.destroy();
+      } else {
+        response.destroy();
+      }
     });
   });
   server.requestTimeout = 30_000;
@@ -163,13 +185,12 @@ export const startAuthorHost = async ({
     });
   });
   const address = server.address();
-  if (!address || typeof address === "string")
+  if (!address || typeof address === "string") {
     throw new Error("Author host did not bind loopback.");
+  }
   authority = `127.0.0.1:${address.port}`;
   origin = `http://${authority}`;
   return {
-    origin,
-    token,
     async close() {
       await service.close();
       await new Promise<void>((resolve, reject) => {
@@ -177,5 +198,7 @@ export const startAuthorHost = async ({
         server.closeAllConnections();
       });
     },
+    origin,
+    token,
   };
 };

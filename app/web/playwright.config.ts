@@ -9,26 +9,12 @@ const executablePath =
 const isCI = Boolean(process.env["CI"]);
 
 export default defineConfig({
-  testDir: "./e2e",
-  fullyParallel: false,
   forbidOnly: isCI,
-  retries: isCI ? 1 : 0,
-  reporter: isCI ? "github" : "list",
-  use: {
-    baseURL,
-    screenshot: "only-on-failure",
-    trace: "retain-on-failure",
-  },
-  webServer: {
-    command: "pnpm run dev:e2e",
-    url: `${baseURL}/`,
-    reuseExistingServer: !isCI,
-    timeout: 120_000,
-  },
+  fullyParallel: false,
   projects: [
     {
-      name: "chromium",
       grepInvert: /@webgl-fallback/,
+      name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -38,8 +24,8 @@ export default defineConfig({
       },
     },
     {
-      name: "chromium-no-webgl",
       grep: /@webgl-fallback/,
+      name: "chromium-no-webgl",
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -49,4 +35,18 @@ export default defineConfig({
       },
     },
   ],
+  reporter: isCI ? "github" : "list",
+  retries: isCI ? 1 : 0,
+  testDir: "./e2e",
+  use: {
+    baseURL,
+    screenshot: "only-on-failure",
+    trace: "retain-on-failure",
+  },
+  webServer: {
+    command: "pnpm run dev:e2e",
+    reuseExistingServer: !isCI,
+    timeout: 120_000,
+    url: `${baseURL}/`,
+  },
 });

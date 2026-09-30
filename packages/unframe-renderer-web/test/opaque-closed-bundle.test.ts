@@ -9,59 +9,59 @@ describe("closed opaque React bundle", () => {
   it("bundles the locked React runtime and exports only the trusted mount function", async () => {
     const result = await bundleOpaqueRenderer({
       entry: "__unframe__/entry.tsx",
-      rendererInputHash: hash,
       modules: [
         {
-          path: "__unframe__/entry.tsx",
           moduleType: "tsx",
+          path: "__unframe__/entry.tsx",
           source:
             "export const render = ({texts}: {texts: {title: string}}) => <h1>{texts.title}</h1>;",
         },
         {
-          path: "packages/react/index.js",
           moduleType: "js",
+          path: "packages/react/index.js",
           source: "export const createElement = (component, props) => component(props);",
         },
         {
-          path: "packages/react/jsx-runtime.js",
           moduleType: "js",
+          path: "packages/react/jsx-runtime.js",
           source: "export const jsx = (tag, props) => ({tag, props}); export const jsxs = jsx;",
         },
         {
-          path: "packages/react-dom/client.js",
           moduleType: "js",
+          path: "packages/react-dom/client.js",
           source:
             "export const createRoot = (element) => ({render: (value) => { element.value = value; }});",
         },
         {
-          path: "packages/react-dom/index.js",
           moduleType: "js",
+          path: "packages/react-dom/index.js",
           source: "export const flushSync = (callback) => callback();",
         },
       ],
+      rendererInputHash: hash,
       resolutions: [
         {
           importerPath: "__unframe__/bootstrap.ts",
-          specifier: "react",
           kind: "import",
+          specifier: "react",
           targetPath: "packages/react/index.js",
         },
         {
           importerPath: "__unframe__/bootstrap.ts",
-          specifier: "react-dom",
           kind: "import",
+          specifier: "react-dom",
           targetPath: "packages/react-dom/index.js",
         },
         {
           importerPath: "__unframe__/bootstrap.ts",
-          specifier: "react-dom/client",
           kind: "import",
+          specifier: "react-dom/client",
           targetPath: "packages/react-dom/client.js",
         },
         {
           importerPath: "__unframe__/entry.tsx",
-          specifier: "react/jsx-runtime",
           kind: "import",
+          specifier: "react/jsx-runtime",
           targetPath: "packages/react/jsx-runtime.js",
         },
       ],
@@ -69,98 +69,102 @@ describe("closed opaque React bundle", () => {
     });
 
     expect(result.ok ? [] : result.diagnostics).toEqual([]);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.externalImports).toEqual([]);
     expect(result.javascript).toContain("__unframeMount");
     expect(result.javascript).toContain("flushSync");
     expect(result.javascript).toContain("texts.title");
     const element: { value?: unknown } = {};
     const context: {
-      document: { getElementById: () => typeof element };
       __unframeMount?: (input: unknown) => void;
+      document: { getElementById: () => typeof element };
     } = {
       document: { getElementById: () => element },
     };
     runInNewContext(result.javascript, context);
     context.__unframeMount?.({
-      texts: { title: "Hello" },
-      props: {},
       bindings: {},
+      props: {},
       state: "default",
+      texts: { title: "Hello" },
     });
-    expect(element.value).toEqual({ tag: "h1", props: { children: "Hello" } });
+    expect(element.value).toEqual({ props: { children: "Hello" }, tag: "h1" });
   });
 
   it("resolves static CommonJS require through the locked table and fixes production mode", async () => {
     const result = await bundleOpaqueRenderer({
       entry: "__unframe__/entry.tsx",
-      rendererInputHash: hash,
       modules: [
         {
-          path: "__unframe__/entry.tsx",
           moduleType: "tsx",
+          path: "__unframe__/entry.tsx",
           source: "export const render = () => null;",
         },
         {
-          path: "packages/react/index.cjs",
           moduleType: "js",
+          path: "packages/react/index.cjs",
           source: 'module.exports = require("./cjs/react.cjs");',
         },
         {
-          path: "packages/react/cjs/react.cjs",
           moduleType: "js",
+          path: "packages/react/cjs/react.cjs",
           source: "module.exports = {createElement: () => process.env.NODE_ENV};",
         },
         {
-          path: "packages/react-dom/index.cjs",
           moduleType: "js",
+          path: "packages/react-dom/index.cjs",
           source: "exports.flushSync = (callback) => callback();",
         },
         {
-          path: "packages/react-dom/client.cjs",
           moduleType: "js",
+          path: "packages/react-dom/client.cjs",
           source:
             "exports.createRoot = (element) => ({render: (value) => {element.value = value;}});",
         },
       ],
+      rendererInputHash: hash,
       resolutions: [
         {
           importerPath: "__unframe__/bootstrap.ts",
-          specifier: "react",
           kind: "import",
+          specifier: "react",
           targetPath: "packages/react/index.cjs",
         },
         {
           importerPath: "__unframe__/bootstrap.ts",
-          specifier: "react-dom",
           kind: "import",
+          specifier: "react-dom",
           targetPath: "packages/react-dom/index.cjs",
         },
         {
           importerPath: "__unframe__/bootstrap.ts",
-          specifier: "react-dom/client",
           kind: "import",
+          specifier: "react-dom/client",
           targetPath: "packages/react-dom/client.cjs",
         },
         {
           importerPath: "packages/react/index.cjs",
-          specifier: "./cjs/react.cjs",
           kind: "require",
+          specifier: "./cjs/react.cjs",
           targetPath: "packages/react/cjs/react.cjs",
         },
       ],
       stylesheets: [],
     });
     expect(result.ok ? [] : result.diagnostics).toEqual([]);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.externalImports).toEqual([]);
     const element: { value?: unknown } = {};
     const context: {
-      document: { getElementById: () => typeof element };
       __unframeMount?: (input: unknown) => void;
+      document: { getElementById: () => typeof element };
     } = { document: { getElementById: () => element } };
     runInNewContext(result.javascript, context);
-    context.__unframeMount?.({ props: {}, texts: {}, bindings: {}, state: "default" });
+    context.__unframeMount?.({ bindings: {}, props: {}, state: "default", texts: {} });
     expect(element.value).toBe("production");
   });
 });

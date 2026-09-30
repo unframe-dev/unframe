@@ -14,19 +14,24 @@ import {
 } from "./lock-v2.js";
 
 const record = (value: unknown): Record<string, unknown> => {
-  if (!value || typeof value !== "object" || Array.isArray(value))
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Expected an object.");
+  }
   return value as Record<string, unknown>;
 };
 const text = (value: unknown): string => {
-  if (typeof value !== "string" || !value) throw new Error("Expected a nonempty string.");
+  if (typeof value !== "string" || !value) {
+    throw new Error("Expected a nonempty string.");
+  }
   return value;
 };
 export const digestBytes = (bytes: Uint8Array): ContentHash =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const typeSpecifier = (name: string) => {
-  if (!name.startsWith("@types/")) return name;
+  if (!name.startsWith("@types/")) {
+    return name;
+  }
   const plain = name.slice(7);
   return plain.includes("__") ? `@${plain.replace("__", "/")}` : plain;
 };
@@ -36,69 +41,90 @@ const conditions = {
   types: new Set(["types", "import", "default"]),
 };
 const target = (value: unknown, active: Set<string>): string | null | undefined => {
-  if (value === null || value === undefined) return value;
-  if (typeof value === "string") return value;
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    return value;
+  }
   if (Array.isArray(value)) {
     for (const item of value) {
       const result = target(item, active);
-      if (result !== undefined) return result;
+      if (result !== undefined) {
+        return result;
+      }
     }
     return undefined;
   }
   for (const [condition, branch] of Object.entries(record(value))) {
     if (active.has(condition)) {
       const result = target(branch, active);
-      if (result !== undefined) return result;
+      if (result !== undefined) {
+        return result;
+      }
     }
   }
   return undefined;
 };
-const pathTarget = (value: string | null | undefined, files: readonly string[]): string | null => {
-  if (value == null) return null;
+const pathTarget = (
+  value: string | null | undefined,
+  files: ReadonlyArray<string>,
+): string | null => {
+  if (value == null) {
+    return null;
+  }
   const path = value.startsWith("./") ? value.slice(2) : value;
   if (
     !path ||
     path.includes("\\") ||
     path.split("/").some((p) => !p || p === "." || p === "..") ||
     !files.includes(path)
-  )
+  ) {
     throw new Error(`Package export does not name a locked file: ${value}`);
+  }
   return path;
 };
 export const resolvePackageExportTargets = (
   manifest: Record<string, unknown>,
-  files: readonly string[],
+  files: ReadonlyArray<string>,
 ): PackageSnapshot["exports"] => {
   const browserMap =
     manifest.browser && typeof manifest.browser === "object" ? record(manifest.browser) : undefined;
   const browserTarget = (path: string | null) => {
-    if (!path || !browserMap) return path;
+    if (!path || !browserMap) {
+      return path;
+    }
     const mapped = browserMap[`./${path}`];
-    if (mapped === false) return null;
+    if (mapped === false) {
+      return null;
+    }
     return mapped === undefined ? path : pathTarget(mapped as string, files);
   };
   if (manifest.browser && typeof manifest.browser === "object") {
     for (const [from, to] of Object.entries(record(manifest.browser))) {
-      if (!from.startsWith("./") || !files.includes(from.slice(2)))
+      if (!from.startsWith("./") || !files.includes(from.slice(2))) {
         throw new Error("Browser mapping source must name a locked package file.");
+      }
       if (
         to !== false &&
         (typeof to !== "string" || !to.startsWith("./") || !files.includes(to.slice(2)))
-      )
+      ) {
         throw new Error("Browser mapping target must name a locked package file.");
+      }
     }
   }
   if (manifest.imports) {
-    for (const name of Object.keys(record(manifest.imports)))
-      if (!name.startsWith("#") || name.includes("*"))
+    for (const name of Object.keys(record(manifest.imports))) {
+      if (!name.startsWith("#") || name.includes("*")) {
         throw new Error("Package aliases must be exact # specifiers.");
+      }
+    }
   }
   if (manifest.exports === undefined) {
-    const first = (...values: unknown[]) =>
+    const first = (...values: Array<unknown>) =>
       values.find((v) => typeof v === "string" && v.length > 0) as string | undefined;
     const standardIndex = files.includes("index.js") ? "./index.js" : undefined;
     const row = {
-      subpath: ".",
       runtimeImport: browserTarget(
         pathTarget(
           first(manifest.browser, manifest.module, manifest.main, standardIndex) ?? null,
@@ -106,6 +132,7 @@ export const resolvePackageExportTargets = (
         ),
       ),
       runtimeRequire: browserTarget(pathTarget(first(manifest.main, standardIndex) ?? null, files)),
+      subpath: ".",
       types: pathTarget(
         first(
           manifest.types,
@@ -115,8 +142,9 @@ export const resolvePackageExportTargets = (
         files,
       ),
     };
-    if (!row.runtimeImport && !row.runtimeRequire && !row.types)
+    if (!row.runtimeImport && !row.runtimeRequire && !row.types) {
       throw new Error("Package has no explicit root entry.");
+    }
     return [row];
   }
   const exports = manifest.exports;
@@ -129,18 +157,19 @@ export const resolvePackageExportTargets = (
       : ([[".", exports]] as const);
   const rows = new Map<
     string,
-    { row: PackageSnapshot["exports"][number]; prefix: number; suffix: number }
+    { prefix: number; row: PackageSnapshot["exports"][number]; suffix: number }
   >();
-  const blockedWildcards: {
-    prefixText: string;
-    suffixText: string;
+  const blockedWildcards: Array<{
     prefix: number;
+    prefixText: string;
     suffix: number;
-  }[] = [];
+    suffixText: string;
+  }> = [];
   for (const [declaredSubpath, declaredValue] of entries) {
     const directoryMapping = declaredSubpath.endsWith("/");
-    if (directoryMapping && (typeof declaredValue !== "string" || !declaredValue.endsWith("/")))
+    if (directoryMapping && (typeof declaredValue !== "string" || !declaredValue.endsWith("/"))) {
       throw new Error("Directory export must target a package directory.");
+    }
     const subpath = directoryMapping ? `${declaredSubpath}*` : declaredSubpath;
     const value = directoryMapping ? `${declaredValue}*` : declaredValue;
     if (
@@ -150,49 +179,58 @@ export const resolvePackageExportTargets = (
           .split("/")
           .slice(1)
           .some((part) => !part || part === "." || part === ".."))
-    )
+    ) {
       throw new Error(`Export subpath is invalid: ${subpath}`);
+    }
     const templates = {
       runtimeImport: target(value, conditions.runtimeImport),
       runtimeRequire: target(value, conditions.runtimeRequire),
       types: target(value, conditions.types),
     };
     const wildcardCount = subpath.split("*").length - 1;
-    if (wildcardCount > 1) throw new Error("Export subpath may contain one wildcard.");
+    if (wildcardCount > 1) {
+      throw new Error("Export subpath may contain one wildcard.");
+    }
     if (wildcardCount === 1 && Object.values(templates).every((template) => template == null)) {
       const marker = subpath.indexOf("*");
       blockedWildcards.push({
-        prefixText: subpath.slice(0, marker),
-        suffixText: subpath.slice(marker + 1),
         prefix: marker,
+        prefixText: subpath.slice(0, marker),
         suffix: subpath.length - marker - 1,
+        suffixText: subpath.slice(marker + 1),
       });
       continue;
     }
     const substitutions = new Set<string>();
-    if (wildcardCount === 0) substitutions.add("");
-    else
+    if (wildcardCount === 0) {
+      substitutions.add("");
+    } else {
       for (const template of Object.values(templates)) {
-        if (template == null) continue;
-        if (template.split("*").length !== 2 || !template.startsWith("./"))
+        if (template == null) {
+          continue;
+        }
+        if (template.split("*").length !== 2 || !template.startsWith("./")) {
           throw new Error("Wildcard export must map to a single relative wildcard target.");
+        }
         const [prefix, suffix] = template.slice(2).split("*") as [string, string];
-        for (const file of files)
+        for (const file of files) {
           if (
             file.startsWith(prefix) &&
             file.endsWith(suffix) &&
             file.length > prefix.length + suffix.length
           )
             substitutions.add(file.slice(prefix.length, file.length - suffix.length));
+        }
       }
+    }
     for (const replacement of substitutions) {
       const concreteSubpath = subpath.replace("*", replacement);
       const resolve = (template: string | null | undefined) =>
         pathTarget(template?.replace("*", replacement) ?? null, files);
       const row = {
-        subpath: concreteSubpath,
         runtimeImport: browserTarget(resolve(templates.runtimeImport)),
         runtimeRequire: browserTarget(resolve(templates.runtimeRequire)),
+        subpath: concreteSubpath,
         types: resolve(templates.types),
       };
       const previous = rows.get(concreteSubpath);
@@ -201,16 +239,18 @@ export const resolvePackageExportTargets = (
       if (
         previous &&
         (previous.prefix > prefix || (previous.prefix === prefix && previous.suffix > suffix))
-      )
+      ) {
         continue;
+      }
       if (
         previous &&
         previous.prefix === prefix &&
         previous.suffix === suffix &&
         JSON.stringify(previous.row) !== JSON.stringify(row)
-      )
+      ) {
         throw new Error(`Overlapping package exports are ambiguous: ${concreteSubpath}`);
-      rows.set(concreteSubpath, { row, prefix, suffix });
+      }
+      rows.set(concreteSubpath, { prefix, row, suffix });
     }
   }
   for (const [subpath, selected] of rows) {
@@ -223,8 +263,9 @@ export const resolvePackageExportTargets = (
           (blocked.prefix > selected.prefix ||
             (blocked.prefix === selected.prefix && blocked.suffix >= selected.suffix)),
       )
-    )
+    ) {
       rows.delete(subpath);
+    }
   }
   return [...rows.values()]
     .map(({ row }) => row)
@@ -236,21 +277,21 @@ export const mediaTypeFor = (path: string): string => {
   return (
     (
       {
+        ".cjs": "text/javascript",
+        ".css": "text/css",
+        ".cts": "text/typescript",
+        ".jpeg": "image/jpeg",
+        ".jpg": "image/jpeg",
+        ".js": "text/javascript",
+        ".json": "application/json",
+        ".mjs": "text/javascript",
+        ".mts": "text/typescript",
+        ".otf": "font/otf",
+        ".png": "image/png",
         ".ts": "text/typescript",
         ".tsx": "text/tsx",
-        ".mts": "text/typescript",
-        ".cts": "text/typescript",
-        ".js": "text/javascript",
-        ".mjs": "text/javascript",
-        ".cjs": "text/javascript",
-        ".json": "application/json",
-        ".css": "text/css",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".webp": "image/webp",
         ".ttf": "font/ttf",
-        ".otf": "font/otf",
+        ".webp": "image/webp",
       } as Record<string, string>
     )[extension] ?? "application/octet-stream"
   );
@@ -260,23 +301,30 @@ export const lockedFile = (path: string, bytes: Uint8Array): LockedFile => {
   const hash = digestBytes(bytes);
   if (mediaType.startsWith("text/") || mediaType === "application/json") {
     const data = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
-    return { path, mediaType, hash, encoding: "utf8", data };
+    return { data, encoding: "utf8", hash, mediaType, path };
   }
-  return { path, mediaType, hash, encoding: "base64", data: Buffer.from(bytes).toString("base64") };
+  return { data: Buffer.from(bytes).toString("base64"), encoding: "base64", hash, mediaType, path };
 };
-const packageFiles = async (root: string): Promise<LockedFile[]> => {
-  const files: LockedFile[] = [];
+const packageFiles = async (root: string): Promise<Array<LockedFile>> => {
+  const files: Array<LockedFile> = [];
   const visit = async (path: string): Promise<void> => {
     const names = await readDirectoryNames(path ? join(root, path) : root);
-    if (!names) throw new Error("Package directory is unsafe.");
+    if (!names) {
+      throw new Error("Package directory is unsafe.");
+    }
     for (const name of names) {
-      if (name === "node_modules" || name === ".git") continue;
+      if (name === "node_modules" || name === ".git") {
+        continue;
+      }
       const relative = path ? `${path}/${name}` : name;
       const full = join(root, relative);
-      if (await readDirectoryNames(full)) await visit(relative);
-      else {
+      if (await readDirectoryNames(full)) {
+        await visit(relative);
+      } else {
         const bytes = await readRegularFile(full);
-        if (!bytes) throw new Error("Package contains an unsafe file.");
+        if (!bytes) {
+          throw new Error("Package contains an unsafe file.");
+        }
         files.push(lockedFile(relative, bytes));
       }
     }
@@ -290,19 +338,24 @@ export const snapshotInstalledPackages = async (
   root: string,
 ): Promise<{
   packageManagerLockHash: ContentHash;
-  rootDependencies: LockedDependency[];
-  packages: PackageSnapshot[];
+  packages: Array<PackageSnapshot>;
+  rootDependencies: Array<LockedDependency>;
 }> => {
   const projectRoot = await realpath(root);
   const bytes = await readRegularFile(join(projectRoot, "pnpm-lock.yaml"));
-  if (!bytes) throw new Error("A regular pnpm-lock.yaml is required for lock update.");
+  if (!bytes) {
+    throw new Error("A regular pnpm-lock.yaml is required for lock update.");
+  }
   const document = parseDocument(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
     uniqueKeys: true,
   });
-  if (document.errors.length) throw new Error("Invalid pnpm lock YAML.");
+  if (document.errors.length) {
+    throw new Error("Invalid pnpm lock YAML.");
+  }
   const lock = record(document.toJS({ maxAliasCount: 100 }));
-  if (String(lock.lockfileVersion) !== "9.0")
+  if (String(lock.lockfileVersion) !== "9.0") {
     throw new Error("Only pnpm lockfileVersion 9.0 is supported.");
+  }
   const importer = record(record(lock.importers)["."]);
   const snapshots = record(lock.snapshots);
   const packages = new Map<string, PackageSnapshot>();
@@ -316,8 +369,9 @@ export const snapshotInstalledPackages = async (
     version: string,
     modulesDirectory: string,
   ): Promise<ContentHash> => {
-    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(specifier))
+    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(specifier)) {
       throw new Error("Invalid dependency specifier.");
+    }
     const locator = Object.hasOwn(snapshots, `${specifier}@${version}`)
       ? `${specifier}@${version}`
       : version;
@@ -326,19 +380,26 @@ export const snapshotInstalledPackages = async (
       /file:(?:\/|[A-Za-z]:|.*(?:^|\/)\.\.(?:\/|$))/.test(locator) ||
       locator.includes("link:") ||
       locator.startsWith("/")
-    )
+    ) {
       throw new Error("Dependency must resolve to a fixed pnpm snapshot locator.");
+    }
     const key = hashPackageLocator(locator);
-    if (packages.has(locator)) return key;
+    if (packages.has(locator)) {
+      return key;
+    }
     const packageRoot = await realpath(join(modulesDirectory, specifier));
-    if (!packageRoot.startsWith(`${projectRoot}/node_modules/`))
+    if (!packageRoot.startsWith(`${projectRoot}/node_modules/`)) {
       throw new Error("Installed package must remain inside the project node_modules snapshot.");
+    }
     const files = await packageFiles(packageRoot);
     const manifestFile = files.find((f) => f.path === "package.json");
-    if (!manifestFile || manifestFile.encoding !== "utf8")
+    if (!manifestFile || manifestFile.encoding !== "utf8") {
       throw new Error("Package manifest is missing.");
+    }
     const parsedManifest = parseStrictJson(new TextEncoder().encode(manifestFile.data));
-    if (!parsedManifest.ok) throw new Error("Invalid package manifest JSON.");
+    if (!parsedManifest.ok) {
+      throw new Error("Invalid package manifest JSON.");
+    }
     const manifest = record(parsedManifest.value);
     const name = text(manifest.name);
     const actualVersion = text(manifest.version);
@@ -348,10 +409,11 @@ export const snapshotInstalledPackages = async (
       archive
         ? !locator.startsWith(`${name}@file:`) || packageRecord?.version !== actualVersion
         : locator !== `${name}@${actualVersion}` && !locator.startsWith(`${name}@${actualVersion}(`)
-    )
+    ) {
       throw new Error(
         `Installed package ${name}@${actualVersion} does not match pnpm locator ${locator}.`,
       );
+    }
     let exports: PackageSnapshot["exports"];
     try {
       exports = resolvePackageExportTargets(
@@ -361,26 +423,27 @@ export const snapshotInstalledPackages = async (
     } catch (error) {
       throw new Error(
         `Package ${name}@${actualVersion}: ${error instanceof Error ? error.message : "export resolution failed"}`,
+        { cause: error },
       );
     }
     const item: PackageSnapshot = {
+      contentIntegrity: "sha256:",
+      dependencies: [],
+      exports,
+      files,
       key,
       locator,
       name,
       version: actualVersion,
-      files,
-      exports,
-      dependencies: [],
-      contentIntegrity: "sha256:",
     };
     packages.set(locator, item);
     const snapshot = record(snapshots[locator]);
     for (const [dependency, value] of dependencyEntries(snapshot)) {
       const usage = dependency.startsWith("@types/") ? "types" : "runtime";
       item.dependencies.push({
+        packageKey: await visit(dependency, text(value), packageRoot.slice(0, -name.length - 1)),
         specifier: typeSpecifier(dependency),
         usage,
-        packageKey: await visit(dependency, text(value), packageRoot.slice(0, -name.length - 1)),
       });
     }
     item.dependencies.sort((a, b) =>
@@ -389,7 +452,7 @@ export const snapshotInstalledPackages = async (
     item.contentIntegrity = hashLockedPackageContent(item);
     return key;
   };
-  const rootDependencies: LockedDependency[] = [];
+  const rootDependencies: Array<LockedDependency> = [];
   const roots = {
     ...record(importer.dependencies ?? {}),
     ...record(importer.devDependencies ?? {}),
@@ -397,13 +460,13 @@ export const snapshotInstalledPackages = async (
   };
   for (const [specifier, input] of Object.entries(roots)) {
     rootDependencies.push({
-      specifier: typeSpecifier(specifier),
-      usage: specifier.startsWith("@types/") ? "types" : "runtime",
       packageKey: await visit(
         specifier,
         text(record(input).version),
         join(projectRoot, "node_modules"),
       ),
+      specifier: typeSpecifier(specifier),
+      usage: specifier.startsWith("@types/") ? "types" : "runtime",
     });
   }
   rootDependencies.sort((a, b) =>
@@ -411,7 +474,7 @@ export const snapshotInstalledPackages = async (
   );
   return {
     packageManagerLockHash: digestBytes(bytes),
-    rootDependencies,
     packages: [...packages.values()].sort((a, b) => compare(a.key, b.key)),
+    rootDependencies,
   };
 };

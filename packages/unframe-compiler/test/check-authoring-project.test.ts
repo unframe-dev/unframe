@@ -28,23 +28,15 @@ export default definePresentation({
 });`;
 
 const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource }]) => ({
-  projectRoot: "/virtual/presentation",
   entryFile: "entry.ts",
   files,
-  rootDependencies: [
-    {
-      specifier: "@unframe/unframe-authoring",
-      usage: "runtime",
-      packageKey: `sha256:${"a".repeat(64)}`,
-    },
-  ],
   packages: [
     {
-      key: `sha256:${"a".repeat(64)}`,
-      locator: "@unframe/unframe-authoring@1",
-      name: "@unframe/unframe-authoring",
-      version: "1",
       contentIntegrity: `sha256:${"b".repeat(64)}`,
+      dependencies: [],
+      exports: [
+        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+      ],
       files: [
         {
           path: "index.ts",
@@ -54,10 +46,18 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
           data: builders,
         },
       ],
-      exports: [
-        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
-      ],
-      dependencies: [],
+      key: `sha256:${"a".repeat(64)}`,
+      locator: "@unframe/unframe-authoring@1",
+      name: "@unframe/unframe-authoring",
+      version: "1",
+    },
+  ],
+  projectRoot: "/virtual/presentation",
+  rootDependencies: [
+    {
+      packageKey: `sha256:${"a".repeat(64)}`,
+      specifier: "@unframe/unframe-authoring",
+      usage: "runtime",
     },
   ],
 });
@@ -91,7 +91,9 @@ describe("checkAuthoringProject", () => {
       valid: true,
       value: { presentation: { fileName: "entry.ts", value: { id: "presentation" } } },
     });
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const catalog: PairedAuthoringDeclarationCatalog = result.value;
     const copiedPresentation = { ...catalog.presentation.value };
     const component: PairedComponentDeclaration | undefined = catalog.components[0];
@@ -105,19 +107,19 @@ describe("checkAuthoringProject", () => {
       project([{ fileName: "entry.ts", sourceText: "const value = ;" }]),
     );
     expect(result).toEqual({
-      valid: false,
       diagnostics: [
         {
           code: "compiler-source-syntax-error",
+          column: 15,
+          end: 15,
           fileName: "entry.ts",
+          line: 1,
           message: "Expression expected.",
           start: 14,
-          end: 15,
-          line: 1,
-          column: 15,
           typescriptCode: 1109,
         },
       ],
+      valid: false,
     });
   });
 

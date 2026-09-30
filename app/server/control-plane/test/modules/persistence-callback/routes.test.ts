@@ -45,22 +45,22 @@ describe("persistence callback HTTP boundary", () => {
     ) =>
       app.fetch(
         new Request(`https://api.example.com${path}`, {
-          method: "POST",
-          headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
           body: JSON.stringify(body),
+          headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+          method: "POST",
         }),
         runtimeEnvironment(),
       );
     const checkpoint = {
-      sessionId,
+      assignmentEpoch: 1,
+      idempotencyKey: "cp-1",
+      lastSequence: 5,
+      payload: { step: 2 },
+      presentationRevision: 1,
       runtimeId: "runtime",
       runtimeKind: "Cloud",
-      assignmentEpoch: 1,
-      presentationRevision: 1,
+      sessionId,
       version: 1,
-      lastSequence: 5,
-      idempotencyKey: "cp-1",
-      payload: { step: 2 },
     };
     expect((await callback("/callbacks/checkpoints", checkpoint, "wrong-secret")).status).toBe(401);
     await expect((await callback("/callbacks/checkpoints", checkpoint)).json()).resolves.toEqual({
@@ -70,24 +70,24 @@ describe("persistence callback HTTP boundary", () => {
       applied: false,
     });
     const completion = {
-      sessionId,
+      assignmentEpoch: 1,
+      checkpointVersion: 1,
+      endedAt: "2026-08-11T00:01:00.000Z",
+      finalCheckpoint: { step: 2 },
+      idempotencyKey: "done-1",
+      lastSequence: 5,
+      participantCount: 1,
+      participants: [{ role: "presenter", userId: "presenter" }],
+      presentationRevision: 1,
       runtimeId: "runtime",
       runtimeKind: "Cloud",
-      assignmentEpoch: 1,
-      presentationRevision: 1,
-      checkpointVersion: 1,
-      lastSequence: 5,
-      idempotencyKey: "done-1",
+      sessionId,
       startedAt: "2026-08-11T00:00:00.000Z",
-      endedAt: "2026-08-11T00:01:00.000Z",
-      participantCount: 1,
-      participants: [{ userId: "presenter", role: "presenter" }],
-      finalCheckpoint: { step: 2 },
     };
     const staleResponse = await callback("/callbacks/completions", {
       ...completion,
-      runtimeId: crypto.randomUUID(),
       idempotencyKey: "stale-done",
+      runtimeId: crypto.randomUUID(),
     });
     expect(staleResponse.status).toBe(409);
     await expect(staleResponse.json()).resolves.toMatchObject({ error: { code: "conflict" } });
@@ -107,8 +107,8 @@ describe("persistence callback HTTP boundary", () => {
       runtimeEnvironment(),
     );
     expect(response.status).toBe(200);
-    const jwks = await response.json<{ keys: JsonWebKey[] }>();
-    expect(jwks.keys[0]).toMatchObject({ kty: "OKP", crv: "Ed25519", kid: "test-realtime" });
+    const jwks = await response.json<{ keys: Array<JsonWebKey> }>();
+    expect(jwks.keys[0]).toMatchObject({ crv: "Ed25519", kid: "test-realtime", kty: "OKP" });
     expect(jwks.keys[0]).not.toHaveProperty("d");
   });
 });

@@ -5,9 +5,9 @@ import { applyDocumentEvent, createDocumentEvent, RevisionGapError } from "./doc
 describe("document events", () => {
   it("applies a continuous revision to the read-only document", () => {
     const command = {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { visible: false },
+      elementId: "demo-model-element",
+      type: "element.update",
     } as const;
     const event = createDocumentEvent(demoDocument, command);
 
@@ -19,14 +19,14 @@ describe("document events", () => {
 
   it("rejects a revision gap before applying the command", () => {
     const event = {
-      presentationId: "demo",
       baseRevision: 4,
-      revision: 5,
       command: {
-        type: "element.update",
-        elementId: "demo-model-element",
         changes: { visible: false },
+        elementId: "demo-model-element",
+        type: "element.update",
       },
+      presentationId: "demo",
+      revision: 5,
     } as const;
 
     expect(() => applyDocumentEvent(demoDocument, event)).toThrow(RevisionGapError);

@@ -7,30 +7,30 @@ import {
 } from "../../../src/modules/persistence-callback/service";
 
 const checkpoint = {
-  sessionId: "session",
-  runtimeId: "runtime",
-  runtimeKind: "Cloud" as const,
   assignmentEpoch: 1,
-  presentationRevision: 1,
-  version: 1,
+  idempotencyKey: "shared-key",
   lastSequence: 10,
   payload: { page: 1 },
-  idempotencyKey: "shared-key",
-};
-const completion = {
-  sessionId: "session",
+  presentationRevision: 1,
   runtimeId: "runtime",
   runtimeKind: "Cloud" as const,
+  sessionId: "session",
+  version: 1,
+};
+const completion = {
   assignmentEpoch: 1,
-  presentationRevision: 1,
   checkpointVersion: 1,
-  lastSequence: 10,
-  idempotencyKey: "shared-key",
-  startedAt: "2026-08-11T00:00:00.000Z",
   endedAt: "2026-08-11T00:10:00.000Z",
-  participantCount: 1,
-  participants: [{ userId: "presenter", role: "presenter" as const }],
   finalCheckpoint: { page: 1 },
+  idempotencyKey: "shared-key",
+  lastSequence: 10,
+  participantCount: 1,
+  participants: [{ role: "presenter" as const, userId: "presenter" }],
+  presentationRevision: 1,
+  runtimeId: "runtime",
+  runtimeKind: "Cloud" as const,
+  sessionId: "session",
+  startedAt: "2026-08-11T00:00:00.000Z",
 };
 
 describe("PersistenceCallbackService", () => {
@@ -39,13 +39,17 @@ describe("PersistenceCallbackService", () => {
     const repository: PersistenceCallbackRepository = {
       applyCheckpoint: async (value) => {
         const key = `checkpoint:${value.idempotencyKey}`;
-        if (applied.has(key)) return "duplicate";
+        if (applied.has(key)) {
+          return "duplicate";
+        }
         applied.add(key);
         return "applied";
       },
       applyCompletion: async (value) => {
         const key = `completion:${value.idempotencyKey}`;
-        if (applied.has(key)) return "duplicate";
+        if (applied.has(key)) {
+          return "duplicate";
+        }
         applied.add(key);
         return "applied";
       },

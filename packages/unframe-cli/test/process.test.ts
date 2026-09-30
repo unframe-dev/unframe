@@ -2,28 +2,30 @@ import { describe, expect, it } from "vitest";
 
 import { runPresentationProcess } from "../src/index.js";
 
-const fakeProcess = (argv: readonly string[] = ["bun", "presentation", "check", "/project"]) => {
-  const listeners = new Map<string, (() => void)[]>();
-  const stdout: string[] = [];
-  const stderr: string[] = [];
+const fakeProcess = (
+  argv: ReadonlyArray<string> = ["bun", "presentation", "check", "/project"],
+) => {
+  const listeners = new Map<string, Array<() => void>>();
+  const stdout: Array<string> = [];
+  const stderr: Array<string> = [];
   const process = {
     argv,
-    stdout: { write: (text: string) => stdout.push(text) },
-    stderr: { write: (text: string) => stderr.push(text) },
-    on: (signal: string, listener: () => void) => {
-      listeners.set(signal, [...(listeners.get(signal) ?? []), listener]);
-    },
+    emit: (signal: string) => listeners.get(signal)?.forEach((listener) => listener()),
+    exitCode: undefined as number | undefined,
+    listenerCount: (signal: string) => listeners.get(signal)?.length ?? 0,
     off: (signal: string, listener: () => void) => {
       listeners.set(
         signal,
         (listeners.get(signal) ?? []).filter((item) => item !== listener),
       );
     },
-    emit: (signal: string) => listeners.get(signal)?.forEach((listener) => listener()),
-    listenerCount: (signal: string) => listeners.get(signal)?.length ?? 0,
-    exitCode: undefined as number | undefined,
+    on: (signal: string, listener: () => void) => {
+      listeners.set(signal, [...(listeners.get(signal) ?? []), listener]);
+    },
+    stderr: { write: (text: string) => stderr.push(text) },
+    stdout: { write: (text: string) => stdout.push(text) },
   };
-  return { process, stdout, stderr };
+  return { process, stderr, stdout };
 };
 
 describe("presentation process entry", () => {
@@ -36,7 +38,7 @@ describe("presentation process entry", () => {
         signal = input.host.signal;
         expect(host.process.listenerCount("SIGINT")).toBe(1);
         expect(host.process.listenerCount("SIGTERM")).toBe(1);
-        return { exitCode: 0, stdout: "check: ok\n", stderr: "" };
+        return { exitCode: 0, stderr: "", stdout: "check: ok\n" };
       },
     });
     expect(result.exitCode).toBe(0);
@@ -55,7 +57,7 @@ describe("presentation process entry", () => {
       run: async ({ host: inputHost }) => {
         host.process.emit("SIGINT");
         expect(inputHost.signal.aborted).toBe(true);
-        return { exitCode: 0, stdout: "", stderr: "" };
+        return { exitCode: 0, stderr: "", stdout: "" };
       },
     });
     expect(result.exitCode).toBe(130);
@@ -70,7 +72,9 @@ describe("presentation process entry", () => {
       () => {
         throw new Error("sync");
       },
-      async () => Promise.reject(new Error("async")),
+      async () => {
+        throw new Error("async");
+      },
     ]) {
       const host = fakeProcess();
       const result = await runPresentationProcess({ process: host.process, run });
@@ -85,13 +89,13 @@ describe("presentation process entry", () => {
 it("routes author startup through the local host and shares process cancellation", async () => {
   const host = fakeProcess(["bun", "presentation", "author", "/project"]);
   const result = await runPresentationProcess({
-    process: host.process,
     author: async (directory, signal) => {
       expect(directory).toBe("/project");
       expect(signal.aborted).toBe(false);
       host.process.emit("SIGTERM");
       expect(signal.aborted).toBe(true);
     },
+    process: host.process,
     run: async () => {
       throw new Error("must not use check/build parser");
     },

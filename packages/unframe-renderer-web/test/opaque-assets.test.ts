@@ -9,14 +9,14 @@ it.each([
   "font/woff2",
   "application/javascript",
 ])("rejects unsupported capture media %s", (mediaType) => {
-  expect(validateOpaqueAsset({ path: "asset.bin", mediaType, dataBase64: "AA==" })).toBe(false);
+  expect(validateOpaqueAsset({ dataBase64: "AA==", mediaType, path: "asset.bin" })).toBe(false);
 });
 it("rejects an image whose bytes disagree with its extension and media type", () => {
   expect(
     validateOpaqueAsset({
-      path: "image.png",
-      mediaType: "image/png",
       dataBase64: Buffer.from("<svg/>").toString("base64"),
+      mediaType: "image/png",
+      path: "image.png",
     }),
   ).toBe(false);
 });
@@ -28,9 +28,9 @@ it("rejects animated WebP before browser decoding", () => {
   bytes[20] = 2;
   expect(
     validateOpaqueAsset({
-      path: "image.webp",
-      mediaType: "image/webp",
       dataBase64: bytes.toString("base64"),
+      mediaType: "image/webp",
+      path: "image.webp",
     }),
   ).toBe(false);
 });

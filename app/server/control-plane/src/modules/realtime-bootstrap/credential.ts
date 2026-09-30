@@ -5,29 +5,29 @@ import {
 
 const NOT_BEFORE_CLOCK_SKEW_SECONDS = 30;
 type CredentialOptions = {
+  audience: string;
   issuer: string;
   keyId: string;
-  audience: string;
-  now?: () => number;
   newId?: () => string;
+  now?: () => number;
 };
 
 type Ed25519PrivateJwk = JsonWebKey & {
-  kty: "OKP";
   crv: "Ed25519";
-  x: string;
   d: string;
+  kty: "OKP";
+  x: string;
 };
 
 type RealtimeJwks = {
   keys: Array<{
-    kty: "OKP";
-    crv: "Ed25519";
-    x: string;
-    kid: string;
     alg: "EdDSA";
-    use: "sig";
+    crv: "Ed25519";
     key_ops: ["verify"];
+    kid: string;
+    kty: "OKP";
+    use: "sig";
+    x: string;
   }>;
 };
 
@@ -41,30 +41,30 @@ const requireEd25519PrivateJwk = (value: JsonWebKey): Ed25519PrivateJwk => {
     throw new TypeError("realtime signing key must be an Ed25519 private JWK");
   }
   return {
-    kty: "OKP",
     crv: "Ed25519",
-    x: value.x,
     d: value.d,
+    kty: "OKP",
+    x: value.x,
   };
 };
 
 type RealtimeCredentialClaims = {
-  iss: string;
+  assignment_epoch: number;
   aud: string;
-  sub: string;
-  session_id: string;
+  exp: number;
+  iat: number;
+  iss: string;
+  jti: string;
+  nbf: number;
+  presentation_id: string;
+  presentation_revision: number;
+  protocol_version: 1;
   role: RealtimeBootstrapCredentialInput["role"];
   runtime_id: string;
   runtime_kind: RealtimeBootstrapCredentialInput["runtimeKind"];
-  assignment_epoch: number;
-  presentation_id: string;
-  presentation_revision: number;
   scope: string;
-  iat: number;
-  nbf: number;
-  exp: number;
-  jti: string;
-  protocol_version: 1;
+  session_id: string;
+  sub: string;
 };
 
 const encodeBase64Url = (value: Uint8Array | string) => {
@@ -85,7 +85,7 @@ export class RealtimeBootstrapCredentials {
     private readonly options: CredentialOptions,
   ) {
     this.privateJwk = requireEd25519PrivateJwk(privateJwk);
-    this.now = options.now ?? (() => Math.floor(Date.now() / 1_000));
+    this.now = options.now ?? (() => Math.floor(Date.now() / 1000));
     this.newId = options.newId ?? (() => crypto.randomUUID());
   }
 
@@ -97,25 +97,25 @@ export class RealtimeBootstrapCredentials {
     }
     const exp = participant.expiresAt;
     const header = encodeBase64Url(
-      JSON.stringify({ alg: "EdDSA", typ: "JWT", kid: this.options.keyId }),
+      JSON.stringify({ alg: "EdDSA", kid: this.options.keyId, typ: "JWT" }),
     );
     const claims: RealtimeCredentialClaims = {
-      iss: this.options.issuer,
+      assignment_epoch: participant.assignmentEpoch,
       aud: this.options.audience,
-      sub: participant.userId,
-      session_id: participant.sessionId,
+      exp,
+      iat,
+      iss: this.options.issuer,
+      jti: this.newId(),
+      nbf: iat - NOT_BEFORE_CLOCK_SKEW_SECONDS,
+      presentation_id: participant.presentationId,
+      presentation_revision: participant.presentationRevision,
+      protocol_version: 1,
       role: participant.role,
       runtime_id: participant.runtimeId,
       runtime_kind: participant.runtimeKind,
-      assignment_epoch: participant.assignmentEpoch,
-      presentation_id: participant.presentationId,
-      presentation_revision: participant.presentationRevision,
       scope: participant.scopes.join(" "),
-      iat,
-      nbf: iat - NOT_BEFORE_CLOCK_SKEW_SECONDS,
-      exp,
-      jti: this.newId(),
-      protocol_version: 1,
+      session_id: participant.sessionId,
+      sub: participant.userId,
     };
     const payload = encodeBase64Url(JSON.stringify(claims));
     const key = await crypto.subtle.importKey("jwk", this.privateJwk, { name: "Ed25519" }, false, [
@@ -125,20 +125,20 @@ export class RealtimeBootstrapCredentials {
       await crypto.subtle.sign("Ed25519", key, new TextEncoder().encode(`${header}.${payload}`)),
     );
 
-    return { token: `${header}.${payload}.${encodeBase64Url(signature)}`, expiresAt: exp * 1_000 };
+    return { expiresAt: exp * 1000, token: `${header}.${payload}.${encodeBase64Url(signature)}` };
   }
 
   async jwks(): Promise<RealtimeJwks> {
     return {
       keys: [
         {
-          kty: this.privateJwk.kty,
-          crv: this.privateJwk.crv,
-          x: this.privateJwk.x,
-          kid: this.options.keyId,
           alg: "EdDSA",
-          use: "sig",
+          crv: this.privateJwk.crv,
           key_ops: ["verify"],
+          kid: this.options.keyId,
+          kty: this.privateJwk.kty,
+          use: "sig",
+          x: this.privateJwk.x,
         },
       ],
     };

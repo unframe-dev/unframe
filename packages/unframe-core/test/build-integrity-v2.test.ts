@@ -6,26 +6,26 @@ import assetSet from "../../contracts/presentation/v2/fixtures/asset-set-manifes
 import buildManifest from "../../contracts/presentation/v2/fixtures/build-manifest.json";
 import { verifyBuildIntegrityV2 } from "../src/index.js";
 
-const fixture = () => structuredClone({ definition, renderBundle, assetSet, buildManifest });
+const fixture = () => structuredClone({ assetSet, buildManifest, definition, renderBundle });
 
 describe("verifyBuildIntegrityV2", () => {
   it("accepts build artifacts before a publication exists", () => {
     const input = fixture();
-    expect(verifyBuildIntegrityV2(input)).toEqual({ valid: true, value: input, diagnostics: [] });
+    expect(verifyBuildIntegrityV2(input)).toEqual({ diagnostics: [], valid: true, value: input });
   });
 
   it("accepts revision zero for an unpublished local build", () => {
     const input = fixture();
     input.buildManifest.sourceDraftRevision = 0;
-    expect(verifyBuildIntegrityV2(input)).toEqual({ valid: true, value: input, diagnostics: [] });
+    expect(verifyBuildIntegrityV2(input)).toEqual({ diagnostics: [], valid: true, value: input });
   });
 
   it("rejects a build for another presentation", () => {
     const input = fixture();
     input.buildManifest.presentationId = "another-presentation";
     expect(verifyBuildIntegrityV2(input)).toMatchObject({
-      valid: false,
       diagnostics: [{ code: "artifact.invalid", path: ["buildManifest", "presentationId"] }],
+      valid: false,
     });
   });
 
@@ -33,15 +33,15 @@ describe("verifyBuildIntegrityV2", () => {
     const input = fixture();
     input.buildManifest.assetSetHash = `sha256:${"0".repeat(64)}`;
     expect(verifyBuildIntegrityV2(input)).toMatchObject({
-      valid: false,
       diagnostics: [{ code: "hash.invalid", path: ["buildManifest", "assetSetHash"] }],
+      valid: false,
     });
   });
 
   it("rejects publication fields at the build boundary", () => {
     expect(verifyBuildIntegrityV2({ ...fixture(), publishedPresentation: {} })).toMatchObject({
-      valid: false,
       diagnostics: [{ code: "structure.invalid", path: ["publishedPresentation"] }],
+      valid: false,
     });
   });
 
@@ -59,8 +59,8 @@ describe("verifyBuildIntegrityV2", () => {
     const input = fixture();
     input.definition.schemaVersion = 1;
     expect(verifyBuildIntegrityV2(input)).toMatchObject({
-      valid: false,
       diagnostics: [{ code: "structure.invalid", path: ["definition", "schemaVersion"] }],
+      valid: false,
     });
   });
 

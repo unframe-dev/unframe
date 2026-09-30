@@ -64,24 +64,16 @@ export default defineComponentStructure({
 
 type VirtualFile = { readonly fileName: string; readonly sourceText: string };
 
-const baseProject = (files: readonly VirtualFile[]) => ({
-  projectRoot: "/virtual/pipeline",
+const baseProject = (files: ReadonlyArray<VirtualFile>) => ({
   entryFile: "entry.ts",
   files,
-  rootDependencies: [
-    {
-      specifier: "@unframe/unframe-authoring",
-      usage: "runtime",
-      packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-    },
-  ],
   packages: [
     {
-      key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-      locator: "@unframe/unframe-authoring@1",
-      name: "@unframe/unframe-authoring",
-      version: "1",
       contentIntegrity: hashCanonicalJsonPayload(builders),
+      dependencies: [],
+      exports: [
+        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+      ],
       files: [
         {
           path: "index.ts",
@@ -91,15 +83,23 @@ const baseProject = (files: readonly VirtualFile[]) => ({
           data: builders,
         },
       ],
-      exports: [
-        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
-      ],
-      dependencies: [],
+      key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+      locator: "@unframe/unframe-authoring@1",
+      name: "@unframe/unframe-authoring",
+      version: "1",
+    },
+  ],
+  projectRoot: "/virtual/pipeline",
+  rootDependencies: [
+    {
+      packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+      specifier: "@unframe/unframe-authoring",
+      usage: "runtime",
     },
   ],
 });
 
-const sourceFiles = (): readonly VirtualFile[] => [
+const sourceFiles = (): ReadonlyArray<VirtualFile> => [
   { fileName: "entry.ts", sourceText: entrySource },
   { fileName: "theme.unframe.ts", sourceText: themeSource },
   { fileName: "theme-z.unframe.ts", sourceText: extraThemeSource },
@@ -112,75 +112,71 @@ const sourceFiles = (): readonly VirtualFile[] => [
   },
 ];
 
-const virtualProject = (files?: readonly VirtualFile[]) => baseProject(files ?? sourceFiles());
+const virtualProject = (files?: ReadonlyArray<VirtualFile>) => baseProject(files ?? sourceFiles());
 
 const carrier = (): DeclarationProjectAssemblyCarrier => {
   const source = virtualProject();
   const catalog = checkAuthoringProject(source);
-  if (!catalog.valid) throw new Error("Test authoring project must parse.");
+  if (!catalog.valid) {
+    throw new Error("Test authoring project must parse.");
+  }
   const frozen = computeFrozenComponentInputs(source, catalog.value);
-  if (!frozen.valid) throw new Error(JSON.stringify(frozen.diagnostics));
+  if (!frozen.valid) {
+    throw new Error(JSON.stringify(frozen.diagnostics));
+  }
   return {
-    themeHashes: frozen.value.themeHashes,
-    componentLocks: frozen.value.componentLocks,
     assets: {
       "reference-font": {
-        id: "reference-font",
-        mediaType: "font/ttf",
+        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
         dataBase64: "AAEAAAAAAAAAAAAA",
         encodedSizeBytes: 12,
-        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+        id: "reference-font",
+        mediaType: "font/ttf",
       },
     },
+    componentLocks: frozen.value.componentLocks,
+    themeHashes: frozen.value.themeHashes,
   };
 };
 
 const options = (renderer: RendererPlugin) => ({
-  compiler: { name: "unframe", version: "1", baseEnvironmentHash: "environment" },
-  locale: "ja-JP",
-  timezone: "Asia/Tokyo",
   colorScheme: "dark" as const,
+  compiler: { baseEnvironmentHash: "environment", name: "unframe", version: "1" },
+  encodeLimits: PNG_ABSOLUTE_LIMITS,
+  locale: "ja-JP",
   rendererConfigHash: "renderer-config",
   renderers: [renderer],
-  encodeLimits: PNG_ABSOLUTE_LIMITS,
+  timezone: "Asia/Tokyo",
 });
 
 const diagnosticCodes = (result: {
+  readonly diagnostics: ReadonlyArray<{ code: string }>;
   readonly valid: false;
-  readonly diagnostics: readonly { code: string }[];
 }) => result.diagnostics.map(({ code }) => code);
 
 const makeRenderer = (calls?: { count: number }): RendererPlugin => {
   const identity = {
-    id: "baked-web",
-    version: "1",
     contractVersion: "1",
+    id: "baked-web",
     implementationHash: "renderer-implementation",
+    version: "1",
   } as const;
   const capabilities = {
+    deterministic: true as const,
+    fallbackPolicies: ["reject"] as const,
     inputKinds: ["structured"] as const,
-    updateModels: ["static", "finite-state"] as const,
     interactions: ["none", "regions"] as const,
     internalAnimations: ["none"] as const,
     rendererPreferences: ["baked-web"] as const,
-    fallbackPolicies: ["reject"] as const,
-    deterministic: true as const,
+    updateModels: ["static", "finite-state"] as const,
   };
   return {
-    identity,
-    capabilities,
-    support: evaluateFirstMilestoneSupport,
     build: (input) => {
-      if (calls) calls.count += 1;
+      if (calls) {
+        calls.count += 1;
+      }
       const [width, height] = input.context.pixelTarget;
       return {
-        ok: true as const,
-        renderSurface: {
-          id: input.plan.id,
-          semanticSurfaceId: input.plan.semanticSurfaceId,
-          logicalBounds: input.plan.logicalBounds,
-          layer: input.plan.layer,
-        },
         captures: Object.entries(input.plan.states)
           .filter(([, state]) => state.kind === "capture")
           .map(([stateId]) => ({
@@ -193,6 +189,8 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
             colorSpace: "srgb" as const,
             alphaMode: "opaque" as const,
           })),
+        diagnostics: [],
+        ok: true as const,
         provenance: {
           ...identity,
           inputHash: input.context.inputHash,
@@ -204,9 +202,17 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
             input.context.rendererConfigHash,
           ),
         },
-        diagnostics: [],
+        renderSurface: {
+          id: input.plan.id,
+          semanticSurfaceId: input.plan.semanticSurfaceId,
+          logicalBounds: input.plan.logicalBounds,
+          layer: input.plan.layer,
+        },
       };
     },
+    capabilities,
+    identity,
+    support: evaluateFirstMilestoneSupport,
   };
 };
 
@@ -215,7 +221,9 @@ describe("Authoring source to compiler pipeline", () => {
     const result = checkAuthoringProjectAssembly(virtualProject(), carrier());
 
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.definition.presentationId).toBe("presentation");
     expect(Object.keys(result.value.definition.scene.surfaces)).toEqual(["instance:surface-root"]);
   });
@@ -230,7 +238,9 @@ describe("Authoring source to compiler pipeline", () => {
 
     expect(result.valid).toBe(true);
     expect(calls.count).toBeGreaterThan(0);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(Object.keys(result.value.assets)).toHaveLength(2);
     const pngAssetId = Object.entries(result.value.assetSet.assets).find(
       ([, descriptor]) => descriptor.mediaType === "image/png",
@@ -247,20 +257,20 @@ describe("Authoring source to compiler pipeline", () => {
     const result = checkAuthoringProjectAssembly(virtualProject(files), carrier());
 
     expect(result).toEqual({
-      valid: false,
-      phase: "source",
       diagnostics: [
         {
           code: "compiler-source-syntax-error",
+          column: 15,
+          end: 15,
           fileName: "entry.ts",
+          line: 1,
           message: "Expression expected.",
           start: 14,
-          end: 15,
-          line: 1,
-          column: 15,
           typescriptCode: 1109,
         },
       ],
+      phase: "source",
+      valid: false,
     });
   });
 
@@ -281,8 +291,8 @@ describe("Authoring source to compiler pipeline", () => {
     const failingRenderer: RendererPlugin = {
       ...renderer,
       build: () => ({
+        diagnostics: [{ code: "test-renderer-failure", message: "render failed", path: [] }],
         ok: false,
-        diagnostics: [{ code: "test-renderer-failure", path: [], message: "render failed" }],
       }),
     };
 
@@ -329,7 +339,9 @@ describe("Authoring source to compiler pipeline", () => {
     expect(() => checkAuthoringProjectAssembly(source, carrier())).not.toThrow();
     const sourceResult = checkAuthoringProjectAssembly(source, carrier());
     expect(sourceResult.valid).toBe(false);
-    if (!sourceResult.valid) expect(sourceResult.phase).toBe("source");
+    if (!sourceResult.valid) {
+      expect(sourceResult.phase).toBe("source");
+    }
 
     const hostileCarrier = new Proxy(carrier(), {
       ownKeys: () => {
@@ -354,10 +366,12 @@ describe("Authoring source to compiler pipeline", () => {
     });
     expect(
       await compileAuthoringProject(virtualProject(), carrier(), hostileOptions),
-    ).toMatchObject({ valid: false, phase: "compile" });
+    ).toMatchObject({ phase: "compile", valid: false });
     const result = await compileAuthoringProject(virtualProject(), carrier(), hostileOptions);
     expect(result.valid).toBe(false);
-    if (!result.valid) expect(diagnosticCodes(result)).toContain("compiler-invalid-options");
+    if (!result.valid) {
+      expect(diagnosticCodes(result)).toContain("compiler-invalid-options");
+    }
     expect(rendererState.count).toBe(0);
   });
 
@@ -367,7 +381,7 @@ describe("Authoring source to compiler pipeline", () => {
 
     const forgedCarrier = {
       ...carrier(),
-      catalog: { themes: [{ id: "forged", hash: "forged" }] },
+      catalog: { themes: [{ hash: "forged", id: "forged" }] },
     };
     const result = checkAuthoringProjectAssembly(virtualProject(), forgedCarrier);
 
@@ -391,7 +405,9 @@ describe("Authoring source to compiler pipeline", () => {
     );
 
     expect(first.valid && second.valid).toBe(true);
-    if (!first.valid || !second.valid) return;
+    if (!first.valid || !second.valid) {
+      return;
+    }
     expect({ ...second.value, assets: undefined }).toEqual({ ...first.value, assets: undefined });
     expect(Object.keys(second.value.assets).sort()).toEqual(Object.keys(first.value.assets).sort());
     for (const [assetId, bytes] of Object.entries(first.value.assets)) {

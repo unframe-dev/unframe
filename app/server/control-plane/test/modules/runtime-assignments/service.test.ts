@@ -11,25 +11,25 @@ import {
 
 const now = new Date("2026-08-20T00:00:00.000Z");
 const assignment: RuntimeAssignment = {
-  sessionId: "session",
-  runtimeId: "runtime",
-  runtimeKind: "Cloud",
-  endpoint: "https://runtime.example.com",
-  certificateFingerprint: null,
-  provisioningEdgeId: null,
   assignmentEpoch: 1,
-  presentationRevision: 1,
+  certificateFingerprint: null,
+  endpoint: "https://runtime.example.com",
   issuedAt: now.toISOString(),
   leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+  presentationRevision: 1,
+  provisioningEdgeId: null,
   releasedAt: null,
+  runtimeId: "runtime",
+  runtimeKind: "Cloud",
+  sessionId: "session",
 };
 
 const createRepository = (): RuntimeAssignmentRepository => ({
   assign: vi.fn(async () => assignment),
   findActive: vi.fn(async () => assignment),
-  renew: vi.fn(async () => assignment),
   release: vi.fn(async () => true),
   releaseSession: vi.fn(async () => {}),
+  renew: vi.fn(async () => assignment),
 });
 
 describe("RuntimeAssignmentService", () => {
@@ -39,27 +39,27 @@ describe("RuntimeAssignmentService", () => {
 
     await expect(
       service.assign({
-        sessionId: "session",
+        certificateFingerprint: null,
+        endpoint: "https://runtime.example.com",
+        leaseExpiresAt: "2026-08-20T00:01:00+00:00",
+        presentationRevision: 1,
+        provisioningEdgeId: null,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        endpoint: "https://runtime.example.com",
-        certificateFingerprint: null,
-        provisioningEdgeId: null,
-        presentationRevision: 1,
-        leaseExpiresAt: "2026-08-20T00:01:00+00:00",
+        sessionId: "session",
       }),
     ).resolves.toEqual(assignment);
     expect(repository.assign).toHaveBeenCalledWith({
-      sessionId: "session",
-      runtimeId: "runtime",
-      runtimeKind: "Cloud",
-      endpoint: "https://runtime.example.com",
       certificateFingerprint: null,
-      provisioningEdgeId: null,
-      presentationRevision: 1,
+      edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
+      endpoint: "https://runtime.example.com",
       issuedAt: now.toISOString(),
       leaseExpiresAt: "2026-08-20T00:01:00.000Z",
-      edgeHealthyAfter: "2026-08-19T23:59:00.000Z",
+      presentationRevision: 1,
+      provisioningEdgeId: null,
+      runtimeId: "runtime",
+      runtimeKind: "Cloud",
+      sessionId: "session",
     });
 
     await expect(service.active("session")).resolves.toEqual(assignment);
@@ -76,22 +76,22 @@ describe("RuntimeAssignmentService", () => {
 
     await expect(
       service.assign({
-        sessionId: "session",
+        certificateFingerprint: null,
+        endpoint: "https://runtime.example.com",
+        leaseExpiresAt: now.toISOString(),
+        presentationRevision: 1,
+        provisioningEdgeId: null,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        endpoint: "https://runtime.example.com",
-        certificateFingerprint: null,
-        provisioningEdgeId: null,
-        presentationRevision: 1,
-        leaseExpiresAt: now.toISOString(),
+        sessionId: "session",
       }),
     ).rejects.toEqual(new RuntimeAssignmentError("conflict"));
     await expect(
       service.renew({
-        sessionId: "session",
-        provisioningEdgeId: "edge",
         assignmentEpoch: 1,
         leaseExpiresAt: now.toISOString(),
+        provisioningEdgeId: "edge",
+        sessionId: "session",
       }),
     ).rejects.toEqual(new RuntimeAssignmentError("conflict"));
     expect(repository.assign).not.toHaveBeenCalled();
@@ -104,38 +104,38 @@ describe("RuntimeAssignmentService", () => {
 
     await expect(
       service.renew({
-        sessionId: "session",
-        provisioningEdgeId: "edge",
         assignmentEpoch: 1,
         leaseExpiresAt: "2026-08-20T00:05:00+00:00",
+        provisioningEdgeId: "edge",
+        sessionId: "session",
       }),
     ).resolves.toEqual(assignment);
     expect(repository.renew).toHaveBeenCalledWith({
-      sessionId: "session",
-      provisioningEdgeId: "edge",
       assignmentEpoch: 1,
-      now: now.toISOString(),
       leaseExpiresAt: "2026-08-20T00:05:00.000Z",
+      now: now.toISOString(),
+      provisioningEdgeId: "edge",
+      sessionId: "session",
     });
     await expect(
       service.renew({
-        sessionId: "session",
-        provisioningEdgeId: "edge",
         assignmentEpoch: 1,
         leaseExpiresAt: "2026-08-20T00:05:00.001Z",
+        provisioningEdgeId: "edge",
+        sessionId: "session",
       }),
     ).rejects.toEqual(new RuntimeAssignmentError("conflict"));
 
     await service.release({
-      sessionId: "session",
-      provisioningEdgeId: "edge",
       assignmentEpoch: 1,
+      provisioningEdgeId: "edge",
+      sessionId: "session",
     });
     expect(repository.release).toHaveBeenCalledWith({
-      sessionId: "session",
-      provisioningEdgeId: "edge",
       assignmentEpoch: 1,
       now: now.toISOString(),
+      provisioningEdgeId: "edge",
+      sessionId: "session",
     });
 
     await service.releaseSession("session");
@@ -152,30 +152,30 @@ describe("RuntimeAssignmentService", () => {
 
     await expect(
       service.assign({
-        sessionId: "session",
+        certificateFingerprint: null,
+        endpoint: "https://runtime.example.com",
+        leaseExpiresAt: assignment.leaseExpiresAt,
+        presentationRevision: 1,
+        provisioningEdgeId: null,
         runtimeId: "runtime",
         runtimeKind: "Cloud",
-        endpoint: "https://runtime.example.com",
-        certificateFingerprint: null,
-        provisioningEdgeId: null,
-        presentationRevision: 1,
-        leaseExpiresAt: assignment.leaseExpiresAt,
+        sessionId: "session",
       }),
     ).rejects.toEqual(new RuntimeAssignmentError("conflict"));
     await expect(service.active("session")).rejects.toEqual(new RuntimeAssignmentError("conflict"));
     await expect(
       service.renew({
-        sessionId: "session",
-        provisioningEdgeId: "edge",
         assignmentEpoch: 1,
         leaseExpiresAt: "2026-08-20T00:05:00.000Z",
+        provisioningEdgeId: "edge",
+        sessionId: "session",
       }),
     ).rejects.toEqual(new RuntimeAssignmentError("conflict"));
     await expect(
       service.release({
-        sessionId: "session",
-        provisioningEdgeId: "edge",
         assignmentEpoch: 1,
+        provisioningEdgeId: "edge",
+        sessionId: "session",
       }),
     ).rejects.toEqual(new RuntimeAssignmentError("conflict"));
   });

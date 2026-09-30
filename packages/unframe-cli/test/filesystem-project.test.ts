@@ -9,8 +9,8 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 
 const execFile = promisify(execFileCallback);
 
-const directories: string[] = [];
-const links: string[] = [];
+const directories: Array<string> = [];
+const links: Array<string> = [];
 
 const project = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-project-"));
@@ -36,8 +36,8 @@ describe("filesystem project discovery", () => {
   it("絶対rootだけからdata-only configを読み、entryをroot内regular fileへ限定する", async () => {
     const directory = await project();
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: true,
       entryFile: "presentation.unframe.tsx",
+      ok: true,
     });
   });
 
@@ -50,13 +50,14 @@ describe("filesystem project discovery", () => {
     await writeFile(join(directory, "ignored.js"), "throw new Error();", "utf8");
     const result = await discoverPresentationProjectFiles(directory);
     expect(result).toMatchObject({ ok: true });
-    if (result.ok)
+    if (result.ok) {
       expect(result.files).toEqual([
         { fileName: "nested/a.d.ts", sourceText: "declare const a: string;" },
         { fileName: "nested/b.tsx", sourceText: "export const b = <div />;" },
         { fileName: "presentation.unframe.tsx", sourceText: "export default {}" },
         { fileName: "z.ts", sourceText: "export const z = 1;" },
       ]);
+    }
   });
 
   it("excluded directoryをsource入力から除外し、dist生成後も同じprojectを再checkできる", async () => {
@@ -82,14 +83,14 @@ describe("filesystem project discovery", () => {
     await writeFile(join(directory, "outside.ts"), "export {};", "utf8");
     await symlink(join(directory, "outside.ts"), join(directory, "linked.ts"));
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-source-scan-failed",
+      ok: false,
     });
     await unlink(join(directory, "linked.ts"));
     await writeFile(join(directory, "invalid.ts"), Buffer.from([0xed, 0xa0, 0x80]));
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-source-scan-failed",
+      ok: false,
     });
   });
 
@@ -102,8 +103,8 @@ describe("filesystem project discovery", () => {
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-invalid-entry-file",
+      ok: false,
     });
   });
 
@@ -119,8 +120,8 @@ describe("filesystem project discovery", () => {
     await unlink(path).catch(() => undefined);
     await execFile("mkfifo", [path]);
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code,
+      ok: false,
     });
   });
 
@@ -143,7 +144,9 @@ describe("filesystem project discovery", () => {
     }
     const second = await discoverPresentationProjectFiles(directory);
     expect(second).toMatchObject({ ok: true });
-    if (second.ok) expect(new TextDecoder().decode(second.lockBytes)).toBe("raw-lock");
+    if (second.ok) {
+      expect(new TextDecoder().decode(second.lockBytes)).toBe("raw-lock");
+    }
   });
 
   it.each([
@@ -162,8 +165,8 @@ describe("filesystem project discovery", () => {
     const directory = await project();
     await writeFile(join(directory, "unframe.config.ts"), config, "utf8");
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-config-invalid",
+      ok: false,
     });
   });
 
@@ -176,12 +179,12 @@ describe("filesystem project discovery", () => {
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-invalid-entry-file",
+      ok: false,
     });
   });
 
-  it.each(["../outside.tsx", "nested\\entry.tsx", "/absolute.tsx", "nested/../entry.tsx"])(
+  it.each(["../outside.tsx", String.raw`nested\entry.tsx`, "/absolute.tsx", "nested/../entry.tsx"])(
     "root-relative POSIX entryだけを許可する: %s",
     async (entryFile) => {
       const directory = await project();
@@ -191,8 +194,8 @@ describe("filesystem project discovery", () => {
         "utf8",
       );
       await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-        ok: false,
         code: "cli-project-discovery-invalid-entry-file",
+        ok: false,
       });
     },
   );
@@ -205,13 +208,13 @@ describe("filesystem project discovery", () => {
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-config-invalid",
+      ok: false,
     });
     await writeFile(join(directory, "unframe.config.ts"), Buffer.from([0xed, 0xa0, 0x80]));
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-config-invalid",
+      ok: false,
     });
   });
 
@@ -219,12 +222,12 @@ describe("filesystem project discovery", () => {
     const directory = await project();
     await writeFile(
       join(directory, "unframe.config.ts"),
-      'export default { entryFile: "\\ud800.unframe.tsx" }',
+      String.raw`export default { entryFile: "\ud800.unframe.tsx" }`,
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-config-invalid",
+      ok: false,
     });
   });
 
@@ -237,8 +240,8 @@ describe("filesystem project discovery", () => {
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: true,
       entryFile: "presentation�.unframe.tsx",
+      ok: true,
     });
   });
 
@@ -253,8 +256,8 @@ describe("filesystem project discovery", () => {
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: true,
       entryFile,
+      ok: true,
     });
   });
 
@@ -270,23 +273,23 @@ describe("filesystem project discovery", () => {
       "utf8",
     );
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-invalid-entry-file",
+      ok: false,
     });
   });
 
   it("explicit absolute root 以外・symlink root/config/lockを拒否する", async () => {
     const directory = await project();
     await expect(discoverPresentationProjectFiles("relative-project")).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-invalid-directory",
+      ok: false,
     });
     const linkedRoot = `${directory}-link`;
     await symlink(directory, linkedRoot);
     links.push(linkedRoot);
     await expect(discoverPresentationProjectFiles(linkedRoot)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-invalid-directory",
+      ok: false,
     });
     const linkedParent = `${directory}-tmp-link`;
     await symlink(tmpdir(), linkedParent);
@@ -294,8 +297,8 @@ describe("filesystem project discovery", () => {
     await expect(
       discoverPresentationProjectFiles(join(linkedParent, basename(directory))),
     ).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-invalid-directory",
+      ok: false,
     });
 
     const configTarget = join(directory, "config-target.ts");
@@ -307,8 +310,8 @@ describe("filesystem project discovery", () => {
     await unlink(join(directory, "unframe.config.ts"));
     await symlink(configTarget, join(directory, "unframe.config.ts"));
     await expect(discoverPresentationProjectFiles(directory)).resolves.toMatchObject({
-      ok: false,
       code: "cli-project-discovery-missing-files",
+      ok: false,
     });
   });
 
@@ -316,9 +319,9 @@ describe("filesystem project discovery", () => {
     const directory = await mkdtemp(join(tmpdir(), "unframe-project-"));
     directories.push(directory);
     await expect(discoverPresentationProjectFiles(directory)).resolves.toEqual({
-      ok: false,
       code: "cli-project-discovery-missing-files",
       message: "Project root must contain regular unframe.config.ts and unframe.lock files.",
+      ok: false,
     });
   });
 });

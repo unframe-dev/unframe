@@ -60,10 +60,10 @@ describe("partition State bindings", () => {
     const artifact = Object.values(original.artifacts)[0]!;
     const second = {
       ...structuredClone(original),
+      artifacts: { repeated: { ...structuredClone(artifact), id: "repeated" } },
       id: "second",
       layer: 1,
-      artifacts: { repeated: { ...structuredClone(artifact), id: "repeated" } },
-      stateBindings: { default: { kind: "artifacts" as const, artifactIds: ["repeated"] } },
+      stateBindings: { default: { artifactIds: ["repeated"], kind: "artifacts" as const } },
     };
     surface.renderSurfaceIds.push(second.id);
     surface.renderSurfaces.second = second;
@@ -86,7 +86,7 @@ describe("partition State bindings", () => {
     assert(artifact.kind === "baked-web");
     surface.semanticsByState.second = structuredClone(surface.semanticsByState.default!);
     surface.interactionsByState.second = [];
-    partition.stateBindings.second = { kind: "artifacts", artifactIds: [artifact.id] };
+    partition.stateBindings.second = { artifactIds: [artifact.id], kind: "artifacts" };
     artifact.states.second = {
       ...structuredClone(artifact.states.default!),
       stateId: "second",
@@ -94,8 +94,8 @@ describe("partition State bindings", () => {
     };
 
     expect(validateRenderBundle(renderBundle)).toMatchObject({
-      valid: false,
       diagnostics: expect.arrayContaining([expect.objectContaining({ code: "artifact.invalid" })]),
+      valid: false,
     });
   });
 });

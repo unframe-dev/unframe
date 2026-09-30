@@ -15,38 +15,39 @@ import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
 
 const resultSchema = z.discriminatedUnion("ok", [
-  z.strictObject({ ok: z.literal(false), code: z.string().regex(/^opaque-[a-z-]+$/) }),
+  z.strictObject({ code: z.string().regex(/^opaque-[a-z-]+$/), ok: z.literal(false) }),
   z.strictObject({
+    bindings: z
+      .array(
+        z.strictObject({
+          disabled: z.boolean().optional(),
+          height: z.number().finite().positive(),
+          key: z.string().max(256),
+          text: z.string().max(1_000_000),
+          width: z.number().finite().positive(),
+          x: z.number().finite(),
+          y: z.number().finite(),
+        }),
+      )
+      .max(10_000),
+    browserVersion: z.string().min(1).max(100),
     ok: z.literal(true),
-    rgbaBase64: z.string().max(24 * 1024 * 1024),
     pixelSize: z.tuple([
       z.number().int().positive().max(2048),
       z.number().int().positive().max(2048),
     ]),
-    browserVersion: z.string().min(1).max(100),
-    bindings: z
-      .array(
-        z.strictObject({
-          key: z.string().max(256),
-          text: z.string().max(1_000_000),
-          x: z.number().finite(),
-          y: z.number().finite(),
-          width: z.number().finite().positive(),
-          height: z.number().finite().positive(),
-          disabled: z.boolean().optional(),
-        }),
-      )
-      .max(10_000),
+    rgbaBase64: z.string().max(24 * 1024 * 1024),
   }),
 ]);
 
 export const openOpaqueCaptureRuntime = async (options: { readonly signal?: AbortSignal } = {}) => {
   assertOpaqueIsolationAvailable();
   const closureFile = process.env.UNFRAME_OPAQUE_RUNTIME_CLOSURE;
-  if (!closureFile)
+  if (!closureFile) {
     throw Object.assign(new Error("Pinned runtime closure is missing."), {
       code: "opaque-isolation-unavailable",
     });
+  }
   const runtimePaths = (await readFile(closureFile, "utf8")).trim().split("\n");
   const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-worker-"));
   const workerDirectory = join(directory, "worker");
@@ -58,14 +59,16 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
   options.signal?.addEventListener("abort", onAbort, { once: true });
   const timeout = setTimeout(() => controller.abort(), 120_000);
   const close = (): Promise<void> => {
-    if (closing) return closing;
+    if (closing) {
+      return closing;
+    }
     closed = true;
     clearTimeout(timeout);
     options.signal?.removeEventListener("abort", onAbort);
     controller.abort();
     closing = (async () => {
       await Promise.allSettled(active);
-      await rm(directory, { recursive: true, force: true });
+      await rm(directory, { force: true, recursive: true });
     })();
     return closing;
   };
@@ -79,15 +82,17 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
       packageHashes[name] = await snapshotOpaqueRuntimeDirectory(path, target);
     }
     const bundle = await rolldown({
+      external: ["playwright-core", "pngjs"],
       input: fileURLToPath(new URL("./worker.ts", import.meta.url)),
       platform: "node",
-      external: ["playwright-core", "pngjs"],
     });
     let code: string;
     try {
-      const result = await bundle.generate({ format: "esm", codeSplitting: false });
+      const result = await bundle.generate({ codeSplitting: false, format: "esm" });
       const chunks = result.output.filter((item) => item.type === "chunk");
-      if (chunks.length !== 1) throw new Error("Trusted worker must produce one chunk.");
+      if (chunks.length !== 1) {
+        throw new Error("Trusted worker must produce one chunk.");
+      }
       code = chunks[0]!.code;
     } finally {
       await bundle.close();
@@ -110,28 +115,29 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
     const browserPath = join(browserDirectory, "chrome-headless-shell");
 
     const capture = async (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
-      if (options.signal?.aborted || controller.signal.aborted)
+      if (options.signal?.aborted || controller.signal.aborted) {
         return {
-          ok: false,
           code:
             closed || options.signal?.aborted ? "opaque-capture-cancelled" : "opaque-build-timeout",
+          ok: false,
         };
+      }
       let result: unknown;
       try {
         result = await runIsolatedOpaqueWorker(
-          { workerPath, browserPath, runtimePaths, input },
+          { browserPath, input, runtimePaths, workerPath },
           { signal: controller.signal },
         );
       } catch (error) {
-        if (controller.signal.aborted && !options.signal?.aborted && !closed)
-          return { ok: false, code: "opaque-build-timeout" };
+        if (controller.signal.aborted && !options.signal?.aborted && !closed) {
+          return { code: "opaque-build-timeout", ok: false };
+        }
         throw error;
       }
       const validated = resultSchema.safeParse(result);
-      return validated.success ? validated.data : { ok: false, code: "opaque-capture-invalid" };
+      return validated.success ? validated.data : { code: "opaque-capture-invalid", ok: false };
     };
     return {
-      fingerprint: hash({ worker: code, browserHash, packageHashes, runtimePaths }),
       capture: (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
         const work = capture(input);
         active.add(work);
@@ -142,6 +148,7 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
         return work;
       },
       close,
+      fingerprint: hash({ browserHash, packageHashes, runtimePaths, worker: code }),
     };
   } catch (error) {
     await close();

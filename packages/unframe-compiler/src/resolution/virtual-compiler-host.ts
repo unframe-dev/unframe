@@ -15,7 +15,7 @@ export const virtualCompilerHostFor = (context: VirtualModuleContext): ts.Compil
     moduleNames.map((specifier) => {
       const resolved = context.resolve(containingFile, specifier);
       return resolved.kind === "resolved"
-        ? { resolvedFileName: resolved.fileName, extension: extensionFor(resolved.fileName) }
+        ? { extension: extensionFor(resolved.fileName), resolvedFileName: resolved.fileName }
         : undefined;
     }),
   useCaseSensitiveFileNames: () => true,
@@ -31,7 +31,9 @@ export const reactCompilerHostFor = (
   const libDirectory = defaultLib.slice(0, defaultLib.lastIndexOf("/") + 1);
   const libSources = new Map<string, ts.SourceFile>();
   const isCompilerLib = (fileName: string) => {
-    if (!fileName.startsWith(libDirectory)) return false;
+    if (!fileName.startsWith(libDirectory)) {
+      return false;
+    }
     const relative = fileName.slice(libDirectory.length);
     return /^lib(?:\.[a-z0-9.]+)?\.d\.ts$/u.test(relative);
   };
@@ -39,20 +41,26 @@ export const reactCompilerHostFor = (
     isCompilerLib(fileName) ? ts.sys.readFile(fileName) : undefined;
   return {
     ...virtual,
-    getDefaultLibFileName: () => defaultLib,
     fileExists: (fileName) =>
       virtual.fileExists(fileName) || (isCompilerLib(fileName) && ts.sys.fileExists(fileName)),
-    readFile: (fileName) => virtual.readFile(fileName) ?? readCompilerLib(fileName),
+    getDefaultLibFileName: () => defaultLib,
     getSourceFile: (fileName, languageVersion) => {
       const source = virtual.getSourceFile(fileName, languageVersion);
-      if (source || !isCompilerLib(fileName)) return source;
+      if (source || !isCompilerLib(fileName)) {
+        return source;
+      }
       const cached = libSources.get(fileName);
-      if (cached) return cached;
+      if (cached) {
+        return cached;
+      }
       const text = readCompilerLib(fileName);
-      if (text === undefined) return;
+      if (text === undefined) {
+        return;
+      }
       const parsed = ts.createSourceFile(fileName, text, languageVersion, true, ts.ScriptKind.TS);
       libSources.set(fileName, parsed);
       return parsed;
     },
+    readFile: (fileName) => virtual.readFile(fileName) ?? readCompilerLib(fileName),
   };
 };

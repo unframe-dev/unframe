@@ -40,10 +40,9 @@ const opaqueSurface = (value: OpaqueSurfaceSemanticAdapter): JsonRecord => ({
 
 const structureRoot = (value: SurfaceDeclaration | FrameDeclaration): JsonRecord => {
   const semantic = withoutSource(value);
-  if (value.kind === "surface")
+  if (value.kind === "surface") {
     return {
       ...semantic,
-      root: structureRoot(value.root),
       baseSemanticTree: {
         ...value.baseSemanticTree,
         nodes: Object.fromEntries(
@@ -53,10 +52,12 @@ const structureRoot = (value: SurfaceDeclaration | FrameDeclaration): JsonRecord
           ]),
         ),
       },
+      root: structureRoot(value.root),
       states: Object.fromEntries(
         Object.entries(value.states).map(([id, state]) => [id, surfaceState(state)]),
       ),
     };
+  }
   return {
     ...semantic,
     children: value.children.map((child) =>
@@ -71,8 +72,9 @@ export const hashThemeDeclaration = (declaration: ThemeDeclaration): string =>
 
 /** Hashes a Component Manifest after excluding only declaration source metadata. */
 export const hashComponentManifestDeclaration = (declaration: ComponentManifest): string => {
-  if (declaration.authoring.mode !== "opaque")
+  if (declaration.authoring.mode !== "opaque") {
     return hashCanonicalJsonPayload(withoutSource(declaration));
+  }
   const opaque = declaration as Extract<ComponentManifest, { authoring: { mode: "opaque" } }>;
   return hashCanonicalJsonPayload({
     ...withoutSource(opaque),

@@ -2,9 +2,9 @@ import { expect, it } from "vitest";
 import { validateOpaqueBindings } from "../src/opaque/capture/bindings.js";
 
 const expected = { "node:title": "Hello" };
-const title = { key: "node:title", text: "Hello", x: 0, y: 0, width: 100, height: 30 };
+const title = { height: 30, key: "node:title", text: "Hello", width: 100, x: 0, y: 0 };
 it("accepts an exact declared text binding with finite visible geometry", () => {
-  expect(validateOpaqueBindings(expected, [title])).toEqual({ ok: true, bindings: [title] });
+  expect(validateOpaqueBindings(expected, [title])).toEqual({ bindings: [title], ok: true });
 });
 it.each(
   [

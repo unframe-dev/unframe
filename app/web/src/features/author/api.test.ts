@@ -16,11 +16,11 @@ describe("author API", () => {
       async () =>
         new Response(
           JSON.stringify({
+            artifacts: [],
             buildId: "b",
+            diagnostics: [],
             revision: "r",
             status: "cancelled",
-            diagnostics: [],
-            artifacts: [],
           }),
           { status: 200 },
         ),
@@ -37,25 +37,25 @@ describe("author API", () => {
     const fetcher = vi.fn(
       async () =>
         new Response(
-          JSON.stringify({ revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" }),
+          JSON.stringify({ commandId: "c", irHash: "i2", revision: "r2", sourceHash: "s2" }),
           { status: 200 },
         ),
     );
     vi.stubGlobal("fetch", fetcher);
     const api = createAuthorApi("a".repeat(64));
     await api.patch("r1", {
+      command: { instanceId: "one", kind: "setProp", propId: "label", value: "next" },
       commandId: "c".repeat(32),
       expectedIrHash: "i1",
-      command: { kind: "setProp", instanceId: "one", propId: "label", value: "next" },
     });
     expect(fetcher).toHaveBeenCalledWith(
       "/api/project",
       expect.objectContaining({
-        method: "PATCH",
         headers: expect.objectContaining({
           Authorization: `Bearer ${"a".repeat(64)}`,
           "If-Match": '"r1"',
         }),
+        method: "PATCH",
       }),
     );
   });

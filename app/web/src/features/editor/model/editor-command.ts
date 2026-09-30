@@ -4,10 +4,10 @@ import { TransformSchema } from "@/features/editor/model/transform";
 
 export const ElementChangesSchema = z
   .object({
+    content: z.string().optional(),
+    locked: z.boolean().optional(),
     name: z.string().min(1).optional(),
     visible: z.boolean().optional(),
-    locked: z.boolean().optional(),
-    content: z.string().optional(),
   })
   .refine(
     (changes) => Object.values(changes).some((value) => value !== undefined),
@@ -16,30 +16,30 @@ export const ElementChangesSchema = z
 
 export const EditorCommandSchema = z.discriminatedUnion("type", [
   z.object({
-    type: z.literal("element.add"),
-    slideId: z.string().min(1),
     element: ElementSchema,
     index: z.number().int().nonnegative().optional(),
-  }),
-  z.object({
-    type: z.literal("element.remove"),
     slideId: z.string().min(1),
-    elementId: z.string().min(1),
+    type: z.literal("element.add"),
   }),
   z.object({
-    type: z.literal("element.transform"),
+    elementId: z.string().min(1),
+    slideId: z.string().min(1),
+    type: z.literal("element.remove"),
+  }),
+  z.object({
     elementId: z.string().min(1),
     transform: TransformSchema,
+    type: z.literal("element.transform"),
   }),
   z.object({
-    type: z.literal("element.update"),
-    elementId: z.string().min(1),
     changes: ElementChangesSchema,
+    elementId: z.string().min(1),
+    type: z.literal("element.update"),
   }),
   z.object({
-    type: z.literal("slide.reorder"),
     slideId: z.string().min(1),
     toIndex: z.number().int().nonnegative(),
+    type: z.literal("slide.reorder"),
   }),
 ]);
 

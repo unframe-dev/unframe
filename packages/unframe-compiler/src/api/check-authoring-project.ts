@@ -8,54 +8,60 @@ import { analyzeAuthoringProject } from "../resolution/typecheck-authoring-proje
 
 export type AuthoringProjectDiagnostic = {
   readonly code: string;
+  readonly column: number;
+  readonly end: number;
   readonly fileName: string;
+  readonly line: number;
   readonly message: string;
   readonly start: number;
-  readonly end: number;
-  readonly line: number;
-  readonly column: number;
   readonly typescriptCode?: number;
 };
 
 export type CheckAuthoringProjectResult =
   | {
+      readonly diagnostics: [];
       readonly valid: true;
       readonly value: PairedAuthoringDeclarationCatalog;
-      readonly diagnostics: [];
     }
-  | { readonly valid: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] };
+  | { readonly diagnostics: ReadonlyArray<AuthoringProjectDiagnostic>; readonly valid: false };
 
 const invalidInput = (): CheckAuthoringProjectResult => ({
-  valid: false,
   diagnostics: [
     {
       code: "compiler-invalid-input",
+      column: 1,
+      end: 0,
       fileName: "",
+      line: 1,
       message: "Project input cannot be inspected safely.",
       start: 0,
-      end: 0,
-      line: 1,
-      column: 1,
     },
   ],
+  valid: false,
 });
 
 /** Checks only virtual Authoring source and returns its plain declaration catalog. */
 export const checkAuthoringProject = (input: unknown): CheckAuthoringProjectResult => {
   try {
     const parsed = parseAuthoringProject(input);
-    if (!parsed.ok) return { valid: false, diagnostics: parsed.diagnostics };
+    if (!parsed.ok) {
+      return { diagnostics: parsed.diagnostics, valid: false };
+    }
 
     const analyzed = analyzeAuthoringProject(parsed.value);
-    if (!analyzed.ok) return { valid: false, diagnostics: analyzed.diagnostics };
+    if (!analyzed.ok) {
+      return { diagnostics: analyzed.diagnostics, valid: false };
+    }
 
     const collected = collectAuthoringDeclarations(analyzed);
-    if (!collected.ok) return { valid: false, diagnostics: collected.diagnostics };
+    if (!collected.ok) {
+      return { diagnostics: collected.diagnostics, valid: false };
+    }
 
     const paired = pairAuthoringDeclarations(collected);
     return paired.ok
-      ? { valid: true, value: paired.catalog, diagnostics: [] }
-      : { valid: false, diagnostics: paired.diagnostics };
+      ? { diagnostics: [], valid: true, value: paired.catalog }
+      : { diagnostics: paired.diagnostics, valid: false };
   } catch {
     return invalidInput();
   }

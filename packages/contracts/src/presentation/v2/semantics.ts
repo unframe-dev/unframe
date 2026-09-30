@@ -2,7 +2,7 @@ import * as z from "zod";
 
 import { idV2Schema, uint32V2Schema } from "./common";
 
-const base = { id: idV2Schema, parentId: idV2Schema.nullable(), order: uint32V2Schema };
+const base = { id: idV2Schema, order: uint32V2Schema, parentId: idV2Schema.nullable() };
 const scalarText = z.string().regex(/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])*$/);
 const nonEmptyScalarText = scalarText.min(1);
 const languageTag = z
@@ -14,7 +14,6 @@ const text = { text: nonEmptyScalarText, ...language };
 export const semanticNodeDefinitionV2Schema = z.discriminatedUnion("role", [
   z.strictObject({
     ...base,
-    role: z.literal("heading"),
     level: z.union([
       z.literal(1),
       z.literal(2),
@@ -23,17 +22,18 @@ export const semanticNodeDefinitionV2Schema = z.discriminatedUnion("role", [
       z.literal(5),
       z.literal(6),
     ]),
+    role: z.literal("heading"),
     ...text,
   }),
   z.strictObject({ ...base, role: z.literal("paragraph"), ...text }),
-  z.strictObject({ ...base, role: z.literal("image"), alt: nonEmptyScalarText, ...language }),
-  z.strictObject({ ...base, role: z.literal("button"), interactionId: idV2Schema, ...text }),
-  z.strictObject({ ...base, role: z.literal("list"), ordered: z.boolean() }),
+  z.strictObject({ ...base, alt: nonEmptyScalarText, role: z.literal("image"), ...language }),
+  z.strictObject({ ...base, interactionId: idV2Schema, role: z.literal("button"), ...text }),
+  z.strictObject({ ...base, ordered: z.boolean(), role: z.literal("list") }),
   z.strictObject({ ...base, role: z.literal("listItem"), ...text }),
   z.strictObject({
     ...base,
-    role: z.literal("table"),
     label: nonEmptyScalarText.optional(),
+    role: z.literal("table"),
     ...language,
   }),
   z.strictObject({ ...base, role: z.literal("row") }),
@@ -43,14 +43,13 @@ export const semanticNodeDefinitionV2Schema = z.discriminatedUnion("role", [
 ]);
 
 export const semanticTreeDefinitionV2Schema = z.strictObject({
-  rootNodeIds: z.array(idV2Schema),
   nodes: z.record(idV2Schema, semanticNodeDefinitionV2Schema),
+  rootNodeIds: z.array(idV2Schema),
 });
 
 export const completedSemanticNodeV2Schema = z.discriminatedUnion("role", [
   z.strictObject({
     ...base,
-    role: z.literal("heading"),
     level: z.union([
       z.literal(1),
       z.literal(2),
@@ -59,23 +58,24 @@ export const completedSemanticNodeV2Schema = z.discriminatedUnion("role", [
       z.literal(5),
       z.literal(6),
     ]),
+    role: z.literal("heading"),
     ...text,
   }),
   z.strictObject({ ...base, role: z.literal("paragraph"), ...text }),
-  z.strictObject({ ...base, role: z.literal("image"), alt: nonEmptyScalarText, ...language }),
+  z.strictObject({ ...base, alt: nonEmptyScalarText, role: z.literal("image"), ...language }),
   z.strictObject({
     ...base,
-    role: z.literal("button"),
     interactionId: idV2Schema,
+    role: z.literal("button"),
     stateEnabled: z.boolean(),
     ...text,
   }),
-  z.strictObject({ ...base, role: z.literal("list"), ordered: z.boolean() }),
+  z.strictObject({ ...base, ordered: z.boolean(), role: z.literal("list") }),
   z.strictObject({ ...base, role: z.literal("listItem"), ...text }),
   z.strictObject({
     ...base,
-    role: z.literal("table"),
     label: nonEmptyScalarText.optional(),
+    role: z.literal("table"),
     ...language,
   }),
   z.strictObject({ ...base, role: z.literal("row") }),
@@ -84,19 +84,19 @@ export const completedSemanticNodeV2Schema = z.discriminatedUnion("role", [
   z.strictObject({ ...base, role: z.literal("rowHeader"), ...text }),
 ]);
 export const completedSemanticTreeV2Schema = z.strictObject({
-  rootNodeIds: z.array(idV2Schema),
   nodes: z.record(idV2Schema, completedSemanticNodeV2Schema),
+  rootNodeIds: z.array(idV2Schema),
 });
 
 export const surfaceSemanticOverrideV2Schema = z.strictObject({
   nodes: z.record(
     idV2Schema,
     z.strictObject({
-      included: z.boolean().optional(),
-      text: nonEmptyScalarText.optional(),
-      language: languageTag.nullable().optional(),
       alt: nonEmptyScalarText.optional(),
+      included: z.boolean().optional(),
       label: nonEmptyScalarText.nullable().optional(),
+      language: languageTag.nullable().optional(),
+      text: nonEmptyScalarText.optional(),
     }),
   ),
 });

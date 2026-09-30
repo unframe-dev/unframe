@@ -13,37 +13,41 @@ import { hashCanonicalJsonPayload, verifyPublicationIntegrityV2 } from "../src/i
 type JsonRecord = Record<string, unknown>;
 
 type PublicationFixture = {
-  definition: JsonRecord;
-  renderBundle: JsonRecord;
   assetSet: JsonRecord;
   buildManifest: JsonRecord;
+  definition: JsonRecord;
   publishedPresentation: JsonRecord;
+  renderBundle: JsonRecord;
 };
 
 const makeFixture = (): PublicationFixture => ({
-  definition: structuredClone(definitionFixture) as JsonRecord,
-  renderBundle: structuredClone(renderBundleFixture) as JsonRecord,
   assetSet: structuredClone(assetSetFixture) as JsonRecord,
   buildManifest: structuredClone(buildManifestFixture) as JsonRecord,
+  definition: structuredClone(definitionFixture) as JsonRecord,
   publishedPresentation: structuredClone(publishedPresentationFixture) as JsonRecord,
+  renderBundle: structuredClone(renderBundleFixture) as JsonRecord,
 });
 
-const recordAt = (value: unknown, ...segments: string[]): JsonRecord => {
+const recordAt = (value: unknown, ...segments: Array<string>): JsonRecord => {
   let current = value;
   for (const segment of segments) {
-    if (typeof current !== "object" || current === null || Array.isArray(current))
+    if (typeof current !== "object" || current === null || Array.isArray(current)) {
       throw new TypeError(`Expected an object at ${segments.join("/")}`);
+    }
     current = (current as JsonRecord)[segment];
   }
-  if (typeof current !== "object" || current === null || Array.isArray(current))
+  if (typeof current !== "object" || current === null || Array.isArray(current)) {
     throw new TypeError(`Expected an object at ${segments.join("/")}`);
+  }
   return current as JsonRecord;
 };
 
-const arrayAt = (value: unknown, ...segments: string[]): unknown[] => {
+const arrayAt = (value: unknown, ...segments: Array<string>): Array<unknown> => {
   const record = recordAt(value, ...segments.slice(0, -1));
   const child = record[segments.at(-1)!];
-  if (!Array.isArray(child)) throw new TypeError(`Expected an array at ${segments.join("/")}`);
+  if (!Array.isArray(child)) {
+    throw new TypeError(`Expected an array at ${segments.join("/")}`);
+  }
   return child;
 };
 
@@ -56,13 +60,17 @@ const expectDiagnostic = (
   expect(result.valid).toBe(false);
   if (!result.valid) {
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(code);
-    for (const diagnostic of result.diagnostics) expect(Array.isArray(diagnostic.path)).toBe(true);
+    for (const diagnostic of result.diagnostics) {
+      expect(Array.isArray(diagnostic.path)).toBe(true);
+    }
   }
 };
 
 const canonicalHash = (value: JsonRecord): string => {
   const canonical = canonicalize(value);
-  if (canonical === undefined) throw new TypeError("Expected a canonical publication payload.");
+  if (canonical === undefined) {
+    throw new TypeError("Expected a canonical publication payload.");
+  }
   return `sha256:${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
 };
 
@@ -80,7 +88,7 @@ describe("verifyPublicationIntegrityV2", () => {
   it("accepts the complete v2 publication fixture when all artifact hashes agree", () => {
     const result = verifyPublicationIntegrityV2(makeFixture());
 
-    expect(result).toMatchObject({ valid: true, diagnostics: [] });
+    expect(result).toMatchObject({ diagnostics: [], valid: true });
   });
 
   it.each([
@@ -111,14 +119,14 @@ describe("verifyPublicationIntegrityV2", () => {
 
   it("rejects a non-finite number before schema validation", () => {
     const input = makeFixture();
-    (recordAt(input.definition, "stage").size as number[])[0] = Number.NaN;
+    (recordAt(input.definition, "stage").size as Array<number>)[0] = Number.NaN;
 
     expectDiagnostic(verifyPublicationIntegrityV2(input), "canonical.invalid");
   });
 
   it("rejects negative zero instead of canonicalizing it to zero", () => {
     const input = makeFixture();
-    (recordAt(input.definition, "stage").size as number[])[0] = -0;
+    (recordAt(input.definition, "stage").size as Array<number>)[0] = -0;
 
     expectDiagnostic(verifyPublicationIntegrityV2(input), "canonical.invalid");
   });
@@ -140,7 +148,7 @@ describe("verifyPublicationIntegrityV2", () => {
 
   it("rejects a sparse array at the maximum representable array length", () => {
     const input = makeFixture();
-    const sparse = [] as unknown[];
+    const sparse = [] as Array<unknown>;
     sparse.length = 2 ** 32 - 1;
     recordAt(input.definition, "stage").size = sparse;
 
@@ -151,8 +159,8 @@ describe("verifyPublicationIntegrityV2", () => {
     const input = makeFixture();
     let reads = 0;
     Object.defineProperty(recordAt(input.definition, "metadata"), "title", {
-      enumerable: true,
       configurable: true,
+      enumerable: true,
       get() {
         reads += 1;
         throw new Error("accessor must not be invoked");
@@ -169,8 +177,8 @@ describe("verifyPublicationIntegrityV2", () => {
     const input = makeFixture() as PublicationFixture & JsonRecord;
     let reads = 0;
     Object.defineProperty(input, "definition", {
-      enumerable: true,
       configurable: true,
+      enumerable: true,
       get() {
         reads += 1;
         throw new Error("accessor must not be invoked");
@@ -228,7 +236,7 @@ describe("verifyPublicationIntegrityV2", () => {
 
     const result = verifyPublicationIntegrityV2(input);
 
-    expect(result).toMatchObject({ valid: true, diagnostics: [] });
+    expect(result).toMatchObject({ diagnostics: [], valid: true });
   });
 
   it("allows a RenderBundle ID to differ from its BuildManifest ID", () => {
@@ -242,7 +250,7 @@ describe("verifyPublicationIntegrityV2", () => {
 
     const result = verifyPublicationIntegrityV2(input);
 
-    expect(result).toMatchObject({ valid: true, diagnostics: [] });
+    expect(result).toMatchObject({ diagnostics: [], valid: true });
   });
 
   it("rejects a publication with a stale self hash", () => {
@@ -297,8 +305,8 @@ describe("verifyPublicationIntegrityV2", () => {
       "default",
       "contentOverrides",
     ).image = {
-      kind: "image",
       assetId: "state-image",
+      kind: "image",
     };
 
     expectDiagnostic(verifyPublicationIntegrityV2(input), "reference.invalid");
@@ -350,8 +358,8 @@ describe("verifyPublicationIntegrityV2", () => {
     const input = makeFixture();
     recordAt(input.assetSet, "assets").unused = {
       checksum: differentHash,
-      mediaType: "image/png",
       encodedSizeBytes: 1,
+      mediaType: "image/png",
     };
 
     expectDiagnostic(verifyPublicationIntegrityV2(input), "reference.invalid");

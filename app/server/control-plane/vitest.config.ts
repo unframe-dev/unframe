@@ -2,14 +2,6 @@ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  test: {
-    env: { REALTIME_AUDIENCE: "unframe-realtime-runtime" },
-    setupFiles: ["./test/setup.ts"],
-    include: ["./test/**/*.test.ts"],
-    exclude: ["./test/startup.test.ts"],
-    testTimeout: 30_000,
-    maxWorkers: 4,
-  },
   plugins: [
     cloudflareTest({
       wrangler: {
@@ -17,7 +9,6 @@ export default defineConfig({
       },
       // vitest-pool-workers 0.20.3 bundles Miniflare with support through 2026-08-01.
       miniflare: {
-        compatibilityDate: "2026-08-01",
         bindings: {
           WEB_ORIGIN: "https://un-fra.me",
           BETTER_AUTH_SECRET: "test-secret-with-at-least-thirty-two-characters",
@@ -34,7 +25,16 @@ export default defineConfig({
             '{"crv":"Ed25519","d":"NpZQSdEURSFKTVz6-pzQdlaclGrXKEU63J612Pbyycw","x":"TqLQxsPp47KvbpA1ZgokEIlJdEGV3qjSoYq9F1d5AN4","kty":"OKP"}',
           SERVICE_IDENTITY_SECRET: "test-service-identity-secret-32-characters",
         },
+        compatibilityDate: "2026-08-01",
       },
     }),
   ],
+  test: {
+    env: { REALTIME_AUDIENCE: "unframe-realtime-runtime" },
+    exclude: ["./test/startup.test.ts"],
+    include: ["./test/**/*.test.ts"],
+    maxWorkers: 4,
+    setupFiles: ["./test/setup.ts"],
+    testTimeout: 30_000,
+  },
 });

@@ -9,57 +9,63 @@ import type {
 export const diagnostic = (
   code: string,
   message: string,
-  path: readonly (string | number)[] = [],
-): Diagnostic => ({ code, path, message });
+  path: ReadonlyArray<string | number> = [],
+): Diagnostic => ({ code, message, path });
 
 const unsupported = (
   code: string,
-  path: readonly (string | number)[],
+  path: ReadonlyArray<string | number>,
 ): RendererSupportDecision => ({
-  supported: false,
   diagnostics: [diagnostic(code, "Renderer capability is not supported.", path)],
+  supported: false,
 });
 
 export const evaluateRendererSupport = (
   request: RendererSupportRequest,
   capabilities: RendererCapabilities,
 ): RendererSupportDecision => {
-  if (!capabilities.inputKinds.includes(request.entry.kind))
+  if (!capabilities.inputKinds.includes(request.entry.kind)) {
     return unsupported("unsupported-input-kind", ["entry"]);
-  if (!capabilities.updateModels.some((kind) => kind === request.resolvedIntent.updateModel.kind))
+  }
+  if (!capabilities.updateModels.some((kind) => kind === request.resolvedIntent.updateModel.kind)) {
     return unsupported("unsupported-update-model", ["resolvedIntent", "updateModel"]);
-  if (!capabilities.interactions.some((kind) => kind === request.resolvedIntent.interaction.kind))
+  }
+  if (!capabilities.interactions.some((kind) => kind === request.resolvedIntent.interaction.kind)) {
     return unsupported("unsupported-interaction", ["resolvedIntent", "interaction"]);
+  }
   if (
     !capabilities.internalAnimations.some(
       (kind) => kind === request.resolvedIntent.internalAnimation.kind,
     )
-  )
+  ) {
     return unsupported("unsupported-internal-animation", ["resolvedIntent", "internalAnimation"]);
+  }
   if (
     !capabilities.rendererPreferences.some((id) => id === request.resolvedIntent.selectedRendererId)
-  )
+  ) {
     return unsupported("unsupported-renderer", ["resolvedIntent", "selectedRendererId"]);
+  }
   if (
     !capabilities.fallbackPolicies.some(
       (policy) => policy === request.resolvedIntent.fallbackPolicy,
     )
-  )
+  ) {
     return unsupported("unsupported-fallback-policy", ["resolvedIntent", "fallbackPolicy"]);
-  return { supported: true, diagnostics: [] };
+  }
+  return { diagnostics: [], supported: true };
 };
 
 export const evaluateFirstMilestoneSupport = (
   request: RendererSupportRequest,
 ): RendererSupportDecision =>
   evaluateRendererSupport(request, {
+    deterministic: true,
+    fallbackPolicies: ["reject"],
     inputKinds: ["structured"],
-    updateModels: ["static", "finite-state"],
     interactions: ["none", "regions"],
     internalAnimations: ["none"],
     rendererPreferences: ["baked-web"],
-    fallbackPolicies: ["reject"],
-    deterministic: true,
+    updateModels: ["static", "finite-state"],
   });
 
 export const createRendererFingerprint = (

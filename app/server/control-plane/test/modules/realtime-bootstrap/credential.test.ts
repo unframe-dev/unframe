@@ -15,10 +15,14 @@ const generatePrivateJwk = async () => {
     "sign",
     "verify",
   ]);
-  if (!("privateKey" in generatedKey)) throw new Error("Ed25519 must generate a key pair");
+  if (!("privateKey" in generatedKey)) {
+    throw new Error("Ed25519 must generate a key pair");
+  }
 
   const exportedKey = await crypto.subtle.exportKey("jwk", generatedKey.privateKey);
-  if (exportedKey instanceof ArrayBuffer) throw new Error("JWK export must return a JSON key");
+  if (exportedKey instanceof ArrayBuffer) {
+    throw new Error("JWK export must return a JSON key");
+  }
   return exportedKey;
 };
 
@@ -27,11 +31,11 @@ describe("RealtimeBootstrapCredentials", () => {
     expect(
       () =>
         new RealtimeBootstrapCredentials(
-          { kty: "RSA", n: "modulus", e: "AQAB", d: "private" },
+          { d: "private", e: "AQAB", kty: "RSA", n: "modulus" },
           {
+            audience: "unframe-realtime-runtime",
             issuer: "https://control-plane.example.com",
             keyId: "realtime-2026-08",
-            audience: "unframe-realtime-runtime",
           },
         ),
     ).toThrowError("realtime signing key must be an Ed25519 private JWK");
@@ -40,48 +44,48 @@ describe("RealtimeBootstrapCredentials", () => {
   it("issues a verifiable EdDSA session credential and only publishes its public JWK", async () => {
     const privateJwk = await generatePrivateJwk();
     const credentials = new RealtimeBootstrapCredentials(privateJwk, {
+      audience: "unframe-realtime-runtime",
       issuer: "https://control-plane.example.com",
       keyId: "realtime-2026-08",
-      audience: "unframe-realtime-runtime",
-      now: () => 1_700_000_000,
       newId: () => "credential-id",
+      now: () => 1_700_000_000,
     });
 
-    const { token, expiresAt } = await credentials.issue({
-      sessionId: "session-1",
-      userId: "user-1",
+    const { expiresAt, token } = await credentials.issue({
+      assignmentEpoch: 3,
+      expiresAt: 1_700_000_300,
+      presentationId: "presentation-1",
+      presentationRevision: 7,
       role: "presenter",
       runtimeId: "runtime-1",
       runtimeKind: "VenueEdge",
-      assignmentEpoch: 3,
-      presentationId: "presentation-1",
-      presentationRevision: 7,
       scopes: ["realtime:connect", "assets:read"],
-      expiresAt: 1_700_000_300,
+      sessionId: "session-1",
+      userId: "user-1",
     });
     const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
 
     expect(encodedHeader).toBeDefined();
     expect(encodedPayload).toBeDefined();
     expect(encodedSignature).toBeDefined();
-    expect(decode(encodedHeader!)).toEqual({ alg: "EdDSA", typ: "JWT", kid: "realtime-2026-08" });
+    expect(decode(encodedHeader!)).toEqual({ alg: "EdDSA", kid: "realtime-2026-08", typ: "JWT" });
     expect(decode(encodedPayload!)).toEqual({
-      iss: "https://control-plane.example.com",
+      assignment_epoch: 3,
       aud: "unframe-realtime-runtime",
-      sub: "user-1",
-      session_id: "session-1",
+      exp: 1_700_000_300,
+      iat: 1_700_000_000,
+      iss: "https://control-plane.example.com",
+      jti: "credential-id",
+      nbf: 1_699_999_970,
+      presentation_id: "presentation-1",
+      presentation_revision: 7,
+      protocol_version: 1,
       role: "presenter",
       runtime_id: "runtime-1",
       runtime_kind: "VenueEdge",
-      assignment_epoch: 3,
-      presentation_id: "presentation-1",
-      presentation_revision: 7,
       scope: "realtime:connect assets:read",
-      iat: 1_700_000_000,
-      nbf: 1_699_999_970,
-      exp: 1_700_000_300,
-      jti: "credential-id",
-      protocol_version: 1,
+      session_id: "session-1",
+      sub: "user-1",
     });
     expect(expiresAt).toBe(1_700_000_300_000);
 
@@ -89,12 +93,12 @@ describe("RealtimeBootstrapCredentials", () => {
     expect(jwks).toEqual({
       keys: [
         expect.objectContaining({
-          kty: "OKP",
-          crv: "Ed25519",
-          kid: "realtime-2026-08",
           alg: "EdDSA",
-          use: "sig",
+          crv: "Ed25519",
           key_ops: ["verify"],
+          kid: "realtime-2026-08",
+          kty: "OKP",
+          use: "sig",
         }),
       ],
     });
@@ -120,24 +124,24 @@ describe("RealtimeBootstrapCredentials", () => {
   it("UTF-8 audienceを含むcredentialを発行する", async () => {
     const privateJwk = await generatePrivateJwk();
     const credentials = new RealtimeBootstrapCredentials(privateJwk, {
+      audience: "会場ランタイム🎥",
       issuer: "https://control-plane.example.com",
       keyId: "realtime-2026-08",
-      audience: "会場ランタイム🎥",
-      now: () => 1_700_000_000,
       newId: () => "credential-id",
+      now: () => 1_700_000_000,
     });
 
     const { token } = await credentials.issue({
-      sessionId: "session-1",
-      userId: "user-1",
+      assignmentEpoch: 3,
+      expiresAt: 1_700_000_300,
+      presentationId: "presentation-1",
+      presentationRevision: 7,
       role: "presenter",
       runtimeId: "runtime-1",
       runtimeKind: "VenueEdge",
-      assignmentEpoch: 3,
-      presentationId: "presentation-1",
-      presentationRevision: 7,
       scopes: ["realtime:connect"],
-      expiresAt: 1_700_000_300,
+      sessionId: "session-1",
+      userId: "user-1",
     });
     const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
 

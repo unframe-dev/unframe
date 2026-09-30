@@ -28,48 +28,47 @@ export type PairedComponentDeclaration =
   | {
       readonly manifest: TypedDeclaration<ComponentManifest>;
       readonly metadata: StaticComponentMetadata;
-      readonly rendererEntry: string;
       readonly renderer: {
         readonly entrySource: string;
-        readonly localDependencies: readonly string[];
-        readonly packageImports: readonly string[];
+        readonly localDependencies: ReadonlyArray<string>;
+        readonly packageImports: ReadonlyArray<string>;
       };
+      readonly rendererEntry: string;
     };
 
 type ReactPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
-  readonly scene: readonly StaticReactSceneItem[];
+  readonly scene: ReadonlyArray<StaticReactSceneItem>;
 };
 type MixedPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
   readonly scene: Omit<PresentationDeclaration["scene"], "components"> & {
-    readonly components: readonly (
-      | PresentationDeclaration["scene"]["components"][number]
-      | StaticReactSceneItem
-    )[];
+    readonly components: ReadonlyArray<
+      PresentationDeclaration["scene"]["components"][number] | StaticReactSceneItem
+    >;
   };
 };
 
 export type PairedAuthoringDeclarationCatalog = {
+  readonly components: ReadonlyArray<PairedComponentDeclaration>;
   readonly presentation: TypedDeclaration<
     PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
   >;
-  readonly themes: readonly TypedDeclaration<ThemeDeclaration>[];
-  readonly components: readonly PairedComponentDeclaration[];
+  readonly themes: ReadonlyArray<TypedDeclaration<ThemeDeclaration>>;
 };
 
 export type PairAuthoringDeclarationsResult =
   | {
-      readonly ok: true;
       readonly catalog: PairedAuthoringDeclarationCatalog;
       readonly diagnostics: [];
+      readonly ok: true;
     }
-  | { readonly ok: false; readonly diagnostics: readonly DeclarationCollectionDiagnostic[] };
+  | { readonly diagnostics: ReadonlyArray<DeclarationCollectionDiagnostic>; readonly ok: false };
 
 const fallbackOrigin: DeclarationSourceOrigin = {
-  fileName: "",
-  start: 0,
-  end: 0,
-  line: 1,
   column: 1,
+  end: 0,
+  fileName: "",
+  line: 1,
+  start: 0,
 };
 
 const compareDiagnostics = (
@@ -82,10 +81,13 @@ const compareDiagnostics = (
   (left.code < right.code ? -1 : left.code > right.code ? 1 : 0) ||
   (left.message < right.message ? -1 : left.message > right.message ? 1 : 0);
 
-const samePath = (left: readonly (string | number)[], right: readonly (string | number)[]) =>
+const samePath = (left: ReadonlyArray<string | number>, right: ReadonlyArray<string | number>) =>
   left.length === right.length && left.every((segment, index) => segment === right[index]);
 
-const originAt = (declaration: CollectedAuthoringDeclaration, path: readonly (string | number)[]) =>
+const originAt = (
+  declaration: CollectedAuthoringDeclaration,
+  path: ReadonlyArray<string | number>,
+) =>
   declaration.sourceMap.find((entry) => samePath(entry.path, path))?.origin ??
   declaration.sourceMap.find((entry) => entry.path.length === 0)?.origin ?? {
     ...fallbackOrigin,
@@ -94,7 +96,7 @@ const originAt = (declaration: CollectedAuthoringDeclaration, path: readonly (st
 
 const diagnosticAt = (
   declaration: CollectedAuthoringDeclaration,
-  path: readonly (string | number)[],
+  path: ReadonlyArray<string | number>,
   code: string,
   message: string,
 ): DeclarationCollectionDiagnostic => ({ code, message, ...originAt(declaration, path) });
@@ -110,15 +112,20 @@ export const resolveAuthoringStructurePath = (
     relative.includes("\\") ||
     relative.includes("\0") ||
     relative.startsWith("/")
-  )
+  ) {
     return undefined;
+  }
   const directory = manifestFileName.split("/").slice(0, -1);
   const segments = [...directory];
   let hasNormalSegment = false;
   for (const segment of relative.split("/")) {
-    if (segment === "" || segment === ".") return undefined;
+    if (segment === "" || segment === ".") {
+      return undefined;
+    }
     if (segment === "..") {
-      if (hasNormalSegment || segments.length === 0) return undefined;
+      if (hasNormalSegment || segments.length === 0) {
+        return undefined;
+      }
       segments.pop();
       continue;
     }
@@ -129,7 +136,9 @@ export const resolveAuthoringStructurePath = (
 };
 
 const ownDataValue = (value: unknown, key: string): unknown => {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
   try {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     return descriptor !== undefined && descriptor.enumerable && "value" in descriptor
@@ -181,11 +190,13 @@ const isReactPresentation = (value: unknown): value is ReactPresentationDeclarat
     value === null ||
     typeof value !== "object" ||
     !Array.isArray((value as { scene?: unknown }).scene)
-  )
+  ) {
     return false;
+  }
   const presentation = value as ReactPresentationDeclaration;
-  if (!isPresentationDeclaration({ ...presentation, scene: { spatial: [], components: [] } }))
+  if (!isPresentationDeclaration({ ...presentation, scene: { components: [], spatial: [] } })) {
     return false;
+  }
   try {
     presentation.scene.forEach(validateStaticReactSceneItem);
     return true;
@@ -194,32 +205,39 @@ const isReactPresentation = (value: unknown): value is ReactPresentationDeclarat
   }
 };
 const isMixedPresentation = (value: unknown): value is MixedPresentationDeclaration => {
-  if (value === null || typeof value !== "object") return false;
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
   const presentation = value as MixedPresentationDeclaration;
   if (
     !presentation.scene ||
     Array.isArray(presentation.scene) ||
     !Array.isArray(presentation.scene.components)
-  )
+  ) {
     return false;
+  }
   if (
     presentation.scene.components.some(
       (item) => item === null || typeof item !== "object" || Array.isArray(item),
     )
-  )
+  ) {
     return false;
+  }
   const react = presentation.scene.components.filter(
     (item): item is StaticReactSceneItem => "component" in item,
   );
-  if (!react.length) return false;
+  if (!react.length) {
+    return false;
+  }
   const structured = presentation.scene.components.filter((item) => !("component" in item));
   if (
     !isPresentationDeclaration({
       ...presentation,
       scene: { ...presentation.scene, components: structured },
     })
-  )
+  ) {
     return false;
+  }
   try {
     react.forEach(validateStaticReactSceneItem);
     return true;
@@ -233,13 +251,15 @@ export const pairAuthoringDeclarations = (
   input: CollectedAuthoringDeclarationsSuccess,
 ): PairAuthoringDeclarationsResult => {
   const declarations = [...input.declarations].sort(compareDeclarations);
-  const diagnostics: DeclarationCollectionDiagnostic[] = [];
-  const presentations: TypedDeclaration<
-    PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
-  >[] = [];
-  const themes: TypedDeclaration<ThemeDeclaration>[] = [];
-  const manifests: TypedDeclaration<ComponentManifest>[] = [];
-  const structures: TypedDeclaration<ComponentStructure>[] = [];
+  const diagnostics: Array<DeclarationCollectionDiagnostic> = [];
+  const presentations: Array<
+    TypedDeclaration<
+      PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+    >
+  > = [];
+  const themes: Array<TypedDeclaration<ThemeDeclaration>> = [];
+  const manifests: Array<TypedDeclaration<ComponentManifest>> = [];
+  const structures: Array<TypedDeclaration<ComponentStructure>> = [];
   const rawStructureFiles = new Set(
     declarations
       .filter((declaration) => declaration.role === "component-structure")
@@ -257,13 +277,13 @@ export const pairAuthoringDeclarations = (
           isPresentationDeclaration(declaration.value) ||
           isReactPresentation(declaration.value) ||
           isMixedPresentation(declaration.value)
-        )
+        ) {
           presentations.push(
             declaration as TypedDeclaration<
               PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
             >,
           );
-        else
+        } else {
           diagnostics.push(
             diagnosticAt(
               declaration,
@@ -272,11 +292,12 @@ export const pairAuthoringDeclarations = (
               "Presentation declaration failed Authoring SDK validation.",
             ),
           );
+        }
         break;
       case "theme":
-        if (isThemeDeclaration(declaration.value))
+        if (isThemeDeclaration(declaration.value)) {
           themes.push(declaration as TypedDeclaration<ThemeDeclaration>);
-        else
+        } else {
           diagnostics.push(
             diagnosticAt(
               declaration,
@@ -285,13 +306,16 @@ export const pairAuthoringDeclarations = (
               "Theme declaration failed Authoring SDK validation.",
             ),
           );
+        }
         break;
       case "component-manifest":
-        if (isComponentManifest(declaration.value))
+        if (isComponentManifest(declaration.value)) {
           manifests.push(declaration as TypedDeclaration<ComponentManifest>);
-        else {
+        } else {
           const structurePath = potentialStructurePath(declaration);
-          if (structurePath) potentiallyReferencedStructureFiles.add(structurePath);
+          if (structurePath) {
+            potentiallyReferencedStructureFiles.add(structurePath);
+          }
           diagnostics.push(
             diagnosticAt(
               declaration,
@@ -303,9 +327,9 @@ export const pairAuthoringDeclarations = (
         }
         break;
       case "component-structure":
-        if (isComponentStructure(declaration.value))
+        if (isComponentStructure(declaration.value)) {
           structures.push(declaration as TypedDeclaration<ComponentStructure>);
-        else
+        } else {
           diagnostics.push(
             diagnosticAt(
               declaration,
@@ -314,6 +338,7 @@ export const pairAuthoringDeclarations = (
               "Component structure declaration failed Authoring SDK validation.",
             ),
           );
+        }
         break;
     }
   }
@@ -321,7 +346,7 @@ export const pairAuthoringDeclarations = (
   if (presentationCount !== 1) {
     const declaration =
       declarations.find((item) => item.role === "presentation") ?? declarations[0];
-    if (declaration)
+    if (declaration) {
       diagnostics.push(
         diagnosticAt(
           declaration,
@@ -330,18 +355,19 @@ export const pairAuthoringDeclarations = (
           "Exactly one presentation declaration is required.",
         ),
       );
-    else
+    } else {
       diagnostics.push({
         code: "compiler-presentation-declaration-count-invalid",
         message: "Exactly one presentation declaration is required.",
         ...fallbackOrigin,
       });
+    }
   }
 
   const themesById = new Map<string, TypedDeclaration<ThemeDeclaration>>();
   for (const theme of themes) {
     const existing = themesById.get(theme.value.id);
-    if (existing)
+    if (existing) {
       diagnostics.push(
         diagnosticAt(
           theme,
@@ -350,7 +376,9 @@ export const pairAuthoringDeclarations = (
           `Theme id '${theme.value.id}' is declared more than once.`,
         ),
       );
-    else themesById.set(theme.value.id, theme);
+    } else {
+      themesById.set(theme.value.id, theme);
+    }
   }
 
   const manifestsByIdentity = new Map<string, TypedDeclaration<ComponentManifest>>();
@@ -385,14 +413,14 @@ export const pairAuthoringDeclarations = (
 
   const structuresByFile = new Map(structures.map((structure) => [structure.fileName, structure]));
   const referencedStructures = new Set<TypedDeclaration<ComponentStructure>>();
-  const components: PairedComponentDeclaration[] = [];
+  const components: Array<PairedComponentDeclaration> = [];
   for (const react of input.reactComponents) {
     const manifest: TypedDeclaration<ComponentManifest> = {
       fileName: react.fileName,
       role: "component-manifest",
       rootBuilder: "defineComponentManifest",
-      value: react.manifest,
       sourceMap: react.sourceMap,
+      value: react.manifest,
     };
     const identity = `${react.manifest.componentId}\0${react.manifest.version}`;
     if (
@@ -416,13 +444,15 @@ export const pairAuthoringDeclarations = (
     components.push({
       manifest,
       metadata: react.metadata,
-      rendererEntry: react.manifest.renderers["baked-web"]!.entry,
       renderer: react.renderer,
+      rendererEntry: react.manifest.renderers["baked-web"]!.entry,
     });
   }
   for (const manifest of manifestsByIdentity.values()) {
     const authoring = manifest.value.authoring;
-    if (authoring.mode !== "structured") continue;
+    if (authoring.mode !== "structured") {
+      continue;
+    }
     const structurePath = resolveAuthoringStructurePath(manifest.fileName, authoring.structure);
     if (!structurePath) {
       diagnostics.push(
@@ -447,7 +477,9 @@ export const pairAuthoringDeclarations = (
       );
       continue;
     }
-    if (!structure) continue;
+    if (!structure) {
+      continue;
+    }
     referencedStructures.add(structure);
     if (structure.value.componentId !== manifest.value.componentId) {
       diagnostics.push(
@@ -466,8 +498,9 @@ export const pairAuthoringDeclarations = (
     if (
       referencedStructures.has(structure) ||
       potentiallyReferencedStructureFiles.has(structure.fileName)
-    )
+    ) {
       continue;
+    }
     diagnostics.push(
       diagnosticAt(
         structure,
@@ -478,15 +511,16 @@ export const pairAuthoringDeclarations = (
     );
   }
 
-  if (diagnostics.length !== 0)
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  if (diagnostics.length !== 0) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
   return {
-    ok: true,
     catalog: {
+      components: components.sort(compareComponentDeclarations),
       presentation: presentations[0]!,
       themes: [...themesById.values()].sort(compareDeclarations),
-      components: components.sort(compareComponentDeclarations),
     },
     diagnostics: [],
+    ok: true,
   };
 };

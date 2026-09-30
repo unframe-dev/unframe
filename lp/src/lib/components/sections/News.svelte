@@ -5,8 +5,8 @@
 
   const latestEntries = [...newsEntries]
     .sort((a, b) => {
-      if (!a.publishedAt) return 1;
-      if (!b.publishedAt) return -1;
+      if (!a.publishedAt) {return 1;}
+      if (!b.publishedAt) {return -1;}
       return b.publishedAt.localeCompare(a.publishedAt);
     })
     .slice(0, 3);

@@ -11,10 +11,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { LoginPage, RecoverPage, SignupPage } from "./auth-pages";
 const auth = vi.hoisted(() => ({
+  requestPasswordReset: vi.fn(),
   signIn: { email: vi.fn(), social: vi.fn() },
   signUp: { email: vi.fn() },
-  requestPasswordReset: vi.fn(),
-  twoFactor: { verifyTotp: vi.fn(), verifyBackupCode: vi.fn() },
+  twoFactor: { verifyBackupCode: vi.fn(), verifyTotp: vi.fn() },
 }));
 vi.mock("@/features/auth/control-plane-auth", () => ({
   controlPlaneAuth: auth,
@@ -22,13 +22,13 @@ vi.mock("@/features/auth/control-plane-auth", () => ({
 function renderRoute(Component: () => ReactNode) {
   const root = createRootRoute();
   const route = createRoute({
+    component: Component,
     getParentRoute: () => root,
     path: "/",
-    component: Component,
   });
   const router = createRouter({
-    routeTree: root.addChildren([route]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
+    routeTree: root.addChildren([route]),
   });
   return render(<RouterProvider router={router} />);
 }
@@ -49,7 +49,7 @@ describe("auth pages", () => {
   });
   it("uses the selected MFA verification method", async () => {
     auth.signIn.email.mockResolvedValue({
-      data: { twoFactorRedirect: true, twoFactorMethods: ["totp"] },
+      data: { twoFactorMethods: ["totp"], twoFactorRedirect: true },
       error: null,
     });
     auth.twoFactor.verifyTotp.mockResolvedValue({ error: { code: "invalid" } });

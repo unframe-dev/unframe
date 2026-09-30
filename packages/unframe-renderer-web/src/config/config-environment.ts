@@ -25,10 +25,16 @@ const typedArrayTag = Object.getOwnPropertyDescriptor(
 )?.get;
 export const copyRgba = (value: unknown): Uint8Array | undefined => {
   try {
-    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
-    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) {
+      return undefined;
+    }
+    if (typedArrayTag.call(value) !== "Uint8Array") {
+      return undefined;
+    }
     const byteLength = typedArrayByteLength.call(value);
-    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
+      return undefined;
+    }
     const copy = new Uint8Array(byteLength);
     Uint8Array.prototype.set.call(copy, value as Uint8Array);
     return copy;
@@ -55,33 +61,39 @@ export const snapshotAdapterIdentity = (
   identity: unknown,
 ): Readonly<FixedBrowserAdapter["identity"]> | undefined => {
   const record = snapshotStrictRecord(identity, adapterIdentityKeys);
-  if (!record) return undefined;
+  if (!record) {
+    return undefined;
+  }
   const parsed = adapterIdentitySchema.safeParse(record);
   return parsed.success ? Object.freeze(parsed.data) : undefined;
 };
 
 export const normalizedEnvironment = (environment: FixedBrowserEnvironment) => ({
   browser: {
+    fontFingerprint: environment.browser.fontFingerprint,
     id: environment.browser.id,
     version: environment.browser.version,
-    fontFingerprint: environment.browser.fontFingerprint,
   },
-  locale: environment.locale,
-  timezone: environment.timezone,
+  clock: environment.clock,
   colorSpace: environment.colorSpace,
   deviceScaleFactor: environment.deviceScaleFactor,
-  network: environment.network,
   filesystem: environment.filesystem,
-  clock: environment.clock,
+  locale: environment.locale,
+  network: environment.network,
   random: environment.random,
+  timezone: environment.timezone,
 });
 
 export const snapshotEnvironment = (value: unknown): FixedBrowserEnvironment | undefined => {
   const record = snapshotStrictRecord(value, environmentKeys);
   const browser = record && snapshotStrictRecord(record.browser, browserKeys);
-  if (!record || !browser) return undefined;
+  if (!record || !browser) {
+    return undefined;
+  }
   const parsed = fixedBrowserEnvironmentSchema.safeParse({ ...record, browser });
-  if (!parsed.success) return undefined;
+  if (!parsed.success) {
+    return undefined;
+  }
   return Object.freeze({
     ...parsed.data,
     browser: Object.freeze(parsed.data.browser),
@@ -90,7 +102,9 @@ export const snapshotEnvironment = (value: unknown): FixedBrowserEnvironment | u
 
 export const snapshotConfig = (config: unknown): WebRendererConfig | undefined => {
   const record = snapshotStrictRecord(config, []);
-  if (!record) return undefined;
+  if (!record) {
+    return undefined;
+  }
   const parsed = webRendererConfigSchema.safeParse(record);
   return parsed.success ? Object.freeze(parsed.data) : undefined;
 };
@@ -99,6 +113,8 @@ export const configHashFromSnapshot = (config: WebRendererConfig): string => has
 
 export const createWebRendererConfigHash = (config: WebRendererConfig): string => {
   const snapshot = snapshotConfig(config);
-  if (!snapshot) throw new TypeError("Web renderer config must be an empty plain object.");
+  if (!snapshot) {
+    throw new TypeError("Web renderer config must be an empty plain object.");
+  }
   return configHashFromSnapshot(snapshot);
 };

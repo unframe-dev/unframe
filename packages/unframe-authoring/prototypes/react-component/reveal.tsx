@@ -2,15 +2,34 @@
 import { defineComponent, editableText, prop, setState } from "./api";
 
 export const Reveal = defineComponent({
-  id: "reveal",
-  version: 1,
-  props: {
-    prompt: editableText({ required: true }),
-    answer: editableText({ required: true }),
+  actions: {
+    reveal: { effects: [setState("revealed")], inputs: {}, preconditions: [] },
   },
-  surface: { logicalSize: [960, 540] },
+  id: "reveal",
+  initialState: "hidden",
+  interactions: {
+    reveal: { event: "quiz.reveal", hitPriority: 0, kind: "click" },
+  },
+  outputs: {
+    revealRequested: {
+      payload: {},
+      producer: { interactionId: "reveal", kind: "surfaceInteraction" },
+    },
+  },
+  props: {
+    answer: editableText({ required: true }),
+    prompt: editableText({ required: true }),
+  },
+  render: ({ bindings, state, texts }) => (
+    <section className="reveal">
+      <h1 {...bindings.prompt}>{texts.prompt}</h1>
+      {state === "revealed" && <p {...bindings.answer}>{texts.answer}</p>}
+      <button {...bindings.revealButton} disabled={state !== "hidden"}>
+        {texts.revealButton}
+      </button>
+    </section>
+  ),
   semantics: {
-    rootNodeIds: ["prompt", "answer", "revealButton"],
     nodes: {
       prompt: {
         role: "heading",
@@ -33,34 +52,15 @@ export const Reveal = defineComponent({
         interactionId: "reveal",
       },
     },
+    rootNodeIds: ["prompt", "answer", "revealButton"],
   },
-  interactions: {
-    reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 },
-  },
-  initialState: "hidden",
   states: {
     hidden: {
-      semanticOverrides: [{ id: "hide-answer", targetId: "answer", included: false }],
       enabledInteractionIds: ["reveal"],
+      semanticOverrides: [{ id: "hide-answer", targetId: "answer", included: false }],
     },
-    revealed: { semanticOverrides: [], enabledInteractionIds: [] },
+    revealed: { enabledInteractionIds: [], semanticOverrides: [] },
   },
-  actions: {
-    reveal: { inputs: {}, preconditions: [], effects: [setState("revealed")] },
-  },
-  outputs: {
-    revealRequested: {
-      payload: {},
-      producer: { kind: "surfaceInteraction", interactionId: "reveal" },
-    },
-  },
-  render: ({ texts, bindings, state }) => (
-    <section className="reveal">
-      <h1 {...bindings.prompt}>{texts.prompt}</h1>
-      {state === "revealed" && <p {...bindings.answer}>{texts.answer}</p>}
-      <button {...bindings.revealButton} disabled={state !== "hidden"}>
-        {texts.revealButton}
-      </button>
-    </section>
-  ),
+  surface: { logicalSize: [960, 540] },
+  version: 1,
 });

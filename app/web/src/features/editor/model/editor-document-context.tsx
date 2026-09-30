@@ -23,19 +23,19 @@ import {
 export type SyncStatus = "ready" | "publishing" | "error";
 
 interface EditorDocumentValue {
-  history: HistoryState;
-  syncStatus: SyncStatus;
   execute: (command: EditorCommand) => void;
-  undo: () => void;
+  history: HistoryState;
   redo: () => void;
+  syncStatus: SyncStatus;
+  undo: () => void;
 }
 
 const EditorDocumentContext = createContext<EditorDocumentValue | null>(null);
 
 export function EditorDocumentProvider({
+  children,
   initialDocument,
   publisher,
-  children,
 }: PropsWithChildren<{
   initialDocument: PresentationDocument;
   publisher: DocumentPublisher;
@@ -58,7 +58,9 @@ export function EditorDocumentProvider({
       void publication
         .then(() => {
           pendingPublicationsRef.current -= 1;
-          if (pendingPublicationsRef.current === 0) setSyncStatus("ready");
+          if (pendingPublicationsRef.current === 0) {
+            setSyncStatus("ready");
+          }
         })
         .catch(() => {
           pendingPublicationsRef.current -= 1;
@@ -87,18 +89,22 @@ export function EditorDocumentProvider({
 
   const undo = useCallback(() => {
     const entry = historyRef.current.undoStack.at(-1);
-    if (!entry) return;
+    if (!entry) {
+      return;
+    }
     commit(undoCommand(historyRef.current), entry.inverse);
   }, [commit]);
 
   const redo = useCallback(() => {
     const entry = historyRef.current.redoStack.at(-1);
-    if (!entry) return;
+    if (!entry) {
+      return;
+    }
     commit(redoCommand(historyRef.current), entry.command);
   }, [commit]);
 
   return (
-    <EditorDocumentContext.Provider value={{ history, syncStatus, execute, undo, redo }}>
+    <EditorDocumentContext.Provider value={{ execute, history, redo, syncStatus, undo }}>
       {children}
     </EditorDocumentContext.Provider>
   );

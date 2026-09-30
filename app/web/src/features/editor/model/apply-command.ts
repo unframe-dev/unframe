@@ -32,9 +32,9 @@ export interface AppliedCommand {
 }
 
 interface ElementLocation {
-  slideIndex: number;
-  elementIndex: number;
   element: Element;
+  elementIndex: number;
+  slideIndex: number;
 }
 
 function findElement(
@@ -45,7 +45,7 @@ function findElement(
     const elementIndex = slide.elements.findIndex((element) => element.id === elementId);
     const element = slide.elements[elementIndex];
     if (elementIndex >= 0 && element) {
-      return { slideIndex, elementIndex, element };
+      return { element, elementIndex, slideIndex };
     }
   }
   return undefined;
@@ -77,9 +77,15 @@ function cloneTransform(transform: Transform): Transform {
 
 function createInverseChanges(element: Element, changes: ElementChanges): ElementChanges {
   const inverse: ElementChanges = {};
-  if (changes.name !== undefined) inverse.name = element.name;
-  if (changes.visible !== undefined) inverse.visible = element.visible;
-  if (changes.locked !== undefined) inverse.locked = element.locked;
+  if (changes.name !== undefined) {
+    inverse.name = element.name;
+  }
+  if (changes.visible !== undefined) {
+    inverse.visible = element.visible;
+  }
+  if (changes.locked !== undefined) {
+    inverse.locked = element.locked;
+  }
   if (changes.content !== undefined) {
     if (element.type !== "text") {
       throw new CommandApplicationError("invalid_command", "Only text elements can update content");
@@ -122,9 +128,9 @@ function applyElementAdd(
   return {
     document: validateResult(next),
     inverse: {
-      type: "element.remove",
-      slideId: command.slideId,
       elementId: command.element.id,
+      slideId: command.slideId,
+      type: "element.remove",
     },
   };
 }
@@ -152,10 +158,10 @@ function applyElementRemove(
   return {
     document: validateResult(next),
     inverse: {
-      type: "element.add",
-      slideId: command.slideId,
       element: structuredClone(element),
       index: elementIndex,
+      slideId: command.slideId,
+      type: "element.add",
     },
   };
 }
@@ -167,15 +173,17 @@ function applyElementTransform(
   const location = requireElement(document, command.elementId);
   const next = produce(document, (draft) => {
     const element = draft.slides[location.slideIndex]?.elements[location.elementIndex];
-    if (element) element.transform = command.transform;
+    if (element) {
+      element.transform = command.transform;
+    }
     draft.revision += 1;
   });
   return {
     document: validateResult(next),
     inverse: {
-      type: "element.transform",
       elementId: command.elementId,
       transform: cloneTransform(location.element.transform),
+      type: "element.transform",
     },
   };
 }
@@ -188,11 +196,19 @@ function applyElementUpdate(
   const inverseChanges = createInverseChanges(location.element, command.changes);
   const next = produce(document, (draft) => {
     const element = draft.slides[location.slideIndex]?.elements[location.elementIndex];
-    if (!element) return;
+    if (!element) {
+      return;
+    }
     const { changes } = command;
-    if (changes.name !== undefined) element.name = changes.name;
-    if (changes.visible !== undefined) element.visible = changes.visible;
-    if (changes.locked !== undefined) element.locked = changes.locked;
+    if (changes.name !== undefined) {
+      element.name = changes.name;
+    }
+    if (changes.visible !== undefined) {
+      element.visible = changes.visible;
+    }
+    if (changes.locked !== undefined) {
+      element.locked = changes.locked;
+    }
     if (changes.content !== undefined && element.type === "text") {
       element.content = changes.content;
     }
@@ -201,9 +217,9 @@ function applyElementUpdate(
   return {
     document: validateResult(next),
     inverse: {
-      type: "element.update",
-      elementId: command.elementId,
       changes: inverseChanges,
+      elementId: command.elementId,
+      type: "element.update",
     },
   };
 }
@@ -221,15 +237,17 @@ function applySlideReorder(
   }
   const next = produce(document, (draft) => {
     const [slide] = draft.slides.splice(fromIndex, 1);
-    if (slide) draft.slides.splice(command.toIndex, 0, slide);
+    if (slide) {
+      draft.slides.splice(command.toIndex, 0, slide);
+    }
     draft.revision += 1;
   });
   return {
     document: validateResult(next),
     inverse: {
-      type: "slide.reorder",
       slideId: command.slideId,
       toIndex: fromIndex,
+      type: "slide.reorder",
     },
   };
 }

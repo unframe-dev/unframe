@@ -15,14 +15,14 @@ import type { EditorTool } from "@/features/editor/model/editor-session";
 import { useEditorSession } from "@/features/editor/model/editor-session-context";
 import { useEditorShortcuts } from "@/features/editor/model/use-editor-shortcuts";
 import { EditorViewport } from "@/features/editor/ui/editor-viewport";
-const options: Array<{ value: EditorTool; label: string; icon: React.ReactNode }> = [
-  { value: "select", label: "選択", icon: <CursorClickIcon /> },
-  { value: "translate", label: "移動", icon: <ArrowsOutCardinalIcon /> },
-  { value: "rotate", label: "回転", icon: <ArrowClockwiseIcon /> },
-  { value: "scale", label: "拡縮", icon: <BoundingBoxIcon /> },
+const options: Array<{ icon: React.ReactNode; label: string; value: EditorTool }> = [
+  { icon: <CursorClickIcon />, label: "選択", value: "select" },
+  { icon: <ArrowsOutCardinalIcon />, label: "移動", value: "translate" },
+  { icon: <ArrowClockwiseIcon />, label: "回転", value: "rotate" },
+  { icon: <BoundingBoxIcon />, label: "拡縮", value: "scale" },
 ];
 export function EditorShell() {
-  const { history, syncStatus, undo, redo } = useEditorDocument();
+  const { history, redo, syncStatus, undo } = useEditorDocument();
   const tool = useEditorSession((s) => s.tool);
   const setTool = useEditorSession((s) => s.setTool);
   const grid = useEditorSession((s) => s.showGrid);
@@ -44,22 +44,22 @@ export function EditorShell() {
         </div>
         <div className="flex">
           <Button
-            variant="ghost"
-            size="icon"
             aria-label="元に戻す"
-            title="元に戻す"
             disabled={!history.undoStack.length}
             onClick={undo}
+            size="icon"
+            title="元に戻す"
+            variant="ghost"
           >
             <ArrowCounterClockwiseIcon />
           </Button>
           <Button
-            variant="ghost"
-            size="icon"
             aria-label="やり直す"
-            title="やり直す"
             disabled={!history.redoStack.length}
             onClick={redo}
+            size="icon"
+            title="やり直す"
+            variant="ghost"
           >
             <ArrowClockwiseIcon />
           </Button>
@@ -67,23 +67,23 @@ export function EditorShell() {
         <div className="hidden border-l pl-2 sm:flex">
           {options.map((o) => (
             <Button
-              key={o.value}
-              variant={tool === o.value ? "outline" : "ghost"}
-              size="icon"
               aria-label={o.label}
-              title={o.label}
+              key={o.value}
               onClick={() => setTool(o.value)}
+              size="icon"
+              title={o.label}
+              variant={tool === o.value ? "outline" : "ghost"}
             >
               {o.icon}
             </Button>
           ))}
         </div>
         <Button
-          variant={grid ? "outline" : "ghost"}
-          size="icon"
           aria-label={grid ? "グリッドを隠す" : "グリッドを表示"}
-          title={grid ? "グリッドを隠す" : "グリッドを表示"}
           onClick={() => setGrid(!grid)}
+          size="icon"
+          title={grid ? "グリッドを隠す" : "グリッドを表示"}
+          variant={grid ? "outline" : "ghost"}
         >
           <GridFourIcon />
         </Button>
@@ -94,8 +94,8 @@ export function EditorShell() {
         </span>
       </header>
       <main
-        id="main-content"
         className="grid gap-3 p-3 md:h-[calc(100dvh-72px)] md:grid-cols-[220px_minmax(0,1fr)_300px]"
+        id="main-content"
       >
         <section className="overflow-auto rounded-xl border bg-white/80 shadow-sm">
           <SlideNavigator />

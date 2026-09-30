@@ -10,9 +10,9 @@ import type { CueState } from "./cue-executor.js";
 
 const sorted = (values: Iterable<string>) => [...values].sort();
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-const equals = (actual: string[], expected: string[]) =>
+const equals = (actual: Array<string>, expected: Array<string>) =>
   actual.length === expected.length && actual.every((value, index) => value === expected[index]);
-const activeOwner = (owner: { kind: string; groupId?: string }, currentGroupId: string) =>
+const activeOwner = (owner: { groupId?: string; kind: string }, currentGroupId: string) =>
   owner.kind === "presentation" || owner.groupId === currentGroupId;
 
 const visibleResources = (definition: PresentationDefinitionV2, role: "presenter" | "viewer") => {
@@ -20,9 +20,11 @@ const visibleResources = (definition: PresentationDefinitionV2, role: "presenter
     (node) => node.audience.kind === "all" || node.audience.role === role,
   );
   const nodeIds = new Set(nodes.map((node) => node.id));
-  for (const node of nodes)
-    if (node.parent.kind === "node" && !nodeIds.has(node.parent.nodeId))
+  for (const node of nodes) {
+    if (node.parent.kind === "node" && !nodeIds.has(node.parent.nodeId)) {
       throw new Error(`Visible node ${node.id} references an invisible parent.`);
+    }
+  }
   const surfaceIds = new Set(
     nodes.filter((node) => node.kind === "surface").map((node) => node.surfaceId),
   );
@@ -34,22 +36,31 @@ const visibleResources = (definition: PresentationDefinitionV2, role: "presenter
 
 const potentiallyVisibleNativeVariables = (
   definition: PresentationDefinitionV2,
-  visibleSurfaceIds: string[],
+  visibleSurfaceIds: Array<string>,
 ): Set<string> => {
   const variableIds = new Set<string>();
   const visit = (value: unknown): void => {
-    if (!value || typeof value !== "object") return;
+    if (!value || typeof value !== "object") {
+      return;
+    }
     if ("value" in value && value.value && typeof value.value === "object") {
       const binding = value.value;
-      if ("variableId" in binding && typeof binding.variableId === "string")
+      if ("variableId" in binding && typeof binding.variableId === "string") {
         variableIds.add(binding.variableId);
+      }
     }
-    for (const child of Object.values(value)) visit(child);
+    for (const child of Object.values(value)) {
+      visit(child);
+    }
   };
   for (const id of visibleSurfaceIds) {
     const surface = definition.scene.surfaces[id];
-    if (surface?.renderIntent.rendererPreference !== "native-ui") continue;
-    if (surface.content.kind === "structured") visit(surface.content.nodes);
+    if (surface?.renderIntent.rendererPreference !== "native-ui") {
+      continue;
+    }
+    if (surface.content.kind === "structured") {
+      visit(surface.content.nodes);
+    }
     visit(surface.states);
   }
   return variableIds;
@@ -59,7 +70,7 @@ export const createRuntimeVisibilitySelection = (
   definition: PresentationDefinitionV2,
   projectionProfileId: string,
   role: "presenter" | "viewer",
-  visibleVariableIds: string[],
+  visibleVariableIds: Array<string>,
 ): RuntimeVisibilitySelectionV2 => {
   const selection = runtimeVisibilitySelectionV2Schema.parse({
     projectionProfileId,
@@ -68,34 +79,43 @@ export const createRuntimeVisibilitySelection = (
     visibleVariableIds: sorted(visibleVariableIds),
   });
   const errors = validateRuntimeVisibilitySelection(definition, selection);
-  if (errors.length) throw new Error(errors.join(" "));
+  if (errors.length) {
+    throw new Error(errors.join(" "));
+  }
   return selection;
 };
 
 export const validateRuntimeVisibilitySelection = (
   definition: PresentationDefinitionV2,
   input: unknown,
-): string[] => {
+): Array<string> => {
   const parsed = runtimeVisibilitySelectionV2Schema.safeParse(input);
-  if (!parsed.success) return parsed.error.issues.map((issue) => issue.message);
+  if (!parsed.success) {
+    return parsed.error.issues.map((issue) => issue.message);
+  }
   try {
     const expected = visibleResources(definition, parsed.data.role);
-    const errors = (Object.keys(expected) as (keyof typeof expected)[])
+    const errors = (Object.keys(expected) as Array<keyof typeof expected>)
       .filter((key) => !equals(parsed.data[key], expected[key]))
       .map((key) => `${key} differs from the role-visible resource closure.`);
-    if (!equals(parsed.data.visibleVariableIds, sorted(new Set(parsed.data.visibleVariableIds))))
+    if (!equals(parsed.data.visibleVariableIds, sorted(new Set(parsed.data.visibleVariableIds)))) {
       errors.push("visibleVariableIds must be sorted and unique.");
-    for (const id of parsed.data.visibleVariableIds)
-      if (!Object.hasOwn(definition.flow.variables, id))
+    }
+    for (const id of parsed.data.visibleVariableIds) {
+      if (!Object.hasOwn(definition.flow.variables, id)) {
         errors.push(`Unknown visible variable ${id}.`);
+      }
+    }
     // The selected artifact closure is verified by Delivery; this bounds its IDs to visible Native UI sources.
     const possibleBindings = potentiallyVisibleNativeVariables(
       definition,
       expected.visibleSurfaceIds,
     );
-    for (const id of parsed.data.visibleVariableIds)
-      if (!possibleBindings.has(id))
+    for (const id of parsed.data.visibleVariableIds) {
+      if (!possibleBindings.has(id)) {
         errors.push(`Variable ${id} is not used by a visible Native UI Surface.`);
+      }
+    }
     return errors;
   } catch (error) {
     return [(error as Error).message];
@@ -106,23 +126,30 @@ export const validateM3dCueRuntimeSnapshot = (
   definition: PresentationDefinitionV2,
   input: unknown,
   assignmentEpoch: number,
-): string[] => {
+): Array<string> => {
   const parsed = m3dCueRuntimeSnapshotV2Schema.safeParse(input);
-  if (!parsed.success) return parsed.error.issues.map((issue) => issue.message);
+  if (!parsed.success) {
+    return parsed.error.issues.map((issue) => issue.message);
+  }
   const snapshot = parsed.data;
-  const issues: string[] = [];
-  if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0)
+  const issues: Array<string> = [];
+  if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0) {
     issues.push("assignmentEpoch must be a positive safe integer.");
+  }
   const { currentGroupId, currentStepId, groupEntryEpoch, stepEntryEpoch } = snapshot.progression;
   const group = definition.flow.groups[currentGroupId];
-  if (!group?.steps[currentStepId]) issues.push("Snapshot progression references an unknown Step.");
-  if (snapshot.stepExecution.stepEntryEpoch !== stepEntryEpoch)
+  if (!group?.steps[currentStepId]) {
+    issues.push("Snapshot progression references an unknown Step.");
+  }
+  if (snapshot.stepExecution.stepEntryEpoch !== stepEntryEpoch) {
     issues.push("Step execution epoch differs from progression.");
+  }
   if (
     snapshot.progression.stepEnteredAtRuntimeTimeMilliseconds >
     snapshot.clock.runtimeTimeMilliseconds
-  )
+  ) {
     issues.push("Step entry occurs after snapshot clock.");
+  }
   const expectedNodes = sorted(
     Object.values(definition.scene.nodes)
       .filter((node) => activeOwner(node.owner, currentGroupId))
@@ -145,11 +172,15 @@ export const validateM3dCueRuntimeSnapshot = (
     ["nodeStates", sorted(Object.keys(snapshot.nodeStates)), expectedNodes],
     ["surfaceStates", sorted(Object.keys(snapshot.surfaceStates)), expectedSurfaces],
     ["variables", sorted(Object.keys(snapshot.variables)), expectedVariables],
-  ] as const)
-    if (!equals(actual, expected)) issues.push(`${name} differs from the active resource set.`);
+  ] as const) {
+    if (!equals(actual, expected)) {
+      issues.push(`${name} differs from the active resource set.`);
+    }
+  }
   for (const [id, state] of Object.entries(snapshot.surfaceStates)) {
-    if (!definition.scene.surfaces[id]?.states[state.stateId])
+    if (!definition.scene.surfaces[id]?.states[state.stateId]) {
       issues.push(`surfaceStates.${id} references an unknown State.`);
+    }
     const transitions = snapshot.activeRuns.filter(
       (run) => run.kind === "surfaceTransition" && run.surfaceId === id,
     );
@@ -158,13 +189,15 @@ export const validateM3dCueRuntimeSnapshot = (
         transitions.length !== 1 ||
         transitions[0]!.runId.assignmentEpoch !== state.transitionRunId.assignmentEpoch ||
         transitions[0]!.runId.runSequence !== state.transitionRunId.runSequence
-      )
+      ) {
         issues.push(`surfaceStates.${id} has a stale transition Run ID.`);
+      }
       if (
         transitions[0]?.kind === "surfaceTransition" &&
         state.stateId !== transitions[0].toStateId
-      )
+      ) {
         issues.push(`surfaceStates.${id} differs from its transition target State.`);
+      }
     } else if (transitions.length) {
       issues.push(`surfaceStates.${id} is missing its transition Run ID.`);
     }
@@ -172,45 +205,60 @@ export const validateM3dCueRuntimeSnapshot = (
   const runIds = new Set<string>();
   for (const run of snapshot.activeRuns) {
     const key = `${run.runId.assignmentEpoch}:${run.runId.runSequence}`;
-    if (runIds.has(key)) issues.push("Duplicate Runtime Run ID.");
+    if (runIds.has(key)) {
+      issues.push("Duplicate Runtime Run ID.");
+    }
     runIds.add(key);
-    if (run.runId.assignmentEpoch !== assignmentEpoch)
+    if (run.runId.assignmentEpoch !== assignmentEpoch) {
       issues.push("Runtime Run assignment epoch differs.");
-    if (run.runId.runSequence > snapshot.lastAllocatedRunSequence)
+    }
+    if (run.runId.runSequence > snapshot.lastAllocatedRunSequence) {
       issues.push("Runtime Run sequence exceeds allocator sequence.");
-    if (run.startedAtRuntimeTimeMilliseconds > snapshot.clock.runtimeTimeMilliseconds)
+    }
+    if (run.startedAtRuntimeTimeMilliseconds > snapshot.clock.runtimeTimeMilliseconds) {
       issues.push("Runtime Run starts after snapshot clock.");
+    }
     if (
       run.owner.kind === "group" &&
       (run.owner.groupId !== currentGroupId || run.owner.groupEntryEpoch !== groupEntryEpoch)
-    )
+    ) {
       issues.push("Group Runtime Run owner epoch differs from progression.");
+    }
     if (run.kind === "timeline") {
       const timeline = definition.flow.timelines[run.timelineId];
-      if (!timeline) issues.push("Runtime Run references an unknown Timeline.");
-      else {
+      if (!timeline) {
+        issues.push("Runtime Run references an unknown Timeline.");
+      } else {
         if (
           snapshot.clock.runtimeTimeMilliseconds - run.startedAtRuntimeTimeMilliseconds >=
           timeline.durationMilliseconds
-        )
+        ) {
           issues.push("Runtime Run deadline has passed.");
-        for (const track of timeline.tracks)
-          if (definition.scene.nodes[track.target.nodeId]?.audience.kind !== "all")
+        }
+        for (const track of timeline.tracks) {
+          if (definition.scene.nodes[track.target.nodeId]?.audience.kind !== "all") {
             issues.push("Timeline Run targets a role-limited Node.");
+          }
+        }
       }
     }
     if (run.kind === "surfaceTransition") {
-      if (!expectedSurfaces.includes(run.surfaceId))
+      if (!expectedSurfaces.includes(run.surfaceId)) {
         issues.push("Surface Runtime Run references an inactive Surface.");
-      if (run.fromStateId === run.toStateId) issues.push("Surface Runtime Run must change State.");
+      }
+      if (run.fromStateId === run.toStateId) {
+        issues.push("Surface Runtime Run must change State.");
+      }
       const surface = definition.scene.surfaces[run.surfaceId];
-      if (!surface?.states[run.fromStateId] || !surface.states[run.toStateId])
+      if (!surface?.states[run.fromStateId] || !surface.states[run.toStateId]) {
         issues.push("Surface Runtime Run references an unknown State.");
+      }
       if (
         snapshot.clock.runtimeTimeMilliseconds - run.startedAtRuntimeTimeMilliseconds >=
         run.durationMilliseconds
-      )
+      ) {
         issues.push("Runtime Run deadline has passed.");
+      }
     }
   }
   const blockingRunIds = snapshot.activeRuns
@@ -223,14 +271,17 @@ export const validateM3dCueRuntimeSnapshot = (
           .map((id) => `${id.assignmentEpoch}:${id.runSequence}`)
           .sort()
       : [];
-  if (!equals(phaseRunIds, blockingRunIds))
+  if (!equals(phaseRunIds, blockingRunIds)) {
     issues.push("Progression blocking Run IDs differ from active blocking Runs.");
-  for (const timer of Object.values(snapshot.stepExecution.timerStates))
+  }
+  for (const timer of Object.values(snapshot.stepExecution.timerStates)) {
     if (
       timer.kind === "armed" &&
       timer.dueAtRuntimeTimeMilliseconds <= snapshot.clock.runtimeTimeMilliseconds
-    )
+    ) {
       issues.push("Snapshot contains an expired armed Timer.");
+    }
+  }
   return issues;
 };
 
@@ -253,43 +304,45 @@ export const createM3dCueRuntimeSnapshot = (
     }),
   );
   const snapshot = m3dCueRuntimeSnapshotV2Schema.parse({
-    schemaVersion: 2,
-    reliableSequence: metadata.reliableSequence,
-    lastIngressSequence: metadata.lastIngressSequence,
-    lastAllocatedRunSequence: state.lastRunSequence,
+    activeRuns: state.activeRuns,
     clock: {
-      runtimeTimeMilliseconds: state.runtimeTimeMilliseconds,
       lifecycle: metadata.lifecycle,
+      runtimeTimeMilliseconds: state.runtimeTimeMilliseconds,
     },
+    lastAllocatedRunSequence: state.lastRunSequence,
+    lastIngressSequence: metadata.lastIngressSequence,
+    mediaStates: {},
+    modelClipStates: {},
+    nodeStates: state.nodes,
+    presentationOrigin: metadata.presentationOrigin,
     progression: {
       currentGroupId: state.currentGroupId,
-      groupEntryEpoch: state.groupEntryEpoch,
       currentStepId: state.currentStepId,
-      stepEntryEpoch: state.stepEntryEpoch,
-      stepEnteredAtRuntimeTimeMilliseconds: state.stepEnteredAtRuntimeTimeMilliseconds,
+      groupEntryEpoch: state.groupEntryEpoch,
       phase: state.phase,
-    },
-    stepExecution: {
+      stepEnteredAtRuntimeTimeMilliseconds: state.stepEnteredAtRuntimeTimeMilliseconds,
       stepEntryEpoch: state.stepEntryEpoch,
+    },
+    recentEventIds: metadata.recentEventIds,
+    reliableSequence: metadata.reliableSequence,
+    schemaVersion: 2,
+    stepExecution: {
       consumedCueIds: state.consumedCueIds,
       cooldownUntilRuntimeTimeMilliseconds: state.cooldownUntilRuntimeTimeMilliseconds,
+      stepEntryEpoch: state.stepEntryEpoch,
       timerStates: state.timerStates,
     },
     surfaceStates,
-    nodeStates: state.nodes,
-    mediaStates: {},
-    modelClipStates: {},
     variables: state.variables,
-    activeRuns: state.activeRuns,
-    presentationOrigin: metadata.presentationOrigin,
-    recentEventIds: metadata.recentEventIds,
   });
   const issues = validateM3dCueRuntimeSnapshot(definition, snapshot, state.assignmentEpoch);
-  if (issues.length) throw new Error(issues.join(" "));
+  if (issues.length) {
+    throw new Error(issues.join(" "));
+  }
   return snapshot;
 };
 
-const select = <T>(record: Record<string, T>, ids: string[]): Record<string, T> =>
+const select = <T>(record: Record<string, T>, ids: Array<string>): Record<string, T> =>
   Object.fromEntries(
     ids.flatMap((id) => (Object.hasOwn(record, id) ? [[id, cloneJson(record[id]!)] as const] : [])),
   );
@@ -304,7 +357,9 @@ export const projectM3dCueParticipantRuntimeView = (
     ...validateM3dCueRuntimeSnapshot(definition, snapshot, assignmentEpoch),
     ...validateRuntimeVisibilitySelection(definition, profile),
   ];
-  if (errors.length) throw new Error(errors.join(" "));
+  if (errors.length) {
+    throw new Error(errors.join(" "));
+  }
   const visibleRuns = snapshot.activeRuns.filter(
     (run) => run.kind === "timeline" || profile.visibleSurfaceIds.includes(run.surfaceId),
   );
@@ -313,20 +368,20 @@ export const projectM3dCueParticipantRuntimeView = (
   );
   const progression = {
     currentGroupId: snapshot.progression.currentGroupId,
-    groupEntryEpoch: snapshot.progression.groupEntryEpoch,
     currentStepId: snapshot.progression.currentStepId,
-    stepEntryEpoch: snapshot.progression.stepEntryEpoch,
-    stepEnteredAtRuntimeTimeMilliseconds: snapshot.progression.stepEnteredAtRuntimeTimeMilliseconds,
+    groupEntryEpoch: snapshot.progression.groupEntryEpoch,
     phase:
       snapshot.progression.phase.kind === "stable"
         ? { kind: "stable" as const }
         : {
-            kind: "transitioning" as const,
             blockingRunIds: snapshot.progression.phase.blockingRunIds.filter((id) =>
               visibleRunIds.has(`${id.assignmentEpoch}:${id.runSequence}`),
             ),
+            kind: "transitioning" as const,
             pendingNext: cloneJson(snapshot.progression.phase.pendingNext),
           },
+    stepEnteredAtRuntimeTimeMilliseconds: snapshot.progression.stepEnteredAtRuntimeTimeMilliseconds,
+    stepEntryEpoch: snapshot.progression.stepEntryEpoch,
   };
   const enabledLogicalInputs = sorted(
     new Set(
@@ -355,18 +410,18 @@ export const projectM3dCueParticipantRuntimeView = (
     ),
   );
   return {
-    projectionProfileId: profile.projectionProfileId,
+    activeRuns: cloneJson(visibleRuns),
     assignmentEpoch,
     baseReliableSequence: snapshot.reliableSequence,
-    progression,
-    nodeStates: select(snapshot.nodeStates, profile.visibleNodeIds),
-    surfaceStates: select(snapshot.surfaceStates, profile.visibleSurfaceIds),
+    clock: cloneJson(snapshot.clock),
+    enabledLogicalInputs,
     mediaStates: {},
     modelClipStates: {},
-    variables: select(snapshot.variables, profile.visibleVariableIds),
-    activeRuns: cloneJson(visibleRuns),
-    clock: cloneJson(snapshot.clock),
+    nodeStates: select(snapshot.nodeStates, profile.visibleNodeIds),
     presentationOrigin: cloneJson(snapshot.presentationOrigin),
-    enabledLogicalInputs,
+    progression,
+    projectionProfileId: profile.projectionProfileId,
+    surfaceStates: select(snapshot.surfaceStates, profile.visibleSurfaceIds),
+    variables: select(snapshot.variables, profile.visibleVariableIds),
   };
 };

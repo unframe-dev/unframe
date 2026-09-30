@@ -10,11 +10,11 @@ const track = (
   values: [Track["keyframes"][number]["value"], Track["keyframes"][number]["value"]],
   easingToNext: "linear" | "cubicIn" | "cubicOut" | "cubicInOut" = "linear",
 ): Track => ({
-  target: { nodeId: "node", property },
   keyframes: [
-    { timeMilliseconds: 0, value: values[0], easingToNext },
+    { easingToNext, timeMilliseconds: 0, value: values[0] },
     { timeMilliseconds: 100, value: values[1] },
   ],
+  target: { nodeId: "node", property },
 });
 
 describe("Timeline track interpolation", () => {
@@ -28,12 +28,12 @@ describe("Timeline track interpolation", () => {
 
   it("uses the adjacent keyframes for each segment and interpolates Vector3 componentwise", () => {
     const position: Track = {
-      target: { nodeId: "node", property: "transform.position" },
       keyframes: [
-        { timeMilliseconds: 0, value: [0, 0, 0], easingToNext: "linear" },
-        { timeMilliseconds: 20, value: [4, 8, 12], easingToNext: "cubicOut" },
+        { easingToNext: "linear", timeMilliseconds: 0, value: [0, 0, 0] },
+        { easingToNext: "cubicOut", timeMilliseconds: 20, value: [4, 8, 12] },
         { timeMilliseconds: 100, value: [12, 16, 20] },
       ],
+      target: { nodeId: "node", property: "transform.position" },
     };
     expect(evaluateTimelineTrack(position, 100, 10)).toEqual([2, 4, 6]);
     expect(evaluateTimelineTrack(position, 100, 60)).toEqual([11, 15, 19]);
@@ -44,7 +44,7 @@ describe("Timeline track interpolation", () => {
       [0, 0, 0, 1],
       [0, 0, -Math.SQRT1_2, -Math.SQRT1_2],
     ]);
-    const middle = evaluateTimelineTrack(rotation, 100, 50) as number[];
+    const middle = evaluateTimelineTrack(rotation, 100, 50) as Array<number>;
     expect(middle[2]).toBeCloseTo(Math.sin(Math.PI / 8), 12);
     expect(middle[3]).toBeCloseTo(Math.cos(Math.PI / 8), 12);
 
@@ -52,7 +52,7 @@ describe("Timeline track interpolation", () => {
       [0, 0, 0, 2],
       [0, 0, 0.01, 1],
     ]);
-    const nearMiddle = evaluateTimelineTrack(nearLinear, 100, 50) as number[];
+    const nearMiddle = evaluateTimelineTrack(nearLinear, 100, 50) as Array<number>;
     expect(Math.hypot(...nearMiddle)).toBeCloseTo(1, 12);
     expect(nearMiddle[2]).toBeGreaterThan(0);
   });
@@ -63,7 +63,7 @@ describe("Timeline track interpolation", () => {
       [0.9, 0, 0, w],
       [-0.9, 0, 0, w],
     ]);
-    const value = evaluateTimelineTrack(rotation, 100, 75) as number[];
+    const value = evaluateTimelineTrack(rotation, 100, 75) as Array<number>;
     expect(value[3]).toBeGreaterThan(0);
     expect(value.some((component) => Object.is(component, -0))).toBe(false);
   });

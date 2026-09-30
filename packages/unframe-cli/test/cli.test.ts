@@ -14,11 +14,11 @@ describe("runPresentationCli", () => {
     const result = await runPresentationCli({ args: ["wat", "/project", "--format", "json"] });
     expect(result.exitCode).toBe(2);
     expect(JSON.parse(result.stderr)).toEqual({
-      ok: false,
       command: null,
       diagnostics: [
-        { family: "usage", code: "cli-invalid-usage", message: expect.any(String), path: [] },
+        { code: "cli-invalid-usage", family: "usage", message: expect.any(String), path: [] },
       ],
+      ok: false,
     });
   });
 

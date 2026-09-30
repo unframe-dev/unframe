@@ -14,9 +14,9 @@ describe("R2ObjectStorage", () => {
       sha256: new Uint8Array(hex.match(/.{2}/g)!.map((value) => Number.parseInt(value, 16))),
     });
     await expect(storage.head(key)).resolves.toMatchObject({
-      sizeBytes: 8,
       mediaType: "image/png",
       sha256Hex: hex,
+      sizeBytes: 8,
     });
     await expect(storage.prefix(key)).resolves.toEqual(png);
     await storage.delete(key);

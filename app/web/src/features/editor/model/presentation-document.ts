@@ -3,18 +3,18 @@ import { AssetReferenceSchema } from "./asset";
 import { SlideSchema } from "./slide";
 
 export const PresentationMetadataSchema = z.object({
-  title: z.string().min(1),
   description: z.string().optional(),
+  title: z.string().min(1),
 });
 
 export const PresentationDocumentSchema = z
   .object({
-    version: z.literal(1),
-    id: z.string().min(1),
-    revision: z.number().int().nonnegative(),
-    metadata: PresentationMetadataSchema,
-    slides: z.array(SlideSchema).min(1),
     assets: z.array(AssetReferenceSchema),
+    id: z.string().min(1),
+    metadata: PresentationMetadataSchema,
+    revision: z.number().int().nonnegative(),
+    slides: z.array(SlideSchema).min(1),
+    version: z.literal(1),
   })
   .superRefine((document, context) => {
     const assetIds = new Set<string>();

@@ -5,8 +5,8 @@ import type { EditorSessionState, EditorSessionStore } from "./editor-session";
 const EditorSessionContext = createContext<EditorSessionStore | null>(null);
 
 export function EditorSessionProvider({
-  store,
   children,
+  store,
 }: PropsWithChildren<{ store: EditorSessionStore }>) {
   return <EditorSessionContext.Provider value={store}>{children}</EditorSessionContext.Provider>;
 }

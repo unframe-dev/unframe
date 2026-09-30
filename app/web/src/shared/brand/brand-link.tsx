@@ -18,11 +18,11 @@ export function BrandLink({
   );
 
   return application ? (
-    <Link to="/home" className={`${styles.link} ${className ?? ""}`} aria-label="Unframe home">
+    <Link aria-label="Unframe home" className={`${styles.link} ${className ?? ""}`} to="/home">
       {content}
     </Link>
   ) : (
-    <a href="/" className={`${styles.link} ${className ?? ""}`} aria-label="Unframe home">
+    <a aria-label="Unframe home" className={`${styles.link} ${className ?? ""}`} href="/">
       {content}
     </a>
   );

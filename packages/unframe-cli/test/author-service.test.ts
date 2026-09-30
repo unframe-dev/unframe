@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { afterEach, assert, describe, expect, it } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { checkAuthoringProject } from "@unframe/unframe-compiler";
@@ -12,12 +11,12 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 import type { AuthorService, ProjectSnapshot } from "../src/author/contract.js";
 
-const temporary: string[] = [];
-const services: AuthorService[] = [];
-const reference = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/presentation");
+const temporary: Array<string> = [];
+const services: Array<AuthorService> = [];
+const reference = join(import.meta.dirname, "../../../examples/presentation");
 afterEach(async () => {
   await Promise.all(services.splice(0).map((service) => service.close()));
-  await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+  await Promise.all(temporary.splice(0).map((path) => rm(path, { force: true, recursive: true })));
 });
 const component = [
   'import {defineComponent, editableText, prop} from "@unframe/unframe-authoring";',
@@ -37,35 +36,37 @@ const createProject = async () => {
   const loaded = loadUnframeLock(discovered.lockBytes);
   assert(loaded.ok);
   const checked = checkAuthoringProject({
-    projectRoot: directory,
     entryFile: discovered.entryFile,
     files: discovered.files,
+    projectRoot: directory,
     ...loaded.value.virtualSource,
   });
   assert(checked.valid);
   const presentation = {
     ...checked.value.presentation.value,
-    scene: [],
     assets: [],
     flow: {
-      initialGroupId: "main",
       groups: {
         main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
       },
+      initialGroupId: "main",
       variables: {},
     },
+    scene: [],
   };
   await writeFile(
     join(directory, "unframe.lock"),
     canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
   );
-  for (const name of await readdir(directory))
+  for (const name of await readdir(directory)) {
     if (
       name.endsWith(".manifest.ts") ||
       name.endsWith(".structure.tsx") ||
       name === "reference-locks.ts"
-    )
+    ) {
       await rm(join(directory, name));
+    }
+  }
   const scene = ["hero-one", "hero-two"]
     .map(
       (id, index) =>
@@ -93,9 +94,9 @@ const createProject = async () => {
 };
 const commandId = (character: string) => character.repeat(32);
 const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) => ({
+  command: { instanceId: "hero-one", kind: "setProp" as const, propId: "title", value },
   commandId: commandId(character),
   expectedIrHash: snapshot.irHash!,
-  command: { kind: "setProp" as const, instanceId: "hero-one", propId: "title", value },
 });
 
 describe("author service with frozen React source", () => {
@@ -130,7 +131,7 @@ describe("author service with frozen React source", () => {
     ).toBe("Original 2");
     expect(await reopened.patch(initial.revision, request)).toEqual(saved);
     expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
-  }, 30000);
+  }, 30_000);
 
   it("keeps source, lock, and successful dist on a rejected edit", async () => {
     const directory = await createProject();
@@ -144,16 +145,16 @@ describe("author service with frozen React source", () => {
     const beforeLock = await readFile(join(directory, "unframe.lock"));
     await expect(
       service.patch(initial.revision, {
+        command: { instanceId: "hero-one", kind: "setProp", propId: "title", value: 42 },
         commandId: commandId("c"),
         expectedIrHash: initial.irHash!,
-        command: { kind: "setProp", instanceId: "hero-one", propId: "title", value: 42 },
       }),
     ).rejects.toMatchObject({ status: 422 });
     expect(await readFile(sourcePath)).toEqual(beforeSource);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
     expect(await readFile(join(directory, "dist", "previous.txt"), "utf8")).toBe("previous build");
     expect((await discoverPresentationProjectFiles(directory)).ok).toBe(true);
-  }, 30000);
+  }, 30_000);
 
   it("catalogs shared output for both instances and keeps artifact bytes immutable", async () => {
     const directory = await createProject();
@@ -194,7 +195,7 @@ describe("author service with frozen React source", () => {
         );
         await writeFile(join(generation, "assets", assetId + ".png"), bytes);
         await symlink(".unframe/generations/" + generationId, join(directory, "dist"));
-        return { exitCode: 0 as const, stdout: "", stderr: "" };
+        return { exitCode: 0 as const, stderr: "", stdout: "" };
       },
     });
     services.push(service);
@@ -219,7 +220,7 @@ describe("author service with frozen React source", () => {
     expect(first.bytes).toEqual(bytes);
     first.bytes[0] = 0;
     expect((await service.artifact(job.buildId, assetId)).bytes).toEqual(bytes);
-  }, 30000);
+  }, 30_000);
 
   it("keeps a build cancelled when publication finishes after cancellation", async () => {
     const directory = await createProject();
@@ -232,15 +233,15 @@ describe("author service with frozen React source", () => {
       finishPublication = resolve;
     });
     const service = await createAuthorService(directory, {
-      run: async () => ({ exitCode: 0 as const, stdout: "", stderr: "" }),
       readPublishedArtifacts: async () => {
         publicationStarted();
         await finish;
         return {
-          catalog: [{ assetId: "image", mediaType: "image/png", instanceId: "hero-one" }],
           assets: new Map([["image", { bytes: new Uint8Array([1]), mediaType: "image/png" }]]),
+          catalog: [{ assetId: "image", mediaType: "image/png", instanceId: "hero-one" }],
         };
       },
+      run: async () => ({ exitCode: 0 as const, stderr: "", stdout: "" }),
     });
     services.push(service);
     const snapshot = await service.project();
@@ -252,5 +253,5 @@ describe("author service with frozen React source", () => {
     expect((await service.job(created.buildId)).status).toBe("cancelled");
     expect((await service.job(created.buildId)).artifacts).toEqual([]);
     await expect(service.artifact(created.buildId, "image")).rejects.toMatchObject({ status: 404 });
-  }, 30000);
+  }, 30_000);
 });

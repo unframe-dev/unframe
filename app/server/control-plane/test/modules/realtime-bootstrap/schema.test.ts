@@ -3,16 +3,16 @@ import { realtimeBootstrapCredentialInputSchema } from "../../../src/modules/rea
 
 describe("realtime bootstrap credential input", () => {
   const validInput = {
-    sessionId: "session-1",
-    userId: "user_1",
+    assignmentEpoch: 3,
+    expiresAt: 1_700_000_300,
+    presentationId: "presentation-1",
+    presentationRevision: 7,
     role: "viewer",
     runtimeId: "runtime-1",
     runtimeKind: "VenueEdge",
-    assignmentEpoch: 3,
-    presentationId: "presentation-1",
-    presentationRevision: 7,
     scopes: ["realtime:connect", "assets:read"],
-    expiresAt: 1_700_000_300,
+    sessionId: "session-1",
+    userId: "user_1",
   } as const;
 
   it("accepts an assignment-bound participant credential", () => {

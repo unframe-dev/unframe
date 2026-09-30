@@ -7,12 +7,12 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import moduleStyles from "@/shared/layouts/public-pages.module.css";
 const styles = {
-  main: moduleStyles["main"]!,
-  header: moduleStyles["header"]!,
-  deviceShell: moduleStyles["deviceShell"]!,
+  deviceActions: moduleStyles["deviceActions"]!,
   deviceIntro: moduleStyles["deviceIntro"]!,
   deviceLede: moduleStyles["deviceLede"]!,
-  deviceActions: moduleStyles["deviceActions"]!,
+  deviceShell: moduleStyles["deviceShell"]!,
+  header: moduleStyles["header"]!,
+  main: moduleStyles["main"]!,
 };
 
 type PageState = "entry" | "pending" | "approved" | "denied";
@@ -36,7 +36,9 @@ function errorMessage(error?: { code?: string | undefined; error?: string | unde
 
 function deviceCallbackUrl(userCode: string) {
   const url = new URL("/device", window.location.origin);
-  if (userCode) url.searchParams.set("user_code", userCode);
+  if (userCode) {
+    url.searchParams.set("user_code", userCode);
+  }
   return url.toString();
 }
 
@@ -55,13 +57,17 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
     void auth
       .getSession()
       .then((result) => {
-        if (!active) return;
+        if (!active) {
+          return;
+        }
         setSignedIn(Boolean(result.data));
         setSessionFailure(false);
         setSessionReady(true);
       })
       .catch(() => {
-        if (!active) return;
+        if (!active) {
+          return;
+        }
         setSignedIn(false);
         setSessionFailure(true);
         setMessage(errorMessage());
@@ -107,7 +113,9 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
   };
 
   const decide = async (decision: "approve" | "deny") => {
-    if (loading) return;
+    if (loading) {
+      return;
+    }
     setLoading(true);
     setMessage(undefined);
     try {
@@ -129,10 +137,12 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
     setMessage(undefined);
     try {
       const result = await auth.signIn.social({
-        provider: "google",
         callbackURL: deviceCallbackUrl(userCode.trim()),
+        provider: "google",
       });
-      if (result.error) setMessage(errorMessage(result.error));
+      if (result.error) {
+        setMessage(errorMessage(result.error));
+      }
     } catch {
       setMessage(errorMessage());
     } finally {
@@ -148,7 +158,7 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
         : undefined;
 
   return (
-    <main id="main-content" className={styles.main}>
+    <main className={styles.main} id="main-content">
       <header className={styles.header}>
         <BrandLink />
         <a href="https://un-fra.me/docs/">Docs</a>
@@ -162,14 +172,14 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
         </header>
         <div className={styles.deviceActions}>
           {message ? (
-            <p role="alert" className="rounded-md border border-[var(--destructive)] p-3 text-sm">
+            <p className="rounded-md border border-[var(--destructive)] p-3 text-sm" role="alert">
               {message}
             </p>
           ) : null}
           {terminalMessage ? (
             <p
-              role="alert"
               className="rounded-md border border-emerald-700 p-3 text-sm text-emerald-800"
+              role="alert"
             >
               {terminalMessage}
             </p>
@@ -183,7 +193,7 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
                 コードを確認するには Google でログインしてください。
               </p>
               {sessionFailure ? (
-                <Button variant="ghost" disabled={loading} onClick={retrySession}>
+                <Button disabled={loading} onClick={retrySession} variant="ghost">
                   ログイン状態を再確認
                 </Button>
               ) : null}
@@ -196,13 +206,13 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
               <Label className="grid gap-2 text-sm font-medium">
                 ユーザーコード
                 <Input
-                  value={userCode}
+                  aria-label="ユーザーコード"
+                  autoComplete="one-time-code"
+                  className="h-10 rounded-md border bg-white px-3 font-normal outline-none focus:border-[var(--primary)]"
                   disabled={loading || state !== "entry"}
                   onChange={(event) => setUserCode(event.target.value.toUpperCase())}
                   placeholder="ABCD-EFGH"
-                  autoComplete="one-time-code"
-                  aria-label="ユーザーコード"
-                  className="h-10 rounded-md border bg-white px-3 font-normal outline-none focus:border-[var(--primary)]"
+                  value={userCode}
                 />
               </Label>
 
@@ -218,9 +228,9 @@ export function DeviceAuthorizationPage({ initialUserCode }: { initialUserCode: 
                     承認する
                   </Button>
                   <Button
-                    variant="destructive"
                     disabled={loading}
                     onClick={() => void decide("deny")}
+                    variant="destructive"
                   >
                     拒否する
                   </Button>

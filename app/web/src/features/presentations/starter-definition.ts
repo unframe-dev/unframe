@@ -10,22 +10,10 @@ export function createStarterPresentationDefinition(
   description?: string,
 ): StarterPresentationDefinition {
   return {
-    schemaVersion: 1,
-    metadata: { title, ...(description ? { description } : {}) },
-    stage: {
-      coordinateSystem: {
-        unit: "meter",
-        handedness: "right",
-        upAxis: "+Y",
-        forwardAxis: "-Z",
-      },
-      size: [4, 3, 4],
-      zones: [],
-    },
     assets: [],
     groups: [
       {
-        id: "initial-group",
+        anchoredElementGroups: [],
         elements: [
           {
             id: "initial-element",
@@ -43,10 +31,9 @@ export function createStarterPresentationDefinition(
             },
           },
         ],
-        anchoredElementGroups: [],
+        id: "initial-group",
         steps: [
           {
-            id: "initial-step",
             cues: [
               {
                 id: "initial-cue",
@@ -61,9 +48,22 @@ export function createStarterPresentationDefinition(
                 next: { kind: "end" },
               },
             ],
+            id: "initial-step",
           },
         ],
       },
     ],
+    metadata: { title, ...(description ? { description } : {}) },
+    schemaVersion: 1,
+    stage: {
+      coordinateSystem: {
+        forwardAxis: "-Z",
+        handedness: "right",
+        unit: "meter",
+        upAxis: "+Y",
+      },
+      size: [4, 3, 4],
+      zones: [],
+    },
   } satisfies StarterPresentationDefinition;
 }

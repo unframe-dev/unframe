@@ -10,8 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { afterEach, assert, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
@@ -27,11 +26,8 @@ import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
 
-const referenceDirectory = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../examples/presentation",
-);
-const temporaryDirectories: string[] = [];
+const referenceDirectory = join(import.meta.dirname, "../../../examples/presentation");
+const temporaryDirectories: Array<string> = [];
 
 const projectCopy = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-reference-project-"));
@@ -42,23 +38,29 @@ const projectCopy = async () => {
 
 const checkedProject = async (directory: string) => {
   const discovered = await discoverPresentationProjectFiles(directory);
-  if (!discovered.ok) throw new Error(discovered.code);
+  if (!discovered.ok) {
+    throw new Error(discovered.code);
+  }
   const loaded = loadUnframeLock(discovered.lockBytes);
-  if (!loaded.ok) throw new Error(loaded.diagnostic.code);
+  if (!loaded.ok) {
+    throw new Error(loaded.diagnostic.code);
+  }
   const source = {
-    projectRoot: discovered.projectDirectory,
     entryFile: discovered.entryFile,
     files: discovered.files,
+    projectRoot: discovered.projectDirectory,
     ...loaded.value.virtualSource,
   };
   const checked = checkAuthoringProject(source);
-  if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
-  return { discovered, checked, source, loaded };
+  if (!checked.valid) {
+    throw new Error(JSON.stringify(checked.diagnostics));
+  }
+  return { checked, discovered, loaded, source };
 };
 
 const defaultPropsProject = async (explicit = false) => {
   const directory = await projectCopy();
-  const { discovered, checked } = await checkedProject(directory);
+  const { checked, discovered } = await checkedProject(directory);
   const component = checked.value.components.find(
     ({ manifest }) => manifest.value.componentId === "reference-surface",
   )!;
@@ -66,9 +68,9 @@ const defaultPropsProject = async (explicit = false) => {
     ...component.manifest.value,
     props: {
       ...component.manifest.value.props,
-      defaultLabel: { kind: "string" as const, default: "Default" },
-      defaultCount: { kind: "number" as const, default: 0 },
-      defaultVisible: { kind: "boolean" as const, default: false },
+      defaultCount: { default: 0, kind: "number" as const },
+      defaultLabel: { default: "Default", kind: "string" as const },
+      defaultVisible: { default: false, kind: "boolean" as const },
     },
   };
   const manifestHash = hashComponentManifestDeclaration(manifest);
@@ -84,7 +86,7 @@ const defaultPropsProject = async (explicit = false) => {
               ...instance,
               props: {
                 ...instance.props,
-                ...(explicit ? { defaultLabel: "", defaultCount: 0, defaultVisible: false } : {}),
+                ...(explicit ? { defaultCount: 0, defaultLabel: "", defaultVisible: false } : {}),
               },
             }
           : instance,
@@ -92,8 +94,11 @@ const defaultPropsProject = async (explicit = false) => {
     },
   };
   const lock = JSON.parse(new TextDecoder().decode(discovered.lockBytes));
-  for (const entry of lock.componentLocks)
-    if (entry.componentId === "reference-surface") entry.manifestHash = manifestHash;
+  for (const entry of lock.componentLocks) {
+    if (entry.componentId === "reference-surface") {
+      entry.manifestHash = manifestHash;
+    }
+  }
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
@@ -112,90 +117,96 @@ const defaultPropsProject = async (explicit = false) => {
 };
 
 const buildContext = {
+  colorScheme: "light" as const,
   compiler: {
+    baseEnvironmentHash: "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
     name: "unframe",
     version: "1",
-    baseEnvironmentHash: "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   },
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
-  colorScheme: "light" as const,
   webRendererConfig: {},
 };
 
 const fakeBrowser = (
   configuration: {
     readonly abortDuringCapture?: AbortController;
-    readonly failClose?: boolean;
-    readonly failCapture?: boolean;
     readonly beforeClose?: () => Promise<void>;
     readonly duringCapture?: () => Promise<void>;
+    readonly failCapture?: boolean;
+    readonly failClose?: boolean;
   } = {},
 ) => {
-  const observed = { close: 0, capture: 0, signals: [] as (AbortSignal | undefined)[] };
+  const observed = { capture: 0, close: 0, signals: [] as Array<AbortSignal | undefined> };
   const session: FixedBrowserSession = {
-    identity: { id: "reference-fake-browser", implementationHash: "sha256:fake-browser" },
-    environment: {
-      browser: { id: "reference-fake-browser", version: "1", fontFingerprint: "sha256:fonts" },
-      locale: "ja-JP",
-      timezone: "Asia/Tokyo",
-      colorSpace: "srgb",
-      deviceScaleFactor: 1,
-      network: "deny",
-      filesystem: "deny",
-      clock: "fixed",
-      random: "fixed",
-    },
     capture: async (request, options) => {
       observed.capture += 1;
       observed.signals.push(options?.signal);
-      if (options?.signal?.aborted) throw new DOMException("cancelled", "AbortError");
+      if (options?.signal?.aborted) {
+        throw new DOMException("cancelled", "AbortError");
+      }
       if (configuration.abortDuringCapture) {
         configuration.abortDuringCapture.abort();
         throw new DOMException("cancelled", "AbortError");
       }
-      if (configuration.failCapture) throw new Error("capture failed");
+      if (configuration.failCapture) {
+        throw new Error("capture failed");
+      }
       await configuration.duringCapture?.();
       const [width, height] = request.pixelTarget;
       const stateRed = request.document.includes("Waiting") ? 1 : 0;
       return {
+        alphaMode: "opaque",
+        colorSpace: "srgb",
+        pixelSize: [width, height],
         rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
           index % 4 === 3 ? 255 : index % 4 === 0 ? stateRed : 0,
         ),
-        pixelSize: [width, height],
-        colorSpace: "srgb",
-        alphaMode: "opaque",
       };
     },
     close: async () => {
       observed.close += 1;
       await configuration.beforeClose?.();
-      if (configuration.failClose) throw new Error("close failed");
+      if (configuration.failClose) {
+        throw new Error("close failed");
+      }
     },
+    environment: {
+      browser: { fontFingerprint: "sha256:fonts", id: "reference-fake-browser", version: "1" },
+      clock: "fixed",
+      colorSpace: "srgb",
+      deviceScaleFactor: 1,
+      filesystem: "deny",
+      locale: "ja-JP",
+      network: "deny",
+      random: "fixed",
+      timezone: "Asia/Tokyo",
+    },
+    identity: { id: "reference-fake-browser", implementationHash: "sha256:fake-browser" },
   };
   return { observed, session };
 };
 
 const diagnostics = (result: Awaited<ReturnType<typeof runPresentationCli>>) =>
-  JSON.parse(result.stderr).diagnostics as readonly {
-    family: string;
+  JSON.parse(result.stderr).diagnostics as ReadonlyArray<{
     code: string;
+    family: string;
     message: string;
-    path: readonly (string | number)[];
-  }[];
+    path: ReadonlyArray<string | number>;
+  }>;
 
 afterEach(async () => {
   await Promise.all(
     temporaryDirectories
       .splice(0)
-      .map((directory) => rm(directory, { recursive: true, force: true })),
+      .map((directory) => rm(directory, { force: true, recursive: true })),
   );
 });
 
 describe("reference Authoring Project", () => {
   it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
-    const { checked, source, loaded } = await checkedProject(directory);
+    const { checked, loaded, source } = await checkedProject(directory);
     const declarations = [
       { ...checked.value.presentation, builder: "definePresentation" },
       ...checked.value.themes.map((theme) => ({ ...theme, builder: "defineTheme" })),
@@ -209,7 +220,7 @@ describe("reference Authoring Project", () => {
     ];
     const literal = {
       ...source,
-      files: declarations.map(({ fileName, value, builder }) => ({
+      files: declarations.map(({ builder, fileName, value }) => ({
         fileName,
         sourceText: `import { ${builder} } from "@unframe/unframe-authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
       })),
@@ -225,7 +236,9 @@ describe("reference Authoring Project", () => {
     });
     expect(composed.valid ? [] : composed.diagnostics).toEqual([]);
     expect(direct.valid ? [] : direct.diagnostics).toEqual([]);
-    if (!composed.valid || !direct.valid) return;
+    if (!composed.valid || !direct.valid) {
+      return;
+    }
     expect(composed.value.definition).toEqual(direct.value.definition);
     expect(composed.value.definitionHash).toBe(direct.value.definitionHash);
     expect(composed.value.sourceHash).not.toBe(direct.value.sourceHash);
@@ -238,31 +251,31 @@ describe("reference Authoring Project", () => {
       const browser = fakeBrowser();
       const result = await runPresentationCli({
         args: [command, directory, "--format", "json"],
-        host: { openFixedBrowser: async () => browser.session, buildContext },
+        host: { buildContext, openFixedBrowser: async () => browser.session },
       });
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
       expect(JSON.parse(result.stdout)).toMatchObject({
-        ok: true,
         diagnostics: [],
+        ok: true,
         warnings: [
           {
             code: "compiler-prop-default-applied",
             componentInstanceId: "reference-surface",
-            propName: "defaultCount",
             defaultValue: 0,
+            propName: "defaultCount",
           },
           {
             code: "compiler-prop-default-applied",
             componentInstanceId: "reference-surface",
-            propName: "defaultLabel",
             defaultValue: "Default",
+            propName: "defaultLabel",
           },
           {
             code: "compiler-prop-default-applied",
             componentInstanceId: "reference-surface",
-            propName: "defaultVisible",
             defaultValue: false,
+            propName: "defaultVisible",
           },
         ],
       });
@@ -316,8 +329,8 @@ describe("reference Authoring Project", () => {
       {
         code: "compiler-variant-default-applied",
         componentInstanceId: "reference-surface",
-        variantName: "tone",
         defaultValue: "quiet",
+        variantName: "tone",
       },
     ]);
     const text = await runPresentationCli({ args: ["check", directory] });
@@ -330,21 +343,21 @@ describe("reference Authoring Project", () => {
     const path = join(directory, "unframe.lock");
     const lock = JSON.parse(await readFile(path, "utf8"));
     lock.assets[lock.assets.findIndex((asset: { id: string }) => asset.id === "reference-font")] = {
+      dataBase64: "AAEAAAAAAAAAAAAA",
+      hash: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
       id: "reference-font",
       mediaType: "font/ttf",
-      dataBase64: "AAEAAAAAAAAAAAAA",
       size: 12,
-      hash: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
     };
     await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
     const browser = fakeBrowser();
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
-      host: { openFixedBrowser: async () => browser.session, buildContext },
+      host: { buildContext, openFixedBrowser: async () => browser.session },
     });
     expect(result.exitCode).toBe(1);
     expect(diagnostics(result)).toContainEqual(
-      expect.objectContaining({ family: "renderer", code: "invalid-font-asset" }),
+      expect.objectContaining({ code: "invalid-font-asset", family: "renderer" }),
     );
     expect(diagnostics(result).every((item) => item.family === "renderer")).toBe(true);
     expect(browser.observed).toMatchObject({ capture: 0, close: 1 });
@@ -396,8 +409,8 @@ describe("reference Authoring Project", () => {
       runPresentationCli({
         args: ["build", directory, "--format", "json"],
         host: {
-          openFixedBrowser: async () => browser.session,
           buildContext,
+          openFixedBrowser: async () => browser.session,
           signal: controller.signal,
         },
       });
@@ -424,22 +437,22 @@ describe("reference Authoring Project", () => {
       assetNamesPng.map((name) => readFile(join(directory, "dist", "assets", name))),
     );
     const buildArtifacts = {
-      definition: JSON.parse(firstDefinition.toString()),
-      renderBundle: JSON.parse(firstBundle.toString()),
       assetSet: JSON.parse(firstAssetSet.toString()),
       buildManifest: JSON.parse(firstBuild.toString()),
+      definition: JSON.parse(firstDefinition.toString()),
+      renderBundle: JSON.parse(firstBundle.toString()),
     };
     const definition = buildArtifacts.definition;
     expect(definition.flow.timelines["reference-surface:fade"]).toMatchObject({
-      owner: { kind: "presentation" },
       durationMilliseconds: 1000,
+      owner: { kind: "presentation" },
       tracks: [{ target: { nodeId: "reference-surface:surface-node", property: "opacity" } }],
     });
     expect(definition.flow.groups.main.steps.start.cues[0].actions).toContainEqual({
-      kind: "timeline.play",
-      timelineId: "reference-surface:fade",
       completion: "nonBlocking",
       conflict: "reject",
+      kind: "timeline.play",
+      timelineId: "reference-surface:fade",
     });
     expect(definition.flow.groups.main.steps.done.cues[0].trigger).toEqual({
       kind: "timelineCompleted",
@@ -448,23 +461,23 @@ describe("reference Authoring Project", () => {
     expect(Object.keys(definition.scene.nodes)).toHaveLength(1);
     expect(Object.keys(definition.scene.surfaces)).toHaveLength(1);
     const surface = Object.values(definition.scene.surfaces)[0] as {
-      content: { kind: "structured"; nodes: Record<string, unknown> };
       baseSemanticTree: { nodes: Record<string, unknown> };
-      states: Record<string, unknown>;
+      content: { kind: "structured"; nodes: Record<string, unknown> };
       interactions: Record<string, unknown>;
+      states: Record<string, unknown>;
     };
     expect(surface.content.nodes["reference-surface:reference-text"]).toMatchObject({
-      value: { kind: "literal", value: "Structured authoring" },
       style: { fontAssetId: "reference-font", fontSize: 72 },
+      value: { kind: "literal", value: "Structured authoring" },
     });
     expect(surface.content.nodes["reference-surface:card"]).toMatchObject({
-      placement: { x: 64, y: 184 },
-      clip: true,
       children: [
         "reference-surface:summary",
         "reference-surface:inner",
         "reference-badge:badge-frame",
       ],
+      clip: true,
+      placement: { x: 64, y: 184 },
     });
     expect(surface.content.nodes["reference-badge:badge-frame"]).toMatchObject({
       parentId: "reference-surface:card",
@@ -474,20 +487,20 @@ describe("reference Authoring Project", () => {
       value: { kind: "literal", value: "One nested Component, one placement" },
     });
     expect(surface.baseSemanticTree.nodes["reference-badge:badge-label"]).toMatchObject({
-      text: "One nested Component, one placement",
       parentId: null,
+      text: "One nested Component, one placement",
     });
     expect(Object.keys(surface.states)).toEqual([
       "reference-surface:default",
       "reference-surface:inactive",
     ]);
     expect(surface.interactions["reference-surface:continue"]).toMatchObject({
-      kind: "click",
       hitPriority: 10,
+      kind: "click",
     });
     const bundleSurface = Object.values(buildArtifacts.renderBundle.surfaces)[0] as {
+      interactionsByState: Record<string, ReadonlyArray<unknown>>;
       semanticsByState: Record<string, { nodes: Record<string, unknown> }>;
-      interactionsByState: Record<string, readonly unknown[]>;
     };
     expect(
       bundleSurface.semanticsByState["reference-surface:default"]!.nodes[
@@ -502,10 +515,10 @@ describe("reference Authoring Project", () => {
     const activeRegions = bundleSurface.interactionsByState["reference-surface:default"]!;
     expect(activeRegions).toHaveLength(1);
     expect(activeRegions[0]).toMatchObject({
-      interactionId: "reference-surface:continue",
-      semanticNodeId: "reference-surface:continue-button",
       coordinateSpace: "normalized",
+      interactionId: "reference-surface:continue",
       priority: 10,
+      semanticNodeId: "reference-surface:continue-button",
     });
     const activeBounds = (activeRegions[0] as { bounds: Record<string, number> }).bounds;
     expect(activeBounds.x).toBeCloseTo(128 / 1920);
@@ -535,10 +548,11 @@ describe("reference Authoring Project", () => {
       (await readFile(join(directory, "dist", "render-bundle.json"))).equals(firstBundle),
     ).toBe(true);
     expect(await readdir(join(directory, "dist", "assets"))).toEqual(assetNames);
-    for (const [index, name] of assetNamesPng.entries())
+    for (const [index, name] of assetNamesPng.entries()) {
       expect(
         (await readFile(join(directory, "dist", "assets", name))).equals(firstPngs[index]!),
       ).toBe(true);
+    }
     expect((await readFile(join(directory, "dist/asset-set.json"))).equals(firstAssetSet)).toBe(
       true,
     );
@@ -555,8 +569,8 @@ describe("reference Authoring Project", () => {
       async (directory: string) =>
         writeFile(join(directory, "presentation.unframe.tsx"), "export default ("),
       {
-        family: "syntax",
         code: "compiler-source-syntax-error",
+        family: "syntax",
         path: ["presentation.unframe.tsx"],
       },
     ],
@@ -565,8 +579,8 @@ describe("reference Authoring Project", () => {
       async (directory: string) =>
         writeFile(join(directory, "presentation.unframe.tsx"), 'import "missing";'),
       {
-        family: "type",
         code: "compiler-module-package-unsupported",
+        family: "type",
         path: ["presentation.unframe.tsx"],
       },
     ],
@@ -575,14 +589,14 @@ describe("reference Authoring Project", () => {
       async (directory: string) => {
         const lockPath = join(directory, "unframe.lock");
         const lock = JSON.parse(await readFile(lockPath, "utf8")) as {
-          themeHashes: { hash: string }[];
+          themeHashes: Array<{ hash: string }>;
         };
         lock.themeHashes[0]!.hash = `sha256:${"0".repeat(64)}`;
         await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
       },
       {
-        family: "semantic",
         code: "compiler-theme-hash-mismatch",
+        family: "semantic",
         path: ["themeHashes", 0],
       },
     ],
@@ -606,11 +620,11 @@ describe("reference Authoring Project", () => {
     expect(diagnostics(json)[0]).toMatchObject({
       code: "compiler-source-syntax-error",
       location: {
+        column: expect.any(Number),
+        end: expect.any(Number),
         fileName: "presentation.unframe.tsx",
         line: 2,
-        column: expect.any(Number),
         start: expect.any(Number),
-        end: expect.any(Number),
       },
     });
 
@@ -626,15 +640,15 @@ describe("reference Authoring Project", () => {
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
       host: {
-        openFixedBrowser: async () => browser.session,
         buildContext,
+        openFixedBrowser: async () => browser.session,
         signal: controller.signal,
       },
     });
 
     expect(result.exitCode).toBe(130);
     expect(diagnostics(result)).toEqual([
-      { family: "cancel", code: "cli-cancelled", message: expect.any(String), path: [] },
+      { code: "cli-cancelled", family: "cancel", message: expect.any(String), path: [] },
     ]);
     expect(browser.observed).toMatchObject({ capture: 1, close: 1, signals: [controller.signal] });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
@@ -650,11 +664,11 @@ describe("reference Authoring Project", () => {
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
       host: {
-        signal: controller.signal,
         openFixedBrowser: async () => {
           browserOpens += 1;
           return fakeBrowser().session;
         },
+        signal: controller.signal,
       },
     });
 
@@ -670,14 +684,14 @@ describe("reference Authoring Project", () => {
     const browser = fakeBrowser({ failCapture: true, failClose: true });
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
-      host: { openFixedBrowser: async () => browser.session, buildContext },
+      host: { buildContext, openFixedBrowser: async () => browser.session },
     });
 
     expect(result.exitCode).toBe(1);
     expect(diagnostics(result)).toEqual([
       {
-        family: "renderer",
         code: "cli-browser-cleanup-failed",
+        family: "renderer",
         message: expect.any(String),
         path: [],
       },
@@ -691,7 +705,7 @@ describe("reference Authoring Project", () => {
       const directory = await projectCopy();
       const initial = await runPresentationCli({
         args: ["build", directory],
-        host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
+        host: { buildContext, openFixedBrowser: async () => fakeBrowser().session },
       });
       expect(initial.stderr).toBe("");
       expect(initial.exitCode).toBe(0);
@@ -705,7 +719,7 @@ describe("reference Authoring Project", () => {
       });
       const stale = await runPresentationCli({
         args: ["build", directory, "--format", "json"],
-        host: { openFixedBrowser: async () => browser.session, buildContext },
+        host: { buildContext, openFixedBrowser: async () => browser.session },
       });
       expect(stale.exitCode).toBe(3);
       expect(diagnostics(stale)).toContainEqual(
@@ -724,7 +738,7 @@ describe("reference Authoring Project", () => {
       (
         await runPresentationCli({
           args: ["build", directory],
-          host: { openFixedBrowser: async () => initial.session, buildContext },
+          host: { buildContext, openFixedBrowser: async () => initial.session },
         })
       ).exitCode,
     ).toBe(0);
@@ -733,7 +747,7 @@ describe("reference Authoring Project", () => {
     const failing = fakeBrowser({ failCapture: true });
     const renderer = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
-      host: { openFixedBrowser: async () => failing.session, buildContext },
+      host: { buildContext, openFixedBrowser: async () => failing.session },
     });
     expect(renderer.exitCode).toBe(1);
     expect(diagnostics(renderer).map((item) => item.family)).toContain("renderer");
@@ -744,7 +758,7 @@ describe("reference Authoring Project", () => {
     await writeFile(join(directory, "dist"), "unmanaged output");
     const io = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
-      host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
+      host: { buildContext, openFixedBrowser: async () => fakeBrowser().session },
     });
     expect(io.exitCode).toBe(3);
     expect(diagnostics(io)[0]?.family).toBe("io");
@@ -767,14 +781,14 @@ describe("reference Authoring Project", () => {
 
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
-      host: { openFixedBrowser: async () => browser.session, buildContext },
+      host: { buildContext, openFixedBrowser: async () => browser.session },
     });
 
     expect(result.exitCode).toBe(3);
     expect(diagnostics(result)).toEqual([
       {
-        family: "io",
         code: "cli-build-lock-release-failed",
+        family: "io",
         message: expect.any(String),
         path: [],
       },

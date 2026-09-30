@@ -2,8 +2,8 @@ import { expect, it, vi } from "vitest";
 import { openOpaqueCaptureRuntime } from "../src/opaque/capture/runtime.js";
 
 const boundary = vi.hoisted(() => ({
-  resetBarrierOnExit: false,
   failStderrOnBootstrap: false,
+  resetBarrierOnExit: false,
   resets: 0,
   stderrFailures: 0,
 }));
@@ -14,7 +14,7 @@ vi.mock("node:child_process", async (importOriginal) => {
     ...actual,
     spawn: (...args: Parameters<typeof actual.spawn>) => {
       const child = actual.spawn(...args);
-      if (boundary.resetBarrierOnExit)
+      if (boundary.resetBarrierOnExit) {
         child.once("exit", () => {
           boundary.resets++;
           child.stdio[3]?.emit(
@@ -22,31 +22,35 @@ vi.mock("node:child_process", async (importOriginal) => {
             Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET", syscall: "read" }),
           );
         });
-      if (boundary.failStderrOnBootstrap)
+      }
+      if (boundary.failStderrOnBootstrap) {
         child.stdout?.on("data", (chunk: Buffer) => {
-          if (!chunk.includes('"bootstrap"')) return;
+          if (!chunk.includes('"bootstrap"')) {
+            return;
+          }
           queueMicrotask(() => {
             boundary.stderrFailures++;
             child.stderr?.emit("error", new Error("worker stderr failed"));
           });
         });
+      }
       return child;
     },
   };
 });
 
 const request = {
-  javascript: "globalThis.__unframeMount=()=>{while(true){}};",
-  stylesheets: [],
   assets: [],
-  props: {},
-  texts: {},
-  expectedBindings: {},
-  stateId: "default",
-  logicalSize: [10, 10] as const,
-  pixelTarget: [10, 10] as const,
   background: [0, 0, 0, 0] as const,
   colorScheme: "light" as const,
+  expectedBindings: {},
+  javascript: "globalThis.__unframeMount=()=>{while(true){}};",
+  logicalSize: [10, 10] as const,
+  pixelTarget: [10, 10] as const,
+  props: {},
+  stateId: "default",
+  stylesheets: [],
+  texts: {},
 };
 
 it("close waits for the active worker and rejects later capture as cancelled", async () => {
@@ -63,7 +67,7 @@ it("close waits for the active worker and rejects later capture as cancelled", a
   expect(performance.now() - closeStarted).toBeLessThan(20_000);
   expect(settled).toBe(true);
   await active;
-  expect(await runtime.capture(request)).toEqual({ ok: false, code: "opaque-capture-cancelled" });
+  expect(await runtime.capture(request)).toEqual({ code: "opaque-capture-cancelled", ok: false });
   await runtime.close();
 }, 120_000);
 

@@ -28,14 +28,14 @@ const styles = {
 };
 
 export interface PresentationCanvasProps {
-  document: PresentationDocument;
   activeSlideId: string;
-  selectedElementId: string | null;
-  tool: EditorTool;
-  showGrid: boolean;
-  snap: SnapSettings;
+  document: PresentationDocument;
   onSelect: (elementId: string | null) => void;
   onTransform: (elementId: string, transform: Transform) => void;
+  selectedElementId: string | null;
+  showGrid: boolean;
+  snap: SnapSettings;
+  tool: EditorTool;
 }
 
 interface BoundaryState {
@@ -52,7 +52,9 @@ class CanvasErrorBoundary extends Component<PropsWithChildren, BoundaryState> {
   override componentDidCatch(_error: Error, _info: ErrorInfo) {}
 
   override render() {
-    if (this.state.failed) return <WebGLUnavailable />;
+    if (this.state.failed) {
+      return <WebGLUnavailable />;
+    }
     return this.props.children;
   }
 }
@@ -75,13 +77,15 @@ class ModelErrorBoundary extends Component<
   };
 
   override render(): ReactNode {
-    if (!this.state.failed) return this.props.children;
+    if (!this.state.failed) {
+      return this.props.children;
+    }
     return (
       <Html center>
         <div className={styles.error} role="alert">
           <strong>{this.props.assetName}を読み込めません</strong>
           <span>GLBを確認して再試行してください。</span>
-          <Button type="button" variant="outline" size="sm" onClick={this.retry}>
+          <Button onClick={this.retry} size="sm" type="button" variant="outline">
             再試行
           </Button>
         </div>
@@ -93,11 +97,11 @@ class ModelErrorBoundary extends Component<
 function WebGLUnavailable() {
   return (
     <div
-      role="region"
       aria-label="3Dプレゼンテーション"
       className="grid size-full min-h-80 place-items-center bg-[#11151d] p-6"
+      role="region"
     >
-      <div role="alert" className="max-w-lg rounded-md border border-amber-700 p-4">
+      <div className="max-w-lg rounded-md border border-amber-700 p-4" role="alert">
         <strong className="block">WebGLを利用できません</strong>
         ブラウザのハードウェアアクセラレーションを有効にして、ページを再読み込みしてください。
       </div>
@@ -108,7 +112,7 @@ function WebGLUnavailable() {
 function LoadedModel({ url }: { url: string }) {
   const gltf = useGLTF(url);
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
-  return <primitive object={scene} dispose={null} />;
+  return <primitive dispose={null} object={scene} />;
 }
 
 function currentTransform(group: Group): Transform {
@@ -129,16 +133,16 @@ function transformsEqual(left: Transform, right: Transform): boolean {
 
 function ModelObject({
   element,
-  resolver,
-  selected,
   interaction,
   onDraggingChange,
+  resolver,
+  selected,
 }: {
   element: ModelElement;
-  resolver: AssetResolver;
-  selected: boolean;
   interaction: PresentationCanvasProps;
   onDraggingChange: (dragging: boolean) => void;
+  resolver: AssetResolver;
+  selected: boolean;
 }) {
   const group = useRef<Group>(null!);
   const dragStart = useRef<Transform | null>(null);
@@ -151,13 +155,17 @@ function ModelObject({
   };
 
   const beginDrag = () => {
-    if (!group.current) return;
+    if (!group.current) {
+      return;
+    }
     dragStart.current = currentTransform(group.current);
     setIsDragging(true);
   };
 
   const finishDrag = () => {
-    if (!group.current) return;
+    if (!group.current) {
+      return;
+    }
     const transform = currentTransform(group.current);
     setIsDragging(false);
     if (!transformsEqual(transform, element.transform)) {
@@ -167,9 +175,13 @@ function ModelObject({
   };
 
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging) {
+      return;
+    }
     const cancel = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || !group.current || !dragStart.current) return;
+      if (event.key !== "Escape" || !group.current || !dragStart.current) {
+        return;
+      }
       const start = dragStart.current;
       group.current.position.fromArray(start.position);
       group.current.quaternion.fromArray(start.rotation);
@@ -183,17 +195,19 @@ function ModelObject({
 
   const object = (
     <group
-      ref={group}
       name={element.name}
-      position={element.transform.position}
-      quaternion={element.transform.rotation}
-      scale={element.transform.scale}
-      visible={element.visible}
       onPointerDown={(event: ThreeEvent<PointerEvent>) => {
-        if (element.locked) return;
+        if (element.locked) {
+          return;
+        }
         event.stopPropagation();
         interaction.onSelect(element.id);
       }}
+      position={element.transform.position}
+      quaternion={element.transform.rotation}
+      ref={group}
+      scale={element.transform.scale}
+      visible={element.visible}
     >
       <ModelErrorBoundary assetName={element.name} url={url}>
         <Suspense
@@ -219,15 +233,15 @@ function ModelObject({
     <>
       {object}
       <TransformControls
-        object={group}
         mode={interaction.tool}
-        translationSnap={interaction.snap.enabled ? interaction.snap.translation : null}
+        object={group}
+        onMouseDown={beginDrag}
+        onMouseUp={finishDrag}
         rotationSnap={
           interaction.snap.enabled ? MathUtils.degToRad(interaction.snap.rotationDegrees) : null
         }
         scaleSnap={interaction.snap.enabled ? interaction.snap.scale : null}
-        onMouseDown={beginDrag}
-        onMouseUp={finishDrag}
+        translationSnap={interaction.snap.enabled ? interaction.snap.translation : null}
       />
     </>
   );
@@ -241,7 +255,7 @@ function TextObject({ element }: { element: TextElement }) {
       scale={element.transform.scale}
       visible={element.visible}
     >
-      <Html center transform distanceFactor={5}>
+      <Html center distanceFactor={5} transform>
         <div className={styles.text}>{element.content}</div>
       </Html>
     </group>
@@ -250,23 +264,25 @@ function TextObject({ element }: { element: TextElement }) {
 
 function SceneElement({
   element,
-  resolver,
   interaction,
   onDraggingChange,
+  resolver,
 }: {
   element: Element;
-  resolver: AssetResolver;
   interaction: PresentationCanvasProps;
   onDraggingChange: (dragging: boolean) => void;
+  resolver: AssetResolver;
 }) {
-  if (element.type === "text") return <TextObject element={element} />;
+  if (element.type === "text") {
+    return <TextObject element={element} />;
+  }
   return (
     <ModelObject
       element={element}
-      resolver={resolver}
-      selected={interaction.selectedElementId === element.id}
       interaction={interaction}
       onDraggingChange={onDraggingChange}
+      resolver={resolver}
+      selected={interaction.selectedElementId === element.id}
     />
   );
 }
@@ -282,23 +298,23 @@ function PresentationScene({
   const slide = props.document.slides.find((candidate) => candidate.id === props.activeSlideId);
   return (
     <>
-      <color attach="background" args={["#11151d"]} />
+      <color args={["#11151d"]} attach="background" />
       <ambientLight intensity={1.2} />
-      <directionalLight position={[4, 6, 3]} intensity={2.4} />
-      <directionalLight position={[-3, 2, -4]} intensity={0.8} color="#9ca8ff" />
+      <directionalLight intensity={2.4} position={[4, 6, 3]} />
+      <directionalLight color="#9ca8ff" intensity={0.8} position={[-3, 2, -4]} />
       {props.showGrid ? (
         <gridHelper args={[12, 24, "#7187f5", "#2b303c"]} position={[0, -0.72, 0]} />
       ) : null}
       {slide?.elements.map((element) => (
         <SceneElement
-          key={element.id}
           element={element}
-          resolver={resolver}
           interaction={props}
+          key={element.id}
           onDraggingChange={setDragging}
+          resolver={resolver}
         />
       ))}
-      <OrbitControls makeDefault enabled={!dragging} minDistance={2} maxDistance={12} />
+      <OrbitControls enabled={!dragging} makeDefault maxDistance={12} minDistance={2} />
     </>
   );
 }
@@ -307,13 +323,15 @@ export function PresentationCanvas(props: PresentationCanvasProps) {
   const resolver = useMemo(() => createDemoAssetResolver(), []);
   const webGLAvailable = useMemo(() => detectWebGLSupport(), []);
 
-  if (!webGLAvailable) return <WebGLUnavailable />;
+  if (!webGLAvailable) {
+    return <WebGLUnavailable />;
+  }
 
   return (
-    <div role="region" aria-label="3Dプレゼンテーション" className="relative size-full min-h-80">
+    <div aria-label="3Dプレゼンテーション" className="relative size-full min-h-80" role="region">
       <CanvasErrorBoundary>
         <Canvas
-          camera={{ position: [3.2, 2.4, 4.2], fov: 42, near: 0.1, far: 100 }}
+          camera={{ far: 100, fov: 42, near: 0.1, position: [3.2, 2.4, 4.2] }}
           dpr={[1, 2]}
           onPointerMissed={() => props.onSelect(null)}
         >

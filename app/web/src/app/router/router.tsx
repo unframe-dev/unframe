@@ -27,7 +27,7 @@ const EditorPage = lazy(() =>
 function Root() {
   return (
     <>
-      <a href="#main-content" className={styles.skipLink}>
+      <a className={styles.skipLink} href="#main-content">
         本文へ移動
       </a>
       <Outlet />
@@ -36,7 +36,7 @@ function Root() {
 }
 function ErrorPage() {
   return (
-    <main id="main-content" className={publicStyles.main}>
+    <main className={publicStyles.main} id="main-content">
       <section className={publicStyles.panel}>
         <h1>ページを開けません</h1>
         <p role="alert">読み込みに失敗しました。時間をおいてもう一度お試しください。</p>
@@ -47,7 +47,7 @@ function ErrorPage() {
 }
 function NotFound() {
   return (
-    <main id="main-content" className={publicStyles.main}>
+    <main className={publicStyles.main} id="main-content">
       <section className={publicStyles.panel}>
         <h1>ページが見つかりません</h1>
         <a href="/">トップへ戻る</a>
@@ -61,70 +61,64 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFound,
 });
 const loginRoute = createRoute({
+  component: LoginPage,
   getParentRoute: () => rootRoute,
   path: "login",
-  component: LoginPage,
 });
 const signupRoute = createRoute({
+  component: SignupPage,
   getParentRoute: () => rootRoute,
   path: "signup",
-  component: SignupPage,
 });
 const recoverRoute = createRoute({
+  component: RecoverPage,
   getParentRoute: () => rootRoute,
   path: "recover",
-  component: RecoverPage,
 });
 const resetRoute = createRoute({
+  component: () => <ResetPage token={resetRoute.useSearch().token} />,
   getParentRoute: () => rootRoute,
   path: "recover/reset",
   validateSearch: z.object({ token: z.string().catch("") }),
-  component: () => <ResetPage token={resetRoute.useSearch().token} />,
 });
 const deviceRoute = createRoute({
+  component: () => <DeviceAuthorizationPage initialUserCode={deviceRoute.useSearch().user_code} />,
   getParentRoute: () => rootRoute,
   path: "device",
   validateSearch: z.object({ user_code: z.string().catch("") }),
-  component: () => <DeviceAuthorizationPage initialUserCode={deviceRoute.useSearch().user_code} />,
 });
 const applicationRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: "application",
   beforeLoad: requireSession,
   component: ApplicationShell,
+  getParentRoute: () => rootRoute,
+  id: "application",
 });
 const homeRoute = createRoute({
+  component: HomePage,
   getParentRoute: () => applicationRoute,
   path: "home",
-  component: HomePage,
 });
 const devicesRoute = createRoute({
+  component: DevicesPage,
   getParentRoute: () => applicationRoute,
   path: "devices",
-  component: DevicesPage,
 });
 const roomsRoute = createRoute({
+  component: RoomsPage,
   getParentRoute: () => applicationRoute,
   path: "rooms",
-  component: RoomsPage,
 });
 const profileRoute = createRoute({
+  component: ProfilePage,
   getParentRoute: () => applicationRoute,
   path: "settings/profile",
-  component: ProfilePage,
 });
 const securityRoute = createRoute({
+  component: SecurityPage,
   getParentRoute: () => applicationRoute,
   path: "settings/security",
-  component: SecurityPage,
 });
 const editorRoute = createRoute({
-  getParentRoute: () => applicationRoute,
-  path: "editor/$presentationId",
-  validateSearch: z.object({
-    panel: z.enum(["properties", "assets", "none"]).catch("properties"),
-  }),
-  loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
   component: () => {
     const document = editorRoute.useLoaderData();
     const { panel } = editorRoute.useSearch();
@@ -134,6 +128,12 @@ const editorRoute = createRoute({
       </Suspense>
     );
   },
+  getParentRoute: () => applicationRoute,
+  loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
+  path: "editor/$presentationId",
+  validateSearch: z.object({
+    panel: z.enum(["properties", "assets", "none"]).catch("properties"),
+  }),
 });
 const routeTree = rootRoute.addChildren([
   loginRoute,

@@ -5,33 +5,33 @@ import { createAuth, createAuthOptions } from "../../src/auth/options";
 import type { AuthMailer } from "../../src/auth/mail";
 
 const testEnvironment = () => ({
-  DB: env.DB,
+  ASSETS: { delete: () => {}, get: () => {}, head: () => {}, list: () => {}, put: () => {} },
+  AUTH_EMAIL_FROM: "auth@example.com",
+  BETTER_AUTH_API_KEY: "test-api-key",
   BETTER_AUTH_SECRET: "test-secret-with-at-least-thirty-two-characters",
   BETTER_AUTH_URL: "https://example.com",
-  BETTER_AUTH_API_KEY: "test-api-key",
+  DB: env.DB,
   DEVICE_CLIENT_ID: "unframe-unity",
   GOOGLE_CLIENT_ID: "google-client-id",
   GOOGLE_CLIENT_SECRET: "google-client-secret",
-  RESEND_API_KEY: "re_test_key",
-  AUTH_EMAIL_FROM: "auth@example.com",
-  WEB_ORIGIN: "https://un-fra.me",
-  ASSETS: { head: () => {}, get: () => {}, put: () => {}, delete: () => {}, list: () => {} },
+  R2_ACCESS_KEY_ID: "test-r2-access-key",
   R2_ACCOUNT_ID: "test-r2-account-id",
   R2_BUCKET_NAME: "assets",
-  R2_ACCESS_KEY_ID: "test-r2-access-key",
   R2_SECRET_ACCESS_KEY: "test-r2-secret-access-key",
-  REALTIME_ISSUER: "https://api.example.com",
   REALTIME_AUDIENCE: "unframe-realtime-runtime",
-  REALTIME_SIGNING_KID: "test-realtime",
+  REALTIME_ISSUER: "https://api.example.com",
   REALTIME_SIGNING_JWK:
     '{"crv":"Ed25519","d":"NpZQSdEURSFKTVz6-pzQdlaclGrXKEU63J612Pbyycw","x":"TqLQxsPp47KvbpA1ZgokEIlJdEGV3qjSoYq9F1d5AN4","kty":"OKP"}',
+  REALTIME_SIGNING_KID: "test-realtime",
+  RESEND_API_KEY: "re_test_key",
   SERVICE_IDENTITY_SECRET: "test-service-identity-secret-32-characters",
+  WEB_ORIGIN: "https://un-fra.me",
 });
 
 const auth = () => createAuth(testEnvironment());
 
 const mailbox = () => {
-  const messages: { to: string; subject: string; text: string }[] = [];
+  const messages: Array<{ subject: string; text: string; to: string }> = [];
   const mailer: AuthMailer = async (message) => {
     messages.push(message);
   };
@@ -44,8 +44,8 @@ const base32Decode = (value: string) => {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = 0;
   let buffer = 0;
-  const bytes: number[] = [];
-  for (const character of value.replace(/=/g, "").toUpperCase()) {
+  const bytes: Array<number> = [];
+  for (const character of value.replaceAll("=", "").toUpperCase()) {
     buffer = (buffer << 5) | alphabet.indexOf(character);
     bits += 5;
     if (bits >= 8) {
@@ -58,14 +58,16 @@ const base32Decode = (value: string) => {
 
 async function totpCode(uri: string, now = Date.now()) {
   const secret = new URL(uri).searchParams.get("secret");
-  if (!secret) throw new Error("TOTP URI did not include a secret");
+  if (!secret) {
+    throw new Error("TOTP URI did not include a secret");
+  }
   const counter = Math.floor(now / 30_000);
   const counterBytes = new Uint8Array(8);
   new DataView(counterBytes.buffer).setUint32(4, counter);
   const key = await crypto.subtle.importKey(
     "raw",
     base32Decode(secret),
-    { name: "HMAC", hash: "SHA-1" },
+    { hash: "SHA-1", name: "HMAC" },
     false,
     ["sign"],
   );
@@ -93,9 +95,9 @@ async function requestWithAuth(
 
 async function issueDeviceCode(): Promise<DeviceCode> {
   const response = await requestAuth("/device/code", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_id: "unframe-unity" }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
   expect(response.status).toBe(200);
   return response.json() as Promise<DeviceCode>;
@@ -139,13 +141,13 @@ async function seedBrowserSession(
 
 function deviceTokenRequest(deviceCode: string) {
   return requestAuth("/device/token", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       client_id: "unframe-unity",
       device_code: deviceCode,
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
 }
 
@@ -159,9 +161,9 @@ async function decideDeviceCode(
   cookie: string,
 ) {
   return requestAuth(path, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie, origin: "https://un-fra.me" },
     body: JSON.stringify({ userCode }),
+    headers: { "content-type": "application/json", cookie, origin: "https://un-fra.me" },
+    method: "POST",
   });
 }
 
@@ -171,9 +173,9 @@ describe("Better Auth device authorization", () => {
     const email = `${crypto.randomUUID()}@example.com`;
     const password = "password-with-enough-length";
     await requestWithAuth(test.auth, "/sign-up/email", {
-      method: "POST",
+      body: JSON.stringify({ email, name: "Test User", password }),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Test User", email, password }),
+      method: "POST",
     });
     const verification = new URL(test.messages.shift()!.text.match(/https:\/\/[^\s]+/)![0]);
     await requestWithAuth(
@@ -181,42 +183,44 @@ describe("Better Auth device authorization", () => {
       `/verify-email?token=${encodeURIComponent(verification.searchParams.get("token")!)}&callbackURL=https%3A%2F%2Fun-fra.me`,
     );
     const signIn = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     const sessionCookie = signIn.headers.get("set-cookie")!.split(";", 1)[0]!;
     const enabled = await requestWithAuth(test.auth, "/two-factor/enable", {
-      method: "POST",
+      body: JSON.stringify({ password }),
       headers: {
         "content-type": "application/json",
         cookie: sessionCookie,
         origin: "https://un-fra.me",
       },
-      body: JSON.stringify({ password }),
+      method: "POST",
     });
-    if (enabled.status !== 200) throw new Error(await enabled.text());
+    if (enabled.status !== 200) {
+      throw new Error(await enabled.text());
+    }
     expect(enabled.status).toBe(200);
-    const enrollment = (await enabled.json()) as { totpURI: string; backupCodes: string[] };
+    const enrollment = (await enabled.json()) as { backupCodes: Array<string>; totpURI: string };
     const enrollmentCode = await totpCode(enrollment.totpURI);
     expect(
       (
         await requestWithAuth(test.auth, "/two-factor/verify-totp", {
-          method: "POST",
+          body: JSON.stringify({ code: enrollmentCode }),
           headers: {
             "content-type": "application/json",
             cookie: sessionCookie,
             origin: "https://un-fra.me",
           },
-          body: JSON.stringify({ code: enrollmentCode }),
+          method: "POST",
         })
       ).status,
     ).toBe(200);
 
     const challenge = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     expect(await challenge.json()).toMatchObject({ twoFactorRedirect: true });
     const challengeCookie = challenge.headers
@@ -224,15 +228,17 @@ describe("Better Auth device authorization", () => {
       .map((value) => value.split(";", 1)[0])
       .join("; ");
     const verified = await requestWithAuth(test.auth, "/two-factor/verify-totp", {
-      method: "POST",
+      body: JSON.stringify({ code: await totpCode(enrollment.totpURI), trustDevice: true }),
       headers: {
         "content-type": "application/json",
         cookie: challengeCookie,
         origin: "https://un-fra.me",
       },
-      body: JSON.stringify({ code: await totpCode(enrollment.totpURI), trustDevice: true }),
+      method: "POST",
     });
-    if (verified.status !== 200) throw new Error(await verified.text());
+    if (verified.status !== 200) {
+      throw new Error(await verified.text());
+    }
     expect(verified.status).toBe(200);
     const bearerToken = verified.headers.get("set-auth-token");
     expect(bearerToken).toEqual(expect.any(String));
@@ -248,16 +254,16 @@ describe("Better Auth device authorization", () => {
       .map((value) => value.split(";", 1)[0])
       .join("; ");
     const trustedSignIn = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json", cookie: trustedCookie },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json", cookie: trustedCookie },
+      method: "POST",
     });
     expect(await trustedSignIn.json()).not.toMatchObject({ twoFactorRedirect: true });
 
     const backupChallenge = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     const backupCookie = backupChallenge.headers
       .getSetCookie()
@@ -265,13 +271,13 @@ describe("Better Auth device authorization", () => {
       .join("; ");
     const backup = () =>
       requestWithAuth(test.auth, "/two-factor/verify-backup-code", {
-        method: "POST",
+        body: JSON.stringify({ code: enrollment.backupCodes[0] }),
         headers: {
           "content-type": "application/json",
           cookie: backupCookie,
           origin: "https://un-fra.me",
         },
-        body: JSON.stringify({ code: enrollment.backupCodes[0] }),
+        method: "POST",
       });
     expect((await backup()).status).toBe(200);
     expect((await backup()).status).toBeGreaterThanOrEqual(400);
@@ -279,42 +285,42 @@ describe("Better Auth device authorization", () => {
     let lastFailure: Response | undefined;
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const lockoutChallenge = await requestWithAuth(test.auth, "/sign-in/email", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
       const lockoutCookie = lockoutChallenge.headers
         .getSetCookie()
         .map((value) => value.split(";", 1)[0])
         .join("; ");
       lastFailure = await requestWithAuth(test.auth, "/two-factor/verify-totp", {
-        method: "POST",
+        body: JSON.stringify({ code: "000000" }),
         headers: {
           "content-type": "application/json",
           cookie: lockoutCookie,
           origin: "https://un-fra.me",
         },
-        body: JSON.stringify({ code: "000000" }),
+        method: "POST",
       });
     }
     expect(lastFailure?.status).toBe(401);
     const lockedChallenge = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     const lockedCookie = lockedChallenge.headers
       .getSetCookie()
       .map((value) => value.split(";", 1)[0])
       .join("; ");
     const locked = await requestWithAuth(test.auth, "/two-factor/verify-totp", {
-      method: "POST",
+      body: JSON.stringify({ code: "000000" }),
       headers: {
         "content-type": "application/json",
         cookie: lockedCookie,
         origin: "https://un-fra.me",
       },
-      body: JSON.stringify({ code: "000000" }),
+      method: "POST",
     });
     expect(locked.status).toBe(429);
     const lockout = await env.DB.prepare(
@@ -329,17 +335,17 @@ describe("Better Auth device authorization", () => {
     const email = `${crypto.randomUUID()}@example.com`;
     const password = "password-with-enough-length";
     const signUp = await requestWithAuth(test.auth, "/sign-up/email", {
-      method: "POST",
+      body: JSON.stringify({ email, name: "Test User", password }),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Test User", email, password }),
+      method: "POST",
     });
     expect(signUp.status).toBe(200);
     expect(test.messages).toHaveLength(1);
 
     const beforeVerification = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     expect(beforeVerification.status).toBe(403);
 
@@ -351,9 +357,9 @@ describe("Better Auth device authorization", () => {
     expect(verified.status).toBe(302);
 
     const afterVerification = await requestWithAuth(test.auth, "/sign-in/email", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     expect(afterVerification.status).toBe(200);
   });
@@ -363,9 +369,9 @@ describe("Better Auth device authorization", () => {
     const email = `${crypto.randomUUID()}@example.com`;
     const password = "password-with-enough-length";
     await requestWithAuth(test.auth, "/sign-up/email", {
-      method: "POST",
+      body: JSON.stringify({ email, name: "Test User", password }),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Test User", email, password }),
+      method: "POST",
     });
     const verificationUrl = new URL(test.messages.shift()!.text.match(/https:\/\/[^\s]+/)![0]);
     await requestWithAuth(
@@ -391,9 +397,9 @@ describe("Better Auth device authorization", () => {
       )
       .run();
     const pendingDevice = await requestWithAuth(test.auth, "/device/code", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ client_id: "unframe-unity" }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     const { device_code: deviceCode } = (await pendingDevice.json()) as DeviceCode;
     await env.DB.prepare(
@@ -417,9 +423,9 @@ describe("Better Auth device authorization", () => {
     expect(
       (
         await requestWithAuth(test.auth, "/request-password-reset", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({ email, redirectTo: "https://un-fra.me/reset" }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
         })
       ).status,
     ).toBe(200);
@@ -430,17 +436,17 @@ describe("Better Auth device authorization", () => {
       .run();
     const reset = (resetToken: string) =>
       requestWithAuth(test.auth, "/reset-password", {
-        method: "POST",
+        body: JSON.stringify({ newPassword: "new-password-with-enough-length", token: resetToken }),
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: resetToken, newPassword: "new-password-with-enough-length" }),
+        method: "POST",
       });
     expect((await reset(expiredToken)).status).toBeGreaterThanOrEqual(400);
     expect(
       (
         await requestWithAuth(test.auth, "/request-password-reset", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({ email, redirectTo: "https://un-fra.me/reset" }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
         })
       ).status,
     ).toBe(200);
@@ -463,13 +469,13 @@ describe("Better Auth device authorization", () => {
     expect(
       (
         await requestWithAuth(test.auth, "/device/token", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({
             client_id: "unframe-unity",
             device_code: deviceCode,
             grant_type: "urn:ietf:params:oauth:grant-type:device_code",
           }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
         })
       ).status,
     ).toBeGreaterThanOrEqual(400);
@@ -480,22 +486,22 @@ describe("Better Auth device authorization", () => {
     const setup = mailbox();
     const email = `${crypto.randomUUID()}@example.com`;
     await requestWithAuth(setup.auth, "/sign-up/email", {
-      method: "POST",
+      body: JSON.stringify({ email, name: "Test User", password: "password-with-enough-length" }),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Test User", email, password: "password-with-enough-length" }),
+      method: "POST",
     });
-    const tasks: Promise<unknown>[] = [];
+    const tasks: Array<Promise<unknown>> = [];
     const backgroundAuth = createAuth(testEnvironment(), {
+      backgroundTaskHandler: (task) => tasks.push(task),
       mailer: async () => {
         throw new Error("delivery failed");
       },
-      backgroundTaskHandler: (task) => tasks.push(task),
     });
     const requestReset = (target: string) =>
       requestWithAuth(backgroundAuth, "/request-password-reset", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: target }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
 
     const existing = await requestReset(email);
@@ -543,9 +549,9 @@ describe("Better Auth device authorization", () => {
   it("issues a code with the configured expiry, polling interval, and verification URIs", async () => {
     const response = await auth().handler(
       new Request("https://example.com/api/auth/device/code", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ client_id: "unframe-unity" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       }),
     );
 
@@ -558,9 +564,9 @@ describe("Better Auth device authorization", () => {
       verification_uri_complete: string;
     };
     expect(body).toMatchObject({
-      verification_uri: "https://un-fra.me/editor/device",
       expires_in: 1800,
       interval: 3,
+      verification_uri: "https://un-fra.me/editor/device",
     });
     expect(body.verification_uri_complete).toBe(
       `https://un-fra.me/editor/device?user_code=${encodeURIComponent(body.user_code)}`,
@@ -570,9 +576,9 @@ describe("Better Auth device authorization", () => {
   it("rejects an unrecognized device client", async () => {
     const response = await auth().handler(
       new Request("https://example.com/api/auth/device/code", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ client_id: "other-client" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       }),
     );
 
@@ -599,9 +605,9 @@ describe("Better Auth device authorization", () => {
 
   it("starts Google sign-in at Better Auth's provider route with the configured callback URL", async () => {
     const response = await requestAuth("/sign-in/social", {
-      method: "POST",
+      body: JSON.stringify({ disableRedirect: true, provider: "google" }),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ provider: "google", disableRedirect: true }),
+      method: "POST",
     });
 
     expect(response.status).toBe(200);
@@ -621,9 +627,9 @@ describe("Better Auth device authorization", () => {
     const request = (origin: string) =>
       app.fetch(
         new Request("https://example.com/api/auth/device/code", {
-          method: "POST",
-          headers: { origin, "content-type": "application/json" },
           body: JSON.stringify({ client_id: "unframe-unity" }),
+          headers: { "content-type": "application/json", origin },
+          method: "POST",
         }),
         testEnvironment() as unknown as CloudflareBindings,
       );
@@ -640,21 +646,21 @@ describe("Better Auth device authorization", () => {
   it("returns authorization_pending and enforces the three-second polling interval", async () => {
     const issued = await auth().handler(
       new Request("https://example.com/api/auth/device/code", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ client_id: "unframe-unity" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       }),
     );
     const { device_code: deviceCode } = (await issued.json()) as { device_code: string };
     const tokenRequest = () =>
       new Request("https://example.com/api/auth/device/token", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           client_id: "unframe-unity",
           device_code: deviceCode,
           grant_type: "urn:ietf:params:oauth:grant-type:device_code",
         }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       });
 
     const pending = await auth().handler(tokenRequest());
@@ -686,7 +692,7 @@ describe("Better Auth device authorization", () => {
       headers: { authorization: `Bearer ${token.access_token}` },
     });
     await expect(session.json()).resolves.toMatchObject({
-      user: { id: browser.userId, globalRole: "user" },
+      user: { globalRole: "user", id: browser.userId },
     });
     const app = createApp();
     const protectedResponse = await app.fetch(
@@ -740,8 +746,8 @@ describe("Better Auth device authorization", () => {
   it("keeps globalRole server-controlled and maps persisted user and admin roles", async () => {
     const options = createAuthOptions(testEnvironment(), env.DB);
     expect(options.user.additionalFields.globalRole).toMatchObject({
-      input: false,
       defaultValue: "user",
+      input: false,
     });
 
     const user = await seedBrowserSession();

@@ -11,18 +11,20 @@ const generateJsonSchema = (
   title: string,
 ): Record<string, unknown> => {
   const generated = z.toJSONSchema(schema, {
-    target: "draft-2020-12",
-    unrepresentable: "throw",
-    reused: "ref",
     override: ({ jsonSchema }) => {
-      if (!Array.isArray(jsonSchema.prefixItems)) return;
+      if (!Array.isArray(jsonSchema.prefixItems)) {
+        return;
+      }
       jsonSchema.items = false;
       jsonSchema.minItems = jsonSchema.prefixItems.length;
       jsonSchema.maxItems = jsonSchema.prefixItems.length;
     },
+    reused: "ref",
+    target: "draft-2020-12",
+    unrepresentable: "throw",
   }) as Record<string, unknown>;
   const { $schema: _schema, id: _id, title: _title, ...shape } = generated;
-  return { $schema: draft202012, $id: id, title, ...shape };
+  return { $id: id, $schema: draft202012, title, ...shape };
 };
 
 export const presentationDefinitionJsonSchema = generateJsonSchema(

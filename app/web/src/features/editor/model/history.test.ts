@@ -6,9 +6,9 @@ describe("editor history", () => {
   it("increments revision for execute, undo, and redo", () => {
     const initial = createHistoryState(demoDocument);
     const executed = executeCommand(initial, {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { name: "Edited" },
+      elementId: "demo-model-element",
+      type: "element.update",
     });
     const undone = undoCommand(executed);
     const redone = redoCommand(undone);
@@ -22,15 +22,15 @@ describe("editor history", () => {
 
   it("clears redo entries when a new command is executed", () => {
     const executed = executeCommand(createHistoryState(demoDocument), {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { locked: true },
+      elementId: "demo-model-element",
+      type: "element.update",
     });
     const undone = undoCommand(executed);
     const diverged = executeCommand(undone, {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { visible: false },
+      elementId: "demo-model-element",
+      type: "element.update",
     });
 
     expect(diverged.redoStack).toHaveLength(0);

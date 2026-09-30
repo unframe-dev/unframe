@@ -11,46 +11,48 @@ import { makeM3AArtifacts } from "./fixtures.js";
 const fixture = () => {
   const { definition, renderBundle } = makeM3AArtifacts();
   const surface = definition.scene.surfaces.baked!;
-  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  if (surface.content.kind !== "structured") {
+    throw new TypeError("Expected structured fixture.");
+  }
   const text = surface.content.nodes.text!;
   text.semanticNodeId = "button";
   surface.baseSemanticTree = {
-    rootNodeIds: ["button"],
     nodes: {
       button: {
         id: "button",
-        parentId: null,
-        order: 0,
-        role: "button",
         interactionId: "click",
+        order: 0,
+        parentId: null,
+        role: "button",
         text: "Click",
       },
     },
+    rootNodeIds: ["button"],
   };
-  surface.interactions.click = { id: "click", kind: "click", event: "click", hitPriority: 7 };
+  surface.interactions.click = { event: "click", hitPriority: 7, id: "click", kind: "click" };
   surface.states.default!.enabledInteractionIds = ["click"];
-  surface.renderIntent.interaction = { kind: "regions", events: ["click"] };
+  surface.renderIntent.interaction = { events: ["click"], kind: "regions" };
   renderBundle.surfaces.baked!.semanticsByState.default = {
-    rootNodeIds: ["button"],
     nodes: {
       button: {
         id: "button",
-        parentId: null,
-        order: 0,
-        role: "button",
         interactionId: "click",
-        text: "Click",
+        order: 0,
+        parentId: null,
+        role: "button",
         stateEnabled: true,
+        text: "Click",
       },
     },
+    rootNodeIds: ["button"],
   };
   renderBundle.surfaces.baked!.interactionsByState.default = [
     {
-      interactionId: "click",
-      semanticNodeId: "button",
-      bounds: { x: 0, y: 0, width: 0.5, height: 0.5 },
+      bounds: { height: 0.5, width: 0.5, x: 0, y: 0 },
       coordinateSpace: "normalized",
+      interactionId: "click",
       priority: 7,
+      semanticNodeId: "button",
     },
   ];
   return { definition, renderBundle, surface };
@@ -91,7 +93,7 @@ describe("M3B semantic and interaction invariants", () => {
     const regions = renderBundle.surfaces.baked!.interactionsByState.default!;
     regions.push({
       ...regions[0]!,
-      bounds: { x: 0.5, y: 0, width: 0.5, height: 0.5 },
+      bounds: { height: 0.5, width: 0.5, x: 0.5, y: 0 },
       priority: 8,
     });
     expect(validateRenderBundle(renderBundle).valid).toBe(false);
@@ -108,28 +110,28 @@ describe("M3B semantic and interaction invariants", () => {
     const { definition, surface } = fixture();
     surface.baseSemanticTree.nodes.button = {
       id: "button",
-      parentId: null,
       order: 0,
-      role: "list",
       ordered: false,
+      parentId: null,
+      role: "list",
     };
     expect(validatePresentationDefinition(definition).valid).toBe(false);
     surface.baseSemanticTree.nodes.button = {
       id: "button",
-      parentId: null,
-      order: 0,
-      role: "button",
       interactionId: "click",
-      text: "Click",
       language: "not_a_tag",
+      order: 0,
+      parentId: null,
+      role: "button",
+      text: "Click",
     };
     expect(validatePresentationDefinition(definition).valid).toBe(false);
     surface.baseSemanticTree.nodes.button = {
       id: "button",
-      parentId: null,
-      order: 0,
-      role: "button",
       interactionId: "click",
+      order: 0,
+      parentId: null,
+      role: "button",
       text: "\uD800",
     };
     expect(validatePresentationDefinition(definition).valid).toBe(false);
@@ -144,8 +146,9 @@ describe("M3B semantic and interaction invariants", () => {
     policy.policyHash = hashCanonicalJsonPayload(payload);
     const result = validateRenderBundle(renderBundle);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map((item) => item.code)).toContain("budget.exceeded");
+    }
   });
 
   it("accepts ordered multi-partition bindings for the same State", () => {
@@ -159,7 +162,7 @@ describe("M3B semantic and interaction invariants", () => {
     delete second.artifacts["artifact-baked"];
     artifact.id = "artifact-second";
     second.artifacts["artifact-second"] = artifact;
-    second.stateBindings.default = { kind: "artifacts", artifactIds: ["artifact-second"] };
+    second.stateBindings.default = { artifactIds: ["artifact-second"], kind: "artifacts" };
     surface.renderSurfaceIds.push("render-second");
     surface.renderSurfaces["render-second"] = second;
     expect(validateRenderBundle(renderBundle).valid).toBe(true);

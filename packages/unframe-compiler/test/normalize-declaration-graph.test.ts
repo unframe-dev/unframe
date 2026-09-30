@@ -7,11 +7,11 @@ import type {
 } from "../src/lowering/lower-authoring-declaration.js";
 
 const origin = (start = 0): DeclarationSourceOrigin => ({
-  fileName: "presentation.ts",
-  start,
-  end: start + 1,
-  line: 1,
   column: start + 1,
+  end: start + 1,
+  fileName: "presentation.ts",
+  line: 1,
+  start,
 });
 const literal = (value: null | boolean | number | string) => ({
   kind: "literal" as const,
@@ -19,11 +19,11 @@ const literal = (value: null | boolean | number | string) => ({
   value,
 });
 const object = (
-  properties: readonly {
+  properties: ReadonlyArray<{
     readonly key: string;
     readonly origin: DeclarationSourceOrigin;
     readonly value: DeclarationGraphValue;
-  }[],
+  }>,
 ): Extract<DeclarationGraphValue, { kind: "object" }> => ({
   kind: "object",
   origin: origin(),
@@ -31,13 +31,13 @@ const object = (
 });
 const call = (
   builder: string,
-  arguments_: readonly DeclarationGraphValue[],
+  arguments_: ReadonlyArray<DeclarationGraphValue>,
   start = 0,
 ): Extract<DeclarationGraphValue, { kind: "builder-call" }> => ({
-  kind: "builder-call",
-  builder,
-  origin: origin(start),
   arguments: arguments_,
+  builder,
+  kind: "builder-call",
+  origin: origin(start),
 });
 const graph = (value: DeclarationGraphValue): DeclarationGraph => ({
   fileName: "presentation.ts",
@@ -60,9 +60,11 @@ describe("normalizeDeclarationGraph", () => {
     expect(result).toMatchObject({
       ok: true,
       rootBuilder: "definePresentation",
-      value: { effect: { kind: "setSurfaceState", surfaceId: "surface", stateId: "state" } },
+      value: { effect: { kind: "setSurfaceState", stateId: "state", surfaceId: "surface" } },
     });
-    if (result.ok) expect(Object.getPrototypeOf(result.value)).toBe(null);
+    if (result.ok) {
+      expect(Object.getPrototypeOf(result.value)).toBe(null);
+    }
   });
 
   it("fails closed for reserved kind conflicts", () => {
@@ -80,18 +82,18 @@ describe("normalizeDeclarationGraph", () => {
       ),
     );
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-normalization-invalid-graph",
+          column: 9,
+          end: 9,
           fileName: "presentation.ts",
+          line: 1,
           message: "Builder fields conflict with input.",
           start: 8,
-          end: 9,
-          line: 1,
-          column: 9,
         },
       ],
+      ok: false,
     });
   });
 
@@ -111,12 +113,14 @@ describe("normalizeDeclarationGraph", () => {
       ),
     );
     expect(result).toMatchObject({ ok: true });
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.sourceMap).toEqual([
-      { path: [], origin: expect.any(Object) },
-      { path: ["nested"], origin: callOrigin, keyOrigin },
-      { path: ["nested", "kind"], origin: callOrigin },
-      { path: ["nested", "afterMilliseconds"], origin: valueOrigin },
+      { origin: expect.any(Object), path: [] },
+      { keyOrigin, origin: callOrigin, path: ["nested"] },
+      { origin: callOrigin, path: ["nested", "kind"] },
+      { origin: valueOrigin, path: ["nested", "afterMilliseconds"] },
     ]);
     expect(new Set(result.sourceMap.map((entry) => JSON.stringify(entry.path))).size).toBe(
       result.sourceMap.length,
@@ -177,26 +181,26 @@ describe("normalizeDeclarationGraph", () => {
       [call("cue", [object([{ key: "id", origin: origin(), value: literal("x") }])]), { id: "x" }],
       [
         call("surfaceState", [literal("s"), literal("st")]),
-        { kind: "surfaceState", surfaceId: "s", stateId: "st" },
+        { kind: "surfaceState", stateId: "st", surfaceId: "s" },
       ],
       [
         call("setSurfaceState", [literal("s"), literal("st")]),
-        { kind: "setSurfaceState", surfaceId: "s", stateId: "st" },
+        { kind: "setSurfaceState", stateId: "st", surfaceId: "s" },
       ],
       [
         call("playTimeline", [
           literal("t"),
           object([{ key: "completion", origin: origin(), value: literal("blocking") }]),
         ]),
-        { kind: "playTimeline", timelineId: "t", completion: "blocking" },
+        { completion: "blocking", kind: "playTimeline", timelineId: "t" },
       ],
       [
         call("surfaceInteraction", [literal("i")]),
-        { kind: "surfaceInteraction", interactionId: "i" },
+        { interactionId: "i", kind: "surfaceInteraction" },
       ],
       [call("timelineCompleted", [literal("t")]), { kind: "timelineCompleted", timelineId: "t" }],
       [call("mediaCompleted", [literal("s")]), { kind: "mediaCompleted", surfaceId: "s" }],
-      [call("after", [literal(1)]), { kind: "timer", afterMilliseconds: 1 }],
+      [call("after", [literal(1)]), { afterMilliseconds: 1, kind: "timer" }],
     ] as const;
     for (const [value, expected] of specialBuilders) {
       const result = normalizeDeclarationGraph(
@@ -227,7 +231,9 @@ describe("normalizeDeclarationGraph", () => {
       ),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map(({ start }) => start)).toEqual([7, 11]);
   });
 
@@ -253,10 +259,10 @@ describe("normalizeDeclarationGraph", () => {
       {
         fileName: "presentation.ts",
         root: {
-          kind: "builder-call",
-          builder: "definePresentation",
-          origin: origin(),
           arguments: [{ kind: "unknown", origin: origin() }],
+          builder: "definePresentation",
+          kind: "builder-call",
+          origin: origin(),
         },
       },
       graph(
@@ -279,12 +285,14 @@ describe("normalizeDeclarationGraph", () => {
         ]),
       ),
     ];
-    for (const fixture of invalid)
+    for (const fixture of invalid) {
       expect(() => normalizeDeclarationGraph(fixture as unknown as DeclarationGraph)).not.toThrow();
-    for (const fixture of invalid)
+    }
+    for (const fixture of invalid) {
       expect(normalizeDeclarationGraph(fixture as unknown as DeclarationGraph)).toMatchObject({
         ok: false,
       });
+    }
   });
 
   it("uses null-prototype objects recursively and canonical diagnostic ordering", () => {
@@ -312,7 +320,9 @@ describe("normalizeDeclarationGraph", () => {
       ),
     );
     expect(result).toMatchObject({ ok: false });
-    if (!result.ok) expect(result.diagnostics.map(({ start }) => start)).toEqual([10, 20, 30]);
+    if (!result.ok) {
+      expect(result.diagnostics.map(({ start }) => start)).toEqual([10, 20, 30]);
+    }
     const good = normalizeDeclarationGraph(
       graph(
         object([
@@ -324,7 +334,9 @@ describe("normalizeDeclarationGraph", () => {
         ]),
       ),
     );
-    if (!good.ok) throw new Error("expected valid graph");
+    if (!good.ok) {
+      throw new Error("expected valid graph");
+    }
     const value = good.value as {
       readonly nested: { readonly child: Record<string, unknown> };
     };

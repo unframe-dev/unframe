@@ -9,32 +9,32 @@ type Cue = PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["
 const fixture = () => {
   const { definition } = makeM3AArtifacts();
   definition.flow.timelines.reveal = {
-    id: "reveal",
-    owner: { kind: "group", groupId: "intro" },
     durationMilliseconds: 1000,
+    id: "reveal",
+    owner: { groupId: "intro", kind: "group" },
     tracks: [
       {
-        target: { nodeId: "node-baked", property: "opacity" },
         keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+          { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
           { timeMilliseconds: 1000, value: 1 },
         ],
+        target: { nodeId: "node-baked", property: "opacity" },
       },
     ],
   };
   const cue: Cue = {
-    id: "cue",
-    priority: 1,
-    order: 0,
-    trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-    firePolicy: { kind: "oncePerStepEntry" },
     actions: [
-      { kind: "timeline.play", timelineId: "reveal", completion: "blocking", conflict: "reject" },
+      { completion: "blocking", conflict: "reject", kind: "timeline.play", timelineId: "reveal" },
     ],
+    firePolicy: { kind: "oncePerStepEntry" },
+    id: "cue",
     next: { kind: "stay" },
+    order: 0,
+    priority: 1,
+    trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
   };
   definition.flow.groups.intro!.steps.start!.cues = [cue];
-  return { definition, cue };
+  return { cue, definition };
 };
 
 const codes = (definition: unknown) => {
@@ -44,21 +44,21 @@ const codes = (definition: unknown) => {
 
 describe("M3D Timeline Cue semantics", () => {
   it("accepts accessible Timeline play and stop actions", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     expect(codes(definition)).toEqual([]);
     cue.actions = [{ kind: "timeline.stop", timelineId: "reveal" }];
     expect(codes(definition)).toEqual([]);
   });
 
   it("accepts completion from an accessible Timeline as an implicit System event", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     cue.trigger = { kind: "timelineCompleted", timelineId: "reveal" };
     cue.actions = [];
     expect(codes(definition)).toEqual([]);
   });
 
   it("rejects a client-supplied actor or source on Timeline completion", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     cue.trigger = { kind: "timelineCompleted", timelineId: "reveal" };
     cue.actions = [];
     (cue.trigger as unknown as Record<string, unknown>).actor = { kind: "presenter" };
@@ -69,18 +69,18 @@ describe("M3D Timeline Cue semantics", () => {
   });
 
   it("rejects missing or inaccessible Timeline action targets", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     cue.actions = [{ kind: "timeline.stop", timelineId: "missing" }];
     expect(codes(definition)).toContain("reference.invalid");
     cue.actions = [
       {
-        kind: "timeline.play",
-        timelineId: "reveal",
         completion: "nonBlocking",
         conflict: "reject",
+        kind: "timeline.play",
+        timelineId: "reveal",
       },
     ];
-    definition.flow.timelines.reveal!.owner = { kind: "group", groupId: "other" };
+    definition.flow.timelines.reveal!.owner = { groupId: "other", kind: "group" };
     definition.flow.groups.other = {
       ...structuredClone(definition.flow.groups.intro!),
       id: "other",
@@ -89,12 +89,12 @@ describe("M3D Timeline Cue semantics", () => {
   });
 
   it("rejects missing or inaccessible completion Timeline references", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     cue.trigger = { kind: "timelineCompleted", timelineId: "missing" };
     cue.actions = [];
     expect(codes(definition)).toContain("reference.invalid");
     cue.trigger.timelineId = "reveal";
-    definition.flow.timelines.reveal!.owner = { kind: "group", groupId: "other" };
+    definition.flow.timelines.reveal!.owner = { groupId: "other", kind: "group" };
     definition.flow.groups.other = {
       ...structuredClone(definition.flow.groups.intro!),
       id: "other",
@@ -103,7 +103,7 @@ describe("M3D Timeline Cue semantics", () => {
   });
 
   it("rejects play and Node patch claims on the same property in either order", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     const patch: Cue["actions"][number] = {
       kind: "node.patch",
       nodeId: "node-baked",
@@ -117,7 +117,7 @@ describe("M3D Timeline Cue semantics", () => {
   });
 
   it("allows a Node patch on a different property", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     cue.actions.push({
       kind: "node.patch",
       nodeId: "node-baked",
@@ -127,7 +127,7 @@ describe("M3D Timeline Cue semantics", () => {
   });
 
   it("rejects play/stop, repeated play and stop/patch claims in one batch", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     const play = cue.actions[0]!;
     cue.actions = [play, { kind: "timeline.stop", timelineId: "reveal" }];
     expect(codes(definition)).toContain("behavior.invalid");
@@ -145,16 +145,16 @@ describe("M3D Timeline Cue semantics", () => {
   });
 
   it("rejects claims from distinct Timelines targeting the same Node property", () => {
-    const { definition, cue } = fixture();
+    const { cue, definition } = fixture();
     definition.flow.timelines.other = {
       ...structuredClone(definition.flow.timelines.reveal!),
       id: "other",
     };
     cue.actions.push({
-      kind: "timeline.play",
-      timelineId: "other",
       completion: "nonBlocking",
       conflict: "reject",
+      kind: "timeline.play",
+      timelineId: "other",
     });
     expect(codes(definition)).toContain("behavior.invalid");
   });

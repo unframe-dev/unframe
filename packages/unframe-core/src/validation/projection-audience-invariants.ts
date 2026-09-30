@@ -11,13 +11,15 @@ const canReferenceAudience = (source: Audience, target: Audience) =>
 
 export const validateProjectionAudienceInvariants = (
   definition: PresentationDefinitionV2,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
   const nodes = definition.scene.nodes;
   for (const [nodeId, node] of Object.entries(nodes)) {
-    if (node.parent.kind !== "node") continue;
+    if (node.parent.kind !== "node") {
+      continue;
+    }
     const parent = nodes[node.parent.nodeId];
-    if (parent && !canReferenceAudience(node.audience, parent.audience))
+    if (parent && !canReferenceAudience(node.audience, parent.audience)) {
       diagnostics.push(
         diagnostic(
           "graph.invalid",
@@ -25,5 +27,6 @@ export const validateProjectionAudienceInvariants = (
           "Spatial child audience must be contained by its parent's audience.",
         ),
       );
+    }
   }
 };

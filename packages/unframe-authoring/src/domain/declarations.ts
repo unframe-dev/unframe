@@ -5,7 +5,7 @@ export type Json =
   | boolean
   | number
   | string
-  | readonly Json[]
+  | ReadonlyArray<Json>
   | { readonly [key: string]: Json };
 export type Scalar = null | boolean | number | string;
 export type ScalarType = "null" | "boolean" | "number" | "string";
@@ -20,11 +20,11 @@ export type AuthoringDiagnostic = Diagnostic & {
   source?: SourceMetadata;
 };
 
-export type ResourceOwner = { kind: "presentation" } | { kind: "group"; groupId: string };
+export type ResourceOwner = { kind: "presentation" } | { groupId: string; kind: "group" };
 export type ProjectionAudience = { kind: "all" } | { kind: "role"; role: "presenter" | "viewer" };
 
-type RequiredProp = { required: true; default?: never };
-type DefaultProp<T> = { required?: never; default: T };
+type RequiredProp = { default?: never; required: true };
+type DefaultProp<T> = { default: T; required?: never };
 export type StringPropDeclaration = { kind: "string" } & (RequiredProp | DefaultProp<string>);
 export type NumberPropDeclaration = { kind: "number" } & (RequiredProp | DefaultProp<number>);
 export type BooleanPropDeclaration = { kind: "boolean" } & (RequiredProp | DefaultProp<boolean>);
@@ -33,9 +33,9 @@ export type PropDeclaration =
   | NumberPropDeclaration
   | BooleanPropDeclaration;
 export type PropReference<T extends "string" | "number" | "boolean"> = {
+  expectedType: T;
   kind: "prop-ref";
   propId: string;
-  expectedType: T;
 };
 export type StringValueDeclaration = string | PropReference<"string">;
 export type NumberValueDeclaration = number | PropReference<"number">;
@@ -48,52 +48,52 @@ export type PartDeclaration = {
   kind: "part";
 };
 export type VariantDeclaration = {
-  kind: "variant";
-  values: readonly string[];
   default?: string;
+  kind: "variant";
+  values: ReadonlyArray<string>;
 };
-export type StateDeclaration = { kind: "state"; initial?: boolean };
+export type StateDeclaration = { initial?: boolean; kind: "state" };
 
 export type ActionValue =
   | { kind: "literal"; value: Scalar }
-  | { kind: "eventPayload"; field: string }
+  | { field: string; kind: "eventPayload" }
   | { kind: "variable"; variableId: string }
-  | { kind: "input"; inputId: string };
+  | { inputId: string; kind: "input" };
 export type ActionPrecondition = {
   kind: "surfaceState";
-  surfaceId: string;
   stateId: string;
+  surfaceId: string;
 };
 export type ActionEffect =
   | {
       kind: "setSurfaceState";
-      surfaceId: string;
       stateId: string;
+      surfaceId: string;
       transition?:
         | { kind: "cut" }
         | {
-            kind: "crossfade";
+            completion: "blocking";
             durationMilliseconds: number;
             easing: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
-            completion: "blocking";
+            kind: "crossfade";
           };
     }
-  | { kind: "setVariable"; variableId: string; value: ActionValue }
+  | { kind: "setVariable"; value: ActionValue; variableId: string }
   | {
       kind: "patchNode";
       nodeId: string;
-      patch: { active?: ActionValue; visible?: ActionValue; opacity?: ActionValue };
+      patch: { active?: ActionValue; opacity?: ActionValue; visible?: ActionValue };
     }
   | {
+      completion: "blocking" | "nonBlocking";
       kind: "playTimeline";
       timelineId: string;
-      completion: "blocking" | "nonBlocking";
     };
 export type ActionDeclaration = {
-  kind: "action";
+  effects: ReadonlyArray<ActionEffect>;
   inputs: Readonly<Record<string, ScalarType>>;
-  preconditions: readonly ActionPrecondition[];
-  effects: readonly ActionEffect[];
+  kind: "action";
+  preconditions: ReadonlyArray<ActionPrecondition>;
 };
 
 export type OutputPayloadField =
@@ -102,10 +102,10 @@ export type OutputPayloadField =
   | { type: "number"; value: number }
   | { type: "string"; value: string };
 export type OutputProducer =
-  | { kind: "surfaceInteraction"; interactionId: string }
+  | { interactionId: string; kind: "surfaceInteraction" }
   | { kind: "timelineCompleted"; timelineId: string }
   | { kind: "mediaCompleted"; surfaceId: string }
-  | { kind: "timer"; afterMilliseconds: number };
+  | { afterMilliseconds: number; kind: "timer" };
 export type OutputDeclaration = {
   kind: "output";
   payload: Readonly<Record<string, OutputPayloadField>>;
@@ -120,12 +120,12 @@ export type TokenCategory =
   | "duration"
   | "easing";
 export type TokenReference<C extends TokenCategory = TokenCategory> = {
-  kind: "token-ref";
   category: C;
+  kind: "token-ref";
   tokenId: string;
 };
 export type NamedStyleReference = { kind: "named-style-ref"; styleId: string };
-export type AssetReference = { kind: "asset-ref"; assetId: string };
+export type AssetReference = { assetId: string; kind: "asset-ref" };
 
 export type TransformDeclaration = {
   position: readonly [number, number, number];
@@ -134,107 +134,107 @@ export type TransformDeclaration = {
 };
 export type StageDeclaration = {
   coordinateSystem: {
-    unit: "meter";
-    handedness: "right";
-    upAxis: "+Y";
     forwardAxis: "-Z";
+    handedness: "right";
+    unit: "meter";
+    upAxis: "+Y";
   };
   size: readonly [number, number, number];
 };
 
 export type SpatialDeclaration = StableDeclaration & {
+  active: boolean;
+  audience: ProjectionAudience;
   kind: "spatial";
   name: string;
-  owner: ResourceOwner;
-  audience: ProjectionAudience;
-  parent: { kind: "stage" } | { kind: "node"; nodeId: string };
-  order: number;
-  transform: TransformDeclaration;
-  active: boolean;
-  visible: boolean;
   opacity: number;
+  order: number;
+  owner: ResourceOwner;
+  parent: { kind: "stage" } | { kind: "node"; nodeId: string };
+  transform: TransformDeclaration;
+  visible: boolean;
 };
 export type AbsoluteLayoutDeclaration = {
+  height: NumberValueDeclaration;
   kind: "absolute";
+  width: NumberValueDeclaration;
   x: NumberValueDeclaration;
   y: NumberValueDeclaration;
-  width: NumberValueDeclaration;
-  height: NumberValueDeclaration;
 };
 export type ConcreteAbsoluteLayoutDeclaration = {
+  height: number;
   kind: "absolute";
+  width: number;
   x: number;
   y: number;
-  width: number;
-  height: number;
 };
 
 type SemanticNodeBase = StableDeclaration & {
-  parentId: string | null;
   order: number;
+  parentId: string | null;
 };
-type SemanticText = { text: StringValueDeclaration; language?: string };
+type SemanticText = { language?: string; text: StringValueDeclaration };
 export type SemanticNodeDeclaration = SemanticNodeBase &
   (
-    | ({ role: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6 } & SemanticText)
+    | ({ level: 1 | 2 | 3 | 4 | 5 | 6; role: "heading" } & SemanticText)
     | ({ role: "paragraph" } & SemanticText)
-    | { role: "image"; alt: string; language?: string }
-    | ({ role: "button"; interactionId: string } & SemanticText)
-    | { role: "list"; ordered: boolean }
+    | { alt: string; language?: string; role: "image" }
+    | ({ interactionId: string; role: "button" } & SemanticText)
+    | { ordered: boolean; role: "list" }
     | ({ role: "listItem" } & SemanticText)
-    | { role: "table"; label?: string; language?: string }
+    | { label?: string; language?: string; role: "table" }
     | { role: "row" }
     | ({ role: "cell" } & SemanticText)
     | ({ role: "columnHeader" } & SemanticText)
     | ({ role: "rowHeader" } & SemanticText)
   );
 export type InteractionDeclaration = StableDeclaration & {
-  kind: "click";
   event: string;
   hitPriority: number;
+  kind: "click";
 };
 type CommonContentOverrideDeclaration = {
-  visible?: BooleanValueDeclaration;
   opacity?: NumberValueDeclaration;
   placement?: AbsoluteLayoutDeclaration;
+  visible?: BooleanValueDeclaration;
 };
 export type ContentOverrideDeclaration = CommonContentOverrideDeclaration &
   (
     | {
-        kind: "frame";
-        layout?: { kind: "absolute" };
         backgroundColor?: ColorValueDeclaration;
         border?: BorderDeclaration;
         clip?: BooleanValueDeclaration;
+        kind: "frame";
+        layout?: { kind: "absolute" };
       }
-    | { kind: "text"; value?: StringValueDeclaration; style?: TextStyleDeclaration }
+    | { kind: "text"; style?: TextStyleDeclaration; value?: StringValueDeclaration }
   );
 export type SemanticOverrideDeclaration = StableDeclaration & {
-  kind: "semantic-override";
-  targetId: string;
-  included?: boolean;
-  text?: string | null;
-  language?: string | null;
   alt?: string | null;
+  included?: boolean;
+  kind: "semantic-override";
   label?: string | null;
+  language?: string | null;
+  targetId: string;
+  text?: string | null;
 };
 export type SurfaceStateDeclaration = StableDeclaration & {
   contentOverrides?: Readonly<Record<string, ContentOverrideDeclaration>>;
-  semanticOverrides: readonly SemanticOverrideDeclaration[];
-  enabledInteractionIds: readonly string[];
+  enabledInteractionIds: ReadonlyArray<string>;
+  semanticOverrides: ReadonlyArray<SemanticOverrideDeclaration>;
 };
 
 export type ConcreteSrgbaColorDeclaration = {
-  red: number;
-  green: number;
-  blue: number;
   alpha: number;
+  blue: number;
+  green: number;
+  red: number;
 };
 export type SrgbaColorDeclaration = {
-  red: NumberValueDeclaration;
-  green: NumberValueDeclaration;
-  blue: NumberValueDeclaration;
   alpha: NumberValueDeclaration;
+  blue: NumberValueDeclaration;
+  green: NumberValueDeclaration;
+  red: NumberValueDeclaration;
 };
 export type FontReference = AssetReference | TokenReference<"fontFace">;
 export type ColorValueDeclaration = SrgbaColorDeclaration | TokenReference<"color">;
@@ -243,18 +243,18 @@ export type LogicalLengthValueDeclaration =
   | TokenReference<"logicalLength">;
 export type BorderDeclaration = {
   color: ColorValueDeclaration;
-  width: LogicalLengthValueDeclaration;
   radius: LogicalLengthValueDeclaration;
+  width: LogicalLengthValueDeclaration;
 };
 export type TextStyleDeclaration = {
+  align?: "start" | "center" | "end" | PropReference<"string">;
+  color?: ColorValueDeclaration;
+  fallbackFonts?: ReadonlyArray<FontReference>;
   font?: FontReference;
-  fallbackFonts?: readonly FontReference[];
   fontSize?: LogicalLengthValueDeclaration;
   lineHeight?: LogicalLengthValueDeclaration;
-  color?: ColorValueDeclaration;
-  weight?: "regular" | "bold" | PropReference<"string">;
-  align?: "start" | "center" | "end" | PropReference<"string">;
   overflow?: "clip" | "ellipsis" | PropReference<"string">;
+  weight?: "regular" | "bold" | PropReference<"string">;
 };
 export type FrameStyleDeclaration = {
   backgroundColor?: ColorValueDeclaration;
@@ -262,50 +262,50 @@ export type FrameStyleDeclaration = {
   clip?: BooleanValueDeclaration;
 };
 type CommonPrimitiveDeclaration = {
-  visible?: BooleanValueDeclaration;
   opacity?: NumberValueDeclaration;
   semanticNodeId?: string;
+  visible?: BooleanValueDeclaration;
 };
 
 export type FrameDeclaration = StableDeclaration &
   CommonPrimitiveDeclaration & {
+    children: ReadonlyArray<ContentNodeDeclaration>;
     kind: "frame";
     layout: AbsoluteLayoutDeclaration;
-    children: readonly ContentNodeDeclaration[];
-    style?: FrameStyleDeclaration;
     namedStyle?: NamedStyleReference;
+    style?: FrameStyleDeclaration;
   };
 export type SlotPlaceholderDeclaration = StableDeclaration & {
   kind: "slot-placeholder";
-  slotId: string;
   semanticParentId?: string;
+  slotId: string;
 };
 export type TextDeclaration = StableDeclaration &
   CommonPrimitiveDeclaration & {
     kind: "text";
-    value: StringValueDeclaration;
     layout: AbsoluteLayoutDeclaration;
     maxCodePoints: NumberValueDeclaration;
-    style?: TextStyleDeclaration;
     namedStyle?: NamedStyleReference;
+    style?: TextStyleDeclaration;
+    value: StringValueDeclaration;
   };
 export type SurfaceDeclaration = StableDeclaration & {
-  kind: "surface";
-  physicalSizeMeters: readonly [NumberValueDeclaration, NumberValueDeclaration];
-  logicalSize: readonly [NumberValueDeclaration, NumberValueDeclaration];
-  fit: "contain" | "cover" | "stretch";
-  root: FrameDeclaration;
   baseSemanticTree: BaseSemanticTreeDeclaration;
-  interactions: Readonly<Record<string, InteractionDeclaration>>;
+  fit: "contain" | "cover" | "stretch";
   initialStateId: string;
-  states: Readonly<Record<string, SurfaceStateDeclaration>>;
+  interactions: Readonly<Record<string, InteractionDeclaration>>;
+  kind: "surface";
+  logicalSize: readonly [NumberValueDeclaration, NumberValueDeclaration];
+  physicalSizeMeters: readonly [NumberValueDeclaration, NumberValueDeclaration];
   renderIntent: {
-    updateModel: "static" | "finite-state";
+    fallbackPolicy: "reject";
     interaction: "none" | "regions";
     internalAnimation: "none";
     rendererPreference: "baked-web";
-    fallbackPolicy: "reject";
+    updateModel: "static" | "finite-state";
   };
+  root: FrameDeclaration;
+  states: Readonly<Record<string, SurfaceStateDeclaration>>;
 };
 export type ContentNodeDeclaration =
   | FrameDeclaration
@@ -314,25 +314,25 @@ export type ContentNodeDeclaration =
 export type StructureRootDeclaration = SurfaceDeclaration | FrameDeclaration;
 
 export type BaseSemanticTreeDeclaration = {
-  rootNodeIds: readonly string[];
   nodes: Readonly<Record<string, SemanticNodeDeclaration>>;
+  rootNodeIds: ReadonlyArray<string>;
 };
 export type ConcreteColorValueDeclaration = ConcreteSrgbaColorDeclaration | TokenReference<"color">;
 export type ConcreteLogicalLengthValueDeclaration = number | TokenReference<"logicalLength">;
 export type NamedBorderDeclaration = {
   color: ConcreteColorValueDeclaration;
-  width: ConcreteLogicalLengthValueDeclaration;
   radius: ConcreteLogicalLengthValueDeclaration;
+  width: ConcreteLogicalLengthValueDeclaration;
 };
 export type NamedTextStyleDeclaration = {
+  align?: "start" | "center" | "end";
+  color?: ConcreteColorValueDeclaration;
+  fallbackFonts?: ReadonlyArray<FontReference>;
   font?: FontReference;
-  fallbackFonts?: readonly FontReference[];
   fontSize?: ConcreteLogicalLengthValueDeclaration;
   lineHeight?: ConcreteLogicalLengthValueDeclaration;
-  color?: ConcreteColorValueDeclaration;
-  weight?: "regular" | "bold";
-  align?: "start" | "center" | "end";
   overflow?: "clip" | "ellipsis";
+  weight?: "regular" | "bold";
 };
 export type NamedFrameStyleDeclaration = {
   backgroundColor?: ConcreteColorValueDeclaration;
@@ -342,43 +342,43 @@ export type NamedFrameStyleDeclaration = {
 export type PartOverrideDeclaration =
   | {
       partId: string;
-      targetKind: "frame";
       placement?: ConcreteAbsoluteLayoutDeclaration;
       style?: NamedFrameStyleDeclaration;
+      targetKind: "frame";
     }
   | {
-      partId: string;
-      targetKind: "text";
       content?: string;
+      partId: string;
       placement?: ConcreteAbsoluteLayoutDeclaration;
       style?: NamedTextStyleDeclaration;
+      targetKind: "text";
     };
 export type ComponentPackageLock = {
+  manifestHash: string;
   origin:
     | {
-        kind: "local";
         entryFile: string;
         files: readonly { path: string; hash: string }[];
+        kind: "local";
         sourceHash: string;
       }
     | { kind: "package"; packageKey: string; subpath: string };
-  manifestHash: string;
 } & ({ mode: "structured"; structureHash: string } | { mode: "opaque"; rendererInputHash: string });
 export type ComponentInstanceDeclaration = StableDeclaration & {
-  kind: "component-instance";
   componentId: string;
-  version: number;
+  kind: "component-instance";
   owner: ResourceOwner;
-  spatialNodeId?: string;
+  partOverrides: ReadonlyArray<PartOverrideDeclaration>;
   props: Readonly<Record<string, string | number | boolean>>;
-  slots: Readonly<Record<string, readonly string[]>>;
+  slots: Readonly<Record<string, ReadonlyArray<string>>>;
+  spatialNodeId?: string;
   variants: Readonly<Record<string, string>>;
-  partOverrides: readonly PartOverrideDeclaration[];
+  version: number;
 };
 export type DetachDeclaration = StableDeclaration & {
+  instanceId: string;
   kind: "detach";
   mode: "structured";
-  instanceId: string;
   provenance: { componentId: string; version: number };
 };
 
@@ -399,148 +399,148 @@ export type NamedStyleDeclaration =
   | { kind: "text"; style: NamedTextStyleDeclaration }
   | { kind: "frame"; style: NamedFrameStyleDeclaration };
 export type ThemeDeclaration = StableDeclaration & {
-  tokens: Readonly<Record<string, ThemeTokenDeclaration>>;
   namedStyles: Readonly<Record<string, NamedStyleDeclaration>>;
+  tokens: Readonly<Record<string, ThemeTokenDeclaration>>;
 };
 
 export type ComponentManifestMembers = {
-  props: Readonly<Record<string, PropDeclaration>>;
-  slots: Readonly<Record<string, SlotDeclaration>>;
-  parts: Readonly<Record<string, PartDeclaration>>;
-  variants: Readonly<Record<string, VariantDeclaration>>;
-  states: Readonly<Record<string, StateDeclaration>>;
   actions: Readonly<Record<string, ActionDeclaration>>;
   outputs: Readonly<Record<string, OutputDeclaration>>;
+  parts: Readonly<Record<string, PartDeclaration>>;
+  props: Readonly<Record<string, PropDeclaration>>;
+  slots: Readonly<Record<string, SlotDeclaration>>;
+  states: Readonly<Record<string, StateDeclaration>>;
+  variants: Readonly<Record<string, VariantDeclaration>>;
 };
 export type OpaqueSemanticTarget = {
+  bindingKey?: string;
   id: string;
   kind: "node" | "timeline" | "variable" | "media";
-  bindingKey?: string;
 };
 export type OpaqueSurfaceSemanticAdapter = {
-  id: string;
-  bindingKey: string;
   baseSemanticTree: SurfaceDeclaration["baseSemanticTree"];
-  interactions: SurfaceDeclaration["interactions"];
+  bindingKey: string;
+  id: string;
   initialStateId: string;
+  interactions: SurfaceDeclaration["interactions"];
   states: SurfaceDeclaration["states"];
 };
 export type OpaqueSemantics = {
-  targets: readonly OpaqueSemanticTarget[];
-  surfaces: readonly OpaqueSurfaceSemanticAdapter[];
+  surfaces: ReadonlyArray<OpaqueSurfaceSemanticAdapter>;
+  targets: ReadonlyArray<OpaqueSemanticTarget>;
 };
 export type ComponentManifest = ComponentManifestMembers & {
   componentId: string;
-  version: number;
   source?: SourceMetadata;
+  version: number;
 } & (
     | {
         authoring: { mode: "structured"; structure: string };
-        renderers: readonly string[];
+        renderers: ReadonlyArray<string>;
       }
     | {
         authoring: { mode: "opaque" };
-        renderers: Readonly<Record<string, { entry: string; bindingKeys: readonly string[] }>>;
+        renderers: Readonly<Record<string, { bindingKeys: ReadonlyArray<string>; entry: string }>>;
         semantics: OpaqueSemantics;
       }
   );
 
 export type VariantStyleOverride =
-  | { targetId: string; targetKind: "frame"; style: FrameStyleDeclaration }
-  | { targetId: string; targetKind: "text"; style: TextStyleDeclaration };
+  | { style: FrameStyleDeclaration; targetId: string; targetKind: "frame" }
+  | { style: TextStyleDeclaration; targetId: string; targetKind: "text" };
 type ComponentStructureBase = StableDeclaration & {
   componentId: string;
   partBindings: Readonly<Record<string, string>>;
+  timelines: ReadonlyArray<ComponentTimelineDeclaration>;
   variantStyles: Readonly<
-    Record<string, Readonly<Record<string, readonly VariantStyleOverride[]>>>
+    Record<string, Readonly<Record<string, ReadonlyArray<VariantStyleOverride>>>>
   >;
-  timelines: readonly ComponentTimelineDeclaration[];
 };
 export type ComponentTimelineDeclaration = StableDeclaration & {
   durationMilliseconds: number;
-  tracks: readonly {
-    target: {
-      kind: "host";
-      property: "opacity" | "transform.position" | "transform.rotation" | "transform.scale";
-    };
+  tracks: ReadonlyArray<{
     keyframes: readonly {
       timeMilliseconds: number;
       value: number | readonly [number, number, number] | readonly [number, number, number, number];
       easingToNext?: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
     }[];
-  }[];
+    target: {
+      kind: "host";
+      property: "opacity" | "transform.position" | "transform.rotation" | "transform.scale";
+    };
+  }>;
 };
 export type ComponentStructure = ComponentStructureBase &
   (
-    | { root: SurfaceDeclaration; baseSemanticTree?: never }
-    | { root: FrameDeclaration; baseSemanticTree: BaseSemanticTreeDeclaration }
+    | { baseSemanticTree?: never; root: SurfaceDeclaration }
+    | { baseSemanticTree: BaseSemanticTreeDeclaration; root: FrameDeclaration }
   );
 
 export type ComponentActionInvocation = {
-  kind: "component.action";
-  componentInstanceId: string;
   actionId: string;
   arguments: Readonly<Record<string, ActionValue>>;
+  componentInstanceId: string;
+  kind: "component.action";
 };
 export type ComponentOutputReference = {
-  kind: "component.output";
   componentInstanceId: string;
+  kind: "component.output";
   outputId: string;
 };
-export type CueTrigger = { kind: "event"; event: string } | ComponentOutputReference;
+export type CueTrigger = { event: string; kind: "event" } | ComponentOutputReference;
 export type CueGuard =
-  | { kind: "all"; guards: readonly CueGuard[] }
-  | { kind: "any"; guards: readonly CueGuard[] }
-  | { kind: "not"; guard: CueGuard }
+  | { guards: ReadonlyArray<CueGuard>; kind: "all" }
+  | { guards: ReadonlyArray<CueGuard>; kind: "any" }
+  | { guard: CueGuard; kind: "not" }
   | {
       kind: "compare";
       left:
         | { kind: "variable"; variableId: string }
-        | { kind: "eventPayload"; field: string }
+        | { field: string; kind: "eventPayload" }
         | { kind: "surfaceState"; surfaceId: string }
-        | { kind: "nodeField"; nodeId: string; field: "active" | "visible" | "opacity" };
+        | { field: "active" | "visible" | "opacity"; kind: "nodeField"; nodeId: string };
       operator: "eq" | "neq" | "gt" | "gte" | "lt" | "lte";
       right: Scalar;
     };
 export type CueNext =
   | { kind: "stay" | "end" }
   | { kind: "step"; stepId: string }
-  | { kind: "group"; groupId: string };
+  | { groupId: string; kind: "group" };
 export type CueDeclaration = StableDeclaration & {
-  trigger: CueTrigger;
-  actions: readonly ComponentActionInvocation[];
-  priority?: number;
-  order?: number;
+  actions: ReadonlyArray<ComponentActionInvocation>;
+  firePolicy?: { kind: "oncePerStepEntry" } | { cooldownMilliseconds: number; kind: "repeatable" };
   guard?: CueGuard;
-  firePolicy?: { kind: "oncePerStepEntry" } | { kind: "repeatable"; cooldownMilliseconds: number };
   next?: CueNext;
-  toStepId?: string;
+  order?: number;
+  priority?: number;
   toGroupId?: string;
+  toStepId?: string;
+  trigger: CueTrigger;
 };
-export type FlowStepDeclaration = StableDeclaration & { cues: readonly CueDeclaration[] };
+export type FlowStepDeclaration = StableDeclaration & { cues: ReadonlyArray<CueDeclaration> };
 export type FlowGroupDeclaration = StableDeclaration & {
   initialStepId: string;
   steps: Readonly<Record<string, FlowStepDeclaration>>;
 };
 export type VariableDeclaration =
-  | (StableDeclaration & { owner: ResourceOwner; type: "null"; initialValue: null })
-  | (StableDeclaration & { owner: ResourceOwner; type: "boolean"; initialValue: boolean })
-  | (StableDeclaration & { owner: ResourceOwner; type: "number"; initialValue: number })
-  | (StableDeclaration & { owner: ResourceOwner; type: "string"; initialValue: string });
+  | (StableDeclaration & { initialValue: null; owner: ResourceOwner; type: "null" })
+  | (StableDeclaration & { initialValue: boolean; owner: ResourceOwner; type: "boolean" })
+  | (StableDeclaration & { initialValue: number; owner: ResourceOwner; type: "number" })
+  | (StableDeclaration & { initialValue: string; owner: ResourceOwner; type: "string" });
 export type FlowDeclaration = {
-  initialGroupId: string;
   groups: Readonly<Record<string, FlowGroupDeclaration>>;
+  initialGroupId: string;
   variables: Readonly<Record<string, VariableDeclaration>>;
 };
 export type PresentationDeclaration = StableDeclaration & {
-  metadata: { title: string };
-  stage: StageDeclaration;
-  scene: {
-    spatial: readonly SpatialDeclaration[];
-    components: readonly ComponentInstanceDeclaration[];
-  };
-  theme?: { themeId: string };
-  assets: readonly AssetReference[];
+  assets: ReadonlyArray<AssetReference>;
   flow: FlowDeclaration;
-  operations: readonly DetachDeclaration[];
+  metadata: { title: string };
+  operations: ReadonlyArray<DetachDeclaration>;
+  scene: {
+    components: readonly ComponentInstanceDeclaration[];
+    spatial: readonly SpatialDeclaration[];
+  };
+  stage: StageDeclaration;
+  theme?: { themeId: string };
 };

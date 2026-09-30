@@ -12,7 +12,7 @@ export class VenueEdgeError extends Error {
 }
 
 export type ProvisionedVenueEdge = { edge: VenueEdgeRecord; token: string };
-export type CredentialGenerator = () => { tokenId: string; secret: Uint8Array };
+export type CredentialGenerator = () => { secret: Uint8Array; tokenId: string };
 
 export class VenueEdgeService {
   constructor(
@@ -24,25 +24,27 @@ export class VenueEdgeService {
 
   async provision(expiresAt: Date): Promise<ProvisionedVenueEdge> {
     const current = this.now();
-    if (!isFuture(expiresAt, current)) throw new VenueEdgeError("conflict");
+    if (!isFuture(expiresAt, current)) {
+      throw new VenueEdgeError("conflict");
+    }
     const now = current.toISOString();
     const generated = this.credential();
     this.requireSecret(generated.secret);
     const token = `${generated.tokenId}.${toBase64Url(generated.secret)}`;
     const edge: VenueEdgeRecord = {
-      id: this.edgeId(),
-      runtimeId: null,
-      status: "active",
-      runtimeVersion: null,
-      protocolVersion: null,
       capacity: null,
-      localEndpoint: null,
       certificateFingerprint: null,
-      health: null,
-      registeredAt: null,
-      lastSeenAt: now,
       createdAt: now,
+      health: null,
+      id: this.edgeId(),
+      lastSeenAt: now,
+      localEndpoint: null,
+      protocolVersion: null,
+      registeredAt: null,
       revokedAt: null,
+      runtimeId: null,
+      runtimeVersion: null,
+      status: "active",
     };
     await this.repository.createEdge(
       edge,
@@ -59,15 +61,14 @@ export class VenueEdgeService {
 
   async rotate(edgeId: string, expiresAt: Date, overlapExpiresAt: Date) {
     const current = this.now();
-    if (!isFuture(overlapExpiresAt, current) || !isFuture(expiresAt, overlapExpiresAt))
+    if (!isFuture(overlapExpiresAt, current) || !isFuture(expiresAt, overlapExpiresAt)) {
       throw new VenueEdgeError("conflict");
+    }
     const now = current.toISOString();
     const generated = this.credential();
     this.requireSecret(generated.secret);
     const token = `${generated.tokenId}.${toBase64Url(generated.secret)}`;
     const rotated = await this.repository.rotateCredential({
-      edgeId,
-      previousExpiresAt: overlapExpiresAt.toISOString(),
       credential: this.credentialRecord(
         edgeId,
         generated.tokenId,
@@ -75,14 +76,20 @@ export class VenueEdgeService {
         now,
         expiresAt.toISOString(),
       ),
+      edgeId,
+      previousExpiresAt: overlapExpiresAt.toISOString(),
     });
-    if (!rotated) throw new VenueEdgeError("not_found");
-    return { tokenId: generated.tokenId, token };
+    if (!rotated) {
+      throw new VenueEdgeError("not_found");
+    }
+    return { token, tokenId: generated.tokenId };
   }
 
   async authenticate(edgeId: string, token: string) {
     const tokenId = token.split(".", 1)[0];
-    if (!tokenId) throw new VenueEdgeError("unauthorized");
+    if (!tokenId) {
+      throw new VenueEdgeError("unauthorized");
+    }
     const credential = await this.repository.findCredential(edgeId, tokenId);
     const edge = await this.repository.findEdge(edgeId);
     if (
@@ -92,15 +99,17 @@ export class VenueEdgeService {
       credential.status !== "active" ||
       credential.expiresAt <= this.now().toISOString() ||
       !timingSafeEqual(credential.tokenHash, await sha256(token))
-    )
+    ) {
       throw new VenueEdgeError("unauthorized");
+    }
     await this.repository.touchCredential(edgeId, tokenId, this.now().toISOString());
     return edge;
   }
 
   async revoke(edgeId: string) {
-    if (!(await this.repository.revokeEdge(edgeId, this.now().toISOString())))
+    if (!(await this.repository.revokeEdge(edgeId, this.now().toISOString()))) {
       throw new VenueEdgeError("not_found");
+    }
   }
 
   async register(edgeId: string, registration: Omit<EdgeRegistration, "observedAt">) {
@@ -109,8 +118,9 @@ export class VenueEdgeService {
         ...registration,
         observedAt: this.now().toISOString(),
       }))
-    )
+    ) {
       throw new VenueEdgeError("conflict");
+    }
   }
 
   private credentialRecord(
@@ -121,19 +131,20 @@ export class VenueEdgeService {
     expiresAt: string,
   ): VenueEdgeCredentialRecord {
     return {
-      edgeId,
-      tokenId,
-      tokenHash,
-      status: "active",
       createdAt,
+      edgeId,
       expiresAt,
       lastUsedAt: null,
       revokedAt: null,
+      status: "active",
+      tokenHash,
+      tokenId,
     };
   }
   private requireSecret(secret: Uint8Array) {
-    if (secret.byteLength < 32)
+    if (secret.byteLength < 32) {
       throw new Error("venue edge token must have at least 256 bits of entropy");
+    }
   }
 }
 
@@ -151,7 +162,8 @@ export const sha256 = async (value: string) =>
 export const timingSafeEqual = (left: string, right: string) => {
   const size = Math.max(left.length, right.length);
   let difference = left.length ^ right.length;
-  for (let index = 0; index < size; index += 1)
+  for (let index = 0; index < size; index += 1) {
     difference |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
+  }
   return difference === 0;
 };

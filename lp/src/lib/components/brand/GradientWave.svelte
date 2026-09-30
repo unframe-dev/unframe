@@ -1,16 +1,16 @@
 <script lang="ts">
   type GradientWaveProps = {
-    id?: string;
     class?: string;
-    variant?: "light" | "dark";
     flip?: boolean;
+    id?: string;
+    variant?: "light" | "dark";
   };
 
   let {
-    id = "brand-wave",
     class: className = "",
-    variant = "light",
     flip = false,
+    id = "brand-wave",
+    variant = "light",
   }: GradientWaveProps = $props();
 
   const paths = [

@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
 
-const directories: string[] = [];
+const directories: Array<string> = [];
 const encoder = new TextEncoder();
 
 const project = async () => {
@@ -27,14 +27,14 @@ const project = async () => {
 };
 
 const artifacts = (suffix = "one") => ({
-  definition: encoder.encode(`definition-${suffix}`),
-  renderBundle: encoder.encode(`bundle-${suffix}`),
+  assets: [
+    { assetId: "z asset", bytes: encoder.encode(`z-${suffix}`), mediaType: "image/png" as const },
+    { assetId: "a/asset", bytes: encoder.encode(`a-${suffix}`), mediaType: "image/png" as const },
+  ],
   assetSet: encoder.encode(`assets-${suffix}`),
   buildManifest: encoder.encode(`build-${suffix}`),
-  assets: [
-    { assetId: "z asset", mediaType: "image/png" as const, bytes: encoder.encode(`z-${suffix}`) },
-    { assetId: "a/asset", mediaType: "image/png" as const, bytes: encoder.encode(`a-${suffix}`) },
-  ],
+  definition: encoder.encode(`definition-${suffix}`),
+  renderBundle: encoder.encode(`bundle-${suffix}`),
 });
 
 afterEach(async () => {
@@ -48,23 +48,25 @@ describe("atomic artifact publication", () => {
   it("keeps the successful generation when its source revision expires during staging", async () => {
     const directory = await project();
     const initial = await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts(),
+      projectDirectory: directory,
     });
     expect(initial.ok).toBe(true);
     const previous = await readlink(join(directory, "dist"));
     let current = true;
     const result = await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts("stale"),
       isCurrentRevision: async () => current,
+      projectDirectory: directory,
       testing: {
         onPhase: (phase) => {
-          if (phase === "before-dist-replace") current = false;
+          if (phase === "before-dist-replace") {
+            current = false;
+          }
         },
       },
     });
-    expect(result).toEqual({ ok: false, family: "io", code: "cli-output-stale" });
+    expect(result).toEqual({ code: "cli-output-stale", family: "io", ok: false });
     expect(await readlink(join(directory, "dist"))).toBe(previous);
     expect(await readdir(join(directory, ".unframe/generations"))).toHaveLength(1);
     expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-one");
@@ -75,11 +77,11 @@ describe("atomic artifact publication", () => {
     const value = artifacts();
     const font = new Uint8Array([0, 1, 0, 0]);
     const result = await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: {
         ...value,
-        assets: [...value.assets, { assetId: "font", mediaType: "font/ttf", bytes: font }],
+        assets: [...value.assets, { assetId: "font", bytes: font, mediaType: "font/ttf" }],
       },
+      projectDirectory: directory,
     });
     expect(result.ok).toBe(true);
     expect(await readFile(join(directory, "dist/asset-set.json"))).toEqual(
@@ -94,9 +96,9 @@ describe("atomic artifact publication", () => {
     const directory = await project();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "a".repeat(32),
+        projectDirectory: directory,
       }),
     ).resolves.toMatchObject({ ok: true });
     expect(await readlink(join(directory, "dist"))).toBe(
@@ -105,9 +107,9 @@ describe("atomic artifact publication", () => {
 
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts("two"),
         generationId: () => "b".repeat(32),
+        projectDirectory: directory,
       }),
     ).resolves.toMatchObject({ ok: true });
     expect(await readlink(join(directory, "dist"))).toBe(
@@ -121,14 +123,14 @@ describe("atomic artifact publication", () => {
   it("uses deterministic file bytes and encoded asset paths", async () => {
     const directory = await project();
     await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts(),
       generationId: () => "c".repeat(32),
+      projectDirectory: directory,
     });
     await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts(),
       generationId: () => "d".repeat(32),
+      projectDirectory: directory,
     });
     const first = join(directory, ".unframe/generations", "c".repeat(32));
     const second = join(directory, ".unframe/generations", "d".repeat(32));
@@ -145,11 +147,11 @@ describe("atomic artifact publication", () => {
     await writeFile(join(directory, "dist"), "user output");
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "e".repeat(32),
+        projectDirectory: directory,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(readFile(join(directory, "dist"), "utf8")).resolves.toBe("user output");
   });
 
@@ -164,11 +166,11 @@ describe("atomic artifact publication", () => {
     await symlink(target, join(directory, "dist"));
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "0".repeat(32),
+        projectDirectory: directory,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(readlink(join(directory, "dist"))).resolves.toBe(target);
   });
 
@@ -177,48 +179,48 @@ describe("atomic artifact publication", () => {
     await mkdir(join(directory, "dist"));
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "9".repeat(32),
+        projectDirectory: directory,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
 
     const second = await project();
     const external = await project();
     await symlink(external, join(second, ".unframe"));
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: second,
         artifacts: artifacts(),
         generationId: () => "8".repeat(32),
+        projectDirectory: second,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
   });
 
   it("rejects malformed generation IDs and duplicate encoded asset paths without publishing partial output", async () => {
     const directory = await project();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "not-an-id",
+        projectDirectory: directory,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
 
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
-        generationId: () => "f".repeat(32),
         artifacts: {
           ...artifacts(),
           assets: [
-            { assetId: "x", mediaType: "image/png" as const, bytes: encoder.encode("a") },
-            { assetId: "x", mediaType: "image/png" as const, bytes: encoder.encode("b") },
+            { assetId: "x", bytes: encoder.encode("a"), mediaType: "image/png" as const },
+            { assetId: "x", bytes: encoder.encode("b"), mediaType: "image/png" as const },
           ],
         },
+        generationId: () => "f".repeat(32),
+        projectDirectory: directory,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
 
@@ -228,36 +230,38 @@ describe("atomic artifact publication", () => {
     controller.abort();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "1".repeat(32),
+        projectDirectory: directory,
         signal: controller.signal,
       }),
-    ).resolves.toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
+    ).resolves.toEqual({ code: "cli-output-cancel", family: "cancel", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
 
   it("cleans only this staging directory and preserves the previous dist on a mid-phase cancel", async () => {
     const directory = await project();
     await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts("previous"),
       generationId: () => "2".repeat(32),
+      projectDirectory: directory,
     });
     const controller = new AbortController();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts("cancelled"),
         generationId: () => "3".repeat(32),
+        projectDirectory: directory,
         signal: controller.signal,
         testing: {
           onPhase: (phase) => {
-            if (phase === "staging-created") controller.abort();
+            if (phase === "staging-created") {
+              controller.abort();
+            }
           },
         },
       }),
-    ).resolves.toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
+    ).resolves.toEqual({ code: "cli-output-cancel", family: "cancel", ok: false });
     await expect(readlink(join(directory, "dist"))).resolves.toBe(
       ".unframe/generations/22222222222222222222222222222222",
     );
@@ -270,16 +274,16 @@ describe("atomic artifact publication", () => {
     const directory = await project();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
-        generationId: () => "4".repeat(32),
         artifacts: {
           ...artifacts(),
           assets: [
-            { assetId: "\ud800", mediaType: "image/png" as const, bytes: encoder.encode("asset") },
+            { assetId: "\ud800", bytes: encoder.encode("asset"), mediaType: "image/png" as const },
           ],
         },
+        generationId: () => "4".repeat(32),
+        projectDirectory: directory,
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
 
@@ -289,12 +293,14 @@ describe("atomic artifact publication", () => {
     let changed = false;
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
-        generationId: () => "5".repeat(32),
         artifacts: artifacts(),
+        generationId: () => "5".repeat(32),
+        projectDirectory: directory,
         testing: {
           onPhase: async (phase) => {
-            if (phase !== "artifact-written" || changed) return;
+            if (phase !== "artifact-written" || changed) {
+              return;
+            }
             changed = true;
             const assets = join(
               directory,
@@ -305,7 +311,7 @@ describe("atomic artifact publication", () => {
           },
         },
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
     await expect(
       lstat(join(directory, ".unframe/generations/.staging-55555555555555555555555555555555")),
@@ -318,19 +324,21 @@ describe("atomic artifact publication", () => {
     const staging = join(directory, ".unframe/generations", `.staging-${id}`);
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => id,
+        projectDirectory: directory,
         testing: {
           onPhase: async (phase) => {
-            if (phase !== "staging-created") return;
+            if (phase !== "staging-created") {
+              return;
+            }
             await rm(staging, { force: true, recursive: true });
             await mkdir(staging, { mode: 0o700 });
             await writeFile(join(staging, "replacement.txt"), "do not remove");
           },
         },
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
     await expect(readFile(join(staging, "replacement.txt"), "utf8")).resolves.toBe("do not remove");
   });
@@ -338,26 +346,28 @@ describe("atomic artifact publication", () => {
   it("does not overwrite an unmanaged dist inserted after the managed-output check", async () => {
     const directory = await project();
     await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts("previous"),
       generationId: () => "7".repeat(32),
+      projectDirectory: directory,
     });
     const external = await project();
     await writeFile(join(external, "sentinel.txt"), "user output");
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts("next"),
         generationId: () => "8".repeat(32),
+        projectDirectory: directory,
         testing: {
           onPhase: async (phase) => {
-            if (phase !== "before-dist-replace") return;
+            if (phase !== "before-dist-replace") {
+              return;
+            }
             await unlink(join(directory, "dist"));
             await symlink("../external-output", join(directory, "dist"));
           },
         },
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(readlink(join(directory, "dist"))).resolves.toBe("../external-output");
     await expect(readFile(join(external, "sentinel.txt"), "utf8")).resolves.toBe("user output");
   });
@@ -366,41 +376,45 @@ describe("atomic artifact publication", () => {
     const directory = await project();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "9".repeat(32),
+        projectDirectory: directory,
         testing: {
           onPhase: async (phase) => {
-            if (phase !== "before-dist-replace") return;
+            if (phase !== "before-dist-replace") {
+              return;
+            }
             await symlink("user-managed-output", join(directory, "dist"));
           },
         },
       }),
-    ).resolves.toMatchObject({ ok: false, family: "io" });
+    ).resolves.toMatchObject({ family: "io", ok: false });
     await expect(readlink(join(directory, "dist"))).resolves.toBe("user-managed-output");
   });
 
   it("cancels before generation rename and preserves the previous dist", async () => {
     const directory = await project();
     await publishAtomicArtifacts({
-      projectDirectory: directory,
       artifacts: artifacts("previous"),
       generationId: () => "a".repeat(32),
+      projectDirectory: directory,
     });
     const controller = new AbortController();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts("cancelled"),
         generationId: () => "b".repeat(32),
+        projectDirectory: directory,
         signal: controller.signal,
         testing: {
           onPhase: (phase) => {
-            if (phase === "before-generation-rename") controller.abort();
+            if (phase === "before-generation-rename") {
+              controller.abort();
+            }
           },
         },
       }),
-    ).resolves.toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
+    ).resolves.toEqual({ code: "cli-output-cancel", family: "cancel", ok: false });
     await expect(readlink(join(directory, "dist"))).resolves.toBe(
       ".unframe/generations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     );
@@ -412,17 +426,19 @@ describe("atomic artifact publication", () => {
     const controller = new AbortController();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "c".repeat(32),
+        projectDirectory: directory,
         signal: controller.signal,
         testing: {
           onPhase: (phase) => {
-            if (phase === "before-dist-replace") controller.abort();
+            if (phase === "before-dist-replace") {
+              controller.abort();
+            }
           },
         },
       }),
-    ).resolves.toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
+    ).resolves.toEqual({ code: "cli-output-cancel", family: "cancel", ok: false });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
 
@@ -430,9 +446,9 @@ describe("atomic artifact publication", () => {
     const directory = await project();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "d".repeat(32),
+        projectDirectory: directory,
         testing: {
           lstat: async (path) => {
             if (path === join(directory, "dist")) {
@@ -443,10 +459,10 @@ describe("atomic artifact publication", () => {
         },
       }),
     ).resolves.toEqual({
-      ok: false,
-      family: "io",
       code: "cli-output-io",
-      detail: { stage: "inspect-dist", code: "EACCES" },
+      detail: { code: "EACCES", stage: "inspect-dist" },
+      family: "io",
+      ok: false,
     });
   });
 
@@ -455,9 +471,9 @@ describe("atomic artifact publication", () => {
     let distLookups = 0;
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
         generationId: () => "e".repeat(32),
+        projectDirectory: directory,
         testing: {
           lstat: async (path) => {
             if (path === join(directory, "dist") && ++distLookups === 2) {
@@ -468,10 +484,10 @@ describe("atomic artifact publication", () => {
         },
       }),
     ).resolves.toEqual({
-      ok: false,
-      family: "io",
       code: "cli-output-io",
-      detail: { stage: "verify-generation", code: "EIO" },
+      detail: { code: "EIO", stage: "verify-generation" },
+      family: "io",
+      ok: false,
     });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
@@ -480,8 +496,8 @@ describe("atomic artifact publication", () => {
     const directory = await project();
     await expect(
       publishAtomicArtifacts({
-        projectDirectory: directory,
         artifacts: artifacts(),
+        projectDirectory: directory,
         testing: {
           lstat: async () => {
             throw Object.assign(new Error("private detail"), { code: "EPRIVATE" });
@@ -489,10 +505,10 @@ describe("atomic artifact publication", () => {
         },
       }),
     ).resolves.toEqual({
-      ok: false,
-      family: "io",
       code: "cli-output-io",
       detail: { stage: "inspect-dist" },
+      family: "io",
+      ok: false,
     });
   });
 
@@ -506,12 +522,12 @@ describe("atomic artifact publication", () => {
     );
 
     await expect(
-      publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts() }),
+      publishAtomicArtifacts({ artifacts: artifacts(), projectDirectory: directory }),
     ).resolves.toEqual({
-      ok: false,
-      family: "io",
       code: "cli-output-io",
-      detail: { stage: "write-artifacts", operation: "sync", code: "EBADF" },
+      detail: { code: "EBADF", operation: "sync", stage: "write-artifacts" },
+      family: "io",
+      ok: false,
     });
   });
 });

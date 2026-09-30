@@ -4,7 +4,7 @@ import { useEditorSession } from "@/features/editor/model/editor-session-context
 import { PresentationCanvas } from "@/features/editor/ui/presentation-canvas";
 
 export function EditorViewport() {
-  const { history, execute } = useEditorDocument();
+  const { execute, history } = useEditorDocument();
   const activeSlideId = useEditorSession((state) => state.activeSlideId);
   const selectedElementId = useEditorSession((state) => state.selectedElementId);
   const selectElement = useEditorSession((state) => state.selectElement);
@@ -13,19 +13,19 @@ export function EditorViewport() {
   const snap = useEditorSession((state) => state.snap);
 
   const commitTransform = (elementId: string, transform: Transform) => {
-    execute({ type: "element.transform", elementId, transform });
+    execute({ elementId, transform, type: "element.transform" });
   };
 
   return (
     <PresentationCanvas
-      document={history.document}
       activeSlideId={activeSlideId}
-      selectedElementId={selectedElementId}
-      tool={tool}
-      showGrid={showGrid}
-      snap={snap}
+      document={history.document}
       onSelect={selectElement}
       onTransform={commitTransform}
+      selectedElementId={selectedElementId}
+      showGrid={showGrid}
+      snap={snap}
+      tool={tool}
     />
   );
 }

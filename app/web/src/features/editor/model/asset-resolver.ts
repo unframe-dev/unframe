@@ -14,7 +14,9 @@ export class MapAssetResolver implements AssetResolver {
 
   resolve(assetId: string): string {
     const url = this.urls.get(assetId);
-    if (!url) throw new AssetResolutionError(assetId);
+    if (!url) {
+      throw new AssetResolutionError(assetId);
+    }
     return url;
   }
 }

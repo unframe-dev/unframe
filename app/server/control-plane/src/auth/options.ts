@@ -20,8 +20,8 @@ export type AuthConfiguration = Pick<
 >;
 
 type AuthRuntime = {
-  mailer?: AuthMailer;
   backgroundTaskHandler?: (task: Promise<unknown>) => void;
+  mailer?: AuthMailer;
   onPasswordReset?: (userId: string) => Promise<void>;
 };
 
@@ -32,55 +32,14 @@ export function createAuthOptions(
 ) {
   const mailer = runtime.mailer ?? createResendMailer(env.RESEND_API_KEY, env.AUTH_EMAIL_FROM);
   return {
-    baseURL: env.BETTER_AUTH_URL,
-    secret: env.BETTER_AUTH_SECRET,
-    database,
-    trustedOrigins: [env.WEB_ORIGIN],
-    socialProviders: {
-      google: {
-        clientId: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-      },
-    },
     account: {
       accountLinking: {
         enabled: true,
         requireLocalEmailVerified: false,
       },
     },
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: true,
-      sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
-        await mailer({ to: user.email, ...passwordResetEmail(url) });
-      },
-      ...(runtime.onPasswordReset
-        ? {
-            onPasswordReset: async ({ user }: { user: { id: string } }) =>
-              runtime.onPasswordReset!(user.id),
-          }
-        : {}),
-      revokeSessionsOnPasswordReset: true,
-    },
-    emailVerification: {
-      sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
-        await mailer({ to: user.email, ...verificationEmail(url) });
-      },
-    },
-    user: {
-      additionalFields: {
-        globalRole: {
-          type: "string" as const,
-          input: false,
-          defaultValue: "user",
-        },
-      },
-    },
-    session: {
-      additionalFields: {
-        assurance: { type: "string" as const, input: false, defaultValue: "none" },
-      },
-    },
+    baseURL: env.BETTER_AUTH_URL,
+    database,
     databaseHooks: {
       session: {
         create: {
@@ -99,22 +58,63 @@ export function createAuthOptions(
         },
       },
     },
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: true,
+      sendResetPassword: async ({ url, user }: { url: string; user: { email: string } }) => {
+        await mailer({ to: user.email, ...passwordResetEmail(url) });
+      },
+      ...(runtime.onPasswordReset
+        ? {
+            onPasswordReset: async ({ user }: { user: { id: string } }) =>
+              runtime.onPasswordReset!(user.id),
+          }
+        : {}),
+      revokeSessionsOnPasswordReset: true,
+    },
+    emailVerification: {
+      sendVerificationEmail: async ({ url, user }: { url: string; user: { email: string } }) => {
+        await mailer({ to: user.email, ...verificationEmail(url) });
+      },
+    },
     plugins: [
       dash({ apiKey: env.BETTER_AUTH_API_KEY }),
       bearer(),
       deviceAuthorization({
         expiresIn: "30m",
         interval: "3s",
-        verificationUri: `${env.WEB_ORIGIN}/editor/device`,
         validateClient: (clientId) => clientId === env.DEVICE_CLIENT_ID,
+        verificationUri: `${env.WEB_ORIGIN}/editor/device`,
       }),
       twoFactor({
-        issuer: "Unframe",
-        backupCodeOptions: { storeBackupCodes: "encrypted" },
         accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 900 },
+        backupCodeOptions: { storeBackupCodes: "encrypted" },
+        issuer: "Unframe",
       }),
       openAPI({ disableDefaultReference: true }),
     ],
+    secret: env.BETTER_AUTH_SECRET,
+    session: {
+      additionalFields: {
+        assurance: { defaultValue: "none", input: false, type: "string" as const },
+      },
+    },
+    socialProviders: {
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      },
+    },
+    trustedOrigins: [env.WEB_ORIGIN],
+    user: {
+      additionalFields: {
+        globalRole: {
+          defaultValue: "user",
+          input: false,
+          type: "string" as const,
+        },
+      },
+    },
     ...(runtime.backgroundTaskHandler
       ? { advanced: { backgroundTasks: { handler: runtime.backgroundTaskHandler } } }
       : {}),

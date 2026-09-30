@@ -15,24 +15,24 @@ const fixtureFont = (
 const fontCss =
   "@font-face{font-family:Fixture;src:url('/assets/LiberationSans.ttf')}*{font-family:Fixture!important;font-weight:400!important}";
 const request = {
-  javascript: script,
   assets: [
-    { path: "assets/LiberationSans.ttf", mediaType: "font/ttf", dataBase64: fixtureFont },
+    { dataBase64: fixtureFont, mediaType: "font/ttf", path: "assets/LiberationSans.ttf" },
     {
-      path: "assets/font.css",
-      mediaType: "text/css",
       dataBase64: Buffer.from(fontCss).toString("base64"),
+      mediaType: "text/css",
+      path: "assets/font.css",
     },
   ],
-  stylesheets: ["assets/font.css"],
-  props: {},
-  texts: { title: "Hello" },
+  background: [0, 0, 0, 255] as const,
+  colorScheme: "light" as const,
   expectedBindings: { "node:title": "Hello" },
-  stateId: "default",
+  javascript: script,
   logicalSize: [160, 90] as const,
   pixelTarget: [160, 90] as const,
-  colorScheme: "light" as const,
-  background: [0, 0, 0, 255] as const,
+  props: {},
+  stateId: "default",
+  stylesheets: ["assets/font.css"],
+  texts: { title: "Hello" },
 };
 it("captures identical RGBA in two isolated executions", async () => {
   const runtime = await openOpaqueCaptureRuntime();
@@ -53,11 +53,9 @@ it("captures transparent button geometry in logical coordinates after viewport a
   try {
     const result = await runtime.capture({
       ...request,
-      logicalSize: [160, 90],
-      pixelTarget: [320, 180],
-      expectedBindings: { "node:button": "Go" },
       bindingKeys: ["node:button"],
       buttonBindings: { "node:button": true },
+      expectedBindings: { "node:button": "Go" },
       javascript: `globalThis.__unframeMount=()=>{
         const clip=document.createElement('div');
         Object.assign(clip.style,{position:'absolute',left:'20px',top:'10px',width:'60px',height:'40px',overflow:'hidden'});
@@ -66,10 +64,12 @@ it("captures transparent button geometry in logical coordinates after viewport a
         Object.assign(button.style,{position:'absolute',left:'45px',top:'5px',width:'50px',height:'20px',padding:'0',border:'0',background:'transparent'});
         clip.append(button);document.getElementById('unframe-root').append(clip);
       };`,
+      logicalSize: [160, 90],
+      pixelTarget: [320, 180],
     });
     assert.isTrue(result.ok);
     expect(result.bindings).toEqual([
-      { key: "node:button", text: "Go", x: 65, y: 15, width: 15, height: 20, disabled: false },
+      { disabled: false, height: 20, key: "node:button", text: "Go", width: 15, x: 65, y: 15 },
     ]);
   } finally {
     await runtime.close();
@@ -80,16 +80,16 @@ it("passes the local State key and rejects an excluded binding that is rendered"
   try {
     const result = await runtime.capture({
       ...request,
-      stateId: "canonical-state-id",
-      stateKey: "hidden",
-      texts: { title: "Hello", answer: "Answer" },
       bindingKeys: ["node:title", "node:answer"],
       javascript: `globalThis.__unframeMount=({state,bindings,texts})=>{
         const h=document.createElement('h1');h.setAttribute('data-unframe-binding',bindings.title['data-unframe-binding']);h.textContent=texts.title;document.getElementById('unframe-root').append(h);
         if(state==='hidden'){const p=document.createElement('p');p.setAttribute('data-unframe-binding',bindings.answer['data-unframe-binding']);p.textContent=texts.answer;document.getElementById('unframe-root').append(p);}
       };`,
+      stateId: "canonical-state-id",
+      stateKey: "hidden",
+      texts: { answer: "Answer", title: "Hello" },
     });
-    expect(result).toMatchObject({ ok: false, code: "opaque-binding-invalid" });
+    expect(result).toMatchObject({ code: "opaque-binding-invalid", ok: false });
   } finally {
     await runtime.close();
   }
@@ -104,7 +104,7 @@ it("rejects transformed and nonrectangular binding geometry", async () => {
           const h=document.createElement('h1');h.dataset.unframeBinding='node:title';h.textContent='Hello';h.style.cssText=${JSON.stringify(css)};document.getElementById('unframe-root').append(h);
         };`,
       });
-      expect(result).toMatchObject({ ok: false, code: "opaque-geometry-unsupported" });
+      expect(result).toMatchObject({ code: "opaque-geometry-unsupported", ok: false });
     }
   } finally {
     await runtime.close();
@@ -123,8 +123,8 @@ it("rejects individual CSS rotation on a button or its ancestor and 3D transform
     ] as const) {
       const result = await runtime.capture({
         ...request,
-        expectedBindings: { "node:button": "Go" },
         buttonBindings: { "node:button": true },
+        expectedBindings: { "node:button": "Go" },
         javascript: `globalThis.__unframeMount=()=>{
           const parent=document.createElement('div');const button=document.createElement('button');
           button.dataset.unframeBinding='node:button';button.textContent='Go';
@@ -132,7 +132,7 @@ it("rejects individual CSS rotation on a button or its ancestor and 3D transform
           parent.append(button);document.getElementById('unframe-root').append(parent);
         };`,
       });
-      expect(result).toMatchObject({ ok: false, code: "opaque-geometry-unsupported" });
+      expect(result).toMatchObject({ code: "opaque-geometry-unsupported", ok: false });
     }
   } finally {
     await runtime.close();
@@ -143,8 +143,8 @@ it("captures axis-aligned individual translate and positive scale", async () => 
   try {
     const result = await runtime.capture({
       ...request,
-      expectedBindings: { "node:button": "Go" },
       buttonBindings: { "node:button": true },
+      expectedBindings: { "node:button": "Go" },
       javascript: `globalThis.__unframeMount=()=>{
         const parent=document.createElement('div');parent.style.cssText='transform-origin:0 0;translate:10px 5px;scale:2 2';
         const button=document.createElement('button');button.dataset.unframeBinding='node:button';
@@ -170,7 +170,7 @@ it.each(["open", "closed"])(
         shadow.append(document.createElement('canvas'));document.getElementById('unframe-root').append(host);
       };`,
       });
-      expect(result).toMatchObject({ ok: false, code: "opaque-element-unsupported" });
+      expect(result).toMatchObject({ code: "opaque-element-unsupported", ok: false });
     } finally {
       await runtime.close();
     }
@@ -184,7 +184,7 @@ it("does not trust renderer replacements of DOM observation APIs", async () => {
       ...request,
       javascript: `globalThis.__unframeMount=()=>{document.querySelectorAll=()=>[{getAttribute:()=> 'node:title',textContent:'Hello',getBoundingClientRect:()=>({x:0,y:0,width:100,height:30})}];};`,
     });
-    expect(result).toMatchObject({ ok: false, code: "opaque-binding-invalid" });
+    expect(result).toMatchObject({ code: "opaque-binding-invalid", ok: false });
   } finally {
     await runtime.close();
   }
@@ -211,17 +211,17 @@ it("rejects duplicate bindings, forbidden workers and distorted viewports", asyn
       javascript:
         script + `; const original=__unframeMount; __unframeMount=()=>{original();original();};`,
     });
-    expect(duplicate).toMatchObject({ ok: false, code: "opaque-binding-invalid" });
+    expect(duplicate).toMatchObject({ code: "opaque-binding-invalid", ok: false });
     const worker = await runtime.capture({
       ...request,
       javascript:
         script +
         `; const original=__unframeMount; __unframeMount=()=>{original();try{new Worker('/worker.js')}catch{};try{Object.defineProperty(globalThis,'__unframeViolation',{value:false})}catch{}};`,
     });
-    expect(worker).toMatchObject({ ok: false, code: "opaque-capability-denied" });
+    expect(worker).toMatchObject({ code: "opaque-capability-denied", ok: false });
     expect(await runtime.capture({ ...request, logicalSize: [100, 100] })).toMatchObject({
-      ok: false,
       code: "opaque-input-invalid",
+      ok: false,
     });
   } finally {
     await runtime.close();
@@ -244,7 +244,7 @@ it("terminates a renderer that never returns from mount", async () => {
       ...request,
       javascript: "globalThis.__unframeMount=()=>{while(true){}};",
     });
-    expect(result).toMatchObject({ ok: false, code: "opaque-capture-timeout" });
+    expect(result).toMatchObject({ code: "opaque-capture-timeout", ok: false });
   } finally {
     await runtime.close();
   }
@@ -252,7 +252,7 @@ it("terminates a renderer that never returns from mount", async () => {
 it("cancels an active Chromium worker", async () => {
   const controller = new AbortController();
   const runtime = await openOpaqueCaptureRuntime({ signal: controller.signal });
-  const timer = setTimeout(() => controller.abort(), 1_000);
+  const timer = setTimeout(() => controller.abort(), 1000);
   try {
     await expect(
       runtime.capture({ ...request, javascript: "globalThis.__unframeMount=()=>{while(true){}};" }),
@@ -271,18 +271,18 @@ it("reports a font that passes metadata checks but cannot be decoded", async () 
       await runtime.capture({
         ...request,
         assets: [
-          { path: "invalid.ttf", mediaType: "font/ttf", dataBase64: asset.dataBase64 },
+          { dataBase64: asset.dataBase64, mediaType: "font/ttf", path: "invalid.ttf" },
           {
-            path: "invalid.css",
-            mediaType: "text/css",
             dataBase64: Buffer.from(
               "@font-face{font-family:Fixture;src:url('/invalid.ttf')}*{font-family:Fixture!important}",
             ).toString("base64"),
+            mediaType: "text/css",
+            path: "invalid.css",
           },
         ],
         stylesheets: ["invalid.css"],
       }),
-    ).toMatchObject({ ok: false, code: "opaque-font-invalid" });
+    ).toMatchObject({ code: "opaque-font-invalid", ok: false });
   } finally {
     await runtime.close();
   }
@@ -292,22 +292,22 @@ it("preserves CSS import cascade without linking imported styles twice", async (
   try {
     const result = await runtime.capture({
       ...request,
-      stylesheets: [...request.stylesheets, "assets/parent.css"],
       assets: [
         ...request.assets,
         {
-          path: "assets/parent.css",
-          mediaType: "text/css",
           dataBase64: Buffer.from(
             '@import "./child.css"; #unframe-root { background: rgb(255,0,0); }',
           ).toString("base64"),
+          mediaType: "text/css",
+          path: "assets/parent.css",
         },
         {
-          path: "assets/child.css",
-          mediaType: "text/css",
           dataBase64: Buffer.from("#unframe-root { background: rgb(0,0,255); }").toString("base64"),
+          mediaType: "text/css",
+          path: "assets/child.css",
         },
       ],
+      stylesheets: [...request.stylesheets, "assets/parent.css"],
     });
     assert.isTrue(result.ok);
     expect([...Buffer.from(result.rgbaBase64, "base64").subarray(-4)]).toEqual([255, 0, 0, 255]);

@@ -8,14 +8,15 @@ export const snapshotOpaqueRuntimeDirectory = async (
   target: string,
 ): Promise<string> => {
   await cp(source, target, {
-    recursive: true,
     dereference: false,
     filter: async (path) => {
       const stat = await lstat(path);
-      if (!stat.isFile() && !stat.isDirectory())
+      if (!stat.isFile() && !stat.isDirectory()) {
         throw new Error("Opaque runtime accepts only regular files and directories.");
+      }
       return true;
     },
+    recursive: true,
   });
   const digest = createHash("sha256");
   const visit = async (directory: string, prefix: string): Promise<void> => {
@@ -29,10 +30,13 @@ export const snapshotOpaqueRuntimeDirectory = async (
         await visit(path, `${relative}/`);
         continue;
       }
-      if (!entry.isFile())
+      if (!entry.isFile()) {
         throw new Error("Opaque runtime accepts only regular files and directories.");
+      }
       const fileHash = createHash("sha256");
-      for await (const chunk of createReadStream(path)) fileHash.update(chunk);
+      for await (const chunk of createReadStream(path)) {
+        fileHash.update(chunk);
+      }
       digest.update(JSON.stringify([relative, fileHash.digest("hex")]));
     }
   };

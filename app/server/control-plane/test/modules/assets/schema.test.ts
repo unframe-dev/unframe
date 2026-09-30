@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { assetInitInputSchema } from "../../../src/modules/assets/schema";
 
 const valid = {
-  presentationId: "presentation-1",
-  name: "scene.glb",
   mediaType: "model/gltf-binary",
-  sizeBytes: 1024,
+  name: "scene.glb",
+  presentationId: "presentation-1",
   sha256Hex: "a".repeat(64),
+  sizeBytes: 1024,
 };
 
 describe("asset init input", () => {

@@ -1,16 +1,16 @@
 import moduleStyles from "./application-content.module.css";
 
-const styles = { main: moduleStyles["main"]!, heading: moduleStyles["heading"]! };
+const styles = { heading: moduleStyles["heading"]!, main: moduleStyles["main"]! };
 
 function ApplicationPlaceholderPage({
-  title,
   description,
+  title,
 }: {
-  title: string;
   description: string;
+  title: string;
 }) {
   return (
-    <main id="main-content" className={styles.main}>
+    <main className={styles.main} id="main-content">
       <header className={styles.heading}>
         <h1>{title}</h1>
         <p>{description}</p>
@@ -21,10 +21,10 @@ function ApplicationPlaceholderPage({
 
 export function DevicesPage() {
   return (
-    <ApplicationPlaceholderPage title="デバイス" description="接続済みのデバイスを管理します。" />
+    <ApplicationPlaceholderPage description="接続済みのデバイスを管理します。" title="デバイス" />
   );
 }
 
 export function RoomsPage() {
-  return <ApplicationPlaceholderPage title="ルーム" description="参加できるルームを管理します。" />;
+  return <ApplicationPlaceholderPage description="参加できるルームを管理します。" title="ルーム" />;
 }

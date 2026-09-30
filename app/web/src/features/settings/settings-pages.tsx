@@ -6,16 +6,16 @@ import { Label } from "@/shared/ui/label";
 import contentModuleStyles from "@/app/shell/application-content.module.css";
 import moduleStyles from "./settings-pages.module.css";
 const styles = {
-  main: contentModuleStyles["main"]!,
+  error: moduleStyles["error"]!,
   heading: contentModuleStyles["heading"]!,
   headingCopy: moduleStyles["headingCopy"]!,
+  imageHelp: moduleStyles["imageHelp"]!,
+  list: moduleStyles["list"]!,
+  main: contentModuleStyles["main"]!,
+  profileEditor: moduleStyles["profileEditor"]!,
+  profileIcon: moduleStyles["profileIcon"]!,
   section: moduleStyles["section"]!,
   sectionHeading: moduleStyles["sectionHeading"]!,
-  profileEditor: moduleStyles["profileEditor"]!,
-  imageHelp: moduleStyles["imageHelp"]!,
-  error: moduleStyles["error"]!,
-  profileIcon: moduleStyles["profileIcon"]!,
-  list: moduleStyles["list"]!,
 };
 
 const auth = controlPlaneAuth;
@@ -30,18 +30,20 @@ export function ProfilePage() {
   const [state, setState] = useState("読み込み中…");
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const draft = useRef({ name: "", image: "" });
+  const draft = useRef({ image: "", name: "" });
   const loadProfile = useCallback(() => {
     setLoadFailed(false);
     setState("読み込み中…");
     void auth
       .getSession()
       .then((result) => {
-        if (result.error) throw result.error;
+        if (result.error) {
+          throw result.error;
+        }
         setUser(result.data?.user);
         const nextDraft = {
-          name: result.data?.user?.name ?? "",
           image: result.data?.user?.image ?? "",
+          name: result.data?.user?.name ?? "",
         };
         draft.current = nextDraft;
         setName(nextDraft.name);
@@ -56,17 +58,17 @@ export function ProfilePage() {
   useEffect(() => loadProfile(), [loadProfile]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    const submitted = { name: name.trim(), image: image.trim() };
+    const submitted = { image: image.trim(), name: name.trim() };
     setSaving(true);
     setState("保存中…");
     const nextImage = submitted.image || null;
-    const result = await auth.updateUser({ name: submitted.name, image: nextImage });
+    const result = await auth.updateUser({ image: nextImage, name: submitted.name });
     setSaving(false);
     if (result.error) {
       setState("保存できませんでした。");
     } else {
       setUser((value: SessionUser | undefined) =>
-        value ? { ...value, name: submitted.name, image: nextImage } : value,
+        value ? { ...value, image: nextImage, name: submitted.name } : value,
       );
       setState(
         draft.current.name === submitted.name && draft.current.image === submitted.image
@@ -76,7 +78,7 @@ export function ProfilePage() {
     }
   };
   return (
-    <main id="main-content" className={styles.main}>
+    <main className={styles.main} id="main-content">
       <header className={styles.heading}>
         <div className={styles.headingCopy}>
           <h1>プロフィール</h1>
@@ -93,38 +95,38 @@ export function ProfilePage() {
             <Label>
               名前
               <Input
-                value={name}
+                autoComplete="name"
+                disabled={!user}
                 onChange={(e) => {
                   setName(e.target.value);
                   draft.current.name = e.target.value;
                   setState("未保存の変更があります。");
                 }}
-                disabled={!user}
-                autoComplete="name"
+                value={name}
               />
             </Label>
             <Label>
               アイコンURL
               <Input
-                type="url"
-                value={image}
+                disabled={!user}
+                inputMode="url"
                 onChange={(event) => {
                   setImage(event.target.value);
                   draft.current.image = event.target.value;
                   setState("未保存の変更があります。");
                 }}
-                disabled={!user}
                 placeholder="https://example.com/avatar.png"
-                inputMode="url"
+                type="url"
+                value={image}
               />
             </Label>
             <p className={styles.imageHelp}>空欄にするとアイコンを解除します。</p>
             {loadFailed ? (
               <div>
-                <p role="alert" className={styles.error}>
+                <p className={styles.error} role="alert">
                   {state}
                 </p>
-                <Button type="button" variant="outline" onClick={loadProfile}>
+                <Button onClick={loadProfile} type="button" variant="outline">
                   再試行
                 </Button>
               </div>
@@ -132,13 +134,13 @@ export function ProfilePage() {
               <p role="status">{state}</p>
             )}
             <Button
-              type="submit"
               disabled={
                 !user ||
                 !name.trim() ||
                 (name.trim() === user.name && image.trim() === (user.image ?? "")) ||
                 saving
               }
+              type="submit"
             >
               保存
             </Button>
@@ -157,7 +159,7 @@ function ProfileIcon({ image, name }: { image: string; name: string }) {
   return (
     <div className={styles.profileIcon}>
       {image && !failed ? (
-        <img src={image} alt="プロフィールアイコン" onError={() => setFailed(true)} />
+        <img alt="プロフィールアイコン" onError={() => setFailed(true)} src={image} />
       ) : (
         <span aria-label="プロフィールアイコン">
           {name.trim().charAt(0).toLocaleUpperCase() || "U"}
@@ -171,9 +173,9 @@ export function SecurityPage() {
   const [state, setState] = useState("");
   const [password, setPassword] = useState("");
   const [uri, setUri] = useState("");
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [backupCodes, setBackupCodes] = useState<Array<string>>([]);
   const [code, setCode] = useState("");
-  const [sessions, setSessions] = useState<DeviceSession[] | null>(null);
+  const [sessions, setSessions] = useState<Array<DeviceSession> | null>(null);
   const perform = async (task: () => Promise<AuthResult>, success: string) => {
     setState("処理中…");
     const result = await task();
@@ -187,7 +189,9 @@ export function SecurityPage() {
     );
     if (!result.error) {
       const uriResult = await auth.twoFactor.getTotpUri({ password });
-      if (!uriResult.error && uriResult.data) setUri(uriResult.data.totpURI);
+      if (!uriResult.error && uriResult.data) {
+        setUri(uriResult.data.totpURI);
+      }
     }
   };
   const verifyTotp = async () => {
@@ -197,7 +201,9 @@ export function SecurityPage() {
     );
     if (!result.error) {
       const codes = await auth.twoFactor.generateBackupCodes({ password });
-      if (!codes.error && codes.data) setBackupCodes(codes.data.backupCodes);
+      if (!codes.error && codes.data) {
+        setBackupCodes(codes.data.backupCodes);
+      }
     }
   };
   const loadSessions = async () => {
@@ -206,7 +212,7 @@ export function SecurityPage() {
     setState(result.error ? "セッションを読み込めませんでした。" : "セッションを更新しました。");
   };
   return (
-    <main id="main-content" className={styles.main}>
+    <main className={styles.main} id="main-content">
       <header className={styles.heading}>
         <div className={styles.headingCopy}>
           <h1>セキュリティー</h1>
@@ -225,7 +231,7 @@ export function SecurityPage() {
         </header>
         <Label>
           現在のパスワード
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input onChange={(e) => setPassword(e.target.value)} type="password" value={password} />
         </Label>
         <Button disabled={!password} onClick={() => void beginTotp()}>
           二要素認証を有効化
@@ -237,9 +243,9 @@ export function SecurityPage() {
             <Label>
               認証コード
               <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
                 autoComplete="one-time-code"
+                onChange={(e) => setCode(e.target.value)}
+                value={code}
               />
             </Label>
             <Button disabled={!code} onClick={() => void verifyTotp()}>
@@ -261,11 +267,11 @@ export function SecurityPage() {
           </div>
         ) : null}
         <Button
-          variant="outline"
           disabled={!password}
           onClick={() =>
             void perform(() => auth.twoFactor.disable({ password }), "二要素認証を無効化しました。")
           }
+          variant="outline"
         >
           二要素認証を無効化
         </Button>
@@ -274,7 +280,7 @@ export function SecurityPage() {
         <header className={styles.sectionHeading}>
           <h2>セッション</h2>
         </header>
-        <Button variant="outline" onClick={() => void loadSessions()}>
+        <Button onClick={() => void loadSessions()} variant="outline">
           セッションを更新
         </Button>
         {sessions ? (
@@ -289,10 +295,10 @@ export function SecurityPage() {
           </ul>
         ) : null}
         <Button
-          variant="outline"
           onClick={() =>
             void perform(() => auth.revokeOtherSessions(), "他のセッションを終了しました。")
           }
+          variant="outline"
         >
           他のセッションを終了
         </Button>
@@ -326,20 +332,20 @@ function PasswordChange({
       <Label>
         現在のパスワード
         <Input
-          type="password"
-          value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           required
+          type="password"
+          value={currentPassword}
         />
       </Label>
       <Label>
         新しいパスワード
         <Input
+          minLength={8}
+          onChange={(e) => setNewPassword(e.target.value)}
+          required
           type="password"
           value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          minLength={8}
-          required
         />
       </Label>
       <Button type="submit">パスワードを変更</Button>

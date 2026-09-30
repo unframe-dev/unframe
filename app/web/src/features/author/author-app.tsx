@@ -8,8 +8,8 @@ import type {
 import { AuthorApiError, type AuthorApi } from "./api";
 import "./author.css";
 
-type Preview = { url: string; revision: string };
-type PendingSave = { revision: string; request: Parameters<AuthorApi["patch"]>[1] };
+type Preview = { revision: string; url: string };
+type PendingSave = { request: Parameters<AuthorApi["patch"]>[1]; revision: string };
 const newId = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, "0"),
@@ -27,7 +27,7 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
   const [buildStarting, setBuildStarting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<Array<string>>([]);
   const previewRef = useRef(preview);
   const generation = useRef(0);
   const buildRequestInFlight = useRef(false);
@@ -59,24 +59,34 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
   }, [selected]);
 
   async function runBuild(revision: string) {
-    if (buildRequestInFlight.current) return;
+    if (buildRequestInFlight.current) {
+      return;
+    }
     buildRequestInFlight.current = true;
     setBuildStarting(true);
     const serial = ++generation.current;
-    let generated: Preview[] = [];
+    let generated: Array<Preview> = [];
     try {
       const started = await api.build(revision, newId()).finally(() => {
         buildRequestInFlight.current = false;
-        if (mounted.current) setBuildStarting(false);
+        if (mounted.current) {
+          setBuildStarting(false);
+        }
       });
-      if (!mounted.current || serial !== generation.current) return;
+      if (!mounted.current || serial !== generation.current) {
+        return;
+      }
       setJob(started);
       let current = started;
       while (!terminal(current.status)) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        if (!mounted.current || serial !== generation.current) return;
+        if (!mounted.current || serial !== generation.current) {
+          return;
+        }
         current = await api.job(started.buildId);
-        if (!mounted.current || serial !== generation.current) return;
+        if (!mounted.current || serial !== generation.current) {
+          return;
+        }
         setJob(current);
       }
       if (current.status !== "succeeded" || current.revision !== revision) {
@@ -93,8 +103,10 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
           return;
         }
         const previous = next[artifact.instanceId];
-        if (previous) URL.revokeObjectURL(previous.url);
-        const created = { url: URL.createObjectURL(blob), revision };
+        if (previous) {
+          URL.revokeObjectURL(previous.url);
+        }
+        const created = { revision, url: URL.createObjectURL(blob) };
         next[artifact.instanceId] = created;
         generated.push(created);
       }
@@ -104,7 +116,11 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
       }
       setPreview((old) => {
         const updated = { ...old, ...next };
-        for (const id of Object.keys(next)) if (old[id]) URL.revokeObjectURL(old[id].url);
+        for (const id of Object.keys(next)) {
+          if (old[id]) {
+            URL.revokeObjectURL(old[id].url);
+          }
+        }
         return updated;
       });
       generated = [];
@@ -116,17 +132,23 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
   }
 
   async function saveProp(propId: string) {
-    if (!project || !selected || !draft) return;
+    if (!project || !selected || !draft) {
+      return;
+    }
     const prop = draft.props[propId];
-    if (!prop?.editable) return;
+    if (!prop?.editable) {
+      return;
+    }
     if (prop.type === "number" && !Number.isFinite(prop.value)) {
       note("数値には有限数を入力してください");
       return;
     }
-    await save({ kind: "setProp", instanceId: selected.instanceId, propId, value: prop.value });
+    await save({ instanceId: selected.instanceId, kind: "setProp", propId, value: prop.value });
   }
   async function saveTransform() {
-    if (!project || !selected || !draft?.transformEditable) return;
+    if (!project || !selected || !draft?.transformEditable) {
+      return;
+    }
     const values = [
       ...draft.transform.position,
       ...draft.transform.rotation,
@@ -137,22 +159,26 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
       return;
     }
     await save({
-      kind: "setTransform",
       instanceId: selected.instanceId,
+      kind: "setTransform",
       transform: draft.transform,
     });
   }
   async function save(command: Parameters<AuthorApi["patch"]>[1]["command"]) {
-    if (!project?.irHash || busy || pendingSave) return;
+    if (!project?.irHash || busy || pendingSave) {
+      return;
+    }
     const pending: PendingSave = {
+      request: structuredClone({ command, commandId: newId(), expectedIrHash: project.irHash }),
       revision: project.revision,
-      request: structuredClone({ commandId: newId(), expectedIrHash: project.irHash, command }),
     };
     setPendingSave(pending);
     await attemptSave(pending);
   }
   async function attemptSave(pending: PendingSave) {
-    if (busy) return;
+    if (busy) {
+      return;
+    }
     setBusy(true);
     try {
       const saved = await api.patch(pending.revision, pending.request);
@@ -161,8 +187,11 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
       try {
         const latest = await api.project();
         setProject(latest);
-        if (latest.revision === saved.revision) void runBuild(saved.revision);
-        else note(`保存後に別の変更を検出: ${latest.revision}`);
+        if (latest.revision === saved.revision) {
+          void runBuild(saved.revision);
+        } else {
+          note(`保存後に別の変更を検出: ${latest.revision}`);
+        }
       } catch (error) {
         note(`保存済み・再読込失敗: ${errorText(error)}`);
       }
@@ -196,7 +225,9 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
     }
   }
   async function cancel() {
-    if (!job || terminal(job.status)) return;
+    if (!job || terminal(job.status)) {
+      return;
+    }
     try {
       await api.cancel(job.buildId);
       note("build を中止しました");
@@ -236,16 +267,16 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
         <h2>Instances</h2>
         {project?.instances.map((instance) => (
           <button
-            key={instance.instanceId}
-            type="button"
             aria-current={instance.instanceId === selectedId ? "true" : undefined}
+            key={instance.instanceId}
             onClick={() => setSelectedId(instance.instanceId)}
+            type="button"
           >
             {instance.instanceId}
           </button>
         ))}
       </nav>
-      <section className="author-inspector" aria-label="Inspector">
+      <section aria-label="Inspector" className="author-inspector">
         <h2>Inspector</h2>
         {draft ? (
           <>
@@ -256,23 +287,21 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
                 <label htmlFor={`prop-${id}`}>{id}</label>
                 {prop.type === "boolean" ? (
                   <input
-                    id={`prop-${id}`}
-                    type="checkbox"
                     checked={Boolean(prop.value)}
                     disabled={!prop.editable || busy || !!pendingSave}
+                    id={`prop-${id}`}
                     onChange={(event) =>
                       setDraft({
                         ...draft,
                         props: { ...draft.props, [id]: { ...prop, value: event.target.checked } },
                       })
                     }
+                    type="checkbox"
                   />
                 ) : (
                   <input
-                    id={`prop-${id}`}
-                    type={prop.type === "number" ? "number" : "text"}
-                    value={String(prop.value)}
                     disabled={!prop.editable || busy || !!pendingSave}
+                    id={`prop-${id}`}
                     onChange={(event) =>
                       setDraft({
                         ...draft,
@@ -288,6 +317,8 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
                         },
                       })
                     }
+                    type={prop.type === "number" ? "number" : "text"}
+                    value={String(prop.value)}
                   />
                 )}
                 <button
@@ -307,15 +338,12 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
             ))}
             <h3>3D Transform</h3>
             {(["position", "rotation", "scale"] as const).map((key) => (
-              <fieldset key={key} disabled={!draft.transformEditable || busy || !!pendingSave}>
+              <fieldset disabled={!draft.transformEditable || busy || !!pendingSave} key={key}>
                 <legend>{key}</legend>
                 {draft.transform[key].map((value, index) => (
                   <label key={index}>
                     {["x", "y", "z", "w"][index]}
                     <input
-                      type="number"
-                      step="any"
-                      value={Number.isNaN(value) ? "" : value}
                       onChange={(event) => {
                         const vector = [...draft.transform[key]];
                         vector[index] = event.target.valueAsNumber;
@@ -324,6 +352,9 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
                           transform: { ...draft.transform, [key]: vector } as Transform,
                         });
                       }}
+                      step="any"
+                      type="number"
+                      value={Number.isNaN(value) ? "" : value}
                     />
                   </label>
                 ))}
@@ -347,16 +378,16 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
           <p>Instance を選択してください</p>
         )}
       </section>
-      <section className="author-preview" aria-label="Preview">
+      <section aria-label="Preview" className="author-preview">
         <h2>Preview</h2>
         <p>
           表示 revision: {shown?.revision ?? "なし"} {stale ? "（stale）" : ""}
         </p>
-        {shown && <img src={shown.url} alt={`${selectedId} preview`} />}
+        {shown && <img alt={`${selectedId} preview`} src={shown.url} />}
         {job && (
           <p>
             build: {job.status}{" "}
-            <button onClick={() => void cancel()} disabled={terminal(job.status)}>
+            <button disabled={terminal(job.status)} onClick={() => void cancel()}>
               中止
             </button>
           </p>

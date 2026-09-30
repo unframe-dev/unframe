@@ -9,9 +9,9 @@ import {
   recoverAuthorTransactions,
 } from "../src/author/save-transaction.js";
 
-const roots: string[] = [];
+const roots: Array<string> = [];
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(roots.splice(0).map((root) => rm(root, { force: true, recursive: true })));
 });
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), "unframe-author-save-"));
@@ -27,19 +27,19 @@ const fixture = async () => {
 };
 const commandId = "a".repeat(32);
 const input = (root: string) => ({
-  root,
-  sourcePath: "presentation.unframe.tsx",
-  beforeSource: new TextEncoder().encode("before source"),
+  afterLock: new TextEncoder().encode("after lock"),
   afterSource: new TextEncoder().encode("after source"),
   beforeLock: new TextEncoder().encode("before lock"),
-  afterLock: new TextEncoder().encode("after lock"),
+  beforeSource: new TextEncoder().encode("before source"),
   requestHash: "b".repeat(64),
+  root,
   saved: {
+    commandId,
+    irHash: "sha256:ir",
     revision: "sha256:changed",
     sourceHash: "sha256:source",
-    irHash: "sha256:ir",
-    commandId,
   },
+  sourcePath: "presentation.unframe.tsx",
 });
 
 describe("author source transaction", () => {

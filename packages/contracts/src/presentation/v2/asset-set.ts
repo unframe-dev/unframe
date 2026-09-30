@@ -4,6 +4,7 @@ import { contentHashV2Schema, idV2Schema, safeUIntV2Schema } from "./common";
 
 export const assetDescriptorV2Schema = z.strictObject({
   checksum: contentHashV2Schema,
+  encodedSizeBytes: safeUIntV2Schema,
   mediaType: z.enum([
     "image/png",
     "image/jpeg",
@@ -12,12 +13,11 @@ export const assetDescriptorV2Schema = z.strictObject({
     "video/mp4",
     "model/gltf-binary",
   ]),
-  encodedSizeBytes: safeUIntV2Schema,
 });
 
 export const assetSetManifestV2Schema = z.strictObject({
-  schemaVersion: z.literal(2),
   assets: z.record(idV2Schema, assetDescriptorV2Schema),
+  schemaVersion: z.literal(2),
 });
 
 export type AssetDescriptorV2 = z.infer<typeof assetDescriptorV2Schema>;

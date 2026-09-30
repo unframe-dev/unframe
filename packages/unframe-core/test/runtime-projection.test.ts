@@ -24,11 +24,11 @@ describe("M3D Runtime projection and canonical snapshot", () => {
   it("creates a validated portable snapshot from CueState", () => {
     const state = createCueState(definition, 1);
     const generated = createM3dCueRuntimeSnapshot(definition, state, {
-      reliableSequence: 0,
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: snapshot.presentationOrigin,
       recentEventIds: [],
+      reliableSequence: 0,
     });
     expect(generated).toEqual(snapshot);
   });
@@ -44,7 +44,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
   it("rejects expired timers", () => {
     const invalid = structuredClone(snapshot);
     invalid.stepExecution.timerStates = {
-      delayed: { kind: "armed", dueAtRuntimeTimeMilliseconds: 0 },
+      delayed: { dueAtRuntimeTimeMilliseconds: 0, kind: "armed" },
     } as typeof invalid.stepExecution.timerStates;
     expect(validateM3dCueRuntimeSnapshot(definition, invalid, 1)).toContain(
       "Snapshot contains an expired armed Timer.",
@@ -61,24 +61,24 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     running.lastAllocatedRunSequence = 1;
     running.activeRuns = [
       {
-        kind: "surfaceTransition",
-        runId: { assignmentEpoch: 1, runSequence: 1 },
-        owner: { kind: "presentation" },
         cause: {
-          cueId: "wave",
           causeEventId: "event-1",
-          groupId: "intro",
+          cueId: "wave",
           groupEntryEpoch: 1,
-          stepId: "start",
+          groupId: "intro",
           stepEntryEpoch: 1,
+          stepId: "start",
         },
-        startedAtRuntimeTimeMilliseconds: 0,
         completion: "blocking",
-        surfaceId: "baked",
-        fromStateId: "default",
-        toStateId: "next",
         durationMilliseconds: 100,
         easing: "linear",
+        fromStateId: "default",
+        kind: "surfaceTransition",
+        owner: { kind: "presentation" },
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        startedAtRuntimeTimeMilliseconds: 0,
+        surfaceId: "baked",
+        toStateId: "next",
       },
     ];
     running.surfaceStates.baked!.stateId = "next";
@@ -87,16 +87,18 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     );
     running.surfaceStates.baked!.transitionRunId = { assignmentEpoch: 1, runSequence: 1 };
     running.progression.phase = {
-      kind: "transitioning",
-      cueId: "wave",
-      causeEventId: "event-1",
-      stepEntryEpoch: 1,
       blockingRunIds: [{ assignmentEpoch: 1, runSequence: 1 }],
+      causeEventId: "event-1",
+      cueId: "wave",
+      kind: "transitioning",
       pendingNext: { kind: "stay" },
+      stepEntryEpoch: 1,
     };
     expect(validateM3dCueRuntimeSnapshot(secondStateDefinition, running, 1)).toEqual([]);
     const active = running.activeRuns[0]!;
-    if (active.kind !== "surfaceTransition") throw new TypeError("Expected a Surface Run.");
+    if (active.kind !== "surfaceTransition") {
+      throw new TypeError("Expected a Surface Run.");
+    }
     active.toStateId = "default";
     expect(validateM3dCueRuntimeSnapshot(secondStateDefinition, running, 1)).toContain(
       "surfaceStates.baked differs from its transition target State.",
@@ -123,17 +125,17 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     state.phase = structuredClone(running.progression.phase);
     state.surfaces.baked = "next";
     const generated = createM3dCueRuntimeSnapshot(secondStateDefinition, state, {
-      reliableSequence: 0,
       lastIngressSequence: 0,
       lifecycle: { kind: "running" },
       presentationOrigin: snapshot.presentationOrigin,
       recentEventIds: [],
+      reliableSequence: 0,
     });
     expect(generated.surfaceStates.baked?.transitionRunId).toEqual({
       assignmentEpoch: 1,
       runSequence: 1,
     });
-    running.activeRuns[0]!.owner = { kind: "group", groupId: "intro", groupEntryEpoch: 2 };
+    running.activeRuns[0]!.owner = { groupEntryEpoch: 2, groupId: "intro", kind: "group" };
     expect(validateM3dCueRuntimeSnapshot(secondStateDefinition, running, 1)).toContain(
       "Group Runtime Run owner epoch differs from progression.",
     );
@@ -147,16 +149,16 @@ describe("M3D Runtime projection and canonical snapshot", () => {
   it("keeps Timeline Runs limited to all-audience targets and unexpired deadlines", () => {
     const timelineDefinition = structuredClone(definition);
     timelineDefinition.flow.timelines.reveal = {
+      durationMilliseconds: 100,
       id: "reveal",
       owner: { kind: "presentation" },
-      durationMilliseconds: 100,
       tracks: [
         {
-          target: { nodeId: "node-baked", property: "opacity" },
           keyframes: [
-            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
             { timeMilliseconds: 100, value: 1 },
           ],
+          target: { nodeId: "node-baked", property: "opacity" },
         },
       ],
     };
@@ -164,20 +166,20 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     running.lastAllocatedRunSequence = 1;
     running.activeRuns = [
       {
-        kind: "timeline",
-        runId: { assignmentEpoch: 1, runSequence: 1 },
-        owner: { kind: "presentation" },
         cause: {
-          cueId: "wave",
           causeEventId: "event-1",
-          groupId: "intro",
+          cueId: "wave",
           groupEntryEpoch: 1,
-          stepId: "start",
+          groupId: "intro",
           stepEntryEpoch: 1,
+          stepId: "start",
         },
+        completion: "nonBlocking",
+        kind: "timeline",
+        owner: { kind: "presentation" },
+        runId: { assignmentEpoch: 1, runSequence: 1 },
         startedAtRuntimeTimeMilliseconds: 0,
         timelineId: "reveal",
-        completion: "nonBlocking",
       },
     ];
     expect(validateM3dCueRuntimeSnapshot(timelineDefinition, running, 1)).toEqual([]);
@@ -263,39 +265,39 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     running.lastAllocatedRunSequence = 1;
     running.activeRuns = [
       {
-        kind: "surfaceTransition",
-        runId,
-        owner: { kind: "presentation" },
         cause: {
-          cueId: "wave",
           causeEventId: "event-1",
-          groupId: "intro",
+          cueId: "wave",
           groupEntryEpoch: 1,
-          stepId: "start",
+          groupId: "intro",
           stepEntryEpoch: 1,
+          stepId: "start",
         },
-        startedAtRuntimeTimeMilliseconds: 0,
         completion: "blocking",
-        surfaceId: "native",
-        fromStateId: "default",
-        toStateId: "next",
         durationMilliseconds: 100,
         easing: "linear",
+        fromStateId: "default",
+        kind: "surfaceTransition",
+        owner: { kind: "presentation" },
+        runId,
+        startedAtRuntimeTimeMilliseconds: 0,
+        surfaceId: "native",
+        toStateId: "next",
       },
     ];
     running.surfaceStates.native!.transitionRunId = runId;
     running.surfaceStates.native!.stateId = "next";
     running.progression.phase = {
-      kind: "transitioning",
-      cueId: "wave",
-      causeEventId: "event-1",
-      stepEntryEpoch: 1,
       blockingRunIds: [runId],
+      causeEventId: "event-1",
+      cueId: "wave",
+      kind: "transitioning",
       pendingNext: { kind: "stay" },
+      stepEntryEpoch: 1,
     };
     const view = projectM3dCueParticipantRuntimeView(roleDefinition, running, viewer, 1);
     expect(view.activeRuns).toEqual([]);
-    expect(view.progression.phase).toMatchObject({ kind: "transitioning", blockingRunIds: [] });
+    expect(view.progression.phase).toMatchObject({ blockingRunIds: [], kind: "transitioning" });
     expect(view.progression.phase).not.toHaveProperty("cueId");
     expect(view.progression.phase).not.toHaveProperty("causeEventId");
     expect(view.surfaceStates.native).toBeUndefined();

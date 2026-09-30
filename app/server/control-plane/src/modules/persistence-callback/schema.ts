@@ -16,23 +16,23 @@ const opaqueSnapshot = z.union([
   z.record(z.string(), z.unknown()),
 ]);
 const assignment = {
-  runtimeId: runtimeIdentifier,
-  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
   assignmentEpoch: z.number().int().positive(),
   presentationRevision: z.number().int().positive(),
+  runtimeId: runtimeIdentifier,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
 };
 const participant = z.object({
-  userId: z.string().trim().min(1),
   role: z.enum(["presenter", "viewer"]),
+  userId: z.string().trim().min(1),
 });
 
 export const checkpointInputSchema = z.object({
   sessionId: z.string().uuid(),
   ...assignment,
-  version: z.number().int().nonnegative(),
-  lastSequence: z.number().int().nonnegative(),
   idempotencyKey,
+  lastSequence: z.number().int().nonnegative(),
   payload: opaqueSnapshot,
+  version: z.number().int().nonnegative(),
 });
 
 export const completionInputSchema = z
@@ -40,21 +40,21 @@ export const completionInputSchema = z
     sessionId: z.string().uuid(),
     ...assignment,
     checkpointVersion: z.number().int().nonnegative(),
-    lastSequence: z.number().int().nonnegative(),
-    idempotencyKey,
-    startedAt: z.string().datetime(),
     endedAt: z.string().datetime(),
+    finalCheckpoint: opaqueSnapshot,
+    idempotencyKey,
+    lastSequence: z.number().int().nonnegative(),
     participantCount: z.number().int().min(1).max(50),
     participants: z.array(participant).min(1).max(50),
-    finalCheckpoint: opaqueSnapshot,
+    startedAt: z.string().datetime(),
   })
   .refine((value) => value.participantCount === value.participants.length, {
-    path: ["participantCount"],
     message: "participantCount must match participants",
+    path: ["participantCount"],
   })
   .refine((value) => Date.parse(value.endedAt) >= Date.parse(value.startedAt), {
-    path: ["endedAt"],
     message: "endedAt must not precede startedAt",
+    path: ["endedAt"],
   });
 
 export type CheckpointInput = z.infer<typeof checkpointInputSchema>;

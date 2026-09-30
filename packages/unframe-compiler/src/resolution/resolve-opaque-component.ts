@@ -25,7 +25,7 @@ import { checkProjectAssets } from "../validation/check-project-assets.js";
 
 type ReactProject = CompilerDeclarationProject & {
   presentation: Omit<CompilerDeclarationProject["presentation"], "scene"> & {
-    scene: readonly StaticReactSceneItem[];
+    scene: ReadonlyArray<StaticReactSceneItem>;
   };
 };
 
@@ -40,10 +40,14 @@ const canonicalRotation = (
   rotation: readonly [number, number, number, number],
 ): [number, number, number, number] | undefined => {
   const length = Math.hypot(...rotation);
-  if (!Number.isFinite(length) || length === 0) return undefined;
+  if (!Number.isFinite(length) || length === 0) {
+    return undefined;
+  }
   let result = rotation.map((value) => value / length) as [number, number, number, number];
   const first = [result[3], result[0], result[1], result[2]].find((value) => value !== 0);
-  if ((first ?? 1) < 0) result = result.map((value) => -value) as typeof result;
+  if ((first ?? 1) < 0) {
+    result = result.map((value) => -value) as typeof result;
+  }
   return result.map((value) => (value === 0 ? 0 : value)) as typeof result;
 };
 
@@ -51,10 +55,10 @@ export const resolveOpaqueProject = (
   project: ReactProject,
   source: unknown,
 ): ValidationResult<CheckedDeclarationProject> => {
-  const diagnostics: Diagnostic[] = [];
-  const warnings: CompilerWarning[] = [];
+  const diagnostics: Array<Diagnostic> = [];
+  const warnings: Array<CompilerWarning> = [];
   const presentation = project.presentation;
-  if (!isPresentationDeclaration({ ...presentation, scene: { spatial: [], components: [] } }))
+  if (!isPresentationDeclaration({ ...presentation, scene: { components: [], spatial: [] } })) {
     diagnostics.push(
       diagnostic(
         "compiler-invalid-declaration",
@@ -62,11 +66,12 @@ export const resolveOpaqueProject = (
         "React Presentation header is invalid.",
       ),
     );
+  }
   if (
     presentation.theme &&
     project.themes.filter(({ declaration }) => declaration.id === presentation.theme?.themeId)
       .length !== 1
-  )
+  ) {
     diagnostics.push(
       diagnostic(
         "compiler-theme-not-found",
@@ -74,7 +79,8 @@ export const resolveOpaqueProject = (
         "Selected theme must resolve exactly once.",
       ),
     );
-  if (presentation.operations.length)
+  }
+  if (presentation.operations.length) {
     diagnostics.push(
       diagnostic(
         "compiler-operations-unsupported",
@@ -82,6 +88,7 @@ export const resolveOpaqueProject = (
         "Operations are not supported.",
       ),
     );
+  }
 
   const nodes: PresentationDefinition["scene"]["nodes"] = {};
   const surfaces: PresentationDefinition["scene"]["surfaces"] = {};
@@ -167,8 +174,8 @@ export const resolveOpaqueProject = (
       continue;
     }
     const props: Record<string, string | number | boolean> = {};
-    for (const key of Object.keys(item.props))
-      if (!Object.hasOwn(metadata.props, key))
+    for (const key of Object.keys(item.props)) {
+      if (!Object.hasOwn(metadata.props, key)) {
         diagnostics.push(
           diagnostic(
             "compiler-prop-not-found",
@@ -176,6 +183,8 @@ export const resolveOpaqueProject = (
             "Component prop is not declared.",
           ),
         );
+      }
+    }
     for (const [key, declaration] of Object.entries(metadata.props)) {
       const value = Object.hasOwn(item.props, key)
         ? item.props[key]
@@ -206,18 +215,19 @@ export const resolveOpaqueProject = (
         continue;
       }
       props[key] = value;
-      if (!Object.hasOwn(item.props, key))
+      if (!Object.hasOwn(item.props, key)) {
         warnings.push({
           code: "compiler-prop-default-applied",
+          componentInstanceId: item.id,
+          defaultValue: value,
           message: "An omitted Component prop used its manifest default.",
           path: [...path, "props", key],
-          componentInstanceId: item.id,
           propName: key,
-          defaultValue: value,
         });
+      }
     }
     const rotation = canonicalRotation(item.transform.rotation);
-    if (!rotation)
+    if (!rotation) {
       diagnostics.push(
         diagnostic(
           "compiler-invalid-quaternion",
@@ -225,6 +235,7 @@ export const resolveOpaqueProject = (
           "Spatial rotation must be a finite nonzero quaternion.",
         ),
       );
+    }
     const hostId = reactResourceId("host", item.id);
     const surfaceId = reactResourceId("surface", item.id);
     const initialStateKey = metadata.initialState ?? "default";
@@ -250,11 +261,11 @@ export const resolveOpaqueProject = (
         id,
         role: semantic.role,
         ...(semantic.role === "heading" ? { level: semantic.level } : {}),
+        order: semantic.order,
         parentId:
           semantic.parentId === null
             ? null
             : reactResourceId("semantic", item.id, semantic.parentId),
-        order: semantic.order,
         text,
         ...(semantic.role === "button"
           ? { interactionId: reactResourceId("interaction", item.id, semantic.interactionId) }
@@ -273,7 +284,7 @@ export const resolveOpaqueProject = (
       ...Object.keys(metadata.outputs ?? {}).map((key) => reactResourceId("output", item.id, key)),
       ...Object.keys(semanticNodes),
     ]) {
-      if (usedIds.has(id))
+      if (usedIds.has(id)) {
         diagnostics.push(
           diagnostic(
             "compiler-resource-id-collision",
@@ -281,46 +292,67 @@ export const resolveOpaqueProject = (
             "Generated React resource IDs must be unique.",
           ),
         );
+      }
       usedIds.add(id);
     }
     nodes[hostId] = {
+      active: true,
+      audience: item.audience,
       id: hostId,
       kind: "surface",
       name: item.id,
+      opacity: 1,
+      order: index,
       owner: item.owner,
-      audience: item.audience,
       parent: item.parent,
+      surfaceId,
       transform: {
         position: [...item.transform.position],
         rotation: rotation ?? [0, 0, 0, 1],
         scale: [...item.transform.scale],
       },
-      order: index,
-      active: true,
       visible: true,
-      opacity: 1,
-      surfaceId,
     };
     surfaces[surfaceId] = {
-      id: surfaceId,
-      hostNodeId: hostId,
-      physicalSizeMeters: [...item.physicalSizeMeters],
-      logicalSize: [...metadata.surface.logicalSize],
-      fit: item.fit,
-      content: { kind: "opaque", bindings },
       baseSemanticTree: {
+        nodes: semanticNodes,
         rootNodeIds: metadata.semantics.rootNodeIds.map((key) =>
           reactResourceId("semantic", item.id, key),
         ),
-        nodes: semanticNodes,
       },
+      content: { bindings, kind: "opaque" },
+      fit: item.fit,
+      hostNodeId: hostId,
+      id: surfaceId,
+      initialStateId: stateId,
       interactions: Object.fromEntries(
         Object.entries(metadata.interactions ?? {}).map(([key, interaction]) => {
           const id = reactResourceId("interaction", item.id, key);
           return [id, { id, ...interaction }];
         }),
       ),
-      initialStateId: stateId,
+      logicalSize: [...metadata.surface.logicalSize],
+      physicalSizeMeters: [...item.physicalSizeMeters],
+      renderIntent: {
+        ...renderIntent(),
+        interaction:
+          metadata.interactions && Object.keys(metadata.interactions).length
+            ? {
+                kind: "regions",
+                events: [
+                  ...new Set(
+                    Object.values(metadata.interactions).map((interaction) => interaction.event),
+                  ),
+                ].sort(),
+              }
+            : { kind: "none" },
+        updateModel: metadata.states
+          ? {
+              kind: "finite-state",
+              stateIds: stateKeys.map((key) => reactResourceId("state", item.id, key)).sort(),
+            }
+          : { kind: "static" },
+      },
       states: Object.fromEntries(
         stateKeys.map((key) => {
           const state = metadata.states?.[key];
@@ -328,8 +360,11 @@ export const resolveOpaqueProject = (
           return [
             id,
             {
-              id,
               contentOverrides: {},
+              enabledInteractionIds: (state?.enabledInteractionIds ?? []).map((interactionKey) =>
+                reactResourceId("interaction", item.id, interactionKey),
+              ),
+              id,
               semanticOverrides: (state?.semanticOverrides ?? []).map((override) => ({
                 nodes: {
                   [reactResourceId("semantic", item.id, override.targetId)]: {
@@ -345,33 +380,10 @@ export const resolveOpaqueProject = (
                   },
                 },
               })),
-              enabledInteractionIds: (state?.enabledInteractionIds ?? []).map((interactionKey) =>
-                reactResourceId("interaction", item.id, interactionKey),
-              ),
             },
           ];
         }),
       ),
-      renderIntent: {
-        ...renderIntent(),
-        updateModel: metadata.states
-          ? {
-              kind: "finite-state",
-              stateIds: stateKeys.map((key) => reactResourceId("state", item.id, key)).sort(),
-            }
-          : { kind: "static" },
-        interaction:
-          metadata.interactions && Object.keys(metadata.interactions).length
-            ? {
-                kind: "regions",
-                events: [
-                  ...new Set(
-                    Object.values(metadata.interactions).map((interaction) => interaction.event),
-                  ),
-                ].sort(),
-              }
-            : { kind: "none" },
-      },
     };
   }
   const groups: PresentationDefinition["flow"]["groups"] = {};
@@ -461,14 +473,16 @@ export const resolveOpaqueProject = (
             );
             continue;
           }
-          for (const effect of declaration.effects)
-            if (effect.kind === "setSurfaceState")
+          for (const effect of declaration.effects) {
+            if (effect.kind === "setSurfaceState") {
               actions.push({
                 kind: "surface.setState",
                 surfaceId: reactResourceId("surface", targetInstance.id),
                 stateId: reactResourceId("state", targetInstance.id, effect.stateId),
                 ...(effect.transition ? { transition: effect.transition } : {}),
               });
+            }
+          }
         }
         if (cue.guard) {
           diagnostics.push(
@@ -481,74 +495,80 @@ export const resolveOpaqueProject = (
           continue;
         }
         cues.push({
-          id: cue.id,
-          priority: cue.priority ?? 0,
-          order: cue.order ?? index,
-          trigger: {
-            kind: "surfaceInteraction",
-            actor: { kind: "presenter" },
-            surfaceId: reactResourceId("surface", triggerInstance.id),
-            interactionId: reactResourceId(
-              "interaction",
-              triggerInstance.id,
-              output.producer.interactionId,
-            ),
-          },
+          actions,
+          firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
           fixedPayload: Object.fromEntries(
             Object.entries(output.payload).map(([key, field]) => [key, field.value]),
           ),
-          firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
-          actions,
+          id: cue.id,
           next:
             cue.next ??
             (cue.toStepId
               ? { kind: "step", stepId: cue.toStepId }
               : cue.toGroupId
-                ? { kind: "group", groupId: cue.toGroupId }
+                ? { groupId: cue.toGroupId, kind: "group" }
                 : { kind: "stay" }),
+          order: cue.order ?? index,
+          priority: cue.priority ?? 0,
+          trigger: {
+            actor: { kind: "presenter" },
+            interactionId: reactResourceId(
+              "interaction",
+              triggerInstance.id,
+              output.producer.interactionId,
+            ),
+            kind: "surfaceInteraction",
+            surfaceId: reactResourceId("surface", triggerInstance.id),
+          },
         });
       }
-      groups[groupId].steps[stepId] = { id: step.id, cues };
+      groups[groupId].steps[stepId] = { cues, id: step.id };
     }
   }
   const variables: PresentationDefinition["flow"]["variables"] = {};
-  for (const [key, variable] of Object.entries(presentation.flow.variables))
+  for (const [key, variable] of Object.entries(presentation.flow.variables)) {
     variables[key] = {
       id: variable.id,
+      initialValue: variable.initialValue,
       owner: variable.owner,
       type: variable.type,
-      initialValue: variable.initialValue,
     };
+  }
   const checkedAssets = checkProjectAssets(presentation.assets, project.assets, surfaces);
   diagnostics.push(...checkedAssets.diagnostics);
-  if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
+  if (diagnostics.length) {
+    return { diagnostics: sortDiagnostics(diagnostics), valid: false };
+  }
   const definition: PresentationDefinition = {
-    schemaVersion: 2,
-    presentationId: presentation.id,
+    flow: { groups, initialGroupId: presentation.flow.initialGroupId, timelines: {}, variables },
     metadata: presentation.metadata,
-    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
+    presentationId: presentation.id,
     scene: { nodes, surfaces },
-    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines: {} },
+    schemaVersion: 2,
+    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
   };
   const checked = validatePresentationDefinition(definition);
-  if (!checked.valid) return { valid: false, diagnostics: sortDiagnostics(checked.diagnostics) };
+  if (!checked.valid) {
+    return { diagnostics: sortDiagnostics(checked.diagnostics), valid: false };
+  }
   const canonical = canonicalizePresentationDefinition(checked.value);
   const definitionHash = hashPresentationDefinition(checked.value);
-  if (!canonical.valid || !definitionHash.valid)
+  if (!canonical.valid || !definitionHash.valid) {
     return {
-      valid: false,
       diagnostics: !canonical.valid ? canonical.diagnostics : definitionHash.diagnostics,
+      valid: false,
     };
+  }
   return {
+    diagnostics: [],
     valid: true,
     value: {
+      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
       definition: checked.value,
+      definitionHash: definitionHash.value,
       definitionJson: canonical.value,
       sourceHash: hashCanonicalJsonPayload(source),
-      definitionHash: definitionHash.value,
-      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
       warnings,
     },
-    diagnostics: [],
   };
 };

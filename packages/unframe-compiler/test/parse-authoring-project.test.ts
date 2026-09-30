@@ -3,10 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 
 const project = () => ({
-  projectRoot: "/virtual/presentation",
   entryFile: "presentation.unframe.tsx",
-  rootDependencies: [],
-  packages: [],
   files: [
     {
       fileName: "presentation.unframe.tsx",
@@ -15,6 +12,9 @@ const project = () => ({
     { fileName: "theme.d.ts", sourceText: "export interface Theme { readonly name: string; }" },
     { fileName: "components/frame.ts", sourceText: "export const frame = {};" },
   ],
+  packages: [],
+  projectRoot: "/virtual/presentation",
+  rootDependencies: [],
 });
 
 describe("parseAuthoringProject", () => {
@@ -22,7 +22,9 @@ describe("parseAuthoringProject", () => {
     const result = parseAuthoringProject(project());
 
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.projectRoot).toBe("/virtual/presentation");
     expect(result.value.entryFile).toBe("presentation.unframe.tsx");
     expect(Object.keys(result.value.files)).toEqual([
@@ -44,29 +46,29 @@ describe("parseAuthoringProject", () => {
     ];
 
     expect(parseAuthoringProject(input)).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-syntax-error",
+          column: 18,
+          end: 18,
           fileName: "a.ts",
+          line: 1,
           message: "Expression expected.",
           start: 17,
-          end: 18,
-          line: 1,
-          column: 18,
           typescriptCode: 1109,
         },
         {
           code: "compiler-source-syntax-error",
+          column: 11,
+          end: 11,
           fileName: "z.ts",
+          line: 1,
           message: "Expression expected.",
           start: 10,
-          end: 11,
-          line: 1,
-          column: 11,
           typescriptCode: 1109,
         },
       ],
+      ok: false,
     });
   });
 
@@ -91,7 +93,9 @@ describe("parseAuthoringProject", () => {
     for (const [input, code] of cases) {
       const result = parseAuthoringProject(input);
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.diagnostics.map((item) => item.code)).toContain(code);
+      if (!result.ok) {
+        expect(result.diagnostics.map((item) => item.code)).toContain(code);
+      }
     }
   });
 
@@ -114,18 +118,18 @@ describe("parseAuthoringProject", () => {
     for (const input of [accessorInput, proxyInput]) {
       const result = parseAuthoringProject(input);
       expect(result).toEqual({
-        ok: false,
         diagnostics: [
           {
             code: "compiler-invalid-input",
+            column: 1,
+            end: 0,
             fileName: "",
+            line: 1,
             message: "Project input cannot be inspected safely.",
             start: 0,
-            end: 0,
-            line: 1,
-            column: 1,
           },
         ],
+        ok: false,
       });
     }
     expect(accessorReads).toBe(0);
@@ -133,25 +137,25 @@ describe("parseAuthoringProject", () => {
 
   it("rejects own prototype-shaped unknown fields in the project and file envelope", () => {
     const rootUnknown = project() as Record<string, unknown>;
-    Object.defineProperty(rootUnknown, "__proto__", { value: {}, enumerable: true });
+    Object.defineProperty(rootUnknown, "__proto__", { enumerable: true, value: {} });
     const fileUnknown = project();
-    Object.defineProperty(fileUnknown.files[0]!, "constructor", { value: {}, enumerable: true });
+    Object.defineProperty(fileUnknown.files[0]!, "constructor", { enumerable: true, value: {} });
 
     for (const input of [rootUnknown, fileUnknown]) {
       const result = parseAuthoringProject(input);
       expect(result).toEqual({
-        ok: false,
         diagnostics: [
           {
             code: "compiler-invalid-input",
+            column: 1,
+            end: 0,
             fileName: "",
+            line: 1,
             message: "Project input has an invalid virtual filesystem shape.",
             start: 0,
-            end: 0,
-            line: 1,
-            column: 1,
           },
         ],
+        ok: false,
       });
     }
   });

@@ -29,7 +29,7 @@ const validValue = (
 
 export const validateTimelineInvariants = (
   definition: PresentationDefinitionV2,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
   const nodes = definition.scene.nodes;
   for (const [timelineId, timeline] of Object.entries(definition.flow.timelines)) {
@@ -38,7 +38,7 @@ export const validateTimelineInvariants = (
     timeline.tracks.forEach((track, trackIndex) => {
       const trackPath = `${path}/tracks/${trackIndex}`;
       const target = nodes[track.target.nodeId];
-      if (target === undefined)
+      if (target === undefined) {
         diagnostics.push(
           diagnostic(
             "reference.invalid",
@@ -46,8 +46,8 @@ export const validateTimelineInvariants = (
             "Timeline target must exist.",
           ),
         );
-      else {
-        if (target.audience.kind !== "all")
+      } else {
+        if (target.audience.kind !== "all") {
           diagnostics.push(
             diagnostic(
               "graph.invalid",
@@ -55,12 +55,13 @@ export const validateTimelineInvariants = (
               "Timeline target must have all audience visibility.",
             ),
           );
+        }
         if (
           (timeline.owner.kind === "presentation" && target.owner.kind !== "presentation") ||
           (timeline.owner.kind === "group" &&
             target.owner.kind === "group" &&
             timeline.owner.groupId !== target.owner.groupId)
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               "graph.invalid",
@@ -68,11 +69,12 @@ export const validateTimelineInvariants = (
               "Timeline target must have a compatible owner lifetime.",
             ),
           );
+        }
       }
 
       const claim = `${track.target.nodeId}\u0000${track.target.property}`;
       const prior = claims.get(claim);
-      if (prior !== undefined)
+      if (prior !== undefined) {
         diagnostics.push(
           diagnostic(
             "identity.invalid",
@@ -81,14 +83,16 @@ export const validateTimelineInvariants = (
             prior,
           ),
         );
-      else claims.set(claim, `${trackPath}/target`);
+      } else {
+        claims.set(claim, `${trackPath}/target`);
+      }
 
       track.keyframes.forEach((keyframe, frameIndex) => {
         const framePath = `${trackPath}/keyframes/${frameIndex}`;
         const last = frameIndex === track.keyframes.length - 1;
         const expectedTime =
           frameIndex === 0 ? 0 : last ? timeline.durationMilliseconds : undefined;
-        if (expectedTime !== undefined && keyframe.timeMilliseconds !== expectedTime)
+        if (expectedTime !== undefined && keyframe.timeMilliseconds !== expectedTime) {
           diagnostics.push(
             diagnostic(
               "behavior.invalid",
@@ -96,10 +100,11 @@ export const validateTimelineInvariants = (
               "Timeline track must start at zero and end at its duration.",
             ),
           );
+        }
         if (
           frameIndex > 0 &&
           keyframe.timeMilliseconds <= track.keyframes[frameIndex - 1]!.timeMilliseconds
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               "behavior.invalid",
@@ -107,10 +112,11 @@ export const validateTimelineInvariants = (
               "Timeline keyframe times must be strictly increasing.",
             ),
           );
+        }
         if (
           (last && keyframe.easingToNext !== undefined) ||
           (!last && keyframe.easingToNext === undefined)
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               "behavior.invalid",
@@ -118,7 +124,8 @@ export const validateTimelineInvariants = (
               "Only nonfinal keyframes must specify easingToNext.",
             ),
           );
-        if (!validValue(track.target.property, keyframe.value))
+        }
+        if (!validValue(track.target.property, keyframe.value)) {
           diagnostics.push(
             diagnostic(
               "behavior.invalid",
@@ -126,6 +133,7 @@ export const validateTimelineInvariants = (
               "Timeline value must match its property and range; rotation must be canonical.",
             ),
           );
+        }
       });
     });
   }

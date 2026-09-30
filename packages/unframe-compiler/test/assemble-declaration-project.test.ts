@@ -17,34 +17,52 @@ import {
 } from "../src/index.js";
 
 const referenceFont = {
-  id: "reference-font",
-  mediaType: "font/ttf" as const,
+  checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
   dataBase64: "AAEAAAAAAAAAAAAA",
   encodedSizeBytes: 12,
-  checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+  id: "reference-font",
+  mediaType: "font/ttf" as const,
 };
 const localOrigin = {
-  kind: "local" as const,
   entryFile: "standard-surface.manifest.ts",
-  files: [{ path: "standard-surface.manifest.ts", hash: `sha256:${"a".repeat(64)}` }],
+  files: [{ hash: `sha256:${"a".repeat(64)}`, path: "standard-surface.manifest.ts" }],
+  kind: "local" as const,
   sourceHash: `sha256:${"b".repeat(64)}`,
 };
 const structuredLock = (manifest: ComponentManifest, structure: ComponentStructure) => ({
+  manifestHash: hashComponentManifestDeclaration(manifest),
   mode: "structured" as const,
   origin: localOrigin,
-  manifestHash: hashComponentManifestDeclaration(manifest),
   structureHash: hashComponentStructureDeclaration(structure),
 });
 
 const presentation = (): PresentationDeclaration => ({
+  assets: [{ assetId: "reference-font", kind: "asset-ref" }],
+  flow: {
+    groups: {
+      group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
+    },
+    initialGroupId: "group",
+    variables: {},
+  },
   id: "presentation",
   metadata: { title: "Reference" },
-  stage: {
-    coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-    size: [4, 3, 4],
-  },
-  theme: { themeId: standardComponents.theme.id },
+  operations: [],
   scene: {
+    components: [
+      {
+        id: "instance",
+        kind: "component-instance",
+        componentId: standardComponents.surface.manifest.componentId,
+        version: standardComponents.surface.manifest.version,
+        owner: { kind: "presentation" },
+        spatialNodeId: "spatial",
+        props: {},
+        slots: {},
+        variants: {},
+        partOverrides: [],
+      },
+    ],
     spatial: [
       {
         id: "spatial",
@@ -60,45 +78,27 @@ const presentation = (): PresentationDeclaration => ({
         opacity: 1,
       },
     ],
-    components: [
-      {
-        id: "instance",
-        kind: "component-instance",
-        componentId: standardComponents.surface.manifest.componentId,
-        version: standardComponents.surface.manifest.version,
-        owner: { kind: "presentation" },
-        spatialNodeId: "spatial",
-        props: {},
-        slots: {},
-        variants: {},
-        partOverrides: [],
-      },
-    ],
   },
-  assets: [{ kind: "asset-ref", assetId: "reference-font" }],
-  flow: {
-    initialGroupId: "group",
-    groups: {
-      group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
-    },
-    variables: {},
+  stage: {
+    coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+    size: [4, 3, 4],
   },
-  operations: [],
+  theme: { themeId: standardComponents.theme.id },
 });
 
 const additionalTheme = { ...standardComponents.theme, id: "theme-z" };
 const additionalManifest = {
   ...standardComponents.surface.manifest,
+  authoring: { mode: "structured" as const, structure: "./surface-z.structure.ts" },
   componentId: "surface-z",
   version: 2,
-  authoring: { mode: "structured" as const, structure: "./surface-z.structure.ts" },
 };
 const additionalStructure = {
   ...standardComponents.surface.structure,
   componentId: "surface-z",
 };
 
-const origin = (fileName: string) => ({ fileName, start: 0, end: 0, line: 1, column: 1 });
+const origin = (fileName: string) => ({ column: 1, end: 0, fileName, line: 1, start: 0 });
 const wrapper = <T>(
   role: "presentation" | "theme" | "component-manifest" | "component-structure",
   fileName: string,
@@ -108,17 +108,10 @@ const wrapper = <T>(
     | "defineComponentManifest"
     | "defineComponentStructure",
   value: T,
-) => ({ role, fileName, rootBuilder, value, sourceMap: [{ path: [], origin: origin(fileName) }] });
+) => ({ fileName, role, rootBuilder, sourceMap: [{ origin: origin(fileName), path: [] }], value });
 
 const catalog = (includeAdditional = false): PairedAuthoringDeclarationCatalog =>
   ({
-    presentation: wrapper("presentation", "presentation.ts", "definePresentation", presentation()),
-    themes: [
-      wrapper("theme", "theme.ts", "defineTheme", standardComponents.theme),
-      ...(includeAdditional
-        ? [wrapper("theme", "theme-z.ts", "defineTheme", additionalTheme)]
-        : []),
-    ],
     components: [
       {
         manifest: wrapper(
@@ -153,13 +146,17 @@ const catalog = (includeAdditional = false): PairedAuthoringDeclarationCatalog =
           ]
         : []),
     ],
+    presentation: wrapper("presentation", "presentation.ts", "definePresentation", presentation()),
+    themes: [
+      wrapper("theme", "theme.ts", "defineTheme", standardComponents.theme),
+      ...(includeAdditional
+        ? [wrapper("theme", "theme-z.ts", "defineTheme", additionalTheme)]
+        : []),
+    ],
   }) as unknown as PairedAuthoringDeclarationCatalog;
 
 const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
   catalog: catalog(includeAdditional),
-  themeHashes: [
-    { themeId: standardComponents.theme.id, hash: hashThemeDeclaration(standardComponents.theme) },
-  ],
   componentLocks: [
     {
       componentId: standardComponents.surface.manifest.componentId,
@@ -167,15 +164,11 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
       ...structuredLock(standardComponents.surface.manifest, standardComponents.surface.structure),
     },
   ],
+  themeHashes: [
+    { hash: hashThemeDeclaration(standardComponents.theme), themeId: standardComponents.theme.id },
+  ],
   ...(includeAdditional
     ? {
-        themeHashes: [
-          {
-            themeId: standardComponents.theme.id,
-            hash: hashThemeDeclaration(standardComponents.theme),
-          },
-          { themeId: "theme-z", hash: hashThemeDeclaration(additionalTheme) },
-        ],
         componentLocks: [
           {
             componentId: standardComponents.surface.manifest.componentId,
@@ -191,6 +184,13 @@ const input = (includeAdditional = false): DeclarationProjectAssemblyInput => ({
             ...structuredLock(additionalManifest, additionalStructure),
           },
         ],
+        themeHashes: [
+          {
+            hash: hashThemeDeclaration(standardComponents.theme),
+            themeId: standardComponents.theme.id,
+          },
+          { hash: hashThemeDeclaration(additionalTheme), themeId: "theme-z" },
+        ],
       }
     : {}),
   assets: { "reference-font": referenceFont },
@@ -205,8 +205,21 @@ describe("assembleDeclarationProject", () => {
   it("assembles a plain canonical declaration envelope without source-map wrappers", () => {
     const result = assembleDeclarationProject(input());
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value).toEqual({
+      assets: { "reference-font": referenceFont },
+      components: [
+        {
+          lock: structuredLock(
+            standardComponents.surface.manifest,
+            standardComponents.surface.structure,
+          ),
+          manifest: standardComponents.surface.manifest,
+          structure: standardComponents.surface.structure,
+        },
+      ],
       presentation: presentation(),
       themes: [
         {
@@ -214,17 +227,6 @@ describe("assembleDeclarationProject", () => {
           hash: hashThemeDeclaration(standardComponents.theme),
         },
       ],
-      components: [
-        {
-          manifest: standardComponents.surface.manifest,
-          structure: standardComponents.surface.structure,
-          lock: structuredLock(
-            standardComponents.surface.manifest,
-            standardComponents.surface.structure,
-          ),
-        },
-      ],
-      assets: { "reference-font": referenceFont },
     });
     expect(JSON.stringify(result.value)).not.toContain("sourceMap");
   });
@@ -235,11 +237,11 @@ describe("assembleDeclarationProject", () => {
       ...input(true),
       catalog: {
         ...catalog(true),
-        themes: [...catalog(true).themes].reverse(),
         components: [...catalog(true).components].reverse(),
+        themes: [...catalog(true).themes].reverse(),
       },
-      themeHashes: [...input(true).themeHashes].reverse(),
       componentLocks: [...input(true).componentLocks].reverse(),
+      themeHashes: [...input(true).themeHashes].reverse(),
     };
     expect(assembleDeclarationProject(second)).toEqual(assembleDeclarationProject(first));
   });
@@ -269,11 +271,11 @@ describe("assembleDeclarationProject", () => {
 
     const structureWithDifferentLocations = {
       ...standardComponents.surface.structure,
-      source: { file: "another-structure.ts" },
       root: {
         ...standardComponents.surface.structure.root,
         source: { file: "another-root.ts" },
       },
+      source: { file: "another-structure.ts" },
     };
     expect(hashComponentStructureDeclaration(structureWithDifferentLocations)).toBe(
       hashComponentStructureDeclaration(standardComponents.surface.structure),
@@ -281,8 +283,8 @@ describe("assembleDeclarationProject", () => {
 
     const frameStructure = {
       ...standardComponents.surface.structure,
-      root: standardComponents.surface.structure.root.root,
       baseSemanticTree: standardComponents.surface.structure.root.baseSemanticTree,
+      root: standardComponents.surface.structure.root.root,
     };
     const frameStructureWithDifferentSemanticLocations = {
       ...frameStructure,
@@ -329,11 +331,6 @@ describe("assembleDeclarationProject", () => {
     const source = input(true);
     const reordered = {
       ...source,
-      themeHashes: source.themeHashes
-        .map((entry) =>
-          entry.themeId === "theme-z" ? { ...entry, hash: "sha256:theme-mismatch" } : entry,
-        )
-        .reverse(),
       componentLocks: source.componentLocks
         .map((entry) =>
           entry.componentId === "surface-z"
@@ -341,10 +338,15 @@ describe("assembleDeclarationProject", () => {
             : entry,
         )
         .reverse(),
+      themeHashes: source.themeHashes
+        .map((entry) =>
+          entry.themeId === "theme-z" ? { ...entry, hash: "sha256:theme-mismatch" } : entry,
+        )
+        .reverse(),
     };
     const result = assembleDeclarationProject(reordered);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
         {
           code: "compiler-component-structure-hash-mismatch",
@@ -352,20 +354,17 @@ describe("assembleDeclarationProject", () => {
         },
         { code: "compiler-theme-hash-mismatch", path: ["themeHashes", 0] },
       ]);
+    }
   });
 
   it("excludes declaration locations inside opaque semantic surfaces from manifest hashes", () => {
     const opaque = {
       ...standardComponents.surface.manifest,
       authoring: { mode: "opaque" as const },
-      renderers: { "baked-web": { entry: "renderer.ts", bindingKeys: [] } },
+      renderers: { "baked-web": { bindingKeys: [], entry: "renderer.ts" } },
       semantics: {
-        targets: [],
         surfaces: [
           {
-            id: "surface",
-            bindingKey: "surface",
-            source: { file: "first-surface.ts" },
             baseSemanticTree: {
               rootNodeIds: ["node"],
               nodes: {
@@ -379,12 +378,15 @@ describe("assembleDeclarationProject", () => {
                 },
               },
             },
-            interactions: {},
+            bindingKey: "surface",
+            id: "surface",
             initialStateId: "state",
+            interactions: {},
+            source: { file: "first-surface.ts" },
             states: {
               state: {
+                enabledInteractionIds: [],
                 id: "state",
-                source: { file: "first-state.ts" },
                 semanticOverrides: [
                   {
                     id: "override",
@@ -393,11 +395,12 @@ describe("assembleDeclarationProject", () => {
                     source: { file: "first-override.ts" },
                   },
                 ],
-                enabledInteractionIds: [],
+                source: { file: "first-state.ts" },
               },
             },
           },
         ],
+        targets: [],
       },
     } as const;
     const relocated = {
@@ -407,7 +410,6 @@ describe("assembleDeclarationProject", () => {
         surfaces: [
           {
             ...opaque.semantics.surfaces[0],
-            source: { file: "second-surface.ts" },
             baseSemanticTree: {
               ...opaque.semantics.surfaces[0].baseSemanticTree,
               nodes: {
@@ -417,16 +419,17 @@ describe("assembleDeclarationProject", () => {
                 },
               },
             },
+            source: { file: "second-surface.ts" },
             states: {
               state: {
                 ...opaque.semantics.surfaces[0].states.state,
-                source: { file: "second-state.ts" },
                 semanticOverrides: [
                   {
                     ...opaque.semantics.surfaces[0].states.state.semanticOverrides[0],
                     source: { file: "second-override.ts" },
                   },
                 ],
+                source: { file: "second-state.ts" },
               },
             },
           },
@@ -441,22 +444,22 @@ describe("assembleDeclarationProject", () => {
   it("orders asset carrier keys canonically", () => {
     const withAssetReferences = () => {
       const result = catalog() as unknown as {
+        components: Array<{ structure: { value: typeof standardComponents.surface.structure } }>;
         presentation: { value: PresentationDeclaration };
-        components: { structure: { value: typeof standardComponents.surface.structure } }[];
       };
       result.presentation.value = {
         ...result.presentation.value,
         assets: [
-          { kind: "asset-ref", assetId: "asset-a" },
-          { kind: "asset-ref", assetId: "asset-b" },
+          { assetId: "asset-a", kind: "asset-ref" },
+          { assetId: "asset-b", kind: "asset-ref" },
         ],
       };
       const structure = structuredClone(result.components[0]!.structure.value);
       const text = structure.root.root.children[0]!;
       (text as unknown as { style: Record<string, unknown> }).style = {
         ...text.style,
-        font: { kind: "asset-ref", assetId: "asset-a" },
-        fallbackFonts: [{ kind: "asset-ref", assetId: "asset-b" }],
+        fallbackFonts: [{ assetId: "asset-b", kind: "asset-ref" }],
+        font: { assetId: "asset-a", kind: "asset-ref" },
       };
       result.components[0]!.structure.value = structure;
       return { catalog: result, structure };
@@ -464,34 +467,36 @@ describe("assembleDeclarationProject", () => {
     const firstCatalog = withAssetReferences();
     const first = {
       ...input(),
+      assets: {
+        "asset-a": { ...referenceFont, id: "asset-a" },
+        "asset-b": { ...referenceFont, id: "asset-b" },
+      },
       catalog: firstCatalog.catalog,
       componentLocks: input().componentLocks.map((entry) => ({
         ...entry,
         structureHash: hashComponentStructureDeclaration(firstCatalog.structure),
       })),
-      assets: {
-        "asset-a": { ...referenceFont, id: "asset-a" },
-        "asset-b": { ...referenceFont, id: "asset-b" },
-      },
     };
     const secondCatalog = withAssetReferences();
     const second = {
       ...input(),
+      assets: {
+        "asset-a": { ...referenceFont, id: "asset-a" },
+        "asset-b": { ...referenceFont, id: "asset-b" },
+      },
       catalog: secondCatalog.catalog,
       componentLocks: input().componentLocks.map((entry) => ({
         ...entry,
         structureHash: hashComponentStructureDeclaration(secondCatalog.structure),
       })),
-      assets: {
-        "asset-b": { ...referenceFont, id: "asset-b" },
-        "asset-a": { ...referenceFont, id: "asset-a" },
-      },
     };
     const firstResult = assembleDeclarationProject(first);
     const secondResult = assembleDeclarationProject(second);
     expect(firstResult.valid).toBe(true);
     expect(secondResult.valid).toBe(true);
-    if (!firstResult.valid || !secondResult.valid) return;
+    if (!firstResult.valid || !secondResult.valid) {
+      return;
+    }
     expect(JSON.stringify(secondResult.value)).toBe(JSON.stringify(firstResult.value));
   });
 
@@ -499,7 +504,7 @@ describe("assembleDeclarationProject", () => {
     const missing = { ...input(), themeHashes: [] };
     const extra = {
       ...input(),
-      themeHashes: [...input().themeHashes, { themeId: "extra", hash: "extra" }],
+      themeHashes: [...input().themeHashes, { hash: "extra", themeId: "extra" }],
     };
     const duplicate = {
       ...input(),
@@ -568,13 +573,13 @@ describe("assembleDeclarationProject", () => {
     forgedCatalog.components[0].structure.fileName = "forged.structure.ts";
     const result = assembleDeclarationProject({ ...input(), catalog: forgedCatalog });
     expect(result).toMatchObject({
-      valid: false,
       diagnostics: [
         {
           code: "compiler-component-structure-path-mismatch",
           path: ["catalog", "components", 0, "structure", "fileName"],
         },
       ],
+      valid: false,
     });
   });
 
@@ -586,7 +591,7 @@ describe("assembleDeclarationProject", () => {
       ...forgedCatalog.components[0].manifest.value,
       authoring: { mode: "opaque" },
       renderers: {},
-      semantics: { targets: [], surfaces: [] },
+      semantics: { surfaces: [], targets: [] },
     };
     expect(codes({ ...input(), catalog: forgedCatalog })).toContain(
       "compiler-component-lock-mode-mismatch",
@@ -603,40 +608,42 @@ describe("assembleDeclarationProject", () => {
     const baseCatalog = catalog() as unknown as Record<string, unknown>;
     const malformed = {
       ...input(),
+      assets: { broken: { checksum: "", id: "", mediaType: "" } },
       catalog: {
         ...baseCatalog,
         presentation: {
           ...(baseCatalog.presentation as Record<string, unknown>),
           sourceMap: [
             {
-              path: [],
               origin: { fileName: "presentation.ts", start: -1, end: 0, line: 1, column: 1 },
+              path: [],
             },
           ],
         },
         themes: [
           {
-            ...(baseCatalog.themes as Record<string, unknown>[])[0]!,
+            ...(baseCatalog.themes as Array<Record<string, unknown>>)[0]!,
             rootBuilder: "definePresentation",
           },
         ],
       },
-      themeHashes: [{ themeId: "", hash: "" }],
       componentLocks: [
         {
           componentId: "",
-          version: 0,
+          manifestHash: "",
           mode: "structured",
           origin: { kind: "local", entryFile: "", files: [], sourceHash: "" },
-          manifestHash: "",
           structureHash: "",
+          version: 0,
         },
       ],
-      assets: { broken: { id: "", mediaType: "", checksum: "" } },
+      themeHashes: [{ hash: "", themeId: "" }],
     };
     const result = assembleDeclarationProject(malformed);
     expect(result.valid).toBe(false);
-    if (result.valid) return;
+    if (result.valid) {
+      return;
+    }
     expect(result.diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
       { code: "compiler-invalid-asset", path: ["assets", "broken"] },
       { code: "compiler-invalid-catalog-presentation", path: ["catalog", "presentation"] },
@@ -653,7 +660,7 @@ describe("assembleDeclarationProject", () => {
     };
     projectCatalog.presentation.value = {
       ...projectCatalog.presentation.value,
-      assets: [{ kind: "asset-ref", assetId: "missing" }],
+      assets: [{ assetId: "missing", kind: "asset-ref" }],
     };
     expect(codes({ ...unresolved, catalog: projectCatalog })).toContain("compiler-asset-not-found");
   });
@@ -668,7 +675,6 @@ describe("assembleDeclarationProject", () => {
       .map((name) => `export const ${name} = (...args: unknown[]) => { throw 0; };`)
       .join("\n");
     const source = {
-      projectRoot: "/virtual/presentation",
       entryFile: "entry.ts",
       files: [
         {
@@ -710,20 +716,13 @@ export default defineComponentStructure({
 });`,
         },
       ],
-      rootDependencies: [
-        {
-          specifier: "@unframe/unframe-authoring",
-          usage: "runtime",
-          packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-        },
-      ],
       packages: [
         {
-          key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-          locator: "@unframe/unframe-authoring@1",
-          name: "@unframe/unframe-authoring",
-          version: "1",
           contentIntegrity: hashCanonicalJsonPayload(builders),
+          dependencies: [],
+          exports: [
+            { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+          ],
           files: [
             {
               path: "index.ts",
@@ -733,23 +732,33 @@ export default defineComponentStructure({
               data: builders,
             },
           ],
-          exports: [
-            { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
-          ],
-          dependencies: [],
+          key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+          locator: "@unframe/unframe-authoring@1",
+          name: "@unframe/unframe-authoring",
+          version: "1",
+        },
+      ],
+      projectRoot: "/virtual/presentation",
+      rootDependencies: [
+        {
+          packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+          specifier: "@unframe/unframe-authoring",
+          usage: "runtime",
         },
       ],
     };
     const checked = checkAuthoringProject(source);
     expect(checked.valid).toBe(true);
-    if (!checked.valid) return;
+    if (!checked.valid) {
+      return;
+    }
     const component = checked.value.components[0]!;
-    if (!("structure" in component)) throw new Error("Expected structured Component");
+    if (!("structure" in component)) {
+      throw new Error("Expected structured Component");
+    }
     const result = assembleDeclarationProject({
+      assets: { "reference-font": referenceFont },
       catalog: checked.value,
-      themeHashes: [
-        { themeId: "theme", hash: hashThemeDeclaration(checked.value.themes[0]!.value) },
-      ],
       componentLocks: [
         {
           componentId: "surface",
@@ -757,9 +766,13 @@ export default defineComponentStructure({
           ...structuredLock(component.manifest.value, component.structure.value),
         },
       ],
-      assets: { "reference-font": referenceFont },
+      themeHashes: [
+        { hash: hashThemeDeclaration(checked.value.themes[0]!.value), themeId: "theme" },
+      ],
     });
     expect(result.valid).toBe(true);
-    if (result.valid) expect(JSON.stringify(result.value)).not.toContain("sourceMap");
+    if (result.valid) {
+      expect(JSON.stringify(result.value)).not.toContain("sourceMap");
+    }
   });
 });

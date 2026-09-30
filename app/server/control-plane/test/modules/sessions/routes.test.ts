@@ -36,28 +36,28 @@ describe("session HTTP lifecycle", () => {
       .bind(presentationId, ownerId)
       .run();
     const app = createApp({
+      credentials: {
+        issue: async () => ({
+          expiresAt: Date.parse("2026-08-18T00:00:00.000Z"),
+          token: "signed-session-token",
+        }),
+      },
       identityProvider: async (context) => {
         const userId = context.req.header("x-test-user");
-        return userId ? { userId, globalRole: "user" } : undefined;
+        return userId ? { globalRole: "user", userId } : undefined;
       },
       joinCode: () => "WXYZ-2345",
       sessionNow: () => new Date("2026-08-18T00:00:00.000Z"),
-      credentials: {
-        issue: async () => ({
-          token: "signed-session-token",
-          expiresAt: Date.parse("2026-08-18T00:00:00.000Z"),
-        }),
-      },
     });
     const request = (path: string, userId: string, body?: unknown) =>
       app.fetch(
         new Request(`https://api.example.com${path}`, {
-          method: body === undefined ? "GET" : "POST",
           headers: {
+            "cf-connecting-ip": "192.0.2.1",
             "content-type": "application/json",
             "x-test-user": userId,
-            "cf-connecting-ip": "192.0.2.1",
           },
+          method: body === undefined ? "GET" : "POST",
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         }),
         runtimeEnvironment(),
@@ -66,8 +66,8 @@ describe("session HTTP lifecycle", () => {
     const created = await request("/sessions", ownerId, { presentationId });
     expect(created.status).toBe(201);
     const creation = await created.json<{
-      session: { id: string; joinCodeHash?: string };
       joinCode: string;
+      session: { id: string; joinCodeHash?: string };
     }>();
     expect(creation.joinCode).toBe("WXYZ-2345");
     expect(creation.session).not.toHaveProperty("joinCodeHash");
@@ -106,14 +106,14 @@ describe("session HTTP lifecycle", () => {
       .run();
     const bootstrap = await request(`/sessions/${creation.session.id}/bootstrap`, viewerId, {});
     await expect(bootstrap.json()).resolves.toMatchObject({
-      endpoint: "https://edge.example.com",
-      runtimeId: `runtime-${suffix}`,
-      runtimeKind: "VenueEdge",
       assignmentEpoch: 1,
+      credential: "signed-session-token",
+      endpoint: "https://edge.example.com",
+      fingerprint: "sha256:test",
       presentationId,
       presentationRevision: 1,
-      fingerprint: "sha256:test",
-      credential: "signed-session-token",
+      runtimeId: `runtime-${suffix}`,
+      runtimeKind: "VenueEdge",
     });
 
     expect((await request(`/sessions/${creation.session.id}/end`, ownerId, {})).status).toBe(200);
@@ -151,25 +151,25 @@ describe("session HTTP lifecycle", () => {
       .bind(presentationId, ownerId)
       .run();
     const app = createApp({
-      identityProvider: async () => ({ userId: ownerId, globalRole: "user" }),
-      joinCode: () => "ABCD-EFGH",
-      sessionNow: () => new Date("2026-08-18T00:00:00.000Z"),
       credentials: {
         issue: async (input) => {
           await new D1SessionRepository(env.DB).end(input.sessionId, "2026-08-18T00:00:00.000Z");
           return {
-            token: "must-not-be-returned",
             expiresAt: Date.parse("2026-08-21T00:00:00.000Z"),
+            token: "must-not-be-returned",
           };
         },
       },
+      identityProvider: async () => ({ globalRole: "user", userId: ownerId }),
+      joinCode: () => "ABCD-EFGH",
+      sessionNow: () => new Date("2026-08-18T00:00:00.000Z"),
     });
     const request = (path: string, body: unknown) =>
       app.fetch(
         new Request(`https://api.example.com${path}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
+          headers: { "content-type": "application/json" },
+          method: "POST",
         }),
         runtimeEnvironment(),
       );
@@ -233,7 +233,7 @@ describe("session HTTP lifecycle", () => {
       ).bind(sessionId, ownerId, now.toISOString()),
     ]);
     const app = createApp({
-      identityProvider: async () => ({ userId: ownerId, globalRole: "user" }),
+      identityProvider: async () => ({ globalRole: "user", userId: ownerId }),
       sessionNow: () => now,
     });
     const edgeId = `edge-${suffix}`;

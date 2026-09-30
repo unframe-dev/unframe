@@ -3,16 +3,7 @@ import { expect, test } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
-      contentType: "application/json",
       body: JSON.stringify({
-        user: {
-          id: "test-user",
-          name: "テストユーザー",
-          email: "test@example.com",
-          emailVerified: true,
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
         session: {
           id: "test-session",
           userId: "test-user",
@@ -21,7 +12,16 @@ test.beforeEach(async ({ page }) => {
           createdAt: "2026-08-17T00:00:00.000Z",
           updatedAt: "2026-08-17T00:00:00.000Z",
         },
+        user: {
+          id: "test-user",
+          name: "テストユーザー",
+          email: "test@example.com",
+          emailVerified: true,
+          createdAt: "2026-08-17T00:00:00.000Z",
+          updatedAt: "2026-08-17T00:00:00.000Z",
+        },
       }),
+      contentType: "application/json",
     }),
   );
 });

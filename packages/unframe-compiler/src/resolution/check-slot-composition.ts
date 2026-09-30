@@ -14,17 +14,21 @@ export const sameOwner = (
   (left.kind === "presentation" || (right.kind === "group" && left.groupId === right.groupId));
 
 export const checkSlotComposition = (
-  instances: readonly ComponentInstanceDeclaration[],
+  instances: ReadonlyArray<ComponentInstanceDeclaration>,
   components: CompilerDeclarationProject["components"],
-): { nestedInstanceIds: ReadonlySet<string>; diagnostics: Diagnostic[] } => {
-  const diagnostics: Diagnostic[] = [];
+): { diagnostics: Array<Diagnostic>; nestedInstanceIds: ReadonlySet<string> } => {
+  const diagnostics: Array<Diagnostic> = [];
   const instanceById = new Map(instances.map((instance) => [instance.id, instance]));
   const instanceIndexById = new Map(instances.map((instance, index) => [instance.id, index]));
   const nestedInstanceIds = new Set<string>();
-  const slotEdges = new Map<string, string[]>();
-  const collectSlotIds = (node: ContentNodeDeclaration): string[] => {
-    if (node.kind === "slot-placeholder") return [node.slotId];
-    if (node.kind === "text") return [];
+  const slotEdges = new Map<string, Array<string>>();
+  const collectSlotIds = (node: ContentNodeDeclaration): Array<string> => {
+    if (node.kind === "slot-placeholder") {
+      return [node.slotId];
+    }
+    if (node.kind === "text") {
+      return [];
+    }
     return node.children.flatMap(collectSlotIds);
   };
   for (const [index, instance] of instances.entries()) {
@@ -34,10 +38,12 @@ export const checkSlotComposition = (
         candidate.manifest.componentId === instance.componentId &&
         candidate.manifest.version === instance.version,
     );
-    if (entries.length !== 1) continue;
+    if (entries.length !== 1) {
+      continue;
+    }
     const entry = entries[0]!;
     if (!("structure" in entry)) {
-      if (Object.keys(instance.slots).length)
+      if (Object.keys(instance.slots).length) {
         diagnostics.push(
           diagnostic(
             "compiler-opaque-slot-unsupported",
@@ -45,6 +51,7 @@ export const checkSlotComposition = (
             "Opaque Components cannot contain Slots.",
           ),
         );
+      }
       continue;
     }
     const slotIds = collectSlotIds(
@@ -54,7 +61,7 @@ export const checkSlotComposition = (
     if (
       new Set(slotIds).size !== slotIds.length ||
       [...new Set(slotIds)].sort().join("\0") !== [...declaredSlotIds].sort().join("\0")
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "compiler-slot-placeholder-set-mismatch",
@@ -62,9 +69,10 @@ export const checkSlotComposition = (
           "Each declared Slot must have exactly one Frame child placeholder.",
         ),
       );
-    const children: string[] = [];
+    }
+    const children: Array<string> = [];
     for (const [slotId, childIds] of Object.entries(instance.slots)) {
-      if (!Object.hasOwn(entry.manifest.slots, slotId))
+      if (!Object.hasOwn(entry.manifest.slots, slotId)) {
         diagnostics.push(
           diagnostic(
             "compiler-slot-not-found",
@@ -72,9 +80,10 @@ export const checkSlotComposition = (
             "Instance Slot values must name a declared Slot.",
           ),
         );
+      }
       for (const childId of childIds) {
         const child = instanceById.get(childId);
-        if (!child)
+        if (!child) {
           diagnostics.push(
             diagnostic(
               "compiler-slot-instance-not-found",
@@ -82,8 +91,8 @@ export const checkSlotComposition = (
               "Slotted Component instance IDs must resolve.",
             ),
           );
-        else {
-          if (childId === instance.id)
+        } else {
+          if (childId === instance.id) {
             diagnostics.push(
               diagnostic(
                 "compiler-slot-self-reference",
@@ -91,7 +100,8 @@ export const checkSlotComposition = (
                 "A Component instance cannot slot itself.",
               ),
             );
-          if (!sameOwner(child.owner, instance.owner))
+          }
+          if (!sameOwner(child.owner, instance.owner)) {
             diagnostics.push(
               diagnostic(
                 "compiler-slot-owner-mismatch",
@@ -99,7 +109,8 @@ export const checkSlotComposition = (
                 "Slotted Component instances must have the same owner.",
               ),
             );
-          if (nestedInstanceIds.has(childId))
+          }
+          if (nestedInstanceIds.has(childId)) {
             diagnostics.push(
               diagnostic(
                 "compiler-slot-instance-duplicate",
@@ -107,6 +118,7 @@ export const checkSlotComposition = (
                 "A Component instance may appear in only one Slot position.",
               ),
             );
+          }
           nestedInstanceIds.add(childId);
           children.push(childId);
         }
@@ -127,13 +139,19 @@ export const checkSlotComposition = (
       );
       return;
     }
-    if (visited.has(instanceId)) return;
+    if (visited.has(instanceId)) {
+      return;
+    }
     visiting.add(instanceId);
-    for (const childId of slotEdges.get(instanceId) ?? []) visitSlots(childId);
+    for (const childId of slotEdges.get(instanceId) ?? []) {
+      visitSlots(childId);
+    }
     visiting.delete(instanceId);
     visited.add(instanceId);
   };
-  for (const instance of instances) visitSlots(instance.id);
+  for (const instance of instances) {
+    visitSlots(instance.id);
+  }
   for (const [index, instance] of instances.entries()) {
     const nested = nestedInstanceIds.has(instance.id);
     const entry = components.find(
@@ -141,9 +159,13 @@ export const checkSlotComposition = (
         candidate.manifest.componentId === instance.componentId &&
         candidate.manifest.version === instance.version,
     );
-    if (!entry) continue;
-    if (!("structure" in entry)) continue;
-    if (nested && (instance.spatialNodeId !== undefined || entry.structure.root.kind !== "frame"))
+    if (!entry) {
+      continue;
+    }
+    if (!("structure" in entry)) {
+      continue;
+    }
+    if (nested && (instance.spatialNodeId !== undefined || entry.structure.root.kind !== "frame")) {
       diagnostics.push(
         diagnostic(
           "compiler-slotted-component-invalid",
@@ -151,10 +173,11 @@ export const checkSlotComposition = (
           "Slotted instances must omit spatialNodeId and use a Frame-root Component.",
         ),
       );
+    }
     if (
       !nested &&
       (instance.spatialNodeId === undefined || entry.structure.root.kind !== "surface")
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "compiler-top-level-component-invalid",
@@ -162,6 +185,7 @@ export const checkSlotComposition = (
           "Top-level instances must reference a Spatial node and use a Surface-root Component.",
         ),
       );
+    }
   }
-  return { nestedInstanceIds, diagnostics };
+  return { diagnostics, nestedInstanceIds };
 };

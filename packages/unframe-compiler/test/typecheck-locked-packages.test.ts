@@ -7,78 +7,80 @@ import { collectPackageValueProvenance } from "../src/resolution/symbol-provenan
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 type PackageInput = {
+  dependencies?: Array<{ packageName: string; packageVersion: string; packageIntegrity: string }>;
+  exports: Array<{ subpath: string; targetFile: string }>;
+  files: Array<{ fileName: string; sourceText: string }>;
+  packageIntegrity?: string;
   packageName: string;
   packageVersion?: string;
-  packageIntegrity?: string;
-  files: { fileName: string; sourceText: string }[];
-  exports: { subpath: string; targetFile: string }[];
-  dependencies?: { packageName: string; packageVersion: string; packageIntegrity: string }[];
 };
 
 const lockedPackage = ({
+  dependencies = [],
+  exports,
+  files,
+  packageIntegrity = "integrity",
   packageName,
   packageVersion = "1",
-  packageIntegrity = "integrity",
-  files,
-  exports,
-  dependencies = [],
 }: PackageInput) => ({
+  dependencies,
+  exports,
+  files,
+  packageIntegrity,
   packageName,
   packageVersion,
-  packageIntegrity,
-  files,
-  exports,
-  dependencies,
 });
 
 const virtualInput = (
   sourceText: string,
-  packages: readonly ReturnType<typeof lockedPackage>[],
+  packages: ReadonlyArray<ReturnType<typeof lockedPackage>>,
 ) => {
   const keyFor = (item: ReturnType<typeof lockedPackage>) =>
     hashCanonicalJsonPayload([item.packageName, item.packageVersion, item.packageIntegrity]);
   const snapshots = packages
     .map((item) => ({
+      contentIntegrity: hashCanonicalJsonPayload(item),
+      dependencies: item.dependencies.map((dependency) => ({
+        packageKey: keyFor(dependency as ReturnType<typeof lockedPackage>),
+        specifier: dependency.packageName,
+        usage: "runtime",
+      })),
+      exports: item.exports.map((entry) => ({
+        runtimeImport: entry.targetFile,
+        runtimeRequire: null,
+        subpath: entry.subpath,
+        types: entry.targetFile,
+      })),
+      files: item.files
+        .map((file) => ({
+          data: file.sourceText,
+          encoding: "utf8",
+          hash: hashCanonicalJsonPayload(file.sourceText),
+          mediaType: "text/typescript",
+          path: file.fileName,
+        }))
+        .sort((a, b) => a.path.localeCompare(b.path)),
       key: keyFor(item),
       locator: `${item.packageName}@${item.packageVersion}`,
       name: item.packageName,
       version: item.packageVersion,
-      contentIntegrity: hashCanonicalJsonPayload(item),
-      files: item.files
-        .map((file) => ({
-          path: file.fileName,
-          mediaType: "text/typescript",
-          hash: hashCanonicalJsonPayload(file.sourceText),
-          encoding: "utf8",
-          data: file.sourceText,
-        }))
-        .sort((a, b) => a.path.localeCompare(b.path)),
-      exports: item.exports.map((entry) => ({
-        subpath: entry.subpath,
-        runtimeImport: entry.targetFile,
-        runtimeRequire: null,
-        types: entry.targetFile,
-      })),
-      dependencies: item.dependencies.map((dependency) => ({
-        specifier: dependency.packageName,
-        usage: "runtime",
-        packageKey: keyFor(dependency as ReturnType<typeof lockedPackage>),
-      })),
     }))
     .sort((a, b) => a.key.localeCompare(b.key));
   return {
-    projectRoot: "/virtual/presentation",
     entryFile: "presentation.unframe.ts",
     files: [{ fileName: "presentation.unframe.ts", sourceText }],
-    rootDependencies: packages
-      .map((item) => ({ specifier: item.packageName, usage: "runtime", packageKey: keyFor(item) }))
-      .sort((a, b) => a.specifier.localeCompare(b.specifier)),
     packages: snapshots,
+    projectRoot: "/virtual/presentation",
+    rootDependencies: packages
+      .map((item) => ({ packageKey: keyFor(item), specifier: item.packageName, usage: "runtime" }))
+      .sort((a, b) => a.specifier.localeCompare(b.specifier)),
   };
 };
-const project = (sourceText: string, packages: readonly ReturnType<typeof lockedPackage>[]) => {
+const project = (sourceText: string, packages: ReadonlyArray<ReturnType<typeof lockedPackage>>) => {
   const parsed = parseAuthoringProject(virtualInput(sourceText, packages));
-  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  if (!parsed.ok) {
+    throw new Error(JSON.stringify(parsed.diagnostics));
+  }
   return parsed.value;
 };
 
@@ -86,25 +88,27 @@ describe("typecheckAuthoringProject locked packages", () => {
   it("derives direct locked package named value provenance through TypeChecker aliases", () => {
     const parsed = project('import { definePresentation as define } from "pkg"; define();', [
       lockedPackage({
-        packageName: "pkg",
+        exports: [{ subpath: ".", targetFile: "index.ts" }],
         files: [
           {
             fileName: "index.ts",
             sourceText: "export const definePresentation = () => undefined;",
           },
         ],
-        exports: [{ subpath: ".", targetFile: "index.ts" }],
+        packageName: "pkg",
       }),
     ]);
     const analyzed = analyzeAuthoringProject(parsed);
     expect(analyzed.ok).toBe(true);
-    if (!analyzed.ok) return;
+    if (!analyzed.ok) {
+      return;
+    }
     expect(collectPackageValueProvenance(analyzed)).toMatchObject([
       {
-        packageName: "pkg",
-        exportName: "definePresentation",
-        targetFile: "index.ts",
         declarationFile: "index.ts",
+        exportName: "definePresentation",
+        packageName: "pkg",
+        targetFile: "index.ts",
       },
     ]);
   });
@@ -116,24 +120,26 @@ describe("typecheckAuthoringProject locked packages", () => {
     const parsed = parseAuthoringProject({
       ...virtualInput("export const projectValue: string = 1;", [
         lockedPackage({
+          exports: [{ subpath: ".", targetFile: "index.ts" }],
+          files: [{ fileName: "index.ts", sourceText: "export const packageValue = 1;" }],
+          packageIntegrity,
           packageName,
           packageVersion,
-          packageIntegrity,
-          files: [{ fileName: "index.ts", sourceText: "export const packageValue = 1;" }],
-          exports: [{ subpath: ".", targetFile: "index.ts" }],
         }),
       ]),
-      projectRoot: "/.unframe/packages/p0070006B0067/p0031/p0069006E0074006500670072006900740079",
       entryFile: "index.ts",
       files: [{ fileName: "index.ts", sourceText: "export const projectValue: string = 1;" }],
+      projectRoot: "/.unframe/packages/p0070006B0067/p0031/p0069006E0074006500670072006900740079",
     });
-    if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+    if (!parsed.ok) {
+      throw new Error(JSON.stringify(parsed.diagnostics));
+    }
 
     const result = typecheckAuthoringProject(parsed.value);
 
     expect(result).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-source-type-error", fileName: "index.ts" }],
+      ok: false,
     });
   });
 
@@ -141,41 +147,41 @@ describe("typecheckAuthoringProject locked packages", () => {
     const result = typecheckAuthoringProject(
       project('import { value } from "pkg"; export const total: number = value;', [
         lockedPackage({
-          packageName: "pkg",
+          exports: [{ subpath: ".", targetFile: "index.ts" }],
           files: [
             { fileName: "index.ts", sourceText: 'export { value } from "./inner.ts";' },
             { fileName: "inner.ts", sourceText: "export const value: number = 1;" },
           ],
-          exports: [{ subpath: ".", targetFile: "index.ts" }],
+          packageName: "pkg",
         }),
       ]),
     );
 
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("resolves ESM declaration files referenced through .mjs specifiers", () => {
     const result = typecheckAuthoringProject(
       project('import { value } from "pkg"; export const total: number = value;', [
         lockedPackage({
-          packageName: "pkg",
+          exports: [{ subpath: ".", targetFile: "index.d.mts" }],
           files: [
             { fileName: "index.d.mts", sourceText: 'export { value } from "./value.mjs";' },
             { fileName: "value.d.mts", sourceText: "export declare const value: number;" },
           ],
-          exports: [{ subpath: ".", targetFile: "index.d.mts" }],
+          packageName: "pkg",
         }),
       ]),
     );
 
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("resolves a declaration file importing its package root index", () => {
     const result = typecheckAuthoringProject(
       project('import { value } from "pkg"; export const total: number = value;', [
         lockedPackage({
-          packageName: "pkg",
+          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
           files: [
             {
               fileName: "index.d.ts",
@@ -183,60 +189,60 @@ describe("typecheckAuthoringProject locked packages", () => {
             },
             { fileName: "jsx-runtime.d.ts", sourceText: 'export { value } from ".";' },
           ],
-          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+          packageName: "pkg",
         }),
       ]),
     );
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("ignores unreachable optional declaration imports in locked packages", () => {
     const result = typecheckAuthoringProject(
       project('import { value } from "pkg"; export const total: number = value;', [
         lockedPackage({
-          packageName: "pkg",
+          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
           files: [
             { fileName: "index.d.ts", sourceText: "export declare const value: number;" },
             { fileName: "optional.d.ts", sourceText: 'import "not-installed";' },
           ],
-          exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+          packageName: "pkg",
         }),
       ]),
     );
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("resolves a package direct dependency through an explicit deep export", () => {
     const dependency = lockedPackage({
-      packageName: "dependency",
-      files: [{ fileName: "deep.ts", sourceText: "export const deep: number = 1;" }],
       exports: [{ subpath: "./deep", targetFile: "deep.ts" }],
+      files: [{ fileName: "deep.ts", sourceText: "export const deep: number = 1;" }],
+      packageName: "dependency",
     });
     const owner = lockedPackage({
-      packageName: "owner",
-      files: [{ fileName: "index.ts", sourceText: 'export { deep } from "dependency/deep";' }],
-      exports: [{ subpath: ".", targetFile: "index.ts" }],
       dependencies: [
         {
+          packageIntegrity: dependency.packageIntegrity,
           packageName: "dependency",
           packageVersion: dependency.packageVersion,
-          packageIntegrity: dependency.packageIntegrity,
         },
       ],
+      exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: 'export { deep } from "dependency/deep";' }],
+      packageName: "owner",
     });
 
     expect(
       typecheckAuthoringProject(
         project('import { deep } from "owner"; export { deep };', [owner, dependency]),
       ),
-    ).toEqual({ ok: true, diagnostics: [] });
+    ).toEqual({ diagnostics: [], ok: true });
   });
 
   it("rejects undeclared and unexported bare imports with stable owner-aware diagnostics", () => {
     const pkg = lockedPackage({
-      packageName: "pkg",
-      files: [{ fileName: "index.ts", sourceText: 'import "undeclared"; export {};' }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: 'import "undeclared"; export {};' }],
+      packageName: "pkg",
     });
     const undeclared = typecheckAuthoringProject(project('import "undeclared";', []));
     const unexported = typecheckAuthoringProject(project('import "pkg/private";', [pkg]));
@@ -244,23 +250,25 @@ describe("typecheckAuthoringProject locked packages", () => {
 
     for (const result of [undeclared, packageUndeclared]) {
       expect(result.ok).toBe(false);
-      if (!result.ok)
+      if (!result.ok) {
         expect(result.diagnostics.map((item) => item.code)).toContain(
           "compiler-module-package-unsupported",
         );
+      }
     }
     expect(unexported.ok).toBe(false);
-    if (!unexported.ok)
+    if (!unexported.ok) {
       expect(unexported.diagnostics.map((item) => item.code)).toContain(
         "compiler-module-deep-import-forbidden",
       );
+    }
   });
 
   it("validates literal import-type specifiers against direct dependencies and exact exports", () => {
     const pkg = lockedPackage({
-      packageName: "pkg",
-      files: [{ fileName: "index.d.ts", sourceText: "export interface Public {}" }],
       exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+      files: [{ fileName: "index.d.ts", sourceText: "export interface Public {}" }],
+      packageName: "pkg",
     });
     const privateImport = typecheckAuthoringProject(
       project('type Private = import("pkg/private").Private;', [pkg]),
@@ -270,25 +278,25 @@ describe("typecheckAuthoringProject locked packages", () => {
     );
 
     expect(privateImport).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-module-deep-import-forbidden" }],
+      ok: false,
     });
     expect(unknownImport).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-module-package-unsupported" }],
+      ok: false,
     });
   });
 
   it("resolves a type edge ahead of a runtime edge for the same specifier", () => {
     const runtime = lockedPackage({
-      packageName: "runtime-pkg",
-      files: [{ fileName: "index.ts", sourceText: "export const marker = 1;" }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: "export const marker = 1;" }],
+      packageName: "runtime-pkg",
     });
     const types = lockedPackage({
-      packageName: "types-pkg",
-      files: [{ fileName: "index.d.ts", sourceText: "export declare const marker: string;" }],
       exports: [{ subpath: ".", targetFile: "index.d.ts" }],
+      files: [{ fileName: "index.d.ts", sourceText: "export declare const marker: string;" }],
+      packageName: "types-pkg",
     });
     const value = virtualInput(
       'import { marker } from "runtime-pkg"; export const text: string = marker;',
@@ -296,80 +304,82 @@ describe("typecheckAuthoringProject locked packages", () => {
     );
     value.rootDependencies = [
       {
+        packageKey: value.packages.find((pkg) => pkg.name === "runtime-pkg")!.key,
         specifier: "runtime-pkg",
         usage: "runtime",
-        packageKey: value.packages.find((pkg) => pkg.name === "runtime-pkg")!.key,
       },
       {
+        packageKey: value.packages.find((pkg) => pkg.name === "types-pkg")!.key,
         specifier: "runtime-pkg",
         usage: "types",
-        packageKey: value.packages.find((pkg) => pkg.name === "types-pkg")!.key,
       },
     ];
     const parsed = parseAuthoringProject(value);
     expect(parsed.ok).toBe(true);
-    if (!parsed.ok) return;
-    expect(typecheckAuthoringProject(parsed.value)).toEqual({ ok: true, diagnostics: [] });
+    if (!parsed.ok) {
+      return;
+    }
+    expect(typecheckAuthoringProject(parsed.value)).toEqual({ diagnostics: [], ok: true });
   });
 
   it("does not require optional dependencies of otherwise unreachable locked packages", () => {
     const unreachable = lockedPackage({
-      packageName: "unreachable",
-      files: [{ fileName: "index.ts", sourceText: 'import "unknown"; export {};' }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: 'import "unknown"; export {};' }],
+      packageName: "unreachable",
     });
 
     const result = typecheckAuthoringProject(project("export {};", [unreachable]));
 
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("keeps package root escape, unresolved relative, and semantic diagnostics in raw package display names", () => {
     const escaping = lockedPackage({
-      packageName: "escaping",
-      files: [{ fileName: "index.ts", sourceText: 'import "../../outside";' }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: 'import "../../outside";' }],
+      packageName: "escaping",
     });
     const unresolved = lockedPackage({
-      packageName: "unresolved",
-      files: [{ fileName: "index.ts", sourceText: 'import "./missing";' }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: 'import "./missing";' }],
+      packageName: "unresolved",
     });
     const semantic = lockedPackage({
-      packageName: "semantic",
-      files: [{ fileName: "index.ts", sourceText: "export const title: string = 1;" }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: "export const title: string = 1;" }],
+      packageName: "semantic",
     });
     const escaped = typecheckAuthoringProject(project('import "escaping";', [escaping]));
     const missing = typecheckAuthoringProject(project('import "unresolved";', [unresolved]));
     const typed = typecheckAuthoringProject(project('import "semantic";', [semantic]));
 
     expect(escaped).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-module-root-escape", fileName: "escaping@1/index.ts" }],
+      ok: false,
     });
     expect(typed).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-source-type-error", fileName: "semantic@1/index.ts" }],
+      ok: false,
     });
     expect(missing).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-module-unresolved", fileName: "unresolved@1/index.ts" }],
+      ok: false,
     });
   });
 
   it("does not leak ambient declarations from packages that are not reachable from project roots", () => {
     const ambient = lockedPackage({
-      packageName: "ambient",
-      files: [{ fileName: "global.d.ts", sourceText: "declare const leaked: string;" }],
       exports: [{ subpath: ".", targetFile: "global.d.ts" }],
+      files: [{ fileName: "global.d.ts", sourceText: "declare const leaked: string;" }],
+      packageName: "ambient",
     });
 
     const result = typecheckAuthoringProject(project("export const value = leaked;", [ambient]));
 
     expect(result).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-source-type-error", fileName: "presentation.unframe.ts" }],
+      ok: false,
     });
   });
 });

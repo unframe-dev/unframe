@@ -2,12 +2,12 @@
   import type { Snippet } from "svelte";
 
   let {
-    index,
     children,
+    index,
     tone = "light",
   } = $props<{
-    index: string;
     children: Snippet;
+    index: string;
     tone?: "light" | "dark";
   }>();
 </script>

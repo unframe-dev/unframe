@@ -9,7 +9,6 @@ import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-p
 const analyze = (sourceText: string) => {
   const sdkFiles = [
     {
-      path: "index.ts",
       data: `
 export const defineComponentStructure = (value: any): any => value;
 export const Surface = (props: any): any => props;
@@ -23,35 +22,24 @@ export const frame = (props: any): any => props;
 export const text = (props: any): any => props;
 export const slotPlaceholder = (props: any): any => props;
 export const componentInstance = (props: any): any => props;`,
+      path: "index.ts",
     },
     {
-      path: "jsx-runtime.ts",
       data: `
 export namespace JSX { export type Element = any; export type ElementType = (props: any) => any; export interface ElementChildrenAttribute { children: unknown } }
 export declare const jsx: (tag: unknown, props: unknown, key?: unknown) => any;
 export { jsx as jsxs };`,
+      path: "jsx-runtime.ts",
     },
   ];
   const packageKey = hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]);
   const parsed = parseAuthoringProject({
-    projectRoot: "/virtual/jsx",
     entryFile: "entry.structure.tsx",
     files: [{ fileName: "entry.structure.tsx", sourceText }],
-    rootDependencies: [{ specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey }],
     packages: [
       {
-        key: packageKey,
-        locator: "@unframe/unframe-authoring@1",
-        name: "@unframe/unframe-authoring",
-        version: "1",
         contentIntegrity: hashCanonicalJsonPayload(sdkFiles),
-        files: sdkFiles.map((file) => ({
-          path: file.path,
-          mediaType: "text/typescript",
-          hash: hashCanonicalJsonPayload(file.data),
-          encoding: "utf8",
-          data: file.data,
-        })),
+        dependencies: [],
         exports: [
           { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
           {
@@ -61,13 +49,29 @@ export { jsx as jsxs };`,
             types: "jsx-runtime.ts",
           },
         ],
-        dependencies: [],
+        files: sdkFiles.map((file) => ({
+          path: file.path,
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(file.data),
+          encoding: "utf8",
+          data: file.data,
+        })),
+        key: packageKey,
+        locator: "@unframe/unframe-authoring@1",
+        name: "@unframe/unframe-authoring",
+        version: "1",
       },
     ],
+    projectRoot: "/virtual/jsx",
+    rootDependencies: [{ packageKey, specifier: "@unframe/unframe-authoring", usage: "runtime" }],
   });
-  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  if (!parsed.ok) {
+    throw new Error(JSON.stringify(parsed.diagnostics));
+  }
   const result = analyzeAuthoringProject(parsed.value);
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   return result;
 };
 
@@ -87,13 +91,13 @@ export default defineComponentStructure({ id: "structure", componentId: "compone
 
     const result = lowerAuthoringDeclarationFile(analyzed);
     expect(result).toMatchObject({
-      ok: true,
       graph: {
         root: {
-          builder: "defineComponentStructure",
           arguments: [{ kind: "object" }],
+          builder: "defineComponentStructure",
         },
       },
+      ok: true,
     });
   });
 
@@ -108,7 +112,9 @@ ${declaration}
 export default defineComponentStructure({ id: "s", componentId: "c", root, partBindings: {}, variantStyles: {}, timelines: [] });`);
     const result = lowerAuthoringDeclarationFile(analyzed);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -147,7 +153,9 @@ export default defineComponentStructure({ id: "s", componentId: "c", root, partB
 
     const result = lowerAuthoringDeclarationFile(analyzed);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: expect.stringMatching(/^compiler-static-jsx-/) }),
@@ -173,13 +181,17 @@ export default defineComponentStructure({ id: "s", componentId: "c", root, partB
     const builderGraph = lowerAuthoringDeclarationFile(builders);
     expect(jsxGraph.ok).toBe(true);
     expect(builderGraph.ok).toBe(true);
-    if (!jsxGraph.ok || !builderGraph.ok) return;
+    if (!jsxGraph.ok || !builderGraph.ok) {
+      return;
+    }
 
     const normalizedJsx = normalizeDeclarationGraph(jsxGraph.graph);
     const normalizedBuilders = normalizeDeclarationGraph(builderGraph.graph);
     expect(normalizedJsx).toMatchObject({ ok: true });
     expect(normalizedBuilders).toMatchObject({ ok: true });
-    if (!normalizedJsx.ok || !normalizedBuilders.ok) return;
+    if (!normalizedJsx.ok || !normalizedBuilders.ok) {
+      return;
+    }
     expect(normalizedJsx.value).toEqual(normalizedBuilders.value);
   });
 });

@@ -5,16 +5,7 @@ const editorPath = "/editor/demo?panel=properties";
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
-      contentType: "application/json",
       body: JSON.stringify({
-        user: {
-          id: "test-user",
-          name: "テストユーザー",
-          email: "test@example.com",
-          emailVerified: true,
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
         session: {
           id: "test-session",
           userId: "test-user",
@@ -23,7 +14,16 @@ test.beforeEach(async ({ page }) => {
           createdAt: "2026-08-17T00:00:00.000Z",
           updatedAt: "2026-08-17T00:00:00.000Z",
         },
+        user: {
+          id: "test-user",
+          name: "テストユーザー",
+          email: "test@example.com",
+          emailVerified: true,
+          createdAt: "2026-08-17T00:00:00.000Z",
+          updatedAt: "2026-08-17T00:00:00.000Z",
+        },
       }),
+      contentType: "application/json",
     }),
   );
 });
@@ -32,7 +32,9 @@ async function canvasCenter(page: Page) {
   const canvas = page.getByRole("region", { name: "3Dプレゼンテーション" }).locator("canvas");
   await expect(canvas).toBeVisible();
   const bounds = await canvas.boundingBox();
-  if (!bounds) throw new Error("3D Canvas の表示領域を取得できません");
+  if (!bounds) {
+    throw new Error("3D Canvas の表示領域を取得できません");
+  }
   return {
     x: bounds.x + bounds.width / 2,
     y: bounds.y + bounds.height / 2,

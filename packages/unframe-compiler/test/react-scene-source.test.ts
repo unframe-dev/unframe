@@ -15,11 +15,11 @@ export default definePresentation({
 
 const fixture = (text = source, shared = false): PairedAuthoringDeclarationCatalog => {
   const scene = ["first", "second"].map((id, index) => ({
-    id,
     component: { id: "hero", version: 1 },
+    id,
     props: {
-      title: shared && index === 0 ? "Shared" : index === 0 ? "One" : "Two",
       count: index + 1,
+      title: shared && index === 0 ? "Shared" : index === 0 ? "One" : "Two",
     },
     transform: { position: [index === 0 ? -1 : 1, 2, 3], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
   }));
@@ -27,31 +27,31 @@ const fixture = (text = source, shared = false): PairedAuthoringDeclarationCatal
     const start = text.indexOf(`{ id: "${item.id}"`);
     const end = text.indexOf("\n", start) - 1;
     return {
+      origin: { column: 1, end, fileName: "presentation.unframe.tsx", line: 1, start },
       path: ["scene", index],
-      origin: { fileName: "presentation.unframe.tsx", start, end, line: 1, column: 1 },
     };
   });
   return {
-    presentation: {
-      role: "presentation",
-      rootBuilder: "definePresentation",
-      fileName: "presentation.unframe.tsx",
-      value: { scene },
-      sourceMap,
-    },
-    themes: [],
     components: [
       {
         metadata: {
           id: "hero",
-          version: 1,
           props: {
             title: { kind: "string", required: true },
             count: { kind: "number", required: true },
           },
+          version: 1,
         },
       },
     ],
+    presentation: {
+      fileName: "presentation.unframe.tsx",
+      role: "presentation",
+      rootBuilder: "definePresentation",
+      sourceMap,
+      value: { scene },
+    },
+    themes: [],
   } as unknown as PairedAuthoringDeclarationCatalog;
 };
 
@@ -59,9 +59,11 @@ describe("direct React scene source editing", () => {
   it("exposes published scalar props and full host transforms for independent instances", () => {
     const result = readEditableReactScene(fixture(), source);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.map((item) => item.instanceId)).toEqual(["first", "second"]);
-    expect(result.value[0]?.props.title).toEqual({ kind: "string", value: "One", editable: true });
+    expect(result.value[0]?.props.title).toEqual({ editable: true, kind: "string", value: "One" });
     expect(result.value[0]?.transform).toEqual({
       position: [-1, 2, 3],
       rotation: [0, 0, 0, 1],
@@ -72,22 +74,22 @@ describe("direct React scene source editing", () => {
 
   it("changes only the selected literal and preserves the other instance and comments", () => {
     const result = patchEditableReactScene(fixture(), source, {
-      kind: "setProp",
       instanceId: "first",
+      kind: "setProp",
       propId: "title",
       value: "Changed",
     });
     expect(result).toEqual({
+      diagnostics: [],
       ok: true,
       value: source.replace('title: "One"', 'title: "Changed"'),
-      diagnostics: [],
     });
   });
 
   it("patches every transform axis and rejects invalid scale", () => {
     const command = {
-      kind: "setTransform" as const,
       instanceId: "second",
+      kind: "setTransform" as const,
       transform: {
         position: [4, 5, 6] as const,
         rotation: [0, 1, 0, 0] as const,
@@ -96,7 +98,9 @@ describe("direct React scene source editing", () => {
     };
     const result = patchEditableReactScene(fixture(), source, command);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value).toContain(
       'id: "second", component: Hero, props: { title: "Two", count: 2 }, transform: { position: [4, 5, 6], rotation: [0, 1, 0, 0], scale: [2, 3, 4] }',
     );
@@ -114,8 +118,8 @@ describe("direct React scene source editing", () => {
   it("rejects wrong scalar types and unsupported shared values", () => {
     expect(
       patchEditableReactScene(fixture(), source, {
-        kind: "setProp",
         instanceId: "first",
+        kind: "setProp",
         propId: "count",
         value: "bad",
       }).ok,
@@ -123,12 +127,14 @@ describe("direct React scene source editing", () => {
     const sharedSource = source.replace('title: "One"', "title: sharedTitle");
     const metadata = readEditableReactScene(fixture(sharedSource, true), sharedSource);
     expect(metadata.ok).toBe(true);
-    if (!metadata.ok) return;
+    if (!metadata.ok) {
+      return;
+    }
     expect(metadata.value[0]?.props.title?.editable).toBe(false);
     expect(
       patchEditableReactScene(fixture(sharedSource, true), sharedSource, {
-        kind: "setProp",
         instanceId: "first",
+        kind: "setProp",
         propId: "title",
         value: "Changed",
       }).ok,
@@ -142,7 +148,9 @@ describe("direct React scene source editing", () => {
     );
     const spread = readEditableReactScene(fixture(spreadSource), spreadSource);
     expect(spread.ok).toBe(true);
-    if (!spread.ok) return;
+    if (!spread.ok) {
+      return;
+    }
     expect(spread.value[0]?.props.title?.editable).toBe(false);
 
     const sharedSource = source.replace(
@@ -151,14 +159,16 @@ describe("direct React scene source editing", () => {
     );
     const shared = readEditableReactScene(fixture(sharedSource), sharedSource);
     expect(shared.ok).toBe(true);
-    if (!shared.ok) return;
+    if (!shared.ok) {
+      return;
+    }
     expect(shared.value[0]?.transformEditable).toBe(false);
   });
 
   it("requires source positions from the current parsed snapshot", () => {
     const stale = patchEditableReactScene(fixture(), `// outside edit\n${source}`, {
-      kind: "setProp",
       instanceId: "first",
+      kind: "setProp",
       propId: "title",
       value: "Changed",
     });
@@ -166,7 +176,7 @@ describe("direct React scene source editing", () => {
     const fresh = patchEditableReactScene(
       fixture(`// outside edit\n${source}`),
       `// outside edit\n${source}`,
-      { kind: "setProp", instanceId: "first", propId: "title", value: "Changed" },
+      { instanceId: "first", kind: "setProp", propId: "title", value: "Changed" },
     );
     expect(fresh.ok).toBe(true);
   });
@@ -178,8 +188,8 @@ it("refuses a direct prop hidden by a later instance spread even when the values
     "count: 1 }, ...sharedPlacement, transform:",
   );
   const result = patchEditableReactScene(fixture(shadowed), shadowed, {
-    kind: "setProp",
     instanceId: "first",
+    kind: "setProp",
     propId: "title",
     value: "Changed",
   });

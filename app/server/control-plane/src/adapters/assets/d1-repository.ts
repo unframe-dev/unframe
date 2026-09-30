@@ -7,17 +7,17 @@ import type { AssetRecord, AssetRepository } from "../../modules/assets/service"
 type Row = typeof assets.$inferSelect;
 
 const record = (row: Row): AssetRecord => ({
+  createdAt: new Date(row.createdAt),
+  expiresAt: row.expiresAt,
   id: row.id,
+  mediaType: row.mediaType,
+  name: row.name,
+  objectKey: row.objectKey,
   ownerId: row.ownerId,
   presentationId: row.presentationId,
-  name: row.name,
-  mediaType: row.mediaType,
-  sizeBytes: row.sizeBytes,
   sha256Hex: row.sha256Hex,
-  objectKey: row.objectKey,
+  sizeBytes: row.sizeBytes,
   status: row.status,
-  expiresAt: row.expiresAt,
-  createdAt: new Date(row.createdAt),
   updatedAt: new Date(row.updatedAt),
 });
 
@@ -33,8 +33,8 @@ export class D1AssetRepository implements AssetRepository {
       .insert(assets)
       .values({
         ...value,
-        expiresAt: value.expiresAt,
         createdAt: value.createdAt.toISOString(),
+        expiresAt: value.expiresAt,
         updatedAt: value.updatedAt.toISOString(),
       })
       .run();
@@ -69,7 +69,7 @@ export class D1AssetRepository implements AssetRepository {
       .run();
   }
 
-  async claimDeletion(id: string, statuses: readonly AssetRecord["status"][]) {
+  async claimDeletion(id: string, statuses: ReadonlyArray<AssetRecord["status"]>) {
     if (statuses.length === 0) {
       return null;
     }

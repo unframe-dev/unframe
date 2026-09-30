@@ -10,7 +10,7 @@ import { makeM3AArtifacts } from "./fixtures.js";
 const opaqueFixture = () => {
   const { definition } = makeM3AArtifacts();
   const surface = definition.scene.surfaces.baked!;
-  surface.content = { kind: "opaque", bindings: { label: "label" } };
+  surface.content = { bindings: { label: "label" }, kind: "opaque" };
   return { definition, surface };
 };
 
@@ -27,17 +27,19 @@ describe("opaque Surface content", () => {
 
   it("keeps aggregate Definition and RenderBundle validation available", () => {
     const { definition, renderBundle } = makeM3AArtifacts();
-    definition.scene.surfaces.baked!.content = { kind: "opaque", bindings: { label: "label" } };
+    definition.scene.surfaces.baked!.content = { bindings: { label: "label" }, kind: "opaque" };
     renderBundle.definitionHash = hashCanonicalJsonPayload(definition);
     expect(validatePresentationArtifacts(definition, renderBundle).valid).toBe(true);
   });
 
   it("requires every base semantic node to have exactly one binding", () => {
     const { definition, surface } = opaqueFixture();
-    if (surface.content.kind !== "opaque") throw new TypeError("Expected opaque content.");
+    if (surface.content.kind !== "opaque") {
+      throw new TypeError("Expected opaque content.");
+    }
     surface.content.bindings = {};
     expect(codes(definition)).toContain("graph.invalid");
-    surface.content.bindings = { label: "label", duplicate: "label" };
+    surface.content.bindings = { duplicate: "label", label: "label" };
     expect(codes(definition)).toContain("identity.invalid");
     surface.content.bindings = { label: "missing" };
     expect(codes(definition)).toContain("reference.invalid");

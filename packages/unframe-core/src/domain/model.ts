@@ -7,11 +7,12 @@ import type {
   TextureArtifactV2,
 } from "@unframe/contracts/presentation/v2";
 
-type DeepReadonly<T> = T extends readonly unknown[]
-  ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
-  : T extends object
+type DeepReadonly<T> =
+  T extends ReadonlyArray<unknown>
     ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
-    : T;
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
 
 export type PresentationDefinition = PresentationDefinitionV2;
 export type RenderBundle = RenderBundleV2;
@@ -26,14 +27,14 @@ export type TextureArtifact = DeepReadonly<TextureArtifactV2>;
 
 export type Diagnostic = {
   code: string;
-  path: readonly (string | number)[];
   message: string;
-  relatedPath?: readonly (string | number)[];
+  path: ReadonlyArray<string | number>;
+  relatedPath?: ReadonlyArray<string | number>;
 };
 
 export type ValidationResult<T> =
-  | { valid: true; value: T; diagnostics: [] }
-  | { valid: false; diagnostics: Diagnostic[] };
+  | { diagnostics: []; valid: true; value: T }
+  | { diagnostics: Array<Diagnostic>; valid: false };
 
 export type PresentationArtifacts = {
   definition: PresentationDefinition;

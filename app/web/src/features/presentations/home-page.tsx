@@ -7,26 +7,26 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import moduleStyles from "./home-page.module.css";
 const styles = {
-  main: moduleStyles["main"]!,
-  surface: moduleStyles["surface"]!,
-  header: moduleStyles["header"]!,
-  title: moduleStyles["title"]!,
   actions: moduleStyles["actions"]!,
-  search: moduleStyles["search"]!,
-  content: moduleStyles["content"]!,
-  error: moduleStyles["error"]!,
-  muted: moduleStyles["muted"]!,
-  grid: moduleStyles["grid"]!,
-  card: moduleStyles["card"]!,
-  thumbnail: moduleStyles["thumbnail"]!,
-  updated: moduleStyles["updated"]!,
-  backdrop: moduleStyles["backdrop"]!,
-  viewport: moduleStyles["viewport"]!,
-  popup: moduleStyles["popup"]!,
-  dialogHeading: moduleStyles["dialogHeading"]!,
-  close: moduleStyles["close"]!,
-  form: moduleStyles["form"]!,
   actionsDialog: moduleStyles["actionsDialog"]!,
+  backdrop: moduleStyles["backdrop"]!,
+  card: moduleStyles["card"]!,
+  close: moduleStyles["close"]!,
+  content: moduleStyles["content"]!,
+  dialogHeading: moduleStyles["dialogHeading"]!,
+  error: moduleStyles["error"]!,
+  form: moduleStyles["form"]!,
+  grid: moduleStyles["grid"]!,
+  header: moduleStyles["header"]!,
+  main: moduleStyles["main"]!,
+  muted: moduleStyles["muted"]!,
+  popup: moduleStyles["popup"]!,
+  search: moduleStyles["search"]!,
+  surface: moduleStyles["surface"]!,
+  thumbnail: moduleStyles["thumbnail"]!,
+  title: moduleStyles["title"]!,
+  updated: moduleStyles["updated"]!,
+  viewport: moduleStyles["viewport"]!,
 };
 import {
   createMockPresentation,
@@ -44,13 +44,13 @@ export function HomePage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const presentations = useQuery({
-    queryKey: ["presentations", "mock"],
     queryFn: listMockPresentations,
+    queryKey: ["presentations", "mock"],
   });
   const create = useMutation({
     mutationFn: () => createMockPresentation(title.trim(), description.trim()),
     onSuccess: (created) => {
-      client.setQueryData<Presentation[]>(["presentations", "mock"], (old = []) => [
+      client.setQueryData<Array<Presentation>>(["presentations", "mock"], (old = []) => [
         created,
         ...old,
       ]);
@@ -66,8 +66,8 @@ export function HomePage() {
       item.definition.metadata.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
     );
   return (
-    <main id="main-content" className={styles.main}>
-      <section className={styles.surface} aria-label="プレゼンテーション">
+    <main className={styles.main} id="main-content">
+      <section aria-label="プレゼンテーション" className={styles.surface}>
         <header className={styles.header}>
           <div className={styles.title}>
             <h1>Presentations.</h1>
@@ -77,9 +77,9 @@ export function HomePage() {
               <MagnifyingGlassIcon aria-hidden="true" />
               <span className="sr-only">タイトルを検索</span>
               <Input
-                value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="タイトルを検索"
+                value={search}
               />
             </Label>
             <Button onClick={() => setCreateOpen(true)}>
@@ -93,10 +93,10 @@ export function HomePage() {
             <p role="status">プレゼンテーションを読み込み中…</p>
           ) : presentations.isError ? (
             <div>
-              <p role="alert" className={styles.error}>
+              <p className={styles.error} role="alert">
                 プレゼンテーションを読み込めませんでした。
               </p>
-              <Button variant="outline" onClick={() => presentations.refetch()}>
+              <Button onClick={() => presentations.refetch()} variant="outline">
                 再試行
               </Button>
             </div>
@@ -108,7 +108,7 @@ export function HomePage() {
                   : "プレゼンテーションはまだありません。"}
               </p>
               {!search ? (
-                <Button variant="outline" onClick={() => presentations.refetch()}>
+                <Button onClick={() => presentations.refetch()} variant="outline">
                   再読み込み
                 </Button>
               ) : null}
@@ -119,13 +119,13 @@ export function HomePage() {
                 <li className={styles.card} key={presentation.id}>
                   <div className={styles.thumbnail}>
                     <img
-                      src={presentation.thumbnailUrl}
                       alt={`${presentation.definition.metadata.title}のサムネイル`}
                       loading="lazy"
+                      src={presentation.thumbnailUrl}
                     />
                     <p
-                      className={styles.updated}
                       aria-label={`更新日時 ${formatUpdatedAt(presentation.updatedAt)}`}
+                      className={styles.updated}
                     >
                       <ClockIcon aria-hidden="true" />
                       <time dateTime={presentation.updatedAt}>
@@ -141,13 +141,15 @@ export function HomePage() {
         </div>
       </section>
       <Dialog.Root
-        open={createOpen}
         onOpenChange={(open) => {
           if (!create.isPending) {
             setCreateOpen(open);
-            if (!open) create.reset();
+            if (!open) {
+              create.reset();
+            }
           }
         }}
+        open={createOpen}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className={styles.backdrop} />
@@ -161,8 +163,8 @@ export function HomePage() {
                   </Dialog.Description>
                 </div>
                 <Dialog.Close
-                  className={styles.close}
                   aria-label="閉じる"
+                  className={styles.close}
                   disabled={create.isPending}
                 >
                   <XIcon aria-hidden="true" />
@@ -172,42 +174,44 @@ export function HomePage() {
                 className={styles.form}
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (title.trim() && !create.isPending) create.mutate();
+                  if (title.trim() && !create.isPending) {
+                    create.mutate();
+                  }
                 }}
               >
                 <Label>
                   タイトル
                   <Input
-                    required
                     autoFocus
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
                     maxLength={256}
+                    onChange={(event) => setTitle(event.target.value)}
                     placeholder="Untitled presentation"
+                    required
+                    value={title}
                   />
                 </Label>
                 <Label>
                   説明（任意）
                   <Input
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
                     maxLength={4000}
+                    onChange={(event) => setDescription(event.target.value)}
                     placeholder="このプレゼンテーションについて"
+                    value={description}
                   />
                 </Label>
                 {create.isError ? (
-                  <p role="alert" className={styles.error}>
+                  <p className={styles.error} role="alert">
                     {create.error.message}
                   </p>
                 ) : null}
                 <div className={styles.actionsDialog}>
                   <Dialog.Close
-                    render={<Button type="button" variant="ghost" />}
                     disabled={create.isPending}
+                    render={<Button type="button" variant="ghost" />}
                   >
                     キャンセル
                   </Dialog.Close>
-                  <Button type="submit" disabled={!title.trim() || create.isPending}>
+                  <Button disabled={!title.trim() || create.isPending} type="submit">
                     <PlusIcon aria-hidden="true" />
                     {create.isPending ? "作成中…" : "作成する"}
                   </Button>

@@ -4,7 +4,9 @@ import { createDemoAssetResolver, createDemoGlbDataUrl } from "./demo-glb";
 
 function decodeDataUrl(url: string): Uint8Array {
   const encoded = url.split(",")[1];
-  if (!encoded) throw new Error("GLB data URL is missing its payload");
+  if (!encoded) {
+    throw new Error("GLB data URL is missing its payload");
+  }
   return Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
 }
 
@@ -13,7 +15,7 @@ describe("demo GLB fixture", () => {
     const bytes = decodeDataUrl(createDemoGlbDataUrl());
     const header = new DataView(bytes.buffer);
 
-    expect(header.getUint32(0, true)).toBe(0x46546c67);
+    expect(header.getUint32(0, true)).toBe(0x46_54_6c_67);
     expect(header.getUint32(4, true)).toBe(2);
     expect(header.getUint32(8, true)).toBe(bytes.byteLength);
   });

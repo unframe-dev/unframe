@@ -4,52 +4,52 @@ import { createD1Database } from "../../adapters/d1/database";
 import { venueEdgeCredentials, venueEdges } from "../../adapters/d1/schema";
 
 export type VenueEdgeRecord = {
-  id: string;
-  runtimeId: string | null;
-  status: "active" | "revoked";
-  runtimeVersion: string | null;
-  protocolVersion: string | null;
   capacity: number | null;
-  localEndpoint: string | null;
   certificateFingerprint: string | null;
-  health: string | null;
-  registeredAt: string | null;
-  lastSeenAt: string;
   createdAt: string;
+  health: string | null;
+  id: string;
+  lastSeenAt: string;
+  localEndpoint: string | null;
+  protocolVersion: string | null;
+  registeredAt: string | null;
   revokedAt: string | null;
+  runtimeId: string | null;
+  runtimeVersion: string | null;
+  status: "active" | "revoked";
 };
 export type VenueEdgeCredentialRecord = {
-  edgeId: string;
-  tokenId: string;
-  tokenHash: string;
-  status: "active" | "revoked";
   createdAt: string;
+  edgeId: string;
   expiresAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  status: "active" | "revoked";
+  tokenHash: string;
+  tokenId: string;
 };
 export type EdgeRegistration = {
-  runtimeId: string;
-  runtimeVersion: string;
-  protocolVersion: string;
   capacity: number;
-  localEndpoint: string;
   certificateFingerprint: string;
   health: string;
+  localEndpoint: string;
   observedAt: string;
+  protocolVersion: string;
+  runtimeId: string;
+  runtimeVersion: string;
 };
 export interface VenueEdgeRepository {
   createEdge(edge: VenueEdgeRecord, credential: VenueEdgeCredentialRecord): Promise<void>;
-  findEdge(id: string): Promise<VenueEdgeRecord | null>;
   findCredential(edgeId: string, tokenId: string): Promise<VenueEdgeCredentialRecord | null>;
-  touchCredential(edgeId: string, tokenId: string, usedAt: string): Promise<void>;
+  findEdge(id: string): Promise<VenueEdgeRecord | null>;
+  register(edgeId: string, update: EdgeRegistration): Promise<boolean>;
+  revokeEdge(edgeId: string, revokedAt: string): Promise<boolean>;
   rotateCredential(input: {
+    credential: VenueEdgeCredentialRecord;
     edgeId: string;
     previousExpiresAt: string;
-    credential: VenueEdgeCredentialRecord;
   }): Promise<boolean>;
-  revokeEdge(edgeId: string, revokedAt: string): Promise<boolean>;
-  register(edgeId: string, update: EdgeRegistration): Promise<boolean>;
+  touchCredential(edgeId: string, tokenId: string, usedAt: string): Promise<void>;
 }
 
 export class D1VenueEdgeRepository implements VenueEdgeRepository {
@@ -86,9 +86,9 @@ export class D1VenueEdgeRepository implements VenueEdgeRepository {
       .run();
   }
   async rotateCredential({
+    credential,
     edgeId,
     previousExpiresAt,
-    credential,
   }: Parameters<VenueEdgeRepository["rotateCredential"]>[0]) {
     const result = await this.database.batch([
       this.database

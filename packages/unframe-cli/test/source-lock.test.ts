@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vitest";
 import { acquireSourceLock } from "../src/filesystem/source-lock.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
-const directories: string[] = [];
+const directories: Array<string> = [];
 afterEach(async () => {
   await Promise.all(
-    directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
+    directories.splice(0).map((path) => rm(path, { force: true, recursive: true })),
   );
 });
 it("prevents readers from observing a source save and leaves its revision unchanged after release", async () => {
@@ -22,8 +22,8 @@ it("prevents readers from observing a source save and leaves its revision unchan
   const acquired = await acquireSourceLock(directory);
   assert(acquired.ok);
   expect(await discoverPresentationProjectFiles(directory)).toMatchObject({
-    ok: false,
     code: "cli-source-lock-unavailable",
+    ok: false,
   });
   const inside = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
   assert(inside.ok);

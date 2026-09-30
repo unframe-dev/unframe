@@ -12,26 +12,26 @@ describe("applyCommand", () => {
       scale: [1, 1, 1],
     };
     const result = applyCommand(demoDocument, {
-      type: "element.transform",
       elementId: "demo-model-element",
       transform,
+      type: "element.transform",
     });
 
     expect(result.document.revision).toBe(1);
     expect(result.document.slides[0]?.elements[0]?.transform).toEqual(transform);
     expect(result.inverse).toEqual({
-      type: "element.transform",
       elementId: "demo-model-element",
       transform: demoDocument.slides[0]?.elements[0]?.transform,
+      type: "element.transform",
     });
     expect(demoDocument.revision).toBe(0);
   });
 
   it("restores a removed element at its original position", () => {
     const removed = applyCommand(demoDocument, {
-      type: "element.remove",
-      slideId: "opening",
       elementId: "demo-model-element",
+      slideId: "opening",
+      type: "element.remove",
     });
     const restored = applyCommand(removed.document, removed.inverse);
 
@@ -42,44 +42,44 @@ describe("applyCommand", () => {
 
   it("updates only serializable element properties", () => {
     const result = applyCommand(demoDocument, {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { name: "Renamed sculpture", visible: false },
+      elementId: "demo-model-element",
+      type: "element.update",
     });
 
     expect(result.document.slides[0]?.elements[0]).toMatchObject({
+      locked: false,
       name: "Renamed sculpture",
       visible: false,
-      locked: false,
     });
     expect(result.inverse).toEqual({
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { name: "Unframe sculpture", visible: true },
+      elementId: "demo-model-element",
+      type: "element.update",
     });
   });
 
   it("reorders slides by ID and produces an inverse", () => {
     const result = applyCommand(demoDocument, {
-      type: "slide.reorder",
       slideId: "detail",
       toIndex: 0,
+      type: "slide.reorder",
     });
 
     expect(result.document.slides.map((slide) => slide.id)).toEqual(["detail", "opening"]);
     expect(result.inverse).toEqual({
-      type: "slide.reorder",
       slideId: "detail",
       toIndex: 1,
+      type: "slide.reorder",
     });
   });
 
   it("rejects a missing target without mutating the input", () => {
     expect(() =>
       applyCommand(demoDocument, {
-        type: "element.remove",
-        slideId: "opening",
         elementId: "missing",
+        slideId: "opening",
+        type: "element.remove",
       }),
     ).toThrow(CommandApplicationError);
     expect(demoDocument.revision).toBe(0);
@@ -88,9 +88,9 @@ describe("applyCommand", () => {
 
   it("keeps every command JSON serializable", () => {
     const command: EditorCommand = {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { locked: true },
+      elementId: "demo-model-element",
+      type: "element.update",
     };
 
     expect(JSON.parse(JSON.stringify(command))).toEqual(command);

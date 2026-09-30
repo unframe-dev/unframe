@@ -10,10 +10,10 @@ const createDefinition = structuredClone(validDefinition);
 createDefinition.assets = [];
 createDefinition.groups[0]!.elements = [
   {
-    id: "text",
-    type: "text",
     content: { text: "Demo" },
+    id: "text",
     initialState: validDefinition.groups[0]!.elements[0]!.initialState,
+    type: "text",
   },
 ];
 createDefinition.groups[0]!.anchoredElementGroups[0]!.elementIds = ["text"];
@@ -39,7 +39,7 @@ class Repository implements PresentationRepository {
     const record = this.records.get(id);
     return record?.ownerId === userId ? ("owner" as const) : null;
   }
-  async hasValidAssetReferences(_id: string, assetIds: readonly string[]) {
+  async hasValidAssetReferences(_id: string, assetIds: ReadonlyArray<string>) {
     return !assetIds.includes("missing-asset");
   }
   async replace(
@@ -49,14 +49,18 @@ class Repository implements PresentationRepository {
     updatedAt: string,
   ) {
     const record = this.records.get(id);
-    if (!record || record.revision !== expectedRevision) return null;
-    const replacement = { ...record, revision: record.revision + 1, definition: next, updatedAt };
+    if (!record || record.revision !== expectedRevision) {
+      return null;
+    }
+    const replacement = { ...record, definition: next, revision: record.revision + 1, updatedAt };
     this.records.set(id, replacement);
     return replacement;
   }
   async delete(id: string, expectedRevision: number) {
     const record = this.records.get(id);
-    if (!record || record.revision !== expectedRevision) return false;
+    if (!record || record.revision !== expectedRevision) {
+      return false;
+    }
     this.records.delete(id);
     return true;
   }
@@ -72,51 +76,51 @@ describe("presentation HTTP API", () => {
   it("creates, reads, updates, and deletes a resource envelope", async () => {
     const repository = new Repository();
     const app = createApp({
-      repository,
-      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
       id: () => "presentation-1",
+      identityProvider: async () => ({ globalRole: "user", userId: "owner" }),
       now: () => "2026-01-01T00:00:00.000Z",
+      repository,
     });
     const create = await request(app, "/presentations", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify(createDefinition),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     expect(create.status).toBe(201);
     await expect(create.json()).resolves.toMatchObject({
+      createdAt: "2026-01-01T00:00:00.000Z",
+      definition: createDefinition,
       id: "presentation-1",
       revision: 1,
-      definition: createDefinition,
-      createdAt: "2026-01-01T00:00:00.000Z",
     });
     expect((await request(app, "/presentations/presentation-1")).status).toBe(200);
     const update = await request(app, "/presentations/presentation-1", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        expectedRevision: 1,
         definition: { ...createDefinition, metadata: { title: "Updated" } },
+        expectedRevision: 1,
       }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
     });
     expect(update.status).toBe(200);
     await expect(update.json()).resolves.toMatchObject({
-      revision: 2,
       definition: { metadata: { title: "Updated" } },
+      revision: 2,
     });
     expect(
       (
         await request(app, "/presentations/presentation-1", {
-          method: "DELETE",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({ expectedRevision: 2 }),
+          headers: { "content-type": "application/json" },
+          method: "DELETE",
         })
       ).status,
     ).toBe(204);
   });
   it("rejects malformed JSON at every presentation write boundary", async () => {
     const app = createApp({
+      identityProvider: async () => ({ globalRole: "user", userId: "owner" }),
       repository: new Repository(),
-      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
     });
     for (const [method, path] of [
       ["POST", "/presentations"],
@@ -124,9 +128,9 @@ describe("presentation HTTP API", () => {
       ["DELETE", "/presentations/presentation-1"],
     ] as const) {
       const response = await request(app, path, {
-        method,
-        headers: { "content-type": "application/json" },
         body: "{",
+        headers: { "content-type": "application/json" },
+        method,
       });
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toMatchObject({ error: { code: "validation_error" } });
@@ -134,17 +138,17 @@ describe("presentation HTTP API", () => {
   });
   it("requires JSON content type and rejects unknown write fields", async () => {
     const app = createApp({
+      identityProvider: async () => ({ globalRole: "user", userId: "owner" }),
       repository: new Repository(),
-      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
     });
     const missingContentType = await request(app, "/presentations", {
-      method: "POST",
       body: JSON.stringify(createDefinition),
+      method: "POST",
     });
     const unknownField = await request(app, "/presentations/presentation-1", {
-      method: "DELETE",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ expectedRevision: 1, unexpected: true }),
+      headers: { "content-type": "application/json" },
+      method: "DELETE",
     });
 
     expect(missingContentType.status).toBe(400);
@@ -152,38 +156,40 @@ describe("presentation HTTP API", () => {
   });
   it("requires an empty asset list when creating a presentation", async () => {
     const app = createApp({
+      identityProvider: async () => ({ globalRole: "user", userId: "owner" }),
       repository: new Repository(),
-      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
     });
     const response = await request(app, "/presentations", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...validDefinition, assets: [{ assetId: "asset-1" }] }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     expect(response.status).toBe(400);
   });
   it("returns 422 for an asset that is not ready and local to the presentation", async () => {
     const repository = new Repository();
     repository.records.set("presentation-1", {
+      createdAt: "2026-01-01",
+      definition: createDefinition,
       id: "presentation-1",
       ownerId: "owner",
       revision: 1,
-      definition: createDefinition,
-      createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     });
     const invalid = structuredClone(validDefinition);
     invalid.assets = [{ assetId: "missing-asset" }];
-    if (invalid.groups[0]!.elements[0]!.type !== "image") throw new Error("Expected image");
+    if (invalid.groups[0]!.elements[0]!.type !== "image") {
+      throw new Error("Expected image");
+    }
     invalid.groups[0]!.elements[0]!.content.assetId = "missing-asset";
     const app = createApp({
+      identityProvider: async () => ({ globalRole: "user", userId: "owner" }),
       repository,
-      identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
     });
     const response = await request(app, "/presentations/presentation-1", {
-      method: "PUT",
+      body: JSON.stringify({ definition: invalid, expectedRevision: 1 }),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ expectedRevision: 1, definition: invalid }),
+      method: "PUT",
     });
     expect(response.status).toBe(422);
     await expect(response.json()).resolves.toMatchObject({

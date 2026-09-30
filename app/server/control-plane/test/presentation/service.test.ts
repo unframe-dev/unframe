@@ -6,11 +6,11 @@ import type { PresentationDefinition } from "../../src/presentation/schema";
 
 const validDefinition = definition as unknown as PresentationDefinition;
 const record: PresentationRecord = {
+  createdAt: "2026-01-01T00:00:00.000Z",
+  definition: validDefinition,
   id: "presentation",
   ownerId: "owner",
   revision: 1,
-  definition: validDefinition,
-  createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 class FakeRepository implements PresentationRepository {
@@ -34,7 +34,7 @@ class FakeRepository implements PresentationRepository {
   async roleFor(id: string, userId: string) {
     return this.roles.get(`${id}:${userId}`) ?? null;
   }
-  async hasValidAssetReferences(_id: string, assetIds: readonly string[]) {
+  async hasValidAssetReferences(_id: string, assetIds: ReadonlyArray<string>) {
     return !assetIds.includes("invalid-asset");
   }
   async replace(
@@ -44,14 +44,18 @@ class FakeRepository implements PresentationRepository {
     updatedAt: string,
   ) {
     const value = this.records.get(id);
-    if (!value || value.revision !== expectedRevision) return null;
+    if (!value || value.revision !== expectedRevision) {
+      return null;
+    }
     const replacement = { ...value, definition: next, revision: value.revision + 1, updatedAt };
     this.records.set(id, replacement);
     return replacement;
   }
   async delete(id: string, expectedRevision: number) {
     const value = this.records.get(id);
-    if (!value || value.revision !== expectedRevision) return false;
+    if (!value || value.revision !== expectedRevision) {
+      return false;
+    }
     this.records.delete(id);
     return true;
   }
@@ -66,11 +70,11 @@ const service = () =>
 describe("PresentationService authorization", () => {
   it("allows owners and editors to update", async () => {
     await expect(
-      service().get({ userId: "editor", globalRole: "user" }, "presentation"),
+      service().get({ globalRole: "user", userId: "editor" }, "presentation"),
     ).resolves.toMatchObject({ id: "presentation" });
     await expect(
       service().replace(
-        { userId: "owner", globalRole: "user" },
+        { globalRole: "user", userId: "owner" },
         "presentation",
         1,
         validDefinition,
@@ -78,7 +82,7 @@ describe("PresentationService authorization", () => {
     ).resolves.toMatchObject({ revision: 2 });
     await expect(
       service().replace(
-        { userId: "editor", globalRole: "user" },
+        { globalRole: "user", userId: "editor" },
         "presentation",
         1,
         validDefinition,
@@ -87,11 +91,11 @@ describe("PresentationService authorization", () => {
   });
   it("denies unrelated reads and writes", async () => {
     await expect(
-      service().get({ userId: "other", globalRole: "user" }, "presentation"),
+      service().get({ globalRole: "user", userId: "other" }, "presentation"),
     ).rejects.toMatchObject({ code: "forbidden" } satisfies Partial<PresentationError>);
     await expect(
       service().replace(
-        { userId: "other", globalRole: "user" },
+        { globalRole: "user", userId: "other" },
         "presentation",
         1,
         validDefinition,
@@ -100,19 +104,19 @@ describe("PresentationService authorization", () => {
   });
   it("reserves presentation deletion for owners and administrators", async () => {
     await expect(
-      service().delete({ userId: "editor", globalRole: "user" }, "presentation", 1),
+      service().delete({ globalRole: "user", userId: "editor" }, "presentation", 1),
     ).rejects.toMatchObject({ code: "forbidden" } satisfies Partial<PresentationError>);
     await expect(
-      service().delete({ userId: "owner", globalRole: "user" }, "presentation", 1),
+      service().delete({ globalRole: "user", userId: "owner" }, "presentation", 1),
     ).resolves.toBeUndefined();
     await expect(
-      service().delete({ userId: "other", globalRole: "admin" }, "presentation", 1),
+      service().delete({ globalRole: "admin", userId: "other" }, "presentation", 1),
     ).resolves.toBeUndefined();
   });
   it("enforces expected revision", async () => {
     await expect(
       service().replace(
-        { userId: "owner", globalRole: "user" },
+        { globalRole: "user", userId: "owner" },
         "presentation",
         2,
         validDefinition,
@@ -122,7 +126,7 @@ describe("PresentationService authorization", () => {
   it("rejects assets that are not ready and local to the presentation", async () => {
     const invalid = { ...validDefinition, assets: [{ assetId: "invalid-asset" }] };
     await expect(
-      service().replace({ userId: "owner", globalRole: "user" }, "presentation", 1, invalid),
+      service().replace({ globalRole: "user", userId: "owner" }, "presentation", 1, invalid),
     ).rejects.toMatchObject({
       code: "invalid_asset_reference",
     } satisfies Partial<PresentationError>);

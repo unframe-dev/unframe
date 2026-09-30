@@ -1,7 +1,7 @@
 import type { PresentationDefinition } from "./schema";
 import type { PresentationRecord, PresentationRepository } from "./repository";
 
-export type Identity = { userId: string; globalRole: "admin" | "user" };
+export type Identity = { globalRole: "admin" | "user"; userId: string };
 export type PresentationResource = Omit<PresentationRecord, "ownerId">;
 export class PresentationError extends Error {
   constructor(readonly code: "not_found" | "forbidden" | "conflict" | "invalid_asset_reference") {
@@ -22,11 +22,11 @@ export class PresentationService {
   ): Promise<PresentationResource> {
     const timestamp = this.now();
     const record: PresentationRecord = {
+      createdAt: timestamp,
+      definition,
       id: this.id(),
       ownerId: identity.userId,
       revision: 1,
-      definition,
-      createdAt: timestamp,
       updatedAt: timestamp,
     };
     await this.repository.create(record);

@@ -16,7 +16,9 @@ for (const [relativePath, schema] of outputs) {
   const outputPath = resolve(root, relativePath);
   const output = `${JSON.stringify(schema, null, 2)}\n`;
   if (process.argv.includes("--check")) {
-    if ((await readFile(outputPath, "utf8")) !== output) process.exitCode = 1;
+    if ((await readFile(outputPath, "utf8")) !== output) {
+      process.exitCode = 1;
+    }
   } else {
     await writeFile(outputPath, output);
   }

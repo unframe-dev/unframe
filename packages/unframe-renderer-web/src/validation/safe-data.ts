@@ -9,10 +9,16 @@ const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbo
 
 export const copyUint8Array = (value: unknown): Uint8Array | undefined => {
   try {
-    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
-    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) {
+      return undefined;
+    }
+    if (typedArrayTag.call(value) !== "Uint8Array") {
+      return undefined;
+    }
     const byteLength = typedArrayByteLength.call(value);
-    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
+      return undefined;
+    }
     const copy = new Uint8Array(byteLength);
     Uint8Array.prototype.set.call(copy, value as Uint8Array);
     return copy;
@@ -23,7 +29,7 @@ export const copyUint8Array = (value: unknown): Uint8Array | undefined => {
 
 export const snapshotStrictRecord = (
   value: unknown,
-  expectedKeys: readonly string[],
+  expectedKeys: ReadonlyArray<string>,
 ): Record<string, unknown> | undefined => {
   try {
     if (
@@ -32,20 +38,23 @@ export const snapshotStrictRecord = (
       Array.isArray(value) ||
       Object.getPrototypeOf(value) !== Object.prototype ||
       Object.getOwnPropertySymbols(value).length !== 0
-    )
+    ) {
       return undefined;
+    }
     const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
     const actualKeys = Object.keys(descriptors).sort(compareStrings);
     const keys = [...expectedKeys].sort(compareStrings);
-    if (actualKeys.length !== keys.length || actualKeys.some((key, index) => key !== keys[index]))
+    if (actualKeys.length !== keys.length || actualKeys.some((key, index) => key !== keys[index])) {
       return undefined;
+    }
     if (
       keys.some((key) => {
         const descriptor = descriptors[key];
         return !descriptor || descriptor.get !== undefined || descriptor.set !== undefined;
       })
-    )
+    ) {
       return undefined;
+    }
     return Object.fromEntries(keys.map((key) => [key, descriptors[key]?.value]));
   } catch {
     return undefined;
@@ -55,22 +64,24 @@ export const snapshotStrictRecord = (
 export const snapshotDenseArray = (
   value: unknown,
   expectedLength?: number,
-): readonly unknown[] | undefined => {
+): ReadonlyArray<unknown> | undefined => {
   try {
     if (
       !Array.isArray(value) ||
       Object.getPrototypeOf(value) !== Array.prototype ||
       Object.getOwnPropertySymbols(value).length !== 0
-    )
+    ) {
       return undefined;
+    }
     const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(value);
     const length = descriptors["length"]?.value;
     if (
       !Number.isSafeInteger(length) ||
       length < 0 ||
       (expectedLength !== undefined && length !== expectedLength)
-    )
+    ) {
       return undefined;
+    }
     const keys = Array.from({ length }, (_, index) => String(index));
     const actualKeys = Object.keys(descriptors);
     if (
@@ -85,8 +96,9 @@ export const snapshotDenseArray = (
           descriptor.enumerable !== true
         );
       })
-    )
+    ) {
       return undefined;
+    }
     return Object.freeze(keys.map((key) => descriptors[key]?.value));
   } catch {
     return undefined;

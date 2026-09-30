@@ -12,7 +12,7 @@ import {
 
 const ownerSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("presentation") }),
-  z.strictObject({ kind: z.literal("group"), groupId: idSchema }),
+  z.strictObject({ groupId: idSchema, kind: z.literal("group") }),
 ]);
 
 const audienceSchema = z.discriminatedUnion("kind", [
@@ -24,36 +24,36 @@ const parentSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("stage") }),
   z.strictObject({ kind: z.literal("node"), nodeId: idSchema }),
   z.strictObject({
-    kind: z.literal("anchor"),
-    target: z.enum(["head", "leftHand", "rightHand", "body"]),
-    owner: z.strictObject({ kind: z.literal("presenter") }),
     followPosition: z.boolean(),
     followRotation: z.boolean(),
+    kind: z.literal("anchor"),
+    owner: z.strictObject({ kind: z.literal("presenter") }),
+    target: z.enum(["head", "leftHand", "rightHand", "body"]),
   }),
 ]);
 
 const absolutePlacementSchema = z.strictObject({
+  height: positiveNumberSchema,
   kind: z.literal("absolute"),
+  width: positiveNumberSchema,
   x: z.number(),
   y: z.number(),
-  width: positiveNumberSchema,
-  height: positiveNumberSchema,
 });
 
 const frameSchema = z.strictObject({
+  children: z.array(idSchema),
   id: idSchema,
   kind: z.literal("frame"),
-  parentId: idSchema.nullable(),
-  order: z.number(),
   layout: z.strictObject({ kind: z.literal("absolute") }),
-  children: z.array(idSchema),
+  order: z.number(),
+  parentId: idSchema.nullable(),
 });
 
 const textSchema = z.strictObject({
   id: idSchema,
   kind: z.literal("text"),
-  parentId: idSchema.nullable(),
   order: z.number(),
+  parentId: idSchema.nullable(),
   placement: absolutePlacementSchema,
   text: z.string(),
 });
@@ -61,16 +61,16 @@ const textSchema = z.strictObject({
 const contentNodeSchema = z.discriminatedUnion("kind", [frameSchema, textSchema]);
 
 const interactionSchema = z.strictObject({
+  event: idSchema,
   id: idSchema,
   kind: z.literal("click"),
-  event: idSchema,
 });
 
 const nodeOverrideSchema = z.strictObject({
-  included: z.boolean().optional(),
-  text: z.string().nullable().optional(),
-  language: z.string().nullable().optional(),
   alt: z.string().nullable().optional(),
+  included: z.boolean().optional(),
+  language: z.string().nullable().optional(),
+  text: z.string().nullable().optional(),
 });
 
 const uniqueIdArraySchema = z
@@ -79,79 +79,79 @@ const uniqueIdArraySchema = z
   .meta({ uniqueItems: true });
 
 const stateSchema = z.strictObject({
+  enabledInteractionIds: uniqueIdArraySchema,
   id: idSchema,
   semanticOverrides: z.array(z.strictObject({ nodes: z.record(z.string(), nodeOverrideSchema) })),
-  enabledInteractionIds: uniqueIdArraySchema,
 });
 
 const renderIntentSchema = z.strictObject({
+  fallbackPolicy: z.enum(["reject", "degrade"]),
+  interaction: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("none") }),
+    z.strictObject({ events: z.array(idSchema).min(1), kind: z.literal("regions") }),
+    z.strictObject({ kind: z.literal("native-input") }),
+  ]),
+  internalAnimation: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("none") }),
+    z.strictObject({ durationSeconds: positiveNumberSchema, kind: z.literal("precomputed") }),
+    z.strictObject({ kind: z.literal("runtime") }),
+  ]),
+  rendererPreference: z.enum(["auto", "baked-web", "native-ui", "video"]),
   updateModel: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("static") }),
     z.strictObject({ kind: z.literal("finite-state"), stateIds: z.array(idSchema).min(1) }),
     z.strictObject({
       kind: z.literal("continuous"),
-      source: z.enum(["timeline", "runtime-data", "user-input"]),
       maximumUpdateRateHz: positiveNumberSchema.optional(),
+      source: z.enum(["timeline", "runtime-data", "user-input"]),
     }),
   ]),
-  interaction: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("none") }),
-    z.strictObject({ kind: z.literal("regions"), events: z.array(idSchema).min(1) }),
-    z.strictObject({ kind: z.literal("native-input") }),
-  ]),
-  internalAnimation: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("none") }),
-    z.strictObject({ kind: z.literal("precomputed"), durationSeconds: positiveNumberSchema }),
-    z.strictObject({ kind: z.literal("runtime") }),
-  ]),
-  rendererPreference: z.enum(["auto", "baked-web", "native-ui", "video"]),
-  fallbackPolicy: z.enum(["reject", "degrade"]),
 });
 
 export const semanticSurfaceSchema = z.strictObject({
-  id: idSchema,
-  hostNodeId: idSchema,
-  physicalSizeMeters: vector2Schema,
-  logicalSize: vector2Schema,
-  fit: z.enum(["contain", "cover", "stretch"]),
-  rootFrameId: idSchema,
-  contentNodes: z.record(z.string(), contentNodeSchema),
   baseSemanticTree: semanticTreeSchema,
-  interactions: z.record(z.string(), interactionSchema),
+  contentNodes: z.record(z.string(), contentNodeSchema),
+  fit: z.enum(["contain", "cover", "stretch"]),
+  hostNodeId: idSchema,
+  id: idSchema,
   initialStateId: idSchema,
-  states: z.record(z.string(), stateSchema),
+  interactions: z.record(z.string(), interactionSchema),
+  logicalSize: vector2Schema,
+  physicalSizeMeters: vector2Schema,
   renderIntent: renderIntentSchema,
+  rootFrameId: idSchema,
+  states: z.record(z.string(), stateSchema),
 });
 
 const surfaceNodeSchema = z.strictObject({
-  id: idSchema,
-  name: z.string().optional(),
-  kind: z.literal("surface"),
-  owner: ownerSchema,
+  active: z.boolean(),
   audience: audienceSchema,
-  parent: parentSchema,
+  id: idSchema,
+  kind: z.literal("surface"),
+  name: z.string().optional(),
+  opacity: z.number().min(0).max(1),
   order: z.number(),
+  owner: ownerSchema,
+  parent: parentSchema,
+  surfaceId: idSchema,
   transform: z.strictObject({
     position: vector3Schema,
     rotation: quaternionSchema,
     scale: positiveVector3Schema,
   }),
-  active: z.boolean(),
   visible: z.boolean(),
-  opacity: z.number().min(0).max(1),
-  surfaceId: idSchema,
 });
 
 const variableSchema = z.strictObject({
   id: idSchema,
+  initialValue: z.union([z.string(), z.boolean(), z.number(), z.null()]),
   owner: ownerSchema,
   type: z.enum(["string", "boolean", "number", "null"]),
-  initialValue: z.union([z.string(), z.boolean(), z.number(), z.null()]),
 });
 
 const stepSchema = z.strictObject({
-  id: idSchema,
   cues: z.array(z.unknown()).max(0),
+  id: idSchema,
 });
 
 const groupSchema = z.strictObject({
@@ -161,31 +161,17 @@ const groupSchema = z.strictObject({
 });
 
 export const presentationDefinitionSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  presentationId: idSchema,
-  metadata: z.strictObject({ title: z.string().min(1) }),
-  stage: z.strictObject({
-    coordinateSystem: z.strictObject({
-      unit: z.literal("meter"),
-      handedness: z.literal("right"),
-      upAxis: z.literal("+Y"),
-      forwardAxis: z.literal("-Z"),
-    }),
-    size: positiveVector3Schema,
-    zones: z.record(
-      z.string(),
-      z.strictObject({
-        id: idSchema,
-        owner: ownerSchema,
-        center: vector3Schema,
-        size: positiveVector3Schema,
-      }),
-    ),
-  }),
   assets: z.record(
     z.string(),
-    z.strictObject({ id: idSchema, mediaType: idSchema, checksum: idSchema }),
+    z.strictObject({ checksum: idSchema, id: idSchema, mediaType: idSchema }),
   ),
+  flow: z.strictObject({
+    groups: z.record(z.string(), groupSchema),
+    initialGroupId: idSchema,
+    variables: z.record(z.string(), variableSchema),
+  }),
+  metadata: z.strictObject({ title: z.string().min(1) }),
+  presentationId: idSchema,
   scene: z.strictObject({
     nodes: z
       .record(z.string(), surfaceNodeSchema)
@@ -196,10 +182,24 @@ export const presentationDefinitionSchema = z.strictObject({
       .refine((surfaces) => Object.keys(surfaces).length > 0, "A scene must contain a surface")
       .meta({ minProperties: 1 }),
   }),
-  flow: z.strictObject({
-    initialGroupId: idSchema,
-    groups: z.record(z.string(), groupSchema),
-    variables: z.record(z.string(), variableSchema),
+  schemaVersion: z.literal(1),
+  stage: z.strictObject({
+    coordinateSystem: z.strictObject({
+      forwardAxis: z.literal("-Z"),
+      handedness: z.literal("right"),
+      unit: z.literal("meter"),
+      upAxis: z.literal("+Y"),
+    }),
+    size: positiveVector3Schema,
+    zones: z.record(
+      z.string(),
+      z.strictObject({
+        center: vector3Schema,
+        id: idSchema,
+        owner: ownerSchema,
+        size: positiveVector3Schema,
+      }),
+    ),
   }),
 });
 

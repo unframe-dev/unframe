@@ -23,11 +23,10 @@ const analyze = (
   sourceText: string,
   presentation?: string,
   rawCss?: string,
-  extraFiles: readonly { fileName: string; sourceText: string }[] = [],
+  extraFiles: ReadonlyArray<{ fileName: string; sourceText: string }> = [],
   packaged = false,
 ) => {
   const input = {
-    projectRoot: "/virtual",
     entryFile: presentation ? "presentation.ts" : "Hero.component.tsx",
     files: [
       ...(packaged ? [] : [{ fileName: "Hero.component.tsx", sourceText }]),
@@ -35,34 +34,32 @@ const analyze = (
       ...(presentation ? [{ fileName: "presentation.ts", sourceText: presentation }] : []),
       ...extraFiles,
     ],
-    rootDependencies: [
-      { specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey: hash },
-      { specifier: "react", usage: "runtime", packageKey: reactHash },
-      ...(packaged
-        ? [{ specifier: "ui-kit", usage: "runtime", packageKey: `sha256:${"2".repeat(64)}` }]
-        : []),
-    ],
     packages: [
       {
+        contentIntegrity: hash,
+        dependencies: [],
+        exports: [
+          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+        ],
+        files: [
+          { path: "index.ts", mediaType: "text/typescript", hash, encoding: "utf8", data: sdk },
+        ],
         key: hash,
         locator: "@unframe/unframe-authoring@1",
         name: "@unframe/unframe-authoring",
         version: "1",
-        contentIntegrity: hash,
-        files: [
-          { path: "index.ts", mediaType: "text/typescript", hash, encoding: "utf8", data: sdk },
-        ],
-        exports: [
-          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
-        ],
-        dependencies: [],
       },
       {
-        key: reactHash,
-        locator: "react@1",
-        name: "react",
-        version: "1",
         contentIntegrity: reactHash,
+        dependencies: [],
+        exports: [
+          {
+            subpath: "./jsx-runtime",
+            runtimeImport: "jsx-runtime.ts",
+            runtimeRequire: null,
+            types: "jsx-runtime.ts",
+          },
+        ],
         files: [
           {
             path: "jsx-runtime.ts",
@@ -72,24 +69,26 @@ const analyze = (
             data: "export namespace JSX { export type Element = object; export interface IntrinsicElements { h1: {children?: unknown}; } } export const jsx = (..._args: unknown[]): object => ({}); export const jsxs = jsx;",
           },
         ],
-        exports: [
-          {
-            subpath: "./jsx-runtime",
-            runtimeImport: "jsx-runtime.ts",
-            runtimeRequire: null,
-            types: "jsx-runtime.ts",
-          },
-        ],
-        dependencies: [],
+        key: reactHash,
+        locator: "react@1",
+        name: "react",
+        version: "1",
       },
       ...(packaged
         ? [
             {
-              key: `sha256:${"2".repeat(64)}`,
-              locator: "ui-kit@1",
-              name: "ui-kit",
-              version: "1",
               contentIntegrity: `sha256:${"2".repeat(64)}`,
+              dependencies: [
+                { specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey: hash },
+              ],
+              exports: [
+                {
+                  subpath: ".",
+                  runtimeImport: "Hero.component.tsx",
+                  runtimeRequire: null,
+                  types: "index.d.ts",
+                },
+              ],
               files: [
                 {
                   path: "Hero.component.tsx",
@@ -106,19 +105,20 @@ const analyze = (
                   data: 'export { Hero } from "./Hero.component";',
                 },
               ],
-              exports: [
-                {
-                  subpath: ".",
-                  runtimeImport: "Hero.component.tsx",
-                  runtimeRequire: null,
-                  types: "index.d.ts",
-                },
-              ],
-              dependencies: [
-                { specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey: hash },
-              ],
+              key: `sha256:${"2".repeat(64)}`,
+              locator: "ui-kit@1",
+              name: "ui-kit",
+              version: "1",
             },
           ]
+        : []),
+    ],
+    projectRoot: "/virtual",
+    rootDependencies: [
+      { packageKey: hash, specifier: "@unframe/unframe-authoring", usage: "runtime" },
+      { packageKey: reactHash, specifier: "react", usage: "runtime" },
+      ...(packaged
+        ? [{ packageKey: `sha256:${"2".repeat(64)}`, specifier: "ui-kit", usage: "runtime" }]
         : []),
     ],
     ...(rawCss === undefined
@@ -126,19 +126,23 @@ const analyze = (
       : {
           rawFiles: [
             {
-              path: "components.css",
-              mediaType: "text/css",
-              encoding: "utf8",
               data: rawCss,
+              encoding: "utf8",
               hash: `sha256:${bytesToHex(sha256(new TextEncoder().encode(rawCss)))}`,
+              mediaType: "text/css",
+              path: "components.css",
             },
           ],
         }),
   };
   const parsed = parseAuthoringProject(input);
-  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  if (!parsed.ok) {
+    throw new Error(JSON.stringify(parsed.diagnostics));
+  }
   const analyzed = analyzeAuthoringProject(parsed.value);
-  if (!analyzed.ok) throw new Error(JSON.stringify(analyzed.diagnostics));
+  if (!analyzed.ok) {
+    throw new Error(JSON.stringify(analyzed.diagnostics));
+  }
   return { ...analyzed, input };
 };
 
@@ -171,21 +175,27 @@ it("extracts finite State declarations without running their SDK builders", () =
     render: `,
     );
   const result = extractReactComponents(analyze(reveal));
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   expect(result.components[0]?.manifest.actions.reveal?.effects).toEqual([
-    { kind: "setSurfaceState", surfaceId: "surface", stateId: "revealed" },
+    { kind: "setSurfaceState", stateId: "revealed", surfaceId: "surface" },
   ]);
   expect(result.components[0]?.renderer.entrySource).not.toContain("setState");
 });
 
 it("extracts public metadata and render dependencies without including contract initializers", () => {
   const result = extractReactComponents(analyze(component));
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   expect(result.ok).toBe(true);
-  if (!result.ok) return;
+  if (!result.ok) {
+    return;
+  }
   expect(result.components[0]?.metadata).toMatchObject({
     id: "hero",
-    props: { title: { kind: "string", required: true, editor: { kind: "text" } } },
+    props: { title: { editor: { kind: "text" }, kind: "string", required: true } },
     semantics: { nodes: { title: { text: { kind: "prop-ref", name: "title" } } } },
   });
   expect(result.components[0]?.renderer.entrySource).toContain('const label = "Welcome ";');
@@ -221,7 +231,9 @@ it("lowers a component import in a presentation to its static descriptor", () =>
   `;
   const result = collectAuthoringDeclarations(analyze(component, presentation));
   expect(result.ok).toBe(true);
-  if (!result.ok) return;
+  if (!result.ok) {
+    return;
+  }
   expect(result.declarations.find((item) => item.role === "presentation")?.value).toMatchObject({
     scene: [{ component: { id: "hero", version: 1 } }],
   });
@@ -237,7 +249,9 @@ it("extracts a locked package Component through its explicit export", () => {
   const result = collectAuthoringDeclarations(
     analyze(component, presentation, undefined, [], true),
   );
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   expect(result.ok).toBe(true);
   expect(result.reactComponents[0]?.fileName).toBe("ui-kit@1/Hero.component.tsx");
   expect(result.declarations[0]?.value).toMatchObject({
@@ -245,21 +259,25 @@ it("extracts a locked package Component through its explicit export", () => {
   });
   const analyzed = analyze(component, presentation, undefined, [], true);
   const extracted = extractReactComponents(analyzed);
-  if (!extracted.ok) throw new Error(JSON.stringify(extracted.diagnostics));
+  if (!extracted.ok) {
+    throw new Error(JSON.stringify(extracted.diagnostics));
+  }
   const react = extracted.components[0]!;
   const frozen = computeFrozenComponentInputs(analyzed.input, {
     components: [
       {
-        manifest: { value: react.manifest, fileName: react.fileName },
-        renderer: react.renderer,
+        manifest: { fileName: react.fileName, value: react.manifest },
         metadata: react.metadata,
+        renderer: react.renderer,
         rendererEntry: react.manifest.renderers["baked-web"]?.entry,
       },
     ],
     themes: [],
   } as unknown as PairedAuthoringDeclarationCatalog);
   expect(frozen.valid).toBe(true);
-  if (!frozen.valid) throw new Error(JSON.stringify(frozen.diagnostics));
+  if (!frozen.valid) {
+    throw new Error(JSON.stringify(frozen.diagnostics));
+  }
   expect(frozen.value.componentLocks[0]?.origin).toEqual({
     kind: "package",
     packageKey: `sha256:${"2".repeat(64)}`,
@@ -275,17 +293,17 @@ it("extracts a locked package Component through its explicit export", () => {
     computeFrozenComponentInputs(withoutExport, {
       components: [
         {
-          manifest: { value: react.manifest, fileName: react.fileName },
-          renderer: react.renderer,
+          manifest: { fileName: react.fileName, value: react.manifest },
           metadata: react.metadata,
+          renderer: react.renderer,
           rendererEntry: react.manifest.renderers["baked-web"]?.entry,
         },
       ],
       themes: [],
     } as unknown as PairedAuthoringDeclarationCatalog),
   ).toMatchObject({
-    valid: false,
     diagnostics: [{ code: "compiler-frozen-input-invalid" }],
+    valid: false,
   });
   const ambiguous = {
     ...analyzed.input,
@@ -298,19 +316,19 @@ it("extracts a locked package Component through its explicit export", () => {
     computeFrozenComponentInputs(ambiguous, {
       components: [
         {
-          manifest: { value: react.manifest, fileName: react.fileName },
-          renderer: react.renderer,
+          manifest: { fileName: react.fileName, value: react.manifest },
           metadata: react.metadata,
+          renderer: react.renderer,
           rendererEntry: react.manifest.renderers["baked-web"]?.entry,
         },
       ],
       themes: [],
     } as unknown as PairedAuthoringDeclarationCatalog),
   ).toMatchObject({
-    valid: false,
     diagnostics: [{ code: "compiler-frozen-input-invalid" }],
+    valid: false,
   });
-}, 20000);
+}, 20_000);
 
 it("typechecks a locked package Component in the React environment", () => {
   const presentation = `
@@ -327,7 +345,7 @@ it("typechecks a locked package Component in the React environment", () => {
       true,
     ),
   ).toThrow(/compiler-source-type-error/);
-}, 20000);
+}, 20_000);
 
 it("resolves a package Component through a local named barrel", () => {
   const presentation = `
@@ -344,7 +362,9 @@ it("resolves a package Component through a local named barrel", () => {
       true,
     ),
   );
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   expect(result.reactComponents).toHaveLength(1);
   expect(result.declarations[0]?.value).toMatchObject({
     scene: [{ component: { id: "hero", version: 1 } }],
@@ -388,7 +408,9 @@ it("keeps a locked CSS side-effect import in the isolated render entry", () => {
     analyze(`import "./components.css";\n${component}`, undefined, ".hero { color: white; }"),
   );
   expect(result.ok).toBe(true);
-  if (!result.ok) return;
+  if (!result.ok) {
+    return;
+  }
   expect(result.components[0]?.renderer.entrySource).toContain('import "./components.css";');
   expect(result.components[0]?.renderer.localDependencies).toEqual(["components.css"]);
 });
@@ -398,8 +420,8 @@ it("rejects a side-effect import of the public contract runtime", () => {
     analyze(`import "@unframe/unframe-authoring";\n${component}`),
   );
   expect(result).toMatchObject({
-    ok: false,
     diagnostics: [{ code: "compiler-react-render-contract-reference" }],
+    ok: false,
   });
 });
 
@@ -411,7 +433,9 @@ it("copies imported shared data as a literal and omits its source module", () =>
     ]),
   );
   expect(result.ok).toBe(true);
-  if (!result.ok) return;
+  if (!result.ok) {
+    return;
+  }
   expect(result.components[0]?.renderer.entrySource).toContain('const label = "Welcome ";');
   expect(result.components[0]?.renderer.entrySource).not.toContain('from "./shared"');
   expect(result.components[0]?.renderer.localDependencies).toEqual([]);
@@ -432,8 +456,8 @@ it("rejects a render helper that imports the contract runtime transitively", () 
     ]),
   );
   expect(result).toMatchObject({
-    ok: false,
     diagnostics: [{ code: "compiler-react-render-contract-reference" }],
+    ok: false,
   });
 });
 
@@ -448,8 +472,8 @@ it("rejects dynamic imports in render dependencies", () => {
     ]),
   );
   expect(result).toMatchObject({
-    ok: false,
     diagnostics: [{ code: "compiler-react-render-dynamic-import-invalid" }],
+    ok: false,
   });
 });
 
@@ -457,7 +481,9 @@ it("typechecks React intrinsic JSX with its own JSX runtime", () => {
   const source = component.replace("decorate(label + texts.title)", "<h1>{texts.title}</h1>");
   const result = extractReactComponents(analyze(source));
   expect(result.ok).toBe(true);
-  if (!result.ok) return;
+  if (!result.ok) {
+    return;
+  }
   expect(result.components[0]?.renderer.entrySource).toContain("<h1>{texts.title}</h1>");
   expect(result.components[0]?.renderer.packageImports).toContain("react/jsx-runtime");
 });

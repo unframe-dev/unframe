@@ -3,22 +3,22 @@ import { TransformSchema } from "./transform";
 
 const ElementBaseShape = {
   id: z.string().min(1),
+  locked: z.boolean(),
   name: z.string().min(1),
   transform: TransformSchema,
   visible: z.boolean(),
-  locked: z.boolean(),
 };
 
 export const ModelElementSchema = z.object({
   ...ElementBaseShape,
-  type: z.literal("model"),
   assetId: z.string().min(1),
+  type: z.literal("model"),
 });
 
 export const TextElementSchema = z.object({
   ...ElementBaseShape,
-  type: z.literal("text"),
   content: z.string(),
+  type: z.literal("text"),
 });
 
 export const ElementSchema = z.discriminatedUnion("type", [ModelElementSchema, TextElementSchema]);

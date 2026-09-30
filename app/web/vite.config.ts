@@ -7,15 +7,15 @@ import { defineConfig } from "vite";
 export function createViteConfig(command: "build" | "serve") {
   return {
     base: "/",
+    build: {
+      emptyOutDir: true,
+      outDir: "dist",
+    },
     plugins: [tailwindcss(), react(), ...(command === "build" ? [cloudflare()] : [])],
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
-    },
-    build: {
-      outDir: "dist",
-      emptyOutDir: true,
     },
   };
 }

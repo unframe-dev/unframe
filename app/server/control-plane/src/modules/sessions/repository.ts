@@ -5,41 +5,41 @@ import { presentationSessions, sessionParticipants } from "../../adapters/d1/sch
 import type { SessionRole, SessionState } from "./schema";
 
 export type SessionRecord = {
-  id: string;
-  presentationId: string;
-  presenterId: string;
-  joinCodeHash: string;
-  state: SessionState;
-  participantCount: number;
-  maxParticipants: number;
   createdAt: string;
   endedAt: string | null;
+  id: string;
+  joinCodeHash: string;
+  maxParticipants: number;
+  participantCount: number;
+  presentationId: string;
+  presenterId: string;
+  state: SessionState;
 };
 
 export type SessionParticipant = {
+  joinedAt: string;
+  role: SessionRole;
   sessionId: string;
   userId: string;
-  role: SessionRole;
-  joinedAt: string;
 };
 
 export type JoinResult = "joined" | "existing" | "full" | "ended" | "not_found";
 
 export type SessionRepository = {
-  create(record: SessionRecord, presenter: SessionParticipant): Promise<void>;
-  findById(id: string): Promise<SessionRecord | null>;
-  findActiveByCodeHash(joinCodeHash: string): Promise<SessionRecord | null>;
-  participantFor(sessionId: string, userId: string): Promise<SessionParticipant | null>;
-  join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult>;
   consumeJoinAttempt(input: {
-    codeHash: string;
-    userId: string;
-    ipAddress: string;
     attemptedAt: number;
+    codeHash: string;
+    ipAddress: string;
+    userId: string;
     windowStart: number;
   }): Promise<boolean>;
-  start(id: string): Promise<SessionRecord | null>;
+  create(record: SessionRecord, presenter: SessionParticipant): Promise<void>;
   end(id: string, endedAt: string): Promise<SessionRecord | null>;
+  findActiveByCodeHash(joinCodeHash: string): Promise<SessionRecord | null>;
+  findById(id: string): Promise<SessionRecord | null>;
+  join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult>;
+  participantFor(sessionId: string, userId: string): Promise<SessionParticipant | null>;
+  start(id: string): Promise<SessionRecord | null>;
 };
 
 export class D1SessionRepository implements SessionRepository {
@@ -95,7 +95,9 @@ export class D1SessionRepository implements SessionRepository {
 
   async join(sessionId: string, userId: string, joinedAt: string): Promise<JoinResult> {
     const existing = await this.participantFor(sessionId, userId);
-    if (existing) return "existing";
+    if (existing) {
+      return "existing";
+    }
     const [inserted] = await this.database.batch([
       this.database
         .prepare(
@@ -115,18 +117,24 @@ export class D1SessionRepository implements SessionRepository {
         )
         .bind(sessionId, sessionId),
     ]);
-    if (inserted?.meta.changes === 1) return "joined";
+    if (inserted?.meta.changes === 1) {
+      return "joined";
+    }
     const session = await this.findById(sessionId);
-    if (!session) return "not_found";
-    if (session.state === "Ended") return "ended";
+    if (!session) {
+      return "not_found";
+    }
+    if (session.state === "Ended") {
+      return "ended";
+    }
     return (await this.participantFor(sessionId, userId)) ? "existing" : "full";
   }
 
   async consumeJoinAttempt({
-    codeHash,
-    userId,
-    ipAddress,
     attemptedAt,
+    codeHash,
+    ipAddress,
+    userId,
     windowStart,
   }: Parameters<SessionRepository["consumeJoinAttempt"]>[0]) {
     const [, result] = await this.database.batch([

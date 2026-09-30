@@ -20,8 +20,8 @@ describe("mock presentation repository", () => {
     expect(presentation.id).toMatch(/^mock-/);
     expect(presentation.revision).toBe(1);
     expect(presentation.definition.metadata).toEqual({
-      title: "新しい空間",
       description: "アイデアの説明",
+      title: "新しい空間",
     });
     expect(presentation.createdAt).toBe(presentation.updatedAt);
     expect(presentation.thumbnailUrl).toMatch(

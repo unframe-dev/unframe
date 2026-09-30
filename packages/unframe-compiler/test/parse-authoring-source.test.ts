@@ -12,14 +12,17 @@ describe("parseAuthoringSource", () => {
     });
 
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.diagnostics).toEqual([]);
     expect(result.value.statements).toHaveLength(2);
     expect(result.value.statements[0]?.parent).toBe(result.value);
     const exportStatement = result.value.statements[1];
     expect(exportStatement !== undefined && ts.isExportAssignment(exportStatement)).toBe(true);
-    if (exportStatement !== undefined && ts.isExportAssignment(exportStatement))
+    if (exportStatement !== undefined && ts.isExportAssignment(exportStatement)) {
       expect(ts.isJsxSelfClosingElement(exportStatement.expression)).toBe(true);
+    }
   });
 
   it("returns stable source ranges for TypeScript syntax errors", () => {
@@ -29,19 +32,19 @@ describe("parseAuthoringSource", () => {
     });
 
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-syntax-error",
+          column: 38,
           fileName: "presentation.unframe.ts",
-          message: "Expression expected.",
-          start: 37,
           length: 1,
           line: 1,
-          column: 38,
+          message: "Expression expected.",
+          start: 37,
           typescriptCode: 1109,
         },
       ],
+      ok: false,
     });
   });
 
@@ -52,18 +55,18 @@ describe("parseAuthoringSource", () => {
         sourceText: "export default {};",
       }),
     ).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
+          column: 1,
           fileName: "presentation.unframe.js",
-          message: "Authoring source must use a TypeScript source or declaration file name.",
-          start: 0,
           length: 0,
           line: 1,
-          column: 1,
+          message: "Authoring source must use a TypeScript source or declaration file name.",
+          start: 0,
         },
       ],
+      ok: false,
     });
   });
 
@@ -86,9 +89,8 @@ describe("parseAuthoringSource", () => {
       },
     );
 
-    for (const input of [accessorInput, proxyInput])
+    for (const input of [accessorInput, proxyInput]) {
       expect(parseAuthoringSource(input)).toEqual({
-        ok: false,
         diagnostics: [
           {
             code: "compiler-invalid-input",
@@ -100,7 +102,9 @@ describe("parseAuthoringSource", () => {
             column: 1,
           },
         ],
+        ok: false,
       });
+    }
     expect(reads).toBe(0);
   });
 
@@ -109,21 +113,21 @@ describe("parseAuthoringSource", () => {
       string,
       unknown
     >;
-    Object.defineProperty(input, "__proto__", { value: {}, enumerable: true });
+    Object.defineProperty(input, "__proto__", { enumerable: true, value: {} });
 
     expect(parseAuthoringSource(input)).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
+          column: 1,
           fileName: "",
-          message: "Authoring source input must contain a file name and source text.",
-          start: 0,
           length: 0,
           line: 1,
-          column: 1,
+          message: "Authoring source input must contain a file name and source text.",
+          start: 0,
         },
       ],
+      ok: false,
     });
   });
 });

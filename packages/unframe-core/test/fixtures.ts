@@ -10,9 +10,13 @@ export const makeM3AArtifacts = () => {
   definition.scene.nodes = { "node-baked": bakedNode };
   const surface = definition.scene.surfaces.baked!;
   definition.scene.surfaces = { baked: surface };
-  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  if (surface.content.kind !== "structured") {
+    throw new TypeError("Expected structured fixture.");
+  }
   const root = surface.content.nodes.root;
-  if (root?.kind !== "frame") throw new TypeError("Expected the v2 fixture root to be a Frame.");
+  if (root?.kind !== "frame") {
+    throw new TypeError("Expected the v2 fixture root to be a Frame.");
+  }
   root.children = ["text"];
   delete surface.content.nodes.image;
   delete surface.content.nodes.shape;

@@ -8,10 +8,10 @@ describe("fixed browser package export resolution", () => {
         {
           exports: {
             ".": {
-              types: "./index.d.ts",
               browser: "./browser.js",
               import: "./esm.js",
               require: "./cjs.js",
+              types: "./index.d.ts",
             },
           },
         },
@@ -19,9 +19,9 @@ describe("fixed browser package export resolution", () => {
       ),
     ).toEqual([
       {
-        subpath: ".",
         runtimeImport: "browser.js",
         runtimeRequire: "browser.js",
+        subpath: ".",
         types: "index.d.ts",
       },
     ]);
@@ -35,7 +35,7 @@ describe("fixed browser package export resolution", () => {
         "a.js",
         "b.js",
       ]),
-    ).toEqual([{ subpath: ".", runtimeImport: "b.js", runtimeRequire: "b.js", types: null }]);
+    ).toEqual([{ runtimeImport: "b.js", runtimeRequire: "b.js", subpath: ".", types: null }]);
   });
   it("resolves explicit legacy root fields", () => {
     expect(
@@ -44,7 +44,7 @@ describe("fixed browser package export resolution", () => {
         "index.d.ts",
       ]),
     ).toEqual([
-      { subpath: ".", runtimeImport: "index.js", runtimeRequire: "index.js", types: "index.d.ts" },
+      { runtimeImport: "index.js", runtimeRequire: "index.js", subpath: ".", types: "index.d.ts" },
     ]);
   });
 });

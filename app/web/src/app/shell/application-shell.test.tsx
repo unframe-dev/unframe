@@ -20,18 +20,18 @@ vi.mock("@/features/auth/control-plane-auth", () => ({
 function renderShell() {
   const root = createRootRoute({ component: Outlet });
   const application = createRoute({
+    component: ApplicationShell,
     getParentRoute: () => root,
     id: "application",
-    component: ApplicationShell,
   });
   const home = createRoute({
+    component: () => <main>ホーム</main>,
     getParentRoute: () => application,
     path: "/home",
-    component: () => <main>ホーム</main>,
   });
   const router = createRouter({
-    routeTree: root.addChildren([application.addChildren([home])]),
     history: createMemoryHistory({ initialEntries: ["/home"] }),
+    routeTree: root.addChildren([application.addChildren([home])]),
   });
   render(<RouterProvider router={router} />);
 }

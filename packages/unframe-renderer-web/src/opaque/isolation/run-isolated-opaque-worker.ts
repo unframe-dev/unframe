@@ -13,7 +13,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 const MEMORY_MAX = "1073741824";
 const PIDS_MAX = "128";
 const DEADLINE_MS = 120_000;
-const CLOSE_GRACE_MS = 2_000;
+const CLOSE_GRACE_MS = 2000;
 const MAX_PROTOCOL_BYTES = 128 * 1024 * 1024;
 
 export class OpaqueIsolationError extends Error {
@@ -32,22 +32,24 @@ export class OpaqueIsolationError extends Error {
 }
 
 export type IsolatedOpaqueWorkerInput = {
-  readonly workerPath: string;
   readonly browserPath: string;
-  readonly runtimePaths: readonly string[];
   readonly input: unknown;
+  readonly runtimePaths: ReadonlyArray<string>;
+  readonly workerPath: string;
 };
 
 export type IsolatedOpaqueWorkerOptions = {
-  readonly signal?: AbortSignal;
   readonly cgroupRoot?: string;
   readonly deadlineMs?: number;
+  readonly signal?: AbortSignal;
 };
 
 export const assertOpaqueIsolationAvailable = (
   options: { readonly cgroupRoot?: string } = {},
 ): void => {
-  if (process.platform !== "linux") throw unavailable("opaque capture requires Linux");
+  if (process.platform !== "linux") {
+    throw unavailable("opaque capture requires Linux");
+  }
   delegatedRoot(options.cgroupRoot);
   for (const path of [
     process.env.UNFRAME_BWRAP_PATH,
@@ -55,8 +57,9 @@ export const assertOpaqueIsolationAvailable = (
     process.env.UNFRAME_OPAQUE_NODE,
     process.env.UNFRAME_NIX_LD_SHIM,
   ]) {
-    if (!path || !existsSync(path))
+    if (!path || !existsSync(path)) {
       throw unavailable("pinned isolation executables are unavailable");
+    }
     storeRootForExecutable(path);
   }
 };
@@ -67,7 +70,9 @@ const unavailable = (message: string): OpaqueIsolationError =>
 const storeRootForExecutable = (path: string): string => {
   const real = realpathSync(path);
   const match = /^\/nix\/store\/[^/]+/.exec(real);
-  if (!match) throw unavailable("isolation executable is not pinned in the Nix store");
+  if (!match) {
+    throw unavailable("isolation executable is not pinned in the Nix store");
+  }
   return match[0];
 };
 
@@ -75,7 +80,9 @@ const cgroupFor = (pid: number): string => {
   const entry = readFileSync(`/proc/${pid}/cgroup`, "utf8")
     .split("\n")
     .find((line) => line.startsWith("0::"));
-  if (!entry) throw unavailable("cgroup v2 membership is unavailable");
+  if (!entry) {
+    throw unavailable("cgroup v2 membership is unavailable");
+  }
   return entry.slice(3);
 };
 
@@ -92,7 +99,9 @@ const eventCount = (path: string, name: string): number => {
 const waitForEmptyGroup = async (group: string): Promise<boolean> => {
   const deadline = Date.now() + CLOSE_GRACE_MS;
   while (Date.now() < deadline) {
-    if (eventCount(join(group, "cgroup.events"), "populated") === 0) return true;
+    if (eventCount(join(group, "cgroup.events"), "populated") === 0) {
+      return true;
+    }
     await new Promise((done) => setTimeout(done, 20));
   }
   return eventCount(join(group, "cgroup.events"), "populated") === 0;
@@ -100,8 +109,9 @@ const waitForEmptyGroup = async (group: string): Promise<boolean> => {
 
 const requireContained = (path: string, root: string): void => {
   const rel = relative(root, path);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel))
+  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
     throw unavailable("cgroup root is outside the process delegation");
+  }
 };
 
 const delegatedRoot = (configured?: string): string => {
@@ -109,24 +119,31 @@ const delegatedRoot = (configured?: string): string => {
   const requested = configured ?? process.env.UNFRAME_OPAQUE_CGROUP_ROOT;
   const root = requested ? realpathSync(requested) : dirname(self);
   requireContained(self, root);
-  if (root === self) throw unavailable("capture host must run in a child of a delegated cgroup");
+  if (root === self) {
+    throw unavailable("capture host must run in a child of a delegated cgroup");
+  }
   const enabled = readWordSet(join(root, "cgroup.subtree_control"));
-  if (!enabled.has("memory") || !enabled.has("pids"))
+  if (!enabled.has("memory") || !enabled.has("pids")) {
     throw unavailable("memory and pids controllers are not delegated");
-  if (!existsSync(join(root, "cgroup.kill"))) throw unavailable("cgroup kill is unavailable");
+  }
+  if (!existsSync(join(root, "cgroup.kill"))) {
+    throw unavailable("cgroup kill is unavailable");
+  }
   return root;
 };
 
 const runtimeRoot = (path: string): string => {
   const real = realpathSync(path);
   const match = /^\/nix\/store\/[^/]+/.exec(real);
-  if (!match) throw unavailable("runtime paths must be pinned Nix store roots");
+  if (!match) {
+    throw unavailable("runtime paths must be pinned Nix store roots");
+  }
   return match[0];
 };
 
-const mountDirectories = (path: string): string[] => {
+const mountDirectories = (path: string): Array<string> => {
   const parts = dirname(path).split(sep).filter(Boolean);
-  const directories: string[] = [];
+  const directories: Array<string> = [];
   let current = "";
   for (const part of parts) {
     current += `/${part}`;
@@ -139,8 +156,8 @@ const sandboxArguments = (
   workerDirectory: string,
   browserDirectory: string,
   browserName: string,
-  runtimePaths: readonly string[],
-): string[] => {
+  runtimePaths: ReadonlyArray<string>,
+): Array<string> => {
   const nodePath = realpathSync(process.env.UNFRAME_OPAQUE_NODE!);
   const storePaths = [
     ...new Set([
@@ -185,20 +202,28 @@ const sandboxArguments = (
   ];
   for (const name of ["NIX_LD", "NIX_LD_LIBRARY_PATH", "FONTCONFIG_FILE"] as const) {
     const value = process.env[name];
-    if (value) args.push("--setenv", name, value);
+    if (value) {
+      args.push("--setenv", name, value);
+    }
   }
-  for (const directory of directories) args.push("--dir", directory);
-  for (const [source, destination] of mounts) args.push("--ro-bind", source, destination);
+  for (const directory of directories) {
+    args.push("--dir", directory);
+  }
+  for (const [source, destination] of mounts) {
+    args.push("--ro-bind", source, destination);
+  }
   args.push("--", nodePath, "/worker/worker.mjs");
   return args;
 };
 
-const descendants = (pid: number): number[] => {
+const descendants = (pid: number): Array<number> => {
   const seen = new Set<number>();
   const pending = [pid];
   while (pending.length > 0) {
     const current = pending.pop()!;
-    if (seen.has(current)) continue;
+    if (seen.has(current)) {
+      continue;
+    }
     seen.add(current);
     try {
       const children = readFileSync(`/proc/${current}/task/${current}/children`, "utf8")
@@ -216,8 +241,9 @@ const descendants = (pid: number): number[] => {
 
 const verifyMembership = (pid: number, group: string): void => {
   for (const descendant of descendants(pid)) {
-    if (cgroupFor(descendant) !== group)
+    if (cgroupFor(descendant) !== group) {
       throw unavailable("a browser descendant escaped the resource cgroup");
+    }
   }
 };
 
@@ -228,19 +254,23 @@ const protocol = (
   signal?: AbortSignal,
 ): Promise<unknown> =>
   new Promise((resolveResult, rejectResult) => {
-    let pendingChunks: Buffer[] = [];
+    let pendingChunks: Array<Buffer> = [];
     let pendingBytes = 0;
     let phase: "bootstrap" | "ready" | "result" = "bootstrap";
     let settled = false;
     const send = (value: unknown) => child.stdin?.write(`${JSON.stringify(value)}\n`);
     const fail = (error: Error) => {
-      if (settled) return;
+      if (settled) {
+        return;
+      }
       settled = true;
       signal?.removeEventListener("abort", onAbort);
       rejectResult(error);
     };
     const finish = (value: unknown) => {
-      if (settled) return;
+      if (settled) {
+        return;
+      }
       settled = true;
       signal?.removeEventListener("abort", onAbort);
       resolveResult(value);
@@ -250,7 +280,9 @@ const protocol = (
     signal?.addEventListener("abort", onAbort, { once: true });
     child.stderr?.resume();
     child.stdout?.on("data", (chunk: Buffer) => {
-      if (settled) return;
+      if (settled) {
+        return;
+      }
       let offset = 0;
       while (offset < chunk.length && !settled) {
         const newline = chunk.indexOf(10, offset);
@@ -262,7 +294,9 @@ const protocol = (
           fail(new OpaqueIsolationError("opaque-capture-failed", "worker output exceeds limit"));
           return;
         }
-        if (newline < 0) break;
+        if (newline < 0) {
+          break;
+        }
         const line = Buffer.concat(pendingChunks, pendingBytes).toString("utf8");
         pendingChunks = [];
         pendingBytes = 0;
@@ -280,7 +314,7 @@ const protocol = (
           } else if (phase === "ready" && message.type === "ready") {
             verifyMembership(child.pid!, group);
             phase = "result";
-            send({ type: "capture", input });
+            send({ input, type: "capture" });
           } else if (phase === "result" && message.type === "result") {
             verifyMembership(child.pid!, group);
             finish(message.value);
@@ -317,21 +351,24 @@ export const runIsolatedOpaqueWorker = async (
   input: IsolatedOpaqueWorkerInput,
   options: IsolatedOpaqueWorkerOptions = {},
 ): Promise<unknown> => {
-  if (options.signal?.aborted)
+  if (options.signal?.aborted) {
     throw new OpaqueIsolationError("opaque-capture-cancelled", "capture cancelled");
+  }
   if (
     options.deadlineMs !== undefined &&
     (!Number.isSafeInteger(options.deadlineMs) ||
       options.deadlineMs < 1 ||
       options.deadlineMs > DEADLINE_MS)
-  )
+  ) {
     throw unavailable("capture deadline must not exceed the isolation profile");
+  }
   assertOpaqueIsolationAvailable(options);
   const root = delegatedRoot(options.cgroupRoot);
   const bwrap = process.env.UNFRAME_BWRAP_PATH!;
   const bash = process.env.UNFRAME_BASH_PATH!;
-  if (!input.workerPath.endsWith("/worker.mjs"))
+  if (!input.workerPath.endsWith("/worker.mjs")) {
     throw unavailable("worker bundle entry must be worker.mjs");
+  }
   const workerDirectory = realpathSync(dirname(input.workerPath));
   const browserDirectory = realpathSync(dirname(input.browserPath));
   const groupName = `unframe-opaque-${randomUUID()}`;
@@ -354,8 +391,9 @@ export const runIsolatedOpaqueWorker = async (
     if (
       readFileSync(join(group, "memory.max"), "utf8").trim() !== MEMORY_MAX ||
       readFileSync(join(group, "pids.max"), "utf8").trim() !== PIDS_MAX
-    )
+    ) {
       throw unavailable("resource limits were not applied");
+    }
     const args = sandboxArguments(
       workerDirectory,
       browserDirectory,
@@ -371,7 +409,7 @@ export const runIsolatedOpaqueWorker = async (
         bwrap,
         ...args,
       ],
-      { stdio: ["pipe", "pipe", "pipe", "pipe"], env: {}, detached: true },
+      { detached: true, env: {}, stdio: ["pipe", "pipe", "pipe", "pipe"] },
     );
     const worker = child;
     childClosed = new Promise<void>((done) => worker.once("close", () => done()));
@@ -386,11 +424,14 @@ export const runIsolatedOpaqueWorker = async (
     });
     void stdioFailure.catch(() => undefined);
     const barrier = worker.stdio[3];
-    if (!barrier || !("write" in barrier))
+    if (!barrier || !("write" in barrier)) {
       throw unavailable("trusted bootstrap barrier is unavailable");
+    }
     // The barrier has no response; bootstrap and ready messages confirm that the permit arrived.
     barrier.on("error", () => undefined);
-    if (!child.pid) throw unavailable("trusted bootstrap did not start");
+    if (!child.pid) {
+      throw unavailable("trusted bootstrap did not start");
+    }
     writeFileSync(join(group, "cgroup.procs"), String(child.pid));
     verifyMembership(child.pid, groupRelative);
     barrier.write("go\n");
@@ -417,11 +458,17 @@ export const runIsolatedOpaqueWorker = async (
           ? error
           : unavailable(error instanceof Error ? error.message : "isolation setup failed");
   } finally {
-    if (timer) clearTimeout(timer);
+    if (timer) {
+      clearTimeout(timer);
+    }
     if (child) {
-      if (!completed) child.kill("SIGTERM");
+      if (!completed) {
+        child.kill("SIGTERM");
+      }
       await new Promise<void>((done) => {
-        if (child!.exitCode !== null || child!.signalCode !== null) return done();
+        if (child!.exitCode !== null || child!.signalCode !== null) {
+          return done();
+        }
         const closeTimer = setTimeout(done, CLOSE_GRACE_MS);
         child!.once("exit", () => {
           clearTimeout(closeTimer);
@@ -433,7 +480,9 @@ export const runIsolatedOpaqueWorker = async (
       } catch {
         /* cgroup cleanup is verified below */
       }
-      if (!(await waitForEmptyGroup(group))) cleanupFailure = true;
+      if (!(await waitForEmptyGroup(group))) {
+        cleanupFailure = true;
+      }
       if (childClosed) {
         let closeTimer: ReturnType<typeof setTimeout> | undefined;
         const closed = await Promise.race([
@@ -442,8 +491,12 @@ export const runIsolatedOpaqueWorker = async (
             closeTimer = setTimeout(() => done(false), CLOSE_GRACE_MS);
           }),
         ]);
-        if (closeTimer) clearTimeout(closeTimer);
-        if (!closed) cleanupFailure = true;
+        if (closeTimer) {
+          clearTimeout(closeTimer);
+        }
+        if (!closed) {
+          cleanupFailure = true;
+        }
       }
     }
     try {
@@ -459,13 +512,20 @@ export const runIsolatedOpaqueWorker = async (
       cleanupFailure = true;
     }
   }
-  if (cleanupFailure) throw unavailable("resource cgroup cleanup failed");
-  if (resourceLimitHit)
+  if (cleanupFailure) {
+    throw unavailable("resource cgroup cleanup failed");
+  }
+  if (resourceLimitHit) {
     throw new OpaqueIsolationError(
       "opaque-capture-resource-limit",
       "worker exceeded a hard resource limit",
     );
-  if (!failure && stdioError && !options.signal?.aborted) throw stdioError;
-  if (failure) throw failure;
+  }
+  if (!failure && stdioError && !options.signal?.aborted) {
+    throw stdioError;
+  }
+  if (failure) {
+    throw failure;
+  }
   return value;
 };

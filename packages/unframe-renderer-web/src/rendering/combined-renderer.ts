@@ -12,35 +12,34 @@ export const combineBakedWebRenderers = (
   opaque: RendererPlugin,
 ): RendererPlugin => {
   const identity = {
-    id: "baked-web",
-    version: "4",
     contractVersion: "2",
+    id: "baked-web",
     implementationHash: hash({
+      opaque: opaque.identity,
       profile: "structured-opaque-v1",
       structured: structured.identity,
-      opaque: opaque.identity,
     }),
+    version: "4",
   };
   const capabilities = {
+    deterministic: structured.capabilities.deterministic && opaque.capabilities.deterministic,
+    fallbackPolicies: ["reject"] as const,
     inputKinds: ["structured", "opaque"] as const,
-    updateModels: [
-      ...new Set([...structured.capabilities.updateModels, ...opaque.capabilities.updateModels]),
-    ],
     interactions: [
       ...new Set([...structured.capabilities.interactions, ...opaque.capabilities.interactions]),
     ],
     internalAnimations: ["none"] as const,
     rendererPreferences: ["baked-web"] as const,
-    fallbackPolicies: ["reject"] as const,
-    deterministic: structured.capabilities.deterministic && opaque.capabilities.deterministic,
+    updateModels: [
+      ...new Set([...structured.capabilities.updateModels, ...opaque.capabilities.updateModels]),
+    ],
   };
   const plugin: RendererPlugin = {
-    identity,
-    capabilities,
-    support: (input) => (input.entry.kind === "opaque" ? opaque : structured).support(input),
     build: async (raw) => {
       const input = prepareRendererBuildInput(raw, plugin);
-      if (!input.valid) return { ok: false, diagnostics: input.diagnostics };
+      if (!input.valid) {
+        return { ok: false, diagnostics: input.diagnostics };
+      }
       const child = input.value.entry.kind === "opaque" ? opaque : structured;
       const result = await executeRendererPlugin(child, {
         ...input.value,
@@ -52,7 +51,9 @@ export const combineBakedWebRenderers = (
           ),
         },
       });
-      if (!result.valid) return { ok: false, diagnostics: result.diagnostics };
+      if (!result.valid) {
+        return { ok: false, diagnostics: result.diagnostics };
+      }
       return {
         ...result.value,
         provenance: {
@@ -62,6 +63,9 @@ export const combineBakedWebRenderers = (
         },
       };
     },
+    capabilities,
+    identity,
+    support: (input) => (input.entry.kind === "opaque" ? opaque : structured).support(input),
   };
   return plugin;
 };

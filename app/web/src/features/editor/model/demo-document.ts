@@ -1,17 +1,21 @@
 import type { PresentationDocument } from "./presentation-document";
 
 export const demoDocument: PresentationDocument = {
-  version: 1,
+  assets: [
+    {
+      id: "demo-model",
+      mediaType: "model/gltf-binary",
+      name: "Unframe sculpture",
+    },
+  ],
   id: "demo",
-  revision: 0,
   metadata: {
-    title: "Spatial story",
     description: "A fixture presentation for the Unframe Web Editor.",
+    title: "Spatial story",
   },
+  revision: 0,
   slides: [
     {
-      id: "opening",
-      name: "Opening",
       elements: [
         {
           id: "demo-model-element",
@@ -27,10 +31,10 @@ export const demoDocument: PresentationDocument = {
           locked: false,
         },
       ],
+      id: "opening",
+      name: "Opening",
     },
     {
-      id: "detail",
-      name: "Detail",
       elements: [
         {
           id: "detail-caption",
@@ -46,13 +50,9 @@ export const demoDocument: PresentationDocument = {
           locked: false,
         },
       ],
+      id: "detail",
+      name: "Detail",
     },
   ],
-  assets: [
-    {
-      id: "demo-model",
-      name: "Unframe sculpture",
-      mediaType: "model/gltf-binary",
-    },
-  ],
+  version: 1,
 };

@@ -7,13 +7,13 @@ import { R2ObjectStorage } from "./adapters/assets/r2-storage";
 import { R2Presigner } from "./adapters/assets/r2-presigner";
 
 const createAssetServices = (config: RuntimeConfig): AssetServices => ({
-  repository: new D1AssetRepository(config.DB),
-  permission: new D1PresentationPermission(config.DB),
-  storage: new R2ObjectStorage(config.ASSETS),
-  signedAccess: new R2Presigner(config),
+  audit: (entry) => console.log(JSON.stringify(entry)),
   clock: { now: () => new Date() },
   id: { next: crypto.randomUUID, random: crypto.randomUUID },
-  audit: (entry) => console.log(JSON.stringify(entry)),
+  permission: new D1PresentationPermission(config.DB),
+  repository: new D1AssetRepository(config.DB),
+  signedAccess: new R2Presigner(config),
+  storage: new R2ObjectStorage(config.ASSETS),
 });
 
 export const createScheduledHandler =
@@ -26,7 +26,7 @@ export const createScheduledHandler =
         .then((result) => log(JSON.stringify({ event: "asset_orphan_collection", ...result })))
         .catch(() =>
           log(
-            JSON.stringify({ event: "asset_orphan_collection_failed", error: "collection_failed" }),
+            JSON.stringify({ error: "collection_failed", event: "asset_orphan_collection_failed" }),
           ),
         ),
     );

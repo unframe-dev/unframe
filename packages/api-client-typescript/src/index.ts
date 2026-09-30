@@ -7,14 +7,14 @@ export type ControlPlaneClient = ReturnType<typeof hc<AppType>>;
 
 export type ControlPlaneClientOptions = {
   baseUrl: string;
-  fetch?: typeof globalThis.fetch;
   credentials?: RequestCredentials;
+  fetch?: typeof globalThis.fetch;
 };
 
 export const createControlPlaneClient = ({
   baseUrl,
-  fetch,
   credentials,
+  fetch,
 }: ControlPlaneClientOptions): ControlPlaneClient =>
   hc<AppType>(baseUrl, {
     ...(fetch ? { fetch } : {}),
@@ -23,8 +23,8 @@ export const createControlPlaneClient = ({
 
 export type ControlPlaneAuthClientOptions = {
   baseUrl: string;
-  fetch?: typeof globalThis.fetch;
   credentials?: RequestCredentials;
+  fetch?: typeof globalThis.fetch;
   onAuthToken?: (token: string) => void;
 };
 
@@ -32,8 +32,8 @@ export type ControlPlaneAuthClientOptions = {
 export const authTokenFromResponse = (response: Response): string | undefined =>
   response.headers.get("set-auth-token") ?? undefined;
 export type DeviceAuthorizationVerification = {
-  user_code: string;
   status: "pending" | "approved" | "denied";
+  user_code: string;
 };
 
 export type DeviceAuthorizationVerificationError = {
@@ -47,8 +47,8 @@ export type DeviceAuthorizationVerificationResult =
 
 function createDeviceAuthorizationVerifier({
   baseUrl,
-  fetch: customFetch,
   credentials,
+  fetch: customFetch,
 }: ControlPlaneAuthClientOptions) {
   const request = customFetch ?? globalThis.fetch;
 
@@ -74,7 +74,7 @@ function createDeviceAuthorizationVerifier({
       typeof body["user_code"] === "string" &&
       (body["status"] === "pending" || body["status"] === "approved" || body["status"] === "denied")
     ) {
-      return { data: { user_code: body["user_code"], status: body["status"] }, error: null };
+      return { data: { status: body["status"], user_code: body["user_code"] }, error: null };
     }
 
     return {
@@ -96,8 +96,8 @@ function createDeviceAuthorizationVerifier({
  */
 const createBetterAuthClient = ({
   baseUrl,
-  fetch,
   credentials,
+  fetch,
   onAuthToken,
 }: ControlPlaneAuthClientOptions) => {
   return createAuthClient({
@@ -111,7 +111,9 @@ const createBetterAuthClient = ({
               ? {
                   onSuccess: (context: { response: Response }) => {
                     const token = authTokenFromResponse(context.response);
-                    if (token) onAuthToken(token);
+                    if (token) {
+                      onAuthToken(token);
+                    }
                   },
                 }
               : {}),
@@ -130,8 +132,8 @@ export type ControlPlaneAuthClient = BetterAuthClient & {
 
 export const createControlPlaneAuthClient = ({
   baseUrl,
-  fetch,
   credentials,
+  fetch,
   onAuthToken,
 }: ControlPlaneAuthClientOptions): ControlPlaneAuthClient => {
   const client = createBetterAuthClient({
@@ -147,7 +149,9 @@ export const createControlPlaneAuthClient = ({
   });
   return new Proxy(client, {
     get(target, property, receiver) {
-      if (property === "verifyDeviceAuthorization") return verifyDeviceAuthorization;
+      if (property === "verifyDeviceAuthorization") {
+        return verifyDeviceAuthorization;
+      }
       return Reflect.get(target, property, receiver);
     },
   }) as ControlPlaneAuthClient;

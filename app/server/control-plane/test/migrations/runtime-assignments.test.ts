@@ -23,14 +23,14 @@ describe("Runtime Assignment migration", () => {
     const repository = new D1VenueEdgeRepository(env.DB);
     await expect(
       repository.register("migration-provisioning-edge", {
-        runtimeId: "registered-runtime",
-        runtimeVersion: "current",
-        protocolVersion: "v1",
         capacity: 1,
-        localEndpoint: "https://edge.example.test",
         certificateFingerprint: "sha256:current",
         health: "healthy",
+        localEndpoint: "https://edge.example.test",
         observedAt: "2026-08-21T00:00:00.000Z",
+        protocolVersion: "v1",
+        runtimeId: "registered-runtime",
+        runtimeVersion: "current",
       }),
     ).resolves.toBe(true);
   });

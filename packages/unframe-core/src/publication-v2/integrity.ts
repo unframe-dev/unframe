@@ -18,10 +18,10 @@ import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { snapshotPlainJson } from "./plain-json.js";
 
 export type BuildArtifactsV2 = {
-  definition: PresentationDefinitionV2;
-  renderBundle: RenderBundleV2;
   assetSet: AssetSetManifestV2;
   buildManifest: BuildManifestV2;
+  definition: PresentationDefinitionV2;
+  renderBundle: RenderBundleV2;
 };
 
 export type PublicationArtifactsV2 = BuildArtifactsV2 & {
@@ -29,17 +29,17 @@ export type PublicationArtifactsV2 = BuildArtifactsV2 & {
 };
 
 export type PublicationIntegrityInputV2 = {
-  definition: unknown;
-  renderBundle: unknown;
   assetSet: unknown;
   buildManifest: unknown;
+  definition: unknown;
   publishedPresentation: unknown;
+  renderBundle: unknown;
 };
 
 export type BuildIntegrityInputV2 = Omit<PublicationIntegrityInputV2, "publishedPresentation">;
 
 type ArtifactName = keyof PublicationIntegrityInputV2;
-type Path = readonly (string | number)[];
+type Path = ReadonlyArray<string | number>;
 
 const artifactNames = [
   "assetSet",
@@ -47,21 +47,23 @@ const artifactNames = [
   "definition",
   "publishedPresentation",
   "renderBundle",
-] as const satisfies readonly ArtifactName[];
+] as const satisfies ReadonlyArray<ArtifactName>;
 
 const diagnostic = (code: string, path: Path, message: string): Diagnostic => ({
   code,
-  path,
   message,
+  path,
 });
 
 const compareText = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 const pointer = (path: Path) =>
   path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/");
-const sortedDiagnostics = (diagnostics: Diagnostic[]) =>
+const sortedDiagnostics = (diagnostics: Array<Diagnostic>) =>
   diagnostics.sort((left, right) => {
     const artifact = compareText(String(left.path[0] ?? ""), String(right.path[0] ?? ""));
-    if (artifact !== 0) return artifact;
+    if (artifact !== 0) {
+      return artifact;
+    }
     const path = compareText(pointer(left.path), pointer(right.path));
     return path !== 0 ? path : compareText(left.code, right.code);
   });
@@ -75,11 +77,13 @@ const parseArtifact = <T>(
   name: ArtifactName,
   schema: ZodType<T>,
   value: unknown,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ): T | undefined => {
   const result = schema.safeParse(value);
-  if (result.success) return result.data;
-  for (const issue of result.error.issues)
+  if (result.success) {
+    return result.data;
+  }
+  for (const issue of result.error.issues) {
     diagnostics.push(
       diagnostic(
         "structure.invalid",
@@ -90,37 +94,40 @@ const parseArtifact = <T>(
         issue.message,
       ),
     );
+  }
   return undefined;
 };
 
 type AssetReference = {
-  path: Path;
+  allowedMediaTypes: ReadonlyArray<AssetDescriptorV2["mediaType"]>;
   descriptor?: AssetDescriptorV2;
-  allowedMediaTypes: readonly AssetDescriptorV2["mediaType"][];
+  path: Path;
 };
 
 const fontMediaTypes = ["font/ttf", "font/otf"] as const;
 
 const collectDefinitionAssetReferences = (
   definition: PresentationDefinitionV2,
-  references: Map<string, AssetReference[]>,
+  references: Map<string, Array<AssetReference>>,
 ) => {
   const add = (
     assetId: string,
     path: Path,
-    allowedMediaTypes: readonly AssetDescriptorV2["mediaType"][],
+    allowedMediaTypes: ReadonlyArray<AssetDescriptorV2["mediaType"]>,
   ) => {
     const entries = references.get(assetId) ?? [];
-    entries.push({ path, allowedMediaTypes });
+    entries.push({ allowedMediaTypes, path });
     references.set(assetId, entries);
   };
 
-  for (const [nodeId, node] of Object.entries(definition.scene.nodes))
-    if (node.kind === "model")
+  for (const [nodeId, node] of Object.entries(definition.scene.nodes)) {
+    if (node.kind === "model") {
       add(node.assetId, ["definition", "scene", "nodes", nodeId, "assetId"], ["model/gltf-binary"]);
+    }
+  }
 
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces)) {
-    if (surface.content.kind === "structured")
+    if (surface.content.kind === "structured") {
       for (const [contentId, content] of Object.entries(surface.content.nodes)) {
         const base = [
           "definition",
@@ -131,17 +138,22 @@ const collectDefinitionAssetReferences = (
           "nodes",
           contentId,
         ] as const;
-        if (content.kind === "image")
+        if (content.kind === "image") {
           add(content.assetId, [...base, "assetId"], ["image/png", "image/jpeg"]);
-        if (content.kind === "video") add(content.assetId, [...base, "assetId"], ["video/mp4"]);
+        }
+        if (content.kind === "video") {
+          add(content.assetId, [...base, "assetId"], ["video/mp4"]);
+        }
         if (content.kind === "text") {
           add(content.style.fontAssetId, [...base, "style", "fontAssetId"], fontMediaTypes);
-          for (const [index, assetId] of content.style.fallbackFontAssetIds.entries())
+          for (const [index, assetId] of content.style.fallbackFontAssetIds.entries()) {
             add(assetId, [...base, "style", "fallbackFontAssetIds", index], fontMediaTypes);
+          }
         }
       }
-    for (const [stateId, state] of Object.entries(surface.states))
-      for (const [contentId, override] of Object.entries(state.contentOverrides))
+    }
+    for (const [stateId, state] of Object.entries(surface.states)) {
+      for (const [contentId, override] of Object.entries(state.contentOverrides)) {
         if (override.kind === "image" && override.assetId !== undefined)
           add(
             override.assetId,
@@ -194,30 +206,32 @@ const collectDefinitionAssetReferences = (
               fontMediaTypes,
             );
         }
+      }
+    }
   }
 };
 
 const collectBundleAssetReferences = (
   renderBundle: RenderBundleV2,
-  references: Map<string, AssetReference[]>,
+  references: Map<string, Array<AssetReference>>,
 ) => {
   const add = (
     assetId: string,
     path: Path,
-    allowedMediaTypes: readonly AssetDescriptorV2["mediaType"][],
+    allowedMediaTypes: ReadonlyArray<AssetDescriptorV2["mediaType"]>,
     descriptor?: AssetDescriptorV2,
   ) => {
     const entries = references.get(assetId) ?? [];
     entries.push(
       descriptor === undefined
-        ? { path, allowedMediaTypes }
-        : { path, descriptor, allowedMediaTypes },
+        ? { allowedMediaTypes, path }
+        : { allowedMediaTypes, descriptor, path },
     );
     references.set(assetId, entries);
   };
 
-  for (const [surfaceId, surface] of Object.entries(renderBundle.surfaces))
-    for (const [renderSurfaceId, renderSurface] of Object.entries(surface.renderSurfaces))
+  for (const [surfaceId, surface] of Object.entries(renderBundle.surfaces)) {
+    for (const [renderSurfaceId, renderSurface] of Object.entries(surface.renderSurfaces)) {
       for (const [artifactId, artifact] of Object.entries(renderSurface.artifacts)) {
         const base = [
           "renderBundle",
@@ -262,13 +276,16 @@ const collectBundleAssetReferences = (
                 );
             }
       }
+    }
+  }
 
-  for (const [modelId, model] of Object.entries(renderBundle.models))
+  for (const [modelId, model] of Object.entries(renderBundle.models)) {
     add(model.assetId, ["renderBundle", "models", modelId, "assetId"], ["model/gltf-binary"], {
       checksum: model.checksum,
-      mediaType: model.mediaType,
       encodedSizeBytes: model.encodedSizeBytes,
+      mediaType: model.mediaType,
     });
+  }
 };
 
 const descriptorEquals = (left: AssetDescriptorV2, right: AssetDescriptorV2) =>
@@ -280,23 +297,27 @@ const verifyAssetClosure = (
   definition: PresentationDefinitionV2,
   renderBundle: RenderBundleV2,
   assetSet: AssetSetManifestV2,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
-  const references = new Map<string, AssetReference[]>();
+  const references = new Map<string, Array<AssetReference>>();
   collectDefinitionAssetReferences(definition, references);
   collectBundleAssetReferences(renderBundle, references);
 
   for (const [assetId, assetReferences] of references) {
     const descriptor = ownValue(assetSet.assets, assetId);
     if (descriptor === undefined) {
-      for (const reference of assetReferences)
+      for (const reference of assetReferences) {
         diagnostics.push(
           diagnostic("reference.invalid", reference.path, `Referenced Asset ${assetId} is absent.`),
         );
+      }
       continue;
     }
-    for (const reference of assetReferences)
-      if (reference.descriptor !== undefined && !descriptorEquals(reference.descriptor, descriptor))
+    for (const reference of assetReferences) {
+      if (
+        reference.descriptor !== undefined &&
+        !descriptorEquals(reference.descriptor, descriptor)
+      ) {
         diagnostics.push(
           diagnostic(
             "artifact.invalid",
@@ -304,7 +325,7 @@ const verifyAssetClosure = (
             `Embedded descriptor for Asset ${assetId} does not match AssetSetManifest.`,
           ),
         );
-      else if (!reference.allowedMediaTypes.includes(descriptor.mediaType))
+      } else if (!reference.allowedMediaTypes.includes(descriptor.mediaType)) {
         diagnostics.push(
           diagnostic(
             "artifact.invalid",
@@ -312,10 +333,12 @@ const verifyAssetClosure = (
             `Asset ${assetId} has incompatible media type ${descriptor.mediaType}.`,
           ),
         );
+      }
+    }
   }
 
-  for (const assetId of Object.keys(assetSet.assets))
-    if (!references.has(assetId))
+  for (const assetId of Object.keys(assetSet.assets)) {
+    if (!references.has(assetId)) {
       diagnostics.push(
         diagnostic(
           "reference.invalid",
@@ -323,15 +346,17 @@ const verifyAssetClosure = (
           `Asset ${assetId} is not referenced by Definition or RenderBundle.`,
         ),
       );
+    }
+  }
 };
 
 const verifyModelReferences = (
   definition: PresentationDefinitionV2,
   renderBundle: RenderBundleV2,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
-  for (const [modelId, model] of Object.entries(renderBundle.models))
-    if (model.assetId !== modelId)
+  for (const [modelId, model] of Object.entries(renderBundle.models)) {
+    if (model.assetId !== modelId) {
       diagnostics.push(
         diagnostic(
           "artifact.invalid",
@@ -339,14 +364,18 @@ const verifyModelReferences = (
           "Compiled model key and assetId must agree.",
         ),
       );
+    }
+  }
 
   const modelNodes = new Map(
     Object.entries(definition.scene.nodes).filter((entry) => entry[1].kind === "model"),
   );
   for (const [nodeId, node] of modelNodes) {
-    if (node.kind !== "model") continue;
+    if (node.kind !== "model") {
+      continue;
+    }
     const model = ownValue(renderBundle.models, node.assetId);
-    if (model === undefined)
+    if (model === undefined) {
       diagnostics.push(
         diagnostic(
           "reference.invalid",
@@ -354,6 +383,7 @@ const verifyModelReferences = (
           `Model Asset ${node.assetId} has no compiled model entry.`,
         ),
       );
+    }
   }
 
   const verifyModelNode = (nodeId: string, path: Path) => {
@@ -372,9 +402,11 @@ const verifyModelReferences = (
   };
   const verifyClip = (nodeId: string, clipId: string, path: Path) => {
     const node = verifyModelNode(nodeId, path);
-    if (node === undefined) return;
+    if (node === undefined) {
+      return;
+    }
     const model = ownValue(renderBundle.models, node.assetId);
-    if (model !== undefined && ownValue(model.clips, clipId) === undefined)
+    if (model !== undefined && ownValue(model.clips, clipId) === undefined) {
       diagnostics.push(
         diagnostic(
           "reference.invalid",
@@ -382,10 +414,11 @@ const verifyModelReferences = (
           `Clip ${clipId} is absent from compiled Model ${node.assetId}.`,
         ),
       );
+    }
   };
 
-  for (const [groupId, group] of Object.entries(definition.flow.groups))
-    for (const [stepId, step] of Object.entries(group.steps))
+  for (const [groupId, group] of Object.entries(definition.flow.groups)) {
+    for (const [stepId, step] of Object.entries(group.steps)) {
       for (const [cueIndex, cue] of step.cues.entries()) {
         const cuePath = [
           "definition",
@@ -411,15 +444,17 @@ const verifyModelReferences = (
             verifyModelNode(action.nodeId, actionPath);
         }
       }
+    }
+  }
 };
 
-const verifyHashes = (artifacts: BuildArtifactsV2, diagnostics: Diagnostic[]) => {
+const verifyHashes = (artifacts: BuildArtifactsV2, diagnostics: Array<Diagnostic>) => {
   const definitionHash = hashCanonicalJsonPayload(artifacts.definition);
   const renderBundleHash = hashCanonicalJsonPayload(artifacts.renderBundle);
   const assetSetHash = hashCanonicalJsonPayload(artifacts.assetSet);
-  const expectedHashes = { definitionHash, renderBundleHash, assetSetHash } as const;
+  const expectedHashes = { assetSetHash, definitionHash, renderBundleHash } as const;
 
-  if (artifacts.renderBundle.definitionHash !== definitionHash)
+  if (artifacts.renderBundle.definitionHash !== definitionHash) {
     diagnostics.push(
       diagnostic(
         "hash.invalid",
@@ -427,8 +462,9 @@ const verifyHashes = (artifacts: BuildArtifactsV2, diagnostics: Diagnostic[]) =>
         "RenderBundle definitionHash does not match PresentationDefinition.",
       ),
     );
-  for (const [field, expected] of Object.entries(expectedHashes))
-    if (artifacts.buildManifest[field as keyof typeof expectedHashes] !== expected)
+  }
+  for (const [field, expected] of Object.entries(expectedHashes)) {
+    if (artifacts.buildManifest[field as keyof typeof expectedHashes] !== expected) {
       diagnostics.push(
         diagnostic(
           "hash.invalid",
@@ -436,10 +472,12 @@ const verifyHashes = (artifacts: BuildArtifactsV2, diagnostics: Diagnostic[]) =>
           `${field} does not match its canonical artifact hash.`,
         ),
       );
+    }
+  }
 };
 
-const verifyBuildIdentity = (artifacts: BuildArtifactsV2, diagnostics: Diagnostic[]) => {
-  if (artifacts.definition.presentationId !== artifacts.buildManifest.presentationId)
+const verifyBuildIdentity = (artifacts: BuildArtifactsV2, diagnostics: Array<Diagnostic>) => {
+  if (artifacts.definition.presentationId !== artifacts.buildManifest.presentationId) {
     diagnostics.push(
       diagnostic(
         "artifact.invalid",
@@ -447,9 +485,10 @@ const verifyBuildIdentity = (artifacts: BuildArtifactsV2, diagnostics: Diagnosti
         "BuildManifest presentationId must equal PresentationDefinition presentationId.",
       ),
     );
+  }
 };
 
-const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagnostic[]) => {
+const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Array<Diagnostic>) => {
   const sharedFields = [
     "schemaVersion",
     "buildId",
@@ -467,7 +506,7 @@ const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagn
       typeof buildValue === "object"
         ? hashCanonicalJsonPayload(buildValue) === hashCanonicalJsonPayload(publishedValue)
         : buildValue === publishedValue;
-    if (!equal)
+    if (!equal) {
       diagnostics.push(
         diagnostic(
           "publication.invalid",
@@ -475,12 +514,13 @@ const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagn
           `${field} must equal BuildManifest.`,
         ),
       );
+    }
   }
 
   const { publicationManifestHash: _excluded, ...publicationPayload } =
     artifacts.publishedPresentation;
   const expectedPublicationHash = hashCanonicalJsonPayload(publicationPayload);
-  if (artifacts.publishedPresentation.publicationManifestHash !== expectedPublicationHash)
+  if (artifacts.publishedPresentation.publicationManifestHash !== expectedPublicationHash) {
     diagnostics.push(
       diagnostic(
         "publication.invalid",
@@ -488,14 +528,17 @@ const verifyPublication = (artifacts: PublicationArtifactsV2, diagnostics: Diagn
         "publicationManifestHash must hash every other PublishedPresentation field.",
       ),
     );
+  }
 };
 
 const verifyUnparsedPublicationAgreement = (
   buildManifest: BuildManifestV2,
   publishedPresentation: unknown,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
-  if (!isRecord(publishedPresentation)) return;
+  if (!isRecord(publishedPresentation)) {
+    return;
+  }
   const sharedFields = [
     "schemaVersion",
     "buildId",
@@ -513,7 +556,7 @@ const verifyUnparsedPublicationAgreement = (
       publishedValue !== undefined && typeof buildValue === "object"
         ? hashCanonicalJsonPayload(buildValue) === hashCanonicalJsonPayload(publishedValue)
         : buildValue === publishedValue;
-    if (!equal)
+    if (!equal) {
       diagnostics.push(
         diagnostic(
           "publication.invalid",
@@ -521,6 +564,7 @@ const verifyUnparsedPublicationAgreement = (
           `${field} must equal BuildManifest.`,
         ),
       );
+    }
   }
 };
 
@@ -534,30 +578,36 @@ function verifyIntegrity(
   publication: boolean,
 ): ValidationResult<BuildArtifactsV2 | PublicationArtifactsV2> {
   const snapshot = snapshotPlainJson(input);
-  if (!snapshot.valid)
+  if (!snapshot.valid) {
     return {
-      valid: false,
       diagnostics: [
         diagnostic("canonical.invalid", snapshot.failure.path, snapshot.failure.message),
       ],
-    };
-  if (!isRecord(snapshot.value))
-    return {
       valid: false,
-      diagnostics: [diagnostic("structure.invalid", [], "The input envelope must be an object.")],
     };
+  }
+  if (!isRecord(snapshot.value)) {
+    return {
+      diagnostics: [diagnostic("structure.invalid", [], "The input envelope must be an object.")],
+      valid: false,
+    };
+  }
 
-  const diagnostics: Diagnostic[] = [];
+  const diagnostics: Array<Diagnostic> = [];
   const names = publication
     ? artifactNames
     : artifactNames.filter((name) => name !== "publishedPresentation");
   const expectedNames = new Set<string>(names);
-  for (const key of Object.keys(snapshot.value))
-    if (!expectedNames.has(key))
+  for (const key of Object.keys(snapshot.value)) {
+    if (!expectedNames.has(key)) {
       diagnostics.push(diagnostic("structure.invalid", [key], `Unknown artifact ${key}.`));
-  for (const name of names)
-    if (!(name in snapshot.value))
+    }
+  }
+  for (const name of names) {
+    if (!(name in snapshot.value)) {
       diagnostics.push(diagnostic("structure.invalid", [name], `Artifact ${name} is required.`));
+    }
+  }
 
   const definition = parseArtifact(
     "definition",
@@ -598,31 +648,33 @@ function verifyIntegrity(
     buildManifest === undefined ||
     (publication && publishedPresentation === undefined)
   ) {
-    if (publication && buildManifest !== undefined && publishedPresentation === undefined)
+    if (publication && buildManifest !== undefined && publishedPresentation === undefined) {
       verifyUnparsedPublicationAgreement(
         buildManifest,
         snapshot.value.publishedPresentation,
         diagnostics,
       );
-    return { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    }
+    return { diagnostics: sortedDiagnostics(diagnostics), valid: false };
   }
 
   const artifacts = {
-    definition,
-    renderBundle,
     assetSet,
     buildManifest,
+    definition,
+    renderBundle,
     ...(publishedPresentation === undefined ? {} : { publishedPresentation }),
   };
   verifyAssetClosure(definition, renderBundle, assetSet, diagnostics);
   verifyModelReferences(definition, renderBundle, diagnostics);
   verifyHashes(artifacts, diagnostics);
   verifyBuildIdentity(artifacts, diagnostics);
-  if (publishedPresentation !== undefined)
+  if (publishedPresentation !== undefined) {
     verifyPublication({ ...artifacts, publishedPresentation }, diagnostics);
+  }
   return diagnostics.length === 0
-    ? { valid: true, value: artifacts, diagnostics: [] }
-    : { valid: false, diagnostics: sortedDiagnostics(diagnostics) };
+    ? { diagnostics: [], valid: true, value: artifacts }
+    : { diagnostics: sortedDiagnostics(diagnostics), valid: false };
 }
 
 export const verifyBuildIntegrityV2 = (input: unknown): ValidationResult<BuildArtifactsV2> =>

@@ -22,17 +22,17 @@ import {
 } from "../validation/shared.js";
 
 const semanticNodeFields = {
-  heading: ["id", "parentId", "order", "role", "level", "text", "language"],
-  paragraph: ["id", "parentId", "order", "role", "text", "language"],
-  image: ["id", "parentId", "order", "role", "alt", "language"],
   button: ["id", "parentId", "order", "role", "interactionId", "text", "language"],
-  list: ["id", "parentId", "order", "role", "ordered"],
-  listItem: ["id", "parentId", "order", "role", "text", "language"],
-  table: ["id", "parentId", "order", "role", "label", "language"],
-  row: ["id", "parentId", "order", "role"],
   cell: ["id", "parentId", "order", "role", "text", "language"],
   columnHeader: ["id", "parentId", "order", "role", "text", "language"],
+  heading: ["id", "parentId", "order", "role", "level", "text", "language"],
+  image: ["id", "parentId", "order", "role", "alt", "language"],
+  list: ["id", "parentId", "order", "role", "ordered"],
+  listItem: ["id", "parentId", "order", "role", "text", "language"],
+  paragraph: ["id", "parentId", "order", "role", "text", "language"],
+  row: ["id", "parentId", "order", "role"],
   rowHeader: ["id", "parentId", "order", "role", "text", "language"],
+  table: ["id", "parentId", "order", "role", "label", "language"],
 } as const;
 
 const nonEmptyString = (value: unknown): value is string =>
@@ -40,13 +40,16 @@ const nonEmptyString = (value: unknown): value is string =>
 
 const hasValidRoleFields = (node: JsonRecord): boolean => {
   const role = node.role;
-  if (typeof role !== "string" || !Object.hasOwn(semanticNodeFields, role)) return false;
+  if (typeof role !== "string" || !Object.hasOwn(semanticNodeFields, role)) {
+    return false;
+  }
   const fields = semanticNodeFields[role as keyof typeof semanticNodeFields];
   if (
     !hasOnlyFields(node, fields) ||
     (node.language !== undefined && !nonEmptyString(node.language))
-  )
+  ) {
     return false;
+  }
   switch (role) {
     case "heading":
       return (
@@ -77,23 +80,28 @@ const hasValidRoleFields = (node: JsonRecord): boolean => {
 };
 
 const cloneJsonValue = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(cloneJsonValue);
-  if (!isRecord(value)) return value;
+  if (Array.isArray(value)) {
+    return value.map(cloneJsonValue);
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
   const clone = Object.create(null) as JsonRecord;
-  for (const [key, item] of Object.entries(value))
+  for (const [key, item] of Object.entries(value)) {
     Object.defineProperty(clone, key, {
-      value: cloneJsonValue(item),
-      enumerable: true,
       configurable: true,
+      enumerable: true,
+      value: cloneJsonValue(item),
       writable: true,
     });
+  }
   return clone;
 };
 
 const cloneJsonRecord = (value: JsonRecord): JsonRecord => cloneJsonValue(value) as JsonRecord;
 
 export const validateMaterializableSemanticTree = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   tree: unknown,
   path: string,
 ) => {
@@ -106,10 +114,11 @@ export const validateMaterializableSemanticTree = (
     diagnostics.push(diagnostic("invalid-semantic-tree", path, "Semantic tree is invalid."));
     return;
   }
-  if (!tree.rootNodeIds.every(id) || new Set(tree.rootNodeIds).size !== tree.rootNodeIds.length)
+  if (!tree.rootNodeIds.every(id) || new Set(tree.rootNodeIds).size !== tree.rootNodeIds.length) {
     diagnostics.push(
       diagnostic("invalid-semantic-roots", `${path}/rootNodeIds`, "Roots must be unique IDs."),
     );
+  }
   for (const [nodeId, node] of Object.entries(tree.nodes)) {
     const nodePath = `${path}/nodes/${pathSegment(nodeId)}`;
     if (!isRecord(node)) {
@@ -123,14 +132,15 @@ export const validateMaterializableSemanticTree = (
       !Number.isInteger(node.order) ||
       (node.order as number) < 0 ||
       !hasValidRoleFields(node)
-    )
+    ) {
       diagnostics.push(diagnostic("invalid-semantic-node", nodePath, "Semantic node is invalid."));
+    }
   }
   validateTree(diagnostics, tree.nodes, tree.rootNodeIds, path);
 };
 
 export const validateMaterializableSemanticOverrides = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   tree: unknown,
   state: unknown,
   path: string,
@@ -167,7 +177,7 @@ export const validateMaterializableSemanticOverrides = (
         );
         continue;
       }
-      if (nodes === undefined || !Object.hasOwn(nodes, nodeId) || !isRecord(nodes[nodeId]))
+      if (nodes === undefined || !Object.hasOwn(nodes, nodeId) || !isRecord(nodes[nodeId])) {
         diagnostics.push(
           diagnostic(
             "missing-semantic-node",
@@ -175,6 +185,7 @@ export const validateMaterializableSemanticOverrides = (
             "Semantic override references a missing node.",
           ),
         );
+      }
       if (
         !hasOnlyFields(override, semanticOverrideFields) ||
         (Object.hasOwn(override, "included") && typeof override.included !== "boolean") ||
@@ -188,10 +199,11 @@ export const validateMaterializableSemanticOverrides = (
         (Object.hasOwn(override, "label") &&
           override.label !== null &&
           typeof override.label !== "string")
-      )
+      ) {
         diagnostics.push(
           diagnostic("invalid-semantic-override", overridePath, "Node override is invalid."),
         );
+      }
     }
   }
 };
@@ -199,7 +211,7 @@ export const validateMaterializableSemanticOverrides = (
 export const materializeSemanticTree = (
   surface: JsonRecord,
   state: JsonRecord,
-  diagnostics: Diagnostic[] = [],
+  diagnostics: Array<Diagnostic> = [],
   path = "",
 ) => {
   const base: JsonRecord = isRecord(surface.baseSemanticTree)
@@ -212,7 +224,9 @@ export const materializeSemanticTree = (
     const visited = new Set<string>();
     let current: string | null = nodeId;
     while (current !== null && !visited.has(current)) {
-      if (excluded.has(current)) return true;
+      if (excluded.has(current)) {
+        return true;
+      }
       visited.add(current);
       const node: unknown = nodes[current];
       current = isRecord(node) && id(node.parentId) ? node.parentId : null;
@@ -220,14 +234,14 @@ export const materializeSemanticTree = (
     return false;
   };
 
-  const layers = state.semanticOverrides as unknown[];
+  const layers = state.semanticOverrides as Array<unknown>;
   for (const [layerIndex, layer] of layers.entries()) {
     for (const [nodeId, override] of recordEntries((layer as JsonRecord).nodes)) {
       const overridePath = `${path}/${layerIndex}/nodes/${pathSegment(nodeId)}`;
       const fields = semanticOverrideFields.filter((field) => Object.hasOwn(override, field));
       for (const field of fields) {
         const claim = `${pathSegment(nodeId)}\u0000${field}`;
-        if (touched.has(claim))
+        if (touched.has(claim)) {
           diagnostics.push(
             diagnostic(
               "duplicate-semantic-override-property",
@@ -235,9 +249,10 @@ export const materializeSemanticTree = (
               "A semantic node property may be overridden only once per state.",
             ),
           );
+        }
         touched.add(claim);
       }
-      if (override.included === true && isExcluded(nodeId))
+      if (override.included === true && isExcluded(nodeId)) {
         diagnostics.push(
           diagnostic(
             "semantic-node-reincluded",
@@ -245,10 +260,11 @@ export const materializeSemanticTree = (
             "A node excluded by an earlier override or ancestor cannot be re-included.",
           ),
         );
+      }
       if (
         (override.included === false || isExcluded(nodeId)) &&
         fields.some((field) => field !== "included")
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "excluded-semantic-node-property",
@@ -256,17 +272,30 @@ export const materializeSemanticTree = (
             "Excluded semantic nodes cannot override text, language, or alt.",
           ),
         );
-      if (override.included === false) excluded.add(nodeId);
+      }
+      if (override.included === false) {
+        excluded.add(nodeId);
+      }
       const node = Object.hasOwn(nodes, nodeId) ? nodes[nodeId] : undefined;
-      if (node === undefined) continue;
-      for (const field of ["text", "language", "alt", "label"] as const)
+      if (node === undefined) {
+        continue;
+      }
+      for (const field of ["text", "language", "alt", "label"] as const) {
         if (Object.hasOwn(override, field)) {
-          if (override[field] === null) delete node[field];
-          else node[field] = override[field];
+          if (override[field] === null) {
+            delete node[field];
+          } else {
+            node[field] = override[field];
+          }
         }
+      }
     }
   }
-  for (const nodeId of Object.keys(nodes)) if (isExcluded(nodeId)) delete nodes[nodeId];
+  for (const nodeId of Object.keys(nodes)) {
+    if (isExcluded(nodeId)) {
+      delete nodes[nodeId];
+    }
+  }
   base.rootNodeIds = Array.isArray(base.rootNodeIds)
     ? base.rootNodeIds.filter((nodeId) => Object.hasOwn(nodes, nodeId))
     : [];
@@ -279,21 +308,23 @@ export const materializeCompletedSemanticTree = (
 ): ValidationResult<CompletedSemanticTree> => {
   try {
     const parsedSurface = parseSemanticSurfaceInput(surface);
-    if (!parsedSurface.success || !parseIdInput(stateId).success)
+    if (!parsedSurface.success || !parseIdInput(stateId).success) {
       return {
-        valid: false,
         diagnostics: [diagnostic("invalid-semantic-surface", "", "Surface input is invalid.")],
-      };
-    const validatedSurface = parsedSurface.data;
-    if (!Object.hasOwn(validatedSurface.states, stateId))
-      return {
         valid: false,
+      };
+    }
+    const validatedSurface = parsedSurface.data;
+    if (!Object.hasOwn(validatedSurface.states, stateId)) {
+      return {
         diagnostics: [
           diagnostic("unknown-surface-state", "/states", "Surface state does not exist."),
         ],
+        valid: false,
       };
+    }
     const state = validatedSurface.states[stateId]!;
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: Array<Diagnostic> = [];
     validateMaterializableSemanticTree(
       diagnostics,
       validatedSurface.baseSemanticTree,
@@ -305,7 +336,9 @@ export const materializeCompletedSemanticTree = (
       state,
       `/states/${pathSegment(stateId)}/semanticOverrides`,
     );
-    if (diagnostics.length > 0) return { valid: false, diagnostics: sorted(diagnostics) };
+    if (diagnostics.length > 0) {
+      return { diagnostics: sorted(diagnostics), valid: false };
+    }
     const tree = materializeSemanticTree(
       validatedSurface,
       state,
@@ -313,11 +346,13 @@ export const materializeCompletedSemanticTree = (
       `/states/${pathSegment(stateId)}/semanticOverrides`,
     );
     const enabledInteractions = new Set(state.enabledInteractionIds);
-    for (const node of Object.values(tree.nodes ?? {}))
-      if (isRecord(node) && node.role === "button" && id(node.interactionId))
+    for (const node of Object.values(tree.nodes ?? {})) {
+      if (isRecord(node) && node.role === "button" && id(node.interactionId)) {
         node.stateEnabled = enabledInteractions.has(node.interactionId);
+      }
+    }
     const completed = completedSemanticTreeV2Schema.safeParse(tree);
-    if (!completed.success)
+    if (!completed.success) {
       diagnostics.push(
         diagnostic(
           "invalid-completed-semantic-tree",
@@ -325,13 +360,14 @@ export const materializeCompletedSemanticTree = (
           "Materialized semantic tree does not satisfy the v2 completed tree contract.",
         ),
       );
+    }
     return diagnostics.length === 0 && completed.success
-      ? { valid: true, value: completed.data as CompletedSemanticTree, diagnostics: [] }
-      : { valid: false, diagnostics: sorted(diagnostics) };
+      ? { diagnostics: [], valid: true, value: completed.data as CompletedSemanticTree }
+      : { diagnostics: sorted(diagnostics), valid: false };
   } catch {
     return {
-      valid: false,
       diagnostics: [diagnostic("invalid-semantic-surface", "", "Surface input is invalid.")],
+      valid: false,
     };
   }
 };

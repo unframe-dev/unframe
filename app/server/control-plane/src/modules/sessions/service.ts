@@ -43,24 +43,24 @@ export class SessionService {
     }
     const timestamp = this.now().toISOString();
     const record: SessionRecord = {
-      id: this.id(),
-      presentationId,
-      presenterId: identity.userId,
-      joinCodeHash: await this.hashJoinCode(joinCode),
-      state: "Waiting",
-      participantCount: 1,
-      maxParticipants: maximumParticipants,
       createdAt: timestamp,
       endedAt: null,
+      id: this.id(),
+      joinCodeHash: await this.hashJoinCode(joinCode),
+      maxParticipants: maximumParticipants,
+      participantCount: 1,
+      presentationId,
+      presenterId: identity.userId,
+      state: "Waiting",
     };
     const presenter: SessionParticipant = {
+      joinedAt: timestamp,
+      role: "presenter",
       sessionId: record.id,
       userId: identity.userId,
-      role: "presenter",
-      joinedAt: timestamp,
     };
     await this.sessions.create(record, presenter);
-    return { session: resource(record), joinCode };
+    return { joinCode, session: resource(record) };
   }
 
   async get(identity: Identity, id: string) {
@@ -76,50 +76,70 @@ export class SessionService {
 
   async join(identity: Identity, code: string, ipAddress: string) {
     const parsedJoinCode = joinCodeSchema.safeParse(code);
-    if (!parsedJoinCode.success) throw new SessionError("invalid_join_code");
+    if (!parsedJoinCode.success) {
+      throw new SessionError("invalid_join_code");
+    }
     const now = this.now();
     const joinCodeHash = await this.hashJoinCode(code);
     const permitted = await this.sessions.consumeJoinAttempt({
-      codeHash: joinCodeHash,
-      userId: identity.userId,
-      ipAddress,
       attemptedAt: now.getTime(),
+      codeHash: joinCodeHash,
+      ipAddress,
+      userId: identity.userId,
       windowStart: now.getTime() - joinWindowMs,
     });
-    if (!permitted) throw new SessionError("rate_limited");
+    if (!permitted) {
+      throw new SessionError("rate_limited");
+    }
     const session = await this.sessions.findActiveByCodeHash(joinCodeHash);
-    if (!session) throw new SessionError("not_found");
+    if (!session) {
+      throw new SessionError("not_found");
+    }
     const outcome = await this.sessions.join(session.id, identity.userId, now.toISOString());
-    if (outcome === "ended" || outcome === "not_found") throw new SessionError("not_found");
-    if (outcome === "full") throw new SessionError("conflict");
+    if (outcome === "ended" || outcome === "not_found") {
+      throw new SessionError("not_found");
+    }
+    if (outcome === "full") {
+      throw new SessionError("conflict");
+    }
     return resource(await this.requireSession(session.id));
   }
 
   async start(identity: Identity, id: string) {
     const session = await this.requirePresenter(identity, id);
     const started = await this.sessions.start(session.id);
-    if (!started) throw new SessionError("conflict");
+    if (!started) {
+      throw new SessionError("conflict");
+    }
     return resource(started);
   }
 
   async end(identity: Identity, id: string) {
     const session = await this.requirePresenter(identity, id);
     const ended = await this.sessions.end(session.id, this.now().toISOString());
-    if (!ended) throw new SessionError("not_found");
+    if (!ended) {
+      throw new SessionError("not_found");
+    }
     return resource(ended);
   }
 
   async bootstrap(identity: Identity, id: string) {
     const session = await this.requireSession(id);
-    if (session.state === "Ended") throw new SessionError("conflict");
+    if (session.state === "Ended") {
+      throw new SessionError("conflict");
+    }
     const participant = await this.sessions.participantFor(id, identity.userId);
-    if (!participant) throw new SessionError("forbidden");
-    return { session: resource(session), participant };
+    if (!participant) {
+      throw new SessionError("forbidden");
+    }
+    return { participant, session: resource(session) };
   }
 
   private async requireSession(id: string) {
     const session = await this.sessions.findById(id);
-    if (!session) throw new SessionError("not_found");
+    if (!session) {
+      throw new SessionError("not_found");
+    }
     return session;
   }
 

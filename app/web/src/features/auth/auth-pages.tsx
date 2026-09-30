@@ -12,14 +12,14 @@ import { Label } from "@/shared/ui/label";
 import { Select } from "@/shared/ui/select";
 import moduleStyles from "@/shared/layouts/public-pages.module.css";
 const styles = {
-  main: moduleStyles["main"]!,
-  header: moduleStyles["header"]!,
-  panel: moduleStyles["panel"]!,
   copy: moduleStyles["copy"]!,
-  lede: moduleStyles["lede"]!,
-  form: moduleStyles["form"]!,
-  error: moduleStyles["error"]!,
   divider: moduleStyles["divider"]!,
+  error: moduleStyles["error"]!,
+  form: moduleStyles["form"]!,
+  header: moduleStyles["header"]!,
+  lede: moduleStyles["lede"]!,
+  main: moduleStyles["main"]!,
+  panel: moduleStyles["panel"]!,
 };
 
 const credentialsSchema = z.object({
@@ -32,16 +32,16 @@ function hasErrorCode(error: unknown, code: string) {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 function AuthLayout({
-  title,
-  description,
   children,
+  description,
+  title,
 }: {
-  title: string;
-  description: string;
   children: React.ReactNode;
+  description: string;
+  title: string;
 }) {
   return (
-    <main id="main-content" className={styles.main}>
+    <main className={styles.main} id="main-content">
       <header className={styles.header}>
         <BrandLink />
         <a href="https://un-fra.me/docs/">Docs</a>
@@ -61,7 +61,7 @@ function FormErrors({ errors }: { errors: Record<string, { message?: string } | 
     error?.message ? [{ field, message: error.message }] : [],
   );
   return messages.length ? (
-    <div role="alert" className={styles.error}>
+    <div className={styles.error} role="alert">
       <p>入力内容を確認してください。</p>
       <ul>
         {messages.map(({ field, message }) => (
@@ -100,18 +100,20 @@ export function LoginPage() {
   const google = async () => {
     setMessage("");
     const result = await auth.signIn.social({
-      provider: "google",
       callbackURL: "/home",
+      provider: "google",
     });
-    if (result.error) setMessage("Google ログインを開始できませんでした。");
+    if (result.error) {
+      setMessage("Google ログインを開始できませんでした。");
+    }
   };
   return (
-    <AuthLayout title="Sign in." description="Unframe にログインします。">
+    <AuthLayout description="Unframe にログインします。" title="Sign in.">
       {mfa ? (
         <MfaForm onDone={() => void navigate({ to: "/home" })} />
       ) : (
         <>
-          <Button type="button" onClick={() => void google()}>
+          <Button onClick={() => void google()} type="button">
             <GoogleLogoIcon aria-hidden="true" />
             Google でログイン
           </Button>
@@ -121,28 +123,28 @@ export function LoginPage() {
             <Label>
               メールアドレス
               <Input
-                autoComplete="email"
-                aria-invalid={Boolean(form.formState.errors.email)}
                 aria-describedby={form.formState.errors.email ? "email-error" : undefined}
+                aria-invalid={Boolean(form.formState.errors.email)}
+                autoComplete="email"
                 {...form.register("email")}
               />
             </Label>
             <Label>
               パスワード
               <Input
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={Boolean(form.formState.errors.password)}
                 aria-describedby={form.formState.errors.password ? "password-error" : undefined}
+                aria-invalid={Boolean(form.formState.errors.password)}
+                autoComplete="current-password"
+                type="password"
                 {...form.register("password")}
               />
             </Label>
             {message ? (
-              <p role="alert" className={styles.error}>
+              <p className={styles.error} role="alert">
                 {message}
               </p>
             ) : null}
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+            <Button disabled={form.formState.isSubmitting} type="submit">
               {form.formState.isSubmitting ? "ログイン中…" : "ログイン"}
             </Button>
           </form>
@@ -162,15 +164,20 @@ function MfaForm({ onDone }: { onDone: () => void }) {
   const [loading, setLoading] = useState(false);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (loading) return;
+    if (loading) {
+      return;
+    }
     setLoading(true);
     const result =
       method === "totp"
         ? await auth.twoFactor.verifyTotp({ code, trustDevice: false })
         : await auth.twoFactor.verifyBackupCode({ code, trustDevice: false });
     setLoading(false);
-    if (result.error) setMessage("コードを確認してください。");
-    else onDone();
+    if (result.error) {
+      setMessage("コードを確認してください。");
+    } else {
+      onDone();
+    }
   };
   return (
     <form onSubmit={submit}>
@@ -178,8 +185,8 @@ function MfaForm({ onDone }: { onDone: () => void }) {
       <Label>
         確認方法
         <Select
-          value={method}
           onChange={(event) => setMethod(event.target.value as "totp" | "backup")}
+          value={method}
         >
           <option value="totp">認証アプリ</option>
           <option value="backup">バックアップコード</option>
@@ -188,18 +195,18 @@ function MfaForm({ onDone }: { onDone: () => void }) {
       <Label>
         {method === "totp" ? "認証コード" : "バックアップコード"}
         <Input
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
           autoComplete="one-time-code"
+          onChange={(e) => setCode(e.target.value)}
           required
+          value={code}
         />
       </Label>
       {message ? (
-        <p role="alert" className={styles.error}>
+        <p className={styles.error} role="alert">
           {message}
         </p>
       ) : null}
-      <Button type="submit" disabled={loading}>
+      <Button disabled={loading} type="submit">
         {loading ? "確認中…" : "確認"}
       </Button>
     </form>
@@ -223,40 +230,40 @@ export function SignupPage() {
     );
   });
   return (
-    <AuthLayout title="Create an account." description="新しいアカウントを作成します。">
+    <AuthLayout description="新しいアカウントを作成します。" title="Create an account.">
       <form onSubmit={submit}>
         <FormErrors errors={form.formState.errors} />
         <Label>
           名前
           <Input
-            aria-invalid={Boolean(form.formState.errors.name)}
             aria-describedby={form.formState.errors.name ? "name-error" : undefined}
+            aria-invalid={Boolean(form.formState.errors.name)}
             {...form.register("name")}
           />
         </Label>
         <Label>
           メールアドレス
           <Input
-            autoComplete="email"
-            aria-invalid={Boolean(form.formState.errors.email)}
             aria-describedby={form.formState.errors.email ? "email-error" : undefined}
+            aria-invalid={Boolean(form.formState.errors.email)}
+            autoComplete="email"
             {...form.register("email")}
           />
         </Label>
         <Label>
           パスワード
           <Input
-            type="password"
-            autoComplete="new-password"
-            aria-invalid={Boolean(form.formState.errors.password)}
             aria-describedby={form.formState.errors.password ? "password-error" : undefined}
+            aria-invalid={Boolean(form.formState.errors.password)}
+            autoComplete="new-password"
+            type="password"
             {...form.register("password")}
           />
         </Label>
         {message ? (
           <p role={message.includes("できません") ? "alert" : "status"}>{message}</p>
         ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button disabled={form.formState.isSubmitting} type="submit">
           {form.formState.isSubmitting ? "登録中…" : "登録"}
         </Button>
       </form>
@@ -283,29 +290,32 @@ export function RecoverPage() {
       email,
       redirectTo: `${window.location.origin}/recover/reset`,
     });
-    if (result.error) setMessage("再設定メールを送信できませんでした。");
-    else setDone(true);
+    if (result.error) {
+      setMessage("再設定メールを送信できませんでした。");
+    } else {
+      setDone(true);
+    }
   });
   return (
-    <AuthLayout title="Reset your password." description="再設定用のメールを送信します。">
+    <AuthLayout description="再設定用のメールを送信します。" title="Reset your password.">
       <form onSubmit={submit}>
         <FormErrors errors={form.formState.errors} />
         <Label>
           メールアドレス
           <Input
-            autoComplete="email"
-            aria-invalid={Boolean(form.formState.errors.email)}
             aria-describedby={form.formState.errors.email ? "email-error" : undefined}
+            aria-invalid={Boolean(form.formState.errors.email)}
+            autoComplete="email"
             {...form.register("email")}
           />
         </Label>
         {done ? <p role="status">再設定メールを送信しました。メールをご確認ください。</p> : null}
         {message ? (
-          <p role="alert" className={styles.error}>
+          <p className={styles.error} role="alert">
             {message}
           </p>
         ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button disabled={form.formState.isSubmitting} type="submit">
           {form.formState.isSubmitting ? "送信中…" : "再設定メールを送信"}
         </Button>
       </form>
@@ -330,21 +340,21 @@ export function ResetPage({ token }: { token: string }) {
     );
   });
   return (
-    <AuthLayout title="Choose a password." description="新しいパスワードを設定します。">
+    <AuthLayout description="新しいパスワードを設定します。" title="Choose a password.">
       <form onSubmit={submit}>
         <FormErrors errors={form.formState.errors} />
         <Label>
           新しいパスワード
           <Input
-            type="password"
-            autoComplete="new-password"
-            aria-invalid={Boolean(form.formState.errors.password)}
             aria-describedby={form.formState.errors.password ? "password-error" : undefined}
+            aria-invalid={Boolean(form.formState.errors.password)}
+            autoComplete="new-password"
+            type="password"
             {...form.register("password")}
           />
         </Label>
         {message ? <p role="status">{message}</p> : null}
-        <Button type="submit" disabled={!token || form.formState.isSubmitting}>
+        <Button disabled={!token || form.formState.isSubmitting} type="submit">
           パスワードを再設定
         </Button>
       </form>

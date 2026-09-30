@@ -16,23 +16,23 @@ type AppContext = Context<AppEnvironment>;
 
 export type IdentityProvider = (context: AppContext) => Promise<Identity | undefined>;
 export type PresentationRouteOptions = {
-  identityProvider: IdentityProvider;
-  repository?: PresentationRepository | undefined;
-  now?: (() => string) | undefined;
   id?: (() => string) | undefined;
+  identityProvider: IdentityProvider;
+  now?: (() => string) | undefined;
+  repository?: PresentationRepository | undefined;
 };
 
 const presentationError = {
-  not_found: { message: "Not found", status: 404 },
+  conflict: {
+    message: "Revision conflict or presentation assets must be deleted first",
+    status: 409,
+  },
   forbidden: { message: "Forbidden", status: 403 },
   invalid_asset_reference: {
     message: "Asset reference is not ready or does not belong to this presentation",
     status: 422,
   },
-  conflict: {
-    message: "Revision conflict or presentation assets must be deleted first",
-    status: 409,
-  },
+  not_found: { message: "Not found", status: 404 },
 } as const satisfies Record<
   PresentationError["code"],
   { message: string; status: 403 | 404 | 409 | 422 }
@@ -94,7 +94,7 @@ export function createPresentationRoutes(options: PresentationRouteOptions) {
       return context.json(result, 200);
     })
     .openapi(replacePresentationRoute, async (context) => {
-      const { expectedRevision, definition } = context.req.valid("json");
+      const { definition, expectedRevision } = context.req.valid("json");
       const result = await execute(context, (identity, service) =>
         service.replace(identity, context.req.valid("param").id, expectedRevision, definition),
       );

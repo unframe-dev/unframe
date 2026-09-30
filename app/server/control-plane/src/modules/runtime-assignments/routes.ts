@@ -63,7 +63,7 @@ export function createRuntimeAssignmentRoutes(options: RuntimeAssignmentRouteOpt
           "SELECT id, local_endpoint AS endpoint, certificate_fingerprint AS certificateFingerprint FROM venue_edges WHERE runtime_id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL",
         )
           .bind(input.runtimeId)
-          .first<{ id: string; endpoint: string; certificateFingerprint: string }>();
+          .first<{ certificateFingerprint: string; endpoint: string; id: string }>();
         if (!edge) {
           throw new HTTPException(409, {
             res: context.json({ error: { code: "conflict", message: "conflict" } }, 409),
@@ -84,14 +84,14 @@ export function createRuntimeAssignmentRoutes(options: RuntimeAssignmentRouteOpt
       return context.json(
         await execute(context, (value) =>
           value.assign({
-            sessionId,
+            certificateFingerprint,
+            endpoint,
+            leaseExpiresAt: input.leaseExpiresAt,
+            presentationRevision: input.presentationRevision,
+            provisioningEdgeId,
             runtimeId: input.runtimeId,
             runtimeKind: input.runtimeKind,
-            endpoint,
-            certificateFingerprint,
-            provisioningEdgeId,
-            presentationRevision: input.presentationRevision,
-            leaseExpiresAt: input.leaseExpiresAt,
+            sessionId,
           }),
         ),
         201,

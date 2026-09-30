@@ -38,7 +38,9 @@ async function output(relative: string, bytes: string | Uint8Array): Promise<voi
     try {
       actual = await readFile(path);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
     }
     if (
       !actual ||
@@ -56,14 +58,16 @@ async function output(relative: string, bytes: string | Uint8Array): Promise<voi
 
 for (const [name, schema] of schemas) {
   const jsonSchema = z.toJSONSchema(schema, {
-    target: "draft-2020-12",
-    unrepresentable: "throw",
     override: ({ jsonSchema: node }) => {
-      if (!Array.isArray(node.prefixItems)) return;
+      if (!Array.isArray(node.prefixItems)) {
+        return;
+      }
       node.items = false;
       node.minItems = node.prefixItems.length;
       node.maxItems = node.prefixItems.length;
     },
+    target: "draft-2020-12",
+    unrepresentable: "throw",
   });
   await output(
     `presentation/v2/${name}.schema.json`,
@@ -72,6 +76,7 @@ for (const [name, schema] of schemas) {
       ["exec", "vp", "fmt", `--stdin-filepath=presentation/v2/${name}.schema.json`],
       {
         cwd: root,
+        encoding: "utf8",
         input: `${JSON.stringify(
           {
             ...jsonSchema,
@@ -80,7 +85,6 @@ for (const [name, schema] of schemas) {
           null,
           2,
         )}\n`,
-        encoding: "utf8",
         maxBuffer: 16 * 1024 * 1024,
       },
     ),
@@ -103,5 +107,5 @@ try {
   );
   await output("presentation/v2/contract.pb", await readFile(resolve(temporary, "contract.pb")));
 } finally {
-  await rm(temporary, { recursive: true, force: true });
+  await rm(temporary, { force: true, recursive: true });
 }

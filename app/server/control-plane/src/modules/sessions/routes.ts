@@ -24,25 +24,25 @@ import { SessionError, SessionService, sha256JoinCode } from "./service";
 type AppContext = Context<AppEnvironment>;
 type CredentialIssuer = Pick<RealtimeBootstrapCredentials, "issue">;
 type RouteDependencies = {
-  config: RuntimeConfig;
-  service: SessionService;
-  credentials: CredentialIssuer;
   assignments: RuntimeAssignmentService;
+  config: RuntimeConfig;
+  credentials: CredentialIssuer;
+  service: SessionService;
 };
 export type SessionRouteOptions = {
-  identityProvider: (context: AppContext) => Promise<Identity | undefined>;
-  sessionRepository?: SessionRepository;
-  presentationRepository?: PresentationRepository;
   credentials?: CredentialIssuer;
-  now?: () => Date;
   id?: () => string;
+  identityProvider: (context: AppContext) => Promise<Identity | undefined>;
   joinCode?: () => string;
+  now?: () => Date;
+  presentationRepository?: PresentationRepository;
+  sessionRepository?: SessionRepository;
 };
 const errorStatuses = {
-  not_found: 404,
-  forbidden: 403,
   conflict: 409,
+  forbidden: 403,
   invalid_join_code: 400,
+  not_found: 404,
   rate_limited: 429,
 } as const satisfies Record<SessionError["code"], 400 | 403 | 404 | 409 | 429>;
 const randomJoinCode = () => {
@@ -64,7 +64,15 @@ export function createSessionRoutes(options: SessionRouteOptions) {
   const dependencies = (context: AppContext): RouteDependencies => {
     const config = context.get("config");
     return {
+      assignments: new RuntimeAssignmentService(new D1RuntimeAssignmentRepository(config.DB), now),
       config,
+      credentials:
+        options.credentials ??
+        new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
+          audience: config.REALTIME_AUDIENCE,
+          issuer: config.REALTIME_ISSUER,
+          keyId: config.REALTIME_SIGNING_KID,
+        }),
       service: new SessionService(
         options.sessionRepository ?? new D1SessionRepository(config.DB),
         options.presentationRepository ?? new D1PresentationRepository(config.DB),
@@ -73,14 +81,6 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         options.joinCode ?? randomJoinCode,
         sha256JoinCode,
       ),
-      credentials:
-        options.credentials ??
-        new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
-          issuer: config.REALTIME_ISSUER,
-          keyId: config.REALTIME_SIGNING_KID,
-          audience: config.REALTIME_AUDIENCE,
-        }),
-      assignments: new RuntimeAssignmentService(new D1RuntimeAssignmentRepository(config.DB), now),
     };
   };
   const execute = async <T>(
@@ -146,33 +146,35 @@ export function createSessionRoutes(options: SessionRouteOptions) {
     .openapi(bootstrapSessionRoute, async (context) => {
       const result = await execute(
         context,
-        async (identity, { credentials, assignments, service }) => {
+        async (identity, { assignments, credentials, service }) => {
           const id = context.req.valid("param").id;
           const { participant, session } = await service.bootstrap(identity, id);
           const assignment = await assignments.active(id);
-          const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
-          if (expiresAt <= Math.floor(now().getTime() / 1_000)) {
+          const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1000);
+          if (expiresAt <= Math.floor(now().getTime() / 1000)) {
             throw new SessionError("conflict");
           }
           let credential;
           try {
             credential = await credentials.issue({
-              sessionId: id,
-              userId: identity.userId,
+              assignmentEpoch: assignment.assignmentEpoch,
+              expiresAt,
+              presentationId: session.presentationId,
+              presentationRevision: assignment.presentationRevision,
               role: participant.role,
               runtimeId: assignment.runtimeId,
               runtimeKind: assignment.runtimeKind,
-              assignmentEpoch: assignment.assignmentEpoch,
-              presentationId: session.presentationId,
-              presentationRevision: assignment.presentationRevision,
               scopes:
                 assignment.runtimeKind === "VenueEdge"
                   ? ["realtime:connect", "assets:read"]
                   : ["realtime:connect"],
-              expiresAt,
+              sessionId: id,
+              userId: identity.userId,
             });
           } catch (error) {
-            if (error instanceof RangeError) throw new SessionError("conflict");
+            if (error instanceof RangeError) {
+              throw new SessionError("conflict");
+            }
             throw error;
           }
           const current = await service.bootstrap(identity, id);
@@ -191,15 +193,15 @@ export function createSessionRoutes(options: SessionRouteOptions) {
             throw new SessionError("conflict");
           }
           return {
-            endpoint: currentAssignment.endpoint,
-            fingerprint: currentAssignment.certificateFingerprint,
-            runtimeId: currentAssignment.runtimeId,
-            runtimeKind: currentAssignment.runtimeKind,
             assignmentEpoch: currentAssignment.assignmentEpoch,
+            credential: credential.token,
+            endpoint: currentAssignment.endpoint,
+            expiresAt: new Date(credential.expiresAt).toISOString(),
+            fingerprint: currentAssignment.certificateFingerprint,
             presentationId: current.session.presentationId,
             presentationRevision: currentAssignment.presentationRevision,
-            credential: credential.token,
-            expiresAt: new Date(credential.expiresAt).toISOString(),
+            runtimeId: currentAssignment.runtimeId,
+            runtimeKind: currentAssignment.runtimeKind,
           };
         },
       );

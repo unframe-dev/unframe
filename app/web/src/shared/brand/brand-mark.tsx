@@ -5,14 +5,14 @@ export function BrandMark({ size = 32 }: { size?: number }) {
     <span
       aria-hidden="true"
       className="inline-flex shrink-0 overflow-hidden"
-      style={{ width: size, height: size }}
+      style={{ height: size, width: size }}
     >
       <img
-        src={brandIconUrl}
         alt=""
-        width={size}
-        height={size}
         className="size-full object-contain"
+        height={size}
+        src={brandIconUrl}
+        width={size}
       />
     </span>
   );

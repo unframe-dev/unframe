@@ -9,12 +9,13 @@ const validatedCanonicalJson = <T>(
   validate: (value: unknown) => ValidationResult<T>,
 ): ValidationResult<string> => {
   const result = validate(input);
-  if (!result.valid) return result;
+  if (!result.valid) {
+    return result;
+  }
   try {
-    return { valid: true, value: canonicalJson(result.value), diagnostics: [] };
+    return { diagnostics: [], valid: true, value: canonicalJson(result.value) };
   } catch {
     return {
-      valid: false,
       diagnostics: [
         diagnostic(
           "invalid-canonical-json",
@@ -22,6 +23,7 @@ const validatedCanonicalJson = <T>(
           "Artifact cannot be represented as canonical JSON.",
         ),
       ],
+      valid: false,
     };
   }
 };
@@ -33,7 +35,7 @@ export const canonicalizeRenderBundle = (input: unknown) =>
 
 const validatedHash = (canonical: ValidationResult<string>): ValidationResult<string> =>
   canonical.valid
-    ? { valid: true, value: hashCanonicalJson(canonical.value), diagnostics: [] }
+    ? { diagnostics: [], valid: true, value: hashCanonicalJson(canonical.value) }
     : canonical;
 
 export const hashPresentationDefinition = (input: unknown) =>

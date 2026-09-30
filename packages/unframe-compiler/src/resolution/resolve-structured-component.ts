@@ -19,7 +19,7 @@ import type { Diagnostic, PresentationDefinition } from "@unframe/unframe-core";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { resourceId } from "../lowering/support.js";
 
-type Path = readonly (string | number)[];
+type Path = ReadonlyArray<string | number>;
 type CoreContentNodes = Extract<
   PresentationDefinition["scene"]["surfaces"][string]["content"],
   { kind: "structured" }
@@ -32,78 +32,83 @@ type Scalar = string | number | boolean;
 
 export type ResolvedStructuredComponent = {
   readonly contentNodes: CoreContentNodes;
-  readonly rootFrameId: string;
-  readonly referencedFontIds: ReadonlySet<string>;
-  readonly diagnostics: readonly Diagnostic[];
-  readonly physicalSizeMeters?: readonly [number, number];
+  readonly diagnostics: ReadonlyArray<Diagnostic>;
   readonly logicalSize?: readonly [number, number];
-  readonly slotPlaceholders: readonly {
-    readonly parentFrameId: string;
-    readonly placeholderId: string;
-    readonly slotId: string;
-    readonly semanticParentId?: string;
-    readonly order: number;
-  }[];
+  readonly physicalSizeMeters?: readonly [number, number];
+  readonly referencedFontIds: ReadonlySet<string>;
   readonly resolvedProps: ReadonlyMap<string, Scalar>;
   readonly resolveStateContentOverride: (
     localId: string,
     override: ContentOverrideDeclaration,
     at: Path,
   ) => CoreContentOverride | undefined;
+  readonly rootFrameId: string;
+  readonly slotPlaceholders: ReadonlyArray<{
+    readonly parentFrameId: string;
+    readonly placeholderId: string;
+    readonly slotId: string;
+    readonly semanticParentId?: string;
+    readonly order: number;
+  }>;
 };
 
-const transparent = { red: 0, green: 0, blue: 0, alpha: 0 } as const;
-const black = { red: 0, green: 0, blue: 0, alpha: 1 } as const;
-const noBorder = { color: transparent, width: 0, radius: 0 } as const;
+const transparent = { alpha: 0, blue: 0, green: 0, red: 0 } as const;
+const black = { alpha: 1, blue: 0, green: 0, red: 0 } as const;
+const noBorder = { color: transparent, radius: 0, width: 0 } as const;
 
 const isPropReference = (
   value: unknown,
-): value is { kind: "prop-ref"; propId: string; expectedType: "string" | "number" | "boolean" } =>
+): value is { expectedType: "string" | "number" | "boolean"; kind: "prop-ref"; propId: string } =>
   typeof value === "object" && value !== null && (value as { kind?: unknown }).kind === "prop-ref";
 const isTokenReference = (value: unknown): value is TokenReference =>
   typeof value === "object" && value !== null && (value as { kind?: unknown }).kind === "token-ref";
 
-const mergeStyle = <T extends object>(...styles: readonly (T | undefined)[]): T =>
+const mergeStyle = <T extends object>(...styles: ReadonlyArray<T | undefined>): T =>
   Object.assign({}, ...styles.filter((style): style is T => style !== undefined));
 
 export const resolveStructuredComponent = ({
   instance,
   manifest,
+  path,
   structure,
   theme,
-  path,
 }: {
   readonly instance: ComponentInstanceDeclaration;
   readonly manifest: ComponentManifest;
+  readonly path: Path;
   readonly structure: ComponentStructure;
   readonly theme: ThemeDeclaration;
-  readonly path: Path;
 }): ResolvedStructuredComponent => {
-  const diagnostics: Diagnostic[] = [];
+  const diagnostics: Array<Diagnostic> = [];
   const contentNodes: CoreContentNodes = {};
   const referencedFontIds = new Set<string>();
-  const slotPlaceholders: {
+  const slotPlaceholders: Array<{
+    order: number;
     parentFrameId: string;
     placeholderId: string;
-    slotId: string;
     semanticParentId?: string;
-    order: number;
-  }[] = [];
+    slotId: string;
+  }> = [];
   const props = new Map<string, Scalar>();
 
   for (const [propId, declaration] of Object.entries(manifest.props)) {
-    if (Object.hasOwn(instance.props, propId)) props.set(propId, instance.props[propId]!);
-    else if ("default" in declaration) props.set(propId, declaration.default);
+    if (Object.hasOwn(instance.props, propId)) {
+      props.set(propId, instance.props[propId]!);
+    } else if ("default" in declaration) {
+      props.set(propId, declaration.default);
+    }
   }
 
   const failure = (code: string, at: Path, message: string) => {
     diagnostics.push(diagnostic(code, at, message));
   };
   const resolveProp = <T extends Scalar>(
-    value: T | { kind: "prop-ref"; propId: string; expectedType: string },
+    value: T | { expectedType: string; kind: "prop-ref"; propId: string },
     at: Path,
   ): T | undefined => {
-    if (!isPropReference(value)) return value as T;
+    if (!isPropReference(value)) {
+      return value as T;
+    }
     const declaration = manifest.props[value.propId] as PropDeclaration | undefined;
     const resolved = props.get(value.propId);
     if (!declaration) {
@@ -128,7 +133,7 @@ export const resolveStructuredComponent = ({
     reference: TokenReference,
     expected: TokenCategory,
     at: Path,
-    stack: readonly string[] = [],
+    stack: ReadonlyArray<string> = [],
   ): unknown => {
     if (reference.category !== expected) {
       failure(
@@ -159,9 +164,11 @@ export const resolveStructuredComponent = ({
       ? resolveToken(token.value, expected, at, [...stack, reference.tokenId])
       : token.value;
   };
-  for (const [tokenId, token] of Object.entries(theme.tokens))
-    if (isTokenReference(token.value))
+  for (const [tokenId, token] of Object.entries(theme.tokens)) {
+    if (isTokenReference(token.value)) {
       resolveToken(token.value, token.category, [...path, "theme", "tokens", tokenId], [tokenId]);
+    }
+  }
   const validateNamedStyleTokens = (value: unknown, at: Path): void => {
     if (isTokenReference(value)) {
       resolveToken(value, value.category, at);
@@ -171,12 +178,15 @@ export const resolveStructuredComponent = ({
       value.forEach((item, index) => validateNamedStyleTokens(item, [...at, index]));
       return;
     }
-    if (value && typeof value === "object")
-      for (const [key, child] of Object.entries(value))
+    if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
         validateNamedStyleTokens(child, [...at, key]);
+      }
+    }
   };
-  for (const [styleId, style] of Object.entries(theme.namedStyles))
+  for (const [styleId, style] of Object.entries(theme.namedStyles)) {
     validateNamedStyleTokens(style.style, [...path, "theme", "namedStyles", styleId]);
+  }
   const resolveNumber = (
     value: unknown,
     category: "logicalLength",
@@ -197,16 +207,18 @@ export const resolveStructuredComponent = ({
   };
   const resolveColor = (value: unknown, at: Path) => {
     const candidate = isTokenReference(value) ? resolveToken(value, "color", at) : value;
-    if (!candidate || typeof candidate !== "object") return undefined;
+    if (!candidate || typeof candidate !== "object") {
+      return undefined;
+    }
     const color = candidate as Record<string, unknown>;
     const resolved = {
-      red: resolveProp<number>(color.red as number, [...at, "red"]),
-      green: resolveProp<number>(color.green as number, [...at, "green"]),
-      blue: resolveProp<number>(color.blue as number, [...at, "blue"]),
       alpha: resolveProp<number>(color.alpha as number, [...at, "alpha"]),
+      blue: resolveProp<number>(color.blue as number, [...at, "blue"]),
+      green: resolveProp<number>(color.green as number, [...at, "green"]),
+      red: resolveProp<number>(color.red as number, [...at, "red"]),
     };
     return Object.values(resolved).every((item) => typeof item === "number")
-      ? (resolved as { red: number; green: number; blue: number; alpha: number })
+      ? (resolved as { alpha: number; blue: number; green: number; red: number })
       : undefined;
   };
   const resolveFont = (value: unknown, at: Path): string | undefined => {
@@ -228,13 +240,15 @@ export const resolveStructuredComponent = ({
     return id;
   };
 
-  const variantByTarget = new Map<string, VariantStyleOverride[]>();
+  const variantByTarget = new Map<string, Array<VariantStyleOverride>>();
   const selectedProperties = new Set<string>();
   for (const [variantId, declaration] of Object.entries(manifest.variants)) {
     const selection = Object.hasOwn(instance.variants, variantId)
       ? instance.variants[variantId]
       : declaration.default;
-    if (selection === undefined) continue;
+    if (selection === undefined) {
+      continue;
+    }
     const overrides = structure.variantStyles[variantId]?.[selection];
     if (!overrides) {
       failure(
@@ -247,12 +261,13 @@ export const resolveStructuredComponent = ({
     for (const override of overrides) {
       for (const property of Object.keys(override.style)) {
         const key = `${override.targetId}\0${property}`;
-        if (selectedProperties.has(key))
+        if (selectedProperties.has(key)) {
           failure(
             "compiler-variant-style-conflict",
             [...path, "variants", variantId],
             "Selected variants must not override the same node property.",
           );
+        }
         selectedProperties.add(key);
       }
       const current = variantByTarget.get(override.targetId) ?? [];
@@ -272,18 +287,23 @@ export const resolveStructuredComponent = ({
       );
       continue;
     }
-    if (partByTarget.has(targetId))
+    if (partByTarget.has(targetId)) {
       failure(
         "compiler-part-override-duplicate",
         [...path, "partOverrides", override.partId],
         "A bound node may receive only one Part override.",
       );
+    }
     partByTarget.set(targetId, override);
   }
 
   const namedStyle = <T extends "frame" | "text">(node: ContentNodeDeclaration, kind: T) => {
-    if (node.kind === "slot-placeholder") return undefined;
-    if (!node.namedStyle) return undefined;
+    if (node.kind === "slot-placeholder") {
+      return undefined;
+    }
+    if (!node.namedStyle) {
+      return undefined;
+    }
     const named = theme.namedStyles[node.namedStyle.styleId];
     if (!named) {
       failure(
@@ -305,17 +325,18 @@ export const resolveStructuredComponent = ({
   };
 
   const resolvePlacement = (node: ContentNodeDeclaration) => {
-    if (node.kind === "slot-placeholder")
-      return { kind: "absolute" as const, x: 0, y: 0, width: 1, height: 1 };
+    if (node.kind === "slot-placeholder") {
+      return { height: 1, kind: "absolute" as const, width: 1, x: 0, y: 0 };
+    }
     const part = partByTarget.get(node.id);
     const source = part?.placement ?? node.layout;
     const at = [...path, "structure", node.id, "layout"];
     return {
+      height: resolveNumber(source.height, "logicalLength", [...at, "height"]) ?? 1,
       kind: "absolute" as const,
+      width: resolveNumber(source.width, "logicalLength", [...at, "width"]) ?? 1,
       x: resolveNumber(source.x, "logicalLength", [...at, "x"]) ?? 0,
       y: resolveNumber(source.y, "logicalLength", [...at, "y"]) ?? 0,
-      width: resolveNumber(source.width, "logicalLength", [...at, "width"]) ?? 1,
-      height: resolveNumber(source.height, "logicalLength", [...at, "height"]) ?? 1,
     };
   };
   const resolveTextStyle = (
@@ -345,28 +366,29 @@ export const resolveStructuredComponent = ({
       style.lineHeight === undefined
         ? undefined
         : resolveNumber(style.lineHeight, "logicalLength", [...at, "lineHeight"]);
-    if (fontAssetId === undefined || fontSize === undefined || lineHeight === undefined)
+    if (fontAssetId === undefined || fontSize === undefined || lineHeight === undefined) {
       failure(
         "compiler-text-style-incomplete",
         at,
         "Resolved Text style requires a font, font size, and line height.",
       );
+    }
     return {
-      fontAssetId: fontAssetId ?? "invalid-missing-font",
-      fallbackFontAssetIds,
-      fontSize: fontSize ?? 1,
-      lineHeight: lineHeight ?? 1,
-      color:
-        style.color === undefined ? black : (resolveColor(style.color, [...at, "color"]) ?? black),
-      weight: (style.weight === undefined
-        ? "regular"
-        : resolveString(style.weight, [...at, "weight"])) as "regular" | "bold",
       align: (style.align === undefined
         ? "start"
         : resolveString(style.align, [...at, "align"])) as "start" | "center" | "end",
+      color:
+        style.color === undefined ? black : (resolveColor(style.color, [...at, "color"]) ?? black),
+      fallbackFontAssetIds,
+      fontAssetId: fontAssetId ?? "invalid-missing-font",
+      fontSize: fontSize ?? 1,
+      lineHeight: lineHeight ?? 1,
       overflow: (style.overflow === undefined
         ? "clip"
         : resolveString(style.overflow, [...at, "overflow"])) as "clip" | "ellipsis",
+      weight: (style.weight === undefined
+        ? "regular"
+        : resolveString(style.weight, [...at, "weight"])) as "regular" | "bold",
     };
   };
 
@@ -384,22 +406,23 @@ export const resolveStructuredComponent = ({
     seen.add(node.id);
     nodeKinds.set(node.id, node.kind);
     if (node.kind === "slot-placeholder") {
-      if (parentId === null)
+      if (parentId === null) {
         failure(
           "compiler-slot-placeholder-root-invalid",
           [...path, "structure", node.id],
           "A Slot placeholder must be a Frame child.",
         );
-      else
+      } else {
         slotPlaceholders.push({
+          order,
           parentFrameId: parentId,
           placeholderId: node.id,
           slotId: node.slotId,
-          order,
           ...(node.semanticParentId === undefined
             ? {}
             : { semanticParentId: node.semanticParentId }),
         });
+      }
       const semanticTree =
         structure.root.kind === "surface"
           ? structure.root.baseSemanticTree
@@ -407,33 +430,31 @@ export const resolveStructuredComponent = ({
       if (
         node.semanticParentId !== undefined &&
         !Object.hasOwn(semanticTree.nodes, node.semanticParentId)
-      )
+      ) {
         failure(
           "compiler-slot-semantic-parent-not-found",
           [...path, "structure", node.id, "semanticParentId"],
           "Slot semanticParentId must name a Semantic Node in the owning Component.",
         );
+      }
       return;
     }
     const id = resourceId(instance.id, node.id);
     const part = partByTarget.get(node.id);
-    if (part && part.targetKind !== node.kind)
+    if (part && part.targetKind !== node.kind) {
       failure(
         "compiler-part-kind-mismatch",
         [...path, "partOverrides", part.partId],
         "Part override kind must match its bound primitive.",
       );
+    }
     const common = {
       id,
-      parentId,
       order,
+      parentId,
       ...(node.semanticNodeId === undefined
         ? {}
         : { semanticNodeId: resourceId(instance.id, node.semanticNodeId) }),
-      visible:
-        node.visible === undefined
-          ? true
-          : (resolveBoolean(node.visible, [...path, "structure", node.id, "visible"]) ?? true),
       opacity:
         node.opacity === undefined
           ? 1
@@ -444,6 +465,10 @@ export const resolveStructuredComponent = ({
               "opacity",
             ]) ?? 1),
       placement: resolvePlacement(node),
+      visible:
+        node.visible === undefined
+          ? true
+          : (resolveBoolean(node.visible, [...path, "structure", node.id, "visible"]) ?? true),
     };
     if (node.kind === "text") {
       const value =
@@ -456,18 +481,23 @@ export const resolveStructuredComponent = ({
         node.id,
         "maxCodePoints",
       ]);
-      if (maxCodePoints === undefined || !Number.isSafeInteger(maxCodePoints) || maxCodePoints <= 0)
+      if (
+        maxCodePoints === undefined ||
+        !Number.isSafeInteger(maxCodePoints) ||
+        maxCodePoints <= 0
+      ) {
         failure(
           "compiler-max-code-points-invalid",
           [...path, "structure", node.id, "maxCodePoints"],
           "Text maxCodePoints must resolve to a positive safe integer.",
         );
+      }
       contentNodes[id] = {
         ...common,
         kind: "text",
-        value: { kind: "literal", value: value ?? "" },
         maxCodePoints: maxCodePoints ?? 1,
         style: resolveTextStyle(node),
+        value: { kind: "literal", value: value ?? "" },
       };
       return;
     }
@@ -485,9 +515,6 @@ export const resolveStructuredComponent = ({
     const at = [...path, "structure", node.id, "style"];
     const frame: CoreFrame = {
       ...common,
-      kind: "frame",
-      layout: { kind: "absolute" },
-      children: childIds,
       backgroundColor:
         style.backgroundColor === undefined
           ? transparent
@@ -497,14 +524,17 @@ export const resolveStructuredComponent = ({
           ? noBorder
           : {
               color: resolveColor(style.border.color, [...at, "border", "color"]) ?? transparent,
-              width:
-                resolveNumber(style.border.width, "logicalLength", [...at, "border", "width"]) ?? 0,
               radius:
                 resolveNumber(style.border.radius, "logicalLength", [...at, "border", "radius"]) ??
                 0,
+              width:
+                resolveNumber(style.border.width, "logicalLength", [...at, "border", "width"]) ?? 0,
             },
+      children: childIds,
       clip:
         style.clip === undefined ? false : (resolveBoolean(style.clip, [...at, "clip"]) ?? false),
+      kind: "frame",
+      layout: { kind: "absolute" },
     };
     contentNodes[id] = frame;
     node.children.forEach((child, childOrder) => lower(child, id, childOrder));
@@ -515,22 +545,27 @@ export const resolveStructuredComponent = ({
   const boundPartTargets = new Set<string>();
   for (const [partId, targetId] of Object.entries(structure.partBindings)) {
     const targetKind = nodeKinds.get(targetId);
-    if (!Object.hasOwn(manifest.parts, partId) || (targetKind !== "frame" && targetKind !== "text"))
+    if (
+      !Object.hasOwn(manifest.parts, partId) ||
+      (targetKind !== "frame" && targetKind !== "text")
+    ) {
       failure(
         "compiler-part-binding-invalid",
         [...path, "structure", "partBindings", partId],
         "Part bindings must map declared Parts to existing primitives.",
       );
-    if (boundPartTargets.has(targetId))
+    }
+    if (boundPartTargets.has(targetId)) {
       failure(
         "compiler-part-binding-duplicate",
         [...path, "structure", "partBindings", partId],
         "A primitive may be bound to only one Part.",
       );
+    }
     boundPartTargets.add(targetId);
   }
-  for (const [variantId, options] of Object.entries(structure.variantStyles))
-    for (const [optionId, overrides] of Object.entries(options))
+  for (const [variantId, options] of Object.entries(structure.variantStyles)) {
+    for (const [optionId, overrides] of Object.entries(options)) {
       for (const override of overrides) {
         const targetKind = nodeKinds.get(override.targetId);
         if (targetKind === undefined || targetKind === "slot-placeholder")
@@ -546,17 +581,20 @@ export const resolveStructuredComponent = ({
             "Variant target kind must match its primitive.",
           );
       }
+    }
+  }
 
   const resolvePositiveTuple = (value: readonly [unknown, unknown], at: Path): [number, number] => {
     const resolved = value.map((item, index) =>
       resolveProp<number>(item as number, [...at, index]),
     ) as [number | undefined, number | undefined];
-    if (resolved.some((item) => item === undefined || !Number.isFinite(item) || item <= 0))
+    if (resolved.some((item) => item === undefined || !Number.isFinite(item) || item <= 0)) {
       failure(
         "compiler-surface-size-invalid",
         at,
         "Surface dimensions must resolve to positive finite numbers.",
       );
+    }
     return [resolved[0] ?? 1, resolved[1] ?? 1];
   };
   const resolveStateContentOverride = (
@@ -596,29 +634,29 @@ export const resolveStructuredComponent = ({
         ? {}
         : {
             placement: {
-              kind: "absolute" as const,
-              x:
-                resolveNumber(override.placement.x, "logicalLength", [...at, "placement", "x"]) ??
-                target.placement.x,
-              y:
-                resolveNumber(override.placement.y, "logicalLength", [...at, "placement", "y"]) ??
-                target.placement.y,
-              width:
-                resolveNumber(override.placement.width, "logicalLength", [
-                  ...at,
-                  "placement",
-                  "width",
-                ]) ?? target.placement.width,
               height:
                 resolveNumber(override.placement.height, "logicalLength", [
                   ...at,
                   "placement",
                   "height",
                 ]) ?? target.placement.height,
+              kind: "absolute" as const,
+              width:
+                resolveNumber(override.placement.width, "logicalLength", [
+                  ...at,
+                  "placement",
+                  "width",
+                ]) ?? target.placement.width,
+              x:
+                resolveNumber(override.placement.x, "logicalLength", [...at, "placement", "x"]) ??
+                target.placement.x,
+              y:
+                resolveNumber(override.placement.y, "logicalLength", [...at, "placement", "y"]) ??
+                target.placement.y,
             },
           }),
     };
-    if (override.kind === "frame" && target.kind === "frame")
+    if (override.kind === "frame" && target.kind === "frame") {
       return {
         kind: "frame",
         ...common,
@@ -637,25 +675,28 @@ export const resolveStructuredComponent = ({
                 color:
                   resolveColor(override.border.color, [...at, "border", "color"]) ??
                   target.border.color,
-                width:
-                  resolveNumber(override.border.width, "logicalLength", [
-                    ...at,
-                    "border",
-                    "width",
-                  ]) ?? target.border.width,
                 radius:
                   resolveNumber(override.border.radius, "logicalLength", [
                     ...at,
                     "border",
                     "radius",
                   ]) ?? target.border.radius,
+                width:
+                  resolveNumber(override.border.width, "logicalLength", [
+                    ...at,
+                    "border",
+                    "width",
+                  ]) ?? target.border.width,
               },
             }),
         ...(override.clip === undefined
           ? {}
           : { clip: resolveBoolean(override.clip, [...at, "clip"]) ?? target.clip }),
       };
-    if (override.kind !== "text" || target.kind !== "text") return undefined;
+    }
+    if (override.kind !== "text" || target.kind !== "text") {
+      return undefined;
+    }
     const style = override.style;
     const baseStyle = target.style;
     const resolvedStyle: CoreTextStyle | undefined =
@@ -733,25 +774,25 @@ export const resolveStructuredComponent = ({
   };
   return {
     contentNodes,
-    rootFrameId: resourceId(instance.id, root.id),
-    referencedFontIds,
     diagnostics,
-    slotPlaceholders,
+    referencedFontIds,
     resolvedProps: props,
     resolveStateContentOverride,
+    rootFrameId: resourceId(instance.id, root.id),
+    slotPlaceholders,
     ...(structure.root.kind === "surface"
       ? {
-          physicalSizeMeters: resolvePositiveTuple(structure.root.physicalSizeMeters, [
-            ...path,
-            "structure",
-            "root",
-            "physicalSizeMeters",
-          ]),
           logicalSize: resolvePositiveTuple(structure.root.logicalSize, [
             ...path,
             "structure",
             "root",
             "logicalSize",
+          ]),
+          physicalSizeMeters: resolvePositiveTuple(structure.root.physicalSizeMeters, [
+            ...path,
+            "structure",
+            "root",
+            "physicalSizeMeters",
           ]),
         }
       : {}),

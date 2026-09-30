@@ -9,7 +9,9 @@ export const compileAuthoringProject = async (
   options: unknown,
 ): Promise<AuthoringProjectPipelineResult<CompiledDeclarationProject>> => {
   const assembled = assembleAuthoringProject(source, carrier);
-  if (!assembled.valid) return assembled;
+  if (!assembled.valid) {
+    return assembled;
+  }
   try {
     const compiled = await compileCheckedDeclarationProject(
       assembled.value.project,
@@ -17,15 +19,15 @@ export const compileAuthoringProject = async (
       options,
     );
     return compiled.valid
-      ? { valid: true, value: compiled.value, diagnostics: [] }
-      : { valid: false, phase: "compile", diagnostics: compiled.diagnostics };
+      ? { diagnostics: [], valid: true, value: compiled.value }
+      : { diagnostics: compiled.diagnostics, phase: "compile", valid: false };
   } catch {
     return {
-      valid: false,
-      phase: "compile",
       diagnostics: [
         diagnostic("compiler-invalid-input", [], "Compiler input could not be inspected safely."),
       ],
+      phase: "compile",
+      valid: false,
     };
   }
 };

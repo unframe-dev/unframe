@@ -3,32 +3,32 @@ import { describe, expect, it } from "vitest";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 
 const packageEntry = () => ({
+  contentIntegrity: `sha256:${"b".repeat(64)}`,
+  dependencies: [],
+  exports: [{ runtimeImport: null, runtimeRequire: null, subpath: ".", types: "index.d.ts" }],
+  files: [
+    {
+      data: "export declare const theme: string;",
+      encoding: "utf8" as const,
+      hash: `sha256:${"c".repeat(64)}`,
+      mediaType: "text/typescript",
+      path: "index.d.ts",
+    },
+  ],
   key: `sha256:${"a".repeat(64)}`,
   locator: "@unframe/theme@1.0.0",
   name: "@unframe/theme",
   version: "1.0.0",
-  contentIntegrity: `sha256:${"b".repeat(64)}`,
-  files: [
-    {
-      path: "index.d.ts",
-      mediaType: "text/typescript",
-      hash: `sha256:${"c".repeat(64)}`,
-      encoding: "utf8" as const,
-      data: "export declare const theme: string;",
-    },
-  ],
-  exports: [{ subpath: ".", runtimeImport: null, runtimeRequire: null, types: "index.d.ts" }],
-  dependencies: [],
 });
 const input = () => ({
-  projectRoot: "/virtual/presentation",
   entryFile: "presentation.unframe.ts",
   files: [{ fileName: "presentation.unframe.ts", sourceText: "export {};" }],
+  packages: [packageEntry()],
+  projectRoot: "/virtual/presentation",
   rawFiles: [],
   rootDependencies: [
-    { specifier: "@unframe/theme", usage: "types" as const, packageKey: packageEntry().key },
+    { packageKey: packageEntry().key, specifier: "@unframe/theme", usage: "types" as const },
   ],
-  packages: [packageEntry()],
 });
 const codes = (value: unknown) => {
   const result = parseAuthoringProject(value);
@@ -39,7 +39,9 @@ describe("parseAuthoringProject locked packages v2", () => {
   it("parses exact package keys and source provenance", () => {
     const result = parseAuthoringProject(input());
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.rootDependencies).toEqual(input().rootDependencies);
     expect(result.value.packages[0]).toMatchObject({
       key: packageEntry().key,

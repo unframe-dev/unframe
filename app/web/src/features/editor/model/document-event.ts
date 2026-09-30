@@ -4,10 +4,10 @@ import { applyCommand } from "@/features/editor/model/apply-command";
 import { EditorCommandSchema, type EditorCommand } from "@/features/editor/model/editor-command";
 
 export const DocumentEventSchema = z.object({
-  presentationId: z.string().min(1),
   baseRevision: z.number().int().nonnegative(),
-  revision: z.number().int().positive(),
   command: EditorCommandSchema,
+  presentationId: z.string().min(1),
+  revision: z.number().int().positive(),
 });
 
 export type DocumentEvent = z.infer<typeof DocumentEventSchema>;
@@ -38,10 +38,10 @@ export function createDocumentEvent(
   command: EditorCommand,
 ): DocumentEvent {
   return DocumentEventSchema.parse({
-    presentationId: document.id,
     baseRevision: document.revision,
-    revision: document.revision + 1,
     command,
+    presentationId: document.id,
+    revision: document.revision + 1,
   });
 }
 

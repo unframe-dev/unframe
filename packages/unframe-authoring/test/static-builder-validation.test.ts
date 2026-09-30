@@ -4,40 +4,28 @@ import { validateStaticBuilderResult } from "../src/index.js";
 
 describe("static builder result validation", () => {
   it("uses the same strict prop declaration schema as the runtime builder", () => {
-    expect(validateStaticBuilderResult("stringProp", { kind: "string", default: "x" })).toBe(true);
+    expect(validateStaticBuilderResult("stringProp", { default: "x", kind: "string" })).toBe(true);
     expect(
       validateStaticBuilderResult("stringProp", {
-        kind: "string",
         default: "x",
         extra: "Injected",
+        kind: "string",
       }),
     ).toBe(false);
   });
 
   it("uses the same non-negative timer constraint as after", () => {
-    expect(validateStaticBuilderResult("after", { kind: "timer", afterMilliseconds: 0 })).toBe(
+    expect(validateStaticBuilderResult("after", { afterMilliseconds: 0, kind: "timer" })).toBe(
       true,
     );
-    expect(validateStaticBuilderResult("after", { kind: "timer", afterMilliseconds: -1 })).toBe(
+    expect(validateStaticBuilderResult("after", { afterMilliseconds: -1, kind: "timer" })).toBe(
       false,
     );
   });
 
   it("accepts semantic interactions at the declaration shape boundary", () => {
     const root = {
-      kind: "surface",
-      id: "surface",
-      physicalSizeMeters: [1, 1],
-      logicalSize: [100, 100],
-      fit: "contain",
-      root: {
-        kind: "frame",
-        id: "frame",
-        layout: { kind: "absolute", x: 0, y: 0, width: 100, height: 100 },
-        children: [],
-      },
       baseSemanticTree: {
-        rootNodeIds: ["button"],
         nodes: {
           button: {
             id: "button",
@@ -48,27 +36,39 @@ describe("static builder result validation", () => {
             interactionId: "click",
           },
         },
+        rootNodeIds: ["button"],
       },
-      interactions: {},
+      fit: "contain",
+      id: "surface",
       initialStateId: "default",
-      states: { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
+      interactions: {},
+      kind: "surface",
+      logicalSize: [100, 100],
+      physicalSizeMeters: [1, 1],
       renderIntent: {
-        updateModel: "static",
+        fallbackPolicy: "reject",
         interaction: "none",
         internalAnimation: "none",
         rendererPreference: "baked-web",
-        fallbackPolicy: "reject",
+        updateModel: "static",
       },
+      root: {
+        children: [],
+        id: "frame",
+        kind: "frame",
+        layout: { kind: "absolute", x: 0, y: 0, width: 100, height: 100 },
+      },
+      states: { default: { enabledInteractionIds: [], id: "default", semanticOverrides: [] } },
     };
     expect(validateStaticBuilderResult("surface", root)).toBe(true);
     expect(
       validateStaticBuilderResult("defineComponentStructure", {
-        id: "structure",
         componentId: "card",
-        root,
+        id: "structure",
         partBindings: {},
-        variantStyles: {},
+        root,
         timelines: [],
+        variantStyles: {},
       }),
     ).toBe(true);
   });

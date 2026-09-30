@@ -9,52 +9,46 @@ const key = (symbol: string) => `sha256:${symbol.repeat(64)}`;
 const pkg = (
   name: string,
   symbol: string,
-  files: readonly { path: string; data: string }[],
-  exports: readonly { subpath: string; runtimeImport: string; runtimeRequire: string | null }[],
+  files: ReadonlyArray<{ data: string; path: string }>,
+  exports: ReadonlyArray<{ runtimeImport: string; runtimeRequire: string | null; subpath: string }>,
 ) => ({
-  key: key(symbol),
-  locator: `${name}@1`,
-  name,
-  version: "1",
   contentIntegrity: key(symbol),
+  dependencies: [],
+  exports: exports.map((item) => ({ ...item, types: null })),
   files: [...files]
     .sort((a, b) => a.path.localeCompare(b.path))
     .map((file) => ({
       ...file,
-      mediaType: "text/javascript",
       encoding: "utf8",
       hash: digest(file.data),
+      mediaType: "text/javascript",
     })),
-  exports: exports.map((item) => ({ ...item, types: null })),
-  dependencies: [],
+  key: key(symbol),
+  locator: `${name}@1`,
+  name,
+  version: "1",
 });
 const source = {
-  projectRoot: "/virtual",
   entryFile: "presentation.unframe.tsx",
   files: [
     { fileName: "presentation.unframe.tsx", sourceText: "export default {};" },
     { fileName: "helper.ts", sourceText: 'export const label = "Locked";' },
-  ],
-  rawFiles: [],
-  rootDependencies: [
-    { specifier: "react", usage: "runtime", packageKey: key("a") },
-    { specifier: "react-dom", usage: "runtime", packageKey: key("b") },
   ],
   packages: [
     pkg(
       "react",
       "a",
       [
-        { path: "index.js", data: 'module.exports = require("./cjs/react.js");' },
-        { path: "cjs/react.js", data: "module.exports = {createElement: () => null};" },
-        { path: "jsx-runtime.js", data: "exports.jsx = () => null;" },
+        { data: 'module.exports = require("./cjs/react.js");', path: "index.js" },
+        { data: "module.exports = {createElement: () => null};", path: "cjs/react.js" },
+        { data: "exports.jsx = () => null;", path: "jsx-runtime.js" },
       ],
       [
-        { subpath: ".", runtimeImport: "index.js", runtimeRequire: "index.js" },
+        { runtimeImport: "index.js", runtimeRequire: "index.js", subpath: "." },
         {
-          subpath: "./jsx-runtime",
           runtimeImport: "jsx-runtime.js",
           runtimeRequire: "jsx-runtime.js",
+          subpath: "./jsx-runtime",
         },
       ],
     ),
@@ -62,26 +56,34 @@ const source = {
       "react-dom",
       "b",
       [
-        { path: "index.js", data: "exports.flushSync = () => {};" },
-        { path: "client.js", data: "exports.createRoot = () => ({});" },
+        { data: "exports.flushSync = () => {};", path: "index.js" },
+        { data: "exports.createRoot = () => ({});", path: "client.js" },
       ],
       [
-        { subpath: ".", runtimeImport: "index.js", runtimeRequire: "index.js" },
-        { subpath: "./client", runtimeImport: "client.js", runtimeRequire: "client.js" },
+        { runtimeImport: "index.js", runtimeRequire: "index.js", subpath: "." },
+        { runtimeImport: "client.js", runtimeRequire: "client.js", subpath: "./client" },
       ],
     ),
   ],
+  projectRoot: "/virtual",
+  rawFiles: [],
+  rootDependencies: [
+    { packageKey: key("a"), specifier: "react", usage: "runtime" },
+    { packageKey: key("b"), specifier: "react-dom", usage: "runtime" },
+  ],
 };
 const component = {
+  lock: { origin: { kind: "local", entryFile: "Hero.component.tsx" }, rendererInputHash: key("c") },
   rendererSource:
     'import {label} from "./helper"; export const render = ({texts}: {texts:{title:string}}) => <h1>{label}: {texts.title}</h1>;',
-  lock: { rendererInputHash: key("c"), origin: { kind: "local", entryFile: "Hero.component.tsx" } },
 };
 
 it("prepares only the reachable frozen render modules with import and require resolutions", () => {
   const result = prepareLockedOpaqueBundleInput(source, component as never);
   expect(result.valid ? [] : result.diagnostics).toEqual([]);
-  if (!result.valid) return;
+  if (!result.valid) {
+    return;
+  }
   expect(result.value.entry).toBe("__unframe__/entry.tsx");
   expect(result.value.modules.map((item) => item.path)).toEqual(
     expect.arrayContaining([
@@ -94,14 +96,14 @@ it("prepares only the reachable frozen render modules with import and require re
     expect.arrayContaining([
       {
         importerPath: "__unframe__/entry.tsx",
-        specifier: "./helper",
         kind: "import",
+        specifier: "./helper",
         targetPath: "project/helper.ts",
       },
       {
         importerPath: `packages/${"a".repeat(64)}/index.js`,
-        specifier: "./cjs/react.js",
         kind: "require",
+        specifier: "./cjs/react.js",
         targetPath: `packages/${"a".repeat(64)}/cjs/react.js`,
       },
     ]),
@@ -115,13 +117,13 @@ it("rejects an asset whose locked media type disagrees with its path", () => {
     ...source,
     rawFiles: [
       {
-        path: "logo.png",
-        mediaType: "image/jpeg",
-        encoding: "base64",
         data: btoa(String.fromCharCode(...png)),
+        encoding: "base64",
         hash: `sha256:${bytesToHex(sha256(png))}`,
+        mediaType: "image/jpeg",
+        path: "logo.png",
       },
-      { path: "style.css", mediaType: "text/css", encoding: "utf8", data: css, hash: digest(css) },
+      { data: css, encoding: "utf8", hash: digest(css), mediaType: "text/css", path: "style.css" },
     ],
   };
   const styled = {
@@ -130,8 +132,8 @@ it("rejects an asset whose locked media type disagrees with its path", () => {
   } as never;
   const result = prepareLockedOpaqueBundleInput(withAsset, styled);
   expect(result).toMatchObject({
-    valid: false,
     diagnostics: [{ code: "compiler-opaque-bundle-input-invalid" }],
+    valid: false,
   });
 });
 
@@ -139,9 +141,9 @@ it("applies a locked browser remap to reachable package entry and relative impor
   const react = source.packages[0]!;
   const manifest = JSON.stringify({
     browser: {
-      "./index.js": "./browser.js",
       "./browser.js": "./browser-twice.js",
       "./cjs/react.js": "./browser-inner.js",
+      "./index.js": "./browser.js",
     },
   });
   const mapped = {
@@ -157,32 +159,32 @@ it("applies a locked browser remap to reachable package entry and relative impor
         files: [
           ...react.files,
           {
-            path: "package.json",
             data: manifest,
-            mediaType: "application/json",
             encoding: "utf8",
             hash: digest(manifest),
+            mediaType: "application/json",
+            path: "package.json",
           },
           {
-            path: "browser.js",
             data: 'module.exports = require("./cjs/react");',
-            mediaType: "text/javascript",
             encoding: "utf8",
             hash: digest('module.exports = require("./cjs/react");'),
+            mediaType: "text/javascript",
+            path: "browser.js",
           },
           {
-            path: "browser-twice.js",
             data: "throw new Error('wrong mapping');",
-            mediaType: "text/javascript",
             encoding: "utf8",
             hash: digest("throw new Error('wrong mapping');"),
+            mediaType: "text/javascript",
+            path: "browser-twice.js",
           },
           {
-            path: "browser-inner.js",
             data: "module.exports = {createElement: () => null};",
-            mediaType: "text/javascript",
             encoding: "utf8",
             hash: digest("module.exports = {createElement: () => null};"),
+            mediaType: "text/javascript",
+            path: "browser-inner.js",
           },
         ].sort((a, b) => a.path.localeCompare(b.path)),
       },
@@ -194,14 +196,14 @@ it("applies a locked browser remap to reachable package entry and relative impor
     expect.arrayContaining([
       {
         importerPath: "__unframe__/bootstrap.ts",
-        specifier: "react",
         kind: "import",
+        specifier: "react",
         targetPath: `packages/${"a".repeat(64)}/browser.js`,
       },
       {
         importerPath: `packages/${"a".repeat(64)}/browser.js`,
-        specifier: "./cjs/react",
         kind: "require",
+        specifier: "./cjs/react",
         targetPath: `packages/${"a".repeat(64)}/browser-inner.js`,
       },
     ]),
@@ -211,8 +213,8 @@ it("applies a locked browser remap to reachable package entry and relative impor
 it("resolves a reachable package # alias from locked manifest conditions", () => {
   const react = source.packages[0]!;
   const manifest = JSON.stringify({
-    imports: { "#inner": "./cjs/react" },
     browser: { "./cjs/react.js": "./browser-inner.js" },
+    imports: { "#inner": "./cjs/react" },
   });
   const alias = {
     ...source,
@@ -222,25 +224,25 @@ it("resolves a reachable package # alias from locked manifest conditions", () =>
         files: [
           ...react.files.filter((file) => file.path !== "index.js"),
           {
-            path: "index.js",
             data: 'module.exports = require("#inner");',
-            mediaType: "text/javascript",
             encoding: "utf8",
             hash: digest('module.exports = require("#inner");'),
+            mediaType: "text/javascript",
+            path: "index.js",
           },
           {
-            path: "package.json",
             data: manifest,
-            mediaType: "application/json",
             encoding: "utf8",
             hash: digest(manifest),
+            mediaType: "application/json",
+            path: "package.json",
           },
           {
-            path: "browser-inner.js",
             data: "module.exports = {createElement: () => null};",
-            mediaType: "text/javascript",
             encoding: "utf8",
             hash: digest("module.exports = {createElement: () => null};"),
+            mediaType: "text/javascript",
+            path: "browser-inner.js",
           },
         ].sort((a, b) => a.path.localeCompare(b.path)),
       },
@@ -252,8 +254,8 @@ it("resolves a reachable package # alias from locked manifest conditions", () =>
     expect.arrayContaining([
       {
         importerPath: `packages/${"a".repeat(64)}/index.js`,
-        specifier: "#inner",
         kind: "require",
+        specifier: "#inner",
         targetPath: `packages/${"a".repeat(64)}/browser-inner.js`,
       },
     ]),
@@ -274,11 +276,11 @@ it("rejects a reachable browser mapping to an empty module", () => {
         files: [
           ...react.files,
           {
-            path: "package.json",
             data: manifest,
-            mediaType: "application/json",
             encoding: "utf8",
             hash: digest(manifest),
+            mediaType: "application/json",
+            path: "package.json",
           },
         ].sort((a, b) => a.path.localeCompare(b.path)),
       },
@@ -286,22 +288,22 @@ it("rejects a reachable browser mapping to an empty module", () => {
     ],
   };
   expect(prepareLockedOpaqueBundleInput(mapped, component as never)).toMatchObject({
-    valid: false,
     diagnostics: [
       {
         code: "compiler-opaque-bundle-input-invalid",
         message: expect.stringContaining("Runtime import export is not locked"),
       },
     ],
+    valid: false,
   });
 });
 
 it("lists only JavaScript-imported stylesheets in source order", () => {
   const raw = [
-    { path: "first.css", data: '@import "./nested.css"; .first { color: red }' },
-    { path: "nested.css", data: ".nested { color: blue }" },
-    { path: "second.css", data: ".second { color: green }" },
-  ].map((file) => ({ ...file, mediaType: "text/css", encoding: "utf8", hash: digest(file.data) }));
+    { data: '@import "./nested.css"; .first { color: red }', path: "first.css" },
+    { data: ".nested { color: blue }", path: "nested.css" },
+    { data: ".second { color: green }", path: "second.css" },
+  ].map((file) => ({ ...file, encoding: "utf8", hash: digest(file.data), mediaType: "text/css" }));
   const result = prepareLockedOpaqueBundleInput({ ...source, rawFiles: raw }, {
     ...component,
     rendererSource:

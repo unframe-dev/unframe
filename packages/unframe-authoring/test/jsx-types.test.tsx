@@ -10,10 +10,10 @@ import {
   type PresentationDeclaration,
 } from "../src/index.js";
 
-const layout = { kind: "absolute", x: 0, y: 0, width: 200, height: 100 } as const;
+const layout = { height: 100, kind: "absolute", width: 200, x: 0, y: 0 } as const;
 const semantic = {
+  nodes: { heading: { id: "heading", order: 0, parentId: null, role: "paragraph", text: "Hello" } },
   rootNodeIds: ["heading"],
-  nodes: { heading: { id: "heading", parentId: null, order: 0, role: "paragraph", text: "Hello" } },
 } as const;
 
 it("typechecks and constructs TSX using the SDK JSX namespace", () => {
@@ -29,13 +29,13 @@ it("typechecks and constructs TSX using the SDK JSX namespace", () => {
     </Frame>
   );
   const structure = defineComponentStructure({
-    id: "structure",
-    componentId: "card",
-    root,
     baseSemanticTree: semantic,
+    componentId: "card",
+    id: "structure",
     partBindings: {},
-    variantStyles: {},
+    root,
     timelines: [],
+    variantStyles: {},
   });
   expect(structure.root.kind).toBe("frame");
 });
@@ -57,21 +57,21 @@ export const checkJsxTypes = (presentation: PresentationDeclaration) => {
   const emptySurface = (
     // @ts-expect-error Surface requires a Frame child.
     <Surface
-      id="surface"
-      physicalSizeMeters={[1, 1]}
-      logicalSize={[200, 100]}
-      fit="contain"
       baseSemanticTree={semantic}
-      interactions={{}}
-      states={{}}
+      fit="contain"
+      id="surface"
       initialStateId="default"
+      interactions={{}}
+      logicalSize={[200, 100]}
+      physicalSizeMeters={[1, 1]}
       renderIntent={{
-        updateModel: "static",
+        fallbackPolicy: "reject",
         interaction: "none",
         internalAnimation: "none",
         rendererPreference: "baked-web",
-        fallbackPolicy: "reject",
+        updateModel: "static",
       }}
+      states={{}}
     />
   );
   const conflictingText = (
@@ -82,14 +82,14 @@ export const checkJsxTypes = (presentation: PresentationDeclaration) => {
   );
   const instance = (
     <ComponentInstance
-      id="card"
       componentId="card"
-      version={1}
+      id="card"
       owner={{ kind: "presentation" }}
+      partOverrides={[]}
       props={{}}
       slots={{}}
       variants={{}}
-      partOverrides={[]}
+      version={1}
     />
   );
   const result: PresentationDeclaration = definePresentation({
@@ -97,12 +97,12 @@ export const checkJsxTypes = (presentation: PresentationDeclaration) => {
     scene: { ...presentation.scene, components: [instance] },
   });
   return {
-    missingId,
-    wrongText,
-    unknownStyle,
-    slotChildren,
-    emptySurface,
     conflictingText,
+    emptySurface,
+    missingId,
     result,
+    slotChildren,
+    unknownStyle,
+    wrongText,
   };
 };

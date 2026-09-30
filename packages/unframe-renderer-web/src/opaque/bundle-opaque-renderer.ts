@@ -23,23 +23,23 @@ export type OpaqueBundleDiagnostic = {
     | "opaque-bundle-input-invalid"
     | "opaque-import-denied"
     | "opaque-module-not-found";
-  readonly path: readonly string[];
   readonly message: string;
+  readonly path: ReadonlyArray<string>;
 };
 
 export type OpaqueRendererBundleResult =
   | {
-      readonly ok: true;
-      readonly javascript: string;
-      readonly assets: readonly {
+      readonly assets: ReadonlyArray<{
         readonly fileName: string;
         readonly source: string | Uint8Array;
-      }[];
-      readonly stylesheets: readonly string[];
-      readonly externalImports: readonly string[];
+      }>;
       readonly diagnostics: [];
+      readonly externalImports: ReadonlyArray<string>;
+      readonly javascript: string;
+      readonly ok: true;
+      readonly stylesheets: ReadonlyArray<string>;
     }
-  | { readonly ok: false; readonly diagnostics: readonly OpaqueBundleDiagnostic[] };
+  | { readonly diagnostics: ReadonlyArray<OpaqueBundleDiagnostic>; readonly ok: false };
 
 type ModuleSnapshot = Readonly<OpaqueRendererModule>;
 
@@ -66,9 +66,9 @@ const compareStrings = (left: string, right: string) => (left < right ? -1 : lef
 
 const failure = (
   code: OpaqueBundleDiagnostic["code"],
-  path: readonly string[],
+  path: ReadonlyArray<string>,
   message: string,
-): OpaqueRendererBundleResult => ({ ok: false, diagnostics: [{ code, path, message }] });
+): OpaqueRendererBundleResult => ({ diagnostics: [{ code, message, path }], ok: false });
 
 const snapshotInputUnchecked = (
   input: unknown,
@@ -77,13 +77,13 @@ const snapshotInputUnchecked = (
       ok: true;
       value: {
         entry: string;
-        rendererInputHash: string;
         modules: ReadonlyMap<string, ModuleSnapshot>;
+        rendererInputHash: string;
         resolutions: ReadonlyMap<string, string>;
-        stylesheets: readonly string[];
+        stylesheets: ReadonlyArray<string>;
       };
     }
-  | { ok: false; path: readonly string[] } => {
+  | { ok: false; path: ReadonlyArray<string> } => {
   const record = snapshotStrictRecord(input, [
     "entry",
     "rendererInputHash",
@@ -91,41 +91,58 @@ const snapshotInputUnchecked = (
     "resolutions",
     "stylesheets",
   ]);
-  if (!record) return { ok: false, path: [] };
+  if (!record) {
+    return { ok: false, path: [] };
+  }
   const moduleValues = snapshotDenseArray(record.modules);
-  if (!moduleValues) return { ok: false, path: ["modules"] };
-  const safeModules: Record<string, unknown>[] = [];
+  if (!moduleValues) {
+    return { ok: false, path: ["modules"] };
+  }
+  const safeModules: Array<Record<string, unknown>> = [];
   for (const [index, value] of moduleValues.entries()) {
     const item = snapshotStrictRecord(value, ["moduleType", "path", "source"]);
-    if (!item) return { ok: false, path: ["modules", String(index)] };
+    if (!item) {
+      return { ok: false, path: ["modules", String(index)] };
+    }
     const source = typeof item.source === "string" ? item.source : copyUint8Array(item.source);
-    if (source === undefined) return { ok: false, path: ["modules", String(index), "source"] };
+    if (source === undefined) {
+      return { ok: false, path: ["modules", String(index), "source"] };
+    }
     safeModules.push({ ...item, source });
   }
   const resolutionValues = snapshotDenseArray(record.resolutions);
-  if (!resolutionValues) return { ok: false, path: ["resolutions"] };
-  const safeResolutions: Record<string, unknown>[] = [];
+  if (!resolutionValues) {
+    return { ok: false, path: ["resolutions"] };
+  }
+  const safeResolutions: Array<Record<string, unknown>> = [];
   for (const [index, value] of resolutionValues.entries()) {
     const item = snapshotStrictRecord(value, ["importerPath", "specifier", "kind", "targetPath"]);
-    if (!item) return { ok: false, path: ["resolutions", String(index)] };
+    if (!item) {
+      return { ok: false, path: ["resolutions", String(index)] };
+    }
     safeResolutions.push(item);
   }
   const stylesheets = snapshotDenseArray(record.stylesheets);
-  if (!stylesheets) return { ok: false, path: ["stylesheets"] };
+  if (!stylesheets) {
+    return { ok: false, path: ["stylesheets"] };
+  }
   const parsed = opaqueRendererBundleInputSchema.safeParse({
     entry: record.entry,
-    rendererInputHash: record.rendererInputHash,
     modules: safeModules,
+    rendererInputHash: record.rendererInputHash,
     resolutions: safeResolutions,
     stylesheets,
   });
-  if (!parsed.success)
+  if (!parsed.success) {
     return {
       ok: false,
       path: parsed.error.issues[0]?.path.map(String) ?? [],
     };
+  }
   const modules = new Map<string, ModuleSnapshot>();
-  for (const item of parsed.data.modules) modules.set(item.path, Object.freeze(item));
+  for (const item of parsed.data.modules) {
+    modules.set(item.path, Object.freeze(item));
+  }
   const resolutions = new Map(
     parsed.data.resolutions.map((item) => [
       `${item.importerPath}\0${item.specifier}\0${item.kind}`,
@@ -136,8 +153,8 @@ const snapshotInputUnchecked = (
     ok: true,
     value: {
       entry: parsed.data.entry,
-      rendererInputHash: parsed.data.rendererInputHash,
       modules,
+      rendererInputHash: parsed.data.rendererInputHash,
       resolutions,
       stylesheets: parsed.data.stylesheets,
     },
@@ -153,19 +170,26 @@ const snapshotInput = (input: unknown) => {
 };
 
 const resolveRelativePath = (importerPath: string, specifier: string) => {
-  if (!specifier.startsWith("./") && !specifier.startsWith("../")) return undefined;
+  if (!specifier.startsWith("./") && !specifier.startsWith("../")) {
+    return undefined;
+  }
   if (
     specifier.includes("\\") ||
     specifier.includes(":") ||
     specifier.includes("?") ||
     specifier.includes("#")
-  )
+  ) {
     return undefined;
+  }
   const segments = importerPath.split("/").slice(0, -1);
   for (const segment of specifier.split("/")) {
-    if (segment === "." || segment === "") continue;
+    if (segment === "." || segment === "") {
+      continue;
+    }
     if (segment === "..") {
-      if (segments.length === 0) return undefined;
+      if (segments.length === 0) {
+        return undefined;
+      }
       segments.pop();
     } else {
       segments.push(segment);
@@ -175,20 +199,30 @@ const resolveRelativePath = (importerPath: string, specifier: string) => {
 };
 
 const resolvedModulePath = (path: string, modules: ReadonlyMap<string, ModuleSnapshot>) => {
-  if (modules.has(path)) return path;
-  if (extensionOf(path) !== "") return undefined;
-  for (const extension of sourceExtensions)
-    if (modules.has(`${path}${extension}`)) return `${path}${extension}`;
+  if (modules.has(path)) {
+    return path;
+  }
+  if (extensionOf(path) !== "") {
+    return undefined;
+  }
+  for (const extension of sourceExtensions) {
+    if (modules.has(`${path}${extension}`)) {
+      return `${path}${extension}`;
+    }
+  }
   return undefined;
 };
 
 const cssReferences = (source: string) => {
-  const references: string[] = [];
+  const references: Array<string> = [];
   for (const pattern of [
     /@import\s+(?:url\(\s*)?["']([^"']+)["']/g,
     /url\(\s*["']?([^"')]+)["']?\s*\)/g,
-  ])
-    for (const match of source.matchAll(pattern)) if (match[1]) references.push(match[1]);
+  ]) {
+    for (const match of source.matchAll(pattern)) {
+      if (match[1]) references.push(match[1]);
+    }
+  }
   return references;
 };
 
@@ -197,19 +231,22 @@ const invalidCssReference = (snapshot: {
   modules: ReadonlyMap<string, ModuleSnapshot>;
 }): OpaqueBundleDiagnostic | undefined => {
   for (const item of snapshot.modules.values()) {
-    if (item.moduleType !== "css") continue;
+    if (item.moduleType !== "css") {
+      continue;
+    }
     for (const specifier of cssReferences(item.source)) {
       const relativePath = resolveRelativePath(
         item.path,
         specifier.startsWith(".") ? specifier : `./${specifier}`,
       );
       const target = relativePath === undefined ? undefined : snapshot.modules.get(relativePath);
-      if (!target || (target.moduleType !== "asset" && target.moduleType !== "css"))
+      if (!target || (target.moduleType !== "asset" && target.moduleType !== "css")) {
         return {
           code: "opaque-import-denied",
-          path: [item.path, specifier],
           message: `CSS reference is outside the locked package: ${specifier}`,
+          path: [item.path, specifier],
         };
+      }
     }
   }
   return undefined;
@@ -219,82 +256,99 @@ const copyAssetSource = (source: string | Uint8Array) =>
   typeof source === "string" ? source : new Uint8Array(source);
 
 const validAssetSignature = (path: string, source: string | Uint8Array) => {
-  if (!(source instanceof Uint8Array)) return false;
+  if (!(source instanceof Uint8Array)) {
+    return false;
+  }
   const extension = extensionOf(path);
-  if (extension === ".png")
+  if (extension === ".png") {
     return [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => source[index] === byte);
-  if (extension === ".jpg" || extension === ".jpeg")
+  }
+  if (extension === ".jpg" || extension === ".jpeg") {
     return source[0] === 0xff && source[1] === 0xd8 && source[2] === 0xff;
-  if (extension === ".webp")
+  }
+  if (extension === ".webp") {
     return (
       source.length >= 21 &&
       String.fromCharCode(...source.slice(0, 4)) === "RIFF" &&
       String.fromCharCode(...source.slice(8, 12)) === "WEBP" &&
       !(String.fromCharCode(...source.slice(12, 16)) === "VP8X" && (source[20]! & 2) !== 0)
     );
-  if (extension === ".ttf")
+  }
+  if (extension === ".ttf") {
     return source[0] === 0 && source[1] === 1 && source[2] === 0 && source[3] === 0;
-  if (extension === ".otf") return String.fromCharCode(...source.slice(0, 4)) === "OTTO";
+  }
+  if (extension === ".otf") {
+    return String.fromCharCode(...source.slice(0, 4)) === "OTTO";
+  }
   return false;
 };
 
 const resultFromOutput = (
   output: RolldownOutput,
-  stylesheets: readonly string[],
+  stylesheets: ReadonlyArray<string>,
 ): OpaqueRendererBundleResult => {
   const chunks = output.output.filter((item) => item.type === "chunk");
-  if (chunks.length !== 1)
+  if (chunks.length !== 1) {
     return failure(
       "opaque-bundle-failed",
       [],
       "Opaque renderer must produce one JavaScript chunk.",
     );
+  }
   const chunk = chunks[0];
-  if (!chunk) return failure("opaque-bundle-failed", [], "Opaque renderer output is missing.");
+  if (!chunk) {
+    return failure("opaque-bundle-failed", [], "Opaque renderer output is missing.");
+  }
   const imports = [...new Set(chunk.imports)].sort();
-  if (imports.length)
+  if (imports.length) {
     return failure("opaque-bundle-failed", [], "Opaque renderer emitted an external import.");
+  }
   const assets = output.output
     .filter((item) => item.type === "asset")
     .map((asset) => ({ fileName: asset.fileName, source: copyAssetSource(asset.source) }))
     .sort((left, right) => compareStrings(left.fileName, right.fileName));
   return {
-    ok: true,
-    javascript: chunk.code,
     assets,
-    stylesheets: stylesheets.map((path) => `assets/${path}`),
-    externalImports: [],
     diagnostics: [],
+    externalImports: [],
+    javascript: chunk.code,
+    ok: true,
+    stylesheets: stylesheets.map((path) => `assets/${path}`),
   };
 };
 
 export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRendererBundleResult> => {
   const snapshotResult = snapshotInput(input);
-  if (!snapshotResult.ok)
+  if (!snapshotResult.ok) {
     return failure(
       "opaque-bundle-input-invalid",
       snapshotResult.path,
       "Opaque bundle input must be a locked TS/TSX/JS/JSX/JSON/CSS/asset module set.",
     );
+  }
   const snapshot = snapshotResult.value;
-  for (const item of snapshot.modules.values())
-    if (item.moduleType === "asset" && !validAssetSignature(item.path, item.source))
+  for (const item of snapshot.modules.values()) {
+    if (item.moduleType === "asset" && !validAssetSignature(item.path, item.source)) {
       return failure(
         "opaque-bundle-input-invalid",
         ["modules", item.path, "source"],
         "Opaque asset signature is invalid.",
       );
+    }
+  }
   const cssFailure = invalidCssReference(snapshot);
-  if (cssFailure) return { ok: false, diagnostics: [cssFailure] };
+  if (cssFailure) {
+    return { diagnostics: [cssFailure], ok: false };
+  }
 
   let resolutionFailure: OpaqueBundleDiagnostic | undefined;
   let bundle: RolldownBuild | undefined;
   const rememberFailure = (
     code: OpaqueBundleDiagnostic["code"],
-    path: readonly string[],
+    path: ReadonlyArray<string>,
     message: string,
   ) => {
-    resolutionFailure ??= { code, path, message };
+    resolutionFailure ??= { code, message, path };
     throw new Error(message);
   };
 
@@ -303,13 +357,8 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
     bundle = await rolldown({
       input: entryId,
       platform: "browser",
-      transform: {
-        jsx: "react-jsx",
-        define: { "process.env.NODE_ENV": JSON.stringify("production") },
-      },
       plugins: [
         {
-          name: "unframe-opaque-modules",
           buildStart() {
             for (const item of snapshot.modules.values())
               if (item.moduleType === "asset" || item.moduleType === "css")
@@ -319,6 +368,27 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
                   source: item.source,
                 });
           },
+          load(id) {
+            if (id === RUNTIME_ID) return { code: RUNTIME_SOURCE, moduleType: "js" };
+            if (id === entryId) return { code: BOOTSTRAP_SOURCE, moduleType: "ts" };
+            if (!id.startsWith(VIRTUAL_PREFIX)) return null;
+            const modulePath = id.slice(VIRTUAL_PREFIX.length);
+            const item = snapshot.modules.get(modulePath);
+            if (!item)
+              return rememberFailure(
+                "opaque-module-not-found",
+                [modulePath],
+                `Locked package module was not found: ${modulePath}`,
+              );
+            if (item.moduleType === "asset" || item.moduleType === "css")
+              return {
+                code: `export default ${JSON.stringify(`assets/${item.path}`)};`,
+                moduleType: "js",
+                moduleSideEffects: "no-treeshake",
+              };
+            return { code: item.source, moduleType: item.moduleType };
+          },
+          name: "unframe-opaque-modules",
           resolveId(specifier, importer, options) {
             if (specifier === entryId && importer === undefined) return entryId;
             if (specifier === "@unframe/renderer-entry" && importer === entryId)
@@ -360,40 +430,24 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
               );
             return `${VIRTUAL_PREFIX}${modulePath}`;
           },
-          load(id) {
-            if (id === RUNTIME_ID) return { code: RUNTIME_SOURCE, moduleType: "js" };
-            if (id === entryId) return { code: BOOTSTRAP_SOURCE, moduleType: "ts" };
-            if (!id.startsWith(VIRTUAL_PREFIX)) return null;
-            const modulePath = id.slice(VIRTUAL_PREFIX.length);
-            const item = snapshot.modules.get(modulePath);
-            if (!item)
-              return rememberFailure(
-                "opaque-module-not-found",
-                [modulePath],
-                `Locked package module was not found: ${modulePath}`,
-              );
-            if (item.moduleType === "asset" || item.moduleType === "css")
-              return {
-                code: `export default ${JSON.stringify(`assets/${item.path}`)};`,
-                moduleType: "js",
-                moduleSideEffects: "no-treeshake",
-              };
-            return { code: item.source, moduleType: item.moduleType };
-          },
         },
       ],
+      transform: {
+        define: { "process.env.NODE_ENV": JSON.stringify("production") },
+        jsx: "react-jsx",
+      },
     });
     const output = await bundle.generate({
-      format: "iife",
-      entryFileNames: "renderer.js",
       assetFileNames: "assets/[name]-[hash:16][extname]",
       codeSplitting: false,
+      entryFileNames: "renderer.js",
+      format: "iife",
       sourcemap: false,
     });
     return resultFromOutput(output, snapshot.stylesheets);
   } catch {
     return resolutionFailure
-      ? { ok: false, diagnostics: [resolutionFailure] }
+      ? { diagnostics: [resolutionFailure], ok: false }
       : failure("opaque-bundle-failed", [], "Rolldown could not bundle the opaque renderer.");
   } finally {
     await bundle?.close().catch(() => undefined);

@@ -2,14 +2,16 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 
 export const decodeCanonicalBase64 = (value: string): Uint8Array | undefined => {
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
     return undefined;
+  }
   try {
     const decoded = atob(value);
     const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
     let encoded = "";
-    for (let offset = 0; offset < bytes.length; offset += 0x8000)
-      encoded += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    for (let offset = 0; offset < bytes.length; offset += 0x80_00) {
+      encoded += String.fromCharCode(...bytes.subarray(offset, offset + 0x80_00));
+    }
     return btoa(encoded) === value ? bytes : undefined;
   } catch {
     return undefined;

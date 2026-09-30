@@ -23,31 +23,44 @@ class FakeRepository implements VenueEdgeRepository {
   }
   async touchCredential(edgeId: string, tokenId: string, usedAt: string) {
     const value = await this.findCredential(edgeId, tokenId);
-    if (value) value.lastUsedAt = usedAt;
+    if (value) {
+      value.lastUsedAt = usedAt;
+    }
   }
   async rotateCredential(input: {
+    credential: VenueEdgeCredentialRecord;
     edgeId: string;
     previousExpiresAt: string;
-    credential: VenueEdgeCredentialRecord;
   }) {
-    if (!this.edges.has(input.edgeId)) return false;
-    for (const value of this.credentials.values())
-      if (value.edgeId === input.edgeId) value.expiresAt = input.previousExpiresAt;
+    if (!this.edges.has(input.edgeId)) {
+      return false;
+    }
+    for (const value of this.credentials.values()) {
+      if (value.edgeId === input.edgeId) {
+        value.expiresAt = input.previousExpiresAt;
+      }
+    }
     this.credentials.set(`${input.edgeId}:${input.credential.tokenId}`, input.credential);
     return true;
   }
   async revokeEdge(edgeId: string, revokedAt: string) {
     const edge = this.edges.get(edgeId);
-    if (!edge || edge.status === "revoked") return false;
+    if (!edge || edge.status === "revoked") {
+      return false;
+    }
     edge.status = "revoked";
     edge.revokedAt = revokedAt;
     return true;
   }
   async register(edgeId: string, update: EdgeRegistration) {
     const edge = this.edges.get(edgeId);
-    if (!edge || edge.status !== "active") return false;
-    if (this.rejectRegistration) return false;
-    Object.assign(edge, update, { registeredAt: update.observedAt, lastSeenAt: update.observedAt });
+    if (!edge || edge.status !== "active") {
+      return false;
+    }
+    if (this.rejectRegistration) {
+      return false;
+    }
+    Object.assign(edge, update, { lastSeenAt: update.observedAt, registeredAt: update.observedAt });
     return true;
   }
 }
@@ -62,7 +75,7 @@ const setup = () => {
       repository,
       () => new Date("2026-08-20T00:00:00.000Z"),
       () => `edge-${++edge}`,
-      () => ({ tokenId: `token-${++token}`, secret: new Uint8Array(32).fill(token) }),
+      () => ({ secret: new Uint8Array(32).fill(token), tokenId: `token-${++token}` }),
     ),
   };
 };
@@ -81,7 +94,7 @@ describe("VenueEdgeService", () => {
       new FakeRepository(),
       () => new Date("2026-08-20T00:00:00.000Z"),
       () => "edge",
-      () => ({ tokenId: "short", secret: new Uint8Array(31) }),
+      () => ({ secret: new Uint8Array(31), tokenId: "short" }),
     );
     await expect(short.provision(new Date("2026-08-21T00:00:00.000Z"))).rejects.toThrow("256");
     const { repository, service } = setup();
@@ -111,18 +124,18 @@ describe("VenueEdgeService", () => {
       id: value.edge.id,
     });
     await service.register(value.edge.id, {
-      runtimeId: "runtime-1",
-      runtimeVersion: "1",
-      protocolVersion: "v1",
       capacity: 50,
-      localEndpoint: "https://edge.local",
       certificateFingerprint: "fingerprint",
       health: "healthy",
+      localEndpoint: "https://edge.local",
+      protocolVersion: "v1",
+      runtimeId: "runtime-1",
+      runtimeVersion: "1",
     });
     expect(repository.edges.get(value.edge.id)).toMatchObject({
-      runtimeId: "runtime-1",
-      localEndpoint: "https://edge.local",
       health: "healthy",
+      localEndpoint: "https://edge.local",
+      runtimeId: "runtime-1",
     });
   });
   it("rejects expired provisioning and invalid rotation overlap", async () => {
@@ -147,13 +160,13 @@ describe("VenueEdgeService", () => {
 
     await expect(
       service.register(value.edge.id, {
-        runtimeId: "runtime-in-use",
-        runtimeVersion: "1",
-        protocolVersion: "v1",
         capacity: 50,
-        localEndpoint: "https://edge.local",
         certificateFingerprint: "fingerprint",
         health: "healthy",
+        localEndpoint: "https://edge.local",
+        protocolVersion: "v1",
+        runtimeId: "runtime-in-use",
+        runtimeVersion: "1",
       }),
     ).rejects.toMatchObject({ code: "conflict" });
   });

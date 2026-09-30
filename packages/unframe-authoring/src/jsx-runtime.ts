@@ -23,13 +23,24 @@ export namespace JSX {
 }
 
 export const jsx = (tag: unknown, props: unknown, key?: unknown): AuthoringElement => {
-  if (key !== undefined)
+  if (key !== undefined) {
     throw new TypeError("Authoring JSX uses explicit declaration IDs instead of keys.");
-  if (tag === Frame) return Frame(props as FrameProps);
-  if (tag === Surface) return Surface(props as SurfaceProps);
-  if (tag === Text) return Text(props as TextProps);
-  if (tag === Slot) return Slot(props as SlotProps);
-  if (tag === ComponentInstance) return ComponentInstance(props as ComponentInstanceProps);
+  }
+  if (tag === Frame) {
+    return Frame(props as FrameProps);
+  }
+  if (tag === Surface) {
+    return Surface(props as SurfaceProps);
+  }
+  if (tag === Text) {
+    return Text(props as TextProps);
+  }
+  if (tag === Slot) {
+    return Slot(props as SlotProps);
+  }
+  if (tag === ComponentInstance) {
+    return ComponentInstance(props as ComponentInstanceProps);
+  }
   throw new TypeError("Only SDK Authoring JSX tags are supported.");
 };
 export { jsx as jsxs };

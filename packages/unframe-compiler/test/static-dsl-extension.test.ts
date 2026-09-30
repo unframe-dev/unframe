@@ -28,24 +28,16 @@ const builders = [
 
 type VirtualFile = { readonly fileName: string; readonly sourceText: string };
 
-const project = (files: readonly VirtualFile[]) => ({
-  projectRoot: "/virtual/static-dsl",
+const project = (files: ReadonlyArray<VirtualFile>) => ({
   entryFile: "entry.ts",
   files,
-  rootDependencies: [
-    {
-      specifier: "@unframe/unframe-authoring",
-      usage: "runtime",
-      packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-    },
-  ],
   packages: [
     {
-      key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
-      locator: "@unframe/unframe-authoring@1",
-      name: "@unframe/unframe-authoring",
-      version: "1",
       contentIntegrity: hashCanonicalJsonPayload(builders),
+      dependencies: [],
+      exports: [
+        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+      ],
       files: [
         {
           path: "index.ts",
@@ -55,10 +47,18 @@ const project = (files: readonly VirtualFile[]) => ({
           data: builders,
         },
       ],
-      exports: [
-        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
-      ],
-      dependencies: [],
+      key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+      locator: "@unframe/unframe-authoring@1",
+      name: "@unframe/unframe-authoring",
+      version: "1",
+    },
+  ],
+  projectRoot: "/virtual/static-dsl",
+  rootDependencies: [
+    {
+      packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+      specifier: "@unframe/unframe-authoring",
+      usage: "runtime",
     },
   ],
 });
@@ -82,7 +82,7 @@ const themeFile: VirtualFile = {
     'import { defineTheme } from "@unframe/unframe-authoring"; export default defineTheme({ id: "theme", tokens: {}, namedStyles: {} });',
 };
 
-const composedFiles = (): readonly VirtualFile[] => [
+const composedFiles = (): ReadonlyArray<VirtualFile> => [
   {
     fileName: "values.ts",
     sourceText: `
@@ -136,6 +136,7 @@ describe("extended static TypeScript authoring", () => {
     expect(result).toMatchObject({
       valid: true,
       value: {
+        components: [],
         presentation: {
           fileName: "entry.ts",
           value: {
@@ -143,16 +144,15 @@ describe("extended static TypeScript authoring", () => {
             metadata: { title: "Composed" },
             stage: {
               coordinateSystem: {
-                unit: "meter",
-                handedness: "right",
-                upAxis: "+Y",
                 forwardAxis: "-Z",
+                handedness: "right",
+                unit: "meter",
+                upAxis: "+Y",
               },
               size: [1, 2, 3],
             },
           },
         },
-        components: [],
       },
     });
   });
@@ -276,9 +276,13 @@ const layout = { kind: "absolute", x: 0, y: 0, width: 100, height: 100 };
 ${levels}
 export default definePresentation({ id: f12.id });`;
     const parsed = parseAuthoringProject(project([{ fileName: "entry.ts", sourceText }]));
-    if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+    if (!parsed.ok) {
+      throw new Error(JSON.stringify(parsed.diagnostics));
+    }
     const analyzed = analyzeAuthoringProject(parsed.value);
-    if (!analyzed.ok) throw new Error(JSON.stringify(analyzed.diagnostics));
+    if (!analyzed.ok) {
+      throw new Error(JSON.stringify(analyzed.diagnostics));
+    }
     const lowered = lowerAuthoringDeclarationFile(analyzed, undefined, false);
     expect(lowered.ok).toBe(false);
   });
@@ -289,21 +293,25 @@ export default definePresentation({ id: f12.id });`;
       themeFile,
     ]);
     const literalCatalog = checkAuthoringProject(literalProject);
-    if (!literalCatalog.valid) throw new Error("Literal fixture must be valid.");
+    if (!literalCatalog.valid) {
+      throw new Error("Literal fixture must be valid.");
+    }
     const carrier = {
-      themeHashes: literalCatalog.value.themes.map((theme) => ({
-        themeId: theme.value.id,
-        hash: hashThemeDeclaration(theme.value),
-      })),
-      componentLocks: [],
       assets: {},
+      componentLocks: [],
+      themeHashes: literalCatalog.value.themes.map((theme) => ({
+        hash: hashThemeDeclaration(theme.value),
+        themeId: theme.value.id,
+      })),
     };
     const literal = checkAuthoringProjectAssembly(literalProject, carrier);
     const composed = checkAuthoringProjectAssembly(project(composedFiles()), carrier);
 
     expect(literal.valid).toBe(true);
     expect(composed.valid).toBe(true);
-    if (!literal.valid || !composed.valid) return;
+    if (!literal.valid || !composed.valid) {
+      return;
+    }
     expect(composed.value.definition).toEqual(literal.value.definition);
     expect(composed.value.definitionHash).toBe(literal.value.definitionHash);
     expect(composed.value.sourceHash).toBe(literal.value.sourceHash);
@@ -357,10 +365,11 @@ export default definePresentation({ id: f12.id });`;
 
   it("stops exponential array spread expansion with a stable diagnostic", () => {
     const declarations = ["export const a0: readonly number[] = [0];"];
-    for (let index = 1; index <= 18; index += 1)
+    for (let index = 1; index <= 18; index += 1) {
       declarations.push(
         `export const a${index}: readonly number[] = [...a${index - 1}, ...a${index - 1}];`,
       );
+    }
     const files = [
       { fileName: "entry.ts", sourceText: literalSource },
       { fileName: "expansion.ts", sourceText: declarations.join("\n") },
@@ -383,10 +392,11 @@ export default definePresentation({ id: f12.id });`;
 
   it("counts repeated nested values against the graph expansion budget", () => {
     const declarations = ["export const a0: readonly unknown[] = [0];"];
-    for (let index = 1; index <= 18; index += 1)
+    for (let index = 1; index <= 18; index += 1) {
       declarations.push(
         `export const a${index}: readonly unknown[] = [a${index - 1}, a${index - 1}];`,
       );
+    }
 
     const result = checkAuthoringProject(
       project([

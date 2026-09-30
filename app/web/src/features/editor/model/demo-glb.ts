@@ -45,19 +45,38 @@ export function createDemoGlbDataUrl(): string {
   const indicesOffset = normalsOffset + normals.byteLength;
   const binaryLength = indicesOffset + indices.byteLength;
   const gltf = {
-    asset: { version: "2.0", generator: "Unframe demo fixture" },
-    scene: 0,
-    scenes: [{ nodes: [0] }],
-    nodes: [{ mesh: 0, name: "Unframe sculpture" }],
-    meshes: [
+    accessors: [
       {
-        primitives: [
-          {
-            attributes: { POSITION: 0, NORMAL: 1 },
-            indices: 2,
-            material: 0,
-          },
-        ],
+        bufferView: 0,
+        componentType: 5126,
+        count: 24,
+        max: [0.7, 0.7, 0.7],
+        min: [-0.7, -0.7, -0.7],
+        type: "VEC3",
+      },
+      { bufferView: 1, componentType: 5126, count: 24, type: "VEC3" },
+      { bufferView: 2, componentType: 5123, count: 36, type: "SCALAR" },
+    ],
+    asset: { generator: "Unframe demo fixture", version: "2.0" },
+    buffers: [{ byteLength: binaryLength }],
+    bufferViews: [
+      {
+        buffer: 0,
+        byteLength: positions.byteLength,
+        byteOffset: positionsOffset,
+        target: 34_962,
+      },
+      {
+        buffer: 0,
+        byteLength: normals.byteLength,
+        byteOffset: normalsOffset,
+        target: 34_962,
+      },
+      {
+        buffer: 0,
+        byteLength: indices.byteLength,
+        byteOffset: indicesOffset,
+        target: 34_963,
       },
     ],
     materials: [
@@ -70,39 +89,20 @@ export function createDemoGlbDataUrl(): string {
         },
       },
     ],
-    buffers: [{ byteLength: binaryLength }],
-    bufferViews: [
+    meshes: [
       {
-        buffer: 0,
-        byteOffset: positionsOffset,
-        byteLength: positions.byteLength,
-        target: 34962,
-      },
-      {
-        buffer: 0,
-        byteOffset: normalsOffset,
-        byteLength: normals.byteLength,
-        target: 34962,
-      },
-      {
-        buffer: 0,
-        byteOffset: indicesOffset,
-        byteLength: indices.byteLength,
-        target: 34963,
+        primitives: [
+          {
+            attributes: { NORMAL: 1, POSITION: 0 },
+            indices: 2,
+            material: 0,
+          },
+        ],
       },
     ],
-    accessors: [
-      {
-        bufferView: 0,
-        componentType: 5126,
-        count: 24,
-        type: "VEC3",
-        min: [-0.7, -0.7, -0.7],
-        max: [0.7, 0.7, 0.7],
-      },
-      { bufferView: 1, componentType: 5126, count: 24, type: "VEC3" },
-      { bufferView: 2, componentType: 5123, count: 36, type: "SCALAR" },
-    ],
+    nodes: [{ mesh: 0, name: "Unframe sculpture" }],
+    scene: 0,
+    scenes: [{ nodes: [0] }],
   };
 
   const json = new TextEncoder().encode(JSON.stringify(gltf));
@@ -112,17 +112,17 @@ export function createDemoGlbDataUrl(): string {
   const bytes = new Uint8Array(totalLength);
   const header = new DataView(bytes.buffer);
 
-  header.setUint32(0, 0x46546c67, true);
+  header.setUint32(0, 0x46_54_6c_67, true);
   header.setUint32(4, 2, true);
   header.setUint32(8, totalLength, true);
   header.setUint32(12, paddedJsonLength, true);
-  header.setUint32(16, 0x4e4f534a, true);
+  header.setUint32(16, 0x4e_4f_53_4a, true);
   bytes.fill(0x20, 20, 20 + paddedJsonLength);
   bytes.set(json, 20);
 
   const binaryHeaderOffset = 20 + paddedJsonLength;
   header.setUint32(binaryHeaderOffset, paddedBinaryLength, true);
-  header.setUint32(binaryHeaderOffset + 4, 0x004e4942, true);
+  header.setUint32(binaryHeaderOffset + 4, 0x00_4e_49_42, true);
   const binaryOffset = binaryHeaderOffset + 8;
   copyTypedArray(bytes, binaryOffset + positionsOffset, positions);
   copyTypedArray(bytes, binaryOffset + normalsOffset, normals);

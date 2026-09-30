@@ -17,7 +17,9 @@ describe("PresentationDocumentSchema", () => {
     const document = structuredClone(demoDocument);
     const element = document.slides[0]?.elements[0];
 
-    if (!element) throw new Error("demo element is missing");
+    if (!element) {
+      throw new Error("demo element is missing");
+    }
     element.transform.rotation = [0, 0, 0, 2];
 
     expect(() => PresentationDocumentSchema.parse(document)).toThrow(/quaternion/i);
@@ -39,7 +41,9 @@ describe("PresentationDocumentSchema", () => {
     const document = structuredClone(demoDocument);
     const element = document.slides[0]?.elements[0];
 
-    if (!element) throw new Error("demo element is missing");
+    if (!element) {
+      throw new Error("demo element is missing");
+    }
     element.transform.scale = [1, 0, 1];
 
     expect(() => PresentationDocumentSchema.parse(document)).toThrow(/scale/i);

@@ -10,21 +10,21 @@ import {
 } from "../src/index.js";
 import { jsx } from "../src/jsx-runtime.js";
 
-const layout = { kind: "absolute", x: 0, y: 0, width: 200, height: 100 } as const;
+const layout = { height: 100, kind: "absolute", width: 200, x: 0, y: 0 } as const;
 const textProps = { id: "title", layout, maxCodePoints: 40, semanticNodeId: "heading" };
 
 describe("typed Authoring JSX", () => {
   it("produces the same nested declarations as builders", () => {
     const title = jsx(Text, { ...textProps, children: "Hello" });
     const slot = jsx(Slot, { id: "slot", slotId: "body" });
-    expect(jsx(Frame, { id: "root", layout, children: [[title], [slot]] })).toEqual(
+    expect(jsx(Frame, { children: [[title], [slot]], id: "root", layout })).toEqual(
       frame({
-        id: "root",
-        layout,
         children: [
           text({ ...textProps, value: "Hello" }),
           slotPlaceholder({ id: "slot", slotId: "body" }),
         ],
+        id: "root",
+        layout,
       }),
     );
   });
@@ -33,13 +33,13 @@ describe("typed Authoring JSX", () => {
     const root = jsx(Frame, { id: "root", layout });
     expect(
       defineComponentStructure({
-        id: "structure",
+        baseSemanticTree: { nodes: {}, rootNodeIds: [] },
         componentId: "card",
-        root,
-        baseSemanticTree: { rootNodeIds: [], nodes: {} },
+        id: "structure",
         partBindings: {},
-        variantStyles: {},
+        root,
         timelines: [],
+        variantStyles: {},
       }).root.kind,
     ).toBe("frame");
   });
@@ -52,19 +52,19 @@ describe("typed Authoring JSX", () => {
         return {};
       }, {}),
     ).toThrow();
-    expect(() => jsx(Text, { ...textProps, value: "one", children: "two" })).toThrow();
+    expect(() => jsx(Text, { ...textProps, children: "two", value: "one" })).toThrow();
     expect(() =>
       jsx(Frame, {
-        id: "root",
-        layout,
         get children() {
           calls++;
           return [];
         },
+        id: "root",
+        layout,
       }),
     ).toThrow();
-    expect(() => jsx(Slot, { id: "slot", slotId: "body", children: [] })).toThrow();
-    expect(() => jsx(Frame, { id: "root", layout, kind: "text" })).toThrow();
+    expect(() => jsx(Slot, { children: [], id: "slot", slotId: "body" })).toThrow();
+    expect(() => jsx(Frame, { id: "root", kind: "text", layout })).toThrow();
     expect(calls).toBe(0);
   });
 });

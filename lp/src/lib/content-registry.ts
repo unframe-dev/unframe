@@ -1,8 +1,8 @@
 export type ContentMetadata = {
-  title: string;
   description: string;
   order: number;
   publishedAt?: string;
+  title: string;
 };
 
 type ContentModuleMetadata = Omit<ContentMetadata, "description"> & {
@@ -15,13 +15,13 @@ export type ContentModule<TComponent = unknown> = {
 };
 
 export type ContentEntry<TComponent = unknown> = ContentMetadata & {
-  slug: string;
   component: TComponent;
+  slug: string;
 };
 
 export function buildContentRegistry<TComponent>(
   modules: Record<string, ContentModule<TComponent>>,
-): ContentEntry<TComponent>[] {
+): Array<ContentEntry<TComponent>> {
   const entries = Object.entries(modules).map(([path, module]) => {
     const extension = path.endsWith(".mdx") ? ".mdx" : path.endsWith(".md") ? ".md" : undefined;
     if (!extension) {
@@ -44,12 +44,12 @@ export function buildContentRegistry<TComponent>(
 
     const filename = path.split("/").at(-1) ?? "";
     return {
-      title: metadata.title,
       description: metadata.description,
       order: metadata.order,
+      title: metadata.title,
       ...(metadata.publishedAt ? { publishedAt: metadata.publishedAt } : {}),
-      slug: filename.slice(0, -extension.length),
       component: module.default,
+      slug: filename.slice(0, -extension.length),
     };
   });
 

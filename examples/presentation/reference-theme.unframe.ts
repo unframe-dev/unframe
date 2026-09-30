@@ -3,25 +3,7 @@ import { palette, sharedTextStyle } from "./reference-values";
 
 const theme = defineTheme({
   id: "reference-theme",
-  tokens: {
-    canvas: { category: "color", value: palette.canvas },
-    ink: { category: "color", value: palette.ink },
-    accent: { category: "color", value: palette.accent },
-    highlight: {
-      category: "color",
-      value: tokenRef({ category: "color", tokenId: "accent" }),
-    },
-    bodyFont: { category: "fontFace", value: assetRef({ assetId: "reference-font" }) },
-    bodySize: { category: "logicalLength", value: 32 },
-    surfaceWidth: { category: "spatialLength", value: 1 },
-    transitionDuration: { category: "duration", value: 300 },
-    transitionEasing: { category: "easing", value: "cubicInOut" },
-  },
   namedStyles: {
-    heading: {
-      kind: "text",
-      style: { ...sharedTextStyle, fontSize: 56, lineHeight: 88, weight: "bold" },
-    },
     body: {
       kind: "text",
       style: {
@@ -42,6 +24,24 @@ const theme = defineTheme({
         clip: true,
       },
     },
+    heading: {
+      kind: "text",
+      style: { ...sharedTextStyle, fontSize: 56, lineHeight: 88, weight: "bold" },
+    },
+  },
+  tokens: {
+    accent: { category: "color", value: palette.accent },
+    bodyFont: { category: "fontFace", value: assetRef({ assetId: "reference-font" }) },
+    bodySize: { category: "logicalLength", value: 32 },
+    canvas: { category: "color", value: palette.canvas },
+    highlight: {
+      category: "color",
+      value: tokenRef({ category: "color", tokenId: "accent" }),
+    },
+    ink: { category: "color", value: palette.ink },
+    surfaceWidth: { category: "spatialLength", value: 1 },
+    transitionDuration: { category: "duration", value: 300 },
+    transitionEasing: { category: "easing", value: "cubicInOut" },
   },
 });
 

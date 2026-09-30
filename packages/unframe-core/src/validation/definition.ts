@@ -18,7 +18,7 @@ import {
   validateTree,
 } from "./shared.js";
 
-const unsupported = (diagnostics: Diagnostic[], path: string, message: string) =>
+const unsupported = (diagnostics: Array<Diagnostic>, path: string, message: string) =>
   diagnostics.push(diagnostic("feature.unsupported", path, message));
 
 const semanticRolesByContentKind: Record<"frame" | "text", ReadonlySet<string>> = {
@@ -35,11 +35,11 @@ const semanticRolesByContentKind: Record<"frame" | "text", ReadonlySet<string>> 
 };
 
 const validateCanonicalQuaternion = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   quaternion: readonly [number, number, number, number],
   path: string,
 ) => {
-  if (!isUnitQuaternion(quaternion))
+  if (!isUnitQuaternion(quaternion)) {
     diagnostics.push(
       diagnostic(
         "graph.invalid",
@@ -47,7 +47,8 @@ const validateCanonicalQuaternion = (
         "Quaternion must have unit length within an absolute tolerance of 1e-9.",
       ),
     );
-  if (!hasCanonicalQuaternionSign(quaternion))
+  }
+  if (!hasCanonicalQuaternionSign(quaternion)) {
     diagnostics.push(
       diagnostic(
         "graph.invalid",
@@ -55,20 +56,22 @@ const validateCanonicalQuaternion = (
         "Quaternion must use the canonical sign and must not contain negative zero.",
       ),
     );
+  }
 };
 
 export const validatePresentationDefinition = (
   input: unknown,
 ): ValidationResult<PresentationDefinitionV2> => {
   const parsed = parsePresentationDefinitionInput(input);
-  if (!parsed.success)
+  if (!parsed.success) {
     return {
-      valid: false,
       diagnostics: sorted(parsed.issues.map((issue) => structuralDiagnostic("definition", issue))),
+      valid: false,
     };
+  }
 
   const definition = parsed.data;
-  const diagnostics: Diagnostic[] = [];
+  const diagnostics: Array<Diagnostic> = [];
   const groupIds = new Set(Object.keys(definition.flow.groups));
   const nodeIds = new Set(Object.keys(definition.scene.nodes));
   const surfaceIds = new Set(Object.keys(definition.scene.surfaces));
@@ -80,7 +83,7 @@ export const validatePresentationDefinition = (
   validateRecordIds(diagnostics, definition.flow.variables, "/flow/variables");
   validateRecordIds(diagnostics, definition.flow.timelines, "/flow/timelines");
 
-  if (!groupIds.has(definition.flow.initialGroupId))
+  if (!groupIds.has(definition.flow.initialGroupId)) {
     diagnostics.push(
       diagnostic(
         "reference.invalid",
@@ -88,9 +91,11 @@ export const validatePresentationDefinition = (
         "initialGroupId must reference a declared group.",
       ),
     );
+  }
 
-  for (const [zoneId, zone] of Object.entries(definition.stage.zones))
+  for (const [zoneId, zone] of Object.entries(definition.stage.zones)) {
     validateGroupOwner(diagnostics, zone, groupIds, `/stage/zones/${pathSegment(zoneId)}`);
+  }
 
   const parentByNode = new Map<string, string | null>();
   const siblingOrders = new Map<string, Set<number>>();
@@ -99,24 +104,27 @@ export const validatePresentationDefinition = (
     const path = `/scene/nodes/${pathSegment(nodeId)}`;
     validateGroupOwner(diagnostics, node, groupIds, path);
     validateCanonicalQuaternion(diagnostics, node.transform.rotation, `${path}/transform/rotation`);
-    if (node.kind !== "container" && node.kind !== "surface")
+    if (node.kind !== "container" && node.kind !== "surface") {
       unsupported(diagnostics, `${path}/kind`, "M3A supports container and surface nodes only.");
+    }
     const parentId = node.parent.kind === "node" ? node.parent.nodeId : null;
     parentByNode.set(nodeId, parentId);
-    if (parentId !== null && !nodeIds.has(parentId))
+    if (parentId !== null && !nodeIds.has(parentId)) {
       diagnostics.push(
         diagnostic("reference.invalid", `${path}/parent/nodeId`, "Spatial parent does not exist."),
       );
+    }
     const sibling = parentId ?? `<${node.parent.kind}>`;
     const orders = siblingOrders.get(sibling) ?? new Set<number>();
-    if (orders.has(node.order))
+    if (orders.has(node.order)) {
       diagnostics.push(
         diagnostic("identity.invalid", `${path}/order`, "Sibling spatial order must be unique."),
       );
+    }
     orders.add(node.order);
     siblingOrders.set(sibling, orders);
     if (node.kind === "surface") {
-      if (!surfaceIds.has(node.surfaceId))
+      if (!surfaceIds.has(node.surfaceId)) {
         diagnostics.push(
           diagnostic(
             "reference.invalid",
@@ -124,8 +132,9 @@ export const validatePresentationDefinition = (
             "Surface node target does not exist.",
           ),
         );
+      }
       const previous = hostBySurface.get(node.surfaceId);
-      if (previous !== undefined)
+      if (previous !== undefined) {
         diagnostics.push(
           diagnostic(
             "identity.invalid",
@@ -134,7 +143,9 @@ export const validatePresentationDefinition = (
             `/scene/nodes/${pathSegment(previous)}/surfaceId`,
           ),
         );
-      else hostBySurface.set(node.surfaceId, nodeId);
+      } else {
+        hostBySurface.set(node.surfaceId, nodeId);
+      }
     }
   }
   for (const nodeId of nodeIds) {
@@ -156,10 +167,14 @@ export const validatePresentationDefinition = (
     }
   }
   for (const [nodeId, node] of Object.entries(definition.scene.nodes)) {
-    if (node.parent.kind !== "node") continue;
+    if (node.parent.kind !== "node") {
+      continue;
+    }
     const parent = definition.scene.nodes[node.parent.nodeId];
-    if (parent === undefined) continue;
-    if (parent.kind === "surface")
+    if (parent === undefined) {
+      continue;
+    }
+    if (parent.kind === "surface") {
       diagnostics.push(
         diagnostic(
           "graph.invalid",
@@ -167,6 +182,7 @@ export const validatePresentationDefinition = (
           "SurfaceNode must be a spatial leaf.",
         ),
       );
+    }
     const childOwner = node.owner;
     const parentOwner = parent.owner;
     if (
@@ -174,7 +190,7 @@ export const validatePresentationDefinition = (
       (childOwner.kind === "group" &&
         parentOwner.kind === "group" &&
         childOwner.groupId !== parentOwner.groupId)
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "graph.invalid",
@@ -182,12 +198,13 @@ export const validatePresentationDefinition = (
           "A spatial child cannot outlive its parent or cross Group ownership.",
         ),
       );
+    }
   }
   validateProjectionAudienceInvariants(definition, diagnostics);
 
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces)) {
     const path = `/scene/surfaces/${pathSegment(surfaceId)}`;
-    if (hostBySurface.get(surfaceId) !== surface.hostNodeId)
+    if (hostBySurface.get(surfaceId) !== surface.hostNodeId) {
       diagnostics.push(
         diagnostic(
           "reference.invalid",
@@ -195,8 +212,10 @@ export const validatePresentationDefinition = (
           "SemanticSurface and SurfaceNode must form a one-to-one relation.",
         ),
       );
-    if (surface.content.kind === "structured")
+    }
+    if (surface.content.kind === "structured") {
       validateRecordIds(diagnostics, surface.content.nodes, `${path}/content/nodes`);
+    }
     validateRecordIds(
       diagnostics,
       surface.baseSemanticTree.nodes,
@@ -207,7 +226,7 @@ export const validatePresentationDefinition = (
     validateSemanticRoles(diagnostics, surface.baseSemanticTree, `${path}/baseSemanticTree`);
     const semanticOwners = new Map<string, string>();
     if (surface.content.kind === "structured") {
-      const { rootFrameId, nodes } = surface.content;
+      const { nodes, rootFrameId } = surface.content;
       const contentTreeNodes = Object.fromEntries(
         Object.entries(nodes).map(([contentId, content]) => [
           contentId,
@@ -216,7 +235,7 @@ export const validatePresentationDefinition = (
       );
       validateTree(diagnostics, contentTreeNodes, [rootFrameId], `${path}/contentTree`, "children");
       const root = nodes[rootFrameId];
-      if (root?.kind !== "frame" || root.parentId !== null)
+      if (root?.kind !== "frame" || root.parentId !== null) {
         diagnostics.push(
           diagnostic(
             "graph.invalid",
@@ -224,6 +243,7 @@ export const validatePresentationDefinition = (
             "rootFrameId must be a parentless frame.",
           ),
         );
+      }
       for (const [contentId, content] of Object.entries(nodes)) {
         const contentPath = `${path}/content/nodes/${pathSegment(contentId)}`;
         if (content.kind !== "frame" && content.kind !== "text") {
@@ -234,21 +254,25 @@ export const validatePresentationDefinition = (
           );
           continue;
         }
-        if (content.kind === "frame" && content.layout.kind !== "absolute")
+        if (content.kind === "frame" && content.layout.kind !== "absolute") {
           unsupported(
             diagnostics,
             `${contentPath}/layout/kind`,
             "M3A supports absolute layout only.",
           );
-        if (content.placement.kind !== "absolute")
+        }
+        if (content.placement.kind !== "absolute") {
           unsupported(
             diagnostics,
             `${contentPath}/placement/kind`,
             "M3A supports absolute placement only.",
           );
-        if (content.semanticNodeId === undefined) continue;
+        }
+        if (content.semanticNodeId === undefined) {
+          continue;
+        }
         const semantic = surface.baseSemanticTree.nodes[content.semanticNodeId];
-        if (semantic === undefined)
+        if (semantic === undefined) {
           diagnostics.push(
             diagnostic(
               "reference.invalid",
@@ -256,7 +280,7 @@ export const validatePresentationDefinition = (
               "semanticNodeId must reference the base semantic tree.",
             ),
           );
-        else if (!semanticRolesByContentKind[content.kind].has(semantic.role))
+        } else if (!semanticRolesByContentKind[content.kind].has(semantic.role)) {
           diagnostics.push(
             diagnostic(
               "graph.invalid",
@@ -264,8 +288,9 @@ export const validatePresentationDefinition = (
               "Content kind and semantic role are incompatible.",
             ),
           );
+        }
         const previous = semanticOwners.get(content.semanticNodeId);
-        if (previous !== undefined)
+        if (previous !== undefined) {
           diagnostics.push(
             diagnostic(
               "identity.invalid",
@@ -274,12 +299,14 @@ export const validatePresentationDefinition = (
               `${path}/content/nodes/${pathSegment(previous)}/semanticNodeId`,
             ),
           );
-        else semanticOwners.set(content.semanticNodeId, contentId);
+        } else {
+          semanticOwners.set(content.semanticNodeId, contentId);
+        }
       }
     } else {
       for (const [bindingKey, semanticId] of Object.entries(surface.content.bindings)) {
         const bindingPath = `${path}/content/bindings/${pathSegment(bindingKey)}`;
-        if (!Object.hasOwn(surface.baseSemanticTree.nodes, semanticId))
+        if (!Object.hasOwn(surface.baseSemanticTree.nodes, semanticId)) {
           diagnostics.push(
             diagnostic(
               "reference.invalid",
@@ -287,8 +314,9 @@ export const validatePresentationDefinition = (
               "Binding must reference the base semantic tree.",
             ),
           );
+        }
         const previous = semanticOwners.get(semanticId);
-        if (previous !== undefined)
+        if (previous !== undefined) {
           diagnostics.push(
             diagnostic(
               "identity.invalid",
@@ -297,11 +325,13 @@ export const validatePresentationDefinition = (
               `${path}/content/bindings/${pathSegment(previous)}`,
             ),
           );
-        else semanticOwners.set(semanticId, bindingKey);
+        } else {
+          semanticOwners.set(semanticId, bindingKey);
+        }
       }
     }
-    for (const semanticId of Object.keys(surface.baseSemanticTree.nodes))
-      if (!semanticOwners.has(semanticId))
+    for (const semanticId of Object.keys(surface.baseSemanticTree.nodes)) {
+      if (!semanticOwners.has(semanticId)) {
         diagnostics.push(
           diagnostic(
             "graph.invalid",
@@ -309,6 +339,8 @@ export const validatePresentationDefinition = (
             "Every semantic node must have exactly one content mapping.",
           ),
         );
+      }
+    }
 
     validateSurfaceStates(diagnostics, surface, path);
     if (surface.renderIntent.updateModel.kind === "finite-state") {
@@ -318,7 +350,7 @@ export const validatePresentationDefinition = (
         listed.length !== actual.length ||
         new Set(listed).size !== listed.length ||
         actual.some((stateId) => !listed.includes(stateId))
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "behavior.invalid",
@@ -326,11 +358,12 @@ export const validatePresentationDefinition = (
             "Finite-state render intent must list every State exactly once.",
           ),
         );
+      }
     }
     if (
       surface.renderIntent.interaction.kind === "none" &&
       Object.keys(surface.interactions).length > 0
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "behavior.invalid",
@@ -338,30 +371,34 @@ export const validatePresentationDefinition = (
           "Interactions require regions render intent.",
         ),
       );
-    if (!Object.hasOwn(surface.states, surface.initialStateId))
+    }
+    if (!Object.hasOwn(surface.states, surface.initialStateId)) {
       diagnostics.push(
         diagnostic("reference.invalid", `${path}/initialStateId`, "Initial State does not exist."),
       );
+    }
     if (
       surface.renderIntent.updateModel.kind === "continuous-native-text" ||
       surface.renderIntent.internalAnimation.kind !== "none" ||
       surface.renderIntent.rendererPreference !== "baked-web" ||
       surface.renderIntent.fallbackPolicy !== "reject"
-    )
+    ) {
       unsupported(
         diagnostics,
         `${path}/renderIntent`,
         "This slice accepts static baked-web rendering without internal animation.",
       );
+    }
   }
 
   for (const [groupId, group] of Object.entries(definition.flow.groups)) {
     const path = `/flow/groups/${pathSegment(groupId)}`;
     validateRecordIds(diagnostics, group.steps, `${path}/steps`);
-    if (!Object.hasOwn(group.steps, group.initialStepId))
+    if (!Object.hasOwn(group.steps, group.initialStepId)) {
       diagnostics.push(
         diagnostic("reference.invalid", `${path}/initialStepId`, "Initial Step does not exist."),
       );
+    }
   }
   for (const [variableId, variable] of Object.entries(definition.flow.variables)) {
     validateGroupOwner(
@@ -375,7 +412,7 @@ export const validatePresentationDefinition = (
       (variable.type === "boolean" && typeof variable.initialValue === "boolean") ||
       (variable.type === "number" && typeof variable.initialValue === "number") ||
       (variable.type === "string" && typeof variable.initialValue === "string");
-    if (!matchesType)
+    if (!matchesType) {
       diagnostics.push(
         diagnostic(
           "behavior.invalid",
@@ -383,18 +420,20 @@ export const validatePresentationDefinition = (
           "Variable initialValue must match its declared scalar type.",
         ),
       );
+    }
   }
-  for (const [timelineId, timeline] of Object.entries(definition.flow.timelines))
+  for (const [timelineId, timeline] of Object.entries(definition.flow.timelines)) {
     validateGroupOwner(
       diagnostics,
       timeline,
       groupIds,
       `/flow/timelines/${pathSegment(timelineId)}`,
     );
+  }
   validateTimelineInvariants(definition, diagnostics);
   validateCueInvariants(definition, diagnostics);
 
   return diagnostics.length === 0
-    ? { valid: true, value: definition, diagnostics: [] }
-    : { valid: false, diagnostics: sorted(diagnostics) };
+    ? { diagnostics: [], valid: true, value: definition }
+    : { diagnostics: sorted(diagnostics), valid: false };
 };

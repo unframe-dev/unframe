@@ -8,13 +8,13 @@ import type {
   ObjectStorage,
 } from "../../../src/modules/assets/service";
 
-const identity = { userId: "editor", globalRole: "user" as const };
+const identity = { globalRole: "user" as const, userId: "editor" };
 const input = {
-  presentationId: "presentation",
-  name: "image.png",
   mediaType: "image/png" as const,
-  sizeBytes: 8,
+  name: "image.png",
+  presentationId: "presentation",
   sha256Hex: "a".repeat(64),
+  sizeBytes: 8,
 };
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -31,16 +31,22 @@ class Repository implements AssetRepository {
     return [...this.records.values()].find((record) => record.objectKey === objectKey) ?? null;
   }
   async save(record: AssetRecord) {
-    if (this.records.get(record.id)?.status !== "pending") return false;
+    if (this.records.get(record.id)?.status !== "pending") {
+      return false;
+    }
     this.records.set(record.id, record);
     return true;
   }
   async deleteClaimed(id: string) {
-    if (this.records.get(id)?.status === "deleting") this.records.delete(id);
+    if (this.records.get(id)?.status === "deleting") {
+      this.records.delete(id);
+    }
   }
-  async claimDeletion(id: string, statuses: AssetRecord["status"][]) {
+  async claimDeletion(id: string, statuses: Array<AssetRecord["status"]>) {
     const value = this.records.get(id);
-    if (!value || !statuses.includes(value.status) || this.references.has(id)) return null;
+    if (!value || !statuses.includes(value.status) || this.references.has(id)) {
+      return null;
+    }
     const claimed = { ...value, status: "deleting" as const };
     this.records.set(id, claimed);
     return claimed;
@@ -56,12 +62,12 @@ class Repository implements AssetRepository {
 class Storage implements ObjectStorage {
   readonly objects = new Map<
     string,
-    { sizeBytes: number; mediaType: string; sha256Hex: string; prefix: Uint8Array }
+    { mediaType: string; prefix: Uint8Array; sha256Hex: string; sizeBytes: number }
   >();
   async head(key: string) {
     const value = this.objects.get(key);
     return value
-      ? { sizeBytes: value.sizeBytes, mediaType: value.mediaType, sha256Hex: value.sha256Hex }
+      ? { mediaType: value.mediaType, sha256Hex: value.sha256Hex, sizeBytes: value.sizeBytes }
       : null;
   }
   async prefix(key: string) {
@@ -79,10 +85,16 @@ const setup = () => {
   const repository = new Repository();
   const storage = new Storage();
   const services: AssetServices = {
-    repository,
-    storage,
+    clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
+    id: { next: () => "asset-1", random: () => "random" },
     permission: { canEdit: async () => true, canRead: async () => true },
+    repository,
     signedAccess: {
+      issueDownload: async () => ({
+        method: "GET",
+        url: "https://signed.example/download-secret",
+        expiresAt: new Date("2026-01-01T00:10:00.000Z"),
+      }),
       issuePut: async () => ({
         method: "PUT",
         url: "https://signed.example/put-secret",
@@ -93,14 +105,8 @@ const setup = () => {
           "x-amz-checksum-sha256": "a".repeat(64),
         },
       }),
-      issueDownload: async () => ({
-        method: "GET",
-        url: "https://signed.example/download-secret",
-        expiresAt: new Date("2026-01-01T00:10:00.000Z"),
-      }),
     },
-    clock: { now: () => new Date("2026-01-01T00:00:00.000Z") },
-    id: { next: () => "asset-1", random: () => "random" },
+    storage,
   };
   const app = createApp({ identityProvider: async () => identity, services: () => services });
   return { app, repository, storage };
@@ -123,16 +129,16 @@ describe("asset HTTP API", () => {
     const { app } = setup();
     await expect(
       request(app, "/assets/uploads", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: "{",
+        headers: { "content-type": "application/json" },
+        method: "POST",
       }),
     ).resolves.toMatchObject({ status: 400 });
     await expect(
       request(app, "/assets/uploads", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...input, sizeBytes: 0 }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
       }),
     ).resolves.toMatchObject({ status: 400 });
     for (const [method, path] of [
@@ -148,9 +154,9 @@ describe("asset HTTP API", () => {
   it("initializes, reads, finalizes, and returns a referenced ready asset download", async () => {
     const { app, repository, storage } = setup();
     const initialized = await request(app, "/assets/uploads", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     expect(initialized.status).toBe(201);
     const initializedBody = (await initialized.json()) as {
@@ -178,9 +184,9 @@ describe("asset HTTP API", () => {
   it("returns 422 for failed finalization, and does not expose signed URL secrets in error responses", async () => {
     const { app } = setup();
     await request(app, "/assets/uploads", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     const response = await request(app, "/assets/asset-1/finalize", { method: "POST" });
     expect(response.status).toBe(422);
@@ -190,9 +196,9 @@ describe("asset HTTP API", () => {
   it("blocks referenced deletion and deletes an unreferenced asset", async () => {
     const { app, repository } = setup();
     await request(app, "/assets/uploads", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
     repository.references.add("asset-1");
     expect((await request(app, "/assets/asset-1", { method: "DELETE" })).status).toBe(409);

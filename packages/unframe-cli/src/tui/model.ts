@@ -1,31 +1,31 @@
 export type PresentationTuiCommandId = "build" | "check";
 
 export type PresentationTuiCommand = Readonly<{
+  description: string;
   id: PresentationTuiCommandId;
   label: string;
-  description: string;
 }>;
 
-export const presentationTuiCommands: readonly PresentationTuiCommand[] = Object.freeze([
+export const presentationTuiCommands: ReadonlyArray<PresentationTuiCommand> = Object.freeze([
   Object.freeze({
+    description: "Validate an authoring project without rendering artifacts.",
     id: "check",
     label: "Check presentation",
-    description: "Validate an authoring project without rendering artifacts.",
   }),
   Object.freeze({
+    description: "Compile and render a complete artifact set.",
     id: "build",
     label: "Build presentation",
-    description: "Compile and render a complete artifact set.",
   }),
 ]);
 
 export type PresentationTuiEffect =
-  | Readonly<{ type: "command-selected"; command: PresentationTuiCommandId }>
+  | Readonly<{ command: PresentationTuiCommandId; type: "command-selected" }>
   | Readonly<{ type: "quit" }>;
 
 export type PresentationTuiState = Readonly<{
-  selectedIndex: number;
   effect?: PresentationTuiEffect;
+  selectedIndex: number;
 }>;
 
 export type PresentationTuiAction = Readonly<{
@@ -53,16 +53,16 @@ export const reducePresentationTuiState = (
       });
     case "select":
       return Object.freeze({
-        selectedIndex: state.selectedIndex,
         effect: Object.freeze({
-          type: "command-selected",
           command: presentationTuiCommands[state.selectedIndex]?.id ?? "check",
+          type: "command-selected",
         }),
+        selectedIndex: state.selectedIndex,
       });
     case "quit":
       return Object.freeze({
-        selectedIndex: state.selectedIndex,
         effect: Object.freeze({ type: "quit" }),
+        selectedIndex: state.selectedIndex,
       });
     case "effect-handled":
       return Object.freeze({ selectedIndex: state.selectedIndex });

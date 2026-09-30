@@ -13,28 +13,31 @@ export type AuthoringSourceDiagnostic = {
     | "compiler-invalid-input"
     | "compiler-source-kind-unsupported"
     | "compiler-source-syntax-error";
+  readonly column: number;
   readonly fileName: string;
-  readonly message: string;
-  readonly start: number;
   readonly length: number;
   readonly line: number;
-  readonly column: number;
+  readonly message: string;
+  readonly start: number;
   readonly typescriptCode?: number;
 };
 
 export type ParsedAuthoringSource =
-  | { readonly ok: true; readonly value: ts.SourceFile; readonly diagnostics: [] }
-  | { readonly ok: false; readonly diagnostics: AuthoringSourceDiagnostic[] };
+  | { readonly diagnostics: []; readonly ok: true; readonly value: ts.SourceFile }
+  | { readonly diagnostics: Array<AuthoringSourceDiagnostic>; readonly ok: false };
 
 const scriptKindFor = (fileName: string) => {
-  if (fileName.endsWith(".tsx")) return ts.ScriptKind.TSX;
+  if (fileName.endsWith(".tsx")) {
+    return ts.ScriptKind.TSX;
+  }
   if (
     fileName.endsWith(".ts") ||
     fileName.endsWith(".d.ts") ||
     fileName.endsWith(".mts") ||
     fileName.endsWith(".cts")
-  )
+  ) {
     return ts.ScriptKind.TS;
+  }
   return undefined;
 };
 
@@ -69,9 +72,8 @@ const hasAuthoringSourceKeys = (value: unknown) =>
 
 export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
   const snapshot = safePlainClone(input);
-  if (!snapshot.valid)
+  if (!snapshot.valid) {
     return {
-      ok: false,
       diagnostics: [
         {
           code: "compiler-invalid-input",
@@ -83,10 +85,11 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
           column: 1,
         },
       ],
-    };
-  if (!hasAuthoringSourceKeys(snapshot.value))
-    return {
       ok: false,
+    };
+  }
+  if (!hasAuthoringSourceKeys(snapshot.value)) {
+    return {
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
@@ -98,11 +101,12 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
           column: 1,
         },
       ],
+      ok: false,
     };
+  }
   const parsedInput = authoringSourceInputSchema.safeParse(snapshot.value);
-  if (!parsedInput.success)
+  if (!parsedInput.success) {
     return {
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
@@ -114,12 +118,13 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
           column: 1,
         },
       ],
+      ok: false,
     };
+  }
   const { fileName, sourceText } = parsedInput.data;
   const scriptKind = scriptKindFor(fileName);
-  if (scriptKind === undefined)
+  if (scriptKind === undefined) {
     return {
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
@@ -131,7 +136,9 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
           column: 1,
         },
       ],
+      ok: false,
     };
+  }
 
   const sourceFile = ts.createSourceFile(
     fileName,
@@ -141,14 +148,14 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
     scriptKind,
   );
   const program = ts.createProgram({
-    rootNames: [fileName],
+    host: compilerHostFor(sourceFile, sourceText),
     options: {
       jsx: ts.JsxEmit.ReactJSX,
       jsxImportSource: "@unframe/unframe-authoring",
       noLib: true,
       noResolve: true,
     },
-    host: compilerHostFor(sourceFile, sourceText),
+    rootNames: [fileName],
   });
   const diagnostics = program
     .getSyntacticDiagnostics(sourceFile)
@@ -157,18 +164,18 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
       const position = sourceFile.getLineAndCharacterOfPosition(start);
       return {
         code: "compiler-source-syntax-error",
+        column: position.character + 1,
         fileName,
-        message: ts.flattenDiagnosticMessageText(item.messageText, "\n"),
-        start,
         length: item.length ?? 0,
         line: position.line + 1,
-        column: position.character + 1,
+        message: ts.flattenDiagnosticMessageText(item.messageText, "\n"),
+        start,
         typescriptCode: item.code,
       };
     })
     .sort(compareDiagnostics);
 
   return diagnostics.length === 0
-    ? { ok: true, value: sourceFile, diagnostics: [] }
-    : { ok: false, diagnostics };
+    ? { diagnostics: [], ok: true, value: sourceFile }
+    : { diagnostics, ok: false };
 };

@@ -1,39 +1,39 @@
 import type { ReactElement } from "react";
 
 export type PropDefinition<T, Required extends boolean = boolean> = {
-  readonly kind: "prop";
   readonly __value?: T;
+  readonly kind: "prop";
 } & (Required extends true
-  ? { readonly required: true; readonly default?: never }
+  ? { readonly default?: never; readonly required: true }
   : { readonly default: T; readonly required?: never });
 type AnyProp = PropDefinition<string | number | boolean>;
 export declare function editableText(options: {
-  required: true;
   default?: never;
+  required: true;
 }): PropDefinition<string, true>;
 export declare function editableText(options: {
   default: string;
   required?: never;
 }): PropDefinition<string, false>;
 export declare function stringProp(options: {
-  required: true;
   default?: never;
+  required: true;
 }): PropDefinition<string, true>;
 export declare function stringProp(options: {
   default: string;
   required?: never;
 }): PropDefinition<string, false>;
 export declare function numberProp(options: {
-  required: true;
   default?: never;
+  required: true;
 }): PropDefinition<number, true>;
 export declare function numberProp(options: {
   default: number;
   required?: never;
 }): PropDefinition<number, false>;
 export declare function booleanProp(options: {
-  required: true;
   default?: never;
+  required: true;
 }): PropDefinition<boolean, true>;
 export declare function booleanProp(options: {
   default: boolean;
@@ -52,12 +52,12 @@ export type PropReference<K extends string> = { readonly kind: "prop-ref"; reado
 export declare function prop<const K extends string>(name: K): PropReference<K>;
 
 type SemanticNode = {
-  readonly role: "heading" | "paragraph" | "button";
-  readonly level?: number;
-  readonly parentId: string | null;
-  readonly order: number;
-  readonly text?: string | PropReference<string>;
   readonly interactionId?: string;
+  readonly level?: number;
+  readonly order: number;
+  readonly parentId: string | null;
+  readonly role: "heading" | "paragraph" | "button";
+  readonly text?: string | PropReference<string>;
 };
 type ValidateNode<P, N> = N extends { text: PropReference<infer K> }
   ? K extends StringKeys<P>
@@ -78,56 +78,56 @@ type SyncReactNode =
   | boolean
   | null
   | undefined
-  | readonly SyncReactNode[];
+  | ReadonlyArray<SyncReactNode>;
 type RenderContext<P, N, S> = {
-  readonly props: ResolvedProps<P>;
-  readonly texts: Readonly<Record<TextKeys<N>, string>>;
   readonly bindings: Readonly<Record<keyof N, Binding>>;
+  readonly props: ResolvedProps<P>;
   readonly state: keyof S & string;
+  readonly texts: Readonly<Record<TextKeys<N>, string>>;
 };
 type StateDeclaration<N> = {
-  readonly semanticOverrides: readonly {
+  readonly enabledInteractionIds: ReadonlyArray<string>;
+  readonly semanticOverrides: ReadonlyArray<{
     readonly id: string;
     readonly targetId: keyof N & string;
     readonly included: boolean;
-  }[];
-  readonly enabledInteractionIds: readonly string[];
+  }>;
 };
 export type SetStateEffect<K extends string> = { readonly kind: "setState"; readonly state: K };
 export declare function setState<const K extends string>(state: K): SetStateEffect<K>;
 type ValidateActions<A, S> = {
-  readonly [K in keyof A]: A[K] extends { effects: readonly (infer E)[] }
+  readonly [K in keyof A]: A[K] extends { effects: ReadonlyArray<infer E> }
     ? [E] extends [SetStateEffect<keyof S & string>]
       ? unknown
       : never
     : never;
 };
 type ActionDeclaration = {
+  readonly effects: ReadonlyArray<SetStateEffect<string>>;
   readonly inputs: object;
-  readonly preconditions: readonly unknown[];
-  readonly effects: readonly SetStateEffect<string>[];
+  readonly preconditions: ReadonlyArray<unknown>;
 };
 type InteractionDeclaration = {
-  readonly kind: "click";
   readonly event: string;
   readonly hitPriority: number;
+  readonly kind: "click";
 };
 type OutputDeclaration = {
   readonly payload: object;
-  readonly producer: { readonly kind: "surfaceInteraction"; readonly interactionId: string };
+  readonly producer: { readonly interactionId: string; readonly kind: "surfaceInteraction" };
 };
 export type Component<P, N, S, A, O> = {
+  readonly __actions?: A;
+  readonly __nodes?: N;
+  readonly __outputs?: O;
+  readonly __props?: P;
+  readonly __states?: S;
   readonly id: string;
   readonly version: number;
-  readonly __props?: P;
-  readonly __nodes?: N;
-  readonly __states?: S;
-  readonly __actions?: A;
-  readonly __outputs?: O;
 };
 type StateFields<N, S extends Record<string, StateDeclaration<N>>> =
-  | { readonly states: S; readonly initialState: keyof S & string }
-  | { readonly states?: never; readonly initialState?: never };
+  | { readonly initialState: keyof S & string; readonly states: S }
+  | { readonly initialState?: never; readonly states?: never };
 export declare function defineComponent<
   const P extends Record<string, AnyProp>,
   const N extends Record<string, SemanticNode>,
@@ -136,18 +136,18 @@ export declare function defineComponent<
   const O extends Record<string, OutputDeclaration> = {},
 >(
   value: {
-    readonly id: string;
-    readonly version: number;
-    readonly props: P;
-    readonly surface: { readonly logicalSize: readonly [number, number] };
-    readonly semantics: {
-      readonly rootNodeIds: readonly (keyof N & string)[];
-      readonly nodes: N & ValidateNodes<P, N>;
-    };
-    readonly interactions?: Record<string, InteractionDeclaration>;
     readonly actions?: A & ValidateActions<A, S>;
+    readonly id: string;
+    readonly interactions?: Record<string, InteractionDeclaration>;
     readonly outputs?: O;
+    readonly props: P;
     readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
+    readonly semantics: {
+      readonly nodes: N & ValidateNodes<P, N>;
+      readonly rootNodeIds: readonly (keyof N & string)[];
+    };
+    readonly surface: { readonly logicalSize: readonly [number, number] };
+    readonly version: number;
   } & StateFields<N, S>,
 ): Component<P, N, S, A, O>;
 
@@ -155,14 +155,14 @@ type AnyComponent = Component<unknown, unknown, unknown, unknown, unknown>;
 type ComponentProps<C> =
   C extends Component<infer P, unknown, unknown, unknown, unknown> ? InstanceProps<P> : never;
 type SceneBase = {
-  readonly id: string;
-  readonly component: AnyComponent;
-  readonly props: object;
-  readonly owner: { readonly kind: "presentation" };
   readonly audience: { readonly kind: "all" };
+  readonly component: AnyComponent;
+  readonly fit: "contain";
+  readonly id: string;
+  readonly owner: { readonly kind: "presentation" };
   readonly parent: { readonly kind: "stage" };
   readonly physicalSizeMeters: readonly [number, number];
-  readonly fit: "contain";
+  readonly props: object;
   readonly transform: {
     readonly position: readonly [number, number, number];
     readonly rotation: readonly [number, number, number, number];
@@ -179,20 +179,20 @@ type CheckSceneItem<I> = I extends { component: infer C; props: infer Actual }
     : never
   : never;
 type CheckScene<S> = { readonly [K in keyof S]: S[K] & CheckSceneItem<S[K]> };
-export declare function definePresentation<const S extends readonly SceneBase[]>(value: {
+export declare function definePresentation<const S extends ReadonlyArray<SceneBase>>(value: {
+  readonly assets: ReadonlyArray<unknown>;
+  readonly flow: object;
   readonly id: string;
   readonly metadata: { readonly title: string };
+  readonly operations: ReadonlyArray<unknown>;
+  readonly scene: S & CheckScene<S>;
   readonly stage: {
     readonly coordinateSystem: {
-      readonly unit: "meter";
-      readonly handedness: "right";
-      readonly upAxis: "+Y";
       readonly forwardAxis: "-Z";
+      readonly handedness: "right";
+      readonly unit: "meter";
+      readonly upAxis: "+Y";
     };
     readonly size: readonly [number, number, number];
   };
-  readonly scene: S & CheckScene<S>;
-  readonly assets: readonly unknown[];
-  readonly flow: object;
-  readonly operations: readonly unknown[];
 }): { readonly scene: S };

@@ -19,27 +19,27 @@ type Analyzed = Extract<AnalyzedAuthoringProject, { readonly ok: true }>;
 type Diagnostic = DeclarationSourceOrigin & { readonly code: string; readonly message: string };
 
 export type ExtractedReactComponent = {
-  readonly fileName: string;
   readonly exportName: string;
-  readonly metadata: StaticComponentMetadata;
+  readonly fileName: string;
   readonly manifest: ReturnType<typeof buildOpaqueComponentManifest>;
+  readonly metadata: StaticComponentMetadata;
   readonly renderer: {
     readonly entrySource: string;
-    readonly localDependencies: readonly string[];
-    readonly packageImports: readonly string[];
+    readonly helperOrigins?: ReadonlyArray<DeclarationSourceOrigin>;
+    readonly localDependencies: ReadonlyArray<string>;
+    readonly packageImports: ReadonlyArray<string>;
     readonly renderOrigin?: DeclarationSourceOrigin;
-    readonly helperOrigins?: readonly DeclarationSourceOrigin[];
   };
-  readonly sourceMap: readonly DeclarationSourceMapEntry[];
+  readonly sourceMap: ReadonlyArray<DeclarationSourceMapEntry>;
 };
 
 export type ExtractedReactComponents =
   | {
-      readonly ok: true;
-      readonly components: readonly ExtractedReactComponent[];
+      readonly components: ReadonlyArray<ExtractedReactComponent>;
       readonly diagnostics: readonly [];
+      readonly ok: true;
     }
-  | { readonly ok: false; readonly diagnostics: readonly Diagnostic[] };
+  | { readonly diagnostics: ReadonlyArray<Diagnostic>; readonly ok: false };
 
 const staticFields = new Set(["id", "version", "props", "surface", "semantics"]);
 const finiteFields = new Set(["interactions", "initialState", "states", "actions", "outputs"]);
@@ -51,11 +51,11 @@ const sourceOrigin = (analyzed: Analyzed, node: ts.Node): DeclarationSourceOrigi
   const start = node.getStart(sourceFile);
   const position = sourceFile.getLineAndCharacterOfPosition(start);
   return {
-    fileName: analyzed.value.context.displayFileName(sourceFile),
-    start,
-    end: node.getEnd(),
-    line: position.line + 1,
     column: position.character + 1,
+    end: node.getEnd(),
+    fileName: analyzed.value.context.displayFileName(sourceFile),
+    line: position.line + 1,
+    start,
   };
 };
 
@@ -77,17 +77,23 @@ const compareDiagnostics = (left: Diagnostic, right: Diagnostic) =>
   (left.code < right.code ? -1 : left.code > right.code ? 1 : 0);
 
 const propertyName = (property: ts.ObjectLiteralElementLike): string | undefined => {
-  if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) return;
+  if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+    return;
+  }
   return ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)
     ? property.name.text
     : undefined;
 };
 
 const isVerifiedComponentBuilder = (analyzed: Analyzed, expression: ts.LeftHandSideExpression) => {
-  if (!ts.isIdentifier(expression)) return false;
+  if (!ts.isIdentifier(expression)) {
+    return false;
+  }
   const symbol = analyzed.value.checker.getSymbolAtLocation(expression);
   const declaration = symbol?.declarations?.[0];
-  if (!declaration || !ts.isImportSpecifier(declaration)) return false;
+  if (!declaration || !ts.isImportSpecifier(declaration)) {
+    return false;
+  }
   const importDeclaration = declaration.parent.parent.parent;
   return (
     ts.isImportDeclaration(importDeclaration) &&
@@ -102,43 +108,51 @@ const staticGraph = (
   fields: ReadonlyMap<string, ts.PropertyAssignment>,
   root: ts.Node,
 ) => {
-  const properties: {
+  const properties: Array<{
     key: string;
     origin: DeclarationSourceOrigin;
     value: DeclarationGraphValue;
-  }[] = [];
-  const diagnostics: Diagnostic[] = [];
+  }> = [];
+  const diagnostics: Array<Diagnostic> = [];
   for (const field of [...staticFields, ...finiteFields]) {
     const property = fields.get(field);
-    if (!property) continue;
+    if (!property) {
+      continue;
+    }
     const evaluated = evaluateStaticAuthoringExpression(analyzed, property.initializer);
-    if (!evaluated.ok) diagnostics.push(...evaluated.diagnostics);
-    else
+    if (!evaluated.ok) {
+      diagnostics.push(...evaluated.diagnostics);
+    } else {
       properties.push({
         key: field,
         origin: sourceOrigin(analyzed, property.name),
         value: evaluated.value,
       });
+    }
   }
-  if (diagnostics.length) return { ok: false as const, diagnostics };
+  if (diagnostics.length) {
+    return { diagnostics, ok: false as const };
+  }
   const origin = sourceOrigin(analyzed, root);
   const normalized = normalizeDeclarationGraph({
     fileName: origin.fileName,
     root: {
-      kind: "builder-call",
-      builder: "defineTheme",
-      origin,
       arguments: [{ kind: "object", origin, properties }],
+      builder: "defineTheme",
+      kind: "builder-call",
+      origin,
     },
   });
   return normalized.ok
-    ? { ok: true as const, value: normalized.value, sourceMap: normalized.sourceMap }
-    : { ok: false as const, diagnostics: normalized.diagnostics };
+    ? { ok: true as const, sourceMap: normalized.sourceMap, value: normalized.value }
+    : { diagnostics: normalized.diagnostics, ok: false as const };
 };
 
 const topLevelDeclaration = (node: ts.Node): ts.Statement | undefined => {
   let current: ts.Node = node;
-  while (current.parent && !ts.isSourceFile(current.parent)) current = current.parent;
+  while (current.parent && !ts.isSourceFile(current.parent)) {
+    current = current.parent;
+  }
   return ts.isStatement(current) ? current : undefined;
 };
 
@@ -147,17 +161,19 @@ const normalizedStaticValue = (
   initializer: ts.Expression,
 ): unknown | undefined => {
   const evaluated = evaluateStaticAuthoringExpression(analyzed, initializer);
-  if (!evaluated.ok) return;
+  if (!evaluated.ok) {
+    return;
+  }
   const origin = sourceOrigin(analyzed, initializer);
   const normalized = normalizeDeclarationGraph({
     fileName: origin.fileName,
     root: {
-      kind: "builder-call",
-      builder: "defineTheme",
-      origin,
       arguments: [
         { kind: "object", origin, properties: [{ key: "value", origin, value: evaluated.value }] },
       ],
+      builder: "defineTheme",
+      kind: "builder-call",
+      origin,
     },
   });
   return normalized.ok ? (normalized.value as { value: unknown }).value : undefined;
@@ -171,10 +187,10 @@ const renderEntry = (
 ):
   | {
       entrySource: string;
-      localDependencies: string[];
-      packageImports: string[];
+      helperOrigins: Array<DeclarationSourceOrigin>;
+      localDependencies: Array<string>;
+      packageImports: Array<string>;
       renderOrigin: DeclarationSourceOrigin;
-      helperOrigins: DeclarationSourceOrigin[];
     }
   | Diagnostic => {
   const { checker, context } = analyzed.value;
@@ -182,7 +198,7 @@ const renderEntry = (
   const staticValues = new Map<string, unknown>();
   const imports = new Map<ts.ImportDeclaration, Set<string>>();
   const visited = new Set<ts.Symbol>();
-  const failures: Diagnostic[] = [];
+  const failures: Array<Diagnostic> = [];
   const visit = (node: ts.Node): void => {
     if (ts.isIdentifier(node)) {
       const symbol = checker.getSymbolAtLocation(node);
@@ -230,14 +246,15 @@ const renderEntry = (
                 !declaration ||
                 !ts.isIdentifier(declaration.name) ||
                 !declaration.initializer
-              )
+              ) {
                 return;
+              }
               if (ts.isArrowFunction(declaration.initializer)) {
                 statements.add(top);
                 ts.forEachChild(declaration.initializer, visit);
               } else {
                 const value = normalizedStaticValue(analyzed, declaration.initializer);
-                if (value === undefined)
+                if (value === undefined) {
                   failures.push(
                     diagnostic(
                       analyzed,
@@ -246,9 +263,11 @@ const renderEntry = (
                       "Render data must be statically resolvable.",
                     ),
                   );
-                else staticValues.set(declaration.name.text, value);
+                } else {
+                  staticValues.set(declaration.name.text, value);
+                }
               }
-            } else
+            } else {
               failures.push(
                 diagnostic(
                   analyzed,
@@ -257,6 +276,7 @@ const renderEntry = (
                   "Render may reference only imports, static data, and top-level render helpers.",
                 ),
               );
+            }
           }
         }
       }
@@ -264,71 +284,85 @@ const renderEntry = (
     ts.forEachChild(node, visit);
   };
   visit(render);
-  if (failures.length) return failures[0]!;
-  const importLines: string[] = [];
-  const localDependencies: string[] = [];
-  const packageImports: string[] = [];
+  if (failures.length) {
+    return failures[0]!;
+  }
+  const importLines: Array<string> = [];
+  const localDependencies: Array<string> = [];
+  const packageImports: Array<string> = [];
   for (const declaration of sourceFile.statements) {
     if (
       !ts.isImportDeclaration(declaration) ||
       declaration.importClause ||
       !ts.isStringLiteralLike(declaration.moduleSpecifier)
-    )
+    ) {
       continue;
+    }
     const specifier = declaration.moduleSpecifier.text;
-    if (specifier === "@unframe/unframe-authoring")
+    if (specifier === "@unframe/unframe-authoring") {
       return diagnostic(
         analyzed,
         declaration,
         "compiler-react-render-contract-reference",
         "Render must not import the public contract runtime.",
       );
+    }
     const resolved = context.resolve(sourceFile.fileName, specifier);
-    if (resolved.kind !== "resolved")
+    if (resolved.kind !== "resolved") {
       return diagnostic(
         analyzed,
         declaration,
         "compiler-react-render-import-unresolved",
         "Render side-effect import must resolve from the project snapshot.",
       );
-    if (specifier.startsWith("."))
+    }
+    if (specifier.startsWith(".")) {
       localDependencies.push(context.displayFileName(context.sourceFiles.get(resolved.fileName)!));
-    else packageImports.push(specifier);
+    } else {
+      packageImports.push(specifier);
+    }
     importLines.push(declaration.getText(sourceFile));
   }
   for (const [declaration, names] of imports) {
     const specifier = (declaration.moduleSpecifier as ts.StringLiteral).text;
-    if (specifier === "@unframe/unframe-authoring")
+    if (specifier === "@unframe/unframe-authoring") {
       return diagnostic(
         analyzed,
         declaration,
         "compiler-react-render-contract-reference",
         "Render must not import the public contract runtime.",
       );
+    }
     const resolved = context.resolve(sourceFile.fileName, specifier);
-    if (resolved.kind !== "resolved")
+    if (resolved.kind !== "resolved") {
       return diagnostic(
         analyzed,
         declaration,
         "compiler-react-render-import-unresolved",
         "Render import must resolve from the locked project.",
       );
+    }
     const clause = declaration.importClause;
-    if (!clause) continue;
-    const selected: string[] = [];
+    if (!clause) {
+      continue;
+    }
+    const selected: Array<string> = [];
     const runtimeNames = new Set(names);
     if (specifier.startsWith(".")) {
       const target = context.sourceFiles.get(resolved.fileName);
-      if (!target)
+      if (!target) {
         return diagnostic(
           analyzed,
           declaration,
           "compiler-react-render-import-unresolved",
           "Render local import must resolve to a source module.",
         );
-      if (clause.namedBindings && ts.isNamedImports(clause.namedBindings))
+      }
+      if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
         for (const item of clause.namedBindings.elements) {
-          if (!runtimeNames.has(item.name.text)) continue;
+          if (!runtimeNames.has(item.name.text)) {
+            continue;
+          }
           const symbol = checker.getSymbolAtLocation(item.name);
           const targetSymbol =
             symbol &&
@@ -346,6 +380,7 @@ const renderEntry = (
             }
           }
         }
+      }
       if (
         runtimeNames.size &&
         (target === analyzed.value.entrySourceFile ||
@@ -353,32 +388,45 @@ const renderEntry = (
           context.displayFileName(target).endsWith(".component.tsx") ||
           context.displayFileName(target).endsWith(".manifest.ts") ||
           context.displayFileName(target).endsWith(".structure.tsx"))
-      )
+      ) {
         return diagnostic(
           analyzed,
           declaration,
           "compiler-react-render-contract-reference",
           "Render must not import a public contract module.",
         );
-      if (runtimeNames.size) localDependencies.push(context.displayFileName(target));
-    } else if (runtimeNames.size) packageImports.push(specifier);
-    if (clause.name && runtimeNames.has(clause.name.text)) selected.push(clause.name.text);
-    const named: string[] = [];
-    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings))
-      for (const item of clause.namedBindings.elements)
+      }
+      if (runtimeNames.size) {
+        localDependencies.push(context.displayFileName(target));
+      }
+    } else if (runtimeNames.size) {
+      packageImports.push(specifier);
+    }
+    if (clause.name && runtimeNames.has(clause.name.text)) {
+      selected.push(clause.name.text);
+    }
+    const named: Array<string> = [];
+    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const item of clause.namedBindings.elements) {
         if (runtimeNames.has(item.name.text))
           named.push(
             `${item.propertyName ? `${item.propertyName.text} as ` : ""}${item.name.text}`,
           );
-    if (named.length) selected.push(`{ ${named.join(", ")} }`);
+      }
+    }
+    if (named.length) {
+      selected.push(`{ ${named.join(", ")} }`);
+    }
     if (
       clause.namedBindings &&
       ts.isNamespaceImport(clause.namedBindings) &&
       runtimeNames.has(clause.namedBindings.name.text)
-    )
+    ) {
       selected.push(`* as ${clause.namedBindings.name.text}`);
-    if (selected.length)
+    }
+    if (selected.length) {
       importLines.push(`import ${selected.join(", ")} from ${JSON.stringify(specifier)};`);
+    }
   }
   const helperLines = [...statements]
     .sort((a, b) => a.getStart() - b.getStart())
@@ -391,74 +439,92 @@ const renderEntry = (
   );
   let usesJsx = false;
   const dynamicModuleUse = (node: ts.Node): Diagnostic | undefined => {
-    if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node))
+    if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) {
       usesJsx = true;
+    }
     if (
       ts.isCallExpression(node) &&
       (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
         (ts.isIdentifier(node.expression) && node.expression.text === "require"))
-    )
+    ) {
       return diagnostic(
         analyzed,
         node,
         "compiler-react-render-dynamic-import-invalid",
         "Render dependencies must use static imports.",
       );
+    }
     for (const child of node.getChildren()) {
       const failure = dynamicModuleUse(child);
-      if (failure) return failure;
+      if (failure) {
+        return failure;
+      }
     }
     return;
   };
   for (const node of [render, ...statements]) {
     const failure = dynamicModuleUse(node);
-    if (failure) return failure;
+    if (failure) {
+      return failure;
+    }
   }
   const pending = [...localDependencies];
   const seen = new Set<string>();
   while (pending.length) {
     const fileName = pending.pop()!;
-    if (seen.has(fileName)) continue;
+    if (seen.has(fileName)) {
+      continue;
+    }
     seen.add(fileName);
     const dependencyFile = byName.get(fileName);
-    if (!dependencyFile || dependencyFile.isDeclarationFile) continue;
+    if (!dependencyFile || dependencyFile.isDeclarationFile) {
+      continue;
+    }
     const dynamicFailure = dynamicModuleUse(dependencyFile);
-    if (dynamicFailure) return dynamicFailure;
+    if (dynamicFailure) {
+      return dynamicFailure;
+    }
     for (const statement of dependencyFile.statements) {
-      if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
+      if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) {
+        continue;
+      }
       if (
         !statement.moduleSpecifier ||
         !ts.isStringLiteralLike(statement.moduleSpecifier) ||
         (ts.isImportDeclaration(statement)
           ? statement.importClause?.isTypeOnly
           : statement.isTypeOnly)
-      )
+      ) {
         continue;
+      }
       const dependency = statement.moduleSpecifier.text;
-      if (dependency === "@unframe/unframe-authoring")
+      if (dependency === "@unframe/unframe-authoring") {
         return diagnostic(
           analyzed,
           statement,
           "compiler-react-render-contract-reference",
           "Render helpers must not import the public contract runtime.",
         );
+      }
       const resolved = context.resolve(dependencyFile.fileName, dependency);
-      if (resolved.kind !== "resolved")
+      if (resolved.kind !== "resolved") {
         return diagnostic(
           analyzed,
           statement,
           "compiler-react-render-import-unresolved",
           "Render helper import must resolve from the project snapshot.",
         );
+      }
       if (dependency.startsWith(".")) {
         const target = context.sourceFiles.get(resolved.fileName);
-        if (!target)
+        if (!target) {
           return diagnostic(
             analyzed,
             statement,
             "compiler-react-render-import-unresolved",
             "Render helper import is unavailable.",
           );
+        }
         const targetName = context.displayFileName(target);
         if (
           target === analyzed.value.entrySourceFile ||
@@ -466,26 +532,30 @@ const renderEntry = (
           targetName.endsWith(".manifest.ts") ||
           targetName.endsWith(".structure.tsx") ||
           targetName.endsWith(".unframe.ts")
-        )
+        ) {
           return diagnostic(
             analyzed,
             statement,
             "compiler-react-render-contract-reference",
             "Render helpers must not import public contract modules.",
           );
+        }
         pending.push(targetName);
-      } else packageImports.push(dependency);
+      } else {
+        packageImports.push(dependency);
+      }
     }
   }
   if (usesJsx) {
     const jsxRuntime = context.resolve(sourceFile.fileName, "react/jsx-runtime");
-    if (jsxRuntime.kind !== "resolved")
+    if (jsxRuntime.kind !== "resolved") {
       return diagnostic(
         analyzed,
         render,
         "compiler-react-jsx-runtime-unresolved",
         "React JSX runtime must be a locked runtime dependency.",
       );
+    }
     packageImports.push("react/jsx-runtime");
   }
   return {
@@ -495,24 +565,30 @@ const renderEntry = (
       ...helperLines,
       `export const render = ${render.getText(sourceFile)};`,
     ].join("\n"),
-    localDependencies: [...seen].sort(),
-    packageImports: [...new Set(packageImports)].sort(),
-    renderOrigin: sourceOrigin(analyzed, render),
     helperOrigins: [...statements]
       .sort((a, b) => a.getStart() - b.getStart())
       .map((statement) => sourceOrigin(analyzed, statement)),
+    localDependencies: [...seen].sort(),
+    packageImports: [...new Set(packageImports)].sort(),
+    renderOrigin: sourceOrigin(analyzed, render),
   };
 };
 
 export const extractReactComponents = (analyzed: Analyzed): ExtractedReactComponents => {
-  const components: ExtractedReactComponent[] = [];
-  const diagnostics: Diagnostic[] = [];
+  const components: Array<ExtractedReactComponent> = [];
+  const diagnostics: Array<Diagnostic> = [];
   const files = [...analyzed.value.context.sourceFiles.values()].filter((file) => {
     const context = analyzed.value.context;
     const owner = context.ownerFor(file);
-    if (!context.displayFileName(file).endsWith(".component.tsx")) return false;
-    if (owner?.kind === "project") return true;
-    if (owner?.kind !== "package") return false;
+    if (!context.displayFileName(file).endsWith(".component.tsx")) {
+      return false;
+    }
+    if (owner?.kind === "project") {
+      return true;
+    }
+    if (owner?.kind !== "package") {
+      return false;
+    }
     const path = context.relativeFileName(file);
     return (
       analyzed.value.context.projectRootFiles.some((root) => {
@@ -531,23 +607,24 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
     );
   });
   for (const file of files) {
-    const found: {
-      statement: ts.VariableStatement;
+    const found: Array<{
       name: string;
       object: ts.ObjectLiteralExpression;
-    }[] = [];
+      statement: ts.VariableStatement;
+    }> = [];
     for (const statement of file.statements) {
       if (
         ts.isImportDeclaration(statement) ||
         ts.isTypeAliasDeclaration(statement) ||
         ts.isInterfaceDeclaration(statement)
-      )
+      ) {
         continue;
+      }
       if (ts.isFunctionDeclaration(statement)) {
         if (
           !statement.name ||
           statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               analyzed,
@@ -556,6 +633,7 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
               "Render helper functions must be named and private.",
             ),
           );
+        }
         continue;
       }
       if (
@@ -607,12 +685,12 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
           );
           continue;
         }
-        found.push({ statement, name: declaration.name.text, object: argument });
+        found.push({ name: declaration.name.text, object: argument, statement });
       } else if (
         isExported(statement) ||
         (!ts.isArrowFunction(initializer) &&
           !evaluateStaticAuthoringExpression(analyzed, initializer).ok)
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             analyzed,
@@ -621,6 +699,7 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
             "Top-level values must be static data or arrow render helpers.",
           ),
         );
+      }
     }
     if (found.length !== 1) {
       diagnostics.push(
@@ -642,7 +721,7 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
         !ts.isPropertyAssignment(property) ||
         fields.has(key) ||
         (!staticFields.has(key) && !finiteFields.has(key) && key !== "render")
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             analyzed,
@@ -651,7 +730,9 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
             "Component fields must be unique, direct, and supported.",
           ),
         );
-      else fields.set(key, property);
+      } else {
+        fields.set(key, property);
+      }
     }
     if (
       !([...staticFields].every((key) => fields.has(key)) && fields.has("render")) ||
@@ -706,21 +787,21 @@ export const extractReactComponents = (analyzed: Analyzed): ExtractedReactCompon
     }
     const fileName = analyzed.value.context.displayFileName(file);
     components.push({
-      fileName,
       exportName: component.name,
-      metadata,
+      fileName,
       manifest: buildOpaqueComponentManifest(metadata, `${fileName}#render`),
+      metadata,
       renderer,
       sourceMap: normalized.sourceMap,
     });
   }
   return diagnostics.length
-    ? { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) }
+    ? { diagnostics: diagnostics.sort(compareDiagnostics), ok: false }
     : {
-        ok: true,
         components: components.sort((a, b) =>
           a.fileName < b.fileName ? -1 : a.fileName > b.fileName ? 1 : 0,
         ),
         diagnostics: [],
+        ok: true,
       };
 };

@@ -9,14 +9,11 @@ import { reactResourceId } from "../src/resolution/resolve-opaque-component.js";
 
 const metadata = validateStaticComponentMetadata({
   id: "hero",
-  version: 1,
   props: {
-    title: { kind: "string", required: true },
     subtitle: { kind: "string", default: "Default" },
+    title: { kind: "string", required: true },
   },
-  surface: { logicalSize: [800, 450] },
   semantics: {
-    rootNodeIds: ["heading", "paragraph"],
     nodes: {
       heading: {
         role: "heading",
@@ -32,43 +29,47 @@ const metadata = validateStaticComponentMetadata({
         text: { kind: "prop-ref", name: "subtitle" },
       },
     },
+    rootNodeIds: ["heading", "paragraph"],
   },
+  surface: { logicalSize: [800, 450] },
+  version: 1,
 });
 const manifest = buildOpaqueComponentManifest(metadata, "hero.component.tsx#render");
 const lock = {
+  manifestHash: "sha256:manifest",
   mode: "opaque",
   origin: {
-    kind: "local",
     entryFile: "hero.component.tsx",
     files: [{ path: "hero.component.tsx", hash: "sha256:source" }],
+    kind: "local",
     sourceHash: "sha256:source",
   },
-  manifestHash: "sha256:manifest",
   rendererInputHash: "sha256:renderer",
 };
 const item = (id: string, props: Record<string, string> = { title: "Hello" }) => ({
-  id,
-  component: { id: "hero", version: 1 },
-  props,
-  owner: { kind: "presentation" },
   audience: { kind: "all" },
+  component: { id: "hero", version: 1 },
+  fit: "contain",
+  id,
+  owner: { kind: "presentation" },
   parent: { kind: "stage" },
   physicalSizeMeters: [1.6, 0.9],
-  fit: "contain",
+  props,
   transform: { position: [0, 1, -2], rotation: [0, 0, 0, 2], scale: [1, 1, 1] },
 });
-const project = (scene: ReturnType<typeof item>[]) => ({
-  presentation: {
-    id: "deck",
-    metadata: { title: "Deck" },
-    stage: {
-      coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-      size: [4, 3, 4],
+const project = (scene: Array<ReturnType<typeof item>>) => ({
+  assets: {},
+  components: [
+    {
+      lock,
+      manifest,
+      metadata,
+      rendererEntry: "hero.component.tsx#render",
+      rendererSource: "export default () => null",
     },
-    theme: { themeId: standardComponents.theme.id },
-    scene,
+  ],
+  presentation: {
     assets: [],
-    operations: [],
     flow: {
       initialGroupId: "main",
       groups: {
@@ -76,26 +77,39 @@ const project = (scene: ReturnType<typeof item>[]) => ({
       },
       variables: {},
     },
+    id: "deck",
+    metadata: { title: "Deck" },
+    operations: [],
+    scene,
+    stage: {
+      coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
+      size: [4, 3, 4],
+    },
+    theme: { themeId: standardComponents.theme.id },
   },
   themes: [{ declaration: standardComponents.theme, hash: "sha256:theme" }],
-  components: [
-    {
-      manifest,
-      metadata,
-      rendererEntry: "hero.component.tsx#render",
-      rendererSource: "export default () => null",
-      lock,
-    },
-  ],
-  assets: {},
 });
 
 describe("Opaque React lowering", () => {
   it("lowers finite State, button Interaction and Output-to-Action Cue", () => {
     const finiteMetadata = validateStaticComponentMetadata({
       ...metadata,
+      actions: {
+        reveal: {
+          effects: [{ kind: "setState", stateId: "revealed" }],
+          inputs: {},
+          preconditions: [],
+        },
+      },
+      initialState: "hidden",
+      interactions: { reveal: { event: "quiz.reveal", hitPriority: 0, kind: "click" } },
+      outputs: {
+        revealRequested: {
+          payload: {},
+          producer: { interactionId: "reveal", kind: "surfaceInteraction" },
+        },
+      },
       semantics: {
-        rootNodeIds: ["heading", "button"],
         nodes: {
           heading: metadata.semantics.nodes.heading,
           button: {
@@ -106,28 +120,14 @@ describe("Opaque React lowering", () => {
             interactionId: "reveal",
           },
         },
+        rootNodeIds: ["heading", "button"],
       },
-      interactions: { reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 } },
-      initialState: "hidden",
       states: {
         hidden: {
-          semanticOverrides: [{ id: "hide-heading", targetId: "heading", included: false }],
           enabledInteractionIds: ["reveal"],
+          semanticOverrides: [{ id: "hide-heading", targetId: "heading", included: false }],
         },
-        revealed: { semanticOverrides: [], enabledInteractionIds: [] },
-      },
-      actions: {
-        reveal: {
-          inputs: {},
-          preconditions: [],
-          effects: [{ kind: "setState", stateId: "revealed" }],
-        },
-      },
-      outputs: {
-        revealRequested: {
-          payload: {},
-          producer: { kind: "surfaceInteraction", interactionId: "reveal" },
-        },
+        revealed: { enabledInteractionIds: [], semanticOverrides: [] },
       },
     });
     const input = project([item("quiz")]);
@@ -138,28 +138,28 @@ describe("Opaque React lowering", () => {
       ),
     ).toEqual(buildOpaqueComponentManifest(finiteMetadata, "hero.component.tsx#render"));
     const cue = {
-      id: "show",
-      trigger: {
-        kind: "component.output",
-        componentInstanceId: "quiz",
-        outputId: "revealRequested",
-      },
       actions: [
         {
-          kind: "component.action",
-          componentInstanceId: "quiz",
           actionId: "reveal",
           arguments: {},
+          componentInstanceId: "quiz",
+          kind: "component.action",
         },
       ],
+      id: "show",
+      trigger: {
+        componentInstanceId: "quiz",
+        kind: "component.output",
+        outputId: "revealRequested",
+      },
     };
     const result = checkDeclarationProject({
       ...input,
       components: [
         {
           ...input.components[0],
-          metadata: finiteMetadata,
           manifest: buildOpaqueComponentManifest(finiteMetadata, "hero.component.tsx#render"),
+          metadata: finiteMetadata,
         },
       ],
       presentation: {
@@ -170,20 +170,22 @@ describe("Opaque React lowering", () => {
             main: {
               id: "main",
               initialStepId: "first",
-              steps: { first: { id: "first", cues: [cue] } },
+              steps: { first: { cues: [cue], id: "first" } },
             },
           },
         },
       },
     });
-    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    if (!result.valid) {
+      throw new Error(JSON.stringify(result.diagnostics));
+    }
     const surface = result.value.definition.scene.surfaces[reactResourceId("surface", "quiz")]!;
     expect(surface.initialStateId).toBe(reactResourceId("state", "quiz", "hidden"));
     expect(
       surface.baseSemanticTree.nodes[reactResourceId("semantic", "quiz", "button")],
     ).toMatchObject({
-      role: "button",
       interactionId: reactResourceId("interaction", "quiz", "reveal"),
+      role: "button",
     });
     expect(
       surface.states[reactResourceId("state", "quiz", "hidden")]?.semanticOverrides[0],
@@ -191,13 +193,13 @@ describe("Opaque React lowering", () => {
       nodes: { [reactResourceId("semantic", "quiz", "heading")]: { included: false } },
     });
     expect(result.value.definition.flow.groups.main?.steps.first?.cues[0]).toMatchObject({
-      trigger: {
-        kind: "surfaceInteraction",
-        interactionId: reactResourceId("interaction", "quiz", "reveal"),
-      },
       actions: [
         { kind: "surface.setState", stateId: reactResourceId("state", "quiz", "revealed") },
       ],
+      trigger: {
+        interactionId: reactResourceId("interaction", "quiz", "reveal"),
+        kind: "surfaceInteraction",
+      },
     });
   });
   it("accepts an Opaque project without a selected Theme or Theme catalog", () => {
@@ -218,22 +220,26 @@ describe("Opaque React lowering", () => {
     const reordered = checkDeclarationProject(project([item("two"), item("one")]));
     expect(first.valid).toBe(true);
     expect(reordered.valid).toBe(true);
-    if (!first.valid || !reordered.valid) return;
+    if (!first.valid || !reordered.valid) {
+      return;
+    }
     const surfaceId = reactResourceId("surface", "one");
     const hostId = reactResourceId("host", "one");
     const semanticId = reactResourceId("semantic", "one", "heading");
     const surface = first.value.definition.scene.surfaces[surfaceId]!;
     expect(surface.hostNodeId).toBe(hostId);
     expect(surface.content).toEqual({
-      kind: "opaque",
       bindings: {
         "node:heading": semanticId,
         "node:paragraph": reactResourceId("semantic", "one", "paragraph"),
       },
+      kind: "opaque",
     });
     const heading = surface.baseSemanticTree.nodes[semanticId];
     expect(heading?.role).toBe("heading");
-    if (heading?.role === "heading") expect(heading.text).toBe("Hello");
+    if (heading?.role === "heading") {
+      expect(heading.text).toBe("Hello");
+    }
     expect(first.value.definition.scene.nodes[hostId]?.transform.rotation).toEqual([0, 0, 0, 1]);
     expect(reordered.value.definition.scene.surfaces[surfaceId]).toEqual(surface);
     expect(Object.keys(reordered.value.definition.scene.surfaces).sort()).toEqual(
@@ -262,7 +268,7 @@ describe("Opaque React lowering", () => {
 
   it("rejects unknown props, invalid rotation, and a mismatched static contract", () => {
     const unknown = checkDeclarationProject(
-      project([item("one", { title: "Hello", extra: "no" })]),
+      project([item("one", { extra: "no", title: "Hello" })]),
     );
     const badRotation = project([item("one")]);
     badRotation.presentation.scene[0]!.transform.rotation = [0, 0, 0, 0];
@@ -276,7 +282,9 @@ describe("Opaque React lowering", () => {
       [contract, "compiler-opaque-contract-mismatch"],
     ] as const) {
       expect(result.valid).toBe(false);
-      if (!result.valid) expect(result.diagnostics.map((item) => item.code)).toContain(code);
+      if (!result.valid) {
+        expect(result.diagnostics.map((item) => item.code)).toContain(code);
+      }
     }
   });
 });

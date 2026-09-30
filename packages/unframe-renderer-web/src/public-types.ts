@@ -8,7 +8,7 @@ import type {
 
 type DeepReadonly<T> = T extends Uint8Array
   ? Uint8Array
-  : T extends readonly unknown[]
+  : T extends ReadonlyArray<unknown>
     ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
     : T extends object
       ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
@@ -16,32 +16,32 @@ type DeepReadonly<T> = T extends Uint8Array
 
 export type FixedBrowserEnvironment = DeepReadonly<z.input<typeof fixedBrowserEnvironmentSchema>>;
 export type BrowserCaptureRequest = {
-  readonly stateId: string;
-  readonly document: string;
-  readonly fontFaceCount: number;
-  readonly pixelTarget: readonly [width: number, height: number];
-  readonly colorScheme: "light" | "dark";
-  readonly environment: FixedBrowserEnvironment;
   readonly capabilities: Pick<
     FixedBrowserEnvironment,
     "network" | "filesystem" | "clock" | "random" | "deviceScaleFactor" | "colorSpace"
   >;
+  readonly colorScheme: "light" | "dark";
+  readonly document: string;
+  readonly environment: FixedBrowserEnvironment;
+  readonly fontFaceCount: number;
+  readonly pixelTarget: readonly [width: number, height: number];
+  readonly stateId: string;
 };
 
 export type BrowserRgbaCapture = {
-  readonly rgba: Uint8Array;
-  readonly pixelSize: readonly [width: number, height: number];
-  readonly colorSpace: "srgb";
   readonly alphaMode: "opaque" | "straight" | "premultiplied";
+  readonly colorSpace: "srgb";
+  readonly pixelSize: readonly [width: number, height: number];
+  readonly rgba: Uint8Array;
 };
 
 export type FixedBrowserAdapter = {
-  readonly identity: DeepReadonly<z.input<typeof adapterIdentitySchema>>;
-  readonly environment: FixedBrowserEnvironment;
   capture(
     request: BrowserCaptureRequest,
     options?: { readonly signal?: AbortSignal },
   ): Promise<BrowserRgbaCapture> | BrowserRgbaCapture;
+  readonly environment: FixedBrowserEnvironment;
+  readonly identity: DeepReadonly<z.input<typeof adapterIdentitySchema>>;
 };
 
 export type FixedBrowserSession = FixedBrowserAdapter & {

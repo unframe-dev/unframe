@@ -9,37 +9,37 @@ export type NormalizedDeclarationValue =
   | boolean
   | number
   | string
-  | readonly NormalizedDeclarationValue[]
+  | ReadonlyArray<NormalizedDeclarationValue>
   | { readonly [key: string]: NormalizedDeclarationValue };
 type Json = NormalizedDeclarationValue;
 type PathSegment = string | number;
 
 export type DeclarationSourceMapEntry = {
-  readonly path: readonly PathSegment[];
-  readonly origin: DeclarationSourceOrigin;
   readonly keyOrigin?: DeclarationSourceOrigin;
+  readonly origin: DeclarationSourceOrigin;
+  readonly path: ReadonlyArray<PathSegment>;
 };
 
 export type NormalizationDiagnostic = {
   readonly code: string;
+  readonly column: number;
+  readonly end: number;
   readonly fileName: string;
+  readonly line: number;
   readonly message: string;
   readonly start: number;
-  readonly end: number;
-  readonly line: number;
-  readonly column: number;
 };
 
 export type NormalizedDeclarationGraph =
   | {
+      readonly diagnostics: [];
       readonly ok: true;
       readonly rootBuilder: string;
       readonly rootOrigin: DeclarationSourceOrigin;
+      readonly sourceMap: ReadonlyArray<DeclarationSourceMapEntry>;
       readonly value: Json;
-      readonly sourceMap: readonly DeclarationSourceMapEntry[];
-      readonly diagnostics: [];
     }
-  | { readonly ok: false; readonly diagnostics: readonly NormalizationDiagnostic[] };
+  | { readonly diagnostics: ReadonlyArray<NormalizationDiagnostic>; readonly ok: false };
 
 const diagnosticCode = "compiler-normalization-invalid-graph";
 const rootBuilders = new Set([
@@ -49,11 +49,11 @@ const rootBuilders = new Set([
   "defineComponentStructure",
 ]);
 const fallbackOrigin: DeclarationSourceOrigin = {
-  fileName: "",
-  start: 0,
-  end: 0,
-  line: 1,
   column: 1,
+  end: 0,
+  fileName: "",
+  line: 1,
+  start: 0,
 };
 
 const compareDiagnostics = (left: NormalizationDiagnostic, right: NormalizationDiagnostic) =>
@@ -80,10 +80,10 @@ const isOrigin = (value: unknown): value is DeclarationSourceOrigin =>
 
 const isNode = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) && isOrigin(value.origin);
-type ObjectNode = Record<string, unknown> & { readonly properties: readonly unknown[] };
+type ObjectNode = Record<string, unknown> & { readonly properties: ReadonlyArray<unknown> };
 type BuilderNode = Record<string, unknown> & {
+  readonly arguments: ReadonlyArray<unknown>;
   readonly builder: string;
-  readonly arguments: readonly unknown[];
 };
 
 const isObjectNode = (value: unknown): value is ObjectNode =>
@@ -101,36 +101,40 @@ const isFiniteNumberLiteral = (value: unknown) =>
 const createObject = (): Record<string, Json> => Object.create(null) as Record<string, Json>;
 
 export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDeclarationGraph => {
-  const diagnostics: NormalizationDiagnostic[] = [];
+  const diagnostics: Array<NormalizationDiagnostic> = [];
   const entries = new Map<string, DeclarationSourceMapEntry>();
   const fail = (origin: DeclarationSourceOrigin, message: string) => {
     diagnostics.push({ code: diagnosticCode, ...origin, message });
   };
   const addSource = (
-    path: readonly PathSegment[],
+    path: ReadonlyArray<PathSegment>,
     origin: DeclarationSourceOrigin,
     keyOrigin?: DeclarationSourceOrigin,
   ) => {
     const key = JSON.stringify(path);
-    if (entries.has(key)) fail(origin, "Source map paths must be unique.");
-    else
+    if (entries.has(key)) {
+      fail(origin, "Source map paths must be unique.");
+    } else {
       entries.set(
         key,
-        keyOrigin ? { path: [...path], origin, keyOrigin } : { path: [...path], origin },
+        keyOrigin ? { keyOrigin, origin, path: [...path] } : { origin, path: [...path] },
       );
+    }
   };
   const requireArguments = (node: Record<string, unknown>, valid: boolean) => {
-    if (valid) return true;
+    if (valid) {
+      return true;
+    }
     fail(node.origin as DeclarationSourceOrigin, "Builder arguments are invalid.");
     return false;
   };
 
   const copyObject = (
     node: unknown,
-    path: readonly PathSegment[],
+    path: ReadonlyArray<PathSegment>,
     materialize: (
       node: unknown,
-      path: readonly PathSegment[],
+      path: ReadonlyArray<PathSegment>,
       keyOrigin?: DeclarationSourceOrigin,
     ) => Json | undefined,
     target = createObject(),
@@ -159,20 +163,21 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
         continue;
       }
       const value = materialize(property.value, [...path, property.key], property.origin);
-      if (value !== undefined)
+      if (value !== undefined) {
         Object.defineProperty(target, property.key, {
-          value,
-          enumerable: true,
-          writable: true,
           configurable: true,
+          enumerable: true,
+          value,
+          writable: true,
         });
+      }
     }
     return diagnostics.length === 0 ? target : undefined;
   };
 
   const materialize = (
     node: unknown,
-    path: readonly PathSegment[],
+    path: ReadonlyArray<PathSegment>,
     keyOrigin?: DeclarationSourceOrigin,
   ): Json | undefined => {
     if (!isNode(node) || typeof node.kind !== "string") {
@@ -197,14 +202,18 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
         fail(origin, "Array values are invalid.");
         return undefined;
       }
-      const result: Json[] = [];
+      const result: Array<Json> = [];
       for (const [index, child] of node.values.entries()) {
         const value = materialize(child, [...path, index]);
-        if (value !== undefined) result.push(value);
+        if (value !== undefined) {
+          result.push(value);
+        }
       }
       return diagnostics.length === 0 ? result : undefined;
     }
-    if (node.kind === "object") return copyObject(node, path, materialize);
+    if (node.kind === "object") {
+      return copyObject(node, path, materialize);
+    }
     if (!isBuilderNode(node)) {
       fail(origin, "Declaration graph value kind is unknown.");
       return undefined;
@@ -216,10 +225,10 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
       fieldOrigin: DeclarationSourceOrigin,
     ) => {
       Object.defineProperty(target, key, {
-        value,
-        enumerable: true,
-        writable: true,
         configurable: true,
+        enumerable: true,
+        value,
+        writable: true,
       });
       addSource([...path, key], fieldOrigin);
     };
@@ -237,13 +246,16 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
             ? arguments_.length <= 1 && (arguments_.length === 0 || isObjectNode(arguments_[0]))
             : arguments_.length === 1 && isObjectNode(arguments_[0]),
         )
-      )
+      ) {
         return undefined;
+      }
       const result =
         arguments_.length === 0
           ? createObject()
           : copyObject(arguments_[0], path, materialize, createObject(), new Set(["kind"]));
-      if (!result) return undefined;
+      if (!result) {
+        return undefined;
+      }
       generated(result, "kind", shape.resultKind, origin);
       if (node.builder === "editableText") {
         const editor = createObject();
@@ -253,8 +265,9 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
       return result;
     }
     if (shape.kind === "identity") {
-      if (!requireArguments(node, arguments_.length === 1 && isObjectNode(arguments_[0])))
+      if (!requireArguments(node, arguments_.length === 1 && isObjectNode(arguments_[0]))) {
         return undefined;
+      }
       return copyObject(arguments_[0], path, materialize);
     }
     const requiredArguments =
@@ -272,18 +285,21 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
           (shape.spreadObjectArgument === undefined ||
             isObjectNode(arguments_[shape.spreadObjectArgument])),
       )
-    )
+    ) {
       return undefined;
+    }
     const result = createObject();
     generated(result, "kind", shape.resultKind, origin);
     for (const field of shape.fields) {
       const value = materialize(arguments_[field.argument], [...path, field.key]);
-      if (value === undefined) return undefined;
+      if (value === undefined) {
+        return undefined;
+      }
       Object.defineProperty(result, field.key, {
-        value,
-        enumerable: true,
-        writable: true,
         configurable: true,
+        enumerable: true,
+        value,
+        writable: true,
       });
     }
     return shape.spreadObjectArgument === undefined
@@ -307,19 +323,21 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
       isNode(root) ? (root.origin as DeclarationSourceOrigin) : fallbackOrigin,
       "Root builder is invalid.",
     );
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
   }
-  if (!requireArguments(root, root.arguments.length === 1 && isObjectNode(root.arguments[0])))
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  if (!requireArguments(root, root.arguments.length === 1 && isObjectNode(root.arguments[0]))) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
   const value = materialize(root.arguments[0], []);
-  if (diagnostics.length !== 0 || value === undefined)
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  if (diagnostics.length !== 0 || value === undefined) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
   return {
+    diagnostics: [],
     ok: true,
     rootBuilder: root.builder as string,
     rootOrigin: root.origin as DeclarationSourceOrigin,
-    value,
     sourceMap: [...entries.values()],
-    diagnostics: [],
+    value,
   };
 };

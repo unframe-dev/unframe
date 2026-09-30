@@ -13,14 +13,14 @@ export class R2ObjectStorage implements ObjectStorage {
     }
     const checksum = object.checksums?.sha256;
     return {
-      sizeBytes: object.size,
       mediaType: object.httpMetadata?.contentType ?? "",
       sha256Hex: checksum ? hex(checksum) : "",
+      sizeBytes: object.size,
     };
   }
 
   async prefix(objectKey: string) {
-    const object = await this.bucket.get(objectKey, { range: { offset: 0, length: 32 } });
+    const object = await this.bucket.get(objectKey, { range: { length: 32, offset: 0 } });
     return object ? new Uint8Array(await object.arrayBuffer()) : null;
   }
 
@@ -29,7 +29,7 @@ export class R2ObjectStorage implements ObjectStorage {
   }
 
   async list(prefix: string) {
-    const objects: { objectKey: string; uploadedAt: Date }[] = [];
+    const objects: Array<{ objectKey: string; uploadedAt: Date }> = [];
     let cursor: string | undefined;
     do {
       const page = await this.bucket.list({ prefix, ...(cursor ? { cursor } : {}) });

@@ -38,7 +38,9 @@ const canonicalQuaternion = (
   value: readonly [number, number, number, number],
 ): [number, number, number, number] | undefined => {
   const magnitude = Math.hypot(...value);
-  if (!Number.isFinite(magnitude) || magnitude === 0) return undefined;
+  if (!Number.isFinite(magnitude) || magnitude === 0) {
+    return undefined;
+  }
   let normalized = value.map((component) => component / magnitude) as [
     number,
     number,
@@ -48,8 +50,9 @@ const canonicalQuaternion = (
   const firstNonZero = [normalized[3], normalized[0], normalized[1], normalized[2]].find(
     (component) => component !== 0,
   );
-  if ((firstNonZero ?? 1) < 0)
+  if ((firstNonZero ?? 1) < 0) {
     normalized = normalized.map((component) => -component) as [number, number, number, number];
+  }
   return normalized.map((component) => (component === 0 ? 0 : component)) as [
     number,
     number,
@@ -61,12 +64,13 @@ const checkDeclarationProjectUnchecked = (
   input: unknown,
 ): ValidationResult<CheckedDeclarationProject> => {
   const cloned = safePlainClone(input);
-  if (!cloned.valid) return cloned;
+  if (!cloned.valid) {
+    return cloned;
+  }
   if (
     !declarationProjectFieldKeysSchema.safeParse(Object.keys(cloned.value as UnknownRecord)).success
-  )
+  ) {
     return {
-      valid: false,
       diagnostics: [
         diagnostic(
           "compiler-invalid-project-field",
@@ -74,34 +78,37 @@ const checkDeclarationProjectUnchecked = (
           "Project contains an unknown top-level field.",
         ),
       ],
-    };
-  const parsedProject = declarationProjectEnvelopeSchema.safeParse(cloned.value);
-  if (!parsedProject.success)
-    return {
       valid: false,
-      diagnostics: sortDiagnostics([...projectEnvelopeDiagnostics(parsedProject.error.issues)]),
     };
+  }
+  const parsedProject = declarationProjectEnvelopeSchema.safeParse(cloned.value);
+  if (!parsedProject.success) {
+    return {
+      diagnostics: sortDiagnostics([...projectEnvelopeDiagnostics(parsedProject.error.issues)]),
+      valid: false,
+    };
+  }
 
   // Declaration API owns the detailed Authoring contracts; this schema owns the public envelope.
   const project = parsedProject.data as unknown as CompilerDeclarationProject;
-  if (Array.isArray(project.presentation.scene))
+  if (Array.isArray(project.presentation.scene)) {
     return resolveOpaqueProject(
       project as Parameters<typeof resolveOpaqueProject>[0],
       cloned.value,
     );
+  }
   const mixedScene = project.presentation.scene as PresentationDeclaration["scene"];
-  const reactItems = (mixedScene.components as readonly unknown[]).filter(
+  const reactItems = (mixedScene.components as ReadonlyArray<unknown>).filter(
     (item): item is StaticReactSceneItem =>
       typeof item === "object" && item !== null && "component" in item,
   );
   if (reactItems.length) {
-    const structuredItems = (mixedScene.components as readonly unknown[]).filter(
+    const structuredItems = (mixedScene.components as ReadonlyArray<unknown>).filter(
       (item) => !reactItems.includes(item as StaticReactSceneItem),
     );
     const structuredIds = new Set(structuredItems.map((item) => (item as { id?: unknown }).id));
-    if (reactItems.some((item) => structuredIds.has(item.id)))
+    if (reactItems.some((item) => structuredIds.has(item.id))) {
       return {
-        valid: false,
         diagnostics: [
           diagnostic(
             "compiler-duplicate-component-instance-id",
@@ -109,7 +116,9 @@ const checkDeclarationProjectUnchecked = (
             "Component Instance IDs must be unique across Structured and React Components.",
           ),
         ],
+        valid: false,
       };
+    }
     const reactIds = new Set(reactItems.map((item) => item.id));
     const splitFlow = (react: boolean) => ({
       ...project.presentation.flow,
@@ -126,15 +135,18 @@ const checkDeclarationProjectUnchecked = (
                   cues: step.cues
                     .map((cue, index) => ({ ...cue, order: cue.order ?? index }))
                     .filter((cue) => {
-                      if (cue.trigger.kind === "event") return !react;
+                      if (cue.trigger.kind === "event") {
+                        return !react;
+                      }
                       const outputTrigger = cue.trigger;
                       const belongsToReact = reactIds.has(outputTrigger.componentInstanceId);
                       if (
                         cue.actions.some(
                           (action) => reactIds.has(action.componentInstanceId) !== belongsToReact,
                         )
-                      )
+                      ) {
                         return false;
+                      }
                       return belongsToReact === react;
                     }),
                 },
@@ -144,8 +156,8 @@ const checkDeclarationProjectUnchecked = (
         ]),
       ),
     });
-    for (const group of Object.values(project.presentation.flow.groups))
-      for (const step of Object.values(group.steps))
+    for (const group of Object.values(project.presentation.flow.groups)) {
+      for (const step of Object.values(group.steps)) {
         for (const cue of step.cues) {
           const trigger = cue.trigger;
           if (
@@ -167,39 +179,44 @@ const checkDeclarationProjectUnchecked = (
               ],
             };
         }
+      }
+    }
     const structured = checkDeclarationProjectUnchecked({
       ...project,
+      components: project.components.filter((entry) => "structure" in entry),
       presentation: {
         ...project.presentation,
-        scene: { ...mixedScene, components: structuredItems },
         flow: splitFlow(false),
+        scene: { ...mixedScene, components: structuredItems },
       },
-      components: project.components.filter((entry) => "structure" in entry),
     });
-    if (!structured.valid) return structured;
+    if (!structured.valid) {
+      return structured;
+    }
     const opaque = resolveOpaqueProject(
       {
         ...project,
+        assets: {},
+        components: project.components.filter((entry) => "metadata" in entry),
         presentation: {
           ...project.presentation,
-          scene: reactItems,
           assets: [],
           flow: splitFlow(true),
+          scene: reactItems,
         },
-        components: project.components.filter((entry) => "metadata" in entry),
-        assets: {},
       } as Parameters<typeof resolveOpaqueProject>[0],
       cloned.value,
     );
-    if (!opaque.valid) return opaque;
+    if (!opaque.valid) {
+      return opaque;
+    }
     const structuredNodeIds = new Set(Object.keys(structured.value.definition.scene.nodes));
     const structuredSurfaceIds = new Set(Object.keys(structured.value.definition.scene.surfaces));
     if (
       Object.keys(opaque.value.definition.scene.nodes).some((id) => structuredNodeIds.has(id)) ||
       Object.keys(opaque.value.definition.scene.surfaces).some((id) => structuredSurfaceIds.has(id))
-    )
+    ) {
       return {
-        valid: false,
         diagnostics: [
           diagnostic(
             "compiler-resource-id-collision",
@@ -207,7 +224,9 @@ const checkDeclarationProjectUnchecked = (
             "Structured and React resources must have unique IDs.",
           ),
         ],
+        valid: false,
       };
+    }
     const orderOffset =
       Math.max(
         -1,
@@ -223,13 +242,6 @@ const checkDeclarationProjectUnchecked = (
     );
     const definition: PresentationDefinition = {
       ...structured.value.definition,
-      scene: {
-        nodes: { ...structured.value.definition.scene.nodes, ...opaqueNodes },
-        surfaces: {
-          ...structured.value.definition.scene.surfaces,
-          ...opaque.value.definition.scene.surfaces,
-        },
-      },
       flow: {
         ...structured.value.definition.flow,
         groups: Object.fromEntries(
@@ -253,34 +265,44 @@ const checkDeclarationProjectUnchecked = (
           ]),
         ),
       },
+      scene: {
+        nodes: { ...structured.value.definition.scene.nodes, ...opaqueNodes },
+        surfaces: {
+          ...structured.value.definition.scene.surfaces,
+          ...opaque.value.definition.scene.surfaces,
+        },
+      },
     };
     const validated = validatePresentationDefinition(definition);
-    if (!validated.valid) return validated;
+    if (!validated.valid) {
+      return validated;
+    }
     const canonical = canonicalizePresentationDefinition(validated.value);
     const definitionHash = hashPresentationDefinition(validated.value);
-    if (!canonical.valid || !definitionHash.valid)
+    if (!canonical.valid || !definitionHash.valid) {
       return {
-        valid: false,
         diagnostics: !canonical.valid ? canonical.diagnostics : definitionHash.diagnostics,
+        valid: false,
       };
+    }
     return {
+      diagnostics: [],
       valid: true,
       value: {
-        definition: validated.value,
-        definitionJson: canonical.value,
-        definitionHash: definitionHash.value,
-        sourceHash: hashCanonicalJsonPayload(cloned.value),
         assetSet: {
           schemaVersion: 2,
           assets: { ...structured.value.assetSet.assets, ...opaque.value.assetSet.assets },
         },
+        definition: validated.value,
+        definitionHash: definitionHash.value,
+        definitionJson: canonical.value,
+        sourceHash: hashCanonicalJsonPayload(cloned.value),
         warnings: [...structured.value.warnings, ...opaque.value.warnings],
       },
-      diagnostics: [],
     };
   }
-  const diagnostics: Diagnostic[] = [];
-  const warnings: CompilerWarning[] = [];
+  const diagnostics: Array<Diagnostic> = [];
+  const warnings: Array<CompilerWarning> = [];
   const rawPresentation = project.presentation;
   const presentation = rawPresentation as PresentationDeclaration;
   const themes = project.themes as CompilerDeclarationProject["themes"];
@@ -293,7 +315,7 @@ const checkDeclarationProjectUnchecked = (
     > => "structure" in candidate,
   );
   const assets = project.assets as CompilerDeclarationProject["assets"];
-  const validateDeclaration = (path: readonly (string | number)[], valid: boolean) => {
+  const validateDeclaration = (path: ReadonlyArray<string | number>, valid: boolean) => {
     if (!valid) {
       diagnostics.push(
         diagnostic(
@@ -327,10 +349,14 @@ const checkDeclarationProjectUnchecked = (
       ["components", index, "structure"],
       isComponentStructure(structure),
     );
-    if (!manifestValid || !structureValid) continue;
+    if (!manifestValid || !structureValid) {
+      continue;
+    }
   }
-  if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
-  if (!presentation.theme)
+  if (diagnostics.length) {
+    return { diagnostics: sortDiagnostics(diagnostics), valid: false };
+  }
+  if (!presentation.theme) {
     diagnostics.push(
       diagnostic(
         "compiler-theme-required",
@@ -338,10 +364,11 @@ const checkDeclarationProjectUnchecked = (
         "A theme selection is required.",
       ),
     );
+  }
   const theme = themes.filter(
     (candidate) => candidate.declaration.id === presentation.theme?.themeId,
   );
-  if (theme.length !== 1)
+  if (theme.length !== 1) {
     diagnostics.push(
       diagnostic(
         "compiler-theme-not-found",
@@ -349,19 +376,21 @@ const checkDeclarationProjectUnchecked = (
         "Selected theme must resolve exactly once.",
       ),
     );
+  }
 
   const nodes: PresentationDefinition["scene"]["nodes"] = {};
   const surfaces: PresentationDefinition["scene"]["surfaces"] = {};
   const timelines: PresentationDefinition["flow"]["timelines"] = {};
   const uniqueIds = (
-    values: readonly { id: string }[],
-    path: readonly (string | number)[],
+    values: ReadonlyArray<{ id: string }>,
+    path: ReadonlyArray<string | number>,
     code: string,
   ) => {
     const seen = new Set<string>();
     for (const value of values) {
-      if (seen.has(value.id))
+      if (seen.has(value.id)) {
         diagnostics.push(diagnostic(code, path, "Declaration IDs must be unique before lowering."));
+      }
       seen.add(value.id);
     }
   };
@@ -380,7 +409,7 @@ const checkDeclarationProjectUnchecked = (
     ["presentation", "assets"],
     "compiler-duplicate-asset-reference",
   );
-  if (presentation.operations.length)
+  if (presentation.operations.length) {
     diagnostics.push(
       diagnostic(
         "compiler-operations-unsupported",
@@ -388,6 +417,7 @@ const checkDeclarationProjectUnchecked = (
         "Operations are not supported.",
       ),
     );
+  }
   const spatialById = new Map((presentation.scene?.spatial ?? []).map((node) => [node.id, node]));
   const instances = presentation.scene?.components ?? [];
   const instanceById = new Map(instances.map((instance) => [instance.id, instance]));
@@ -426,7 +456,7 @@ const checkDeclarationProjectUnchecked = (
       if (
         "semantics" in entry.manifest &&
         entry.manifest.semantics.targets.some((target) => target.kind === "timeline")
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "compiler-opaque-timeline-unsupported",
@@ -434,8 +464,9 @@ const checkDeclarationProjectUnchecked = (
             "Opaque Component Timelines cannot be lowered.",
           ),
         );
+      }
     }
-    if (entry.structure.componentId !== entry.manifest.componentId)
+    if (entry.structure.componentId !== entry.manifest.componentId) {
       diagnostics.push(
         diagnostic(
           "compiler-component-identity-mismatch",
@@ -443,6 +474,7 @@ const checkDeclarationProjectUnchecked = (
           "Component structure and Manifest must match.",
         ),
       );
+    }
     const componentSemanticTree =
       entry.structure.root.kind === "surface"
         ? entry.structure.root.baseSemanticTree
@@ -453,8 +485,8 @@ const checkDeclarationProjectUnchecked = (
       [...path, "structure", "baseSemanticTree", "nodes"],
       "compiler-duplicate-semantic-node-id",
     );
-    for (const [semanticId, semantic] of componentSemanticEntries)
-      if (semanticId !== semantic.id)
+    for (const [semanticId, semantic] of componentSemanticEntries) {
+      if (semanticId !== semantic.id) {
         diagnostics.push(
           diagnostic(
             "compiler-record-key-id-mismatch",
@@ -462,12 +494,14 @@ const checkDeclarationProjectUnchecked = (
             "Semantic Tree record keys must match semantic node IDs.",
           ),
         );
+      }
+    }
     for (const [variantId, declaration] of Object.entries(entry.manifest.variants)) {
       const styles = entry.structure.variantStyles[variantId];
       if (
         styles === undefined ||
         Object.keys(styles).sort().join("\0") !== [...declaration.values].sort().join("\0")
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "compiler-variant-style-set-mismatch",
@@ -475,9 +509,10 @@ const checkDeclarationProjectUnchecked = (
             "Every Variant value must have exactly one style mapping.",
           ),
         );
+      }
     }
-    for (const variantId of Object.keys(entry.structure.variantStyles))
-      if (!Object.hasOwn(entry.manifest.variants, variantId))
+    for (const variantId of Object.keys(entry.structure.variantStyles)) {
+      if (!Object.hasOwn(entry.manifest.variants, variantId)) {
         diagnostics.push(
           diagnostic(
             "compiler-variant-style-set-mismatch",
@@ -485,10 +520,12 @@ const checkDeclarationProjectUnchecked = (
             "Variant style mappings must be declared by the manifest.",
           ),
         );
+      }
+    }
     if (
       Object.keys(entry.manifest.parts).sort().join("\0") !==
       Object.keys(entry.structure.partBindings).sort().join("\0")
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "compiler-part-binding-set-mismatch",
@@ -496,8 +533,9 @@ const checkDeclarationProjectUnchecked = (
           "Every manifest Part must have exactly one structure binding.",
         ),
       );
-    for (const propName of Object.keys(instance.props))
-      if (!Object.hasOwn(entry.manifest.props, propName))
+    }
+    for (const propName of Object.keys(instance.props)) {
+      if (!Object.hasOwn(entry.manifest.props, propName)) {
         diagnostics.push(
           diagnostic(
             "compiler-prop-not-found",
@@ -505,9 +543,11 @@ const checkDeclarationProjectUnchecked = (
             "Component props must be declared by the manifest.",
           ),
         );
+      }
+    }
     for (const [propName, declaration] of Object.entries(entry.manifest.props)) {
       if (!Object.hasOwn(instance.props, propName)) {
-        if ("required" in declaration && declaration.required === true)
+        if ("required" in declaration && declaration.required === true) {
           diagnostics.push(
             diagnostic(
               "compiler-required-prop-missing",
@@ -515,20 +555,21 @@ const checkDeclarationProjectUnchecked = (
               "A required Component prop is missing.",
             ),
           );
-        else if ("default" in declaration)
+        } else if ("default" in declaration) {
           warnings.push({
             code: "compiler-prop-default-applied",
+            componentInstanceId: instance.id,
+            defaultValue: declaration.default,
             message: "An omitted Component prop used its manifest default.",
             path: [...path, "props", propName],
-            componentInstanceId: instance.id,
             propName,
-            defaultValue: declaration.default,
             ...(instance.source === undefined ? {} : { source: instance.source }),
           });
+        }
         continue;
       }
       const value = instance.props[propName];
-      if (typeof value !== declaration.kind)
+      if (typeof value !== declaration.kind) {
         diagnostics.push(
           diagnostic(
             "compiler-prop-type-mismatch",
@@ -536,9 +577,10 @@ const checkDeclarationProjectUnchecked = (
             "Component prop values must match their manifest declaration.",
           ),
         );
+      }
     }
-    for (const variantName of Object.keys(instance.variants))
-      if (!Object.hasOwn(entry.manifest.variants, variantName))
+    for (const variantName of Object.keys(instance.variants)) {
+      if (!Object.hasOwn(entry.manifest.variants, variantName)) {
         diagnostics.push(
           diagnostic(
             "compiler-variant-not-found",
@@ -546,21 +588,24 @@ const checkDeclarationProjectUnchecked = (
             "Component variants must be declared by the manifest.",
           ),
         );
+      }
+    }
     for (const [variantName, declaration] of Object.entries(entry.manifest.variants)) {
       if (!Object.hasOwn(instance.variants, variantName)) {
-        if (declaration.default !== undefined)
+        if (declaration.default !== undefined) {
           warnings.push({
             code: "compiler-variant-default-applied",
+            componentInstanceId: instance.id,
+            defaultValue: declaration.default,
             message: "An omitted Component variant used its manifest default.",
             path: [...path, "variants", variantName],
-            componentInstanceId: instance.id,
             variantName,
-            defaultValue: declaration.default,
             ...(instance.source === undefined ? {} : { source: instance.source }),
           });
+        }
         continue;
       }
-      if (!declaration.values.includes(instance.variants[variantName]!))
+      if (!declaration.values.includes(instance.variants[variantName]!)) {
         diagnostics.push(
           diagnostic(
             "compiler-variant-value-invalid",
@@ -568,9 +613,10 @@ const checkDeclarationProjectUnchecked = (
             "Selected Component variants must use a declared value.",
           ),
         );
+      }
     }
-    for (const [actionId, action] of Object.entries(entry.manifest.actions))
-      for (const [effectIndex, effect] of action.effects.entries())
+    for (const [actionId, action] of Object.entries(entry.manifest.actions)) {
+      for (const [effectIndex, effect] of action.effects.entries()) {
         if (
           effect.kind === "playTimeline" &&
           !entry.structure.timelines.some((timeline) => timeline.id === effect.timelineId)
@@ -582,7 +628,9 @@ const checkDeclarationProjectUnchecked = (
               "Timeline Action must reference a Timeline in the same Component.",
             ),
           );
-    for (const [outputId, output] of Object.entries(entry.manifest.outputs))
+      }
+    }
+    for (const [outputId, output] of Object.entries(entry.manifest.outputs)) {
       if (
         output.producer.kind === "timelineCompleted" &&
         !entry.structure.timelines.some(
@@ -591,7 +639,7 @@ const checkDeclarationProjectUnchecked = (
             (output.producer as Extract<typeof output.producer, { kind: "timelineCompleted" }>)
               .timelineId,
         )
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "compiler-timeline-not-found",
@@ -599,7 +647,7 @@ const checkDeclarationProjectUnchecked = (
             "Timeline Output must reference a Timeline in the same Component.",
           ),
         );
-      else if (output.producer.kind === "mediaCompleted")
+      } else if (output.producer.kind === "mediaCompleted") {
         diagnostics.push(
           diagnostic(
             "compiler-output-producer-unsupported",
@@ -607,8 +655,10 @@ const checkDeclarationProjectUnchecked = (
             "Media Output producers are not supported.",
           ),
         );
+      }
+    }
     if (nestedInstanceIds.has(instance.id)) {
-      if (entry.structure.timelines.length)
+      if (entry.structure.timelines.length) {
         diagnostics.push(
           diagnostic(
             "compiler-slotted-timeline-unsupported",
@@ -616,6 +666,7 @@ const checkDeclarationProjectUnchecked = (
             "Slotted Components cannot declare Timelines.",
           ),
         );
+      }
       continue;
     }
     if (instance.spatialNodeId === undefined) {
@@ -639,11 +690,12 @@ const checkDeclarationProjectUnchecked = (
       );
       continue;
     }
-    if (!sameOwner(spatial.owner, instance.owner))
+    if (!sameOwner(spatial.owner, instance.owner)) {
       diagnostics.push(
         diagnostic("compiler-owner-mismatch", path, "Component and Spatial owner must match."),
       );
-    if (spatial.parent.kind === "node")
+    }
+    if (spatial.parent.kind === "node") {
       diagnostics.push(
         diagnostic(
           "compiler-spatial-node-parent-unsupported",
@@ -651,7 +703,8 @@ const checkDeclarationProjectUnchecked = (
           "The initial subset supports only stage Spatial parents.",
         ),
       );
-    if (mappedSpatialIds.has(spatial.id))
+    }
+    if (mappedSpatialIds.has(spatial.id)) {
       diagnostics.push(
         diagnostic(
           "compiler-spatial-component-mismatch",
@@ -659,9 +712,10 @@ const checkDeclarationProjectUnchecked = (
           "Each Spatial node may host only one component.",
         ),
       );
+    }
     mappedSpatialIds.add(spatial.id);
     const root = entry.structure.root;
-    if (root.kind !== "surface")
+    if (root.kind !== "surface") {
       diagnostics.push(
         diagnostic(
           "compiler-structure-unsupported",
@@ -669,15 +723,18 @@ const checkDeclarationProjectUnchecked = (
           "Top-level Component instances must produce a Surface.",
         ),
       );
-    if (root.kind !== "surface") continue;
+    }
+    if (root.kind !== "surface") {
+      continue;
+    }
     const stateEntries = Object.entries(root.states);
     uniqueIds(
       stateEntries.map(([, state]) => ({ id: state.id })),
       [...path, "structure", "states"],
       "compiler-duplicate-state-id",
     );
-    for (const [stateId, state] of stateEntries)
-      if (stateId !== state.id)
+    for (const [stateId, state] of stateEntries) {
+      if (stateId !== state.id) {
         diagnostics.push(
           diagnostic(
             "compiler-record-key-id-mismatch",
@@ -685,11 +742,13 @@ const checkDeclarationProjectUnchecked = (
             "State record keys must match state IDs.",
           ),
         );
+      }
+    }
     if (
       root.renderIntent.internalAnimation !== "none" ||
       root.renderIntent.rendererPreference !== "baked-web" ||
       root.renderIntent.fallbackPolicy !== "reject"
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "compiler-surface-feature-unsupported",
@@ -697,10 +756,11 @@ const checkDeclarationProjectUnchecked = (
           "Only baked-web surfaces without internal animation are supported.",
         ),
       );
+    }
     if (
       Object.keys(entry.manifest.states).sort().join("\u0000") !==
       Object.keys(root.states).sort().join("\u0000")
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "compiler-state-set-mismatch",
@@ -708,12 +768,13 @@ const checkDeclarationProjectUnchecked = (
           "Manifest and Surface state sets must match.",
         ),
       );
+    }
     const surfaceId = resourceId(instance.id, root.id);
     const nodeId = resourceId(instance.id, spatial.id);
     for (const [timelineIndex, timeline] of entry.structure.timelines.entries()) {
       const timelinePath = [...path, "structure", "timelines", timelineIndex];
       const id = resourceId(instance.id, timeline.id);
-      if (Object.hasOwn(timelines, id) || id === nodeId || id === surfaceId || used.has(id))
+      if (Object.hasOwn(timelines, id) || id === nodeId || id === surfaceId || used.has(id)) {
         diagnostics.push(
           diagnostic(
             "compiler-resource-id-collision",
@@ -721,6 +782,7 @@ const checkDeclarationProjectUnchecked = (
             "Lowered resource IDs must be unique.",
           ),
         );
+      }
       used.add(id);
       const tracks: (typeof timelines)[string]["tracks"] = [];
       for (const [trackIndex, track] of timeline.tracks.entries()) {
@@ -733,7 +795,7 @@ const checkDeclarationProjectUnchecked = (
             value.length === 4
           ) {
             const rotation = canonicalQuaternion(value as [number, number, number, number]);
-            if (!rotation)
+            if (!rotation) {
               diagnostics.push(
                 diagnostic(
                   "compiler-timeline-quaternion-invalid",
@@ -741,7 +803,9 @@ const checkDeclarationProjectUnchecked = (
                   "Timeline rotation must be a finite nonzero Quaternion.",
                 ),
               );
-            else value = rotation;
+            } else {
+              value = rotation;
+            }
           }
           keyframes.push({
             timeMilliseconds: keyframe.timeMilliseconds,
@@ -749,37 +813,40 @@ const checkDeclarationProjectUnchecked = (
             ...(keyframe.easingToNext === undefined ? {} : { easingToNext: keyframe.easingToNext }),
           });
         }
-        tracks.push({ target: { nodeId, property: track.target.property }, keyframes });
+        tracks.push({ keyframes, target: { nodeId, property: track.target.property } });
       }
       timelines[id] = {
+        durationMilliseconds: timeline.durationMilliseconds,
         id,
         owner: instance.owner,
-        durationMilliseconds: timeline.durationMilliseconds,
         tracks,
       };
     }
-    if (surfaceId === nodeId || used.has(surfaceId) || used.has(nodeId))
+    if (surfaceId === nodeId || used.has(surfaceId) || used.has(nodeId)) {
       diagnostics.push(
         diagnostic("compiler-resource-id-collision", path, "Lowered resource IDs must be unique."),
       );
+    }
     used.add(surfaceId);
     used.add(nodeId);
-    if (!theme[0]) continue;
+    if (!theme[0]) {
+      continue;
+    }
     const resolved = resolveStructuredComponent({
       instance,
       manifest: entry.manifest,
+      path,
       structure: entry.structure,
       theme: theme[0]!.declaration,
-      path,
     });
     const contentNodes = resolved.contentNodes;
     const frameId = resolved.rootFrameId;
-    const nestedSemanticFragments: {
+    const nestedSemanticFragments: Array<{
       instance: (typeof instances)[number];
-      tree: import("@unframe/unframe-authoring").BaseSemanticTreeDeclaration;
       props: ReadonlyMap<string, string | number | boolean>;
       semanticParentId?: string;
-    }[] = [];
+      tree: import("@unframe/unframe-authoring").BaseSemanticTreeDeclaration;
+    }> = [];
     const expandingInstanceIds = new Set<string>([instance.id]);
     const expandSlots = (
       parentInstance: (typeof instances)[number],
@@ -787,7 +854,7 @@ const checkDeclarationProjectUnchecked = (
     ): void => {
       const placeholdersByParent = new Map<
         string,
-        (typeof parentResolved.slotPlaceholders)[number][]
+        Array<(typeof parentResolved.slotPlaceholders)[number]>
       >();
       for (const placeholder of parentResolved.slotPlaceholders) {
         const group = placeholdersByParent.get(placeholder.parentFrameId) ?? [];
@@ -796,37 +863,43 @@ const checkDeclarationProjectUnchecked = (
       }
       for (const [parentFrameId, placeholders] of placeholdersByParent) {
         const parentFrame = contentNodes[parentFrameId];
-        if (!parentFrame || parentFrame.kind !== "frame") continue;
-        const sequenceItems: { order: number; ids: string[] }[] = parentFrame.children.map(
-          (id) => ({ order: contentNodes[id]?.order ?? 0, ids: [id] }),
+        if (!parentFrame || parentFrame.kind !== "frame") {
+          continue;
+        }
+        const sequenceItems: Array<{ ids: string[]; order: number }> = parentFrame.children.map(
+          (id) => ({ ids: [id], order: contentNodes[id]?.order ?? 0 }),
         );
         for (const placeholder of placeholders) {
-          const insertedIds: string[] = [];
+          const insertedIds: Array<string> = [];
           for (const childInstanceId of parentInstance.slots[placeholder.slotId] ?? []) {
             const childInstance = instanceById.get(childInstanceId);
-            if (!childInstance || expandingInstanceIds.has(childInstance.id)) continue;
+            if (!childInstance || expandingInstanceIds.has(childInstance.id)) {
+              continue;
+            }
             const entries = components.filter(
               (candidate) =>
                 candidate.manifest.componentId === childInstance.componentId &&
                 candidate.manifest.version === childInstance.version,
             );
-            if (entries.length !== 1 || entries[0]!.structure.root.kind !== "frame") continue;
+            if (entries.length !== 1 || entries[0]!.structure.root.kind !== "frame") {
+              continue;
+            }
             const childEntry = entries[0]!;
             const childResolved = resolveStructuredComponent({
               instance: childInstance,
               manifest: childEntry.manifest,
-              structure: childEntry.structure,
-              theme: theme[0]!.declaration,
               path: [
                 "presentation",
                 "scene",
                 "components",
                 instanceIndexById.get(childInstance.id) ?? 0,
               ],
+              structure: childEntry.structure,
+              theme: theme[0]!.declaration,
             });
             diagnostics.push(...childResolved.diagnostics);
             for (const [contentId, content] of Object.entries(childResolved.contentNodes)) {
-              if (Object.hasOwn(contentNodes, contentId))
+              if (Object.hasOwn(contentNodes, contentId)) {
                 diagnostics.push(
                   diagnostic(
                     "compiler-resource-id-collision",
@@ -834,15 +907,18 @@ const checkDeclarationProjectUnchecked = (
                     "Lowered resource IDs must be unique.",
                   ),
                 );
+              }
               contentNodes[contentId] = content;
             }
             const childRoot = contentNodes[childResolved.rootFrameId];
-            if (childRoot) childRoot.parentId = parentFrameId;
+            if (childRoot) {
+              childRoot.parentId = parentFrameId;
+            }
             insertedIds.push(childResolved.rootFrameId);
             nestedSemanticFragments.push({
               instance: childInstance,
-              tree: childEntry.structure.baseSemanticTree!,
               props: childResolved.resolvedProps,
+              tree: childEntry.structure.baseSemanticTree!,
               ...(placeholder.semanticParentId === undefined
                 ? {}
                 : {
@@ -853,7 +929,7 @@ const checkDeclarationProjectUnchecked = (
             expandSlots(childInstance, childResolved);
             expandingInstanceIds.delete(childInstance.id);
           }
-          sequenceItems.push({ order: placeholder.order, ids: insertedIds });
+          sequenceItems.push({ ids: insertedIds, order: placeholder.order });
         }
         const sequence = sequenceItems
           .sort((left, right) => left.order - right.order)
@@ -861,14 +937,16 @@ const checkDeclarationProjectUnchecked = (
         parentFrame.children = sequence;
         sequence.forEach((contentId, order) => {
           const content = contentNodes[contentId];
-          if (content) content.order = order;
+          if (content) {
+            content.order = order;
+          }
         });
       }
     };
     expandSlots(instance, resolved);
     const semanticNodes: PresentationDefinition["scene"]["surfaces"][string]["baseSemanticTree"]["nodes"] =
       {};
-    const semanticRootNodeIds: string[] = [];
+    const semanticRootNodeIds: Array<string> = [];
     const appendSemanticTree = (
       semanticInstance: (typeof instances)[number],
       tree: import("@unframe/unframe-authoring").BaseSemanticTreeDeclaration,
@@ -895,10 +973,11 @@ const checkDeclarationProjectUnchecked = (
       const rootOrderById = new Map(
         tree.rootNodeIds.map((id, index) => [id, rootOrderBase + index]),
       );
-      if (semanticParentId === undefined)
+      if (semanticParentId === undefined) {
         semanticRootNodeIds.push(
           ...tree.rootNodeIds.map((id) => resourceId(semanticInstance.id, id)),
         );
+      }
       for (const semantic of Object.values(tree.nodes)) {
         const id = resourceId(semanticInstance.id, semantic.id);
         const semanticWithoutSource = { ...semantic } as Record<string, unknown>;
@@ -911,7 +990,7 @@ const checkDeclarationProjectUnchecked = (
         ) {
           const propId = (textValue as { propId: string }).propId;
           const resolvedText = props.get(propId);
-          if (typeof resolvedText !== "string" || resolvedText.length === 0)
+          if (typeof resolvedText !== "string" || resolvedText.length === 0) {
             diagnostics.push(
               diagnostic(
                 "compiler-semantic-text-prop-invalid",
@@ -919,13 +998,15 @@ const checkDeclarationProjectUnchecked = (
                 "Semantic text Props must resolve to a non-empty string.",
               ),
             );
+          }
           semanticWithoutSource.text = typeof resolvedText === "string" ? resolvedText : "invalid";
         }
-        if (semantic.role === "button")
+        if (semantic.role === "button") {
           semanticWithoutSource.interactionId = resourceId(
             semanticInstance.id,
             semantic.interactionId,
           );
+        }
         semanticNodes[id] = {
           ...semanticWithoutSource,
           id,
@@ -941,15 +1022,16 @@ const checkDeclarationProjectUnchecked = (
       }
     };
     appendSemanticTree(instance, root.baseSemanticTree, resolved.resolvedProps);
-    for (const fragment of nestedSemanticFragments)
+    for (const fragment of nestedSemanticFragments) {
       appendSemanticTree(
         fragment.instance,
         fragment.tree,
         fragment.props,
         fragment.semanticParentId,
       );
+    }
     for (const [contentId, content] of Object.entries(contentNodes)) {
-      if (content.kind === "text" && content.semanticNodeId === undefined)
+      if (content.kind === "text" && content.semanticNodeId === undefined) {
         diagnostics.push(
           diagnostic(
             "compiler-semantic-node-required",
@@ -957,10 +1039,11 @@ const checkDeclarationProjectUnchecked = (
             "Text requires an explicit Semantic Node reference.",
           ),
         );
+      }
       if (
         content.semanticNodeId !== undefined &&
         !Object.hasOwn(semanticNodes, content.semanticNodeId)
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "compiler-semantic-node-not-found",
@@ -968,6 +1051,7 @@ const checkDeclarationProjectUnchecked = (
             "Primitive Semantic Node references must resolve in the Component semantic tree.",
           ),
         );
+      }
     }
     const states: PresentationDefinition["scene"]["surfaces"][string]["states"] = {};
     for (const state of Object.values(root.states)) {
@@ -982,10 +1066,12 @@ const checkDeclarationProjectUnchecked = (
           "contentOverrides",
           localId,
         ]);
-        if (lowered) contentOverrides[targetId] = lowered;
+        if (lowered) {
+          contentOverrides[targetId] = lowered;
+        }
       }
-      for (const override of state.semanticOverrides)
-        if (override.text === null || override.alt === null)
+      for (const override of state.semanticOverrides) {
+        if (override.text === null || override.alt === null) {
           diagnostics.push(
             diagnostic(
               "compiler-semantic-override-required-field",
@@ -993,9 +1079,12 @@ const checkDeclarationProjectUnchecked = (
               "Required semantic text and alt fields cannot be removed.",
             ),
           );
+        }
+      }
       states[resourceId(instance.id, state.id)] = {
-        id: resourceId(instance.id, state.id),
         contentOverrides,
+        enabledInteractionIds: state.enabledInteractionIds.map((id) => resourceId(instance.id, id)),
+        id: resourceId(instance.id, state.id),
         semanticOverrides: state.semanticOverrides.map((override) => ({
           nodes: {
             [resourceId(instance.id, override.targetId)]: {
@@ -1009,12 +1098,11 @@ const checkDeclarationProjectUnchecked = (
             },
           },
         })),
-        enabledInteractionIds: state.enabledInteractionIds.map((id) => resourceId(instance.id, id)),
       };
     }
     diagnostics.push(...resolved.diagnostics);
     const rotation = canonicalQuaternion(spatial.transform.rotation);
-    if (!rotation)
+    if (!rotation) {
       diagnostics.push(
         diagnostic(
           "compiler-invalid-quaternion",
@@ -1022,57 +1110,53 @@ const checkDeclarationProjectUnchecked = (
           "Spatial rotation must be a finite nonzero quaternion.",
         ),
       );
+    }
     nodes[nodeId] = {
+      active: spatial.active,
+      audience: spatial.audience,
       id: nodeId,
       kind: "surface",
       name: spatial.name,
+      opacity: spatial.opacity,
+      order: spatial.order,
       owner: spatial.owner,
-      audience: spatial.audience,
       parent:
         spatial.parent.kind === "node"
           ? { kind: "node", nodeId: resourceId(instance.id, spatial.parent.nodeId) }
           : spatial.parent,
+      surfaceId,
       transform: {
         position: [...spatial.transform.position],
         rotation: rotation ?? [0, 0, 0, 1],
         scale: [...spatial.transform.scale],
       },
-      order: spatial.order,
-      active: spatial.active,
       visible: spatial.visible,
-      opacity: spatial.opacity,
-      surfaceId,
     };
     surfaces[surfaceId] = {
-      id: surfaceId,
-      hostNodeId: nodeId,
-      physicalSizeMeters: [...(resolved.physicalSizeMeters ?? [1, 1])],
-      logicalSize: [...(resolved.logicalSize ?? [1, 1])],
-      fit: root.fit,
-      content: { kind: "structured", rootFrameId: frameId, nodes: contentNodes },
       baseSemanticTree: {
-        rootNodeIds: semanticRootNodeIds,
         nodes: semanticNodes,
+        rootNodeIds: semanticRootNodeIds,
       },
+      content: { kind: "structured", nodes: contentNodes, rootFrameId: frameId },
+      fit: root.fit,
+      hostNodeId: nodeId,
+      id: surfaceId,
+      initialStateId: resourceId(instance.id, root.initialStateId),
       interactions: Object.fromEntries(
         Object.entries(root.interactions).map(([id, interaction]) => [
           resourceId(instance.id, id),
           {
-            id: resourceId(instance.id, id),
-            kind: interaction.kind,
             event: interaction.event,
             hitPriority: interaction.hitPriority,
+            id: resourceId(instance.id, id),
+            kind: interaction.kind,
           },
         ]),
       ),
-      initialStateId: resourceId(instance.id, root.initialStateId),
-      states,
+      logicalSize: [...(resolved.logicalSize ?? [1, 1])],
+      physicalSizeMeters: [...(resolved.physicalSizeMeters ?? [1, 1])],
       renderIntent: {
         ...renderIntent(),
-        updateModel:
-          root.renderIntent.updateModel === "finite-state"
-            ? { kind: "finite-state", stateIds: Object.keys(states).sort(compareStrings) }
-            : { kind: "static" },
         interaction:
           root.renderIntent.interaction === "regions"
             ? {
@@ -1082,11 +1166,16 @@ const checkDeclarationProjectUnchecked = (
                 ].sort(compareStrings),
               }
             : { kind: "none" },
+        updateModel:
+          root.renderIntent.updateModel === "finite-state"
+            ? { kind: "finite-state", stateIds: Object.keys(states).sort(compareStrings) }
+            : { kind: "static" },
       },
+      states,
     };
   }
-  for (const spatial of presentation.scene?.spatial ?? [])
-    if (!mappedSpatialIds.has(spatial.id))
+  for (const spatial of presentation.scene?.spatial ?? []) {
+    if (!mappedSpatialIds.has(spatial.id)) {
       diagnostics.push(
         diagnostic(
           "compiler-spatial-component-mismatch",
@@ -1094,59 +1183,69 @@ const checkDeclarationProjectUnchecked = (
           "Every Spatial node must host one Surface component.",
         ),
       );
+    }
+  }
   const checkedAssets = checkProjectAssets(presentation.assets, assets, surfaces);
   diagnostics.push(...checkedAssets.diagnostics);
-  if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
+  if (diagnostics.length) {
+    return { diagnostics: sortDiagnostics(diagnostics), valid: false };
+  }
 
   const groups: PresentationDefinition["flow"]["groups"] = {};
   for (const [groupId, group] of Object.entries(presentation.flow.groups)) {
     groups[groupId] = { id: group.id, initialStepId: group.initialStepId, steps: {} };
-    for (const [stepId, step] of Object.entries(group.steps))
-      groups[groupId].steps[stepId] = { id: step.id, cues: [] };
+    for (const [stepId, step] of Object.entries(group.steps)) {
+      groups[groupId].steps[stepId] = { cues: [], id: step.id };
+    }
   }
   diagnostics.push(...lowerCues(presentation, components, groups));
-  if (diagnostics.length) return { valid: false, diagnostics: sortDiagnostics(diagnostics) };
+  if (diagnostics.length) {
+    return { diagnostics: sortDiagnostics(diagnostics), valid: false };
+  }
   const variables: PresentationDefinition["flow"]["variables"] = {};
-  for (const [variableId, variable] of Object.entries(presentation.flow.variables))
+  for (const [variableId, variable] of Object.entries(presentation.flow.variables)) {
     variables[variableId] = {
       id: variable.id,
+      initialValue: variable.initialValue,
       owner: variable.owner,
       type: variable.type,
-      initialValue: variable.initialValue,
     };
+  }
   const definition: PresentationDefinition = {
-    schemaVersion: 2,
-    presentationId: presentation.id,
+    flow: { groups, initialGroupId: presentation.flow.initialGroupId, timelines, variables },
     metadata: presentation.metadata,
-    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
+    presentationId: presentation.id,
     scene: { nodes, surfaces },
-    flow: { initialGroupId: presentation.flow.initialGroupId, groups, variables, timelines },
+    schemaVersion: 2,
+    stage: { ...presentation.stage, size: [...presentation.stage.size], zones: {} },
   };
   const validated = validatePresentationDefinition(definition);
-  if (!validated.valid)
-    return { valid: false, diagnostics: sortDiagnostics(validated.diagnostics) };
+  if (!validated.valid) {
+    return { diagnostics: sortDiagnostics(validated.diagnostics), valid: false };
+  }
   const canonical = canonicalizePresentationDefinition(validated.value);
   const definitionHash = hashPresentationDefinition(validated.value);
-  if (!canonical.valid || !definitionHash.valid)
+  if (!canonical.valid || !definitionHash.valid) {
     return {
-      valid: false,
       diagnostics: !canonical.valid ? canonical.diagnostics : definitionHash.diagnostics,
+      valid: false,
     };
+  }
   return {
+    diagnostics: [],
     valid: true,
     value: {
+      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
       definition: validated.value,
+      definitionHash: definitionHash.value,
       definitionJson: canonical.value,
       sourceHash: hashCanonicalJsonPayload(cloned.value),
-      definitionHash: definitionHash.value,
-      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
       warnings: [...warnings].sort((left, right) => {
         const leftKey = `${left.path.join("/")}\0${left.code}`;
         const rightKey = `${right.path.join("/")}\0${right.code}`;
         return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
       }),
     },
-    diagnostics: [],
   };
 };
 
@@ -1157,10 +1256,10 @@ export const checkDeclarationProject = (
     return checkDeclarationProjectUnchecked(input);
   } catch {
     return {
-      valid: false,
       diagnostics: [
         diagnostic("compiler-invalid-input", [], "Project input could not be inspected safely."),
       ],
+      valid: false,
     };
   }
 };

@@ -23,43 +23,43 @@ export const transformSchema = z
 const initialState = z
   .object({
     active: z.boolean(),
-    visible: z.boolean(),
     opacity: z.number().min(0).max(1),
     transform: transformSchema,
+    visible: z.boolean(),
   })
   .strict();
 const assetContent = z.object({ assetId: id }).strict();
 const element = z.discriminatedUnion("type", [
   z
     .object({
-      id,
-      type: z.literal("text"),
       content: z.object({ text: z.string() }).strict(),
+      id,
       initialState,
+      type: z.literal("text"),
     })
     .strict(),
   z
     .object({
-      id,
-      type: z.literal("shape"),
       content: z.object({ shape: z.enum(["cube", "sphere", "plane"]) }).strict(),
+      id,
       initialState,
+      type: z.literal("shape"),
     })
     .strict(),
-  z.object({ id, type: z.literal("image"), content: assetContent, initialState }).strict(),
-  z.object({ id, type: z.literal("video"), content: assetContent, initialState }).strict(),
-  z.object({ id, type: z.literal("model"), content: assetContent, initialState }).strict(),
-  z.object({ id, type: z.literal("audio"), content: assetContent, initialState }).strict(),
+  z.object({ content: assetContent, id, initialState, type: z.literal("image") }).strict(),
+  z.object({ content: assetContent, id, initialState, type: z.literal("video") }).strict(),
+  z.object({ content: assetContent, id, initialState, type: z.literal("model") }).strict(),
+  z.object({ content: assetContent, id, initialState, type: z.literal("audio") }).strict(),
 ]);
 const transition = z
-  .object({ durationSeconds: z.number().min(0), delaySeconds: z.number().min(0) })
+  .object({ delaySeconds: z.number().min(0), durationSeconds: z.number().min(0) })
   .strict();
 const action = z.discriminatedUnion("kind", [
   z
     .object({
+      active: z.boolean(),
       kind: z.literal("setActive"),
       targetElementId: id,
-      active: z.boolean(),
       transition: transition.optional(),
     })
     .strict(),
@@ -67,15 +67,15 @@ const action = z.discriminatedUnion("kind", [
     .object({
       kind: z.literal("setVisible"),
       targetElementId: id,
-      visible: z.boolean(),
       transition: transition.optional(),
+      visible: z.boolean(),
     })
     .strict(),
   z
     .object({
       kind: z.literal("setOpacity"),
-      targetElementId: id,
       opacity: z.number().min(0).max(1),
+      targetElementId: id,
       transition: transition.optional(),
     })
     .strict(),
@@ -89,55 +89,56 @@ const action = z.discriminatedUnion("kind", [
     .strict(),
 ]);
 const trigger = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("button"), action: z.string().min(1).max(128) }).strict(),
+  z.object({ action: z.string().min(1).max(128), kind: z.literal("button") }).strict(),
   z.object({ kind: z.literal("enterZone"), zoneId: id }).strict(),
   z.object({ kind: z.literal("motion"), minimumDistanceMeters: z.number().positive() }).strict(),
 ]);
 const next = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("step"), stepId: id }).strict(),
-  z.object({ kind: z.literal("group"), groupId: id }).strict(),
+  z.object({ groupId: id, kind: z.literal("group") }).strict(),
   z.object({ kind: z.literal("end") }).strict(),
 ]);
-const cue = z.object({ id, trigger, actions: z.array(action).min(1), next }).strict();
-const step = z.object({ id, cues: z.array(cue).min(1) }).strict();
+const cue = z.object({ actions: z.array(action).min(1), id, next, trigger }).strict();
+const step = z.object({ cues: z.array(cue).min(1), id }).strict();
 const anchoredElementGroup = z
   .object({
-    id,
     anchor: z.enum(["head", "leftHand", "rightHand", "body"]),
-    transform: transformSchema,
     elementIds: z.array(id).min(1),
+    id,
+    transform: transformSchema,
   })
   .strict();
 const group = z
   .object({
-    id,
-    elements: z.array(element),
     anchoredElementGroups: z.array(anchoredElementGroup),
+    elements: z.array(element),
+    id,
     steps: z.array(step).min(1),
   })
   .strict();
 
 export const presentationDefinitionSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    assets: z.array(z.object({ assetId: id }).strict()),
+    groups: z.array(group).min(1),
     metadata: z
-      .object({ title: z.string().min(1).max(256), description: z.string().max(4000).optional() })
+      .object({ description: z.string().max(4000).optional(), title: z.string().min(1).max(256) })
       .strict(),
+    schemaVersion: z.literal(1),
     stage: z
       .object({
         coordinateSystem: z
           .object({
-            unit: z.literal("meter"),
-            handedness: z.literal("right"),
-            upAxis: z.literal("+Y"),
             forwardAxis: z.literal("-Z"),
+            handedness: z.literal("right"),
+            unit: z.literal("meter"),
+            upAxis: z.literal("+Y"),
           })
           .strict(),
         size: vector3.refine(([x, y, z]) => x > 0 && y > 0 && z > 0, "stage size must be positive"),
         zones: z.array(
           z
             .object({
-              id,
               bounds: z
                 .object({ min: vector3, max: vector3 })
                 .strict()
@@ -145,19 +146,18 @@ export const presentationDefinitionSchema = z
                   ({ min, max }) => min.every((value, index) => value < max[index]!),
                   "zone bounds min must be smaller than max",
                 ),
+              id,
             })
             .strict(),
         ),
       })
       .strict(),
-    assets: z.array(z.object({ assetId: id }).strict()),
-    groups: z.array(group).min(1),
   })
   .strict()
   .superRefine((definition, context) => {
-    const issue = (path: (string | number)[], message: string) =>
-      context.addIssue({ code: "custom", path, message });
-    const unique = (values: string[], path: (string | number)[], label: string) => {
+    const issue = (path: Array<string | number>, message: string) =>
+      context.addIssue({ code: "custom", message, path });
+    const unique = (values: Array<string>, path: Array<string | number>, label: string) => {
       const seen = new Set<string>();
       values.forEach((value, index) => {
         if (seen.has(value)) {

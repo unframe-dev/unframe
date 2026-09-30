@@ -9,16 +9,16 @@ type Timeline = PresentationDefinitionV2["flow"]["timelines"][string];
 const fixture = () => {
   const { definition } = makeM3AArtifacts();
   const timeline: Timeline = {
+    durationMilliseconds: 1000,
     id: "reveal",
     owner: { kind: "presentation" },
-    durationMilliseconds: 1000,
     tracks: [
       {
-        target: { nodeId: "node-baked", property: "opacity" },
         keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+          { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
           { timeMilliseconds: 1000, value: 1 },
         ],
+        target: { nodeId: "node-baked", property: "opacity" },
       },
     ],
   };
@@ -36,26 +36,26 @@ describe("M3D Timeline catalog invariants", () => {
     const { definition, timeline } = fixture();
     timeline.tracks.push(
       {
-        target: { nodeId: "node-baked", property: "transform.position" },
         keyframes: [
-          { timeMilliseconds: 0, value: [0, 0, 0], easingToNext: "cubicIn" },
-          { timeMilliseconds: 500, value: [1, 2, 3], easingToNext: "cubicOut" },
+          { easingToNext: "cubicIn", timeMilliseconds: 0, value: [0, 0, 0] },
+          { easingToNext: "cubicOut", timeMilliseconds: 500, value: [1, 2, 3] },
           { timeMilliseconds: 1000, value: [2, 3, 4] },
         ],
+        target: { nodeId: "node-baked", property: "transform.position" },
       },
       {
-        target: { nodeId: "node-baked", property: "transform.scale" },
         keyframes: [
-          { timeMilliseconds: 0, value: [1, 1, 1], easingToNext: "linear" },
+          { easingToNext: "linear", timeMilliseconds: 0, value: [1, 1, 1] },
           { timeMilliseconds: 1000, value: [2, 2, 2] },
         ],
+        target: { nodeId: "node-baked", property: "transform.scale" },
       },
       {
-        target: { nodeId: "node-baked", property: "transform.rotation" },
         keyframes: [
-          { timeMilliseconds: 0, value: [0, 0, 0, 1], easingToNext: "linear" },
+          { easingToNext: "linear", timeMilliseconds: 0, value: [0, 0, 0, 1] },
           { timeMilliseconds: 1000, value: [0, 0, 0, 1] },
         ],
+        target: { nodeId: "node-baked", property: "transform.rotation" },
       },
     );
     expect(issues(definition)).toEqual([]);
@@ -64,7 +64,7 @@ describe("M3D Timeline catalog invariants", () => {
   it("checks Timeline identity and owner Group reference", () => {
     const { definition, timeline } = fixture();
     timeline.id = "wrong";
-    timeline.owner = { kind: "group", groupId: "missing" };
+    timeline.owner = { groupId: "missing", kind: "group" };
     expect(issues(definition).map((issue) => issue.code)).toEqual(
       expect.arrayContaining(["record-key-id-mismatch", "missing-owner-group"]),
     );
@@ -80,21 +80,21 @@ describe("M3D Timeline catalog invariants", () => {
     expect(issues(definition).map((issue) => issue.code)).toContain("graph.invalid");
 
     definition.scene.nodes["node-baked"]!.audience = { kind: "all" };
-    definition.scene.nodes["node-baked"]!.owner = { kind: "group", groupId: "intro" };
+    definition.scene.nodes["node-baked"]!.owner = { groupId: "intro", kind: "group" };
     expect(issues(definition).map((issue) => issue.code)).toContain("graph.invalid");
 
-    timeline.owner = { kind: "group", groupId: "intro" };
+    timeline.owner = { groupId: "intro", kind: "group" };
     expect(issues(definition)).toEqual([]);
   });
 
   it("rejects a Group Timeline targeting a different Group", () => {
     const { definition, timeline } = fixture();
-    timeline.owner = { kind: "group", groupId: "intro" };
+    timeline.owner = { groupId: "intro", kind: "group" };
     definition.flow.groups.other = {
       ...structuredClone(definition.flow.groups.intro!),
       id: "other",
     };
-    definition.scene.nodes["node-baked"]!.owner = { kind: "group", groupId: "other" };
+    definition.scene.nodes["node-baked"]!.owner = { groupId: "other", kind: "group" };
     expect(issues(definition).map((issue) => issue.code)).toContain("graph.invalid");
   });
 
@@ -135,8 +135,8 @@ describe("M3D Timeline catalog invariants", () => {
   it("requires exact endpoints and strictly increasing keyframe times", () => {
     const { definition, timeline } = fixture();
     timeline.tracks[0]!.keyframes = [
-      { timeMilliseconds: 1, value: 0, easingToNext: "linear" },
-      { timeMilliseconds: 1, value: 0.5, easingToNext: "linear" },
+      { easingToNext: "linear", timeMilliseconds: 1, value: 0 },
+      { easingToNext: "linear", timeMilliseconds: 1, value: 0.5 },
       { timeMilliseconds: 999, value: 1 },
     ];
     expect(issues(definition).map((issue) => issue.code)).toContain("behavior.invalid");

@@ -37,26 +37,26 @@ export const transformV2Schema = z.strictObject({
   scale: positiveVector3V2Schema,
 });
 export const boundsV2Schema = z.strictObject({
+  height: positiveFiniteNumberV2Schema,
+  width: positiveFiniteNumberV2Schema,
   x: finiteNumberV2Schema,
   y: finiteNumberV2Schema,
-  width: positiveFiniteNumberV2Schema,
-  height: positiveFiniteNumberV2Schema,
 });
 export const srgbaColorV2Schema = z.strictObject({
-  red: unitIntervalV2Schema,
-  green: unitIntervalV2Schema,
-  blue: unitIntervalV2Schema,
   alpha: unitIntervalV2Schema,
+  blue: unitIntervalV2Schema,
+  green: unitIntervalV2Schema,
+  red: unitIntervalV2Schema,
 });
 export const srgbColorV2Schema = z.strictObject({
-  red: unitIntervalV2Schema,
-  green: unitIntervalV2Schema,
   blue: unitIntervalV2Schema,
+  green: unitIntervalV2Schema,
+  red: unitIntervalV2Schema,
 });
 
 export const resourceOwnerV2Schema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("presentation") }),
-  z.strictObject({ kind: z.literal("group"), groupId: idV2Schema }),
+  z.strictObject({ groupId: idV2Schema, kind: z.literal("group") }),
 ]);
 export const projectionAudienceV2Schema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("all") }),
@@ -66,11 +66,11 @@ export const spatialParentV2Schema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("stage") }),
   z.strictObject({ kind: z.literal("node"), nodeId: idV2Schema }),
   z.strictObject({
-    kind: z.literal("anchor"),
-    target: z.enum(["head", "leftHand", "rightHand", "body"]),
-    owner: z.strictObject({ kind: z.literal("presenter") }),
     followPosition: z.boolean(),
     followRotation: z.boolean(),
+    kind: z.literal("anchor"),
+    owner: z.strictObject({ kind: z.literal("presenter") }),
+    target: z.enum(["head", "leftHand", "rightHand", "body"]),
   }),
 ]);
 
@@ -79,7 +79,7 @@ export const scalarV2Schema = z.union([z.null(), z.boolean(), finiteNumberV2Sche
 export const scalarTypeV2Schema = z.enum(["null", "boolean", "number", "string"]);
 export const actionValueV2Schema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("literal"), value: scalarV2Schema }),
-  z.strictObject({ kind: z.literal("eventPayload"), field: idV2Schema }),
+  z.strictObject({ field: idV2Schema, kind: z.literal("eventPayload") }),
   z.strictObject({ kind: z.literal("variable"), variableId: idV2Schema }),
 ]);
 

@@ -12,10 +12,12 @@ export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
   plugin: Plugin,
 ): Plugin => {
   const diagnostics = validateRendererPlugin(plugin);
-  if (diagnostics.some(({ code }) => code === "invalid-renderer-identity"))
+  if (diagnostics.some(({ code }) => code === "invalid-renderer-identity")) {
     throw new TypeError("Renderer identity fields must be non-empty.");
-  if (diagnostics.length > 0)
+  }
+  if (diagnostics.length > 0) {
     throw new TypeError("Renderer capabilities must match the first-milestone contract.");
+  }
 
   return plugin;
 };
@@ -23,17 +25,17 @@ export const defineRendererPlugin = <const Plugin extends RendererPlugin>(
 export const prepareRendererPlugin = (plugin: unknown): ValidationResult<RendererPlugin> => {
   try {
     const snapshot = plainDataRecord(plugin);
-    if (!snapshot)
+    if (!snapshot) {
       return {
-        valid: false,
         diagnostics: [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])],
+        valid: false,
       };
+    }
     if (
       !rendererFunctionSchema.safeParse(snapshot.support).success ||
       !rendererFunctionSchema.safeParse(snapshot.build).success
-    )
+    ) {
       return {
-        valid: false,
         diagnostics: [
           diagnostic(
             "invalid-renderer-plugin",
@@ -41,11 +43,12 @@ export const prepareRendererPlugin = (plugin: unknown): ValidationResult<Rendere
             [],
           ),
         ],
-      };
-    const identityResult = rendererIdentitySchema.safeParse(snapshotUnknown(snapshot.identity));
-    if (!identityResult.success)
-      return {
         valid: false,
+      };
+    }
+    const identityResult = rendererIdentitySchema.safeParse(snapshotUnknown(snapshot.identity));
+    if (!identityResult.success) {
+      return {
         diagnostics: [
           diagnostic(
             "invalid-renderer-identity",
@@ -53,13 +56,14 @@ export const prepareRendererPlugin = (plugin: unknown): ValidationResult<Rendere
             [],
           ),
         ],
+        valid: false,
       };
+    }
     const capabilityResult = rendererCapabilitiesSchema.safeParse(
       snapshotUnknown(snapshot.capabilities),
     );
-    if (!capabilityResult.success)
+    if (!capabilityResult.success) {
       return {
-        valid: false,
         diagnostics: [
           diagnostic(
             "invalid-renderer-capabilities",
@@ -67,44 +71,46 @@ export const prepareRendererPlugin = (plugin: unknown): ValidationResult<Rendere
             [],
           ),
         ],
+        valid: false,
       };
+    }
     const frozenIdentity = Object.freeze({
       ...identityResult.data,
     });
     const frozenCapabilities = Object.freeze({
+      deterministic: capabilityResult.data.deterministic,
+      fallbackPolicies: Object.freeze(capabilityResult.data.fallbackPolicies),
       inputKinds: Object.freeze(capabilityResult.data.inputKinds),
-      updateModels: Object.freeze(capabilityResult.data.updateModels),
       interactions: Object.freeze(capabilityResult.data.interactions),
       internalAnimations: Object.freeze(capabilityResult.data.internalAnimations),
       rendererPreferences: Object.freeze(capabilityResult.data.rendererPreferences),
-      fallbackPolicies: Object.freeze(capabilityResult.data.fallbackPolicies),
-      deterministic: capabilityResult.data.deterministic,
+      updateModels: Object.freeze(capabilityResult.data.updateModels),
     });
     const support = snapshot.support as RendererPlugin["support"];
     const build = snapshot.build as RendererPlugin["build"];
     const receiver = Object.freeze({
-      identity: frozenIdentity,
-      capabilities: frozenCapabilities,
-      support,
       build,
+      capabilities: frozenCapabilities,
+      identity: frozenIdentity,
+      support,
     });
     return {
+      diagnostics: [],
       valid: true,
       value: Object.freeze({
-        identity: frozenIdentity,
-        capabilities: frozenCapabilities,
-        support: (request) => applyFunction(support, receiver, [request]),
         build: (input) => applyFunction(build, receiver, [input]),
+        capabilities: frozenCapabilities,
+        identity: frozenIdentity,
+        support: (request) => applyFunction(support, receiver, [request]),
       }),
-      diagnostics: [],
     };
   } catch {
     return {
-      valid: false,
       diagnostics: [diagnostic("invalid-renderer-plugin", "Renderer plugin is invalid.", [])],
+      valid: false,
     };
   }
 };
 
-export const validateRendererPlugin = (plugin: unknown): readonly Diagnostic[] =>
+export const validateRendererPlugin = (plugin: unknown): ReadonlyArray<Diagnostic> =>
   prepareRendererPlugin(plugin).diagnostics;

@@ -2,11 +2,13 @@ import { defineComponent, editableText, prop } from "./api";
 
 export const Hero = defineComponent({
   id: "hero",
-  version: 1,
   props: { title: editableText({ required: true }) },
-  surface: { logicalSize: [960, 540] },
+  render: ({ bindings, texts }) => (
+    <section className="hero">
+      <h1 {...bindings.title}>{texts.title}</h1>
+    </section>
+  ),
   semantics: {
-    rootNodeIds: ["title"],
     nodes: {
       title: {
         role: "heading",
@@ -16,10 +18,8 @@ export const Hero = defineComponent({
         text: prop("title"),
       },
     },
+    rootNodeIds: ["title"],
   },
-  render: ({ texts, bindings }) => (
-    <section className="hero">
-      <h1 {...bindings.title}>{texts.title}</h1>
-    </section>
-  ),
+  surface: { logicalSize: [960, 540] },
+  version: 1,
 });

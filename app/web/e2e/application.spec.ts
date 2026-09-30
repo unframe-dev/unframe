@@ -3,16 +3,7 @@ import { expect, test } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/get-session", (route) =>
     route.fulfill({
-      contentType: "application/json",
       body: JSON.stringify({
-        user: {
-          id: "test-user",
-          name: "テストユーザー",
-          email: "test@example.com",
-          emailVerified: true,
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
         session: {
           id: "test-session",
           userId: "test-user",
@@ -21,7 +12,16 @@ test.beforeEach(async ({ page }) => {
           createdAt: "2026-08-17T00:00:00.000Z",
           updatedAt: "2026-08-17T00:00:00.000Z",
         },
+        user: {
+          id: "test-user",
+          name: "テストユーザー",
+          email: "test@example.com",
+          emailVerified: true,
+          createdAt: "2026-08-17T00:00:00.000Z",
+          updatedAt: "2026-08-17T00:00:00.000Z",
+        },
       }),
+      contentType: "application/json",
     }),
   );
 });
@@ -94,7 +94,7 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await expect(page.getByRole("menuitem", { name: "ホーム" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(desktopMenu).toBeFocused();
-  await page.setViewportSize({ width: 375, height: 700 });
+  await page.setViewportSize({ height: 700, width: 375 });
   await page.goto("/home");
   const homeContentWidth = await page.locator("main#main-content").evaluate((element) => ({
     main: element.getBoundingClientRect().width,
@@ -129,9 +129,9 @@ test("public authentication routes and account menu are accessible", async ({ pa
 test("logout failure keeps the page and presents the error state", async ({ page }) => {
   await page.route("**/api/auth/sign-out", (route) =>
     route.fulfill({
-      status: 500,
-      contentType: "application/json",
       body: JSON.stringify({ code: "SIGN_OUT_FAILED" }),
+      contentType: "application/json",
+      status: 500,
     }),
   );
   await page.goto("/home");
@@ -148,11 +148,11 @@ test("logout failure keeps the page and presents the error state", async ({ page
 test("device authorization accepts a code", async ({ page }) => {
   await page.route("**/api/auth/device?user_code=ABCD-EFGH", (route) =>
     route.fulfill({
+      body: JSON.stringify({ status: "pending", user_code: "ABCD-EFGH" }),
       contentType: "application/json",
-      body: JSON.stringify({ user_code: "ABCD-EFGH", status: "pending" }),
     }),
   );
-  await page.setViewportSize({ width: 375, height: 700 });
+  await page.setViewportSize({ height: 700, width: 375 });
   await page.goto("/device?user_code=ABCD-EFGH");
   expect(
     await page

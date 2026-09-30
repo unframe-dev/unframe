@@ -29,21 +29,21 @@ describe("D1SessionRepository", () => {
     const repository = new D1SessionRepository(env.DB);
     await repository.create(
       {
-        id: `session-${suffix}`,
-        presentationId,
-        presenterId: ownerId,
-        joinCodeHash: `hash-${suffix}`,
-        state: "Waiting",
-        participantCount: 1,
-        maxParticipants: 50,
         createdAt: "2026-01-01",
         endedAt: null,
+        id: `session-${suffix}`,
+        joinCodeHash: `hash-${suffix}`,
+        maxParticipants: 50,
+        participantCount: 1,
+        presentationId,
+        presenterId: ownerId,
+        state: "Waiting",
       },
       {
+        joinedAt: "2026-01-01",
+        role: "presenter",
         sessionId: `session-${suffix}`,
         userId: ownerId,
-        role: "presenter",
-        joinedAt: "2026-01-01",
       },
     );
     await expect(repository.findActiveByCodeHash(`hash-${suffix}`)).resolves.toMatchObject({
@@ -65,17 +65,17 @@ describe("D1SessionRepository", () => {
     const repository = new D1SessionRepository(env.DB);
     await repository.create(
       {
-        id: sessionId,
-        presentationId,
-        presenterId: ownerId,
-        joinCodeHash: `hash-${suffix}`,
-        state: "Waiting",
-        participantCount: 1,
-        maxParticipants: 50,
         createdAt: "2026-01-01",
         endedAt: null,
+        id: sessionId,
+        joinCodeHash: `hash-${suffix}`,
+        maxParticipants: 50,
+        participantCount: 1,
+        presentationId,
+        presenterId: ownerId,
+        state: "Waiting",
       },
-      { sessionId, userId: ownerId, role: "presenter", joinedAt: "2026-01-01" },
+      { joinedAt: "2026-01-01", role: "presenter", sessionId, userId: ownerId },
     );
     await env.DB.batch([
       env.DB.prepare(
@@ -114,44 +114,44 @@ describe("D1SessionRepository", () => {
     const repository = new D1SessionRepository(env.DB);
     await repository.create(
       {
-        id: sessionId,
-        presentationId,
-        presenterId: ownerId,
-        joinCodeHash: `hash-${suffix}`,
-        state: "Waiting",
-        participantCount: 1,
-        maxParticipants: 50,
         createdAt: "2026-01-01",
         endedAt: null,
+        id: sessionId,
+        joinCodeHash: `hash-${suffix}`,
+        maxParticipants: 50,
+        participantCount: 1,
+        presentationId,
+        presenterId: ownerId,
+        state: "Waiting",
       },
-      { sessionId, userId: ownerId, role: "presenter", joinedAt: "2026-01-01" },
+      { joinedAt: "2026-01-01", role: "presenter", sessionId, userId: ownerId },
     );
     for (const limitedBy of ["code", "user", "ip"] as const) {
       for (let attempt = 0; attempt < 10; attempt += 1) {
         await expect(
           repository.consumeJoinAttempt({
+            attemptedAt: 1000,
             codeHash:
               limitedBy === "code" ? `hash-${limitedBy}-${suffix}` : `hash-${attempt}-${suffix}`,
+            ipAddress: limitedBy === "ip" ? `192.0.2.${limitedBy}` : `192.0.2.${attempt}`,
             userId:
               limitedBy === "user" ? `user-${limitedBy}-${suffix}` : `user-${attempt}-${suffix}`,
-            ipAddress: limitedBy === "ip" ? `192.0.2.${limitedBy}` : `192.0.2.${attempt}`,
-            attemptedAt: 1_000,
             windowStart: 0,
           }),
         ).resolves.toBe(true);
       }
       await expect(
         repository.consumeJoinAttempt({
+          attemptedAt: 1000,
           codeHash:
             limitedBy === "code"
               ? `hash-${limitedBy}-${suffix}`
               : `other-hash-${limitedBy}-${suffix}`,
+          ipAddress: limitedBy === "ip" ? `192.0.2.${limitedBy}` : `192.0.2.254`,
           userId:
             limitedBy === "user"
               ? `user-${limitedBy}-${suffix}`
               : `other-user-${limitedBy}-${suffix}`,
-          ipAddress: limitedBy === "ip" ? `192.0.2.${limitedBy}` : `192.0.2.254`,
-          attemptedAt: 1_000,
           windowStart: 0,
         }),
       ).resolves.toBe(false);

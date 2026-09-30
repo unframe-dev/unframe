@@ -6,87 +6,89 @@ import { collectPackageValueProvenance } from "../src/resolution/symbol-provenan
 import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 
 type PackageInput = {
-  readonly packageName: string;
-  readonly packageVersion?: string;
-  readonly packageIntegrity?: string;
-  readonly files: readonly { readonly fileName: string; readonly sourceText: string }[];
-  readonly exports: readonly { readonly subpath: string; readonly targetFile: string }[];
-  readonly dependencies?: readonly {
+  readonly dependencies?: ReadonlyArray<{
     readonly packageName: string;
     readonly packageVersion: string;
     readonly packageIntegrity: string;
-  }[];
+  }>;
+  readonly exports: ReadonlyArray<{ readonly subpath: string; readonly targetFile: string }>;
+  readonly files: ReadonlyArray<{ readonly fileName: string; readonly sourceText: string }>;
+  readonly packageIntegrity?: string;
+  readonly packageName: string;
+  readonly packageVersion?: string;
 };
 
 const lockedPackage = ({
+  dependencies = [],
+  exports,
+  files,
+  packageIntegrity = "integrity",
   packageName,
   packageVersion = "1",
-  packageIntegrity = "integrity",
-  files,
-  exports,
-  dependencies = [],
 }: PackageInput) => ({
+  dependencies,
+  exports,
+  files,
+  packageIntegrity,
   packageName,
   packageVersion,
-  packageIntegrity,
-  files,
-  exports,
-  dependencies,
 });
 
 const project = ({
-  sourceText,
   files = [],
   packages = [],
+  sourceText,
 }: {
+  readonly files?: ReadonlyArray<{ readonly fileName: string; readonly sourceText: string }>;
+  readonly packages?: ReadonlyArray<ReturnType<typeof lockedPackage>>;
   readonly sourceText: string;
-  readonly files?: readonly { readonly fileName: string; readonly sourceText: string }[];
-  readonly packages?: readonly ReturnType<typeof lockedPackage>[];
 }) => {
   const keyFor = (item: {
+    packageIntegrity: string;
     packageName: string;
     packageVersion: string;
-    packageIntegrity: string;
   }) => hashCanonicalJsonPayload([item.packageName, item.packageVersion, item.packageIntegrity]);
   const snapshot = packages
     .map((item) => ({
+      contentIntegrity: hashCanonicalJsonPayload(item),
+      dependencies: item.dependencies.map((dependency) => ({
+        packageKey: keyFor(dependency),
+        specifier: dependency.packageName,
+        usage: "runtime",
+      })),
+      exports: item.exports.map((entry) => ({
+        runtimeImport: entry.targetFile,
+        runtimeRequire: null,
+        subpath: entry.subpath,
+        types: entry.targetFile,
+      })),
+      files: item.files
+        .map((file) => ({
+          data: file.sourceText,
+          encoding: "utf8",
+          hash: hashCanonicalJsonPayload(file.sourceText),
+          mediaType: "text/typescript",
+          path: file.fileName,
+        }))
+        .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
       key: keyFor(item),
       locator: `${item.packageName}@${item.packageVersion}`,
       name: item.packageName,
       version: item.packageVersion,
-      contentIntegrity: hashCanonicalJsonPayload(item),
-      files: item.files
-        .map((file) => ({
-          path: file.fileName,
-          mediaType: "text/typescript",
-          hash: hashCanonicalJsonPayload(file.sourceText),
-          encoding: "utf8",
-          data: file.sourceText,
-        }))
-        .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
-      exports: item.exports.map((entry) => ({
-        subpath: entry.subpath,
-        runtimeImport: entry.targetFile,
-        runtimeRequire: null,
-        types: entry.targetFile,
-      })),
-      dependencies: item.dependencies.map((dependency) => ({
-        specifier: dependency.packageName,
-        usage: "runtime",
-        packageKey: keyFor(dependency),
-      })),
     }))
     .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const parsed = parseAuthoringProject({
-    projectRoot: "/virtual/presentation",
     entryFile: "presentation.ts",
     files: [{ fileName: "presentation.ts", sourceText }, ...files],
-    rootDependencies: packages
-      .map((item) => ({ specifier: item.packageName, usage: "runtime", packageKey: keyFor(item) }))
-      .sort((a, b) => (a.specifier < b.specifier ? -1 : a.specifier > b.specifier ? 1 : 0)),
     packages: snapshot,
+    projectRoot: "/virtual/presentation",
+    rootDependencies: packages
+      .map((item) => ({ packageKey: keyFor(item), specifier: item.packageName, usage: "runtime" }))
+      .sort((a, b) => (a.specifier < b.specifier ? -1 : a.specifier > b.specifier ? 1 : 0)),
   });
-  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  if (!parsed.ok) {
+    throw new Error(JSON.stringify(parsed.diagnostics));
+  }
   return parsed.value;
 };
 
@@ -95,15 +97,17 @@ const analyze = (input: Parameters<typeof project>[0]) => analyzeAuthoringProjec
 const provenance = (input: Parameters<typeof project>[0]) => {
   const result = analyze(input);
   expect(result).toMatchObject({ ok: true });
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  if (!result.ok) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
   return collectPackageValueProvenance(result);
 };
 
 const pkg = (sourceText = "export const value = 1;") =>
   lockedPackage({
-    packageName: "pkg",
-    files: [{ fileName: "index.ts", sourceText }],
     exports: [{ subpath: ".", targetFile: "index.ts" }],
+    files: [{ fileName: "index.ts", sourceText }],
+    packageName: "pkg",
   });
 
 describe("collectPackageValueProvenance", () => {
@@ -111,20 +115,20 @@ describe("collectPackageValueProvenance", () => {
     const sourceText = 'import { value as alias } from "pkg";\nexport { alias };';
     const start = sourceText.indexOf("alias");
 
-    expect(provenance({ sourceText, packages: [pkg()] })).toEqual([
+    expect(provenance({ packages: [pkg()], sourceText })).toEqual([
       {
+        column: start + 1,
+        declarationFile: "index.ts",
+        end: start + "alias".length,
+        exportName: "value",
+        fileName: "presentation.ts",
+        line: 1,
+        packageIntegrity: hashCanonicalJsonPayload(pkg()),
         packageName: "pkg",
         packageVersion: "1",
-        packageIntegrity: hashCanonicalJsonPayload(pkg()),
-        subpath: ".",
-        exportName: "value",
-        targetFile: "index.ts",
-        declarationFile: "index.ts",
-        fileName: "presentation.ts",
         start,
-        end: start + "alias".length,
-        line: 1,
-        column: start + 1,
+        subpath: ".",
+        targetFile: "index.ts",
       },
     ]);
   });
@@ -132,21 +136,21 @@ describe("collectPackageValueProvenance", () => {
   it("recognizes same-package index re-exports while retaining target and declaration files", () => {
     const sourceText = 'import { value } from "pkg"; export { value };';
     const result = provenance({
-      sourceText,
       packages: [
         lockedPackage({
-          packageName: "pkg",
+          exports: [{ subpath: ".", targetFile: "index.ts" }],
           files: [
             { fileName: "index.ts", sourceText: 'export { value } from "./definitions.ts";' },
             { fileName: "definitions.ts", sourceText: "export const value = 1;" },
           ],
-          exports: [{ subpath: ".", targetFile: "index.ts" }],
+          packageName: "pkg",
         }),
       ],
+      sourceText,
     });
 
     expect(result).toMatchObject([
-      { targetFile: "index.ts", declarationFile: "definitions.ts", exportName: "value" },
+      { declarationFile: "definitions.ts", exportName: "value", targetFile: "index.ts" },
     ]);
   });
 
@@ -157,8 +161,8 @@ describe("collectPackageValueProvenance", () => {
   it("omits syntactic import type even when the export is a value", () => {
     expect(
       provenance({
-        sourceText: 'import type { value } from "pkg"; export type { value };',
         packages: [pkg()],
+        sourceText: 'import type { value } from "pkg"; export type { value };',
       }),
     ).toEqual([]);
   });
@@ -166,8 +170,8 @@ describe("collectPackageValueProvenance", () => {
   it("omits normal imports of semantic type-only exports", () => {
     expect(
       provenance({
-        sourceText: 'import { Shape } from "pkg"; export type { Shape };',
         packages: [pkg("export interface Shape {}")],
+        sourceText: 'import { Shape } from "pkg"; export type { Shape };',
       }),
     ).toEqual([]);
   });
@@ -175,15 +179,15 @@ describe("collectPackageValueProvenance", () => {
   it("omits namespace and default imports", () => {
     expect(
       provenance({
+        packages: [pkg()],
         sourceText:
           'import * as namespace from "pkg"; export const viaNamespace = namespace.value;',
-        packages: [pkg()],
       }),
     ).toEqual([]);
     expect(
       provenance({
-        sourceText: 'import value from "pkg"; export { value };',
         packages: [pkg("export default 1;")],
+        sourceText: 'import value from "pkg"; export { value };',
       }),
     ).toEqual([]);
   });
@@ -191,46 +195,49 @@ describe("collectPackageValueProvenance", () => {
   it("omits values imported through a project-local wrapper re-export", () => {
     expect(
       provenance({
-        sourceText: 'import { value } from "./wrapper"; export { value };',
         files: [{ fileName: "wrapper.ts", sourceText: 'export { value } from "pkg";' }],
         packages: [pkg()],
+        sourceText: 'import { value } from "./wrapper"; export { value };',
       }),
     ).toEqual([]);
   });
 
   it("omits a package re-export that resolves to a different package owner", () => {
     const dependency = lockedPackage({
-      packageName: "dependency",
-      files: [{ fileName: "index.ts", sourceText: "export const value = 1;" }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: "export const value = 1;" }],
+      packageName: "dependency",
     });
     const owner = lockedPackage({
-      packageName: "owner",
-      files: [{ fileName: "index.ts", sourceText: 'export { value } from "dependency";' }],
-      exports: [{ subpath: ".", targetFile: "index.ts" }],
       dependencies: [
-        { packageName: "dependency", packageVersion: "1", packageIntegrity: "integrity" },
+        { packageIntegrity: "integrity", packageName: "dependency", packageVersion: "1" },
       ],
+      exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: 'export { value } from "dependency";' }],
+      packageName: "owner",
     });
 
     expect(
       provenance({
-        sourceText: 'import { value } from "owner"; export { value };',
         packages: [owner, dependency],
+        sourceText: 'import { value } from "owner"; export { value };',
       }),
     ).toEqual([]);
   });
 
   it("recognizes direct dependency imports inside package sources with raw package display names", () => {
     const builder = lockedPackage({
+      exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: "export const define = () => 1;" }],
+      packageIntegrity: "builder-integrity",
       packageName: "builder",
       packageVersion: "2",
-      packageIntegrity: "builder-integrity",
-      files: [{ fileName: "index.ts", sourceText: "export const define = () => 1;" }],
-      exports: [{ subpath: ".", targetFile: "index.ts" }],
     });
     const owner = lockedPackage({
-      packageName: "owner",
+      dependencies: [
+        { packageIntegrity: "builder-integrity", packageName: "builder", packageVersion: "2" },
+      ],
+      exports: [{ subpath: ".", targetFile: "index.ts" }],
       files: [
         {
           fileName: "index.ts",
@@ -238,20 +245,17 @@ describe("collectPackageValueProvenance", () => {
             'import { define as builderDefine } from "builder"; export const value = builderDefine();',
         },
       ],
-      exports: [{ subpath: ".", targetFile: "index.ts" }],
-      dependencies: [
-        { packageName: "builder", packageVersion: "2", packageIntegrity: "builder-integrity" },
-      ],
+      packageName: "owner",
     });
 
-    expect(provenance({ sourceText: 'import "owner";', packages: [owner, builder] })).toMatchObject(
+    expect(provenance({ packages: [owner, builder], sourceText: 'import "owner";' })).toMatchObject(
       [
         {
-          packageName: "builder",
-          packageVersion: "2",
-          packageIntegrity: hashCanonicalJsonPayload(builder),
           exportName: "define",
           fileName: "owner@1/index.ts",
+          packageIntegrity: hashCanonicalJsonPayload(builder),
+          packageName: "builder",
+          packageVersion: "2",
         },
       ],
     );
@@ -259,14 +263,14 @@ describe("collectPackageValueProvenance", () => {
 
   it("is canonical when package and file inputs are reversed", () => {
     const alpha = lockedPackage({
-      packageName: "alpha",
-      files: [{ fileName: "index.ts", sourceText: "export const alpha = 1;" }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: "export const alpha = 1;" }],
+      packageName: "alpha",
     });
     const beta = lockedPackage({
-      packageName: "beta",
-      files: [{ fileName: "index.ts", sourceText: "export const beta = 1;" }],
       exports: [{ subpath: ".", targetFile: "index.ts" }],
+      files: [{ fileName: "index.ts", sourceText: "export const beta = 1;" }],
+      packageName: "beta",
     });
     const sourceText = "export {};";
     const projectFiles = [
@@ -274,11 +278,11 @@ describe("collectPackageValueProvenance", () => {
       { fileName: "beta-use.ts", sourceText: 'import { beta } from "beta"; export { beta };' },
     ];
 
-    const forward = provenance({ sourceText, files: projectFiles, packages: [alpha, beta] });
+    const forward = provenance({ files: projectFiles, packages: [alpha, beta], sourceText });
     const reversed = provenance({
-      sourceText,
       files: [...projectFiles].reverse(),
       packages: [beta, alpha],
+      sourceText,
     });
 
     expect(reversed).toEqual(forward);
@@ -290,18 +294,18 @@ describe("collectPackageValueProvenance", () => {
     const result = analyzeAuthoringProject({ ...parsed, entryFile: "missing.ts" });
 
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-project-entry-invariant-invalid",
+          column: 1,
+          end: 0,
           fileName: "",
+          line: 1,
           message: "Parsed project entry source is unavailable.",
           start: 0,
-          end: 0,
-          line: 1,
-          column: 1,
         },
       ],
+      ok: false,
     });
   });
 });

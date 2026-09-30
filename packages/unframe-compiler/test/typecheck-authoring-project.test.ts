@@ -3,15 +3,17 @@ import { describe, expect, it } from "vitest";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 import { typecheckAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
 
-const project = (files: readonly { fileName: string; sourceText: string }[]) => {
+const project = (files: ReadonlyArray<{ fileName: string; sourceText: string }>) => {
   const parsed = parseAuthoringProject({
-    projectRoot: "/virtual/presentation",
     entryFile: "presentation.unframe.ts",
-    rootDependencies: [],
-    packages: [],
     files,
+    packages: [],
+    projectRoot: "/virtual/presentation",
+    rootDependencies: [],
   });
-  if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+  if (!parsed.ok) {
+    throw new Error(JSON.stringify(parsed.diagnostics));
+  }
   return parsed.value;
 };
 
@@ -30,7 +32,7 @@ describe("typecheckAuthoringProject", () => {
       ]),
     );
 
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("reports semantic types with root-relative UTF-16 locations", () => {
@@ -44,19 +46,19 @@ describe("typecheckAuthoringProject", () => {
     );
 
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-source-type-error",
+          column: 14,
+          end: 18,
           fileName: "presentation.unframe.ts",
+          line: 1,
           message: "Type 'number' is not assignable to type 'string'.",
           start: 13,
-          end: 18,
-          line: 1,
-          column: 14,
           typescriptCode: 2322,
         },
       ],
+      ok: false,
     });
   });
 
@@ -74,7 +76,7 @@ describe("typecheckAuthoringProject", () => {
       ]),
     );
 
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("applies strict ES2022 semantic checking", () => {
@@ -89,10 +91,11 @@ describe("typecheckAuthoringProject", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (!result.ok)
+    if (!result.ok) {
       expect(result.diagnostics.map((item) => item.typescriptCode)).toEqual(
         expect.arrayContaining([7006, 2322]),
       );
+    }
   });
 
   it("collects export-from and static dynamic-import module specifiers through public AST APIs", () => {
@@ -107,8 +110,9 @@ describe("typecheckAuthoringProject", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (!result.ok)
+    if (!result.ok) {
       expect(result.diagnostics.map((item) => item.code)).toEqual(["compiler-module-unresolved"]);
+    }
   });
 
   it("resolves TSX and declaration imports with their matching TypeScript extensions", () => {
@@ -127,7 +131,7 @@ describe("typecheckAuthoringProject", () => {
       ]),
     );
 
-    expect(result).toEqual({ ok: true, diagnostics: [] });
+    expect(result).toEqual({ diagnostics: [], ok: true });
   });
 
   it("fails closed for project-root escapes, unresolved relative imports, and bare packages", () => {
@@ -144,7 +148,9 @@ describe("typecheckAuthoringProject", () => {
         project([{ fileName: "presentation.unframe.ts", sourceText }]),
       );
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.diagnostics.map((item) => item.code)).toContain(code);
+      if (!result.ok) {
+        expect(result.diagnostics.map((item) => item.code)).toContain(code);
+      }
     }
   });
 
@@ -157,7 +163,8 @@ describe("typecheckAuthoringProject", () => {
     );
 
     expect(result.ok).toBe(false);
-    if (!result.ok)
+    if (!result.ok) {
       expect(result.diagnostics.map((item) => item.code)).toEqual(["compiler-module-unresolved"]);
+    }
   });
 });

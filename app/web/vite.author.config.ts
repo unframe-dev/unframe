@@ -3,11 +3,11 @@ import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
-  plugins: [react()],
-  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   build: {
-    outDir: "dist-author",
     emptyOutDir: true,
+    outDir: "dist-author",
     rollupOptions: { input: { index: fileURLToPath(new URL("./author.html", import.meta.url)) } },
   },
+  plugins: [react()],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
 });

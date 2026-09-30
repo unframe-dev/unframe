@@ -5,7 +5,7 @@ import { diagnostic, pathSegment } from "./shared.js";
 
 type Cue = PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["cues"][number];
 type Value = Extract<Cue["actions"][number], { kind: "variable.set" }>["value"];
-type Owner = { kind: "presentation" } | { kind: "group"; groupId: string };
+type Owner = { kind: "presentation" } | { groupId: string; kind: "group" };
 const scalarType = (value: null | boolean | number | string) =>
   value === null ? "null" : typeof value;
 const accessible = (owner: Owner, groupId: string) =>
@@ -13,11 +13,11 @@ const accessible = (owner: Owner, groupId: string) =>
 
 export const validateCueInvariants = (
   definition: PresentationDefinitionV2,
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
 ) => {
-  const { groups, variables, timelines } = definition.flow;
+  const { groups, timelines, variables } = definition.flow;
   const { nodes, surfaces } = definition.scene;
-  for (const [groupId, group] of Object.entries(groups))
+  for (const [groupId, group] of Object.entries(groups)) {
     for (const [stepId, step] of Object.entries(group.steps)) {
       const base = `/flow/groups/${pathSegment(groupId)}/steps/${pathSegment(stepId)}/cues`;
       const identities = new Set<string>();
@@ -26,12 +26,14 @@ export const validateCueInvariants = (
         const path = `${base}/${index}`;
         const issue = (code: string, suffix: string, message: string) =>
           diagnostics.push(diagnostic(code, `${path}${suffix}`, message));
-        if (identities.has(cue.id))
+        if (identities.has(cue.id)) {
           issue("identity.invalid", "/id", "Cue ID must be unique in a Step.");
+        }
         identities.add(cue.id);
         const rank = `${cue.priority}:${cue.order}`;
-        if (priorities.has(rank))
+        if (priorities.has(rank)) {
           issue("identity.invalid", "/order", "Cue priority and order must be unique in a Step.");
+        }
         priorities.add(rank);
         const target = <T extends object>(
           record: Record<string, T>,
@@ -46,48 +48,53 @@ export const validateCueInvariants = (
               : "hostNodeId" in resource
                 ? nodes[resource.hostNodeId as string]?.owner
                 : undefined);
-          if (!resource || !owner || !accessible(owner, groupId))
+          if (!resource || !owner || !accessible(owner, groupId)) {
             issue(
               "reference.invalid",
               suffix,
               "Target must exist and be accessible from this Group.",
             );
+          }
           return resource;
         };
         const trigger = cue.trigger;
         switch (trigger.kind) {
           case "logicalInput":
           case "surfaceInteraction":
-            if (trigger.actor.kind !== "presenter")
+            if (trigger.actor.kind !== "presenter") {
               issue("behavior.invalid", "/trigger/actor", "Input must have a Presenter actor.");
+            }
             if (trigger.kind === "surfaceInteraction") {
               const surface = target(surfaces, trigger.surfaceId, "/trigger/surfaceId");
-              if (surface && !Object.hasOwn(surface.interactions, trigger.interactionId))
+              if (surface && !Object.hasOwn(surface.interactions, trigger.interactionId)) {
                 issue(
                   "reference.invalid",
                   "/trigger/interactionId",
                   "Interaction does not exist on Surface.",
                 );
+              }
               if (
                 surface &&
                 !Object.values(surface.states).some((state) =>
                   state.enabledInteractionIds.includes(trigger.interactionId),
                 )
-              )
+              ) {
                 issue(
                   "behavior.invalid",
                   "/trigger/interactionId",
                   "Interaction is unavailable in every Surface State.",
                 );
+              }
             }
             break;
           case "semanticEvent":
-            if (trigger.actor.kind !== "presenter")
+            if (trigger.actor.kind !== "presenter") {
               issue(
                 "behavior.invalid",
                 "/trigger/actor",
                 "Interaction-derived events require a Presenter actor.",
               );
+            }
             if (
               !Object.values(surfaces).some((surface) => {
                 const owner = nodes[surface.hostNodeId]?.owner;
@@ -99,12 +106,13 @@ export const validateCueInvariants = (
                   )
                 );
               })
-            )
+            ) {
               issue(
                 "reference.invalid",
                 "/trigger/event",
                 "Semantic event must be declared by an accessible Surface Interaction.",
               );
+            }
             break;
           case "timer":
             break;
@@ -124,9 +132,13 @@ export const validateCueInvariants = (
             );
         }
         const valueType = (value: Value, suffix: string): string | undefined => {
-          if (value.kind === "literal") return scalarType(value.value);
+          if (value.kind === "literal") {
+            return scalarType(value.value);
+          }
           if (value.kind === "eventPayload") {
-            if (cue.fixedPayload === undefined && trigger.kind === "logicalInput") return undefined;
+            if (cue.fixedPayload === undefined && trigger.kind === "logicalInput") {
+              return undefined;
+            }
             if (!cue.fixedPayload || !Object.hasOwn(cue.fixedPayload, value.field)) {
               issue(
                 "reference.invalid",
@@ -141,19 +153,21 @@ export const validateCueInvariants = (
         };
         const expectType = (value: Value, expected: string, suffix: string) => {
           const actual = valueType(value, suffix);
-          if (actual !== undefined && actual !== expected)
+          if (actual !== undefined && actual !== expected) {
             issue("behavior.invalid", suffix, `Value must have type ${expected}.`);
+          }
         };
         const guard = (value: NonNullable<Cue["guard"]>, suffix: string): void => {
-          if (value.kind === "all" || value.kind === "any")
+          if (value.kind === "all" || value.kind === "any") {
             value.guards.forEach((child, i) => guard(child, `${suffix}/guards/${i}`));
-          else if (value.kind === "not") guard(value.guard, `${suffix}/guard`);
-          else {
+          } else if (value.kind === "not") {
+            guard(value.guard, `${suffix}/guard`);
+          } else {
             const left = value.left;
             let type: string | undefined;
-            if (left.kind === "variable" || left.kind === "eventPayload")
+            if (left.kind === "variable" || left.kind === "eventPayload") {
               type = valueType(left, `${suffix}/left`);
-            else if (left.kind === "surfaceState") {
+            } else if (left.kind === "surfaceState") {
               target(surfaces, left.surfaceId, `${suffix}/left/surfaceId`);
               type = "string";
             } else {
@@ -164,19 +178,23 @@ export const validateCueInvariants = (
               type &&
               (type !== scalarType(value.right) ||
                 (!["eq", "neq"].includes(value.operator) && type !== "number"))
-            )
+            ) {
               issue(
                 "behavior.invalid",
                 suffix,
                 "Guard comparison requires compatible scalar types.",
               );
+            }
           }
         };
-        if (cue.guard) guard(cue.guard, "/guard");
+        if (cue.guard) {
+          guard(cue.guard, "/guard");
+        }
         const claims = new Set<string>();
         const claim = (key: string, suffix: string) => {
-          if (claims.has(key))
+          if (claims.has(key)) {
             issue("behavior.invalid", suffix, "Action property claim overlaps another Action.");
+          }
           claims.add(key);
         };
         cue.actions.forEach((action, actionIndex) => {
@@ -184,25 +202,29 @@ export const validateCueInvariants = (
           switch (action.kind) {
             case "surface.setState": {
               const surface = target(surfaces, action.surfaceId, `${suffix}/surfaceId`);
-              if (surface && !Object.hasOwn(surface.states, action.stateId))
+              if (surface && !Object.hasOwn(surface.states, action.stateId)) {
                 issue("reference.invalid", `${suffix}/stateId`, "Surface State does not exist.");
+              }
               claim(`surface:${action.surfaceId}:state`, suffix);
               break;
             }
             case "variable.set": {
               const variable = target(variables, action.variableId, `${suffix}/variableId`);
-              if (variable) expectType(action.value, variable.type, `${suffix}/value`);
+              if (variable) {
+                expectType(action.value, variable.type, `${suffix}/value`);
+              }
               claim(`variable:${action.variableId}:value`, suffix);
               break;
             }
             case "node.patch": {
               target(nodes, action.nodeId, `${suffix}/nodeId`);
-              if (Object.keys(action.patch).length === 0)
+              if (Object.keys(action.patch).length === 0) {
                 issue(
                   "behavior.invalid",
                   `${suffix}/patch`,
                   "Node patch must claim at least one field.",
                 );
+              }
               for (const field of ["active", "visible", "opacity"] as const) {
                 const value = action.patch[field];
                 if (value) {
@@ -218,28 +240,31 @@ export const validateCueInvariants = (
                         : value.kind === "eventPayload"
                           ? cue.fixedPayload?.[value.field]
                           : undefined;
-                    if (typeof staticValue === "number" && (staticValue < 0 || staticValue > 1))
+                    if (typeof staticValue === "number" && (staticValue < 0 || staticValue > 1)) {
                       issue(
                         "behavior.invalid",
                         `${suffix}/patch/opacity`,
                         "Node opacity must be between 0 and 1.",
                       );
+                    }
                   }
                   claim(`node:${action.nodeId}:${field}`, suffix);
                 }
               }
-              if (action.patch.transform)
+              if (action.patch.transform) {
                 for (const field of ["position", "rotation", "scale"])
                   claim(`node:${action.nodeId}:transform.${field}`, suffix);
+              }
               break;
             }
             case "timeline.play":
             case "timeline.stop": {
               const timeline = target(timelines, action.timelineId, `${suffix}/timelineId`);
               claim(`timeline:${action.timelineId}:lifecycle`, suffix);
-              if (timeline)
+              if (timeline) {
                 for (const track of timeline.tracks)
                   claim(`node:${track.target.nodeId}:${track.target.property}`, suffix);
+              }
               break;
             }
             default:
@@ -250,10 +275,13 @@ export const validateCueInvariants = (
               );
           }
         });
-        if (cue.next.kind === "step" && !Object.hasOwn(group.steps, cue.next.stepId))
+        if (cue.next.kind === "step" && !Object.hasOwn(group.steps, cue.next.stepId)) {
           issue("reference.invalid", "/next/stepId", "Target Step does not exist in this Group.");
-        if (cue.next.kind === "group" && !Object.hasOwn(groups, cue.next.groupId))
+        }
+        if (cue.next.kind === "group" && !Object.hasOwn(groups, cue.next.groupId)) {
           issue("reference.invalid", "/next/groupId", "Target Group does not exist.");
+        }
       });
     }
+  }
 };

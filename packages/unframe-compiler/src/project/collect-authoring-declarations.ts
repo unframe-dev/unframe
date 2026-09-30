@@ -27,32 +27,32 @@ export type AuthoringDeclarationRootBuilder =
 
 export type DeclarationCollectionDiagnostic = {
   readonly code: string;
+  readonly column: number;
+  readonly end: number;
   readonly fileName: string;
+  readonly line: number;
   readonly message: string;
   readonly start: number;
-  readonly end: number;
-  readonly line: number;
-  readonly column: number;
 };
 
 export type CollectedAuthoringDeclaration = {
-  readonly role: AuthoringDeclarationRole;
   readonly fileName: string;
+  readonly role: AuthoringDeclarationRole;
   readonly rootBuilder: AuthoringDeclarationRootBuilder;
+  readonly sourceMap: ReadonlyArray<DeclarationSourceMapEntry>;
   readonly value: NormalizedDeclarationValue;
-  readonly sourceMap: readonly DeclarationSourceMapEntry[];
 };
 
 export type CollectedAuthoringDeclarations =
   | {
-      readonly ok: true;
-      readonly declarations: readonly CollectedAuthoringDeclaration[];
-      readonly reactComponents: readonly ExtractedReactComponent[];
+      readonly declarations: ReadonlyArray<CollectedAuthoringDeclaration>;
       readonly diagnostics: readonly [];
+      readonly ok: true;
+      readonly reactComponents: ReadonlyArray<ExtractedReactComponent>;
     }
   | {
+      readonly diagnostics: ReadonlyArray<DeclarationCollectionDiagnostic>;
       readonly ok: false;
-      readonly diagnostics: readonly DeclarationCollectionDiagnostic[];
     };
 
 export type CollectedAuthoringDeclarationsSuccess = Extract<
@@ -61,20 +61,24 @@ export type CollectedAuthoringDeclarationsSuccess = Extract<
 >;
 
 const roleFor = (fileName: string, entryFileName: string) => {
-  if (fileName === entryFileName)
+  if (fileName === entryFileName) {
     return { role: "presentation", rootBuilder: "definePresentation" } as const;
-  if (fileName.endsWith(".unframe.ts"))
+  }
+  if (fileName.endsWith(".unframe.ts")) {
     return { role: "theme", rootBuilder: "defineTheme" } as const;
-  if (fileName.endsWith(".manifest.ts"))
+  }
+  if (fileName.endsWith(".manifest.ts")) {
     return {
       role: "component-manifest",
       rootBuilder: "defineComponentManifest",
     } as const;
-  if (fileName.endsWith(".structure.tsx"))
+  }
+  if (fileName.endsWith(".structure.tsx")) {
     return {
       role: "component-structure",
       rootBuilder: "defineComponentStructure",
     } as const;
+  }
   return undefined;
 };
 
@@ -99,9 +103,11 @@ export const collectAuthoringDeclarations = (
 ): CollectedAuthoringDeclarations => {
   const { context, entrySourceFile } = analyzed.value;
   const entryFileName = context.displayFileName(entrySourceFile);
-  const diagnostics: DeclarationCollectionDiagnostic[] = [];
+  const diagnostics: Array<DeclarationCollectionDiagnostic> = [];
   const extracted = extractReactComponents(analyzed);
-  if (!extracted.ok) diagnostics.push(...extracted.diagnostics);
+  if (!extracted.ok) {
+    diagnostics.push(...extracted.diagnostics);
+  }
   const reactFacades = new Map(
     extracted.ok
       ? extracted.components.map(
@@ -123,32 +129,38 @@ export const collectAuthoringDeclarations = (
       : [],
   );
   diagnostics.push(...validateStaticAuthoringProject(analyzed, reactFacades, renderOnlyFiles));
-  if (entryFileName.endsWith(".d.ts"))
+  if (entryFileName.endsWith(".d.ts")) {
     diagnostics.push({
       code: "compiler-declaration-entry-file-unsupported",
+      column: 1,
+      end: 0,
       fileName: entryFileName,
+      line: 1,
       message: "The declaration entry file must not use the .d.ts suffix.",
       start: 0,
-      end: 0,
-      line: 1,
-      column: 1,
     });
-  if (diagnostics.length !== 0)
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  }
+  if (diagnostics.length !== 0) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
   const files = [...context.sourceFiles.values()]
     .filter((sourceFile) => context.ownerFor(sourceFile)?.kind === "project")
     .map((sourceFile) => ({
-      sourceFile,
       fileName: context.displayFileName(sourceFile),
+      sourceFile,
     }))
     .sort((left, right) =>
       left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0,
     );
-  const declarations: CollectedAuthoringDeclaration[] = [];
-  for (const { sourceFile, fileName } of files) {
-    if (fileName.endsWith(".d.ts")) continue;
+  const declarations: Array<CollectedAuthoringDeclaration> = [];
+  for (const { fileName, sourceFile } of files) {
+    if (fileName.endsWith(".d.ts")) {
+      continue;
+    }
     const role = roleFor(fileName, entryFileName);
-    if (!role) continue;
+    if (!role) {
+      continue;
+    }
     const lowered = lowerAuthoringDeclarationFile(analyzed, sourceFile, false, reactFacades);
     if (!lowered.ok) {
       diagnostics.push(...lowered.diagnostics);
@@ -170,19 +182,20 @@ export const collectAuthoringDeclarations = (
       continue;
     }
     declarations.push({
-      role: role.role,
       fileName,
+      role: role.role,
       rootBuilder: role.rootBuilder,
-      value: normalized.value,
       sourceMap: normalized.sourceMap,
+      value: normalized.value,
     });
   }
-  if (diagnostics.length !== 0)
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  if (diagnostics.length !== 0) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
   return {
-    ok: true,
     declarations,
-    reactComponents: extracted.ok ? extracted.components : [],
     diagnostics: [],
+    ok: true,
+    reactComponents: extracted.ok ? extracted.components : [],
   };
 };

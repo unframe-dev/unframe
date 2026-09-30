@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { acquireBuildLock, buildLockFileName } from "../src/filesystem/build-lock.js";
 
-const directories: string[] = [];
+const directories: Array<string> = [];
 const project = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-build-lock-"));
   directories.push(directory);
@@ -21,10 +21,12 @@ describe("build lock", () => {
     const directory = await project();
     const first = await acquireBuildLock(directory);
     expect(first.ok).toBe(true);
-    if (!first.ok) return;
+    if (!first.ok) {
+      return;
+    }
     expect((await lstat(join(directory, buildLockFileName))).isFile()).toBe(true);
     const concurrent = await acquireBuildLock(directory);
-    expect(concurrent).toEqual({ ok: false, code: "cli-build-lock-unavailable" });
+    expect(concurrent).toEqual({ code: "cli-build-lock-unavailable", ok: false });
     await first.value.release();
     await expect(lstat(join(directory, buildLockFileName))).rejects.toThrow();
   });
@@ -33,8 +35,8 @@ describe("build lock", () => {
     const directory = await project();
     await writeFile(join(directory, buildLockFileName), "stale");
     await expect(acquireBuildLock(directory)).resolves.toEqual({
-      ok: false,
       code: "cli-build-lock-unavailable",
+      ok: false,
     });
   });
 
@@ -43,16 +45,18 @@ describe("build lock", () => {
     const path = join(directory, buildLockFileName);
     let lstatCalls = 0;
     const acquired = await acquireBuildLock(directory, {
-      open,
-      unlink,
       lstat: async (candidate) => {
         lstatCalls += 1;
-        if (lstatCalls === 1) throw Object.assign(new Error("I/O failure"), { code: "EIO" });
+        if (lstatCalls === 1) {
+          throw Object.assign(new Error("I/O failure"), { code: "EIO" });
+        }
         return lstat(candidate);
       },
+      open,
+      unlink,
     });
 
-    expect(acquired).toEqual({ ok: false, code: "cli-build-lock-io" });
+    expect(acquired).toEqual({ code: "cli-build-lock-io", ok: false });
     await expect(lstat(path)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
@@ -62,8 +66,6 @@ describe("build lock", () => {
     let releaseLstatFailed = false;
     let lstatCalls = 0;
     const acquired = await acquireBuildLock(directory, {
-      open,
-      unlink,
       lstat: async (candidate) => {
         lstatCalls += 1;
         if (lstatCalls === 2 && !releaseLstatFailed) {
@@ -72,9 +74,13 @@ describe("build lock", () => {
         }
         return lstat(candidate);
       },
+      open,
+      unlink,
     });
     expect(acquired.ok).toBe(true);
-    if (!acquired.ok) return;
+    if (!acquired.ok) {
+      return;
+    }
 
     await expect(acquired.value.release()).rejects.toThrow("Build lock release failed");
     await expect(lstat(path)).resolves.toBeDefined();
@@ -87,7 +93,9 @@ describe("build lock", () => {
     const path = join(directory, buildLockFileName);
     const acquired = await acquireBuildLock(directory);
     expect(acquired.ok).toBe(true);
-    if (!acquired.ok) return;
+    if (!acquired.ok) {
+      return;
+    }
     await unlink(path);
     await writeFile(path, "replacement");
 

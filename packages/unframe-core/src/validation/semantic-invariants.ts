@@ -8,42 +8,48 @@ import { materializeCompletedSemanticTree } from "../semantic-tree/materialize.j
 import { diagnostic, pathSegment, validateTree } from "./shared.js";
 
 type Tree = {
-  readonly rootNodeIds: readonly string[];
   readonly nodes: Readonly<
     Record<
       string,
       SemanticTreeDefinitionV2["nodes"][string] | CompletedSemanticTreeV2["nodes"][string]
     >
   >;
+  readonly rootNodeIds: ReadonlyArray<string>;
 };
 const parents: Record<string, string | null> = {
-  heading: null,
-  paragraph: null,
-  image: null,
   button: null,
-  list: null,
-  table: null,
-  listItem: "list",
-  row: "table",
   cell: "row",
   columnHeader: "row",
+  heading: null,
+  image: null,
+  list: null,
+  listItem: "list",
+  paragraph: null,
+  row: "table",
   rowHeader: "row",
+  table: null,
 };
 const requiredChildren = new Set(["list", "table", "row"]);
 const wellFormedLanguageTag = (tag: string) => {
-  if (/^[xX](?:-[A-Za-z0-9]{1,8})+$/.test(tag)) return true;
+  if (/^[xX](?:-[A-Za-z0-9]{1,8})+$/.test(tag)) {
+    return true;
+  }
   try {
     return Intl.getCanonicalLocales(tag).length === 1;
   } catch {
     return false;
   }
 };
-export const validateSemanticRoles = (diagnostics: Diagnostic[], tree: Tree, path: string) => {
+export const validateSemanticRoles = (diagnostics: Array<Diagnostic>, tree: Tree, path: string) => {
   validateTree(diagnostics, tree.nodes, tree.rootNodeIds, path);
   const childCount = new Map<string, number>();
   for (const [nodeId, node] of Object.entries(tree.nodes)) {
     const nodePath = `${path}/nodes/${pathSegment(nodeId)}`;
-    if ("language" in node && node.language !== undefined && !wellFormedLanguageTag(node.language))
+    if (
+      "language" in node &&
+      node.language !== undefined &&
+      !wellFormedLanguageTag(node.language)
+    ) {
       diagnostics.push(
         diagnostic(
           "behavior.invalid",
@@ -51,16 +57,19 @@ export const validateSemanticRoles = (diagnostics: Diagnostic[], tree: Tree, pat
           "Language must be a well-formed BCP 47 tag.",
         ),
       );
+    }
     const parentRole = node.parentId === null ? null : tree.nodes[node.parentId]?.role;
-    if (parentRole !== undefined && parentRole !== parents[node.role])
+    if (parentRole !== undefined && parentRole !== parents[node.role]) {
       diagnostics.push(
         diagnostic("graph.invalid", `${nodePath}/parentId`, "Semantic role has an invalid parent."),
       );
-    if (node.parentId !== null)
+    }
+    if (node.parentId !== null) {
       childCount.set(node.parentId, (childCount.get(node.parentId) ?? 0) + 1);
+    }
   }
-  for (const [nodeId, node] of Object.entries(tree.nodes))
-    if (requiredChildren.has(node.role) && !childCount.has(nodeId))
+  for (const [nodeId, node] of Object.entries(tree.nodes)) {
+    if (requiredChildren.has(node.role) && !childCount.has(nodeId)) {
       diagnostics.push(
         diagnostic(
           "graph.invalid",
@@ -68,10 +77,12 @@ export const validateSemanticRoles = (diagnostics: Diagnostic[], tree: Tree, pat
           "Semantic container requires children.",
         ),
       );
+    }
+  }
 };
 
 export const validateSurfaceStates = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   surface: Parameters<typeof materializeCompletedSemanticTree>[0],
   path: string,
 ) => {
@@ -81,8 +92,8 @@ export const validateSurfaceStates = (
       ? surface.renderIntent.interaction.events
       : [],
   );
-  for (const [interactionId, interaction] of Object.entries(surface.interactions))
-    if (!eventIds.has(interaction.event))
+  for (const [interactionId, interaction] of Object.entries(surface.interactions)) {
+    if (!eventIds.has(interaction.event)) {
       diagnostics.push(
         diagnostic(
           "reference.invalid",
@@ -90,11 +101,13 @@ export const validateSurfaceStates = (
           "Interaction event must be declared in render intent.",
         ),
       );
+    }
+  }
   for (const [stateId, state] of Object.entries(surface.states)) {
     const statePath = `${path}/states/${pathSegment(stateId)}`;
     const enabled = new Set<string>();
     for (const [index, interactionId] of state.enabledInteractionIds.entries()) {
-      if (!interactionIds.has(interactionId) || enabled.has(interactionId))
+      if (!interactionIds.has(interactionId) || enabled.has(interactionId)) {
         diagnostics.push(
           diagnostic(
             "reference.invalid",
@@ -102,9 +115,10 @@ export const validateSurfaceStates = (
             "Enabled Interaction must exist and be unique.",
           ),
         );
+      }
       enabled.add(interactionId);
     }
-    if (surface.content.kind === "opaque" && Object.keys(state.contentOverrides).length > 0)
+    if (surface.content.kind === "opaque" && Object.keys(state.contentOverrides).length > 0) {
       diagnostics.push(
         diagnostic(
           "behavior.invalid",
@@ -112,10 +126,11 @@ export const validateSurfaceStates = (
           "Opaque Surface State cannot override structured content.",
         ),
       );
-    if (surface.content.kind === "structured")
+    }
+    if (surface.content.kind === "structured") {
       for (const [contentId, override] of Object.entries(state.contentOverrides)) {
         const content = surface.content.nodes[contentId];
-        if (content === undefined || content.kind !== override.kind)
+        if (content === undefined || content.kind !== override.kind) {
           diagnostics.push(
             diagnostic(
               "reference.invalid",
@@ -123,8 +138,10 @@ export const validateSurfaceStates = (
               "Content override must match an existing node kind.",
             ),
           );
+        }
       }
-    for (const [layerIndex, layer] of state.semanticOverrides.entries())
+    }
+    for (const [layerIndex, layer] of state.semanticOverrides.entries()) {
       for (const [nodeId, override] of Object.entries(layer.nodes)) {
         const node = surface.baseSemanticTree.nodes[nodeId];
         const overridePath = `${statePath}/semanticOverrides/${layerIndex}/nodes/${pathSegment(nodeId)}`;
@@ -153,7 +170,7 @@ export const validateSurfaceStates = (
           (override.label !== undefined && node.role !== "table") ||
           (override.language !== undefined &&
             !(textRole || node.role === "image" || node.role === "table"))
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               "behavior.invalid",
@@ -161,7 +178,9 @@ export const validateSurfaceStates = (
               "Semantic override property is invalid for this role.",
             ),
           );
+        }
       }
+    }
     const completed = materializeCompletedSemanticTree(surface, stateId);
     if (!completed.valid) {
       diagnostics.push(
@@ -173,13 +192,13 @@ export const validateSurfaceStates = (
       continue;
     }
     validateSemanticRoles(diagnostics, completed.value, `${statePath}/completedSemanticTree`);
-    for (const interactionId of enabled)
+    for (const interactionId of enabled) {
       if (
         !Object.values(completed.value.nodes).some(
           (node) =>
             node.role === "button" && node.interactionId === interactionId && node.stateEnabled,
         )
-      )
+      ) {
         diagnostics.push(
           diagnostic(
             "behavior.invalid",
@@ -187,14 +206,16 @@ export const validateSurfaceStates = (
             "Enabled Interaction requires a completed button.",
           ),
         );
+      }
+    }
   }
 };
 
 export type Region = {
+  bounds: { height: number; width: number; x: number; y: number };
   interactionId: string;
-  semanticNodeId: string;
-  bounds: { x: number; y: number; width: number; height: number };
   priority: number;
+  semanticNodeId: string;
 };
 export const compareRegions = (a: Region, b: Region) =>
   b.priority - a.priority ||
@@ -206,9 +227,9 @@ export const compareRegions = (a: Region, b: Region) =>
   a.bounds.height - b.bounds.height;
 
 export const validateRegions = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   tree: CompletedSemanticTreeV2,
-  regions: Region[],
+  regions: Array<Region>,
   path: string,
 ) => {
   const seen = new Set<string>();
@@ -225,7 +246,7 @@ export const validateRegions = (
       node?.role !== "button" ||
       !node.stateEnabled ||
       node.interactionId !== region.interactionId
-    )
+    ) {
       diagnostics.push(
         diagnostic(
           "reference.invalid",
@@ -233,8 +254,9 @@ export const validateRegions = (
           "Region must reference an enabled matching button.",
         ),
       );
-    const { x, y, width, height } = region.bounds;
-    if (x + width > 1 || y + height > 1 || x >= 1 || y >= 1)
+    }
+    const { height, width, x, y } = region.bounds;
+    if (x + width > 1 || y + height > 1 || x >= 1 || y >= 1) {
       diagnostics.push(
         diagnostic(
           "artifact.invalid",
@@ -242,19 +264,24 @@ export const validateRegions = (
           "Region must fit within normalized surface bounds.",
         ),
       );
+    }
     const key = JSON.stringify([region.interactionId, region.semanticNodeId, x, y, width, height]);
-    if (seen.has(key))
+    if (seen.has(key)) {
       diagnostics.push(diagnostic("identity.invalid", regionPath, "Duplicate Hit Region."));
+    }
     seen.add(key);
     covered.add(region.interactionId);
-    if (index > 0 && compareRegions(regions[index - 1]!, region) > 0)
+    if (index > 0 && compareRegions(regions[index - 1]!, region) > 0) {
       diagnostics.push(
         diagnostic("artifact.invalid", regionPath, "Hit Regions must have canonical order."),
       );
+    }
   }
-  for (const interactionId of enabled)
-    if (!covered.has(interactionId))
+  for (const interactionId of enabled) {
+    if (!covered.has(interactionId)) {
       diagnostics.push(
         diagnostic("artifact.invalid", path, "Enabled Interaction requires a Hit Region."),
       );
+    }
+  }
 };

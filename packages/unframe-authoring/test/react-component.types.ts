@@ -9,14 +9,8 @@ import {
 
 const Hero = defineComponent({
   id: "hero",
-  version: 1,
-  props: { title: editableText({ required: true }), count: numberProp({ default: 1 }) },
-  surface: { logicalSize: [960, 540] },
-  semantics: {
-    rootNodeIds: ["title"],
-    nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: prop("title") } },
-  },
-  render: ({ props, texts, bindings, state }) => {
+  props: { count: numberProp({ default: 1 }), title: editableText({ required: true }) },
+  render: ({ bindings, props, state, texts }) => {
     const count: number = props.count;
     const title: string = texts.title;
     const binding: Readonly<Record<`data-unframe-${string}`, string>> = bindings.title;
@@ -29,30 +23,24 @@ const Hero = defineComponent({
     void texts.missing;
     return null;
   },
+  semantics: {
+    nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: prop("title") } },
+    rootNodeIds: ["title"],
+  },
+  surface: { logicalSize: [960, 540] },
+  version: 1,
 });
 
 defineComponent({
+  actions: { show: { effects: [setState("shown")], inputs: {}, preconditions: [] } },
   id: "reveal",
-  version: 1,
-  props: {},
-  surface: { logicalSize: [1, 1] },
-  semantics: {
-    rootNodeIds: ["button"],
-    nodes: {
-      button: { role: "button", parentId: null, order: 0, text: "Reveal", interactionId: "show" },
-    },
-  },
-  interactions: { show: { kind: "click", event: "quiz.show", hitPriority: 0 } },
   initialState: "hidden",
-  states: {
-    hidden: { semanticOverrides: [], enabledInteractionIds: ["show"] },
-    shown: { semanticOverrides: [], enabledInteractionIds: [] },
-  },
-  actions: { show: { inputs: {}, preconditions: [], effects: [setState("shown")] } },
+  interactions: { show: { event: "quiz.show", hitPriority: 0, kind: "click" } },
   outputs: {
-    showRequested: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "show" } },
+    showRequested: { payload: {}, producer: { interactionId: "show", kind: "surfaceInteraction" } },
   },
-  render: ({ state, bindings }) => {
+  props: {},
+  render: ({ bindings, state }) => {
     const current: "hidden" | "shown" = state;
     void current;
     void bindings.button;
@@ -61,156 +49,168 @@ defineComponent({
     void missing;
     return null;
   },
+  semantics: {
+    nodes: {
+      button: { role: "button", parentId: null, order: 0, text: "Reveal", interactionId: "show" },
+    },
+    rootNodeIds: ["button"],
+  },
+  states: {
+    hidden: { enabledInteractionIds: ["show"], semanticOverrides: [] },
+    shown: { enabledInteractionIds: [], semanticOverrides: [] },
+  },
+  surface: { logicalSize: [1, 1] },
+  version: 1,
 });
 
 defineComponent({
   id: "invalid-action-state",
-  version: 1,
-  props: {},
-  surface: { logicalSize: [1, 1] },
-  semantics: {
-    rootNodeIds: ["label"],
-    nodes: { label: { role: "paragraph", parentId: null, order: 0, text: "Label" } },
-  },
-  interactions: {},
   initialState: "hidden",
-  states: { hidden: { semanticOverrides: [], enabledInteractionIds: [] } },
+  interactions: {},
+  props: {},
+  semantics: {
+    nodes: { label: { role: "paragraph", parentId: null, order: 0, text: "Label" } },
+    rootNodeIds: ["label"],
+  },
+  states: { hidden: { enabledInteractionIds: [], semanticOverrides: [] } },
+  surface: { logicalSize: [1, 1] },
+  version: 1,
   // @ts-expect-error Action target must be a declared State
-  actions: { show: { inputs: {}, preconditions: [], effects: [setState("missing")] } },
+  actions: { show: { effects: [setState("missing")], inputs: {}, preconditions: [] } },
   outputs: {},
   render: () => null,
 });
 
 defineComponent({
   id: "unsupported-output-producers",
-  version: 1,
-  props: {},
-  surface: { logicalSize: [1, 1] },
-  semantics: { rootNodeIds: [], nodes: {} },
   outputs: {
     // @ts-expect-error React metadata does not support timer outputs
-    timeout: { payload: {}, producer: { kind: "timer", afterMilliseconds: 1000 } },
+    timeout: { payload: {}, producer: { afterMilliseconds: 1000, kind: "timer" } },
     // @ts-expect-error React metadata does not support timeline completion outputs
     timeline: { payload: {}, producer: { kind: "timelineCompleted", timelineId: "intro" } },
     // @ts-expect-error React metadata does not support media completion outputs
     media: { payload: {}, producer: { kind: "mediaCompleted", surfaceId: "surface" } },
   },
+  props: {},
   render: () => null,
+  semantics: { nodes: {}, rootNodeIds: [] },
+  surface: { logicalSize: [1, 1] },
+  version: 1,
 });
 
 const placement = {
-  owner: { kind: "presentation" },
   audience: { kind: "all" },
+  fit: "contain",
+  owner: { kind: "presentation" },
   parent: { kind: "stage" },
   physicalSizeMeters: [1.6, 0.9],
-  fit: "contain",
   transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
 } as const;
 const common = {
-  id: "sample",
-  metadata: { title: "Sample" },
-  stage: {
-    coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-    size: [6, 3, 6],
-  },
   assets: [],
   flow: {
-    initialGroupId: "main",
     groups: {
       main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
     },
+    initialGroupId: "main",
     variables: {},
   },
+  id: "sample",
+  metadata: { title: "Sample" },
   operations: [],
+  stage: {
+    coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+    size: [6, 3, 6],
+  },
 } as const;
 
 definePresentation({
   ...common,
-  scene: [{ ...placement, id: "one", component: Hero, props: { title: "Hi" } }],
+  scene: [{ ...placement, component: Hero, id: "one", props: { title: "Hi" } }],
 });
 definePresentation({
   ...common,
   // @ts-expect-error title is required
-  scene: [{ ...placement, id: "missing", component: Hero, props: {} }],
+  scene: [{ ...placement, component: Hero, id: "missing", props: {} }],
 });
 definePresentation({
   ...common,
   // @ts-expect-error unexpected prop key
-  scene: [{ ...placement, id: "extra", component: Hero, props: { title: "Hi", extra: true } }],
+  scene: [{ ...placement, component: Hero, id: "extra", props: { extra: true, title: "Hi" } }],
 });
 definePresentation({
   ...common,
   // @ts-expect-error wrong title type
-  scene: [{ ...placement, id: "wrong", component: Hero, props: { title: 1 } }],
+  scene: [{ ...placement, component: Hero, id: "wrong", props: { title: 1 } }],
 });
 definePresentation({
   ...common,
   scene: [
     // @ts-expect-error unexpected scene field
-    { ...placement, id: "extra-field", component: Hero, props: { title: "Hi" }, surprise: true },
+    { ...placement, component: Hero, id: "extra-field", props: { title: "Hi" }, surprise: true },
   ],
 });
 definePresentation({
   ...common,
   // @ts-expect-error flow requires initialGroupId, groups, and variables
   flow: {},
-  scene: [{ ...placement, id: "bad-flow", component: Hero, props: { title: "Hi" } }],
+  scene: [{ ...placement, component: Hero, id: "bad-flow", props: { title: "Hi" } }],
 });
 definePresentation({
   ...common,
   // @ts-expect-error assets must be asset references
-  assets: [{ kind: "image", assetId: "bad" }],
-  scene: [{ ...placement, id: "bad-asset", component: Hero, props: { title: "Hi" } }],
+  assets: [{ assetId: "bad", kind: "image" }],
+  scene: [{ ...placement, component: Hero, id: "bad-asset", props: { title: "Hi" } }],
 });
 
 defineComponent({
   id: "bad-reference",
-  version: 1,
   props: { count: numberProp({ required: true }) },
-  surface: { logicalSize: [1, 1] },
+  render: () => null,
   semantics: {
     rootNodeIds: ["title"],
     // @ts-expect-error text cannot reference a number prop
-    nodes: { title: { role: "paragraph", parentId: null, order: 0, text: prop("count") } },
+    nodes: { title: { order: 0, parentId: null, role: "paragraph", text: prop("count") } },
   },
-  render: () => null,
+  surface: { logicalSize: [1, 1] },
+  version: 1,
 });
 
 defineComponent({
   id: "heading-level-required",
-  version: 1,
   props: {},
-  surface: { logicalSize: [1, 1] },
+  render: () => null,
   semantics: {
     rootNodeIds: ["title"],
     // @ts-expect-error heading requires a level
-    nodes: { title: { role: "heading", parentId: null, order: 0, text: "Hello" } },
+    nodes: { title: { order: 0, parentId: null, role: "heading", text: "Hello" } },
   },
-  render: () => null,
+  surface: { logicalSize: [1, 1] },
+  version: 1,
 });
 defineComponent({
   id: "paragraph-level-forbidden",
-  version: 1,
   props: {},
-  surface: { logicalSize: [1, 1] },
+  render: () => null,
   semantics: {
     rootNodeIds: ["title"],
     // @ts-expect-error paragraph cannot have a level
-    nodes: { title: { role: "paragraph", level: 1, parentId: null, order: 0, text: "Hello" } },
+    nodes: { title: { level: 1, order: 0, parentId: null, role: "paragraph", text: "Hello" } },
   },
-  render: () => null,
+  surface: { logicalSize: [1, 1] },
+  version: 1,
 });
 
 // @ts-expect-error required and default are exclusive
-editableText({ required: true, default: "duplicate" });
+editableText({ default: "duplicate", required: true });
 // @ts-expect-error required:false is unsupported
-editableText({ required: false, default: "no" });
+editableText({ default: "no", required: false });
 defineComponent({
   id: "async",
-  version: 1,
   props: {},
+  semantics: { nodes: {}, rootNodeIds: [] },
   surface: { logicalSize: [1, 1] },
-  semantics: { rootNodeIds: [], nodes: {} },
+  version: 1,
   // @ts-expect-error initial render must be synchronous
   render: async () => null,
 });

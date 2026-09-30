@@ -13,62 +13,62 @@ import { parseAuthoringSource } from "../syntax/parse-authoring-source.js";
 
 type ProjectSourceDiagnostic = {
   readonly code: string;
+  readonly column: number;
+  readonly end: number;
   readonly fileName: string;
+  readonly line: number;
   readonly message: string;
   readonly start: number;
-  readonly end: number;
-  readonly line: number;
-  readonly column: number;
   readonly typescriptCode?: number;
 };
 
 export type ParsedAuthoringProjectValue = {
-  readonly projectRoot: string;
   readonly entryFile: string;
   readonly files: Readonly<Record<string, ts.SourceFile>>;
-  readonly rootDependencies: readonly LockedDependency[];
-  readonly packages: readonly ParsedLockedPackage[];
+  readonly packages: ReadonlyArray<ParsedLockedPackage>;
+  readonly projectRoot: string;
   readonly rawFiles: Readonly<Record<string, RawProjectFile>>;
+  readonly rootDependencies: ReadonlyArray<LockedDependency>;
 };
 
 export type RawProjectFile = {
-  readonly path: string;
-  readonly mediaType: string;
-  readonly hash: string;
-  readonly encoding: "utf8" | "base64";
   readonly data: string;
+  readonly encoding: "utf8" | "base64";
+  readonly hash: string;
+  readonly mediaType: string;
+  readonly path: string;
 };
 
 export type ParsedAuthoringProject =
   | {
+      readonly diagnostics: [];
       readonly ok: true;
       readonly value: ParsedAuthoringProjectValue;
-      readonly diagnostics: [];
     }
-  | { readonly ok: false; readonly diagnostics: readonly ProjectSourceDiagnostic[] };
+  | { readonly diagnostics: ReadonlyArray<ProjectSourceDiagnostic>; readonly ok: false };
 
 const inputSchema = z
   .object({
-    projectRoot: z.string(),
     entryFile: z.string(),
     files: z.array(z.object({ fileName: z.string(), sourceText: z.string() }).strict()),
-    rootDependencies: z.array(z.unknown()),
     packages: z.array(z.unknown()),
+    projectRoot: z.string(),
     rawFiles: z
       .array(
         z.strictObject({
-          path: z.string(),
-          mediaType: z.string(),
-          hash: z.string(),
-          encoding: z.enum(["utf8", "base64"]),
           data: z.string(),
+          encoding: z.enum(["utf8", "base64"]),
+          hash: z.string(),
+          mediaType: z.string(),
+          path: z.string(),
         }),
       )
       .optional(),
+    rootDependencies: z.array(z.unknown()),
   })
   .strict();
 
-const hasExactOwnKeys = (value: unknown, expected: readonly string[]) =>
+const hasExactOwnKeys = (value: unknown, expected: ReadonlyArray<string>) =>
   typeof value === "object" &&
   value !== null &&
   !Array.isArray(value) &&
@@ -92,9 +92,10 @@ const hasProjectEnvelopeShape = (value: unknown) => {
       "packages",
       "rawFiles",
     ])
-  )
+  ) {
     return false;
-  const { files, rootDependencies, packages, rawFiles } = value as Record<string, unknown>;
+  }
+  const { files, packages, rawFiles, rootDependencies } = value as Record<string, unknown>;
   return (
     Array.isArray(files) &&
     files.every((file) => hasExactOwnKeys(file, ["fileName", "sourceText"])) &&
@@ -136,13 +137,12 @@ const projectDiagnostic = (
   code: ProjectSourceDiagnostic["code"],
   fileName: string,
   message: string,
-): ProjectSourceDiagnostic => ({ code, fileName, message, start: 0, end: 0, line: 1, column: 1 });
+): ProjectSourceDiagnostic => ({ code, column: 1, end: 0, fileName, line: 1, message, start: 0 });
 
 export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject => {
   const snapshot = safePlainClone(input);
-  if (!snapshot.valid)
+  if (!snapshot.valid) {
     return {
-      ok: false,
       diagnostics: [
         projectDiagnostic(
           "compiler-invalid-input",
@@ -150,10 +150,11 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Project input cannot be inspected safely.",
         ),
       ],
-    };
-  if (!hasProjectEnvelopeShape(snapshot.value))
-    return {
       ok: false,
+    };
+  }
+  if (!hasProjectEnvelopeShape(snapshot.value)) {
+    return {
       diagnostics: [
         projectDiagnostic(
           "compiler-invalid-input",
@@ -161,11 +162,12 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Project input has an invalid virtual filesystem shape.",
         ),
       ],
+      ok: false,
     };
+  }
   const parsed = inputSchema.safeParse(snapshot.value);
-  if (!parsed.success)
+  if (!parsed.success) {
     return {
-      ok: false,
       diagnostics: [
         projectDiagnostic(
           "compiler-invalid-input",
@@ -173,14 +175,17 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Project input has an invalid virtual filesystem shape.",
         ),
       ],
+      ok: false,
     };
+  }
 
-  const { projectRoot, entryFile, files, rawFiles = [] } = parsed.data;
+  const { entryFile, files, projectRoot, rawFiles = [] } = parsed.data;
   const lockedPackages = parseLockedPackages(snapshot.value as Record<string, unknown>);
-  if (!lockedPackages.valid)
-    return { ok: false, diagnostics: [...lockedPackages.diagnostics].sort(compareDiagnostics) };
-  const diagnostics: ProjectSourceDiagnostic[] = [];
-  if (!isLogicalAbsolutePosixPath(projectRoot))
+  if (!lockedPackages.valid) {
+    return { diagnostics: [...lockedPackages.diagnostics].sort(compareDiagnostics), ok: false };
+  }
+  const diagnostics: Array<ProjectSourceDiagnostic> = [];
+  if (!isLogicalAbsolutePosixPath(projectRoot)) {
     diagnostics.push(
       projectDiagnostic(
         "compiler-project-root-invalid",
@@ -188,7 +193,8 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         "Project root must be a logical absolute POSIX path.",
       ),
     );
-  if (!isRootRelativePath(entryFile))
+  }
+  if (!isRootRelativePath(entryFile)) {
     diagnostics.push(
       projectDiagnostic(
         "compiler-project-path-invalid",
@@ -196,10 +202,11 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         "Entry file must be relative to the project root.",
       ),
     );
+  }
 
   const seen = new Set<string>();
   for (const file of files) {
-    if (!isRootRelativePath(file.fileName))
+    if (!isRootRelativePath(file.fileName)) {
       diagnostics.push(
         projectDiagnostic(
           "compiler-project-path-invalid",
@@ -207,7 +214,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "File name must be relative to the project root.",
         ),
       );
-    else if (seen.has(file.fileName))
+    } else if (seen.has(file.fileName)) {
       diagnostics.push(
         projectDiagnostic(
           "compiler-project-file-duplicate",
@@ -215,8 +222,10 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Virtual project file names must be unique.",
         ),
       );
-    else seen.add(file.fileName);
-    if (!sourceKindSupported(file.fileName))
+    } else {
+      seen.add(file.fileName);
+    }
+    if (!sourceKindSupported(file.fileName)) {
       diagnostics.push({
         ...projectDiagnostic(
           "compiler-source-kind-unsupported",
@@ -224,13 +233,14 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Authoring source must use a .ts, .tsx, or .d.ts file name.",
         ),
       });
+    }
   }
   const rawMap: Record<string, RawProjectFile> = Object.create(null) as Record<
     string,
     RawProjectFile
   >;
   for (const file of rawFiles) {
-    if (!isRootRelativePath(file.path) || sourceKindSupported(file.path))
+    if (!isRootRelativePath(file.path) || sourceKindSupported(file.path)) {
       diagnostics.push(
         projectDiagnostic(
           "compiler-project-path-invalid",
@@ -238,7 +248,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Raw file path must be root-relative and must not use a TypeScript source suffix.",
         ),
       );
-    else if (seen.has(file.path) || Object.hasOwn(rawMap, file.path))
+    } else if (seen.has(file.path) || Object.hasOwn(rawMap, file.path)) {
       diagnostics.push(
         projectDiagnostic(
           "compiler-project-file-duplicate",
@@ -246,10 +256,12 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           "Virtual project file names must be unique.",
         ),
       );
-    else {
+    } else {
       let decoded = "";
       try {
-        if (file.encoding === "base64") decoded = atob(file.data);
+        if (file.encoding === "base64") {
+          decoded = atob(file.data);
+        }
       } catch {
         decoded = "\ufffd";
       }
@@ -266,7 +278,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         !/^sha256:[0-9a-f]{64}$/.test(file.hash) ||
         file.hash !== `sha256:${bytesToHex(sha256(bytes))}` ||
         file.mediaType.length === 0
-      )
+      ) {
         diagnostics.push(
           projectDiagnostic(
             "compiler-invalid-input",
@@ -274,10 +286,12 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
             "Raw file bytes, media type, or hash are invalid.",
           ),
         );
-      else rawMap[file.path] = file;
+      } else {
+        rawMap[file.path] = file;
+      }
     }
   }
-  if (isRootRelativePath(entryFile) && !seen.has(entryFile))
+  if (isRootRelativePath(entryFile) && !seen.has(entryFile)) {
     diagnostics.push(
       projectDiagnostic(
         "compiler-project-entry-not-found",
@@ -285,8 +299,10 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         "Entry file must be present in the virtual project.",
       ),
     );
-  if (diagnostics.length > 0)
-    return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
+  }
+  if (diagnostics.length > 0) {
+    return { diagnostics: diagnostics.sort(compareDiagnostics), ok: false };
+  }
 
   const parsedFiles: Record<string, ts.SourceFile> = {};
   for (const file of [...files].sort((left, right) =>
@@ -303,28 +319,28 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
     diagnostics.push(
       ...result.diagnostics.map((item): ProjectSourceDiagnostic => ({
         code: item.code,
+        column: item.column,
+        end: item.start + item.length,
         fileName: file.fileName,
+        line: item.line,
         message: item.message,
         start: item.start,
-        end: item.start + item.length,
-        line: item.line,
-        column: item.column,
         ...(item.typescriptCode === undefined ? {} : { typescriptCode: item.typescriptCode }),
       })),
     );
   }
   return diagnostics.length > 0
-    ? { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) }
+    ? { diagnostics: diagnostics.sort(compareDiagnostics), ok: false }
     : {
+        diagnostics: [],
         ok: true,
         value: {
-          projectRoot,
           entryFile,
           files: parsedFiles,
-          rootDependencies: lockedPackages.rootDependencies,
           packages: lockedPackages.packages,
+          projectRoot,
           rawFiles: rawMap,
+          rootDependencies: lockedPackages.rootDependencies,
         },
-        diagnostics: [],
       };
 };

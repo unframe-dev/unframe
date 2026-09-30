@@ -9,40 +9,40 @@ describe("runtime assignment persistence", () => {
     const repository = new D1VenueEdgeRepository(env.DB);
     await repository.createEdge(
       {
-        id: `edge-${suffix}`,
-        runtimeId: null,
-        status: "active",
-        runtimeVersion: null,
-        protocolVersion: null,
         capacity: null,
-        localEndpoint: null,
         certificateFingerprint: null,
-        health: null,
-        registeredAt: null,
-        lastSeenAt: "2026-08-20T00:00:00.000Z",
         createdAt: "2026-08-20T00:00:00.000Z",
+        health: null,
+        id: `edge-${suffix}`,
+        lastSeenAt: "2026-08-20T00:00:00.000Z",
+        localEndpoint: null,
+        protocolVersion: null,
+        registeredAt: null,
         revokedAt: null,
+        runtimeId: null,
+        runtimeVersion: null,
+        status: "active",
       },
       {
-        edgeId: `edge-${suffix}`,
-        tokenId: "token",
-        tokenHash: "hash",
-        status: "active",
         createdAt: "2026-08-20T00:00:00.000Z",
+        edgeId: `edge-${suffix}`,
         expiresAt: "2026-08-21T00:00:00.000Z",
         lastUsedAt: null,
         revokedAt: null,
+        status: "active",
+        tokenHash: "hash",
+        tokenId: "token",
       },
     );
     await repository.register(`edge-${suffix}`, {
-      runtimeId: `runtime-${suffix}`,
-      runtimeVersion: "1",
-      protocolVersion: "v1",
       capacity: 10,
-      localEndpoint: "https://edge.example.com",
       certificateFingerprint: "sha256:test",
       health: "healthy",
+      localEndpoint: "https://edge.example.com",
       observedAt: "2026-08-20T00:00:00.000Z",
+      protocolVersion: "v1",
+      runtimeId: `runtime-${suffix}`,
+      runtimeVersion: "1",
     });
     await expect(repository.findEdge(`edge-${suffix}`)).resolves.toMatchObject({
       id: `edge-${suffix}`,
@@ -51,54 +51,54 @@ describe("runtime assignment persistence", () => {
 
     await expect(
       repository.register(`edge-${suffix}`, {
-        runtimeId: `other-runtime-${suffix}`,
-        runtimeVersion: "1",
-        protocolVersion: "v1",
         capacity: 10,
-        localEndpoint: "https://edge.example.com",
         certificateFingerprint: "sha256:test",
         health: "healthy",
+        localEndpoint: "https://edge.example.com",
         observedAt: "2026-08-20T00:01:00.000Z",
+        protocolVersion: "v1",
+        runtimeId: `other-runtime-${suffix}`,
+        runtimeVersion: "1",
       }),
     ).resolves.toBe(false);
 
     await repository.createEdge(
       {
-        id: `other-edge-${suffix}`,
-        runtimeId: null,
-        status: "active",
-        runtimeVersion: null,
-        protocolVersion: null,
         capacity: null,
-        localEndpoint: null,
         certificateFingerprint: null,
-        health: null,
-        registeredAt: null,
-        lastSeenAt: "2026-08-20T00:00:00.000Z",
         createdAt: "2026-08-20T00:00:00.000Z",
+        health: null,
+        id: `other-edge-${suffix}`,
+        lastSeenAt: "2026-08-20T00:00:00.000Z",
+        localEndpoint: null,
+        protocolVersion: null,
+        registeredAt: null,
         revokedAt: null,
+        runtimeId: null,
+        runtimeVersion: null,
+        status: "active",
       },
       {
-        edgeId: `other-edge-${suffix}`,
-        tokenId: "other-token",
-        tokenHash: "other-hash",
-        status: "active",
         createdAt: "2026-08-20T00:00:00.000Z",
+        edgeId: `other-edge-${suffix}`,
         expiresAt: "2026-08-21T00:00:00.000Z",
         lastUsedAt: null,
         revokedAt: null,
+        status: "active",
+        tokenHash: "other-hash",
+        tokenId: "other-token",
       },
     );
     await expect(
       repository.register(`other-edge-${suffix}`, {
-        runtimeId: `runtime-${suffix}`,
-        runtimeVersion: "1",
-        protocolVersion: "v1",
         capacity: 10,
-        localEndpoint: "https://other-edge.example.com",
         certificateFingerprint: "sha256:other",
         health: "healthy",
+        localEndpoint: "https://other-edge.example.com",
         observedAt: "2026-08-20T00:01:00.000Z",
+        protocolVersion: "v1",
+        runtimeId: `runtime-${suffix}`,
+        runtimeVersion: "1",
       }),
     ).resolves.toBe(false);
   });
@@ -108,50 +108,50 @@ describe("runtime assignment persistence", () => {
     const repository = new D1VenueEdgeRepository(env.DB);
     await repository.createEdge(
       {
-        id: `edge-${suffix}`,
-        runtimeId: null,
-        status: "active",
-        runtimeVersion: null,
-        protocolVersion: null,
         capacity: null,
-        localEndpoint: null,
         certificateFingerprint: null,
-        health: null,
-        registeredAt: null,
-        lastSeenAt: "2026",
         createdAt: "2026",
+        health: null,
+        id: `edge-${suffix}`,
+        lastSeenAt: "2026",
+        localEndpoint: null,
+        protocolVersion: null,
+        registeredAt: null,
         revokedAt: null,
+        runtimeId: null,
+        runtimeVersion: null,
+        status: "active",
       },
       {
-        edgeId: `edge-${suffix}`,
-        tokenId: "token",
-        tokenHash: "hash",
-        status: "active",
         createdAt: "2026",
+        edgeId: `edge-${suffix}`,
         expiresAt: "2027",
         lastUsedAt: null,
         revokedAt: null,
+        status: "active",
+        tokenHash: "hash",
+        tokenId: "token",
       },
     );
     await repository.touchCredential(`edge-${suffix}`, "token", "2026-08-20T00:01:00.000Z");
     await expect(repository.findCredential(`edge-${suffix}`, "token")).resolves.toMatchObject({
-      tokenHash: "hash",
       lastUsedAt: "2026-08-20T00:01:00.000Z",
+      tokenHash: "hash",
     });
     await expect(
       repository.rotateCredential({
-        edgeId: `edge-${suffix}`,
-        previousExpiresAt: "2026-08-20T01:00:00.000Z",
         credential: {
-          edgeId: `edge-${suffix}`,
-          tokenId: "rotated",
-          tokenHash: "next-hash",
-          status: "active",
           createdAt: "2026-08-20T00:01:00.000Z",
+          edgeId: `edge-${suffix}`,
           expiresAt: "2026-08-21T00:00:00.000Z",
           lastUsedAt: null,
           revokedAt: null,
+          status: "active",
+          tokenHash: "next-hash",
+          tokenId: "rotated",
         },
+        edgeId: `edge-${suffix}`,
+        previousExpiresAt: "2026-08-20T01:00:00.000Z",
       }),
     ).resolves.toBe(true);
     await expect(repository.findCredential(`edge-${suffix}`, "token")).resolves.toMatchObject({
@@ -164,8 +164,8 @@ describe("runtime assignment persistence", () => {
       status: "revoked",
     });
     await expect(repository.findCredential(`edge-${suffix}`, "rotated")).resolves.toMatchObject({
-      status: "revoked",
       revokedAt: "2026-08-20T00:00:00.000Z",
+      status: "revoked",
     });
   });
 });

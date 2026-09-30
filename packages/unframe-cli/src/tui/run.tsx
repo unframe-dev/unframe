@@ -29,22 +29,28 @@ const PresentationTuiApp = (props: PresentationTuiAppProps) => {
 
   useBindings(() => ({
     bindings: [
-      { key: "up", cmd: () => dispatch({ type: "previous" }) },
-      { key: "k", cmd: () => dispatch({ type: "previous" }) },
-      { key: "down", cmd: () => dispatch({ type: "next" }) },
-      { key: "j", cmd: () => dispatch({ type: "next" }) },
-      { key: "enter", cmd: () => dispatch({ type: "select" }) },
-      { key: "q", cmd: () => dispatch({ type: "quit" }) },
-      { key: "escape", cmd: () => dispatch({ type: "quit" }) },
-      { key: "ctrl+c", cmd: () => dispatch({ type: "quit" }) },
+      { cmd: () => dispatch({ type: "previous" }), key: "up" },
+      { cmd: () => dispatch({ type: "previous" }), key: "k" },
+      { cmd: () => dispatch({ type: "next" }), key: "down" },
+      { cmd: () => dispatch({ type: "next" }), key: "j" },
+      { cmd: () => dispatch({ type: "select" }), key: "enter" },
+      { cmd: () => dispatch({ type: "quit" }), key: "q" },
+      { cmd: () => dispatch({ type: "quit" }), key: "escape" },
+      { cmd: () => dispatch({ type: "quit" }), key: "ctrl+c" },
     ],
   }));
 
   createEffect(() => {
     const effect = state().effect;
-    if (!effect) return;
-    if (effect.type === "command-selected") props.onCommandSelected?.(effect.command);
-    if (effect.type === "quit") props.renderer.destroy();
+    if (!effect) {
+      return;
+    }
+    if (effect.type === "command-selected") {
+      props.onCommandSelected?.(effect.command);
+    }
+    if (effect.type === "quit") {
+      props.renderer.destroy();
+    }
     dispatch({ type: "effect-handled" });
   });
 
@@ -52,7 +58,9 @@ const PresentationTuiApp = (props: PresentationTuiAppProps) => {
 };
 
 export const runPresentationTui = async (options: RunPresentationTuiOptions = {}) => {
-  if (!("Bun" in globalThis)) throw new Error("Presentation TUI requires the Bun runtime.");
+  if (!("Bun" in globalThis)) {
+    throw new Error("Presentation TUI requires the Bun runtime.");
+  }
 
   const renderer = await createCliRenderer({
     exitOnCtrlC: false,

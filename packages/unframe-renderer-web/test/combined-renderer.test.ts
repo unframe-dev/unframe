@@ -4,22 +4,22 @@ import { combineBakedWebRenderers } from "../src/rendering/combined-renderer.js"
 
 const plugin = (kind: "structured" | "opaque", hash: string): RendererPlugin => {
   const capabilities = {
+    deterministic: true,
+    fallbackPolicies: ["reject" as const],
     inputKinds: [kind],
-    updateModels: ["static" as const],
     interactions: ["none" as const],
     internalAnimations: ["none" as const],
     rendererPreferences: ["baked-web" as const],
-    fallbackPolicies: ["reject" as const],
-    deterministic: true,
+    updateModels: ["static" as const],
   } as const;
   return {
-    identity: { id: "baked-web", version: "3", contractVersion: "2", implementationHash: hash },
-    capabilities,
-    support: (input) => evaluateRendererSupport(input, capabilities),
     build: () => ({
-      ok: false,
       diagnostics: [{ code: `${kind}-failure`, message: "capture unavailable", path: [] }],
+      ok: false,
     }),
+    capabilities,
+    identity: { contractVersion: "2", id: "baked-web", implementationHash: hash, version: "3" },
+    support: (input) => evaluateRendererSupport(input, capabilities),
   };
 };
 
@@ -32,13 +32,13 @@ it("includes both implementations in its identity and preserves mode-specific su
     combineBakedWebRenderers(structured, plugin("opaque", "sha256:c")).identity,
   );
   const request = {
-    entry: { kind: "opaque" as const, entryId: "x", moduleHash: "sha256:m" },
+    entry: { entryId: "x", kind: "opaque" as const, moduleHash: "sha256:m" },
     resolvedIntent: {
-      updateModel: { kind: "static" as const },
+      fallbackPolicy: "reject" as const,
       interaction: { kind: "none" as const },
       internalAnimation: { kind: "none" as const },
       selectedRendererId: "baked-web" as const,
-      fallbackPolicy: "reject" as const,
+      updateModel: { kind: "static" as const },
     },
   };
   expect(combined.support(request)).toEqual(opaque.support(request));

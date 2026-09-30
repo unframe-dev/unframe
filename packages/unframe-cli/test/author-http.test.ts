@@ -3,29 +3,29 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { startAuthorHost } from "../src/author/http.js";
 import type { AuthorService } from "../src/author/contract.js";
 
-const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
+const hosts: Array<Awaited<ReturnType<typeof startAuthorHost>>> = [];
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
 });
 const setup = async () => {
   const service: AuthorService = {
+    artifact: vi.fn(),
+    build: vi.fn(),
+    cancel: vi.fn(),
+    close: vi.fn(async () => {}),
+    job: vi.fn(),
+    patch: vi.fn(),
     project: vi.fn(async () => ({
+      diagnostics: [],
+      instances: [],
+      irHash: "ir",
       revision: "rev",
       sourceHash: "source",
-      irHash: "ir",
-      instances: [],
-      diagnostics: [],
     })),
-    patch: vi.fn(),
-    build: vi.fn(),
-    job: vi.fn(),
-    cancel: vi.fn(),
-    artifact: vi.fn(),
-    close: vi.fn(async () => {}),
   };
   const host = await startAuthorHost({
-    service,
     assets: new Map([["/", { bytes: new TextEncoder().encode("editor"), mediaType: "text/html" }]]),
+    service,
   });
   hosts.push(host);
   return { host, service };
@@ -51,26 +51,26 @@ describe("local author HTTP boundary", () => {
       origin: "https://elsewhere.invalid",
     };
     expect(
-      (await fetch(`${host.origin}/api/project`, { method: "PATCH", headers, body: "{}" })).status,
+      (await fetch(`${host.origin}/api/project`, { body: "{}", headers, method: "PATCH" })).status,
     ).toBe(403);
     headers.origin = host.origin;
     const body = {
-      commandId: "a".repeat(32),
-      expectedIrHash: "ir",
       command: {
-        kind: "setProp",
+        fileName: "secrets",
         instanceId: "one",
+        kind: "setProp",
         propId: "title",
         value: "new",
-        fileName: "secrets",
       },
+      commandId: "a".repeat(32),
+      expectedIrHash: "ir",
     };
     expect(
       (
         await fetch(`${host.origin}/api/project`, {
-          method: "PATCH",
-          headers,
           body: JSON.stringify(body),
+          headers,
+          method: "PATCH",
         })
       ).status,
     ).toBe(400);
@@ -87,18 +87,18 @@ describe("local author HTTP boundary", () => {
 it("returns a bounded-input diagnostic without invoking a save", async () => {
   const { host, service } = await setup();
   const response = await fetch(`${host.origin}/api/project`, {
-    method: "PATCH",
-    headers: {
-      authorization: `Bearer ${host.token}`,
-      origin: host.origin,
-      "content-type": "application/json",
-      "if-match": '"rev"',
-    },
     body: JSON.stringify({
+      command: { kind: "setProp", instanceId: "a", propId: "title", value: "x".repeat(256 * 1024) },
       commandId: "a".repeat(32),
       expectedIrHash: "ir",
-      command: { kind: "setProp", instanceId: "a", propId: "title", value: "x".repeat(256 * 1024) },
     }),
+    headers: {
+      authorization: `Bearer ${host.token}`,
+      "content-type": "application/json",
+      "if-match": '"rev"',
+      origin: host.origin,
+    },
+    method: "PATCH",
   });
   expect(response.status).toBe(413);
   expect(service.patch).not.toHaveBeenCalled();

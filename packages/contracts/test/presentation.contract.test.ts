@@ -16,8 +16,8 @@ const fixture = async (name: string) =>
 
 const ajv = new Ajv2020({
   allErrors: true,
-  strict: true,
   allowUnionTypes: true,
+  strict: true,
 });
 const validateDefinition = ajv.compile(presentationDefinitionJsonSchema);
 const validateBundle = ajv.compile(renderBundleJsonSchema);
@@ -199,11 +199,11 @@ assert.equal(validateBundle(invalidBundleRecord), false, "artifact bindings requ
 assert.equal(renderBundleSchema.safeParse(invalidBundleRecord).success, false);
 
 const legacyControlPlaneDefinition = {
+  elements: [],
+  groups: [],
   id: "legacy-presentation",
   metadata: { title: "Legacy" },
   stage: {},
-  groups: [],
-  elements: [],
 };
 assert.equal(
   validateDefinition(legacyControlPlaneDefinition),

@@ -20,17 +20,17 @@ import { RuntimeAssignmentError, RuntimeAssignmentService } from "../runtime-ass
 type AppContext = Context<AppEnvironment>;
 type RouteDependencies = { service: VenueEdgeService };
 export type VenueEdgeRouteOptions = {
-  identityProvider: (context: AppContext) => Promise<Identity | undefined>;
-  repository?: VenueEdgeRepository;
-  now?: () => Date;
+  credential?: () => { secret: Uint8Array; tokenId: string };
   edgeId?: () => string;
-  credential?: () => { tokenId: string; secret: Uint8Array };
+  identityProvider: (context: AppContext) => Promise<Identity | undefined>;
+  now?: () => Date;
+  repository?: VenueEdgeRepository;
 };
 
-const errors = { not_found: 404, conflict: 409, unauthorized: 401, forbidden: 403 } as const;
+const errors = { conflict: 409, forbidden: 403, not_found: 404, unauthorized: 401 } as const;
 const randomCredential = () => ({
-  tokenId: crypto.randomUUID(),
   secret: crypto.getRandomValues(new Uint8Array(32)),
+  tokenId: crypto.randomUUID(),
 });
 
 export function createVenueEdgeRoutes(options: VenueEdgeRouteOptions) {
@@ -48,21 +48,29 @@ export function createVenueEdgeRoutes(options: VenueEdgeRouteOptions) {
   };
   const identity = async (context: AppContext) => {
     const value = await options.identityProvider(context);
-    if (!value) throw httpError(context, "unauthorized");
+    if (!value) {
+      throw httpError(context, "unauthorized");
+    }
     return value;
   };
   const requireAdmin = async (context: AppContext) => {
     const value = await identity(context);
-    if (value.globalRole !== "admin") throw httpError(context, "forbidden");
+    if (value.globalRole !== "admin") {
+      throw httpError(context, "forbidden");
+    }
   };
   const edgeToken = async (context: AppContext, edgeId: string) => {
     const authorization = context.req.header("authorization");
     const token = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
-    if (!token) throw httpError(context, "unauthorized");
+    if (!token) {
+      throw httpError(context, "unauthorized");
+    }
     try {
       await dependencies(context).service.authenticate(edgeId, token);
     } catch (error) {
-      if (error instanceof VenueEdgeError) throw httpError(context, error.code);
+      if (error instanceof VenueEdgeError) {
+        throw httpError(context, error.code);
+      }
       throw error;
     }
   };
@@ -74,7 +82,9 @@ export function createVenueEdgeRoutes(options: VenueEdgeRouteOptions) {
     try {
       return await operation(dependencies(context).service);
     } catch (error) {
-      if (error instanceof VenueEdgeError) throw httpError(context, error.code);
+      if (error instanceof VenueEdgeError) {
+        throw httpError(context, error.code);
+      }
       throw error;
     }
   };
@@ -87,7 +97,9 @@ export function createVenueEdgeRoutes(options: VenueEdgeRouteOptions) {
     try {
       return await operation(dependencies(context).service);
     } catch (error) {
-      if (error instanceof VenueEdgeError) throw httpError(context, error.code);
+      if (error instanceof VenueEdgeError) {
+        throw httpError(context, error.code);
+      }
       throw error;
     }
   };
@@ -130,34 +142,38 @@ export function createVenueEdgeRoutes(options: VenueEdgeRouteOptions) {
       return context.body(null, 204);
     })
     .openapi(renewVenueEdgeLeaseRoute, async (context) => {
-      const { edgeId, sessionId, assignmentEpoch } = context.req.valid("param");
+      const { assignmentEpoch, edgeId, sessionId } = context.req.valid("param");
       await edgeToken(context, edgeId);
       try {
         return context.json(
           await assignments(context).renew({
-            provisioningEdgeId: edgeId,
-            sessionId,
             assignmentEpoch,
             leaseExpiresAt: context.req.valid("json").leaseExpiresAt,
+            provisioningEdgeId: edgeId,
+            sessionId,
           }),
           200,
         );
       } catch (error) {
-        if (error instanceof RuntimeAssignmentError) throw httpError(context, "conflict");
+        if (error instanceof RuntimeAssignmentError) {
+          throw httpError(context, "conflict");
+        }
         throw error;
       }
     })
     .openapi(releaseVenueEdgeLeaseRoute, async (context) => {
-      const { edgeId, sessionId, assignmentEpoch } = context.req.valid("param");
+      const { assignmentEpoch, edgeId, sessionId } = context.req.valid("param");
       await edgeToken(context, edgeId);
       try {
         await assignments(context).release({
+          assignmentEpoch,
           provisioningEdgeId: edgeId,
           sessionId,
-          assignmentEpoch,
         });
       } catch (error) {
-        if (error instanceof RuntimeAssignmentError) throw httpError(context, "conflict");
+        if (error instanceof RuntimeAssignmentError) {
+          throw httpError(context, "conflict");
+        }
         throw error;
       }
       return context.body(null, 204);

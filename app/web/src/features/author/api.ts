@@ -26,8 +26,8 @@ export function createAuthorApi(token: string) {
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(path, {
       ...init,
-      headers: { Authorization: `Bearer ${token}`, ...init.headers },
       cache: "no-store",
+      headers: { Authorization: `Bearer ${token}`, ...init.headers },
     });
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null);
@@ -46,35 +46,36 @@ export function createAuthorApi(token: string) {
     revision?: string,
     body?: unknown,
   ): RequestInit => ({
-    method,
+    body: json(body ?? {}),
     headers: {
       "Content-Type": "application/json",
       ...(revision ? { "If-Match": JSON.stringify(revision) } : {}),
     },
-    body: json(body ?? {}),
+    method,
   });
   return {
-    project: () => request<ProjectSnapshot>("/api/project"),
-    patch: (revision: string, body: PatchRequest) =>
-      request<SavedCommand>("/api/project", write("PATCH", revision, body)),
-    build: (revision: string, requestId: string) =>
-      request<BuildJob>("/api/builds", write("POST", revision, { requestId })),
-    job: (buildId: string) => request<BuildJob>(`/api/builds/${encodeURIComponent(buildId)}`),
-    cancel: (buildId: string) =>
-      request<BuildJob>(`/api/builds/${encodeURIComponent(buildId)}/cancellation`, write("PUT")),
     artifact: async (buildId: string, assetId: string) => {
       const response = await fetch(
         `/api/builds/${encodeURIComponent(buildId)}/artifacts/${encodeURIComponent(assetId)}`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+        { cache: "no-store", headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!response.ok)
+      if (!response.ok) {
         throw new AuthorApiError(
           response.status,
           "artifact-failed",
           `Preview HTTP ${response.status}`,
         );
+      }
       return response.blob();
     },
+    build: (revision: string, requestId: string) =>
+      request<BuildJob>("/api/builds", write("POST", revision, { requestId })),
+    cancel: (buildId: string) =>
+      request<BuildJob>(`/api/builds/${encodeURIComponent(buildId)}/cancellation`, write("PUT")),
+    job: (buildId: string) => request<BuildJob>(`/api/builds/${encodeURIComponent(buildId)}`),
+    patch: (revision: string, body: PatchRequest) =>
+      request<SavedCommand>("/api/project", write("PATCH", revision, body)),
+    project: () => request<ProjectSnapshot>("/api/project"),
   };
 }
 

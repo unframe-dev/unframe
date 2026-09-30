@@ -1,9 +1,9 @@
 <script lang="ts">
   import iconUrl from "$lib/assets/brand/icon.svg?url";
 
-  let { compact = false, class: className = "" } = $props<{
-    compact?: boolean;
+  let { class: className = "", compact = false } = $props<{
     class?: string;
+    compact?: boolean;
   }>();
 </script>
 

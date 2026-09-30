@@ -13,5 +13,5 @@ const docsModules = import.meta.glob("/src/content/docs/*.mdx", { eager: true })
   ContentFile
 >;
 
-export const newsEntries: ContentEntry<ContentComponent>[] = buildContentRegistry(newsModules);
-export const docsEntries: ContentEntry<ContentComponent>[] = buildContentRegistry(docsModules);
+export const newsEntries: Array<ContentEntry<ContentComponent>> = buildContentRegistry(newsModules);
+export const docsEntries: Array<ContentEntry<ContentComponent>> = buildContentRegistry(docsModules);

@@ -25,7 +25,9 @@ export class PersistenceCallbackService {
   }
 
   private result(result: PersistenceResult) {
-    if (result === "not_found" || result === "conflict") throw new PersistenceCallbackError(result);
+    if (result === "not_found" || result === "conflict") {
+      throw new PersistenceCallbackError(result);
+    }
     return { applied: result === "applied" };
   }
 }

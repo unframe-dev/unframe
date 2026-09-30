@@ -9,24 +9,24 @@ export const opaquePartitionIdentity = (
 ) => {
   const rendererEntry = {
     ...renderer,
-    entry: { kind: "opaque" as const, entryId: surfaceId, moduleHash },
+    entry: { entryId: surfaceId, kind: "opaque" as const, moduleHash },
   };
   const descriptor = {
-    partitionStrategyVersion: 1,
-    semanticSurfaceId: surfaceId,
-    renderer: rendererEntry,
-    executionClass: "baked-web" as const,
     compositingGroupKey: hashCanonicalJsonPayload({ kind: "opaque-entry", version: 1 }),
-    ownedContentNodeIds: [] as string[],
-    logicalBounds: bounds,
+    executionClass: "baked-web" as const,
     layer: 0,
+    logicalBounds: bounds,
+    ownedContentNodeIds: [] as Array<string>,
+    partitionStrategyVersion: 1,
+    renderer: rendererEntry,
+    semanticSurfaceId: surfaceId,
   };
   return {
+    descriptor,
     id: `rs_${hashCanonicalJsonPayload(descriptor).slice(7)}`,
     partitionRendererKey: hashCanonicalJsonPayload({
-      renderer: rendererEntry,
       executionClass: "baked-web",
+      renderer: rendererEntry,
     }),
-    descriptor,
   };
 };

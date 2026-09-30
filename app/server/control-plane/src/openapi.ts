@@ -12,41 +12,41 @@ import {
 
 const errorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
 const errorResponse = (description: string) => ({
-  description,
   content: { "application/json": { schema: errorSchema } },
+  description,
 });
 const security = [{ bearerAuth: [] }, { cookieSession: [] }];
 const serviceSecurity = [{ serviceBearer: [] }];
 
 const presentationResourceSchema = z.object({
+  createdAt: z.string(),
+  definition: presentationDefinitionSchema,
   id: z.string(),
   revision: z.number().int(),
-  definition: presentationDefinitionSchema,
-  createdAt: z.string(),
   updatedAt: z.string(),
 });
 const assetResourceSchema = z.object({
-  id: z.string(),
-  presentationId: z.string(),
-  name: z.string(),
-  mediaType: assetMediaTypeSchema,
-  sizeBytes: z.number().int(),
-  sha256Hex: z.string(),
-  status: z.enum(["pending", "ready", "failed", "deleting"]),
   createdAt: z.string(),
+  id: z.string(),
+  mediaType: assetMediaTypeSchema,
+  name: z.string(),
+  presentationId: z.string(),
+  sha256Hex: z.string(),
+  sizeBytes: z.number().int(),
+  status: z.enum(["pending", "ready", "failed", "deleting"]),
   updatedAt: z.string(),
 });
 const uploadSchema = z.object({
   asset: assetResourceSchema,
   upload: z.object({
-    method: z.literal("PUT"),
-    url: z.string().url(),
     expiresAt: z.string(),
     headers: z.object({
-      "content-type": assetMediaTypeSchema,
       "content-length": z.string(),
+      "content-type": assetMediaTypeSchema,
       "x-amz-checksum-sha256": z.string(),
     }),
+    method: z.literal("PUT"),
+    url: z.string().url(),
   }),
 });
 const identifierSchema = z
@@ -60,26 +60,26 @@ const httpsUrlSchema = z
   .refine((value: string) => new URL(value).protocol === "https:", "HTTPS URL required");
 const idParameter = z.object({ id: identifierSchema }).strict();
 const sessionResourceSchema = z.object({
+  createdAt: z.string().datetime(),
+  endedAt: z.string().datetime().nullable(),
   id: z.string(),
+  maxParticipants: z.literal(50),
+  participantCount: z.number().int().min(1).max(50),
   presentationId: z.string(),
   presenterId: z.string(),
   state: sessionStateSchema,
-  participantCount: z.number().int().min(1).max(50),
-  maxParticipants: z.literal(50),
-  createdAt: z.string().datetime(),
-  endedAt: z.string().datetime().nullable(),
 });
 const sessionIdParameter = idParameter;
 const realtimeConnectionSchema = z.object({
-  endpoint: httpsUrlSchema,
-  fingerprint: z.string().nullable(),
-  runtimeId: identifierSchema,
-  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
   assignmentEpoch: z.number().int().positive(),
+  credential: z.string(),
+  endpoint: httpsUrlSchema,
+  expiresAt: z.string().datetime(),
+  fingerprint: z.string().nullable(),
   presentationId: identifierSchema,
   presentationRevision: z.number().int().positive(),
-  credential: z.string(),
-  expiresAt: z.string().datetime(),
+  runtimeId: identifierSchema,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
 });
 const venueEdgeResourceSchema = z.object({
   id: identifierSchema,
@@ -87,25 +87,25 @@ const venueEdgeResourceSchema = z.object({
 });
 const venueEdgeCredentialSchema = z.object({ edge: venueEdgeResourceSchema, token: z.string() });
 const assignmentSchema = z.object({
-  sessionId: identifierSchema,
-  runtimeId: identifierSchema,
-  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-  endpoint: httpsUrlSchema,
-  certificateFingerprint: z.string().nullable(),
-  provisioningEdgeId: identifierSchema.nullable(),
   assignmentEpoch: z.number().int().positive(),
-  presentationRevision: z.number().int().positive(),
+  certificateFingerprint: z.string().nullable(),
+  endpoint: httpsUrlSchema,
   issuedAt: z.string().datetime(),
   leaseExpiresAt: z.string().datetime(),
+  presentationRevision: z.number().int().positive(),
+  provisioningEdgeId: identifierSchema.nullable(),
   releasedAt: z.string().datetime().nullable(),
+  runtimeId: identifierSchema,
+  runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+  sessionId: identifierSchema,
 });
 const edgeIdParameter = z.object({ edgeId: identifierSchema }).strict();
 const sessionAssignmentParameter = z.object({ sessionId: identifierSchema }).strict();
 const edgeLeaseParameter = z
   .object({
+    assignmentEpoch: z.coerce.number().int().positive(),
     edgeId: identifierSchema,
     sessionId: identifierSchema,
-    assignmentEpoch: z.coerce.number().int().positive(),
   })
   .strict();
 const adminSecurity = [{ bearerAuth: [] }, { cookieSession: [] }];
@@ -115,60 +115,58 @@ export const publicRoutes = [
   createRoute({
     method: "post",
     path: "/presentations",
-    security,
     request: {
       body: {
-        required: true,
         content: { "application/json": { schema: presentationCreateDefinitionSchema } },
+        required: true,
       },
     },
     responses: {
       201: {
-        description: "Created",
         content: { "application/json": { schema: presentationResourceSchema } },
+        description: "Created",
       },
       400: errorResponse("Invalid definition"),
       401: errorResponse("Unauthorized"),
     },
+    security,
   }),
   createRoute({
     method: "get",
     path: "/presentations",
-    security,
     responses: {
       200: {
-        description: "Collection",
         content: {
           "application/json": {
             schema: z.object({ presentations: z.array(presentationResourceSchema) }),
           },
         },
+        description: "Collection",
       },
       401: errorResponse("Unauthorized"),
     },
+    security,
   }),
   createRoute({
     method: "get",
     path: "/presentations/{id}",
-    security,
     request: { params: idParameter },
     responses: {
       200: {
-        description: "Presentation",
         content: { "application/json": { schema: presentationResourceSchema } },
+        description: "Presentation",
       },
       400: errorResponse("Invalid presentation id"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
     },
+    security,
   }),
   createRoute({
     method: "put",
     path: "/presentations/{id}",
-    security,
     request: {
-      params: idParameter,
       body: {
         required: true,
         content: {
@@ -182,11 +180,12 @@ export const publicRoutes = [
           },
         },
       },
+      params: idParameter,
     },
     responses: {
       200: {
-        description: "Updated",
         content: { "application/json": { schema: presentationResourceSchema } },
+        description: "Updated",
       },
       400: errorResponse("Invalid presentation update"),
       401: errorResponse("Unauthorized"),
@@ -195,13 +194,12 @@ export const publicRoutes = [
       409: errorResponse("Revision conflict"),
       422: errorResponse("Asset reference is not ready or does not belong to this presentation"),
     },
+    security,
   }),
   createRoute({
     method: "delete",
     path: "/presentations/{id}",
-    security,
     request: {
-      params: idParameter,
       body: {
         required: true,
         content: {
@@ -210,6 +208,7 @@ export const publicRoutes = [
           },
         },
       },
+      params: idParameter,
     },
     responses: {
       204: { description: "Deleted" },
@@ -219,53 +218,53 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Revision conflict or presentation assets must be deleted first"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/assets/uploads",
-    security,
     request: {
       body: {
-        required: true,
         content: { "application/json": { schema: assetInitInputSchema } },
+        required: true,
       },
     },
     responses: {
       201: {
-        description: "Upload initialized",
         content: { "application/json": { schema: uploadSchema } },
+        description: "Upload initialized",
       },
       400: errorResponse("Invalid upload"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       503: errorResponse("Signing unavailable"),
     },
+    security,
   }),
   createRoute({
     method: "get",
     path: "/assets/{id}",
-    security,
     request: { params: idParameter },
     responses: {
       200: {
-        description: "Asset",
         content: { "application/json": { schema: assetResourceSchema } },
+        description: "Asset",
       },
       400: errorResponse("Invalid asset id"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/assets/{id}/finalize",
-    security,
     request: { params: idParameter },
     responses: {
       200: {
-        description: "Finalized",
         content: { "application/json": { schema: assetResourceSchema } },
+        description: "Finalized",
       },
       400: errorResponse("Invalid asset id"),
       401: errorResponse("Unauthorized"),
@@ -273,15 +272,14 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       422: errorResponse("Verification failed"),
     },
+    security,
   }),
   createRoute({
     method: "get",
     path: "/assets/{id}/download",
-    security,
     request: { params: idParameter },
     responses: {
       200: {
-        description: "Download access",
         content: {
           "application/json": {
             schema: z.object({
@@ -293,6 +291,7 @@ export const publicRoutes = [
             }),
           },
         },
+        description: "Download access",
       },
       400: errorResponse("Invalid asset id"),
       401: errorResponse("Unauthorized"),
@@ -300,11 +299,11 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       503: errorResponse("Access unavailable"),
     },
+    security,
   }),
   createRoute({
     method: "delete",
     path: "/assets/{id}",
-    security,
     request: { params: idParameter },
     responses: {
       204: { description: "Deleted" },
@@ -314,52 +313,52 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Referenced"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/sessions",
-    security,
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z.object({ presentationId: identifierSchema }).strict(),
           },
         },
+        required: true,
       },
     },
     responses: {
       201: {
-        description: "Created",
         content: {
           "application/json": {
             schema: z.object({ session: sessionResourceSchema, joinCode: joinCodeSchema }),
           },
         },
+        description: "Created",
       },
       400: errorResponse("Invalid session"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Presentation not found"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/sessions/join",
-    security,
     request: {
       body: {
-        required: true,
         content: {
           "application/json": { schema: z.object({ joinCode: joinCodeSchema }).strict() },
         },
+        required: true,
       },
     },
     responses: {
       200: {
-        description: "Joined",
         content: { "application/json": { schema: sessionResourceSchema } },
+        description: "Joined",
       },
       400: errorResponse("Invalid join code"),
       401: errorResponse("Unauthorized"),
@@ -367,32 +366,32 @@ export const publicRoutes = [
       409: errorResponse("Session full"),
       429: errorResponse("Rate limited"),
     },
+    security,
   }),
   createRoute({
     method: "get",
     path: "/sessions/{id}",
-    security,
     request: { params: sessionIdParameter },
     responses: {
       200: {
-        description: "Session",
         content: { "application/json": { schema: sessionResourceSchema } },
+        description: "Session",
       },
       400: errorResponse("Invalid id"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/sessions/{id}/start",
-    security,
     request: { params: sessionIdParameter },
     responses: {
       200: {
-        description: "Presenting",
         content: { "application/json": { schema: sessionResourceSchema } },
+        description: "Presenting",
       },
       400: errorResponse("Invalid id"),
       401: errorResponse("Unauthorized"),
@@ -400,16 +399,16 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Invalid transition"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/sessions/{id}/end",
-    security,
     request: { params: sessionIdParameter },
     responses: {
       200: {
-        description: "Ended",
         content: { "application/json": { schema: sessionResourceSchema } },
+        description: "Ended",
       },
       400: errorResponse("Invalid id"),
       401: errorResponse("Unauthorized"),
@@ -417,16 +416,16 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Invalid transition"),
     },
+    security,
   }),
   createRoute({
     method: "post",
     path: "/sessions/{id}/bootstrap",
-    security,
     request: { params: sessionIdParameter },
     responses: {
       200: {
-        description: "Realtime connection",
         content: { "application/json": { schema: realtimeConnectionSchema } },
+        description: "Realtime connection",
       },
       400: errorResponse("Invalid id"),
       401: errorResponse("Unauthorized"),
@@ -434,104 +433,103 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Session ended"),
     },
+    security,
   }),
   createRoute({
     method: "get",
     path: "/.well-known/jwks.json",
     responses: {
       200: {
-        description: "Realtime signing keys",
         content: {
           "application/json": {
             schema: z.object({
               keys: z.array(
                 z.object({
-                  kty: z.literal("OKP"),
-                  crv: z.literal("Ed25519"),
-                  x: z.string(),
-                  kid: z.string(),
                   alg: z.literal("EdDSA"),
-                  use: z.literal("sig"),
+                  crv: z.literal("Ed25519"),
                   key_ops: z.tuple([z.literal("verify")]),
+                  kid: z.string(),
+                  kty: z.literal("OKP"),
+                  use: z.literal("sig"),
+                  x: z.string(),
                 }),
               ),
             }),
           },
         },
+        description: "Realtime signing keys",
       },
     },
   }),
   createRoute({
     method: "post",
     path: "/callbacks/checkpoints",
-    security: serviceSecurity,
     request: {
       body: {
-        required: true,
         content: { "application/json": { schema: checkpointInputSchema } },
+        required: true,
       },
     },
     responses: {
       200: {
-        description: "Persistence result",
         content: { "application/json": { schema: z.object({ applied: z.boolean() }) } },
+        description: "Persistence result",
       },
       400: errorResponse("Invalid callback"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
       409: errorResponse("Runtime assignment is not active"),
     },
+    security: serviceSecurity,
   }),
   createRoute({
     method: "post",
     path: "/callbacks/completions",
-    security: serviceSecurity,
     request: {
       body: {
-        required: true,
         content: { "application/json": { schema: completionInputSchema } },
+        required: true,
       },
     },
     responses: {
       200: {
-        description: "Persistence result",
         content: { "application/json": { schema: z.object({ applied: z.boolean() }) } },
+        description: "Persistence result",
       },
       400: errorResponse("Invalid callback"),
       401: errorResponse("Unauthorized"),
       404: errorResponse("Session not found"),
       409: errorResponse("Runtime assignment is not active"),
     },
+    security: serviceSecurity,
   }),
   createRoute({
     method: "post",
     path: "/venue-edges",
-    security: adminSecurity,
     request: {
       body: {
-        required: true,
         content: {
           "application/json": { schema: z.object({ expiresAt: z.string().datetime() }).strict() },
         },
+        required: true,
       },
     },
     responses: {
       201: {
-        description: "Provisioned",
         content: { "application/json": { schema: venueEdgeCredentialSchema } },
+        description: "Provisioned",
       },
       400: errorResponse("Invalid provisioning request"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       409: errorResponse("Invalid credential expiry"),
     },
+    security: adminSecurity,
   }),
   createRoute({
     method: "post",
     path: "/venue-edges/{edgeId}/rotate",
-    security: adminSecurity,
     request: {
-      params: edgeIdParameter,
       body: {
         required: true,
         content: {
@@ -542,15 +540,16 @@ export const publicRoutes = [
           },
         },
       },
+      params: edgeIdParameter,
     },
     responses: {
       200: {
-        description: "Rotated",
         content: {
           "application/json": {
             schema: z.object({ tokenId: identifierSchema, token: z.string() }),
           },
         },
+        description: "Rotated",
       },
       400: errorResponse("Invalid rotation request"),
       401: errorResponse("Unauthorized"),
@@ -558,11 +557,11 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Invalid credential expiry"),
     },
+    security: adminSecurity,
   }),
   createRoute({
     method: "delete",
     path: "/venue-edges/{edgeId}",
-    security: adminSecurity,
     request: { params: edgeIdParameter },
     responses: {
       204: { description: "Revoked" },
@@ -571,13 +570,12 @@ export const publicRoutes = [
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
     },
+    security: adminSecurity,
   }),
   createRoute({
     method: "post",
     path: "/sessions/{sessionId}/runtime-assignment",
-    security: adminSecurity,
     request: {
-      params: sessionAssignmentParameter,
       body: {
         required: true,
         content: {
@@ -594,44 +592,44 @@ export const publicRoutes = [
           },
         },
       },
+      params: sessionAssignmentParameter,
     },
     responses: {
       201: {
-        description: "Assigned",
         content: { "application/json": { schema: assignmentSchema } },
+        description: "Assigned",
       },
       400: errorResponse("Invalid assignment request"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       409: errorResponse("Active assignment exists"),
     },
+    security: adminSecurity,
   }),
   createRoute({
     method: "get",
     path: "/sessions/{sessionId}/runtime-assignment",
-    security: adminSecurity,
     request: { params: sessionAssignmentParameter },
     responses: {
       200: {
-        description: "Active assignment",
         content: {
           "application/json": {
             schema: assignmentSchema,
           },
         },
+        description: "Active assignment",
       },
       400: errorResponse("Invalid session ID"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       409: errorResponse("No active assignment"),
     },
+    security: adminSecurity,
   }),
   createRoute({
     method: "post",
     path: "/venue-edges/{edgeId}/register",
-    security: edgeSecurity,
     request: {
-      params: edgeIdParameter,
       body: {
         required: true,
         content: {
@@ -650,6 +648,7 @@ export const publicRoutes = [
           },
         },
       },
+      params: edgeIdParameter,
     },
     responses: {
       204: { description: "Registered" },
@@ -658,13 +657,12 @@ export const publicRoutes = [
       404: errorResponse("Not found"),
       409: errorResponse("Runtime identity conflict"),
     },
+    security: edgeSecurity,
   }),
   createRoute({
     method: "post",
     path: "/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew",
-    security: edgeSecurity,
     request: {
-      params: edgeLeaseParameter,
       body: {
         required: true,
         content: {
@@ -673,21 +671,22 @@ export const publicRoutes = [
           },
         },
       },
+      params: edgeLeaseParameter,
     },
     responses: {
       200: {
-        description: "Renewed",
         content: { "application/json": { schema: assignmentSchema } },
+        description: "Renewed",
       },
       400: errorResponse("Invalid lease renewal"),
       401: errorResponse("Unauthorized"),
       409: errorResponse("Invalid lease"),
     },
+    security: edgeSecurity,
   }),
   createRoute({
     method: "post",
     path: "/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/release",
-    security: edgeSecurity,
     request: { params: edgeLeaseParameter },
     responses: {
       204: { description: "Released" },
@@ -695,6 +694,7 @@ export const publicRoutes = [
       401: errorResponse("Unauthorized"),
       409: errorResponse("Invalid lease"),
     },
+    security: edgeSecurity,
   }),
 ] as const;
 

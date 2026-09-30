@@ -70,16 +70,18 @@ const emptyTransformFields: TransformFields = {
 };
 
 export function PropertiesPanel() {
-  const { history, execute } = useEditorDocument();
+  const { execute, history } = useEditorDocument();
   const selectedElementId = useEditorSession((state) => state.selectedElementId);
   const location = findDocumentElement(history.document, selectedElementId);
   const form = useForm<TransformFields, unknown, TransformFields>({
-    resolver: zodResolver(TransformFieldsSchema),
     defaultValues: location ? transformToFields(location.element.transform) : emptyTransformFields,
+    resolver: zodResolver(TransformFieldsSchema),
   });
 
   useEffect(() => {
-    if (location) form.reset(transformToFields(location.element.transform));
+    if (location) {
+      form.reset(transformToFields(location.element.transform));
+    }
   }, [form, history.document.revision, selectedElementId]);
 
   if (!location) {
@@ -96,9 +98,9 @@ export function PropertiesPanel() {
   const { element } = location;
   const submit = form.handleSubmit((fields) => {
     execute({
-      type: "element.transform",
       elementId: element.id,
       transform: fieldsToTransform(fields),
+      type: "element.transform",
     });
   });
 
@@ -110,13 +112,13 @@ export function PropertiesPanel() {
       </div>
       <div className="border-t" />
       <form
-        onSubmit={submit}
+        className="p-4"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             form.reset(transformToFields(element.transform));
           }
         }}
-        className="p-4"
+        onSubmit={submit}
       >
         <div className="grid gap-5">
           {(["position", "rotation", "scale"] as const).map((group) => (
@@ -132,14 +134,14 @@ export function PropertiesPanel() {
                 {axes.map((axis) => {
                   const name = `${group}${axis}` as keyof TransformFields;
                   return (
-                    <Label key={name} className="grid gap-1 text-xs text-[var(--muted)]">
+                    <Label className="grid gap-1 text-xs text-[var(--muted)]" key={name}>
                       {axis}
                       <Input
-                        key={name}
-                        type="number"
-                        step={group === "rotation" ? 1 : 0.1}
                         aria-invalid={Boolean(form.formState.errors[name])}
                         className="h-9 rounded-md border bg-white px-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)]"
+                        key={name}
+                        step={group === "rotation" ? 1 : 0.1}
+                        type="number"
                         {...form.register(name, { valueAsNumber: true })}
                       />
                     </Label>

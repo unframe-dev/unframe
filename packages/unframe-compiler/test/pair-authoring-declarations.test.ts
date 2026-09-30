@@ -16,21 +16,21 @@ import {
 } from "../src/project/pair-authoring-declarations.js";
 
 const origin = (fileName: string, start = 0) => ({
-  fileName,
-  start,
-  end: start + 1,
-  line: 1,
   column: start + 1,
+  end: start + 1,
+  fileName,
+  line: 1,
+  start,
 });
 
 const entry = (
   role: CollectedAuthoringDeclaration["role"],
   fileName: string,
   value: unknown,
-  sourceMap: CollectedAuthoringDeclaration["sourceMap"] = [{ path: [], origin: origin(fileName) }],
+  sourceMap: CollectedAuthoringDeclaration["sourceMap"] = [{ origin: origin(fileName), path: [] }],
 ): CollectedAuthoringDeclaration => ({
-  role,
   fileName,
+  role,
   rootBuilder:
     role === "presentation"
       ? "definePresentation"
@@ -39,72 +39,76 @@ const entry = (
         : role === "component-manifest"
           ? "defineComponentManifest"
           : "defineComponentStructure",
-  value: value as CollectedAuthoringDeclaration["value"],
   sourceMap,
+  value: value as CollectedAuthoringDeclaration["value"],
 });
 
 const presentation = () =>
   definePresentation({
-    id: "presentation",
-    metadata: { title: "Presentation" },
-    stage: {
-      coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-      size: [1, 1, 1],
-    },
-    scene: { spatial: [], components: [] },
     assets: [],
     flow: {
-      initialGroupId: "group",
       groups: {
         group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
       },
+      initialGroupId: "group",
       variables: {},
     },
+    id: "presentation",
+    metadata: { title: "Presentation" },
     operations: [],
+    scene: { components: [], spatial: [] },
+    stage: {
+      coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+      size: [1, 1, 1],
+    },
   });
 
 const manifest = (componentId: string, structure = "./Button.structure.tsx", version = 1) =>
   defineComponentManifest({
-    componentId,
-    version,
-    authoring: { mode: "structured", structure },
-    props: {},
-    slots: {},
-    parts: {},
-    variants: {},
-    states: {},
     actions: {},
+    authoring: { mode: "structured", structure },
+    componentId,
     outputs: {},
+    parts: {},
+    props: {},
     renderers: [],
+    slots: {},
+    states: {},
+    variants: {},
+    version,
   });
 
 const structure = (componentId: string) =>
   defineComponentStructure({
-    id: `${componentId}-structure`,
+    baseSemanticTree: { nodes: {}, rootNodeIds: [] },
     componentId,
+    id: `${componentId}-structure`,
+    partBindings: {},
     root: frame({
+      children: [],
       id: `${componentId}-root`,
       layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 },
-      children: [],
     }),
-    baseSemanticTree: { rootNodeIds: [], nodes: {} },
-    partBindings: {},
-    variantStyles: {},
     timelines: [],
+    variantStyles: {},
   });
 
-const collected = (declarations: readonly CollectedAuthoringDeclaration[]) => ({
-  ok: true as const,
+const collected = (declarations: ReadonlyArray<CollectedAuthoringDeclaration>) => ({
   declarations,
-  reactComponents: [],
   diagnostics: [] as const,
+  ok: true as const,
+  reactComponents: [],
 });
 
 const nullPrototype = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(nullPrototype);
+  if (Array.isArray(value)) {
+    return value.map(nullPrototype);
+  }
   if (value !== null && typeof value === "object") {
     const copy = Object.create(null) as Record<string, unknown>;
-    for (const [key, child] of Object.entries(value)) copy[key] = nullPrototype(child);
+    for (const [key, child] of Object.entries(value)) {
+      copy[key] = nullPrototype(child);
+    }
     return copy;
   }
   return value;
@@ -133,14 +137,14 @@ describe("pairAuthoringDeclarations", () => {
         ...base.scene,
         components: [
           {
-            id: "react-one",
-            component: { id: "react", version: 1 },
-            props: {},
-            owner: { kind: "presentation" },
             audience: { kind: "all" },
+            component: { id: "react", version: 1 },
+            fit: "contain",
+            id: "react-one",
+            owner: { kind: "presentation" },
             parent: { kind: "stage" },
             physicalSizeMeters: [1, 1],
-            fit: "contain",
+            props: {},
             transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
           },
           item,
@@ -150,8 +154,8 @@ describe("pairAuthoringDeclarations", () => {
     expect(
       pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", mixed)])),
     ).toMatchObject({
-      ok: false,
       diagnostics: [{ code: "compiler-invalid-declaration", fileName: "entry.ts" }],
+      ok: false,
     });
   });
   it("accepts a mixed Presentation descriptor with a React scene item", () => {
@@ -162,14 +166,14 @@ describe("pairAuthoringDeclarations", () => {
         ...base.scene,
         components: [
           {
-            id: "react-one",
-            component: { id: "react", version: 1 },
-            props: {},
-            owner: { kind: "presentation" },
             audience: { kind: "all" },
+            component: { id: "react", version: 1 },
+            fit: "contain",
+            id: "react-one",
+            owner: { kind: "presentation" },
             parent: { kind: "stage" },
             physicalSizeMeters: [1, 1],
-            fit: "contain",
+            props: {},
             transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
           },
         ],
@@ -177,33 +181,33 @@ describe("pairAuthoringDeclarations", () => {
     };
     const result = pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", mixed)]));
     expect(result).toMatchObject({
-      ok: true,
       catalog: { presentation: { value: { scene: { components: [{ id: "react-one" }] } } } },
+      ok: true,
     });
   });
   it("pairs structured manifest and structure deterministically while retaining collected entries", () => {
     const declarations = [
       entry("component-structure", "components/Button.structure.tsx", structure("button")),
-      entry("theme", "z.unframe.ts", defineTheme({ id: "z", tokens: {}, namedStyles: {} })),
+      entry("theme", "z.unframe.ts", defineTheme({ id: "z", namedStyles: {}, tokens: {} })),
       entry("presentation", "entry.ts", presentation()),
       entry("component-manifest", "components/Button.manifest.ts", manifest("button")),
-      entry("theme", "a.unframe.ts", defineTheme({ id: "a", tokens: {}, namedStyles: {} })),
+      entry("theme", "a.unframe.ts", defineTheme({ id: "a", namedStyles: {}, tokens: {} })),
     ];
     const first = pairAuthoringDeclarations(collected(declarations));
     const second = pairAuthoringDeclarations(collected([...declarations].reverse()));
     expect(first).toEqual(second);
     expect(first).toMatchObject({
-      ok: true,
       catalog: {
-        presentation: { fileName: "entry.ts", value: { id: "presentation" } },
-        themes: [{ value: { id: "a" } }, { value: { id: "z" } }],
         components: [
           {
             manifest: { value: { componentId: "button" } },
             structure: { value: { componentId: "button" } },
           },
         ],
+        presentation: { fileName: "entry.ts", value: { id: "presentation" } },
+        themes: [{ value: { id: "a" } }, { value: { id: "z" } }],
       },
+      ok: true,
     });
   });
 
@@ -216,48 +220,48 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({
-      ok: true,
       catalog: { components: [{ manifest: { value: { componentId: "button" } } }] },
+      ok: true,
     });
   });
 
   it("reports invalid role declarations at their source map origin", () => {
     const result = pairAuthoringDeclarations(
       collected([
-        entry("presentation", "entry.ts", {}, [{ path: [], origin: origin("entry.ts", 9) }]),
+        entry("presentation", "entry.ts", {}, [{ origin: origin("entry.ts", 9), path: [] }]),
       ]),
     );
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-invalid-declaration",
+          column: 10,
+          end: 10,
           fileName: "entry.ts",
+          line: 1,
           message: "Presentation declaration failed Authoring SDK validation.",
           start: 9,
-          end: 10,
-          line: 1,
-          column: 10,
         },
       ],
+      ok: false,
     });
   });
 
   it("requires exactly one presentation declaration", () => {
     const result = pairAuthoringDeclarations(collected([]));
     expect(result).toEqual({
-      ok: false,
       diagnostics: [
         {
           code: "compiler-presentation-declaration-count-invalid",
+          column: 1,
+          end: 0,
           fileName: "",
+          line: 1,
           message: "Exactly one presentation declaration is required.",
           start: 0,
-          end: 0,
-          line: 1,
-          column: 1,
         },
       ],
+      ok: false,
     });
   });
 
@@ -265,10 +269,10 @@ describe("pairAuthoringDeclarations", () => {
     const result = pairAuthoringDeclarations(
       collected([
         entry("presentation", "entry.ts", presentation()),
-        entry("theme", "a.unframe.ts", defineTheme({ id: "theme", tokens: {}, namedStyles: {} })),
-        entry("theme", "b.unframe.ts", defineTheme({ id: "theme", tokens: {}, namedStyles: {} }), [
-          { path: [], origin: origin("b.unframe.ts") },
-          { path: ["id"], origin: origin("b.unframe.ts", 7) },
+        entry("theme", "a.unframe.ts", defineTheme({ id: "theme", namedStyles: {}, tokens: {} })),
+        entry("theme", "b.unframe.ts", defineTheme({ id: "theme", namedStyles: {}, tokens: {} }), [
+          { origin: origin("b.unframe.ts"), path: [] },
+          { origin: origin("b.unframe.ts", 7), path: ["id"] },
         ]),
         entry(
           "component-manifest",
@@ -280,15 +284,17 @@ describe("pairAuthoringDeclarations", () => {
           "two.manifest.ts",
           manifest("button", "./Button.structure.tsx"),
           [
-            { path: [], origin: origin("two.manifest.ts") },
-            { path: ["componentId"], origin: origin("two.manifest.ts", 4) },
+            { origin: origin("two.manifest.ts"), path: [] },
+            { origin: origin("two.manifest.ts", 4), path: ["componentId"] },
           ],
         ),
         entry("component-structure", "Button.structure.tsx", structure("button")),
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-theme-duplicate",
       "compiler-component-manifest-duplicate",
@@ -314,7 +320,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-component-structure-entry-invalid",
       "compiler-component-structure-not-found",
@@ -342,13 +350,13 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({
-      ok: true,
       catalog: {
         components: [
           { manifest: { value: { componentId: "button", version: 1 } } },
           { manifest: { value: { componentId: "button", version: 2 } } },
         ],
       },
+      ok: true,
     });
   });
 
@@ -362,7 +370,7 @@ describe("pairAuthoringDeclarations", () => {
         entry("component-structure", "v2.structure.tsx", structure("button")),
       ]),
     );
-    expect(result).toMatchObject({ ok: true, catalog: { components: [{}, {}] } });
+    expect(result).toMatchObject({ catalog: { components: [{}, {}] }, ok: true });
   });
 
   it("rejects duplicate manifest identity but not a different version", () => {
@@ -388,7 +396,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-component-manifest-duplicate",
     ]);
@@ -408,7 +418,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toContain(
       "compiler-component-structure-entry-invalid",
     );
@@ -425,7 +437,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-invalid-declaration",
       "compiler-invalid-declaration",
@@ -445,7 +459,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-invalid-declaration",
       "compiler-component-structure-unreferenced",
@@ -472,7 +488,9 @@ describe("pairAuthoringDeclarations", () => {
     );
     expect(reads).toBe(0);
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual(["compiler-invalid-declaration"]);
   });
 
@@ -508,7 +526,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-invalid-declaration",
       "compiler-component-structure-unreferenced",
@@ -519,8 +539,8 @@ describe("pairAuthoringDeclarations", () => {
     const declarations = [
       entry("component-manifest", "b.manifest.ts", manifest("b", "./missing.structure.tsx")),
       entry("presentation", "entry.ts", presentation()),
-      entry("theme", "a.unframe.ts", defineTheme({ id: "theme", tokens: {}, namedStyles: {} })),
-      entry("theme", "z.unframe.ts", defineTheme({ id: "theme", tokens: {}, namedStyles: {} })),
+      entry("theme", "a.unframe.ts", defineTheme({ id: "theme", namedStyles: {}, tokens: {} })),
+      entry("theme", "z.unframe.ts", defineTheme({ id: "theme", namedStyles: {}, tokens: {} })),
     ];
     expect(pairAuthoringDeclarations(collected(declarations))).toEqual(
       pairAuthoringDeclarations(collected([...declarations].reverse())),
@@ -529,18 +549,18 @@ describe("pairAuthoringDeclarations", () => {
 
   it("rejects standalone opaque manifests without attempting to pair their structures", () => {
     const opaque = defineComponentManifest({
-      componentId: "opaque",
-      version: 1,
-      authoring: { mode: "opaque" },
-      props: {},
-      slots: {},
-      parts: {},
-      variants: {},
-      states: {},
       actions: {},
+      authoring: { mode: "opaque" },
+      componentId: "opaque",
       outputs: {},
+      parts: {},
+      props: {},
       renderers: {},
-      semantics: { targets: [], surfaces: [] },
+      semantics: { surfaces: [], targets: [] },
+      slots: {},
+      states: {},
+      variants: {},
+      version: 1,
     });
     const result = pairAuthoringDeclarations(
       collected([
@@ -550,7 +570,9 @@ describe("pairAuthoringDeclarations", () => {
       ]),
     );
     expect(result).toMatchObject({ ok: false });
-    if (result.ok) return;
+    if (result.ok) {
+      return;
+    }
     expect(result.diagnostics.map((item) => item.code)).toEqual([
       "compiler-opaque-component-unpaired",
       "compiler-component-structure-unreferenced",
@@ -560,56 +582,56 @@ describe("pairAuthoringDeclarations", () => {
   it("pairs extracted React metadata and renderer without executing the component", () => {
     const metadata = validateStaticComponentMetadata({
       id: "hero",
-      version: 1,
       props: {},
+      semantics: { nodes: {}, rootNodeIds: [] },
       surface: { logicalSize: [800, 450] },
-      semantics: { rootNodeIds: [], nodes: {} },
+      version: 1,
     });
     const reactManifest = buildOpaqueComponentManifest(metadata, "hero.component.tsx#render");
     const reactPresentation = {
       ...presentation(),
       scene: [
         {
-          id: "hero-instance",
-          component: { id: "hero", version: 1 },
-          props: {},
-          owner: { kind: "presentation" },
           audience: { kind: "all" },
+          component: { id: "hero", version: 1 },
+          fit: "contain",
+          id: "hero-instance",
+          owner: { kind: "presentation" },
           parent: { kind: "stage" },
           physicalSizeMeters: [1, 1],
-          fit: "contain",
+          props: {},
           transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
         },
       ],
     };
     const result = pairAuthoringDeclarations({
-      ok: true,
       declarations: [entry("presentation", "entry.ts", reactPresentation)],
+      diagnostics: [],
+      ok: true,
       reactComponents: [
         {
-          fileName: "hero.component.tsx",
           exportName: "Hero",
-          metadata,
+          fileName: "hero.component.tsx",
           manifest: reactManifest,
+          metadata,
           renderer: {
             entrySource: "export default () => null",
+            helperOrigins: [],
             localDependencies: [],
             packageImports: [],
             renderOrigin: origin("hero.component.tsx"),
-            helperOrigins: [],
           },
-          sourceMap: [{ path: [], origin: origin("hero.component.tsx") }],
+          sourceMap: [{ origin: origin("hero.component.tsx"), path: [] }],
         },
       ],
-      diagnostics: [],
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.catalog.components).toHaveLength(1);
       expect(result.catalog.components[0]).toMatchObject({
         metadata,
-        rendererEntry: "hero.component.tsx#render",
         renderer: { entrySource: "export default () => null" },
+        rendererEntry: "hero.component.tsx#render",
       });
     }
   });

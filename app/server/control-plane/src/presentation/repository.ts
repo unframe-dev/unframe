@@ -5,28 +5,28 @@ import { assets, presentationMembers, presentations } from "../adapters/d1/schem
 import type { PresentationDefinition } from "./schema";
 
 export type PresentationRecord = {
+  createdAt: string;
+  definition: PresentationDefinition;
   id: string;
   ownerId: string;
   revision: number;
-  definition: PresentationDefinition;
-  createdAt: string;
   updatedAt: string;
 };
 
 export type PresentationRepository = {
   create(record: PresentationRecord): Promise<void>;
-  listAll(): Promise<PresentationRecord[]>;
-  listByUser(userId: string): Promise<PresentationRecord[]>;
+  delete(id: string, expectedRevision: number): Promise<boolean>;
   findById(id: string): Promise<PresentationRecord | null>;
-  roleFor(id: string, userId: string): Promise<"owner" | "editor" | null>;
-  hasValidAssetReferences(id: string, assetIds: readonly string[]): Promise<boolean>;
+  hasValidAssetReferences(id: string, assetIds: ReadonlyArray<string>): Promise<boolean>;
+  listAll(): Promise<Array<PresentationRecord>>;
+  listByUser(userId: string): Promise<Array<PresentationRecord>>;
   replace(
     id: string,
     expectedRevision: number,
     definition: PresentationDefinition,
     updatedAt: string,
   ): Promise<PresentationRecord | null>;
-  delete(id: string, expectedRevision: number): Promise<boolean>;
+  roleFor(id: string, userId: string): Promise<"owner" | "editor" | null>;
 };
 
 export class D1PresentationRepository implements PresentationRepository {
@@ -41,8 +41,8 @@ export class D1PresentationRepository implements PresentationRepository {
       this.db.insert(presentations).values(record),
       this.db.insert(presentationMembers).values({
         presentationId: record.id,
-        userId: record.ownerId,
         role: "owner",
+        userId: record.ownerId,
       }),
     ]);
   }
@@ -50,11 +50,11 @@ export class D1PresentationRepository implements PresentationRepository {
   async listByUser(userId: string) {
     return this.db
       .select({
+        createdAt: presentations.createdAt,
+        definition: presentations.definition,
         id: presentations.id,
         ownerId: presentations.ownerId,
         revision: presentations.revision,
-        definition: presentations.definition,
-        createdAt: presentations.createdAt,
         updatedAt: presentations.updatedAt,
       })
       .from(presentations)
@@ -84,7 +84,7 @@ export class D1PresentationRepository implements PresentationRepository {
     return row?.role ?? null;
   }
 
-  async hasValidAssetReferences(id: string, assetIds: readonly string[]) {
+  async hasValidAssetReferences(id: string, assetIds: ReadonlyArray<string>) {
     if (assetIds.length === 0) {
       return true;
     }

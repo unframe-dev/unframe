@@ -15,8 +15,8 @@ import { defineComponentManifest, stringProp } from "./definitions.js";
 
 type AnyProp =
   | PropDeclaration
-  | ({ kind: "string"; editor: { kind: "text" } } & (
-      | { required: true; default?: never }
+  | ({ editor: { kind: "text" }; kind: "string" } & (
+      | { default?: never; required: true }
       | { default: string; required?: never }
     ));
 type PropValue<D> = D extends { kind: "string" }
@@ -44,30 +44,30 @@ export const prop = <const K extends string>(name: K): ComponentPropReference<K>
   kind: "prop-ref",
   name,
 });
-export function editableText(value: { required: true; default?: never }): {
+export function editableText(value: { default?: never; required: true }): {
+  editor: { kind: "text" };
   kind: "string";
   required: true;
-  editor: { kind: "text" };
 };
 export function editableText(value: { default: string; required?: never }): {
-  kind: "string";
   default: string;
   editor: { kind: "text" };
+  kind: "string";
 };
 export function editableText(value: { required: true } | { default: string }) {
   return { ...stringProp(value), editor: { kind: "text" as const } };
 }
 
 type SemanticNode = (
-  | { readonly role: "heading"; readonly level: 1 | 2 | 3 | 4 | 5 | 6 }
-  | { readonly role: "button"; readonly interactionId: string; readonly level?: never }
+  | { readonly level: 1 | 2 | 3 | 4 | 5 | 6; readonly role: "heading" }
+  | { readonly interactionId: string; readonly level?: never; readonly role: "button" }
   | {
-      readonly role: "paragraph";
       readonly level?: never;
+      readonly role: "paragraph";
     }
 ) & {
-  readonly parentId: string | null;
   readonly order: number;
+  readonly parentId: string | null;
   readonly text: string | ComponentPropReference<string>;
 };
 type ValidateNode<P, N> = N extends { text: ComponentPropReference<infer K> }
@@ -86,59 +86,58 @@ type SyncReactNode =
   | boolean
   | null
   | undefined
-  | readonly SyncReactNode[];
+  | ReadonlyArray<SyncReactNode>;
 type RenderContext<P, N, S extends string> = {
-  readonly props: ResolvedProps<P>;
-  readonly texts: Readonly<Record<TextKeys<N>, string>>;
   readonly bindings: Readonly<Record<keyof N, Binding>>;
+  readonly props: ResolvedProps<P>;
   readonly state: S;
+  readonly texts: Readonly<Record<TextKeys<N>, string>>;
 };
 type StateInput = {
-  readonly semanticOverrides: readonly Omit<
-    import("../domain/declarations.js").SemanticOverrideDeclaration,
-    "kind"
-  >[];
-  readonly enabledInteractionIds: readonly string[];
+  readonly enabledInteractionIds: ReadonlyArray<string>;
+  readonly semanticOverrides: ReadonlyArray<
+    Omit<import("../domain/declarations.js").SemanticOverrideDeclaration, "kind">
+  >;
 };
 type InteractionInput = Omit<import("../domain/declarations.js").InteractionDeclaration, "id">;
 type ActionInput<S extends string> = Omit<
   ActionDeclaration,
   "kind" | "effects" | "preconditions"
 > & {
+  readonly effects: ReadonlyArray<{ kind: "setState"; stateId: S }>;
   readonly preconditions: readonly [];
-  readonly effects: readonly { kind: "setState"; stateId: S }[];
 };
 type OutputInput = Omit<OutputDeclaration, "kind" | "producer"> & {
   readonly producer: Extract<OutputDeclaration["producer"], { kind: "surfaceInteraction" }>;
 };
 export type ReactComponent<P, N, S extends string = "default"> = {
-  readonly id: string;
-  readonly version: number;
-  readonly props: P;
-  readonly surface: { readonly logicalSize: readonly [number, number] };
-  readonly semantics: { readonly rootNodeIds: readonly (keyof N & string)[]; readonly nodes: N };
-  readonly interactions?: Readonly<Record<string, InteractionInput>>;
-  readonly initialState?: NoInfer<S>;
-  readonly states?: Readonly<Record<S, StateInput>>;
-  readonly actions?: Readonly<Record<string, ActionInput<S>>>;
-  readonly outputs?: Readonly<Record<string, OutputInput>>;
-  readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
   readonly __props?: P;
+  readonly actions?: Readonly<Record<string, ActionInput<S>>>;
+  readonly id: string;
+  readonly initialState?: NoInfer<S>;
+  readonly interactions?: Readonly<Record<string, InteractionInput>>;
+  readonly outputs?: Readonly<Record<string, OutputInput>>;
+  readonly props: P;
+  readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
+  readonly semantics: { readonly nodes: N; readonly rootNodeIds: readonly (keyof N & string)[] };
+  readonly states?: Readonly<Record<S, StateInput>>;
+  readonly surface: { readonly logicalSize: readonly [number, number] };
+  readonly version: number;
 };
 
 export type ReactSceneBase = {
-  readonly id: string;
+  readonly audience: { readonly kind: "all" };
   readonly component: {
+    readonly __props?: Record<string, AnyProp>;
     readonly id: string;
     readonly version: number;
-    readonly __props?: Record<string, AnyProp>;
   };
-  readonly props: object;
+  readonly fit: "contain";
+  readonly id: string;
   readonly owner: { readonly kind: "presentation" };
-  readonly audience: { readonly kind: "all" };
   readonly parent: { readonly kind: "stage" };
   readonly physicalSizeMeters: readonly [number, number];
-  readonly fit: "contain";
+  readonly props: object;
   readonly transform: {
     readonly position: readonly [number, number, number];
     readonly rotation: readonly [number, number, number, number];
@@ -158,14 +157,14 @@ type CheckSceneItem<I> = I extends {
     : never
   : never;
 type CheckScene<S> = { readonly [K in keyof S]: S[K] & CheckSceneItem<S[K]> };
-export type ReactPresentationInput<S extends readonly ReactSceneBase[]> = Omit<
+export type ReactPresentationInput<S extends ReadonlyArray<ReactSceneBase>> = Omit<
   PresentationDeclaration,
   "scene"
 > & {
   readonly scene: S & CheckScene<S>;
 };
 export type MixedPresentationInput<
-  S extends readonly (ComponentInstanceDeclaration | ReactSceneBase)[],
+  S extends ReadonlyArray<ComponentInstanceDeclaration | ReactSceneBase>,
 > = Omit<PresentationDeclaration, "scene"> & {
   readonly scene: Omit<PresentationDeclaration["scene"], "components"> & {
     readonly components: S & {
@@ -179,20 +178,20 @@ export const defineComponent = <
   const N extends Record<string, SemanticNode>,
   const S extends Record<string, StateInput> = Record<"default", StateInput>,
 >(value: {
-  readonly id: string;
-  readonly version: number;
-  readonly props: P;
-  readonly surface: { readonly logicalSize: readonly [number, number] };
-  readonly semantics: {
-    readonly rootNodeIds: readonly (keyof N & string)[];
-    readonly nodes: N & ValidateNodes<P, N>;
-  };
-  readonly interactions?: Readonly<Record<string, InteractionInput>>;
-  readonly initialState?: keyof S & string;
-  readonly states?: S;
   readonly actions?: Readonly<Record<string, ActionInput<NoInfer<keyof S & string>>>>;
+  readonly id: string;
+  readonly initialState?: keyof S & string;
+  readonly interactions?: Readonly<Record<string, InteractionInput>>;
   readonly outputs?: Readonly<Record<string, OutputInput>>;
+  readonly props: P;
   readonly render: (input: RenderContext<P, N, keyof S & string>) => SyncReactNode;
+  readonly semantics: {
+    readonly nodes: N & ValidateNodes<P, N>;
+    readonly rootNodeIds: readonly (keyof N & string)[];
+  };
+  readonly states?: S;
+  readonly surface: { readonly logicalSize: readonly [number, number] };
+  readonly version: number;
 }): ReactComponent<P, N, keyof S & string> => {
   validateRuntimeReactComponent(value);
   return value;
@@ -207,19 +206,19 @@ const id = z.string().min(1);
 const positive = z.number().finite().positive();
 const propSchema = z.union([
   z.strictObject({
+    editor: z.strictObject({ kind: z.literal("text") }).optional(),
     kind: z.literal("string"),
     required: z.literal(true),
-    editor: z.strictObject({ kind: z.literal("text") }).optional(),
   }),
   z.strictObject({
-    kind: z.literal("string"),
     default: z.string(),
     editor: z.strictObject({ kind: z.literal("text") }).optional(),
+    kind: z.literal("string"),
   }),
   z.strictObject({ kind: z.literal("number"), required: z.literal(true) }),
-  z.strictObject({ kind: z.literal("number"), default: z.number().finite() }),
+  z.strictObject({ default: z.number().finite(), kind: z.literal("number") }),
   z.strictObject({ kind: z.literal("boolean"), required: z.literal(true) }),
-  z.strictObject({ kind: z.literal("boolean"), default: z.boolean() }),
+  z.strictObject({ default: z.boolean(), kind: z.literal("boolean") }),
 ]);
 const text = z.union([
   z.string().min(1),
@@ -227,43 +226,43 @@ const text = z.union([
 ]);
 const nodeSchema = z.union([
   z.strictObject({
-    role: z.literal("heading"),
     level: z.number().int().min(1).max(6),
-    parentId: id.nullable(),
     order: z.number().int().nonnegative(),
+    parentId: id.nullable(),
+    role: z.literal("heading"),
     text,
   }),
   z.strictObject({
+    order: z.number().int().nonnegative(),
+    parentId: id.nullable(),
     role: z.literal("paragraph"),
-    parentId: id.nullable(),
-    order: z.number().int().nonnegative(),
     text,
   }),
   z.strictObject({
-    role: z.literal("button"),
     interactionId: id,
-    parentId: id.nullable(),
     order: z.number().int().nonnegative(),
+    parentId: id.nullable(),
+    role: z.literal("button"),
     text,
   }),
 ]);
 const semanticOverrideInputSchema = z.strictObject({
-  id,
-  targetId: id,
-  included: z.boolean().optional(),
-  text: z.string().nullable().optional(),
-  language: z.string().nullable().optional(),
   alt: z.string().nullable().optional(),
+  id,
+  included: z.boolean().optional(),
   label: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  targetId: id,
+  text: z.string().nullable().optional(),
 });
 const finiteStateSchema = z.strictObject({
-  semanticOverrides: z.array(semanticOverrideInputSchema),
   enabledInteractionIds: z.array(id),
+  semanticOverrides: z.array(semanticOverrideInputSchema),
 });
 const actionInputSchema = z.strictObject({
+  effects: z.array(z.strictObject({ kind: z.literal("setState"), stateId: id })).min(1),
   inputs: z.record(id, z.enum(["null", "boolean", "number", "string"])),
   preconditions: z.tuple([]),
-  effects: z.array(z.strictObject({ kind: z.literal("setState"), stateId: id })).min(1),
 });
 const outputPayloadFieldSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("null"), value: z.null() }),
@@ -272,40 +271,41 @@ const outputPayloadFieldSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("string"), value: z.string() }),
 ]);
 const metadataSchema = z.strictObject({
+  actions: z.record(id, actionInputSchema).optional(),
   id,
-  version: z.number().int().safe().positive(),
-  props: z.record(id, propSchema),
-  surface: z.strictObject({ logicalSize: z.tuple([positive, positive]) }),
-  semantics: z.strictObject({ rootNodeIds: z.array(id), nodes: z.record(id, nodeSchema) }),
+  initialState: id.optional(),
   interactions: z
     .record(
       id,
       z.strictObject({
-        kind: z.literal("click"),
         event: id,
         hitPriority: z.number().int().nonnegative(),
+        kind: z.literal("click"),
       }),
     )
     .optional(),
-  initialState: id.optional(),
-  states: z.record(id, finiteStateSchema).optional(),
-  actions: z.record(id, actionInputSchema).optional(),
   outputs: z
     .record(
       id,
       z.strictObject({
         payload: z.record(id, outputPayloadFieldSchema),
-        producer: z.strictObject({ kind: z.literal("surfaceInteraction"), interactionId: id }),
+        producer: z.strictObject({ interactionId: id, kind: z.literal("surfaceInteraction") }),
       }),
     )
     .optional(),
+  props: z.record(id, propSchema),
+  semantics: z.strictObject({ nodes: z.record(id, nodeSchema), rootNodeIds: z.array(id) }),
+  states: z.record(id, finiteStateSchema).optional(),
+  surface: z.strictObject({ logicalSize: z.tuple([positive, positive]) }),
+  version: z.number().int().safe().positive(),
 });
 export type StaticComponentMetadata = z.infer<typeof metadataSchema>;
 
 export const validateRuntimeReactComponent = (value: unknown): StaticComponentMetadata => {
   const fields = readOwnDataRecord(value);
-  if (typeof fields.render !== "function")
+  if (typeof fields.render !== "function") {
     throw new TypeError("Component render must be a function.");
+  }
   delete fields.render;
   return validateStaticComponentMetadata(fields);
 };
@@ -317,31 +317,39 @@ export const resolveReactComponentProps = (
   const metadata = validateRuntimeReactComponent(component);
   const raw = readOwnDataRecord(snapshotDeclaration(props));
   const resolved = Object.create(null) as Record<string, string | number | boolean>;
-  for (const key of Object.keys(raw))
-    if (!Object.hasOwn(metadata.props, key)) throw new TypeError(`Unknown component prop: ${key}`);
+  for (const key of Object.keys(raw)) {
+    if (!Object.hasOwn(metadata.props, key)) {
+      throw new TypeError(`Unknown component prop: ${key}`);
+    }
+  }
   for (const [key, declaration] of Object.entries(metadata.props)) {
     const value =
       key in raw ? raw[key] : "default" in declaration ? declaration.default : undefined;
-    if (value === undefined) throw new TypeError(`Missing required component prop: ${key}`);
+    if (value === undefined) {
+      throw new TypeError(`Missing required component prop: ${key}`);
+    }
     const schema =
       declaration.kind === "string"
         ? z.string()
         : declaration.kind === "number"
           ? z.number().finite()
           : z.boolean();
-    if (!schema.safeParse(value).success) throw new TypeError(`Invalid component prop: ${key}`);
+    if (!schema.safeParse(value).success) {
+      throw new TypeError(`Invalid component prop: ${key}`);
+    }
     resolved[key] = value as string | number | boolean;
   }
   return resolved;
 };
 
 const sceneDataSchema = z.strictObject({
+  audience: z.strictObject({ kind: z.literal("all") }),
+  fit: z.literal("contain"),
   id,
   owner: z.strictObject({ kind: z.literal("presentation") }),
-  audience: z.strictObject({ kind: z.literal("all") }),
   parent: z.strictObject({ kind: z.literal("stage") }),
   physicalSizeMeters: z.tuple([positive, positive]),
-  fit: z.literal("contain"),
+  props: z.record(id, z.union([z.string(), z.number().finite(), z.boolean()])),
   transform: z.strictObject({
     position: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
     rotation: z.tuple([
@@ -352,7 +360,6 @@ const sceneDataSchema = z.strictObject({
     ]),
     scale: z.tuple([positive, positive, positive]),
   }),
-  props: z.record(id, z.union([z.string(), z.number().finite(), z.boolean()])),
 });
 
 const staticSceneItemSchema = sceneDataSchema.extend({
@@ -366,7 +373,9 @@ export const validateStaticReactSceneItem = (value: unknown): StaticReactSceneIt
 export const validateReactSceneItem = (value: unknown): string => {
   const fields = readOwnDataRecord(value);
   const component = fields.component;
-  if (component === undefined) throw new TypeError("Scene item requires a component.");
+  if (component === undefined) {
+    throw new TypeError("Scene item requires a component.");
+  }
   delete fields.component;
   const data = sceneDataSchema.parse(snapshotDeclaration(fields));
   resolveReactComponentProps(component, data.props);
@@ -377,20 +386,27 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
   const metadata = metadataSchema.parse(snapshotDeclaration(value));
   const nodes = metadata.semantics.nodes;
   const roots = new Set(metadata.semantics.rootNodeIds);
-  if (roots.size !== metadata.semantics.rootNodeIds.length)
+  if (roots.size !== metadata.semantics.rootNodeIds.length) {
     throw new TypeError("Duplicate semantic root.");
-  for (const root of roots)
-    if (!nodes[root] || nodes[root].parentId !== null)
+  }
+  for (const root of roots) {
+    if (!nodes[root] || nodes[root].parentId !== null) {
       throw new TypeError("Invalid semantic root.");
+    }
+  }
   for (const [name, node] of Object.entries(nodes)) {
-    if ((node.parentId === null) !== roots.has(name))
+    if ((node.parentId === null) !== roots.has(name)) {
       throw new TypeError("Invalid semantic parent.");
-    if (node.parentId !== null && !nodes[node.parentId])
+    }
+    if (node.parentId !== null && !nodes[node.parentId]) {
       throw new TypeError("Unknown semantic parent.");
-    if (typeof node.text !== "string" && metadata.props[node.text.name]?.kind !== "string")
+    }
+    if (typeof node.text !== "string" && metadata.props[node.text.name]?.kind !== "string") {
       throw new TypeError("Text must reference a declared string prop.");
-    if (node.role === "button" && !metadata.interactions?.[node.interactionId])
+    }
+    if (node.role === "button" && !metadata.interactions?.[node.interactionId]) {
       throw new TypeError("Button interaction must be declared.");
+    }
   }
   const finiteFields = [
     metadata.interactions,
@@ -402,13 +418,15 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
   if (
     finiteFields.some((field) => field !== undefined) &&
     finiteFields.some((field) => field === undefined)
-  )
+  ) {
     throw new TypeError(
       "Finite-state Component requires interactions, initialState, states, actions and outputs.",
     );
+  }
   if (metadata.states) {
-    if (!metadata.initialState || !metadata.states[metadata.initialState])
+    if (!metadata.initialState || !metadata.states[metadata.initialState]) {
       throw new TypeError("Unknown initial State.");
+    }
     for (const state of Object.values(metadata.states)) {
       const overrideIds = new Set<string>();
       const overriddenNodes = new Set<string>();
@@ -419,8 +437,9 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
           overriddenNodes.has(override.targetId) ||
           override.text === null ||
           override.alt === null
-        )
+        ) {
           throw new TypeError("Invalid semantic override.");
+        }
         overrideIds.add(override.id);
         overriddenNodes.add(override.targetId);
       }
@@ -428,21 +447,28 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
       if (
         enabled.size !== state.enabledInteractionIds.length ||
         [...enabled].some((key) => !metadata.interactions?.[key])
-      )
+      ) {
         throw new TypeError("Invalid enabled Interaction.");
+      }
     }
-    for (const action of Object.values(metadata.actions ?? {}))
-      for (const effect of action.effects)
+    for (const action of Object.values(metadata.actions ?? {})) {
+      for (const effect of action.effects) {
         if (!metadata.states[effect.stateId]) throw new TypeError("Unknown Action target State.");
-    for (const output of Object.values(metadata.outputs ?? {}))
-      if (!metadata.interactions?.[output.producer.interactionId])
+      }
+    }
+    for (const output of Object.values(metadata.outputs ?? {})) {
+      if (!metadata.interactions?.[output.producer.interactionId]) {
         throw new TypeError("Unknown Output Interaction.");
+      }
+    }
   }
   for (const name of Object.keys(nodes)) {
     const visited = new Set<string>();
     let current: string | null = name;
     while (current !== null) {
-      if (visited.has(current)) throw new TypeError("Semantic tree contains a cycle.");
+      if (visited.has(current)) {
+        throw new TypeError("Semantic tree contains a cycle.");
+      }
       visited.add(current);
       current = nodes[current]?.parentId ?? null;
     }
@@ -467,9 +493,9 @@ export const buildOpaqueComponentManifest = (
             typeof node.text === "string"
               ? node.text
               : {
+                  expectedType: "string" as const,
                   kind: "prop-ref" as const,
                   propId: node.text.name,
-                  expectedType: "string" as const,
                 },
         },
       ]),
@@ -484,37 +510,25 @@ export const buildOpaqueComponentManifest = (
   );
   const bindingKeys = ["surface", ...Object.keys(nodes).map((key) => `node:${key}`)];
   return defineComponentManifest({
-    componentId: valid.id,
-    version: valid.version,
-    props: props as Record<string, PropDeclaration>,
-    slots: {},
-    parts: {},
-    variants: {},
-    states: valid.states
-      ? Object.fromEntries(
-          Object.keys(valid.states).map((key) => [
-            key,
-            { kind: "state", ...(key === valid.initialState ? { initial: true } : {}) },
-          ]),
-        )
-      : {},
     actions: valid.actions
       ? Object.fromEntries(
           Object.entries(valid.actions).map(([key, action]) => [
             key,
             {
-              kind: "action",
-              inputs: action.inputs,
-              preconditions: action.preconditions,
               effects: action.effects.map((effect) => ({
                 kind: "setSurfaceState",
                 surfaceId: "surface",
                 stateId: effect.stateId,
               })),
+              inputs: action.inputs,
+              kind: "action",
+              preconditions: action.preconditions,
             },
           ]),
         )
       : {},
+    authoring: { mode: "opaque" },
+    componentId: valid.id,
     outputs: valid.outputs
       ? Object.fromEntries(
           Object.entries(valid.outputs).map(([key, output]) => [
@@ -523,14 +537,10 @@ export const buildOpaqueComponentManifest = (
           ]),
         )
       : {},
-    authoring: { mode: "opaque" },
-    renderers: { "baked-web": { entry, bindingKeys } },
+    parts: {},
+    props: props as Record<string, PropDeclaration>,
+    renderers: { "baked-web": { bindingKeys, entry } },
     semantics: {
-      targets: Object.keys(nodes).map((key) => ({
-        id: key,
-        kind: "node" as const,
-        bindingKey: `node:${key}`,
-      })),
       surfaces: [
         {
           id: "surface",
@@ -563,6 +573,22 @@ export const buildOpaqueComponentManifest = (
             : { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
         },
       ],
+      targets: Object.keys(nodes).map((key) => ({
+        id: key,
+        kind: "node" as const,
+        bindingKey: `node:${key}`,
+      })),
     },
+    slots: {},
+    states: valid.states
+      ? Object.fromEntries(
+          Object.keys(valid.states).map((key) => [
+            key,
+            { kind: "state", ...(key === valid.initialState ? { initial: true } : {}) },
+          ]),
+        )
+      : {},
+    variants: {},
+    version: valid.version,
   });
 };

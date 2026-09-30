@@ -9,43 +9,47 @@ export interface HistoryEntry {
 
 export interface HistoryState {
   document: PresentationDocument;
-  undoStack: readonly HistoryEntry[];
-  redoStack: readonly HistoryEntry[];
+  redoStack: ReadonlyArray<HistoryEntry>;
+  undoStack: ReadonlyArray<HistoryEntry>;
 }
 
 export function createHistoryState(document: PresentationDocument): HistoryState {
-  return { document, undoStack: [], redoStack: [] };
+  return { document, redoStack: [], undoStack: [] };
 }
 
 export function executeCommand(state: HistoryState, command: EditorCommand): HistoryState {
   const result = applyCommand(state.document, command);
   return {
     document: result.document,
-    undoStack: [...state.undoStack, { command, inverse: result.inverse }],
     redoStack: [],
+    undoStack: [...state.undoStack, { command, inverse: result.inverse }],
   };
 }
 
 export function undoCommand(state: HistoryState): HistoryState {
   const entry = state.undoStack.at(-1);
-  if (!entry) return state;
+  if (!entry) {
+    return state;
+  }
 
   const result = applyCommand(state.document, entry.inverse);
   return {
     document: result.document,
-    undoStack: state.undoStack.slice(0, -1),
     redoStack: [...state.redoStack, entry],
+    undoStack: state.undoStack.slice(0, -1),
   };
 }
 
 export function redoCommand(state: HistoryState): HistoryState {
   const entry = state.redoStack.at(-1);
-  if (!entry) return state;
+  if (!entry) {
+    return state;
+  }
 
   const result = applyCommand(state.document, entry.command);
   return {
     document: result.document,
-    undoStack: [...state.undoStack, { command: entry.command, inverse: result.inverse }],
     redoStack: state.redoStack.slice(0, -1),
+    undoStack: [...state.undoStack, { command: entry.command, inverse: result.inverse }],
   };
 }

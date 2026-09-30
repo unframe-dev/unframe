@@ -15,21 +15,8 @@ import type { RendererPlugin } from "@unframe/unframe-renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 
 export type CompilerDeclarationProject = {
-  presentation:
-    | PresentationDeclaration
-    | (Omit<PresentationDeclaration, "scene"> & {
-        scene: readonly StaticReactSceneItem[];
-      })
-    | (Omit<PresentationDeclaration, "scene"> & {
-        scene: Omit<PresentationDeclaration["scene"], "components"> & {
-          components: readonly (
-            | PresentationDeclaration["scene"]["components"][number]
-            | StaticReactSceneItem
-          )[];
-        };
-      });
-  themes: readonly { declaration: ThemeDeclaration; hash: string }[];
-  components: readonly (
+  assets: Readonly<Record<string, CompilerSourceAsset>>;
+  components: ReadonlyArray<
     | {
         manifest: ComponentManifest;
         structure: ComponentStructure;
@@ -42,91 +29,105 @@ export type CompilerDeclarationProject = {
         rendererSource: string;
         lock: ComponentPackageLock & { mode: "opaque" };
       }
-  )[];
-  assets: Readonly<Record<string, CompilerSourceAsset>>;
+  >;
+  presentation:
+    | PresentationDeclaration
+    | (Omit<PresentationDeclaration, "scene"> & {
+        scene: ReadonlyArray<StaticReactSceneItem>;
+      })
+    | (Omit<PresentationDeclaration, "scene"> & {
+        scene: Omit<PresentationDeclaration["scene"], "components"> & {
+          components: ReadonlyArray<
+            PresentationDeclaration["scene"]["components"][number] | StaticReactSceneItem
+          >;
+        };
+      });
+  themes: ReadonlyArray<{ declaration: ThemeDeclaration; hash: string }>;
 };
 export type CompilerSourceAsset = {
+  readonly checksum: string;
+  readonly dataBase64: string;
+  readonly encodedSizeBytes: number;
   readonly id: string;
   readonly mediaType: "font/ttf" | "font/otf";
-  readonly checksum: string;
-  readonly encodedSizeBytes: number;
-  readonly dataBase64: string;
 };
 export type DeclarationProjectThemeHash = {
-  readonly themeId: string;
   readonly hash: string;
+  readonly themeId: string;
 };
 export type DeclarationProjectComponentLock = ComponentPackageLock & {
   readonly componentId: string;
   readonly version: number;
 };
 export type DeclarationProjectAssemblyInput = {
-  readonly catalog: PairedAuthoringDeclarationCatalog;
-  readonly themeHashes: readonly DeclarationProjectThemeHash[];
-  readonly componentLocks: readonly DeclarationProjectComponentLock[];
   readonly assets: Readonly<Record<string, CompilerSourceAsset>>;
+  readonly catalog: PairedAuthoringDeclarationCatalog;
+  readonly componentLocks: ReadonlyArray<DeclarationProjectComponentLock>;
+  readonly themeHashes: ReadonlyArray<DeclarationProjectThemeHash>;
 };
 export type DeclarationProjectAssemblyCarrier = Omit<DeclarationProjectAssemblyInput, "catalog">;
 export type AuthoringProjectPipelineResult<T> =
-  | { readonly valid: true; readonly value: T; readonly diagnostics: [] }
+  | { readonly diagnostics: []; readonly valid: true; readonly value: T }
   | {
-      readonly valid: false;
+      readonly diagnostics: ReadonlyArray<
+        import("./check-authoring-project.js").AuthoringProjectDiagnostic
+      >;
       readonly phase: "source";
-      readonly diagnostics: readonly import("./check-authoring-project.js").AuthoringProjectDiagnostic[];
+      readonly valid: false;
     }
   | {
-      readonly valid: false;
+      readonly diagnostics: ReadonlyArray<Diagnostic>;
       readonly phase: "assembly" | "compile";
-      readonly diagnostics: readonly Diagnostic[];
+      readonly valid: false;
     };
 export type CompilerWarning =
   | {
       readonly code: "compiler-prop-default-applied";
-      readonly message: string;
-      readonly path: readonly (string | number)[];
       readonly componentInstanceId: string;
-      readonly propName: string;
       readonly defaultValue: string | number | boolean;
+      readonly message: string;
+      readonly path: ReadonlyArray<string | number>;
+      readonly propName: string;
       readonly source?: SourceMetadata;
     }
   | {
       readonly code: "compiler-variant-default-applied";
-      readonly message: string;
-      readonly path: readonly (string | number)[];
       readonly componentInstanceId: string;
-      readonly variantName: string;
       readonly defaultValue: string;
+      readonly message: string;
+      readonly path: ReadonlyArray<string | number>;
       readonly source?: SourceMetadata;
+      readonly variantName: string;
     };
 export type CheckedDeclarationProject = {
+  assetSet: BuildArtifactsV2["assetSet"];
   definition: PresentationDefinition;
+  definitionHash: string;
   definitionJson: string;
   sourceHash: string;
-  definitionHash: string;
-  assetSet: BuildArtifactsV2["assetSet"];
-  warnings: readonly CompilerWarning[];
+  warnings: ReadonlyArray<CompilerWarning>;
 };
 export type CompilerBuildOptions = {
+  readonly colorScheme: "light" | "dark";
   readonly compiler: {
+    readonly baseEnvironmentHash: string;
     readonly name: string;
     readonly version: string;
-    readonly baseEnvironmentHash: string;
   };
-  readonly locale: string;
-  readonly timezone: string;
-  readonly colorScheme: "light" | "dark";
-  readonly rendererConfigHash: string;
-  readonly renderers: readonly RendererPlugin[];
   readonly encodeLimits: EncodeLimits;
+  readonly locale: string;
+  readonly rendererConfigHash: string;
+  readonly renderers: ReadonlyArray<RendererPlugin>;
+  readonly timezone: string;
 };
 export type CompiledDeclarationProject = CheckedDeclarationProject & {
-  readonly renderBundle: RenderBundle;
-  readonly renderBundleJson: string;
-  readonly renderBundleHash: string;
-  readonly assetSetJson: string;
-  readonly assetSetHash: string;
-  readonly buildManifest: BuildArtifactsV2["buildManifest"];
-  readonly buildManifestJson: string;
-  readonly buildManifestHash: string;
   readonly assets: Readonly<Record<string, Uint8Array>>;
+  readonly assetSetHash: string;
+  readonly assetSetJson: string;
+  readonly buildManifest: BuildArtifactsV2["buildManifest"];
+  readonly buildManifestHash: string;
+  readonly buildManifestJson: string;
+  readonly renderBundle: RenderBundle;
+  readonly renderBundleHash: string;
+  readonly renderBundleJson: string;
 };

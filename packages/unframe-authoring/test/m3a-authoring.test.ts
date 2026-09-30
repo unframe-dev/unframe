@@ -15,37 +15,25 @@ import {
   tokenRef,
 } from "../src/index.js";
 
-const absolute = { kind: "absolute" as const, x: 0, y: 0, width: 640, height: 360 };
-const black = { red: 0, green: 0, blue: 0, alpha: 1 };
+const absolute = { height: 360, kind: "absolute" as const, width: 640, x: 0, y: 0 };
+const black = { alpha: 1, blue: 0, green: 0, red: 0 };
 
 describe("M3A typed Theme declarations", () => {
   it("accepts all Token categories, same-category aliases, and typed Named Styles", () => {
     const theme = defineTheme({
       id: "theme",
-      tokens: {
-        ink: { category: "color", value: black },
-        foreground: {
-          category: "color",
-          value: tokenRef({ category: "color", tokenId: "ink" }),
-        },
-        padding: { category: "logicalLength", value: 16 },
-        distance: { category: "spatialLength", value: 1 },
-        body: { category: "fontFace", value: assetRef({ assetId: "font-body" }) },
-        fast: { category: "duration", value: 150 },
-        entrance: { category: "easing", value: "cubicOut" },
-      },
       namedStyles: {
         heading: {
           kind: "text",
           style: {
-            font: tokenRef({ category: "fontFace", tokenId: "body" }),
+            align: "start",
+            color: tokenRef({ category: "color", tokenId: "foreground" }),
             fallbackFonts: [],
+            font: tokenRef({ category: "fontFace", tokenId: "body" }),
             fontSize: tokenRef({ category: "logicalLength", tokenId: "padding" }),
             lineHeight: 24,
-            color: tokenRef({ category: "color", tokenId: "foreground" }),
-            weight: "bold",
-            align: "start",
             overflow: "clip",
+            weight: "bold",
           },
         },
         panel: {
@@ -55,6 +43,18 @@ describe("M3A typed Theme declarations", () => {
             clip: false,
           },
         },
+      },
+      tokens: {
+        body: { category: "fontFace", value: assetRef({ assetId: "font-body" }) },
+        distance: { category: "spatialLength", value: 1 },
+        entrance: { category: "easing", value: "cubicOut" },
+        fast: { category: "duration", value: 150 },
+        foreground: {
+          category: "color",
+          value: tokenRef({ category: "color", tokenId: "ink" }),
+        },
+        ink: { category: "color", value: black },
+        padding: { category: "logicalLength", value: 16 },
       },
     });
 
@@ -66,20 +66,20 @@ describe("M3A typed Theme declarations", () => {
     expect(
       isThemeDeclaration({
         id: "theme",
+        namedStyles: {},
         tokens: {
           invalid: {
             category: "color",
-            value: { kind: "token-ref", category: "logicalLength", tokenId: "space" },
+            value: { category: "logicalLength", kind: "token-ref", tokenId: "space" },
           },
         },
-        namedStyles: {},
       }),
     ).toBe(false);
     expect(
       isThemeDeclaration({
         id: "theme",
-        tokens: {},
         namedStyles: { invalid: { color: "red" } },
+        tokens: {},
       }),
     ).toBe(false);
   });
@@ -91,22 +91,22 @@ describe("M3A typed Structure declarations", () => {
     expect(() =>
       text({
         id: "legacy-text",
-        value: "Legacy",
         layout: absolute,
         maxCodePoints: 32,
         style: { fontAssetId: "font" },
+        value: "Legacy",
       } as never),
     ).toThrow(/text declaration/);
     expect(() =>
       componentInstance({
-        id: "legacy-instance",
         componentId: "component",
-        version: 1,
+        id: "legacy-instance",
         owner: { kind: "presentation" },
+        partOverrides: [{ content: "Legacy", partId: "title" }],
         props: { nested: { value: true } },
         slots: {},
         variants: {},
-        partOverrides: [{ partId: "title", content: "Legacy" }],
+        version: 1,
       } as never),
     ).toThrow(/Component Instance declaration/);
   });
@@ -114,25 +114,21 @@ describe("M3A typed Structure declarations", () => {
   it("accepts typed Prop references in scalar positions and variant style targets", () => {
     const title = text({
       id: "title",
-      value: propRef({ propId: "title", expectedType: "string" }),
       layout: {
         ...absolute,
-        width: propRef({ propId: "width", expectedType: "number" }),
+        width: propRef({ expectedType: "number", propId: "width" }),
       },
-      visible: propRef({ propId: "visible", expectedType: "boolean" }),
-      opacity: propRef({ propId: "opacity", expectedType: "number" }),
-      maxCodePoints: propRef({ propId: "maxCodePoints", expectedType: "number" }),
+      maxCodePoints: propRef({ expectedType: "number", propId: "maxCodePoints" }),
       namedStyle: namedStyleRef({ styleId: "heading" }),
-      style: { fontSize: 32, lineHeight: 40 },
+      opacity: propRef({ expectedType: "number", propId: "opacity" }),
       semanticNodeId: "semantic-title",
+      style: { fontSize: 32, lineHeight: 40 },
+      value: propRef({ expectedType: "string", propId: "title" }),
+      visible: propRef({ expectedType: "boolean", propId: "visible" }),
     });
-    const root = frame({ id: "root", layout: absolute, children: [title] });
+    const root = frame({ children: [title], id: "root", layout: absolute });
     const structure = defineComponentStructure({
-      id: "structure",
-      componentId: "component",
-      root,
       baseSemanticTree: {
-        rootNodeIds: ["semantic-title"],
         nodes: {
           "semantic-title": {
             id: "semantic-title",
@@ -143,20 +139,24 @@ describe("M3A typed Structure declarations", () => {
             text: "Fallback title",
           },
         },
+        rootNodeIds: ["semantic-title"],
       },
+      componentId: "component",
+      id: "structure",
       partBindings: { title: "title" },
+      root,
+      timelines: [],
       variantStyles: {
         emphasis: {
           strong: [
             {
+              style: { weight: "bold" },
               targetId: "title",
               targetKind: "text",
-              style: { weight: "bold" },
             },
           ],
         },
       },
-      timelines: [],
     });
 
     expect(structure.variantStyles.emphasis?.strong?.[0]?.targetKind).toBe("text");
@@ -164,26 +164,23 @@ describe("M3A typed Structure declarations", () => {
   });
 
   it("accepts number Prop references in Surface dimensions", () => {
-    const size = propRef({ propId: "size", expectedType: "number" });
-    const root = frame({ id: "root", layout: absolute, children: [] });
+    const size = propRef({ expectedType: "number", propId: "size" });
+    const root = frame({ children: [], id: "root", layout: absolute });
 
     expect(() =>
       defineComponentStructure({
-        id: "surface-structure",
         componentId: "component",
+        id: "surface-structure",
+        partBindings: {},
         root: {
-          id: "surface",
-          kind: "surface",
-          physicalSizeMeters: [size, size],
-          logicalSize: [size, size],
-          fit: "contain",
-          root,
           baseSemanticTree: { rootNodeIds: [], nodes: {} },
-          interactions: {},
+          fit: "contain",
+          id: "surface",
           initialStateId: "default",
-          states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
-          },
+          interactions: {},
+          kind: "surface",
+          logicalSize: [size, size],
+          physicalSizeMeters: [size, size],
           renderIntent: {
             updateModel: "static",
             interaction: "none",
@@ -191,10 +188,13 @@ describe("M3A typed Structure declarations", () => {
             rendererPreference: "baked-web",
             fallbackPolicy: "reject",
           },
+          root,
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+          },
         },
-        partBindings: {},
-        variantStyles: {},
         timelines: [],
+        variantStyles: {},
       }),
     ).not.toThrow();
   });
@@ -202,34 +202,34 @@ describe("M3A typed Structure declarations", () => {
   it("places a Slot explicitly among Frame children", () => {
     const content = slotPlaceholder({
       id: "content-position",
-      slotId: "content",
       semanticParentId: "content-group",
+      slotId: "content",
     });
     const unparented = slotPlaceholder({ id: "footer-position", slotId: "footer" });
-    const root = frame({ id: "root", layout: absolute, children: [content, unparented] });
+    const root = frame({ children: [content, unparented], id: "root", layout: absolute });
 
     expect(root.children).toEqual([
       {
         id: "content-position",
         kind: "slot-placeholder",
-        slotId: "content",
         semanticParentId: "content-group",
+        slotId: "content",
       },
       { id: "footer-position", kind: "slot-placeholder", slotId: "footer" },
     ]);
     const structure = defineComponentStructure({
-      id: "slot-structure",
+      baseSemanticTree: { nodes: {}, rootNodeIds: [] },
       componentId: "component",
-      root,
-      baseSemanticTree: { rootNodeIds: [], nodes: {} },
+      id: "slot-structure",
       partBindings: {},
-      variantStyles: {},
+      root,
       timelines: [],
+      variantStyles: {},
     });
 
     expect(isComponentStructure(structure)).toBe(true);
     expect(() =>
-      slotPlaceholder({ id: "invalid-position", slotId: "content", semanticParentId: "" }),
+      slotPlaceholder({ id: "invalid-position", semanticParentId: "", slotId: "content" }),
     ).toThrow(/semanticParentId/);
     expect(
       isComponentStructure({
@@ -244,24 +244,24 @@ describe("M3A typed Structure declarations", () => {
 
   it("accepts typed instance Prop values and Part overrides", () => {
     const instance = componentInstance({
-      id: "instance",
       componentId: "component",
-      version: 1,
+      id: "instance",
       owner: { kind: "presentation" },
-      props: { title: "Hello", width: 640, visible: true },
-      slots: {},
-      variants: { emphasis: "strong" },
       partOverrides: [
         {
-          partId: "title",
-          targetKind: "text",
           content: "Override",
+          partId: "title",
           placement: absolute,
           style: {
             color: tokenRef({ category: "color", tokenId: "foreground" }),
           },
+          targetKind: "text",
         },
       ],
+      props: { title: "Hello", visible: true, width: 640 },
+      slots: {},
+      variants: { emphasis: "strong" },
+      version: 1,
     });
 
     expect(instance.partOverrides[0]?.targetKind).toBe("text");
@@ -271,45 +271,45 @@ describe("M3A typed Structure declarations", () => {
   it("rejects Prop references in topology and mismatched style target fields", () => {
     expect(
       isComponentStructure({
-        id: "structure",
+        baseSemanticTree: { nodes: {}, rootNodeIds: [] },
         componentId: "component",
+        id: "structure",
+        partBindings: {},
         root: {
+          children: { kind: "prop-ref", propId: "children", expectedType: "string" },
           id: "root",
           kind: "frame",
           layout: absolute,
-          children: { kind: "prop-ref", propId: "children", expectedType: "string" },
         },
-        baseSemanticTree: { rootNodeIds: [], nodes: {} },
-        partBindings: {},
-        variantStyles: {},
         timelines: [],
+        variantStyles: {},
       }),
     ).toBe(false);
     expect(
       isComponentStructure({
-        id: "structure",
+        baseSemanticTree: { nodes: {}, rootNodeIds: [] },
         componentId: "component",
-        root: { id: "root", kind: "frame", layout: absolute, children: [] },
-        baseSemanticTree: { rootNodeIds: [], nodes: {} },
+        id: "structure",
         partBindings: {},
+        root: { children: [], id: "root", kind: "frame", layout: absolute },
+        timelines: [],
         variantStyles: {
           emphasis: {
-            strong: [{ targetId: "root", targetKind: "frame", style: { fontSize: 24 } }],
+            strong: [{ style: { fontSize: 24 }, targetId: "root", targetKind: "frame" }],
           },
         },
-        timelines: [],
       }),
     ).toBe(false);
     expect(
       isComponentStructure({
-        id: "legacy-slot-structure",
+        baseSemanticTree: { nodes: {}, rootNodeIds: [] },
         componentId: "component",
-        root: { id: "root", kind: "frame", layout: absolute, children: [] },
-        baseSemanticTree: { rootNodeIds: [], nodes: {} },
+        id: "legacy-slot-structure",
         partBindings: {},
+        root: { children: [], id: "root", kind: "frame", layout: absolute },
         slotPlacements: { content: "root" },
-        variantStyles: {},
         timelines: [],
+        variantStyles: {},
       }),
     ).toBe(false);
   });

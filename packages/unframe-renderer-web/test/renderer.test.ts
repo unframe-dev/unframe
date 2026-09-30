@@ -25,50 +25,54 @@ import {
 } from "@unframe/unframe-renderer-api";
 
 const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
-  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  if (surface.content.kind !== "structured") {
+    throw new TypeError("Expected structured fixture.");
+  }
   return surface.content;
 };
 
 describe("baked web renderer", () => {
   it("nonzero boundsの部分partitionではcontext Frameのpaintを省き、owned childだけを描画する", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         capture(request) {
           requests.push(request);
           return {
-            rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4),
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb" as const,
             alphaMode: "straight" as const,
+            colorSpace: "srgb" as const,
+            pixelSize: request.pixelTarget,
+            rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4),
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
     const source = nestedInputFor(createWebRendererConfigHash(config), renderer);
     const input: CompilerResolvedSurfaceInput = {
       ...source,
+      context: { ...source.context, pixelTarget: [40, 16] },
       plan: {
         ...source.plan,
-        logicalBounds: { x: 12, y: 6, width: 20, height: 8 },
         clipWindow: { x: 12, y: 6, width: 20, height: 8 },
+        logicalBounds: { x: 12, y: 6, width: 20, height: 8 },
         ownership: {
+          contextNodeIds: ["root", "nested"],
           kind: "structured",
           ownedContentNodeIds: ["text-first"],
-          contextNodeIds: ["root", "nested"],
         },
         states: { a: { kind: "capture" }, z: { kind: "empty" } },
       },
-      context: { ...source.context, pixelTarget: [40, 16] },
     };
 
     const result = await renderer.build(input);
 
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(requests).toHaveLength(1);
     expect(requests[0]?.pixelTarget).toEqual([40, 16]);
     const document = requests[0]?.document ?? "";
@@ -88,19 +92,19 @@ describe("baked web renderer", () => {
     let adapterBytes: Uint8Array | undefined;
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         capture(request) {
           adapterBytes = new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4).fill(
             255,
           );
           return {
-            rgba: adapterBytes,
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: request.pixelTarget,
+            rgba: adapterBytes,
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -113,7 +117,9 @@ describe("baked web renderer", () => {
     const result = await executeRendererPlugin(renderer, input);
 
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const rgba = result.value.captures[0]?.rgba;
     expect(rgba !== undefined).toBe(true);
     expect(rgba !== adapterBytes).toBe(true);
@@ -124,21 +130,23 @@ describe("baked web renderer", () => {
   });
 
   it("固定環境と設定から決定論的な plugin を作り、capture を状態順に生成する", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const hash = createWebRendererConfigHash(config);
     expect(hash).toBe("sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a");
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const input = withRendererFingerprint(inputFor(hash), renderer);
     const result = await renderer.build(input);
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(requests.map((request) => request.stateId)).toEqual(["a", "z"]);
     const firstRequest = requests[0];
     expect(firstRequest).toMatchObject({
-      pixelTarget: [2, 1],
-      fontFaceCount: 1,
+      capabilities: { clock: "fixed", filesystem: "deny", network: "deny", random: "fixed" },
       colorScheme: "dark",
-      capabilities: { network: "deny", filesystem: "deny", clock: "fixed", random: "fixed" },
+      fontFaceCount: 1,
+      pixelTarget: [2, 1],
     });
     expect(firstRequest?.document).toContain('@font-face{font-family:"unframe-font-');
     expect(firstRequest?.document).toContain("data:font/ttf;base64,");
@@ -157,33 +165,35 @@ describe("baked web renderer", () => {
     );
     expect(result.captures.map((capture) => capture.stateId)).toEqual(["a", "z"]);
     expect(result.provenance.implementationHash).toMatch(/^sha256:/);
-    expect(await runRendererConformance(renderer, [{ name: "web", input }])).toMatchObject({
+    expect(await runRendererConformance(renderer, [{ input, name: "web" }])).toMatchObject({
       valid: true,
     });
   });
 
   it("absolute Frame/Textを任意depthで親相対・children順にlowerする", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         capture(request) {
           requests.push(request);
           return Promise.resolve({
-            rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4).fill(255),
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb" as const,
             alphaMode: "opaque" as const,
+            colorSpace: "srgb" as const,
+            pixelSize: request.pixelTarget,
+            rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4).fill(255),
           });
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
     const input = nestedInputFor(createWebRendererConfigHash(config), renderer);
 
     const result = await renderer.build(input);
-    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    if (!result.ok) {
+      throw new Error(JSON.stringify(result.diagnostics));
+    }
     const document = requests[0]?.document ?? "";
     expect(document).toContain(
       'data-node-id="nested" style="left:20px;top:10px;width:120px;height:60px;display:block;opacity:0.75;background:rgba(0,0,0,0);border:4px solid rgba(0,0,0,0);border-radius:6px;overflow:hidden"',
@@ -202,7 +212,9 @@ describe("baked web renderer", () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const input = nestedInputFor(createWebRendererConfigHash(config), renderer);
     const nested = structuredContent(input.surface).nodes.nested;
-    if (!nested || nested.kind !== "frame") throw new Error("expected nested Frame fixture");
+    if (!nested || nested.kind !== "frame") {
+      throw new Error("expected nested Frame fixture");
+    }
 
     await expect(
       renderer.build({
@@ -216,12 +228,12 @@ describe("baked web renderer", () => {
               nested: {
                 ...nested,
                 layout: {
-                  kind: "stack",
+                  alignItems: "start",
                   direction: "horizontal",
                   gap: 0,
-                  padding: { top: 0, right: 0, bottom: 0, left: 0 },
-                  alignItems: "start",
                   justifyContent: "start",
+                  kind: "stack",
+                  padding: { bottom: 0, left: 0, right: 0, top: 0 },
                 },
               },
             },
@@ -229,27 +241,27 @@ describe("baked web renderer", () => {
         },
       }),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "unsupported-structured-tree" }],
+      ok: false,
     });
   });
 
   it("adapter へ渡す request を固定し、Compiler input を変更させない", async () => {
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture(request) {
           expect(Object.isFrozen(request)).toBe(true);
           expect(Object.isFrozen(request.pixelTarget)).toBe(true);
           expect(Object.isFrozen(request.environment)).toBe(true);
           return {
-            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: request.pixelTarget,
+            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -299,18 +311,24 @@ describe("baked web renderer", () => {
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     await expect(
       renderer.build({ ...source, fontAssets: { "font-main": fontAsset } }),
-    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code, path }] });
+    ).resolves.toMatchObject({ diagnostics: [{ code, path }], ok: false });
     expect(captures).toBe(0);
   });
 
   it("primaryと明示fallbackのcmapだけでliteral Textを覆う", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const text = structuredContent(source.surface).nodes.text;
-    if (!text || text.kind !== "text") throw new Error("expected Text fixture");
+    if (!text || text.kind !== "text") {
+      throw new Error("expected Text fixture");
+    }
     const result = await renderer.build({
       ...source,
+      fontAssets: {
+        "font-fallback": testFontAsset("&>\"'"),
+        "font-main": testFontAsset("<"),
+      },
       surface: {
         ...source.surface,
         content: {
@@ -324,10 +342,6 @@ describe("baked web renderer", () => {
           },
         },
       },
-      fontAssets: {
-        "font-main": testFontAsset("<"),
-        "font-fallback": testFontAsset("&>\"'"),
-      },
     });
     expect(result).toMatchObject({ ok: true });
     expect(requests[0]).toMatchObject({ fontFaceCount: 2 });
@@ -335,31 +349,31 @@ describe("baked web renderer", () => {
 
   it("作成時の Browser environment と frozen receiver を capture に渡す", async () => {
     const mutableEnvironment = {
-      browser: { id: "test-browser", version: "1", fontFingerprint: "sha256:fonts" },
-      locale: "ja-JP",
-      timezone: "Asia/Tokyo",
+      browser: { fontFingerprint: "sha256:fonts", id: "test-browser", version: "1" },
+      clock: "fixed" as const,
       colorSpace: "srgb" as const,
       deviceScaleFactor: 1 as const,
-      network: "deny" as const,
       filesystem: "deny" as const,
-      clock: "fixed" as const,
+      locale: "ja-JP",
+      network: "deny" as const,
       random: "fixed" as const,
+      timezone: "Asia/Tokyo",
     };
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment: mutableEnvironment,
         async capture(this: unknown) {
           const receiver = this as { readonly environment: FixedBrowserAdapter["environment"] };
           expect(Object.isFrozen(receiver)).toBe(true);
           expect(receiver.environment.browser.version).toBe("1");
           return {
-            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-            pixelSize: [2, 1],
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: [2, 1],
+            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
           };
         },
+        environment: mutableEnvironment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -381,16 +395,16 @@ describe("baked web renderer", () => {
       semanticsByState: {
         ...source.semanticsByState,
         z: {
-          rootNodeIds: ["changed"],
           nodes: {
             changed: {
               id: "changed",
-              parentId: null,
               order: 0,
+              parentId: null,
               role: "paragraph",
               text: "changed",
             },
           },
+          rootNodeIds: ["changed"],
         },
       },
     };
@@ -398,7 +412,7 @@ describe("baked web renderer", () => {
   });
 
   it("State ごとの Text override を各 capture の document に反映する", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const input: CompilerResolvedSurfaceInput = {
@@ -421,7 +435,7 @@ describe("baked web renderer", () => {
   });
 
   it("State ごとの Frame override を capture に反映する", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const input: CompilerResolvedSurfaceInput = {
@@ -448,19 +462,21 @@ describe("baked web renderer", () => {
   });
 
   it("Frame/Text visual override の全対象 field を State ごとに適用する", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const text = structuredContent(source.surface).nodes.text;
-    if (!text || text.kind !== "text") throw new Error("expected Text");
+    if (!text || text.kind !== "text") {
+      throw new Error("expected Text");
+    }
     const input: CompilerResolvedSurfaceInput = {
       ...source,
       plan: {
         ...source.plan,
         ownership: {
+          contextNodeIds: [],
           kind: "structured",
           ownedContentNodeIds: ["root", "text"],
-          contextNodeIds: [],
         },
       },
       surface: {
@@ -471,30 +487,30 @@ describe("baked web renderer", () => {
             ...source.surface.states.z!,
             contentOverrides: {
               root: {
-                kind: "frame",
-                visible: true,
-                opacity: 0.5,
-                placement: { kind: "absolute", x: 5, y: 2, width: 90, height: 45 },
-                layout: { kind: "absolute" },
-                backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 },
-                border: { color: { red: 0, green: 1, blue: 0, alpha: 1 }, width: 2, radius: 3 },
+                backgroundColor: { alpha: 1, blue: 0, green: 0, red: 1 },
+                border: { color: { alpha: 1, blue: 0, green: 1, red: 0 }, radius: 3, width: 2 },
                 clip: true,
+                kind: "frame",
+                layout: { kind: "absolute" },
+                opacity: 0.5,
+                placement: { height: 45, kind: "absolute", width: 90, x: 5, y: 2 },
+                visible: true,
               },
               text: {
                 kind: "text",
-                visible: true,
                 opacity: 0.25,
-                placement: { kind: "absolute", x: 12, y: 6, width: 30, height: 15 },
-                value: { kind: "literal", value: ">" },
+                placement: { height: 15, kind: "absolute", width: 30, x: 12, y: 6 },
                 style: {
                   ...text.style,
+                  align: "end",
+                  color: { red: 0, green: 1, blue: 0, alpha: 1 },
                   fontSize: 12,
                   lineHeight: 14,
-                  color: { red: 0, green: 1, blue: 0, alpha: 1 },
-                  weight: "bold",
-                  align: "end",
                   overflow: "ellipsis",
+                  weight: "bold",
                 },
+                value: { kind: "literal", value: ">" },
+                visible: true,
               },
             },
           },
@@ -518,31 +534,33 @@ describe("baked web renderer", () => {
   });
 
   it("capture bytes の所有権を固定し、cross-realm Uint8Array を受け取る", async () => {
-    const requests: BrowserCaptureRequest[] = [];
+    const requests: Array<BrowserCaptureRequest> = [];
     const foreignBytes = runInNewContext(
       "new Uint8Array([1, 2, 3, 255, 4, 5, 6, 255])",
     ) as Uint8Array;
     const foreignPixelSize: [number, number] = [2, 1];
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture(request) {
           requests.push(request);
           return {
-            rgba: foreignBytes,
-            pixelSize: foreignPixelSize,
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: foreignPixelSize,
+            rgba: foreignBytes,
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const result = await renderer.build(input);
     expect(result).toMatchObject({ ok: true });
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(requests[0]?.document).toContain("background:rgba(0,0,0,0)");
     foreignBytes[0] = 99;
     foreignPixelSize[0] = 99;
@@ -552,16 +570,16 @@ describe("baked web renderer", () => {
 
   it("factory 作成時の capture 実装を固定し、premultiplied output を拒否する", async () => {
     const mutableAdapter: FixedBrowserAdapter = {
-      identity: adapterIdentity,
-      environment,
       async capture(request) {
         return {
-          rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-          pixelSize: request.pixelTarget,
-          colorSpace: "srgb",
           alphaMode: "opaque",
+          colorSpace: "srgb",
+          pixelSize: request.pixelTarget,
+          rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
         };
       },
+      environment,
+      identity: adapterIdentity,
     };
     const renderer = createBakedWebRenderer({ adapter: mutableAdapter, config });
     mutableAdapter.capture = async () => {
@@ -571,16 +589,16 @@ describe("baked web renderer", () => {
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
     const premultiplied = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture(request) {
           return {
-            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb",
             alphaMode: "premultiplied",
+            colorSpace: "srgb",
+            pixelSize: request.pixelTarget,
+            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -588,33 +606,39 @@ describe("baked web renderer", () => {
       premultiplied.build(
         withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), premultiplied),
       ),
-    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code: "invalid-browser-capture" }] });
+    ).resolves.toMatchObject({ diagnostics: [{ code: "invalid-browser-capture" }], ok: false });
   });
 
   it("capture の mutable call property を参照せず、非有限 scale を拒否する", async () => {
     const capture: FixedBrowserAdapter["capture"] = async (request) => ({
-      rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-      pixelSize: request.pixelTarget,
-      colorSpace: "srgb",
       alphaMode: "opaque",
+      colorSpace: "srgb",
+      pixelSize: request.pixelTarget,
+      rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
     });
     Object.defineProperty(capture, "call", {
       value: () => Promise.reject(new Error("mutable call must not run")),
     });
     const renderer = createBakedWebRenderer({
-      adapter: { identity: adapterIdentity, environment, capture },
+      adapter: { capture, environment, identity: adapterIdentity },
       config,
     });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const text = structuredContent(input.surface).nodes.text;
-    if (!text || text.kind !== "text") throw new Error("expected Text fixture");
+    if (!text || text.kind !== "text") {
+      throw new Error("expected Text fixture");
+    }
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
     await expect(
       renderer.build({
         ...input,
+        plan: {
+          ...input.plan,
+          clipWindow: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
+          logicalBounds: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
+        },
         surface: {
           ...input.surface,
-          logicalSize: [Number.MIN_VALUE, 50],
           content: {
             ...structuredContent(input.surface),
             nodes: {
@@ -632,32 +656,28 @@ describe("baked web renderer", () => {
               },
             },
           },
-        },
-        plan: {
-          ...input.plan,
-          logicalBounds: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
-          clipWindow: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
+          logicalSize: [Number.MIN_VALUE, 50],
         },
       }),
-    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code: "invalid-render-scale" }] });
+    ).resolves.toMatchObject({ diagnostics: [{ code: "invalid-render-scale" }], ok: false });
   });
 
   it("semantic record の挿入順だけが異なる capture states を同値として扱う", async () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const first = {
-      rootNodeIds: ["a", "b"],
       nodes: {
-        a: { id: "a", parentId: null, order: 0, role: "paragraph" as const, text: "A" },
-        b: { id: "b", parentId: null, order: 1, role: "paragraph" as const, text: "B" },
+        a: { id: "a", order: 0, parentId: null, role: "paragraph" as const, text: "A" },
+        b: { id: "b", order: 1, parentId: null, role: "paragraph" as const, text: "B" },
       },
+      rootNodeIds: ["a", "b"],
     };
     const second = {
-      rootNodeIds: ["a", "b"],
       nodes: {
-        b: { id: "b", parentId: null, order: 1, role: "paragraph" as const, text: "B" },
         a: { id: "a", parentId: null, order: 0, role: "paragraph" as const, text: "A" },
+        b: { id: "b", parentId: null, order: 1, role: "paragraph" as const, text: "B" },
       },
+      rootNodeIds: ["a", "b"],
     };
     await expect(
       renderer.build({ ...source, semanticsByState: { a: first, z: second } }),
@@ -668,14 +688,16 @@ describe("baked web renderer", () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const mismatch = await renderer.build(inputFor("sha256:other"));
     expect(mismatch).toMatchObject({ ok: false });
-    if (!mismatch.ok) expect(mismatch.diagnostics[0]?.code).toBe("renderer-fingerprint-mismatch");
+    if (!mismatch.ok) {
+      expect(mismatch.diagnostics[0]?.code).toBe("renderer-fingerprint-mismatch");
+    }
     const fails = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture() {
           throw new Error("no");
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -684,21 +706,21 @@ describe("baked web renderer", () => {
       fails,
     );
     await expect(fails.build(failedInput)).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "browser-capture-failed" }],
+      ok: false,
     });
     const hostile = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture() {
           return {
-            rgba: new Uint8Array(1),
-            pixelSize: [2, 1],
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: [2, 1],
+            rgba: new Uint8Array(1),
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -707,8 +729,8 @@ describe("baked web renderer", () => {
       hostile,
     );
     await expect(hostile.build(hostileInput)).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "invalid-browser-capture" }],
+      ok: false,
     });
   });
 
@@ -718,51 +740,51 @@ describe("baked web renderer", () => {
     await expect(
       renderer.build({
         ...input,
-        surface: { ...input.surface, content: { kind: "opaque", bindings: {} } },
-        plan: { ...input.plan, ownership: { kind: "opaque", bindingKeys: [] } },
-        entry: { kind: "opaque", entryId: "x", moduleHash: "x" },
+        entry: { entryId: "x", kind: "opaque", moduleHash: "x" },
+        plan: { ...input.plan, ownership: { bindingKeys: [], kind: "opaque" } },
+        surface: { ...input.surface, content: { bindings: {}, kind: "opaque" } },
       }),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "unsupported-input-kind" }],
+      ok: false,
     });
     await expect(
       renderer.build({ ...input, context: { ...input.context, rendererFingerprint: "bad" } }),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "renderer-fingerprint-mismatch" }],
+      ok: false,
     });
     await expect(
       renderer.build({
         ...input,
-        plan: { ...input.plan, logicalBounds: { x: 0, y: 0, width: 0, height: 1 } },
+        plan: { ...input.plan, logicalBounds: { height: 1, width: 0, x: 0, y: 0 } },
       }),
-    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code: "invalid-logical-bounds" }] });
+    ).resolves.toMatchObject({ diagnostics: [{ code: "invalid-logical-bounds" }], ok: false });
     await expect(
       renderer.build({ ...input, plan: { ...input.plan, semanticSurfaceId: "other" } }),
-    ).resolves.toMatchObject({ ok: false, diagnostics: [{ code: "surface-plan-mismatch" }] });
+    ).resolves.toMatchObject({ diagnostics: [{ code: "surface-plan-mismatch" }], ok: false });
   });
 
   it("adapter identity を implementation hash に含め、固定する", async () => {
     const first = createBakedWebRenderer({ adapter: adapter(), config });
     const second = createBakedWebRenderer({
       adapter: {
-        identity: { id: "test-adapter", implementationHash: "sha256:other" },
-        environment,
         async capture(request) {
           return {
-            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: request.pixelTarget,
+            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
           };
         },
+        environment,
+        identity: { id: "test-adapter", implementationHash: "sha256:other" },
       },
       config,
     });
     expect(first.identity.implementationHash).not.toBe(second.identity.implementationHash);
     const invalid = createBakedWebRenderer({
-      adapter: { environment, capture: async () => ({}) } as unknown as FixedBrowserAdapter,
+      adapter: { capture: async () => ({}), environment } as unknown as FixedBrowserAdapter,
       config,
     });
     await expect(
@@ -770,8 +792,8 @@ describe("baked web renderer", () => {
         withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), invalid),
       ),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "invalid-browser-environment" }],
+      ok: false,
     });
   });
 
@@ -782,28 +804,30 @@ describe("baked web renderer", () => {
     const states = Object.create(null);
     const surfaceStates = Object.create(null);
     const semantics = Object.create(null);
-    Object.defineProperty(states, "constructor", { value: { kind: "capture" }, enumerable: true });
+    Object.defineProperty(states, "constructor", { enumerable: true, value: { kind: "capture" } });
     Object.defineProperty(surfaceStates, "constructor", {
-      value: {
-        id: "constructor",
-        contentOverrides: {},
-        semanticOverrides: [],
-        enabledInteractionIds: [],
-      },
       enumerable: true,
+      value: {
+        contentOverrides: {},
+        enabledInteractionIds: [],
+        id: "constructor",
+        semanticOverrides: [],
+      },
     });
     Object.defineProperty(semantics, "constructor", {
-      value: { rootNodeIds: [], nodes: {} },
       enumerable: true,
+      value: { nodes: {}, rootNodeIds: [] },
     });
     const result = await renderer.build({
       ...input,
-      surface: { ...input.surface, initialStateId: "constructor", states: surfaceStates },
       plan: { ...input.plan, states },
       semanticsByState: semantics,
+      surface: { ...input.surface, initialStateId: "constructor", states: surfaceStates },
     } as CompilerResolvedSurfaceInput);
     expect(result).toMatchObject({ ok: true });
-    if (result.ok) expect(result.captures.map(({ stateId }) => stateId)).toContain("constructor");
+    if (result.ok) {
+      expect(result.captures.map(({ stateId }) => stateId)).toContain("constructor");
+    }
   });
 
   it("空config と opaque capture の厳格な境界を検証する", async () => {
@@ -819,24 +843,24 @@ describe("baked web renderer", () => {
     ).toThrow();
     const opaque = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture(request) {
           return {
-            rgba: new Uint8Array([0, 0, 0, 1, 0, 0, 0, 255]),
-            pixelSize: request.pixelTarget,
-            colorSpace: "srgb",
             alphaMode: "opaque",
+            colorSpace: "srgb",
+            pixelSize: request.pixelTarget,
+            rgba: new Uint8Array([0, 0, 0, 1, 0, 0, 0, 255]),
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
     await expect(
       opaque.build(withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), opaque)),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "invalid-browser-capture" }],
+      ok: false,
     });
   });
 
@@ -862,20 +886,20 @@ describe("baked web renderer", () => {
     });
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment: hostileEnvironment,
         async capture() {
           return {
-            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
+            alphaMode: "opaque",
+            colorSpace: "srgb",
             pixelSize: new Proxy([2, 1], {
               get() {
                 throw new Error("pixel size must not be read as a value");
               },
             }),
-            colorSpace: "srgb",
-            alphaMode: "opaque",
+            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
           } as unknown as import("../src/index.js").BrowserRgbaCapture;
         },
+        environment: hostileEnvironment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -903,14 +927,14 @@ describe("baked web renderer", () => {
     }
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         capture: () => ({
-          rgba: new HostileBytes([0, 0, 0, 255, 0, 0, 0, 255]),
-          pixelSize: [2, 1],
-          colorSpace: "srgb",
           alphaMode: "opaque",
+          colorSpace: "srgb",
+          pixelSize: [2, 1],
+          rgba: new HostileBytes([0, 0, 0, 255, 0, 0, 0, 255]),
         }),
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -931,10 +955,10 @@ describe("baked web renderer", () => {
     ]) {
       const renderer = createBakedWebRenderer({
         adapter: {
-          identity: adapterIdentity,
-          environment,
           capture: () =>
-            ({ rgba, pixelSize: [2, 1], colorSpace: "srgb", alphaMode: "opaque" }) as never,
+            ({ alphaMode: "opaque", colorSpace: "srgb", pixelSize: [2, 1], rgba }) as never,
+          environment,
+          identity: adapterIdentity,
         },
         config,
       });
@@ -942,7 +966,7 @@ describe("baked web renderer", () => {
         renderer.build(
           withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer),
         ),
-      ).resolves.toMatchObject({ ok: false, diagnostics: [{ code: "invalid-browser-capture" }] });
+      ).resolves.toMatchObject({ diagnostics: [{ code: "invalid-browser-capture" }], ok: false });
     }
   });
 
@@ -950,17 +974,17 @@ describe("baked web renderer", () => {
     let captures = 0;
     const renderer = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         capture: () => {
           captures++;
           return {
-            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
-            pixelSize: [2, 1],
-            colorSpace: "srgb" as const,
             alphaMode: "opaque" as const,
+            colorSpace: "srgb" as const,
+            pixelSize: [2, 1],
+            rgba: new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255]),
           };
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -979,8 +1003,8 @@ describe("baked web renderer", () => {
       },
     } as unknown as CompilerResolvedSurfaceInput;
     await expect(renderer.build(malformed)).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "invalid-renderer-input" }],
+      ok: false,
     });
     expect(captures).toBe(0);
   });
@@ -992,8 +1016,6 @@ describe("baked web renderer", () => {
     let reads = 0;
     const hostile = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment,
         async capture() {
           return Object.defineProperty({}, "rgba", {
             get() {
@@ -1002,6 +1024,8 @@ describe("baked web renderer", () => {
             },
           }) as unknown as import("../src/index.js").BrowserRgbaCapture;
         },
+        environment,
+        identity: adapterIdentity,
       },
       config,
     });
@@ -1010,8 +1034,8 @@ describe("baked web renderer", () => {
         withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), hostile),
       ),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "invalid-browser-capture" }],
+      ok: false,
     });
     expect(reads).toBe(0);
   });
@@ -1020,11 +1044,11 @@ describe("baked web renderer", () => {
     const inheritedEnvironment = Object.create(environment);
     const inherited = createBakedWebRenderer({
       adapter: {
-        identity: adapterIdentity,
-        environment: inheritedEnvironment,
         async capture() {
           throw new Error("must not run");
         },
+        environment: inheritedEnvironment,
+        identity: adapterIdentity,
       } as unknown as FixedBrowserAdapter,
       config,
     });
@@ -1033,11 +1057,11 @@ describe("baked web renderer", () => {
         withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), inherited),
       ),
     ).resolves.toMatchObject({
-      ok: false,
       diagnostics: [{ code: "invalid-browser-environment" }],
+      ok: false,
     });
     const hostileAdapter = Object.defineProperty(
-      { identity: adapterIdentity, capture: async () => ({}) },
+      { capture: async () => ({}), identity: adapterIdentity },
       "environment",
       {
         get() {

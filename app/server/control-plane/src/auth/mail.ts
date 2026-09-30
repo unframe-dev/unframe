@@ -1,13 +1,13 @@
-type MailMessage = { to: string; subject: string; text: string };
+type MailMessage = { subject: string; text: string; to: string };
 
 export type AuthMailer = (message: MailMessage) => Promise<void>;
 
 export function createResendMailer(apiKey: string, from: string): AuthMailer {
-  return async ({ to, subject, text }) => {
+  return async ({ subject, text, to }) => {
     const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
+      body: JSON.stringify({ from, subject, text, to: [to] }),
       headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({ from, to: [to], subject, text }),
+      method: "POST",
     });
     if (!response.ok) {
       throw new Error(`Resend rejected auth email with status ${response.status}`);

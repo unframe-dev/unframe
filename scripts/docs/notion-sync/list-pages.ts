@@ -1,41 +1,49 @@
 import { Client } from "@notionhq/client";
 
 type RichText = { plain_text?: string };
-type PageProperty = { type?: string; title?: RichText[] };
+type PageProperty = { title?: Array<RichText>; type?: string };
 type PageResult = {
-  object: "page";
   id: string;
-  url?: string;
   last_edited_time?: string;
+  object: "page";
   properties?: Record<string, unknown>;
+  url?: string;
 };
 
 const TOKEN = process.env.NOTION_TOKEN;
 
 function isPageResult(value: unknown): value is PageResult {
-  if (!value || typeof value !== "object") return false;
-  const page = value as { object?: unknown; id?: unknown };
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const page = value as { id?: unknown; object?: unknown };
   return page.object === "page" && typeof page.id === "string";
 }
 
 function extractTitle(properties: Record<string, unknown> | undefined): string {
   for (const value of Object.values(properties ?? {})) {
     const property = value as PageProperty;
-    if (property.type !== "title" || !property.title) continue;
+    if (property.type !== "title" || !property.title) {
+      continue;
+    }
 
     const title = property.title
       .map((text) => text.plain_text ?? "")
       .join("")
-      .replace(/\s+/g, " ")
+      .replaceAll(/\s+/g, " ")
       .trim();
-    if (title) return title;
+    if (title) {
+      return title;
+    }
   }
   return "Untitled";
 }
 
 function normalizePageId(id: string): string {
   const compact = id.replaceAll("-", "");
-  if (!/^[0-9a-f]{32}$/i.test(compact)) return id;
+  if (!/^[0-9a-f]{32}$/i.test(compact)) {
+    return id;
+  }
 
   return [
     compact.slice(0, 8),
@@ -46,15 +54,15 @@ function normalizePageId(id: string): string {
   ].join("-");
 }
 
-async function listAccessiblePages(notion: Client): Promise<PageResult[]> {
-  const pages: PageResult[] = [];
+async function listAccessiblePages(notion: Client): Promise<Array<PageResult>> {
+  const pages: Array<PageResult> = [];
   let cursor: string | undefined;
 
   do {
     const response = await notion.search({
       filter: { property: "object", value: "page" },
-      start_cursor: cursor,
       page_size: 100,
+      start_cursor: cursor,
     });
 
     pages.push(...response.results.filter(isPageResult));

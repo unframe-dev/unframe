@@ -31,11 +31,11 @@ const request = (
 ) =>
   app.fetch(
     new Request(`https://api.example.com${path}`, {
-      method,
       headers: {
         "content-type": "application/json",
         ...(user ? { "x-user": user } : {}),
       },
+      method,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
     runtimeEnvironment(),
@@ -48,7 +48,7 @@ describe("runtime assignment HTTP routes", () => {
       identityProvider: async (context) => {
         identityCalls += 1;
         const userId = context.req.header("x-user");
-        return userId ? { userId, globalRole: userId === "admin" ? "admin" : "user" } : undefined;
+        return userId ? { globalRole: userId === "admin" ? "admin" : "user", userId } : undefined;
       },
       sessionNow: () => new Date("2026-08-20T00:00:00.000Z"),
     });
@@ -57,10 +57,10 @@ describe("runtime assignment HTTP routes", () => {
     expect(
       (
         await request(app, path, "POST", undefined, {
+          leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+          presentationRevision: 1,
           runtimeId: "missing-runtime",
           runtimeKind: "VenueEdge",
-          presentationRevision: 1,
-          leaseExpiresAt: "2026-08-21T00:00:00.000Z",
         })
       ).status,
     ).toBe(401);
@@ -69,10 +69,10 @@ describe("runtime assignment HTTP routes", () => {
     expect(
       (
         await request(app, path, "POST", "user", {
+          leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+          presentationRevision: 1,
           runtimeId: "missing-runtime",
           runtimeKind: "VenueEdge",
-          presentationRevision: 1,
-          leaseExpiresAt: "2026-08-21T00:00:00.000Z",
         })
       ).status,
     ).toBe(403);
@@ -86,7 +86,7 @@ describe("runtime assignment HTTP routes", () => {
     const app = createApp({
       identityProvider: async () => {
         identityCalls += 1;
-        return { userId: "admin", globalRole: "admin" };
+        return { globalRole: "admin", userId: "admin" };
       },
       sessionNow: () => new Date("2026-08-20T00:00:00.000Z"),
     });
@@ -95,43 +95,43 @@ describe("runtime assignment HTTP routes", () => {
     expect(
       (
         await request(app, path, "POST", "admin", {
+          leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+          presentationRevision: 1,
           runtimeId: `runtime-${suffix}`,
           runtimeKind: "Cloud",
-          presentationRevision: 1,
-          leaseExpiresAt: "2026-08-21T00:00:00.000Z",
         })
       ).status,
     ).toBe(400);
 
     const created = await request(app, path, "POST", "admin", {
+      endpoint: "https://runtime.example.com",
+      leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+      presentationRevision: 1,
       runtimeId: `runtime-${suffix}`,
       runtimeKind: "Cloud",
-      endpoint: "https://runtime.example.com",
-      presentationRevision: 1,
-      leaseExpiresAt: "2026-08-21T00:00:00.000Z",
     });
     expect(created.status).toBe(201);
     await expect(created.json()).resolves.toEqual({
-      sessionId,
-      runtimeId: `runtime-${suffix}`,
-      runtimeKind: "Cloud",
-      endpoint: "https://runtime.example.com",
-      certificateFingerprint: null,
-      provisioningEdgeId: null,
       assignmentEpoch: 1,
-      presentationRevision: 1,
+      certificateFingerprint: null,
+      endpoint: "https://runtime.example.com",
       issuedAt: "2026-08-20T00:00:00.000Z",
       leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+      presentationRevision: 1,
+      provisioningEdgeId: null,
       releasedAt: null,
+      runtimeId: `runtime-${suffix}`,
+      runtimeKind: "Cloud",
+      sessionId,
     });
     expect(identityCalls).toBe(2);
 
     const active = await request(app, path, "GET", "admin");
     expect(active.status).toBe(200);
     await expect(active.json()).resolves.toMatchObject({
+      assignmentEpoch: 1,
       runtimeId: `runtime-${suffix}`,
       runtimeKind: "Cloud",
-      assignmentEpoch: 1,
     });
   });
 
@@ -146,7 +146,7 @@ describe("runtime assignment HTTP routes", () => {
       .bind(edgeId, runtimeId)
       .run();
     const app = createApp({
-      identityProvider: async () => ({ userId: "admin", globalRole: "admin" }),
+      identityProvider: async () => ({ globalRole: "admin", userId: "admin" }),
       sessionNow: () => new Date("2026-08-20T00:00:00.000Z"),
     });
 
@@ -156,19 +156,19 @@ describe("runtime assignment HTTP routes", () => {
       "POST",
       "admin",
       {
+        leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+        presentationRevision: 1,
         runtimeId,
         runtimeKind: "VenueEdge",
-        presentationRevision: 1,
-        leaseExpiresAt: "2026-08-21T00:00:00.000Z",
       },
     );
     expect(created.status).toBe(201);
     await expect(created.json()).resolves.toMatchObject({
+      certificateFingerprint: "sha256:test",
+      endpoint: "https://edge.example.com",
+      provisioningEdgeId: edgeId,
       runtimeId,
       runtimeKind: "VenueEdge",
-      endpoint: "https://edge.example.com",
-      certificateFingerprint: "sha256:test",
-      provisioningEdgeId: edgeId,
     });
   });
 });

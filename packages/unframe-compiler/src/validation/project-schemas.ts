@@ -4,9 +4,9 @@ export const nonEmptyStringSchema = z.string().min(1);
 export const plainRecordSchema = z.record(z.string(), z.unknown());
 const lockOriginSchema = z.discriminatedUnion("kind", [
   z.strictObject({
-    kind: z.literal("local"),
     entryFile: nonEmptyStringSchema,
-    files: z.array(z.strictObject({ path: nonEmptyStringSchema, hash: nonEmptyStringSchema })),
+    files: z.array(z.strictObject({ hash: nonEmptyStringSchema, path: nonEmptyStringSchema })),
+    kind: z.literal("local"),
     sourceHash: nonEmptyStringSchema,
   }),
   z.strictObject({
@@ -16,40 +16,40 @@ const lockOriginSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 const structuredLockSchema = z.strictObject({
+  manifestHash: nonEmptyStringSchema,
   mode: z.literal("structured"),
   origin: lockOriginSchema,
-  manifestHash: nonEmptyStringSchema,
   structureHash: nonEmptyStringSchema,
 });
 const opaqueLockSchema = z.strictObject({
+  manifestHash: nonEmptyStringSchema,
   mode: z.literal("opaque"),
   origin: lockOriginSchema,
-  manifestHash: nonEmptyStringSchema,
   rendererInputHash: nonEmptyStringSchema,
 });
 export const declarationProjectEnvelopeSchema = z
   .object({
-    presentation: plainRecordSchema,
-    themes: z.array(
-      z.object({ declaration: plainRecordSchema, hash: nonEmptyStringSchema }).strict(),
-    ),
+    assets: plainRecordSchema,
     components: z.array(
       z.union([
         z.strictObject({
+          lock: structuredLockSchema,
           manifest: plainRecordSchema,
           structure: plainRecordSchema,
-          lock: structuredLockSchema,
         }),
         z.strictObject({
+          lock: opaqueLockSchema,
           manifest: plainRecordSchema,
           metadata: plainRecordSchema,
           rendererEntry: nonEmptyStringSchema,
           rendererSource: nonEmptyStringSchema,
-          lock: opaqueLockSchema,
         }),
       ]),
     ),
-    assets: plainRecordSchema,
+    presentation: plainRecordSchema,
+    themes: z.array(
+      z.object({ declaration: plainRecordSchema, hash: nonEmptyStringSchema }).strict(),
+    ),
   })
   .strict();
 export const declarationProjectFieldKeysSchema = z.array(
@@ -57,24 +57,24 @@ export const declarationProjectFieldKeysSchema = z.array(
 );
 export const compilerBuildOptionsSchema = z
   .object({
+    colorScheme: z.enum(["light", "dark"]),
     compiler: z
       .object({
+        baseEnvironmentHash: nonEmptyStringSchema,
         name: nonEmptyStringSchema,
         version: nonEmptyStringSchema,
-        baseEnvironmentHash: nonEmptyStringSchema,
       })
       .strict(),
+    encodeLimits: z.object({}).passthrough(),
     locale: nonEmptyStringSchema,
-    timezone: nonEmptyStringSchema,
-    colorScheme: z.enum(["light", "dark"]),
     rendererConfigHash: nonEmptyStringSchema,
     renderers: z.array(z.unknown()),
-    encodeLimits: z.object({}).passthrough(),
+    timezone: nonEmptyStringSchema,
   })
   .strict();
 export const diagnosticSchema = z.strictObject({
   code: z.string(),
-  path: z.array(z.union([z.string(), z.number()])),
   message: z.string(),
+  path: z.array(z.union([z.string(), z.number()])),
   relatedPath: z.array(z.union([z.string(), z.number()])).optional(),
 });

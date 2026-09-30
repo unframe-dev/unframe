@@ -21,9 +21,9 @@ describe("BrowserDocumentPublisher", () => {
     const snapshots = new MemorySnapshotStore(demoDocument);
     const publisher = new BrowserDocumentPublisher(snapshots);
     const event = createDocumentEvent(demoDocument, {
-      type: "element.update",
-      elementId: "demo-model-element",
       changes: { locked: true },
+      elementId: "demo-model-element",
+      type: "element.update",
     });
 
     await publisher.publish(event);

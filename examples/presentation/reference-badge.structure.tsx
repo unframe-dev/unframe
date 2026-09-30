@@ -7,37 +7,37 @@ import {
 } from "@unframe/unframe-authoring";
 import manifest from "./reference-badge.manifest";
 
-const label = propRef({ propId: "label", expectedType: "string" });
+const label = propRef({ expectedType: "string", propId: "label" });
 const semantics = {
-  rootNodeIds: ["badge-label"],
   nodes: {
-    "badge-label": { id: "badge-label", parentId: null, order: 0, role: "paragraph", text: label },
+    "badge-label": { id: "badge-label", order: 0, parentId: null, role: "paragraph", text: label },
   },
+  rootNodeIds: ["badge-label"],
 } as const;
 
 export default defineComponentStructure({
-  id: "reference-badge",
+  baseSemanticTree: semantics,
   componentId: manifest.componentId,
+  id: "reference-badge",
+  partBindings: {},
   root: (
     <Frame
       id="badge-frame"
-      layout={{ kind: "absolute", x: 32, y: 264, width: 880, height: 88 }}
-      style={{ backgroundColor: { red: 0.9, green: 0.93, blue: 1, alpha: 1 }, clip: true }}
+      layout={{ height: 88, kind: "absolute", width: 880, x: 32, y: 264 }}
+      style={{ backgroundColor: { alpha: 1, blue: 1, green: 0.93, red: 0.9 }, clip: true }}
     >
       <Text
         id="badge-text"
-        layout={{ kind: "absolute", x: 24, y: 24, width: 832, height: 48 }}
+        layout={{ height: 48, kind: "absolute", width: 832, x: 24, y: 24 }}
         maxCodePoints={80}
-        semanticNodeId="badge-label"
         namedStyle={namedStyleRef({ styleId: "body" })}
+        semanticNodeId="badge-label"
         style={{ fontSize: 28, lineHeight: 36 }}
       >
         {label}
       </Text>
     </Frame>
   ),
-  baseSemanticTree: semantics,
-  partBindings: {},
-  variantStyles: {},
   timelines: [],
+  variantStyles: {},
 });

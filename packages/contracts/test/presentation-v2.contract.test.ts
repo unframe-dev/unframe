@@ -23,7 +23,7 @@ const schemas: ReadonlyArray<readonly [string, z.ZodType]> = [
   ["published-presentation", publishedPresentationV2Schema],
   ["capability-profile", capabilityProfileV2Schema],
 ];
-const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
+const ajv = new Ajv2020({ allErrors: true, allowUnionTypes: true, strict: true });
 const fixture = async (name: string) =>
   JSON.parse(await readFile(resolve(root, "fixtures", `${name}.json`), "utf8"));
 
@@ -64,8 +64,11 @@ test("RenderSurface requires the supported partition strategy version", () => {
   for (const version of [undefined, 0, 2]) {
     const invalid = structuredClone(bundle);
     const partition = invalid.surfaces.baked.renderSurfaces["render-baked"];
-    if (version === undefined) delete partition.partitionStrategyVersion;
-    else partition.partitionStrategyVersion = version;
+    if (version === undefined) {
+      delete partition.partitionStrategyVersion;
+    } else {
+      partition.partitionStrategyVersion = version;
+    }
     assert.equal(renderBundleV2Schema.safeParse(invalid).success, false);
     assert.equal(validateBundle(invalid), false);
   }
@@ -95,8 +98,8 @@ test("scope excludes WebView, standalone audio and animation layers", () => {
 test("Surface content is structured or opaque with no portable source code", () => {
   const opaque = structuredClone(definition);
   opaque.scene.surfaces.baked.content = {
-    kind: "opaque",
     bindings: { label: "label" },
+    kind: "opaque",
   };
   assert.equal(presentationDefinitionV2Schema.safeParse(opaque).success, true);
   assert.equal(validateDefinition(opaque), true, ajv.errorsText(validateDefinition.errors));
@@ -122,8 +125,8 @@ test("state patches cannot replace topology or video identity", () => {
   }
   rejectsDefinition((value) => {
     value.scene.surfaces.video.states.default.contentOverrides.video = {
-      kind: "video",
       assetId: "another-video",
+      kind: "video",
     };
   });
 });
@@ -136,9 +139,9 @@ test("clip controls require positive speed and typed transition", () => {
   }
   rejectsDefinition((value) => {
     value.flow.groups.intro.steps.start.cues[0].actions[0].transition = {
-      kind: "crossfade",
       durationMilliseconds: 0,
       easing: "linear",
+      kind: "crossfade",
     };
   });
 });
@@ -146,8 +149,8 @@ test("clip controls require positive speed and typed transition", () => {
 test("nested guard rejects arbitrary payloads", () => {
   rejectsDefinition((value) => {
     value.flow.groups.intro.steps.start.cues[0].guard = {
+      guards: [{ guard: { kind: "script", body: "true" }, kind: "not" }],
       kind: "all",
-      guards: [{ kind: "not", guard: { kind: "script", body: "true" } }],
     };
   });
 });
@@ -214,7 +217,7 @@ for (const [file, message] of [
     const decoded = execFileSync(
       "protoc",
       [`--descriptor_set_in=${descriptor}`, `--decode=${message}`],
-      { input: encoded, encoding: "utf8" },
+      { encoding: "utf8", input: encoded },
     );
     assert.deepEqual(encode(decoded), encoded);
     assert.ok(encoded.length > 0);
@@ -252,8 +255,8 @@ test("the fixture publication closes over the exact immutable artifacts", async 
         for (const descriptor of descriptors) {
           assert.deepEqual(assets.assets[descriptor.assetId], {
             checksum: descriptor.checksum,
-            mediaType: descriptor.mediaType,
             encodedSizeBytes: descriptor.encodedSizeBytes,
+            mediaType: descriptor.mediaType,
           });
         }
       }
@@ -264,22 +267,22 @@ test("the fixture publication closes over the exact immutable artifacts", async 
 test("typed state overrides and recursive scalar guards remain representable", () => {
   const valid = structuredClone(definition);
   valid.scene.surfaces.baked.states.default.contentOverrides = {
-    text: { kind: "text", value: { kind: "literal", value: "Updated title" } },
     root: { kind: "frame", opacity: 0.5 },
+    text: { kind: "text", value: { kind: "literal", value: "Updated title" } },
   };
   valid.flow.groups.intro.steps.start.cues[0].guard = {
-    kind: "all",
     guards: [
       {
-        kind: "not",
         guard: {
           kind: "compare",
           left: { kind: "variable", variableId: "counter" },
           operator: "lt",
           right: 0,
         },
+        kind: "not",
       },
     ],
+    kind: "all",
   };
   assert.equal(presentationDefinitionV2Schema.safeParse(valid).success, true);
   assert.equal(validateDefinition(valid), true, ajv.errorsText(validateDefinition.errors));

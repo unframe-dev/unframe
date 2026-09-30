@@ -1,59 +1,7 @@
 import { defineComponentManifest } from "@unframe/unframe-authoring";
 
 export default defineComponentManifest({
-  componentId: "reference-surface",
-  version: 1,
-  authoring: {
-    mode: "structured",
-    structure: "./reference-surface.structure.tsx",
-  },
-  props: {
-    title: {
-      kind: "string",
-      required: true,
-    },
-    offset: {
-      kind: "number",
-      default: 64,
-    },
-    showCard: {
-      kind: "boolean",
-      default: true,
-    },
-  },
-  slots: {
-    badge: {
-      kind: "slot",
-    },
-  },
-  parts: {
-    headline: {
-      kind: "part",
-    },
-  },
-  variants: {
-    tone: {
-      kind: "variant",
-      values: ["quiet", "accent"],
-      default: "quiet",
-    },
-  },
-  states: {
-    default: {
-      kind: "state",
-      initial: true,
-    },
-    inactive: {
-      kind: "state",
-    },
-  },
   actions: {
-    fade: {
-      kind: "action",
-      inputs: {},
-      preconditions: [],
-      effects: [{ kind: "playTimeline", timelineId: "fade", completion: "nonBlocking" }],
-    },
     deactivate: {
       kind: "action",
       inputs: {},
@@ -67,13 +15,19 @@ export default defineComponentManifest({
         },
       ],
     },
-  },
-  outputs: {
-    faded: {
-      kind: "output",
-      payload: {},
-      producer: { kind: "timelineCompleted", timelineId: "fade" },
+    fade: {
+      kind: "action",
+      inputs: {},
+      preconditions: [],
+      effects: [{ kind: "playTimeline", timelineId: "fade", completion: "nonBlocking" }],
     },
+  },
+  authoring: {
+    mode: "structured",
+    structure: "./reference-surface.structure.tsx",
+  },
+  componentId: "reference-surface",
+  outputs: {
     continued: {
       kind: "output",
       payload: { accepted: { type: "boolean", value: true } },
@@ -84,6 +38,52 @@ export default defineComponentManifest({
       payload: {},
       producer: { kind: "timer", afterMilliseconds: 1000 },
     },
+    faded: {
+      kind: "output",
+      payload: {},
+      producer: { kind: "timelineCompleted", timelineId: "fade" },
+    },
+  },
+  parts: {
+    headline: {
+      kind: "part",
+    },
+  },
+  props: {
+    offset: {
+      kind: "number",
+      default: 64,
+    },
+    showCard: {
+      kind: "boolean",
+      default: true,
+    },
+    title: {
+      kind: "string",
+      required: true,
+    },
   },
   renderers: ["baked-web"],
+  slots: {
+    badge: {
+      kind: "slot",
+    },
+  },
+  states: {
+    default: {
+      initial: true,
+      kind: "state",
+    },
+    inactive: {
+      kind: "state",
+    },
+  },
+  variants: {
+    tone: {
+      default: "quiet",
+      kind: "variant",
+      values: ["quiet", "accent"],
+    },
+  },
+  version: 1,
 });

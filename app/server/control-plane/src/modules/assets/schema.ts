@@ -10,19 +10,19 @@ export const assetMediaTypeSchema = z.enum([
 ]);
 export const assetInitInputSchema = z
   .object({
+    mediaType: assetMediaTypeSchema,
+    name: z.string().min(1).max(512),
     presentationId: z
       .string()
       .min(1)
       .max(128)
       .regex(/^[A-Za-z0-9_-]+$/),
-    name: z.string().min(1).max(512),
-    mediaType: assetMediaTypeSchema,
+    sha256Hex: z.string().regex(/^[a-f0-9]{64}$/),
     sizeBytes: z
       .number()
       .int()
       .min(1)
       .max(50 * 1024 * 1024),
-    sha256Hex: z.string().regex(/^[a-f0-9]{64}$/),
   })
   .strict();
 

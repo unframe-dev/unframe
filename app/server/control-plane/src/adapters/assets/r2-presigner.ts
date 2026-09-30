@@ -11,7 +11,9 @@ export type R2PresignerEnvironment = Pick<
 const checksumHeader = (sha256Hex: string) => {
   const bytes = new Uint8Array(sha256Hex.match(/.{2}/g)!.map((part) => Number.parseInt(part, 16)));
   let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
   return btoa(binary);
 };
 
@@ -25,33 +27,33 @@ export class R2Presigner implements SignedAccess {
   ) {
     this.client = new AwsClient({
       accessKeyId: environment.R2_ACCESS_KEY_ID,
+      region: "auto",
       secretAccessKey: environment.R2_SECRET_ACCESS_KEY,
       service: "s3",
-      region: "auto",
     });
     this.baseUrl = `https://${environment.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${environment.R2_BUCKET_NAME}`;
   }
 
   async issuePut(input: {
-    objectKey: string;
-    mediaType: AssetMediaType;
-    sizeBytes: number;
-    sha256Hex: string;
     expiresAt: Date;
+    mediaType: AssetMediaType;
+    objectKey: string;
+    sha256Hex: string;
+    sizeBytes: number;
   }): Promise<PutAccess> {
     const checksum = checksumHeader(input.sha256Hex);
     const headers = {
-      "content-type": input.mediaType,
       "content-length": String(input.sizeBytes),
+      "content-type": input.mediaType,
       "x-amz-checksum-sha256": checksum,
     };
     const request = await this.sign(input.objectKey, "PUT", input.expiresAt, headers);
-    return { method: "PUT", url: request.url, expiresAt: input.expiresAt, headers };
+    return { expiresAt: input.expiresAt, headers, method: "PUT", url: request.url };
   }
 
-  async issueDownload(input: { objectKey: string; expiresAt: Date }): Promise<DownloadAccess> {
+  async issueDownload(input: { expiresAt: Date; objectKey: string }): Promise<DownloadAccess> {
     const request = await this.sign(input.objectKey, "GET", input.expiresAt);
-    return { method: "GET", url: request.url, expiresAt: input.expiresAt };
+    return { expiresAt: input.expiresAt, method: "GET", url: request.url };
   }
 
   private sign(key: string, method: "GET" | "PUT", expiresAt: Date, headers?: HeadersInit) {
@@ -60,8 +62,8 @@ export class R2Presigner implements SignedAccess {
       "X-Amz-Expires",
       String(Math.max(1, Math.floor((expiresAt.getTime() - this.now().getTime()) / 1000))),
     );
-    return this.client.sign(new Request(url, headers ? { method, headers } : { method }), {
-      aws: { signQuery: true, allHeaders: true },
+    return this.client.sign(new Request(url, headers ? { headers, method } : { method }), {
+      aws: { allHeaders: true, signQuery: true },
     });
   }
 }

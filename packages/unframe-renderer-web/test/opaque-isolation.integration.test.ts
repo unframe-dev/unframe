@@ -27,10 +27,10 @@ const isolatedFixture = (workerCode: string) => {
     .trim()
     .split("\n");
   return {
-    workerPath,
     browserPath,
+    cleanup: () => rmSync(root, { force: true, recursive: true }),
     runtimePaths,
-    cleanup: () => rmSync(root, { recursive: true, force: true }),
+    workerPath,
   };
 };
 
@@ -66,8 +66,8 @@ describe("isolated opaque worker", () => {
       await expect(
         runIsolatedOpaqueWorker({
           ...fixture,
-          runtimePaths: [...fixture.runtimePaths, packageDirectory],
           input: {},
+          runtimePaths: [...fixture.runtimePaths, packageDirectory],
         }),
       ).rejects.toMatchObject({ code: "opaque-isolation-unavailable" });
     } finally {
@@ -115,19 +115,19 @@ describe("isolated opaque worker", () => {
       process.env.UNFRAME_TEST_SECRET = "must-not-leak";
       await expect(
         runIsolatedOpaqueWorker({
-          workerPath,
           browserPath,
-          runtimePaths: closure,
           input: { marker: "after-ready" },
+          runtimePaths: closure,
+          workerPath,
         }),
       ).resolves.toEqual({
-        input: { marker: "after-ready" },
         browser: "/browser/chrome-headless-shell",
+        input: { marker: "after-ready" },
         secret: null,
       });
     } finally {
       delete process.env.UNFRAME_TEST_SECRET;
-      rmSync(root, { recursive: true, force: true });
+      rmSync(root, { force: true, recursive: true });
     }
   });
 

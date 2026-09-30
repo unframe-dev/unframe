@@ -6,7 +6,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: 1, refetchOnWindowFocus: false },
+          queries: { refetchOnWindowFocus: false, retry: 1 },
         },
       }),
   );

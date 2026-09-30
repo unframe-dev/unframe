@@ -4,29 +4,29 @@ import type { Identity } from "../../presentation/service";
 
 export type AssetStatus = "pending" | "ready" | "failed" | "deleting";
 export type AssetRecord = {
+  createdAt: Date;
+  expiresAt: string;
   id: string;
+  mediaType: AssetMediaType;
+  name: string;
+  objectKey: string;
   ownerId: string;
   presentationId: string;
-  name: string;
-  mediaType: AssetMediaType;
-  sizeBytes: number;
   sha256Hex: string;
-  objectKey: string;
+  sizeBytes: number;
   status: AssetStatus;
-  expiresAt: string;
-  createdAt: Date;
   updatedAt: Date;
 };
 
 export type AssetRepository = {
+  claimDeletion(id: string, statuses: ReadonlyArray<AssetStatus>): Promise<AssetRecord | null>;
   create(record: AssetRecord): Promise<void>;
+  deleteClaimed(id: string): Promise<void>;
   findById(id: string): Promise<AssetRecord | null>;
   findByObjectKey(objectKey: string): Promise<AssetRecord | null>;
-  save(record: AssetRecord): Promise<boolean>;
-  deleteClaimed(id: string): Promise<void>;
-  claimDeletion(id: string, statuses: readonly AssetStatus[]): Promise<AssetRecord | null>;
+  findExpiredUnfinalized(before: Date): Promise<Array<AssetRecord>>;
   isReferenced(id: string): Promise<boolean>;
-  findExpiredUnfinalized(before: Date): Promise<AssetRecord[]>;
+  save(record: AssetRecord): Promise<boolean>;
 };
 
 export type PresentationPermission = {
@@ -35,36 +35,36 @@ export type PresentationPermission = {
 };
 
 export type ObjectStorage = {
+  delete(objectKey: string): Promise<void>;
   head(
     objectKey: string,
-  ): Promise<{ sizeBytes: number; mediaType: string; sha256Hex: string } | null>;
+  ): Promise<{ mediaType: string; sha256Hex: string; sizeBytes: number } | null>;
+  list(prefix: string): Promise<Array<{ objectKey: string; uploadedAt: Date }>>;
   prefix(objectKey: string): Promise<Uint8Array | null>;
-  delete(objectKey: string): Promise<void>;
-  list(prefix: string): Promise<{ objectKey: string; uploadedAt: Date }[]>;
 };
 
 export type PutAccess = {
-  method: "PUT";
-  url: string;
   expiresAt: Date;
   headers: {
-    "content-type": AssetMediaType;
     "content-length": string;
+    "content-type": AssetMediaType;
     "x-amz-checksum-sha256": string;
   };
+  method: "PUT";
+  url: string;
 };
 
-export type DownloadAccess = { method: "GET"; url: string; expiresAt: Date };
+export type DownloadAccess = { expiresAt: Date; method: "GET"; url: string };
 
 export type SignedAccess = {
+  issueDownload(input: { expiresAt: Date; objectKey: string }): Promise<DownloadAccess>;
   issuePut(input: {
-    objectKey: string;
-    mediaType: AssetMediaType;
-    sizeBytes: number;
-    sha256Hex: string;
     expiresAt: Date;
+    mediaType: AssetMediaType;
+    objectKey: string;
+    sha256Hex: string;
+    sizeBytes: number;
   }): Promise<PutAccess>;
-  issueDownload(input: { objectKey: string; expiresAt: Date }): Promise<DownloadAccess>;
 };
 
 export type Clock = { now(): Date };
@@ -72,13 +72,13 @@ export type Clock = { now(): Date };
 export type AssetId = { next(): string; random(): string };
 
 export type AssetServices = {
-  repository: AssetRepository;
-  permission: PresentationPermission;
-  storage: ObjectStorage;
-  signedAccess: SignedAccess;
+  audit?: (entry: Record<string, string>) => void;
   clock: Clock;
   id: AssetId;
-  audit?: (entry: Record<string, string>) => void;
+  permission: PresentationPermission;
+  repository: AssetRepository;
+  signedAccess: SignedAccess;
+  storage: ObjectStorage;
 };
 
 export class AssetError extends Error {
@@ -108,28 +108,28 @@ export class AssetService {
     const expiresAt = new Date(createdAt.getTime() + putAccessDurationMs);
     const id = this.services.id.next();
     const record: AssetRecord = {
+      createdAt,
+      expiresAt: expiresAt.toISOString(),
       id,
+      mediaType: input.mediaType,
+      name: input.name,
+      objectKey: `assets/${id}/${this.services.id.random()}`,
       ownerId: identity.userId,
       presentationId: input.presentationId,
-      name: input.name,
-      mediaType: input.mediaType,
-      sizeBytes: input.sizeBytes,
       sha256Hex: input.sha256Hex,
-      objectKey: `assets/${id}/${this.services.id.random()}`,
+      sizeBytes: input.sizeBytes,
       status: "pending",
-      expiresAt: expiresAt.toISOString(),
-      createdAt,
       updatedAt: createdAt,
     };
     await this.services.repository.create(record);
     let putAccess: PutAccess;
     try {
       putAccess = await this.services.signedAccess.issuePut({
-        objectKey: record.objectKey,
-        mediaType: record.mediaType,
-        sizeBytes: record.sizeBytes,
-        sha256Hex: record.sha256Hex,
         expiresAt,
+        mediaType: record.mediaType,
+        objectKey: record.objectKey,
+        sha256Hex: record.sha256Hex,
+        sizeBytes: record.sizeBytes,
       });
     } catch {
       throw new AssetError("access_unavailable");
@@ -200,8 +200,8 @@ export class AssetService {
     }
     try {
       return await this.services.signedAccess.issueDownload({
-        objectKey: record.objectKey,
         expiresAt: new Date(this.services.clock.now().getTime() + putAccessDurationMs),
+        objectKey: record.objectKey,
       });
     } catch {
       throw new AssetError("access_unavailable");
@@ -230,7 +230,7 @@ export class AssetService {
     }
     await this.services.storage.delete(claimed.objectKey);
     await this.services.repository.deleteClaimed(id);
-    this.audit({ event: "asset_delete", actorId: identity.userId, assetId: id, result: "deleted" });
+    this.audit({ actorId: identity.userId, assetId: id, event: "asset_delete", result: "deleted" });
   }
 
   async collectOrphans(): Promise<{
@@ -256,7 +256,7 @@ export class AssetService {
       }
       await this.services.storage.delete(claimed.objectKey);
       await this.services.repository.deleteClaimed(record.id);
-      this.audit({ event: "asset_gc", assetId: record.id, result: "deleted" });
+      this.audit({ assetId: record.id, event: "asset_gc", result: "deleted" });
       deleted += 1;
     }
     for (const object of await this.services.storage.list("assets/")) {

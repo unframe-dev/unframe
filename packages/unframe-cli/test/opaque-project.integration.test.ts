@@ -2,8 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { parseAllDocuments, stringify } from "yaml";
 import { afterEach, assert, expect, it } from "vitest";
 import {
@@ -20,12 +19,12 @@ import { hashDependencyGraph, type UnframeLockV2 } from "../src/filesystem/lock-
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
 
 const execute = promisify(execFile);
-const repository = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const repository = join(import.meta.dirname, "../../..");
 const reference = join(repository, "examples/presentation");
-const temporary: string[] = [];
+const temporary: Array<string> = [];
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 afterEach(async () => {
-  await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+  await Promise.all(temporary.splice(0).map((path) => rm(path, { force: true, recursive: true })));
 });
 
 const fromReference = async (directory: string) => {
@@ -34,9 +33,9 @@ const fromReference = async (directory: string) => {
   const loaded = loadUnframeLock(discovered.lockBytes);
   assert(loaded.ok);
   const checked = checkAuthoringProject({
-    projectRoot: directory,
     entryFile: discovered.entryFile,
     files: discovered.files,
+    projectRoot: directory,
     ...loaded.value.virtualSource,
   });
   assert(checked.valid);
@@ -47,7 +46,6 @@ const installFrozenGraph = async (directory: string) => {
   const documents = parseAllDocuments(await readFile(join(repository, "pnpm-lock.yaml"), "utf8"));
   const lock = documents.at(-1)?.toJS() as {
     catalogs?: unknown;
-    packageExtensionsChecksum?: unknown;
     importers: Record<
       string,
       {
@@ -55,6 +53,7 @@ const installFrozenGraph = async (directory: string) => {
         devDependencies: Record<string, { specifier: string; version: string }>;
       }
     >;
+    packageExtensionsChecksum?: unknown;
   };
   const web = lock.importers["app/web"]!;
   const runtimeNames = ["@base-ui/react", "react", "react-dom"];
@@ -71,15 +70,15 @@ const installFrozenGraph = async (directory: string) => {
   await writeFile(
     join(directory, "package.json"),
     JSON.stringify({
-      private: true,
-      name: "unframe-opaque-fixture",
-      version: "1.0.0",
       dependencies: Object.fromEntries(
         Object.entries(dependencies).map(([name, item]) => [name, item.specifier]),
       ),
       devDependencies: Object.fromEntries(
         Object.entries(devDependencies).map(([name, item]) => [name, item.specifier]),
       ),
+      name: "unframe-opaque-fixture",
+      private: true,
+      version: "1.0.0",
     }),
   );
   await writeFile(join(directory, "pnpm-lock.yaml"), stringify(lock));
@@ -107,47 +106,49 @@ const createProject = async (mixed = false) => {
   assert(sdkEdge);
   const next = {
     ...loaded,
+    assets: mixed ? loaded.assets : [],
     packageManagerLockHash: graph.packageManagerLockHash,
+    packages: [...graph.packages, sdkPackage].sort((a, b) => compare(a.key, b.key)),
     rootDependencies: [...graph.rootDependencies, sdkEdge].sort((a, b) =>
       compare(`${a.specifier}\0${a.usage}`, `${b.specifier}\0${b.usage}`),
     ),
-    packages: [...graph.packages, sdkPackage].sort((a, b) => compare(a.key, b.key)),
-    assets: mixed ? loaded.assets : [],
   };
   const fresh: UnframeLockV2 = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
   await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(fresh) + "\n");
-  for (const name of await readdir(directory))
+  for (const name of await readdir(directory)) {
     if (
       !mixed &&
       (name.endsWith(".manifest.ts") ||
         name.endsWith(".structure.tsx") ||
         name === "reference-locks.ts")
-    )
+    ) {
       await rm(join(directory, name));
+    }
+  }
   const { theme: _unusedTheme, ...initialWithoutTheme } = initial;
   const presentation = {
     ...initialWithoutTheme,
-    scene: [
-      {
-        id: "hero-one",
-        component: { id: "hero", version: 1 },
-        props: { title: "Locked React" },
-        owner: { kind: "presentation" },
-        audience: { kind: "all" },
-        parent: { kind: "stage" },
-        physicalSizeMeters: [1.6, 0.9],
-        fit: "contain",
-        transform: { position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-      },
-    ],
     assets: [],
     flow: {
-      initialGroupId: "main",
       groups: {
         main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
       },
+      initialGroupId: "main",
       variables: {},
     },
+    scene: [
+      {
+        audience: { kind: "all" },
+        component: { id: "hero", version: 1 },
+        fit: "contain",
+        id: "hero-one",
+        owner: { kind: "presentation" },
+        parent: { kind: "stage" },
+        physicalSizeMeters: [1.6, 0.9],
+        props: { title: "Locked React" },
+        transform: { position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      },
+    ],
   };
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
@@ -187,12 +188,12 @@ html, body { margin: 0; }
   const frozen = loadUnframeLock(discovered.lockBytes);
   assert(frozen.ok);
   const checked = checkAuthoringProject({
-    projectRoot: directory,
     entryFile: discovered.entryFile,
     files: discovered.files,
+    projectRoot: directory,
     rawFiles: discovered.localFiles
       .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
-      .map(({ path, bytes }) => lockedFile(path, bytes)),
+      .map(({ bytes, path }) => lockedFile(path, bytes)),
     ...frozen.value.virtualSource,
   });
   assert(checked.valid, JSON.stringify(checked.diagnostics));
@@ -205,8 +206,11 @@ const distBytes = async (directory: string) => {
     const names = await readdir(join(directory, "dist", path), { withFileTypes: true });
     for (const name of names) {
       const relative = path ? `${path}/${name.name}` : name.name;
-      if (name.isDirectory()) await visit(relative);
-      else output.set(relative, await readFile(join(directory, "dist", relative)));
+      if (name.isDirectory()) {
+        await visit(relative);
+      } else {
+        output.set(relative, await readFile(join(directory, "dist", relative)));
+      }
     }
   };
   await visit("");
@@ -307,10 +311,10 @@ export const Hero = defineComponent({
       .sort(),
   ).toEqual([0, 1]);
   const integrity = verifyBuildIntegrityV2({
-    definition,
-    renderBundle,
     assetSet: await readJson("asset-set.json"),
     buildManifest: await readJson("build-manifest.json"),
+    definition,
+    renderBundle,
   });
   expect(integrity.valid, JSON.stringify(integrity.diagnostics)).toBe(true);
   expect(bytes.some(([path]) => /\.(?:tsx?|jsx?|css)$/.test(path))).toBe(false);

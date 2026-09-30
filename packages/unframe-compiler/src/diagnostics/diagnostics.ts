@@ -3,15 +3,15 @@ import type { Diagnostic } from "@unframe/unframe-core";
 
 export const diagnostic = (
   code: string,
-  path: readonly (string | number)[],
+  path: ReadonlyArray<string | number>,
   message: string,
 ): Diagnostic => ({
   code,
-  path,
   message,
+  path,
 });
 
-export const sortDiagnostics = (items: Diagnostic[]) =>
+export const sortDiagnostics = (items: Array<Diagnostic>) =>
   items.sort((left, right) => {
     const a = `${left.path.join("/")}\u0000${left.code}`;
     const b = `${right.path.join("/")}\u0000${right.code}`;
@@ -26,8 +26,8 @@ export const safelyIsDiagnostic = (value: unknown): value is Diagnostic => {
     return z
       .strictObject({
         code: z.string(),
-        path: z.array(z.union([z.string(), z.number()])),
         message: z.string(),
+        path: z.array(z.union([z.string(), z.number()])),
         relatedPath: z.array(z.union([z.string(), z.number()])).optional(),
       })
       .safeParse(value).success;

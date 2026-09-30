@@ -15,20 +15,23 @@ import {
 } from "./fixtures/static-renderer.js";
 
 const frameOnlyInput = (source: CompilerResolvedSurfaceInput): CompilerResolvedSurfaceInput => {
-  if (source.surface.content.kind !== "structured") throw new Error("Expected structured fixture.");
-  const { root, nested, clipped } = source.surface.content.nodes;
-  if (!root || root.kind !== "frame" || !nested || nested.kind !== "frame" || !clipped)
+  if (source.surface.content.kind !== "structured") {
+    throw new Error("Expected structured fixture.");
+  }
+  const { clipped, nested, root } = source.surface.content.nodes;
+  if (!root || root.kind !== "frame" || !nested || nested.kind !== "frame" || !clipped) {
     throw new TypeError("Expected nested Frame fixture.");
+  }
   return {
     ...source,
+    fontAssets: {},
     surface: {
       ...source.surface,
       content: {
         ...source.surface.content,
-        nodes: { root, nested: { ...nested, children: ["clipped"] }, clipped },
+        nodes: { clipped, nested: { ...nested, children: ["clipped"] }, root },
       },
     },
-    fontAssets: {},
   };
 };
 
@@ -38,21 +41,21 @@ describe("Playwright Fixed Browser integration", () => {
     const secondSession = await openPlaywrightFixedBrowser();
     try {
       const request = {
-        stateId: "default",
+        capabilities: {
+          clock: "fixed",
+          colorSpace: "srgb",
+          deviceScaleFactor: 1,
+          filesystem: "deny",
+          network: "deny",
+          random: "fixed",
+        },
+        colorScheme: "light",
         document:
           '<!doctype html><html><body style="margin:0;background:rgb(255,0,0)"><script>const bytes=new Uint8Array(4);crypto.getRandomValues(bytes);const value=[Date.now(),Date(),performance.now(),performance.timeOrigin,Math.random(),crypto.randomUUID(),...bytes].join(":");let hash=0;for(const char of value)hash=(hash*31+char.charCodeAt(0))>>>0;document.body.style.background=`rgb(${hash&255},${(hash>>>8)&255},1)`</script></body></html>',
+        environment: session.environment,
         fontFaceCount: 0,
         pixelTarget: [2, 1],
-        colorScheme: "light",
-        environment: session.environment,
-        capabilities: {
-          network: "deny",
-          filesystem: "deny",
-          clock: "fixed",
-          random: "fixed",
-          deviceScaleFactor: 1,
-          colorSpace: "srgb",
-        },
+        stateId: "default",
       } as const;
       const capture = await session.capture(request);
       const repeated = await session.capture(request);
@@ -74,48 +77,50 @@ describe("Playwright Fixed Browser integration", () => {
   it("実Renderer documentのnested Frameを親相対配置しstyle・clip・font順を維持する", async () => {
     const browser = await chromium.launch({ headless: true });
     let captureCount = 0;
-    const observations: unknown[] = [];
+    const observations: Array<unknown> = [];
     try {
       const renderer = createBakedWebRenderer({
         adapter: {
-          identity: adapterIdentity,
-          environment,
           async capture(request) {
             captureCount++;
             const page = await browser.newPage({
-              viewport: { width: request.pixelTarget[0], height: request.pixelTarget[1] },
+              viewport: { height: request.pixelTarget[1], width: request.pixelTarget[0] },
             });
             try {
               await page.setContent(request.document);
               const layout = await page.locator('[data-node-id="nested"]').evaluate((frame) => {
                 const view = frame.ownerDocument.defaultView;
-                if (!view) throw new TypeError("Browser document has no window.");
+                if (!view) {
+                  throw new TypeError("Browser document has no window.");
+                }
                 const text = frame.querySelector('[data-node-id="text-second"]');
                 const clipped = frame.querySelector('[data-node-id="clipped"]');
-                if (!text || !clipped) throw new TypeError("Nested fixture is incomplete.");
+                if (!text || !clipped) {
+                  throw new TypeError("Nested fixture is incomplete.");
+                }
                 const frameRect = frame.getBoundingClientRect();
                 const textRect = text.getBoundingClientRect();
                 const clippedRect = clipped.getBoundingClientRect();
                 const frameStyle = view.getComputedStyle(frame);
                 const textStyle = view.getComputedStyle(text);
                 return {
-                  frameRect: [frameRect.x, frameRect.y, frameRect.width, frameRect.height],
-                  textRect: [textRect.x, textRect.y, textRect.width, textRect.height],
+                  childOrder: [...(frame.firstElementChild?.children ?? [])].map((child) =>
+                    child.getAttribute("data-node-id"),
+                  ),
                   clippedRect: [
                     clippedRect.x,
                     clippedRect.y,
                     clippedRect.width,
                     clippedRect.height,
                   ],
-                  childOrder: [...(frame.firstElementChild?.children ?? [])].map((child) =>
-                    child.getAttribute("data-node-id"),
-                  ),
+                  frameRect: [frameRect.x, frameRect.y, frameRect.width, frameRect.height],
                   frameStyle: {
                     backgroundColor: frameStyle.backgroundColor,
                     borderTopWidth: frameStyle.borderTopWidth,
                     opacity: frameStyle.opacity,
                     overflow: frameStyle.overflow,
                   },
+                  textRect: [textRect.x, textRect.y, textRect.width, textRect.height],
                   textStyle: {
                     color: textStyle.color,
                     fontFamily: textStyle.fontFamily,
@@ -135,12 +140,14 @@ describe("Playwright Fixed Browser integration", () => {
               await page.close();
             }
             return {
-              rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4).fill(255),
-              pixelSize: request.pixelTarget,
-              colorSpace: "srgb" as const,
               alphaMode: "opaque" as const,
+              colorSpace: "srgb" as const,
+              pixelSize: request.pixelTarget,
+              rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4).fill(255),
             };
           },
+          environment,
+          identity: adapterIdentity,
         },
         config,
       });
@@ -152,25 +159,26 @@ describe("Playwright Fixed Browser integration", () => {
       expect(result).toMatchObject({ ok: true });
       expect(captureCount).toBe(2);
       expect(observations).toHaveLength(2);
-      for (const observation of observations)
+      for (const observation of observations) {
         expect(observation).toEqual({
-          frameRect: [20, 10, 120, 60],
-          textRect: [34, 16, 40, 16],
-          clippedRect: [130, 20, 40, 20],
           childOrder: ["text-first", "text-second", "clipped"],
+          clipHit: true,
+          clippedRect: [130, 20, 40, 20],
+          frameRect: [20, 10, 120, 60],
           frameStyle: {
             backgroundColor: "rgba(0, 0, 0, 0)",
             borderTopWidth: "4px",
             opacity: "0.75",
             overflow: "hidden",
           },
+          textRect: [34, 16, 40, 16],
           textStyle: {
             color: "rgb(255, 255, 255)",
             fontFamily: expectedFontFamily,
             fontSize: "20px",
           },
-          clipHit: true,
         });
+      }
     } finally {
       await browser.close();
     }
@@ -181,32 +189,34 @@ describe("Playwright Fixed Browser integration", () => {
     try {
       const renderer = createBakedWebRenderer({
         adapter: {
-          identity: session.identity,
-          environment: session.environment,
           capture: session.capture,
+          environment: session.environment,
+          identity: session.identity,
         },
         config,
       });
       const source = frameOnlyInput(nestedInputFor(createWebRendererConfigHash(config), renderer));
       const input: CompilerResolvedSurfaceInput = {
         ...source,
+        context: { ...source.context, pixelTarget: [10, 10] },
         plan: {
           ...source.plan,
-          logicalBounds: { x: 60, y: 10, width: 10, height: 10 },
           clipWindow: { x: 60, y: 10, width: 10, height: 10 },
+          logicalBounds: { x: 60, y: 10, width: 10, height: 10 },
           ownership: {
+            contextNodeIds: ["root", "nested"],
             kind: "structured",
             ownedContentNodeIds: ["clipped"],
-            contextNodeIds: ["root", "nested"],
           },
           states: { a: { kind: "capture" }, z: { kind: "empty" } },
         },
-        context: { ...source.context, pixelTarget: [10, 10] },
       };
 
       const result = await renderer.build(input);
 
-      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      if (!result.ok) {
+        throw new Error(JSON.stringify(result.diagnostics));
+      }
       expect(result.ok).toBe(true);
       expect(result.captures).toHaveLength(1);
       expect(result.captures[0]?.pixelSize).toEqual([10, 10]);
@@ -225,9 +235,9 @@ describe("Playwright Fixed Browser integration", () => {
     try {
       const renderer = createBakedWebRenderer({
         adapter: {
-          identity: session.identity,
-          environment: session.environment,
           capture: session.capture,
+          environment: session.environment,
+          identity: session.identity,
         },
         config,
       });
@@ -237,9 +247,9 @@ describe("Playwright Fixed Browser integration", () => {
         plan: {
           ...source.plan,
           ownership: {
+            contextNodeIds: [],
             kind: "structured",
             ownedContentNodeIds: ["root", "nested", "clipped"],
-            contextNodeIds: [],
           },
           states: { a: { kind: "capture" }, z: { kind: "empty" } },
         },
@@ -248,30 +258,31 @@ describe("Playwright Fixed Browser integration", () => {
         ...full,
         plan: {
           ...full.plan,
-          ownership: { kind: "structured", ownedContentNodeIds: ["root"], contextNodeIds: [] },
+          ownership: { contextNodeIds: [], kind: "structured", ownedContentNodeIds: ["root"] },
         },
       };
       const foreground: CompilerResolvedSurfaceInput = {
         ...full,
+        context: { ...full.context, pixelTarget: [120, 60] },
         plan: {
           ...full.plan,
-          logicalBounds: { x: 10, y: 5, width: 60, height: 30 },
           clipWindow: { x: 10, y: 5, width: 60, height: 30 },
+          logicalBounds: { x: 10, y: 5, width: 60, height: 30 },
           ownership: {
+            contextNodeIds: ["root"],
             kind: "structured",
             ownedContentNodeIds: ["nested", "clipped"],
-            contextNodeIds: ["root"],
           },
         },
-        context: { ...full.context, pixelTarget: [120, 60] },
       };
       const [whole, back, front] = await Promise.all([
         renderer.build(full),
         renderer.build(background),
         renderer.build(foreground),
       ]);
-      if (!whole.ok || !back.ok || !front.ok)
+      if (!whole.ok || !back.ok || !front.ok) {
         throw new Error(JSON.stringify([whole, back, front].filter((result) => !result.ok)));
+      }
       expect(whole.ok && back.ok && front.ok).toBe(true);
       const wholeRgba = whole.captures[0]?.rgba;
       const backRgba = back.captures[0]?.rgba;
@@ -279,7 +290,9 @@ describe("Playwright Fixed Browser integration", () => {
       expect(wholeRgba).toBeDefined();
       expect(backRgba).toBeDefined();
       expect(frontRgba).toBeDefined();
-      if (!wholeRgba || !backRgba || !frontRgba) return;
+      if (!wholeRgba || !backRgba || !frontRgba) {
+        return;
+      }
       let largestDifference = 0;
       for (let y = 0; y < 100; y++) {
         for (let x = 0; x < 200; x++) {

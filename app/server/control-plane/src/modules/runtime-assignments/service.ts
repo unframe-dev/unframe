@@ -19,11 +19,13 @@ export class RuntimeAssignmentService {
     const leaseExpiresAt = canonicalFutureLeaseExpiry(input.leaseExpiresAt, now);
     const result = await this.repository.assign({
       ...input,
+      edgeHealthyAfter: new Date(now.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
       issuedAt: now.toISOString(),
       leaseExpiresAt,
-      edgeHealthyAfter: new Date(now.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
     });
-    if (!result) throw new RuntimeAssignmentError("conflict");
+    if (!result) {
+      throw new RuntimeAssignmentError("conflict");
+    }
     return result;
   }
   async active(sessionId: string) {
@@ -33,7 +35,9 @@ export class RuntimeAssignmentService {
       now.toISOString(),
       new Date(now.getTime() - maximumEdgeHeartbeatAgeMs).toISOString(),
     );
-    if (!result) throw new RuntimeAssignmentError("conflict");
+    if (!result) {
+      throw new RuntimeAssignmentError("conflict");
+    }
     return result;
   }
   async renew(input: Omit<LeaseRequest, "now"> & { leaseExpiresAt: string }) {
@@ -44,15 +48,18 @@ export class RuntimeAssignmentService {
     }
     const result = await this.repository.renew({
       ...input,
-      now: now.toISOString(),
       leaseExpiresAt,
+      now: now.toISOString(),
     });
-    if (!result) throw new RuntimeAssignmentError("conflict");
+    if (!result) {
+      throw new RuntimeAssignmentError("conflict");
+    }
     return result;
   }
   async release(input: Omit<LeaseRequest, "now">) {
-    if (!(await this.repository.release({ ...input, now: this.now().toISOString() })))
+    if (!(await this.repository.release({ ...input, now: this.now().toISOString() }))) {
       throw new RuntimeAssignmentError("conflict");
+    }
   }
   async releaseSession(sessionId: string) {
     await this.repository.releaseSession(sessionId, this.now().toISOString());

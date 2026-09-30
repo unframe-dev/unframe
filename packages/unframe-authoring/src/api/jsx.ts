@@ -37,15 +37,18 @@ export const Frame = (props: FrameProps): AuthoringElement => {
 };
 export const Surface = (props: SurfaceProps): AuthoringElement => {
   const { children, ...attributes } = snapshotProps(props);
-  if (Object.hasOwn(attributes, "root")) throw new TypeError("Surface uses its JSX child as root.");
+  if (Object.hasOwn(attributes, "root")) {
+    throw new TypeError("Surface uses its JSX child as root.");
+  }
   return element(
     surface({ ...attributes, root: children } as unknown as Omit<SurfaceDeclaration, "kind">),
   );
 };
 export const Text = (props: TextProps): AuthoringElement => {
   const attributes = snapshotProps(props);
-  if (Object.hasOwn(attributes, "value") && Object.hasOwn(attributes, "children"))
+  if (Object.hasOwn(attributes, "value") && Object.hasOwn(attributes, "children")) {
     throw new TypeError("Text accepts either value or children, not both.");
+  }
   const { children, ...rest } = attributes;
   const value = Object.hasOwn(attributes, "value") ? attributes.value : children;
   return element(text({ ...rest, value } as Omit<TextDeclaration, "kind">));

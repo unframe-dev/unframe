@@ -2,8 +2,7 @@ import { Client, isFullPage } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
-import { dirname, join, posix, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, posix, relative, resolve, sep } from "node:path";
 
 const TOKEN = process.env.NOTION_TOKEN;
 const ROOT = process.env.NOTION_ROOT_PAGE_ID;
@@ -14,7 +13,7 @@ if (!TOKEN || !ROOT) {
 }
 
 // 出力先 = リポジトリの docs/notion/ (Notion ミラー専用ディレクトリ)
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const SCRIPT_DIR = import.meta.dirname;
 // scripts/docs/notion-sync/ から リポジトリルートの docs/notion/ へ (3 階層上)
 const OUT_DIR = resolve(SCRIPT_DIR, "../../../docs/notion");
 const ASSETS_DIR = join(OUT_DIR, ".assets");
@@ -32,7 +31,9 @@ function configureImageTransformer(pageOutputDir: string): void {
   n2m.setCustomTransformer("image", async (block) => {
     const b = block as { id: string; image?: ImageBlock };
     const image = b.image;
-    if (!image) return "";
+    if (!image) {
+      return "";
+    }
 
     const url = image.type === "external" ? image.external.url : image.file.url;
     const caption = (image.caption ?? [])
@@ -40,12 +41,14 @@ function configureImageTransformer(pageOutputDir: string): void {
       .join("")
       .trim();
 
-    const blockId = b.id.replace(/-/g, "");
+    const blockId = b.id.replaceAll("-", "");
     let savedRelPath: string | null = null;
 
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const ext = pickExt(res.headers.get("content-type"), url);
       const filename = `${blockId}.${ext}`;
       const filepath = join(ASSETS_DIR, filename);
@@ -58,8 +61,8 @@ function configureImageTransformer(pageOutputDir: string): void {
 
       // MD 内のリンクは POSIX パスで統一
       savedRelPath = relative(pageOutputDir, filepath).split(sep).join(posix.sep);
-    } catch (err) {
-      console.warn(`  ! image download failed (${blockId}): ${(err as Error).message}`);
+    } catch (error) {
+      console.warn(`  ! image download failed (${blockId}): ${(error as Error).message}`);
       return `![${caption}](${url} "download failed at sync")`;
     }
 
@@ -68,17 +71,27 @@ function configureImageTransformer(pageOutputDir: string): void {
 }
 
 type RichText = { plain_text: string };
-type ExternalImage = { type: "external"; external: { url: string }; caption?: RichText[] };
-type FileImage = { type: "file"; file: { url: string }; caption?: RichText[] };
+type ExternalImage = { caption?: Array<RichText>; external: { url: string }; type: "external" };
+type FileImage = { caption?: Array<RichText>; file: { url: string }; type: "file" };
 type ImageBlock = ExternalImage | FileImage;
 
 function pickExt(contentType: string | null, url: string): string {
   if (contentType) {
-    if (contentType.includes("png")) return "png";
-    if (contentType.includes("jpeg")) return "jpg";
-    if (contentType.includes("gif")) return "gif";
-    if (contentType.includes("webp")) return "webp";
-    if (contentType.includes("svg")) return "svg";
+    if (contentType.includes("png")) {
+      return "png";
+    }
+    if (contentType.includes("jpeg")) {
+      return "jpg";
+    }
+    if (contentType.includes("gif")) {
+      return "gif";
+    }
+    if (contentType.includes("webp")) {
+      return "webp";
+    }
+    if (contentType.includes("svg")) {
+      return "svg";
+    }
   }
   const m = url.split("?")[0]?.match(/\.([a-zA-Z0-9]{2,5})$/);
   return m?.[1]?.toLowerCase() ?? "bin";
@@ -86,22 +99,24 @@ function pickExt(contentType: string | null, url: string): string {
 
 function slugify(title: string): string {
   const cleaned = title
-    .replace(/[/\\:*?"<>|]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/^[.-]+|[.-]+$/g, "")
+    .replaceAll(/[/\\:*?"<>|]/g, "")
+    .replaceAll(/\s+/g, "-")
+    .replaceAll(/^[.-]+|[.-]+$/g, "")
     .slice(0, 80);
   return cleaned || "untitled";
 }
 
 function extractTitle(page: { properties: Record<string, unknown> }): string {
   for (const value of Object.values(page.properties)) {
-    const prop = value as { type?: string; title?: RichText[] };
+    const prop = value as { title?: Array<RichText>; type?: string };
     if (prop.type === "title" && prop.title) {
       const t = prop.title
         .map((x) => x.plain_text)
         .join("")
         .trim();
-      if (t) return t;
+      if (t) {
+        return t;
+      }
     }
   }
   return "Untitled";
@@ -112,20 +127,24 @@ function extractTitle(page: { properties: Record<string, unknown> }): string {
 async function getChildPageIds(
   blockId: string,
   visited: Set<string> = new Set(),
-): Promise<string[]> {
-  if (visited.has(blockId)) return [];
+): Promise<Array<string>> {
+  if (visited.has(blockId)) {
+    return [];
+  }
   visited.add(blockId);
 
-  const ids: string[] = [];
+  const ids: Array<string> = [];
   let cursor: string | undefined;
   do {
     const res = await notion.blocks.children.list({
       block_id: blockId,
-      start_cursor: cursor,
       page_size: 100,
+      start_cursor: cursor,
     });
     for (const block of res.results) {
-      if (!("type" in block)) continue;
+      if (!("type" in block)) {
+        continue;
+      }
       if (block.type === "child_page") {
         ids.push(block.id);
         continue;
@@ -151,21 +170,27 @@ async function getChildPageIds(
 // ルートページ自体に Integration が共有されていない場合の救済。
 // Search API で Integration がアクセス可能なページを列挙し、parent.page_id が
 // ROOT に一致するものだけ拾う。
-async function searchDirectChildren(parentId: string): Promise<string[]> {
-  const normalized = parentId.replace(/-/g, "");
-  const ids: string[] = [];
+async function searchDirectChildren(parentId: string): Promise<Array<string>> {
+  const normalized = parentId.replaceAll("-", "");
+  const ids: Array<string> = [];
   let cursor: string | undefined;
   do {
     const res = await notion.search({
       filter: { property: "object", value: "page" },
-      start_cursor: cursor,
       page_size: 100,
+      start_cursor: cursor,
     });
     for (const result of res.results) {
-      if (result.object !== "page") continue;
-      const parent = (result as { parent?: { type?: string; page_id?: string } }).parent;
-      if (parent?.type !== "page_id" || !parent.page_id) continue;
-      if (parent.page_id.replace(/-/g, "") === normalized) ids.push(result.id);
+      if (result.object !== "page") {
+        continue;
+      }
+      const parent = (result as { parent?: { page_id?: string; type?: string } }).parent;
+      if (parent?.type !== "page_id" || !parent.page_id) {
+        continue;
+      }
+      if (parent.page_id.replaceAll("-", "") === normalized) {
+        ids.push(result.id);
+      }
     }
     cursor = res.next_cursor ?? undefined;
   } while (cursor);
@@ -174,19 +199,21 @@ async function searchDirectChildren(parentId: string): Promise<string[]> {
 
 // ルート直下の子ページ ID を取得。まず blocks.children.list を試し、
 // ルート自体にアクセス権がない場合は search にフォールバック。
-async function listRootChildren(rootId: string): Promise<string[]> {
+async function listRootChildren(rootId: string): Promise<Array<string>> {
   try {
     return await getChildPageIds(rootId);
-  } catch (err) {
-    const e = err as { code?: string };
-    if (e.code !== "object_not_found") throw err;
+  } catch (error) {
+    const e = error as { code?: string };
+    if (e.code !== "object_not_found") {
+      throw error;
+    }
     console.warn("root page is not shared with the integration; falling back to search API");
     return await searchDirectChildren(rootId);
   }
 }
 
 function buildFrontmatter(
-  page: { id: string; created_time: string; last_edited_time: string; url: string },
+  page: { created_time: string; id: string; last_edited_time: string; url: string },
   title: string,
 ): string {
   return [
@@ -203,13 +230,17 @@ function buildFrontmatter(
 
 async function syncPage(pageId: string, parentDir: string, usedSlugs: Set<string>): Promise<void> {
   const page = await notion.pages.retrieve({ page_id: pageId });
-  if (!isFullPage(page) || page.archived) return;
+  if (!isFullPage(page) || page.archived) {
+    return;
+  }
 
   const title = extractTitle(page as unknown as { properties: Record<string, unknown> });
   const base = slugify(title);
   let slug = base;
   let suffix = 2;
-  while (usedSlugs.has(slug)) slug = `${base}-${suffix++}`;
+  while (usedSlugs.has(slug)) {
+    slug = `${base}-${suffix++}`;
+  }
   usedSlugs.add(slug);
 
   const childIds = await getChildPageIds(pageId);
@@ -240,7 +271,7 @@ async function cleanOutDir(): Promise<void> {
   await Promise.all(
     entries
       .filter((e) => !PRESERVE_ENTRIES.has(e))
-      .map((e) => rm(join(OUT_DIR, e), { recursive: true, force: true })),
+      .map((e) => rm(join(OUT_DIR, e), { force: true, recursive: true })),
   );
 }
 
@@ -250,21 +281,25 @@ async function syncRootAsFile(rootId: string, usedSlugs: Set<string>): Promise<v
   let page: Awaited<ReturnType<typeof notion.pages.retrieve>>;
   try {
     page = await notion.pages.retrieve({ page_id: rootId });
-  } catch (err) {
-    const e = err as { code?: string };
+  } catch (error) {
+    const e = error as { code?: string };
     if (e.code === "object_not_found") {
       console.warn("root page not accessible to integration; skipping root file");
       return;
     }
-    throw err;
+    throw error;
   }
-  if (!isFullPage(page) || page.archived) return;
+  if (!isFullPage(page) || page.archived) {
+    return;
+  }
 
   const title = extractTitle(page as unknown as { properties: Record<string, unknown> });
   const base = slugify(title);
   let slug = base;
   let suffix = 2;
-  while (usedSlugs.has(slug)) slug = `${base}-${suffix++}`;
+  while (usedSlugs.has(slug)) {
+    slug = `${base}-${suffix++}`;
+  }
   usedSlugs.add(slug);
 
   configureImageTransformer(OUT_DIR);
@@ -277,7 +312,9 @@ async function syncRootAsFile(rootId: string, usedSlugs: Set<string>): Promise<v
 }
 
 async function main(): Promise<void> {
-  if (!ROOT) throw new Error("NOTION_ROOT_PAGE_ID is required");
+  if (!ROOT) {
+    throw new Error("NOTION_ROOT_PAGE_ID is required");
+  }
 
   // 削除も差分に反映させるため、docs/notion/ 配下を毎回作り直す (PRESERVE_ENTRIES を除く)
   await cleanOutDir();
@@ -299,7 +336,7 @@ async function main(): Promise<void> {
   console.log("done.");
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

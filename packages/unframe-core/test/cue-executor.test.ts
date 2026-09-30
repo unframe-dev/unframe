@@ -6,26 +6,26 @@ import { makeM3AArtifacts } from "./fixtures.js";
 const setup = () => {
   const { definition } = makeM3AArtifacts();
   definition.scene.surfaces.baked!.states.shown = {
-    id: "shown",
     contentOverrides: {},
-    semanticOverrides: [],
     enabledInteractionIds: [],
+    id: "shown",
+    semanticOverrides: [],
   };
   definition.flow.variables.count = {
     id: "count",
+    initialValue: 0,
     owner: { kind: "presentation" },
     type: "number",
-    initialValue: 0,
   };
   return definition;
 };
 
 const input = {
-  kind: "logicalInput" as const,
   action: "next",
   actor: { kind: "participant" as const, role: "presenter" as const },
-  payload: {},
   causeEventId: "input-1",
+  kind: "logicalInput" as const,
+  payload: {},
 };
 
 describe("pure Cue executor", () => {
@@ -33,71 +33,71 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "low",
-        priority: 1,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 1 } },
+          { kind: "variable.set", value: { kind: "literal", value: 1 }, variableId: "count" },
         ],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "low",
         next: { kind: "stay" },
+        order: 0,
+        priority: 1,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
       {
-        id: "high",
-        priority: 2,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 2 } },
+          { kind: "variable.set", value: { kind: "literal", value: 2 }, variableId: "count" },
         ],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "high",
         next: { kind: "stay" },
+        order: 0,
+        priority: 2,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const first = executeCueEvent(definition, createCueState(definition, 1), input);
-    expect(first.outcome).toEqual({ kind: "accepted", cueId: "high" });
+    expect(first.outcome).toEqual({ cueId: "high", kind: "accepted" });
     expect(first.state.variables.count).toBe(2);
     expect(first.state.consumedCueIds).toEqual(["high"]);
     const second = executeCueEvent(definition, first.state, input);
-    expect(second.outcome).toEqual({ kind: "accepted", cueId: "low" });
+    expect(second.outcome).toEqual({ cueId: "low", kind: "accepted" });
   });
 
   it("does not fall back when the selected batch fails", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "high",
-        priority: 2,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [
           {
             kind: "variable.set",
-            variableId: "count",
             value: { kind: "eventPayload", field: "missing" },
+            variableId: "count",
           },
         ],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "high",
         next: { kind: "stay" },
+        order: 0,
+        priority: 2,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
       {
-        id: "low",
-        priority: 1,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 3 } },
+          { kind: "variable.set", value: { kind: "literal", value: 3 }, variableId: "count" },
         ],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "low",
         next: { kind: "stay" },
+        order: 0,
+        priority: 1,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const state = createCueState(definition, 1);
     const result = executeCueEvent(definition, state, input);
     expect(result.outcome).toEqual({
-      kind: "rejected",
       cueId: "high",
+      kind: "rejected",
       reason: "invalidActionValue",
     });
     expect(result.state).toEqual(state);
@@ -105,20 +105,20 @@ describe("pure Cue executor", () => {
 
   it("enters a Step with an empty batch and resets consumption", () => {
     const definition = setup();
-    definition.flow.groups.intro!.steps.next = { id: "next", cues: [] };
+    definition.flow.groups.intro!.steps.next = { cues: [], id: "next" };
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "advance",
-        priority: 0,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "advance",
         next: { kind: "step", stepId: "next" },
+        order: 0,
+        priority: 0,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const result = executeCueEvent(definition, createCueState(definition, 1), input);
-    expect(result.outcome).toEqual({ kind: "accepted", cueId: "advance" });
+    expect(result.outcome).toEqual({ cueId: "advance", kind: "accepted" });
     expect(result.state.currentStepId).toBe("next");
     expect(result.state.stepEntryEpoch).toBe(2);
     expect(result.state.consumedCueIds).toEqual([]);
@@ -128,18 +128,18 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "ack",
-        priority: 0,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "ack",
         next: { kind: "stay" },
+        order: 0,
+        priority: 0,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const state = createCueState(definition, 1);
     const result = executeCueEvent(definition, state, input);
-    expect(result.outcome).toEqual({ kind: "accepted", cueId: "ack" });
+    expect(result.outcome).toEqual({ cueId: "ack", kind: "accepted" });
     expect(result.state.currentStepId).toBe("start");
     expect(result.state.stepEntryEpoch).toBe(state.stepEntryEpoch);
     expect(result.state.consumedCueIds).toEqual(["ack"]);
@@ -149,19 +149,19 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "timer",
-        priority: 0,
-        order: 0,
-        trigger: { kind: "timer", afterMilliseconds: 10 },
+        actions: [],
+        firePolicy: { kind: "oncePerStepEntry" },
         guard: {
           kind: "compare",
           left: { kind: "variable", variableId: "count" },
           operator: "eq",
           right: 1,
         },
-        firePolicy: { kind: "oncePerStepEntry" },
-        actions: [],
+        id: "timer",
         next: { kind: "stay" },
+        order: 0,
+        priority: 0,
+        trigger: { afterMilliseconds: 10, kind: "timer" },
       },
     ];
     const first = advanceCueClock(definition, createCueState(definition, 1), 10);
@@ -171,11 +171,11 @@ describe("pure Cue executor", () => {
     expect(again.outcomes).toEqual([]);
     expect(
       executeCueEvent(definition, first.state, {
-        kind: "timer",
-        cueId: "timer",
         actor: { kind: "system", source: "timer" },
-        payload: {},
         causeEventId: "timer-1",
+        cueId: "timer",
+        kind: "timer",
+        payload: {},
       }).outcome,
     ).toEqual({ kind: "none" });
   });
@@ -184,26 +184,26 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "payload",
-        priority: 0,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        fixedPayload: { value: 4 },
-        guard: {
-          kind: "compare",
-          left: { kind: "eventPayload", field: "value" },
-          operator: "eq",
-          right: 4,
-        },
-        firePolicy: { kind: "repeatable", cooldownMilliseconds: 10 },
         actions: [
           {
             kind: "variable.set",
-            variableId: "count",
             value: { kind: "eventPayload", field: "value" },
+            variableId: "count",
           },
         ],
+        firePolicy: { cooldownMilliseconds: 10, kind: "repeatable" },
+        fixedPayload: { value: 4 },
+        guard: {
+          kind: "compare",
+          left: { field: "value", kind: "eventPayload" },
+          operator: "eq",
+          right: 4,
+        },
+        id: "payload",
         next: { kind: "stay" },
+        order: 0,
+        priority: 0,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const first = executeCueEvent(definition, createCueState(definition, 1), {
@@ -214,8 +214,8 @@ describe("pure Cue executor", () => {
     expect(executeCueEvent(definition, first.state, input).outcome).toEqual({ kind: "none" });
     const advanced = advanceCueClock(definition, first.state, 10);
     expect(executeCueEvent(definition, advanced.state, input).outcome).toEqual({
-      kind: "accepted",
       cueId: "payload",
+      kind: "accepted",
     });
   });
 
@@ -223,26 +223,26 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.variables.local = {
       id: "local",
-      owner: { kind: "group", groupId: "intro" },
-      type: "number",
       initialValue: 1,
+      owner: { groupId: "intro", kind: "group" },
+      type: "number",
     };
     definition.flow.groups.other = {
       id: "other",
       initialStepId: "start",
-      steps: { start: { id: "start", cues: [] } },
+      steps: { start: { cues: [], id: "start" } },
     };
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "switch",
-        priority: 0,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 5 } },
+          { kind: "variable.set", value: { kind: "literal", value: 5 }, variableId: "count" },
         ],
-        next: { kind: "group", groupId: "other" },
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "switch",
+        next: { groupId: "other", kind: "group" },
+        order: 0,
+        priority: 0,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const result = executeCueEvent(definition, createCueState(definition, 1), input);
@@ -258,11 +258,6 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
-        id: "change",
-        priority: 0,
-        order: 0,
-        trigger: { kind: "logicalInput", action: "next", actor: { kind: "presenter" } },
-        firePolicy: { kind: "oncePerStepEntry" },
         actions: [
           {
             kind: "node.patch",
@@ -271,12 +266,17 @@ describe("pure Cue executor", () => {
           },
           {
             kind: "surface.setState",
-            surfaceId: "baked",
             stateId: "shown",
+            surfaceId: "baked",
             transition: { kind: "cut" },
           },
         ],
+        firePolicy: { kind: "oncePerStepEntry" },
+        id: "change",
         next: { kind: "stay" },
+        order: 0,
+        priority: 0,
+        trigger: { action: "next", actor: { kind: "presenter" }, kind: "logicalInput" },
       },
     ];
     const result = executeCueEvent(definition, createCueState(definition, 1), input);
@@ -288,36 +288,36 @@ describe("pure Cue executor", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues = [
       {
+        actions: [
+          { kind: "variable.set", value: { kind: "literal", value: 1 }, variableId: "count" },
+        ],
+        firePolicy: { kind: "oncePerStepEntry" },
         id: "entered",
-        priority: 0,
+        next: { kind: "stay" },
         order: 0,
+        priority: 0,
         trigger: {
-          kind: "zoneEdge",
           actor: { kind: "system", source: "tracking" },
+          edge: "enter",
+          kind: "zoneEdge",
           subject: { kind: "anchor", owner: { kind: "presenter" }, target: "head" },
           zoneId: "front",
-          edge: "enter",
         },
-        firePolicy: { kind: "oncePerStepEntry" },
-        actions: [
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 1 } },
-        ],
-        next: { kind: "stay" },
       },
     ];
     const state = createCueState(definition, 1);
     const event = {
-      kind: "zoneEdge" as const,
-      zoneId: "front",
+      actor: { kind: "system" as const, source: "tracking" as const },
+      causeEventId: "zone-1",
       edge: "enter" as const,
+      kind: "zoneEdge" as const,
+      payload: {},
       subject: {
         kind: "anchor" as const,
         owner: { kind: "presenter" as const },
         target: "head" as const,
       },
-      actor: { kind: "system" as const, source: "tracking" as const },
-      payload: {},
-      causeEventId: "zone-1",
+      zoneId: "front",
     };
     expect(
       executeCueEvent(definition, state, { ...event, actor: { kind: "system", source: "runtime" } })

@@ -25,11 +25,11 @@ describe("D1 presentation migration", () => {
       .bind("owner", "Owner", "owner@example.test", 1, "2026-01-01", "2026-01-01")
       .run();
     await repository.create({
+      createdAt: "2026-01-01T00:00:00.000Z",
+      definition: value,
       id: "persisted",
       ownerId: "owner",
       revision: 1,
-      definition: value,
-      createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
     await expect(repository.roleFor("persisted", "owner")).resolves.toBe("owner");
@@ -55,19 +55,19 @@ describe("D1 presentation migration", () => {
         .run();
     }
     await repository.create({
+      createdAt: "2026-01-01T00:00:00.000Z",
+      definition: value,
       id: `older-${suffix}`,
       ownerId,
       revision: 1,
-      definition: value,
-      createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
     await repository.create({
+      createdAt: "2026-01-02T00:00:00.000Z",
+      definition: value,
       id: `newer-${suffix}`,
       ownerId,
       revision: 1,
-      definition: value,
-      createdAt: "2026-01-02T00:00:00.000Z",
       updatedAt: "2026-01-02T00:00:00.000Z",
     });
     await env.DB.prepare(
@@ -91,11 +91,11 @@ describe("D1 presentation migration", () => {
     const value = { ...definition, assets: [] } as unknown as PresentationDefinition;
     await expect(
       repository.create({
+        createdAt: "2026-01-01",
+        definition: value,
         id: `invalid-${crypto.randomUUID()}`,
         ownerId: "missing-user",
         revision: 1,
-        definition: value,
-        createdAt: "2026-01-01",
         updatedAt: "2026-01-01",
       }),
     ).rejects.toThrow();
@@ -114,11 +114,11 @@ describe("D1 presentation migration", () => {
     const repository = new D1PresentationRepository(env.DB);
     const empty = { ...definition, assets: [] } as unknown as PresentationDefinition;
     await repository.create({
+      createdAt: "2026-01-01",
+      definition: empty,
       id: presentationId,
       ownerId,
       revision: 1,
-      definition: empty,
-      createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     });
     await env.DB.prepare(
@@ -175,11 +175,11 @@ describe("D1 presentation migration", () => {
     const repository = new D1PresentationRepository(env.DB);
     const empty = { ...definition, assets: [] } as unknown as PresentationDefinition;
     await repository.create({
+      createdAt: "2026-01-01",
+      definition: empty,
       id: presentationId,
       ownerId,
       revision: 1,
-      definition: empty,
-      createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
     });
     const invalid = {

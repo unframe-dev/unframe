@@ -27,37 +27,37 @@ import {
 import { semanticTreeDefinitionV2Schema, surfaceSemanticOverrideV2Schema } from "./semantics";
 
 const edgeInsetsSchema = z.strictObject({
-  top: nonNegativeFiniteNumberV2Schema,
-  right: nonNegativeFiniteNumberV2Schema,
   bottom: nonNegativeFiniteNumberV2Schema,
   left: nonNegativeFiniteNumberV2Schema,
+  right: nonNegativeFiniteNumberV2Schema,
+  top: nonNegativeFiniteNumberV2Schema,
 });
 const absolutePlacementSchema = z.strictObject({
+  height: positiveFiniteNumberV2Schema,
   kind: z.literal("absolute"),
+  width: positiveFiniteNumberV2Schema,
   x: finiteNumberV2Schema,
   y: finiteNumberV2Schema,
-  width: positiveFiniteNumberV2Schema,
-  height: positiveFiniteNumberV2Schema,
 });
 const stackPlacementSchema = z.strictObject({
-  kind: z.literal("stack"),
-  grow: nonNegativeFiniteNumberV2Schema,
-  width: positiveFiniteNumberV2Schema,
-  height: positiveFiniteNumberV2Schema,
   alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]),
+  grow: nonNegativeFiniteNumberV2Schema,
+  height: positiveFiniteNumberV2Schema,
+  kind: z.literal("stack"),
   margin: edgeInsetsSchema,
+  width: positiveFiniteNumberV2Schema,
 });
 const gridPlacementSchema = z.strictObject({
-  kind: z.literal("grid"),
+  alignSelf: z.enum(["start", "center", "end", "stretch"]),
   column: positiveSafeUIntV2Schema,
-  row: positiveSafeUIntV2Schema,
   columnSpan: positiveSafeUIntV2Schema,
+  height: positiveFiniteNumberV2Schema,
+  justifySelf: z.enum(["start", "center", "end", "stretch"]),
+  kind: z.literal("grid"),
+  margin: edgeInsetsSchema,
+  row: positiveSafeUIntV2Schema,
   rowSpan: positiveSafeUIntV2Schema,
   width: positiveFiniteNumberV2Schema,
-  height: positiveFiniteNumberV2Schema,
-  alignSelf: z.enum(["start", "center", "end", "stretch"]),
-  justifySelf: z.enum(["start", "center", "end", "stretch"]),
-  margin: edgeInsetsSchema,
 });
 const placementSchema = z.discriminatedUnion("kind", [
   absolutePlacementSchema,
@@ -66,24 +66,24 @@ const placementSchema = z.discriminatedUnion("kind", [
 ]);
 const absoluteLayoutSchema = z.strictObject({ kind: z.literal("absolute") });
 const stackLayoutSchema = z.strictObject({
-  kind: z.literal("stack"),
+  alignItems: z.enum(["start", "center", "end", "stretch"]),
   direction: z.enum(["horizontal", "vertical"]),
   gap: nonNegativeFiniteNumberV2Schema,
-  padding: edgeInsetsSchema,
-  alignItems: z.enum(["start", "center", "end", "stretch"]),
   justifyContent: z.enum(["start", "center", "end", "spaceBetween"]),
+  kind: z.literal("stack"),
+  padding: edgeInsetsSchema,
 });
 const gridTrackSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("fixed"), size: positiveFiniteNumberV2Schema }),
-  z.strictObject({ kind: z.literal("fraction"), fraction: positiveFiniteNumberV2Schema }),
+  z.strictObject({ fraction: positiveFiniteNumberV2Schema, kind: z.literal("fraction") }),
 ]);
 const gridLayoutSchema = z.strictObject({
-  kind: z.literal("grid"),
-  columns: z.array(gridTrackSchema).min(1),
-  rows: z.array(gridTrackSchema).min(1),
   columnGap: nonNegativeFiniteNumberV2Schema,
-  rowGap: nonNegativeFiniteNumberV2Schema,
+  columns: z.array(gridTrackSchema).min(1),
+  kind: z.literal("grid"),
   padding: edgeInsetsSchema,
+  rowGap: nonNegativeFiniteNumberV2Schema,
+  rows: z.array(gridTrackSchema).min(1),
 });
 const frameLayoutSchema = z.discriminatedUnion("kind", [
   absoluteLayoutSchema,
@@ -92,45 +92,45 @@ const frameLayoutSchema = z.discriminatedUnion("kind", [
 ]);
 const borderSchema = z.strictObject({
   color: srgbaColorV2Schema,
-  width: nonNegativeFiniteNumberV2Schema,
   radius: nonNegativeFiniteNumberV2Schema,
+  width: nonNegativeFiniteNumberV2Schema,
 });
 const commonContent = {
   id: idV2Schema,
-  parentId: idV2Schema.nullable(),
+  opacity: unitIntervalV2Schema,
   order: uint32V2Schema,
+  parentId: idV2Schema.nullable(),
   semanticNodeId: idV2Schema.optional(),
   visible: z.boolean(),
-  opacity: unitIntervalV2Schema,
 };
 const placedContent = { ...commonContent, placement: placementSchema };
 const frameContentSchema = z.strictObject({
   ...placedContent,
-  kind: z.literal("frame"),
-  children: z.array(idV2Schema),
-  layout: frameLayoutSchema,
   backgroundColor: srgbaColorV2Schema,
   border: borderSchema,
+  children: z.array(idV2Schema),
   clip: z.boolean(),
+  kind: z.literal("frame"),
+  layout: frameLayoutSchema,
 });
 const textStyleSchema = z.strictObject({
-  fontAssetId: idV2Schema,
+  align: z.enum(["start", "center", "end"]),
+  color: srgbaColorV2Schema,
   fallbackFontAssetIds: z.array(idV2Schema),
+  fontAssetId: idV2Schema,
   fontSize: positiveFiniteNumberV2Schema,
   lineHeight: positiveFiniteNumberV2Schema,
-  color: srgbaColorV2Schema,
-  weight: z.enum(["regular", "bold"]),
-  align: z.enum(["start", "center", "end"]),
   overflow: z.enum(["clip", "ellipsis"]),
+  weight: z.enum(["regular", "bold"]),
 });
 const textContentSchema = z.strictObject({
   ...placedContent,
   kind: z.literal("text"),
+  maxCodePoints: positiveSafeUIntV2Schema,
+  style: textStyleSchema,
   value: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("literal"), value: z.string() }),
     z.strictObject({
-      kind: z.literal("variableString"),
-      variableId: idV2Schema,
       expectedType: z.literal("string"),
       format: z.strictObject({
         kind: z.literal("string"),
@@ -138,66 +138,66 @@ const textContentSchema = z.strictObject({
           .array(z.tuple([uint32V2Schema.max(1_114_111), uint32V2Schema.max(1_114_111)]))
           .min(1),
       }),
+      kind: z.literal("variableString"),
+      variableId: idV2Schema,
     }),
     z.strictObject({
-      kind: z.literal("variableBoolean"),
-      variableId: idV2Schema,
       expectedType: z.literal("boolean"),
       format: z.strictObject({
         kind: z.literal("boolean"),
         trueLabel: z.string(),
         falseLabel: z.string(),
       }),
+      kind: z.literal("variableBoolean"),
+      variableId: idV2Schema,
     }),
     z.strictObject({
-      kind: z.literal("variableNumber"),
-      variableId: idV2Schema,
       expectedType: z.literal("number"),
       format: z.strictObject({
         kind: z.literal("number"),
         fractionDigits: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
       }),
+      kind: z.literal("variableNumber"),
+      variableId: idV2Schema,
     }),
     z.strictObject({
-      kind: z.literal("stepTimerRemaining"),
-      groupId: idV2Schema,
-      stepId: idV2Schema,
       cueId: idV2Schema,
       durationMilliseconds: positiveSafeUIntV2Schema,
-      whenStepInactive: z.enum(["empty", "zero"]),
       format: z.enum(["mm:ss", "hh:mm:ss"]),
+      groupId: idV2Schema,
+      kind: z.literal("stepTimerRemaining"),
+      stepId: idV2Schema,
+      whenStepInactive: z.enum(["empty", "zero"]),
     }),
   ]),
-  maxCodePoints: positiveSafeUIntV2Schema,
-  style: textStyleSchema,
 });
 const imageStyleSchema = z.strictObject({
+  border: borderSchema,
   fit: z.enum(["contain", "cover", "stretch"]),
   tint: srgbaColorV2Schema,
-  border: borderSchema,
 });
 const imageContentSchema = z.strictObject({
   ...placedContent,
-  kind: z.literal("image"),
   assetId: idV2Schema,
+  kind: z.literal("image"),
   style: imageStyleSchema,
 });
 const shapeGeometrySchema = z.discriminatedUnion("kind", [
   z.strictObject({
-    kind: z.literal("rectangle"),
-    width: positiveFiniteNumberV2Schema,
     height: positiveFiniteNumberV2Schema,
+    kind: z.literal("rectangle"),
     radius: nonNegativeFiniteNumberV2Schema,
+    width: positiveFiniteNumberV2Schema,
   }),
   z.strictObject({
+    height: positiveFiniteNumberV2Schema,
     kind: z.literal("ellipse"),
     width: positiveFiniteNumberV2Schema,
-    height: positiveFiniteNumberV2Schema,
   }),
   z.strictObject({
-    kind: z.literal("line"),
     endX: finiteNumberV2Schema,
     endY: finiteNumberV2Schema,
+    kind: z.literal("line"),
   }),
 ]);
 const shapeStyleSchema = z.strictObject({
@@ -207,19 +207,19 @@ const shapeStyleSchema = z.strictObject({
 });
 const shapeContentSchema = z.strictObject({
   ...placedContent,
-  kind: z.literal("shape"),
   geometry: shapeGeometrySchema,
+  kind: z.literal("shape"),
   style: shapeStyleSchema,
 });
 const videoStyleSchema = z.strictObject({
+  border: borderSchema,
   fit: z.enum(["contain", "cover", "stretch"]),
   tint: srgbaColorV2Schema,
-  border: borderSchema,
 });
 const videoContentSchema = z.strictObject({
   ...placedContent,
-  kind: z.literal("video"),
   assetId: idV2Schema,
+  kind: z.literal("video"),
   loop: z.boolean(),
   style: videoStyleSchema,
 });
@@ -233,45 +233,45 @@ export const surfaceContentNodeV2Schema = z.discriminatedUnion("kind", [
 const surfaceContentV2Schema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("structured"),
-    rootFrameId: idV2Schema,
     nodes: z.record(idV2Schema, surfaceContentNodeV2Schema),
+    rootFrameId: idV2Schema,
   }),
   z.strictObject({
-    kind: z.literal("opaque"),
     bindings: z.record(idV2Schema, idV2Schema),
+    kind: z.literal("opaque"),
   }),
 ]);
 
 const commonOverride = {
-  visible: z.boolean().optional(),
   opacity: unitIntervalV2Schema.optional(),
   placement: placementSchema.optional(),
+  visible: z.boolean().optional(),
 };
 const contentOverrideSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     ...commonOverride,
-    kind: z.literal("frame"),
-    layout: frameLayoutSchema.optional(),
     backgroundColor: srgbaColorV2Schema.optional(),
     border: borderSchema.optional(),
     clip: z.boolean().optional(),
+    kind: z.literal("frame"),
+    layout: frameLayoutSchema.optional(),
   }),
   z.strictObject({
     ...commonOverride,
     kind: z.literal("text"),
-    value: textContentSchema.shape.value.optional(),
     style: textStyleSchema.optional(),
+    value: textContentSchema.shape.value.optional(),
   }),
   z.strictObject({
     ...commonOverride,
-    kind: z.literal("image"),
     assetId: idV2Schema.optional(),
+    kind: z.literal("image"),
     style: imageStyleSchema.optional(),
   }),
   z.strictObject({
     ...commonOverride,
-    kind: z.literal("shape"),
     geometry: shapeGeometrySchema.optional(),
+    kind: z.literal("shape"),
     style: shapeStyleSchema.optional(),
   }),
   z.strictObject({
@@ -301,56 +301,56 @@ const trackedSubjectSchema = z.discriminatedUnion("kind", [
 ]);
 const triggerSchema = z.discriminatedUnion("kind", [
   z.strictObject({
-    kind: z.literal("logicalInput"),
     action: idV2Schema,
     actor: triggerActorSchema,
+    kind: z.literal("logicalInput"),
   }),
   z.strictObject({
-    kind: z.literal("semanticEvent"),
+    actor: triggerActorSchema,
     event: idV2Schema,
-    actor: triggerActorSchema,
+    kind: z.literal("semanticEvent"),
   }),
   z.strictObject({
-    kind: z.literal("surfaceInteraction"),
     actor: triggerActorSchema,
-    surfaceId: idV2Schema,
     interactionId: idV2Schema,
+    kind: z.literal("surfaceInteraction"),
+    surfaceId: idV2Schema,
   }),
   z.strictObject({
-    kind: z.literal("zoneEdge"),
     actor: z.strictObject({ kind: z.literal("system"), source: z.literal("tracking") }),
+    dwellMilliseconds: safeUIntV2Schema.optional(),
+    edge: z.enum(["enter", "exit"]),
+    hysteresisMeters: nonNegativeFiniteNumberV2Schema.optional(),
+    kind: z.literal("zoneEdge"),
     subject: trackedSubjectSchema,
     zoneId: idV2Schema,
-    edge: z.enum(["enter", "exit"]),
-    dwellMilliseconds: safeUIntV2Schema.optional(),
-    hysteresisMeters: nonNegativeFiniteNumberV2Schema.optional(),
   }),
   z.strictObject({
-    kind: z.literal("motion"),
     actor: z.strictObject({ kind: z.literal("system"), source: z.literal("tracking") }),
-    subject: trackedSubjectSchema,
+    kind: z.literal("motion"),
     minimumDistanceMeters: positiveFiniteNumberV2Schema,
+    subject: trackedSubjectSchema,
     windowMilliseconds: positiveSafeUIntV2Schema,
   }),
-  z.strictObject({ kind: z.literal("timer"), afterMilliseconds: positiveSafeUIntV2Schema }),
+  z.strictObject({ afterMilliseconds: positiveSafeUIntV2Schema, kind: z.literal("timer") }),
   z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: idV2Schema }),
   z.strictObject({ kind: z.literal("mediaCompleted"), surfaceId: idV2Schema }),
-  z.strictObject({ kind: z.literal("modelClipCompleted"), nodeId: idV2Schema, clipId: idV2Schema }),
+  z.strictObject({ clipId: idV2Schema, kind: z.literal("modelClipCompleted"), nodeId: idV2Schema }),
 ]);
 const valueReferenceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("variable"), variableId: idV2Schema }),
-  z.strictObject({ kind: z.literal("eventPayload"), field: idV2Schema }),
+  z.strictObject({ field: idV2Schema, kind: z.literal("eventPayload") }),
   z.strictObject({ kind: z.literal("surfaceState"), surfaceId: idV2Schema }),
   z.strictObject({
+    field: z.enum(["active", "visible", "opacity"]),
     kind: z.literal("nodeField"),
     nodeId: idV2Schema,
-    field: z.enum(["active", "visible", "opacity"]),
   }),
 ]);
 export type GuardV2 =
-  | { kind: "all"; guards: GuardV2[] }
-  | { kind: "any"; guards: GuardV2[] }
-  | { kind: "not"; guard: GuardV2 }
+  | { guards: Array<GuardV2>; kind: "all" }
+  | { guards: Array<GuardV2>; kind: "any" }
+  | { guard: GuardV2; kind: "not" }
   | {
       kind: "compare";
       left: z.infer<typeof valueReferenceSchema>;
@@ -359,9 +359,9 @@ export type GuardV2 =
     };
 const guardSchema: z.ZodType<GuardV2> = z.lazy(() =>
   z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("all"), guards: z.array(guardSchema).min(1) }),
-    z.strictObject({ kind: z.literal("any"), guards: z.array(guardSchema).min(1) }),
-    z.strictObject({ kind: z.literal("not"), guard: guardSchema }),
+    z.strictObject({ guards: z.array(guardSchema).min(1), kind: z.literal("all") }),
+    z.strictObject({ guards: z.array(guardSchema).min(1), kind: z.literal("any") }),
+    z.strictObject({ guard: guardSchema, kind: z.literal("not") }),
     z.strictObject({
       kind: z.literal("compare"),
       left: valueReferenceSchema,
@@ -372,73 +372,73 @@ const guardSchema: z.ZodType<GuardV2> = z.lazy(() =>
 );
 const booleanActionValueSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("literal"), value: z.boolean() }),
-  z.strictObject({ kind: z.literal("eventPayload"), field: idV2Schema }),
+  z.strictObject({ field: idV2Schema, kind: z.literal("eventPayload") }),
   z.strictObject({ kind: z.literal("variable"), variableId: idV2Schema }),
 ]);
 const numberActionValueSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("literal"), value: finiteNumberV2Schema }),
-  z.strictObject({ kind: z.literal("eventPayload"), field: idV2Schema }),
+  z.strictObject({ field: idV2Schema, kind: z.literal("eventPayload") }),
   z.strictObject({ kind: z.literal("variable"), variableId: idV2Schema }),
 ]);
 const nodePatchSchema = z.strictObject({
   active: booleanActionValueSchema.optional(),
-  visible: booleanActionValueSchema.optional(),
   opacity: numberActionValueSchema.optional(),
   transform: transformV2Schema.optional(),
+  visible: booleanActionValueSchema.optional(),
 });
 const actionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("surface.setState"),
-    surfaceId: idV2Schema,
     stateId: idV2Schema,
+    surfaceId: idV2Schema,
     transition: z
       .discriminatedUnion("kind", [
         z.strictObject({ kind: z.literal("cut") }),
         z.strictObject({
-          kind: z.literal("crossfade"),
+          completion: z.literal("blocking"),
           durationMilliseconds: positiveSafeUIntV2Schema,
           easing: easingV2Schema,
-          completion: z.literal("blocking"),
+          kind: z.literal("crossfade"),
         }),
       ])
       .optional(),
   }),
   z.strictObject({ kind: z.literal("node.patch"), nodeId: idV2Schema, patch: nodePatchSchema }),
   z.strictObject({
-    kind: z.literal("timeline.play"),
-    timelineId: idV2Schema,
     completion: z.enum(["blocking", "nonBlocking"]),
     conflict: z.literal("reject"),
+    kind: z.literal("timeline.play"),
+    timelineId: idV2Schema,
   }),
   z.strictObject({ kind: z.literal("timeline.stop"), timelineId: idV2Schema }),
   z.strictObject({
     kind: z.literal("variable.set"),
-    variableId: idV2Schema,
     value: actionValueV2Schema,
+    variableId: idV2Schema,
   }),
   z.strictObject({ kind: z.literal("media.play"), surfaceId: idV2Schema }),
   z.strictObject({ kind: z.literal("media.pause"), surfaceId: idV2Schema }),
   z.strictObject({
     kind: z.literal("media.seek"),
-    surfaceId: idV2Schema,
     positionSeconds: numberActionValueSchema,
+    surfaceId: idV2Schema,
   }),
   z.strictObject({
-    kind: z.literal("modelClip.play"),
-    nodeId: idV2Schema,
     clipId: idV2Schema,
-    speed: positiveFiniteNumberV2Schema,
-    loop: z.boolean(),
     completion: z.enum(["blocking", "nonBlocking"]),
+    conflict: z.literal("reject"),
+    kind: z.literal("modelClip.play"),
+    loop: z.boolean(),
+    nodeId: idV2Schema,
+    speed: positiveFiniteNumberV2Schema,
     transition: z.discriminatedUnion("kind", [
       z.strictObject({ kind: z.literal("immediate") }),
       z.strictObject({
-        kind: z.literal("crossfade"),
         durationMilliseconds: positiveSafeUIntV2Schema,
         easing: easingV2Schema,
+        kind: z.literal("crossfade"),
       }),
     ]),
-    conflict: z.literal("reject"),
   }),
   z.strictObject({ kind: z.literal("modelClip.pause"), nodeId: idV2Schema }),
   z.strictObject({ kind: z.literal("modelClip.resume"), nodeId: idV2Schema }),
@@ -446,34 +446,34 @@ const actionSchema = z.discriminatedUnion("kind", [
 ]);
 
 const spatialBase = {
+  active: z.boolean(),
+  audience: projectionAudienceV2Schema,
   id: idV2Schema,
   name: z.string().min(1).optional(),
-  owner: resourceOwnerV2Schema,
-  audience: projectionAudienceV2Schema,
-  parent: spatialParentV2Schema,
-  order: uint32V2Schema,
-  transform: transformV2Schema,
-  active: z.boolean(),
-  visible: z.boolean(),
   opacity: unitIntervalV2Schema,
+  order: uint32V2Schema,
+  owner: resourceOwnerV2Schema,
+  parent: spatialParentV2Schema,
+  transform: transformV2Schema,
+  visible: z.boolean(),
 };
 const spatialNodeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ ...spatialBase, kind: z.literal("container") }),
-  z.strictObject({ ...spatialBase, kind: z.literal("model"), assetId: idV2Schema }),
+  z.strictObject({ ...spatialBase, assetId: idV2Schema, kind: z.literal("model") }),
   z.strictObject({ ...spatialBase, kind: z.literal("surface"), surfaceId: idV2Schema }),
   z.strictObject({
     ...spatialBase,
-    kind: z.literal("shape"),
     geometry: z.discriminatedUnion("kind", [
       z.strictObject({ kind: z.literal("box"), size: positiveVector3V2Schema }),
       z.strictObject({ kind: z.literal("sphere"), radius: positiveFiniteNumberV2Schema }),
     ]),
+    kind: z.literal("shape"),
     material: z.strictObject({
-      shaderModel: z.literal("unlit"),
+      castsShadows: z.literal(false),
       color: srgbaColorV2Schema,
       doubleSided: z.boolean(),
-      castsShadows: z.literal(false),
       receivesShadows: z.literal(false),
+      shaderModel: z.literal("unlit"),
     }),
   }),
   z.strictObject({
@@ -481,31 +481,44 @@ const spatialNodeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("light"),
     light: z.discriminatedUnion("kind", [
       z.strictObject({
-        kind: z.literal("directional"),
+        castsShadows: z.boolean(),
         color: srgbColorV2Schema,
         intensityLux: nonNegativeFiniteNumberV2Schema,
-        castsShadows: z.boolean(),
+        kind: z.literal("directional"),
       }),
       z.strictObject({
+        castsShadows: z.boolean(),
+        color: srgbColorV2Schema,
+        intensityCandela: nonNegativeFiniteNumberV2Schema,
         kind: z.literal("point"),
-        color: srgbColorV2Schema,
-        intensityCandela: nonNegativeFiniteNumberV2Schema,
         rangeMeters: positiveFiniteNumberV2Schema,
-        castsShadows: z.boolean(),
       }),
       z.strictObject({
-        kind: z.literal("spot"),
-        color: srgbColorV2Schema,
-        intensityCandela: nonNegativeFiniteNumberV2Schema,
-        rangeMeters: positiveFiniteNumberV2Schema,
-        outerAngleDegrees: positiveFiniteNumberV2Schema.max(180),
-        innerAngleDegrees: nonNegativeFiniteNumberV2Schema.max(180),
         castsShadows: z.boolean(),
+        color: srgbColorV2Schema,
+        innerAngleDegrees: nonNegativeFiniteNumberV2Schema.max(180),
+        intensityCandela: nonNegativeFiniteNumberV2Schema,
+        kind: z.literal("spot"),
+        outerAngleDegrees: positiveFiniteNumberV2Schema.max(180),
+        rangeMeters: positiveFiniteNumberV2Schema,
       }),
     ]),
   }),
 ]);
 const renderIntentSchema = z.strictObject({
+  fallbackPolicy: z.enum(["reject", "degrade"]),
+  interaction: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("none") }),
+    z.strictObject({ events: z.array(idV2Schema).min(1), kind: z.literal("regions") }),
+  ]),
+  internalAnimation: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("none") }),
+    z.strictObject({
+      durationMilliseconds: positiveSafeUIntV2Schema,
+      kind: z.literal("precomputed-video"),
+    }),
+  ]),
+  rendererPreference: z.enum(["auto", "baked-web", "native-ui", "video"]),
   updateModel: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("static") }),
     z.strictObject({ kind: z.literal("finite-state"), stateIds: z.array(idV2Schema).min(1) }),
@@ -514,57 +527,53 @@ const renderIntentSchema = z.strictObject({
       maximumUpdateRateHz: positiveFiniteNumberV2Schema,
     }),
   ]),
-  interaction: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("none") }),
-    z.strictObject({ kind: z.literal("regions"), events: z.array(idV2Schema).min(1) }),
-  ]),
-  internalAnimation: z.discriminatedUnion("kind", [
-    z.strictObject({ kind: z.literal("none") }),
-    z.strictObject({
-      kind: z.literal("precomputed-video"),
-      durationMilliseconds: positiveSafeUIntV2Schema,
-    }),
-  ]),
-  rendererPreference: z.enum(["auto", "baked-web", "native-ui", "video"]),
-  fallbackPolicy: z.enum(["reject", "degrade"]),
 });
 export const semanticSurfaceV2Schema = z.strictObject({
-  id: idV2Schema,
-  hostNodeId: idV2Schema,
-  physicalSizeMeters: positiveVector2V2Schema,
-  logicalSize: positiveVector2V2Schema,
-  fit: z.enum(["contain", "cover", "stretch"]),
-  content: surfaceContentV2Schema,
   baseSemanticTree: semanticTreeDefinitionV2Schema,
+  content: surfaceContentV2Schema,
+  fit: z.enum(["contain", "cover", "stretch"]),
+  hostNodeId: idV2Schema,
+  id: idV2Schema,
+  initialStateId: idV2Schema,
   interactions: z.record(
     idV2Schema,
     z.strictObject({
-      id: idV2Schema,
-      kind: z.literal("click"),
       event: idV2Schema,
       hitPriority: uint32V2Schema,
+      id: idV2Schema,
+      kind: z.literal("click"),
     }),
   ),
-  initialStateId: idV2Schema,
+  logicalSize: positiveVector2V2Schema,
+  physicalSizeMeters: positiveVector2V2Schema,
+  renderIntent: renderIntentSchema,
   states: z.record(
     idV2Schema,
     z.strictObject({
-      id: idV2Schema,
       contentOverrides: z.record(idV2Schema, contentOverrideSchema),
-      semanticOverrides: z.array(surfaceSemanticOverrideV2Schema),
       enabledInteractionIds: z.array(idV2Schema),
+      id: idV2Schema,
+      semanticOverrides: z.array(surfaceSemanticOverrideV2Schema),
     }),
   ),
-  renderIntent: renderIntentSchema,
 });
 const timelineValueSchema = z.union([finiteNumberV2Schema, vector3V2Schema, quaternionV2Schema]);
 const timelineSchema = z.strictObject({
+  durationMilliseconds: positiveSafeUIntV2Schema,
   id: idV2Schema,
   owner: resourceOwnerV2Schema,
-  durationMilliseconds: positiveSafeUIntV2Schema,
   tracks: z
     .array(
       z.strictObject({
+        keyframes: z
+          .array(
+            z.strictObject({
+              easingToNext: easingV2Schema.optional(),
+              timeMilliseconds: safeUIntV2Schema,
+              value: timelineValueSchema,
+            }),
+          )
+          .min(2),
         target: z.strictObject({
           nodeId: idV2Schema,
           property: z.enum([
@@ -574,76 +583,41 @@ const timelineSchema = z.strictObject({
             "transform.scale",
           ]),
         }),
-        keyframes: z
-          .array(
-            z.strictObject({
-              timeMilliseconds: safeUIntV2Schema,
-              value: timelineValueSchema,
-              easingToNext: easingV2Schema.optional(),
-            }),
-          )
-          .min(2),
       }),
     )
     .min(1),
 });
 const variableSchema = z.strictObject({
   id: idV2Schema,
+  initialValue: scalarV2Schema,
   owner: resourceOwnerV2Schema,
   type: scalarTypeV2Schema,
-  initialValue: scalarV2Schema,
 });
 const cueSchema = z.strictObject({
-  id: idV2Schema,
-  priority: safeUIntV2Schema,
-  order: uint32V2Schema,
-  trigger: triggerSchema,
-  fixedPayload: z.record(idV2Schema, scalarV2Schema).optional(),
-  guard: guardSchema.optional(),
+  actions: z.array(actionSchema),
   firePolicy: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("oncePerStepEntry") }),
     z.strictObject({
-      kind: z.literal("repeatable"),
       cooldownMilliseconds: safeUIntV2Schema,
+      kind: z.literal("repeatable"),
     }),
   ]),
-  actions: z.array(actionSchema),
+  fixedPayload: z.record(idV2Schema, scalarV2Schema).optional(),
+  guard: guardSchema.optional(),
+  id: idV2Schema,
   next: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("stay") }),
     z.strictObject({ kind: z.literal("step"), stepId: idV2Schema }),
-    z.strictObject({ kind: z.literal("group"), groupId: idV2Schema }),
+    z.strictObject({ groupId: idV2Schema, kind: z.literal("group") }),
     z.strictObject({ kind: z.literal("end") }),
   ]),
+  order: uint32V2Schema,
+  priority: safeUIntV2Schema,
+  trigger: triggerSchema,
 });
 
 export const presentationDefinitionV2Schema = z.strictObject({
-  schemaVersion: z.literal(2),
-  presentationId: idV2Schema,
-  metadata: z.strictObject({ title: z.string().min(1) }),
-  stage: z.strictObject({
-    coordinateSystem: z.strictObject({
-      unit: z.literal("meter"),
-      handedness: z.literal("right"),
-      upAxis: z.literal("+Y"),
-      forwardAxis: z.literal("-Z"),
-    }),
-    size: positiveVector3V2Schema,
-    zones: z.record(
-      idV2Schema,
-      z.strictObject({
-        id: idV2Schema,
-        owner: resourceOwnerV2Schema,
-        center: vector3V2Schema,
-        size: positiveVector3V2Schema,
-      }),
-    ),
-  }),
-  scene: z.strictObject({
-    nodes: z.record(idV2Schema, spatialNodeSchema),
-    surfaces: z.record(idV2Schema, semanticSurfaceV2Schema),
-  }),
   flow: z.strictObject({
-    initialGroupId: idV2Schema,
     groups: z.record(
       idV2Schema,
       z.strictObject({
@@ -652,8 +626,34 @@ export const presentationDefinitionV2Schema = z.strictObject({
         steps: z.record(idV2Schema, z.strictObject({ id: idV2Schema, cues: z.array(cueSchema) })),
       }),
     ),
-    variables: z.record(idV2Schema, variableSchema),
+    initialGroupId: idV2Schema,
     timelines: z.record(idV2Schema, timelineSchema),
+    variables: z.record(idV2Schema, variableSchema),
+  }),
+  metadata: z.strictObject({ title: z.string().min(1) }),
+  presentationId: idV2Schema,
+  scene: z.strictObject({
+    nodes: z.record(idV2Schema, spatialNodeSchema),
+    surfaces: z.record(idV2Schema, semanticSurfaceV2Schema),
+  }),
+  schemaVersion: z.literal(2),
+  stage: z.strictObject({
+    coordinateSystem: z.strictObject({
+      forwardAxis: z.literal("-Z"),
+      handedness: z.literal("right"),
+      unit: z.literal("meter"),
+      upAxis: z.literal("+Y"),
+    }),
+    size: positiveVector3V2Schema,
+    zones: z.record(
+      idV2Schema,
+      z.strictObject({
+        center: vector3V2Schema,
+        id: idV2Schema,
+        owner: resourceOwnerV2Schema,
+        size: positiveVector3V2Schema,
+      }),
+    ),
   }),
 });
 

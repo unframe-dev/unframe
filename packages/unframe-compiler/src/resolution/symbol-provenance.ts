@@ -3,18 +3,18 @@ import * as ts from "typescript";
 import type { AnalyzedAuthoringProject } from "./typecheck-authoring-project.js";
 
 export type PackageValueProvenance = {
+  readonly column: number;
+  readonly declarationFile: string;
+  readonly end: number;
+  readonly exportName: string;
+  readonly fileName: string;
+  readonly line: number;
+  readonly packageIntegrity: string;
   readonly packageName: string;
   readonly packageVersion: string;
-  readonly packageIntegrity: string;
-  readonly subpath: string;
-  readonly exportName: string;
-  readonly targetFile: string;
-  readonly declarationFile: string;
-  readonly fileName: string;
   readonly start: number;
-  readonly end: number;
-  readonly line: number;
-  readonly column: number;
+  readonly subpath: string;
+  readonly targetFile: string;
 };
 
 const compare = (left: PackageValueProvenance, right: PackageValueProvenance) =>
@@ -25,7 +25,7 @@ const compare = (left: PackageValueProvenance, right: PackageValueProvenance) =>
 export const collectPackageValueProvenance = (
   analyzed: Extract<AnalyzedAuthoringProject, { ok: true }>,
 ) => {
-  const result: PackageValueProvenance[] = [];
+  const result: Array<PackageValueProvenance> = [];
   for (const sourceFile of analyzed.value.context.sourceFiles.values()) {
     const visit = (node: ts.Node): void => {
       if (
@@ -43,9 +43,13 @@ export const collectPackageValueProvenance = (
           const packageExport = resolved.packageExport;
           const moduleSymbol = analyzed.value.checker.getSymbolAtLocation(node.moduleSpecifier);
           for (const element of node.importClause.namedBindings.elements) {
-            if (element.isTypeOnly) continue;
+            if (element.isTypeOnly) {
+              continue;
+            }
             const local = analyzed.value.checker.getSymbolAtLocation(element.name);
-            if (!local || !(local.flags & ts.SymbolFlags.Alias)) continue;
+            if (!local || !(local.flags & ts.SymbolFlags.Alias)) {
+              continue;
+            }
             const actual = analyzed.value.checker.getAliasedSymbol(local);
             const exportName = (element.propertyName ?? element.name).text;
             const exported =
@@ -53,13 +57,19 @@ export const collectPackageValueProvenance = (
               analyzed.value.checker
                 .getExportsOfModule(moduleSymbol)
                 .find((item) => item.name === exportName);
-            if (!exported) continue;
+            if (!exported) {
+              continue;
+            }
             const exportedActual =
               exported.flags & ts.SymbolFlags.Alias
                 ? analyzed.value.checker.getAliasedSymbol(exported)
                 : exported;
-            if (exportedActual !== actual) continue;
-            if (!(actual.flags & ts.SymbolFlags.Value) || !actual.declarations?.length) continue;
+            if (exportedActual !== actual) {
+              continue;
+            }
+            if (!(actual.flags & ts.SymbolFlags.Value) || !actual.declarations?.length) {
+              continue;
+            }
             const declarationSources = actual.declarations.map((declaration) =>
               declaration.getSourceFile(),
             );
@@ -73,8 +83,9 @@ export const collectPackageValueProvenance = (
                   owner.package.contentIntegrity === packageExport.packageIntegrity
                 );
               })
-            )
+            ) {
               continue;
+            }
             const declarationSource = [...declarationSources].sort((left, right) => {
               const a = analyzed.value.context.relativeFileName(left)!;
               const b = analyzed.value.context.relativeFileName(right)!;
@@ -84,13 +95,13 @@ export const collectPackageValueProvenance = (
             const position = sourceFile.getLineAndCharacterOfPosition(start);
             result.push({
               ...packageExport,
-              exportName,
-              declarationFile: analyzed.value.context.relativeFileName(declarationSource)!,
-              fileName: analyzed.value.context.displayFileName(sourceFile),
-              start,
-              end: element.name.getEnd(),
-              line: position.line + 1,
               column: position.character + 1,
+              declarationFile: analyzed.value.context.relativeFileName(declarationSource)!,
+              end: element.name.getEnd(),
+              exportName,
+              fileName: analyzed.value.context.displayFileName(sourceFile),
+              line: position.line + 1,
+              start,
             });
           }
         }

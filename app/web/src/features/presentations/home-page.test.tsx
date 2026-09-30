@@ -11,14 +11,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomePage } from "./home-page";
 
-const { listMockPresentations, createMockPresentation } = vi.hoisted(() => ({
-  listMockPresentations: vi.fn(),
+const { createMockPresentation, listMockPresentations } = vi.hoisted(() => ({
   createMockPresentation: vi.fn(),
+  listMockPresentations: vi.fn(),
 }));
 
 vi.mock("@/features/presentations/mock-presentation-repository", () => ({
-  listMockPresentations,
   createMockPresentation,
+  listMockPresentations,
 }));
 
 function renderHome() {
@@ -27,13 +27,13 @@ function renderHome() {
   });
   const rootRoute = createRootRoute();
   const homeRoute = createRoute({
+    component: HomePage,
     getParentRoute: () => rootRoute,
     path: "/",
-    component: HomePage,
   });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([homeRoute]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
+    routeTree: rootRoute.addChildren([homeRoute]),
   });
 
   return render(

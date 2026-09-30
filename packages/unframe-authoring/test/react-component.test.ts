@@ -12,23 +12,31 @@ import {
 
 const hero = {
   id: "hero",
-  version: 1,
   props: { title: editableText({ required: true }) },
-  surface: { logicalSize: [960, 540] },
   semantics: {
-    rootNodeIds: ["title"],
     nodes: {
       title: { role: "heading", level: 1, parentId: null, order: 0, text: prop("title") },
     },
+    rootNodeIds: ["title"],
   },
+  surface: { logicalSize: [960, 540] },
+  version: 1,
 } as const;
 
 describe("React Component static metadata", () => {
   it("lowers finite states and public operations into the canonical opaque manifest", () => {
     const metadata = validateStaticComponentMetadata({
       ...hero,
+      actions: { reveal: { effects: [setState("revealed")], inputs: {}, preconditions: [] } },
+      initialState: "hidden",
+      interactions: { reveal: { event: "quiz.reveal", hitPriority: 0, kind: "click" } },
+      outputs: {
+        revealRequested: {
+          payload: {},
+          producer: { interactionId: "reveal", kind: "surfaceInteraction" },
+        },
+      },
       semantics: {
-        rootNodeIds: ["title", "button"],
         nodes: {
           title: hero.semantics.nodes.title,
           button: {
@@ -39,35 +47,27 @@ describe("React Component static metadata", () => {
             interactionId: "reveal",
           },
         },
+        rootNodeIds: ["title", "button"],
       },
-      interactions: { reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 } },
-      initialState: "hidden",
       states: {
         hidden: {
-          semanticOverrides: [{ id: "hide-title", targetId: "title", included: false }],
           enabledInteractionIds: ["reveal"],
+          semanticOverrides: [{ id: "hide-title", targetId: "title", included: false }],
         },
-        revealed: { semanticOverrides: [], enabledInteractionIds: [] },
-      },
-      actions: { reveal: { inputs: {}, preconditions: [], effects: [setState("revealed")] } },
-      outputs: {
-        revealRequested: {
-          payload: {},
-          producer: { kind: "surfaceInteraction", interactionId: "reveal" },
-        },
+        revealed: { enabledInteractionIds: [], semanticOverrides: [] },
       },
     });
     const manifest = buildOpaqueComponentManifest(metadata, "renderer/reveal.js");
     expect(manifest.states).toEqual({
-      hidden: { kind: "state", initial: true },
+      hidden: { initial: true, kind: "state" },
       revealed: { kind: "state" },
     });
     expect(manifest.actions.reveal?.effects).toEqual([
-      { kind: "setSurfaceState", surfaceId: "surface", stateId: "revealed" },
+      { kind: "setSurfaceState", stateId: "revealed", surfaceId: "surface" },
     ]);
     expect(manifest.outputs.revealRequested?.producer).toEqual({
-      kind: "surfaceInteraction",
       interactionId: "reveal",
+      kind: "surfaceInteraction",
     });
     expect(manifest.semantics.surfaces[0]).toMatchObject({
       initialStateId: "hidden",
@@ -75,7 +75,7 @@ describe("React Component static metadata", () => {
       states: {
         hidden: {
           id: "hidden",
-          semanticOverrides: [{ kind: "semantic-override", targetId: "title", included: false }],
+          semanticOverrides: [{ included: false, kind: "semantic-override", targetId: "title" }],
         },
       },
     });
@@ -83,22 +83,22 @@ describe("React Component static metadata", () => {
   it("rejects dangling State, Interaction and semantic override references", () => {
     const base = {
       ...hero,
-      interactions: { reveal: { kind: "click", event: "quiz.reveal", hitPriority: 0 } },
+      actions: { reveal: { effects: [setState("hidden")], inputs: {}, preconditions: [] } },
       initialState: "hidden",
-      states: { hidden: { semanticOverrides: [], enabledInteractionIds: ["reveal"] } },
-      actions: { reveal: { inputs: {}, preconditions: [], effects: [setState("hidden")] } },
+      interactions: { reveal: { event: "quiz.reveal", hitPriority: 0, kind: "click" } },
       outputs: {
         revealRequested: {
           payload: {},
-          producer: { kind: "surfaceInteraction", interactionId: "reveal" },
+          producer: { interactionId: "reveal", kind: "surfaceInteraction" },
         },
       },
+      states: { hidden: { enabledInteractionIds: ["reveal"], semanticOverrides: [] } },
     } as const;
     expect(() => validateStaticComponentMetadata({ ...base, initialState: "missing" })).toThrow();
     expect(() =>
       validateStaticComponentMetadata({
         ...base,
-        states: { hidden: { semanticOverrides: [], enabledInteractionIds: ["missing"] } },
+        states: { hidden: { enabledInteractionIds: ["missing"], semanticOverrides: [] } },
       }),
     ).toThrow();
     expect(() =>
@@ -106,8 +106,8 @@ describe("React Component static metadata", () => {
         ...base,
         states: {
           hidden: {
-            semanticOverrides: [{ id: "bad", targetId: "missing", included: false }],
             enabledInteractionIds: [],
+            semanticOverrides: [{ id: "bad", included: false, targetId: "missing" }],
           },
         },
       }),
@@ -115,7 +115,7 @@ describe("React Component static metadata", () => {
     expect(() =>
       validateStaticComponentMetadata({
         ...base,
-        actions: { reveal: { inputs: {}, preconditions: [], effects: [setState("missing")] } },
+        actions: { reveal: { effects: [setState("missing")], inputs: {}, preconditions: [] } },
       }),
     ).toThrow();
     expect(() =>
@@ -124,7 +124,7 @@ describe("React Component static metadata", () => {
         outputs: {
           revealRequested: {
             payload: {},
-            producer: { kind: "surfaceInteraction", interactionId: "missing" },
+            producer: { interactionId: "missing", kind: "surfaceInteraction" },
           },
         },
       }),
@@ -135,7 +135,7 @@ describe("React Component static metadata", () => {
     const manifest = buildOpaqueComponentManifest(metadata, "renderer/hero.js");
     expect(manifest.props.title).toEqual({ kind: "string", required: true });
     expect(manifest.semantics.surfaces[0]?.baseSemanticTree.nodes.title).toMatchObject({
-      text: { kind: "prop-ref", propId: "title", expectedType: "string" },
+      text: { expectedType: "string", kind: "prop-ref", propId: "title" },
     });
     expect(manifest.renderers["baked-web"]?.bindingKeys).toEqual(["surface", "node:title"]);
   });
@@ -180,11 +180,11 @@ describe("React Component static metadata", () => {
     expect(() =>
       defineComponent({
         ...hero,
-        render,
         get id() {
           invoked = true;
           return "hero";
         },
+        render,
       } as never),
     ).toThrow();
     expect(invoked).toBe(false);
@@ -201,18 +201,18 @@ describe("React Component static metadata", () => {
     expect(() =>
       defineComponent({
         ...hero,
-        props: { title: { kind: "string", required: true, default: "bad" } },
+        props: { title: { default: "bad", kind: "string", required: true } },
         render,
       } as never),
     ).toThrow();
     expect(() =>
       defineComponent({
         ...hero,
-        semantics: {
-          rootNodeIds: ["title"],
-          nodes: { title: { role: "paragraph", level: 1, parentId: null, order: 0, text: "Bad" } },
-        },
         render,
+        semantics: {
+          nodes: { title: { role: "paragraph", level: 1, parentId: null, order: 0, text: "Bad" } },
+          rootNodeIds: ["title"],
+        },
       } as never),
     ).toThrow();
   });
@@ -221,43 +221,43 @@ describe("React Component static metadata", () => {
     const component = defineComponent({
       ...hero,
       props: {
-        title: editableText({ required: true }),
         subtitle: editableText({ default: "Fallback" }),
+        title: editableText({ required: true }),
       },
       render: () => null,
     });
     expect(resolveReactComponentProps(component, { title: "Hello" })).toEqual({
-      title: "Hello",
       subtitle: "Fallback",
+      title: "Hello",
     });
     const item = {
-      id: "opening",
-      component,
-      props: { title: "Hello" },
-      owner: { kind: "presentation" },
       audience: { kind: "all" },
+      component,
+      fit: "contain",
+      id: "opening",
+      owner: { kind: "presentation" },
       parent: { kind: "stage" },
       physicalSizeMeters: [1.6, 0.9],
-      fit: "contain",
+      props: { title: "Hello" },
       transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     } as const;
     const presentation = {
-      id: "sample",
-      metadata: { title: "Sample" },
-      stage: {
-        coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-        size: [6, 3, 6],
-      },
-      scene: [item],
       assets: [],
       flow: {
-        initialGroupId: "main",
         groups: {
           main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
         },
+        initialGroupId: "main",
         variables: {},
       },
+      id: "sample",
+      metadata: { title: "Sample" },
       operations: [],
+      scene: [item],
+      stage: {
+        coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+        size: [6, 3, 6],
+      },
     } as const;
     expect(definePresentation(presentation)).toBe(presentation);
     const scene = new Proxy([item], {
@@ -273,7 +273,7 @@ describe("React Component static metadata", () => {
     expect(() =>
       definePresentation({
         ...presentation,
-        scene: [{ ...item, props: { title: "Hello", extra: true } }],
+        scene: [{ ...item, props: { extra: true, title: "Hello" } }],
       } as never),
     ).toThrow();
     expect(() =>
@@ -323,8 +323,8 @@ describe("React Component static metadata", () => {
     const metadata = validateStaticComponentMetadata({
       ...hero,
       semantics: {
+        nodes: { surface: { order: 0, parentId: null, role: "paragraph", text: "Hello" } },
         rootNodeIds: ["surface"],
-        nodes: { surface: { role: "paragraph", parentId: null, order: 0, text: "Hello" } },
       },
     });
     expect(

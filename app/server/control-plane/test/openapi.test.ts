@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createApp, createOpenAPIDocument } from "../src/app";
 
-const normalizePath = (path: string) => path.replace(/:([^/]+)/g, "{$1}");
+const normalizePath = (path: string) => path.replaceAll(/:([^/]+)/g, "{$1}");
 
 describe("Control Plane OpenAPI", () => {
   it("documents every product-owned public route", () => {
@@ -32,14 +32,14 @@ describe("Control Plane OpenAPI", () => {
   it("declares user, browser, service, and Venue Edge authentication separately", () => {
     const schemes = createOpenAPIDocument().components?.securitySchemes;
     expect(schemes).toMatchObject({
-      bearerAuth: { type: "http", scheme: "bearer" },
+      bearerAuth: { scheme: "bearer", type: "http" },
       cookieSession: {
-        type: "apiKey",
         in: "cookie",
         name: "__Secure-better-auth.session_token",
+        type: "apiKey",
       },
-      serviceBearer: { type: "http", scheme: "bearer" },
-      edgeBearer: { type: "http", scheme: "bearer" },
+      edgeBearer: { scheme: "bearer", type: "http" },
+      serviceBearer: { scheme: "bearer", type: "http" },
     });
   });
 
@@ -75,8 +75,9 @@ describe("Control Plane OpenAPI", () => {
       ["/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/release", "post"],
     ] as const;
 
-    for (const [path, method] of operations)
+    for (const [path, method] of operations) {
       expect(document.paths[path]?.[method]?.responses?.[400], `${method} ${path}`).toBeDefined();
+    }
   });
 
   it("marks every JSON request body as required", () => {
@@ -99,17 +100,19 @@ describe("Control Plane OpenAPI", () => {
     const document = createOpenAPIDocument();
     const requestSchema = (path: string) => {
       const requestBody = document.paths[path]?.post?.requestBody;
-      if (!requestBody || !("content" in requestBody)) return undefined;
+      if (!requestBody || !("content" in requestBody)) {
+        return undefined;
+      }
       return requestBody.content["application/json"]?.schema;
     };
 
     expect(requestSchema("/callbacks/checkpoints")).toMatchObject({
-      required: expect.arrayContaining(["payload"]),
       properties: { payload: expect.any(Object) },
+      required: expect.arrayContaining(["payload"]),
     });
     expect(requestSchema("/callbacks/completions")).toMatchObject({
-      required: expect.arrayContaining(["finalCheckpoint"]),
       properties: { finalCheckpoint: expect.any(Object) },
+      required: expect.arrayContaining(["finalCheckpoint"]),
     });
   });
 });

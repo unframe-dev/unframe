@@ -1,11 +1,11 @@
 import type { Diagnostic } from "../domain/model.js";
 
 export type JsonRecord = Record<string, unknown>;
-type DiagnosticPath = string | readonly (string | number)[];
+type DiagnosticPath = string | ReadonlyArray<string | number>;
 
 const pathSegment = (value: unknown) => String(value).replaceAll("~", "~0").replaceAll("/", "~1");
 
-const toPath = (path: DiagnosticPath): readonly (string | number)[] =>
+const toPath = (path: DiagnosticPath): ReadonlyArray<string | number> =>
   typeof path === "string"
     ? path
         .split("/")
@@ -20,43 +20,48 @@ const diagnostic = (
   relatedPath?: DiagnosticPath,
 ): Diagnostic =>
   relatedPath === undefined
-    ? { code, path: toPath(path), message }
-    : { code, path: toPath(path), message, relatedPath: toPath(relatedPath) };
+    ? { code, message, path: toPath(path) }
+    : { code, message, path: toPath(path), relatedPath: toPath(relatedPath) };
 
-const sorted = (diagnostics: Diagnostic[]) =>
+const sorted = (diagnostics: Array<Diagnostic>) =>
   [...diagnostics].sort((left, right) => {
     const leftKey = `${left.path.join("/")}\u0000${left.code}`;
     const rightKey = `${right.path.join("/")}\u0000${right.code}`;
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
   });
 
-const schemaPath = (path: readonly PropertyKey[]): readonly (string | number)[] =>
+const schemaPath = (path: ReadonlyArray<PropertyKey>): ReadonlyArray<string | number> =>
   path.map((segment) => (typeof segment === "number" ? segment : String(segment)));
 
 const containerPath = (
-  path: readonly (string | number)[],
-  fields: readonly string[],
-): readonly (string | number)[] | undefined => {
-  for (let index = path.length - 1; index >= 0; index--)
-    if (fields.includes(String(path[index]))) return path.slice(0, index + 1);
+  path: ReadonlyArray<string | number>,
+  fields: ReadonlyArray<string>,
+): ReadonlyArray<string | number> | undefined => {
+  for (let index = path.length - 1; index >= 0; index--) {
+    if (fields.includes(String(path[index]))) {
+      return path.slice(0, index + 1);
+    }
+  }
   return undefined;
 };
 
 const structuralDiagnostic = (
   contract: "definition" | "render-bundle",
-  issue: { readonly path: readonly PropertyKey[]; readonly message: string },
+  issue: { readonly message: string; readonly path: ReadonlyArray<PropertyKey> },
 ): Diagnostic => {
   const path = schemaPath(issue.path);
   const joined = path.join("/");
   if (contract === "definition") {
-    if (joined.startsWith("assets/"))
+    if (joined.startsWith("assets/")) {
       return diagnostic("invalid-asset", path.slice(0, 2), "Asset descriptor is invalid.");
-    if (joined.startsWith("scene/nodes/") && issue.message.includes("Unrecognized key"))
+    }
+    if (joined.startsWith("scene/nodes/") && issue.message.includes("Unrecognized key")) {
       return diagnostic(
         "unknown-surface-node-property",
         path.slice(0, 3),
         "SurfaceNode contains an unknown property.",
       );
+    }
     const vectorPath = containerPath(path, [
       "physicalSizeMeters",
       "logicalSize",
@@ -65,27 +70,31 @@ const structuralDiagnostic = (
       "center",
       "size",
     ]);
-    if (vectorPath)
+    if (vectorPath) {
       return diagnostic("invalid-vector", vectorPath, "Vector does not match the contract schema.");
+    }
     const rotationPath = containerPath(path, ["rotation"]);
-    if (rotationPath)
+    if (rotationPath) {
       return diagnostic(
         "invalid-quaternion",
         rotationPath,
         "Quaternion does not match the contract schema.",
       );
+    }
     const placementPath = containerPath(path, ["placement"]);
-    if (joined.includes("/content/nodes/") && placementPath)
+    if (joined.includes("/content/nodes/") && placementPath) {
       return diagnostic(
         "invalid-text-placement",
         placementPath,
         "Text placement does not match the contract schema.",
       );
+    }
     return diagnostic("invalid-definition", path, issue.message);
   }
   const vectorPath = containerPath(path, ["logicalSize", "physicalSizeMeters", "pixelSize"]);
-  if (vectorPath)
+  if (vectorPath) {
     return diagnostic("invalid-vector", vectorPath, "Vector does not match the contract schema.");
+  }
   return diagnostic("invalid-render-bundle", path, issue.message);
 };
 
@@ -94,14 +103,14 @@ const compareStrings = (left: string, right: string) => (left < right ? -1 : lef
 const isRecord = (value: unknown): value is JsonRecord =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const recordEntries = (value: unknown): [string, JsonRecord][] =>
+const recordEntries = (value: unknown): Array<[string, JsonRecord]> =>
   isRecord(value)
     ? Object.entries(value)
         .filter((entry): entry is [string, JsonRecord] => isRecord(entry[1]))
         .sort(([left], [right]) => compareStrings(left, right))
     : [];
 
-const recordKeys = (value: unknown): string[] => (isRecord(value) ? Object.keys(value) : []);
+const recordKeys = (value: unknown): Array<string> => (isRecord(value) ? Object.keys(value) : []);
 
 const id = (value: unknown): value is string => typeof value === "string" && value.length > 0;
 
@@ -111,13 +120,13 @@ const finite = (value: unknown): value is number =>
 const positive = (value: unknown): value is number => finite(value) && value > 0;
 
 const validateRecordIds = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   value: unknown,
   path: string,
   idField = "id",
 ) => {
   for (const [key, item] of recordEntries(value)) {
-    if (item[idField] !== key)
+    if (item[idField] !== key) {
       diagnostics.push(
         diagnostic(
           "record-key-id-mismatch",
@@ -125,32 +134,34 @@ const validateRecordIds = (
           `Record key must match value.${idField}.`,
         ),
       );
+    }
   }
 };
 
 const validateReferences = (
-  diagnostics: Diagnostic[],
-  references: readonly string[],
+  diagnostics: Array<Diagnostic>,
+  references: ReadonlyArray<string>,
   target: Set<string>,
   path: string,
   code: string,
 ) => {
   for (const reference of references) {
-    if (!target.has(reference))
+    if (!target.has(reference)) {
       diagnostics.push(
         diagnostic(code, `${path}/${pathSegment(reference)}`, "Reference does not exist."),
       );
+    }
   }
 };
 
 const validateGroupOwner = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   resource: JsonRecord,
   groupIds: Set<string>,
   path: string,
 ) => {
   const owner = isRecord(resource.owner) ? resource.owner : undefined;
-  if (owner?.kind === "group" && (!id(owner.groupId) || !groupIds.has(owner.groupId)))
+  if (owner?.kind === "group" && (!id(owner.groupId) || !groupIds.has(owner.groupId))) {
     diagnostics.push(
       diagnostic(
         "missing-owner-group",
@@ -158,12 +169,13 @@ const validateGroupOwner = (
         "Group owner must reference an existing group.",
       ),
     );
+  }
 };
 
-const isUnitQuaternion = (quaternion: readonly number[]) =>
+const isUnitQuaternion = (quaternion: ReadonlyArray<number>) =>
   Math.abs(Math.hypot(...quaternion) - 1) <= 1e-9;
 
-const hasCanonicalQuaternionSign = (quaternion: readonly number[]) => {
+const hasCanonicalQuaternionSign = (quaternion: ReadonlyArray<number>) => {
   const [x, y, z, w] = quaternion;
   const firstNonZero = [w, x, y, z].find((component) => component !== 0);
   return !quaternion.some((component) => Object.is(component, -0)) && (firstNonZero ?? 1) > 0;
@@ -173,8 +185,9 @@ const canonicalizeQuaternion = (
   quaternion: readonly [number, number, number, number],
 ): [number, number, number, number] => {
   const magnitude = Math.hypot(...quaternion);
-  if (!Number.isFinite(magnitude) || magnitude === 0)
+  if (!Number.isFinite(magnitude) || magnitude === 0) {
     throw new RangeError("Quaternion must be finite and nonzero.");
+  }
   const [x, y, z, w] = quaternion;
   const firstNonZero = [w, x, y, z].find((component) => component !== 0);
   const sign = (firstNonZero ?? 1) < 0 ? -1 : 1;
@@ -184,7 +197,7 @@ const canonicalizeQuaternion = (
   }) as [number, number, number, number];
 };
 
-const validateQuaternion = (diagnostics: Diagnostic[], value: unknown, path: string) => {
+const validateQuaternion = (diagnostics: Array<Diagnostic>, value: unknown, path: string) => {
   if (!Array.isArray(value) || value.length !== 4 || !value.every(finite)) {
     diagnostics.push(
       diagnostic("invalid-quaternion", path, "Rotation must be a finite [x, y, z, w] quaternion."),
@@ -204,7 +217,7 @@ const validateQuaternion = (diagnostics: Diagnostic[], value: unknown, path: str
 };
 
 const validateVector = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   value: unknown,
   dimensions: number,
   path: string,
@@ -226,7 +239,7 @@ const validateVector = (
 };
 
 const validateTree = (
-  diagnostics: Diagnostic[],
+  diagnostics: Array<Diagnostic>,
   nodes: unknown,
   roots: unknown,
   path: string,
@@ -238,10 +251,11 @@ const validateTree = (
   const rootIds = Array.isArray(roots) ? roots.filter(id) : [];
   const rootSet = new Set(rootIds);
   const parentById = new Map<string, string | null>();
-  if (rootSet.size !== rootIds.length)
+  if (rootSet.size !== rootIds.length) {
     diagnostics.push(
       diagnostic("duplicate-root", `${path}/rootNodeIds`, "Root IDs must be unique."),
     );
+  }
 
   for (const [nodeId, node] of entries) {
     const parentId = node.parentId;
@@ -255,7 +269,7 @@ const validateTree = (
       );
     } else {
       parentById.set(nodeId, parentId);
-      if (parentId !== null && !nodeIds.has(parentId))
+      if (parentId !== null && !nodeIds.has(parentId)) {
         diagnostics.push(
           diagnostic(
             "missing-parent",
@@ -263,7 +277,8 @@ const validateTree = (
             "Parent does not exist.",
           ),
         );
-      if (parentId === null && !rootSet.has(nodeId))
+      }
+      if (parentId === null && !rootSet.has(nodeId)) {
         diagnostics.push(
           diagnostic(
             "orphan-root",
@@ -271,7 +286,8 @@ const validateTree = (
             "Root node must appear in rootNodeIds.",
           ),
         );
-      if (parentId !== null && rootSet.has(nodeId))
+      }
+      if (parentId !== null && rootSet.has(nodeId)) {
         diagnostics.push(
           diagnostic(
             "non-root-in-root-list",
@@ -279,8 +295,9 @@ const validateTree = (
             "Only parentless nodes may be roots.",
           ),
         );
+      }
     }
-    if (!Number.isInteger(node.order) || (node.order as number) < 0)
+    if (!Number.isInteger(node.order) || (node.order as number) < 0) {
       diagnostics.push(
         diagnostic(
           "invalid-order",
@@ -288,9 +305,10 @@ const validateTree = (
           "order must be a non-negative integer.",
         ),
       );
+    }
     if (childField !== undefined) {
       const children = node[childField];
-      if (!Array.isArray(children) || !children.every(id))
+      if (!Array.isArray(children) || !children.every(id)) {
         diagnostics.push(
           diagnostic(
             "invalid-children",
@@ -298,7 +316,7 @@ const validateTree = (
             "children must be an ID array.",
           ),
         );
-      else
+      } else {
         validateReferences(
           diagnostics,
           children,
@@ -306,18 +324,21 @@ const validateTree = (
           `${path}/nodes/${pathSegment(nodeId)}/${childField}`,
           "missing-child",
         );
+      }
     }
   }
 
-  for (const rootId of rootIds)
-    if (!nodeIds.has(rootId))
+  for (const rootId of rootIds) {
+    if (!nodeIds.has(rootId)) {
       diagnostics.push(diagnostic("missing-root", `${path}/rootNodeIds`, "Root does not exist."));
+    }
+  }
   const canonicalRoots = [...rootIds].sort((left, right) => {
     const leftOrder = entries.find(([nodeId]) => nodeId === left)?.[1].order;
     const rightOrder = entries.find(([nodeId]) => nodeId === right)?.[1].order;
     return Number(leftOrder) - Number(rightOrder) || compareStrings(left, right);
   });
-  if (rootIds.some((rootId, index) => rootId !== canonicalRoots[index]))
+  if (rootIds.some((rootId, index) => rootId !== canonicalRoots[index])) {
     diagnostics.push(
       diagnostic(
         "invalid-root-order",
@@ -325,13 +346,16 @@ const validateTree = (
         "Root IDs must follow node order with ID as the deterministic tie-break.",
       ),
     );
+  }
   const siblingOrders = new Map<string, Set<number>>();
   for (const [nodeId, node] of entries) {
     const parentId = parentById.get(nodeId);
-    if (parentId === undefined || !Number.isInteger(node.order)) continue;
+    if (parentId === undefined || !Number.isInteger(node.order)) {
+      continue;
+    }
     const key = parentId ?? "<root>";
     const orders = siblingOrders.get(key) ?? new Set<number>();
-    if (orders.has(node.order as number))
+    if (orders.has(node.order as number)) {
       diagnostics.push(
         diagnostic(
           "duplicate-sibling-order",
@@ -339,6 +363,7 @@ const validateTree = (
           "Sibling order must be unique.",
         ),
       );
+    }
     orders.add(node.order as number);
     siblingOrders.set(key, orders);
   }
@@ -364,8 +389,10 @@ const validateTree = (
     const listedParent = new Map<string, string>();
     for (const [nodeId, node] of entries) {
       const children = node[childField];
-      if (!Array.isArray(children) || !children.every(id)) continue;
-      if (new Set(children).size !== children.length)
+      if (!Array.isArray(children) || !children.every(id)) {
+        continue;
+      }
+      if (new Set(children).size !== children.length) {
         diagnostics.push(
           diagnostic(
             "duplicate-child",
@@ -373,12 +400,13 @@ const validateTree = (
             "Child IDs must be unique.",
           ),
         );
+      }
       const canonicalChildren = [...children].sort((left, right) => {
         const leftOrder = entries.find(([childId]) => childId === left)?.[1].order;
         const rightOrder = entries.find(([childId]) => childId === right)?.[1].order;
         return Number(leftOrder) - Number(rightOrder) || compareStrings(left, right);
       });
-      if (children.some((childId, index) => childId !== canonicalChildren[index]))
+      if (children.some((childId, index) => childId !== canonicalChildren[index])) {
         diagnostics.push(
           diagnostic(
             "invalid-child-order",
@@ -386,9 +414,10 @@ const validateTree = (
             "Children must follow sibling order.",
           ),
         );
+      }
       for (const childId of children) {
         const previous = listedParent.get(childId);
-        if (previous !== undefined && previous !== nodeId)
+        if (previous !== undefined && previous !== nodeId) {
           diagnostics.push(
             diagnostic(
               "multiple-parents",
@@ -397,8 +426,10 @@ const validateTree = (
               `${path}/nodes/${pathSegment(previous)}/${childField}`,
             ),
           );
-        else listedParent.set(childId, nodeId);
-        if (parentById.get(childId) !== nodeId)
+        } else {
+          listedParent.set(childId, nodeId);
+        }
+        if (parentById.get(childId) !== nodeId) {
           diagnostics.push(
             diagnostic(
               "parent-child-mismatch",
@@ -406,10 +437,11 @@ const validateTree = (
               "Child listing and parentId must agree.",
             ),
           );
+        }
       }
     }
-    for (const [nodeId, parentId] of parentById)
-      if (parentId !== null && listedParent.get(nodeId) !== parentId)
+    for (const [nodeId, parentId] of parentById) {
+      if (parentId !== null && listedParent.get(nodeId) !== parentId) {
         diagnostics.push(
           diagnostic(
             "parent-child-mismatch",
@@ -417,6 +449,8 @@ const validateTree = (
             "Every parented node must be listed by its parent.",
           ),
         );
+      }
+    }
   }
 };
 
@@ -436,15 +470,15 @@ const semanticRoles = new Set([
   "listItem",
 ]);
 
-const isDenseArray = (value: unknown): value is unknown[] =>
+const isDenseArray = (value: unknown): value is Array<unknown> =>
   Array.isArray(value) &&
   Object.keys(value).length === value.length &&
   Array.from({ length: value.length }, (_, index) => Object.hasOwn(value, index)).every(Boolean);
 
-const hasOnlyFields = (value: JsonRecord, fields: readonly string[]) =>
+const hasOnlyFields = (value: JsonRecord, fields: ReadonlyArray<string>) =>
   Object.keys(value).every((field) => fields.includes(field));
 
-const hasOwnFields = (value: JsonRecord, fields: readonly string[]) =>
+const hasOwnFields = (value: JsonRecord, fields: ReadonlyArray<string>) =>
   fields.every((field) => Object.hasOwn(value, field));
 
 export {

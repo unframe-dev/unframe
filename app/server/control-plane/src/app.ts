@@ -46,20 +46,20 @@ const productRoutePrefixes = [
 
 type AppOptions = Partial<PresentationRouteOptions & AssetRouteOptions> &
   Partial<Omit<SessionRouteOptions, "identityProvider" | "now" | "id">> & {
-    sessionNow?: () => Date;
     sessionId?: () => string;
+    sessionNow?: () => Date;
   } & {
-    venueEdgeRepository?: VenueEdgeRouteOptions["repository"];
     venueEdgeCredential?: VenueEdgeRouteOptions["credential"];
+    venueEdgeRepository?: VenueEdgeRouteOptions["repository"];
   };
 
 export function createProductApi(options: AppOptions = {}) {
   const identityProvider = options.identityProvider ?? identityFromSession;
   const presentations = createPresentationRoutes({
-    identityProvider,
-    repository: options.repository,
-    now: options.now,
     id: options.id,
+    identityProvider,
+    now: options.now,
+    repository: options.repository,
   });
   const assets = presentations.route(
     "/",
@@ -100,9 +100,9 @@ export function createProductApi(options: AppOptions = {}) {
     const config = context.get("config");
     return context.json(
       await new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
+        audience: config.REALTIME_AUDIENCE,
         issuer: config.REALTIME_ISSUER,
         keyId: config.REALTIME_SIGNING_KID,
-        audience: config.REALTIME_AUDIENCE,
       }).jwks(),
       200,
     );
@@ -114,25 +114,25 @@ export type AppType = ReturnType<typeof createProductApi>;
 export const createOpenAPIDocument = () => {
   const app = createProductApi();
   app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
-    type: "http",
     scheme: "bearer",
+    type: "http",
   });
   app.openAPIRegistry.registerComponent("securitySchemes", "cookieSession", {
-    type: "apiKey",
     in: "cookie",
     name: "__Secure-better-auth.session_token",
+    type: "apiKey",
   });
   app.openAPIRegistry.registerComponent("securitySchemes", "serviceBearer", {
-    type: "http",
     scheme: "bearer",
+    type: "http",
   });
   app.openAPIRegistry.registerComponent("securitySchemes", "edgeBearer", {
-    type: "http",
     scheme: "bearer",
+    type: "http",
   });
   return app.getOpenAPIDocument({
-    openapi: "3.0.3",
     info: { title: "Unframe Control Plane", version: "1.0.0" },
+    openapi: "3.0.3",
   });
 };
 
@@ -140,12 +140,14 @@ export function createApp(options: AppOptions = {}) {
   const app = new OpenAPIHono<AppEnvironment>();
 
   app.onError((error, context) => {
-    if (error instanceof HTTPException) return error.getResponse();
+    if (error instanceof HTTPException) {
+      return error.getResponse();
+    }
     const incidentId = crypto.randomUUID();
     console.error(
       JSON.stringify({
-        event: "unhandled_error",
         errorName: error.name,
+        event: "unhandled_error",
         incidentId,
         method: context.req.method,
         route: routePath(context),
@@ -185,11 +187,11 @@ export function createApp(options: AppOptions = {}) {
     }
     if (origin && origin === config.WEB_ORIGIN) {
       return cors({
-        origin: config.WEB_ORIGIN,
-        credentials: true,
         allowHeaders: ["Content-Type", "Authorization"],
         allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        credentials: true,
         exposeHeaders: ["set-auth-token"],
+        origin: config.WEB_ORIGIN,
       })(context, next);
     }
     await next();

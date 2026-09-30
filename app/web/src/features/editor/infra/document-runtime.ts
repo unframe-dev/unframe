@@ -23,7 +23,9 @@ export async function loadPresentationSnapshot(
   }
 
   const existing = await browserSnapshotStore.load(presentationId);
-  if (existing) return existing;
+  if (existing) {
+    return existing;
+  }
 
   const fixture = structuredClone(demoDocument);
   await browserSnapshotStore.save(fixture);

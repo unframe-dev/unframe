@@ -13,22 +13,24 @@ import {
 } from "../../src/index.js";
 
 const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
-  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  if (surface.content.kind !== "structured") {
+    throw new TypeError("Expected structured fixture.");
+  }
   return surface.content;
 };
 
 export const config = {} as const satisfies WebRendererConfig;
 
 export const environment = {
-  browser: { id: "test-browser", version: "1", fontFingerprint: "sha256:fonts" },
-  locale: "ja-JP",
-  timezone: "Asia/Tokyo",
+  browser: { fontFingerprint: "sha256:fonts", id: "test-browser", version: "1" },
+  clock: "fixed",
   colorSpace: "srgb",
   deviceScaleFactor: 1,
-  network: "deny",
   filesystem: "deny",
-  clock: "fixed",
+  locale: "ja-JP",
+  network: "deny",
   random: "fixed",
+  timezone: "Asia/Tokyo",
 } as const;
 export const adapterIdentity = {
   id: "test-adapter",
@@ -42,7 +44,7 @@ export const testFontAsset = (characters: string) => {
   const cmapLength = 12 + 16 + codePoints.length * 12;
   const bytes = new Uint8Array(28 + cmapLength);
   const view = new DataView(bytes.buffer);
-  view.setUint32(0, 0x0001_0000);
+  view.setUint32(0, 0x00_01_00_00);
   view.setUint16(4, 1);
   bytes.set(new TextEncoder().encode("cmap"), 12);
   view.setUint32(20, 28);
@@ -61,9 +63,9 @@ export const testFontAsset = (characters: string) => {
     view.setUint32(offset + 8, index + 1);
   });
   return {
-    mediaType: "font/ttf" as const,
-    dataBase64: Buffer.from(bytes).toString("base64"),
     checksum: `sha256:${bytesToHex(sha256(bytes))}`,
+    dataBase64: Buffer.from(bytes).toString("base64"),
+    mediaType: "font/ttf" as const,
   };
 };
 
@@ -71,18 +73,55 @@ export const fontMain = testFontAsset("<&>\"'");
 
 export const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInput => {
   const identity = {
-    id: "baked-web",
-    version: "1",
     contractVersion: "1",
+    id: "baked-web",
     implementationHash: "unused",
+    version: "1",
   };
   return {
+    context: {
+      buildContextHash: "sha256:context",
+      colorScheme: "dark",
+      environmentHash: "sha256:environment",
+      inputHash: "sha256:input",
+      locale: "ja-JP",
+      pixelTarget: [2, 1],
+      rendererConfigHash,
+      rendererFingerprint: createRendererFingerprint(identity, rendererConfigHash),
+      themeHash: "sha256:theme",
+      themeId: "theme",
+      timezone: "Asia/Tokyo",
+    },
+    entry: { kind: "structured" },
+    fontAssets: {
+      "font-main": fontMain,
+    },
+    plan: {
+      clipWindow: { x: 0, y: 0, width: 100, height: 50 },
+      id: "render",
+      layer: 0,
+      logicalBounds: { x: 0, y: 0, width: 100, height: 50 },
+      ownership: { kind: "structured", ownedContentNodeIds: ["text"], contextNodeIds: ["root"] },
+      semanticSurfaceId: "surface",
+      states: { a: { kind: "capture" }, z: { kind: "capture" } },
+    },
+    resolvedIntent: {
+      fallbackPolicy: "reject",
+      interaction: { kind: "none" },
+      internalAnimation: { kind: "none" },
+      selectedRendererId: "baked-web",
+      updateModel: { kind: "static" },
+    },
+    semanticsByState: { a: { nodes: {}, rootNodeIds: [] }, z: { nodes: {}, rootNodeIds: [] } },
+    sourceIntent: {
+      fallbackPolicy: "reject",
+      interaction: { kind: "none" },
+      internalAnimation: { kind: "none" },
+      rendererPreference: "baked-web",
+      updateModel: { kind: "static" },
+    },
     surface: {
-      id: "surface",
-      hostNodeId: "host",
-      physicalSizeMeters: [1, 1],
-      logicalSize: [100, 50],
-      fit: "contain",
+      baseSemanticTree: { rootNodeIds: [], nodes: {} },
       content: {
         kind: "structured",
         rootFrameId: "root",
@@ -128,13 +167,13 @@ export const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInp
           },
         },
       },
-      baseSemanticTree: { rootNodeIds: [], nodes: {} },
-      interactions: {},
+      fit: "contain",
+      hostNodeId: "host",
+      id: "surface",
       initialStateId: "a",
-      states: {
-        a: { id: "a", contentOverrides: {}, semanticOverrides: [], enabledInteractionIds: [] },
-        z: { id: "z", contentOverrides: {}, semanticOverrides: [], enabledInteractionIds: [] },
-      },
+      interactions: {},
+      logicalSize: [100, 50],
+      physicalSizeMeters: [1, 1],
       renderIntent: {
         updateModel: { kind: "static" },
         interaction: { kind: "none" },
@@ -142,63 +181,26 @@ export const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInp
         rendererPreference: "baked-web",
         fallbackPolicy: "reject",
       },
-    },
-    sourceIntent: {
-      updateModel: { kind: "static" },
-      interaction: { kind: "none" },
-      internalAnimation: { kind: "none" },
-      rendererPreference: "baked-web",
-      fallbackPolicy: "reject",
-    },
-    resolvedIntent: {
-      updateModel: { kind: "static" },
-      interaction: { kind: "none" },
-      internalAnimation: { kind: "none" },
-      selectedRendererId: "baked-web",
-      fallbackPolicy: "reject",
-    },
-    semanticsByState: { a: { rootNodeIds: [], nodes: {} }, z: { rootNodeIds: [], nodes: {} } },
-    fontAssets: {
-      "font-main": fontMain,
-    },
-    plan: {
-      id: "render",
-      semanticSurfaceId: "surface",
-      logicalBounds: { x: 0, y: 0, width: 100, height: 50 },
-      layer: 0,
-      ownership: { kind: "structured", ownedContentNodeIds: ["text"], contextNodeIds: ["root"] },
-      clipWindow: { x: 0, y: 0, width: 100, height: 50 },
-      states: { z: { kind: "capture" }, a: { kind: "capture" } },
-    },
-    entry: { kind: "structured" },
-    context: {
-      locale: "ja-JP",
-      timezone: "Asia/Tokyo",
-      colorScheme: "dark",
-      themeId: "theme",
-      themeHash: "sha256:theme",
-      inputHash: "sha256:input",
-      buildContextHash: "sha256:context",
-      environmentHash: "sha256:environment",
-      rendererConfigHash,
-      rendererFingerprint: createRendererFingerprint(identity, rendererConfigHash),
-      pixelTarget: [2, 1],
+      states: {
+        a: { id: "a", contentOverrides: {}, semanticOverrides: [], enabledInteractionIds: [] },
+        z: { id: "z", contentOverrides: {}, semanticOverrides: [], enabledInteractionIds: [] },
+      },
     },
   } as CompilerResolvedSurfaceInput;
 };
 
-export const adapter = (requests: BrowserCaptureRequest[] = []): FixedBrowserAdapter => ({
-  identity: adapterIdentity,
-  environment,
+export const adapter = (requests: Array<BrowserCaptureRequest> = []): FixedBrowserAdapter => ({
   async capture(request) {
     requests.push(request);
     return {
-      rgba: new Uint8Array([0, 1, 2, 255, 3, 4, 5, 255]),
-      pixelSize: request.pixelTarget,
-      colorSpace: "srgb",
       alphaMode: "opaque",
+      colorSpace: "srgb",
+      pixelSize: request.pixelTarget,
+      rgba: new Uint8Array([0, 1, 2, 255, 3, 4, 5, 255]),
     };
   },
+  environment,
+  identity: adapterIdentity,
 });
 
 export const withRendererFingerprint = (
@@ -222,17 +224,40 @@ export const nestedInputFor = (
   const source = inputFor(rendererConfigHash);
   const root = structuredContent(source.surface).nodes.root;
   const text = structuredContent(source.surface).nodes.text;
-  if (!root || root.kind !== "frame" || !text || text.kind !== "text")
+  if (!root || root.kind !== "frame" || !text || text.kind !== "text") {
     throw new TypeError("Expected Frame/Text fixture.");
+  }
   return withRendererFingerprint(
     {
       ...source,
+      context: { ...source.context, pixelTarget: [200, 100] },
+      fontAssets: {
+        "font-fallback": testFontAsset("&"),
+        "font-main": testFontAsset("<"),
+      },
+      plan: {
+        ...source.plan,
+        ownership: {
+          contextNodeIds: ["root", "nested"],
+          kind: "structured",
+          ownedContentNodeIds: ["text-second", "text-first", "clipped"],
+        },
+      },
       surface: {
         ...source.surface,
         content: {
           ...structuredContent(source.surface),
           nodes: {
-            root: { ...root, children: ["nested"] },
+            clipped: {
+              ...root,
+              id: "clipped",
+              parentId: "nested",
+              order: 2,
+              placement: { kind: "absolute", x: 55, y: 5, width: 20, height: 10 },
+              children: [],
+              backgroundColor: { red: 0, green: 0, blue: 1, alpha: 1 },
+              border: { ...root.border },
+            },
             nested: {
               ...root,
               id: "nested",
@@ -248,18 +273,7 @@ export const nestedInputFor = (
               clip: true,
               opacity: 0.75,
             },
-            "text-second": {
-              ...text,
-              id: "text-second",
-              parentId: "nested",
-              order: 1,
-              placement: { kind: "absolute", x: 7, y: 3, width: 20, height: 8 },
-              value: { kind: "literal", value: "&" },
-              style: {
-                ...text.style,
-                fallbackFontAssetIds: ["font-fallback"],
-              },
-            },
+            root: { ...root, children: ["nested"] },
             "text-first": {
               ...text,
               id: "text-first",
@@ -272,32 +286,21 @@ export const nestedInputFor = (
                 fallbackFontAssetIds: ["font-fallback"],
               },
             },
-            clipped: {
-              ...root,
-              id: "clipped",
+            "text-second": {
+              ...text,
+              id: "text-second",
               parentId: "nested",
-              order: 2,
-              placement: { kind: "absolute", x: 55, y: 5, width: 20, height: 10 },
-              children: [],
-              backgroundColor: { red: 0, green: 0, blue: 1, alpha: 1 },
-              border: { ...root.border },
+              order: 1,
+              placement: { kind: "absolute", x: 7, y: 3, width: 20, height: 8 },
+              value: { kind: "literal", value: "&" },
+              style: {
+                ...text.style,
+                fallbackFontAssetIds: ["font-fallback"],
+              },
             },
           },
         },
       },
-      fontAssets: {
-        "font-main": testFontAsset("<"),
-        "font-fallback": testFontAsset("&"),
-      },
-      plan: {
-        ...source.plan,
-        ownership: {
-          kind: "structured",
-          ownedContentNodeIds: ["text-second", "text-first", "clipped"],
-          contextNodeIds: ["root", "nested"],
-        },
-      },
-      context: { ...source.context, pixelTarget: [200, 100] },
     },
     renderer,
   );

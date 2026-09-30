@@ -4,19 +4,19 @@ import { migrateDocument, UnsupportedDocumentVersionError } from "./migrate-docu
 describe("migrateDocument", () => {
   it("migrates a version 0 title into version 1 metadata", () => {
     const migrated = migrateDocument({
-      version: 0,
+      assets: [],
       id: "legacy",
       revision: 4,
+      slides: [{ elements: [], id: "slide-1", name: "Opening" }],
       title: "Legacy presentation",
-      slides: [{ id: "slide-1", name: "Opening", elements: [] }],
-      assets: [],
+      version: 0,
     });
 
     expect(migrated).toMatchObject({
-      version: 1,
       id: "legacy",
-      revision: 4,
       metadata: { title: "Legacy presentation" },
+      revision: 4,
+      version: 1,
     });
   });
 

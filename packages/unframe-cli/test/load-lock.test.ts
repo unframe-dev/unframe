@@ -15,63 +15,63 @@ const digest = (value: string | Uint8Array): `sha256:${string}` =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
 const bytes = (value: unknown) => new TextEncoder().encode(canonicalizeJsonPayload(value) + "\n");
 const componentBytes = "export const Component = 1;";
-const localFiles = [{ path: "src/card.component.tsx", hash: digest(componentBytes) }];
+const localFiles = [{ hash: digest(componentBytes), path: "src/card.component.tsx" }];
 const packageFile = "export const value = 1;";
 
 const validLock = (): UnframeLockV2 => {
   const pkg: UnframeLockV2["packages"][number] = {
+    contentIntegrity: digest("unused"),
+    dependencies: [],
+    exports: [{ runtimeImport: "index.js", runtimeRequire: null, subpath: ".", types: null }],
+    files: [
+      {
+        data: packageFile,
+        encoding: "utf8",
+        hash: digest(packageFile),
+        mediaType: "text/javascript",
+        path: "index.js",
+      },
+    ],
     key: hashPackageLocator("example-package@1.0.0"),
     locator: "example-package@1.0.0",
     name: "example-package",
     version: "1.0.0",
-    contentIntegrity: digest("unused"),
-    files: [
-      {
-        path: "index.js",
-        mediaType: "text/javascript",
-        hash: digest(packageFile),
-        encoding: "utf8",
-        data: packageFile,
-      },
-    ],
-    exports: [{ subpath: ".", runtimeImport: "index.js", runtimeRequire: null, types: null }],
-    dependencies: [],
   };
   pkg.contentIntegrity = hashLockedPackageContent(pkg);
   const lock: UnframeLockV2 = {
-    schemaVersion: 2,
-    packageSnapshotProfile: "pnpm-lock9-locator-v1",
-    resolutionProfile: "browser-import-production-types-v1",
-    extractionProfile: "react-component-v1",
-    packageManagerLockHash: digest("pnpm-lock"),
-    rootDependencies: [{ specifier: "example-package", usage: "runtime", packageKey: pkg.key }],
-    packages: [pkg],
-    dependencyGraphHash: digest("unused"),
-    themeHashes: [{ themeId: "default", hash: digest("theme") }],
+    assets: [
+      {
+        dataBase64: "AQID",
+        hash: digest(new Uint8Array([1, 2, 3])),
+        id: "font",
+        mediaType: "font/ttf",
+        size: 3,
+      },
+    ],
     componentLocks: [
       {
         componentId: "card",
-        version: 1,
+        manifestHash: digest("manifest"),
+        mode: "opaque",
         origin: {
           kind: "local",
           entryFile: "src/card.component.tsx",
           files: localFiles,
           sourceHash: hashLocalSource("src/card.component.tsx", localFiles),
         },
-        manifestHash: digest("manifest"),
-        mode: "opaque",
         rendererInputHash: digest("renderer"),
+        version: 1,
       },
     ],
-    assets: [
-      {
-        id: "font",
-        mediaType: "font/ttf",
-        hash: digest(new Uint8Array([1, 2, 3])),
-        size: 3,
-        dataBase64: "AQID",
-      },
-    ],
+    dependencyGraphHash: digest("unused"),
+    extractionProfile: "react-component-v1",
+    packageManagerLockHash: digest("pnpm-lock"),
+    packages: [pkg],
+    packageSnapshotProfile: "pnpm-lock9-locator-v1",
+    resolutionProfile: "browser-import-production-types-v1",
+    rootDependencies: [{ packageKey: pkg.key, specifier: "example-package", usage: "runtime" }],
+    schemaVersion: 2,
+    themeHashes: [{ hash: digest("theme"), themeId: "default" }],
   };
   lock.dependencyGraphHash = hashDependencyGraph(lock);
   return lock;
@@ -87,7 +87,9 @@ describe("unframe.lock v2 boundary", () => {
     const lock = validLock();
     const result = loadUnframeLock(bytes(lock));
     expect(result).toMatchObject({ ok: true });
-    if (!result.ok) return;
+    if (!result.ok) {
+      return;
+    }
     expect(result.value.virtualSource.rootDependencies).toEqual(lock.rootDependencies);
     expect(result.value.assemblyCarrier.componentLocks[0]).toMatchObject({
       componentId: "card",
@@ -152,7 +154,9 @@ describe("unframe.lock v2 boundary", () => {
   it("rejects a changed local Component source closure", () => {
     const lock = validLock();
     const origin = lock.componentLocks[0]!.origin;
-    if (origin.kind !== "local") throw new Error("Expected local Component");
+    if (origin.kind !== "local") {
+      throw new Error("Expected local Component");
+    }
     origin.files[0]!.hash = digest("changed");
     expect(errorCode(lock)).toBe("cli-lock-local-source-hash-mismatch");
   });
@@ -170,12 +174,12 @@ describe("unframe.lock v2 boundary", () => {
     expect(
       loadUnframeLock(new TextEncoder().encode('{"schemaVersion":2,"schemaVersion":2}')),
     ).toMatchObject({
+      diagnostic: { code: "cli-lock-json-duplicate-key", family: "syntax" },
       ok: false,
-      diagnostic: { family: "syntax", code: "cli-lock-json-duplicate-key" },
     });
     expect(loadUnframeLock(new Uint8Array([0xff]))).toMatchObject({
-      ok: false,
       diagnostic: { family: "syntax" },
+      ok: false,
     });
   });
 
@@ -183,8 +187,8 @@ describe("unframe.lock v2 boundary", () => {
     expect(
       loadUnframeLock(new TextEncoder().encode(JSON.stringify(validLock(), null, 2))),
     ).toMatchObject({
-      ok: false,
       diagnostic: { code: "cli-lock-not-canonical" },
+      ok: false,
     });
   });
 });

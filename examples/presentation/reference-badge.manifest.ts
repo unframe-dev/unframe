@@ -1,23 +1,23 @@
 import { defineComponentManifest } from "@unframe/unframe-authoring";
 
 export default defineComponentManifest({
-  componentId: "reference-badge",
-  version: 1,
+  actions: {},
   authoring: {
     mode: "structured",
     structure: "./reference-badge.structure.tsx",
   },
+  componentId: "reference-badge",
+  outputs: {},
+  parts: {},
   props: {
     label: {
       kind: "string",
       required: true,
     },
   },
-  slots: {},
-  parts: {},
-  variants: {},
-  states: {},
-  actions: {},
-  outputs: {},
   renderers: ["baked-web"],
+  slots: {},
+  states: {},
+  variants: {},
+  version: 1,
 });

@@ -19,12 +19,12 @@ import {
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
 type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
-  presentation: PresentationDeclaration;
-  components: {
+  components: Array<{
     manifest: ComponentManifest;
     structure: ComponentStructure;
     lock: ComponentPackageLock & { mode: "structured" };
-  }[];
+  }>;
+  presentation: PresentationDeclaration;
 };
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
@@ -35,19 +35,39 @@ import {
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
 
 const structuredContent = (surface: SemanticSurface | undefined) => {
-  if (surface?.content.kind !== "structured") throw new Error("Expected structured Surface");
+  if (surface?.content.kind !== "structured") {
+    throw new Error("Expected structured Surface");
+  }
   return surface.content;
 };
 
 const presentation = (): PresentationDeclaration => ({
+  assets: [{ assetId: "reference-font", kind: "asset-ref" }],
+  flow: {
+    groups: {
+      group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
+    },
+    initialGroupId: "group",
+    variables: {},
+  },
   id: "presentation",
   metadata: { title: "Reference" },
-  stage: {
-    coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
-    size: [4, 3, 4],
-  },
-  theme: { themeId: standardComponents.theme.id },
+  operations: [],
   scene: {
+    components: [
+      {
+        id: "instance",
+        kind: "component-instance",
+        componentId: standardComponents.surface.manifest.componentId,
+        version: 1,
+        owner: { kind: "presentation" },
+        spatialNodeId: "spatial",
+        props: {},
+        slots: {},
+        variants: {},
+        partOverrides: [],
+      },
+    ],
     spatial: [
       {
         id: "spatial",
@@ -63,44 +83,26 @@ const presentation = (): PresentationDeclaration => ({
         opacity: 1,
       },
     ],
-    components: [
-      {
-        id: "instance",
-        kind: "component-instance",
-        componentId: standardComponents.surface.manifest.componentId,
-        version: 1,
-        owner: { kind: "presentation" },
-        spatialNodeId: "spatial",
-        props: {},
-        slots: {},
-        variants: {},
-        partOverrides: [],
-      },
-    ],
   },
-  assets: [{ kind: "asset-ref", assetId: "reference-font" }],
-  flow: {
-    initialGroupId: "group",
-    groups: {
-      group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
-    },
-    variables: {},
+  stage: {
+    coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
+    size: [4, 3, 4],
   },
-  operations: [],
+  theme: { themeId: standardComponents.theme.id },
 });
 
 const project = () => ({
-  presentation: presentation(),
-  themes: [
-    {
-      declaration: standardComponents.theme,
-      hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  assets: {
+    "reference-font": {
+      checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+      dataBase64: "AAEAAAAAAAAAAAAA",
+      encodedSizeBytes: 12,
+      id: "reference-font",
+      mediaType: "font/ttf" as const,
     },
-  ],
+  } as Record<string, CompilerSourceAsset>,
   components: [
     {
-      manifest: standardComponents.surface.manifest,
-      structure: standardComponents.surface.structure,
       lock: {
         mode: "structured" as const,
         origin: {
@@ -112,22 +114,26 @@ const project = () => ({
         manifestHash: "manifest",
         structureHash: "structure",
       },
+      manifest: standardComponents.surface.manifest,
+      structure: standardComponents.surface.structure,
     },
   ],
-  assets: {
-    "reference-font": {
-      id: "reference-font",
-      mediaType: "font/ttf" as const,
-      dataBase64: "AAEAAAAAAAAAAAAA",
-      encodedSizeBytes: 12,
-      checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+  presentation: presentation(),
+  themes: [
+    {
+      declaration: standardComponents.theme,
+      hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     },
-  } as Record<string, CompilerSourceAsset>,
+  ],
 });
 
 const nullPrototype = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(nullPrototype);
-  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map(nullPrototype);
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
   return Object.assign(
     Object.create(null),
     Object.fromEntries(Object.entries(value).map(([key, child]) => [key, nullPrototype(child)])),
@@ -144,41 +150,30 @@ describe("checkDeclarationProject", () => {
     const input = project();
     const metadata = validateStaticComponentMetadata({
       id: "react",
-      version: 1,
       props: {},
-      surface: { logicalSize: [800, 450] },
       semantics: {
-        rootNodeIds: ["title"],
         nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+        rootNodeIds: ["title"],
       },
+      surface: { logicalSize: [800, 450] },
+      version: 1,
     });
     const reactItem = {
-      id: "react-one",
-      component: { id: "react", version: 1 },
-      props: {},
-      owner: { kind: "presentation" },
       audience: { kind: "all" },
+      component: { id: "react", version: 1 },
+      fit: "contain",
+      id: "react-one",
+      owner: { kind: "presentation" },
       parent: { kind: "stage" },
       physicalSizeMeters: [1.6, 0.9],
-      fit: "contain",
+      props: {},
       transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     };
     const result = checkDeclarationProject({
       ...input,
-      presentation: {
-        ...input.presentation,
-        scene: {
-          ...input.presentation.scene,
-          components: [...input.presentation.scene.components, reactItem],
-        },
-      },
       components: [
         ...input.components,
         {
-          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
-          metadata,
-          rendererEntry: "react.component.tsx#render",
-          rendererSource: "export default () => null",
           lock: {
             mode: "opaque",
             origin: {
@@ -190,10 +185,23 @@ describe("checkDeclarationProject", () => {
             manifestHash: "sha256:manifest",
             rendererInputHash: "sha256:renderer",
           },
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
         },
       ],
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
+        },
+      },
     });
-    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    if (!result.valid) {
+      throw new Error(JSON.stringify(result.diagnostics));
+    }
     expect(
       Object.values(result.value.definition.scene.surfaces)
         .map((surface) => surface.content.kind)
@@ -209,18 +217,21 @@ describe("checkDeclarationProject", () => {
         advanced: {
           kind: "output",
           payload: {},
-          producer: { kind: "timer", afterMilliseconds: 1 },
+          producer: { afterMilliseconds: 1, kind: "timer" },
         },
-        skipped: { kind: "output", payload: {}, producer: { kind: "timer", afterMilliseconds: 2 } },
+        skipped: { kind: "output", payload: {}, producer: { afterMilliseconds: 2, kind: "timer" } },
       },
     };
     const metadata = validateStaticComponentMetadata({
+      actions: {},
       id: "react",
-      version: 1,
+      initialState: "ready",
+      interactions: { next: { event: "next", hitPriority: 0, kind: "click" } },
+      outputs: {
+        clicked: { payload: {}, producer: { interactionId: "next", kind: "surfaceInteraction" } },
+      },
       props: {},
-      surface: { logicalSize: [800, 450] },
       semantics: {
-        rootNodeIds: ["button"],
         nodes: {
           button: {
             role: "button",
@@ -230,34 +241,47 @@ describe("checkDeclarationProject", () => {
             interactionId: "next",
           },
         },
+        rootNodeIds: ["button"],
       },
-      interactions: { next: { kind: "click", event: "next", hitPriority: 0 } },
-      initialState: "ready",
-      states: { ready: { semanticOverrides: [], enabledInteractionIds: ["next"] } },
-      actions: {},
-      outputs: {
-        clicked: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "next" } },
-      },
+      states: { ready: { enabledInteractionIds: ["next"], semanticOverrides: [] } },
+      surface: { logicalSize: [800, 450] },
+      version: 1,
     });
     const reactItem = {
-      id: "react-one",
-      component: { id: "react", version: 1 },
-      props: {},
-      owner: { kind: "presentation" },
       audience: { kind: "all" },
+      component: { id: "react", version: 1 },
+      fit: "contain",
+      id: "react-one",
+      owner: { kind: "presentation" },
       parent: { kind: "stage" },
       physicalSizeMeters: [1.6, 0.9],
-      fit: "contain",
+      props: {},
       transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     };
     const result = checkDeclarationProject({
       ...input,
+      components: [
+        ...input.components,
+        {
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "react.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
+        },
+      ],
       presentation: {
         ...input.presentation,
-        scene: {
-          ...input.presentation.scene,
-          components: [...input.presentation.scene.components, reactItem],
-        },
         flow: {
           ...input.presentation.flow,
           groups: {
@@ -302,30 +326,16 @@ describe("checkDeclarationProject", () => {
             },
           },
         },
-      },
-      components: [
-        ...input.components,
-        {
-          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
-          metadata,
-          rendererEntry: "react.component.tsx#render",
-          rendererSource: "export default () => null",
-          lock: {
-            mode: "opaque",
-            origin: {
-              kind: "local",
-              entryFile: "react.component.tsx",
-              files: [],
-              sourceHash: "sha256:source",
-            },
-            manifestHash: "sha256:manifest",
-            rendererInputHash: "sha256:renderer",
-          },
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
         },
-      ],
+      },
     });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(
       Object.fromEntries(
         result.value.definition.flow.groups.group!.steps.step!.cues.map((cue) => [
@@ -333,12 +343,14 @@ describe("checkDeclarationProject", () => {
           cue.order,
         ]),
       ),
-    ).toEqual({ "react-first": 0, "structured-second": 1, "structured-explicit": 7 });
+    ).toEqual({ "react-first": 0, "structured-explicit": 7, "structured-second": 1 });
   });
   it("identifies the lowered content as a structured tree", () => {
     const result = checkDeclarationProject(project());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(Object.values(result.value.definition.scene.surfaces)[0]).toHaveProperty(
       "content.kind",
       "structured",
@@ -352,15 +364,15 @@ describe("checkDeclarationProject", () => {
       ...entry.structure,
       timelines: [
         {
-          id: "fade",
           durationMilliseconds: 100,
+          id: "fade",
           tracks: [
             {
-              target: { kind: "host", property: "opacity" },
               keyframes: [
-                { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+                { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
                 { timeMilliseconds: 100, value: 1 },
               ],
+              target: { kind: "host", property: "opacity" },
             },
           ],
         },
@@ -371,20 +383,20 @@ describe("checkDeclarationProject", () => {
       actions: {
         ...entry.manifest.actions,
         play: {
-          kind: "action",
+          effects: [{ completion: "nonBlocking", kind: "playTimeline", timelineId: "fade" }],
           inputs: {},
+          kind: "action",
           preconditions: [],
-          effects: [{ kind: "playTimeline", timelineId: "fade", completion: "nonBlocking" }],
         },
       },
       outputs: {
         ...entry.manifest.outputs,
-        started: { kind: "output", payload: {}, producer: { kind: "timer", afterMilliseconds: 1 } },
         finished: {
           kind: "output",
           payload: {},
           producer: { kind: "timelineCompleted", timelineId: "fade" },
         },
+        started: { kind: "output", payload: {}, producer: { afterMilliseconds: 1, kind: "timer" } },
       },
     };
     (
@@ -392,49 +404,51 @@ describe("checkDeclarationProject", () => {
         import("@unframe/unframe-authoring").CueDeclaration
       >
     ).push({
-      id: "start",
-      trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "started" },
       actions: [
         {
-          kind: "component.action",
-          componentInstanceId: "instance",
           actionId: "play",
           arguments: {},
+          componentInstanceId: "instance",
+          kind: "component.action",
         },
       ],
+      id: "start",
+      trigger: { componentInstanceId: "instance", kind: "component.output", outputId: "started" },
     });
     (
       input.presentation.flow.groups.group!.steps.step!.cues as unknown as Array<
         import("@unframe/unframe-authoring").CueDeclaration
       >
     ).push({
-      id: "finished",
-      trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "finished" },
       actions: [],
+      id: "finished",
+      trigger: { componentInstanceId: "instance", kind: "component.output", outputId: "finished" },
     });
     const result = checkDeclarationProject(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.definition.flow.timelines["instance:fade"]).toEqual({
+      durationMilliseconds: 100,
       id: "instance:fade",
       owner: { kind: "presentation" },
-      durationMilliseconds: 100,
       tracks: [
         {
-          target: { nodeId: "instance:spatial", property: "opacity" },
           keyframes: [
-            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
             { timeMilliseconds: 100, value: 1 },
           ],
+          target: { nodeId: "instance:spatial", property: "opacity" },
         },
       ],
     });
     expect(result.value.definition.flow.groups.group!.steps.step!.cues[0]!.actions).toEqual([
       {
-        kind: "timeline.play",
-        timelineId: "instance:fade",
         completion: "nonBlocking",
         conflict: "reject",
+        kind: "timeline.play",
+        timelineId: "instance:fade",
       },
     ]);
     expect(result.value.definition.flow.groups.group!.steps.step!.cues[1]!.trigger).toEqual({
@@ -449,15 +463,15 @@ describe("checkDeclarationProject", () => {
       ...entry.structure,
       timelines: [
         {
-          id: "rotate",
           durationMilliseconds: 100,
+          id: "rotate",
           tracks: [
             {
-              target: { kind: "host", property: "transform.rotation" },
               keyframes: [
-                { timeMilliseconds: 0, value: [0, 0, 0, -2], easingToNext: "linear" },
+                { easingToNext: "linear", timeMilliseconds: 0, value: [0, 0, 0, -2] },
                 { timeMilliseconds: 100, value: [0, 0, 0, 2] },
               ],
+              target: { kind: "host", property: "transform.rotation" },
             },
           ],
         },
@@ -465,7 +479,9 @@ describe("checkDeclarationProject", () => {
     };
     const result = checkDeclarationProject(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(
       result.value.definition.flow.timelines["instance:rotate"]!.tracks[0]!.keyframes.map(
         (frame) => frame.value,
@@ -484,7 +500,7 @@ describe("checkDeclarationProject", () => {
             {
               ...entry.structure.timelines[0]!.tracks[0]!,
               keyframes: [
-                { timeMilliseconds: 0, value: [0, 0, 0, 0], easingToNext: "linear" },
+                { easingToNext: "linear", timeMilliseconds: 0, value: [0, 0, 0, 0] },
                 { timeMilliseconds: 100, value: [0, 0, 0, 1] },
               ],
             },
@@ -496,19 +512,17 @@ describe("checkDeclarationProject", () => {
   });
   it("lowers Component Output payload, Action effects, Guard, and empty Step transition", () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface") throw new Error("fixture must be a surface");
+    if (root.kind !== "surface") {
+      throw new Error("fixture must be a surface");
+    }
     entry.manifest = {
       ...entry.manifest,
-      states: { default: { kind: "state", initial: true }, active: { kind: "state" } },
       actions: {
         activate: {
-          kind: "action",
-          inputs: { value: "number" },
-          preconditions: [],
           effects: [
             {
               kind: "setSurfaceState",
@@ -532,23 +546,25 @@ describe("checkDeclarationProject", () => {
               patch: { opacity: { kind: "eventPayload", field: "opacity" } },
             },
           ],
+          inputs: { value: "number" },
+          kind: "action",
+          preconditions: [],
         },
       },
       outputs: {
         clicked: {
           kind: "output",
-          producer: { kind: "surfaceInteraction", interactionId: "open" },
           payload: { opacity: { type: "number", value: 0.5 } },
+          producer: { kind: "surfaceInteraction", interactionId: "open" },
         },
       },
+      states: { active: { kind: "state" }, default: { kind: "state", initial: true } },
     };
     entry.structure = {
       ...entry.structure,
       root: {
         ...root,
-        interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 0 } },
         baseSemanticTree: {
-          rootNodeIds: ["semantic-text"],
           nodes: {
             "semantic-text": {
               id: "semantic-text",
@@ -559,96 +575,100 @@ describe("checkDeclarationProject", () => {
               text: "Open",
             },
           },
+          rootNodeIds: ["semantic-text"],
         },
+        interactions: { open: { event: "open", hitPriority: 0, id: "open", kind: "click" } },
+        renderIntent: { ...root.renderIntent, interaction: "regions", updateModel: "finite-state" },
         states: {
-          default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
           active: { id: "active", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
         },
-        renderIntent: { ...root.renderIntent, updateModel: "finite-state", interaction: "regions" },
       },
     } as ComponentStructure;
     const cues: PresentationDeclaration["flow"]["groups"][string]["steps"][string]["cues"] = [
       {
-        id: "activate",
-        trigger: { kind: "component.output", componentInstanceId: "instance", outputId: "clicked" },
+        actions: [
+          {
+            actionId: "activate",
+            arguments: { value: { kind: "literal", value: 2 } },
+            componentInstanceId: "instance",
+            kind: "component.action",
+          },
+        ],
         guard: {
           kind: "compare",
-          left: { kind: "eventPayload", field: "opacity" },
+          left: { field: "opacity", kind: "eventPayload" },
           operator: "gt",
           right: 0,
         },
-        actions: [
-          {
-            kind: "component.action",
-            componentInstanceId: "instance",
-            actionId: "activate",
-            arguments: { value: { kind: "literal", value: 2 } },
-          },
-        ],
+        id: "activate",
         next: { kind: "step", stepId: "done" },
+        trigger: { componentInstanceId: "instance", kind: "component.output", outputId: "clicked" },
       },
     ];
     input.presentation = {
       ...input.presentation,
       flow: {
         ...input.presentation.flow,
-        variables: {
-          count: { id: "count", owner: { kind: "presentation" }, type: "number", initialValue: 0 },
-        },
         groups: {
           group: {
             id: "group",
             initialStepId: "step",
-            steps: { step: { id: "step", cues }, done: { id: "done", cues: [] } },
+            steps: { done: { id: "done", cues: [] }, step: { id: "step", cues } },
           },
+        },
+        variables: {
+          count: { id: "count", initialValue: 0, owner: { kind: "presentation" }, type: "number" },
         },
       },
     };
     const result = checkDeclarationProject(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.definition.flow.groups.group?.steps.step?.cues).toEqual([
       expect.objectContaining({
-        fixedPayload: { opacity: 0.5 },
-        trigger: {
-          kind: "surfaceInteraction",
-          actor: { kind: "presenter" },
-          surfaceId: "instance:surface-root",
-          interactionId: "instance:open",
-        },
-        guard: {
-          kind: "compare",
-          left: { kind: "eventPayload", field: "opacity" },
-          operator: "gt",
-          right: 0,
-        },
         actions: [
           {
             kind: "surface.setState",
-            surfaceId: "instance:surface-root",
             stateId: "instance:active",
+            surfaceId: "instance:surface-root",
             transition: {
-              kind: "crossfade",
+              completion: "blocking",
               durationMilliseconds: 200,
               easing: "linear",
-              completion: "blocking",
+              kind: "crossfade",
             },
           },
-          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 2 } },
+          { kind: "variable.set", value: { kind: "literal", value: 2 }, variableId: "count" },
           {
             kind: "node.patch",
             nodeId: "instance:spatial",
-            patch: { opacity: { kind: "eventPayload", field: "opacity" } },
+            patch: { opacity: { field: "opacity", kind: "eventPayload" } },
           },
         ],
+        fixedPayload: { opacity: 0.5 },
+        guard: {
+          kind: "compare",
+          left: { field: "opacity", kind: "eventPayload" },
+          operator: "gt",
+          right: 0,
+        },
         next: { kind: "step", stepId: "done" },
+        trigger: {
+          actor: { kind: "presenter" },
+          interactionId: "instance:open",
+          kind: "surfaceInteraction",
+          surfaceId: "instance:surface-root",
+        },
       }),
     ]);
     expect(result.value.definition.flow.groups.group?.steps.done?.cues).toEqual([]);
   });
   it("lowers a timer Output to an actionless Step transition", () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     entry.manifest = {
@@ -657,7 +677,7 @@ describe("checkDeclarationProject", () => {
         elapsed: {
           kind: "output",
           payload: { phase: { type: "string", value: "ready" } },
-          producer: { kind: "timer", afterMilliseconds: 1000 },
+          producer: { afterMilliseconds: 1000, kind: "timer" },
         },
       },
     };
@@ -670,8 +690,8 @@ describe("checkDeclarationProject", () => {
             id: "group",
             initialStepId: "step",
             steps: {
+              done: { cues: [], id: "done" },
               step: {
-                id: "step",
                 cues: [
                   {
                     id: "advance",
@@ -690,8 +710,8 @@ describe("checkDeclarationProject", () => {
                     next: { kind: "step", stepId: "done" },
                   },
                 ],
+                id: "step",
               },
-              done: { id: "done", cues: [] },
             },
           },
         },
@@ -699,10 +719,12 @@ describe("checkDeclarationProject", () => {
     };
     const result = checkDeclarationProject(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.definition.flow.groups.group?.steps.step?.cues).toEqual([
       expect.objectContaining({
-        trigger: { kind: "timer", afterMilliseconds: 1000 },
+        actions: [],
         fixedPayload: { phase: "ready" },
         guard: {
           kind: "compare",
@@ -710,24 +732,24 @@ describe("checkDeclarationProject", () => {
           operator: "eq",
           right: "instance:default",
         },
-        actions: [],
         next: { kind: "step", stepId: "done" },
+        trigger: { afterMilliseconds: 1000, kind: "timer" },
       }),
     ]);
   });
   it("rejects undeclared Timeline effects and media Output producers", () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     entry.manifest = {
       ...entry.manifest,
       actions: {
         animate: {
-          kind: "action",
+          effects: [{ completion: "blocking", kind: "playTimeline", timelineId: "animation" }],
           inputs: {},
+          kind: "action",
           preconditions: [],
-          effects: [{ kind: "playTimeline", timelineId: "animation", completion: "blocking" }],
         },
       },
       outputs: {
@@ -747,17 +769,19 @@ describe("checkDeclarationProject", () => {
   });
   it("lowers finite states, visual changes, semantic changes and interactions", () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const original = input.components[0]!;
     const root = original.structure.root;
-    if (root.kind !== "surface") throw new Error("fixture must be a surface");
-    (input.themes as StructuredProject["themes"][number][])[0] = {
+    if (root.kind !== "surface") {
+      throw new Error("fixture must be a surface");
+    }
+    (input.themes as Array<StructuredProject["themes"][number]>)[0] = {
       ...input.themes[0]!,
       declaration: {
         ...input.themes[0]!.declaration,
         tokens: {
-          accent: { category: "color", value: { red: 0.2, green: 0.3, blue: 0.4, alpha: 1 } },
+          accent: { category: "color", value: { alpha: 1, blue: 0.4, green: 0.3, red: 0.2 } },
         },
       },
     };
@@ -765,15 +789,13 @@ describe("checkDeclarationProject", () => {
       ...original,
       manifest: {
         ...original.manifest,
-        states: { default: { kind: "state", initial: true }, active: { kind: "state" } },
+        states: { active: { kind: "state" }, default: { initial: true, kind: "state" } },
       },
       structure: {
         ...original.structure,
         root: {
           ...root,
-          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 7 } },
           baseSemanticTree: {
-            rootNodeIds: ["semantic-text"],
             nodes: {
               "semantic-text": {
                 id: "semantic-text",
@@ -784,9 +806,15 @@ describe("checkDeclarationProject", () => {
                 text: "Open",
               },
             },
+            rootNodeIds: ["semantic-text"],
+          },
+          interactions: { open: { event: "open", hitPriority: 7, id: "open", kind: "click" } },
+          renderIntent: {
+            ...root.renderIntent,
+            interaction: "regions",
+            updateModel: "finite-state",
           },
           states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
             active: {
               id: "active",
               contentOverrides: {
@@ -826,42 +854,40 @@ describe("checkDeclarationProject", () => {
               ],
               enabledInteractionIds: ["open"],
             },
-          },
-          renderIntent: {
-            ...root.renderIntent,
-            updateModel: "finite-state",
-            interaction: "regions",
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
           },
         } as SurfaceDeclaration,
       } as ComponentStructure,
     };
     const result = checkDeclarationProject(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
-    expect(surface.interactions["instance:open"]).toMatchObject({ hitPriority: 7, event: "open" });
+    expect(surface.interactions["instance:open"]).toMatchObject({ event: "open", hitPriority: 7 });
     expect(surface.states["instance:active"]).toMatchObject({
       contentOverrides: {
         "instance:frame-root": {
-          kind: "frame",
-          placement: { kind: "absolute", x: 1, y: 2, width: 1600, height: 900 },
-          layout: { kind: "absolute" },
           backgroundColor: { red: 0.2 },
-          border: { width: 2, radius: 3 },
+          border: { radius: 3, width: 2 },
           clip: true,
+          kind: "frame",
+          layout: { kind: "absolute" },
+          placement: { height: 900, kind: "absolute", width: 1600, x: 1, y: 2 },
         },
         "instance:text-content": {
           kind: "text",
-          value: { kind: "literal", value: "Active" },
           style: {
+            align: "center",
+            color: { red: 0.2 },
             fontAssetId: "reference-font",
             fontSize: 44,
             lineHeight: 50,
-            color: { red: 0.2 },
-            weight: "bold",
-            align: "center",
             overflow: "ellipsis",
+            weight: "bold",
           },
+          value: { kind: "literal", value: "Active" },
         },
       },
       enabledInteractionIds: ["instance:open"],
@@ -880,10 +906,10 @@ describe("checkDeclarationProject", () => {
           ...entry.structure.root,
           states: {
             default: {
+              contentOverrides: { [targetId]: { kind } },
+              enabledInteractionIds: [],
               id: "default",
               semanticOverrides: [],
-              enabledInteractionIds: [],
-              contentOverrides: { [targetId]: { kind } },
             },
           },
         },
@@ -893,19 +919,21 @@ describe("checkDeclarationProject", () => {
   });
   it("lowers only v2 artifacts with explicit literal fonts and external assets", () => {
     const input = project();
-    input.presentation.assets = [{ kind: "asset-ref", assetId: "reference-font" }];
+    input.presentation.assets = [{ assetId: "reference-font", kind: "asset-ref" }];
     input.assets = {
       "reference-font": {
-        id: "reference-font",
-        mediaType: "font/ttf",
+        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
         dataBase64: "AAEAAAAAAAAAAAAA",
         encodedSizeBytes: 12,
-        checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+        id: "reference-font",
+        mediaType: "font/ttf",
       },
     };
     const result = checkDeclarationProject(input);
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.definition.schemaVersion).toBe(2);
     expect(result.value.definition).not.toHaveProperty("assets");
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
@@ -917,48 +945,50 @@ describe("checkDeclarationProject", () => {
     component.manifest = {
       ...component.manifest,
       props: {
-        title: { kind: "string", default: "Default" },
-        count: { kind: "number", default: 0 },
-        enabled: { kind: "boolean", default: false },
+        count: { default: 0, kind: "number" },
+        enabled: { default: false, kind: "boolean" },
+        title: { default: "Default", kind: "string" },
       },
       variants: {
-        tone: { kind: "variant", values: ["quiet", "loud"], default: "quiet" },
-        explicitTone: { kind: "variant", values: ["quiet", "loud"], default: "quiet" },
         density: { kind: "variant", values: ["compact", "roomy"] },
+        explicitTone: { default: "quiet", kind: "variant", values: ["quiet", "loud"] },
         optional: { kind: "variant", values: ["on", "off"] },
+        tone: { default: "quiet", kind: "variant", values: ["quiet", "loud"] },
       },
     };
     component.structure = {
       ...component.structure,
       variantStyles: {
-        tone: { quiet: [], loud: [] },
-        explicitTone: { quiet: [], loud: [] },
         density: { compact: [], roomy: [] },
-        optional: { on: [], off: [] },
+        explicitTone: { loud: [], quiet: [] },
+        optional: { off: [], on: [] },
+        tone: { loud: [], quiet: [] },
       },
     } as never;
     input.presentation.scene.components[0]!.props = { count: 0, enabled: false };
     input.presentation.scene.components[0]!.variants = {
-      explicitTone: "quiet",
       density: "compact",
+      explicitTone: "quiet",
     };
 
     const result = checkDeclarationProject(input);
 
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.warnings).toEqual([
       expect.objectContaining({
         code: "compiler-prop-default-applied",
         componentInstanceId: "instance",
-        propName: "title",
         defaultValue: "Default",
+        propName: "title",
       }),
       expect.objectContaining({
         code: "compiler-variant-default-applied",
         componentInstanceId: "instance",
-        variantName: "tone",
         defaultValue: "quiet",
+        variantName: "tone",
       }),
     ]);
   });
@@ -973,8 +1003,8 @@ describe("checkDeclarationProject", () => {
     [
       "font signature mismatch",
       {
-        dataBase64: "T1RUAAAAAAAAAAAA",
         checksum: "sha256:a1f098f0b83e4000e5265942ea3a38af0c92d06425a754ba6f28c301a66388c0",
+        dataBase64: "T1RUAAAAAAAAAAAA",
       },
     ],
   ])("rejects %s in a self-contained source font", (_, change) => {
@@ -999,7 +1029,7 @@ describe("checkDeclarationProject", () => {
             ...component,
             manifest: {
               ...component.manifest,
-              props: { title: { kind: "string", default: 42 } },
+              props: { title: { default: 42, kind: "string" } },
             },
           },
         ],
@@ -1013,11 +1043,11 @@ describe("checkDeclarationProject", () => {
     component.manifest = {
       ...component.manifest,
       props: {
-        title: { kind: "string", required: true },
-        x: { kind: "number", required: true },
-        visible: { kind: "boolean", required: true },
-        opacity: { kind: "number", required: true },
         limit: { kind: "number", required: true },
+        opacity: { kind: "number", required: true },
+        title: { kind: "string", required: true },
+        visible: { kind: "boolean", required: true },
+        x: { kind: "number", required: true },
       },
     };
     component.structure = {
@@ -1029,7 +1059,7 @@ describe("checkDeclarationProject", () => {
           nodes: {
             "semantic-text": {
               ...component.structure.root.baseSemanticTree.nodes["semantic-text"]!,
-              text: { kind: "prop-ref", propId: "title", expectedType: "string" },
+              text: { expectedType: "string", kind: "prop-ref", propId: "title" },
             },
           },
         },
@@ -1039,14 +1069,14 @@ describe("checkDeclarationProject", () => {
             child.kind === "text"
               ? {
                   ...child,
-                  value: { kind: "prop-ref", propId: "title", expectedType: "string" },
-                  visible: { kind: "prop-ref", propId: "visible", expectedType: "boolean" },
-                  opacity: { kind: "prop-ref", propId: "opacity", expectedType: "number" },
-                  maxCodePoints: { kind: "prop-ref", propId: "limit", expectedType: "number" },
                   layout: {
                     ...child.layout,
-                    x: { kind: "prop-ref", propId: "x", expectedType: "number" },
+                    x: { expectedType: "number", kind: "prop-ref", propId: "x" },
                   },
+                  maxCodePoints: { expectedType: "number", kind: "prop-ref", propId: "limit" },
+                  opacity: { expectedType: "number", kind: "prop-ref", propId: "opacity" },
+                  value: { expectedType: "string", kind: "prop-ref", propId: "title" },
+                  visible: { expectedType: "boolean", kind: "prop-ref", propId: "visible" },
                 }
               : child,
           ),
@@ -1054,27 +1084,29 @@ describe("checkDeclarationProject", () => {
       },
     } as never;
     input.presentation.scene.components[0]!.props = {
-      title: "Resolved",
-      x: 12,
-      visible: false,
-      opacity: 0,
       limit: 80,
+      opacity: 0,
+      title: "Resolved",
+      visible: false,
+      x: 12,
     };
 
     const result = checkDeclarationProject(input);
 
     expect(result.valid).toBe(true);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(
       structuredContent(Object.values(result.value.definition.scene.surfaces)[0]).nodes[
         "instance:text-content"
       ],
     ).toMatchObject({
+      maxCodePoints: 80,
+      opacity: 0,
+      placement: { x: 12 },
       value: { kind: "literal", value: "Resolved" },
       visible: false,
-      opacity: 0,
-      maxCodePoints: 80,
-      placement: { x: 12 },
     });
     expect(
       Object.values(result.value.definition.scene.surfaces)[0]!.baseSemanticTree.nodes[
@@ -1087,47 +1119,48 @@ describe("checkDeclarationProject", () => {
     const input = project();
     input.themes[0]!.declaration = {
       ...input.themes[0]!.declaration,
+      namedStyles: {
+        title: {
+          kind: "text",
+          style: {
+            color: { kind: "token-ref", category: "color", tokenId: "inkAlias" },
+            fallbackFonts: [{ kind: "asset-ref", assetId: "reference-font" }],
+            font: { kind: "token-ref", category: "fontFace", tokenId: "face" },
+            fontSize: { kind: "token-ref", category: "logicalLength", tokenId: "sizeAlias" },
+            lineHeight: 32,
+          },
+        },
+      },
       tokens: {
+        ease: { category: "easing", value: "linear" },
+        face: {
+          category: "fontFace",
+          value: { kind: "asset-ref", assetId: "reference-font" },
+        },
         ink: { category: "color", value: { red: 1, green: 0, blue: 0, alpha: 1 } },
         inkAlias: {
           category: "color",
           value: { kind: "token-ref", category: "color", tokenId: "ink" },
         },
+        meter: { category: "spatialLength", value: 1 },
+        pause: { category: "duration", value: 100 },
         size: { category: "logicalLength", value: 24 },
         sizeAlias: {
           category: "logicalLength",
           value: { kind: "token-ref", category: "logicalLength", tokenId: "size" },
-        },
-        face: {
-          category: "fontFace",
-          value: { kind: "asset-ref", assetId: "reference-font" },
-        },
-        meter: { category: "spatialLength", value: 1 },
-        pause: { category: "duration", value: 100 },
-        ease: { category: "easing", value: "linear" },
-      },
-      namedStyles: {
-        title: {
-          kind: "text",
-          style: {
-            font: { kind: "token-ref", category: "fontFace", tokenId: "face" },
-            fallbackFonts: [{ kind: "asset-ref", assetId: "reference-font" }],
-            fontSize: { kind: "token-ref", category: "logicalLength", tokenId: "sizeAlias" },
-            lineHeight: 32,
-            color: { kind: "token-ref", category: "color", tokenId: "inkAlias" },
-          },
         },
       },
     };
     const component = input.components[0]!;
     component.manifest = {
       ...component.manifest,
-      variants: { emphasis: { kind: "variant", values: ["normal", "strong"] } },
       parts: { title: { kind: "part" } },
+      variants: { emphasis: { kind: "variant", values: ["normal", "strong"] } },
     };
     const text = component.structure.root.root.children[0]!;
     component.structure = {
       ...component.structure,
+      partBindings: { title: "text-content" },
       root: {
         ...component.structure.root,
         root: {
@@ -1138,9 +1171,9 @@ describe("checkDeclarationProject", () => {
               namedStyle: { kind: "named-style-ref", styleId: "title" },
               style: {
                 ...text.style,
+                align: "center",
                 fallbackFonts: [],
                 fontSize: 28,
-                align: "center",
               },
             },
           ],
@@ -1151,44 +1184,45 @@ describe("checkDeclarationProject", () => {
           normal: [],
           strong: [
             {
+              style: { fontSize: 30, weight: "bold" },
               targetId: "text-content",
               targetKind: "text",
-              style: { fontSize: 30, weight: "bold" },
             },
           ],
         },
       },
-      partBindings: { title: "text-content" },
     } as never;
     input.presentation.scene.components[0]!.variants = { emphasis: "strong" };
     input.presentation.scene.components[0]!.partOverrides = [
       {
-        partId: "title",
-        targetKind: "text",
         content: "Overridden",
+        partId: "title",
         style: { fontSize: 36 },
+        targetKind: "text",
       },
     ];
 
     const result = checkDeclarationProject(input);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(
       structuredContent(result.value.definition.scene.surfaces["instance:surface-root"]).nodes[
         "instance:text-content"
       ],
     ).toMatchObject({
-      value: { kind: "literal", value: "Overridden" },
       style: {
-        fontAssetId: "reference-font",
+        align: "center",
+        color: { red: 1, green: 0, blue: 0, alpha: 1 },
         fallbackFontAssetIds: [],
+        fontAssetId: "reference-font",
         fontSize: 36,
         lineHeight: 40,
-        color: { red: 1, green: 0, blue: 0, alpha: 1 },
         weight: "bold",
-        align: "center",
       },
+      value: { kind: "literal", value: "Overridden" },
     });
   });
 
@@ -1199,7 +1233,7 @@ describe("checkDeclarationProject", () => {
       tokens: {
         missing: {
           category: "color",
-          value: { kind: "token-ref", category: "color", tokenId: "absent" },
+          value: { category: "color", kind: "token-ref", tokenId: "absent" },
         },
       },
     };
@@ -1211,11 +1245,11 @@ describe("checkDeclarationProject", () => {
       tokens: {
         a: {
           category: "duration",
-          value: { kind: "token-ref", category: "duration", tokenId: "b" },
+          value: { category: "duration", kind: "token-ref", tokenId: "b" },
         },
         b: {
           category: "duration",
-          value: { kind: "token-ref", category: "duration", tokenId: "a" },
+          value: { category: "duration", kind: "token-ref", tokenId: "a" },
         },
       },
     };
@@ -1233,10 +1267,10 @@ describe("checkDeclarationProject", () => {
       ...conflict.components[0]!.structure,
       variantStyles: {
         first: {
-          on: [{ targetId: "text-content", targetKind: "text", style: { fontSize: 20 } }],
+          on: [{ style: { fontSize: 20 }, targetId: "text-content", targetKind: "text" }],
         },
         second: {
-          on: [{ targetId: "text-content", targetKind: "text", style: { fontSize: 21 } }],
+          on: [{ style: { fontSize: 21 }, targetId: "text-content", targetKind: "text" }],
         },
       },
     };
@@ -1252,8 +1286,8 @@ describe("checkDeclarationProject", () => {
       ...unselected.components[0]!.structure,
       variantStyles: {
         tone: {
-          quiet: [{ targetId: "missing", targetKind: "text", style: { fontSize: 20 } }],
           loud: [],
+          quiet: [{ style: { fontSize: 20 }, targetId: "missing", targetKind: "text" }],
         },
       },
     };
@@ -1282,11 +1316,12 @@ describe("checkDeclarationProject", () => {
     const placeholder = project();
     placeholder.components[0]!.manifest = {
       ...placeholder.components[0]!.manifest,
-      slots: { badge: { kind: "slot" } },
       parts: { badgePlacement: { kind: "part" } },
+      slots: { badge: { kind: "slot" } },
     };
     placeholder.components[0]!.structure = {
       ...placeholder.components[0]!.structure,
+      partBindings: { badgePlacement: "badge-placement" },
       root: {
         ...placeholder.components[0]!.structure.root,
         root: {
@@ -1297,7 +1332,6 @@ describe("checkDeclarationProject", () => {
           ],
         },
       },
-      partBindings: { badgePlacement: "badge-placement" },
     } as never;
     expect(codes(placeholder)).toContain("compiler-part-binding-invalid");
   });
@@ -1314,8 +1348,14 @@ describe("checkDeclarationProject", () => {
       root: {
         ...top.structure.root,
         baseSemanticTree: {
-          rootNodeIds: ["semantic-text", "existing-child"],
           nodes: {
+            "existing-child": {
+              id: "existing-child",
+              parentId: null,
+              order: 1,
+              role: "paragraph",
+              text: "Existing",
+            },
             "semantic-text": {
               id: "semantic-text",
               parentId: null,
@@ -1324,14 +1364,8 @@ describe("checkDeclarationProject", () => {
               level: 1,
               text: "Unframe",
             },
-            "existing-child": {
-              id: "existing-child",
-              parentId: null,
-              order: 1,
-              role: "paragraph",
-              text: "Existing",
-            },
           },
+          rootNodeIds: ["semantic-text", "existing-child"],
         },
         root: {
           ...top.structure.root.root,
@@ -1350,36 +1384,56 @@ describe("checkDeclarationProject", () => {
     } as never;
     input.presentation.scene.components[0]!.slots = { badge: ["badge-instance"] };
     (
-      input.presentation.scene
-        .components as unknown as PresentationDeclaration["scene"]["components"][number][]
+      input.presentation.scene.components as unknown as Array<
+        PresentationDeclaration["scene"]["components"][number]
+      >
     ).push({
+      componentId: "badge",
       id: "badge-instance",
       kind: "component-instance",
-      componentId: "badge",
-      version: 1,
       owner: { kind: "presentation" },
+      partOverrides: [],
       props: {},
       slots: {},
       variants: {},
-      partOverrides: [],
+      version: 1,
     });
-    (input.components as unknown as StructuredProject["components"][number][]).push({
+    (input.components as unknown as Array<StructuredProject["components"][number]>).push({
+      lock: {
+        manifestHash: "badge-manifest",
+        mode: "structured",
+        origin: { kind: "local", entryFile: "badge.ts", files: [], sourceHash: "sha256:badge" },
+        structureHash: "badge-structure",
+      },
       manifest: {
-        componentId: "badge",
-        version: 1,
-        authoring: { mode: "structured", structure: "./badge.structure.ts" },
-        props: {},
-        slots: {},
-        parts: {},
-        variants: {},
-        states: {},
         actions: {},
+        authoring: { mode: "structured", structure: "./badge.structure.ts" },
+        componentId: "badge",
         outputs: {},
+        parts: {},
+        props: {},
         renderers: ["baked-web"],
+        slots: {},
+        states: {},
+        variants: {},
+        version: 1,
       },
       structure: {
-        id: "badge-structure",
+        baseSemanticTree: {
+          rootNodeIds: ["badge-semantic"],
+          nodes: {
+            "badge-semantic": {
+              id: "badge-semantic",
+              parentId: null,
+              order: 0,
+              role: "paragraph",
+              text: "Badge",
+            },
+          },
+        },
         componentId: "badge",
+        id: "badge-structure",
+        partBindings: {},
         root: {
           id: "badge-frame",
           kind: "frame",
@@ -1400,41 +1454,24 @@ describe("checkDeclarationProject", () => {
             },
           ],
         },
-        baseSemanticTree: {
-          rootNodeIds: ["badge-semantic"],
-          nodes: {
-            "badge-semantic": {
-              id: "badge-semantic",
-              parentId: null,
-              order: 0,
-              role: "paragraph",
-              text: "Badge",
-            },
-          },
-        },
-        partBindings: {},
-        variantStyles: {},
         timelines: [],
-      },
-      lock: {
-        mode: "structured",
-        origin: { kind: "local", entryFile: "badge.ts", files: [], sourceHash: "sha256:badge" },
-        manifestHash: "badge-manifest",
-        structureHash: "badge-structure",
+        variantStyles: {},
       },
     });
 
     const result = checkDeclarationProject(input);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
     expect(structuredContent(surface).nodes["instance:frame-root"]).toMatchObject({
       children: ["instance:text-content", "instance:existing-text", "badge-instance:badge-frame"],
     });
     expect(structuredContent(surface).nodes["badge-instance:badge-frame"]).toMatchObject({
-      parentId: "instance:frame-root",
       order: 2,
+      parentId: "instance:frame-root",
     });
     expect(surface.baseSemanticTree.rootNodeIds).toEqual([
       "instance:semantic-text",
@@ -1443,11 +1480,15 @@ describe("checkDeclarationProject", () => {
     ]);
 
     const topStructure = (
-      input.components as unknown as StructuredProject["components"][number][]
+      input.components as unknown as Array<StructuredProject["components"][number]>
     )[0]!.structure;
-    if (topStructure.root.kind !== "surface") return;
+    if (topStructure.root.kind !== "surface") {
+      return;
+    }
     const slotPlaceholder = topStructure.root.root.children[2];
-    if (slotPlaceholder?.kind !== "slot-placeholder") return;
+    if (slotPlaceholder?.kind !== "slot-placeholder") {
+      return;
+    }
     slotPlaceholder.semanticParentId = "missing";
     expect(codes(input)).toContain("compiler-slot-semantic-parent-not-found");
     slotPlaceholder.semanticParentId = "semantic-text";
@@ -1457,16 +1498,18 @@ describe("checkDeclarationProject", () => {
     );
 
     const badgeStructure = (
-      input.components as unknown as StructuredProject["components"][number][]
+      input.components as unknown as Array<StructuredProject["components"][number]>
     )[1]!.structure;
-    if (badgeStructure.root.kind !== "frame") return;
+    if (badgeStructure.root.kind !== "frame") {
+      return;
+    }
     const badgeSemanticTree = badgeStructure.baseSemanticTree!;
     badgeStructure.baseSemanticTree = {
-      rootNodeIds: badgeSemanticTree.rootNodeIds,
       nodes: {
         ...badgeSemanticTree.nodes,
         alias: badgeSemanticTree.nodes["badge-semantic"]!,
       },
+      rootNodeIds: badgeSemanticTree.rootNodeIds,
     };
     expect(codes(input)).toEqual(
       expect.arrayContaining([
@@ -1480,7 +1523,7 @@ describe("checkDeclarationProject", () => {
     const input = project();
     input.components[0]!.manifest = {
       ...input.components[0]!.manifest,
-      slots: { self: { kind: "slot" }, missing: { kind: "slot" } },
+      slots: { missing: { kind: "slot" }, self: { kind: "slot" } },
     };
     input.components[0]!.structure = {
       ...input.components[0]!.structure,
@@ -1497,8 +1540,8 @@ describe("checkDeclarationProject", () => {
       },
     } as never;
     input.presentation.scene.components[0]!.slots = {
-      self: ["instance"],
       missing: ["absent"],
+      self: ["instance"],
     };
 
     expect(codes(input)).toEqual(
@@ -1509,10 +1552,10 @@ describe("checkDeclarationProject", () => {
   it("rejects accessor-backed project data without executing the accessor", () => {
     let reads = 0;
     const input = {
+      assets: {},
+      components: [],
       presentation: presentation(),
       themes: [],
-      components: [],
-      assets: {},
     };
     Object.defineProperty(input, "themes", {
       enumerable: true,
@@ -1526,13 +1569,13 @@ describe("checkDeclarationProject", () => {
   });
 
   it("keeps malformed public envelopes and sparse arrays on the diagnostic boundary", () => {
-    const sparse: string[] = [];
+    const sparse: Array<string> = [];
     sparse.length = 2;
     sparse[1] = "hole";
     for (const input of [
-      { presentation: {}, themes: [], components: [], assets: {} },
-      { presentation: {}, themes: {}, components: [], assets: {} },
-      { presentation: {}, themes: [], components: [], assets: {}, extra: sparse },
+      { assets: {}, components: [], presentation: {}, themes: [] },
+      { assets: {}, components: [], presentation: {}, themes: {} },
+      { assets: {}, components: [], extra: sparse, presentation: {}, themes: [] },
     ]) {
       expect(() => checkDeclarationProject(input)).not.toThrow();
       expect(codes(input)).not.toEqual([]);
@@ -1542,7 +1585,9 @@ describe("checkDeclarationProject", () => {
   it("lowers the reference structured Surface to a Core-valid canonical Definition", () => {
     const result = checkDeclarationProject(project());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(validatePresentationDefinition(result.value.definition).valid).toBe(true);
     expect(
       structuredContent(result.value.definition.scene.surfaces["instance:surface-root"])
@@ -1550,7 +1595,9 @@ describe("checkDeclarationProject", () => {
     ).toBe("instance:frame-root");
     const canonical = canonicalizePresentationDefinition(result.value.definition);
     expect(canonical).toMatchObject({ valid: true });
-    if (canonical.valid) expect(result.value.definitionJson).toBe(canonical.value);
+    if (canonical.valid) {
+      expect(result.value.definitionJson).toBe(canonical.value);
+    }
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
@@ -1573,7 +1620,9 @@ describe("checkDeclarationProject", () => {
     input.presentation.scene.spatial[0]!.transform.rotation = [-2, -0, -0, -0];
     const result = checkDeclarationProject(input);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.definition.scene.nodes["instance:spatial"]?.transform.rotation).toEqual([
       1, 0, 0, 0,
     ]);
@@ -1611,7 +1660,9 @@ describe("checkDeclarationProject", () => {
     try {
       const result = safePlainClone(project());
       expect(result.valid).toBe(true);
-      if (!result.valid) return;
+      if (!result.valid) {
+        return;
+      }
       expect(reads).toBe(0);
       expect(Object.getPrototypeOf(result.value)).toBeNull();
     } finally {
@@ -1622,8 +1673,8 @@ describe("checkDeclarationProject", () => {
   it("is independent of plain-object insertion order", () => {
     const firstProject = project();
     firstProject.presentation.assets = [
-      { kind: "asset-ref", assetId: "asset-a" },
-      { kind: "asset-ref", assetId: "asset-b" },
+      { assetId: "asset-a", kind: "asset-ref" },
+      { assetId: "asset-b", kind: "asset-ref" },
     ];
     const sourceAsset = project().assets["reference-font"]!;
     const validAssetA = { ...sourceAsset, id: "asset-a" };
@@ -1632,8 +1683,8 @@ describe("checkDeclarationProject", () => {
     const text = structure.root.root.children[0]!;
     (text as unknown as { style: Record<string, unknown> }).style = {
       ...text.style!,
-      font: { kind: "asset-ref", assetId: "asset-a" },
-      fallbackFonts: [{ kind: "asset-ref", assetId: "asset-b" }],
+      fallbackFonts: [{ assetId: "asset-b", kind: "asset-ref" }],
+      font: { assetId: "asset-a", kind: "asset-ref" },
     };
     firstProject.components[0]!.structure = structure;
     firstProject.assets = { "asset-a": validAssetA, "asset-b": validAssetB };
@@ -1642,13 +1693,15 @@ describe("checkDeclarationProject", () => {
     secondProject.components[0]!.structure = structure;
     secondProject.presentation.assets = [...firstProject.presentation.assets];
     secondProject.assets = {
-      "asset-b": validAssetB,
       "asset-a": validAssetA,
+      "asset-b": validAssetB,
     };
     const second = checkDeclarationProject(secondProject);
     expect(first).toMatchObject({ valid: true });
     expect(second).toMatchObject({ valid: true });
-    if (!first.valid || !second.valid) return;
+    if (!first.valid || !second.valid) {
+      return;
+    }
     expect(second.value).toEqual(first.value);
   });
 
@@ -1734,7 +1787,7 @@ describe("checkDeclarationProject", () => {
       ...opaque.components[0]!.manifest,
       authoring: { mode: "opaque" },
       renderers: {},
-      semantics: { targets: [], surfaces: [] },
+      semantics: { surfaces: [], targets: [] },
     } as never;
     expect(codes(opaque)).toContain("compiler-opaque-component-unsupported");
 
@@ -1743,7 +1796,7 @@ describe("checkDeclarationProject", () => {
     expect(codes(props)).toContain("compiler-prop-not-found");
 
     const owner = project();
-    owner.presentation.scene.components[0]!.owner = { kind: "group", groupId: "group" };
+    owner.presentation.scene.components[0]!.owner = { groupId: "group", kind: "group" };
     expect(codes(owner)).toContain("compiler-owner-mismatch");
   });
 
@@ -1831,10 +1884,10 @@ describe("checkDeclarationProject", () => {
                 ...standardComponents.surface.structure.root.root,
                 children: [
                   {
+                    children: [standardComponents.surface.structure.root.root.children[0]!],
                     id: "nested",
                     kind: "frame",
-                    layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 },
-                    children: [standardComponents.surface.structure.root.root.children[0]!],
+                    layout: { height: 1, kind: "absolute", width: 1, x: 0, y: 0 },
                   },
                 ],
               },
@@ -1844,10 +1897,11 @@ describe("checkDeclarationProject", () => {
       ],
     });
     expect(nestedResult.valid).toBe(true);
-    if (nestedResult.valid)
+    if (nestedResult.valid) {
       expect(
         structuredContent(Object.values(nestedResult.value.definition.scene.surfaces)[0]).nodes,
       ).toHaveProperty("instance:nested");
+    }
 
     const features = project();
     expect(
@@ -1860,19 +1914,19 @@ describe("checkDeclarationProject", () => {
               ...features.components[0]!.manifest,
               actions: {
                 click: {
-                  kind: "action",
-                  inputs: {},
-                  preconditions: [],
                   effects: [
-                    { kind: "playTimeline", timelineId: "timeline", completion: "blocking" },
+                    { completion: "blocking", kind: "playTimeline", timelineId: "timeline" },
                   ],
+                  inputs: {},
+                  kind: "action",
+                  preconditions: [],
                 },
               },
               outputs: {
                 done: {
                   kind: "output",
                   payload: {},
-                  producer: { kind: "timer", afterMilliseconds: 1 },
+                  producer: { afterMilliseconds: 1, kind: "timer" },
                 },
               },
             },
@@ -1888,8 +1942,8 @@ describe("checkDeclarationProject", () => {
                 initialStepId: "step",
                 steps: {
                   step: {
+                    cues: [{ actions: [], id: "cue", trigger: { kind: "event", event: "tap" } }],
                     id: "step",
-                    cues: [{ id: "cue", trigger: { kind: "event", event: "tap" }, actions: [] }],
                   },
                 },
               },
@@ -1898,9 +1952,9 @@ describe("checkDeclarationProject", () => {
           operations: [
             {
               id: "detach",
+              instanceId: "instance",
               kind: "detach",
               mode: "structured",
-              instanceId: "instance",
               provenance: { componentId: "x", version: 1 },
             },
           ],
@@ -1914,8 +1968,9 @@ describe("checkDeclarationProject", () => {
     escaped.presentation.scene.components[0]!.id = "instance/a";
     const result = checkDeclarationProject(escaped);
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (result.valid)
+    if (result.valid) {
       expect(result.value.definition.scene.surfaces).toHaveProperty("instance/a:surface-root");
+    }
 
     const collision = project();
     collision.presentation.scene.spatial[0]!.id = "surface-root";
@@ -1923,7 +1978,7 @@ describe("checkDeclarationProject", () => {
     expect(codes(collision)).toContain("compiler-resource-id-collision");
 
     const inheritedAsset = project();
-    inheritedAsset.presentation.assets = [{ kind: "asset-ref", assetId: "toString" }];
+    inheritedAsset.presentation.assets = [{ assetId: "toString", kind: "asset-ref" }];
     expect(codes(inheritedAsset)).toContain("compiler-asset-not-found");
 
     const unreferencedAsset = project();
@@ -1936,13 +1991,13 @@ describe("checkDeclarationProject", () => {
     (malformedStructure.components[0] as unknown as { structure: unknown }).structure = {};
     const malformedStructureResult = checkDeclarationProject(malformedStructure);
     expect(malformedStructureResult).toMatchObject({
-      valid: false,
       diagnostics: [
         {
           code: "compiler-invalid-declaration",
           path: ["components", 0, "structure"],
         },
       ],
+      valid: false,
     });
 
     const cyclic: Record<string, unknown> = {};
@@ -1972,7 +2027,7 @@ describe("checkDeclarationProject", () => {
     Object.assign(arrayWithExtra.themes, { extra: true });
     expect(codes(arrayWithExtra)).toContain("compiler-invalid-input");
     const proto = JSON.parse(JSON.stringify(project())) as Record<string, unknown>;
-    Object.defineProperty(proto, "__proto__", { value: { retained: true }, enumerable: true });
+    Object.defineProperty(proto, "__proto__", { enumerable: true, value: { retained: true } });
     expect(codes(proto)).toContain("compiler-invalid-project-field");
 
     const customArray = project();
@@ -2013,46 +2068,51 @@ describe("checkDeclarationProject", () => {
           id: surfaceId,
           root: {
             ...baseComponent.structure.root.root,
-            id: `frame-${suffix}`,
             children: baseComponent.structure.root.root.children.map((child) => ({
               ...child,
               id: `text-${suffix}`,
             })),
+            id: `frame-${suffix}`,
           },
         },
       };
       const lock = {
+        manifestHash: `manifest-${suffix}`,
         mode: "structured" as const,
         origin: {
-          kind: "local" as const,
           entryFile: `surface-${suffix}.ts`,
           files: [],
+          kind: "local" as const,
           sourceHash: `sha256:source-${suffix}`,
         },
-        manifestHash: `manifest-${suffix}`,
         structureHash: `structure-${suffix}`,
       };
       return {
-        spatial: { ...baseSpatial, id: spatialId, order: suffix === "one" ? 0 : 1 },
+        catalog: { lock, manifest, structure },
         instance: {
           ...baseInstance,
-          id: instanceId,
           componentId,
+          id: instanceId,
           spatialNodeId: spatialId,
         },
-        catalog: { manifest, structure, lock },
+        spatial: { ...baseSpatial, id: spatialId, order: suffix === "one" ? 0 : 1 },
       };
     };
     const first = makeComponent("surface-one", "a:b", "spatial-one", "c", "one");
     const second = makeComponent("surface-two", "a", "spatial-two", "b:c", "two");
     input.presentation.scene.spatial = [first.spatial, second.spatial];
     input.presentation.scene.components = [first.instance, second.instance];
-    (input as unknown as { components: unknown[] }).components = [first.catalog, second.catalog];
+    (input as unknown as { components: Array<unknown> }).components = [
+      first.catalog,
+      second.catalog,
+    ];
 
     const result = checkDeclarationProject(input);
 
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(Object.keys(result.value.definition.scene.surfaces)).toHaveLength(2);
   });
 
@@ -2084,9 +2144,9 @@ describe("checkDeclarationProject", () => {
     operations.presentation.operations = [
       {
         id: "op",
+        instanceId: "instance",
         kind: "detach",
         mode: "structured",
-        instanceId: "instance",
         provenance: { componentId: "component", version: 1 },
       },
     ];
@@ -2115,16 +2175,16 @@ describe("checkDeclarationProject", () => {
       assets: Record<string, unknown>;
     };
     (malformedAsset.assets as Record<string, unknown>)["asset"] = {
+      checksum: null,
       id: "asset",
       mediaType: 123,
-      checksum: null,
     };
     expect(codes(malformedAsset)).toContain("compiler-invalid-asset");
 
     const duplicateReference = project();
     duplicateReference.presentation.assets = [
-      { kind: "asset-ref", assetId: "asset" },
-      { kind: "asset-ref", assetId: "asset" },
+      { assetId: "asset", kind: "asset-ref" },
+      { assetId: "asset", kind: "asset-ref" },
     ];
     (duplicateReference as typeof duplicateReference & { assets: Record<string, unknown> }).assets =
       {
@@ -2144,8 +2204,8 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([
       {
         code: "compiler-invalid-asset",
-        path: ["assets", "reference-font"],
         message: "Asset descriptors must match their key and portable contract shape.",
+        path: ["assets", "reference-font"],
       },
     ]);
   });
@@ -2153,30 +2213,7 @@ describe("checkDeclarationProject", () => {
 
 describe("compileDeclarationProject", () => {
   const renderer: RendererPlugin = {
-    identity: {
-      id: "baked-web",
-      version: "1",
-      contractVersion: "1",
-      implementationHash: "sha256:renderer",
-    },
-    capabilities: {
-      inputKinds: ["structured"],
-      updateModels: ["static", "finite-state"],
-      interactions: ["none", "regions"],
-      internalAnimations: ["none"],
-      rendererPreferences: ["baked-web"],
-      fallbackPolicies: ["reject"],
-      deterministic: true,
-    },
-    support: evaluateFirstMilestoneSupport,
     build: (input) => ({
-      ok: true,
-      renderSurface: {
-        id: input.plan.id,
-        semanticSurfaceId: input.plan.semanticSurfaceId,
-        logicalBounds: input.plan.logicalBounds,
-        layer: input.plan.layer,
-      },
       captures: Object.entries(input.plan.states)
         .filter(([, state]) => state.kind === "capture")
         .map(([stateId]) => ({
@@ -2190,6 +2227,8 @@ describe("compileDeclarationProject", () => {
           colorSpace: "srgb",
           alphaMode: "opaque",
         })),
+      diagnostics: [],
+      ok: true,
       provenance: {
         ...renderer.identity,
         inputHash: input.context.inputHash,
@@ -2201,26 +2240,49 @@ describe("compileDeclarationProject", () => {
           input.context.rendererConfigHash,
         ),
       },
-      diagnostics: [],
+      renderSurface: {
+        id: input.plan.id,
+        semanticSurfaceId: input.plan.semanticSurfaceId,
+        logicalBounds: input.plan.logicalBounds,
+        layer: input.plan.layer,
+      },
     }),
+    capabilities: {
+      deterministic: true,
+      fallbackPolicies: ["reject"],
+      inputKinds: ["structured"],
+      interactions: ["none", "regions"],
+      internalAnimations: ["none"],
+      rendererPreferences: ["baked-web"],
+      updateModels: ["static", "finite-state"],
+    },
+    identity: {
+      contractVersion: "1",
+      id: "baked-web",
+      implementationHash: "sha256:renderer",
+      version: "1",
+    },
+    support: evaluateFirstMilestoneSupport,
   };
   const options = () => ({
-    compiler: { name: "unframe", version: "1", baseEnvironmentHash: "sha256:environment" },
-    locale: "ja-JP",
-    timezone: "Asia/Tokyo",
     colorScheme: "dark" as const,
+    compiler: { baseEnvironmentHash: "sha256:environment", name: "unframe", version: "1" },
+    encodeLimits: PNG_ABSOLUTE_LIMITS,
+    locale: "ja-JP",
     rendererConfigHash: "sha256:config",
     renderers: [renderer],
-    encodeLimits: PNG_ABSOLUTE_LIMITS,
+    timezone: "Asia/Tokyo",
   });
 
   it("does not render a Surface with no paint in any state", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    if (root.kind !== "surface") {
+      throw new Error("Expected standard Surface.");
+    }
     input.components[0] = {
       ...entry,
       structure: {
@@ -2229,10 +2291,10 @@ describe("compileDeclarationProject", () => {
           ...root,
           states: {
             default: {
-              id: "default",
               contentOverrides: { "text-content": { kind: "text", visible: false } },
-              semanticOverrides: [],
               enabledInteractionIds: [],
+              id: "default",
+              semanticOverrides: [],
             },
           },
         },
@@ -2248,7 +2310,9 @@ describe("compileDeclarationProject", () => {
     };
     const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(calls).toBe(0);
     expect(result.value.renderBundle.surfaces["instance:surface-root"]?.renderSurfaceIds).toEqual(
       [],
@@ -2262,74 +2326,81 @@ describe("compileDeclarationProject", () => {
 
   it("keeps partition identity and bounds fixed when a later state is empty", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    if (root.kind !== "surface") {
+      throw new Error("Expected standard Surface.");
+    }
     input.components[0] = {
       ...entry,
       manifest: {
         ...entry.manifest,
-        states: { default: { kind: "state", initial: true }, hidden: { kind: "state" } },
+        states: { default: { initial: true, kind: "state" }, hidden: { kind: "state" } },
       },
       structure: {
         ...entry.structure,
         root: {
           ...root,
+          renderIntent: { ...root.renderIntent, updateModel: "finite-state" },
           states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+            default: { enabledInteractionIds: [], id: "default", semanticOverrides: [] },
             hidden: {
-              id: "hidden",
               contentOverrides: { "text-content": { kind: "text", visible: false } },
-              semanticOverrides: [],
               enabledInteractionIds: [],
+              id: "hidden",
+              semanticOverrides: [],
             },
           },
-          renderIntent: { ...root.renderIntent, updateModel: "finite-state" },
         },
       } as ComponentStructure,
     };
     const result = await compileDeclarationProject(input, options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
     expect(compiled.renderSurfaceIds).toHaveLength(1);
     const renderSurface = compiled.renderSurfaces[compiled.renderSurfaceIds[0]!]!;
     expect(renderSurface.stateBindings).toEqual({
       "instance:default": {
-        kind: "artifacts",
         artifactIds: [Object.keys(renderSurface.artifacts)[0]!],
+        kind: "artifacts",
       },
       "instance:hidden": { kind: "empty" },
     });
     const artifact = Object.values(renderSurface.artifacts)[0]!;
-    if (artifact.kind !== "baked-web") throw new Error("Expected baked-web artifact.");
+    if (artifact.kind !== "baked-web") {
+      throw new Error("Expected baked-web artifact.");
+    }
     expect(Object.keys(artifact.states)).toEqual(["instance:default"]);
   });
 
   const partitionedInput = () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface" || root.root.kind !== "frame")
+    if (root.kind !== "surface" || root.root.kind !== "frame") {
       throw new Error("Expected standard Surface.");
+    }
     const text = root.root.children[0]!;
     const nested = {
       ...root.root,
-      id: "nested",
-      layout: { kind: "absolute" as const, x: 100, y: 100, width: 800, height: 400 },
-      opacity: 0.5,
-      style: { backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 } },
       children: [
         {
           ...text,
           id: "inner-text",
-          layout: { kind: "absolute" as const, x: 10, y: 10, width: 100, height: 50 },
+          layout: { height: 50, kind: "absolute" as const, width: 100, x: 10, y: 10 },
         },
       ],
+      id: "nested",
+      layout: { height: 400, kind: "absolute" as const, width: 800, x: 100, y: 100 },
+      opacity: 0.5,
+      style: { backgroundColor: { alpha: 1, blue: 0, green: 0, red: 1 } },
     };
     input.components[0] = {
       ...entry,
@@ -2339,8 +2410,8 @@ describe("compileDeclarationProject", () => {
           ...root,
           root: {
             ...root.root,
-            style: { backgroundColor: { red: 0, green: 0, blue: 0, alpha: 1 } },
             children: [nested],
+            style: { backgroundColor: { alpha: 1, blue: 0, green: 0, red: 0 } },
           },
         },
       } as ComponentStructure,
@@ -2350,31 +2421,33 @@ describe("compileDeclarationProject", () => {
 
   it("partitions a painted root and a translucent group in canonical paint order", async () => {
     const input = partitionedInput();
-    const seen: {
-      id: string;
-      owned: readonly string[];
+    const seen: Array<{
       context: readonly string[];
+      id: string;
       layer: number;
-    }[] = [];
+      owned: readonly string[];
+    }> = [];
     const observing: RendererPlugin = {
       ...renderer,
       build: (value) => {
         seen.push({
+          context:
+            value.plan.ownership.kind === "structured" ? value.plan.ownership.contextNodeIds : [],
           id: value.plan.id,
+          layer: value.plan.layer,
           owned:
             value.plan.ownership.kind === "structured"
               ? value.plan.ownership.ownedContentNodeIds
               : [],
-          context:
-            value.plan.ownership.kind === "structured" ? value.plan.ownership.contextNodeIds : [],
-          layer: value.plan.layer,
         });
         return renderer.build(value);
       },
     };
     const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const compiled = Object.values(result.value.renderBundle.surfaces)[0]!;
     expect(compiled.renderSurfaceIds).toEqual([
       "rs_72492e420a8d63224465f844a782dd31ef0c6e948ca29dc6e0571e8cd3ede04c",
@@ -2394,17 +2467,16 @@ describe("compileDeclarationProject", () => {
     const input = partitionedInput();
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface" || root.root.kind !== "frame")
+    if (root.kind !== "surface" || root.root.kind !== "frame") {
       throw new Error("Expected partitioned Surface.");
+    }
     input.components[0] = {
       ...entry,
       structure: {
         ...entry.structure,
         root: {
           ...root,
-          root: { ...root.root, semanticNodeId: "button" },
           baseSemanticTree: {
-            rootNodeIds: ["semantic-text", "button"],
             nodes: {
               ...root.baseSemanticTree.nodes,
               button: {
@@ -2416,27 +2488,31 @@ describe("compileDeclarationProject", () => {
                 interactionId: "open",
               },
             },
+            rootNodeIds: ["semantic-text", "button"],
           },
-          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 4 } },
-          states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
-          },
+          interactions: { open: { event: "open", hitPriority: 4, id: "open", kind: "click" } },
           renderIntent: { ...root.renderIntent, interaction: "regions" },
+          root: { ...root.root, semanticNodeId: "button" },
+          states: {
+            default: { enabledInteractionIds: ["open"], id: "default", semanticOverrides: [] },
+          },
         },
       } as ComponentStructure,
     };
     const result = await compileDeclarationProject(input, options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
     expect(compiled.renderSurfaceIds).toHaveLength(2);
     expect(compiled.interactionsByState["instance:default"]).toEqual([
       {
-        interactionId: "instance:open",
-        semanticNodeId: "instance:button",
-        bounds: { x: 0, y: 0, width: 1, height: 1 },
-        priority: 4,
+        bounds: { height: 1, width: 1, x: 0, y: 0 },
         coordinateSpace: "normalized",
+        interactionId: "instance:open",
+        priority: 4,
+        semanticNodeId: "instance:button",
       },
     ]);
   });
@@ -2446,10 +2522,13 @@ describe("compileDeclarationProject", () => {
       const input = partitionedInput();
       const entry = input.components[0]!;
       const root = entry.structure.root;
-      if (root.kind !== "surface" || root.root.kind !== "frame")
+      if (root.kind !== "surface" || root.root.kind !== "frame") {
         throw new Error("Expected partitioned Surface.");
+      }
       const nested = root.root.children[0]!;
-      if (nested.kind !== "frame") throw new Error("Expected nested Frame.");
+      if (nested.kind !== "frame") {
+        throw new Error("Expected nested Frame.");
+      }
       input.components[0] = {
         ...entry,
         structure: {
@@ -2463,8 +2542,8 @@ describe("compileDeclarationProject", () => {
                   ...nested,
                   style: {
                     ...nested.style,
+                    border: { color: { alpha: 0, blue: 0, green: 0, red: 0 }, radius, width: 2 },
                     clip: true,
-                    border: { color: { red: 0, green: 0, blue: 0, alpha: 0 }, width: 2, radius },
                   },
                 },
               ],
@@ -2480,7 +2559,9 @@ describe("compileDeclarationProject", () => {
     expect(flat.valid ? [] : flat.diagnostics).toEqual([]);
     expect(rounded.valid ? [] : rounded.diagnostics).toEqual([]);
     expect(repeated.valid ? [] : repeated.diagnostics).toEqual([]);
-    if (!flat.valid || !rounded.valid || !repeated.valid) return;
+    if (!flat.valid || !rounded.valid || !repeated.valid) {
+      return;
+    }
     const flatIds = flat.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds;
     const roundedIds =
       rounded.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds;
@@ -2498,13 +2579,14 @@ describe("compileDeclarationProject", () => {
       ...renderer,
       build: (value) => {
         calls++;
-        if (calls === 2)
+        if (calls === 2) {
           return {
-            ok: false,
             diagnostics: [
               { code: "test-renderer-failure", path: [], message: "Second partition failed." },
             ],
+            ok: false,
           };
+        }
         return renderer.build(value);
       },
     };
@@ -2514,47 +2596,51 @@ describe("compileDeclarationProject", () => {
     });
     expect(calls).toBe(2);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toContain("test-renderer-failure");
+    }
   });
 
   it("clips partition bounds to the Surface cover window", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    if (root.kind !== "surface") {
+      throw new Error("Expected standard Surface.");
+    }
     input.components[0] = {
       ...entry,
       structure: {
         ...entry.structure,
-        root: { ...root, physicalSizeMeters: [1, 1], fit: "cover" },
+        root: { ...root, fit: "cover", physicalSizeMeters: [1, 1] },
       } as ComponentStructure,
     };
-    let bounds: { x: number; y: number; width: number; height: number } | undefined;
+    let bounds: { height: number; width: number; x: number; y: number } | undefined;
     const probe: RendererPlugin = {
       ...renderer,
       build: (value) => {
         bounds = value.plan.logicalBounds;
         return {
+          diagnostics: [{ code: "test-stop", message: "Observed plan.", path: [] }],
           ok: false,
-          diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],
         };
       },
     };
     await compileDeclarationProject(input, { ...options(), renderers: [probe] });
-    expect(bounds).toEqual({ x: 420, y: 0, width: 1080, height: 1080 });
+    expect(bounds).toEqual({ height: 1080, width: 1080, x: 420, y: 0 });
   });
 
   it("clips a button region once by its ancestor Frame", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface" || root.root.kind !== "frame")
+    if (root.kind !== "surface" || root.root.kind !== "frame") {
       throw new Error("Expected standard Surface.");
+    }
     const text = root.root.children[0]!;
     input.components[0] = {
       ...entry,
@@ -2562,15 +2648,7 @@ describe("compileDeclarationProject", () => {
         ...entry.structure,
         root: {
           ...root,
-          root: {
-            ...root.root,
-            style: { clip: true },
-            children: [
-              { ...text, layout: { kind: "absolute", x: 1800, y: 0, width: 240, height: 100 } },
-            ],
-          },
           baseSemanticTree: {
-            rootNodeIds: ["semantic-text"],
             nodes: {
               "semantic-text": {
                 id: "semantic-text",
@@ -2581,40 +2659,52 @@ describe("compileDeclarationProject", () => {
                 interactionId: "open",
               },
             },
+            rootNodeIds: ["semantic-text"],
           },
-          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 2 } },
-          states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
-          },
+          interactions: { open: { event: "open", hitPriority: 2, id: "open", kind: "click" } },
           renderIntent: { ...root.renderIntent, interaction: "regions" },
+          root: {
+            ...root.root,
+            children: [
+              { ...text, layout: { kind: "absolute", x: 1800, y: 0, width: 240, height: 100 } },
+            ],
+            style: { clip: true },
+          },
+          states: {
+            default: { enabledInteractionIds: ["open"], id: "default", semanticOverrides: [] },
+          },
         },
       } as ComponentStructure,
     };
     const result = await compileDeclarationProject(input, options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(
       result.value.renderBundle.surfaces["instance:surface-root"]?.interactionsByState[
         "instance:default"
       ],
     ).toEqual([
       {
-        interactionId: "instance:open",
-        semanticNodeId: "instance:semantic-text",
-        bounds: { x: 0.9375, y: 0, width: 0.0625, height: 100 / 1080 },
-        priority: 2,
+        bounds: { height: 100 / 1080, width: 0.0625, x: 0.9375, y: 0 },
         coordinateSpace: "normalized",
+        interactionId: "instance:open",
+        priority: 2,
+        semanticNodeId: "instance:semantic-text",
       },
     ]);
   });
 
   it("owns a Frame that paints only through a State override", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    if (root.kind !== "surface") {
+      throw new Error("Expected standard Surface.");
+    }
     input.components[0] = {
       ...entry,
       structure: {
@@ -2623,21 +2713,21 @@ describe("compileDeclarationProject", () => {
           ...root,
           states: {
             default: {
-              id: "default",
               contentOverrides: {
                 "frame-root": {
-                  kind: "frame",
                   backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 },
+                  kind: "frame",
                 },
               },
-              semanticOverrides: [],
               enabledInteractionIds: [],
+              id: "default",
+              semanticOverrides: [],
             },
           },
         },
       } as ComponentStructure,
     };
-    let owned: readonly string[] = [];
+    let owned: ReadonlyArray<string> = [];
     const probe: RendererPlugin = {
       ...renderer,
       build: (value) => {
@@ -2655,23 +2745,22 @@ describe("compileDeclarationProject", () => {
 
   it("keeps a transparent button clickable without a paint partition", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     input.presentation.assets = [];
     input.assets = {};
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface" || root.root.kind !== "frame")
+    if (root.kind !== "surface" || root.root.kind !== "frame") {
       throw new Error("Expected standard Surface.");
+    }
     input.components[0] = {
       ...entry,
       structure: {
         ...entry.structure,
         root: {
           ...root,
-          root: { ...root.root, children: [], semanticNodeId: "button" },
           baseSemanticTree: {
-            rootNodeIds: ["button"],
             nodes: {
               button: {
                 id: "button",
@@ -2682,12 +2771,14 @@ describe("compileDeclarationProject", () => {
                 interactionId: "open",
               },
             },
+            rootNodeIds: ["button"],
           },
-          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 3 } },
-          states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
-          },
+          interactions: { open: { event: "open", hitPriority: 3, id: "open", kind: "click" } },
           renderIntent: { ...root.renderIntent, interaction: "regions" },
+          root: { ...root.root, children: [], semanticNodeId: "button" },
+          states: {
+            default: { enabledInteractionIds: ["open"], id: "default", semanticOverrides: [] },
+          },
         },
       } as ComponentStructure,
     };
@@ -2701,37 +2792,39 @@ describe("compileDeclarationProject", () => {
     };
     const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(calls).toBe(0);
     const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
     expect(compiled.renderSurfaceIds).toEqual([]);
     expect(compiled.interactionsByState["instance:default"]).toEqual([
       {
-        interactionId: "instance:open",
-        semanticNodeId: "instance:button",
-        bounds: { x: 0, y: 0, width: 1, height: 1 },
-        priority: 3,
+        bounds: { height: 1, width: 1, x: 0, y: 0 },
         coordinateSpace: "normalized",
+        interactionId: "instance:open",
+        priority: 3,
+        semanticNodeId: "instance:button",
       },
     ]);
   });
 
   it("keeps a non-painting semantic Frame as renderer context", async () => {
     const input = project() as StructuredProject & {
-      components: StructuredProject["components"][number][];
+      components: Array<StructuredProject["components"][number]>;
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
-    if (root.kind !== "surface") throw new Error("fixture must be a surface");
+    if (root.kind !== "surface") {
+      throw new Error("fixture must be a surface");
+    }
     input.components[0] = {
       ...entry,
       structure: {
         ...entry.structure,
         root: {
           ...root,
-          root: { ...root.root, semanticNodeId: "frame-button" },
           baseSemanticTree: {
-            rootNodeIds: ["semantic-text", "frame-button"],
             nodes: {
               ...root.baseSemanticTree.nodes,
               "frame-button": {
@@ -2743,22 +2836,25 @@ describe("compileDeclarationProject", () => {
                 interactionId: "open",
               },
             },
+            rootNodeIds: ["semantic-text", "frame-button"],
           },
-          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 1 } },
-          states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
-          },
+          interactions: { open: { event: "open", hitPriority: 1, id: "open", kind: "click" } },
           renderIntent: { ...root.renderIntent, interaction: "regions" },
+          root: { ...root.root, semanticNodeId: "frame-button" },
+          states: {
+            default: { enabledInteractionIds: ["open"], id: "default", semanticOverrides: [] },
+          },
         } as SurfaceDeclaration,
       } as ComponentStructure,
     };
-    let owned: readonly string[] = [];
-    let context: readonly string[] = [];
+    let owned: ReadonlyArray<string> = [];
+    let context: ReadonlyArray<string> = [];
     const probe: RendererPlugin = {
       ...renderer,
       build: (value) => {
-        if (value.plan.ownership.kind !== "structured")
+        if (value.plan.ownership.kind !== "structured") {
           throw new Error("Expected structured ownership");
+        }
         owned = value.plan.ownership.ownedContentNodeIds;
         context = value.plan.ownership.contextNodeIds;
         return renderer.build(value);
@@ -2766,7 +2862,9 @@ describe("compileDeclarationProject", () => {
     };
     const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(owned).not.toContain("instance:frame-root");
     expect(context).toContain("instance:frame-root");
     expect(
@@ -2775,11 +2873,11 @@ describe("compileDeclarationProject", () => {
       ],
     ).toEqual([
       {
-        interactionId: "instance:open",
-        semanticNodeId: "instance:frame-button",
-        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        bounds: { height: 1, width: 1, x: 0, y: 0 },
         coordinateSpace: "normalized",
+        interactionId: "instance:open",
         priority: 1,
+        semanticNodeId: "instance:frame-button",
       },
     ]);
   });
@@ -2789,7 +2887,7 @@ describe("compileDeclarationProject", () => {
     const states = Object.fromEntries(
       Array.from({ length: 17 }, (_, index) => {
         const id = index === 0 ? "default" : `state-${index}`;
-        return [id, { id, semanticOverrides: [], enabledInteractionIds: [] }];
+        return [id, { enabledInteractionIds: [], id, semanticOverrides: [] }];
       }),
     );
     const manifestStates = Object.fromEntries(
@@ -2823,48 +2921,49 @@ describe("compileDeclarationProject", () => {
       renderers: [countingRenderer],
     });
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map(({ code }) => code)).toEqual([
         "compiler-budget-rendered-pixels-exceeded",
         "compiler-budget-capture-bytes-exceeded",
         "compiler-budget-state-count-exceeded",
       ]);
+    }
     expect(calls).toBe(0);
   });
   it("rejects opaque stability and encoded output budgets before invoking a renderer", async () => {
     const states = Object.fromEntries(
       Array.from({ length: 16 }, (_, index) => [
         `state-${index}`,
-        { semanticOverrides: [], enabledInteractionIds: [] },
+        { enabledInteractionIds: [], semanticOverrides: [] },
       ]),
     );
     const metadata = validateStaticComponentMetadata({
-      id: "large",
-      version: 1,
-      props: {},
-      surface: { logicalSize: [2048, 2048] },
-      semantics: {
-        rootNodeIds: ["title"],
-        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
-      },
-      interactions: {},
-      initialState: "state-0",
-      states,
       actions: {},
+      id: "large",
+      initialState: "state-0",
+      interactions: {},
       outputs: {},
+      props: {},
+      semantics: {
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+        rootNodeIds: ["title"],
+      },
+      states,
+      surface: { logicalSize: [2048, 2048] },
+      version: 1,
     });
     const input = project();
     const { theme: _theme, ...header } = input.presentation;
     const scene = [
       {
-        id: "large-one",
-        component: { id: "large", version: 1 },
-        props: {},
-        owner: { kind: "presentation" },
         audience: { kind: "all" },
+        component: { id: "large", version: 1 },
+        fit: "contain",
+        id: "large-one",
+        owner: { kind: "presentation" },
         parent: { kind: "stage" },
         physicalSizeMeters: [1, 1],
-        fit: "contain",
+        props: {},
         transform: { position: [0, 0, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
       },
     ];
@@ -2878,14 +2977,9 @@ describe("compileDeclarationProject", () => {
     };
     const result = await compileDeclarationProject(
       {
-        presentation: { ...header, scene, assets: [] },
-        themes: [],
+        assets: {},
         components: [
           {
-            manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
-            metadata,
-            rendererEntry: "large.component.tsx#render",
-            rendererSource: "export default () => null",
             lock: {
               mode: "opaque",
               origin: {
@@ -2897,9 +2991,14 @@ describe("compileDeclarationProject", () => {
               manifestHash: "sha256:manifest",
               rendererInputHash: "sha256:renderer",
             },
+            manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
+            metadata,
+            rendererEntry: "large.component.tsx#render",
+            rendererSource: "export default () => null",
           },
         ],
-        assets: {},
+        presentation: { ...header, assets: [], scene },
+        themes: [],
       },
       { ...options(), renderers: [countingRenderer] },
     );
@@ -2922,63 +3021,40 @@ describe("compileDeclarationProject", () => {
     const states = Object.fromEntries(
       Array.from({ length: 15 }, (_, index) => [
         `state-${index}`,
-        { semanticOverrides: [], enabledInteractionIds: [] },
+        { enabledInteractionIds: [], semanticOverrides: [] },
       ]),
     );
     const metadata = validateStaticComponentMetadata({
-      id: "large",
-      version: 1,
-      props: {},
-      surface: { logicalSize: [2048, 2048] },
-      semantics: {
-        rootNodeIds: ["title"],
-        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
-      },
-      interactions: {},
-      initialState: "state-0",
-      states,
       actions: {},
+      id: "large",
+      initialState: "state-0",
+      interactions: {},
       outputs: {},
+      props: {},
+      semantics: {
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+        rootNodeIds: ["title"],
+      },
+      states,
+      surface: { logicalSize: [2048, 2048] },
+      version: 1,
     });
     const reactItem = {
-      id: "large-one",
-      component: { id: "large", version: 1 },
-      props: {},
-      owner: { kind: "presentation" },
       audience: { kind: "all" },
+      component: { id: "large", version: 1 },
+      fit: "contain",
+      id: "large-one",
+      owner: { kind: "presentation" },
       parent: { kind: "stage" },
       physicalSizeMeters: [1, 1],
-      fit: "contain",
+      props: {},
       transform: { position: [0, 0, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     };
     const mixed = {
       ...input,
-      presentation: {
-        ...input.presentation,
-        scene: {
-          ...input.presentation.scene,
-          spatial: [
-            ...input.presentation.scene.spatial,
-            { ...input.presentation.scene.spatial[0]!, id: "spatial-two", order: 1 },
-          ],
-          components: [
-            ...input.presentation.scene.components,
-            {
-              ...input.presentation.scene.components[0]!,
-              id: "instance-two",
-              spatialNodeId: "spatial-two",
-            },
-            reactItem,
-          ],
-        },
-      },
       components: [
         { ...entry, structure: largeStructure },
         {
-          manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
-          metadata,
-          rendererEntry: "large.component.tsx#render",
-          rendererSource: "export default () => null",
           lock: {
             mode: "opaque",
             origin: {
@@ -2990,8 +3066,31 @@ describe("compileDeclarationProject", () => {
             manifestHash: "sha256:manifest",
             rendererInputHash: "sha256:renderer",
           },
+          manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
+          metadata,
+          rendererEntry: "large.component.tsx#render",
+          rendererSource: "export default () => null",
         },
       ],
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [
+            ...input.presentation.scene.components,
+            {
+              ...input.presentation.scene.components[0]!,
+              id: "instance-two",
+              spatialNodeId: "spatial-two",
+            },
+            reactItem,
+          ],
+          spatial: [
+            ...input.presentation.scene.spatial,
+            { ...input.presentation.scene.spatial[0]!, id: "spatial-two", order: 1 },
+          ],
+        },
+      },
     };
     let calls = 0;
     const countingRenderer: RendererPlugin = {
@@ -3006,11 +3105,12 @@ describe("compileDeclarationProject", () => {
       renderers: [countingRenderer],
     });
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(
         result.diagnostics.map((item) => item.code),
         JSON.stringify(result.diagnostics),
       ).toContain("compiler-budget-output-bytes-exceeded");
+    }
     expect(calls).toBe(0);
   });
 
@@ -3018,7 +3118,9 @@ describe("compileDeclarationProject", () => {
     const before = checkDeclarationProject(project());
     const result = await compileDeclarationProject(project(), options());
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
-    if (!result.valid) return;
+    if (!result.valid) {
+      return;
+    }
     expect(result.value.renderBundleHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.renderBundleJson).toBeTruthy();
     expect(Object.keys(result.value.assets)).toHaveLength(2);
@@ -3028,11 +3130,11 @@ describe("compileDeclarationProject", () => {
     expect(result.value.assetSet.assets["reference-font"]?.mediaType).toBe("font/ttf");
     expect(result.value.assetSetJson).toBeTruthy();
     expect(result.value.buildManifest).toMatchObject({
-      schemaVersion: 2,
-      sourceDraftRevision: 0,
+      assetSetHash: result.value.assetSetHash,
       definitionHash: result.value.definitionHash,
       renderBundleHash: result.value.renderBundleHash,
-      assetSetHash: result.value.assetSetHash,
+      schemaVersion: 2,
+      sourceDraftRevision: 0,
     });
     expect(result.value.buildManifestJson).toBeTruthy();
     const surface = result.value.renderBundle.surfaces["instance:surface-root"]!;
@@ -3043,14 +3145,16 @@ describe("compileDeclarationProject", () => {
     expect(renderSurface.partitionStrategyVersion).toBe(1);
     expect(renderSurface.stateBindings).toEqual({
       "instance:default": {
-        kind: "artifacts",
         artifactIds: [artifactId],
+        kind: "artifacts",
       },
     });
     expect(checkDeclarationProject(project())).toEqual(before);
     const repeated = await compileDeclarationProject(project(), options());
     expect(repeated.valid).toBe(true);
-    if (!repeated.valid) return;
+    if (!repeated.valid) {
+      return;
+    }
     expect({ ...repeated.value, assets: undefined }).toEqual({
       ...result.value,
       assets: undefined,
@@ -3082,8 +3186,9 @@ describe("compileDeclarationProject", () => {
 
     expect(accessed).toBe(false);
     expect(result.valid).toBe(false);
-    if (!result.valid)
+    if (!result.valid) {
       expect(result.diagnostics.map((item) => item.code)).toContain("compiler-invalid-options");
+    }
   });
 
   it("binds bundle identity to compiler and build context", async () => {
@@ -3097,7 +3202,9 @@ describe("compileDeclarationProject", () => {
       locale: "en-US",
     });
     expect(baseline.valid && differentCompiler.valid && differentLocale.valid).toBe(true);
-    if (!baseline.valid || !differentCompiler.valid || !differentLocale.valid) return;
+    if (!baseline.valid || !differentCompiler.valid || !differentLocale.valid) {
+      return;
+    }
     expect(differentCompiler.value.renderBundle.bundleId).not.toBe(
       baseline.value.renderBundle.bundleId,
     );
@@ -3118,7 +3225,7 @@ describe("compileDeclarationProject", () => {
       { ...originalInstance, id: "a", spatialNodeId: "spatial-a" },
       { ...originalInstance, id: "Z", spatialNodeId: "spatial-Z" },
     ];
-    const calls: string[] = [];
+    const calls: Array<string> = [];
     const orderedRenderer: RendererPlugin = {
       ...renderer,
       build: (input) => {
@@ -3139,28 +3246,31 @@ describe("compileDeclarationProject", () => {
   it("keeps renderer and encoder failures on the diagnostic boundary", async () => {
     const noRenderer = await compileDeclarationProject(project(), { ...options(), renderers: [] });
     expect(noRenderer.valid && noRenderer.value).toBeFalsy();
-    if (!noRenderer.valid)
+    if (!noRenderer.valid) {
       expect(noRenderer.diagnostics.map((item) => item.code)).toContain(
         "compiler-renderer-not-found",
       );
+    }
     const duplicateRenderer = await compileDeclarationProject(project(), {
       ...options(),
       renderers: [renderer, { ...renderer }],
     });
     expect(duplicateRenderer.valid).toBe(false);
-    if (!duplicateRenderer.valid)
+    if (!duplicateRenderer.valid) {
       expect(duplicateRenderer.diagnostics.map((item) => item.code)).toContain(
         "compiler-renderer-ambiguous",
       );
+    }
     const invalidRenderer = await compileDeclarationProject(project(), {
       ...options(),
       renderers: [{ ...renderer, build: undefined } as never],
     });
     expect(invalidRenderer.valid).toBe(false);
-    if (!invalidRenderer.valid)
+    if (!invalidRenderer.valid) {
       expect(invalidRenderer.diagnostics.map((item) => item.code)).toContain(
         "invalid-renderer-plugin",
       );
+    }
     const throwing = {
       ...renderer,
       build: () => {
@@ -3172,8 +3282,9 @@ describe("compileDeclarationProject", () => {
       renderers: [throwing],
     });
     expect(failure.valid).toBe(false);
-    if (!failure.valid)
+    if (!failure.valid) {
       expect(failure.diagnostics.map((item) => item.code)).toContain("renderer-threw");
+    }
     const mutating = {
       ...renderer,
       build: (input: Parameters<RendererPlugin["build"]>[0]) => {
@@ -3186,15 +3297,17 @@ describe("compileDeclarationProject", () => {
       renderers: [mutating],
     });
     expect(mutation.valid).toBe(false);
-    if (!mutation.valid)
+    if (!mutation.valid) {
       expect(mutation.diagnostics.map((item) => item.code)).toContain("renderer-mutated-input");
+    }
     const encoding = await compileDeclarationProject(project(), {
       ...options(),
       encodeLimits: { ...PNG_ABSOLUTE_LIMITS, maxWidth: 1 },
     });
     expect(encoding.valid).toBe(false);
-    if (!encoding.valid)
+    if (!encoding.valid) {
       expect(encoding.diagnostics.map((item) => item.code)).toContain("encode-limit-exceeded");
+    }
   });
 
   it("does not invoke renderers from the check-only API", () => {

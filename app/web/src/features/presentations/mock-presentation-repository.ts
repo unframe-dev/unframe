@@ -17,16 +17,16 @@ function presentationFixture(
   updatedAt: string,
 ): Presentation {
   return {
+    createdAt,
+    definition: createStarterPresentationDefinition(title, description),
     id,
     revision,
-    definition: createStarterPresentationDefinition(title, description),
     thumbnailUrl: placeholderThumbnailUrl,
-    createdAt,
     updatedAt,
   };
 }
 
-const mockPresentations: Presentation[] = [
+const mockPresentations: Array<Presentation> = [
   presentationFixture(
     "mock-spatial-product-review",
     "Spatial product review",
@@ -77,7 +77,7 @@ const mockPresentations: Presentation[] = [
   ),
 ];
 
-export async function listMockPresentations(): Promise<Presentation[]> {
+export async function listMockPresentations(): Promise<Array<Presentation>> {
   return structuredClone(mockPresentations);
 }
 
@@ -87,11 +87,11 @@ export async function createMockPresentation(
 ): Promise<Presentation> {
   const timestamp = new Date().toISOString();
   const presentation = {
+    createdAt: timestamp,
+    definition: createStarterPresentationDefinition(title, description || undefined),
     id: `mock-${crypto.randomUUID()}`,
     revision: 1,
-    definition: createStarterPresentationDefinition(title, description || undefined),
     thumbnailUrl: placeholderThumbnailUrl,
-    createdAt: timestamp,
     updatedAt: timestamp,
   };
   mockPresentations.unshift(presentation);
