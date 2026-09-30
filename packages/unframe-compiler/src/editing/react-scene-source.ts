@@ -20,6 +20,26 @@ export type ReactSceneEditCommand =
       readonly kind: "setTransform";
       readonly instanceId: string;
       readonly transform: ReactSceneTransform;
+    }
+  | {
+      readonly kind: "inheritProp";
+      readonly instanceId: string;
+      readonly propId: string;
+    }
+  | {
+      readonly kind: "restoreProp";
+      readonly instanceId: string;
+      readonly propId: string;
+      readonly expression: string;
+    }
+  | {
+      readonly kind: "inheritTransform";
+      readonly instanceId: string;
+    }
+  | {
+      readonly kind: "restoreTransform";
+      readonly instanceId: string;
+      readonly expression: string;
     };
 export type ReactSceneEditDiagnostic = {
   readonly code: string;
@@ -38,12 +58,16 @@ export type EditableReactSceneInstance = {
         readonly kind: "string" | "number" | "boolean";
         readonly value: Scalar;
         readonly editable: boolean;
+        readonly inherited: boolean;
+        readonly inheritanceExpression?: string;
         readonly reason?: string;
       }
     >
   >;
   readonly transform: ReactSceneTransform;
   readonly transformEditable: boolean;
+  readonly transformInherited: boolean;
+  readonly transformInheritanceExpression?: string;
   readonly reason?: string;
 };
 type Result<T> =
@@ -222,9 +246,73 @@ const propKind = (kind: unknown): kind is "string" | "number" | "boolean" =>
   kind === "string" || kind === "number" || kind === "boolean";
 const propExpression = (item: SceneItem, propId: string, value: Scalar) => {
   const props = object(item.syntax?.props);
-  if (!props || props.properties.some(ts.isSpreadAssignment)) return;
+  if (!props) return;
   const field = property(props, propId);
   return field && literal(field.initializer, value) ? field.initializer : undefined;
+};
+const replace = (source: string, start: number, end: number, value: string) =>
+  source.slice(0, start) + value + source.slice(end);
+const propertyName = (name: string) =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+const containsComment = (source: string, node: ts.Node) => {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    ts.LanguageVariant.Standard,
+    source.slice(node.getStart(), node.getEnd()),
+  );
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan())
+    if (
+      token === ts.SyntaxKind.SingleLineCommentTrivia ||
+      token === ts.SyntaxKind.MultiLineCommentTrivia
+    )
+      return true;
+  return false;
+};
+const validRestoreExpression = (expression: string) => {
+  const parsed = ts.createSourceFile(
+    "restore.ts",
+    `const restored = ${expression};`,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  return (
+    (parsed as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics
+      .length === 0 && parsed.statements.length === 1
+  );
+};
+const appendProperty = (source: string, node: ts.ObjectLiteralExpression, value: string) => {
+  const last = node.properties[node.properties.length - 1];
+  if (!last) return replace(source, node.getEnd() - 1, node.getEnd() - 1, ` ${value} `);
+  const tail = source.slice(last.getEnd(), node.getEnd() - 1);
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    ts.LanguageVariant.Standard,
+    tail,
+  );
+  let cutoff = tail.length;
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan())
+    if (token === ts.SyntaxKind.SingleLineCommentTrivia) {
+      cutoff = scanner.getTokenPos();
+      break;
+    }
+  const prefix = tail.slice(0, cutoff).trimEnd();
+  const offset = last.getEnd() + prefix.length;
+  return replace(source, offset, offset, `${prefix.endsWith(",") ? "" : ","} ${value}`);
+};
+const removeLastProperty = (
+  source: string,
+  node: ts.ObjectLiteralExpression,
+  field: ts.PropertyAssignment,
+) => {
+  const previous = node.properties[node.properties.length - 2];
+  if (!previous || node.properties[node.properties.length - 1] !== field) return;
+  const between = source.slice(previous.getEnd(), field.getStart());
+  const comma = between.indexOf(",");
+  if (comma < 0) return;
+  return replace(source, previous.getEnd() + comma, field.getEnd(), "");
 };
 const inspect = (
   collected: PairedAuthoringDeclarationCatalog,
@@ -257,24 +345,34 @@ const inspect = (
       if (!propKind(definition.kind)) continue;
       const value = props[propId] ?? ("default" in definition ? definition.default : undefined);
       if (typeof value !== definition.kind) continue;
-      const editable =
-        props[propId] !== undefined && propExpression(item, propId, value as Scalar) !== undefined;
+      const editable = props[propId] !== undefined && item.syntax?.props !== undefined;
+      const inherited = propExpression(item, propId, value as Scalar) === undefined;
+      const propsNode = object(item.syntax?.props);
+      const sourceField = propsNode && property(propsNode, propId);
       fields[propId] = {
         kind: definition.kind,
         value: value as Scalar,
         editable,
+        inherited,
+        ...(inherited && sourceField
+          ? { inheritanceExpression: sourceField.initializer.getText() }
+          : {}),
         ...(!editable ? { reason: "Direct literal instance prop required." } : {}),
       };
     }
     const elements = transformElements(item.syntax, transform);
+    const transformNode = item.syntax && property(item.syntax.node, "transform");
     instances.push({
       instanceId: id,
       componentId: component.id,
       version: component.version,
       props: fields,
       transform: transform as ReactSceneTransform,
-      transformEditable: elements !== undefined,
-      ...(elements ? {} : { reason: "Direct literal transform required." }),
+      transformEditable: item.syntax !== undefined,
+      transformInherited: elements === undefined,
+      ...(elements === undefined && transformNode
+        ? { transformInheritanceExpression: transformNode.initializer.getText() }
+        : {}),
     });
   }
   return { ok: true, value: { items: scene.value, instances }, diagnostics: [] };
@@ -310,12 +408,155 @@ export const patchEditableReactScene = (
     return fail("compiler-edit-instance-missing", "Instance does not exist.", command.instanceId);
   const instance = result.value.instances[index]!;
   const item = result.value.items[index]!;
+  if (command.kind === "restoreTransform") {
+    const own = item.syntax && property(item.syntax.node, "transform");
+    if (!own || !object(own.initializer) || !validRestoreExpression(command.expression))
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Shared transform expression cannot be restored.",
+        command.instanceId,
+      );
+    return {
+      ok: true,
+      value: replace(
+        sourceText,
+        own.initializer.getStart(),
+        own.initializer.getEnd(),
+        command.expression,
+      ),
+      diagnostics: [],
+    };
+  }
+  if (command.kind === "restoreProp") {
+    const props = object(item.syntax?.props);
+    const own = props && property(props, command.propId);
+    const field = instance.props[command.propId];
+    if (
+      !own ||
+      !field ||
+      !literal(own.initializer, field.value) ||
+      !validRestoreExpression(command.expression)
+    )
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Shared prop expression cannot be restored.",
+        command.instanceId,
+        command.propId,
+      );
+    return {
+      ok: true,
+      value: replace(
+        sourceText,
+        own.initializer.getStart(),
+        own.initializer.getEnd(),
+        command.expression,
+      ),
+      diagnostics: [],
+    };
+  }
+  if (command.kind === "inheritTransform") {
+    const node = item.syntax?.node;
+    const own = node && property(node, "transform");
+    if (
+      !node ||
+      !own ||
+      !object(own.initializer) ||
+      node.properties[node.properties.length - 1] !== own ||
+      !node.properties
+        .slice(0, -1)
+        .some(
+          (entry) =>
+            ts.isSpreadAssignment(entry) ||
+            (ts.isPropertyAssignment(entry) &&
+              (ts.isIdentifier(entry.name) || ts.isStringLiteral(entry.name)) &&
+              entry.name.text === "transform"),
+        )
+    )
+      return fail(
+        "compiler-edit-source-unsupported",
+        "No inherited transform exists.",
+        command.instanceId,
+      );
+    const restored = removeLastProperty(sourceText, node, own);
+    return restored
+      ? { ok: true, value: restored, diagnostics: [] }
+      : fail(
+          "compiler-edit-source-unsupported",
+          "Transform override cannot be removed.",
+          command.instanceId,
+        );
+  }
+  if (command.kind === "inheritProp") {
+    const field = instance.props[command.propId];
+    if (!field)
+      return fail(
+        "compiler-edit-prop-missing",
+        "Published prop does not exist.",
+        command.instanceId,
+        command.propId,
+      );
+    const props = object(item.syntax?.props);
+    const own = props && property(props, command.propId);
+    if (!props || !own || !literal(own.initializer, field.value))
+      return fail(
+        "compiler-edit-source-unsupported",
+        "No local literal override exists.",
+        command.instanceId,
+        command.propId,
+      );
+    const prior = props.properties
+      .slice(0, -1)
+      .some(
+        (entry) =>
+          ts.isSpreadAssignment(entry) ||
+          (ts.isPropertyAssignment(entry) &&
+            (ts.isIdentifier(entry.name) || ts.isStringLiteral(entry.name)) &&
+            entry.name.text === command.propId),
+      );
+    if (!prior)
+      return fail(
+        "compiler-edit-source-unsupported",
+        "No inherited prop exists.",
+        command.instanceId,
+        command.propId,
+      );
+    const without = removeLastProperty(sourceText, props, own);
+    if (!without)
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Local override cannot be removed.",
+        command.instanceId,
+        command.propId,
+      );
+    const remaining = props.properties.slice(0, -1);
+    if (
+      remaining.length === 1 &&
+      ts.isSpreadAssignment(remaining[0]!) &&
+      remaining[0]!.expression.getText() !== "" &&
+      !containsComment(sourceText, props)
+    ) {
+      const replacement = remaining[0]!.expression.getText();
+      const clean =
+        without.slice(0, props.getStart()) +
+        replacement +
+        without.slice(props.getEnd() - (sourceText.length - without.length));
+      return { ok: true, value: clean, diagnostics: [] };
+    }
+    return { ok: true, value: without, diagnostics: [] };
+  }
   if (command.kind === "setProp") {
     const field = instance.props[command.propId];
     if (!field)
       return fail(
         "compiler-edit-prop-missing",
         "Published prop does not exist.",
+        command.instanceId,
+        command.propId,
+      );
+    if (!field.editable)
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Prop source is unavailable.",
         command.instanceId,
         command.propId,
       );
@@ -330,19 +571,63 @@ export const patchEditableReactScene = (
         command.propId,
       );
     const expression = propExpression(item, command.propId, field.value);
-    if (!expression)
+    if (!item.syntax)
       return fail(
         "compiler-edit-source-unsupported",
-        "Prop must be a direct instance literal; shared values and spreads are not editable yet.",
+        "Instance source is unavailable.",
         command.instanceId,
         command.propId,
       );
+    if (!expression) {
+      const props = object(item.syntax.props);
+      const own = props && property(props, command.propId);
+      if (own)
+        return {
+          ok: true,
+          value: replace(
+            sourceText,
+            own.initializer.getStart(),
+            own.initializer.getEnd(),
+            JSON.stringify(command.value),
+          ),
+          diagnostics: [],
+        };
+      if (props)
+        return {
+          ok: true,
+          value: appendProperty(
+            sourceText,
+            props,
+            `${propertyName(command.propId)}: ${JSON.stringify(command.value)}`,
+          ),
+          diagnostics: [],
+        };
+      if (item.syntax.props)
+        return {
+          ok: true,
+          value: replace(
+            sourceText,
+            item.syntax.props.getStart(),
+            item.syntax.props.getEnd(),
+            `{ ...${item.syntax.props.getText()}, ${propertyName(command.propId)}: ${JSON.stringify(command.value)} }`,
+          ),
+          diagnostics: [],
+        };
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Prop source is unavailable.",
+        command.instanceId,
+        command.propId,
+      );
+    }
     return {
       ok: true,
-      value:
-        sourceText.slice(0, expression.getStart()) +
-        JSON.stringify(command.value) +
-        sourceText.slice(expression.getEnd()),
+      value: replace(
+        sourceText,
+        expression.getStart(),
+        expression.getEnd(),
+        JSON.stringify(command.value),
+      ),
       diagnostics: [],
     };
   }
@@ -353,12 +638,71 @@ export const patchEditableReactScene = (
       command.instanceId,
     );
   const elements = transformElements(item.syntax, instance.transform);
-  if (!elements)
-    return fail(
-      "compiler-edit-source-unsupported",
-      "Transform must contain direct instance literals; shared values and spreads are not editable yet.",
-      command.instanceId,
-    );
+  if (!elements) {
+    const node = item.syntax?.node;
+    if (!node)
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Instance source is unavailable.",
+        command.instanceId,
+      );
+    const serialized = `{ position: ${JSON.stringify(command.transform.position)}, rotation: ${JSON.stringify(command.transform.rotation)}, scale: ${JSON.stringify(command.transform.scale)} }`;
+    const own = property(node, "transform");
+    const transformObject = object(own?.initializer);
+    if (transformObject) {
+      const edits: { start: number; end: number; value: string }[] = [];
+      const added: string[] = [];
+      for (const key of ["position", "rotation", "scale"] as const) {
+        const before = instance.transform[key];
+        const after = command.transform[key];
+        if (before.every((value, axis) => value === after[axis])) continue;
+        const field = property(transformObject, key);
+        if (!field) {
+          added.push(`${key}: ${JSON.stringify(after)}`);
+          continue;
+        }
+        const parts = vector(field.initializer, before);
+        if (parts) {
+          for (const [axis, part] of parts.entries())
+            if (before[axis] !== after[axis])
+              edits.push({
+                start: part.getStart(),
+                end: part.getEnd(),
+                value: JSON.stringify(after[axis]),
+              });
+        } else {
+          edits.push({
+            start: field.initializer.getStart(),
+            end: field.initializer.getEnd(),
+            value: JSON.stringify(after),
+          });
+        }
+      }
+      let updated =
+        added.length > 0
+          ? appendProperty(sourceText, transformObject, added.join(", "))
+          : sourceText;
+      for (const edit of edits.sort((left, right) => right.start - left.start))
+        updated = replace(updated, edit.start, edit.end, edit.value);
+      return { ok: true, value: updated, diagnostics: [] };
+    }
+    if (own)
+      return {
+        ok: true,
+        value: replace(
+          sourceText,
+          own.initializer.getStart(),
+          own.initializer.getEnd(),
+          serialized,
+        ),
+        diagnostics: [],
+      };
+    return {
+      ok: true,
+      value: appendProperty(sourceText, node, `transform: ${serialized}`),
+      diagnostics: [],
+    };
+  }
   const edits = (["position", "rotation", "scale"] as const).flatMap((key) =>
     elements[key].map((expression, axis) => ({
       start: expression.getStart(),

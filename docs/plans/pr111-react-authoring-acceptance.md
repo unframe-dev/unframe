@@ -2,6 +2,8 @@
 
 2026-09-29 時点の計画。受け入れ条件の正本は [PR #111](https://github.com/unframe-dev/unframe/pull/111) の説明文。計画と途中の実装記録を示し、全条件の完了報告とはしない。
 
+2026-09-30 の後続作業は `feat/complete-react-authoring-followups` にある。共有値・props spread・Transform spread の局所編集、継承へ戻す Undo / Redo、Core Cue executor による有限 State の Inspector preview を追加した。Compiler / CLI / Web の対象テストと型チェック、Structured の未分割描画と partition 合成の既存 Browser 比較テストが成功。CSS 変更による PNG 再生成の新規 Browser テストも成功したが、通常の fixture 依存準備は registry timeout となるため、成功時はテスト実行中だけ `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` を指定した。PR #111 の head には未反映であり、性能計測、追加の失敗注入、publish / Delivery・端末の統合は未完了。
+
 ## 実装の進捗
 
 2026-09-29、起点 head からの変更として以下を実装した。PR の全受け入れ条件はまだ完了していない。

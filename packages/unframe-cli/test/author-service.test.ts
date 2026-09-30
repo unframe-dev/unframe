@@ -99,6 +99,179 @@ const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) =
 });
 
 describe("author service with frozen React source", () => {
+  it("keeps a transform spread comment through save and undo", async () => {
+    const directory = await createProject();
+    const sourcePath = join(directory, "presentation.unframe.tsx");
+    const source = await readFile(sourcePath, "utf8");
+    await writeFile(
+      sourcePath,
+      source
+        .replace(
+          "const base =",
+          "const sharedTransform = {position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1]};\nconst base =",
+        )
+        .replace(
+          "transform: {position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1]}}",
+          "transform: {...sharedTransform, /* keep this comment */ position: [0, 1, -2]}}",
+        ),
+    );
+    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
+    const before = await readFile(sourcePath, "utf8");
+    const service = await createAuthorService(directory);
+    services.push(service);
+    const initial = await service.project();
+    expect(initial.instances[0]?.transformInheritanceExpression).toContain("keep this comment");
+    const saved = await service.patch(initial.revision, {
+      commandId: commandId("6"),
+      expectedIrHash: initial.irHash!,
+      command: {
+        kind: "setTransform",
+        instanceId: "hero-one",
+        transform: { position: [4, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      },
+    });
+    expect(await readFile(sourcePath, "utf8")).toContain(
+      "/* keep this comment */ position: [4, 1, -2]",
+    );
+    const current = await service.project();
+    await service.patch(saved.revision, {
+      commandId: commandId("7"),
+      expectedIrHash: current.irHash!,
+      command: {
+        kind: "restoreTransform",
+        instanceId: "hero-one",
+        expression: initial.instances[0]!.transformInheritanceExpression!,
+      },
+    });
+    expect(await readFile(sourcePath, "utf8")).toBe(before);
+  }, 30000);
+  it("overrides a transform inherited from a scene spread and restores it", async () => {
+    const directory = await createProject();
+    const sourcePath = join(directory, "presentation.unframe.tsx");
+    const source = await readFile(sourcePath, "utf8");
+    await writeFile(
+      sourcePath,
+      source
+        .replace(
+          "const base =",
+          "const sharedPlacement = {transform: {position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1]}};\nconst base =",
+        )
+        .replace('{id: "hero-one",', '{...sharedPlacement, id: "hero-one",')
+        .replace(
+          ", transform: {position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1]}}",
+          "}",
+        ),
+    );
+    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
+    const sharedSource = await readFile(sourcePath, "utf8");
+    const service = await createAuthorService(directory);
+    services.push(service);
+    const initial = await service.project();
+    expect(initial.instances[0]?.transformInherited).toBe(true);
+    const saved = await service.patch(initial.revision, {
+      commandId: commandId("4"),
+      expectedIrHash: initial.irHash!,
+      command: {
+        kind: "setTransform",
+        instanceId: "hero-one",
+        transform: { position: [4, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      },
+    });
+    const current = await service.project();
+    expect(current.instances[0]?.transform.position).toEqual([4, 1, -2]);
+    expect(current.instances[1]?.transform.position).toEqual([1, 1, -2]);
+    await service.patch(saved.revision, {
+      commandId: commandId("5"),
+      expectedIrHash: current.irHash!,
+      command: { kind: "inheritTransform", instanceId: "hero-one" },
+    });
+    expect(await readFile(sourcePath, "utf8")).toBe(sharedSource);
+  }, 30000);
+  it("overrides props inherited from a shared object and restores that object", async () => {
+    const directory = await createProject();
+    const sourcePath = join(directory, "presentation.unframe.tsx");
+    const source = await readFile(sourcePath, "utf8");
+    await writeFile(
+      sourcePath,
+      source
+        .replace("const base =", 'const sharedProps = {title: "Shared"};\nconst base =')
+        .replace('props: {title: "Original 1"}', "props: sharedProps")
+        .replace('props: {title: "Original 2"}', "props: sharedProps"),
+    );
+    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
+    const sharedSource = await readFile(sourcePath, "utf8");
+    const service = await createAuthorService(directory);
+    services.push(service);
+    const initial = await service.project();
+    expect(initial.instances[0]?.props["title"]).toMatchObject({
+      value: "Shared",
+      editable: true,
+      inherited: true,
+    });
+    const saved = await service.patch(initial.revision, setTitle(initial, "Changed", "2"));
+    expect(await readFile(sourcePath, "utf8")).toContain(
+      'props: { ...sharedProps, title: "Changed" }',
+    );
+    const current = await service.project();
+    expect(current.instances.map((item) => item.props["title"]?.value)).toEqual([
+      "Changed",
+      "Shared",
+    ]);
+    await service.patch(saved.revision, {
+      commandId: commandId("3"),
+      expectedIrHash: current.irHash!,
+      command: { kind: "inheritProp", instanceId: "hero-one", propId: "title" },
+    });
+    expect(await readFile(sourcePath, "utf8")).toBe(sharedSource);
+  }, 30000);
+  it("saves and undoes a shared prop override without changing the shared source", async () => {
+    const directory = await createProject();
+    const sourcePath = join(directory, "presentation.unframe.tsx");
+    const source = await readFile(sourcePath, "utf8");
+    await writeFile(
+      sourcePath,
+      source
+        .replace("const base =", 'const sharedTitle = "Shared";\nconst base =')
+        .replace('props: {title: "Original 1"}', "props: {title: sharedTitle}")
+        .replace('props: {title: "Original 2"}', "props: {title: sharedTitle}"),
+    );
+    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
+    const sharedSource = await readFile(sourcePath, "utf8");
+    const service = await createAuthorService(directory);
+    services.push(service);
+    const initial = await service.project();
+    expect(initial.instances[0]?.props["title"]).toMatchObject({
+      value: "Shared",
+      editable: true,
+      inherited: true,
+    });
+    const saved = await service.patch(initial.revision, setTitle(initial, "Changed", "f"));
+    expect(await readFile(sourcePath, "utf8")).toContain('const sharedTitle = "Shared";');
+    expect((await service.project()).instances.map((item) => item.props["title"]?.value)).toEqual([
+      "Changed",
+      "Shared",
+    ]);
+    const current = await service.project();
+    await service.patch(saved.revision, {
+      commandId: commandId("1"),
+      expectedIrHash: current.irHash!,
+      command: {
+        kind: "restoreProp",
+        instanceId: "hero-one",
+        propId: "title",
+        expression: "sharedTitle",
+      },
+    });
+    expect(await readFile(sourcePath, "utf8")).toBe(sharedSource);
+    expect((await service.project()).instances.map((item) => item.props["title"]?.value)).toEqual([
+      "Shared",
+      "Shared",
+    ]);
+  }, 30000);
   it("saves one instance, reopens it, and rejects stale or conflicting commands", async () => {
     const directory = await createProject();
     const service = await createAuthorService(directory);
@@ -199,6 +372,10 @@ describe("author service with frozen React source", () => {
     });
     services.push(service);
     const snapshot = await service.project();
+    expect(snapshot.definition?.scene.surfaces[surfaceId("hero-one")]).toBeDefined();
+    expect(snapshot.instances.find(({ instanceId }) => instanceId === "hero-one")?.surfaceId).toBe(
+      surfaceId("hero-one"),
+    );
     const created = await service.build(snapshot.revision, commandId("d"));
     expect(created.status).toBe("queued");
     let job = await service.job(created.buildId);
@@ -211,6 +388,10 @@ describe("author service with frozen React source", () => {
       job = await service.job(created.buildId);
     }
     expect(job.status, JSON.stringify(job.diagnostics)).toBe("succeeded");
+    expect(job.artifacts.map(({ instanceId, stateId }) => [instanceId, stateId]).sort()).toEqual([
+      ["hero-one", "default"],
+      ["hero-two", "default"],
+    ]);
     expect(job.artifacts.map(({ instanceId }) => instanceId).sort()).toEqual([
       "hero-one",
       "hero-two",
@@ -237,7 +418,14 @@ describe("author service with frozen React source", () => {
         publicationStarted();
         await finish;
         return {
-          catalog: [{ assetId: "image", mediaType: "image/png", instanceId: "hero-one" }],
+          catalog: [
+            {
+              assetId: "image",
+              mediaType: "image/png",
+              instanceId: "hero-one",
+              stateId: "default",
+            },
+          ],
           assets: new Map([["image", { bytes: new Uint8Array([1]), mediaType: "image/png" }]]),
         };
       },

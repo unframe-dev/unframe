@@ -235,6 +235,17 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   console.info(
     `Opaque Base UI build durations: ${Math.round(firstDuration)} ms, ${Math.round(secondDuration)} ms`,
   );
+  const cssPath = join(directory, "hero.css");
+  const css = await readFile(cssPath, "utf8");
+  await writeFile(cssPath, css.replace("color: #102a43;", "color: #a00000;"));
+  const refreshedCssLock = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refreshedCssLock.exitCode, refreshedCssLock.stderr).toBe(0);
+  const cssChangedBuild = await runPresentationCli({ args: ["build", directory] });
+  expect(cssChangedBuild.exitCode, cssChangedBuild.stderr).toBe(0);
+  const cssChangedBytes = await distBytes(directory);
+  expect(cssChangedBytes.find(([path]) => path.endsWith(".png"))?.[1]).not.toEqual(
+    bytes.find(([path]) => path.endsWith(".png"))?.[1],
+  );
   const componentPath = join(directory, "Hero.component.tsx");
   const component = await readFile(componentPath, "utf8");
   await writeFile(
@@ -251,7 +262,7 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const blocked = await runPresentationCli({ args: ["build", directory] });
   expect(blocked.exitCode).not.toBe(0);
   expect(blocked.stderr).toContain("opaque-capability-denied");
-  expect(await distBytes(directory)).toEqual(bytes);
+  expect(await distBytes(directory)).toEqual(cssChangedBytes);
 }, 240_000);
 
 it("builds Structured and finite-state React together and keeps textures stable after placement edits", async () => {

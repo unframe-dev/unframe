@@ -85,6 +85,9 @@ fieldset input {
   grid-column: 2/-1;
   color: #aebbc9;
 }
+.author-interactions button {
+  margin: 0 0.5rem 0.5rem 0;
+}
 fieldset {
   border: 1px solid #496177;
   margin: 0.75rem 0;
