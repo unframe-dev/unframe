@@ -184,6 +184,37 @@ describe("Author inspector", () => {
     await waitFor(() => expect(screen.getByText(/保存 revision: r2/)).toBeInTheDocument());
     expect(api.build).toHaveBeenCalledWith("r2", expect.any(String));
   });
+  it("re-enables preview after a save supersedes a running build", async () => {
+    const old = snapshot();
+    let current = old;
+    const api = apiFor(old);
+    const running = {
+      buildId: "b1",
+      revision: "r1",
+      status: "running" as const,
+      diagnostics: [],
+      artifacts: [],
+    };
+    vi.mocked(api.project).mockImplementation(async () => current);
+    vi.mocked(api.build).mockImplementation(async (revision) => {
+      if (revision === "r1") return running;
+      throw new AuthorApiError(409, "author-build-busy", "old build is stopping");
+    });
+    vi.mocked(api.patch).mockImplementation(async () => {
+      current = { ...old, revision: "r2", sourceHash: "s2", irHash: "i2" };
+      return { revision: "r2", sourceHash: "s2", irHash: "i2", commandId: "c" };
+    });
+    const user = userEvent.setup();
+    render(<AuthorApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "alpha" }));
+    await user.click(screen.getByRole("button", { name: "Preview を生成" }));
+    await screen.findByText(/build: running/);
+    await user.clear(screen.getByLabelText("title"));
+    await user.type(screen.getByLabelText("title"), "next");
+    await user.click(screen.getByRole("button", { name: /^保存$/ }));
+    await waitFor(() => expect(api.build).toHaveBeenCalledWith("r2", expect.any(String)));
+    expect(screen.getByRole("button", { name: "Preview を生成" })).toBeEnabled();
+  });
 });
 
 const interactiveSnapshot = (): ProjectSnapshot => {

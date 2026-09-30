@@ -252,6 +252,23 @@ const propExpression = (item: SceneItem, propId: string, value: Scalar) => {
 };
 const replace = (source: string, start: number, end: number, value: string) =>
   source.slice(0, start) + value + source.slice(end);
+const propertyName = (name: string) =>
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+const containsComment = (source: string, node: ts.Node) => {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    ts.LanguageVariant.Standard,
+    source.slice(node.getStart(), node.getEnd()),
+  );
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan())
+    if (
+      token === ts.SyntaxKind.SingleLineCommentTrivia ||
+      token === ts.SyntaxKind.MultiLineCommentTrivia
+    )
+      return true;
+  return false;
+};
 const validRestoreExpression = (expression: string) => {
   const parsed = ts.createSourceFile(
     "restore.ts",
@@ -328,7 +345,7 @@ const inspect = (
       if (!propKind(definition.kind)) continue;
       const value = props[propId] ?? ("default" in definition ? definition.default : undefined);
       if (typeof value !== definition.kind) continue;
-      const editable = props[propId] !== undefined && !!item.syntax;
+      const editable = props[propId] !== undefined && item.syntax?.props !== undefined;
       const inherited = propExpression(item, propId, value as Scalar) === undefined;
       const propsNode = object(item.syntax?.props);
       const sourceField = propsNode && property(propsNode, propId);
@@ -515,7 +532,8 @@ export const patchEditableReactScene = (
     if (
       remaining.length === 1 &&
       ts.isSpreadAssignment(remaining[0]!) &&
-      remaining[0]!.expression.getText() !== ""
+      remaining[0]!.expression.getText() !== "" &&
+      !containsComment(sourceText, props)
     ) {
       const replacement = remaining[0]!.expression.getText();
       const clean =
@@ -532,6 +550,13 @@ export const patchEditableReactScene = (
       return fail(
         "compiler-edit-prop-missing",
         "Published prop does not exist.",
+        command.instanceId,
+        command.propId,
+      );
+    if (!field.editable)
+      return fail(
+        "compiler-edit-source-unsupported",
+        "Prop source is unavailable.",
         command.instanceId,
         command.propId,
       );
@@ -573,7 +598,7 @@ export const patchEditableReactScene = (
           value: appendProperty(
             sourceText,
             props,
-            `${command.propId}: ${JSON.stringify(command.value)}`,
+            `${propertyName(command.propId)}: ${JSON.stringify(command.value)}`,
           ),
           diagnostics: [],
         };
@@ -584,7 +609,7 @@ export const patchEditableReactScene = (
             sourceText,
             item.syntax.props.getStart(),
             item.syntax.props.getEnd(),
-            `{ ...${item.syntax.props.getText()}, ${command.propId}: ${JSON.stringify(command.value)} }`,
+            `{ ...${item.syntax.props.getText()}, ${propertyName(command.propId)}: ${JSON.stringify(command.value)} }`,
           ),
           diagnostics: [],
         };

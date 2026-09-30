@@ -79,7 +79,10 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
     previewRef.current = preview;
   }, [preview]);
   const acceptProject = useCallback((next: ProjectSnapshot) => {
-    if (latestRevision.current !== next.revision) generation.current++;
+    if (latestRevision.current !== next.revision) {
+      generation.current++;
+      setJob(null);
+    }
     latestRevision.current = next.revision;
     setProject(next);
     setCueSession(

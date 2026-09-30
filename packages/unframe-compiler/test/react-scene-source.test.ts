@@ -17,6 +17,7 @@ const fixture = (
   text = source,
   shared = false,
   firstTitle?: string,
+  additionalPropId?: string,
 ): PairedAuthoringDeclarationCatalog => {
   const scene = ["first", "second"].map((id, index) => ({
     id,
@@ -31,6 +32,7 @@ const fixture = (
               ? "One"
               : "Two",
       count: index + 1,
+      ...(index === 0 && additionalPropId ? { [additionalPropId]: "Shared" } : {}),
     },
     transform: { position: [index === 0 ? -1 : 1, 2, 3], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
   }));
@@ -62,6 +64,7 @@ const fixture = (
           props: {
             title: { kind: "string", required: true },
             count: { kind: "number", required: true },
+            ...(additionalPropId ? { [additionalPropId]: { kind: "string", required: true } } : {}),
           },
         },
       },
@@ -349,4 +352,60 @@ it("refuses a direct prop hidden by a later instance spread even when the values
     value: "Changed",
   });
   expect(result.ok).toBe(false);
+});
+
+it("quotes a non-identifier prop name when adding an inherited override", () => {
+  const text = source.replace(
+    'props: { title: "One", count: 1 }',
+    'props: { ...sharedProps, title: "One", count: 1 }',
+  );
+  const changed = patchEditableReactScene(fixture(text, false, undefined, "button-label"), text, {
+    kind: "setProp",
+    instanceId: "first",
+    propId: "button-label",
+    value: "Changed",
+  });
+  expect(changed.ok).toBe(true);
+  if (!changed.ok) return;
+  expect(changed.value).toContain('"button-label": "Changed"');
+});
+
+it("marks scene-spread props without direct source as read-only", () => {
+  const text = source.replace(
+    '{ id: "first", component: Hero, props: { title: "One", count: 1 }, transform:',
+    '{ ...sharedPlacement, id: "first", component: Hero, transform:',
+  );
+  const scene = readEditableReactScene(fixture(text), text);
+  expect(scene.ok).toBe(true);
+  if (!scene.ok) return;
+  expect(scene.value[0]?.props.title?.editable).toBe(false);
+  expect(
+    patchEditableReactScene(fixture(text), text, {
+      kind: "setProp",
+      instanceId: "first",
+      propId: "title",
+      value: "Changed",
+    }).ok,
+  ).toBe(false);
+});
+
+it("keeps comments and object shape when removing a spread prop override", () => {
+  const text = source.replace(
+    'props: { title: "One", count: 1 }',
+    "props: { /* keep shared context */ ...sharedProps }",
+  );
+  const changed = patchEditableReactScene(fixture(text, true), text, {
+    kind: "setProp",
+    instanceId: "first",
+    propId: "title",
+    value: "Changed",
+  });
+  expect(changed.ok).toBe(true);
+  if (!changed.ok) return;
+  const restored = patchEditableReactScene(fixture(changed.value, true, "Changed"), changed.value, {
+    kind: "inheritProp",
+    instanceId: "first",
+    propId: "title",
+  });
+  expect(restored).toEqual({ ok: true, value: text, diagnostics: [] });
 });
