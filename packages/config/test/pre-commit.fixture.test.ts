@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
-const run = (fixtureRoot: string, command: string, args: string[]) =>
+const run = (fixtureRoot: string, command: string, args: Array<string>) =>
   execFileSync(command, args, {
     cwd: fixtureRoot,
     encoding: "utf8",
@@ -40,7 +40,12 @@ const main = async () => {
       join(fixtureRoot, "packages/config/vite.config.ts"),
     );
     await symlink(join(repositoryRoot, "node_modules"), join(fixtureRoot, "node_modules"), "dir");
-    await writeFile(join(fixtureRoot, "sample.ts"), "const sample={value:1}\n");
+    await symlink(
+      join(repositoryRoot, "packages/config/node_modules"),
+      join(fixtureRoot, "packages/config/node_modules"),
+      "dir",
+    );
+    await writeFile(join(fixtureRoot, "sample.ts"), "export const sample={value:1}\n");
 
     run(fixtureRoot, "git", [
       "add",
@@ -53,11 +58,21 @@ const main = async () => {
 
     assert.equal(
       await readFile(join(fixtureRoot, "sample.ts"), "utf8"),
-      "const sample = { value: 1 };\n",
+      "export const sample = { value: 1 };\n",
     );
+
+    await writeFile(
+      join(fixtureRoot, "instanceof.ts"),
+      "export const isDate = (value: unknown) => value instanceof Date;\n",
+    );
+    const lintResult = run(fixtureRoot, "vp", ["lint", "instanceof.ts", "--format", "json"]);
+    assert.match(lintResult, /@nkzw\(no-instanceof\)/);
+    assert.match(lintResult, /"severity": "warning"/);
   } finally {
     await rm(fixtureRoot, { force: true, recursive: true });
   }
 };
 
+// tsx emits CommonJS for this package, which does not support top-level await.
+// oxlint-disable-next-line unicorn/prefer-top-level-await
 void main();

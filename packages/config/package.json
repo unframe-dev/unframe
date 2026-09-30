@@ -13,6 +13,7 @@
     "check": "pnpm typecheck && pnpm test && pnpm lint"
   },
   "devDependencies": {
+    "@nkzw/oxlint-config": "2.0.1",
     "@types/node": "^24.0.0",
     "tsx": "^4.22.1",
     "typescript": "^7.0.0",

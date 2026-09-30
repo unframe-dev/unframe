@@ -10,9 +10,13 @@ Node、Workers、Browser、Unity の runtime globals や emit 方針は共有せ
 package の `tsconfig.json` で `types`、`lib`、`noEmit` を明示します。これにより一つの
 共有設定が別 runtime の global を誤って許可することを防ぎます。
 
-formatter と lint は Vite+ (`vp`) に一本化します。共有の oxc 設定は、現在の package
-で共通ルールを追加する具体的な用途がないため置きません。各 package は対象 source、
-script、test を package script の `vp check` に列挙します。
+formatter と lint は Vite+ (`vp`) に一本化します。`vite.config.ts` の lint 設定は
+`@nkzw/oxlint-config` を継承し、リポジトリ全体の `vp lint` / `vp check` に適用します。
+プリセットで明示されたエラー規則は、既存コードの移行中は警告として扱います。
+規則のオプションとプラグイン設定は維持します。既存の
+`packages/unframe-*/src/` の TypeScript では、制御構文の波括弧、入れ子の三項演算子、
+複雑度 20 超、ネスト深度 4 超を警告として扱います。各 package は対象 source、script、
+test を package script の `vp check` に列挙します。
 
 ## git hooks (`githooks/`)
 
