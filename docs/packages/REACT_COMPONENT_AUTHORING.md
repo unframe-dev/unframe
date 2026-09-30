@@ -1,12 +1,12 @@
 # React Component Authoring 設計案と実装計画
 
-- **Status**: 採用前提の実装計画 / API 詳細と導入条件は検証待ち。A0 型試作検証済み、canonical Surface 拡張を採用。A1・A2、および A5 の Core / CLI capture 経路はローカル検証済み。Editor preview と remote CI は未確認
+- **Status**: 採用前提の実装計画 / API 詳細と導入条件は検証待ち。A0 型試作検証済み、canonical Surface 拡張を採用。A1・A2、A3 の直接編集、および A5 の Core / CLI capture 経路はローカル検証済み。有限 State の Editor preview は未確認
 - **Date**: 2026-09-27
 - **Decision**: [ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。三例の型推論を隔離した宣言型の試作で検証し、未決だった実装方式を関連 contract に記録した。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。Editor 編集・保存は別途接続する。capture の受け入れ範囲と残件は [統合記録](../plans/react-state-capture-acceptance.md) を参照する。
+本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。三例の型推論を隔離した宣言型の試作で検証し、未決だった実装方式を関連 contract に記録した。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。ローカル Inspector は直接 literal の公開 Props と host Transform の保存・再読込に対応する。共有値の局所 override、Undo / Redo は未実装である。capture の受け入れ範囲と残件は [統合記録](../plans/react-state-capture-acceptance.md) を参照する。
 
 A1 着手前の再確認で、現行 Core がすべての Semantic Node と Content Node の一対一対応を要求することが判明した。React の内部描画構造を保存しない本提案には、そのまま適用できない。Surface の Structured / Opaque 表現と Renderer の binding 検証を分ける追加設計を [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) で確定した。
 
@@ -14,7 +14,7 @@ A1 着手前の再確認で、現行 Core がすべての Semantic Node と Cont
 
 Component 作者は公開契約と見た目を一ファイルで定義し、Presentation 作者は Component を一つ import して Props、3D 配置、Flow を記述する。Manifest、renderer entry、内部 Runtime ID、lock を配置のたびに手で結ばない。CSS・画像・描画 helper を別ファイルへ分けることは許す。
 
-現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Web Editor](../../app/web/src/features/editor/infra/document-runtime.ts) は fixture と browser persistence を使用している。本計画は既存機能を再実装せず、それらへ新しい入力経路を接続する。
+現行は Structured の Props / Theme / composition、有限 State、Interaction、Action / Output / Cue、host Timeline を実装している。React Opaque は [Compiler pairing](../../packages/unframe-compiler/src/project/pair-authoring-declarations.ts) から canonical Surface まで接続し、全宣言 State を隔離 capture する。[Opaque bundler](../../packages/unframe-renderer-web/src/opaque/bundle-opaque-renderer.ts) は locked React / CSS / asset を閉じた bundle にして capture へ渡す。[Web Editor](../../app/web/src/features/editor/infra/document-runtime.ts) は fixture と browser persistence を使用している。ローカル Author 用の [Inspector](../../app/web/src/features/author/author-app.tsx) は独立 entry として CLI host に接続する。
 
 ## 2. 作者向け API の三例
 
@@ -289,11 +289,11 @@ Source と lock が正本であり、Editor 専用 JSON override を別の永続
 | 一意の Instance 宣言へ対応できない           | 編集不可の理由を表示し、共有定義を暗黙変更しない                                        |
 | source / IR hash が command の期待値と異なる | stale conflict として拒否し、再読込を要求                                               |
 
-最初は直接 literal の Props / Transform を扱い、その後に共有値と spread の override を追加する。共通値を複数 Instance で変更する操作は対象外とする。
+A3 は直接 literal の Props / Transform を扱う。表の共有値・spread の override は A4 の未実装範囲であり、現在は編集を拒否する。共通値を複数 Instance で変更する操作は対象外とする。
 
 Source patch、再度の静的検証、local lock 再生成を成功させてから保存する。source lease と fsync した journal によって協調するツール間の一括可視性と crash recovery を実現する。commit 中の失敗は recovery 完了まで読み取りを拒否し、外部編集が検出されたファイルを自動 rollback しない。lease に参加しない外部エディタの同時保存を完全に直列化する保証はしない。詳細は [実装 contract 3節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#3-source-保存の-transaction) に従う。
 
-描画は保存後に実行する。capture 失敗でも検証済み Source は保持し、最後に成功した preview を古い revision として表示する。保存済み revision と表示中の artifact revision を混同しない。初期 Undo / Redo は同じ session の保存済み編集を逆 patch として扱い、最新 hash を検証し、外部編集があれば拒否する。
+描画は保存後に実行する。capture 失敗でも検証済み Source は保持し、最後に成功した preview を古い revision として表示する。保存済み revision と表示中の artifact revision を混同しない。A4 で追加する Undo / Redo は同じ session の保存済み編集を逆 patch として扱い、最新 hash を検証し、外部編集があれば拒否する。
 
 実行場所は Linux ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Web、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
 
@@ -312,6 +312,8 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 A2 の同じ入力には明示 source、lock、設定、Compiler / renderer / Browser / encoder、locale、timezone、font と viewport を含む。実装 contract 4節の Linux bubblewrap / cgroup profile と終了条件を実装し、capability 欠落時は実行を拒否する。設計の独立レビューと OS 隔離の実試験は区別し、A2 で runtime を独立レビューする。
 
 工程は依存順に進める。契約確定後の型 fixture と renderer fixture の準備は並行できるが、Editor を仮の永続モデルへ接続しない。A1〜A5 は対象を絞った Red → Green → Refactor と各境界の統合試験を行う。既存 Structured の回帰も維持する。包括的な `nix run .#check` は予定差分を終え、明示的にコミットを依頼された段階で実行する。
+
+A3 は `author-service.test.ts` と `author-capture.integration.test.ts` で、保存・再起動後の再読込、二 Instance の独立、位置のみ変更した PNG の一致、capture 失敗時の既存 dist 保持を確認した。Web は Inspector テストに加え、実 Chromium とローカル HTTP host で保存・再読込・PNG preview 表示を確認した。共有値の局所 override と Undo / Redo は A4 に残す。
 
 速度の合否値は未設定。A2 fixture は依存 install / lock refresh を除き、CLI build 開始から snapshot・bundle・capture・encode・publish 完了までの wall clock を計測する。2026-09-29 の Linux / Nix ローカル試験では同一入力二回が約 15.7 秒 / 14.6 秒だった。これは性能保証ではなく、A3 の操作結果を基に必要な応答時間を決める。有限 State の経路をローカルで確認しても、Delivery・Realtime service・Unity / Quest の統合完了とは扱わない。
 
@@ -341,4 +343,4 @@ A0 では、Props の必須 / default の排他性と、default 解決後の ren
 
 A1 では、型試作をそのまま export せず、既存 schema / semantic guard と一致する公開型へ統合する。Source 非実行の拒否試験、lock v2 の hash / origin / cycle fixture、Structured 回帰を先に用意し、Component 分類 → Manifest / renderer descriptor 抽出 → Instance / ID lowering → CLI frozen check の順に接続する。capture と Editor はこの工程へ混ぜない。
 
-A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。A2 は閉じた bundle、Linux namespace / cgroup 隔離、binding と二回の RGBA 比較を CLI build に接続した。Base UI Button と CSS / TTF / PNG を使う fixture で、反復 build の全公開成果物一致と、外部通信による失敗時の既存 dist 保持を確認した。有限 State の React capture と公開 Action / Output の接続も実装済み。Editor の操作・保存経路は別作業として進める。
+A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。A2 は閉じた bundle、Linux namespace / cgroup 隔離、binding と二回の RGBA 比較を CLI build に接続した。Base UI Button と CSS / TTF / PNG を使う fixture で、反復 build の全公開成果物一致と、外部通信による失敗時の既存 dist 保持を確認した。有限 State の React capture と公開 Action / Output の接続も実装済み。ローカル Inspector の直接 literal 編集・保存は実装済みであり、有限 State を操作する Editor preview は後続である。

@@ -248,7 +248,6 @@ const protocol = (
     const onAbort = () =>
       fail(new OpaqueIsolationError("opaque-capture-cancelled", "capture cancelled"));
     signal?.addEventListener("abort", onAbort, { once: true });
-    child.stdin?.on("error", (error) => fail(error));
     child.stderr?.resume();
     child.stdout?.on("data", (chunk: Buffer) => {
       if (settled) return;
@@ -339,6 +338,9 @@ export const runIsolatedOpaqueWorker = async (
   const group = join(root, groupName);
   const groupRelative = `/${relative("/sys/fs/cgroup", group)}`;
   let child: ChildProcess | undefined;
+  let childClosed: Promise<void> | undefined;
+  let stdioFailure: Promise<never> | undefined;
+  let stdioError: OpaqueIsolationError | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let completed = false;
   let value: unknown;
@@ -371,15 +373,28 @@ export const runIsolatedOpaqueWorker = async (
       ],
       { stdio: ["pipe", "pipe", "pipe", "pipe"], env: {}, detached: true },
     );
+    const worker = child;
+    childClosed = new Promise<void>((done) => worker.once("close", () => done()));
+    stdioFailure = new Promise<never>((_, reject) => {
+      const failStdio = () => {
+        stdioError ??= new OpaqueIsolationError("opaque-capture-failed", "worker stdio failed");
+        reject(stdioError);
+      };
+      worker.stdin?.on("error", failStdio);
+      worker.stdout?.on("error", failStdio);
+      worker.stderr?.on("error", failStdio);
+    });
+    void stdioFailure.catch(() => undefined);
+    const barrier = worker.stdio[3];
+    if (!barrier || !("write" in barrier))
+      throw unavailable("trusted bootstrap barrier is unavailable");
+    // The barrier has no response; bootstrap and ready messages confirm that the permit arrived.
+    barrier.on("error", () => undefined);
     if (!child.pid) throw unavailable("trusted bootstrap did not start");
     writeFileSync(join(group, "cgroup.procs"), String(child.pid));
     verifyMembership(child.pid, groupRelative);
-    const barrier = child.stdio[3];
-    if (!barrier || !("write" in barrier))
-      throw unavailable("trusted bootstrap barrier is unavailable");
     barrier.write("go\n");
     barrier.end();
-    const worker = child;
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(
         () =>
@@ -390,14 +405,17 @@ export const runIsolatedOpaqueWorker = async (
     value = await Promise.race([
       protocol(worker, groupRelative, input.input, options.signal),
       deadline,
+      stdioFailure,
     ]);
     worker.stdin?.end();
     completed = true;
   } catch (error) {
     failure =
-      error instanceof OpaqueIsolationError
-        ? error
-        : unavailable(error instanceof Error ? error.message : "isolation setup failed");
+      error === stdioError && options.signal?.aborted
+        ? new OpaqueIsolationError("opaque-capture-cancelled", "capture cancelled")
+        : error instanceof OpaqueIsolationError
+          ? error
+          : unavailable(error instanceof Error ? error.message : "isolation setup failed");
   } finally {
     if (timer) clearTimeout(timer);
     if (child) {
@@ -416,6 +434,17 @@ export const runIsolatedOpaqueWorker = async (
         /* cgroup cleanup is verified below */
       }
       if (!(await waitForEmptyGroup(group))) cleanupFailure = true;
+      if (childClosed) {
+        let closeTimer: ReturnType<typeof setTimeout> | undefined;
+        const closed = await Promise.race([
+          childClosed.then(() => true),
+          new Promise<false>((done) => {
+            closeTimer = setTimeout(() => done(false), CLOSE_GRACE_MS);
+          }),
+        ]);
+        if (closeTimer) clearTimeout(closeTimer);
+        if (!closed) cleanupFailure = true;
+      }
     }
     try {
       resourceLimitHit =
@@ -436,6 +465,7 @@ export const runIsolatedOpaqueWorker = async (
       "opaque-capture-resource-limit",
       "worker exceeded a hard resource limit",
     );
+  if (!failure && stdioError && !options.signal?.aborted) throw stdioError;
   if (failure) throw failure;
   return value;
 };

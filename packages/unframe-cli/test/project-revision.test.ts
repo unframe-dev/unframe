@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vitest";
+import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 
 const directories: string[] = [];
@@ -66,4 +67,18 @@ it("keeps the revision stable across directories and ignores the managed publica
   assert(b.ok);
   expect(a.revision).toMatch(/^sha256:[0-9a-f]{64}$/);
   expect(b.revision).toBe(a.revision);
+});
+
+it("rejects a queued build's obsolete revision before opening a renderer", async () => {
+  const directory = await copyProject();
+  const before = await discoverPresentationProjectFiles(directory);
+  assert(before.ok);
+  const entry = join(directory, before.entryFile);
+  await writeFile(entry, (await readFile(entry, "utf8")) + "\n");
+  const result = await runPresentationCli({
+    args: ["build", directory, "--format", "json"],
+    host: { expectedRevision: before.revision },
+  });
+  expect(result.exitCode).toBe(3);
+  expect(result.stderr).toContain("cli-output-stale");
 });

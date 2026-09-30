@@ -39,3 +39,11 @@ export {
   type LockedOpaqueBundleInput,
 } from "./semantic/prepare-locked-opaque-bundle-input.js";
 export { assembleAuthoringProject } from "./api/authoring-project-pipeline.js";
+export {
+  readEditableReactScene,
+  patchEditableReactScene,
+  type EditableReactSceneInstance,
+  type ReactSceneEditCommand,
+  type ReactSceneEditDiagnostic,
+  type ReactSceneTransform,
+} from "./editing/react-scene-source.js";

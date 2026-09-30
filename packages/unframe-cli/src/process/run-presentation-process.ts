@@ -14,6 +14,7 @@ export type PresentationProcess = {
 
 export type RunPresentationProcessInput = Readonly<{
   process: PresentationProcess;
+  author?: (directory: string, signal: AbortSignal) => Promise<void>;
   run?: (
     input: Readonly<{ args: readonly string[]; host: Readonly<{ signal: AbortSignal }> }>,
   ) => PresentationCliResult | Promise<PresentationCliResult>;
@@ -29,6 +30,8 @@ const ioFailure = (): PresentationCliResult => ({
 export const runPresentationProcess = async ({
   process,
   run = runPresentationCli,
+  author = async (directory, signal) =>
+    (await import("../author/start.js")).runAuthorProcess(directory, signal),
 }: RunPresentationProcessInput): Promise<PresentationCliResult> => {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -36,9 +39,11 @@ export const runPresentationProcess = async ({
   process.on("SIGTERM", abort);
   let result: PresentationCliResult;
   try {
-    result = await Promise.resolve(
-      run({ args: process.argv.slice(2), host: { signal: controller.signal } }),
-    );
+    const args = process.argv.slice(2);
+    if (args[0] === "author" && args.length === 2 && args[1]?.startsWith("/")) {
+      await author(args[1], controller.signal);
+      result = { exitCode: 0, stdout: "", stderr: "" };
+    } else result = await Promise.resolve(run({ args, host: { signal: controller.signal } }));
     if (controller.signal.aborted && result.exitCode !== 130)
       result = {
         exitCode: 130,

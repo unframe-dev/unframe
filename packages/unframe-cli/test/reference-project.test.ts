@@ -180,6 +180,7 @@ const diagnostics = (result: Awaited<ReturnType<typeof runPresentationCli>>) =>
   JSON.parse(result.stderr).diagnostics as readonly {
     family: string;
     code: string;
+    message: string;
     path: readonly (string | number)[];
   }[];
 
@@ -747,6 +748,10 @@ describe("reference Authoring Project", () => {
     });
     expect(io.exitCode).toBe(3);
     expect(diagnostics(io)[0]?.family).toBe("io");
+    expect(diagnostics(io)[0]?.message).toBe(
+      "Build artifacts could not be published. (stage: inspect-dist)",
+    );
+    expect(io.stderr).not.toContain(directory);
     await expect(readFile(join(directory, "dist"), "utf8")).resolves.toBe("unmanaged output");
   }, 30_000);
 
