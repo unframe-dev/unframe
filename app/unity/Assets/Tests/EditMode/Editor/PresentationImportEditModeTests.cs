@@ -185,7 +185,7 @@ public sealed class PresentationImportEditModeTests
             null,
             motion: new PresentationMotionSnapshot(
                 Vector3.zero,
-                new Vector3(0.2f, 0f, 0f),
+                new Vector3(-0.2f, 0f, 0f),
                 0.2f,
                 false
             )
@@ -194,7 +194,7 @@ public sealed class PresentationImportEditModeTests
             null,
             motion: new PresentationMotionSnapshot(
                 Vector3.zero,
-                new Vector3(0.2f, 0f, 0f),
+                new Vector3(-0.2f, 0f, 0f),
                 0.2f,
                 true
             )
@@ -221,7 +221,7 @@ public sealed class PresentationImportEditModeTests
                     null,
                     motion: new PresentationMotionSnapshot(
                         Vector3.zero,
-                        new Vector3(0.2f, 0f, 0f),
+                        new Vector3(-0.2f, 0f, 0f),
                         0.5f,
                         true
                     )
@@ -236,7 +236,7 @@ public sealed class PresentationImportEditModeTests
                     null,
                     motion: new PresentationMotionSnapshot(
                         Vector3.zero,
-                        new Vector3(0.2f, 0f, 0f),
+                        new Vector3(-0.2f, 0f, 0f),
                         1.0f,
                         true
                     )
@@ -519,6 +519,32 @@ public sealed class PresentationImportEditModeTests
         Assert.That(firstStep.cues[0].trigger.condition.input, Is.EqualTo("primary"));
         Assert.That(firstStep.cues[0].actions[0].boolValue, Is.False);
         Assert.That(firstStep.cues[0].nextStep, Is.EqualTo("step_02"));
+    }
+
+    [Test]
+    public void LocalExtendedSample_UsesSwipeRightForTheMotionStep()
+    {
+        TextAsset sample = Resources.Load<TextAsset>("PresentationSamples/LocalExtendedSample");
+        UnityJsonPresentationDefinitionParser parser = new UnityJsonPresentationDefinitionParser();
+
+        Assert.That(sample, Is.Not.Null);
+        Assert.That(
+            parser.TryParse(sample.text, out PresentationDocument document, out string error),
+            Is.True,
+            error
+        );
+
+        PresentationGroup group = document.presentation.groups[0];
+        Assert.That(group.steps, Has.Length.EqualTo(1));
+
+        PresentationStep motionStep = group.steps[0];
+        Assert.That(motionStep.cues[0].trigger.type, Is.EqualTo("motion"));
+        Assert.That(motionStep.cues[0].trigger.reference, Is.EqualTo("swipe_right"));
+        Assert.That(motionStep.cues[0].actions, Has.Length.EqualTo(3));
+        Assert.That(motionStep.cues[0].actions[0].targetId, Is.EqualTo("motion_before"));
+        Assert.That(motionStep.cues[0].actions[0].boolValue, Is.False);
+        Assert.That(motionStep.cues[0].actions[2].targetId, Is.EqualTo("motion_after"));
+        Assert.That(motionStep.cues[0].actions[2].boolValue, Is.True);
     }
 
     [Test]

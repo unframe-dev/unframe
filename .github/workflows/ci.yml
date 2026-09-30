@@ -99,7 +99,11 @@ jobs:
               - 'scripts/ci/lp.sh'
               - 'lp/**'
             unity:
+              - 'flake.nix'
+              - 'flake.lock'
+              - 'scripts/contracts/generate-unity-proto.sh'
               - '.github/workflows/unity.yml'
+              - 'packages/contracts/proto/**'
               - 'app/unity/**'
 
   control-plane:

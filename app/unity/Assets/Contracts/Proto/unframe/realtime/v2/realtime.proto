@@ -1,0 +1,861 @@
+syntax = "proto3";
+
+package unframe.realtime.v2;
+
+import "unframe/presentation/v2/runtime.proto";
+
+option go_package = "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2;realtimev2";
+
+service RealtimeServiceV2 {
+  rpc ConnectControl(stream ControlClientItem) returns (stream ControlServerItem);
+  rpc ConnectState(stream StateClientItem) returns (stream StateServerItem);
+}
+
+message ControlClientItem {
+  oneof item {
+    ControlHandshake handshake = 1;
+    ReplayRequest replay_request = 2;
+    StateReady state_ready = 3;
+    LogicalInputCommand logical_input = 20;
+    SurfaceInteractionCommand surface_interaction = 21;
+    RuntimeControlCommand runtime_control = 22;
+  }
+  reserved 4 to 19;
+  reserved 23 to 99;
+}
+
+message ControlHandshake {
+  string protocol_version = 1;
+  uint32 progression_contract_version = 2;
+  repeated unframe.presentation.v2.RuntimeCapability supported_capabilities = 3;
+  optional ResumeCursor resume = 4;
+}
+
+message ResumeCursor {
+  string prior_connection_id = 1;
+  uint64 applied_reliable_sequence = 2;
+  unframe.presentation.v2.RuntimeProjectionFence fence = 3;
+}
+
+message RuntimeProtocolLimits {
+  uint32 maximum_id_utf8_bytes = 1;
+  uint32 maximum_control_item_bytes = 2;
+  uint32 maximum_state_item_bytes = 3;
+  uint32 reliable_event_retention_count = 4;
+  uint64 reliable_event_retention_bytes = 5;
+  uint64 reliable_event_retention_ms = 6;
+  uint32 maximum_replay_items = 7;
+  uint64 maximum_replay_bytes = 8;
+  uint32 idempotency_retention_count = 9;
+  uint64 idempotency_retention_ms = 10;
+  uint32 snapshot_catch_up_max_attempts = 11;
+  uint64 snapshot_catch_up_total_budget_ms = 12;
+  uint32 runtime_microstep_limit = 13;
+  uint32 maximum_tracking_samples_per_frame = 14;
+  uint32 maximum_tracking_frames_per_second = 15;
+  uint64 anchor_sample_max_age_ms = 16;
+  uint32 catch_up_queue_maximum_items = 17;
+  uint64 catch_up_queue_maximum_bytes = 18;
+  uint32 state_dependency_buffer_maximum_values = 19;
+  uint64 state_dependency_buffer_maximum_ms = 20;
+}
+
+message ControlConnected {
+  string protocol_version = 1;
+  uint32 progression_contract_version = 2;
+  repeated unframe.presentation.v2.RuntimeCapability required_capabilities = 3;
+  string connection_id = 4;
+  unframe.presentation.v2.ProjectionInstance projection_instance = 5;
+  RuntimeProtocolLimits limits = 6;
+}
+
+message StateReady {
+  uint64 applied_reliable_sequence = 1;
+  uint64 presentation_origin_version = 2;
+}
+
+message StateConnectionNonce {
+  bytes nonce = 1;
+  uint32 expires_in_ms = 2;
+}
+
+message ReplayRequest { uint64 after_sequence = 1; }
+
+message LogicalInputCommand {
+  string client_event_id = 1;
+  string logical_event_name = 2;
+  uint64 presentation_origin_version = 3;
+  optional uint64 captured_at_client_monotonic_ms = 4;
+}
+
+message SurfaceInteractionCommand {
+  string client_event_id = 1;
+  string surface_id = 2;
+  string interaction_id = 3;
+  uint64 presentation_origin_version = 4;
+  optional uint64 captured_at_client_monotonic_ms = 5;
+}
+
+enum RuntimeControlKind {
+  RUNTIME_CONTROL_KIND_UNSPECIFIED = 0;
+  RUNTIME_CONTROL_KIND_PAUSE = 1;
+  RUNTIME_CONTROL_KIND_RESUME = 2;
+  RUNTIME_CONTROL_KIND_END = 3;
+}
+
+message RuntimeControlCommand {
+  string client_event_id = 1;
+  RuntimeControlKind kind = 2;
+  uint64 presentation_origin_version = 3;
+}
+
+message CommandOutcome {
+  string client_event_id = 1;
+  oneof result {
+    CommandAccepted accepted = 2;
+    CommandRejected rejected = 3;
+    CommandNoOp no_op = 4;
+  }
+}
+
+message CommandAccepted {
+  string canonical_event_id = 1;
+  uint64 reliable_sequence = 2;
+  oneof cue_evaluation {
+    CueNotSelected cue_not_selected = 3;
+    CueCommitted cue_committed = 4;
+    CueBatchRejected cue_batch_rejected = 5;
+  }
+}
+
+message CueNotSelected {}
+message CueCommitted { string cue_id = 1; }
+
+enum CommandRejectionReason {
+  COMMAND_REJECTION_REASON_UNSPECIFIED = 0;
+  COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE = 1;
+  COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE = 2;
+  COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT = 3;
+}
+
+message CommandRejected { CommandRejectionReason reason = 1; }
+
+enum CueRejectionReason {
+  CUE_REJECTION_REASON_UNSPECIFIED = 0;
+  CUE_REJECTION_REASON_ACTION_BATCH_CONFLICT = 1;
+  CUE_REJECTION_REASON_RESOLVED_VALUE_INVALID = 2;
+  CUE_REJECTION_REASON_SURFACE_TRANSITION_ACTIVE = 3;
+  CUE_REJECTION_REASON_SAME_STATE_CROSSFADE = 4;
+  CUE_REJECTION_REASON_MODEL_CROSSFADE_ACTIVE = 5;
+}
+
+message CueBatchRejected {
+  string cue_id = 1;
+  CueRejectionReason reason = 2;
+}
+
+enum CommandNoOpReason {
+  COMMAND_NO_OP_REASON_UNSPECIFIED = 0;
+  COMMAND_NO_OP_REASON_ALREADY_PAUSED = 1;
+  COMMAND_NO_OP_REASON_ALREADY_RUNNING = 2;
+  COMMAND_NO_OP_REASON_ALREADY_TERMINATING = 3;
+}
+
+message CommandNoOp { CommandNoOpReason reason = 1; }
+
+message ControlServerItem {
+  oneof item {
+    ControlConnected connected = 1;
+    ConnectionSnapshotEnvelope connection_snapshot = 2;
+    ProjectedReliableEvent reliable_event = 3;
+    ProjectionAdvance projection_advance = 4;
+    CommandOutcome command_outcome = 5;
+    StateConnectionNonce state_connection_nonce = 6;
+    ResyncRequired resync_required = 7;
+  }
+}
+
+message ProjectedReliableEvent {
+  uint64 sequence = 1;
+  string event_id = 2;
+  optional string cause_event_id = 3;
+  uint64 occurred_at_runtime_time_ms = 4;
+  unframe.presentation.v2.RuntimeProjectionFence fence = 5;
+  oneof payload {
+    RuntimeStatusChanged runtime_status_changed = 20;
+    PresentationOriginChanged presentation_origin_changed = 21;
+    GroupEntered group_entered = 100;
+    GroupExited group_exited = 101;
+    StepEntered step_entered = 102;
+    CueAccepted cue_accepted = 103;
+    PresentationEnded presentation_ended = 104;
+    LogicalInputAccepted logical_input_accepted = 105;
+    SurfaceInteractionAccepted surface_interaction_accepted = 200;
+    SurfaceStateChanged surface_state_changed = 201;
+    SurfaceTransitionStarted surface_transition_started = 202;
+    SurfaceTransitionCompleted surface_transition_completed = 203;
+    NodeStateCommitted node_state_committed = 204;
+    VariableChanged variable_changed = 205;
+    TimelineStarted timeline_started = 300;
+    TimelineCompleted timeline_completed = 301;
+    TimelineCanceled timeline_canceled = 302;
+    MediaStarted media_started = 303;
+    MediaPaused media_paused = 304;
+    MediaResumed media_resumed = 305;
+    MediaSeeked media_seeked = 306;
+    MediaCompleted media_completed = 307;
+    MediaCanceled media_canceled = 308;
+    MediaStopped media_stopped = 309;
+    ModelClipStarted model_clip_started = 320;
+    ModelClipPaused model_clip_paused = 321;
+    ModelClipResumed model_clip_resumed = 322;
+    ModelClipStopped model_clip_stopped = 323;
+    ModelClipCompleted model_clip_completed = 324;
+    ModelClipCrossfadeStarted model_clip_crossfade_started = 325;
+    ModelClipCrossfadeCompleted model_clip_crossfade_completed = 326;
+    ModelClipCanceled model_clip_canceled = 327;
+    ParticipantPresenceChanged participant_presence_changed = 400;
+  }
+  reserved 6 to 19;
+  reserved 22 to 99;
+  reserved 106 to 199;
+  reserved 206 to 299;
+  reserved 310 to 319;
+  reserved 328 to 399;
+  reserved 401 to 999;
+}
+
+message ProjectionAdvance {
+  unframe.presentation.v2.RuntimeProjectionFence fence = 1;
+  uint64 from_exclusive = 2;
+  uint64 through_sequence = 3;
+}
+
+enum PauseReason {
+  PAUSE_REASON_UNSPECIFIED = 0;
+  PAUSE_REASON_PRESENTER_DISCONNECTED = 1;
+  PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED = 2;
+  PAUSE_REASON_PROCESS_RECOVERED = 3;
+  PAUSE_REASON_INVARIANT_VIOLATION = 4;
+  PAUSE_REASON_ATOMIC_COMMIT_FAILED = 5;
+  PAUSE_REASON_MICROSTEP_LIMIT_EXCEEDED = 6;
+  PAUSE_REASON_RECOVERY_GAP = 7;
+  PAUSE_REASON_EXPLICIT_PAUSE = 8;
+}
+
+enum TerminationReason {
+  TERMINATION_REASON_UNSPECIFIED = 0;
+  TERMINATION_REASON_EXPLICIT_END = 1;
+  TERMINATION_REASON_CONTROL_PLANE_ENDED = 2;
+  TERMINATION_REASON_PAUSE_TIMEOUT = 3;
+}
+
+message Running {}
+message Paused { PauseReason reason = 1; }
+message Terminating { TerminationReason reason = 1; }
+
+message RuntimeStatusChanged {
+  oneof status {
+    Running running = 1;
+    Paused paused = 2;
+    Terminating terminating = 3;
+  }
+}
+
+message GroupEntered {
+  string group_id = 1;
+  uint64 group_entry_epoch = 2;
+  GroupRuntimeInitialization initialization = 3;
+}
+
+message GroupRuntimeInitialization {
+  repeated NodeRuntimeState node_states = 1;
+  repeated SurfaceRuntimeState surface_states = 2;
+  repeated MediaRuntimeState media_states = 3;
+  repeated VariableState variables = 4;
+  repeated ModelClipRuntimeState model_clip_states = 5;
+}
+
+message GroupExited {
+  string group_id = 1;
+  uint64 group_entry_epoch = 2;
+}
+
+message StepEntered {
+  string group_id = 1;
+  uint64 group_entry_epoch = 2;
+  string step_id = 3;
+  uint64 step_entry_epoch = 4;
+  uint64 entered_at_runtime_time_ms = 5;
+}
+
+message CueAccepted {
+  string group_id = 1;
+  string step_id = 2;
+  string cue_id = 3;
+}
+
+message PresentationEnded { TerminationReason reason = 1; }
+message LogicalInputAccepted { string logical_event_name = 1; }
+
+message SurfaceInteractionAccepted {
+  string surface_id = 1;
+  string interaction_id = 2;
+}
+
+message SurfaceStateChanged {
+  string surface_id = 1;
+  string from_state_id = 2;
+  string state_id = 3;
+}
+
+message SurfaceTransitionStarted {
+  string surface_id = 1;
+  unframe.presentation.v2.RuntimeRunId run_id = 2;
+  string from_state_id = 3;
+  string state_id = 4;
+  uint64 started_at_runtime_time_ms = 5;
+  uint64 duration_ms = 6;
+  unframe.presentation.v2.Easing easing = 7;
+  RuntimeRunSnapshot run = 8;
+}
+
+message SurfaceTransitionCompleted {
+  string surface_id = 1;
+  unframe.presentation.v2.RuntimeRunId run_id = 2;
+  string state_id = 3;
+}
+
+message NodeRuntimeState {
+  string node_id = 1;
+  bool active = 2;
+  bool visible = 3;
+  double opacity = 4;
+  unframe.presentation.v2.Transform transform = 5;
+}
+
+message NodeStateCommitted { NodeRuntimeState state = 1; }
+
+message VariableState {
+  string variable_id = 1;
+  unframe.presentation.v2.ScalarValue value = 2;
+}
+
+message VariableChanged { VariableState state = 1; }
+
+message TimelineStarted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string timeline_id = 2;
+  unframe.presentation.v2.RuntimeRunOwner owner = 3;
+  unframe.presentation.v2.RuntimeRunCause cause = 4;
+  unframe.presentation.v2.RunCompletion completion = 5;
+  uint64 started_at_runtime_time_ms = 6;
+}
+
+message TimelineCompleted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string timeline_id = 2;
+}
+
+enum TimelineCancelReason {
+  TIMELINE_CANCEL_REASON_UNSPECIFIED = 0;
+  TIMELINE_CANCEL_REASON_EXPLICIT_STOP = 1;
+  TIMELINE_CANCEL_REASON_GROUP_EXIT = 2;
+  TIMELINE_CANCEL_REASON_PRESENTATION_ENDED = 3;
+}
+
+message TimelineCanceled {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string timeline_id = 2;
+  TimelineCancelReason reason = 3;
+}
+
+message PlaybackClock {
+  oneof clock {
+    PlayingClock playing = 1;
+    PausedClock paused = 2;
+  }
+}
+
+message PlayingClock {
+  double position_at_reference_ms = 1;
+  uint64 reference_runtime_time_ms = 2;
+}
+
+message PausedClock { double position_ms = 1; }
+
+message MediaStarted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  PlaybackClock playback = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+message MediaPaused {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  double position_ms = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+message MediaResumed {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  PlayingClock playback = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+message MediaSeeked {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  PlaybackClock playback = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+message MediaCompleted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  double held_position_ms = 3;
+}
+
+message MediaStopped {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  double held_position_ms = 3;
+}
+
+enum MediaCancelReason {
+  MEDIA_CANCEL_REASON_UNSPECIFIED = 0;
+  MEDIA_CANCEL_REASON_GROUP_EXIT = 1;
+  MEDIA_CANCEL_REASON_PRESENTATION_ENDED = 2;
+}
+
+message MediaCanceled {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string surface_id = 2;
+  MediaCancelReason reason = 3;
+}
+
+message ClipPlayback {
+  string clip_id = 1;
+  PlaybackClock playback = 2;
+  double speed = 3;
+  bool loop = 4;
+}
+
+message ClipHeldPose {
+  string clip_id = 1;
+  double position_ms = 2;
+}
+
+message BlendHeldPose {
+  ClipHeldPose from = 1;
+  ClipHeldPose to = 2;
+  double to_weight = 3;
+}
+
+message ModelClipStarted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  ClipPlayback playback = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+message ModelClipPaused {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  RuntimeRunSnapshot run = 3;
+}
+
+message ModelClipResumed {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  RuntimeRunSnapshot run = 3;
+}
+
+message ModelClipStopped {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  oneof held_pose {
+    ClipHeldPose clip = 3;
+    BlendHeldPose blend = 4;
+  }
+}
+
+message ModelClipCompleted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  ClipHeldPose held_pose = 3;
+}
+
+message ModelClipCrossfadeStarted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  ModelClipCrossfade crossfade = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+message ModelClipCrossfadeCompleted {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  ClipPlayback playback = 3;
+  RuntimeRunSnapshot run = 4;
+}
+
+enum ModelClipCancelReason {
+  MODEL_CLIP_CANCEL_REASON_UNSPECIFIED = 0;
+  MODEL_CLIP_CANCEL_REASON_GROUP_EXIT = 1;
+  MODEL_CLIP_CANCEL_REASON_PRESENTATION_ENDED = 2;
+}
+
+message ModelClipCanceled {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  string model_node_id = 2;
+  ModelClipCancelReason reason = 3;
+}
+
+message ParticipantPresenceChanged {
+  string participant_id = 1;
+  unframe.presentation.v2.SessionRole role = 2;
+  bool connected = 3;
+}
+
+message PresentationOrigin {
+  uint64 version = 1;
+  unframe.presentation.v2.Pose pose = 2;
+}
+
+message PresentationOriginChanged { PresentationOrigin origin = 1; }
+
+message RuntimeClockSnapshot {
+  uint64 runtime_time_ms = 1;
+  oneof status {
+    Running running = 2;
+    Paused paused = 3;
+    Terminating terminating = 4;
+  }
+}
+
+message StableProgression {}
+
+message TransitioningProgression {
+  repeated unframe.presentation.v2.RuntimeRunId blocking_run_ids = 1;
+  ProgressionNext pending_next = 2;
+}
+
+message ProgressionNext {
+  oneof destination {
+    NextStep step = 1;
+    NextGroup group = 2;
+    EndPresentation end = 3;
+    StayOnStep stay = 4;
+  }
+}
+
+message NextStep { string step_id = 1; }
+message NextGroup { string group_id = 1; }
+message EndPresentation {}
+message StayOnStep {}
+
+message ProgressionRuntimeState {
+  string current_group_id = 1;
+  uint64 group_entry_epoch = 2;
+  string current_step_id = 3;
+  uint64 step_entry_epoch = 4;
+  uint64 step_entered_at_runtime_time_ms = 5;
+  oneof phase {
+    StableProgression stable = 6;
+    TransitioningProgression transitioning = 7;
+  }
+}
+
+message ArmedTimer {
+  string cue_id = 1;
+  uint64 deadline_runtime_time_ms = 2;
+  bool fired = 3;
+}
+
+message CueCooldown {
+  string cue_id = 1;
+  uint64 next_eligible_runtime_time_ms = 2;
+}
+
+message StepExecutionSnapshot {
+  uint64 step_entry_epoch = 1;
+  repeated string consumed_cue_ids = 2;
+  repeated CueCooldown cooldowns = 3;
+  repeated ArmedTimer timers = 4;
+}
+
+message SurfaceRuntimeState {
+  string surface_id = 1;
+  string state_id = 2;
+  optional unframe.presentation.v2.RuntimeRunId transition_run_id = 3;
+}
+
+message MediaRuntimeState {
+  string surface_id = 1;
+  oneof state {
+    MediaStoppedState stopped = 2;
+    MediaActive active = 3;
+  }
+}
+
+message MediaStoppedState { double held_position_ms = 1; }
+
+message MediaActive {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  PlaybackClock playback = 2;
+}
+
+message DefaultModelPose {}
+
+message ModelClipRuntimeState {
+  string model_node_id = 1;
+  oneof state {
+    DefaultModelPose default_pose = 2;
+    ClipHeldPose held_clip = 3;
+    BlendHeldPose held_blend = 4;
+    ModelClipActive active = 5;
+  }
+}
+
+message ModelClipActive { unframe.presentation.v2.RuntimeRunId run_id = 1; }
+
+message SurfaceTransitionRunSnapshot {
+  string surface_id = 1;
+  string from_state_id = 2;
+  string to_state_id = 3;
+  uint64 duration_ms = 4;
+  unframe.presentation.v2.Easing easing = 5;
+}
+
+message TimelineRunSnapshot { string timeline_id = 1; }
+
+message MediaRunSnapshot {
+  string surface_id = 1;
+  PlaybackClock playback = 2;
+}
+
+message ModelClipCrossfade {
+  ClipPlayback from = 1;
+  ClipPlayback to = 2;
+  PlaybackClock transition_clock = 3;
+  uint64 duration_ms = 4;
+  unframe.presentation.v2.Easing easing = 5;
+  bool from_is_held = 6;
+}
+
+message ModelClipRunSnapshot {
+  string model_node_id = 1;
+  oneof phase {
+    ClipPlayback single = 2;
+    ModelClipCrossfade crossfade = 3;
+  }
+}
+
+message RuntimeRunSnapshot {
+  unframe.presentation.v2.RuntimeRunId run_id = 1;
+  unframe.presentation.v2.RuntimeRunOwner owner = 2;
+  unframe.presentation.v2.RuntimeRunCause cause = 3;
+  unframe.presentation.v2.RunCompletion completion = 4;
+  uint64 started_at_runtime_time_ms = 5;
+  oneof run {
+    SurfaceTransitionRunSnapshot surface_transition = 20;
+    TimelineRunSnapshot timeline = 21;
+    MediaRunSnapshot media = 22;
+    ModelClipRunSnapshot model_clip = 23;
+  }
+}
+
+message CanonicalRuntimeSnapshot {
+  uint32 schema_version = 1;
+  uint64 reliable_sequence = 2;
+  uint64 last_ingress_sequence = 3;
+  uint64 last_allocated_run_sequence = 4;
+  RuntimeClockSnapshot clock = 5;
+  ProgressionRuntimeState progression = 6;
+  StepExecutionSnapshot step_execution = 7;
+  repeated SurfaceRuntimeState surface_states = 8;
+  repeated NodeRuntimeState node_states = 9;
+  repeated MediaRuntimeState media_states = 10;
+  repeated VariableState variables = 11;
+  repeated RuntimeRunSnapshot active_runs = 12;
+  PresentationOrigin presentation_origin = 13;
+  repeated string recent_event_ids = 14;
+  repeated ModelClipRuntimeState model_clip_states = 15;
+}
+
+message ParticipantRuntimeView {
+  string projection_profile_id = 1;
+  uint64 assignment_epoch = 2;
+  uint64 base_reliable_sequence = 3;
+  ProgressionRuntimeState progression = 4;
+  repeated NodeRuntimeState node_states = 5;
+  repeated SurfaceRuntimeState surface_states = 6;
+  repeated MediaRuntimeState media_states = 7;
+  repeated VariableState variables = 8;
+  repeated RuntimeRunSnapshot active_runs = 9;
+  RuntimeClockSnapshot clock = 10;
+  PresentationOrigin presentation_origin = 11;
+  repeated string enabled_logical_inputs = 12;
+  repeated ModelClipRuntimeState model_clip_states = 13;
+}
+
+message ProjectedRuntimeSnapshot {
+  string projection_profile_id = 1;
+  uint64 assignment_epoch = 2;
+  uint64 reliable_sequence = 3;
+  ParticipantRuntimeView runtime_view = 4;
+}
+
+message ProjectedParticipantPresence {
+  string participant_id = 1;
+  unframe.presentation.v2.SessionRole role = 2;
+  bool connected = 3;
+}
+
+message ProjectedPresenceState { repeated ProjectedParticipantPresence participants = 1; }
+
+message ConnectionSnapshotEnvelope {
+  uint32 schema_version = 1;
+  string connection_id = 2;
+  unframe.presentation.v2.RuntimeProjectionFence fence = 3;
+  unframe.presentation.v2.ProjectionInstance projection_instance = 4;
+  ProjectedPresenceState presence_at_cut = 5;
+  uint64 reliable_sequence = 6;
+  ProjectedRuntimeSnapshot snapshot = 7;
+}
+
+enum RuntimeKind {
+  RUNTIME_KIND_UNSPECIFIED = 0;
+  RUNTIME_KIND_CLOUD = 1;
+  RUNTIME_KIND_VENUE_EDGE = 2;
+}
+
+message DurableCheckpointEnvelope {
+  uint32 schema_version = 1;
+  uint64 checkpoint_sequence = 2;
+  string session_id = 3;
+  string runtime_id = 4;
+  RuntimeKind runtime_kind = 5;
+  uint64 assignment_epoch = 6;
+  unframe.presentation.v2.PublicationFence publication = 7;
+  string definition_hash = 8;
+  string render_bundle_hash = 9;
+  uint64 reliable_sequence = 10;
+  string canonical_snapshot_hash = 11;
+  bytes canonical_snapshot_payload = 12;
+}
+
+enum ResyncReason {
+  RESYNC_REASON_UNSPECIFIED = 0;
+  RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE = 1;
+  RESYNC_REASON_PROJECTION_CHANGED = 2;
+  RESYNC_REASON_PUBLICATION_FENCE_CHANGED = 3;
+  RESYNC_REASON_PRESENTATION_ORIGIN_CHANGED = 4;
+  RESYNC_REASON_SNAPSHOT_CATCH_UP_EXHAUSTED = 5;
+}
+
+message ResyncRequired {
+  ResyncReason reason = 1;
+  uint64 newest_reliable_sequence = 2;
+}
+
+message StateClientItem {
+  oneof item {
+    StateHandshake handshake = 1;
+    TrackingFrame tracking_frame = 20;
+  }
+  reserved 2 to 19;
+  reserved 21 to 99;
+}
+
+message StateHandshake {
+  string protocol_version = 1;
+  uint32 progression_contract_version = 2;
+  repeated unframe.presentation.v2.RuntimeCapability supported_capabilities = 3;
+  string connection_id = 4;
+  bytes state_connection_nonce = 5;
+}
+
+message StateConnected {
+  string connection_id = 1;
+  uint64 next_state_frame_sequence = 2;
+}
+
+enum TrackedTarget {
+  TRACKED_TARGET_UNSPECIFIED = 0;
+  TRACKED_TARGET_HEAD = 1;
+  TRACKED_TARGET_LEFT_HAND = 2;
+  TRACKED_TARGET_RIGHT_HAND = 3;
+  TRACKED_TARGET_BODY = 4;
+}
+
+message TrackedPoseSample {
+  TrackedTarget target = 1;
+  unframe.presentation.v2.Pose quest_local_pose = 2;
+  bool position_available = 3;
+  bool rotation_available = 4;
+}
+
+message TrackingFrame {
+  uint64 frame_sequence = 1;
+  uint64 captured_at_client_monotonic_ms = 2;
+  repeated TrackedPoseSample samples = 3;
+  unframe.presentation.v2.Pose presentation_from_quest_local = 4;
+}
+
+message StateServerItem {
+  oneof item {
+    StateConnected connected = 1;
+    ElementStateFrame state_frame = 2;
+  }
+}
+
+enum StateFrameKind {
+  STATE_FRAME_KIND_UNSPECIFIED = 0;
+  STATE_FRAME_KIND_KEYFRAME = 1;
+  STATE_FRAME_KIND_DELTA = 2;
+}
+
+message NodeStatePatch {
+  optional bool active = 1;
+  optional bool visible = 2;
+  optional double opacity = 3;
+  optional unframe.presentation.v2.Transform transform = 4;
+}
+
+message ElementStatePatch {
+  string element_id = 1;
+  NodeStatePatch node = 2;
+}
+
+message AnchorBindingUnavailable {}
+
+message ProjectedAnchorBindingSample {
+  uint64 tracking_frame_sequence = 1;
+  uint64 observed_at_runtime_monotonic_ms = 2;
+  optional unframe.presentation.v2.Vector3 position = 3;
+  optional unframe.presentation.v2.Quaternion rotation = 4;
+}
+
+message ProjectedAnchorBindingPatch {
+  string node_id = 1;
+  oneof state {
+    AnchorBindingUnavailable unavailable = 2;
+    ProjectedAnchorBindingSample sample = 3;
+  }
+}
+
+message ElementStateFrame {
+  unframe.presentation.v2.RuntimeProjectionFence fence = 1;
+  uint64 frame_sequence = 2;
+  uint64 produced_at_runtime_time_ms = 3;
+  uint64 oldest_change_at_runtime_monotonic_ms = 4;
+  uint64 base_reliable_sequence = 5;
+  StateFrameKind kind = 6;
+  repeated ElementStatePatch elements = 7;
+  repeated ProjectedAnchorBindingPatch anchor_bindings = 8;
+  uint64 produced_at_runtime_monotonic_ms = 9;
+}

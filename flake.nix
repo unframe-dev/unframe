@@ -134,6 +134,10 @@
             name = "presentation";
             script = "ci/presentation.sh";
           };
+          unity-proto = mkApp {
+            name = "unity-proto";
+            script = "contracts/generate-unity-proto.sh";
+          };
           realtime = mkApp {
             name = "realtime";
             script = "ci/realtime.sh";

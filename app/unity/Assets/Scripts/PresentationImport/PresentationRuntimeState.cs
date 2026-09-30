@@ -24,7 +24,13 @@ public sealed class PresentationRuntimeState
             return;
         }
 
-        SetGroup(presentation.groups[0]);
+        foreach (PresentationGroup group in presentation.groups)
+        {
+            if (SetGroup(group))
+            {
+                return;
+            }
+        }
     }
 
     public bool SetGroup(PresentationGroup group)
@@ -35,9 +41,18 @@ public sealed class PresentationRuntimeState
         }
 
         CurrentGroupId = group.id;
-        CurrentStepId = group.steps != null && group.steps.Length > 0
-            ? group.steps[0].id
-            : null;
+        CurrentStepId = null;
+        if (group.steps != null)
+        {
+            foreach (PresentationStep step in group.steps)
+            {
+                if (step != null && !string.IsNullOrEmpty(step.id))
+                {
+                    CurrentStepId = step.id;
+                    break;
+                }
+            }
+        }
         consumedCueIds.Clear();
         return true;
     }

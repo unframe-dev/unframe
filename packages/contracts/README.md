@@ -60,6 +60,8 @@ v1 構造 schema の検証範囲外です。
 
 `proto/unframe/realtime/v1/realtime.proto` は Realtime gRPC protocol の source of truth です。Go generated code は `app/server/realtime/internal/gen/realtime/v1/` に出力します。generated files は手で編集しません。
 
+Presentation v2 の `runtime.proto`、`delivery.proto`、`realtime.proto` は Unity C# bindings の source of truth でもあります。Unity 側の `.proto` copies と generated C# を同期・検証する repository task は `nix run .#unity-proto` です。
+
 repository root の Nix development shell で次を実行します。
 
 ```sh

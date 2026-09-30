@@ -10,6 +10,20 @@ public sealed class ElementRuntimeRegistry
         elements.Clear();
     }
 
+    internal void ReplaceWith(ElementRuntimeRegistry source)
+    {
+        elements.Clear();
+        if (source == null)
+        {
+            return;
+        }
+
+        foreach (KeyValuePair<string, GameObject> element in source.elements)
+        {
+            elements.Add(element.Key, element.Value);
+        }
+    }
+
     public void Register(GameObject elementObject)
     {
         if (elementObject == null)
