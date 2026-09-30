@@ -18,17 +18,17 @@ export const demoDocument: PresentationDocument = {
     {
       elements: [
         {
-          id: "demo-model-element",
-          type: "model",
-          name: "Unframe sculpture",
           assetId: "demo-model",
+          id: "demo-model-element",
+          locked: false,
+          name: "Unframe sculpture",
           transform: {
             position: [0, 0, 0],
             rotation: [0, 0, 0, 1],
             scale: [1, 1, 1],
           },
+          type: "model",
           visible: true,
-          locked: false,
         },
       ],
       id: "opening",
@@ -37,17 +37,17 @@ export const demoDocument: PresentationDocument = {
     {
       elements: [
         {
-          id: "detail-caption",
-          type: "text",
-          name: "Detail caption",
           content: "Shape the room around your idea.",
+          id: "detail-caption",
+          locked: false,
+          name: "Detail caption",
           transform: {
             position: [0, 1.4, 0],
             rotation: [0, 0, 0, 1],
             scale: [1, 1, 1],
           },
+          type: "text",
           visible: true,
-          locked: false,
         },
       ],
       id: "detail",

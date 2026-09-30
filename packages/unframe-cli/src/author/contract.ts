@@ -70,7 +70,7 @@ export type SavedCommand = {
   sourceHash: string;
 };
 export type BuildJob = {
-  artifacts: Array<{ assetId: string; mediaType: string; instanceId: string }>;
+  artifacts: Array<{ assetId: string; instanceId: string; mediaType: string }>;
   buildId: string;
   diagnostics: Array<AuthorDiagnostic>;
   revision: string;

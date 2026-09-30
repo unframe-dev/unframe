@@ -12,8 +12,8 @@ type ModuleType = "asset" | "css" | "js" | "jsx" | "json" | "ts" | "tsx";
 export type LockedOpaqueBundleInput = {
   readonly entry: "__unframe__/entry.tsx";
   readonly modules: ReadonlyArray<{
-    readonly path: string;
     readonly moduleType: ModuleType;
+    readonly path: string;
     readonly source: string | Uint8Array;
   }>;
   readonly rendererInputHash: string;

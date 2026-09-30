@@ -118,7 +118,7 @@ const parseContract = <T>(input: unknown, schema: z.ZodType<T>): ContractParseRe
   const snapshot = snapshotJsonData(input);
   if (!snapshot.ok) {
     return {
-      issues: [{ code: "custom", path: [], message: "Input must be safe plain JSON data." }],
+      issues: [{ code: "custom", message: "Input must be safe plain JSON data.", path: [] }],
       success: false,
     };
   }

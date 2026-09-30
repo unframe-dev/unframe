@@ -88,7 +88,7 @@ it("returns a bounded-input diagnostic without invoking a save", async () => {
   const { host, service } = await setup();
   const response = await fetch(`${host.origin}/api/project`, {
     body: JSON.stringify({
-      command: { kind: "setProp", instanceId: "a", propId: "title", value: "x".repeat(256 * 1024) },
+      command: { instanceId: "a", kind: "setProp", propId: "title", value: "x".repeat(256 * 1024) },
       commandId: "a".repeat(32),
       expectedIrHash: "ir",
     }),

@@ -7,23 +7,23 @@ export const definition = {
     {
       anchoredElementGroups: [
         {
-          id: "head-content",
           anchor: "head",
-          transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
           elementIds: ["image"],
+          id: "head-content",
+          transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
         },
       ],
       elements: [
         {
-          id: "image",
-          type: "image",
           content: { assetId: "image-1" },
+          id: "image",
           initialState: {
             active: true,
-            visible: true,
             opacity: 1,
             transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+            visible: true,
           },
+          type: "image",
         },
       ],
       id: "group-1",
@@ -31,17 +31,17 @@ export const definition = {
         {
           cues: [
             {
-              id: "cue-1",
-              trigger: { kind: "enterZone", zoneId: "stage" },
               actions: [
                 {
                   kind: "setVisible",
                   targetElementId: "image",
+                  transition: { delaySeconds: 0, durationSeconds: 0 },
                   visible: true,
-                  transition: { durationSeconds: 0, delaySeconds: 0 },
                 },
               ],
+              id: "cue-1",
               next: { kind: "end" },
+              trigger: { kind: "enterZone", zoneId: "stage" },
             },
           ],
           id: "step-1",
@@ -54,7 +54,7 @@ export const definition = {
   stage: {
     coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
     size: [10, 3, 10],
-    zones: [{ bounds: { min: [-1, 0, -1], max: [1, 2, 1] }, id: "stage" }],
+    zones: [{ bounds: { max: [1, 2, 1], min: [-1, 0, -1] }, id: "stage" }],
   },
 } as const;
 const invalid = (change: (copy: any) => void) => {

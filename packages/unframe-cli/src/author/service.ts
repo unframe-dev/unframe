@@ -215,7 +215,9 @@ const readPublishedArtifacts = async (directory: string, instanceIds: ReadonlyAr
         for (const state of Object.values(artifact.states)) {
           const assetId = state.texture.assetId;
           const mediaType = assetSet.assets[assetId]?.mediaType;
-          if (mediaType !== "image/png") continue;
+          if (mediaType !== "image/png") {
+            continue;
+          }
           if (!assets.has(assetId)) {
             const bytes = await readFile(
               join(generation, "assets", encodeURIComponent(assetId) + ".png"),
@@ -225,7 +227,7 @@ const readPublishedArtifacts = async (directory: string, instanceIds: ReadonlyAr
           const key = JSON.stringify([instanceId, assetId]);
           if (!catalogKeys.has(key)) {
             catalogKeys.add(key);
-            catalog.push({ assetId, mediaType, instanceId });
+            catalog.push({ assetId, instanceId, mediaType });
           }
         }
       }
@@ -540,8 +542,9 @@ export const createAuthorService = async (
           throw error;
         }
         for (const item of jobs.values()) {
-          if (item.job.status === "queued" || item.job.status === "running")
+          if (item.job.status === "queued" || item.job.status === "running") {
             item.controller.abort();
+          }
         }
         return saved;
       }, true),

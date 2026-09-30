@@ -32,8 +32,8 @@ const rootSurface = surface({
     nodes: {
       "semantic-text": {
         id: "semantic-text",
-        parentId: null,
         order: 0,
+        parentId: null,
         role: "paragraph",
         text: "Unframe",
       },

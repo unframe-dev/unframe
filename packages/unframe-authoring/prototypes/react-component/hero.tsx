@@ -11,10 +11,10 @@ export const Hero = defineComponent({
   semantics: {
     nodes: {
       title: {
-        role: "heading",
         level: 1,
-        parentId: null,
         order: 0,
+        parentId: null,
+        role: "heading",
         text: prop("title"),
       },
     },

@@ -31,15 +31,15 @@ const presentation: CreatePresentationRequest = {
       anchoredElementGroups: [],
       elements: [
         {
-          id: "text-1",
-          type: "text",
           content: { text: "Demo" },
+          id: "text-1",
           initialState: {
             active: true,
-            visible: true,
             opacity: 1,
             transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+            visible: true,
           },
+          type: "text",
         },
       ],
       id: "group-1",
@@ -47,10 +47,10 @@ const presentation: CreatePresentationRequest = {
         {
           cues: [
             {
-              id: "cue-1",
-              trigger: { kind: "button", action: "next" },
               actions: [{ kind: "setVisible", targetElementId: "text-1", visible: true }],
+              id: "cue-1",
               next: { kind: "end" },
+              trigger: { action: "next", kind: "button" },
             },
           ],
           id: "step-1",

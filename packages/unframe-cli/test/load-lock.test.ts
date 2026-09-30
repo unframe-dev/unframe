@@ -54,9 +54,9 @@ const validLock = (): UnframeLockV2 => {
         manifestHash: digest("manifest"),
         mode: "opaque",
         origin: {
-          kind: "local",
           entryFile: "src/card.component.tsx",
           files: localFiles,
+          kind: "local",
           sourceHash: hashLocalSource("src/card.component.tsx", localFiles),
         },
         rendererInputHash: digest("renderer"),

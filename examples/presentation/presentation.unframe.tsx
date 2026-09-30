@@ -14,12 +14,12 @@ const components = [
         content: "Structured authoring",
         partId: "headline",
         style: {
-          fontSize: 72,
           color: {
-            kind: "token-ref",
             category: "color",
+            kind: "token-ref",
             tokenId: "ink",
           },
+          fontSize: 72,
         },
         targetKind: "text",
       },
@@ -93,56 +93,56 @@ export default definePresentation({
         id: "main",
         initialStepId: "start",
         steps: {
-          start: {
-            id: "start",
+          done: {
             cues: [
               {
-                id: "continue",
+                actions: [],
+                id: "finish",
+                next: { kind: "step", stepId: "finished" },
                 trigger: {
-                  kind: "component.output",
                   componentInstanceId: "reference-surface",
-                  outputId: "continued",
+                  kind: "component.output",
+                  outputId: "faded",
                 },
+              },
+            ],
+            id: "done",
+          },
+          finished: { cues: [], id: "finished" },
+          start: {
+            cues: [
+              {
+                actions: [
+                  {
+                    actionId: "fade",
+                    arguments: {},
+                    componentInstanceId: "reference-surface",
+                    kind: "component.action",
+                  },
+                  {
+                    actionId: "deactivate",
+                    arguments: {},
+                    componentInstanceId: "reference-surface",
+                    kind: "component.action",
+                  },
+                ],
                 guard: {
                   kind: "compare",
-                  left: { kind: "eventPayload", field: "accepted" },
+                  left: { field: "accepted", kind: "eventPayload" },
                   operator: "eq",
                   right: true,
                 },
-                actions: [
-                  {
-                    kind: "component.action",
-                    componentInstanceId: "reference-surface",
-                    actionId: "fade",
-                    arguments: {},
-                  },
-                  {
-                    kind: "component.action",
-                    componentInstanceId: "reference-surface",
-                    actionId: "deactivate",
-                    arguments: {},
-                  },
-                ],
+                id: "continue",
                 next: { kind: "step", stepId: "done" },
-              },
-            ],
-          },
-          done: {
-            id: "done",
-            cues: [
-              {
-                id: "finish",
                 trigger: {
-                  kind: "component.output",
                   componentInstanceId: "reference-surface",
-                  outputId: "faded",
+                  kind: "component.output",
+                  outputId: "continued",
                 },
-                actions: [],
-                next: { kind: "step", stepId: "finished" },
               },
             ],
+            id: "start",
           },
-          finished: { id: "finished", cues: [] },
         },
       },
     },

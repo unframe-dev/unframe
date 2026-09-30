@@ -168,17 +168,17 @@ export const publicRoutes = [
     path: "/presentations/{id}",
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z
               .object({
-                expectedRevision: z.number().int().positive(),
                 definition: presentationDefinitionSchema,
+                expectedRevision: z.number().int().positive(),
               })
               .strict(),
           },
         },
+        required: true,
       },
       params: idParameter,
     },
@@ -201,12 +201,12 @@ export const publicRoutes = [
     path: "/presentations/{id}",
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z.object({ expectedRevision: z.number().int().positive() }).strict(),
           },
         },
+        required: true,
       },
       params: idParameter,
     },
@@ -284,9 +284,9 @@ export const publicRoutes = [
           "application/json": {
             schema: z.object({
               download: z.object({
+                expiresAt: z.string(),
                 method: z.literal("GET"),
                 url: z.string().url(),
-                expiresAt: z.string(),
               }),
             }),
           },
@@ -332,7 +332,7 @@ export const publicRoutes = [
       201: {
         content: {
           "application/json": {
-            schema: z.object({ session: sessionResourceSchema, joinCode: joinCodeSchema }),
+            schema: z.object({ joinCode: joinCodeSchema, session: sessionResourceSchema }),
           },
         },
         description: "Created",
@@ -531,7 +531,6 @@ export const publicRoutes = [
     path: "/venue-edges/{edgeId}/rotate",
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z
@@ -539,6 +538,7 @@ export const publicRoutes = [
               .strict(),
           },
         },
+        required: true,
       },
       params: edgeIdParameter,
     },
@@ -546,7 +546,7 @@ export const publicRoutes = [
       200: {
         content: {
           "application/json": {
-            schema: z.object({ tokenId: identifierSchema, token: z.string() }),
+            schema: z.object({ token: z.string(), tokenId: identifierSchema }),
           },
         },
         description: "Rotated",
@@ -577,20 +577,20 @@ export const publicRoutes = [
     path: "/sessions/{sessionId}/runtime-assignment",
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z
               .object({
+                endpoint: httpsUrlSchema.optional(),
+                leaseExpiresAt: z.string().datetime(),
+                presentationRevision: z.number().int().positive(),
                 runtimeId: identifierSchema,
                 runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-                endpoint: httpsUrlSchema.optional(),
-                presentationRevision: z.number().int().positive(),
-                leaseExpiresAt: z.string().datetime(),
               })
               .strict(),
           },
         },
+        required: true,
       },
       params: sessionAssignmentParameter,
     },
@@ -631,22 +631,22 @@ export const publicRoutes = [
     path: "/venue-edges/{edgeId}/register",
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z
               .object({
-                runtimeId: identifierSchema,
-                runtimeVersion: z.string().min(1),
-                protocolVersion: z.literal("v1"),
                 capacity: z.number().int().nonnegative(),
-                localEndpoint: httpsUrlSchema,
                 certificateFingerprint: z.string().min(1),
                 health: z.string().min(1),
+                localEndpoint: httpsUrlSchema,
+                protocolVersion: z.literal("v1"),
+                runtimeId: identifierSchema,
+                runtimeVersion: z.string().min(1),
               })
               .strict(),
           },
         },
+        required: true,
       },
       params: edgeIdParameter,
     },
@@ -664,12 +664,12 @@ export const publicRoutes = [
     path: "/venue-edges/{edgeId}/assignments/{sessionId}/{assignmentEpoch}/renew",
     request: {
       body: {
-        required: true,
         content: {
           "application/json": {
             schema: z.object({ leaseExpiresAt: z.string().datetime() }).strict(),
           },
         },
+        required: true,
       },
       params: edgeLeaseParameter,
     },

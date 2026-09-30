@@ -100,8 +100,8 @@ const setup = () => {
     issuePut: async () => ({
       expiresAt: new Date("2026-01-01T00:10:00.000Z"),
       headers: {
-        "content-type": input.mediaType,
         "content-length": String(input.sizeBytes),
+        "content-type": input.mediaType,
         "x-amz-checksum-sha256": input.sha256Hex,
       },
       method: "PUT" as const,

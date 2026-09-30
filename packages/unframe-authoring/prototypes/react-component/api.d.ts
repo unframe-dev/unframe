@@ -89,8 +89,8 @@ type StateDeclaration<N> = {
   readonly enabledInteractionIds: ReadonlyArray<string>;
   readonly semanticOverrides: ReadonlyArray<{
     readonly id: string;
-    readonly targetId: keyof N & string;
     readonly included: boolean;
+    readonly targetId: keyof N & string;
   }>;
 };
 export type SetStateEffect<K extends string> = { readonly kind: "setState"; readonly state: K };
@@ -144,7 +144,7 @@ export declare function defineComponent<
     readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
     readonly semantics: {
       readonly nodes: N & ValidateNodes<P, N>;
-      readonly rootNodeIds: readonly (keyof N & string)[];
+      readonly rootNodeIds: ReadonlyArray<keyof N & string>;
     };
     readonly surface: { readonly logicalSize: readonly [number, number] };
     readonly version: number;

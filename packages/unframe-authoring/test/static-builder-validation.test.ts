@@ -29,11 +29,11 @@ describe("static builder result validation", () => {
         nodes: {
           button: {
             id: "button",
-            parentId: null,
+            interactionId: "click",
             order: 0,
+            parentId: null,
             role: "button",
             text: "Click",
-            interactionId: "click",
           },
         },
         rootNodeIds: ["button"],
@@ -56,7 +56,7 @@ describe("static builder result validation", () => {
         children: [],
         id: "frame",
         kind: "frame",
-        layout: { kind: "absolute", x: 0, y: 0, width: 100, height: 100 },
+        layout: { height: 100, kind: "absolute", width: 100, x: 0, y: 0 },
       },
       states: { default: { enabledInteractionIds: [], id: "default", semanticOverrides: [] } },
     };

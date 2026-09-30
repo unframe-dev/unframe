@@ -15,7 +15,7 @@ const hero = {
   props: { title: editableText({ required: true }) },
   semantics: {
     nodes: {
-      title: { role: "heading", level: 1, parentId: null, order: 0, text: prop("title") },
+      title: { level: 1, order: 0, parentId: null, role: "heading", text: prop("title") },
     },
     rootNodeIds: ["title"],
   },
@@ -38,21 +38,21 @@ describe("React Component static metadata", () => {
       },
       semantics: {
         nodes: {
-          title: hero.semantics.nodes.title,
           button: {
-            role: "button",
-            parentId: null,
-            order: 1,
-            text: "Reveal",
             interactionId: "reveal",
+            order: 1,
+            parentId: null,
+            role: "button",
+            text: "Reveal",
           },
+          title: hero.semantics.nodes.title,
         },
         rootNodeIds: ["title", "button"],
       },
       states: {
         hidden: {
           enabledInteractionIds: ["reveal"],
-          semanticOverrides: [{ id: "hide-title", targetId: "title", included: false }],
+          semanticOverrides: [{ id: "hide-title", included: false, targetId: "title" }],
         },
         revealed: { enabledInteractionIds: [], semanticOverrides: [] },
       },
@@ -210,7 +210,7 @@ describe("React Component static metadata", () => {
         ...hero,
         render,
         semantics: {
-          nodes: { title: { role: "paragraph", level: 1, parentId: null, order: 0, text: "Bad" } },
+          nodes: { title: { level: 1, order: 0, parentId: null, role: "paragraph", text: "Bad" } },
           rootNodeIds: ["title"],
         },
       } as never),
@@ -245,7 +245,7 @@ describe("React Component static metadata", () => {
       assets: [],
       flow: {
         groups: {
-          main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
+          main: { id: "main", initialStepId: "first", steps: { first: { cues: [], id: "first" } } },
         },
         initialGroupId: "main",
         variables: {},

@@ -358,7 +358,7 @@ export type ComponentPackageLock = {
   origin:
     | {
         entryFile: string;
-        files: readonly { path: string; hash: string }[];
+        files: ReadonlyArray<{ hash: string; path: string }>;
         kind: "local";
         sourceHash: string;
       }
@@ -459,11 +459,11 @@ type ComponentStructureBase = StableDeclaration & {
 export type ComponentTimelineDeclaration = StableDeclaration & {
   durationMilliseconds: number;
   tracks: ReadonlyArray<{
-    keyframes: readonly {
+    keyframes: ReadonlyArray<{
+      easingToNext?: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
       timeMilliseconds: number;
       value: number | readonly [number, number, number] | readonly [number, number, number, number];
-      easingToNext?: "linear" | "cubicIn" | "cubicOut" | "cubicInOut";
-    }[];
+    }>;
     target: {
       kind: "host";
       property: "opacity" | "transform.position" | "transform.rotation" | "transform.scale";
@@ -538,8 +538,8 @@ export type PresentationDeclaration = StableDeclaration & {
   metadata: { title: string };
   operations: ReadonlyArray<DetachDeclaration>;
   scene: {
-    components: readonly ComponentInstanceDeclaration[];
-    spatial: readonly SpatialDeclaration[];
+    components: ReadonlyArray<ComponentInstanceDeclaration>;
+    spatial: ReadonlyArray<SpatialDeclaration>;
   };
   stage: StageDeclaration;
   theme?: { themeId: string };

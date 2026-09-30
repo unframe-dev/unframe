@@ -282,14 +282,17 @@ const createEvaluator = (
         ts.isImportDeclaration(statement) &&
         statement.importClause?.namedBindings &&
         ts.isNamedImports(statement.importClause.namedBindings)
-      )
+      ) {
         for (const item of statement.importClause.namedBindings.elements) {
           const symbol = checker.getSymbolAtLocation(item.name);
           const p = byRange.get(
             `${context.displayFileName(file)}:${item.name.getStart(file)}:${item.name.getEnd()}`,
           );
-          if (symbol && p) provenance.set(symbol, p);
+          if (symbol && p) {
+            provenance.set(symbol, p);
+          }
         }
+      }
     }
   }
   const builderFor = (raw: ts.Expression) => {
@@ -1101,22 +1104,24 @@ const createEvaluator = (
                 "Static modules may declare top-level const bindings only.",
               );
             } else {
-              for (const declaration of statement.declarationList.declarations)
-                if (!ts.isIdentifier(declaration.name) || !declaration.initializer)
+              for (const declaration of statement.declarationList.declarations) {
+                if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
                   report(
                     declaration,
                     "compiler-static-top-level-unsupported",
                     "Static const declarations require an identifier and initializer.",
                   );
-                else {
+                } else {
                   const value = evaluate(declaration.initializer);
-                  if (value && !graphWithinLimit(value))
+                  if (value && !graphWithinLimit(value)) {
                     report(
                       declaration.initializer,
                       "compiler-static-expansion-limit",
                       `A declaration graph may contain at most ${MAX_NODES} nodes and ${MAX_DEPTH} levels.`,
                     );
+                  }
                 }
+              }
             }
           } else if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
             evaluate(statement.expression);
@@ -1134,8 +1139,9 @@ const createEvaluator = (
               !inspected.has(referenced) &&
               !files.includes(referenced) &&
               !context.displayFileName(referenced).endsWith(".component.tsx")
-            )
+            ) {
               files.push(referenced);
+            }
           }
         }
       }

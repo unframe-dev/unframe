@@ -132,10 +132,10 @@ describe("M3A typed Structure declarations", () => {
         nodes: {
           "semantic-title": {
             id: "semantic-title",
-            parentId: null,
-            order: 0,
-            role: "heading",
             level: 1,
+            order: 0,
+            parentId: null,
+            role: "heading",
             text: "Fallback title",
           },
         },
@@ -173,7 +173,7 @@ describe("M3A typed Structure declarations", () => {
         id: "surface-structure",
         partBindings: {},
         root: {
-          baseSemanticTree: { rootNodeIds: [], nodes: {} },
+          baseSemanticTree: { nodes: {}, rootNodeIds: [] },
           fit: "contain",
           id: "surface",
           initialStateId: "default",
@@ -182,15 +182,15 @@ describe("M3A typed Structure declarations", () => {
           logicalSize: [size, size],
           physicalSizeMeters: [size, size],
           renderIntent: {
-            updateModel: "static",
+            fallbackPolicy: "reject",
             interaction: "none",
             internalAnimation: "none",
             rendererPreference: "baked-web",
-            fallbackPolicy: "reject",
+            updateModel: "static",
           },
           root,
           states: {
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+            default: { enabledInteractionIds: [], id: "default", semanticOverrides: [] },
           },
         },
         timelines: [],
@@ -276,7 +276,7 @@ describe("M3A typed Structure declarations", () => {
         id: "structure",
         partBindings: {},
         root: {
-          children: { kind: "prop-ref", propId: "children", expectedType: "string" },
+          children: { expectedType: "string", kind: "prop-ref", propId: "children" },
           id: "root",
           kind: "frame",
           layout: absolute,

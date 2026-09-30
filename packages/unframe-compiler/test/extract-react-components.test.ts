@@ -39,10 +39,10 @@ const analyze = (
         contentIntegrity: hash,
         dependencies: [],
         exports: [
-          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+          { runtimeImport: "index.ts", runtimeRequire: null, subpath: ".", types: "index.ts" },
         ],
         files: [
-          { path: "index.ts", mediaType: "text/typescript", hash, encoding: "utf8", data: sdk },
+          { data: sdk, encoding: "utf8", hash, mediaType: "text/typescript", path: "index.ts" },
         ],
         key: hash,
         locator: "@unframe/unframe-authoring@1",
@@ -54,19 +54,19 @@ const analyze = (
         dependencies: [],
         exports: [
           {
-            subpath: "./jsx-runtime",
             runtimeImport: "jsx-runtime.ts",
             runtimeRequire: null,
+            subpath: "./jsx-runtime",
             types: "jsx-runtime.ts",
           },
         ],
         files: [
           {
-            path: "jsx-runtime.ts",
-            mediaType: "text/typescript",
-            hash: reactHash,
-            encoding: "utf8",
             data: "export namespace JSX { export type Element = object; export interface IntrinsicElements { h1: {children?: unknown}; } } export const jsx = (..._args: unknown[]): object => ({}); export const jsxs = jsx;",
+            encoding: "utf8",
+            hash: reactHash,
+            mediaType: "text/typescript",
+            path: "jsx-runtime.ts",
           },
         ],
         key: reactHash,
@@ -79,30 +79,30 @@ const analyze = (
             {
               contentIntegrity: `sha256:${"2".repeat(64)}`,
               dependencies: [
-                { specifier: "@unframe/unframe-authoring", usage: "runtime", packageKey: hash },
+                { packageKey: hash, specifier: "@unframe/unframe-authoring", usage: "runtime" },
               ],
               exports: [
                 {
-                  subpath: ".",
                   runtimeImport: "Hero.component.tsx",
                   runtimeRequire: null,
+                  subpath: ".",
                   types: "index.d.ts",
                 },
               ],
               files: [
                 {
-                  path: "Hero.component.tsx",
-                  mediaType: "text/tsx",
-                  hash: `sha256:${"2".repeat(64)}`,
-                  encoding: "utf8",
                   data: sourceText,
+                  encoding: "utf8",
+                  hash: `sha256:${"2".repeat(64)}`,
+                  mediaType: "text/tsx",
+                  path: "Hero.component.tsx",
                 },
                 {
-                  path: "index.d.ts",
-                  mediaType: "text/typescript",
-                  hash: `sha256:${"2".repeat(64)}`,
-                  encoding: "utf8",
                   data: 'export { Hero } from "./Hero.component";',
+                  encoding: "utf8",
+                  hash: `sha256:${"2".repeat(64)}`,
+                  mediaType: "text/typescript",
+                  path: "index.d.ts",
                 },
               ],
               key: `sha256:${"2".repeat(64)}`,

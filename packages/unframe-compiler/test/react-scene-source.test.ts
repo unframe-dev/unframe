@@ -37,8 +37,8 @@ const fixture = (text = source, shared = false): PairedAuthoringDeclarationCatal
         metadata: {
           id: "hero",
           props: {
-            title: { kind: "string", required: true },
             count: { kind: "number", required: true },
+            title: { kind: "string", required: true },
           },
           version: 1,
         },

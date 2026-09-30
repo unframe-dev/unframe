@@ -94,12 +94,12 @@ describe("parseAuthoringSource", () => {
         diagnostics: [
           {
             code: "compiler-invalid-input",
+            column: 1,
             fileName: "",
-            message: "Authoring source input cannot be inspected safely.",
-            start: 0,
             length: 0,
             line: 1,
-            column: 1,
+            message: "Authoring source input cannot be inspected safely.",
+            start: 0,
           },
         ],
         ok: false,

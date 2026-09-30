@@ -216,10 +216,10 @@ export const planSurfacePartitions = (
         if (interaction) {
           regions.push({
             bounds: {
+              height: clipped.height / surface.logicalSize[1],
+              width: clipped.width / surface.logicalSize[0],
               x: clipped.x / surface.logicalSize[0],
               y: clipped.y / surface.logicalSize[1],
-              width: clipped.width / surface.logicalSize[0],
-              height: clipped.height / surface.logicalSize[1],
             },
             coordinateSpace: "normalized",
             interactionId: semantic.interactionId,
@@ -245,13 +245,13 @@ export const planSurfacePartitions = (
             end,
             operators: [
               {
+                borderRadius: node.border.radius,
+                borderWidth: node.border.width,
+                clipBounds: raw,
+                operandNodeIds: operandIds,
+                operator: "frame-clip",
                 ownerNodeId: id,
                 stateId,
-                operator: "frame-clip",
-                clipBounds: raw,
-                borderWidth: node.border.width,
-                borderRadius: node.border.radius,
-                operandNodeIds: operandIds,
               },
             ],
             start,
@@ -262,11 +262,11 @@ export const planSurfacePartitions = (
             end,
             operators: [
               {
-                ownerNodeId: id,
-                stateId,
-                operator: "group-opacity",
                 opacity: node.opacity,
                 operandNodeIds: operandIds,
+                operator: "group-opacity",
+                ownerNodeId: id,
+                stateId,
               },
             ],
             start,
@@ -374,7 +374,7 @@ export const planSurfacePartitions = (
           id,
           layer,
           logicalBounds: bounds,
-          ownership: { kind: "structured", ownedContentNodeIds, contextNodeIds },
+          ownership: { contextNodeIds, kind: "structured", ownedContentNodeIds },
           semanticSurfaceId: surface.id,
           states,
         },

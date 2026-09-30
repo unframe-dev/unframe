@@ -24,7 +24,7 @@ const Hero = defineComponent({
     return null;
   },
   semantics: {
-    nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: prop("title") } },
+    nodes: { title: { level: 1, order: 0, parentId: null, role: "heading", text: prop("title") } },
     rootNodeIds: ["title"],
   },
   surface: { logicalSize: [960, 540] },
@@ -51,7 +51,7 @@ defineComponent({
   },
   semantics: {
     nodes: {
-      button: { role: "button", parentId: null, order: 0, text: "Reveal", interactionId: "show" },
+      button: { interactionId: "show", order: 0, parentId: null, role: "button", text: "Reveal" },
     },
     rootNodeIds: ["button"],
   },
@@ -69,7 +69,7 @@ defineComponent({
   interactions: {},
   props: {},
   semantics: {
-    nodes: { label: { role: "paragraph", parentId: null, order: 0, text: "Label" } },
+    nodes: { label: { order: 0, parentId: null, role: "paragraph", text: "Label" } },
     rootNodeIds: ["label"],
   },
   states: { hidden: { enabledInteractionIds: [], semanticOverrides: [] } },
@@ -110,7 +110,7 @@ const common = {
   assets: [],
   flow: {
     groups: {
-      main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
+      main: { id: "main", initialStepId: "first", steps: { first: { cues: [], id: "first" } } },
     },
     initialGroupId: "main",
     variables: {},

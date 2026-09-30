@@ -30,7 +30,7 @@ const runtime = [
 const closed = (input: {
   [key: string]: unknown;
   entry: string;
-  modules: ReadonlyArray<{ path: string; source: string | Uint8Array; moduleType: string }>;
+  modules: ReadonlyArray<{ moduleType: string; path: string; source: string | Uint8Array }>;
 }) =>
   bundleOpaqueRenderer({
     ...input,

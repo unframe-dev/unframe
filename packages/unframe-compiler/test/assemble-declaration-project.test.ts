@@ -40,7 +40,7 @@ const presentation = (): PresentationDeclaration => ({
   assets: [{ assetId: "reference-font", kind: "asset-ref" }],
   flow: {
     groups: {
-      group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
+      group: { id: "group", initialStepId: "step", steps: { step: { cues: [], id: "step" } } },
     },
     initialGroupId: "group",
     variables: {},
@@ -51,31 +51,31 @@ const presentation = (): PresentationDeclaration => ({
   scene: {
     components: [
       {
+        componentId: standardComponents.surface.manifest.componentId,
         id: "instance",
         kind: "component-instance",
-        componentId: standardComponents.surface.manifest.componentId,
-        version: standardComponents.surface.manifest.version,
         owner: { kind: "presentation" },
-        spatialNodeId: "spatial",
+        partOverrides: [],
         props: {},
         slots: {},
+        spatialNodeId: "spatial",
         variants: {},
-        partOverrides: [],
+        version: standardComponents.surface.manifest.version,
       },
     ],
     spatial: [
       {
+        active: true,
+        audience: { kind: "all" },
         id: "spatial",
         kind: "spatial",
         name: "Surface",
-        owner: { kind: "presentation" },
-        audience: { kind: "all" },
-        parent: { kind: "stage" },
-        order: 0,
-        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-        active: true,
-        visible: true,
         opacity: 1,
+        order: 0,
+        owner: { kind: "presentation" },
+        parent: { kind: "stage" },
+        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        visible: true,
       },
     ],
   },
@@ -366,17 +366,17 @@ describe("assembleDeclarationProject", () => {
         surfaces: [
           {
             baseSemanticTree: {
-              rootNodeIds: ["node"],
               nodes: {
                 node: {
                   id: "node",
-                  parentId: null,
                   order: 0,
+                  parentId: null,
                   role: "paragraph" as const,
-                  text: "",
                   source: { file: "first-node.ts" },
+                  text: "",
                 },
               },
+              rootNodeIds: ["node"],
             },
             bindingKey: "surface",
             id: "surface",
@@ -391,8 +391,8 @@ describe("assembleDeclarationProject", () => {
                   {
                     id: "override",
                     kind: "semantic-override" as const,
-                    targetId: "node",
                     source: { file: "first-override.ts" },
+                    targetId: "node",
                   },
                 ],
                 source: { file: "first-state.ts" },
@@ -615,7 +615,7 @@ describe("assembleDeclarationProject", () => {
           ...(baseCatalog.presentation as Record<string, unknown>),
           sourceMap: [
             {
-              origin: { fileName: "presentation.ts", start: -1, end: 0, line: 1, column: 1 },
+              origin: { column: 1, end: 0, fileName: "presentation.ts", line: 1, start: -1 },
               path: [],
             },
           ],
@@ -632,7 +632,7 @@ describe("assembleDeclarationProject", () => {
           componentId: "",
           manifestHash: "",
           mode: "structured",
-          origin: { kind: "local", entryFile: "", files: [], sourceHash: "" },
+          origin: { entryFile: "", files: [], kind: "local", sourceHash: "" },
           structureHash: "",
           version: 0,
         },
@@ -721,15 +721,15 @@ export default defineComponentStructure({
           contentIntegrity: hashCanonicalJsonPayload(builders),
           dependencies: [],
           exports: [
-            { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+            { runtimeImport: "index.ts", runtimeRequire: null, subpath: ".", types: "index.ts" },
           ],
           files: [
             {
-              path: "index.ts",
-              mediaType: "text/typescript",
-              hash: hashCanonicalJsonPayload(builders),
-              encoding: "utf8",
               data: builders,
+              encoding: "utf8",
+              hash: hashCanonicalJsonPayload(builders),
+              mediaType: "text/typescript",
+              path: "index.ts",
             },
           ],
           key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),

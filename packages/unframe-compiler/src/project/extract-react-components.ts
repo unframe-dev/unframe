@@ -408,10 +408,11 @@ const renderEntry = (
     const named: Array<string> = [];
     if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
       for (const item of clause.namedBindings.elements) {
-        if (runtimeNames.has(item.name.text))
+        if (runtimeNames.has(item.name.text)) {
           named.push(
             `${item.propertyName ? `${item.propertyName.text} as ` : ""}${item.name.text}`,
           );
+        }
       }
     }
     if (named.length) {

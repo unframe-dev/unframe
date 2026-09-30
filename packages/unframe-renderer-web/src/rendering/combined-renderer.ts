@@ -38,7 +38,7 @@ export const combineBakedWebRenderers = (
     build: async (raw) => {
       const input = prepareRendererBuildInput(raw, plugin);
       if (!input.valid) {
-        return { ok: false, diagnostics: input.diagnostics };
+        return { diagnostics: input.diagnostics, ok: false };
       }
       const child = input.value.entry.kind === "opaque" ? opaque : structured;
       const result = await executeRendererPlugin(child, {
@@ -52,7 +52,7 @@ export const combineBakedWebRenderers = (
         },
       });
       if (!result.valid) {
-        return { ok: false, diagnostics: result.diagnostics };
+        return { diagnostics: result.diagnostics, ok: false };
       }
       return {
         ...result.value,

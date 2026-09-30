@@ -18,8 +18,8 @@ const theme = defineTheme({
         backgroundColor: palette.white,
         border: {
           color: tokenRef({ category: "color", tokenId: "highlight" }),
-          width: 2,
           radius: 24,
+          width: 2,
         },
         clip: true,
       },

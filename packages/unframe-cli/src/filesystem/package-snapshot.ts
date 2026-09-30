@@ -218,8 +218,9 @@ export const resolvePackageExportTargets = (
             file.startsWith(prefix) &&
             file.endsWith(suffix) &&
             file.length > prefix.length + suffix.length
-          )
+          ) {
             substitutions.add(file.slice(prefix.length, file.length - suffix.length));
+          }
         }
       }
     }

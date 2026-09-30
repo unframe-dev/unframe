@@ -51,10 +51,10 @@ const titleSurface = surface({
     nodes: {
       "semantic-title": {
         id: "semantic-title",
-        parentId: null,
-        order: 0,
-        role: "heading",
         level: 1,
+        order: 0,
+        parentId: null,
+        role: "heading",
         text: "Hello",
       },
     },
@@ -131,7 +131,7 @@ const surfaceStructure = defineComponentStructure({
       tracks: [
         {
           keyframes: [
-            { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+            { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
             { timeMilliseconds: 100, value: 1 },
           ],
           target: { kind: "host", property: "opacity" },
@@ -148,7 +148,7 @@ const titleInstance = componentInstance({
   partOverrides: [
     {
       partId: "root",
-      style: { backgroundColor: { red: 1, green: 1, blue: 1, alpha: 1 } },
+      style: { backgroundColor: { alpha: 1, blue: 1, green: 1, red: 1 } },
       targetKind: "frame",
     },
   ],
@@ -166,7 +166,7 @@ const referencePresentation = {
       "group-intro": {
         id: "group-intro",
         initialStepId: "step-intro",
-        steps: { "step-intro": { id: "step-intro", cues: [] } },
+        steps: { "step-intro": { cues: [], id: "step-intro" } },
       },
     },
     initialGroupId: "group-intro",
@@ -268,11 +268,11 @@ describe("component contract", () => {
       semantics: {
         surfaces: [
           {
-            id: "root",
-            bindingKey: "chart-root",
             baseSemanticTree: titleSurface.baseSemanticTree,
-            interactions: titleSurface.interactions,
+            bindingKey: "chart-root",
+            id: "root",
             initialStateId: titleSurface.initialStateId,
+            interactions: titleSurface.interactions,
             states: titleSurface.states,
           },
         ],
@@ -435,7 +435,7 @@ describe("theme and reference vocabulary", () => {
       semanticNodeId: "semantic-styled-text",
       style: {
         align: "start",
-        color: { red: 0, green: 0, blue: 0, alpha: 1 },
+        color: { alpha: 1, blue: 0, green: 0, red: 0 },
         fallbackFonts: [],
         font: assetRef({ assetId: "reference-font" }),
         fontSize: 32,
@@ -477,10 +477,10 @@ describe("theme and reference vocabulary", () => {
           nodes: {
             heading: {
               id: "heading",
-              parentId: null,
-              order: 0,
-              role: "heading",
               level: 1,
+              order: 0,
+              parentId: null,
+              role: "heading",
               text: "Unframe",
             },
           },
@@ -710,7 +710,7 @@ describe("local declaration boundary", () => {
             tracks: [
               {
                 keyframes: [
-                  { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+                  { easingToNext: "linear", timeMilliseconds: 0, value: 0 },
                   { timeMilliseconds: 100, value: 1 },
                 ],
                 target: { kind: "host", property: "opacity" },

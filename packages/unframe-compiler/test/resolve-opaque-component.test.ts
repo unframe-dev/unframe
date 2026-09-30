@@ -10,22 +10,22 @@ import { reactResourceId } from "../src/resolution/resolve-opaque-component.js";
 const metadata = validateStaticComponentMetadata({
   id: "hero",
   props: {
-    subtitle: { kind: "string", default: "Default" },
+    subtitle: { default: "Default", kind: "string" },
     title: { kind: "string", required: true },
   },
   semantics: {
     nodes: {
       heading: {
-        role: "heading",
         level: 1,
-        parentId: null,
         order: 0,
+        parentId: null,
+        role: "heading",
         text: { kind: "prop-ref", name: "title" },
       },
       paragraph: {
-        role: "paragraph",
-        parentId: null,
         order: 1,
+        parentId: null,
+        role: "paragraph",
         text: { kind: "prop-ref", name: "subtitle" },
       },
     },
@@ -40,7 +40,7 @@ const lock = {
   mode: "opaque",
   origin: {
     entryFile: "hero.component.tsx",
-    files: [{ path: "hero.component.tsx", hash: "sha256:source" }],
+    files: [{ hash: "sha256:source", path: "hero.component.tsx" }],
     kind: "local",
     sourceHash: "sha256:source",
   },
@@ -71,10 +71,10 @@ const project = (scene: Array<ReturnType<typeof item>>) => ({
   presentation: {
     assets: [],
     flow: {
-      initialGroupId: "main",
       groups: {
-        main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
+        main: { id: "main", initialStepId: "first", steps: { first: { cues: [], id: "first" } } },
       },
+      initialGroupId: "main",
       variables: {},
     },
     id: "deck",
@@ -82,7 +82,7 @@ const project = (scene: Array<ReturnType<typeof item>>) => ({
     operations: [],
     scene,
     stage: {
-      coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
+      coordinateSystem: { forwardAxis: "-Z", handedness: "right", unit: "meter", upAxis: "+Y" },
       size: [4, 3, 4],
     },
     theme: { themeId: standardComponents.theme.id },
@@ -111,21 +111,21 @@ describe("Opaque React lowering", () => {
       },
       semantics: {
         nodes: {
-          heading: metadata.semantics.nodes.heading,
           button: {
-            role: "button",
-            parentId: null,
-            order: 1,
-            text: "Reveal",
             interactionId: "reveal",
+            order: 1,
+            parentId: null,
+            role: "button",
+            text: "Reveal",
           },
+          heading: metadata.semantics.nodes.heading,
         },
         rootNodeIds: ["heading", "button"],
       },
       states: {
         hidden: {
           enabledInteractionIds: ["reveal"],
-          semanticOverrides: [{ id: "hide-heading", targetId: "heading", included: false }],
+          semanticOverrides: [{ id: "hide-heading", included: false, targetId: "heading" }],
         },
         revealed: { enabledInteractionIds: [], semanticOverrides: [] },
       },

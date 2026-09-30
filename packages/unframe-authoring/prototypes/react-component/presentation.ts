@@ -21,26 +21,26 @@ export default definePresentation({
         initialStepId: "question",
         steps: {
           question: {
-            id: "question",
             cues: [
               {
-                id: "show-answer",
-                trigger: {
-                  kind: "component.output",
-                  componentInstanceId: "quiz",
-                  outputId: "revealRequested",
-                },
                 actions: [
                   {
-                    kind: "component.action",
-                    componentInstanceId: "quiz",
                     actionId: "reveal",
                     arguments: {},
+                    componentInstanceId: "quiz",
+                    kind: "component.action",
                   },
                 ],
+                id: "show-answer",
                 next: { kind: "stay" },
+                trigger: {
+                  componentInstanceId: "quiz",
+                  kind: "component.output",
+                  outputId: "revealRequested",
+                },
               },
             ],
+            id: "question",
           },
         },
       },

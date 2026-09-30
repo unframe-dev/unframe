@@ -91,19 +91,19 @@ const setup = () => {
     repository,
     signedAccess: {
       issueDownload: async () => ({
+        expiresAt: new Date("2026-01-01T00:10:00.000Z"),
         method: "GET",
         url: "https://signed.example/download-secret",
-        expiresAt: new Date("2026-01-01T00:10:00.000Z"),
       }),
       issuePut: async () => ({
-        method: "PUT",
-        url: "https://signed.example/put-secret",
         expiresAt: new Date("2026-01-01T00:10:00.000Z"),
         headers: {
-          "content-type": "image/png",
           "content-length": "8",
+          "content-type": "image/png",
           "x-amz-checksum-sha256": "a".repeat(64),
         },
+        method: "PUT",
+        url: "https://signed.example/put-secret",
       }),
     },
     storage,

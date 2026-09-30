@@ -5,19 +5,19 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({
       body: JSON.stringify({
         session: {
-          id: "test-session",
-          userId: "test-user",
-          expiresAt: "2026-08-18T00:00:00.000Z",
-          token: "test-token",
           createdAt: "2026-08-17T00:00:00.000Z",
+          expiresAt: "2026-08-18T00:00:00.000Z",
+          id: "test-session",
+          token: "test-token",
           updatedAt: "2026-08-17T00:00:00.000Z",
+          userId: "test-user",
         },
         user: {
-          id: "test-user",
-          name: "テストユーザー",
+          createdAt: "2026-08-17T00:00:00.000Z",
           email: "test@example.com",
           emailVerified: true,
-          createdAt: "2026-08-17T00:00:00.000Z",
+          id: "test-user",
+          name: "テストユーザー",
           updatedAt: "2026-08-17T00:00:00.000Z",
         },
       }),

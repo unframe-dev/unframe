@@ -133,10 +133,10 @@ const textContentSchema = z.strictObject({
     z.strictObject({
       expectedType: z.literal("string"),
       format: z.strictObject({
-        kind: z.literal("string"),
         allowedCodePointRanges: z
           .array(z.tuple([uint32V2Schema.max(1_114_111), uint32V2Schema.max(1_114_111)]))
           .min(1),
+        kind: z.literal("string"),
       }),
       kind: z.literal("variableString"),
       variableId: idV2Schema,
@@ -144,9 +144,9 @@ const textContentSchema = z.strictObject({
     z.strictObject({
       expectedType: z.literal("boolean"),
       format: z.strictObject({
+        falseLabel: z.string(),
         kind: z.literal("boolean"),
         trueLabel: z.string(),
-        falseLabel: z.string(),
       }),
       kind: z.literal("variableBoolean"),
       variableId: idV2Schema,
@@ -154,8 +154,8 @@ const textContentSchema = z.strictObject({
     z.strictObject({
       expectedType: z.literal("number"),
       format: z.strictObject({
-        kind: z.literal("number"),
         fractionDigits: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+        kind: z.literal("number"),
       }),
       kind: z.literal("variableNumber"),
       variableId: idV2Schema,
@@ -623,7 +623,7 @@ export const presentationDefinitionV2Schema = z.strictObject({
       z.strictObject({
         id: idV2Schema,
         initialStepId: idV2Schema,
-        steps: z.record(idV2Schema, z.strictObject({ id: idV2Schema, cues: z.array(cueSchema) })),
+        steps: z.record(idV2Schema, z.strictObject({ cues: z.array(cueSchema), id: idV2Schema })),
       }),
     ),
     initialGroupId: idV2Schema,

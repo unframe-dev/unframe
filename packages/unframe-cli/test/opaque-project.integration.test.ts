@@ -131,7 +131,7 @@ const createProject = async (mixed = false) => {
     assets: [],
     flow: {
       groups: {
-        main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
+        main: { id: "main", initialStepId: "first", steps: { first: { cues: [], id: "first" } } },
       },
       initialGroupId: "main",
       variables: {},

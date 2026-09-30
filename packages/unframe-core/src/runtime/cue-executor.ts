@@ -141,9 +141,9 @@ const initializeResources = (
     if (ownerActive(node.owner, groupId) && (includePresentation || node.owner.kind === "group")) {
       state.nodes[id] = {
         active: node.active,
-        visible: node.visible,
         opacity: node.opacity,
         transform: clone(node.transform),
+        visible: node.visible,
       };
     }
   }
@@ -177,11 +177,11 @@ const enterStep = (definition: PresentationDefinitionV2, state: CueState, stepId
   for (const cue of definition.flow.groups[state.currentGroupId]?.steps[stepId]?.cues ?? []) {
     if (cue.trigger.kind === "timer") {
       state.timerStates[cue.id] = {
-        kind: "armed",
         dueAtRuntimeTimeMilliseconds: checkedTimeAddition(
           state.runtimeTimeMilliseconds,
           cue.trigger.afterMilliseconds,
         ),
+        kind: "armed",
       };
     }
   }
@@ -451,9 +451,9 @@ const applyNext = (
           removeRun(definition, state, run, true);
           if (run.kind === "timeline") {
             canceledRuns.push({
+              reason: "groupExit",
               runId: run.runId,
               timelineId: run.timelineId,
-              reason: "groupExit",
             });
           }
         }
@@ -486,9 +486,9 @@ const applyNext = (
       )) {
         if (run.kind === "timeline") {
           canceledRuns.push({
+            reason: "presentationEnded",
             runId: run.runId,
             timelineId: run.timelineId,
-            reason: "presentationEnded",
           });
         }
       }
@@ -569,11 +569,11 @@ const evaluateCueEvent = (
     switch (action.kind) {
       case "surface.setState": {
         if (!claim(`surface:${action.surfaceId}`)) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "conflict" }, state };
         }
         const surface = definition.scene.surfaces[action.surfaceId];
         if (!surface?.states[action.stateId] || next.surfaces[action.surfaceId] === undefined) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "invalidTarget" }, state };
         }
         if (action.transition?.kind === "crossfade") {
           if (
@@ -581,7 +581,7 @@ const evaluateCueEvent = (
             !Number.isSafeInteger(action.transition.durationMilliseconds) ||
             action.transition.durationMilliseconds <= 0
           ) {
-            return { outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" }, state };
+            return { outcome: { cueId: cue.id, kind: "rejected", reason: "conflict" }, state };
           }
           const host = definition.scene.nodes[surface.hostNodeId]!;
           checkedTimeAddition(
@@ -606,11 +606,11 @@ const evaluateCueEvent = (
       }
       case "variable.set": {
         if (!claim(`variable:${action.variableId}`)) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "conflict" }, state };
         }
         const variable = definition.flow.variables[action.variableId];
         if (!variable || !(action.variableId in next.variables)) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "invalidTarget" }, state };
         }
         const value = actionValue(action.value, state, payload);
         if (
@@ -619,7 +619,7 @@ const evaluateCueEvent = (
           (typeof value === "number" && !Number.isFinite(value))
         ) {
           return {
-            outcome: { kind: "rejected", cueId: cue.id, reason: "invalidActionValue" },
+            outcome: { cueId: cue.id, kind: "rejected", reason: "invalidActionValue" },
             state,
           };
         }
@@ -629,11 +629,11 @@ const evaluateCueEvent = (
       case "node.patch": {
         const node = next.nodes[action.nodeId];
         if (!node) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "invalidTarget" }, state };
         }
         for (const [field, expression] of Object.entries(action.patch)) {
           if (!claim(trackClaim(action.nodeId, field))) {
-            return { outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" }, state };
+            return { outcome: { cueId: cue.id, kind: "rejected", reason: "conflict" }, state };
           }
           if (field === "transform") {
             node.transform = clone(expression as Transform);
@@ -651,7 +651,7 @@ const evaluateCueEvent = (
               (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1))
           ) {
             return {
-              outcome: { kind: "rejected", cueId: cue.id, reason: "invalidActionValue" },
+              outcome: { cueId: cue.id, kind: "rejected", reason: "invalidActionValue" },
               state,
             };
           }
@@ -666,7 +666,7 @@ const evaluateCueEvent = (
       case "timeline.play": {
         const timeline = definition.flow.timelines[action.timelineId];
         if (!timeline || !ownerActive(timeline.owner, state.currentGroupId)) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "invalidTarget" }, state };
         }
         checkedTimeAddition(state.runtimeTimeMilliseconds, timeline.durationMilliseconds);
         if (
@@ -676,7 +676,7 @@ const evaluateCueEvent = (
           !claim(`timeline:${action.timelineId}`) ||
           timelineClaims(timeline).some((key) => !claim(key))
         ) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "conflict" }, state };
         }
         pendingRuns.push({
           cause: runCause(cue, input, state),
@@ -691,7 +691,7 @@ const evaluateCueEvent = (
       case "timeline.stop": {
         const timeline = definition.flow.timelines[action.timelineId];
         if (!timeline) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "invalidTarget" }, state };
         }
         const active = state.activeRuns.find(
           (run) => run.kind === "timeline" && run.timelineId === action.timelineId,
@@ -700,7 +700,7 @@ const evaluateCueEvent = (
           !claim(`timeline:${action.timelineId}`, active) ||
           timelineClaims(timeline).some((key) => !claim(key, active))
         ) {
-          return { outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" }, state };
+          return { outcome: { cueId: cue.id, kind: "rejected", reason: "conflict" }, state };
         }
         if (active) {
           removeRun(definition, next, active, true);

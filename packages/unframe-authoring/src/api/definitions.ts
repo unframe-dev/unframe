@@ -644,6 +644,7 @@ const componentStructureShape = {
             keyframes: z
               .array(
                 z.strictObject({
+                  easingToNext: z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]).optional(),
                   timeMilliseconds: nonNegativeIntegerSchema,
                   value: z.union([
                     finiteNumberSchema,
@@ -655,7 +656,6 @@ const componentStructureShape = {
                       finiteNumberSchema,
                     ]),
                   ]),
-                  easingToNext: z.enum(["linear", "cubicIn", "cubicOut", "cubicInOut"]).optional(),
                 }),
               )
               .min(2),

@@ -252,8 +252,9 @@ export const validateCueInvariants = (
                 }
               }
               if (action.patch.transform) {
-                for (const field of ["position", "rotation", "scale"])
+                for (const field of ["position", "rotation", "scale"]) {
                   claim(`node:${action.nodeId}:transform.${field}`, suffix);
+                }
               }
               break;
             }
@@ -262,8 +263,9 @@ export const validateCueInvariants = (
               const timeline = target(timelines, action.timelineId, `${suffix}/timelineId`);
               claim(`timeline:${action.timelineId}:lifecycle`, suffix);
               if (timeline) {
-                for (const track of timeline.tracks)
+                for (const track of timeline.tracks) {
                   claim(`node:${track.target.nodeId}:${track.target.property}`, suffix);
+                }
               }
               break;
             }

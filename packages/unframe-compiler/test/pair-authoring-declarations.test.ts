@@ -48,7 +48,7 @@ const presentation = () =>
     assets: [],
     flow: {
       groups: {
-        group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
+        group: { id: "group", initialStepId: "step", steps: { step: { cues: [], id: "step" } } },
       },
       initialGroupId: "group",
       variables: {},
@@ -87,7 +87,7 @@ const structure = (componentId: string) =>
     root: frame({
       children: [],
       id: `${componentId}-root`,
-      layout: { kind: "absolute", x: 0, y: 0, width: 1, height: 1 },
+      layout: { height: 1, kind: "absolute", width: 1, x: 0, y: 0 },
     }),
     timelines: [],
     variantStyles: {},

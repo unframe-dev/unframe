@@ -87,7 +87,7 @@ export function createAuthOptions(
         verificationUri: `${env.WEB_ORIGIN}/editor/device`,
       }),
       twoFactor({
-        accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 900 },
+        accountLockout: { durationSeconds: 900, enabled: true, maxFailedAttempts: 10 },
         backupCodeOptions: { storeBackupCodes: "encrypted" },
         issuer: "Unframe",
       }),

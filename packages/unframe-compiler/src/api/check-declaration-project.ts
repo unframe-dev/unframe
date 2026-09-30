@@ -167,9 +167,8 @@ const checkDeclarationProjectUnchecked = (
                 reactIds.has(action.componentInstanceId) !==
                 reactIds.has(trigger.componentInstanceId),
             )
-          )
+          ) {
             return {
-              valid: false,
               diagnostics: [
                 diagnostic(
                   "compiler-mixed-cue-unsupported",
@@ -177,7 +176,9 @@ const checkDeclarationProjectUnchecked = (
                   "A Cue cannot cross Structured and React Component kinds.",
                 ),
               ],
+              valid: false,
             };
+          }
         }
       }
     }
@@ -290,8 +291,8 @@ const checkDeclarationProjectUnchecked = (
       valid: true,
       value: {
         assetSet: {
-          schemaVersion: 2,
           assets: { ...structured.value.assetSet.assets, ...opaque.value.assetSet.assets },
+          schemaVersion: 2,
         },
         definition: validated.value,
         definitionHash: definitionHash.value,
@@ -620,7 +621,7 @@ const checkDeclarationProjectUnchecked = (
         if (
           effect.kind === "playTimeline" &&
           !entry.structure.timelines.some((timeline) => timeline.id === effect.timelineId)
-        )
+        ) {
           diagnostics.push(
             diagnostic(
               "compiler-timeline-not-found",
@@ -628,6 +629,7 @@ const checkDeclarationProjectUnchecked = (
               "Timeline Action must reference a Timeline in the same Component.",
             ),
           );
+        }
       }
     }
     for (const [outputId, output] of Object.entries(entry.manifest.outputs)) {
@@ -866,9 +868,8 @@ const checkDeclarationProjectUnchecked = (
         if (!parentFrame || parentFrame.kind !== "frame") {
           continue;
         }
-        const sequenceItems: Array<{ ids: string[]; order: number }> = parentFrame.children.map(
-          (id) => ({ ids: [id], order: contentNodes[id]?.order ?? 0 }),
-        );
+        const sequenceItems: Array<{ ids: Array<string>; order: number }> =
+          parentFrame.children.map((id) => ({ ids: [id], order: contentNodes[id]?.order ?? 0 }));
         for (const placeholder of placeholders) {
           const insertedIds: Array<string> = [];
           for (const childInstanceId of parentInstance.slots[placeholder.slotId] ?? []) {
@@ -1160,10 +1161,10 @@ const checkDeclarationProjectUnchecked = (
         interaction:
           root.renderIntent.interaction === "regions"
             ? {
-                kind: "regions",
                 events: [
                   ...new Set(Object.values(root.interactions).map(({ event }) => event)),
                 ].sort(compareStrings),
+                kind: "regions",
               }
             : { kind: "none" },
         updateModel:
@@ -1235,7 +1236,7 @@ const checkDeclarationProjectUnchecked = (
     diagnostics: [],
     valid: true,
     value: {
-      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
+      assetSet: { assets: checkedAssets.assetSetAssets, schemaVersion: 2 },
       definition: validated.value,
       definitionHash: definitionHash.value,
       definitionJson: canonical.value,

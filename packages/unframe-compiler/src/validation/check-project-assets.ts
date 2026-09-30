@@ -28,19 +28,22 @@ export const checkProjectAssets = (
     )) {
       if (node.kind === "text") {
         referencedFontIds.add(node.style.fontAssetId);
-        for (const fontAssetId of node.style.fallbackFontAssetIds)
+        for (const fontAssetId of node.style.fallbackFontAssetIds) {
           referencedFontIds.add(fontAssetId);
+        }
       }
     }
   }
   for (const surface of Object.values(surfaces)) {
     for (const state of Object.values(surface.states)) {
-      for (const override of Object.values(state.contentOverrides))
+      for (const override of Object.values(state.contentOverrides)) {
         if (override.kind === "text" && override.style) {
           referencedFontIds.add(override.style.fontAssetId);
-          for (const fontAssetId of override.style.fallbackFontAssetIds)
+          for (const fontAssetId of override.style.fallbackFontAssetIds) {
             referencedFontIds.add(fontAssetId);
+          }
         }
+      }
     }
   }
   for (const fontAssetId of referencedFontIds) {

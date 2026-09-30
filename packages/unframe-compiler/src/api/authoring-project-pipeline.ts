@@ -36,8 +36,8 @@ export const assembleAuthoringProject = (
       diagnostics: [
         {
           code: "compiler-invalid-input",
-          path: [],
           message: "Assembly carrier must contain only explicit carrier fields.",
+          path: [],
         },
       ],
       phase: "assembly",
@@ -57,9 +57,9 @@ export const assembleAuthoringProject = (
       diagnostics: [
         {
           code: "compiler-frozen-component-lock-mismatch",
-          path: ["componentLocks"],
           message:
             "Component origins, source closure, or renderer inputs differ from the frozen lock. Refresh the lock explicitly.",
+          path: ["componentLocks"],
         },
       ],
       phase: "assembly",

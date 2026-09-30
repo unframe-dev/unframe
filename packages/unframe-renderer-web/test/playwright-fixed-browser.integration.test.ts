@@ -201,8 +201,8 @@ describe("Playwright Fixed Browser integration", () => {
         context: { ...source.context, pixelTarget: [10, 10] },
         plan: {
           ...source.plan,
-          clipWindow: { x: 60, y: 10, width: 10, height: 10 },
-          logicalBounds: { x: 60, y: 10, width: 10, height: 10 },
+          clipWindow: { height: 10, width: 10, x: 60, y: 10 },
+          logicalBounds: { height: 10, width: 10, x: 60, y: 10 },
           ownership: {
             contextNodeIds: ["root", "nested"],
             kind: "structured",
@@ -266,8 +266,8 @@ describe("Playwright Fixed Browser integration", () => {
         context: { ...full.context, pixelTarget: [120, 60] },
         plan: {
           ...full.plan,
-          clipWindow: { x: 10, y: 5, width: 60, height: 30 },
-          logicalBounds: { x: 10, y: 5, width: 60, height: 30 },
+          clipWindow: { height: 30, width: 60, x: 10, y: 5 },
+          logicalBounds: { height: 30, width: 60, x: 10, y: 5 },
           ownership: {
             contextNodeIds: ["root"],
             kind: "structured",

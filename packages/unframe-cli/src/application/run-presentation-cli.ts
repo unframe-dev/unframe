@@ -175,7 +175,7 @@ const output = (
           : "",
       stdout:
         format === "json"
-          ? `${JSON.stringify({ ok: true, command, diagnostics: [], warnings: warningList })}\n`
+          ? `${JSON.stringify({ command, diagnostics: [], ok: true, warnings: warningList })}\n`
           : `${command}: ok\n`,
     };
   }

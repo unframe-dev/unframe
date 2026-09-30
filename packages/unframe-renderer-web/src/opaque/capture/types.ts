@@ -2,9 +2,9 @@ import type { OpaqueBinding } from "./bindings.js";
 
 export type OpaqueCaptureRequest = {
   readonly assets: ReadonlyArray<{
-    readonly path: string;
-    readonly mediaType: string;
     readonly dataBase64: string;
+    readonly mediaType: string;
+    readonly path: string;
   }>;
   readonly background: readonly [number, number, number, number];
   readonly bindingKeys?: ReadonlyArray<string>;

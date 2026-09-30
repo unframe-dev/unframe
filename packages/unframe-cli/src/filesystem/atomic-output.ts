@@ -20,8 +20,8 @@ const MANAGED_DIST_TARGET = /^\.unframe\/generations\/([0-9a-f]{32})$/;
 export type AtomicOutputArtifacts = {
   readonly assets: ReadonlyArray<{
     readonly assetId: string;
-    readonly mediaType: string;
     readonly bytes: Uint8Array;
+    readonly mediaType: string;
   }>;
   readonly assetSet: Uint8Array;
   readonly buildManifest: Uint8Array;

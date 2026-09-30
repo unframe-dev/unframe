@@ -141,8 +141,8 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
   if (!parsed.ok) {
     return {
       diagnostic: {
-        family: "syntax",
         code: parsed.code,
+        family: "syntax",
         message: "unframe.lock must be strict UTF-8 JSON.",
       },
       ok: false,

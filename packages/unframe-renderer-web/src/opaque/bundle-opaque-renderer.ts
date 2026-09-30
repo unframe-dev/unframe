@@ -220,7 +220,9 @@ const cssReferences = (source: string) => {
     /url\(\s*["']?([^"')]+)["']?\s*\)/g,
   ]) {
     for (const match of source.matchAll(pattern)) {
-      if (match[1]) references.push(match[1]);
+      if (match[1]) {
+        references.push(match[1]);
+      }
     }
   }
   return references;
@@ -360,74 +362,95 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
       plugins: [
         {
           buildStart() {
-            for (const item of snapshot.modules.values())
-              if (item.moduleType === "asset" || item.moduleType === "css")
+            for (const item of snapshot.modules.values()) {
+              if (item.moduleType === "asset" || item.moduleType === "css") {
                 this.emitFile({
-                  type: "asset",
                   fileName: `assets/${item.path}`,
                   source: item.source,
+                  type: "asset",
                 });
+              }
+            }
           },
           load(id) {
-            if (id === RUNTIME_ID) return { code: RUNTIME_SOURCE, moduleType: "js" };
-            if (id === entryId) return { code: BOOTSTRAP_SOURCE, moduleType: "ts" };
-            if (!id.startsWith(VIRTUAL_PREFIX)) return null;
+            if (id === RUNTIME_ID) {
+              return { code: RUNTIME_SOURCE, moduleType: "js" };
+            }
+            if (id === entryId) {
+              return { code: BOOTSTRAP_SOURCE, moduleType: "ts" };
+            }
+            if (!id.startsWith(VIRTUAL_PREFIX)) {
+              return null;
+            }
             const modulePath = id.slice(VIRTUAL_PREFIX.length);
             const item = snapshot.modules.get(modulePath);
-            if (!item)
+            if (!item) {
               return rememberFailure(
                 "opaque-module-not-found",
                 [modulePath],
                 `Locked package module was not found: ${modulePath}`,
               );
-            if (item.moduleType === "asset" || item.moduleType === "css")
+            }
+            if (item.moduleType === "asset" || item.moduleType === "css") {
               return {
                 code: `export default ${JSON.stringify(`assets/${item.path}`)};`,
-                moduleType: "js",
                 moduleSideEffects: "no-treeshake",
+                moduleType: "js",
               };
+            }
             return { code: item.source, moduleType: item.moduleType };
           },
           name: "unframe-opaque-modules",
           resolveId(specifier, importer, options) {
-            if (specifier === entryId && importer === undefined) return entryId;
-            if (specifier === "@unframe/renderer-entry" && importer === entryId)
+            if (specifier === entryId && importer === undefined) {
+              return entryId;
+            }
+            if (specifier === "@unframe/renderer-entry" && importer === entryId) {
               return `${VIRTUAL_PREFIX}${snapshot.entry}`;
-            if (specifier === RUNTIME_SPECIFIER) return RUNTIME_ID;
-            if (!importer?.startsWith(VIRTUAL_PREFIX))
+            }
+            if (specifier === RUNTIME_SPECIFIER) {
+              return RUNTIME_ID;
+            }
+            if (!importer?.startsWith(VIRTUAL_PREFIX)) {
               return rememberFailure(
                 "opaque-import-denied",
                 [snapshot.entry, specifier],
                 `Import is outside the locked package: ${specifier}`,
               );
+            }
             const importerPath = importer.slice(VIRTUAL_PREFIX.length);
             const kind = options.kind === "require-call" ? "require" : "import";
             if (
               options.kind === "dynamic-import" ||
               options.kind === "new-url" ||
               options.kind === "hot-accept"
-            )
+            ) {
               return rememberFailure(
                 "opaque-import-denied",
                 [importerPath, specifier],
                 `Dynamic import is not allowed: ${specifier}`,
               );
+            }
             const lockedPath = snapshot.resolutions.get(`${importerPath}\0${specifier}\0${kind}`);
-            if (lockedPath !== undefined) return `${VIRTUAL_PREFIX}${lockedPath}`;
+            if (lockedPath !== undefined) {
+              return `${VIRTUAL_PREFIX}${lockedPath}`;
+            }
             const relativePath = resolveRelativePath(importerPath, specifier);
-            if (relativePath === undefined)
+            if (relativePath === undefined) {
               return rememberFailure(
                 "opaque-import-denied",
                 [importerPath, specifier],
                 `Import is not locked: ${specifier}`,
               );
+            }
             const modulePath = resolvedModulePath(relativePath, snapshot.modules);
-            if (modulePath === undefined)
+            if (modulePath === undefined) {
               return rememberFailure(
                 "opaque-module-not-found",
                 [importerPath, specifier],
                 `Locked package module was not found: ${specifier}`,
               );
+            }
             return `${VIRTUAL_PREFIX}${modulePath}`;
           },
         },

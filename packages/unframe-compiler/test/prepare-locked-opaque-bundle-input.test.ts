@@ -73,7 +73,7 @@ const source = {
   ],
 };
 const component = {
-  lock: { origin: { kind: "local", entryFile: "Hero.component.tsx" }, rendererInputHash: key("c") },
+  lock: { origin: { entryFile: "Hero.component.tsx", kind: "local" }, rendererInputHash: key("c") },
   rendererSource:
     'import {label} from "./helper"; export const render = ({texts}: {texts:{title:string}}) => <h1>{label}: {texts.title}</h1>;',
 };

@@ -62,15 +62,15 @@ const analyze = (
       readonly sourceText: string;
     }>;
     readonly packages?: ReadonlyArray<{
-      readonly dependencies: readonly unknown[];
-      readonly exports: readonly {
+      readonly dependencies: ReadonlyArray<unknown>;
+      readonly exports: ReadonlyArray<{
         readonly subpath: string;
         readonly targetFile: string;
-      }[];
-      readonly files: readonly {
+      }>;
+      readonly files: ReadonlyArray<{
         readonly fileName: string;
         readonly sourceText: string;
-      }[];
+      }>;
       readonly packageIntegrity: string;
       readonly packageName: string;
       readonly packageVersion: string;
@@ -176,18 +176,18 @@ describe("lowerAuthoringDeclarationFile", () => {
                   key: "title",
                   origin: expect.any(Object),
                   value: expect.objectContaining({
-                    kind: "builder-call",
-                    builder: "stringProp",
                     arguments: expect.any(Array),
+                    builder: "stringProp",
+                    kind: "builder-call",
                   }),
                 },
                 {
                   key: "timer",
                   origin: expect.any(Object),
                   value: expect.objectContaining({
-                    kind: "builder-call",
-                    builder: "after",
                     arguments: [expect.objectContaining({ kind: "literal", value: 100 })],
+                    builder: "after",
+                    kind: "builder-call",
                   }),
                 },
               ]),
@@ -196,11 +196,11 @@ describe("lowerAuthoringDeclarationFile", () => {
           builder: "definePresentation",
           kind: "builder-call",
           origin: {
-            fileName: "presentation.ts",
-            start: rootStart,
-            end: sourceText.length - 1,
-            line: 2,
             column: rootStart - sourceText.lastIndexOf("\n"),
+            end: sourceText.length - 1,
+            fileName: "presentation.ts",
+            line: 2,
+            start: rootStart,
           },
         },
       },

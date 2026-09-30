@@ -154,7 +154,7 @@ const collectDefinitionAssetReferences = (
     }
     for (const [stateId, state] of Object.entries(surface.states)) {
       for (const [contentId, override] of Object.entries(state.contentOverrides)) {
-        if (override.kind === "image" && override.assetId !== undefined)
+        if (override.kind === "image" && override.assetId !== undefined) {
           add(
             override.assetId,
             [
@@ -170,7 +170,7 @@ const collectDefinitionAssetReferences = (
             ],
             ["image/png", "image/jpeg"],
           );
-        else if (override.kind === "text" && override.style !== undefined) {
+        } else if (override.kind === "text" && override.style !== undefined) {
           add(
             override.style.fontAssetId,
             [
@@ -187,7 +187,7 @@ const collectDefinitionAssetReferences = (
             ],
             fontMediaTypes,
           );
-          for (const [index, assetId] of override.style.fallbackFontAssetIds.entries())
+          for (const [index, assetId] of override.style.fallbackFontAssetIds.entries()) {
             add(
               assetId,
               [
@@ -205,6 +205,7 @@ const collectDefinitionAssetReferences = (
               ],
               fontMediaTypes,
             );
+          }
         }
       }
     }
@@ -242,39 +243,43 @@ const collectBundleAssetReferences = (
           "artifacts",
           artifactId,
         ] as const;
-        if (artifact.kind === "baked-web")
-          for (const [stateId, state] of Object.entries(artifact.states))
+        if (artifact.kind === "baked-web") {
+          for (const [stateId, state] of Object.entries(artifact.states)) {
             add(
               state.texture.assetId,
               [...base, "states", stateId, "texture", "assetId"],
               ["image/png"],
               {
                 checksum: state.texture.checksum,
-                mediaType: state.texture.mediaType,
                 encodedSizeBytes: state.texture.encodedSizeBytes,
+                mediaType: state.texture.mediaType,
               },
             );
-        else if (artifact.kind === "video")
+          }
+        } else if (artifact.kind === "video") {
           add(artifact.assetId, [...base, "assetId"], ["video/mp4"], {
             checksum: artifact.checksum,
-            mediaType: artifact.mediaType,
             encodedSizeBytes: artifact.encodedSizeBytes,
+            mediaType: artifact.mediaType,
           });
-        else
-          for (const [nodeId, node] of Object.entries(artifact.nodes))
+        } else {
+          for (const [nodeId, node] of Object.entries(artifact.nodes)) {
             if (node.kind === "text") {
               add(
                 node.font.primary.assetId,
                 [...base, "nodes", nodeId, "font", "primary", "assetId"],
                 fontMediaTypes,
               );
-              for (const [index, font] of node.font.fallbacks.entries())
+              for (const [index, font] of node.font.fallbacks.entries()) {
                 add(
                   font.assetId,
                   [...base, "nodes", nodeId, "font", "fallbacks", index, "assetId"],
                   fontMediaTypes,
                 );
+              }
             }
+          }
+        }
       }
     }
   }
@@ -430,18 +435,20 @@ const verifyModelReferences = (
           "cues",
           cueIndex,
         ] as const;
-        if (cue.trigger.kind === "modelClipCompleted")
+        if (cue.trigger.kind === "modelClipCompleted") {
           verifyClip(cue.trigger.nodeId, cue.trigger.clipId, [...cuePath, "trigger"]);
+        }
         for (const [actionIndex, action] of cue.actions.entries()) {
           const actionPath = [...cuePath, "actions", actionIndex] as const;
-          if (action.kind === "modelClip.play")
+          if (action.kind === "modelClip.play") {
             verifyClip(action.nodeId, action.clipId, actionPath);
-          else if (
+          } else if (
             action.kind === "modelClip.pause" ||
             action.kind === "modelClip.resume" ||
             action.kind === "modelClip.stop"
-          )
+          ) {
             verifyModelNode(action.nodeId, actionPath);
+          }
         }
       }
     }

@@ -149,7 +149,7 @@ test("clip controls require positive speed and typed transition", () => {
 test("nested guard rejects arbitrary payloads", () => {
   rejectsDefinition((value) => {
     value.flow.groups.intro.steps.start.cues[0].guard = {
-      guards: [{ guard: { kind: "script", body: "true" }, kind: "not" }],
+      guards: [{ guard: { body: "true", kind: "script" }, kind: "not" }],
       kind: "all",
     };
   });

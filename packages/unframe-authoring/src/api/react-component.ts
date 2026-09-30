@@ -119,7 +119,7 @@ export type ReactComponent<P, N, S extends string = "default"> = {
   readonly outputs?: Readonly<Record<string, OutputInput>>;
   readonly props: P;
   readonly render: (input: RenderContext<P, N, S>) => SyncReactNode;
-  readonly semantics: { readonly nodes: N; readonly rootNodeIds: readonly (keyof N & string)[] };
+  readonly semantics: { readonly nodes: N; readonly rootNodeIds: ReadonlyArray<keyof N & string> };
   readonly states?: Readonly<Record<S, StateInput>>;
   readonly surface: { readonly logicalSize: readonly [number, number] };
   readonly version: number;
@@ -187,7 +187,7 @@ export const defineComponent = <
   readonly render: (input: RenderContext<P, N, keyof S & string>) => SyncReactNode;
   readonly semantics: {
     readonly nodes: N & ValidateNodes<P, N>;
-    readonly rootNodeIds: readonly (keyof N & string)[];
+    readonly rootNodeIds: ReadonlyArray<keyof N & string>;
   };
   readonly states?: S;
   readonly surface: { readonly logicalSize: readonly [number, number] };
@@ -453,7 +453,9 @@ export const validateStaticComponentMetadata = (value: unknown): StaticComponent
     }
     for (const action of Object.values(metadata.actions ?? {})) {
       for (const effect of action.effects) {
-        if (!metadata.states[effect.stateId]) throw new TypeError("Unknown Action target State.");
+        if (!metadata.states[effect.stateId]) {
+          throw new TypeError("Unknown Action target State.");
+        }
       }
     }
     for (const output of Object.values(metadata.outputs ?? {})) {
@@ -517,8 +519,8 @@ export const buildOpaqueComponentManifest = (
             {
               effects: action.effects.map((effect) => ({
                 kind: "setSurfaceState",
-                surfaceId: "surface",
                 stateId: effect.stateId,
+                surfaceId: "surface",
               })),
               inputs: action.inputs,
               kind: "action",
@@ -543,40 +545,40 @@ export const buildOpaqueComponentManifest = (
     semantics: {
       surfaces: [
         {
-          id: "surface",
-          bindingKey: "surface",
           baseSemanticTree: {
-            rootNodeIds: valid.semantics.rootNodeIds,
             nodes: nodes as Record<string, SemanticNodeDeclaration>,
+            rootNodeIds: valid.semantics.rootNodeIds,
           },
+          bindingKey: "surface",
+          id: "surface",
+          initialStateId: valid.initialState ?? "default",
           interactions: Object.fromEntries(
             Object.entries(valid.interactions ?? {}).map(([key, interaction]) => [
               key,
               { id: key, ...interaction },
             ]),
           ),
-          initialStateId: valid.initialState ?? "default",
           states: valid.states
             ? Object.fromEntries(
                 Object.entries(valid.states).map(([key, state]) => [
                   key,
                   {
+                    enabledInteractionIds: state.enabledInteractionIds,
                     id: key,
                     semanticOverrides: state.semanticOverrides.map((override) => ({
                       kind: "semantic-override",
                       ...override,
                     })),
-                    enabledInteractionIds: state.enabledInteractionIds,
                   } as SurfaceStateDeclaration,
                 ]),
               )
-            : { default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] } },
+            : { default: { enabledInteractionIds: [], id: "default", semanticOverrides: [] } },
         },
       ],
       targets: Object.keys(nodes).map((key) => ({
+        bindingKey: `node:${key}`,
         id: key,
         kind: "node" as const,
-        bindingKey: `node:${key}`,
       })),
     },
     slots: {},

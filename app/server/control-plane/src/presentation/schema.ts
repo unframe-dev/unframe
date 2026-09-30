@@ -140,10 +140,10 @@ export const presentationDefinitionSchema = z
           z
             .object({
               bounds: z
-                .object({ min: vector3, max: vector3 })
+                .object({ max: vector3, min: vector3 })
                 .strict()
                 .refine(
-                  ({ min, max }) => min.every((value, index) => value < max[index]!),
+                  ({ max, min }) => min.every((value, index) => value < max[index]!),
                   "zone bounds min must be smaller than max",
                 ),
               id,

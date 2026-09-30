@@ -72,15 +72,15 @@ const baseProject = (files: ReadonlyArray<VirtualFile>) => ({
       contentIntegrity: hashCanonicalJsonPayload(builders),
       dependencies: [],
       exports: [
-        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+        { runtimeImport: "index.ts", runtimeRequire: null, subpath: ".", types: "index.ts" },
       ],
       files: [
         {
-          path: "index.ts",
-          mediaType: "text/typescript",
-          hash: hashCanonicalJsonPayload(builders),
-          encoding: "utf8",
           data: builders,
+          encoding: "utf8",
+          hash: hashCanonicalJsonPayload(builders),
+          mediaType: "text/typescript",
+          path: "index.ts",
         },
       ],
       key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
@@ -180,22 +180,22 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
         captures: Object.entries(input.plan.states)
           .filter(([, state]) => state.kind === "capture")
           .map(([stateId]) => ({
+            alphaMode: "opaque" as const,
+            colorSpace: "srgb" as const,
             id: `${stateId}:capture`,
-            stateId,
+            pixelSize: [width, height] as [number, number],
             rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
               index % 4 === 3 ? 255 : 0,
             ),
-            pixelSize: [width, height] as [number, number],
-            colorSpace: "srgb" as const,
-            alphaMode: "opaque" as const,
+            stateId,
           })),
         diagnostics: [],
         ok: true as const,
         provenance: {
           ...identity,
-          inputHash: input.context.inputHash,
           buildContextHash: input.context.buildContextHash,
           environmentHash: input.context.environmentHash,
+          inputHash: input.context.inputHash,
           rendererConfigHash: input.context.rendererConfigHash,
           rendererFingerprint: createRendererFingerprint(
             identity,
@@ -204,9 +204,9 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
         },
         renderSurface: {
           id: input.plan.id,
-          semanticSurfaceId: input.plan.semanticSurfaceId,
-          logicalBounds: input.plan.logicalBounds,
           layer: input.plan.layer,
+          logicalBounds: input.plan.logicalBounds,
+          semanticSurfaceId: input.plan.semanticSurfaceId,
         },
       };
     },

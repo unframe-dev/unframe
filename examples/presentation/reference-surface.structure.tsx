@@ -23,36 +23,36 @@ const semantics = {
   nodes: {
     "continue-button": {
       id: "continue-button",
-      parentId: null,
+      interactionId: "continue",
       order: 3,
+      parentId: null,
       role: "button",
       text: "Continue",
-      interactionId: "continue",
     },
     detail: {
       id: "detail",
-      parentId: null,
       order: 2,
+      parentId: null,
       role: "paragraph",
       text: "Typed themes, explicit fonts, stable artifacts",
     },
     heading: {
       id: "heading",
-      parentId: null,
-      order: 0,
-      role: "heading",
       level: 1,
+      order: 0,
+      parentId: null,
+      role: "heading",
       text: "Structured authoring",
     },
     summary: {
       id: "summary",
-      parentId: null,
       order: 1,
+      parentId: null,
       role: "paragraph",
       text: {
+        expectedType: "string",
         kind: "prop-ref",
         propId: "title",
-        expectedType: "string",
       },
     },
   },
@@ -179,7 +179,7 @@ export default defineComponentStructure({
       tracks: [
         {
           keyframes: [
-            { timeMilliseconds: 0, value: 1, easingToNext: "cubicInOut" },
+            { easingToNext: "cubicInOut", timeMilliseconds: 0, value: 1 },
             { timeMilliseconds: 1000, value: 0.5 },
           ],
           target: { kind: "host", property: "opacity" },
@@ -191,25 +191,25 @@ export default defineComponentStructure({
     tone: {
       accent: [
         {
-          targetId: "reference-text",
-          targetKind: "text",
           style: {
-            fontSize: 68,
             color: {
-              kind: "token-ref",
               category: "color",
+              kind: "token-ref",
               tokenId: "highlight",
             },
+            fontSize: 68,
           },
+          targetId: "reference-text",
+          targetKind: "text",
         },
       ],
       quiet: [
         {
-          targetId: "reference-text",
-          targetKind: "text",
           style: {
             fontSize: 60,
           },
+          targetId: "reference-text",
+          targetKind: "text",
         },
       ],
     },

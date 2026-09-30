@@ -7,9 +7,9 @@ import { analyzeAuthoringProject } from "../src/resolution/typecheck-authoring-p
 
 type PackageInput = {
   readonly dependencies?: ReadonlyArray<{
+    readonly packageIntegrity: string;
     readonly packageName: string;
     readonly packageVersion: string;
-    readonly packageIntegrity: string;
   }>;
   readonly exports: ReadonlyArray<{ readonly subpath: string; readonly targetFile: string }>;
   readonly files: ReadonlyArray<{ readonly fileName: string; readonly sourceText: string }>;

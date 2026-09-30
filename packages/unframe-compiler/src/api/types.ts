@@ -18,16 +18,16 @@ export type CompilerDeclarationProject = {
   assets: Readonly<Record<string, CompilerSourceAsset>>;
   components: ReadonlyArray<
     | {
+        lock: ComponentPackageLock & { mode: "structured" };
         manifest: ComponentManifest;
         structure: ComponentStructure;
-        lock: ComponentPackageLock & { mode: "structured" };
       }
     | {
+        lock: ComponentPackageLock & { mode: "opaque" };
         manifest: ComponentManifest;
         metadata: StaticComponentMetadata;
         rendererEntry: string;
         rendererSource: string;
-        lock: ComponentPackageLock & { mode: "opaque" };
       }
   >;
   presentation:

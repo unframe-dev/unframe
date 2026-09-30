@@ -123,10 +123,10 @@ const planOpaqueSurface = (
       interactionsByState,
       partitions: [
         {
-          plan,
-          pixelTarget,
-          partitionRendererKey: identity.partitionRendererKey,
           identityDescriptor: identity.descriptor,
+          partitionRendererKey: identity.partitionRendererKey,
+          pixelTarget,
+          plan,
         },
       ],
       semanticsByState,

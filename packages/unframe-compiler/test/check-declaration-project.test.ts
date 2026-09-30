@@ -20,9 +20,9 @@ import { compileDeclarationProject, checkDeclarationProject } from "../src/index
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
 type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
   components: Array<{
+    lock: ComponentPackageLock & { mode: "structured" };
     manifest: ComponentManifest;
     structure: ComponentStructure;
-    lock: ComponentPackageLock & { mode: "structured" };
   }>;
   presentation: PresentationDeclaration;
 };
@@ -45,7 +45,7 @@ const presentation = (): PresentationDeclaration => ({
   assets: [{ assetId: "reference-font", kind: "asset-ref" }],
   flow: {
     groups: {
-      group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } },
+      group: { id: "group", initialStepId: "step", steps: { step: { cues: [], id: "step" } } },
     },
     initialGroupId: "group",
     variables: {},
@@ -56,31 +56,31 @@ const presentation = (): PresentationDeclaration => ({
   scene: {
     components: [
       {
+        componentId: standardComponents.surface.manifest.componentId,
         id: "instance",
         kind: "component-instance",
-        componentId: standardComponents.surface.manifest.componentId,
-        version: 1,
         owner: { kind: "presentation" },
-        spatialNodeId: "spatial",
+        partOverrides: [],
         props: {},
         slots: {},
+        spatialNodeId: "spatial",
         variants: {},
-        partOverrides: [],
+        version: 1,
       },
     ],
     spatial: [
       {
+        active: true,
+        audience: { kind: "all" },
         id: "spatial",
         kind: "spatial",
         name: "Surface",
-        owner: { kind: "presentation" },
-        audience: { kind: "all" },
-        parent: { kind: "stage" },
-        order: 0,
-        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-        active: true,
-        visible: true,
         opacity: 1,
+        order: 0,
+        owner: { kind: "presentation" },
+        parent: { kind: "stage" },
+        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        visible: true,
       },
     ],
   },
@@ -104,14 +104,14 @@ const project = () => ({
   components: [
     {
       lock: {
+        manifestHash: "manifest",
         mode: "structured" as const,
         origin: {
-          kind: "local" as const,
           entryFile: "surface.ts",
           files: [],
+          kind: "local" as const,
           sourceHash: "sha256:source",
         },
-        manifestHash: "manifest",
         structureHash: "structure",
       },
       manifest: standardComponents.surface.manifest,
@@ -152,7 +152,7 @@ describe("checkDeclarationProject", () => {
       id: "react",
       props: {},
       semantics: {
-        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+        nodes: { title: { level: 1, order: 0, parentId: null, role: "heading", text: "Hello" } },
         rootNodeIds: ["title"],
       },
       surface: { logicalSize: [800, 450] },
@@ -175,14 +175,14 @@ describe("checkDeclarationProject", () => {
         ...input.components,
         {
           lock: {
+            manifestHash: "sha256:manifest",
             mode: "opaque",
             origin: {
-              kind: "local",
               entryFile: "react.component.tsx",
               files: [],
+              kind: "local",
               sourceHash: "sha256:source",
             },
-            manifestHash: "sha256:manifest",
             rendererInputHash: "sha256:renderer",
           },
           manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
@@ -234,11 +234,11 @@ describe("checkDeclarationProject", () => {
       semantics: {
         nodes: {
           button: {
-            role: "button",
-            parentId: null,
-            order: 0,
-            text: "Next",
             interactionId: "next",
+            order: 0,
+            parentId: null,
+            role: "button",
+            text: "Next",
           },
         },
         rootNodeIds: ["button"],
@@ -264,14 +264,14 @@ describe("checkDeclarationProject", () => {
         ...input.components,
         {
           lock: {
+            manifestHash: "sha256:manifest",
             mode: "opaque",
             origin: {
-              kind: "local",
               entryFile: "react.component.tsx",
               files: [],
+              kind: "local",
               sourceHash: "sha256:source",
             },
-            manifestHash: "sha256:manifest",
             rendererInputHash: "sha256:renderer",
           },
           manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
@@ -290,37 +290,37 @@ describe("checkDeclarationProject", () => {
               initialStepId: "step",
               steps: {
                 step: {
-                  id: "step",
                   cues: [
                     {
+                      actions: [],
                       id: "react-first",
                       trigger: {
-                        kind: "component.output",
                         componentInstanceId: "react-one",
+                        kind: "component.output",
                         outputId: "clicked",
                       },
-                      actions: [],
                     },
                     {
+                      actions: [],
                       id: "structured-second",
                       trigger: {
-                        kind: "component.output",
                         componentInstanceId: "instance",
+                        kind: "component.output",
                         outputId: "advanced",
                       },
-                      actions: [],
                     },
                     {
+                      actions: [],
                       id: "structured-explicit",
+                      order: 7,
                       trigger: {
-                        kind: "component.output",
                         componentInstanceId: "instance",
+                        kind: "component.output",
                         outputId: "skipped",
                       },
-                      actions: [],
-                      order: 7,
                     },
                   ],
+                  id: "step",
                 },
               },
             },
@@ -526,24 +526,24 @@ describe("checkDeclarationProject", () => {
           effects: [
             {
               kind: "setSurfaceState",
-              surfaceId: "surface-root",
               stateId: "active",
+              surfaceId: "surface-root",
               transition: {
-                kind: "crossfade",
+                completion: "blocking",
                 durationMilliseconds: 200,
                 easing: "linear",
-                completion: "blocking",
+                kind: "crossfade",
               },
             },
             {
               kind: "setVariable",
+              value: { inputId: "value", kind: "input" },
               variableId: "count",
-              value: { kind: "input", inputId: "value" },
             },
             {
               kind: "patchNode",
               nodeId: "spatial",
-              patch: { opacity: { kind: "eventPayload", field: "opacity" } },
+              patch: { opacity: { field: "opacity", kind: "eventPayload" } },
             },
           ],
           inputs: { value: "number" },
@@ -555,10 +555,10 @@ describe("checkDeclarationProject", () => {
         clicked: {
           kind: "output",
           payload: { opacity: { type: "number", value: 0.5 } },
-          producer: { kind: "surfaceInteraction", interactionId: "open" },
+          producer: { interactionId: "open", kind: "surfaceInteraction" },
         },
       },
-      states: { active: { kind: "state" }, default: { kind: "state", initial: true } },
+      states: { active: { kind: "state" }, default: { initial: true, kind: "state" } },
     };
     entry.structure = {
       ...entry.structure,
@@ -568,10 +568,10 @@ describe("checkDeclarationProject", () => {
           nodes: {
             "semantic-text": {
               id: "semantic-text",
-              parentId: null,
-              order: 0,
-              role: "button",
               interactionId: "open",
+              order: 0,
+              parentId: null,
+              role: "button",
               text: "Open",
             },
           },
@@ -580,8 +580,8 @@ describe("checkDeclarationProject", () => {
         interactions: { open: { event: "open", hitPriority: 0, id: "open", kind: "click" } },
         renderIntent: { ...root.renderIntent, interaction: "regions", updateModel: "finite-state" },
         states: {
-          active: { id: "active", semanticOverrides: [], enabledInteractionIds: ["open"] },
-          default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          active: { enabledInteractionIds: ["open"], id: "active", semanticOverrides: [] },
+          default: { enabledInteractionIds: ["open"], id: "default", semanticOverrides: [] },
         },
       },
     } as ComponentStructure;
@@ -614,7 +614,7 @@ describe("checkDeclarationProject", () => {
           group: {
             id: "group",
             initialStepId: "step",
-            steps: { done: { id: "done", cues: [] }, step: { id: "step", cues } },
+            steps: { done: { cues: [], id: "done" }, step: { cues, id: "step" } },
           },
         },
         variables: {
@@ -694,20 +694,20 @@ describe("checkDeclarationProject", () => {
               step: {
                 cues: [
                   {
-                    id: "advance",
-                    trigger: {
-                      kind: "component.output",
-                      componentInstanceId: "instance",
-                      outputId: "elapsed",
-                    },
+                    actions: [],
                     guard: {
                       kind: "compare",
                       left: { kind: "surfaceState", surfaceId: "surface-root" },
                       operator: "eq",
                       right: "default",
                     },
-                    actions: [],
+                    id: "advance",
                     next: { kind: "step", stepId: "done" },
+                    trigger: {
+                      componentInstanceId: "instance",
+                      kind: "component.output",
+                      outputId: "elapsed",
+                    },
                   },
                 ],
                 id: "step",
@@ -799,10 +799,10 @@ describe("checkDeclarationProject", () => {
             nodes: {
               "semantic-text": {
                 id: "semantic-text",
-                parentId: null,
-                order: 0,
-                role: "button",
                 interactionId: "open",
+                order: 0,
+                parentId: null,
+                role: "button",
                 text: "Open",
               },
             },
@@ -816,34 +816,35 @@ describe("checkDeclarationProject", () => {
           },
           states: {
             active: {
-              id: "active",
               contentOverrides: {
                 "frame-root": {
-                  kind: "frame",
-                  visible: true,
-                  opacity: 0.8,
-                  placement: { kind: "absolute", x: 1, y: 2, width: 1600, height: 900 },
-                  layout: { kind: "absolute" },
-                  backgroundColor: { kind: "token-ref", category: "color", tokenId: "accent" },
-                  border: { color: { red: 1, green: 0, blue: 0, alpha: 1 }, width: 2, radius: 3 },
+                  backgroundColor: { category: "color", kind: "token-ref", tokenId: "accent" },
+                  border: { color: { alpha: 1, blue: 0, green: 0, red: 1 }, radius: 3, width: 2 },
                   clip: true,
+                  kind: "frame",
+                  layout: { kind: "absolute" },
+                  opacity: 0.8,
+                  placement: { height: 900, kind: "absolute", width: 1600, x: 1, y: 2 },
+                  visible: true,
                 },
                 "text-content": {
                   kind: "text",
-                  visible: true,
                   opacity: 0.7,
-                  placement: { kind: "absolute", x: 10, y: 20, width: 1000, height: 100 },
-                  value: "Active",
+                  placement: { height: 100, kind: "absolute", width: 1000, x: 10, y: 20 },
                   style: {
+                    align: "center",
+                    color: { category: "color", kind: "token-ref", tokenId: "accent" },
                     fontSize: 44,
                     lineHeight: 50,
-                    color: { kind: "token-ref", category: "color", tokenId: "accent" },
-                    weight: "bold",
-                    align: "center",
                     overflow: "ellipsis",
+                    weight: "bold",
                   },
+                  value: "Active",
+                  visible: true,
                 },
               },
+              enabledInteractionIds: ["open"],
+              id: "active",
               semanticOverrides: [
                 {
                   id: "override",
@@ -852,9 +853,8 @@ describe("checkDeclarationProject", () => {
                   text: "Active",
                 },
               ],
-              enabledInteractionIds: ["open"],
             },
-            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+            default: { enabledInteractionIds: [], id: "default", semanticOverrides: [] },
           },
         } as SurfaceDeclaration,
       } as ComponentStructure,
@@ -1123,10 +1123,10 @@ describe("checkDeclarationProject", () => {
         title: {
           kind: "text",
           style: {
-            color: { kind: "token-ref", category: "color", tokenId: "inkAlias" },
-            fallbackFonts: [{ kind: "asset-ref", assetId: "reference-font" }],
-            font: { kind: "token-ref", category: "fontFace", tokenId: "face" },
-            fontSize: { kind: "token-ref", category: "logicalLength", tokenId: "sizeAlias" },
+            color: { category: "color", kind: "token-ref", tokenId: "inkAlias" },
+            fallbackFonts: [{ assetId: "reference-font", kind: "asset-ref" }],
+            font: { category: "fontFace", kind: "token-ref", tokenId: "face" },
+            fontSize: { category: "logicalLength", kind: "token-ref", tokenId: "sizeAlias" },
             lineHeight: 32,
           },
         },
@@ -1135,19 +1135,19 @@ describe("checkDeclarationProject", () => {
         ease: { category: "easing", value: "linear" },
         face: {
           category: "fontFace",
-          value: { kind: "asset-ref", assetId: "reference-font" },
+          value: { assetId: "reference-font", kind: "asset-ref" },
         },
-        ink: { category: "color", value: { red: 1, green: 0, blue: 0, alpha: 1 } },
+        ink: { category: "color", value: { alpha: 1, blue: 0, green: 0, red: 1 } },
         inkAlias: {
           category: "color",
-          value: { kind: "token-ref", category: "color", tokenId: "ink" },
+          value: { category: "color", kind: "token-ref", tokenId: "ink" },
         },
         meter: { category: "spatialLength", value: 1 },
         pause: { category: "duration", value: 100 },
         size: { category: "logicalLength", value: 24 },
         sizeAlias: {
           category: "logicalLength",
-          value: { kind: "token-ref", category: "logicalLength", tokenId: "size" },
+          value: { category: "logicalLength", kind: "token-ref", tokenId: "size" },
         },
       },
     };
@@ -1215,7 +1215,7 @@ describe("checkDeclarationProject", () => {
     ).toMatchObject({
       style: {
         align: "center",
-        color: { red: 1, green: 0, blue: 0, alpha: 1 },
+        color: { alpha: 1, blue: 0, green: 0, red: 1 },
         fallbackFontAssetIds: [],
         fontAssetId: "reference-font",
         fontSize: 36,
@@ -1351,17 +1351,17 @@ describe("checkDeclarationProject", () => {
           nodes: {
             "existing-child": {
               id: "existing-child",
-              parentId: null,
               order: 1,
+              parentId: null,
               role: "paragraph",
               text: "Existing",
             },
             "semantic-text": {
               id: "semantic-text",
-              parentId: null,
-              order: 0,
-              role: "heading",
               level: 1,
+              order: 0,
+              parentId: null,
+              role: "heading",
               text: "Unframe",
             },
           },
@@ -1402,7 +1402,7 @@ describe("checkDeclarationProject", () => {
       lock: {
         manifestHash: "badge-manifest",
         mode: "structured",
-        origin: { kind: "local", entryFile: "badge.ts", files: [], sourceHash: "sha256:badge" },
+        origin: { entryFile: "badge.ts", files: [], kind: "local", sourceHash: "sha256:badge" },
         structureHash: "badge-structure",
       },
       manifest: {
@@ -1420,39 +1420,39 @@ describe("checkDeclarationProject", () => {
       },
       structure: {
         baseSemanticTree: {
-          rootNodeIds: ["badge-semantic"],
           nodes: {
             "badge-semantic": {
               id: "badge-semantic",
-              parentId: null,
               order: 0,
+              parentId: null,
               role: "paragraph",
               text: "Badge",
             },
           },
+          rootNodeIds: ["badge-semantic"],
         },
         componentId: "badge",
         id: "badge-structure",
         partBindings: {},
         root: {
-          id: "badge-frame",
-          kind: "frame",
-          layout: { kind: "absolute", x: 100, y: 100, width: 300, height: 100 },
           children: [
             {
               id: "badge-text",
               kind: "text",
-              value: "Badge",
-              semanticNodeId: "badge-semantic",
+              layout: { height: 100, kind: "absolute", width: 300, x: 0, y: 0 },
               maxCodePoints: 16,
-              layout: { kind: "absolute", x: 0, y: 0, width: 300, height: 100 },
+              semanticNodeId: "badge-semantic",
               style: {
-                font: { kind: "asset-ref", assetId: "reference-font" },
+                font: { assetId: "reference-font", kind: "asset-ref" },
                 fontSize: 24,
                 lineHeight: 30,
               },
+              value: "Badge",
             },
           ],
+          id: "badge-frame",
+          kind: "frame",
+          layout: { height: 100, kind: "absolute", width: 300, x: 100, y: 100 },
         },
         timelines: [],
         variantStyles: {},
@@ -1942,7 +1942,7 @@ describe("checkDeclarationProject", () => {
                 initialStepId: "step",
                 steps: {
                   step: {
-                    cues: [{ actions: [], id: "cue", trigger: { kind: "event", event: "tap" } }],
+                    cues: [{ actions: [], id: "cue", trigger: { event: "tap", kind: "event" } }],
                     id: "step",
                   },
                 },
@@ -2217,23 +2217,23 @@ describe("compileDeclarationProject", () => {
       captures: Object.entries(input.plan.states)
         .filter(([, state]) => state.kind === "capture")
         .map(([stateId]) => ({
+          alphaMode: "opaque",
+          colorSpace: "srgb",
           id: `${stateId}:capture`,
-          stateId,
+          pixelSize: input.context.pixelTarget,
           rgba: Uint8Array.from(
             { length: input.context.pixelTarget[0] * input.context.pixelTarget[1] * 4 },
             (_, index) => (index % 4 === 3 ? 255 : 0),
           ),
-          pixelSize: input.context.pixelTarget,
-          colorSpace: "srgb",
-          alphaMode: "opaque",
+          stateId,
         })),
       diagnostics: [],
       ok: true,
       provenance: {
         ...renderer.identity,
-        inputHash: input.context.inputHash,
         buildContextHash: input.context.buildContextHash,
         environmentHash: input.context.environmentHash,
+        inputHash: input.context.inputHash,
         rendererConfigHash: input.context.rendererConfigHash,
         rendererFingerprint: createRendererFingerprint(
           renderer.identity,
@@ -2242,9 +2242,9 @@ describe("compileDeclarationProject", () => {
       },
       renderSurface: {
         id: input.plan.id,
-        semanticSurfaceId: input.plan.semanticSurfaceId,
-        logicalBounds: input.plan.logicalBounds,
         layer: input.plan.layer,
+        logicalBounds: input.plan.logicalBounds,
+        semanticSurfaceId: input.plan.semanticSurfaceId,
       },
     }),
     capabilities: {
@@ -2422,10 +2422,10 @@ describe("compileDeclarationProject", () => {
   it("partitions a painted root and a translucent group in canonical paint order", async () => {
     const input = partitionedInput();
     const seen: Array<{
-      context: readonly string[];
+      context: ReadonlyArray<string>;
       id: string;
       layer: number;
-      owned: readonly string[];
+      owned: ReadonlyArray<string>;
     }> = [];
     const observing: RendererPlugin = {
       ...renderer,
@@ -2481,11 +2481,11 @@ describe("compileDeclarationProject", () => {
               ...root.baseSemanticTree.nodes,
               button: {
                 id: "button",
-                parentId: null,
+                interactionId: "open",
                 order: 1,
+                parentId: null,
                 role: "button",
                 text: "Open",
-                interactionId: "open",
               },
             },
             rootNodeIds: ["semantic-text", "button"],
@@ -2582,7 +2582,7 @@ describe("compileDeclarationProject", () => {
         if (calls === 2) {
           return {
             diagnostics: [
-              { code: "test-renderer-failure", path: [], message: "Second partition failed." },
+              { code: "test-renderer-failure", message: "Second partition failed.", path: [] },
             ],
             ok: false,
           };
@@ -2652,11 +2652,11 @@ describe("compileDeclarationProject", () => {
             nodes: {
               "semantic-text": {
                 id: "semantic-text",
-                parentId: null,
+                interactionId: "open",
                 order: 0,
+                parentId: null,
                 role: "button",
                 text: "Open",
-                interactionId: "open",
               },
             },
             rootNodeIds: ["semantic-text"],
@@ -2666,7 +2666,7 @@ describe("compileDeclarationProject", () => {
           root: {
             ...root.root,
             children: [
-              { ...text, layout: { kind: "absolute", x: 1800, y: 0, width: 240, height: 100 } },
+              { ...text, layout: { height: 100, kind: "absolute", width: 240, x: 1800, y: 0 } },
             ],
             style: { clip: true },
           },
@@ -2715,7 +2715,7 @@ describe("compileDeclarationProject", () => {
             default: {
               contentOverrides: {
                 "frame-root": {
-                  backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 },
+                  backgroundColor: { alpha: 1, blue: 0, green: 0, red: 1 },
                   kind: "frame",
                 },
               },
@@ -2764,11 +2764,11 @@ describe("compileDeclarationProject", () => {
             nodes: {
               button: {
                 id: "button",
-                parentId: null,
+                interactionId: "open",
                 order: 0,
+                parentId: null,
                 role: "button",
                 text: "Open",
-                interactionId: "open",
               },
             },
             rootNodeIds: ["button"],
@@ -2829,11 +2829,11 @@ describe("compileDeclarationProject", () => {
               ...root.baseSemanticTree.nodes,
               "frame-button": {
                 id: "frame-button",
-                parentId: null,
+                interactionId: "open",
                 order: 1,
+                parentId: null,
                 role: "button",
                 text: "Open",
-                interactionId: "open",
               },
             },
             rootNodeIds: ["semantic-text", "frame-button"],
@@ -2945,7 +2945,7 @@ describe("compileDeclarationProject", () => {
       outputs: {},
       props: {},
       semantics: {
-        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+        nodes: { title: { level: 1, order: 0, parentId: null, role: "heading", text: "Hello" } },
         rootNodeIds: ["title"],
       },
       states,
@@ -2981,14 +2981,14 @@ describe("compileDeclarationProject", () => {
         components: [
           {
             lock: {
+              manifestHash: "sha256:manifest",
               mode: "opaque",
               origin: {
-                kind: "local",
                 entryFile: "large.component.tsx",
                 files: [],
+                kind: "local",
                 sourceHash: "sha256:source",
               },
-              manifestHash: "sha256:manifest",
               rendererInputHash: "sha256:renderer",
             },
             manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
@@ -3032,7 +3032,7 @@ describe("compileDeclarationProject", () => {
       outputs: {},
       props: {},
       semantics: {
-        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+        nodes: { title: { level: 1, order: 0, parentId: null, role: "heading", text: "Hello" } },
         rootNodeIds: ["title"],
       },
       states,
@@ -3056,14 +3056,14 @@ describe("compileDeclarationProject", () => {
         { ...entry, structure: largeStructure },
         {
           lock: {
+            manifestHash: "sha256:manifest",
             mode: "opaque",
             origin: {
-              kind: "local",
               entryFile: "large.component.tsx",
               files: [],
+              kind: "local",
               sourceHash: "sha256:source",
             },
-            manifestHash: "sha256:manifest",
             rendererInputHash: "sha256:renderer",
           },
           manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),

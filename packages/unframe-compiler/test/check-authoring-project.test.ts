@@ -35,15 +35,15 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
       contentIntegrity: `sha256:${"b".repeat(64)}`,
       dependencies: [],
       exports: [
-        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+        { runtimeImport: "index.ts", runtimeRequire: null, subpath: ".", types: "index.ts" },
       ],
       files: [
         {
-          path: "index.ts",
-          mediaType: "text/typescript",
-          hash: `sha256:${"c".repeat(64)}`,
-          encoding: "utf8",
           data: builders,
+          encoding: "utf8",
+          hash: `sha256:${"c".repeat(64)}`,
+          mediaType: "text/typescript",
+          path: "index.ts",
         },
       ],
       key: `sha256:${"a".repeat(64)}`,

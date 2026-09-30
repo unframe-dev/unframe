@@ -89,13 +89,13 @@ export const lowerCues = (
         let trigger: CanonicalCue["trigger"];
         let fixedPayload: CanonicalCue["fixedPayload"];
         let outputInstance: Instance | undefined;
-        if (cue.trigger.kind === "event")
+        if (cue.trigger.kind === "event") {
           trigger = {
-            kind: "semanticEvent",
-            event: cue.trigger.event,
             actor: { kind: "presenter" },
+            event: cue.trigger.event,
+            kind: "semanticEvent",
           };
-        else {
+        } else {
           const target = resolve(cue.trigger.componentInstanceId, [...path, "trigger"]);
           outputInstance = target?.instance;
           const output = target?.entry.manifest.outputs[cue.trigger.outputId];
@@ -112,16 +112,16 @@ export const lowerCues = (
           fixedPayload = Object.fromEntries(
             Object.entries(output.payload).map(([key, field]) => [key, field.value]),
           );
-          if (output.producer.kind === "surfaceInteraction")
+          if (output.producer.kind === "surfaceInteraction") {
             trigger = {
-              kind: "surfaceInteraction",
               actor: { kind: "presenter" },
-              surfaceId: resourceId(target!.instance.id, target!.entry.structure.root.id),
               interactionId: resourceId(target!.instance.id, output.producer.interactionId),
+              kind: "surfaceInteraction",
+              surfaceId: resourceId(target!.instance.id, target!.entry.structure.root.id),
             };
-          else if (output.producer.kind === "timer")
-            trigger = { kind: "timer", afterMilliseconds: output.producer.afterMilliseconds };
-          else if (output.producer.kind === "timelineCompleted") {
+          } else if (output.producer.kind === "timer") {
+            trigger = { afterMilliseconds: output.producer.afterMilliseconds, kind: "timer" };
+          } else if (output.producer.kind === "timelineCompleted") {
             const timelineId = output.producer.timelineId;
             if (!target!.entry.structure.timelines.some((timeline) => timeline.id === timelineId)) {
               diagnostics.push(
@@ -148,8 +148,10 @@ export const lowerCues = (
             continue;
           }
         }
-        const actions: CanonicalAction[] = [];
-        const guards: CanonicalGuard[] = cue.guard ? [lowerGuard(cue.guard, outputInstance)] : [];
+        const actions: Array<CanonicalAction> = [];
+        const guards: Array<CanonicalGuard> = cue.guard
+          ? [lowerGuard(cue.guard, outputInstance)]
+          : [];
         for (const [actionIndex, invocation] of cue.actions.entries()) {
           const actionPath = [...path, "actions", actionIndex];
           const target = resolve(invocation.componentInstanceId, actionPath);
@@ -164,8 +166,8 @@ export const lowerCues = (
             );
             continue;
           }
-          for (const key of Object.keys(invocation.arguments))
-            if (!Object.hasOwn(declaration.inputs, key))
+          for (const key of Object.keys(invocation.arguments)) {
+            if (!Object.hasOwn(declaration.inputs, key)) {
               diagnostics.push(
                 diagnostic(
                   "compiler-action-input-invalid",
@@ -173,8 +175,10 @@ export const lowerCues = (
                   "Action argument is not declared.",
                 ),
               );
-          for (const key of Object.keys(declaration.inputs))
-            if (!Object.hasOwn(invocation.arguments, key))
+            }
+          }
+          for (const key of Object.keys(declaration.inputs)) {
+            if (!Object.hasOwn(invocation.arguments, key)) {
               diagnostics.push(
                 diagnostic(
                   "compiler-action-input-invalid",
@@ -182,9 +186,13 @@ export const lowerCues = (
                   "Action argument is required.",
                 ),
               );
+            }
+          }
           for (const [key, expectedType] of Object.entries(declaration.inputs)) {
             const argument = invocation.arguments[key];
-            if (!argument) continue;
+            if (!argument) {
+              continue;
+            }
             const actualType =
               argument.kind === "literal"
                 ? argument.value === null
@@ -199,7 +207,7 @@ export const lowerCues = (
                         ? "null"
                         : typeof fixedPayload[argument.field]
                     : "input";
-            if (actualType !== undefined && actualType !== expectedType)
+            if (actualType !== undefined && actualType !== expectedType) {
               diagnostics.push(
                 diagnostic(
                   "compiler-action-input-type-mismatch",
@@ -207,8 +215,9 @@ export const lowerCues = (
                   "Action argument must match its declared scalar type.",
                 ),
               );
+            }
           }
-          for (const precondition of declaration.preconditions)
+          for (const precondition of declaration.preconditions) {
             guards.push({
               kind: "compare",
               left: {
@@ -218,22 +227,23 @@ export const lowerCues = (
               operator: "eq",
               right: resourceId(target!.instance.id, precondition.stateId),
             });
+          }
           for (const [effectIndex, effect] of declaration.effects.entries()) {
             const effectPath = [...actionPath, "effects", effectIndex];
-            if (effect.kind === "setSurfaceState")
+            if (effect.kind === "setSurfaceState") {
               actions.push({
                 kind: "surface.setState",
-                surfaceId: resourceId(target!.instance.id, effect.surfaceId),
                 stateId: resourceId(target!.instance.id, effect.stateId),
+                surfaceId: resourceId(target!.instance.id, effect.surfaceId),
                 ...(effect.transition ? { transition: effect.transition } : {}),
               });
-            else if (effect.kind === "setVariable")
+            } else if (effect.kind === "setVariable") {
               actions.push({
                 kind: "variable.set",
-                variableId: effect.variableId,
                 value: lowerValue(effect.value, invocation.arguments, effectPath),
+                variableId: effect.variableId,
               });
-            else if (effect.kind === "patchNode")
+            } else if (effect.kind === "patchNode") {
               actions.push({
                 kind: "node.patch",
                 nodeId: resourceId(target!.instance.id, effect.nodeId),
@@ -244,12 +254,12 @@ export const lowerCues = (
                   ]),
                 ),
               });
-            else if (effect.kind === "playTimeline") {
+            } else if (effect.kind === "playTimeline") {
               if (
                 !target!.entry.structure.timelines.some(
                   (timeline) => timeline.id === effect.timelineId,
                 )
-              )
+              ) {
                 diagnostics.push(
                   diagnostic(
                     "compiler-timeline-not-found",
@@ -257,13 +267,14 @@ export const lowerCues = (
                     "Timeline Action must reference a Timeline in the same Component.",
                   ),
                 );
-              else
+              } else {
                 actions.push({
-                  kind: "timeline.play",
-                  timelineId: resourceId(target!.instance.id, effect.timelineId),
                   completion: effect.completion,
                   conflict: "reject",
+                  kind: "timeline.play",
+                  timelineId: resourceId(target!.instance.id, effect.timelineId),
                 });
+              }
             }
           }
         }
@@ -272,19 +283,19 @@ export const lowerCues = (
           (cue.toStepId
             ? { kind: "step", stepId: cue.toStepId }
             : cue.toGroupId
-              ? { kind: "group", groupId: cue.toGroupId }
+              ? { groupId: cue.toGroupId, kind: "group" }
               : { kind: "stay" });
         groups[groupId]!.steps[stepId]!.cues.push({
           id: cue.id,
-          priority: cue.priority ?? 0,
           order: cue.order ?? index,
+          priority: cue.priority ?? 0,
           trigger,
           ...(fixedPayload ? { fixedPayload } : {}),
           ...(guards.length
-            ? { guard: guards.length === 1 ? guards[0] : { kind: "all", guards } }
+            ? { guard: guards.length === 1 ? guards[0] : { guards, kind: "all" } }
             : {}),
-          firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
           actions,
+          firePolicy: cue.firePolicy ?? { kind: "oncePerStepEntry" },
           next,
         });
       }

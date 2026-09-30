@@ -31,25 +31,25 @@ export const Reveal = defineComponent({
   ),
   semantics: {
     nodes: {
-      prompt: {
-        role: "heading",
-        level: 1,
-        parentId: null,
-        order: 0,
-        text: prop("prompt"),
-      },
       answer: {
-        role: "paragraph",
-        parentId: null,
         order: 1,
+        parentId: null,
+        role: "paragraph",
         text: prop("answer"),
       },
-      revealButton: {
-        role: "button",
+      prompt: {
+        level: 1,
+        order: 0,
         parentId: null,
-        order: 2,
-        text: "答えを表示",
+        role: "heading",
+        text: prop("prompt"),
+      },
+      revealButton: {
         interactionId: "reveal",
+        order: 2,
+        parentId: null,
+        role: "button",
+        text: "答えを表示",
       },
     },
     rootNodeIds: ["prompt", "answer", "revealButton"],
@@ -57,7 +57,7 @@ export const Reveal = defineComponent({
   states: {
     hidden: {
       enabledInteractionIds: ["reveal"],
-      semanticOverrides: [{ id: "hide-answer", targetId: "answer", included: false }],
+      semanticOverrides: [{ id: "hide-answer", included: false, targetId: "answer" }],
     },
     revealed: { enabledInteractionIds: [], semanticOverrides: [] },
   },

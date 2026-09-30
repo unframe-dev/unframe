@@ -56,8 +56,8 @@ describe("baked web renderer", () => {
       context: { ...source.context, pixelTarget: [40, 16] },
       plan: {
         ...source.plan,
-        clipWindow: { x: 12, y: 6, width: 20, height: 8 },
-        logicalBounds: { x: 12, y: 6, width: 20, height: 8 },
+        clipWindow: { height: 8, width: 20, x: 12, y: 6 },
+        logicalBounds: { height: 8, width: 20, x: 12, y: 6 },
         ownership: {
           contextNodeIds: ["root", "nested"],
           kind: "structured",
@@ -503,7 +503,7 @@ describe("baked web renderer", () => {
                 style: {
                   ...text.style,
                   align: "end",
-                  color: { red: 0, green: 1, blue: 0, alpha: 1 },
+                  color: { alpha: 1, blue: 0, green: 1, red: 0 },
                   fontSize: 12,
                   lineHeight: 14,
                   overflow: "ellipsis",
@@ -634,8 +634,8 @@ describe("baked web renderer", () => {
         ...input,
         plan: {
           ...input.plan,
-          clipWindow: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
-          logicalBounds: { x: 0, y: 0, width: Number.MIN_VALUE, height: 50 },
+          clipWindow: { height: 50, width: Number.MIN_VALUE, x: 0, y: 0 },
+          logicalBounds: { height: 50, width: Number.MIN_VALUE, x: 0, y: 0 },
         },
         surface: {
           ...input.surface,
@@ -646,11 +646,11 @@ describe("baked web renderer", () => {
               text: {
                 ...text,
                 placement: {
+                  height: 20,
                   kind: "absolute",
+                  width: Number.MIN_VALUE,
                   x: 0,
                   y: 0,
-                  width: Number.MIN_VALUE,
-                  height: 20,
                 },
                 value: { kind: "literal", value: "scaled" },
               },
@@ -674,8 +674,8 @@ describe("baked web renderer", () => {
     };
     const second = {
       nodes: {
-        a: { id: "a", parentId: null, order: 0, role: "paragraph" as const, text: "A" },
-        b: { id: "b", parentId: null, order: 1, role: "paragraph" as const, text: "B" },
+        a: { id: "a", order: 0, parentId: null, role: "paragraph" as const, text: "A" },
+        b: { id: "b", order: 1, parentId: null, role: "paragraph" as const, text: "B" },
       },
       rootNodeIds: ["a", "b"],
     };

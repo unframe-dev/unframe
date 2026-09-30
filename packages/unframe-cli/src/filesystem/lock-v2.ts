@@ -15,9 +15,9 @@ export type PackageSnapshot = {
   contentIntegrity: ContentHash;
   dependencies: Array<LockedDependency>;
   exports: Array<{
-    subpath: string;
     runtimeImport: string | null;
     runtimeRequire: string | null;
+    subpath: string;
     types: string | null;
   }>;
   files: Array<LockedFile>;
@@ -29,7 +29,7 @@ export type PackageSnapshot = {
 export type ComponentOrigin =
   | {
       entryFile: string;
-      files: Array<{ path: string; hash: ContentHash }>;
+      files: Array<{ hash: ContentHash; path: string }>;
       kind: "local";
       sourceHash: ContentHash;
     }
@@ -45,11 +45,11 @@ export type ComponentLock = {
 );
 export type UnframeLockV2 = {
   assets: Array<{
+    dataBase64: string;
+    hash: ContentHash;
     id: string;
     mediaType: string;
-    hash: ContentHash;
     size: number;
-    dataBase64: string;
   }>;
   componentLocks: Array<ComponentLock>;
   dependencyGraphHash: ContentHash;
@@ -60,7 +60,7 @@ export type UnframeLockV2 = {
   resolutionProfile: "browser-import-production-types-v1";
   rootDependencies: Array<LockedDependency>;
   schemaVersion: 2;
-  themeHashes: Array<{ themeId: string; hash: ContentHash }>;
+  themeHashes: Array<{ hash: ContentHash; themeId: string }>;
 };
 
 export const hashPackageLocator = (locator: string): ContentHash =>

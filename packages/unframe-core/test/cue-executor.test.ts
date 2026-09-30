@@ -70,7 +70,7 @@ describe("pure Cue executor", () => {
         actions: [
           {
             kind: "variable.set",
-            value: { kind: "eventPayload", field: "missing" },
+            value: { field: "missing", kind: "eventPayload" },
             variableId: "count",
           },
         ],
@@ -187,7 +187,7 @@ describe("pure Cue executor", () => {
         actions: [
           {
             kind: "variable.set",
-            value: { kind: "eventPayload", field: "value" },
+            value: { field: "value", kind: "eventPayload" },
             variableId: "count",
           },
         ],

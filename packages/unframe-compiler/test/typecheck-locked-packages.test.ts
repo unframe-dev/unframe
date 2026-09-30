@@ -7,7 +7,7 @@ import { collectPackageValueProvenance } from "../src/resolution/symbol-provenan
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 type PackageInput = {
-  dependencies?: Array<{ packageName: string; packageVersion: string; packageIntegrity: string }>;
+  dependencies?: Array<{ packageIntegrity: string; packageName: string; packageVersion: string }>;
   exports: Array<{ subpath: string; targetFile: string }>;
   files: Array<{ fileName: string; sourceText: string }>;
   packageIntegrity?: string;

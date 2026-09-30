@@ -8,14 +8,14 @@ export const buttonVariants = cva(
   {
     defaultVariants: { size: "default", variant: "default" },
     variants: {
-      size: { default: "h-11", sm: "h-9 px-4 text-xs", icon: "size-11 px-0" },
+      size: { default: "h-11", icon: "size-11 px-0", sm: "h-9 px-4 text-xs" },
       variant: {
         default: "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]",
-        outline:
-          "border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--interactive-blue)] hover:bg-[var(--interactive-blue-soft)] hover:text-[var(--interactive-blue-ink)]",
+        destructive: "bg-[var(--destructive)] text-white hover:bg-[var(--destructive-hover)]",
         ghost:
           "text-[var(--foreground)] hover:bg-[var(--interactive-blue-soft)] hover:text-[var(--interactive-blue-ink)]",
-        destructive: "bg-[var(--destructive)] text-white hover:bg-[var(--destructive-hover)]",
+        outline:
+          "border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--interactive-blue)] hover:bg-[var(--interactive-blue-soft)] hover:text-[var(--interactive-blue-ink)]",
       },
     },
   },

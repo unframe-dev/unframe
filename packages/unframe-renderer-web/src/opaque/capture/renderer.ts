@@ -57,7 +57,7 @@ export const createOpaqueBakedWebRenderer = (options: {
     build: async (raw) => {
       const prepared = prepareRendererBuildInput(raw, plugin);
       if (!prepared.valid) {
-        return { ok: false, diagnostics: prepared.diagnostics };
+        return { diagnostics: prepared.diagnostics, ok: false };
       }
       const input = prepared.value;
       if (input.context.locale !== "ja-JP" || input.context.timezone !== "Asia/Tokyo") {
@@ -181,10 +181,10 @@ export const createOpaqueBakedWebRenderer = (options: {
             }
             regions.push({
               bounds: {
+                height: binding.height / input.surface.logicalSize[1],
+                width: binding.width / input.surface.logicalSize[0],
                 x: binding.x / input.surface.logicalSize[0],
                 y: binding.y / input.surface.logicalSize[1],
-                width: binding.width / input.surface.logicalSize[0],
-                height: binding.height / input.surface.logicalSize[1],
               },
               coordinateSpace: "normalized",
               interactionId: node.interactionId,
@@ -211,17 +211,17 @@ export const createOpaqueBakedWebRenderer = (options: {
           ok: true,
           provenance: {
             ...identity,
-            inputHash: input.context.inputHash,
             buildContextHash: input.context.buildContextHash,
             environmentHash: input.context.environmentHash,
+            inputHash: input.context.inputHash,
             rendererConfigHash: input.context.rendererConfigHash,
             rendererFingerprint: input.context.rendererFingerprint,
           },
           renderSurface: {
             id: input.plan.id,
-            semanticSurfaceId: input.plan.semanticSurfaceId,
-            logicalBounds: input.plan.logicalBounds,
             layer: input.plan.layer,
+            logicalBounds: input.plan.logicalBounds,
+            semanticSurfaceId: input.plan.semanticSurfaceId,
           },
         };
       } catch (error) {

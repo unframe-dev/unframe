@@ -36,15 +36,15 @@ const project = (files: ReadonlyArray<VirtualFile>) => ({
       contentIntegrity: hashCanonicalJsonPayload(builders),
       dependencies: [],
       exports: [
-        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+        { runtimeImport: "index.ts", runtimeRequire: null, subpath: ".", types: "index.ts" },
       ],
       files: [
         {
-          path: "index.ts",
-          mediaType: "text/typescript",
-          hash: hashCanonicalJsonPayload(builders),
-          encoding: "utf8",
           data: builders,
+          encoding: "utf8",
+          hash: hashCanonicalJsonPayload(builders),
+          mediaType: "text/typescript",
+          path: "index.ts",
         },
       ],
       key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),

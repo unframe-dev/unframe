@@ -189,7 +189,7 @@ const documentFor = (
   const rootPlacement = root.placement;
   const referencedFontIds = new Set<string>();
   const textFontRequirements: Array<{
-    readonly fontIds: readonly string[];
+    readonly fontIds: ReadonlyArray<string>;
     readonly nodeId: string;
     readonly value: string;
   }> = [];

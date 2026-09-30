@@ -16,19 +16,19 @@ export function createStarterPresentationDefinition(
         anchoredElementGroups: [],
         elements: [
           {
-            id: "initial-element",
-            type: "text",
             content: { text: "" },
+            id: "initial-element",
             initialState: {
               active: true,
-              visible: true,
               opacity: 1,
               transform: {
                 position: [0, 0, 0],
                 rotation: [0, 0, 0, 1],
                 scale: [1, 1, 1],
               },
+              visible: true,
             },
+            type: "text",
           },
         ],
         id: "initial-group",
@@ -36,16 +36,16 @@ export function createStarterPresentationDefinition(
           {
             cues: [
               {
-                id: "initial-cue",
-                trigger: { kind: "button", action: "start" },
                 actions: [
                   {
+                    active: true,
                     kind: "setActive",
                     targetElementId: "initial-element",
-                    active: true,
                   },
                 ],
+                id: "initial-cue",
                 next: { kind: "end" },
+                trigger: { action: "start", kind: "button" },
               },
             ],
             id: "initial-step",

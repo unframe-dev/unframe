@@ -5,7 +5,7 @@ type LockedOrigin = {
   readonly origin:
     | { readonly kind: "package" }
     | {
-        readonly files: ReadonlyArray<{ readonly path: string; readonly hash: string }>;
+        readonly files: ReadonlyArray<{ readonly hash: string; readonly path: string }>;
         readonly kind: "local";
       };
 };

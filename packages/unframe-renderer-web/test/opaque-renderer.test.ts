@@ -45,11 +45,11 @@ const makeRenderer = (
     config,
     programs: [
       {
-        assets: [{ path: "hero.png", mediaType: "image/png", dataBase64: "AQ==" }],
+        assets: [{ dataBase64: "AQ==", mediaType: "image/png", path: "hero.png" }],
         entryId: "opaque-entry",
         javascript: "opaque-bundle",
         moduleHash: "sha256:module",
-        props: { title: "Prop title", density: 2, featured: true },
+        props: { density: 2, featured: true, title: "Prop title" },
         stylesheets: ["theme.css"],
         ...(stateKeysById ? { stateKeysById } : {}),
       } satisfies OpaqueRenderProgram,
@@ -86,7 +86,7 @@ const inputForRenderer = (
     surface: {
       ...source.surface,
       baseSemanticTree: semantics,
-      content: { kind: "opaque", bindings },
+      content: { bindings, kind: "opaque" },
       initialStateId: "default",
       states: {
         default: {
@@ -230,7 +230,7 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
             enabledInteractionIds: [],
             id: "alternate",
             semanticOverrides: [
-              { nodes: { paragraph: { included: false }, heading: { text: "Alternate title" } } },
+              { nodes: { heading: { text: "Alternate title" }, paragraph: { included: false } } },
             ],
           },
         },
@@ -321,15 +321,15 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
       sourceIntent: { ...input.sourceIntent, interaction: { events: ["reveal"], kind: "regions" } },
       surface: {
         ...input.surface,
-        baseSemanticTree: { rootNodeIds: tree.rootNodeIds, nodes: { ...semantics.nodes, button } },
+        baseSemanticTree: { nodes: { ...semantics.nodes, button }, rootNodeIds: tree.rootNodeIds },
         content: {
+          bindings: { "node:body": "paragraph", "node:button": "button", "node:title": "heading" },
           kind: "opaque",
-          bindings: { "node:title": "heading", "node:body": "paragraph", "node:button": "button" },
         },
-        interactions: { reveal: { id: "reveal", kind: "click", event: "reveal", hitPriority: 3 } },
+        interactions: { reveal: { event: "reveal", hitPriority: 3, id: "reveal", kind: "click" } },
         renderIntent: {
           ...input.surface.renderIntent,
-          interaction: { kind: "regions", events: ["reveal"] },
+          interaction: { events: ["reveal"], kind: "regions" },
         },
         states: {
           default: { ...input.surface.states.default!, enabledInteractionIds: ["reveal"] },
@@ -464,12 +464,12 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
       sourceIntent: { ...input.sourceIntent, interaction: { events: ["a", "Z"], kind: "regions" } },
       surface: {
         ...input.surface,
-        baseSemanticTree: { rootNodeIds, nodes: { ...semantics.nodes, ...buttons } },
-        content: { kind: "opaque", bindings },
+        baseSemanticTree: { nodes: { ...semantics.nodes, ...buttons }, rootNodeIds },
+        content: { bindings, kind: "opaque" },
         interactions,
         renderIntent: {
           ...input.surface.renderIntent,
-          interaction: { kind: "regions", events: ["a", "Z"] },
+          interaction: { events: ["a", "Z"], kind: "regions" },
         },
         states: {
           default: { ...input.surface.states.default!, enabledInteractionIds: ["a", "Z"] },

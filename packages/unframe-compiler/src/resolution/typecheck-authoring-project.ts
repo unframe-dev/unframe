@@ -216,12 +216,12 @@ export const analyzeAuthoringProject = (
       diagnostics: [
         {
           code: "compiler-project-entry-invariant-invalid",
+          column: 1,
+          end: 0,
           fileName: "",
+          line: 1,
           message: "Parsed project entry source is unavailable.",
           start: 0,
-          end: 0,
-          line: 1,
-          column: 1,
         },
       ],
       ok: false,

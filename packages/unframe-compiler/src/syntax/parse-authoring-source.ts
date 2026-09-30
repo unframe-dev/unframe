@@ -77,12 +77,12 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
       diagnostics: [
         {
           code: "compiler-invalid-input",
+          column: 1,
           fileName: "",
-          message: "Authoring source input cannot be inspected safely.",
-          start: 0,
           length: 0,
           line: 1,
-          column: 1,
+          message: "Authoring source input cannot be inspected safely.",
+          start: 0,
         },
       ],
       ok: false,
@@ -93,12 +93,12 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
+          column: 1,
           fileName: "",
-          message: "Authoring source input must contain a file name and source text.",
-          start: 0,
           length: 0,
           line: 1,
-          column: 1,
+          message: "Authoring source input must contain a file name and source text.",
+          start: 0,
         },
       ],
       ok: false,
@@ -110,12 +110,12 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
+          column: 1,
           fileName: "",
-          message: "Authoring source input must contain a file name and source text.",
-          start: 0,
           length: 0,
           line: 1,
-          column: 1,
+          message: "Authoring source input must contain a file name and source text.",
+          start: 0,
         },
       ],
       ok: false,
@@ -128,12 +128,12 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
       diagnostics: [
         {
           code: "compiler-source-kind-unsupported",
+          column: 1,
           fileName,
-          message: "Authoring source must use a TypeScript source or declaration file name.",
-          start: 0,
           length: 0,
           line: 1,
-          column: 1,
+          message: "Authoring source must use a TypeScript source or declaration file name.",
+          start: 0,
         },
       ],
       ok: false,

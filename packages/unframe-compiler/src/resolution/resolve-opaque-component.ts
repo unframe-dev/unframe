@@ -338,12 +338,12 @@ export const resolveOpaqueProject = (
         interaction:
           metadata.interactions && Object.keys(metadata.interactions).length
             ? {
-                kind: "regions",
                 events: [
                   ...new Set(
                     Object.values(metadata.interactions).map((interaction) => interaction.event),
                   ),
                 ].sort(),
+                kind: "regions",
               }
             : { kind: "none" },
         updateModel: metadata.states
@@ -477,8 +477,8 @@ export const resolveOpaqueProject = (
             if (effect.kind === "setSurfaceState") {
               actions.push({
                 kind: "surface.setState",
-                surfaceId: reactResourceId("surface", targetInstance.id),
                 stateId: reactResourceId("state", targetInstance.id, effect.stateId),
+                surfaceId: reactResourceId("surface", targetInstance.id),
                 ...(effect.transition ? { transition: effect.transition } : {}),
               });
             }
@@ -563,7 +563,7 @@ export const resolveOpaqueProject = (
     diagnostics: [],
     valid: true,
     value: {
-      assetSet: { schemaVersion: 2, assets: checkedAssets.assetSetAssets },
+      assetSet: { assets: checkedAssets.assetSetAssets, schemaVersion: 2 },
       definition: checked.value,
       definitionHash: definitionHash.value,
       definitionJson: canonical.value,

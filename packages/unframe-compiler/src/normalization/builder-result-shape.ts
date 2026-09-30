@@ -8,8 +8,8 @@ export type BuilderResultShape =
   | { readonly kind: "identity"; readonly objectArgument: 0 }
   | {
       readonly fields: ReadonlyArray<{
-        readonly key: string;
         readonly argument: number;
+        readonly key: string;
         readonly valueType: "string" | "number";
       }>;
       readonly kind: "positional";

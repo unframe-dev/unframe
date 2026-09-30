@@ -47,7 +47,7 @@ const createProject = async () => {
     assets: [],
     flow: {
       groups: {
-        main: { id: "main", initialStepId: "first", steps: { first: { id: "first", cues: [] } } },
+        main: { id: "main", initialStepId: "first", steps: { first: { cues: [], id: "first" } } },
       },
       initialGroupId: "main",
       variables: {},
@@ -238,7 +238,7 @@ describe("author service with frozen React source", () => {
         await finish;
         return {
           assets: new Map([["image", { bytes: new Uint8Array([1]), mediaType: "image/png" }]]),
-          catalog: [{ assetId: "image", mediaType: "image/png", instanceId: "hero-one" }],
+          catalog: [{ assetId: "image", instanceId: "hero-one", mediaType: "image/png" }],
         };
       },
       run: async () => ({ exitCode: 0 as const, stderr: "", stdout: "" }),

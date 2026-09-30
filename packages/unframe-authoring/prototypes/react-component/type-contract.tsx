@@ -57,7 +57,7 @@ const optional = defineComponent({
     return <p {...bindings.caption}>{texts.caption}</p>;
   },
   semantics: {
-    nodes: { caption: { role: "paragraph", parentId: null, order: 0, text: prop("caption") } },
+    nodes: { caption: { order: 0, parentId: null, role: "paragraph", text: prop("caption") } },
     rootNodeIds: ["caption"],
   },
   surface: { logicalSize: [960, 540] },

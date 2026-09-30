@@ -38,6 +38,7 @@ export default defineConfig({
         ...(nkzw.rules && { rules: warnExplicitErrors(nkzw.rules) }),
       },
     ],
+    ignorePatterns: ["packages/contracts/src/control-plane.openapi.ts", "*d.ts"],
     overrides: [
       {
         files: ["packages/unframe-*/src/**/*.{ts,tsx}"],

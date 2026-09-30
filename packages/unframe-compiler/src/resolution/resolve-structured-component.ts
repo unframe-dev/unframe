@@ -44,11 +44,11 @@ export type ResolvedStructuredComponent = {
   ) => CoreContentOverride | undefined;
   readonly rootFrameId: string;
   readonly slotPlaceholders: ReadonlyArray<{
+    readonly order: number;
     readonly parentFrameId: string;
     readonly placeholderId: string;
-    readonly slotId: string;
     readonly semanticParentId?: string;
-    readonly order: number;
+    readonly slotId: string;
   }>;
 };
 
@@ -568,18 +568,19 @@ export const resolveStructuredComponent = ({
     for (const [optionId, overrides] of Object.entries(options)) {
       for (const override of overrides) {
         const targetKind = nodeKinds.get(override.targetId);
-        if (targetKind === undefined || targetKind === "slot-placeholder")
+        if (targetKind === undefined || targetKind === "slot-placeholder") {
           failure(
             "compiler-variant-target-not-found",
             [...path, "structure", "variantStyles", variantId, optionId, override.targetId],
             "Variant style targets must name an existing primitive.",
           );
-        else if (targetKind !== override.targetKind)
+        } else if (targetKind !== override.targetKind) {
           failure(
             "compiler-variant-kind-mismatch",
             [...path, "structure", "variantStyles", variantId, optionId, override.targetId],
             "Variant target kind must match its primitive.",
           );
+        }
       }
     }
   }
