@@ -241,8 +241,9 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
 
     expect(result.valid).toBe(true);
     expect(requests.map(({ stateKey }) => stateKey)).toEqual(["revealed", "initial"]);
+    expect(requests[0]?.bindingKeys).toHaveLength(2);
+    expect(requests[0]?.bindingKeys).toEqual(expect.arrayContaining(["node:body", "node:title"]));
     expect(requests[0]).toMatchObject({
-      bindingKeys: ["node:title", "node:body"],
       expectedBindings: { "node:title": "Alternate title" },
       texts: { body: "Opaque body", title: "Alternate title" },
     });

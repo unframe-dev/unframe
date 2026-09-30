@@ -2,33 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "number",
-      "const": 2
-    },
-    "reliableSequence": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
-    "lastIngressSequence": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
-    "lastAllocatedRunSequence": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
     "clock": {
       "type": "object",
       "properties": {
-        "runtimeTimeMilliseconds": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
         "lifecycle": {
           "oneOf": [
             {
@@ -73,10 +49,25 @@
               "additionalProperties": false
             }
           ]
+        },
+        "runtimeTimeMilliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
-      "required": ["runtimeTimeMilliseconds", "lifecycle"],
+      "required": ["lifecycle", "runtimeTimeMilliseconds"],
       "additionalProperties": false
+    },
+    "lastAllocatedRunSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "lastIngressSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
     },
     "progression": {
       "type": "object",
@@ -85,23 +76,13 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
         },
-        "groupEntryEpoch": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 9007199254740991
-        },
         "currentStepId": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
         },
-        "stepEntryEpoch": {
+        "groupEntryEpoch": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 9007199254740991
-        },
-        "stepEnteredAtRuntimeTimeMilliseconds": {
-          "type": "integer",
-          "minimum": 0,
           "maximum": 9007199254740991
         },
         "phase": {
@@ -120,23 +101,6 @@
             {
               "type": "object",
               "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "transitioning"
-                },
-                "cueId": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                },
-                "causeEventId": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                },
-                "stepEntryEpoch": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 9007199254740991
-                },
                 "blockingRunIds": {
                   "type": "array",
                   "items": {
@@ -156,6 +120,18 @@
                     "required": ["assignmentEpoch", "runSequence"],
                     "additionalProperties": false
                   }
+                },
+                "causeEventId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                },
+                "cueId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "transitioning"
                 },
                 "pendingNext": {
                   "anyOf": [
@@ -199,52 +175,71 @@
                     {
                       "type": "object",
                       "properties": {
-                        "kind": {
-                          "type": "string",
-                          "const": "group"
-                        },
                         "groupId": {
                           "type": "string",
                           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "group"
                         }
                       },
-                      "required": ["kind", "groupId"],
+                      "required": ["groupId", "kind"],
                       "additionalProperties": false
                     }
                   ]
+                },
+                "stepEntryEpoch": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
                 }
               },
               "required": [
-                "kind",
-                "cueId",
-                "causeEventId",
-                "stepEntryEpoch",
                 "blockingRunIds",
-                "pendingNext"
+                "causeEventId",
+                "cueId",
+                "kind",
+                "pendingNext",
+                "stepEntryEpoch"
               ],
               "additionalProperties": false
             }
           ]
-        }
-      },
-      "required": [
-        "currentGroupId",
-        "groupEntryEpoch",
-        "currentStepId",
-        "stepEntryEpoch",
-        "stepEnteredAtRuntimeTimeMilliseconds",
-        "phase"
-      ],
-      "additionalProperties": false
-    },
-    "stepExecution": {
-      "type": "object",
-      "properties": {
+        },
+        "stepEnteredAtRuntimeTimeMilliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
         "stepEntryEpoch": {
           "type": "integer",
           "minimum": 1,
           "maximum": 9007199254740991
-        },
+        }
+      },
+      "required": [
+        "currentGroupId",
+        "currentStepId",
+        "groupEntryEpoch",
+        "phase",
+        "stepEnteredAtRuntimeTimeMilliseconds",
+        "stepEntryEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "reliableSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 2
+    },
+    "stepExecution": {
+      "type": "object",
+      "properties": {
         "consumedCueIds": {
           "type": "array",
           "items": {
@@ -264,6 +259,11 @@
             "maximum": 9007199254740991
           }
         },
+        "stepEntryEpoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
         "timerStates": {
           "type": "object",
           "propertyNames": {
@@ -275,17 +275,17 @@
               {
                 "type": "object",
                 "properties": {
-                  "kind": {
-                    "type": "string",
-                    "const": "armed"
-                  },
                   "dueAtRuntimeTimeMilliseconds": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "armed"
                   }
                 },
-                "required": ["kind", "dueAtRuntimeTimeMilliseconds"],
+                "required": ["dueAtRuntimeTimeMilliseconds", "kind"],
                 "additionalProperties": false
               },
               {
@@ -304,47 +304,298 @@
         }
       },
       "required": [
-        "stepEntryEpoch",
         "consumedCueIds",
         "cooldownUntilRuntimeTimeMilliseconds",
+        "stepEntryEpoch",
         "timerStates"
       ],
       "additionalProperties": false
     },
-    "surfaceStates": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string",
-        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "stateId": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-          },
-          "transitionRunId": {
+    "activeRuns": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
             "type": "object",
             "properties": {
-              "assignmentEpoch": {
+              "cause": {
+                "type": "object",
+                "properties": {
+                  "causeEventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "cueId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "stepEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "stepId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  }
+                },
+                "required": [
+                  "causeEventId",
+                  "cueId",
+                  "groupEntryEpoch",
+                  "groupId",
+                  "stepEntryEpoch",
+                  "stepId"
+                ],
+                "additionalProperties": false
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "presentation"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "groupEntryEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "groupId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "group"
+                      }
+                    },
+                    "required": ["groupEntryEpoch", "groupId", "kind"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "startedAtRuntimeTimeMilliseconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "completion": {
+                "type": "string",
+                "enum": ["blocking", "nonBlocking"]
+              },
+              "kind": {
+                "type": "string",
+                "const": "timeline"
+              },
+              "timelineId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              }
+            },
+            "required": [
+              "cause",
+              "owner",
+              "runId",
+              "startedAtRuntimeTimeMilliseconds",
+              "completion",
+              "kind",
+              "timelineId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "cause": {
+                "type": "object",
+                "properties": {
+                  "causeEventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "cueId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "stepEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "stepId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  }
+                },
+                "required": [
+                  "causeEventId",
+                  "cueId",
+                  "groupEntryEpoch",
+                  "groupId",
+                  "stepEntryEpoch",
+                  "stepId"
+                ],
+                "additionalProperties": false
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "presentation"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "groupEntryEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "groupId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "group"
+                      }
+                    },
+                    "required": ["groupEntryEpoch", "groupId", "kind"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "startedAtRuntimeTimeMilliseconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "completion": {
+                "type": "string",
+                "const": "blocking"
+              },
+              "durationMilliseconds": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 9007199254740991
               },
-              "runSequence": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991
+              "easing": {
+                "type": "string",
+                "enum": ["linear", "cubicIn", "cubicOut", "cubicInOut"]
+              },
+              "fromStateId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "kind": {
+                "type": "string",
+                "const": "surfaceTransition"
+              },
+              "surfaceId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "toStateId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
               }
             },
-            "required": ["assignmentEpoch", "runSequence"],
+            "required": [
+              "cause",
+              "owner",
+              "runId",
+              "startedAtRuntimeTimeMilliseconds",
+              "completion",
+              "durationMilliseconds",
+              "easing",
+              "fromStateId",
+              "kind",
+              "surfaceId",
+              "toStateId"
+            ],
             "additionalProperties": false
           }
-        },
-        "required": ["stateId"],
-        "additionalProperties": false
+        ]
       }
+    },
+    "mediaStates": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "modelClipStates": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
     },
     "nodeStates": {
       "type": "object",
@@ -356,9 +607,6 @@
         "type": "object",
         "properties": {
           "active": {
-            "type": "boolean"
-          },
-          "visible": {
             "type": "boolean"
           },
           "opacity": {
@@ -429,21 +677,49 @@
             },
             "required": ["position", "rotation", "scale"],
             "additionalProperties": false
+          },
+          "visible": {
+            "type": "boolean"
           }
         },
-        "required": ["active", "visible", "opacity", "transform"],
+        "required": ["active", "opacity", "transform", "visible"],
         "additionalProperties": false
       }
     },
-    "mediaStates": {
+    "surfaceStates": {
       "type": "object",
-      "properties": {},
-      "additionalProperties": false
-    },
-    "modelClipStates": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "stateId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+          },
+          "transitionRunId": {
+            "type": "object",
+            "properties": {
+              "assignmentEpoch": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "runSequence": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["assignmentEpoch", "runSequence"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["stateId"],
+        "additionalProperties": false
+      }
     },
     "variables": {
       "type": "object",
@@ -468,290 +744,9 @@
         ]
       }
     },
-    "activeRuns": {
-      "type": "array",
-      "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "runId": {
-                "type": "object",
-                "properties": {
-                  "assignmentEpoch": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  },
-                  "runSequence": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  }
-                },
-                "required": ["assignmentEpoch", "runSequence"],
-                "additionalProperties": false
-              },
-              "owner": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "presentation"
-                      }
-                    },
-                    "required": ["kind"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "group"
-                      },
-                      "groupId": {
-                        "type": "string",
-                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                      },
-                      "groupEntryEpoch": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 9007199254740991
-                      }
-                    },
-                    "required": ["kind", "groupId", "groupEntryEpoch"],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              "cause": {
-                "type": "object",
-                "properties": {
-                  "cueId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "causeEventId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "groupId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "groupEntryEpoch": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  },
-                  "stepId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "stepEntryEpoch": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  }
-                },
-                "required": [
-                  "cueId",
-                  "causeEventId",
-                  "groupId",
-                  "groupEntryEpoch",
-                  "stepId",
-                  "stepEntryEpoch"
-                ],
-                "additionalProperties": false
-              },
-              "startedAtRuntimeTimeMilliseconds": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 9007199254740991
-              },
-              "kind": {
-                "type": "string",
-                "const": "timeline"
-              },
-              "timelineId": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-              },
-              "completion": {
-                "type": "string",
-                "enum": ["blocking", "nonBlocking"]
-              }
-            },
-            "required": [
-              "runId",
-              "owner",
-              "cause",
-              "startedAtRuntimeTimeMilliseconds",
-              "kind",
-              "timelineId",
-              "completion"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "runId": {
-                "type": "object",
-                "properties": {
-                  "assignmentEpoch": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  },
-                  "runSequence": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  }
-                },
-                "required": ["assignmentEpoch", "runSequence"],
-                "additionalProperties": false
-              },
-              "owner": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "presentation"
-                      }
-                    },
-                    "required": ["kind"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "const": "group"
-                      },
-                      "groupId": {
-                        "type": "string",
-                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                      },
-                      "groupEntryEpoch": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 9007199254740991
-                      }
-                    },
-                    "required": ["kind", "groupId", "groupEntryEpoch"],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              "cause": {
-                "type": "object",
-                "properties": {
-                  "cueId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "causeEventId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "groupId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "groupEntryEpoch": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  },
-                  "stepId": {
-                    "type": "string",
-                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-                  },
-                  "stepEntryEpoch": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  }
-                },
-                "required": [
-                  "cueId",
-                  "causeEventId",
-                  "groupId",
-                  "groupEntryEpoch",
-                  "stepId",
-                  "stepEntryEpoch"
-                ],
-                "additionalProperties": false
-              },
-              "startedAtRuntimeTimeMilliseconds": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 9007199254740991
-              },
-              "kind": {
-                "type": "string",
-                "const": "surfaceTransition"
-              },
-              "surfaceId": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-              },
-              "fromStateId": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-              },
-              "toStateId": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-              },
-              "durationMilliseconds": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 9007199254740991
-              },
-              "completion": {
-                "type": "string",
-                "const": "blocking"
-              },
-              "easing": {
-                "type": "string",
-                "enum": ["linear", "cubicIn", "cubicOut", "cubicInOut"]
-              }
-            },
-            "required": [
-              "runId",
-              "owner",
-              "cause",
-              "startedAtRuntimeTimeMilliseconds",
-              "kind",
-              "surfaceId",
-              "fromStateId",
-              "toStateId",
-              "durationMilliseconds",
-              "completion",
-              "easing"
-            ],
-            "additionalProperties": false
-          }
-        ]
-      }
-    },
     "presentationOrigin": {
       "type": "object",
       "properties": {
-        "version": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
         "pose": {
           "type": "object",
           "properties": {
@@ -795,9 +790,14 @@
           },
           "required": ["position", "rotation"],
           "additionalProperties": false
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
-      "required": ["version", "pose"],
+      "required": ["pose", "version"],
       "additionalProperties": false
     },
     "recentEventIds": {
@@ -809,19 +809,19 @@
     }
   },
   "required": [
-    "schemaVersion",
-    "reliableSequence",
-    "lastIngressSequence",
-    "lastAllocatedRunSequence",
     "clock",
+    "lastAllocatedRunSequence",
+    "lastIngressSequence",
     "progression",
+    "reliableSequence",
+    "schemaVersion",
     "stepExecution",
-    "surfaceStates",
-    "nodeStates",
+    "activeRuns",
     "mediaStates",
     "modelClipStates",
+    "nodeStates",
+    "surfaceStates",
     "variables",
-    "activeRuns",
     "presentationOrigin",
     "recentEventIds"
   ],

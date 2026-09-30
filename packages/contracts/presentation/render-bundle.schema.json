@@ -1,51 +1,12 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.unframe.dev/presentation/render-bundle.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SerializedRenderBundleV1",
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "number",
-      "const": 1
-    },
-    "bundleId": {
-      "$ref": "#/$defs/__schema0"
-    },
-    "sourceHash": {
-      "$ref": "#/$defs/__schema0"
-    },
-    "definitionHash": {
-      "$ref": "#/$defs/__schema0"
-    },
-    "compiler": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "$ref": "#/$defs/__schema0"
-        },
-        "version": {
-          "$ref": "#/$defs/__schema0"
-        },
-        "environmentHash": {
-          "$ref": "#/$defs/__schema0"
-        }
-      },
-      "required": [
-        "name",
-        "version",
-        "environmentHash"
-      ],
-      "additionalProperties": false
-    },
     "buildContext": {
       "type": "object",
       "properties": {
-        "locale": {
-          "$ref": "#/$defs/__schema0"
-        },
-        "timezone": {
-          "$ref": "#/$defs/__schema0"
-        },
         "colorScheme": {
           "type": "string",
           "enum": [
@@ -53,21 +14,60 @@
             "dark"
           ]
         },
-        "themeId": {
+        "locale": {
           "$ref": "#/$defs/__schema0"
         },
         "themeHash": {
           "$ref": "#/$defs/__schema0"
+        },
+        "themeId": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "timezone": {
+          "$ref": "#/$defs/__schema0"
         }
       },
       "required": [
-        "locale",
-        "timezone",
         "colorScheme",
+        "locale",
+        "themeHash",
         "themeId",
-        "themeHash"
+        "timezone"
       ],
       "additionalProperties": false
+    },
+    "bundleId": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "compiler": {
+      "type": "object",
+      "properties": {
+        "environmentHash": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "name": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "version": {
+          "$ref": "#/$defs/__schema0"
+        }
+      },
+      "required": [
+        "environmentHash",
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "definitionHash": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "sourceHash": {
+      "$ref": "#/$defs/__schema0"
     },
     "surfaces": {
       "type": "object",
@@ -77,14 +77,53 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "semanticSurfaceId": {
-            "$ref": "#/$defs/__schema0"
+          "interactionsByState": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "bounds": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "coordinateSpace": {
+                    "type": "string",
+                    "const": "normalized"
+                  },
+                  "event": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "interactionId": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "priority": {
+                    "type": "number"
+                  },
+                  "semanticNodeId": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "bounds",
+                  "coordinateSpace",
+                  "event",
+                  "interactionId",
+                  "priority",
+                  "semanticNodeId"
+                ],
+                "additionalProperties": false
+              }
+            }
           },
           "logicalSize": {
-            "$ref": "#/$defs/__schema1"
+            "$ref": "#/$defs/__schema3"
           },
           "physicalSizeMeters": {
-            "$ref": "#/$defs/__schema1"
+            "$ref": "#/$defs/__schema3"
           },
           "renderSurfaceIds": {
             "minItems": 1,
@@ -101,20 +140,6 @@
             "additionalProperties": {
               "type": "object",
               "properties": {
-                "id": {
-                  "$ref": "#/$defs/__schema0"
-                },
-                "semanticSurfaceId": {
-                  "$ref": "#/$defs/__schema0"
-                },
-                "logicalBounds": {
-                  "$ref": "#/$defs/__schema3"
-                },
-                "layer": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 9007199254740991
-                },
                 "artifacts": {
                   "type": "object",
                   "propertyNames": {
@@ -165,6 +190,20 @@
                     "additionalProperties": false
                   }
                 },
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "layer": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "logicalBounds": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "semanticSurfaceId": {
+                  "$ref": "#/$defs/__schema0"
+                },
                 "stateBindings": {
                   "type": "object",
                   "propertyNames": {
@@ -188,21 +227,21 @@
                       {
                         "type": "object",
                         "properties": {
-                          "kind": {
-                            "type": "string",
-                            "const": "artifacts"
-                          },
                           "artifactIds": {
                             "minItems": 1,
                             "type": "array",
                             "items": {
                               "$ref": "#/$defs/__schema0"
                             }
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "artifacts"
                           }
                         },
                         "required": [
-                          "kind",
-                          "artifactIds"
+                          "artifactIds",
+                          "kind"
                         ],
                         "additionalProperties": false
                       }
@@ -211,11 +250,11 @@
                 }
               },
               "required": [
-                "id",
-                "semanticSurfaceId",
-                "logicalBounds",
-                "layer",
                 "artifacts",
+                "id",
+                "layer",
+                "logicalBounds",
+                "semanticSurfaceId",
                 "stateBindings"
               ],
               "additionalProperties": false
@@ -229,12 +268,6 @@
             "additionalProperties": {
               "type": "object",
               "properties": {
-                "rootNodeIds": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/__schema0"
-                  }
-                },
                 "nodes": {
                   "type": "object",
                   "propertyNames": {
@@ -243,8 +276,20 @@
                   "additionalProperties": {
                     "type": "object",
                     "properties": {
+                      "alt": {
+                        "type": "string"
+                      },
                       "id": {
                         "$ref": "#/$defs/__schema0"
+                      },
+                      "interactionId": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "order": {
+                        "type": "number"
                       },
                       "parentId": {
                         "anyOf": [
@@ -255,9 +300,6 @@
                             "type": "null"
                           }
                         ]
-                      },
-                      "order": {
-                        "type": "number"
                       },
                       "role": {
                         "type": "string",
@@ -273,97 +315,55 @@
                       },
                       "text": {
                         "type": "string"
-                      },
-                      "language": {
-                        "type": "string"
-                      },
-                      "alt": {
-                        "type": "string"
-                      },
-                      "interactionId": {
-                        "$ref": "#/$defs/__schema0"
                       }
                     },
                     "required": [
                       "id",
-                      "parentId",
                       "order",
+                      "parentId",
                       "role"
                     ],
                     "additionalProperties": false
                   }
+                },
+                "rootNodeIds": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
                 }
               },
               "required": [
-                "rootNodeIds",
-                "nodes"
+                "nodes",
+                "rootNodeIds"
               ],
               "additionalProperties": false
             }
           },
-          "interactionsByState": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string"
-            },
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "interactionId": {
-                    "$ref": "#/$defs/__schema0"
-                  },
-                  "semanticNodeId": {
-                    "$ref": "#/$defs/__schema0"
-                  },
-                  "bounds": {
-                    "$ref": "#/$defs/__schema3"
-                  },
-                  "coordinateSpace": {
-                    "type": "string",
-                    "const": "normalized"
-                  },
-                  "event": {
-                    "$ref": "#/$defs/__schema0"
-                  },
-                  "priority": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "interactionId",
-                  "semanticNodeId",
-                  "bounds",
-                  "coordinateSpace",
-                  "event",
-                  "priority"
-                ],
-                "additionalProperties": false
-              }
-            }
+          "semanticSurfaceId": {
+            "$ref": "#/$defs/__schema0"
           }
         },
         "required": [
-          "semanticSurfaceId",
+          "interactionsByState",
           "logicalSize",
           "physicalSizeMeters",
           "renderSurfaceIds",
           "renderSurfaces",
           "semanticsByState",
-          "interactionsByState"
+          "semanticSurfaceId"
         ],
         "additionalProperties": false
       }
     }
   },
   "required": [
-    "schemaVersion",
-    "bundleId",
-    "sourceHash",
-    "definitionHash",
-    "compiler",
     "buildContext",
+    "bundleId",
+    "compiler",
+    "definitionHash",
+    "schemaVersion",
+    "sourceHash",
     "surfaces"
   ],
   "additionalProperties": false,
@@ -373,6 +373,34 @@
       "minLength": 1
     },
     "__schema1": {
+      "type": "object",
+      "properties": {
+        "height": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "width": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "height",
+        "width",
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "__schema2": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "__schema3": {
       "type": "array",
       "prefixItems": [
         {
@@ -386,46 +414,19 @@
       "minItems": 2,
       "maxItems": 2
     },
-    "__schema2": {
-      "type": "number",
-      "exclusiveMinimum": 0
-    },
-    "__schema3": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "width": {
-          "$ref": "#/$defs/__schema2"
-        },
-        "height": {
-          "$ref": "#/$defs/__schema2"
-        }
-      },
-      "required": [
-        "x",
-        "y",
-        "width",
-        "height"
-      ],
-      "additionalProperties": false
-    },
     "__schema4": {
       "type": "object",
       "properties": {
+        "alphaMode": {
+          "type": "string",
+          "enum": [
+            "opaque",
+            "straight",
+            "premultiplied"
+          ]
+        },
         "assetId": {
           "$ref": "#/$defs/__schema0"
-        },
-        "mediaType": {
-          "type": "string",
-          "const": "image/png"
-        },
-        "pixelSize": {
-          "$ref": "#/$defs/__schema1"
         },
         "checksum": {
           "$ref": "#/$defs/__schema0"
@@ -434,22 +435,21 @@
           "type": "string",
           "const": "srgb"
         },
-        "alphaMode": {
+        "mediaType": {
           "type": "string",
-          "enum": [
-            "opaque",
-            "straight",
-            "premultiplied"
-          ]
+          "const": "image/png"
+        },
+        "pixelSize": {
+          "$ref": "#/$defs/__schema3"
         }
       },
       "required": [
+        "alphaMode",
         "assetId",
-        "mediaType",
-        "pixelSize",
         "checksum",
         "colorSpace",
-        "alphaMode"
+        "mediaType",
+        "pixelSize"
       ],
       "additionalProperties": false
     }

@@ -107,13 +107,13 @@ describe("scheduled asset orphan collection", () => {
     )({} as ScheduledEvent, runtimeEnvironment(), context);
     await wait();
     expect(deleted).toEqual(["assets/old-pending/private-key", "old-pending"]);
-    expect(logs).toEqual([
-      JSON.stringify({
+    expect(logs.map((entry) => JSON.parse(entry))).toEqual([
+      {
         deleted: 1,
         deletedMetadataLess: 0,
         event: "asset_orphan_collection",
         skippedReferenced: 1,
-      }),
+      },
     ]);
     expect(logs.join()).not.toMatch(/private|assets\//);
   });
@@ -157,8 +157,8 @@ describe("scheduled asset orphan collection", () => {
       (entry) => logs.push(entry),
     )({} as ScheduledEvent, runtimeEnvironment(), context);
     await wait();
-    expect(logs).toEqual([
-      JSON.stringify({ error: "collection_failed", event: "asset_orphan_collection_failed" }),
+    expect(logs.map((entry) => JSON.parse(entry))).toEqual([
+      { error: "collection_failed", event: "asset_orphan_collection_failed" },
     ]);
     expect(logs.join()).not.toContain("private-secret");
   });

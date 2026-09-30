@@ -11,7 +11,13 @@ it("expands fixed wildcard exports and ordered condition fallbacks into explicit
   const result = resolvePackageExportTargets(
     {
       exports: {
-        "./helper": [{ default: "./helper.js", import: "./esm/helper.js" }, "./helper.js"],
+        "./helper": [
+          Object.fromEntries([
+            ["import", "./esm/helper.js"],
+            ["default", "./helper.js"],
+          ]),
+          "./helper.js",
+        ],
         "./regenerator/*.js": "./regenerator/*.js",
       },
     },

@@ -7,12 +7,12 @@ describe("fixed browser package export resolution", () => {
       resolvePackageExportTargets(
         {
           exports: {
-            ".": {
-              browser: "./browser.js",
-              import: "./esm.js",
-              require: "./cjs.js",
-              types: "./index.d.ts",
-            },
+            ".": Object.fromEntries([
+              ["types", "./index.d.ts"],
+              ["browser", "./browser.js"],
+              ["import", "./esm.js"],
+              ["require", "./cjs.js"],
+            ]),
           },
         },
         ["index.d.ts", "browser.js", "esm.js", "cjs.js"],

@@ -25,6 +25,13 @@ const warnExplicitErrors = (rules: NonNullable<typeof nkzw.rules>) => {
 };
 
 export default defineConfig({
+  fmt: {
+    ignorePatterns: [
+      "packages/contracts/openapi/control-plane.openapi.json",
+      "packages/contracts/presentation/*.schema.json",
+      "packages/contracts/src/control-plane.openapi.ts",
+    ],
+  },
   lint: {
     extends: [
       {
@@ -40,6 +47,23 @@ export default defineConfig({
     ],
     ignorePatterns: ["packages/contracts/src/control-plane.openapi.ts", "*d.ts"],
     overrides: [
+      {
+        env: { browser: true },
+        files: ["lp/**/*.svelte"],
+        globals: {
+          $derived: "readonly",
+          $props: "readonly",
+          $state: "readonly",
+        },
+      },
+      // React DOM attributes do not describe React Three Fiber or OpenTUI intrinsic elements.
+      {
+        files: [
+          "app/web/src/features/editor/ui/presentation-canvas.tsx",
+          "packages/unframe-cli/src/tui/**/*.tsx",
+        ],
+        rules: { "react/no-unknown-property": "off" },
+      },
       {
         files: ["packages/unframe-*/src/**/*.{ts,tsx}"],
         rules: {
