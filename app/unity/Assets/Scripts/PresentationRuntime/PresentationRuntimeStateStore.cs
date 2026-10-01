@@ -16,6 +16,9 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Dictionary<string, SurfaceRuntimeState> surfaceStates = new Dictionary<string, SurfaceRuntimeState>();
         private readonly Dictionary<string, VariableState> variableStates = new Dictionary<string, VariableState>();
         private readonly Dictionary<string, ModelClipRuntimeState> modelClipStates = new Dictionary<string, ModelClipRuntimeState>();
+        private bool hasSnapshot;
+        private ulong presentationOriginVersion;
+        private ConnectionSnapshotEnvelope lastConnectionSnapshot;
 
         internal PresentationRuntimeStateStore(PresentationDeliveryCatalog delivery)
         {
@@ -33,6 +36,9 @@ namespace Unframe.Unity.PresentationRuntime
             modelClipStates.Clear();
             LastReliableSequence = 0;
             LastStateFrameSequence = 0;
+            hasSnapshot = false;
+            presentationOriginVersion = 0;
+            lastConnectionSnapshot = null;
         }
 
         internal bool TryReceiveControl(byte[] payload, out string error)
@@ -101,12 +107,17 @@ namespace Unframe.Unity.PresentationRuntime
         internal bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return surfaceStates.TryGetValue(id, out value); }
         internal bool TryGetVariableState(string id, out VariableState value) { return variableStates.TryGetValue(id, out value); }
         internal bool TryGetModelClipState(string modelNodeId, out ModelClipRuntimeState value) { return modelClipStates.TryGetValue(modelNodeId, out value); }
+        internal bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot)
+        {
+            snapshot = lastConnectionSnapshot == null ? null : lastConnectionSnapshot.Clone();
+            return snapshot != null;
+        }
 
         private bool TryApplySnapshot(ConnectionSnapshotEnvelope envelope, out string error)
         {
             if (delivery.Delivery == null || envelope == null || envelope.SchemaVersion != RealtimeSnapshotSchemaVersion
                 || envelope.ProjectionInstance == null || !envelope.ProjectionInstance.Equals(delivery.Delivery.ProjectionInstance)
-                || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingFence(envelope.Fence))
+                || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingDeliveryFence(envelope.Fence))
             {
                 error = "realtime.snapshot is missing, incompatible, or fenced for another delivery.";
                 return false;
@@ -118,19 +129,24 @@ namespace Unframe.Unity.PresentationRuntime
                 || envelope.Snapshot.ReliableSequence != envelope.ReliableSequence
                 || view.ProjectionProfileId != delivery.Delivery.ProjectionProfile.ProjectionProfileId
                 || view.AssignmentEpoch != delivery.Delivery.ProjectionInstance.AssignmentEpoch
-                || view.BaseReliableSequence != envelope.ReliableSequence)
+                || view.BaseReliableSequence != envelope.ReliableSequence
+                || (view.PresentationOrigin == null ? 0 : view.PresentationOrigin.Version) != envelope.Fence.PresentationOriginVersion)
             {
                 error = "realtime.snapshot projection does not match delivery.";
                 return false;
             }
 
-            if (!TryReplaceRuntimeState(view.NodeStates, view.SurfaceStates, view.Variables, view.ModelClipStates, out error))
+            if (!TryValidateSnapshotView(view, out error)
+                || !TryReplaceRuntimeState(view.NodeStates, view.SurfaceStates, view.Variables, view.ModelClipStates, out error))
             {
                 return false;
             }
 
             LastReliableSequence = envelope.ReliableSequence;
             LastStateFrameSequence = 0;
+            presentationOriginVersion = envelope.Fence.PresentationOriginVersion;
+            hasSnapshot = true;
+            lastConnectionSnapshot = envelope.Clone();
             return true;
         }
 
@@ -196,6 +212,9 @@ namespace Unframe.Unity.PresentationRuntime
                             : reliableEvent.TimelineCanceled.TimelineId;
                     if (!PresentationDeliveryCatalog.IsId(timelineId) || !delivery.ContainsTimeline(timelineId)) { error = "realtime.event references an unknown timeline."; return false; }
                     break;
+                default:
+                    error = "realtime.event payload is unsupported; request a new snapshot.";
+                    return false;
             }
 
             LastReliableSequence = reliableEvent.Sequence;
@@ -308,6 +327,194 @@ namespace Unframe.Unity.PresentationRuntime
                 && (rotation.X != 0 || rotation.Y != 0 || rotation.Z != 0 || rotation.W != 0);
         }
 
+        private bool TryValidateSnapshotView(ParticipantRuntimeView view, out string error)
+        {
+            if (view.Clock == null || view.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.None
+                || view.Progression == null || (view.Progression.PhaseCase == ProgressionRuntimeState.PhaseOneofCase.None
+                    || !PresentationDeliveryCatalog.IsId(view.Progression.CurrentGroupId)
+                    || !PresentationDeliveryCatalog.IsId(view.Progression.CurrentStepId)
+                    || view.Progression.GroupEntryEpoch == 0 || view.Progression.StepEntryEpoch == 0))
+            {
+                error = "realtime snapshot clock or progression is incomplete.";
+                return false;
+            }
+
+            HashSet<string> runIds = new HashSet<string>();
+            Dictionary<string, RuntimeRunSnapshot> surfaceRuns = new Dictionary<string, RuntimeRunSnapshot>();
+            Dictionary<string, RuntimeRunSnapshot> mediaRuns = new Dictionary<string, RuntimeRunSnapshot>();
+            Dictionary<string, RuntimeRunSnapshot> modelRuns = new Dictionary<string, RuntimeRunSnapshot>();
+            HashSet<string> blockingRuns = new HashSet<string>();
+            foreach (RuntimeRunSnapshot run in view.ActiveRuns)
+            {
+                if (run == null || !IsValidRunId(run.RunId) || run.Owner == null
+                    || run.Owner.ScopeCase == RuntimeRunOwner.ScopeOneofCase.None || run.Cause == null
+                    || run.Completion != RunCompletion.Blocking && run.Completion != RunCompletion.NonBlocking
+                    || run.RunCase == RuntimeRunSnapshot.RunOneofCase.None
+                    || run.StartedAtRuntimeTimeMs > view.Clock.RuntimeTimeMs)
+                {
+                    error = "realtime snapshot contains an incomplete or unknown Run.";
+                    return false;
+                }
+
+                switch (run.RunCase)
+                {
+                    case RuntimeRunSnapshot.RunOneofCase.SurfaceTransition:
+                        if (!delivery.IsStateReachable(run.SurfaceTransition.SurfaceId, run.SurfaceTransition.FromStateId)
+                            || !delivery.IsStateReachable(run.SurfaceTransition.SurfaceId, run.SurfaceTransition.ToStateId)
+                            || !surfaceRuns.TryAdd(run.SurfaceTransition.SurfaceId, run))
+                            return FailSnapshotReference(out error);
+                        break;
+                    case RuntimeRunSnapshot.RunOneofCase.Timeline:
+                        if (!delivery.ContainsTimeline(run.Timeline.TimelineId)) return FailSnapshotReference(out error);
+                        break;
+                    case RuntimeRunSnapshot.RunOneofCase.Media:
+                        if (!delivery.ContainsSurface(run.Media.SurfaceId)
+                            || !IsValidPlaybackClock(run.Media.Playback, view.Clock.RuntimeTimeMs)
+                            || !mediaRuns.TryAdd(run.Media.SurfaceId, run)) return FailSnapshotReference(out error);
+                        break;
+                    case RuntimeRunSnapshot.RunOneofCase.ModelClip:
+                        if (!IsModelNode(run.ModelClip.ModelNodeId)
+                            || run.ModelClip.PhaseCase == ModelClipRunSnapshot.PhaseOneofCase.None
+                            || !IsValidModelClipRun(run.ModelClip, view.Clock.RuntimeTimeMs)
+                            || !modelRuns.TryAdd(run.ModelClip.ModelNodeId, run)) return FailSnapshotReference(out error);
+                        break;
+                    default:
+                        error = "realtime snapshot Run variant is unsupported.";
+                        return false;
+                }
+
+                if (!runIds.Add(RunKey(run.RunId)))
+                {
+                    error = "realtime snapshot contains duplicate Run IDs.";
+                    return false;
+                }
+                if (run.Completion == RunCompletion.Blocking) blockingRuns.Add(RunKey(run.RunId));
+            }
+
+            foreach (SurfaceRuntimeState state in view.SurfaceStates)
+            {
+                if (state == null) return FailSnapshotReference(out error);
+                bool hasRun = surfaceRuns.TryGetValue(state.SurfaceId, out RuntimeRunSnapshot run);
+                if (hasRun != (state.TransitionRunId != null)
+                    || hasRun && (!run.RunId.Equals(state.TransitionRunId)
+                        || run.SurfaceTransition.ToStateId != state.StateId)) return FailSnapshotReference(out error);
+                if (hasRun) surfaceRuns.Remove(state.SurfaceId);
+            }
+            if (surfaceRuns.Count != 0) return FailSnapshotReference(out error);
+
+            HashSet<string> seenMedia = new HashSet<string>();
+            foreach (MediaRuntimeState state in view.MediaStates)
+            {
+                if (state == null) return FailSnapshotReference(out error);
+                if (!delivery.ContainsSurface(state.SurfaceId) || !seenMedia.Add(state.SurfaceId)
+                    || state.StateCase == MediaRuntimeState.StateOneofCase.None
+                    || state.StateCase == MediaRuntimeState.StateOneofCase.Stopped
+                        && (!PresentationDeliveryCatalog.IsFinite(state.Stopped.HeldPositionMs) || state.Stopped.HeldPositionMs < 0))
+                    return FailSnapshotReference(out error);
+                bool hasRun = mediaRuns.TryGetValue(state.SurfaceId, out RuntimeRunSnapshot run);
+                if (hasRun && (state.StateCase != MediaRuntimeState.StateOneofCase.Active
+                        || !run.RunId.Equals(state.Active.RunId)
+                        || state.Active.Playback == null || !state.Active.Playback.Equals(run.Media.Playback))
+                    || !hasRun && state.StateCase == MediaRuntimeState.StateOneofCase.Active)
+                    return FailSnapshotReference(out error);
+                mediaRuns.Remove(state.SurfaceId);
+            }
+            if (mediaRuns.Count != 0) return FailSnapshotReference(out error);
+
+            HashSet<string> seenModels = new HashSet<string>();
+            foreach (ModelClipRuntimeState state in view.ModelClipStates)
+            {
+                if (state == null || !IsModelNode(state.ModelNodeId) || !seenModels.Add(state.ModelNodeId)
+                    || state.StateCase == ModelClipRuntimeState.StateOneofCase.None)
+                    return FailSnapshotReference(out error);
+                bool hasRun = modelRuns.TryGetValue(state.ModelNodeId, out RuntimeRunSnapshot run);
+                if (hasRun && (state.StateCase != ModelClipRuntimeState.StateOneofCase.Active || !run.RunId.Equals(state.Active.RunId))
+                    || !hasRun && state.StateCase == ModelClipRuntimeState.StateOneofCase.Active)
+                    return FailSnapshotReference(out error);
+                modelRuns.Remove(state.ModelNodeId);
+            }
+            if (modelRuns.Count != 0) return FailSnapshotReference(out error);
+
+            if (view.Progression.PhaseCase == ProgressionRuntimeState.PhaseOneofCase.Transitioning)
+            {
+                foreach (RuntimeRunId runId in view.Progression.Transitioning.BlockingRunIds)
+                {
+                    if (!IsValidRunId(runId) || !blockingRuns.Remove(RunKey(runId)))
+                        return FailSnapshotReference(out error);
+                }
+            }
+            if (blockingRuns.Count != 0) return FailSnapshotReference(out error);
+
+            error = null;
+            return true;
+        }
+
+        private bool IsModelNode(string id)
+        {
+            return delivery.TryGetNode(id, out ProjectedNodeDefinition node)
+                && node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Model;
+        }
+
+        private bool IsValidModelClipRun(ModelClipRunSnapshot run, ulong runtimeTimeMs)
+        {
+            if (run.PhaseCase == ModelClipRunSnapshot.PhaseOneofCase.Single)
+                return IsValidClipPlayback(run.ModelNodeId, run.Single, runtimeTimeMs);
+            if (run.PhaseCase != ModelClipRunSnapshot.PhaseOneofCase.Crossfade || run.Crossfade == null
+                || run.Crossfade.DurationMs == 0 || run.Crossfade.Easing == Easing.Unspecified
+                || !Enum.IsDefined(typeof(Easing), run.Crossfade.Easing)
+                || !IsValidClipPlayback(run.ModelNodeId, run.Crossfade.From, runtimeTimeMs, true)
+                || !IsValidClipPlayback(run.ModelNodeId, run.Crossfade.To, runtimeTimeMs, true)
+                || !IsValidPlaybackClock(run.Crossfade.TransitionClock, runtimeTimeMs)) return false;
+            double elapsed = PlaybackPosition(run.Crossfade.TransitionClock, runtimeTimeMs, 1);
+            return PresentationDeliveryCatalog.IsFinite(elapsed) && elapsed < run.Crossfade.DurationMs
+                && (!run.Crossfade.FromIsHeld || run.Crossfade.From.Playback.ClockCase == PlaybackClock.ClockOneofCase.Paused);
+        }
+
+        private bool IsValidClipPlayback(string modelNodeId, ClipPlayback playback, ulong runtimeTimeMs, bool retainTerminalPose = false)
+        {
+            if (playback == null || !delivery.TryGetModelClip(modelNodeId, playback.ClipId, out ProjectedModelClipDefinition clip)
+                || !PresentationDeliveryCatalog.IsFinite(playback.Speed) || playback.Speed <= 0
+                || !IsValidPlaybackClock(playback.Playback, runtimeTimeMs))
+                return false;
+            double position = PlaybackPosition(playback.Playback, runtimeTimeMs, playback.Speed);
+            return PresentationDeliveryCatalog.IsFinite(position) && (retainTerminalPose || playback.Loop || position < clip.DurationMs);
+        }
+
+        private static double PlaybackPosition(PlaybackClock playback, ulong runtimeTimeMs, double speed)
+        {
+            return playback.ClockCase == PlaybackClock.ClockOneofCase.Paused
+                ? playback.Paused.PositionMs
+                : playback.Playing.PositionAtReferenceMs + (runtimeTimeMs - playback.Playing.ReferenceRuntimeTimeMs) * speed;
+        }
+
+        private static bool IsValidPlaybackClock(PlaybackClock playback, ulong runtimeTimeMs)
+        {
+            return playback != null && (playback.ClockCase == PlaybackClock.ClockOneofCase.Paused
+                    && PresentationDeliveryCatalog.IsFinite(playback.Paused.PositionMs)
+                    && playback.Paused.PositionMs >= 0
+                || playback.ClockCase == PlaybackClock.ClockOneofCase.Playing
+                    && PresentationDeliveryCatalog.IsFinite(playback.Playing.PositionAtReferenceMs)
+                    && playback.Playing.PositionAtReferenceMs >= 0
+                    && playback.Playing.ReferenceRuntimeTimeMs <= runtimeTimeMs);
+        }
+
+        private bool IsValidRunId(RuntimeRunId runId)
+        {
+            return runId != null && runId.AssignmentEpoch == delivery.Delivery.ProjectionInstance.AssignmentEpoch
+                && runId.RunSequence != 0;
+        }
+
+        private static string RunKey(RuntimeRunId runId)
+        {
+            return runId.AssignmentEpoch + ":" + runId.RunSequence;
+        }
+
+        private static bool FailSnapshotReference(out string error)
+        {
+            error = "realtime snapshot contains an unknown or inconsistent resource or Run reference.";
+            return false;
+        }
+
         private bool TryReplaceRuntimeState(IEnumerable<NodeRuntimeState> incomingNodes, IEnumerable<SurfaceRuntimeState> incomingSurfaces, IEnumerable<VariableState> incomingVariables, IEnumerable<ModelClipRuntimeState> incomingModelClips, out string error)
         {
             Dictionary<string, NodeRuntimeState> nextNodes = new Dictionary<string, NodeRuntimeState>();
@@ -387,6 +594,11 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private bool HasMatchingFence(RuntimeProjectionFence fence)
+        {
+            return hasSnapshot && HasMatchingDeliveryFence(fence) && fence.PresentationOriginVersion == presentationOriginVersion;
+        }
+
+        private bool HasMatchingDeliveryFence(RuntimeProjectionFence fence)
         {
             return fence != null && delivery.Delivery != null && fence.SessionId == delivery.Delivery.SessionId && fence.AssignmentEpoch == delivery.Delivery.ProjectionInstance.AssignmentEpoch && fence.ProjectionProfileId == delivery.Delivery.ProjectionProfile.ProjectionProfileId && fence.Publication != null && delivery.Delivery.Publication != null && fence.Publication.Equals(delivery.Delivery.Publication);
         }

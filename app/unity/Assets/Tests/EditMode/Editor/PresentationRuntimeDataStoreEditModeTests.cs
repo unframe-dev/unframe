@@ -25,6 +25,25 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
+    public void BinaryDeliveryPreservesProjectionFenceAndAssetAccessDescriptor()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.AssetAccess[0].Checksum = "sha256:" + new string('e', 64);
+        delivery.AssetAccess[0].MediaType = "model/gltf-binary";
+        delivery.AssetAccess[0].EncodedSizeBytes = 12345;
+        delivery.AssetAccess[0].Url = "https://assets.example.test/model.glb";
+        delivery.AssetAccess[0].ExpiresAtUnixMs = 67890;
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+
+        Assert.That(store.TryReceiveDelivery(Serialize(delivery), out string error), Is.True, error);
+        Assert.That(store.Delivery.Publication, Is.EqualTo(delivery.Publication));
+        Assert.That(store.Delivery.ProjectionInstance, Is.EqualTo(delivery.ProjectionInstance));
+        Assert.That(store.Delivery.ProjectionProfile.Key, Is.EqualTo(delivery.ProjectionProfile.Key));
+        Assert.That(store.TryGetAsset("asset:model", out AssetAccessBinding asset), Is.True);
+        Assert.That(asset, Is.EqualTo(delivery.AssetAccess[0]));
+    }
+
+    [Test]
     public void SnapshotAndRealtimeUpdates_RequireTheDeliveryFenceAndExposeState()
     {
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
@@ -47,6 +66,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
                     ProjectionProfileId = "profile:quest",
                     AssignmentEpoch = 7,
                     BaseReliableSequence = 4,
+                    Clock = new RuntimeClockSnapshot { Running = new Running() },
+                    Progression = new ProgressionRuntimeState { CurrentGroupId = "group:main", GroupEntryEpoch = 1, CurrentStepId = "step:main", StepEntryEpoch = 1, Stable = new StableProgression() },
                 },
             },
         };
@@ -67,6 +88,93 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState changed), Is.True);
         Assert.That(changed.Visible, Is.False);
         Assert.That(store.LastReliableSequence, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void SnapshotRejectsModelRunWithoutMatchingActiveModelState()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+        RuntimeRunId runId = new RuntimeRunId { AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch, RunSequence = 1 };
+        snapshot.Snapshot.RuntimeView.ActiveRuns.Add(new RuntimeRunSnapshot
+        {
+            RunId = runId,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:main", CauseEventId = "event:main" },
+            Completion = RunCompletion.NonBlocking,
+            ModelClip = new ModelClipRunSnapshot
+            {
+                ModelNodeId = "node:model",
+                Single = new ClipPlayback { ClipId = "clip:idle", Playback = new PlaybackClock { Paused = new PausedClock() }, Speed = 1 },
+            },
+        });
+        snapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState
+        {
+            ModelNodeId = "node:model",
+            DefaultPose = new DefaultModelPose(),
+        });
+
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out _), Is.False);
+    }
+
+    [TestCase("crossfade terminal", true)]
+    [TestCase("crossfade deadline", false)]
+    [TestCase("nonloop exact deadline", false)]
+    [TestCase("loop overflow", false)]
+    [TestCase("loop elapsed beyond duration", true)]
+    [TestCase("nonloop elapsed beyond duration", false)]
+    [TestCase("valid", true)]
+    [TestCase("unknown clip", false)]
+    [TestCase("future reference", false)]
+    [TestCase("loop paused beyond duration", true)]
+    [TestCase("nonloop paused beyond duration", false)]
+    [TestCase("loop playing beyond duration", true)]
+    [TestCase("nonloop playing beyond duration", false)]
+    public void SnapshotChecksModelClipCatalogAndRuntimeReference(string variant, bool expected)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+        RuntimeRunId runId = new RuntimeRunId { AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch, RunSequence = 1 };
+        ClipPlayback playback = new ClipPlayback
+        {
+            ClipId = variant == "unknown clip" ? "clip:missing" : "clip:idle",
+            Playback = variant == "future reference"
+                ? new PlaybackClock { Playing = new PlayingClock { ReferenceRuntimeTimeMs = 100 } }
+                : variant.Contains("playing beyond duration") || variant.Contains("elapsed") || variant.Contains("overflow") || variant.Contains("exact deadline") || variant.StartsWith("crossfade")
+                    ? new PlaybackClock { Playing = new PlayingClock { PositionAtReferenceMs = variant.Contains("playing beyond duration") ? 101 : 0 } }
+                    : new PlaybackClock { Paused = new PausedClock { PositionMs = variant.Contains("paused beyond duration") ? 101 : 0 } },
+            Speed = variant.Contains("overflow") ? 1e308 : 1,
+            Loop = variant.StartsWith("loop"),
+        };
+        if (variant.Contains("overflow") || variant.Contains("elapsed") || variant.Contains("exact deadline") || variant.StartsWith("crossfade"))
+            snapshot.Snapshot.RuntimeView.Clock.RuntimeTimeMs = variant.Contains("overflow") ? 2UL : variant.Contains("exact deadline") ? 100UL : 101UL;
+        snapshot.Snapshot.RuntimeView.ActiveRuns.Add(new RuntimeRunSnapshot
+        {
+            RunId = runId,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:main", CauseEventId = "event:main" },
+            Completion = RunCompletion.NonBlocking,
+            ModelClip = new ModelClipRunSnapshot { ModelNodeId = "node:model", Single = playback },
+        });
+        if (variant.StartsWith("crossfade"))
+            snapshot.Snapshot.RuntimeView.ActiveRuns[snapshot.Snapshot.RuntimeView.ActiveRuns.Count - 1].ModelClip.Crossfade = new ModelClipCrossfade
+            {
+                From = new ClipPlayback { ClipId = "clip:idle", Speed = 1, Playback = new PlaybackClock { Paused = new PausedClock { PositionMs = 100 } } },
+                To = playback,
+                FromIsHeld = true,
+                DurationMs = 10,
+                Easing = Easing.Linear,
+                TransitionClock = new PlaybackClock { Playing = new PlayingClock { ReferenceRuntimeTimeMs = variant.Contains("deadline") ? 91UL : 100UL } },
+            };
+        snapshot.Snapshot.RuntimeView.ModelClipStates.Add(new ModelClipRuntimeState
+        {
+            ModelNodeId = "node:model",
+            Active = new ModelClipActive { RunId = runId.Clone() },
+        });
+
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out string error), Is.EqualTo(expected), error);
     }
 
     [Test]
@@ -820,7 +928,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         });
         catalog.Timelines.Add(timeline);
         catalog.Variables.Add(new ProjectedVariableDefinition { VariableId = "variable:title" });
-        catalog.ModelClips.Add(new ProjectedModelClipDefinition { ModelNodeId = "node:model", ModelAssetId = "asset:model", ClipId = "clip:idle" });
+        catalog.ModelClips.Add(new ProjectedModelClipDefinition { ModelNodeId = "node:model", ModelAssetId = "asset:model", ClipId = "clip:idle", DurationMs = 100 });
 
         DeliveryManifest delivery = new DeliveryManifest
         {
@@ -895,6 +1003,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
                 {
                     ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
                     AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
+                    Clock = new RuntimeClockSnapshot { Running = new Running() },
+                    Progression = new ProgressionRuntimeState { CurrentGroupId = "group:main", GroupEntryEpoch = 1, CurrentStepId = "step:main", StepEntryEpoch = 1, Stable = new StableProgression() },
                 },
             },
         };

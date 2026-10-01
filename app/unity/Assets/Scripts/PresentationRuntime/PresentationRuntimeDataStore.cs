@@ -66,5 +66,7 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return runtime.TryGetSurfaceState(id, out value); }
         public bool TryGetVariableState(string id, out VariableState value) { return runtime.TryGetVariableState(id, out value); }
         public bool TryGetModelClipState(string modelNodeId, out ModelClipRuntimeState value) { return runtime.TryGetModelClipState(modelNodeId, out value); }
+        /// <summary>Returns a copy of the last accepted snapshot cut, without later events or state frames.</summary>
+        public bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot) { return runtime.TryGetLastConnectionSnapshot(out snapshot); }
     }
 }
