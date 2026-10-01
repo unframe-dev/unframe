@@ -1,22 +1,18 @@
-# ADR-0019: 一ファイルの React Component Authoring を採用前提で実装する
+# ADR-0019: 一ファイルの React Component Authoring を採用する
 
-- **Status**: Proposed（採用前提で実装。正式採用と詳細の確定は未了）
-- **Date**: 2026-09-27
+- **Status**: Accepted（Linux のローカル Authoring と baked-web PNG preview に限定）
+- **Date**: 2026-10-01
 - **Related**: [設計案と実装計画](../packages/REACT_COMPONENT_AUTHORING.md)、[実装 contract](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md)、[ADR-0018](./0018-static-typescript-jsx-authoring.md)、[ADR-0014](./0014-presentation-rendering-scope.md)、[ADR-0013](./0013-local-compiler-project-filesystem-contract.md)
 
 ## Context
 
-現行の Structured Authoring は Manifest、Structure、lock、Instance と Spatial Node の接続を作者に要求する。Opaque は build-time React 描画を想定しているが、bundle から Browser execution / capture への接続は未実装である。公開契約と描画を一つの Component 定義へまとめ、Presentation から一つの import で配置する作者体験を検証する。
+Structured Authoring は Manifest、Structure、lock、Instance と Spatial Node の接続を作者に要求する。一ファイルの React Component から公開契約と描画を分離し、一つの import で配置することで、この手動接続と Props / 型の重複を減らす。
 
-Web の UI ライブラリを使う Component の標準経路として採用する前提で、React の最小縦断経路を先に通す A 案を進める。本 ADR の API・保存・依存管理の詳細は実装で検証・調整する提案であり、既存の Accepted ADR をこの文書だけで変更しない。
-
-A0 で三例の型推論と拒否入力を検証し、lock v2、static / render 抽出、ローカル HTTP host、journal による保存、Linux capture profile を実装 contract に具体化した。実装に進める設計と、動作確認済みの機能は区別する。
-
-A1 着手前に確認した canonical Surface の Content Tree 必須規則との差は、[ADR-0020](./0020-structured-and-opaque-surface-content.md) の Structured / Opaque 分岐で解消する。この共通モデルの変更は採用済みであり、React 経路の導入判定とは区別する。
+静的抽出、隔離 capture、有限 State、Source 保存と局所編集をローカル経路で検証した。提供範囲と性能の根拠は [受け入れ記録](../packages/REACT_COMPONENT_AUTHORING.md#6-受け入れ検証と導入条件) に示す。Surface の描画内容と意味の分離は [ADR-0020](./0020-structured-and-opaque-surface-content.md) に従う。
 
 ## Decision
 
-一ファイルの Component から静的な公開契約と実行可能な描画コードを分離し、単一 Surface の静的 `baked-web`、Editor 編集・保存、有限 State の順で検証する。
+一ファイルの React Component を、ローカル Authoring の Opaque 経路として採用する。公開契約は非実行で抽出し、全宣言 State を Linux の隔離 Browser で PNG にする。ローカル Inspector は公開 scalar Props、host Transform と宣言済み操作を扱う。
 
 - 作者は Component ID、公開契約 version、Props、明示 semantics、React render を定義する。Presentation は Component 参照、Instance ID、所有範囲と配置を定義する。Manifest、renderer entry、host Spatial Node と lock への接続はツールが生成する。
 - 公開契約と Presentation は非実行の静的解析を維持する。元の Component module を実行して契約を取得せず、AST から描画用 virtual module と依存を抽出する。
@@ -38,14 +34,13 @@ A1 着手前に確認した canonical Surface の Content Tree 必須規則と�
 
 ## Adoption and Exceptions
 
-各工程の受け入れ条件は設計案に置く。型推論と拒否診断、静的領域の非実行、binding、反復 build、Instance 編集の保存と競合を回帰テストで固定する。既存 Structured の成果物・拒否条件も検証する。
+型推論と拒否診断、静的領域の非実行、binding、反復 build、Instance 編集の保存と競合を回帰テストで固定する。既存 Structured の成果物・拒否条件も維持する。Browser の受け入れ試験は `scripts/ci/opaque-capture.sh`、提供範囲と実測は作者向け文書で管理する。
 
-縦断検証では、採用する方向性を前提に、標準経路として提供できる範囲と残課題を確認する。静的領域の非実行、隔離実行、再現性、保存の整合性を成立させられないなど、前提を覆す結果が出た場合に方針を再検討する。実装へ移る際は対象 subset の契約を先に確定し、ADR-0018 の適用領域、ADR-0013 の source / lock / 保存契約、Authoring Contract と package 文書を同期する。未対応入力を既存経路へ暗黙 fallback させない。
+隔離・固定依存・保存整合性の要件を満たさない host / 入力は拒否する。未対応入力を既存経路へ暗黙 fallback させない。SDK の一般配布や任意 UI ライブラリの互換性は未検証であり、リポジトリ内 fixture の成功から一般化しない。速度改善と描画 cache は後続とし、今回の導入は毎回 capture を行う待ち時間を許容するローカル作業に限定する。
 
 ## Follow-ups
 
-- [x] 三つの作者向け例の型推論・拒否入力を検証し、生成・保存・実行規則を A0 の実装設計へ具体化する。
-- [x] canonical Surface の Structured / Opaque 表現、schema の移行、Core / Renderer の検証境界を ADR-0020 で確定する。
-- [ ] 静的 React capture と、Editor から Source へ戻る保存経路を検証する。
-- [ ] 有限 State、公開 Action / Output と既存 Flow の接続を検証する。
-- [ ] 対応 UI ライブラリと CSS 処理、build 時間・再現性の測定結果を記録し、提供可能な範囲と残課題を確定する。
+- [x] 静的抽出・全 State capture、直接 / 共有値の局所編集・保存・Undo / Redo、公開 Action / Output と既存 Flow の接続を検証する。
+- [x] 固定 Base UI fixture の visual・再現性・描画依存変更・性能を記録し、ローカル提供範囲と導入条件を確定する。
+- [ ] publish / Delivery の受け入れ検証と Go / C# / Unity / Quest consumer の接続・実機確認。
+- [ ] SDK の一般配布、対応 UI ライブラリの拡大と描画 cache / 速度改善。

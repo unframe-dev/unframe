@@ -36,3 +36,7 @@ nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
 the existing managed output, and compares every artifact relative path and SHA-256 digest.
 
 Local builds use `sourceDraftRevision: 0`. This build boundary does not create publication or Delivery artifacts.
+
+This fixture exercises Structured authoring. For single-file React Components and the local Inspector,
+see [React Component Authoring](../../docs/packages/REACT_COMPONENT_AUTHORING.md). Its acceptance
+fixtures cover locked Base UI rendering, finite States, and Structured / React mixed builds.

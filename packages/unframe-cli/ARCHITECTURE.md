@@ -158,7 +158,6 @@ package に移さない。
 Opaque preview には既存の固定 Browser と cgroup / namespace 実行環境が必要である。
 
 `src/author/contract.ts` がローカル HTTP 境界、Compiler が Source patch、`app/web` が画面を所有する。
-公開 scalar Props の直接 literal と host Transform を編集し、保存後に build を要求する。
-共有値・props spread の局所 override、Undo / Redo、React 内部の CSS 編集は提供しない。
+公開 scalar Props と host Transform を編集し、保存後に build を要求する。共有値・props spread は対象 Instance の局所 override として保存し、同一 session の Undo / Redo と継承への復帰を提供する。有限 State preview は Core の既存 Cue 実行器を使い、宣言済み操作と生成済み State 画像を接続する。React 内部の CSS 編集は提供しない。
 保存 revision と成功した preview revision を区別し、capture 失敗でも保存済み Source と以前の preview を保持する。
 認証・保存・回復規則は [実装契約](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) を参照。

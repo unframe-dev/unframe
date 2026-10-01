@@ -1,8 +1,8 @@
 # PR #111 受け入れ条件の実装計画
 
-2026-09-29 時点の計画。受け入れ条件の正本は [PR #111](https://github.com/unframe-dev/unframe/pull/111) の説明文。計画と途中の実装記録を示し、全条件の完了報告とはしない。
+2026-09-29 時点の歴史的な計画。現行の提供範囲と検証記録は [React Component Authoring](../packages/REACT_COMPONENT_AUTHORING.md#6-受け入れ検証と導入条件) を参照。受け入れ条件の正本は [PR #111](https://github.com/unframe-dev/unframe/pull/111) の説明文。計画と途中の実装記録を示し、全条件の完了報告とはしない。
 
-2026-09-30 の後続作業は `feat/complete-react-authoring-followups` にある。共有値・props spread・Transform spread の局所編集、継承へ戻す Undo / Redo、Core Cue executor による有限 State の Inspector preview を追加した。Compiler / CLI / Web の対象テストと型チェック、Structured の未分割描画と partition 合成の既存 Browser 比較テストが成功。CSS 変更による PNG 再生成の新規 Browser テストも成功したが、通常の fixture 依存準備は registry timeout となるため、成功時はテスト実行中だけ `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` を指定した。PR #111 の head には未反映であり、性能計測、追加の失敗注入、publish / Delivery・端末の統合は未完了。
+2026-09-30 の後続作業は `feat/complete-react-authoring-followups` にある。共有値・props spread・Transform spread の局所編集、継承へ戻す Undo / Redo、Core Cue executor による有限 State の Inspector preview を追加した。Compiler / CLI / Web の対象テストと型チェック、Structured の未分割描画と partition 合成の既存 Browser 比較テストが成功。CSS 変更による PNG 再生成の新規 Browser テストも成功したが、通常の fixture 依存準備は registry timeout となるため、成功時はテスト実行中だけ `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` を指定した。この後続実装は PR #111 の `1fe7349` に統合済み。以下の起点・未完了境界は当時の記録であり、現行の実装状態を示さない。
 
 ## 実装の進捗
 

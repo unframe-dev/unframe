@@ -44,7 +44,7 @@ Compiler が決定した Render Surface partition を build input として受�
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
 - absolute root `Frame` と任意深度の absolute `Frame` / literal `Text` tree の HTML/CSS lower、state capture、raw RGBA ownership transfer
 - locked virtual package からの Opaque TS/TSX/JS/JSX/JSON bundle と CSS/asset emit
-- bubblewrap namespace と cgroup v2 内の Chromium で静的 default State を capture。明示 binding と decoded RGBA の二回一致を検証
+- bubblewrap namespace と cgroup v2 内の Chromium で全宣言 State を capture。明示 binding と decoded RGBA の二回一致を検証
 - Compiler が自動 partition と入力検証を行い、各 capture を `unframe-assets` へ encode / checksum 委譲して RenderBundle を組み立てる。現行 Opaque subset は Surface 全体を一つの partition とする
 
 ### Target
@@ -53,10 +53,6 @@ Compiler が決定した Render Surface partition を build input として受�
 - unencoded Surface capture の生成
 - Browser、font、locale、timezone、viewport、layout provenance
 - visual regression fixture
-
-### Deferred
-
-- Opaque の有限 State / Interaction capture
 
 ```text
 resolved semantic input + renderer source
@@ -74,7 +70,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用する。owned Node だけを paint し、context Frame は配置・clip・opacity を保持する。未描画部分は透明で、背景は Frame の指定を使う。`documentBackground` は受理しない。Structured の Hit Region は Compiler が Surface 全体の layout から生成し、DOM から意味を推測しない。Opaque は `createOpaqueBakedWebRenderer` が heading / paragraph と静的 default State を扱う。Structured adapter と Opaque worker は別の実行経路を持つ。
+Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用する。owned Node だけを paint し、context Frame は配置・clip・opacity を保持する。未描画部分は透明で、背景は Frame の指定を使う。`documentBackground` は受理しない。Structured の Hit Region は Compiler が Surface 全体の layout から生成し、DOM から意味を推測しない。Opaque は `createOpaqueBakedWebRenderer` が heading / paragraph / button と有限 State を扱う。Structured adapter と Opaque worker は別の実行経路を持つ。
 
 ### Target
 
@@ -84,7 +80,7 @@ Opaque path は Component 固有 renderer entry を bundle / execute できる�
 
 ### Deferred
 
-Opaque の有限 State / Interaction と Frame/Text 以外の Primitive の lower は未実装である。
+Frame/Text 以外の Structured Primitive の lower は未実装である。
 
 隔離条件、asset subset、deadline と資源上限は [React execution contract](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#4-browser-capture-profile) に従う。実行手順は [scripts](../../scripts/README.md) を参照する。
 

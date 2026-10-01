@@ -1,9 +1,9 @@
 # React Component の抽出・編集・capture 契約
 
-- **Status**: Proposed（採用前提の実装設計。詳細は検証・調整する） / A1 静的経路・A2 capture・有限 State の React 描画経路、および A3 の直接編集用 Editor host を実装・ローカル検証済み。共有値 override / Undo / Redo は未実装
+- **Status**: ローカル Authoring の実装契約。静的抽出、全 State capture、共有値の局所編集・Undo / Redo、保存 transaction と Inspector preview を実装済み
 - **Related**: [作者向け API と工程](./REACT_COMPONENT_AUTHORING.md)、[ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 
-この文書は、ADR-0019 の採用前提の方針に沿って A1〜A5 の入力、失敗、保存・実行方式を具体化する。各方式は実装の出発点とし、受け入れ試験で検証・調整する。記述された API・制限値・OS 隔離の詳細がすべて確定したことや、実機動作を確認したことを意味しない。
+この文書は、ローカル Authoring の入力、失敗、保存・実行方式を定める。提供範囲と検証記録は [作者向け文書](./REACT_COMPONENT_AUTHORING.md#6-受け入れ検証と導入条件) を参照する。publish / Delivery・端末側の接続は対象外とする。
 
 ## A1 の前提契約：canonical Surface
 
@@ -119,6 +119,8 @@ Compiler は一度 snapshot した project / package files に対し、次の ro
 同じファイルの top-level は import、type 宣言、static const、描画用 function / arrow const、Component 宣言に限る。トップレベルの実行式、`makeValue()` による mutable cache、getter、再代入は拒否する。描画 helper の module は通常の TS/TSX として bundle できるが、public contract module を実行時 import できない。helper の初期化コードは隔離 Browser 内でのみ実行する。shared data として解決不能な値を static 側が参照したら diagnostic にする。
 
 静的宣言の値を取るために module / SDK builder を実行しない。元 Component module 全体の bundle を tree-shaking に任せる方法も使わない。新しい virtual entry を作り、公開契約の initializer を物理的に含めない。元 Source との range 対応は、static field、render body、抽出 helper、Instance 宣言、値の定義元 / Instance 内の override 位置を区別して保持する。
+
+描画例外の位置は、Browser から返る生成 JS の行・列をホスト側の SourceMap と既知の描画 module に照合し、元 Source の位置へ戻す。SourceMap と元 Source は診断用としてホストに保持し、Browser 入力や配信 assets に含めない。例外の raw stack / message は転送しない。未知の module や範囲外の座標は位置なしの描画診断にする。位置は診断表示にだけ使い、保存先やファイル操作の権限として扱わない。作者のコードが例外の stack を書き換えた場合、その位置の真正性は保証しない。
 
 React JSX と Structured JSX は別の TypeScript Program で検査する。静的 Program には Component の型付き descriptor facade を、React Program には公開契約の型と描画依存を与える。plain Declaration Graph に関数や React element は入れない。型検査成功は static syntax / Zod / Core 検証の代わりにならない。役割不明の import、循環する static 値、未固定 package、実 filesystem への fallback は拒否する。
 

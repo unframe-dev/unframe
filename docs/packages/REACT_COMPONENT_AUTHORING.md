@@ -1,14 +1,14 @@
-# React Component Authoring 設計案と実装計画
+# React Component Authoring
 
-- **Status**: 採用前提の実装計画 / 導入条件は検証待ち。A1・A2・A3 は PR #111 に反映済み。A4 の局所編集・Undo / Redo と A5 のローカル Editor 操作 preview は `feat/complete-react-authoring-followups` で対象テスト済み。A6 の計測と統合検証は未完了
-- **Date**: 2026-09-27
+- **Status**: ローカル Authoring の実装・受け入れ検証。A1〜A5 を PR #111 に統合済み。A6 の検証範囲と計測は6節に記載
+- **Date**: 2026-10-01
 - **Decision**: [ADR-0019](../decisions/0019-single-file-react-component-authoring.md)
 - **Implementation contract**: [Lock・抽出・編集・capture](./REACT_COMPONENT_EXECUTION_CONTRACT.md)
 - **Scope**: 一ファイルの React Component → 一 import 配置 → 静的 baked-web → Editor 編集・保存 → 有限 State
 
-本書は、Web の UI ライブラリを使う Component に React Authoring を採用する前提で、作者向け API と実装の受け入れ条件を示す。API 詳細は実装で検証・調整する。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。作業ブランチのローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redo、有限 State の操作 preview に対応する。capture の受け入れ範囲と残件は [統合記録](../plans/react-state-capture-acceptance.md) を参照する。
+本書は、Web の UI ライブラリを使う Component の作者向け API と、ローカル Authoring の提供範囲を示す。現行 SDK と Compiler は heading / paragraph / button、有限 State、公開 Action / Output の静的抽出・配置変換を提供する。lock v2 の frozen check と Linux の隔離 Browser capture を接続している。Opaque build は namespace / cgroup の実行条件が欠ける場合に拒否する。ローカル Inspector は公開 scalar Props と host Transform の局所編集・Undo / Redo、有限 State の操作 preview に対応する。受け入れ範囲と導入条件は6節を参照する。
 
-A1 着手前の再確認で、現行 Core がすべての Semantic Node と Content Node の一対一対応を要求することが判明した。React の内部描画構造を保存しない本提案には、そのまま適用できない。Surface の Structured / Opaque 表現と Renderer の binding 検証を分ける追加設計を [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) で確定した。
+Surface の Structured / Opaque 表現と Renderer の binding 検証の境界は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) と [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md#a1-の前提契約canonical-surface) に従う。
 
 ## 1. 目標と現在地
 
@@ -227,7 +227,7 @@ export default definePresentation({
 
 配置対象ごとの Props 型を推論し、異なる Component が同じ scene 配列にあっても必須値・余分な key・型不一致を拒否する。Flow の Instance / Action / Output 参照は既存の Compiler 検証を通す。作者が接続するのは公開 ID だけであり、内部 Surface ID や package lock は使わない。通常の React の子は scene Instance とは別の型で、独立した配置・owner・Flow target を持たない。
 
-静的 fixture は Hero 二件と空の cues を使用し、有限 State fixture は Reveal と Cue の接続を検証する。作業ブランチでは、共有値を使う scalar Prop と host Transform を片方の Instance だけで編集し、Undo / Redo で継承へ戻す経路を検証した。
+静的 fixture は Hero 二件と空の cues を使用し、有限 State fixture は Reveal と Cue の接続を検証する。共有値を使う scalar Prop と host Transform を片方の Instance だけで編集し、Undo / Redo で継承へ戻す経路を検証している。
 
 Opaque の Theme 指定は任意とし、未指定でも宣言検証を通す。明示した場合は参照先が一意に解決することを検証する。Structured の Theme 解決規則は維持する。
 
@@ -264,15 +264,15 @@ Presentation ──→ Instance / host Spatial / Surface ──→ isolated Brow
 | scene 配列順                                  | host の order。並べ替えても ID は変えない                                                                   |
 | React source / CSS / font / 画像 / 依存       | renderer entry hash、依存 integrity、provenance と成果物                                                    |
 
-host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は Instance ID とする提案。初期 API は Transform 全要素と物理サイズを必須にする。静的 Component が states を省略した場合、単一の `default` State と空の公開操作を生成する。State を宣言した場合は initialState を必須にし、暗黙の State は加えない。
+host の初期値は `active: true`、`visible: true`、`opacity: 1`、name は Instance ID とする。初期 API は Transform 全要素と物理サイズを必須にする。静的 Component が states を省略した場合、単一の `default` State と空の公開操作を生成する。State を宣言した場合は initialState を必須にし、暗黙の State は加えない。
 
 ローカル Component は entry と到達する local files の hash で revision を識別し、配布 package の version / integrity を持たない。外部 package は pnpm locator と content integrity、dependency graph で固定する。lock / assembly は local / package origin と structured / opaque mode の union に変更する。具体的な serialized shape、循環依存の扱い、hash 入力と生成 ID の算出は [実装 contract 0節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#0-lock-v2-と生成-id) を正本とする。
 
 依存更新と build を分離する。明示的な依存更新で pnpm の固定解決結果から描画に必要な依存全体を snapshot し、`unframe.lock` へ保存する。通常の check / build は network、host node_modules、registry へ fallback せず、lock を変更しない。ローカル Source 編集後は、固定外部依存を変更しない local lock 更新を明示的に行う。Editor はこの更新を保存操作に含める。手書き編集で local hash が古い場合、build は更新の必要を診断する。
 
-既存 lock v1 は Structured 前提のため、Opaque / local origin / binary asset を含む lock v2 へ変更する。旧入力への暗黙変換や互換 fallback は作らず、loader / assembly carrier / guard / reference / fixture を A1 で明示更新する。既存 Structured の宣言と canonical 出力の意味は維持する。
+lock v2 は Opaque / local origin / binary asset を含む。旧 lock v1 からの暗黙変換や互換 fallback は提供せず、Source を更新して lock を明示再生成する。既存 Structured の宣言と canonical 出力の意味は維持する。
 
-固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。現行 CSS emit だけではこの条件を満たさない。CSS preprocessor / utility CSS の build plugin が必要な場合は、固定した変換経路を明示的に追加するまで非対応とする。最初の実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
+固定 React runtime、UI ライブラリ、CSS と url 参照先、font、画像を Browser で閉じて解決する。通常 CSS の import と url 依存を固定 bundle に含める。CSS preprocessor / utility CSS の build plugin が必要な場合は、固定した変換経路を明示的に追加するまで非対応とする。実依存 fixture は repo の pnpm lock に固定した `@base-ui/react` の Button と通常 CSS / TTF・OTF を使う。
 
 入力 lock に capture checksum を含めない。生成 PNG 等の checksum は AssetSet / BuildManifest に記録し、source・renderer・環境との整合は既存 build integrity で検証する。Manifest の意味 hash と renderer source hash を区別し、CSS だけの変更でも描画依存と成果物が更新されるようにする。位置だけを変えた場合、Definition 等の hash は変わり得るが、同じ描画条件の PNG bytes は変わらない。capture cache の実装は初期完了条件に含めない。
 
@@ -289,7 +289,7 @@ Source と lock が正本であり、Editor 専用 JSON override を別の永続
 | 一意の Instance 宣言へ対応できない           | 編集不可の理由を表示し、共有定義を暗黙変更しない                                        |
 | source / IR hash が command の期待値と異なる | stale conflict として拒否し、再読込を要求                                               |
 
-A3 は直接 literal の Props / Transform を扱う。作業ブランチの A4 は共有値・spread の局所 override を追加した。共通値を複数 Instance で変更する操作は対象外とする。
+A3 は直接 literal の Props / Transform を扱う。共有値・spread は対象 Instance の局所 override として編集できる。共通値を複数 Instance で変更する操作は対象外とする。
 
 Source patch、再度の静的検証、local lock 再生成を成功させてから保存する。source lease と fsync した journal によって協調するツール間の一括可視性と crash recovery を実現する。commit 中の失敗は recovery 完了まで読み取りを拒否し、外部編集が検出されたファイルを自動 rollback しない。lease に参加しない外部エディタの同時保存を完全に直列化する保証はしない。詳細は [実装 contract 3節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#3-source-保存の-transaction) に従う。
 
@@ -297,52 +297,38 @@ Source patch、再度の静的検証、local lock 再生成を成功させてか
 
 実行場所は Linux ローカル CLI host とし、同じ origin で Editor assets と認証付き HTTP API を配信する。process 起動・project root と filesystem は CLI、文書の編集 command と Inspector は Web、patch と検証は Compiler が所有する。token、ETag、commandId による再送、job の cancel / stale と artifact 取得は [実装 contract 2節](./REACT_COMPONENT_EXECUTION_CONTRACT.md#2-editor-host-と通信) に従う。remote build service は作らない。
 
-## 6. 実装順と受け入れ条件
+## 6. 受け入れ検証と導入条件
 
-| 工程            | 担当領域 / 成果                                                                                                              | 必要な検証 / 完了条件                                                                                                                                                                                                                 |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A0 契約確定     | 隔離した型試作、三例、Lock / 抽出 / 保存 / capture contract、ADR-0020                                                        | 8節の型試験と canonical Surface の追加方針を確認。runtime 検証とは区別する                                                                                                                                                            |
-| A1 静的経路     | Contracts / Core / Renderer API の Surface 分岐、Authoring / Compiler の分類・抽出・生成 Manifest・配置 lower、CLI の新 lock | schema / integrity / fixture と Structured 回帰、Opaque binding の対応・所有検証。React 関数と module initializer を実行せず check が通る。必須 Prop、余分な key、非静的依存、重複 ID を拒否。Instance 追加・並べ替えで既存 ID が不変 |
-| A2 静的 capture | Renderer API / Web、CLI の閉じた bundle と隔離実行                                                                           | Hero と実 UI ライブラリ fixture を描画。CSS / font / 画像を固定、外部取得拒否、binding 検証、mount 完了判定、timeout / cancel / cleanup を確認。反復 build の全公開成果物が一致                                                       |
-| A3 直接編集     | Compiler の Source patch、CLI host、Web Inspector / preview                                                                  | 直接 literal の文言・位置を変更して保存・再読込できる。二 Instance が独立。位置のみの変更で PNG が同一。競合・保存失敗・capture 失敗を区別                                                                                            |
-| A4 共有値編集   | 局所 override、同一 session Undo / Redo                                                                                      | 2.3 の sharedTitle と追加の props spread fixture を片方だけ編集でき、共有元と対象外 comment を維持。stale command と古い build 結果を適用しない                                                                                       |
-| A5 有限 State   | Opaque State capture、公開 Action / Output と既存 Flow 接続                                                                  | Reveal の全 State を capture。missing / duplicate / undeclared binding を拒否。Core / CLI の Flow 接続は PR #111、Inspector の Cue 操作 preview は後続作業ブランチで対象検証済み。React event は使用しない                            |
-| A6 導入判定     | 検証記録、契約・package 文書・reference 更新                                                                                 | 作者例、visual 結果、再現性、編集往復、cold / warm build と編集から preview までの時間を報告。提供可能な対応範囲、残課題と導入条件を明記                                                                                              |
+提供範囲は、Linux 上の固定依存を使うローカル Authoring と PNG preview に限定する。
 
-A2 の同じ入力には明示 source、lock、設定、Compiler / renderer / Browser / encoder、locale、timezone、font と viewport を含む。実装 contract 4節の Linux bubblewrap / cgroup profile と終了条件を実装し、capability 欠落時は実行を拒否する。設計の独立レビューと OS 隔離の実試験は区別し、A2 で runtime を独立レビューする。
+| 対象                 | 検証する振る舞い                                                                                          | 主な根拠                                                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 静的抽出・型         | 契約 initializer の非実行、React / Structured の型検査分離、必須 Props・参照の拒否                        | Compiler の `extract-react-components` / `typecheck-authoring-project` / `react-scene-source` テスト                             |
+| capture              | 全宣言 State、binding / geometry、透明合成、固定 font / glyph、隔離と回収                                 | Renderer Web の `opaque-*.integration.test.ts`                                                                                   |
+| 分割合成             | 透明 button・空 State・clip、未分割画像と partition 合成の画素比較                                        | Compiler / Core の partition テスト、`playwright-fixed-browser.integration.test.ts`（各 channel の差は最大2 byte）               |
+| 再生成               | 全公開成果物の反復一致、配置のみ変更した PNG の一致、CSS / font / React 描画変更で PNG と描画 hash が変化 | CLI の `opaque-project.integration.test.ts`                                                                                      |
+| 編集往復             | 二 Instance の局所編集、共有元・対象外 Source・コメントの保持、Undo / Redo、保存競合・再送・recovery      | Compiler / CLI / Web の Source 編集・Author テスト                                                                               |
+| 編集 metadata と診断 | `editableText` の textarea、診断の種類・path・元 Source 位置、抽出 render / helper の描画例外             | Compiler の型位置テスト、Renderer の位置写像テスト、CLI の `author-source-diagnostics.integration.test.ts`、Web の Author テスト |
+| 鮮度と失敗           | 保存後の新 PNG、capture 失敗・build 中 cancel・外部 Source 変更で成功済み dist を保持                     | CLI の `author-capture.integration.test.ts` / revision テスト                                                                    |
+| 有限 State preview   | 宣言済み Interaction / Output → Cue → Action で生成済み State 画像を切り替える                            | Web の `author-app.test.tsx` と CLI の混在 build                                                                                 |
 
-工程は依存順に進める。契約確定後の型 fixture と renderer fixture の準備は並行できるが、Editor を仮の永続モデルへ接続しない。A1〜A5 は対象を絞った Red → Green → Refactor と各境界の統合試験を行う。既存 Structured の回帰も維持する。包括的な `nix run .#check` は予定差分を終え、明示的にコミットを依頼された段階で実行する。
+Browser の受け入れ試験は以下で再現する。依存 install / lock refresh を含む試験全体の時間を、個別 build の時間と混同しない。
 
-A3 は `author-service.test.ts` と `author-capture.integration.test.ts` で、保存・再起動後の再読込、二 Instance の独立、位置のみ変更した PNG の一致、capture 失敗時の既存 dist 保持を確認した。Web は Inspector テストに加え、実 Chromium とローカル HTTP host で保存・再読込・PNG preview 表示を確認した。作業ブランチの対象テストは Compiler 12 件、CLI author-service 8 件・author-http 5 件、Web Inspector 17 件が成功し、各領域の型チェックも通過した。A4 は局所 override と Undo / Redo、A5 は Cue 操作、crossfade 後の連続操作、空 State からの遷移を確認した。
-
-CSS 変更での PNG 再生成を確かめる Browser 統合テストを追加し、Nix の固定 Browser で成功した。通常の実行では fixture の依存ポリシー検証が registry 照会で 120 秒の timeout となったため、成功時はテスト実行時だけ `PNPM_CONFIG_MINIMUM_RELEASE_AGE=0` を指定した。Structured の未分割描画と partition 合成の既存画素比較テストも Nix 環境で成功した。
-
-速度の合否値は未設定。A2 fixture は依存 install / lock refresh を除き、CLI build 開始から snapshot・bundle・capture・encode・publish 完了までの wall clock を計測する。2026-09-29 の Linux / Nix ローカル試験では同一入力二回が約 15.7 秒 / 14.6 秒だった。これは性能保証ではなく、A3 の操作結果を基に必要な応答時間を決める。有限 State の経路をローカルで確認しても、Delivery・Realtime service・Unity / Quest の統合完了とは扱わない。
-
-## 7. 対象外と採用時の文書更新
-
-初期対象外は複数 Surface、React 内部の GUI 編集・Detach、Opaque Slot / Parts / Variants、任意動的 Runtime UI、remote build / registry / publish、automatic partition、capture cache、既存 Editor fixture の自動移行である。Structured の既存機能は削除しない。
-
-A1 の最初に今回の型・実装 contract を公開 SDK と guard へ反映し、実装する subset に合わせて [ADR-0018](../decisions/0018-static-typescript-jsx-authoring.md)、[ADR-0013](../decisions/0013-local-compiler-project-filesystem-contract.md)、[Authoring Contract](./AUTHORING_CONTRACT.md)、[Architecture](./ARCHITECTURE.md)、関連 package の文書を更新する。描画は ADR-0014 の baked-web の範囲を維持する。React 専用事項は本設計から採用された contract へ移し、Structured の M3A 契約を React にそのまま適用しない。
-
-本書のレビューでは、三例が矛盾なく lower できるか、作者が内部生成物を手で管理していないか、意味と描画の責任、Source 保存の正本、未実装事項を実装済みと記述していないかを確認する。
-
-## 8. A0 の検証結果と実装への引き継ぎ
-
-[型試作](../../packages/unframe-authoring/prototypes/react-component/README.md) は production export に接続しない宣言型と fixture である。三例は CSS import を除いて同じ形を保ち、実 React 型で JSX を検査する。
-
-Authoring 側の TypeScript 7.0.2 と Compiler 側の TypeScript 6.0.3 の両方で型検査が成功した。6.0.3 ではファイルを書き換えずに負例の抑制コメントを除去し、19 箇所に 19 件の診断が出ることも確認した。
-
-- 正例: 異種 scene の Props、default の省略と render 側の具体値、texts / bindings の key、明示 State と暗黙 `default` State。
-- 拒否例: 必須 Prop 欠落、余分な Prop、型不一致、未定義 / 非 string Prop 参照、initialState の不正、未定義 State の Action、required / default の不正、非同期 render。19 個の `@ts-expect-error` を外して各箇所の実診断を確認した。
-- 型検査で保証しないもの: 任意型 assertion の健全性、完全な意味 schema、Flow ID の存在、static extraction、DOM binding、filesystem transaction、依存 snapshot、Browser / cgroup の動作。これらは実装 contract の試験を A1〜A5 で行う。
-
-```sh
-pnpm --filter @unframe/unframe-authoring exec tsc --noEmit -p prototypes/react-component/tsconfig.json
+```bash
+nix develop --command scripts/dev/install-presentation-browser.sh
+nix develop --command scripts/ci/opaque-capture.sh
 ```
 
-A0 では、Props の必須 / default の排他性と、default 解決後の render 型を区別した。複数 Action effect に正常な State と未定義 State が混在すると条件型の分配で拒否を失う問題も、負例を追加して修正した。試作の型が通ることを Compiler 実装の完成と扱わない。
+隔離実行には cgroup v2 の memory / pids controller と systemd user manager の delegation、user namespace、Chromium sandbox が必要である。条件を満たさない場合は拒否し、弱い実行環境へ fallback しない。Browser 試験は共有 host の並列負荷で timeout することがあるため、計測時は `vp test run --maxWorkers=1 --reporter=verbose --silent=false` で対象 fixture を単独実行する。
 
-A1 では、型試作をそのまま export せず、既存 schema / semantic guard と一致する公開型へ統合する。Source 非実行の拒否試験、lock v2 の hash / origin / cycle fixture、Structured 回帰を先に用意し、Component 分類 → Manifest / renderer descriptor 抽出 → Instance / ID lowering → CLI frozen check の順に接続する。capture と Editor はこの工程へ混ぜない。
+Base UI Button と固定 React / CSS / image / font の組合せを実 Browser で検証している。UI ライブラリ全体の互換性は保証しない。任意の Vite / PostCSS / Tailwind 設定や host node_modules を描画依存の解決に利用しない。参照 PNG は、見出し・button・画像を目視し、文字欠落と配置の破綻がないことを確認する。
 
-A1 の静的抽出・lock v2・配置変換・CLI 接続は実装済み。実行可能 renderer は抽出結果に保持し、portable Definition には含めない。A2 は閉じた bundle、Linux namespace / cgroup 隔離、binding と二回の RGBA 比較を CLI build に接続した。Base UI Button と CSS / TTF / PNG を使う fixture で、反復 build の全公開成果物一致と、外部通信による失敗時の既存 dist 保持を確認した。有限 State の React capture と公開 Action / Output の接続も実装済み。作業ブランチの Inspector は共有値の局所編集・Undo / Redo と、Core の Cue executor を使う有限 State preview を追加した。publish / Delivery と端末動作の検証は別途必要である。
+2026-10-01 の単独測定では、Base UI fixture の初回 build は **17,282 ms**、同一入力の反復 build は **13,794 ms**、Author の保存開始から新しい PNG artifact の取得までは **25,936 ms** だった。保存の測定は snapshot 更新と capture を含み、画像の HTTP 転送・decode・画面描画は含まない。反復 build も毎回 capture し、描画 cache は使わない。
+
+測定環境は Linux 7.2.8 / x86_64、Intel Core i7-14700F（28 logical CPU）、約49 GB RAM、固定 Bun 1.4.2、Rolldown 1.1.5、Playwright 1.62.1 の managed Chromium headless shell revision 1234 である。この fixture と環境では、個別 build **30秒以内**、保存から PNG artifact 取得 **60秒以内**をローカル導入の確認基準とする。各一回の測定から定めた作業上の基準であり、任意入力や他 host の性能保証ではない。時間の閾値を回帰テストに組み込まず、環境・入力を固定した単独測定で確認する。生成 PNG（2048×1152）は、見出し・button の文字と画像の配置を目視確認した。
+
+## 7. 対象外
+
+publish の受け入れ検証の合成、Delivery・Go / C# / Unity / Quest 接続と実機確認は後続である。React 内部の GUI 編集、共有元の一括変更、Opaque 内部の自動分割、描画 cache、`init` と remote registry も提供しない。SDK の一般配布は未検証であり、reference の手製 SDK 型 snapshot を package 配布の証明にしない。
+
+A0〜A5 の実装経緯は [歴史的な計画](../plans/pr111-react-authoring-acceptance.md) に残す。現行の入力・保存・隔離契約は [実装 contract](./REACT_COMPONENT_EXECUTION_CONTRACT.md) を正本とする。
