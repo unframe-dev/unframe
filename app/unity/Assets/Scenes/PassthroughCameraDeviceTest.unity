@@ -164,6 +164,7 @@ GameObject:
   - component: {fileID: 169578527}
   - component: {fileID: 169578531}
   - component: {fileID: 169578530}
+  - component: {fileID: 169578532}
   m_Layer: 0
   m_Name: PCA Device Preview
   m_TagString: Untagged
@@ -236,6 +237,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f36ba04f15a5c4e209b603d1a2e15056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoCameraMarkerDetection
+--- !u!114 &169578532
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 169578526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a7c6e32bd6a4f4e9e946981f065d43c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ArucoOriginVisualizer
 --- !u!1 &370998384
 GameObject:
   m_ObjectHideFlags: 0

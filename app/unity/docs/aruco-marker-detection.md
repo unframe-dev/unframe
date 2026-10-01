@@ -38,13 +38,21 @@
 同じJSON Linesセッションへ次のイベントを記録する。画像は保存・送信しない。
 
 - `marker_detection` / `marker_detection_error`: ID、四隅、画像寸法、要求時の撮影時刻、検出・読み戻し時間。検出ログはID変更時と約1Hz。`ms detect`は画像変換と姿勢推定を含まず、`ms readback`はフレーム待ち時間を含む。
+- `detection_pipeline_summary`: 約1Hz。GPU読み戻し、RGBAコピー、画像前処理、検出、姿勢推定、要求から完了までの合計時間を記録する。要求・採用・タイムアウト・無効化・失敗の累積数と直近の結果も記録する。合計時間にはスレッド切り替えやフレーム待ちを含む。
 - `pose_estimated`: 約1Hz。`poseValid`、カメラ相対姿勢、保存したカメラworld姿勢、マーカーworld姿勢、実効内部パラメーター、再投影誤差、安定観測数。
 - `alignment_confirmed` / `alignment_reset`: 確定・解除時。`markerSizeMeters=0.2`、`alignmentConfirmed`、`trackingAvailable`。
 
 これらの姿勢フィールドはUnity座標のメートル・quaternion `(x,y,z,w)`。原点確定は端末間の同期完了を意味しない。ログ回収は [PCA 手順](pca-device-preview.md#診断ログ) を参照する。
 
+## コンポーネントの責務
+
+- `PassthroughCameraDevicePreview` は権限・PCA制御と観測の接続を担当し、起動条件は `ArucoCameraSessionState`、表示は `ArucoCameraPreviewView` が担当する。
+- `ArucoCameraMarkerDetection` はGPUコピー・非同期処理の寿命と結果の鮮度を管理し、画像変換・検出・姿勢推定は `ArucoFrameProcessor` が担当する。
+- `ArucoOriginAlignment` は安定性・原点・追跡イベントを管理し、立方体・軸・materialの生成と解放は `ArucoOriginVisualizer` が担当する。
+- 全プロデューサーが `ArucoTrackingDiagnosticSession.TryRecord` を経由する。ログI/Oが失敗した場合は一度だけ報告し、writerを閉じて以後の記録を停止する。カメラや位置合わせの処理は継続する。
+
 ## ローカル検証と実機確認
 
-EditModeテストで20cmマーカーの合成投影、真正面・傾き・面内回転、尺度、座標変換、曖昧解、観測安定性、再測定を確認する。GPUテストは上下非対称の生成画像をRenderTextureへ元解像度のまま転送して読み戻し、1280×960でのバックグラウンド検出・姿勢推定・古い結果破棄を確認する。GPUテストのバッチ実行には `-nographics` を付けない。
+EditModeテストで20cmマーカーの合成投影、真正面・傾き・面内回転、尺度、座標変換、曖昧解、観測安定性、再測定を確認する。GPUテストは上下非対称の生成画像をRenderTextureへ元解像度のまま転送して読み戻し、1280×960でのバックグラウンド検出・姿勢推定・古い結果破棄を確認する。無効化・破棄・解像度変更中のworker寿命、0.5秒を超えた処理の破棄、ログI/O失敗、権限と休止の状態遷移、原点表示の解放も検証する。GPUテストのバッチ実行には `-nographics` を付けない。
 
 ローカルGPUテストはQuestのVulkan・実カメラの精度を代替しない。実機では上下・左右と軸の向き、原点固定後の頭部移動、再測定、トラッキング復帰、位置合わせ中と完了後のかくつきを確認する。

@@ -3,7 +3,6 @@ using System.IO;
 using Meta.XR;
 using UnityEngine;
 using UnityEngine.Android;
-using UnityEngine.UI;
 
 [RequireComponent(typeof(ArucoTrackingDiagnosticSession))]
 [RequireComponent(typeof(ArucoCameraMarkerDetection))]
@@ -15,22 +14,15 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private const string CameraPermission = OVRPermissionsRequester.PassthroughCameraAccessPermission;
     private readonly PassthroughCameraPreviewHealth health = new PassthroughCameraPreviewHealth();
-    private RectTransform panelRoot;
-    private RawImage preview;
-    private AspectRatioFitter previewAspect;
-    private Text statusText;
-    private Text detailsText;
-    private ArucoMarkerOverlay markerOverlay;
+    private readonly ArucoCameraSessionState sessionState = new ArucoCameraSessionState();
+    private ArucoCameraPreviewView view;
     private ArucoCameraMarkerDetection markerDetection;
     private ArucoOriginAlignment alignment;
     private ArucoTrackingDiagnosticSession diagnosticSession;
     private PermissionCallbacks permissionCallbacks;
-    private bool supported;
+    private bool? lastAcquisitionAllowed;
     private bool started;
-    private bool paused;
-    private bool granted;
     private bool requesting;
-    private bool loggingFailed;
     private string permissionStatus = "Not requested";
     private string lastState;
     private double requestedAt;
@@ -53,20 +45,20 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         }
 
         cameraAccess.enabled = false;
-        CreatePanel();
+        view = new ArucoCameraPreviewView(head);
         started = true;
         health.Reset(Time.realtimeSinceStartupAsDouble);
         Debug.Log($"[PCA Preview] Application: {Application.identifier}", this);
 #if UNITY_ANDROID && !UNITY_EDITOR
         try
         {
-            supported = PassthroughCameraAccess.IsSupported;
+            sessionState.Supported = PassthroughCameraAccess.IsSupported;
         }
         catch (Exception exception)
         {
             Record("error", exception.Message);
         }
-        if (supported)
+        if (sessionState.Supported)
         {
             RequestCameraPermission();
         }
@@ -77,6 +69,8 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     private void Update()
     {
         double now = Time.realtimeSinceStartupAsDouble;
+        SyncSessionState();
+        if (lastAcquisitionAllowed != sessionState.ShouldRunCamera) ApplyCameraState();
         if (OVRInput.GetDown(OVRInput.Button.One))
         {
             RequestCameraPermission();
@@ -94,7 +88,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         }
 
         bool newFrame = false;
-        if (!paused && granted && cameraAccess.enabled && cameraAccess.IsPlaying)
+        if (sessionState.ShouldRunCamera && cameraAccess.enabled && cameraAccess.IsPlaying)
         {
             if (cameraAccess.IsUpdatedThisFrame)
             {
@@ -102,31 +96,26 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
             }
         }
 
-        bool live = !alignment.IsConfirmed && alignment.TrackingAvailable && !paused && granted && cameraAccess.enabled && cameraAccess.IsPlaying
+        bool live = sessionState.ShouldRunCamera && cameraAccess.enabled && cameraAccess.IsPlaying
             && health.GetState(now) == PassthroughCameraFeedState.Live;
-        preview.texture = live ? cameraAccess.GetTexture() : null;
-        preview.enabled = live;
+        Texture texture = live ? cameraAccess.GetTexture() : null;
         if (live && newFrame)
         {
             var intrinsics = cameraAccess.Intrinsics;
-            var resolution = ArucoCameraMarkerDetection.DetectionResolution(preview.texture.width, preview.texture.height);
+            var resolution = ArucoCameraMarkerDetection.DetectionResolution(texture.width, texture.height);
             var geometry = ArucoCameraGeometry.FromSensor(intrinsics.FocalLength, intrinsics.PrincipalPoint,
                 intrinsics.SensorResolution, resolution, cameraAccess.GetCameraPose());
-            markerDetection.SubmitFrame(preview.texture, cameraAccess.Timestamp.Ticks, geometry);
+            markerDetection.SubmitFrame(texture, cameraAccess.Timestamp.Ticks, geometry);
         }
         else if (!live) markerDetection.ClearFeed();
         alignment.Observe(live ? markerDetection.CurrentObservation : null, now);
         if (alignment.IsConfirmed && cameraAccess.enabled)
         {
-            StopCamera();
-            preview.enabled = false;
+            ApplyCameraState();
             live = false;
+            texture = null;
         }
-        markerOverlay.SetFrame(live ? markerDetection.CurrentFrame : null);
-        if (live && cameraAccess.CurrentResolution.y > 0)
-        {
-            previewAspect.aspectRatio = (float)cameraAccess.CurrentResolution.x / cameraAccess.CurrentResolution.y;
-        }
+        view.SetFeed(texture, live ? markerDetection.CurrentFrame : null, cameraAccess.CurrentResolution);
 
         if (now >= sampleAt + 1 && live)
         {
@@ -161,7 +150,8 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private void RequestCameraPermission()
     {
-        if (!supported || paused || requesting)
+        SyncSessionState();
+        if (!sessionState.CanRequestPermission || requesting)
         {
             return;
         }
@@ -172,8 +162,8 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
             return;
         }
 
-        StopCamera();
-        granted = false;
+        sessionState.PermissionGranted = false;
+        ApplyCameraState();
         requesting = true;
         requestedAt = Time.realtimeSinceStartupAsDouble;
         permissionStatus = "Requesting";
@@ -191,49 +181,69 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     private void OnPermissionGranted(string permission)
     {
         if (permission != CameraPermission) return;
-        bool changed = !granted || requesting;
+        bool changed = !sessionState.PermissionGranted || requesting;
         requesting = false;
-        granted = true;
+        sessionState.PermissionGranted = true;
         permissionStatus = "Granted";
         if (changed) Record("permission_result", permissionStatus);
-        if (!paused && !alignment.IsConfirmed && alignment.TrackingAvailable && !cameraAccess.enabled)
-        {
-            RestartCamera();
-        }
+        ApplyCameraState();
     }
 
     private void OnPermissionDenied(string permission)
     {
         if (permission != CameraPermission) return;
         requesting = false;
-        granted = false;
+        sessionState.PermissionGranted = false;
         permissionStatus = "Denied - grant Camera access in device app settings, then press A/X";
-        StopCamera();
+        ApplyCameraState();
         Record("permission_result", permissionStatus);
+    }
+
+    private void SyncSessionState()
+    {
+        sessionState.Active = isActiveAndEnabled;
+        sessionState.TrackingAvailable = alignment != null && alignment.TrackingAvailable;
+        sessionState.AlignmentConfirmed = alignment != null && alignment.IsConfirmed;
+    }
+
+    private void ApplyCameraState(bool restart = false)
+    {
+        if (!started || cameraAccess == null) return;
+        SyncSessionState();
+        lastAcquisitionAllowed = sessionState.ShouldRunCamera;
+        switch (sessionState.GetAction(cameraAccess.enabled, restart))
+        {
+            case ArucoCameraAction.Start:
+                StopCamera();
+                ResetHealth();
+                cameraAccess.enabled = true;
+                Record("camera_state", "Camera started");
+                break;
+            case ArucoCameraAction.Stop:
+                StopCamera();
+                break;
+        }
     }
 
     private void RestartCamera()
     {
-        if (!supported || !granted || paused || !alignment.TrackingAvailable) return;
+        SyncSessionState();
+        if (!sessionState.CanStartAlignment) return;
         alignment.ResetAlignment("Show ID 0 (20 cm) to align again", false);
-        StopCamera();
-        ResetHealth();
-        cameraAccess.enabled = true;
-        Record("camera_state", "Camera started");
+        ApplyCameraState(true);
     }
 
     private void OnAlignmentReset()
     {
-        if (!started || !isActiveAndEnabled) return;
-        StopCamera();
+        if (!started) return;
         ResetHealth();
-        if (supported && granted && !paused && alignment.TrackingAvailable) cameraAccess.enabled = true;
-        RefreshPanel();
+        ApplyCameraState(true);
+        if (isActiveAndEnabled) RefreshPanel();
     }
 
     private void ResetHealth()
     {
-        markerDetection.ClearFeed();
+        if (markerDetection != null) markerDetection.ClearFeed();
         double now = Time.realtimeSinceStartupAsDouble;
         health.Reset(now);
         sampleAt = now;
@@ -243,42 +253,39 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private void StopCamera()
     {
-        markerDetection.DrainReadbackBeforeCameraStops();
-        if (markerOverlay != null) markerOverlay.SetFrame(null);
-        cameraAccess.enabled = false;
-        if (preview != null) preview.texture = null;
+        if (markerDetection != null) markerDetection.DrainReadbackBeforeCameraStops();
+        if (cameraAccess != null) cameraAccess.enabled = false;
+        view?.ClearFeed();
     }
 
     private void OnApplicationPause(bool isPaused)
     {
-        paused = isPaused;
+        sessionState.Paused = isPaused;
         if (!started) return;
-        if (paused)
+        if (sessionState.Paused)
         {
             alignment.ResetAlignment("Resumed session requires alignment", false);
-            // MRUK owns the camera's pause/resume lifecycle; disabling it here would race its restart.
-            preview.texture = null;
-            preview.enabled = false;
+            view.ClearFeed();
             markerDetection.ClearFeed();
-            markerOverlay.SetFrame(null);
             RefreshPanel();
         }
         else
         {
             ResetHealth();
             RefreshPermission();
+            ApplyCameraState();
         }
     }
 
     private void OnApplicationFocus(bool hasFocus)
     {
-        if (started && hasFocus && !paused) RefreshPermission();
+        if (started && hasFocus && !sessionState.Paused) RefreshPermission();
     }
 
     private void RefreshPermission()
     {
 #if UNITY_ANDROID && !UNITY_EDITOR
-        if (!supported) return;
+        if (!sessionState.Supported) return;
         if (Permission.HasUserAuthorizedPermission(CameraPermission))
         {
             OnPermissionGranted(CameraPermission);
@@ -294,27 +301,32 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     {
         string state;
 #if UNITY_ANDROID && !UNITY_EDITOR
-        state = !supported ? "UNSUPPORTED - Quest 3/3S, Horizon OS 74+ required"
-            : paused ? "PAUSED"
+        state = !sessionState.Supported ? "UNSUPPORTED - Quest 3/3S, Horizon OS 74+ required"
+            : sessionState.Paused ? "PAUSED"
             : !alignment.TrackingAvailable ? "TRACKING LOST"
             : alignment.IsConfirmed ? "ALIGNED"
-            : !granted ? "CAMERA PERMISSION REQUIRED"
+            : !sessionState.PermissionGranted ? "CAMERA PERMISSION REQUIRED"
             : health.GetState(Time.realtimeSinceStartupAsDouble).ToString().ToUpperInvariant();
 #else
         state = "EDITOR - Build and Run on Quest 3/3S";
 #endif
-        statusText.text = $"PCA CAMERA TEST | {state}\nPermission: {permissionStatus}";
-        statusText.color = (state == "LIVE" || state == "ALIGNED") ? new Color(0.4f, 1f, 0.5f) : Color.white;
         string timestamp = health.FrameCount > 0 ? cameraAccess.Timestamp.ToString("HH:mm:ss.fff 'UTC'") : "-";
-        string logFile = diagnosticSession.Diagnostics != null
-            ? Path.GetFileName(diagnosticSession.Diagnostics.FilePath) : "Unavailable";
-        UpdatePanelLayout();
-        detailsText.text = alignment.IsConfirmed
-            ? alignment.Summary + "\nB/Y: align again | Move your head to check the cube stays in place"
-            : $"{cameraAccess.CameraPosition} camera | {cameraAccess.CurrentResolution.x} x {cameraAccess.CurrentResolution.y}"
-            + $" | {observedFps:F1} camera FPS | {health.FrameCount} frames\nCapture: {timestamp}"
-            + $"\n{(alignment.IsConfirmed ? "" : markerDetection.Summary + "\n")}{alignment.Summary}"
-            + $"\nA/X: permission check | B/Y: align again\nLog: {logFile}";
+        string logFile = diagnosticSession.LoggingFailed ? "Stopped"
+            : diagnosticSession.Diagnostics != null ? Path.GetFileName(diagnosticSession.Diagnostics.FilePath) : "Unavailable";
+        view.ShowStatus(new ArucoCameraPreviewStatus
+        {
+            State = state,
+            PermissionStatus = permissionStatus,
+            CameraPosition = cameraAccess.CameraPosition.ToString(),
+            Resolution = cameraAccess.CurrentResolution,
+            FramesPerSecond = observedFps,
+            FrameCount = health.FrameCount,
+            CaptureTimestamp = timestamp,
+            LogFileName = logFile,
+            DetectionSummary = markerDetection.Summary,
+            AlignmentSummary = alignment.Summary,
+            AlignmentConfirmed = alignment.IsConfirmed
+        });
         if (state != lastState)
         {
             lastState = state;
@@ -323,84 +335,22 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         }
     }
 
-    private void CreatePanel()
-    {
-        var panel = new GameObject("PCA Preview Panel", typeof(RectTransform), typeof(Canvas));
-        panelRoot = panel.GetComponent<RectTransform>();
-        panel.transform.SetParent(head, false);
-        panel.transform.localPosition = new Vector3(0, 0, 1.25f);
-        panel.transform.localScale = Vector3.one * 0.001f;
-        panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 920);
-        panel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
-        panel.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
-        var background = panel.AddComponent<Image>();
-        background.color = new Color(0.015f, 0.025f, 0.04f, 0.95f);
-        background.raycastTarget = false;
-        var region = new GameObject("Camera Feed Region", typeof(RectTransform));
-        region.transform.SetParent(panel.transform, false);
-        region.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 600);
-        var image = new GameObject("Camera Feed", typeof(RectTransform), typeof(RawImage));
-        image.transform.SetParent(region.transform, false);
-        preview = image.GetComponent<RawImage>();
-        preview.raycastTarget = false;
-        preview.enabled = false;
-        previewAspect = image.AddComponent<AspectRatioFitter>();
-        previewAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-        previewAspect.aspectRatio = 4f / 3f;
-        var overlay = new GameObject("ArUco Marker Outlines", typeof(RectTransform));
-        overlay.transform.SetParent(image.transform, false);
-        var overlayRect = overlay.GetComponent<RectTransform>();
-        overlayRect.anchorMin = Vector2.zero;
-        overlayRect.anchorMax = Vector2.one;
-        overlayRect.sizeDelta = Vector2.zero;
-        markerOverlay = overlay.AddComponent<ArucoMarkerOverlay>();
-        markerOverlay.color = new Color(0.2f, 1f, 0.3f, 1f);
-        markerOverlay.raycastTarget = false;
-        statusText = CreateText(panel.transform, "Status", new Vector2(0, 410), new Vector2(940, 90), 26);
-        detailsText = CreateText(panel.transform, "Diagnostics", new Vector2(0, -395), new Vector2(940, 170), 20);
-    }
-
-    private void UpdatePanelLayout()
-    {
-        bool compact = alignment.IsConfirmed;
-        panelRoot.sizeDelta = compact ? new Vector2(1000, 160) : new Vector2(1000, 920);
-        panelRoot.localPosition = compact ? new Vector3(0, 0.5f, 1.25f) : new Vector3(0, 0, 1.25f);
-        statusText.rectTransform.anchoredPosition = new Vector2(0, compact ? 45 : 410);
-        statusText.rectTransform.sizeDelta = new Vector2(940, compact ? 60 : 90);
-        detailsText.rectTransform.anchoredPosition = new Vector2(0, compact ? -30 : -395);
-        detailsText.rectTransform.sizeDelta = new Vector2(940, compact ? 80 : 170);
-    }
-
     private void OnDisable()
     {
         if (!started) return;
-        alignment.ResetAlignment("Preview disabled; align again", false);
-        StopCamera();
-        if (panelRoot != null) panelRoot.gameObject.SetActive(false);
+        if (alignment != null) alignment.ResetAlignment("Preview disabled; align again", false);
+        ApplyCameraState();
+        view?.ClearFeed();
+        view?.SetVisible(false);
     }
 
     private void OnEnable()
     {
         if (!started) return;
-        if (panelRoot != null) panelRoot.gameObject.SetActive(true);
+        view?.SetVisible(true);
         ResetHealth();
         RefreshPermission();
-    }
-
-    private static Text CreateText(Transform parent, string name, Vector2 position, Vector2 size, int fontSize)
-    {
-        var textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(parent, false);
-        var rect = textObject.GetComponent<RectTransform>();
-        rect.anchoredPosition = position;
-        rect.sizeDelta = size;
-        var text = textObject.GetComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = fontSize;
-        text.alignment = TextAnchor.MiddleLeft;
-        text.color = Color.white;
-        text.raycastTarget = false;
-        return text;
+        ApplyCameraState();
     }
 
     private void Record(string eventType, string message)
@@ -410,22 +360,14 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private void Record(ArucoTrackingDiagnosticEvent diagnosticEvent)
     {
-        if (loggingFailed || diagnosticSession.Diagnostics == null) return;
-        try
-        {
-            diagnosticSession.Diagnostics.Record(diagnosticEvent);
-        }
-        catch (Exception exception)
-        {
-            loggingFailed = true;
-            Debug.LogError($"[PCA Preview] Diagnostic logging stopped: {exception.Message}", this);
-        }
+        diagnosticSession?.TryRecord(diagnosticEvent);
     }
 
     private void OnDestroy()
     {
+        started = false;
         if (alignment != null) alignment.ResetRequested -= OnAlignmentReset;
-        if (panelRoot != null) Destroy(panelRoot.gameObject);
+        view?.Dispose();
         if (markerDetection != null) markerDetection.DrainReadbackBeforeCameraStops();
         if (cameraAccess != null) cameraAccess.enabled = false;
         if (permissionCallbacks == null) return;

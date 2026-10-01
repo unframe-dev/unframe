@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
+using Stopwatch = System.Diagnostics.Stopwatch;
 using OpenCVForUnity.CoreModule;
-using OpenCVForUnity.ImgprocModule;
 using OpenCVForUnity.Extensions;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -11,11 +11,9 @@ using UnityEngine.Rendering;
 public sealed class ArucoCameraMarkerDetection : MonoBehaviour
 {
     private readonly ArucoDetectionFrameGate gate = new ArucoDetectionFrameGate();
-    private ArucoMarkerDetector detector;
+    private IArucoFrameProcessor processor;
     private Mat rgba;
-    private Mat gray;
     private RenderTexture snapshot;
-    private readonly ArucoMarkerPoseEstimator poseEstimator = new ArucoMarkerPoseEstimator();
     private ArucoPoseObservation observation;
     private CancellationToken destructionToken;
     private ArucoTrackingDiagnosticSession diagnostics;
@@ -27,11 +25,23 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
     private double loggedAt = double.NegativeInfinity;
     private bool feedAvailable;
     private bool destroying;
-    private bool loggingFailed;
+    private double metricsLoggedAt = double.NegativeInfinity;
     private string error;
     private string previousIds;
     public int ProcessedFrames { get; private set; }
     public double ReadbackMilliseconds { get; private set; }
+    public ArucoDetectionMetrics Metrics { get; } = new ArucoDetectionMetrics();
+    public ArucoDetectionPhase Phase { get; private set; }
+    public bool IsProcessing => gate.Busy;
+
+    public void ConfigureProcessor(IArucoFrameProcessor frameProcessor)
+    {
+        if (frameProcessor == null) throw new ArgumentNullException(nameof(frameProcessor));
+        if (gate.Busy || destroying) throw new InvalidOperationException("Cannot replace a processor while detection is active or destroyed.");
+        ClearFeed();
+        DisposeResources();
+        processor = frameProcessor;
+    }
 
     public ArucoPoseObservation CurrentObservation => CurrentFrame == null ? null : observation;
 
@@ -48,6 +58,7 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
             var frame = CurrentFrame;
             string ids = frame == null ? "waiting" : frame.MarkerIds.Length == 0 ? "none" : string.Join(", ", frame.MarkerIds);
             return $"ArUco {ArucoMarkerDetector.DictionaryName} | IDs: {ids} | {ProcessedFrames} samples"
+                + $" | {Phase} | {Metrics.LastTimings.TotalMilliseconds:F1} ms total | drops {Metrics.TimedOut + Metrics.Invalidated + Metrics.Failed} ({Metrics.LastOutcome})"
                 + (frame == null ? "" : $" | {frame.ProcessingMilliseconds:F1} ms detect / {ReadbackMilliseconds:F1} ms readback");
         }
     }
@@ -68,72 +79,114 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
             return;
         }
         if (!gate.TryBegin(captureTimestampTicks, Time.realtimeSinceStartupAsDouble, out int generation)) return;
+        Metrics.Begin();
         DetectFrame(texture, captureTimestampTicks, generation, geometry);
     }
 
     private async void DetectFrame(Texture texture, long timestamp, int generation, ArucoCameraGeometry geometry)
     {
+        var total = Stopwatch.StartNew();
+        double startedAt = Time.realtimeSinceStartupAsDouble;
+        double readbackMs = 0, copyMs = 0, preprocessingMs = 0, detectionMs = 0, poseMs = 0;
+        var outcome = ArucoDetectionOutcome.Invalidated;
         try
         {
             var resolution = DetectionResolution(texture.width, texture.height);
             EnsureBuffers(resolution.x, resolution.y);
-            double startedAt = Time.realtimeSinceStartupAsDouble;
+            Phase = ArucoDetectionPhase.Readback;
+            var stage = Stopwatch.StartNew();
             // Keep the sampled image separate from the PCA texture, which the render thread continues updating.
             Graphics.Blit(texture, snapshot);
             readback = AsyncGPUReadback.Request(snapshot, 0, GraphicsFormat.R8G8B8A8_UNorm);
             readbackIssued = true;
             while (!readback.done) await Awaitable.NextFrameAsync(destructionToken);
-            if (destroying || generation != gate.Generation || !isActiveAndEnabled) return;
-            ReadbackMilliseconds = (Time.realtimeSinceStartupAsDouble - startedAt) * 1000;
+            readbackMs = stage.Elapsed.TotalMilliseconds;
+            ReadbackMilliseconds = readbackMs;
+            if (IsInvalidated(generation)) return;
             if (readback.hasError) throw new InvalidOperationException("GPU camera readback failed. Press B/Y to retry.");
-            if (Time.realtimeSinceStartupAsDouble - startedAt > 0.5) return;
-            MatBufferUtils.CopyToMat<byte>(readback.GetData<byte>(), rgba);
-            await Awaitable.BackgroundThreadAsync();
-            ArucoMarkerDetectionFrame detected;
-            ArucoMarkerPoseEstimate estimated = null;
-            try
+            if (total.Elapsed.TotalSeconds > 0.5)
             {
-                // GPU pixels use Unity's lower-left origin; OpenCV corners use the upper-left origin.
-                Core.flip(rgba, rgba, 0);
-                Imgproc.cvtColor(rgba, gray, Imgproc.COLOR_RGBA2GRAY);
-                detected = detector.Detect(gray, timestamp);
-                int index = Array.IndexOf(detected.MarkerIds, ArucoMarkerPoseEstimator.TargetMarkerId);
-                if (index >= 0 && CornersInsideImage(detected, index))
-                    estimated = poseEstimator.Estimate(detected.CornersPixels, index * 8, geometry.Fx, geometry.Fy, geometry.Cx, geometry.Cy);
+                outcome = ArucoDetectionOutcome.TimedOut;
+                return;
             }
+            stage.Restart();
+            MatBufferUtils.CopyToMat<byte>(readback.GetData<byte>(), rgba);
+            copyMs = stage.Elapsed.TotalMilliseconds;
+            Phase = ArucoDetectionPhase.Processing;
+            await Awaitable.BackgroundThreadAsync();
+            ArucoFrameProcessingResult processed;
+            try { processed = processor.Process(rgba, timestamp, geometry); }
             finally { await Awaitable.MainThreadAsync(); }
-            if (destroying || generation != gate.Generation || !isActiveAndEnabled
-                || Time.realtimeSinceStartupAsDouble - startedAt > 0.5) return;
-            result = detected;
-            observation = new ArucoPoseObservation(detected, estimated, geometry);
+            preprocessingMs = processed.PreprocessingMilliseconds;
+            detectionMs = processed.Frame.ProcessingMilliseconds;
+            poseMs = processed.PoseMilliseconds;
+            if (IsInvalidated(generation)) return;
+            if (total.Elapsed.TotalSeconds > 0.5)
+            {
+                outcome = ArucoDetectionOutcome.TimedOut;
+                return;
+            }
+            result = processed.Frame;
+            observation = new ArucoPoseObservation(result, processed.Estimate, geometry);
             requestedAt = startedAt;
             receivedAt = Time.realtimeSinceStartupAsDouble;
             ProcessedFrames++;
+            outcome = ArucoDetectionOutcome.Accepted;
             RecordDetection(result);
         }
         catch (OperationCanceledException) { }
         catch (Exception exception)
         {
-            if (!destroying && generation == gate.Generation) SetError(exception.Message);
+            outcome = ArucoDetectionOutcome.Failed;
+            if (!IsInvalidated(generation)) SetError(exception.Message);
         }
         finally
         {
             await Awaitable.MainThreadAsync();
+            Metrics.Complete(outcome, new ArucoDetectionTimings(readbackMs, copyMs, preprocessingMs,
+                detectionMs, poseMs, total.Elapsed.TotalMilliseconds));
+            Phase = ArucoDetectionPhase.Idle;
             if (readbackIssued && readback.done) readbackIssued = false;
             gate.Complete(generation);
             if (destroying) DisposeResources();
+            else RecordPipelineMetrics();
         }
     }
 
+    private bool IsInvalidated(int generation) => destroying || generation != gate.Generation || !isActiveAndEnabled;
+
     private void EnsureBuffers(int width, int height)
     {
+        processor ??= new ArucoFrameProcessor();
         if (rgba != null && rgba.cols() == width && rgba.rows() == height) return;
-        DisposeResources();
-        detector = new ArucoMarkerDetector();
+        DisposeBuffers();
         rgba = new Mat(height, width, CvType.CV_8UC4);
-        gray = new Mat(height, width, CvType.CV_8UC1);
         snapshot = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
         snapshot.Create();
+    }
+
+    private void RecordPipelineMetrics()
+    {
+        double now = Time.realtimeSinceStartupAsDouble;
+        if (now - metricsLoggedAt < 1) return;
+        metricsLoggedAt = now;
+        var timings = Metrics.LastTimings;
+        Record(new ArucoTrackingDiagnosticEvent
+        {
+            eventType = "detection_pipeline_summary",
+            cameraReadbackMilliseconds = timings.ReadbackMilliseconds,
+            cameraCopyMilliseconds = timings.CopyMilliseconds,
+            imagePreprocessingMilliseconds = timings.PreprocessingMilliseconds,
+            detectionProcessingMilliseconds = timings.DetectionMilliseconds,
+            poseEstimationMilliseconds = timings.PoseMilliseconds,
+            detectionTotalMilliseconds = timings.TotalMilliseconds,
+            detectionRequestCount = Metrics.Requests,
+            detectionAcceptedCount = Metrics.Accepted,
+            detectionTimeoutCount = Metrics.TimedOut,
+            detectionInvalidatedCount = Metrics.Invalidated,
+            detectionFailureCount = Metrics.Failed,
+            detectionDropReason = Metrics.LastOutcome.ToString()
+        });
     }
 
     public void ClearFeed()
@@ -185,16 +238,7 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
         Record(new ArucoTrackingDiagnosticEvent { eventType = "marker_detection_error", message = message });
     }
 
-    private void Record(ArucoTrackingDiagnosticEvent diagnosticEvent)
-    {
-        if (loggingFailed || diagnostics == null || diagnostics.Diagnostics == null) return;
-        try { diagnostics.Diagnostics.Record(diagnosticEvent); }
-        catch (Exception exception)
-        {
-            loggingFailed = true;
-            Debug.LogError("[ArUco Detection] Diagnostic logging stopped: " + exception.Message, this);
-        }
-    }
+    private void Record(ArucoTrackingDiagnosticEvent diagnosticEvent) => diagnostics?.TryRecord(diagnosticEvent);
 
     private void OnDisable() => ClearFeed();
 
@@ -206,15 +250,14 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
         if (!gate.Busy) DisposeResources();
     }
 
-    private static bool CornersInsideImage(ArucoMarkerDetectionFrame frame, int marker)
+    private void DisposeResources()
     {
-        for (int i = marker * 8; i < marker * 8 + 8; i += 2)
-            if (frame.CornersPixels[i] < 3 || frame.CornersPixels[i] > frame.Resolution.x - 3
-                || frame.CornersPixels[i + 1] < 3 || frame.CornersPixels[i + 1] > frame.Resolution.y - 3) return false;
-        return true;
+        DisposeBuffers();
+        processor?.Dispose();
+        processor = null;
     }
 
-    private void DisposeResources()
+    private void DisposeBuffers()
     {
         if (snapshot != null)
         {
@@ -223,11 +266,7 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
             else DestroyImmediate(snapshot);
             snapshot = null;
         }
-        detector?.Dispose();
         rgba?.Dispose();
-        gray?.Dispose();
-        detector = null;
         rgba = null;
-        gray = null;
     }
 }

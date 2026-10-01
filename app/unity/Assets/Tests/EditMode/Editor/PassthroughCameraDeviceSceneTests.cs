@@ -13,7 +13,7 @@ public sealed class PassthroughCameraDeviceSceneTests
     public void SavedDeviceSceneIncludesDetectionAndAlignmentComponents()
     {
         string serialized = File.ReadAllText(PassthroughCameraDeviceTestEditor.ScenePath);
-        foreach (string script in new[] { "ArucoCameraMarkerDetection", "ArucoOriginAlignment" })
+        foreach (string script in new[] { "ArucoCameraMarkerDetection", "ArucoOriginAlignment", "ArucoOriginVisualizer" })
         {
             string guid = AssetDatabase.AssetPathToGUID("Assets/Scripts/MR/" + script + ".cs");
             Assert.That(guid.Length, Is.EqualTo(32), script + " must be imported before preparing the scene.");
@@ -67,5 +67,14 @@ public sealed class PassthroughCameraDeviceSceneTests
             .Any(element => element.GetAttribute("name", "http://schemas.android.com/apk/res/android")
                 == OVRPermissionsRequester.PassthroughCameraAccessPermission);
         Assert.That(cameraPermission, Is.True);
+    }
+
+    [Test]
+    public void AndroidProjectUsesRepositoryIdentifierInsteadOfThePreviewBuildIdentifier()
+    {
+        string applicationId = PlayerSettings.GetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android);
+
+        Assert.That(applicationId, Is.EqualTo("com.UnityTechnologies.com.unity.template.urpblank"));
+        Assert.That(applicationId, Is.Not.EqualTo(PassthroughCameraDeviceTestEditor.ApplicationId));
     }
 }

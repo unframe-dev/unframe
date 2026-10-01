@@ -36,6 +36,10 @@ public static class PassthroughCameraDeviceTestEditor
             }
             var existingPreview = existing.GetRootGameObjects()
                 .SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Single();
+            if (existingPreview.GetComponent<ArucoOriginVisualizer>() == null)
+            {
+                existingPreview.gameObject.AddComponent<ArucoOriginVisualizer>();
+            }
             if (existingPreview.GetComponent<ArucoOriginAlignment>() == null)
             {
                 existingPreview.gameObject.AddComponent<ArucoOriginAlignment>();

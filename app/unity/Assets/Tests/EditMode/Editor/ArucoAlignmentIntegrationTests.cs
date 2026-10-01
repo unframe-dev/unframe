@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Reflection;
 using NUnit.Framework;
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ObjdetectModule;
@@ -17,6 +18,7 @@ public sealed class ArucoAlignmentIntegrationTests
         var texture = new Texture2D(1280, 960, TextureFormat.RGBA32, false, true);
         try
         {
+            Invoke(detection, "Awake");
             using (var dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50))
             using (var marker = new Mat())
             using (var image = new Mat(960, 1280, CvType.CV_8UC1, new Scalar(255)))
@@ -45,6 +47,7 @@ public sealed class ArucoAlignmentIntegrationTests
         finally
         {
             detection.DrainReadbackBeforeCameraStops();
+            Invoke(detection, "OnDestroy");
             Object.DestroyImmediate(host);
             Object.DestroyImmediate(texture);
         }
@@ -57,6 +60,7 @@ public sealed class ArucoAlignmentIntegrationTests
         var alignment = host.AddComponent<ArucoOriginAlignment>();
         try
         {
+            Invoke(alignment, "Awake");
             yield return null;
             var expected = new Pose(new Vector3(1, 2, 3), Quaternion.Euler(10, 20, 30));
             for (int i = 0; i < 8; i++)
@@ -76,7 +80,14 @@ public sealed class ArucoAlignmentIntegrationTests
             Assert.That(origin.activeSelf, Is.False);
             Assert.That(resetEvents, Is.EqualTo(1));
         }
-        finally { Object.DestroyImmediate(host); }
+        finally
+        {
+            Invoke(host.GetComponent<ArucoOriginVisualizer>(), "OnDestroy");
+            Invoke(alignment, "OnDestroy");
+            Object.DestroyImmediate(host);
+        }
         yield return null;
     }
+    private static void Invoke(MonoBehaviour component, string method) => component.GetType()
+        .GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(component, null);
 }

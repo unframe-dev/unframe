@@ -6,6 +6,47 @@ using UnityEngine;
 
 public sealed class ArucoMarkerPoseEstimatorTests
 {
+    [TestCase(0.5f, true)]
+    [TestCase(24f, false)]
+    public void CornerNoiseMustRemainWithinTheReprojectionQualityLimit(float noise, bool accepted)
+    {
+        var expected = new Pose(new Vector3(0.1f, -0.1f, 1), Quaternion.Euler(25, -20, 12));
+        var corners = Project(expected);
+        corners[0] += noise;
+        corners[1] -= noise;
+        var result = new ArucoMarkerPoseEstimator().Estimate(corners, 0, 800, 810, 640, 480);
+        Assert.That(result.IsValid, Is.EqualTo(accepted), result.RejectionReason);
+        if (accepted)
+        {
+            Assert.That(result.ReprojectionErrorPixels, Is.LessThanOrEqualTo(3));
+            Assert.That(Vector3.Distance(result.CameraPositionMeters, expected.position), Is.LessThan(0.01));
+        }
+        else
+        {
+            Assert.That(result.ReprojectionErrorPixels, Is.GreaterThan(3));
+            Assert.That(result.RejectionReason, Is.EqualTo("excessive reprojection error"));
+        }
+    }
+
+    [Test]
+    public void SmallFrontalMarkerRetainsMetricScaleWhenPoseIsUnambiguous()
+    {
+        var result = new ArucoMarkerPoseEstimator().Estimate(
+            Project(new Pose(new Vector3(0, 0, 8), Quaternion.identity)), 0, 800, 810, 640, 480);
+        Assert.That(result.IsValid, Is.True, result.RejectionReason);
+        Assert.That(result.CameraPositionMeters.z, Is.EqualTo(8).Within(0.01));
+        Assert.That(result.ReprojectionErrorPixels, Is.LessThan(0.01));
+    }
+
+    [Test]
+    public void SubpixelMarkerFootprintCannotProduceAMetricPose()
+    {
+        var result = new ArucoMarkerPoseEstimator().Estimate(
+            Project(new Pose(new Vector3(0, 0, 200), Quaternion.identity)), 0, 800, 810, 640, 480);
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.RejectionReason, Is.EqualTo("invalid corners"));
+    }
+
     [TestCase(0.2f, -0.15f, 0.85f, 23f, -31f, 12f)]
     [TestCase(-0.1f, 0.12f, 1.5f, -30f, 18f, -14f)]
     public void RecoversMetricTranslationAndUnityRotation(float x, float y, float z, float pitch, float yaw, float roll)
