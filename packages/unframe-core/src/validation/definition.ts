@@ -23,7 +23,7 @@ const unsupported = (diagnostics: Diagnostic[], path: string, message: string) =
   diagnostics.push(diagnostic("feature.unsupported", path, message));
 
 const semanticRolesByContentKind: Record<
-  "frame" | "text" | "image" | "shape",
+  "frame" | "text" | "image" | "shape" | "video",
   ReadonlySet<string>
 > = {
   frame: new Set(["button", "list", "row", "table"]),
@@ -38,6 +38,7 @@ const semanticRolesByContentKind: Record<
   ]),
   image: new Set(["image", "button"]),
   shape: new Set(["image", "button"]),
+  video: new Set(["image", "button"]),
 };
 
 const validateCanonicalQuaternion = (
@@ -65,6 +66,7 @@ const validateCanonicalQuaternion = (
 
 export const validatePresentationDefinition = (
   input: unknown,
+  options: { fullDelivery?: boolean } = {},
 ): ValidationResult<PresentationDefinitionV2> => {
   const parsed = parsePresentationDefinitionInput(input);
   if (!parsed.success)
@@ -105,7 +107,7 @@ export const validatePresentationDefinition = (
     const path = `/scene/nodes/${pathSegment(nodeId)}`;
     validateGroupOwner(diagnostics, node, groupIds, path);
     validateCanonicalQuaternion(diagnostics, node.transform.rotation, `${path}/transform/rotation`);
-    if (node.kind !== "container" && node.kind !== "surface")
+    if (!options.fullDelivery && node.kind !== "container" && node.kind !== "surface")
       unsupported(diagnostics, `${path}/kind`, "M3A supports container and surface nodes only.");
     const parentId = node.parent.kind === "node" ? node.parent.nodeId : null;
     parentByNode.set(nodeId, parentId);
@@ -232,7 +234,7 @@ export const validatePresentationDefinition = (
         );
       for (const [contentId, content] of Object.entries(nodes)) {
         const contentPath = `${path}/content/nodes/${pathSegment(contentId)}`;
-        if (content.kind === "video") {
+        if (content.kind === "video" && !options.fullDelivery) {
           unsupported(
             diagnostics,
             `${contentPath}/kind`,
@@ -351,10 +353,11 @@ export const validatePresentationDefinition = (
         diagnostic("reference.invalid", `${path}/initialStateId`, "Initial State does not exist."),
       );
     if (
-      surface.renderIntent.updateModel.kind === "continuous-native-text" ||
-      surface.renderIntent.internalAnimation.kind !== "none" ||
-      surface.renderIntent.rendererPreference !== "baked-web" ||
-      surface.renderIntent.fallbackPolicy !== "reject"
+      !options.fullDelivery &&
+      (surface.renderIntent.updateModel.kind === "continuous-native-text" ||
+        surface.renderIntent.internalAnimation.kind !== "none" ||
+        surface.renderIntent.rendererPreference !== "baked-web" ||
+        surface.renderIntent.fallbackPolicy !== "reject")
     )
       unsupported(
         diagnostics,
@@ -399,8 +402,8 @@ export const validatePresentationDefinition = (
       groupIds,
       `/flow/timelines/${pathSegment(timelineId)}`,
     );
-  validateTimelineInvariants(definition, diagnostics);
-  validateCueInvariants(definition, diagnostics);
+  validateTimelineInvariants(definition, diagnostics, options);
+  validateCueInvariants(definition, diagnostics, options);
 
   return diagnostics.length === 0
     ? { valid: true, value: definition, diagnostics: [] }

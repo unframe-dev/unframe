@@ -9,6 +9,21 @@ export {
   validateRuntimeVisibilitySelection,
 } from "./runtime/projection.js";
 export * from "./runtime/timeline-interpolation.js";
+export { calculateProjectionProfileId } from "./delivery/profile-identity.js";
+export { buildProjectionProfile } from "./delivery/profile.js";
+export {
+  buildDeliveryManifest,
+  type DeliveryManifestBuildInput,
+  type AssetAccessGrant,
+} from "./delivery/manifest.js";
+export {
+  selectDeliveryArtifacts,
+  type DeliverySelection,
+  type SelectedRenderSurface,
+} from "./delivery/selection.js";
+export type { DeliverySourceInput } from "./delivery/input.js";
+export { validateCanonicalRuntimeSnapshot } from "./runtime/projection.js";
+export { projectCanonicalParticipantRuntimeView } from "./runtime/canonical-participant-projection.js";
 export {
   completedSemanticTreeV2Schema,
   semanticSurfaceV2Schema,

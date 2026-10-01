@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Presentation v2 M3D Timeline / Runtime Run と純粋な Runtime projection subset を実装済み
+- **Status**: Presentation v2、純粋な Cue / Runtime Run、Delivery projection / admission、snapshot 検証
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -72,7 +72,11 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 
 `createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
 
-`createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。Variable の正確な dependency closure、ProjectionProfileDescriptor の identity、Media / Model を含む完全な CanonicalRuntimeSnapshot、Delivery / wire 接続は後続段階の責務とする。
+`createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。
+
+`selectDeliveryArtifacts`、`buildProjectionProfile`、`buildDeliveryManifest` は Definition / RenderBundle / AssetSet / BuildManifest / PublishedPresentation の整合性を検査し、role と CapabilityProfile に応じた artifact / Asset closure と予算を解決する。`calculateProjectionProfileId` は規範 mapping に従う profile identity を計算する。署名付き取得 URL は呼び出し側が渡し、Core は発行や認証を行わない。
+
+`validateCanonicalRuntimeSnapshot` は Media / Model を含む snapshot の意味検証を扱う。`projectCanonicalParticipantRuntimeView` は検証済み publication と role から profile を導出し、非表示の resource / Run / variable を除いた view を生成する。Media / Model の authoritative execution、network replay、永続化は application integration の責務である。
 
 `evaluateTimelineTrack`は検証済みTimeline trackと経過時間から表示値を計算する純粋関数である。Run停止・完了時のNode stateへのcommitは実行器が扱う。
 
