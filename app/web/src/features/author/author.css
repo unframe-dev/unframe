@@ -72,6 +72,7 @@ button[aria-current="true"] {
   margin: 0.6rem 0;
 }
 .author-field input:not([type="checkbox"]),
+.author-field textarea,
 fieldset input {
   width: 100%;
   min-width: 0;
@@ -80,6 +81,10 @@ fieldset input {
   color: inherit;
   border: 1px solid #5a7590;
   border-radius: 4px;
+}
+.author-field textarea {
+  min-height: 5rem;
+  resize: vertical;
 }
 .author-field small {
   grid-column: 2/-1;

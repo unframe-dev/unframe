@@ -99,6 +99,50 @@ const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) =
 });
 
 describe("author service with frozen React source", () => {
+  it("returns editor metadata and structured build diagnostics", async () => {
+    const directory = await createProject();
+    const service = await createAuthorService(directory, {
+      run: async () => ({
+        exitCode: 1 as const,
+        stdout: "",
+        stderr: JSON.stringify({
+          ok: false,
+          command: "build",
+          diagnostics: [
+            {
+              family: "type",
+              code: "compiler-source-type-error",
+              message: "Invalid prop type.",
+              path: ["Hero.component.tsx"],
+              location: { fileName: "Hero.component.tsx", start: 24, end: 29, line: 2, column: 5 },
+            },
+          ],
+        }),
+      }),
+    });
+    services.push(service);
+    const snapshot = await service.project();
+    expect(snapshot.instances[0]?.props.title?.editor).toEqual({ kind: "text" });
+    const queued = await service.build(snapshot.revision, commandId("a"));
+    let job = await service.job(queued.buildId);
+    for (
+      let attempt = 0;
+      attempt < 100 && !["failed", "succeeded"].includes(job.status);
+      attempt++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      job = await service.job(queued.buildId);
+    }
+    expect(job.diagnostics).toEqual([
+      {
+        family: "type",
+        code: "compiler-source-type-error",
+        message: "Invalid prop type.",
+        path: ["Hero.component.tsx"],
+        location: { fileName: "Hero.component.tsx", start: 24, end: 29, line: 2, column: 5 },
+      },
+    ]);
+  }, 30000);
   it("keeps a transform spread comment through save and undo", async () => {
     const directory = await createProject();
     const sourcePath = join(directory, "presentation.unframe.tsx");

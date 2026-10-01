@@ -61,6 +61,7 @@ export type EditableReactSceneInstance = {
         readonly inherited: boolean;
         readonly inheritanceExpression?: string;
         readonly reason?: string;
+        readonly editor?: { readonly kind: "text" };
       }
     >
   >;
@@ -354,6 +355,11 @@ const inspect = (
         value: value as Scalar,
         editable,
         inherited,
+        ...(definition.kind === "string" &&
+        "editor" in definition &&
+        definition.editor?.kind === "text"
+          ? { editor: { kind: "text" as const } }
+          : {}),
         ...(inherited && sourceField
           ? { inheritanceExpression: sourceField.initializer.getText() }
           : {}),

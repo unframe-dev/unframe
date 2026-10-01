@@ -192,6 +192,14 @@ it("extracts public metadata and render dependencies without including contract 
   expect(result.components[0]?.renderer.entrySource).toContain("const decorate =");
   expect(result.components[0]?.renderer.entrySource).not.toContain("defineComponent");
   expect(result.components[0]?.renderer.entrySource).not.toContain("editableText");
+  const renderSource = result.components[0]?.renderer;
+  const renderOrigin = renderSource?.entryOrigins?.at(-1);
+  expect(renderOrigin?.origin.fileName).toBe("Hero.component.tsx");
+  expect(
+    renderSource?.entrySource
+      .split("\n")
+      [renderOrigin!.startLine - 1]?.slice(renderOrigin!.firstLinePrefix),
+  ).toContain("({");
 });
 
 it("rejects non-static public contract expressions", () => {

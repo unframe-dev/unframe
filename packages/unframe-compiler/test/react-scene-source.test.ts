@@ -62,7 +62,7 @@ const fixture = (
           id: "hero",
           version: 1,
           props: {
-            title: { kind: "string", required: true },
+            title: { kind: "string", required: true, editor: { kind: "text" } },
             count: { kind: "number", required: true },
             ...(additionalPropId ? { [additionalPropId]: { kind: "string", required: true } } : {}),
           },
@@ -83,6 +83,7 @@ describe("direct React scene source editing", () => {
       value: "One",
       editable: true,
       inherited: false,
+      editor: { kind: "text" },
     });
     expect(result.value[0]?.transform).toEqual({
       position: [-1, 2, 3],

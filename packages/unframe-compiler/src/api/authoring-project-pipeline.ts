@@ -15,6 +15,7 @@ export const assembleAuthoringProject = (
 ): AuthoringProjectPipelineResult<{
   project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
+  catalog: Extract<ReturnType<typeof checkAuthoringProject>, { valid: true }>["value"];
 }> => {
   const catalog = checkAuthoringProject(source);
   if (!catalog.valid) return { valid: false, phase: "source", diagnostics: catalog.diagnostics };
@@ -65,6 +66,6 @@ export const assembleAuthoringProject = (
     catalog: catalog.value,
   });
   return assembled.valid
-    ? { valid: true, value: assembled.value, diagnostics: [] }
+    ? { valid: true, value: { ...assembled.value, catalog: catalog.value }, diagnostics: [] }
     : { valid: false, phase: "assembly", diagnostics: assembled.diagnostics };
 };

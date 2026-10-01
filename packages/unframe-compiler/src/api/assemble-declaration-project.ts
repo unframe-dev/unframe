@@ -78,6 +78,18 @@ const componentCatalogSchema = z.union([
           packageImports: z.array(nonEmptyStringSchema),
           renderOrigin: sourceOriginSchema,
           helperOrigins: z.array(sourceOriginSchema),
+          entryOrigins: z
+            .array(
+              z
+                .object({
+                  startLine: z.int().positive(),
+                  endLine: z.int().positive(),
+                  firstLinePrefix: z.int().nonnegative(),
+                  origin: sourceOriginSchema,
+                })
+                .strict(),
+            )
+            .optional(),
         })
         .strict(),
     })

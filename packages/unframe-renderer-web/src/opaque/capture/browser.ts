@@ -7,6 +7,26 @@ import { validateOpaqueBindings, type OpaqueBinding } from "./bindings.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
 
 const ORIGIN = "https://unframe.invalid/";
+function* generatedFrames(stack: string | undefined) {
+  if (!stack) return;
+  let candidates = 0;
+  for (const match of stack
+    .slice(0, 65_536)
+    .matchAll(/https:\/\/unframe\.invalid\/__renderer\.js:(\d+):(\d+)/g)) {
+    if (++candidates > 32) break;
+    const line = Number(match[1]);
+    const column = Number(match[2]);
+    if (
+      Number.isSafeInteger(line) &&
+      Number.isSafeInteger(column) &&
+      line > 0 &&
+      column > 0 &&
+      line <= 1_000_000 &&
+      column <= 1_000_000
+    )
+      yield { line, column };
+  }
+}
 const MAX_PIXELS = 4_194_304;
 const MAX_BYTES = 64 * 1024 * 1024;
 const restrictionScript = `(() => {
@@ -107,6 +127,16 @@ export const captureOpaquePage = async (
     acceptDownloads: false,
   });
   let violation: string | undefined;
+  const generatedLocations: { line: number; column: number }[] = [];
+  const collectGeneratedFrames = (stack: string | undefined) => {
+    for (const frame of generatedFrames(stack)) {
+      if (generatedLocations.length >= 32) break;
+      if (
+        !generatedLocations.some((item) => item.line === frame.line && item.column === frame.column)
+      )
+        generatedLocations.push(frame);
+    }
+  };
   const reject = (code: string) => {
     violation ??= code;
     void context.close().catch(() => undefined);
@@ -186,7 +216,10 @@ export const captureOpaquePage = async (
     });
     page.on("worker", () => reject("opaque-capability-denied"));
     page.on("download", () => reject("opaque-capability-denied"));
-    page.on("pageerror", () => reject("opaque-render-failed"));
+    page.on("pageerror", (error) => {
+      collectGeneratedFrames(error.stack);
+      reject("opaque-render-failed");
+    });
     page.on("framenavigated", (frame) => {
       if (frame !== page.mainFrame() || frame.url() !== ORIGIN) reject("opaque-navigation-denied");
     });
@@ -205,6 +238,8 @@ export const captureOpaquePage = async (
         returnByValue: true,
       });
       if (result.exceptionDetails) {
+        if (contextId === undefined)
+          collectGeneratedFrames(result.exceptionDetails.exception?.description);
         const message = result.exceptionDetails.exception?.description?.split("\n")[0];
         const code = message?.match(
           /^Error: (opaque-(?:element-unsupported|binding-invalid|binding-invisible|geometry-unsupported))$/,
@@ -314,7 +349,13 @@ export const captureOpaquePage = async (
       (error instanceof Error && /^opaque-[a-z-]+$/.test(error.message)
         ? error.message
         : "opaque-render-failed");
-    return { ok: false, code };
+    return {
+      ok: false,
+      code,
+      ...(code === "opaque-render-failed" && generatedLocations.length
+        ? { generatedLocations }
+        : {}),
+    };
   } finally {
     clearTimeout(timeout);
     await context.close();

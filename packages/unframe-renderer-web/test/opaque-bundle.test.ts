@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 
 import { bundleOpaqueRenderer } from "../src/index.js";
 
@@ -82,6 +83,98 @@ const closed = (input: {
   });
 
 describe("bundleOpaqueRenderer", () => {
+  it("preserves helper source positions when the bundle contains a CommonJS React DOM module", async () => {
+    const fillers = Array.from({ length: 5 }, (_, index) =>
+      module(
+        `locked/f${index}.js`,
+        index < 4
+          ? `import "./f${index + 1}.js"; globalThis.__f${index} = 1;`
+          : `globalThis.__f${index} = 1;`,
+        "js",
+      ),
+    );
+    const result = await bundleOpaqueRenderer({
+      entry: "__unframe__/entry.tsx",
+      rendererInputHash: hash,
+      modules: [
+        module(
+          "__unframe__/entry.tsx",
+          'import {explode} from "./helper"; export const render = (texts: {title: string}) => explode(texts.title);',
+          "tsx",
+        ),
+        module(
+          "project/helper.ts",
+          'export const explode = (_value: string): never => {\n  throw new Error("private helper content");\n};',
+        ),
+        ...runtime.filter(
+          (item) =>
+            item.path !== "locked/react-dom.js" && item.path !== "locked/react-dom-client.js",
+        ),
+        module("locked/react-dom.js", "exports.flushSync = (callback) => callback();", "js"),
+        module(
+          "locked/react-dom-client.js",
+          'import "./f0.js"; export const createRoot = () => ({render: () => {}});',
+          "js",
+        ),
+        ...fillers,
+      ],
+      resolutions: [
+        {
+          importerPath: "__unframe__/bootstrap.ts",
+          specifier: "react",
+          kind: "import",
+          targetPath: "locked/react.js",
+        },
+        {
+          importerPath: "__unframe__/bootstrap.ts",
+          specifier: "react-dom",
+          kind: "import",
+          targetPath: "locked/react-dom.js",
+        },
+        {
+          importerPath: "__unframe__/bootstrap.ts",
+          specifier: "react-dom/client",
+          kind: "import",
+          targetPath: "locked/react-dom-client.js",
+        },
+        {
+          importerPath: "__unframe__/entry.tsx",
+          specifier: "./helper",
+          kind: "import",
+          targetPath: "project/helper.ts",
+        },
+        {
+          importerPath: "locked/react-dom-client.js",
+          specifier: "./f0.js",
+          kind: "import",
+          targetPath: "locked/f0.js",
+        },
+        ...Array.from({ length: 4 }, (_, index) => ({
+          importerPath: `locked/f${index}.js`,
+          specifier: `./f${index + 1}.js`,
+          kind: "import" as const,
+          targetPath: `locked/f${index + 1}.js`,
+        })),
+      ],
+      stylesheets: [],
+    });
+    expect(result.ok ? [] : result.diagnostics).toEqual([]);
+    if (!result.ok) return;
+    const row = result.javascript
+      .split("\n")
+      .findIndex((line) => line.includes("private helper content"));
+    expect(row).toBeGreaterThanOrEqual(0);
+    const generatedLine = result.javascript.split("\n")[row]!;
+    const mapped = originalPositionFor(new TraceMap(result.sourceMap), {
+      line: row + 1,
+      column: generatedLine.indexOf("new Error"),
+    });
+    expect(mapped).toMatchObject({
+      source: "../unframe:opaque/project/helper.ts",
+      line: 2,
+      column: 8,
+    });
+  });
   it("bundles locked relative TSX, CSS, assets, React, and the fixed renderer runtime", async () => {
     const result = await closed({
       entry: "src/renderer.tsx",
@@ -112,6 +205,11 @@ describe("bundleOpaqueRenderer", () => {
     expect(result.ok ? [] : result.diagnostics).toEqual([]);
     if (!result.ok) return;
     expect(result.javascript).toContain("locked");
+    expect(result.sourceMap).toContain('"sources"');
+    expect(result.javascript).not.toContain("sourceMappingURL");
+    expect(new TraceMap(result.sourceMap).sources).toContain("../unframe:opaque/src/renderer.tsx");
+    expect(result.assets.every((asset) => !asset.fileName.endsWith(".map"))).toBe(true);
+    expect(JSON.stringify(result.assets)).not.toContain("src/renderer.tsx");
     expect(result.externalImports).toEqual([]);
     expect(result.assets.map((asset) => asset.fileName)).toEqual(
       expect.arrayContaining([expect.stringMatching(/\.css$/), expect.stringMatching(/\.png$/)]),

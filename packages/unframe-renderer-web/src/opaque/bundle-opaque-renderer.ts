@@ -31,6 +31,7 @@ export type OpaqueRendererBundleResult =
   | {
       readonly ok: true;
       readonly javascript: string;
+      readonly sourceMap: string;
       readonly assets: readonly {
         readonly fileName: string;
         readonly source: string | Uint8Array;
@@ -43,8 +44,8 @@ export type OpaqueRendererBundleResult =
 
 type ModuleSnapshot = Readonly<OpaqueRendererModule>;
 
-const VIRTUAL_PREFIX = "\0unframe:opaque/";
-const RUNTIME_ID = "\0unframe:renderer-runtime";
+const VIRTUAL_PREFIX = "unframe:opaque/";
+const RUNTIME_ID = "unframe:renderer-runtime";
 const RUNTIME_SPECIFIER = "@unframe/renderer-runtime";
 const RUNTIME_SOURCE = "export const defineOpaqueRenderer = (renderer) => renderer;";
 const BOOTSTRAP_PATH = "__unframe__/bootstrap.ts";
@@ -255,12 +256,16 @@ const resultFromOutput = (
   if (imports.length)
     return failure("opaque-bundle-failed", [], "Opaque renderer emitted an external import.");
   const assets = output.output
-    .filter((item) => item.type === "asset")
+    .filter(
+      (item): item is Extract<RolldownOutput["output"][number], { type: "asset" }> =>
+        item.type === "asset" && item.fileName.startsWith("assets/"),
+    )
     .map((asset) => ({ fileName: asset.fileName, source: copyAssetSource(asset.source) }))
     .sort((left, right) => compareStrings(left.fileName, right.fileName));
   return {
     ok: true,
     javascript: chunk.code,
+    sourceMap: chunk.map?.toString() ?? "",
     assets,
     stylesheets: stylesheets.map((path) => `assets/${path}`),
     externalImports: [],
@@ -387,8 +392,7 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
       format: "iife",
       entryFileNames: "renderer.js",
       assetFileNames: "assets/[name]-[hash:16][extname]",
-      codeSplitting: false,
-      sourcemap: false,
+      sourcemap: "hidden",
     });
     return resultFromOutput(output, snapshot.stylesheets);
   } catch {

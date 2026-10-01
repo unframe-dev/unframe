@@ -9,6 +9,7 @@ import type { WebRendererConfig } from "../../public-types.js";
 import { createWebRendererConfigHash } from "../../config/config-environment.js";
 import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
+import { originalPositionFor, sourceContentFor, TraceMap } from "@jridgewell/trace-mapping";
 import { validateOpaqueBindings } from "./bindings.js";
 
 export type OpaqueRenderProgram = {
@@ -19,11 +20,95 @@ export type OpaqueRenderProgram = {
   readonly assets: OpaqueCaptureRequest["assets"];
   readonly props: OpaqueCaptureRequest["props"];
   readonly stateKeysById?: Readonly<Record<string, string>>;
+  readonly debugSourceMap?: string;
+  readonly debugSourcePaths?: readonly string[];
+  readonly debugLocalSourceFiles?: Readonly<Record<string, string>>;
+  readonly entryOrigins?: readonly {
+    readonly startLine: number;
+    readonly endLine: number;
+    readonly firstLinePrefix: number;
+    readonly origin: {
+      readonly fileName: string;
+      readonly start: number;
+      readonly end: number;
+      readonly line: number;
+      readonly column: number;
+    };
+  }[];
 };
-const failure = (code: string): RendererBuildFailure => ({
+const failure = (code: string, path: readonly (string | number)[] = []): RendererBuildFailure => ({
   ok: false,
-  diagnostics: [{ code, message: "Opaque capture failed.", path: [] }],
+  diagnostics: [{ code, message: "Opaque capture failed.", path }],
 });
+const mappedSourcePath = (
+  program: OpaqueRenderProgram,
+  generated: { line: number; column: number },
+) => {
+  if (!program.debugSourceMap || !program.debugSourcePaths) return [];
+  try {
+    const generatedLines = program.javascript.split("\n");
+    if (
+      generated.line > generatedLines.length ||
+      generated.column > (generatedLines[generated.line - 1]?.length ?? 0) + 1
+    )
+      return [];
+    const map = new TraceMap(program.debugSourceMap);
+    const mapped = originalPositionFor(map, { line: generated.line, column: generated.column - 1 });
+    const prefix = "unframe:opaque/";
+    const mappedSource = mapped.source;
+    const source = mappedSource?.replace(/^(?:\.\.?\/)+/, "");
+    if (
+      !mappedSource ||
+      !source?.startsWith(prefix) ||
+      mapped.line === null ||
+      mapped.column === null
+    )
+      return [];
+    const file = source.slice(prefix.length);
+    if (!program.debugSourcePaths.includes(file)) return [];
+    if (file.startsWith("packages/")) return [];
+    const content = sourceContentFor(map, mappedSource);
+    if (content === null) return [];
+    const lines = content.split("\n");
+    if (mapped.line > lines.length || mapped.column > lines[mapped.line - 1]!.length) return [];
+    let fileName = file;
+    let line = mapped.line;
+    let column = mapped.column + 1;
+    let start = 0;
+    if (file === "__unframe__/entry.tsx") {
+      const segment = program.entryOrigins?.find(
+        (entry) => mapped.line! >= entry.startLine && mapped.line! <= entry.endLine,
+      );
+      if (!segment || (line === segment.startLine && mapped.column < segment.firstLinePrefix))
+        return [];
+      fileName = segment.origin.fileName;
+      line = segment.origin.line + (mapped.line - segment.startLine);
+      column =
+        mapped.line === segment.startLine
+          ? segment.origin.column + mapped.column - segment.firstLinePrefix
+          : mapped.column + 1;
+      const position = (atLine: number, atColumn: number) =>
+        lines.slice(0, atLine - 1).reduce((sum, part) => sum + part.length + 1, 0) + atColumn;
+      start =
+        segment.origin.start +
+        position(mapped.line, mapped.column) -
+        position(segment.startLine, segment.firstLinePrefix);
+      if (start < segment.origin.start || start >= segment.origin.end) return [];
+    } else {
+      if (file.startsWith("project/")) {
+        const original = program.debugLocalSourceFiles?.[file];
+        if (!original) return [];
+        fileName = original;
+      }
+      start =
+        lines.slice(0, mapped.line - 1).reduce((sum, part) => sum + part.length + 1, 0) +
+        mapped.column;
+    }
+    return [fileName, start, start + 1, line, column];
+  } catch {
+    return [];
+  }
+};
 type HitRegion = {
   interactionId: string;
   semanticNodeId: string;
@@ -137,7 +222,15 @@ export const createOpaqueBakedWebRenderer = (options: {
             colorScheme: input.context.colorScheme,
             background: [0, 0, 0, 0],
           });
-          if (!result.ok) return failure(result.code);
+          if (!result.ok)
+            return failure(
+              result.code,
+              result.code === "opaque-render-failed"
+                ? (result.generatedLocations
+                    ?.map((location) => mappedSourcePath(program, location))
+                    .find((path) => path.length > 0) ?? [])
+                : [],
+            );
           const rgba = Buffer.from(result.rgbaBase64, "base64");
           if (
             rgba.toString("base64") !== result.rgbaBase64 ||

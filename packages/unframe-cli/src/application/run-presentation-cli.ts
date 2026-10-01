@@ -30,6 +30,7 @@ import type {
   PresentationCliHost,
   PresentationCliResult,
 } from "./types.js";
+import { sourceDiagnosticFamily } from "./source-diagnostic-family.js";
 
 type Command = Readonly<{
   command: "check" | "build" | "lock";
@@ -259,15 +260,7 @@ const compilerDiagnostics = (
       const source = item as AuthoringProjectDiagnostic;
       return {
         ...diagnostic(
-          source.code === "compiler-source-syntax-error" ||
-            source.code === "compiler-source-kind-unsupported" ||
-            source.code.startsWith("compiler-static-")
-            ? "syntax"
-            : source.code === "compiler-source-type-error" ||
-                source.code.startsWith("compiler-module-") ||
-                source.code === "compiler-project-entry-invariant-invalid"
-              ? "type"
-              : "semantic",
+          sourceDiagnosticFamily(source.code),
           source.code,
           source.message,
           source.fileName ? [source.fileName] : [],
@@ -290,6 +283,25 @@ const compilerDiagnostics = (
       domain.code.startsWith("compiler-renderer-") ||
       domain.code.startsWith("opaque-") ||
       rendererDiagnosticCodes.has(domain.code);
+    if (
+      result.phase === "compile" &&
+      rendererCode &&
+      domain.path.length === 5 &&
+      typeof domain.path[0] === "string" &&
+      domain.path.slice(1).every((part) => typeof part === "number")
+    ) {
+      const [fileName, start, end, line, column] = domain.path as [
+        string,
+        number,
+        number,
+        number,
+        number,
+      ];
+      return {
+        ...diagnostic("renderer", domain.code, domain.message, [fileName]),
+        location: { fileName, start, end, line, column },
+      };
+    }
     return diagnostic(
       result.phase === "compile" && rendererCode ? "renderer" : "semantic",
       domain.code,

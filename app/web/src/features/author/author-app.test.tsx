@@ -37,6 +37,46 @@ const apiFor = (project: ProjectSnapshot): AuthorApi => ({
 afterEach(() => vi.restoreAllMocks());
 
 describe("Author inspector", () => {
+  it("shows text editor metadata and diagnostic source locations", async () => {
+    const initial = snapshot();
+    initial.instances[0]!.props["title"]!.editor = { kind: "text" };
+    initial.diagnostics.push({
+      family: "type",
+      code: "compiler-source-type-error",
+      message: "Invalid prop type.",
+      location: { fileName: "Hero.component.tsx", start: 24, end: 29, line: 2, column: 5 },
+    });
+    initial.diagnostics.push({
+      family: "semantic",
+      code: "compiler-binding-invalid",
+      message: "Missing binding.",
+      path: ["scene", 0, "bindings"],
+    });
+    const api = apiFor(initial);
+    const user = userEvent.setup();
+    render(<AuthorApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "alpha" }));
+    const editor = screen.getByLabelText("title");
+    expect(editor.tagName).toBe("TEXTAREA");
+    await user.clear(editor);
+    await user.type(editor, "First{enter}second");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith(
+        "r1",
+        expect.objectContaining({
+          command: {
+            kind: "setProp",
+            instanceId: "alpha",
+            propId: "title",
+            value: "First\nsecond",
+          },
+        }),
+      ),
+    );
+    expect(screen.getByText(/Hero.component.tsx:2:5/)).toBeInTheDocument();
+    expect(screen.getByText(/\$\/scene\/0\/bindings/)).toBeInTheDocument();
+  });
   it("clears undo history when an external revision appears after save", async () => {
     const initial = snapshot();
     const api = apiFor(initial);

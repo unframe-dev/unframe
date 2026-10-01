@@ -28,4 +28,8 @@ export type OpaqueCaptureResult =
       readonly bindings: readonly OpaqueBinding[];
       readonly browserVersion: string;
     }
-  | { readonly ok: false; readonly code: string };
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly generatedLocations?: readonly { readonly line: number; readonly column: number }[];
+    };

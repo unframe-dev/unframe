@@ -33,6 +33,12 @@ export type PairedComponentDeclaration =
         readonly entrySource: string;
         readonly localDependencies: readonly string[];
         readonly packageImports: readonly string[];
+        readonly entryOrigins?: readonly {
+          readonly startLine: number;
+          readonly endLine: number;
+          readonly firstLinePrefix: number;
+          readonly origin: DeclarationSourceOrigin;
+        }[];
       };
     };
 

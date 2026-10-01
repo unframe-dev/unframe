@@ -34,6 +34,24 @@ const request = {
   colorScheme: "light" as const,
   background: [0, 0, 0, 255] as const,
 };
+it("reports only generated renderer coordinates for a thrown render error", async () => {
+  const runtime = await openOpaqueCaptureRuntime();
+  try {
+    const result = await runtime.capture({
+      ...request,
+      javascript:
+        "globalThis.__unframeMount=()=>{\n  throw new Error('private render content');\n};",
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      code: "opaque-render-failed",
+      generatedLocations: expect.arrayContaining([{ line: 2, column: expect.any(Number) }]),
+    });
+    expect(JSON.stringify(result)).not.toContain("private render content");
+  } finally {
+    await runtime.close();
+  }
+}, 60_000);
 it("captures identical RGBA in two isolated executions", async () => {
   const runtime = await openOpaqueCaptureRuntime();
   try {

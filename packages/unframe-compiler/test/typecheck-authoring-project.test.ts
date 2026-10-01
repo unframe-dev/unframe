@@ -16,6 +16,35 @@ const project = (files: readonly { fileName: string; sourceText: string }[]) => 
 };
 
 describe("typecheckAuthoringProject", () => {
+  it("locates a render type error in its component and a helper error in the helper source", () => {
+    const result = typecheckAuthoringProject(
+      project([
+        { fileName: "presentation.unframe.ts", sourceText: 'import "./Hero.component";' },
+        {
+          fileName: "Hero.component.tsx",
+          sourceText:
+            'import {label} from "./helper";\nexport const render = (): string => 42;\nexport const text = label;',
+        },
+        { fileName: "helper.ts", sourceText: "export const label: string = 42;" },
+      ]),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "compiler-source-type-error",
+          fileName: "Hero.component.tsx",
+          line: 2,
+        }),
+        expect.objectContaining({
+          code: "compiler-source-type-error",
+          fileName: "helper.ts",
+          line: 1,
+        }),
+      ]),
+    );
+  });
   it("resolves relative extensionless, .js, and index imports from virtual files only", () => {
     const result = typecheckAuthoringProject(
       project([

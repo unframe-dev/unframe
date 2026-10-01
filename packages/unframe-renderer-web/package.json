@@ -13,11 +13,12 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
     "@noble/hashes": "2.3.0",
     "@unframe/unframe-renderer-api": "workspace:*",
     "playwright-core": "1.62.1",
     "pngjs": "7.0.0",
-    "rolldown": "1.0.1",
+    "rolldown": "1.1.5",
     "zod": "4.4.3"
   },
   "devDependencies": {

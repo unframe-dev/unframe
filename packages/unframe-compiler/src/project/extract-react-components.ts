@@ -29,6 +29,12 @@ export type ExtractedReactComponent = {
     readonly packageImports: readonly string[];
     readonly renderOrigin?: DeclarationSourceOrigin;
     readonly helperOrigins?: readonly DeclarationSourceOrigin[];
+    readonly entryOrigins?: readonly {
+      readonly startLine: number;
+      readonly endLine: number;
+      readonly firstLinePrefix: number;
+      readonly origin: DeclarationSourceOrigin;
+    }[];
   };
   readonly sourceMap: readonly DeclarationSourceMapEntry[];
 };
@@ -175,6 +181,12 @@ const renderEntry = (
       packageImports: string[];
       renderOrigin: DeclarationSourceOrigin;
       helperOrigins: DeclarationSourceOrigin[];
+      entryOrigins: {
+        startLine: number;
+        endLine: number;
+        firstLinePrefix: number;
+        origin: DeclarationSourceOrigin;
+      }[];
     }
   | Diagnostic => {
   const { checker, context } = analyzed.value;
@@ -380,9 +392,6 @@ const renderEntry = (
     if (selected.length)
       importLines.push(`import ${selected.join(", ")} from ${JSON.stringify(specifier)};`);
   }
-  const helperLines = [...statements]
-    .sort((a, b) => a.getStart() - b.getStart())
-    .map((statement) => statement.getText(sourceFile));
   const staticLines = [...staticValues]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([name, value]) => `const ${name} = ${JSON.stringify(value)};`);
@@ -488,19 +497,45 @@ const renderEntry = (
       );
     packageImports.push("react/jsx-runtime");
   }
+  const sortedHelpers = [...statements].sort((a, b) => a.getStart() - b.getStart());
+  const prefix = "export const render = ";
+  const entryParts: { code: string; origin?: DeclarationSourceOrigin; firstLinePrefix?: number }[] =
+    [
+      ...importLines.map((code) => ({ code })),
+      ...staticLines.map((code) => ({ code })),
+      ...sortedHelpers.map((statement) => ({
+        code: statement.getText(sourceFile),
+        origin: sourceOrigin(analyzed, statement),
+        firstLinePrefix: 0,
+      })),
+      {
+        code: `${prefix}${render.getText(sourceFile)};`,
+        origin: sourceOrigin(analyzed, render),
+        firstLinePrefix: prefix.length,
+      },
+    ];
+  let nextLine = 1;
+  const entryOrigins = entryParts.flatMap((part) => {
+    const startLine = nextLine;
+    nextLine += part.code.split("\n").length;
+    return part.origin
+      ? [
+          {
+            startLine,
+            endLine: nextLine - 1,
+            firstLinePrefix: part.firstLinePrefix ?? 0,
+            origin: part.origin,
+          },
+        ]
+      : [];
+  });
   return {
-    entrySource: [
-      ...importLines,
-      ...staticLines,
-      ...helperLines,
-      `export const render = ${render.getText(sourceFile)};`,
-    ].join("\n"),
+    entrySource: entryParts.map((part) => part.code).join("\n"),
     localDependencies: [...seen].sort(),
     packageImports: [...new Set(packageImports)].sort(),
     renderOrigin: sourceOrigin(analyzed, render),
-    helperOrigins: [...statements]
-      .sort((a, b) => a.getStart() - b.getStart())
-      .map((statement) => sourceOrigin(analyzed, statement)),
+    helperOrigins: sortedHelpers.map((statement) => sourceOrigin(analyzed, statement)),
+    entryOrigins,
   };
 };
 

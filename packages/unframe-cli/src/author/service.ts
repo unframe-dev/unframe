@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFile, readlink } from "node:fs/promises";
 import { join } from "node:path";
+import { z } from "zod";
 import {
   checkAuthoringProject,
   checkAuthoringProjectAssembly,
@@ -10,6 +11,7 @@ import {
 } from "@unframe/unframe-compiler";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
+import { sourceDiagnosticFamily } from "../application/source-diagnostic-family.js";
 import type { RunPresentationCliInput } from "../application/types.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
@@ -43,6 +45,63 @@ const diagnostic = (
   message: string,
   path?: readonly (string | number)[],
 ): AuthorDiagnostic => ({ code, message, ...(path ? { path } : {}) });
+const locationSchema = z.object({
+  fileName: z.string(),
+  start: z.number().int(),
+  end: z.number().int(),
+  line: z.number().int().positive(),
+  column: z.number().int().positive(),
+});
+const buildDiagnosticSchema = z.object({
+  family: z.enum(["syntax", "type", "semantic", "renderer", "io", "cancel", "usage"]),
+  code: z.string(),
+  message: z.string(),
+  path: z.array(z.union([z.string(), z.number()])),
+  location: locationSchema.optional(),
+});
+const buildDiagnostics = (stderr: string): AuthorDiagnostic[] => {
+  try {
+    const output = z
+      .object({ diagnostics: z.array(buildDiagnosticSchema).min(1) })
+      .safeParse(JSON.parse(stderr));
+    if (output.success)
+      return output.data.diagnostics.map((item) => ({
+        family: item.family,
+        code: item.code,
+        message: item.message,
+        path: item.path,
+        ...(item.location ? { location: item.location } : {}),
+      }));
+  } catch {
+    /* CLI output may be plain text after an unexpected failure. */
+  }
+  return [diagnostic("author-build-failed", stderr.trim() || "Build failed.")];
+};
+const sourceDiagnostic = (item: {
+  code: string;
+  message: string;
+  fileName: string;
+  start: number;
+  end: number;
+  line: number;
+  column: number;
+}): AuthorDiagnostic => ({
+  family: sourceDiagnosticFamily(item.code),
+  code: item.code,
+  message: item.message,
+  path: item.fileName ? [item.fileName] : [],
+  ...(item.fileName
+    ? {
+        location: {
+          fileName: item.fileName,
+          start: item.start,
+          end: item.end,
+          line: item.line,
+          column: item.column,
+        },
+      }
+    : {}),
+});
 function fail(status: number, code: string, message: string): never {
   throw new AuthorError(status, code, message);
 }
@@ -111,18 +170,12 @@ const readState = async (directory: string): Promise<ProjectState> => {
     ...frozen.map((item) =>
       diagnostic(item.code, "Source differs from its frozen lock.", [item.path]),
     ),
-    ...(!catalog.valid
-      ? catalog.diagnostics.map((item) =>
-          diagnostic(item.code, item.message, [item.fileName, item.line, item.column]),
-        )
-      : []),
+    ...(!catalog.valid ? catalog.diagnostics.map(sourceDiagnostic) : []),
     ...(checked && !checked.valid
       ? checked.diagnostics.map((item) =>
-          diagnostic(
-            item.code,
-            item.message,
-            "path" in item ? item.path : [item.fileName, item.line, item.column],
-          ),
+          "path" in item
+            ? { ...diagnostic(item.code, item.message, item.path), family: "semantic" as const }
+            : sourceDiagnostic(item),
         )
       : []),
   ];
@@ -146,6 +199,7 @@ const readState = async (directory: string): Promise<ProjectState> => {
               value: prop.value,
               editable: prop.editable,
               inherited: prop.inherited,
+              ...(prop.editor ? { editor: prop.editor } : {}),
               ...(prop.inheritanceExpression
                 ? { inheritanceExpression: prop.inheritanceExpression }
                 : {}),
@@ -451,7 +505,7 @@ export const createAuthorService = async (
               }
               if (result.exitCode !== 0) {
                 job.status = result.stderr.includes("cli-output-stale") ? "stale" : "failed";
-                job.diagnostics = [diagnostic("author-build-failed", result.stderr.trim())];
+                job.diagnostics = buildDiagnostics(result.stderr);
                 return;
               }
               const latest = await withSource(

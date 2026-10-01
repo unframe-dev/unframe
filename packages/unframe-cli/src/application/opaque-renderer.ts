@@ -40,7 +40,7 @@ export const prepareOpaqueRenderer = async (
         path: "path" in item ? item.path : [],
       })),
     );
-  const { project, checked } = assembled.value;
+  const { project, checked, catalog } = assembled.value;
   const instances =
     "components" in project.presentation.scene
       ? project.presentation.scene.components.filter((item) => "component" in item)
@@ -63,6 +63,24 @@ export const prepareOpaqueRenderer = async (
       if (!prepared.valid) throw new OpaquePreparationFailure(prepared.diagnostics);
       const bundle = await bundleOpaqueRenderer(prepared.value);
       if (!bundle.ok) throw new OpaquePreparationFailure(bundle.diagnostics);
+      const sourceComponent = catalog.components.find(
+        (candidate) =>
+          "metadata" in candidate &&
+          candidate.metadata.id === component.metadata.id &&
+          candidate.metadata.version === component.metadata.version,
+      );
+      const localDependencies = new Set(
+        sourceComponent && "metadata" in sourceComponent
+          ? sourceComponent.renderer.localDependencies
+          : [],
+      );
+      const debugLocalSourceFiles = Object.fromEntries(
+        prepared.value.modules.flatMap((module) => {
+          if (!module.path.startsWith("project/")) return [];
+          const fileName = module.path.slice("project/".length);
+          return localDependencies.has(fileName) ? [[module.path, fileName]] : [];
+        }),
+      );
       const props: Record<string, string | number | boolean> = {};
       for (const [key, declaration] of Object.entries(component.metadata.props)) {
         const supplied = (instance.props as Record<string, unknown>)[key];
@@ -80,6 +98,14 @@ export const prepareOpaqueRenderer = async (
         entryId: surface.id,
         moduleHash: component.lock.rendererInputHash,
         javascript: bundle.javascript,
+        debugSourceMap: bundle.sourceMap,
+        debugSourcePaths: prepared.value.modules.map((module) => module.path),
+        debugLocalSourceFiles,
+        ...(sourceComponent &&
+        "metadata" in sourceComponent &&
+        sourceComponent.renderer.entryOrigins
+          ? { entryOrigins: sourceComponent.renderer.entryOrigins }
+          : {}),
         stylesheets: bundle.stylesheets,
         props,
         stateKeysById: Object.fromEntries(

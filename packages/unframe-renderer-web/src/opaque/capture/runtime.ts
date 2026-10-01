@@ -15,7 +15,19 @@ import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
 
 const resultSchema = z.discriminatedUnion("ok", [
-  z.strictObject({ ok: z.literal(false), code: z.string().regex(/^opaque-[a-z-]+$/) }),
+  z.strictObject({
+    ok: z.literal(false),
+    code: z.string().regex(/^opaque-[a-z-]+$/),
+    generatedLocations: z
+      .array(
+        z.strictObject({
+          line: z.number().int().positive().max(1_000_000),
+          column: z.number().int().positive().max(1_000_000),
+        }),
+      )
+      .max(32)
+      .optional(),
+  }),
   z.strictObject({
     ok: z.literal(true),
     rgbaBase64: z.string().max(24 * 1024 * 1024),
@@ -128,7 +140,16 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
         throw error;
       }
       const validated = resultSchema.safeParse(result);
-      return validated.success ? validated.data : { ok: false, code: "opaque-capture-invalid" };
+      if (!validated.success) return { ok: false, code: "opaque-capture-invalid" };
+      if (!validated.data.ok)
+        return {
+          ok: false,
+          code: validated.data.code,
+          ...(validated.data.generatedLocations
+            ? { generatedLocations: validated.data.generatedLocations }
+            : {}),
+        };
+      return validated.data;
     };
     return {
       fingerprint: hash({ worker: code, browserHash, packageHashes, runtimePaths }),

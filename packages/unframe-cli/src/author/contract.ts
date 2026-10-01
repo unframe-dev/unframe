@@ -67,9 +67,11 @@ export type EditCommand = z.infer<typeof editCommandSchema>;
 export type PatchRequest = z.infer<typeof patchRequestSchema>;
 export type Transform = z.infer<typeof transformSchema>;
 export type AuthorDiagnostic = {
+  family?: "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel" | "usage";
   code: string;
   message: string;
   path?: readonly (string | number)[];
+  location?: { fileName: string; start: number; end: number; line: number; column: number };
 };
 export type AuthorInstance = {
   instanceId: string;
@@ -82,6 +84,7 @@ export type AuthorInstance = {
       editable: boolean;
       inherited?: boolean;
       inheritanceExpression?: string;
+      editor?: { kind: "text" };
     }
   >;
   transform: Transform;

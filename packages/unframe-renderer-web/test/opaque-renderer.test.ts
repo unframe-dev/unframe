@@ -39,6 +39,7 @@ const semantics = {
 const makeRenderer = (
   capture: (request: OpaqueCaptureRequest) => Promise<OpaqueCaptureResult>,
   stateKeysById?: Readonly<Record<string, string>>,
+  debug?: Partial<OpaqueRenderProgram>,
 ) => {
   const renderer = createOpaqueBakedWebRenderer({
     programs: [
@@ -50,6 +51,7 @@ const makeRenderer = (
         stylesheets: ["theme.css"],
         props: { title: "Prop title", density: 2, featured: true },
         ...(stateKeysById ? { stateKeysById } : {}),
+        ...debug,
       } satisfies OpaqueRenderProgram,
     ],
     runtimeFingerprint: "sha256:runtime",
@@ -119,6 +121,86 @@ const validCapture = (
 });
 
 describe("Opaque Baked Web RendererPlugin adapter", () => {
+  it.each([
+    [{ line: 2, column: 1 }, ["Hero.component.tsx", 106, 107, 6, 1]],
+    [{ line: 3, column: 1 }, ["helper.ts", 0, 1, 1, 1]],
+  ] as const)(
+    "maps generated render failures to known original sources",
+    async (generatedLocation, path) => {
+      const renderer = makeRenderer(
+        async () => ({
+          ok: false,
+          code: "opaque-render-failed",
+          generatedLocations: [generatedLocation],
+        }),
+        undefined,
+        {
+          javascript: "start\nsecond\nthrow",
+          debugSourceMap: JSON.stringify({
+            version: 3,
+            sources: ["../unframe:opaque/__unframe__/entry.tsx", "../unframe:opaque/helper.ts"],
+            sourcesContent: ["first\nsecond", "throw"],
+            names: [],
+            mappings: ";AACA;ACDA",
+          }),
+          debugSourcePaths: ["__unframe__/entry.tsx", "helper.ts"],
+          entryOrigins: [
+            {
+              startLine: 1,
+              endLine: 2,
+              firstLinePrefix: 0,
+              origin: { fileName: "Hero.component.tsx", start: 100, end: 112, line: 5, column: 3 },
+            },
+          ],
+        },
+      );
+      const result = await executeRendererPlugin(renderer, inputForRenderer(renderer));
+      expect(result).toMatchObject({
+        valid: false,
+        diagnostics: [{ code: "opaque-render-failed", path }],
+      });
+    },
+  );
+  it.each([
+    [{ line: 9, column: 1 }, ["__unframe__/entry.tsx", "helper.ts"]],
+    [{ line: 1, column: 1 }, ["helper.ts"]],
+  ] as const)(
+    "omits locations outside generated code or the known module set",
+    async (generatedLocation, debugSourcePaths) => {
+      const renderer = makeRenderer(
+        async () => ({
+          ok: false,
+          code: "opaque-render-failed",
+          generatedLocations: [generatedLocation],
+        }),
+        undefined,
+        {
+          javascript: "throw",
+          debugSourceMap: JSON.stringify({
+            version: 3,
+            sources: ["../unframe:opaque/__unframe__/entry.tsx"],
+            sourcesContent: ["throw"],
+            names: [],
+            mappings: "AAAA",
+          }),
+          debugSourcePaths,
+          entryOrigins: [
+            {
+              startLine: 1,
+              endLine: 1,
+              firstLinePrefix: 0,
+              origin: { fileName: "Hero.component.tsx", start: 0, end: 5, line: 1, column: 1 },
+            },
+          ],
+        },
+      );
+      const result = await executeRendererPlugin(renderer, inputForRenderer(renderer));
+      expect(result).toMatchObject({
+        valid: false,
+        diagnostics: [{ code: "opaque-render-failed", path: [] }],
+      });
+    },
+  );
   it("transfers the locked program, semantic texts, state, and configured background through the plugin boundary", async () => {
     const requests: OpaqueCaptureRequest[] = [];
     const renderer = makeRenderer(async (request) => {

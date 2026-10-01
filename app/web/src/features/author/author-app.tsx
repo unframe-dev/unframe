@@ -8,6 +8,7 @@ import {
 import type { PresentationDefinition } from "@unframe/unframe-core/domain/model";
 import type {
   AuthorInstance,
+  AuthorDiagnostic,
   BuildJob,
   EditCommand,
   ProjectSnapshot,
@@ -32,6 +33,8 @@ const newId = () =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const diagnosticText = (item: AuthorDiagnostic) =>
+  `${item.location ? `${item.location.fileName}:${item.location.line}:${item.location.column} ` : ""}${item.family ? `${item.family}/` : ""}${item.code}${item.path?.length ? ` ($/${item.path.map(String).join("/")})` : ""}: ${item.message}`;
 const terminal = (status: BuildJob["status"]) =>
   ["succeeded", "failed", "cancelled", "stale"].includes(status);
 // Static PNG previews have no animation player, so complete runtime runs at their logical deadlines.
@@ -485,6 +488,18 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
                       })
                     }
                   />
+                ) : prop.editor?.kind === "text" ? (
+                  <textarea
+                    id={`prop-${id}`}
+                    value={String(prop.value)}
+                    disabled={!prop.editable || busy || !!pendingSave}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        props: { ...draft.props, [id]: { ...prop, value: event.target.value } },
+                      })
+                    }
+                  />
                 ) : (
                   <input
                     id={`prop-${id}`}
@@ -583,14 +598,10 @@ export function AuthorApp({ api }: { api: AuthorApi }) {
       <aside aria-label="Diagnostics">
         <h2>Diagnostics</h2>
         {project?.diagnostics.map((item, index) => (
-          <p key={`${item.code}-${index}`}>
-            {item.code}: {item.message}
-          </p>
+          <p key={`${item.code}-${index}`}>{diagnosticText(item)}</p>
         ))}
         {job?.diagnostics.map((item, index) => (
-          <p key={`build-${item.code}-${index}`}>
-            {item.code}: {item.message}
-          </p>
+          <p key={`build-${item.code}-${index}`}>{diagnosticText(item)}</p>
         ))}
         {messages.map((message, index) => (
           <p key={`${index}-${message}`}>{message}</p>
