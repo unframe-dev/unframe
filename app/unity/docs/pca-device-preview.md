@@ -29,6 +29,8 @@ adb devices -l
 
 `Unframe > PCA > Build Device Test APK` は APK の生成だけを行います。出力は `app/unity/Builds/PCA/unframe-pca-preview.apk`、アプリ ID は `dev.unframe.pca.preview`、アプリ名は `Unframe PCA Preview` です。ビルドにはこのテストシーンだけを渡します。ビルド後に元の application ID とアプリ名を復元します。APK 出力は Git 管理から除外されます。
 
+ローカルの `DevAgentSettings.asset` がある状態で通常の Android Build を実行すると、APK へ Meta DevAgent の接続設定が混入しないようビルドを中断します。専用メニューからのビルドは、設定アセットを一時退避して APK から除外し、ビルド後に復元します。設定アセットがない場合と Android 以外のビルドにはこの制限は適用されません。
+
 シーンの初期設定は左カメラ、1280 × 960、最大30カメラ FPSです。MRUK が別の解像度を選んだ場合、画面には実際の解像度を表示し、映像のアスペクト比を保ちます。
 
 Android Manifest の `horizonos.permission.HEADSET_CAMERA` と Passthrough capability、および OculusProjectConfig の Passthrough/PCA 設定を有効にしています。Camera Rig には Passthrough を設定し、背景を透明にしています。権限の要求はプレビュー側が一箇所で行い、許可されるまで PCA コンポーネントを起動しません。

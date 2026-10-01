@@ -10,11 +10,22 @@ public sealed class PassthroughCameraBuildAssetExclusion : IPreprocessBuildWithR
     internal const string SettingsPath = "Assets/Resources/DevAgentSettings.asset";
     internal static AssetFileExclusion ActiveExclusion;
 
+    internal static void ValidateBuildPolicy(BuildTarget target, bool settingsExist, bool exclusionActive)
+    {
+        if (target == BuildTarget.Android && settingsExist && !exclusionActive)
+        {
+            throw new BuildFailedException(
+                "Android builds cannot include local Meta DevAgent settings. Use a build path that excludes the local settings asset."
+            );
+        }
+    }
+
     // Run before Meta's processor injects local connection credentials into this resource.
     public int callbackOrder => int.MinValue;
 
     public void OnPreprocessBuild(BuildReport report)
     {
+        ValidateBuildPolicy(report.summary.platform, File.Exists(SettingsPath), ActiveExclusion != null);
         if (ActiveExclusion == null) return;
         ActiveExclusion.Exclude();
         AssetDatabase.Refresh();

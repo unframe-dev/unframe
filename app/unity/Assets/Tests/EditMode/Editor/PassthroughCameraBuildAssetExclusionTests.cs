@@ -1,9 +1,43 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.Build;
 
 public sealed class PassthroughCameraBuildAssetExclusionTests
 {
+    [Test]
+    public void AndroidBuildRejectsLocalSettingsWhenScopedExclusionIsInactive()
+    {
+        Assert.Throws<BuildFailedException>(
+            () => PassthroughCameraBuildAssetExclusion.ValidateBuildPolicy(BuildTarget.Android, true, false)
+        );
+    }
+
+    [Test]
+    public void AndroidBuildAllowsLocalSettingsWhenScopedExclusionIsActive()
+    {
+        Assert.DoesNotThrow(
+            () => PassthroughCameraBuildAssetExclusion.ValidateBuildPolicy(BuildTarget.Android, true, true)
+        );
+    }
+
+    [Test]
+    public void AndroidBuildAllowsMissingLocalSettingsWithoutExclusion()
+    {
+        Assert.DoesNotThrow(
+            () => PassthroughCameraBuildAssetExclusion.ValidateBuildPolicy(BuildTarget.Android, false, false)
+        );
+    }
+
+    [Test]
+    public void NonAndroidBuildAllowsLocalSettingsWithoutExclusion()
+    {
+        Assert.DoesNotThrow(
+            () => PassthroughCameraBuildAssetExclusion.ValidateBuildPolicy(BuildTarget.StandaloneWindows64, true, false)
+        );
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public void LocalResourceAndMetaAreExcludedAndRestoredEvenAfterBuildFailure(bool failBuild)
