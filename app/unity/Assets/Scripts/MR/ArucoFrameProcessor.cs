@@ -42,8 +42,13 @@ public sealed class ArucoFrameProcessor : IArucoFrameProcessor
         clock.Restart();
         ArucoMarkerPoseEstimate estimate = null;
         int index = Array.IndexOf(frame.MarkerIds, ArucoMarkerPoseEstimator.TargetMarkerId);
-        if (index >= 0 && CornersInsideImage(frame, index))
+        if (index >= 0)
+        {
             estimate = poseEstimator.Estimate(frame.CornersPixels, index * 8, geometry.Fx, geometry.Fy, geometry.Cx, geometry.Cy);
+            if (estimate.IsValid && !CornersInsideImage(frame, index))
+                estimate = new ArucoMarkerPoseEstimate(false, "marker near image edge", estimate.CameraPose,
+                    estimate.ReprojectionErrorPixels, estimate.AlternativeReprojectionErrorPixels, estimate.CandidateCount);
+        }
         return new ArucoFrameProcessingResult(frame, estimate, preprocessing, clock.Elapsed.TotalMilliseconds);
     }
 

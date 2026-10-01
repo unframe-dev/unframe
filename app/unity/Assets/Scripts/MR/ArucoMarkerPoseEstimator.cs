@@ -7,6 +7,19 @@ using UnityEngine;
 public sealed class ArucoMarkerPoseEstimate
 {
     public bool IsValid { get; }
+    public bool HasPoseCandidate => CandidateCount > 0 && !double.IsNaN(ReprojectionErrorPixels)
+        && !double.IsInfinity(ReprojectionErrorPixels) && ValidPose(CameraPose);
+
+    internal static bool ValidPose(Pose pose)
+    {
+        var p = pose.position;
+        var q = pose.rotation;
+        return Finite(p.x) && Finite(p.y) && Finite(p.z)
+            && Finite(q.x) && Finite(q.y) && Finite(q.z) && Finite(q.w)
+            && Finite(Quaternion.Dot(q, q)) && Quaternion.Dot(q, q) > 0.000001f;
+    }
+
+    private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     public string RejectionReason { get; }
     public Pose CameraPose { get; }
     public Vector3 CameraPositionMeters => CameraPose.position;

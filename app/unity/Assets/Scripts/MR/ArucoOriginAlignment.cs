@@ -5,6 +5,26 @@ using UnityEngine;
 [RequireComponent(typeof(ArucoOriginVisualizer))]
 public sealed class ArucoOriginAlignment : MonoBehaviour
 {
+    [SerializeField] private bool measurementPreviewEnabled = true;
+    public bool MeasurementPreviewEnabled
+    {
+        get => measurementPreviewEnabled;
+        set
+        {
+            measurementPreviewEnabled = value;
+            RefreshMeasurementPreview();
+        }
+    }
+    public bool HasMeasurementPose { get; private set; }
+    public Pose LatestMeasurementPose { get; private set; } = Pose.identity;
+    public bool HasAverageMeasurementPose => HasMeasurementPose && measurementQualityValid && stability.HasPose;
+    public Pose AverageMeasurementPose => HasAverageMeasurementPose ? stability.Pose : Pose.identity;
+    public string MeasurementSummary => !measurementPreviewEnabled ? "Measurement preview: off"
+        : HasMeasurementPose ? measurementSummary : "Measurement pose unavailable";
+    private string measurementSummary;
+    private bool measurementQualityValid;
+    private double measurementObservedAt;
+    private bool appliedMeasurementPreviewEnabled;
     private readonly ArucoOriginStability stability = new ArucoOriginStability();
     private ArucoOriginVisualizer visualizer;
     private ArucoTrackingDiagnosticSession diagnostics;
@@ -38,6 +58,8 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
 
     private void Update()
     {
+        ExpireMeasurementPreview(Time.realtimeSinceStartupAsDouble);
+        if (appliedMeasurementPreviewEnabled != measurementPreviewEnabled) RefreshMeasurementPreview();
 #if !UNITY_EDITOR
         if (display == null && OVRManager.display != null)
         {
@@ -58,6 +80,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
         if (observation == null)
         {
             stability.ObserveMissing(now);
+            ClearMeasurementPreview();
             return;
         }
         if (observation.Frame.CaptureTimestampTicks <= lastTimestamp) return;
@@ -65,23 +88,75 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
         var estimate = observation.Estimate;
         bool valid = estimate != null && estimate.IsValid && observation.Geometry.HasValidCameraPose;
         reason = valid ? "Hold still" : estimate?.RejectionReason ?? "Show the entire ID 0 marker";
-        var pose = valid ? observation.Geometry.ToWorld(estimate.CameraPose) : Pose.identity;
-        stability.Observe(pose, lastTimestamp, now, valid);
+        bool candidate = estimate != null && estimate.HasPoseCandidate && observation.Geometry.HasValidCameraPose;
+        var pose = candidate ? observation.Geometry.ToWorld(estimate.CameraPose) : Pose.identity;
+        candidate = candidate && ArucoMarkerPoseEstimate.ValidPose(pose) && !double.IsNaN(now) && !double.IsInfinity(now);
+        bool accepted = stability.Observe(pose, lastTimestamp, now, valid && candidate);
+        if (candidate)
+        {
+            HasMeasurementPose = true;
+            measurementQualityValid = accepted && valid;
+            LatestMeasurementPose = new Pose(pose.position, pose.rotation.normalized);
+            measurementObservedAt = now;
+            measurementSummary = "Unity world | position m | Euler XYZ deg (display only)\n"
+                + DescribePose("Latest", LatestMeasurementPose) + "\n"
+                + (HasAverageMeasurementPose ? DescribePose("Average", stability.Pose)
+                    : "Average unavailable | " + reason);
+        }
+        else ClearMeasurementPreview();
         if (IsConfirmed)
         {
             visualizer.Show(stability.Pose);
             Record("alignment_confirmed", observation, stability.Pose);
         }
-        else if (now - loggedAt >= 1)
+        else
         {
-            loggedAt = now;
-            Record("pose_estimated", observation, pose);
+            RefreshMeasurementPreview();
+            if (now - loggedAt >= 1)
+            {
+                loggedAt = now;
+                Record("pose_estimated", observation, pose);
+            }
         }
+    }
+
+    private static string DescribePose(string label, Pose pose)
+    {
+        Vector3 position = pose.position;
+        Vector3 angles = pose.rotation.eulerAngles;
+        return FormattableString.Invariant($"{label}: P ({position.x:F2}, {position.y:F2}, {position.z:F2}) | R ({angles.x:F1}, {angles.y:F1}, {angles.z:F1})");
+    }
+
+    private void RefreshMeasurementPreview()
+    {
+        appliedMeasurementPreviewEnabled = measurementPreviewEnabled;
+        if (visualizer == null || IsConfirmed) return;
+        if (measurementPreviewEnabled && HasMeasurementPose && isActiveAndEnabled && TrackingAvailable)
+            visualizer.ShowProvisional(LatestMeasurementPose);
+        else visualizer.Hide();
+    }
+
+    private void ClearMeasurementPreview()
+    {
+        HasMeasurementPose = false;
+        measurementQualityValid = false;
+        LatestMeasurementPose = Pose.identity;
+        measurementSummary = null;
+        RefreshMeasurementPreview();
+    }
+
+    private void ExpireMeasurementPreview(double now)
+    {
+        if (!IsConfirmed && HasMeasurementPose
+            && now - measurementObservedAt > ArucoOriginStability.MaximumObservationGapSeconds)
+            ClearMeasurementPreview();
     }
 
     public void ResetAlignment(string message, bool notify = true)
     {
         stability.Reset();
+        if (visualizer != null) visualizer.ResetMeasurementReference();
+        ClearMeasurementPreview();
         lastTimestamp = 0;
         loggedAt = double.NegativeInfinity;
         reason = message;

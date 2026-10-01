@@ -14,6 +14,8 @@ public struct ArucoCameraPreviewStatus
     public string LogFileName;
     public string DetectionSummary;
     public string AlignmentSummary;
+    public string MeasurementSummary;
+    public bool MeasurementPreviewEnabled;
     public bool AlignmentConfirmed;
 }
 
@@ -54,12 +56,13 @@ public sealed class ArucoCameraPreviewView : IDisposable
         if (panelRoot == null) return;
         statusText.text = $"PCA CAMERA TEST | {status.State}\nPermission: {status.PermissionStatus}";
         statusText.color = status.State == "LIVE" || status.State == "ALIGNED" ? new Color(0.4f, 1f, 0.5f) : Color.white;
-        UpdatePanelLayout(status.AlignmentConfirmed);
+        UpdatePanelLayout(status.AlignmentConfirmed, status.MeasurementPreviewEnabled);
         detailsText.text = status.AlignmentConfirmed
             ? status.AlignmentSummary + "\nB/Y: align again | Move your head to check the cube stays in place"
             : $"{status.CameraPosition} camera | {status.Resolution.x} x {status.Resolution.y}"
             + $" | {status.FramesPerSecond:F1} camera FPS | {status.FrameCount} frames\nCapture: {status.CaptureTimestamp}"
             + $"\n{status.DetectionSummary}\n{status.AlignmentSummary}"
+            + (string.IsNullOrEmpty(status.MeasurementSummary) ? string.Empty : $"\n{status.MeasurementSummary}")
             + $"\nA/X: permission check | B/Y: align again\nLog: {status.LogFileName}";
     }
 
@@ -78,7 +81,7 @@ public sealed class ArucoCameraPreviewView : IDisposable
         panel.transform.SetParent(head, false);
         panel.transform.localPosition = new Vector3(0, 0, 1.25f);
         panel.transform.localScale = Vector3.one * 0.001f;
-        panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 920);
+        panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 1120);
         panel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
         panel.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
         var background = panel.AddComponent<Image>();
@@ -104,18 +107,19 @@ public sealed class ArucoCameraPreviewView : IDisposable
         markerOverlay = overlay.AddComponent<ArucoMarkerOverlay>();
         markerOverlay.color = new Color(0.2f, 1f, 0.3f, 1f);
         markerOverlay.raycastTarget = false;
-        statusText = CreateText(panel.transform, "Status", new Vector2(0, 410), new Vector2(940, 90), 26);
-        detailsText = CreateText(panel.transform, "Diagnostics", new Vector2(0, -395), new Vector2(940, 170), 20);
+        statusText = CreateText(panel.transform, "Status", new Vector2(0, 510), new Vector2(940, 90), 26);
+        detailsText = CreateText(panel.transform, "Diagnostics", new Vector2(0, -425), new Vector2(940, 240), 20);
     }
 
-    private void UpdatePanelLayout(bool compact)
+    private void UpdatePanelLayout(bool compact, bool measurementPreviewEnabled)
     {
-        panelRoot.sizeDelta = compact ? new Vector2(1000, 160) : new Vector2(1000, 920);
-        panelRoot.localPosition = compact ? new Vector3(0, 0.5f, 1.25f) : new Vector3(0, 0, 1.25f);
-        statusText.rectTransform.anchoredPosition = new Vector2(0, compact ? 45 : 410);
+        panelRoot.sizeDelta = compact ? new Vector2(1000, 160) : new Vector2(1000, 1120);
+        panelRoot.localPosition = compact ? new Vector3(0, 0.5f, 1.25f)
+            : new Vector3(measurementPreviewEnabled ? -0.75f : 0, 0, 1.25f);
+        statusText.rectTransform.anchoredPosition = new Vector2(0, compact ? 45 : 510);
         statusText.rectTransform.sizeDelta = new Vector2(940, compact ? 60 : 90);
-        detailsText.rectTransform.anchoredPosition = new Vector2(0, compact ? -30 : -395);
-        detailsText.rectTransform.sizeDelta = new Vector2(940, compact ? 80 : 170);
+        detailsText.rectTransform.anchoredPosition = new Vector2(0, compact ? -30 : -425);
+        detailsText.rectTransform.sizeDelta = new Vector2(940, compact ? 80 : 240);
     }
 
     private static Text CreateText(Transform parent, string name, Vector2 position, Vector2 size, int fontSize)

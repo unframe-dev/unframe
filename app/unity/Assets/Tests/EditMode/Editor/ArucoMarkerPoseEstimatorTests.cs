@@ -16,6 +16,7 @@ public sealed class ArucoMarkerPoseEstimatorTests
         corners[1] -= noise;
         var result = new ArucoMarkerPoseEstimator().Estimate(corners, 0, 800, 810, 640, 480);
         Assert.That(result.IsValid, Is.EqualTo(accepted), result.RejectionReason);
+        Assert.That(result.HasPoseCandidate, Is.True);
         if (accepted)
         {
             Assert.That(result.ReprojectionErrorPixels, Is.LessThanOrEqualTo(3));
@@ -45,6 +46,7 @@ public sealed class ArucoMarkerPoseEstimatorTests
             Project(new Pose(new Vector3(0, 0, 200), Quaternion.identity)), 0, 800, 810, 640, 480);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.RejectionReason, Is.EqualTo("invalid corners"));
+        Assert.That(result.HasPoseCandidate, Is.False);
     }
 
     [TestCase(0.2f, -0.15f, 0.85f, 23f, -31f, 12f)]
@@ -79,6 +81,8 @@ public sealed class ArucoMarkerPoseEstimatorTests
         var result = new ArucoMarkerPoseEstimator().Estimate(Project(new Pose(new Vector3(0, 0, 8), Quaternion.Euler(20, 0, 0))), 0, 800, 810, 640, 480);
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.RejectionReason, Is.EqualTo("ambiguous pose"));
+        Assert.That(result.HasPoseCandidate, Is.True);
+        Assert.That(result.CameraPositionMeters.z, Is.EqualTo(8).Within(0.1));
     }
 
     [Test]
@@ -103,6 +107,25 @@ public sealed class ArucoMarkerPoseEstimatorTests
         Assert.That(estimator.Estimate(new float[8], 0, 800, 810, 640, 480).IsValid, Is.False);
         good[0] = float.NaN;
         Assert.That(estimator.Estimate(good, 0, 800, 810, 640, 480).IsValid, Is.False);
+    }
+
+    [Test]
+    public void SolverCandidateCountWithoutAUsablePoseDoesNotExposeThePlaceholderOrigin()
+    {
+        var result = new ArucoMarkerPoseEstimate(false, "no positive-depth pose", Pose.identity,
+            double.NaN, double.NaN, 2);
+        Assert.That(result.HasPoseCandidate, Is.False);
+    }
+
+    [Test]
+    public void NonFiniteCandidateOrDegenerateRotationIsNotAUsablePose()
+    {
+        var nonFinite = new ArucoMarkerPoseEstimate(false, "ambiguous pose",
+            new Pose(new Vector3(float.NaN, 0, 1), Quaternion.identity), 1, 1, 2);
+        var degenerate = new ArucoMarkerPoseEstimate(false, "ambiguous pose",
+            new Pose(Vector3.forward, new Quaternion(0, 0, 0, 0)), 1, 1, 2);
+        Assert.That(nonFinite.HasPoseCandidate, Is.False);
+        Assert.That(degenerate.HasPoseCandidate, Is.False);
     }
 
     private static float[] Project(Pose pose)

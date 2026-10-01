@@ -73,6 +73,42 @@ public sealed class PassthroughCameraPreviewLifecycleTests
     private static void SetField(PassthroughCameraDevicePreview preview, string name, object value) =>
         typeof(PassthroughCameraDevicePreview).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(preview, value);
 
+    [Test]
+    public void MeasurementDetailsFitBelowTheFeedAndDisappearFromTheConfirmedPanel()
+    {
+        var head = new GameObject("Measurement Panel Test");
+        var view = new ArucoCameraPreviewView(head.transform);
+        try
+        {
+            const string measurement = "Unity world | m / deg\nLatest: P (1, 2, 3)\nAverage: P (1, 2, 3)";
+            view.ShowStatus(new ArucoCameraPreviewStatus { MeasurementSummary = measurement, MeasurementPreviewEnabled = true });
+            var panel = head.transform.Find("PCA Preview Panel");
+            var details = panel.Find("Diagnostics").GetComponent<UnityEngine.UI.Text>();
+            StringAssert.Contains(measurement, details.text);
+            var panelRect = panel.GetComponent<RectTransform>();
+            Assert.That(panel.localPosition.x + panelRect.rect.xMax * panel.localScale.x, Is.LessThan(0),
+                "The diagnostic panel must leave the forward direction unobstructed.");
+            var feedRect = panel.Find("Camera Feed Region").GetComponent<RectTransform>();
+            float feedBottom = feedRect.anchoredPosition.y + feedRect.rect.yMin;
+            float detailsTop = details.rectTransform.anchoredPosition.y + details.rectTransform.rect.yMax;
+            Assert.That(detailsTop, Is.LessThan(feedBottom));
+            Assert.That(details.rectTransform.anchoredPosition.y + details.rectTransform.rect.yMin,
+                Is.GreaterThanOrEqualTo(panel.GetComponent<RectTransform>().rect.yMin));
+            view.ShowStatus(new ArucoCameraPreviewStatus
+            {
+                AlignmentConfirmed = true, AlignmentSummary = "ALIGNED", MeasurementSummary = measurement
+            });
+            StringAssert.DoesNotContain("Latest", details.text);
+            Assert.That(panel.GetComponent<RectTransform>().sizeDelta.y, Is.EqualTo(160));
+            Assert.That(panel.localPosition.x, Is.Zero);
+        }
+        finally
+        {
+            view.Dispose();
+            Object.DestroyImmediate(head);
+        }
+    }
+
     private static void Invoke(PassthroughCameraDevicePreview preview, string method) =>
         typeof(PassthroughCameraDevicePreview).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(preview, null);
 }

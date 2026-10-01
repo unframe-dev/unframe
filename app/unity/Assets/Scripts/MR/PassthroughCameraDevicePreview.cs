@@ -46,6 +46,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
         cameraAccess.enabled = false;
         view = new ArucoCameraPreviewView(head);
+        GetComponent<ArucoOriginVisualizer>().SetPreviewHead(head);
         started = true;
         health.Reset(Time.realtimeSinceStartupAsDouble);
         Debug.Log($"[PCA Preview] Application: {Application.identifier}", this);
@@ -325,6 +326,8 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
             LogFileName = logFile,
             DetectionSummary = markerDetection.Summary,
             AlignmentSummary = alignment.Summary,
+            MeasurementSummary = alignment.MeasurementSummary,
+            MeasurementPreviewEnabled = alignment.MeasurementPreviewEnabled,
             AlignmentConfirmed = alignment.IsConfirmed
         });
         if (state != lastState)
