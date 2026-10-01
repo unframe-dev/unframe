@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -210,6 +211,12 @@ const distBytes = async (directory: string) => {
   return [...output.entries()].sort(([a], [b]) => a.localeCompare(b));
 };
 
+const hashBytes = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const distHashes = (files: [string, Uint8Array][]) =>
+  files.map(([path, bytes]) => [path, hashBytes(bytes)]);
+const previewHashes = (pngs: Map<string, Uint8Array>) =>
+  [...pngs].map(([instanceId, bytes]) => [instanceId, hashBytes(bytes)]);
+
 const terminalJob = async (service: AuthorService, initial: BuildJob) => {
   let job = initial;
   const deadline = Date.now() + 240_000;
@@ -218,6 +225,18 @@ const terminalJob = async (service: AuthorService, initial: BuildJob) => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     job = await service.job(job.buildId);
   }
+  return job;
+};
+
+const runningJob = async (service: AuthorService, initial: BuildJob) => {
+  let job = initial;
+  const deadline = Date.now() + 30_000;
+  while (job.status === "queued") {
+    if (Date.now() >= deadline) throw new Error(`Build ${job.buildId} did not start.`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    job = await service.job(job.buildId);
+  }
+  expect(job.status, JSON.stringify(job.diagnostics)).toBe("running");
   return job;
 };
 
@@ -234,6 +253,7 @@ const save = async (
   });
 
 const buildPngs = async (service: AuthorService, snapshot: ProjectSnapshot, requestId: string) => {
+  const started = performance.now();
   const job = await terminalJob(
     service,
     await service.build(snapshot.revision, requestId.repeat(32)),
@@ -246,6 +266,9 @@ const buildPngs = async (service: AuthorService, snapshot: ProjectSnapshot, requ
     pngs.set(artifact.instanceId, result.bytes);
   }
   expect([...pngs.keys()].sort()).toEqual(["hero-one", "hero-two"]);
+  console.info(
+    `Author revision ${requestId}: fresh PNG preview in ${Math.round(performance.now() - started)} ms`,
+  );
   return pngs;
 };
 
@@ -278,8 +301,9 @@ it("edits React instances directly, keeps position-only captures identical, and 
   expect(
     moved.instances.find(({ instanceId }) => instanceId === "hero-two")?.transform.position,
   ).toEqual([1, 1, -2]);
-  expect(await buildPngs(service, moved, "2")).toEqual(originalPngs);
+  expect(previewHashes(await buildPngs(service, moved, "2"))).toEqual(previewHashes(originalPngs));
 
+  const editStarted = performance.now();
   await save(
     service,
     moved,
@@ -293,6 +317,12 @@ it("edits React instances directly, keeps position-only captures identical, and 
   expect(
     edited.instances.find(({ instanceId }) => instanceId === "hero-two")?.props.title?.value,
   ).toBe("Original 2");
+  const editedPngs = await buildPngs(service, edited, "3");
+  console.info(
+    `Author setProp save to fresh PNG preview: ${Math.round(performance.now() - editStarted)} ms`,
+  );
+  expect(hashBytes(editedPngs.get("hero-one")!)).not.toBe(hashBytes(originalPngs.get("hero-one")!));
+  expect(hashBytes(editedPngs.get("hero-two")!)).toBe(hashBytes(originalPngs.get("hero-two")!));
 
   const previousDist = await distBytes(directory);
   await save(
@@ -305,5 +335,38 @@ it("edits React instances directly, keeps position-only captures identical, and 
   const failed = await terminalJob(service, await service.build(failing.revision, "4".repeat(32)));
   expect(failed.status).toBe("failed");
   expect(failed.diagnostics.length).toBeGreaterThan(0);
-  expect(await distBytes(directory)).toEqual(previousDist);
-}, 480_000);
+  expect(distHashes(await distBytes(directory))).toEqual(distHashes(previousDist));
+
+  await save(
+    service,
+    failing,
+    { kind: "setProp", instanceId: "hero-one", propId: "title", value: "Recovered" },
+    "d",
+  );
+  const recovered = await service.project();
+  const cancelling = await runningJob(
+    service,
+    await service.build(recovered.revision, "5".repeat(32)),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  expect((await service.job(cancelling.buildId)).status).toBe("running");
+  await service.cancel(cancelling.buildId);
+  const cancelled = await terminalJob(service, cancelling);
+  expect(cancelled.status).toBe("cancelled");
+  expect(cancelled.artifacts).toEqual([]);
+  expect(distHashes(await distBytes(directory))).toEqual(distHashes(previousDist));
+
+  const current = await service.project();
+  const staleBuild = await runningJob(
+    service,
+    await service.build(current.revision, "6".repeat(32)),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  expect((await service.job(staleBuild.buildId)).status).toBe("running");
+  const cssPath = join(directory, "hero.css");
+  await writeFile(cssPath, (await readFile(cssPath, "utf8")) + "\nmain { color: #a00000; }\n");
+  const stale = await terminalJob(service, staleBuild);
+  expect(stale.status, JSON.stringify(stale.diagnostics)).toBe("stale");
+  expect(stale.artifacts).toEqual([]);
+  expect(distHashes(await distBytes(directory))).toEqual(distHashes(previousDist));
+}, 600_000);

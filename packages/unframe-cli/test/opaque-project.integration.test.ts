@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -131,7 +132,7 @@ const createProject = async (mixed = false) => {
       {
         id: "hero-one",
         component: { id: "hero", version: 1 },
-        props: { title: "Locked React" },
+        props: { title: "Bold" },
         owner: { kind: "presentation" },
         audience: { kind: "all" },
         parent: { kind: "stage" },
@@ -166,7 +167,7 @@ export const Hero = defineComponent({
     title: {role: "heading", level: 1, parentId: null, order: 0, text: prop("title")}
   }},
   render: ({texts, bindings}: {texts: {title: string}; bindings: {title: {"data-unframe-binding": string}}}) =>
-    <main className="hero"><h1 {...bindings.title}>{texts.title}</h1><Button disabled>Preview only</Button></main>,
+    <main className="hero"><h1 {...bindings.title}>{texts.title}</h1><Button disabled>Bold</Button></main>,
 });`,
   );
   await writeFile(
@@ -213,6 +214,19 @@ const distBytes = async (directory: string) => {
   return [...output.entries()].sort(([a], [b]) => a.localeCompare(b));
 };
 
+const hashBytes = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const distHashes = (files: [string, Uint8Array][]) =>
+  files.map(([path, bytes]) => [path, hashBytes(bytes)]);
+const pngHashes = (files: [string, Uint8Array][]) =>
+  files.filter(([path]) => path.endsWith(".png")).map(([path, bytes]) => [path, hashBytes(bytes)]);
+
+const renderBundleHash = async (directory: string) => {
+  const manifest = JSON.parse(
+    await readFile(join(directory, "dist", "build-manifest.json"), "utf8"),
+  ) as { renderBundleHash: string };
+  return manifest.renderBundleHash;
+};
+
 it("builds Base UI Button with locked React, CSS, font, and image twice to identical bytes", async () => {
   const directory = await createProject();
   const refresh = await runPresentationCli({ args: ["lock", "refresh", directory] });
@@ -224,6 +238,7 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const firstDuration = performance.now() - firstStarted;
   expect(first.exitCode, first.stderr).toBe(0);
   const bytes = await distBytes(directory);
+  const initialRenderHash = await renderBundleHash(directory);
   const captured = bytes.find(([path]) => path.endsWith(".png"));
   assert(captured);
   await writeFile("/tmp/unframe-a2-hero.png", captured[1]);
@@ -231,7 +246,7 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const second = await runPresentationCli({ args: ["build", directory] });
   const secondDuration = performance.now() - secondStarted;
   expect(second.exitCode, second.stderr).toBe(0);
-  expect(await distBytes(directory)).toEqual(bytes);
+  expect(distHashes(await distBytes(directory))).toEqual(distHashes(bytes));
   console.info(
     `Opaque Base UI build durations: ${Math.round(firstDuration)} ms, ${Math.round(secondDuration)} ms`,
   );
@@ -243,14 +258,49 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const cssChangedBuild = await runPresentationCli({ args: ["build", directory] });
   expect(cssChangedBuild.exitCode, cssChangedBuild.stderr).toBe(0);
   const cssChangedBytes = await distBytes(directory);
-  expect(cssChangedBytes.find(([path]) => path.endsWith(".png"))?.[1]).not.toEqual(
-    bytes.find(([path]) => path.endsWith(".png"))?.[1],
+  expect(pngHashes(cssChangedBytes)).not.toEqual(pngHashes(bytes));
+  const cssRenderHash = await renderBundleHash(directory);
+  expect(cssRenderHash).not.toBe(initialRenderHash);
+  const fontPath = join(directory, "fixture.otf");
+  await cp(
+    join(repository, "packages/unframe-renderer-web/test/fixtures/UnframeFixtureCJK-Regular.otf"),
+    fontPath,
   );
+  await rm(join(directory, "fixture.ttf"));
+  await writeFile(
+    cssPath,
+    (await readFile(cssPath, "utf8")).replace(
+      'url("fixture.ttf") format("truetype")',
+      'url("fixture.otf") format("opentype")',
+    ),
+  );
+  const refreshedFontLock = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refreshedFontLock.exitCode, refreshedFontLock.stderr).toBe(0);
+  const fontBuild = await runPresentationCli({ args: ["build", directory] });
+  expect(fontBuild.exitCode, fontBuild.stderr).toBe(0);
+  const fontBytes = await distBytes(directory);
+  expect(pngHashes(fontBytes)).not.toEqual(pngHashes(cssChangedBytes));
+  const fontRenderHash = await renderBundleHash(directory);
+  expect(fontRenderHash).not.toBe(cssRenderHash);
   const componentPath = join(directory, "Hero.component.tsx");
   const component = await readFile(componentPath, "utf8");
   await writeFile(
     componentPath,
-    component
+    component.replace(
+      "<h1 {...bindings.title}>",
+      "<h1 {...bindings.title} style={{fontSize: 32}}>",
+    ),
+  );
+  const refreshedRenderLock = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refreshedRenderLock.exitCode, refreshedRenderLock.stderr).toBe(0);
+  const renderBuild = await runPresentationCli({ args: ["build", directory] });
+  expect(renderBuild.exitCode, renderBuild.stderr).toBe(0);
+  const renderBytes = await distBytes(directory);
+  expect(pngHashes(renderBytes)).not.toEqual(pngHashes(fontBytes));
+  expect(await renderBundleHash(directory)).not.toBe(fontRenderHash);
+  await writeFile(
+    componentPath,
+    (await readFile(componentPath, "utf8"))
       .replace(
         '<main className="hero">',
         '(fetch("https://example.com/blocked").catch(() => {}), <main className="hero">',
@@ -262,8 +312,8 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const blocked = await runPresentationCli({ args: ["build", directory] });
   expect(blocked.exitCode).not.toBe(0);
   expect(blocked.stderr).toContain("opaque-capability-denied");
-  expect(await distBytes(directory)).toEqual(cssChangedBytes);
-}, 240_000);
+  expect(distHashes(await distBytes(directory))).toEqual(distHashes(renderBytes));
+}, 360_000);
 
 it("builds Structured and finite-state React together and keeps textures stable after placement edits", async () => {
   const directory = await createProject(true);
@@ -332,7 +382,5 @@ export const Hero = defineComponent({
   );
   const moved = await runPresentationCli({ args: ["build", directory] });
   expect(moved.exitCode, moved.stderr).toBe(0);
-  expect((await distBytes(directory)).filter(([path]) => path.endsWith(".png"))).toEqual(
-    bytes.filter(([path]) => path.endsWith(".png")),
-  );
+  expect(pngHashes(await distBytes(directory))).toEqual(pngHashes(bytes));
 }, 360_000);
