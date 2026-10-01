@@ -1,6 +1,17 @@
 import type { JsxComponentStructureInput, JsxPresentationInput } from "../domain/jsx-input.js";
+import { validateReactSceneItem } from "./react-component.js";
+import type {
+  ReactPresentationInput,
+  ReactSceneBase,
+  MixedPresentationInput,
+} from "./react-component.js";
 import { z } from "zod";
-import { isDeclaration, snapshotDeclaration } from "../internal/declaration-validation.js";
+import {
+  isDeclaration,
+  readOwnDataArray,
+  readOwnDataRecord,
+  snapshotDeclaration,
+} from "../internal/declaration-validation.js";
 import {
   assertFlowIds,
   assertId,
@@ -462,12 +473,6 @@ const componentInstanceSchema = z.strictObject({
   kind: z.literal("component-instance"),
   componentId: idSchema,
   version: finiteNumberSchema,
-  packageLock: z.strictObject({
-    packageVersion: idSchema,
-    packageIntegrity: idSchema,
-    manifestHash: idSchema,
-    structureHash: idSchema.optional(),
-  }),
   owner: resourceOwnerSchema,
   spatialNodeId: idSchema.optional(),
   props: z.record(idSchema, z.union([z.string(), finiteNumberSchema, z.boolean()])),
@@ -977,11 +982,6 @@ const assertComponentInstanceIds = (value: ComponentInstanceDeclaration): void =
   assertId(value.componentId, "componentId");
   if (value.spatialNodeId !== undefined) assertId(value.spatialNodeId, "spatialNodeId");
   assertOwner(value.owner);
-  assertId(value.packageLock.packageVersion, "packageLock.packageVersion");
-  assertId(value.packageLock.packageIntegrity, "packageLock.packageIntegrity");
-  assertId(value.packageLock.manifestHash, "packageLock.manifestHash");
-  if (value.packageLock.structureHash !== undefined)
-    assertId(value.packageLock.structureHash, "packageLock.structureHash");
   assertRecordKeys(value.slots, "slot binding id");
   for (const targetIds of Object.values(value.slots))
     for (const targetId of targetIds) assertId(targetId, "slot binding targetId");
@@ -1189,9 +1189,67 @@ export const isComponentStructure = (value: unknown): value is ComponentStructur
 
 export function definePresentation<const T extends PresentationDeclaration>(value: T): T;
 export function definePresentation(value: JsxPresentationInput): PresentationDeclaration;
+export function definePresentation<
+  const S extends readonly (
+    | PresentationDeclaration["scene"]["components"][number]
+    | ReactSceneBase
+  )[],
+>(value: MixedPresentationInput<S>): MixedPresentationInput<S>;
+export function definePresentation<const S extends readonly ReactSceneBase[]>(
+  value: ReactPresentationInput<S>,
+): ReactPresentationInput<S>;
 export function definePresentation(
-  value: PresentationDeclaration | JsxPresentationInput,
-): PresentationDeclaration {
+  value:
+    | PresentationDeclaration
+    | JsxPresentationInput
+    | ReactPresentationInput<readonly ReactSceneBase[]>
+    | MixedPresentationInput<
+        readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
+      >,
+):
+  | PresentationDeclaration
+  | ReactPresentationInput<readonly ReactSceneBase[]>
+  | MixedPresentationInput<
+      readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
+    > {
+  const fields = readOwnDataRecord(value);
+  if (Array.isArray(fields.scene)) {
+    const scene = readOwnDataArray(fields.scene);
+    delete fields.scene;
+    const header = assertJsonSafe(fields) as unknown as Omit<PresentationDeclaration, "scene">;
+    assertSchema(
+      presentationSchema.omit({ scene: true }),
+      header,
+      "Invalid React Presentation header.",
+    );
+    assertFlowIds(header.flow);
+    const instanceIds = new Set<string>();
+    for (const item of scene) {
+      const instanceId = validateReactSceneItem(item);
+      if (instanceIds.has(instanceId)) invalid("Duplicate React Component instance ID.");
+      instanceIds.add(instanceId);
+    }
+    return value as ReactPresentationInput<readonly ReactSceneBase[]>;
+  }
+  const sceneFields = readOwnDataRecord(fields.scene);
+  const components = readOwnDataArray(sceneFields.components);
+  const reactComponents = components.filter((item) => {
+    const record = readOwnDataRecord(item);
+    return Object.hasOwn(record, "component");
+  });
+  if (reactComponents.length) {
+    const structured = components.filter((item) => !reactComponents.includes(item));
+    assertPresentationDeclaration({ ...fields, scene: { ...sceneFields, components: structured } });
+    const ids = new Set(structured.map((item) => readOwnDataRecord(item).id));
+    for (const item of reactComponents) {
+      const instanceId = validateReactSceneItem(item);
+      if (ids.has(instanceId)) invalid("Duplicate Component instance ID.");
+      ids.add(instanceId);
+    }
+    return value as MixedPresentationInput<
+      readonly (PresentationDeclaration["scene"]["components"][number] | ReactSceneBase)[]
+    >;
+  }
   assertPresentationDeclaration(value);
   return value as PresentationDeclaration;
 }

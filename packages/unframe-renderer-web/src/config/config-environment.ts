@@ -5,7 +5,7 @@ import type {
   FixedBrowserEnvironment,
   WebRendererConfig,
 } from "../public-types.js";
-import { snapshotDenseArray, snapshotStrictRecord } from "../validation/safe-data.js";
+import { snapshotStrictRecord } from "../validation/safe-data.js";
 import {
   adapterIdentitySchema,
   fixedBrowserEnvironmentSchema,
@@ -89,30 +89,16 @@ export const snapshotEnvironment = (value: unknown): FixedBrowserEnvironment | u
 };
 
 export const snapshotConfig = (config: unknown): WebRendererConfig | undefined => {
-  const record = snapshotStrictRecord(config, ["documentBackground"]);
-  const values = record && snapshotDenseArray(record.documentBackground, 4);
-  if (!record || !values) return undefined;
-  const parsed = webRendererConfigSchema.safeParse({
-    documentBackground: values,
-  });
-  return parsed.success ? frozenConfig(parsed.data) : undefined;
+  const record = snapshotStrictRecord(config, []);
+  if (!record) return undefined;
+  const parsed = webRendererConfigSchema.safeParse(record);
+  return parsed.success ? Object.freeze(parsed.data) : undefined;
 };
 
-export const configHashFromSnapshot = (config: WebRendererConfig): string =>
-  hash({ documentBackground: config.documentBackground });
+export const configHashFromSnapshot = (config: WebRendererConfig): string => hash(config);
 
 export const createWebRendererConfigHash = (config: WebRendererConfig): string => {
   const snapshot = snapshotConfig(config);
-  if (!snapshot) throw new TypeError("Web renderer config must use finite RGBA bytes.");
+  if (!snapshot) throw new TypeError("Web renderer config must be an empty plain object.");
   return configHashFromSnapshot(snapshot);
 };
-
-const frozenConfig = (config: WebRendererConfig): WebRendererConfig =>
-  Object.freeze({
-    documentBackground: Object.freeze([...config.documentBackground]) as readonly [
-      number,
-      number,
-      number,
-      number,
-    ],
-  });

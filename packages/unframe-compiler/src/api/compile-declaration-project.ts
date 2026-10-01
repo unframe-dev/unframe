@@ -8,11 +8,14 @@ import {
   type BuildArtifactsV2,
   type Diagnostic,
   type RenderBundle,
+  type SemanticSurface,
   type ValidationResult,
 } from "@unframe/unframe-core";
 import {
   createRendererFingerprint,
   executeRendererPlugin,
+  type RendererIdentity,
+  type RenderSurfacePlan,
   validateRendererPlugin,
 } from "@unframe/unframe-renderer-api";
 import { compareStrings, diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
@@ -24,8 +27,10 @@ import { safeBuildOptionsSnapshot } from "../validation/safe-build-options.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
 import { decodeCanonicalBase64 } from "../validation/source-assets.js";
 import { derivedResourceId, resourceId } from "../lowering/support.js";
+import { reactResourceId } from "../resolution/resolve-opaque-component.js";
 import { checkDeclarationProject } from "./check-declaration-project.js";
-import { aggregatePrivateRegions } from "./aggregate-private-regions.js";
+import { opaquePartitionIdentity } from "./opaque-partition-identity.js";
+import { planSurfacePartitions } from "./plan-surface-partitions.js";
 import type {
   CheckedDeclarationProject,
   CompiledDeclarationProject,
@@ -62,14 +67,69 @@ const failure = (
 ): ValidationResult<never> => ({ valid: false, diagnostics: [diagnostic(code, path, message)] });
 const budgetFailure = (code: string, path: readonly (string | number)[]) =>
   failure(code, path, "The fixed texture build policy budget was exceeded.");
-const pixelTargetFor = ([width, height]: readonly [number, number]): readonly [number, number] => {
-  const scale = POLICY.longEdgePixels / Math.max(width, height);
-  return [
-    Math.max(1, Math.floor(width * scale + 0.5)),
-    Math.max(1, Math.floor(height * scale + 0.5)),
-  ];
+type PlannedSurface = Extract<ReturnType<typeof planSurfacePartitions>, { valid: true }>["value"];
+const planOpaqueSurface = (
+  surface: SemanticSurface,
+  renderer: RendererIdentity,
+  moduleHash: string,
+): ValidationResult<PlannedSurface> => {
+  if (surface.content.kind !== "opaque")
+    return failure(
+      "compiler-partition-content-unsupported",
+      ["surface", surface.id],
+      "Opaque content is required.",
+    );
+  const semanticsByState: PlannedSurface["semanticsByState"] = {};
+  const interactionsByState: PlannedSurface["interactionsByState"] = {};
+  const states: Record<string, { kind: "capture" }> = {};
+  for (const stateId of Object.keys(surface.states).sort(compareStrings)) {
+    const materialized = materializeCompletedSemanticTree(surface, stateId);
+    if (!materialized.valid) return materialized;
+    semanticsByState[stateId] = {
+      rootNodeIds: [...materialized.value.rootNodeIds],
+      nodes: Object.fromEntries(
+        Object.entries(materialized.value.nodes).map(([id, node]) => [id, { ...node }]),
+      ),
+    };
+    interactionsByState[stateId] = [];
+    states[stateId] = { kind: "capture" };
+  }
+  const bounds = { x: 0, y: 0, width: surface.logicalSize[0], height: surface.logicalSize[1] };
+  const scale = POLICY.longEdgePixels / Math.max(bounds.width, bounds.height);
+  const pixelTarget = [
+    Math.max(1, Math.floor(bounds.width * scale + 0.5)),
+    Math.max(1, Math.floor(bounds.height * scale + 0.5)),
+  ] as const;
+  const identity = opaquePartitionIdentity(surface.id, bounds, renderer, moduleHash);
+  const plan: RenderSurfacePlan = {
+    id: identity.id,
+    semanticSurfaceId: surface.id,
+    logicalBounds: bounds,
+    layer: 0,
+    ownership: {
+      kind: "opaque",
+      bindingKeys: Object.keys(surface.content.bindings).sort(compareStrings),
+    },
+    clipWindow: bounds,
+    states,
+  };
+  return {
+    valid: true,
+    value: {
+      partitions: [
+        {
+          plan,
+          pixelTarget,
+          partitionRendererKey: identity.partitionRendererKey,
+          identityDescriptor: identity.descriptor,
+        },
+      ],
+      semanticsByState,
+      interactionsByState,
+    },
+    diagnostics: [],
+  };
 };
-
 const compileUnchecked = async (
   input: unknown,
   options: unknown,
@@ -98,15 +158,16 @@ const compileUnchecked = async (
   const project = parsedProject.data as unknown as CompilerDeclarationProject;
   const themeId = project.presentation.theme?.themeId;
   const theme = project.themes.find(({ declaration }) => declaration.id === themeId);
-  if (!theme)
+  if (!theme && (themeId !== undefined || !Array.isArray(project.presentation.scene)))
     return failure(
       "compiler-theme-not-found",
       ["themes"],
       "Selected theme must resolve exactly once.",
     );
+  const themeHash = theme?.hash ?? hashCanonicalJsonPayload({ kind: "no-theme" });
   const bundleThemeId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(themeId ?? "")
     ? (themeId as string)
-    : resourceId("theme", themeId as string);
+    : resourceId("theme", themeId ?? "opaque-no-theme");
 
   const rendererDiagnostics: Diagnostic[] = [];
   for (const [index, candidate] of buildOptions.renderers.entries())
@@ -167,11 +228,124 @@ const compileUnchecked = async (
     }
   if (!Number.isSafeInteger(outputBytes) || outputBytes > POLICY.maxBuildOutputBytes)
     return budgetFailure("compiler-budget-output-bytes-exceeded", ["assets"]);
+  const definitionSurfaces = Object.values(definition.scene.surfaces);
+  const planned = new Map<string, PlannedSurface>();
+  const opaqueRendererHashes = new Map<string, string>();
+  const preflightDiagnostics: Diagnostic[] = [];
   let preflightBindings = 0;
   let preflightPixels = 0;
-  const definitionSurfaces = Object.values(definition.scene.surfaces);
-  const preflightDiagnostics: Diagnostic[] = [];
-  if (definitionSurfaces.length > POLICY.maxRenderSurfacesPerBundle)
+  let preflightOutputBytes = outputBytes;
+  const hasOpaqueSurface = definitionSurfaces.some((surface) => surface.content.kind === "opaque");
+  let totalPartitions = 0;
+  for (const surface of definitionSurfaces) {
+    if (surface.content.kind === "opaque") {
+      const reactScene = Array.isArray(project.presentation.scene)
+        ? project.presentation.scene
+        : (project.presentation.scene as { components: readonly unknown[] }).components.filter(
+            (item): item is import("@unframe/unframe-authoring").StaticReactSceneItem =>
+              typeof item === "object" && item !== null && "component" in item,
+          );
+      const instance = reactScene.find(
+        (item) => reactResourceId("surface", item.id) === surface.id,
+      );
+      const component = instance
+        ? project.components.find(
+            (item) =>
+              item.manifest.componentId === instance.component.id &&
+              item.manifest.version === instance.component.version,
+          )
+        : undefined;
+      if (!component || component.lock.mode !== "opaque")
+        return failure(
+          "compiler-opaque-entry-missing",
+          ["scene", "surfaces", surface.id],
+          "Opaque capture requires its frozen renderer entry.",
+        );
+      opaqueRendererHashes.set(surface.id, component.lock.rendererInputHash);
+    }
+    const result =
+      surface.content.kind === "opaque"
+        ? planOpaqueSurface(surface, renderer.identity, opaqueRendererHashes.get(surface.id)!)
+        : planSurfacePartitions(surface, renderer.identity);
+    if (!result.valid) return result;
+    planned.set(surface.id, result.value);
+    totalPartitions += result.value.partitions.length;
+    const path = ["definition", "scene", "surfaces", surface.id] as const;
+    if (result.value.partitions.length > POLICY.maxRenderSurfacesPerSemanticSurface)
+      preflightDiagnostics.push(
+        diagnostic(
+          "compiler-budget-render-surface-count-exceeded",
+          path,
+          "Render Surface count exceeds the fixed texture build policy.",
+        ),
+      );
+    for (const { plan, pixelTarget } of result.value.partitions) {
+      const stateCount = Object.values(plan.states).filter(({ kind }) => kind === "capture").length;
+      const pixelCount = pixelTarget[0] * pixelTarget[1];
+      preflightBindings += stateCount;
+      preflightPixels += pixelCount * stateCount;
+      if (Object.keys(plan.states).length > POLICY.maxStatesPerRenderSurface)
+        preflightDiagnostics.push(
+          diagnostic(
+            "compiler-budget-state-count-exceeded",
+            [...path, "states"],
+            "State count exceeds the fixed texture build policy.",
+          ),
+        );
+      if (
+        pixelTarget[0] > POLICY.maxTextureWidth ||
+        pixelTarget[1] > POLICY.maxTextureHeight ||
+        pixelCount > POLICY.maxTexturePixels
+      )
+        preflightDiagnostics.push(
+          diagnostic(
+            "compiler-budget-pixel-target-exceeded",
+            [...path, "logicalSize"],
+            "Derived pixel dimensions exceed the fixed texture build policy.",
+          ),
+        );
+      if (pixelCount * stateCount * 4 > POLICY.maxSurfaceCaptureBytes)
+        preflightDiagnostics.push(
+          diagnostic(
+            "compiler-budget-capture-bytes-exceeded",
+            path,
+            "Predicted capture bytes exceed the fixed texture build policy.",
+          ),
+        );
+      if (hasOpaqueSurface && stateCount > 0) {
+        const stateBytes = pixelCount * 4;
+        const captureBytes = stateBytes * stateCount;
+        const scanlineBytes = stateBytes + pixelTarget[1];
+        const maxEncodedStateBytes = scanlineBytes + Math.ceil(scanlineBytes / 65_535) * 5 + 80;
+        preflightOutputBytes += maxEncodedStateBytes * stateCount;
+        if (
+          !Number.isSafeInteger(preflightOutputBytes) ||
+          preflightOutputBytes > POLICY.maxBuildOutputBytes
+        )
+          preflightDiagnostics.push(
+            diagnostic(
+              "compiler-budget-output-bytes-exceeded",
+              path,
+              "Predicted encoded output exceeds the fixed texture build policy.",
+            ),
+          );
+        const peakBytes =
+          preflightOutputBytes +
+          captureBytes +
+          maxEncodedStateBytes +
+          (surface.content.kind === "opaque" ? 2 * stateBytes : 0);
+        if (!Number.isSafeInteger(peakBytes) || peakBytes > POLICY.maxBuildAccountedPeakBytes)
+          preflightDiagnostics.push(
+            diagnostic(
+              "compiler-budget-accounted-peak-exceeded",
+              path,
+              "Predicted capture and stability buffers exceed the fixed texture build policy.",
+            ),
+          );
+      }
+    }
+  }
+  if (totalPartitions > POLICY.maxRenderSurfacesPerBundle)
     preflightDiagnostics.push(
       diagnostic(
         "compiler-budget-render-surface-count-exceeded",
@@ -179,42 +353,6 @@ const compileUnchecked = async (
         "Render Surface count exceeds the fixed texture build policy.",
       ),
     );
-  for (const surface of definitionSurfaces) {
-    const stateCount = Object.keys(surface.states).length;
-    const pixelTarget = pixelTargetFor(surface.logicalSize);
-    const pixelCount = pixelTarget[0] * pixelTarget[1];
-    preflightBindings += stateCount;
-    preflightPixels += pixelCount * stateCount;
-    const path = ["definition", "scene", "surfaces", surface.id] as const;
-    if (stateCount > POLICY.maxStatesPerRenderSurface)
-      preflightDiagnostics.push(
-        diagnostic(
-          "compiler-budget-state-count-exceeded",
-          [...path, "states"],
-          "State count exceeds the fixed texture build policy.",
-        ),
-      );
-    if (
-      pixelTarget[0] > POLICY.maxTextureWidth ||
-      pixelTarget[1] > POLICY.maxTextureHeight ||
-      pixelCount > POLICY.maxTexturePixels
-    )
-      preflightDiagnostics.push(
-        diagnostic(
-          "compiler-budget-pixel-target-exceeded",
-          [...path, "logicalSize"],
-          "Derived pixel dimensions exceed the fixed texture build policy.",
-        ),
-      );
-    if (pixelCount * stateCount * 4 > POLICY.maxSurfaceCaptureBytes)
-      preflightDiagnostics.push(
-        diagnostic(
-          "compiler-budget-capture-bytes-exceeded",
-          path,
-          "Predicted capture bytes exceed the fixed texture build policy.",
-        ),
-      );
-  }
   if (!Number.isSafeInteger(preflightBindings) || preflightBindings > POLICY.maxTextureBindings)
     preflightDiagnostics.push(
       diagnostic(
@@ -231,220 +369,208 @@ const compileUnchecked = async (
         "Rendered pixels exceed the fixed texture build policy.",
       ),
     );
-  if (preflightDiagnostics.length > 0)
+  if (preflightDiagnostics.length)
     return { valid: false, diagnostics: sortDiagnostics(preflightDiagnostics) };
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces).sort(
     ([left], [right]) => compareStrings(left, right),
   )) {
     const stateIds = Object.keys(surface.states).sort(compareStrings);
-    const pixelTarget = pixelTargetFor(surface.logicalSize);
-    const semanticsByState: RenderBundle["surfaces"][string]["semanticsByState"] = {};
-    const states: Record<string, { kind: "capture" }> = {};
-    for (const stateId of stateIds) {
-      const materialized = materializeCompletedSemanticTree(surface, stateId);
-      if (!materialized.valid) return materialized;
-      semanticsByState[stateId] = {
-        rootNodeIds: [...materialized.value.rootNodeIds],
-        nodes: Object.fromEntries(
-          Object.entries(materialized.value.nodes).map(([id, node]) => [id, { ...node }]),
-        ),
-      };
-      states[stateId] = { kind: "capture" };
-    }
-    const renderSurfaceId = derivedResourceId(surfaceId, "render");
-    const inputHash = hashCanonicalJsonPayload({
-      definitionHash: checked.value.definitionHash,
-      surfaceId,
-      semanticsByState,
-    });
-    const buildContextHash = hashCanonicalJsonPayload({
-      colorScheme: buildOptions.colorScheme,
-      inputHash,
-      locale: buildOptions.locale,
-      pixelTarget,
-      rendererConfigHash: buildOptions.rendererConfigHash,
-      textureBuildPolicy: POLICY,
-      themeHash: theme.hash,
-      themeId: bundleThemeId,
-      timezone: buildOptions.timezone,
-    });
-    const rendered = await executeRendererPlugin(renderer, {
-      surface,
-      sourceIntent: surface.renderIntent,
-      resolvedIntent: {
-        updateModel: surface.renderIntent.updateModel,
-        interaction: surface.renderIntent.interaction,
-        internalAnimation: surface.renderIntent.internalAnimation,
-        selectedRendererId: "baked-web",
-        fallbackPolicy: surface.renderIntent.fallbackPolicy,
-      },
-      semanticsByState,
-      fontAssets,
-      plan: {
+    const surfacePlan = planned.get(surfaceId)!;
+    const { semanticsByState, interactionsByState } = surfacePlan;
+    const partitions = surfacePlan.partitions;
+    const renderSurfaces: RenderBundle["surfaces"][string]["renderSurfaces"] = {};
+    for (const { plan, pixelTarget } of partitions) {
+      const renderSurfaceId = plan.id;
+      const opaqueRendererHash = opaqueRendererHashes.get(surfaceId);
+      const inputHash = hashCanonicalJsonPayload({
+        definitionHash: checked.value.definitionHash,
+        ...(opaqueRendererHash
+          ? {
+              rendererInputHash: opaqueRendererHash,
+              sourceHash: checked.value.sourceHash,
+            }
+          : {}),
+        surfaceId,
+        semanticsByState,
+        renderSurfaceId,
+      });
+      const buildContextHash = hashCanonicalJsonPayload({
+        colorScheme: buildOptions.colorScheme,
+        inputHash,
+        locale: buildOptions.locale,
+        pixelTarget,
+        rendererConfigHash: buildOptions.rendererConfigHash,
+        textureBuildPolicy: POLICY,
+        themeHash,
+        themeId: bundleThemeId,
+        timezone: buildOptions.timezone,
+      });
+      const rendered = await executeRendererPlugin(renderer, {
+        surface,
+        sourceIntent: surface.renderIntent,
+        resolvedIntent: {
+          updateModel: surface.renderIntent.updateModel,
+          interaction: surface.renderIntent.interaction,
+          internalAnimation: surface.renderIntent.internalAnimation,
+          selectedRendererId: "baked-web",
+          fallbackPolicy: surface.renderIntent.fallbackPolicy,
+        },
+        semanticsByState,
+        fontAssets,
+        plan,
+        entry: opaqueRendererHash
+          ? { kind: "opaque", entryId: surfaceId, moduleHash: opaqueRendererHash }
+          : { kind: "structured" },
+        context: {
+          locale: buildOptions.locale,
+          timezone: buildOptions.timezone,
+          colorScheme: buildOptions.colorScheme,
+          themeId: bundleThemeId,
+          themeHash,
+          inputHash,
+          buildContextHash,
+          environmentHash,
+          rendererConfigHash: buildOptions.rendererConfigHash,
+          rendererFingerprint,
+          pixelTarget,
+        },
+      });
+      if (!rendered.valid) return rendered;
+      if (surface.content.kind === "opaque") {
+        const regionOutput = rendered.value.hitRegionsByState;
+        if (
+          !regionOutput &&
+          Object.values(surface.states).some((state) => state.enabledInteractionIds.length)
+        )
+          return failure(
+            "compiler-opaque-hit-regions-missing",
+            ["render", surfaceId, "hitRegionsByState"],
+            "Opaque Interaction requires measured Hit Regions.",
+          );
+        for (const stateId of stateIds)
+          interactionsByState[stateId] = [...(regionOutput?.[stateId] ?? [])].map((region) => ({
+            ...region,
+            bounds: { ...region.bounds },
+          }));
+      }
+      const alphaModes = new Set(rendered.value.captures.map(({ alphaMode }) => alphaMode));
+      if (alphaModes.size !== 1)
+        return failure(
+          "compiler-renderer-output-inconsistent",
+          ["render", surfaceId, "captures"],
+          "All captures in one baked-web artifact must use the same alpha mode.",
+        );
+      const artifactId = derivedResourceId(renderSurfaceId, "artifact");
+      const captureBytes = rendered.value.captures.reduce(
+        (sum, capture) => sum + capture.rgba.length,
+        0,
+      );
+      if (!Number.isSafeInteger(captureBytes) || captureBytes > POLICY.maxSurfaceCaptureBytes)
+        return budgetFailure("compiler-budget-capture-bytes-exceeded", ["render", surfaceId]);
+      const artifactStates: BakedWebArtifact["states"] = {};
+      for (const capture of [...rendered.value.captures].sort((left, right) =>
+        compareStrings(left.stateId, right.stateId),
+      )) {
+        if (capture.pixelSize[0] !== pixelTarget[0] || capture.pixelSize[1] !== pixelTarget[1])
+          return budgetFailure("compiler-budget-pixel-target-exceeded", [
+            "render",
+            surfaceId,
+            capture.stateId,
+          ]);
+        const encoded = encodeRgbaToPng({
+          sourceId: `${surfaceId}:${capture.id}`,
+          rgba: capture.rgba,
+          pixelSize: capture.pixelSize,
+          colorSpace: capture.colorSpace,
+          alphaMode: capture.alphaMode,
+          limits: buildOptions.encodeLimits,
+        });
+        if (!encoded.valid) return encoded;
+        const uniqueOutput = !retainedChecksums.has(encoded.value.descriptor.checksum);
+        const nextOutputBytes = outputBytes + (uniqueOutput ? encoded.value.byteLength : 0);
+        if (!Number.isSafeInteger(nextOutputBytes) || nextOutputBytes > POLICY.maxBuildOutputBytes)
+          return budgetFailure("compiler-budget-output-bytes-exceeded", [
+            "render",
+            surfaceId,
+            capture.stateId,
+          ]);
+        const accountedPeakBytes =
+          outputBytes +
+          captureBytes +
+          encoded.value.byteLength +
+          (surface.content.kind === "opaque" ? capture.rgba.length * 2 : 0);
+        if (
+          !Number.isSafeInteger(accountedPeakBytes) ||
+          accountedPeakBytes > POLICY.maxBuildAccountedPeakBytes
+        )
+          return budgetFailure("compiler-budget-accounted-peak-exceeded", [
+            "render",
+            surfaceId,
+            capture.stateId,
+          ]);
+        if (uniqueOutput) {
+          retainedChecksums.add(encoded.value.descriptor.checksum);
+          outputBytes = nextOutputBytes;
+        }
+        assets[encoded.value.descriptor.assetId] = encoded.value.bytes;
+        generatedDescriptors[encoded.value.descriptor.assetId] = {
+          checksum: encoded.value.descriptor.checksum,
+          mediaType: "image/png",
+          encodedSizeBytes: encoded.value.byteLength,
+        };
+        artifactStates[capture.stateId] = {
+          stateId: capture.stateId,
+          texture: {
+            ...encoded.value.descriptor,
+            pixelSize: [...encoded.value.descriptor.pixelSize],
+          },
+        };
+      }
+      const stateBindings: Record<
+        string,
+        { kind: "artifacts"; artifactIds: string[] } | { kind: "empty" }
+      > = {};
+      for (const stateId of stateIds)
+        stateBindings[stateId] =
+          plan.states[stateId]?.kind === "empty"
+            ? { kind: "empty" }
+            : { kind: "artifacts", artifactIds: [artifactId] };
+      const alphaFeature =
+        rendered.value.captures[0]?.alphaMode === "straight"
+          ? ("alpha-straight" as const)
+          : ("alpha-opaque" as const);
+      renderSurfaces[renderSurfaceId] = {
         id: renderSurfaceId,
         semanticSurfaceId: surfaceId,
-        logicalBounds: {
-          x: 0,
-          y: 0,
-          width: surface.logicalSize[0],
-          height: surface.logicalSize[1],
+        logicalBounds: plan.logicalBounds,
+        layer: plan.layer,
+        partitionStrategyVersion: 1,
+        artifacts: {
+          [artifactId]: {
+            id: artifactId,
+            kind: "baked-web",
+            contractVersion: 1,
+            requiredFeatures: [alphaFeature, "png", "srgb"],
+            states: artifactStates,
+          },
         },
-        layer: 0,
-        ownedContentNodeIds: Object.values(surface.contentNodes)
-          .filter((node) => node.kind !== "frame" || node.semanticNodeId !== undefined)
-          .map((node) => node.id)
-          .sort(compareStrings),
-        contextNodeIds: Object.values(surface.contentNodes)
-          .filter((node) => node.kind === "frame" && node.semanticNodeId === undefined)
-          .map((node) => node.id)
-          .sort(compareStrings),
-        clipWindow: { x: 0, y: 0, width: surface.logicalSize[0], height: surface.logicalSize[1] },
-        hitPriorityByInteractionId: Object.fromEntries(
-          Object.entries(surface.interactions).map(([id, interaction]) => [
-            id,
-            interaction.hitPriority,
-          ]),
-        ),
-        states,
-      },
-      entry: { kind: "structured" },
-      context: {
-        locale: buildOptions.locale,
-        timezone: buildOptions.timezone,
-        colorScheme: buildOptions.colorScheme,
-        themeId: bundleThemeId,
-        themeHash: theme.hash,
-        inputHash,
-        buildContextHash,
-        environmentHash,
-        rendererConfigHash: buildOptions.rendererConfigHash,
-        rendererFingerprint,
-        pixelTarget,
-      },
-    });
-    if (!rendered.valid) return rendered;
-    const alphaModes = new Set(rendered.value.captures.map(({ alphaMode }) => alphaMode));
-    if (alphaModes.size !== 1)
-      return failure(
-        "compiler-renderer-output-inconsistent",
-        ["render", surfaceId, "captures"],
-        "All captures in one baked-web artifact must use the same alpha mode.",
-      );
-    const artifactId = derivedResourceId(renderSurfaceId, "artifact");
-    const captureBytes = rendered.value.captures.reduce(
-      (sum, capture) => sum + capture.rgba.length,
-      0,
-    );
-    if (!Number.isSafeInteger(captureBytes) || captureBytes > POLICY.maxSurfaceCaptureBytes)
-      return budgetFailure("compiler-budget-capture-bytes-exceeded", ["render", surfaceId]);
-    const artifactStates: BakedWebArtifact["states"] = {};
-    for (const capture of [...rendered.value.captures].sort((left, right) =>
-      compareStrings(left.stateId, right.stateId),
-    )) {
-      if (capture.pixelSize[0] !== pixelTarget[0] || capture.pixelSize[1] !== pixelTarget[1])
-        return budgetFailure("compiler-budget-pixel-target-exceeded", [
-          "render",
-          surfaceId,
-          capture.stateId,
-        ]);
-      const encoded = encodeRgbaToPng({
-        sourceId: `${surfaceId}:${capture.id}`,
-        rgba: capture.rgba,
-        pixelSize: capture.pixelSize,
-        colorSpace: capture.colorSpace,
-        alphaMode: capture.alphaMode,
-        limits: buildOptions.encodeLimits,
-      });
-      if (!encoded.valid) return encoded;
-      const uniqueOutput = !retainedChecksums.has(encoded.value.descriptor.checksum);
-      const nextOutputBytes = outputBytes + (uniqueOutput ? encoded.value.byteLength : 0);
-      if (!Number.isSafeInteger(nextOutputBytes) || nextOutputBytes > POLICY.maxBuildOutputBytes)
-        return budgetFailure("compiler-budget-output-bytes-exceeded", [
-          "render",
-          surfaceId,
-          capture.stateId,
-        ]);
-      const accountedPeakBytes = outputBytes + captureBytes + encoded.value.byteLength;
-      if (
-        !Number.isSafeInteger(accountedPeakBytes) ||
-        accountedPeakBytes > POLICY.maxBuildAccountedPeakBytes
-      )
-        return budgetFailure("compiler-budget-accounted-peak-exceeded", [
-          "render",
-          surfaceId,
-          capture.stateId,
-        ]);
-      if (uniqueOutput) {
-        retainedChecksums.add(encoded.value.descriptor.checksum);
-        outputBytes = nextOutputBytes;
-      }
-      assets[encoded.value.descriptor.assetId] = encoded.value.bytes;
-      generatedDescriptors[encoded.value.descriptor.assetId] = {
-        checksum: encoded.value.descriptor.checksum,
-        mediaType: "image/png",
-        encodedSizeBytes: encoded.value.byteLength,
-      };
-      artifactStates[capture.stateId] = {
-        stateId: capture.stateId,
-        texture: {
-          ...encoded.value.descriptor,
-          pixelSize: [...encoded.value.descriptor.pixelSize],
-        },
+        stateBindings,
       };
     }
-    const stateBindings: Record<string, { kind: "artifacts"; artifactIds: string[] }> = {};
-    for (const stateId of stateIds)
-      stateBindings[stateId] = { kind: "artifacts", artifactIds: [artifactId] };
-    const alphaFeature =
-      rendered.value.captures[0]?.alphaMode === "straight"
-        ? ("alpha-straight" as const)
-        : ("alpha-opaque" as const);
     surfaces[surfaceId] = {
       semanticSurfaceId: surfaceId,
       logicalSize: [...surface.logicalSize],
       physicalSizeMeters: [...surface.physicalSizeMeters],
-      renderSurfaceIds: [renderSurfaceId],
-      renderSurfaces: {
-        [renderSurfaceId]: {
-          id: renderSurfaceId,
-          semanticSurfaceId: surfaceId,
-          logicalBounds: {
-            x: 0,
-            y: 0,
-            width: surface.logicalSize[0],
-            height: surface.logicalSize[1],
-          },
-          layer: 0,
-          artifacts: {
-            [artifactId]: {
-              id: artifactId,
-              kind: "baked-web",
-              contractVersion: 1,
-              requiredFeatures: [alphaFeature, "png", "srgb"],
-              states: artifactStates,
-            },
-          },
-          stateBindings,
-        },
-      },
+      renderSurfaceIds: partitions.map(({ plan }) => plan.id),
+      renderSurfaces,
       semanticsByState,
-      interactionsByState: aggregatePrivateRegions(surface.logicalSize, stateIds, [
-        {
-          logicalBounds: {
-            x: 0,
-            y: 0,
-            width: surface.logicalSize[0],
-            height: surface.logicalSize[1],
-          },
-          hitRegionsByState: rendered.value.hitRegionsByState,
-        },
-      ]),
+      interactionsByState,
     };
   }
 
   const bundle: RenderBundle = {
     schemaVersion: 2,
-    bundleId: `b:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, definitionHash: checked.value.definitionHash, environmentHash, locale: buildOptions.locale, timezone: buildOptions.timezone, colorScheme: buildOptions.colorScheme, themeId: bundleThemeId, themeHash: theme.hash, rendererConfigHash: buildOptions.rendererConfigHash, textureBuildPolicy: POLICY }).slice(7)}`,
+    bundleId: `b:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, definitionHash: checked.value.definitionHash, environmentHash, locale: buildOptions.locale, timezone: buildOptions.timezone, colorScheme: buildOptions.colorScheme, themeId: bundleThemeId, themeHash, rendererConfigHash: buildOptions.rendererConfigHash, textureBuildPolicy: POLICY }).slice(7)}`,
     sourceHash: checked.value.sourceHash,
     definitionHash: checked.value.definitionHash,
     compiler: {
@@ -457,7 +583,7 @@ const compileUnchecked = async (
       timezone: buildOptions.timezone,
       colorScheme: buildOptions.colorScheme,
       themeId: bundleThemeId,
-      themeHash: theme.hash,
+      themeHash,
       textureBuildPolicy: POLICY,
     },
     surfaces,

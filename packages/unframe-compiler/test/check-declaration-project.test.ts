@@ -1,16 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { standardComponents } from "@unframe/unframe-components";
 import type {
+  ComponentManifest,
+  ComponentPackageLock,
   ComponentStructure,
   PresentationDeclaration,
   SurfaceDeclaration,
 } from "@unframe/unframe-authoring";
 import {
+  buildOpaqueComponentManifest,
+  validateStaticComponentMetadata,
+} from "@unframe/unframe-authoring";
+import {
+  type SemanticSurface,
   canonicalizePresentationDefinition,
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
+type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
+  presentation: PresentationDeclaration;
+  components: {
+    manifest: ComponentManifest;
+    structure: ComponentStructure;
+    lock: ComponentPackageLock & { mode: "structured" };
+  }[];
+};
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
   createRendererFingerprint,
@@ -18,6 +33,11 @@ import {
   type RendererPlugin,
 } from "@unframe/unframe-renderer-api";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
+
+const structuredContent = (surface: SemanticSurface | undefined) => {
+  if (surface?.content.kind !== "structured") throw new Error("Expected structured Surface");
+  return surface.content;
+};
 
 const presentation = (): PresentationDeclaration => ({
   id: "presentation",
@@ -51,12 +71,6 @@ const presentation = (): PresentationDeclaration => ({
         version: 1,
         owner: { kind: "presentation" },
         spatialNodeId: "spatial",
-        packageLock: {
-          packageVersion: "1",
-          packageIntegrity: "integrity",
-          manifestHash: "manifest",
-          structureHash: "structure",
-        },
         props: {},
         slots: {},
         variants: {},
@@ -88,8 +102,13 @@ const project = () => ({
       manifest: standardComponents.surface.manifest,
       structure: standardComponents.surface.structure,
       lock: {
-        packageVersion: "1",
-        packageIntegrity: "integrity",
+        mode: "structured" as const,
+        origin: {
+          kind: "local" as const,
+          entryFile: "surface.ts",
+          files: [],
+          sourceHash: "sha256:source",
+        },
         manifestHash: "manifest",
         structureHash: "structure",
       },
@@ -121,8 +140,213 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("keeps Structured and React Surfaces in one Presentation", () => {
+    const input = project();
+    const metadata = validateStaticComponentMetadata({
+      id: "react",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [800, 450] },
+      semantics: {
+        rootNodeIds: ["title"],
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+      },
+    });
+    const reactItem = {
+      id: "react-one",
+      component: { id: "react", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1.6, 0.9],
+      fit: "contain",
+      transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
+        },
+      },
+      components: [
+        ...input.components,
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "react.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    });
+    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    expect(
+      Object.values(result.value.definition.scene.surfaces)
+        .map((surface) => surface.content.kind)
+        .sort(),
+    ).toEqual(["opaque", "structured"]);
+  });
+  it("preserves source Cue positions across Structured and React lowering", () => {
+    const input = project() as StructuredProject;
+    const structured = input.components[0]!;
+    structured.manifest = {
+      ...structured.manifest,
+      outputs: {
+        advanced: {
+          kind: "output",
+          payload: {},
+          producer: { kind: "timer", afterMilliseconds: 1 },
+        },
+        skipped: { kind: "output", payload: {}, producer: { kind: "timer", afterMilliseconds: 2 } },
+      },
+    };
+    const metadata = validateStaticComponentMetadata({
+      id: "react",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [800, 450] },
+      semantics: {
+        rootNodeIds: ["button"],
+        nodes: {
+          button: {
+            role: "button",
+            parentId: null,
+            order: 0,
+            text: "Next",
+            interactionId: "next",
+          },
+        },
+      },
+      interactions: { next: { kind: "click", event: "next", hitPriority: 0 } },
+      initialState: "ready",
+      states: { ready: { semanticOverrides: [], enabledInteractionIds: ["next"] } },
+      actions: {},
+      outputs: {
+        clicked: { payload: {}, producer: { kind: "surfaceInteraction", interactionId: "next" } },
+      },
+    });
+    const reactItem = {
+      id: "react-one",
+      component: { id: "react", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1.6, 0.9],
+      fit: "contain",
+      transform: { position: [1, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const result = checkDeclarationProject({
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          components: [...input.presentation.scene.components, reactItem],
+        },
+        flow: {
+          ...input.presentation.flow,
+          groups: {
+            group: {
+              id: "group",
+              initialStepId: "step",
+              steps: {
+                step: {
+                  id: "step",
+                  cues: [
+                    {
+                      id: "react-first",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "react-one",
+                        outputId: "clicked",
+                      },
+                      actions: [],
+                    },
+                    {
+                      id: "structured-second",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "instance",
+                        outputId: "advanced",
+                      },
+                      actions: [],
+                    },
+                    {
+                      id: "structured-explicit",
+                      trigger: {
+                        kind: "component.output",
+                        componentInstanceId: "instance",
+                        outputId: "skipped",
+                      },
+                      actions: [],
+                      order: 7,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      components: [
+        ...input.components,
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "react.component.tsx#render"),
+          metadata,
+          rendererEntry: "react.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "react.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      Object.fromEntries(
+        result.value.definition.flow.groups.group!.steps.step!.cues.map((cue) => [
+          cue.id,
+          cue.order,
+        ]),
+      ),
+    ).toEqual({ "react-first": 0, "structured-second": 1, "structured-explicit": 7 });
+  });
+  it("identifies the lowered content as a structured tree", () => {
+    const result = checkDeclarationProject(project());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(Object.values(result.value.definition.scene.surfaces)[0]).toHaveProperty(
+      "content.kind",
+      "structured",
+    );
+  });
+
   it("lowers a host Timeline and its local Action and Output references", () => {
-    const input = project() as CompilerDeclarationProject;
+    const input = project() as StructuredProject;
     const entry = input.components[0]!;
     entry.structure = {
       ...entry.structure,
@@ -219,7 +443,7 @@ describe("checkDeclarationProject", () => {
     });
   });
   it("canonicalizes Timeline rotation and rejects a zero Quaternion", () => {
-    const input = project() as CompilerDeclarationProject;
+    const input = project() as StructuredProject;
     const entry = input.components[0]!;
     entry.structure = {
       ...entry.structure,
@@ -250,7 +474,7 @@ describe("checkDeclarationProject", () => {
       [0, 0, 0, 1],
       [0, 0, 0, 1],
     ]);
-    const invalid = project() as CompilerDeclarationProject;
+    const invalid = project() as StructuredProject;
     invalid.components[0]!.structure = {
       ...entry.structure,
       timelines: [
@@ -271,8 +495,8 @@ describe("checkDeclarationProject", () => {
     expect(codes(invalid)).toContain("compiler-timeline-quaternion-invalid");
   });
   it("lowers Component Output payload, Action effects, Guard, and empty Step transition", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
@@ -423,8 +647,8 @@ describe("checkDeclarationProject", () => {
     expect(result.value.definition.flow.groups.group?.steps.done?.cues).toEqual([]);
   });
   it("lowers a timer Output to an actionless Step transition", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     entry.manifest = {
@@ -492,8 +716,8 @@ describe("checkDeclarationProject", () => {
     ]);
   });
   it("rejects undeclared Timeline effects and media Output producers", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     entry.manifest = {
@@ -522,13 +746,13 @@ describe("checkDeclarationProject", () => {
     );
   });
   it("lowers finite states, visual changes, semantic changes and interactions", () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const original = input.components[0]!;
     const root = original.structure.root;
     if (root.kind !== "surface") throw new Error("fixture must be a surface");
-    (input.themes as CompilerDeclarationProject["themes"][number][])[0] = {
+    (input.themes as StructuredProject["themes"][number][])[0] = {
       ...input.themes[0]!,
       declaration: {
         ...input.themes[0]!.declaration,
@@ -842,7 +1066,7 @@ describe("checkDeclarationProject", () => {
     expect(result.valid).toBe(true);
     if (!result.valid) return;
     expect(
-      Object.values(result.value.definition.scene.surfaces)[0]!.contentNodes[
+      structuredContent(Object.values(result.value.definition.scene.surfaces)[0]).nodes[
         "instance:text-content"
       ],
     ).toMatchObject({
@@ -951,7 +1175,7 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(
-      result.value.definition.scene.surfaces["instance:surface-root"]?.contentNodes[
+      structuredContent(result.value.definition.scene.surfaces["instance:surface-root"]).nodes[
         "instance:text-content"
       ],
     ).toMatchObject({
@@ -1134,18 +1358,12 @@ describe("checkDeclarationProject", () => {
       componentId: "badge",
       version: 1,
       owner: { kind: "presentation" },
-      packageLock: {
-        packageVersion: "1",
-        packageIntegrity: "badge-integrity",
-        manifestHash: "badge-manifest",
-        structureHash: "badge-structure",
-      },
       props: {},
       slots: {},
       variants: {},
       partOverrides: [],
     });
-    (input.components as unknown as CompilerDeclarationProject["components"][number][]).push({
+    (input.components as unknown as StructuredProject["components"][number][]).push({
       manifest: {
         componentId: "badge",
         version: 1,
@@ -1199,8 +1417,8 @@ describe("checkDeclarationProject", () => {
         timelines: [],
       },
       lock: {
-        packageVersion: "1",
-        packageIntegrity: "badge-integrity",
+        mode: "structured",
+        origin: { kind: "local", entryFile: "badge.ts", files: [], sourceHash: "sha256:badge" },
         manifestHash: "badge-manifest",
         structureHash: "badge-structure",
       },
@@ -1211,10 +1429,10 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     const surface = result.value.definition.scene.surfaces["instance:surface-root"]!;
-    expect(surface.contentNodes["instance:frame-root"]).toMatchObject({
+    expect(structuredContent(surface).nodes["instance:frame-root"]).toMatchObject({
       children: ["instance:text-content", "instance:existing-text", "badge-instance:badge-frame"],
     });
-    expect(surface.contentNodes["badge-instance:badge-frame"]).toMatchObject({
+    expect(structuredContent(surface).nodes["badge-instance:badge-frame"]).toMatchObject({
       parentId: "instance:frame-root",
       order: 2,
     });
@@ -1225,7 +1443,7 @@ describe("checkDeclarationProject", () => {
     ]);
 
     const topStructure = (
-      input.components as unknown as CompilerDeclarationProject["components"][number][]
+      input.components as unknown as StructuredProject["components"][number][]
     )[0]!.structure;
     if (topStructure.root.kind !== "surface") return;
     const slotPlaceholder = topStructure.root.root.children[2];
@@ -1239,7 +1457,7 @@ describe("checkDeclarationProject", () => {
     );
 
     const badgeStructure = (
-      input.components as unknown as CompilerDeclarationProject["components"][number][]
+      input.components as unknown as StructuredProject["components"][number][]
     )[1]!.structure;
     if (badgeStructure.root.kind !== "frame") return;
     const badgeSemanticTree = badgeStructure.baseSemanticTree!;
@@ -1326,19 +1544,20 @@ describe("checkDeclarationProject", () => {
     expect(result.valid ? [] : result.diagnostics).toEqual([]);
     if (!result.valid) return;
     expect(validatePresentationDefinition(result.value.definition).valid).toBe(true);
-    expect(result.value.definition.scene.surfaces["instance:surface-root"]?.rootFrameId).toBe(
-      "instance:frame-root",
-    );
+    expect(
+      structuredContent(result.value.definition.scene.surfaces["instance:surface-root"])
+        .rootFrameId,
+    ).toBe("instance:frame-root");
     const canonical = canonicalizePresentationDefinition(result.value.definition);
     expect(canonical).toMatchObject({ valid: true });
     if (canonical.valid) expect(result.value.definitionJson).toBe(canonical.value);
     expect(result.value.sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.definitionHash).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.value.sourceHash).toBe(
-      "sha256:3cdb6cdf49879b2e4295026604001240919fbcc434433e2e04e502159354be6f",
+      "sha256:aa489f983b548617876a4e79f710321d159d6ebd572b1d39db558806dd64ce01",
     );
     expect(result.value.definitionHash).toBe(
-      "sha256:b3f125bede221d2e4af53a0363dc88bd427897145e369756f8a551dbaa363ad4",
+      "sha256:feeb8319fee482e9d68aaeb3f71546284aa0bc3a1d12f989fac1e67832509ed0",
     );
   });
 
@@ -1462,9 +1681,6 @@ describe("checkDeclarationProject", () => {
         components: [...duplicateComponent.components, duplicateComponent.components[0]!],
       }),
     ).toContain("compiler-component-not-found");
-    const mismatchedLock = project();
-    mismatchedLock.presentation.scene.components[0]!.packageLock.manifestHash = "different";
-    expect(codes(mismatchedLock)).toContain("compiler-component-lock-mismatch");
     const interactions = project();
     expect(
       codes({
@@ -1559,7 +1775,7 @@ describe("checkDeclarationProject", () => {
           },
         ],
       }),
-    ).toContain("compiler-component-lock-mismatch");
+    ).toContain("compiler-component-identity-mismatch");
 
     const missingSpatial = project();
     expect(
@@ -1630,7 +1846,7 @@ describe("checkDeclarationProject", () => {
     expect(nestedResult.valid).toBe(true);
     if (nestedResult.valid)
       expect(
-        Object.values(nestedResult.value.definition.scene.surfaces)[0]!.contentNodes,
+        structuredContent(Object.values(nestedResult.value.definition.scene.surfaces)[0]).nodes,
       ).toHaveProperty("instance:nested");
 
     const features = project();
@@ -1806,8 +2022,13 @@ describe("checkDeclarationProject", () => {
         },
       };
       const lock = {
-        packageVersion: `1-${suffix}`,
-        packageIntegrity: `integrity-${suffix}`,
+        mode: "structured" as const,
+        origin: {
+          kind: "local" as const,
+          entryFile: `surface-${suffix}.ts`,
+          files: [],
+          sourceHash: `sha256:source-${suffix}`,
+        },
         manifestHash: `manifest-${suffix}`,
         structureHash: `structure-${suffix}`,
       };
@@ -1818,7 +2039,6 @@ describe("checkDeclarationProject", () => {
           id: instanceId,
           componentId,
           spatialNodeId: spatialId,
-          packageLock: lock,
         },
         catalog: { manifest, structure, lock },
       };
@@ -1957,18 +2177,19 @@ describe("compileDeclarationProject", () => {
         logicalBounds: input.plan.logicalBounds,
         layer: input.plan.layer,
       },
-      captures: Object.keys(input.plan.states).map((stateId) => ({
-        id: `${stateId}:capture`,
-        stateId,
-        rgba: Uint8Array.from(
-          { length: input.context.pixelTarget[0] * input.context.pixelTarget[1] * 4 },
-          (_, index) => (index % 4 === 3 ? 255 : 0),
-        ),
-        pixelSize: input.context.pixelTarget,
-        colorSpace: "srgb",
-        alphaMode: "opaque",
-      })),
-      hitRegionsByState: Object.fromEntries(Object.keys(input.plan.states).map((id) => [id, []])),
+      captures: Object.entries(input.plan.states)
+        .filter(([, state]) => state.kind === "capture")
+        .map(([stateId]) => ({
+          id: `${stateId}:capture`,
+          stateId,
+          rgba: Uint8Array.from(
+            { length: input.context.pixelTarget[0] * input.context.pixelTarget[1] * 4 },
+            (_, index) => (index % 4 === 3 ? 255 : 0),
+          ),
+          pixelSize: input.context.pixelTarget,
+          colorSpace: "srgb",
+          alphaMode: "opaque",
+        })),
       provenance: {
         ...renderer.identity,
         inputHash: input.context.inputHash,
@@ -1993,9 +2214,511 @@ describe("compileDeclarationProject", () => {
     encodeLimits: PNG_ABSOLUTE_LIMITS,
   });
 
-  it("owns a Frame that binds an enabled button in the renderer plan", async () => {
-    const input = project() as CompilerDeclarationProject & {
-      components: CompilerDeclarationProject["components"][number][];
+  it("does not render a Surface with no paint in any state", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          states: {
+            default: {
+              id: "default",
+              contentOverrides: { "text-content": { kind: "text", visible: false } },
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+            },
+          },
+        },
+      } as ComponentStructure,
+    };
+    let calls = 0;
+    const observing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        calls++;
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(calls).toBe(0);
+    expect(result.value.renderBundle.surfaces["instance:surface-root"]?.renderSurfaceIds).toEqual(
+      [],
+    );
+    expect(
+      Object.values(result.value.assetSet.assets).filter(
+        ({ mediaType }) => mediaType === "image/png",
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps partition identity and bounds fixed when a later state is empty", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      manifest: {
+        ...entry.manifest,
+        states: { default: { kind: "state", initial: true }, hidden: { kind: "state" } },
+      },
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: [] },
+            hidden: {
+              id: "hidden",
+              contentOverrides: { "text-content": { kind: "text", visible: false } },
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+            },
+          },
+          renderIntent: { ...root.renderIntent, updateModel: "finite-state" },
+        },
+      } as ComponentStructure,
+    };
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
+    expect(compiled.renderSurfaceIds).toHaveLength(1);
+    const renderSurface = compiled.renderSurfaces[compiled.renderSurfaceIds[0]!]!;
+    expect(renderSurface.stateBindings).toEqual({
+      "instance:default": {
+        kind: "artifacts",
+        artifactIds: [Object.keys(renderSurface.artifacts)[0]!],
+      },
+      "instance:hidden": { kind: "empty" },
+    });
+    const artifact = Object.values(renderSurface.artifacts)[0]!;
+    if (artifact.kind !== "baked-web") throw new Error("Expected baked-web artifact.");
+    expect(Object.keys(artifact.states)).toEqual(["instance:default"]);
+  });
+
+  const partitionedInput = () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected standard Surface.");
+    const text = root.root.children[0]!;
+    const nested = {
+      ...root.root,
+      id: "nested",
+      layout: { kind: "absolute" as const, x: 100, y: 100, width: 800, height: 400 },
+      opacity: 0.5,
+      style: { backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 } },
+      children: [
+        {
+          ...text,
+          id: "inner-text",
+          layout: { kind: "absolute" as const, x: 10, y: 10, width: 100, height: 50 },
+        },
+      ],
+    };
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: {
+            ...root.root,
+            style: { backgroundColor: { red: 0, green: 0, blue: 0, alpha: 1 } },
+            children: [nested],
+          },
+        },
+      } as ComponentStructure,
+    };
+    return input;
+  };
+
+  it("partitions a painted root and a translucent group in canonical paint order", async () => {
+    const input = partitionedInput();
+    const seen: {
+      id: string;
+      owned: readonly string[];
+      context: readonly string[];
+      layer: number;
+    }[] = [];
+    const observing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        seen.push({
+          id: value.plan.id,
+          owned:
+            value.plan.ownership.kind === "structured"
+              ? value.plan.ownership.ownedContentNodeIds
+              : [],
+          context:
+            value.plan.ownership.kind === "structured" ? value.plan.ownership.contextNodeIds : [],
+          layer: value.plan.layer,
+        });
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const compiled = Object.values(result.value.renderBundle.surfaces)[0]!;
+    expect(compiled.renderSurfaceIds).toEqual([
+      "rs_72492e420a8d63224465f844a782dd31ef0c6e948ca29dc6e0571e8cd3ede04c",
+      "rs_4ad6b5a5009dcbbd660389e2de40f038ea3475eefb324c445c6f600d52290982",
+    ]);
+    expect(seen.map(({ layer }) => layer)).toEqual([0, 1]);
+    expect(seen.flatMap(({ owned }) => owned)).toEqual([
+      "instance:frame-root",
+      "instance:nested",
+      "instance:inner-text",
+    ]);
+    expect(seen[1]?.context).toContain("instance:frame-root");
+    expect(compiled.renderSurfaceIds.every((id) => /^rs_[0-9a-f]{64}$/.test(id))).toBe(true);
+  });
+
+  it("derives one Surface button region across multiple image partitions", async () => {
+    const input = partitionedInput();
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected partitioned Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: { ...root.root, semanticNodeId: "button" },
+          baseSemanticTree: {
+            rootNodeIds: ["semantic-text", "button"],
+            nodes: {
+              ...root.baseSemanticTree.nodes,
+              button: {
+                id: "button",
+                parentId: null,
+                order: 1,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 4 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        },
+      } as ComponentStructure,
+    };
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
+    expect(compiled.renderSurfaceIds).toHaveLength(2);
+    expect(compiled.interactionsByState["instance:default"]).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:button",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        priority: 4,
+        coordinateSpace: "normalized",
+      },
+    ]);
+  });
+
+  it("changes the clipped partition identity when only its border radius changes", async () => {
+    const withRadius = (radius: number) => {
+      const input = partitionedInput();
+      const entry = input.components[0]!;
+      const root = entry.structure.root;
+      if (root.kind !== "surface" || root.root.kind !== "frame")
+        throw new Error("Expected partitioned Surface.");
+      const nested = root.root.children[0]!;
+      if (nested.kind !== "frame") throw new Error("Expected nested Frame.");
+      input.components[0] = {
+        ...entry,
+        structure: {
+          ...entry.structure,
+          root: {
+            ...root,
+            root: {
+              ...root.root,
+              children: [
+                {
+                  ...nested,
+                  style: {
+                    ...nested.style,
+                    clip: true,
+                    border: { color: { red: 0, green: 0, blue: 0, alpha: 0 }, width: 2, radius },
+                  },
+                },
+              ],
+            },
+          },
+        } as ComponentStructure,
+      };
+      return input;
+    };
+    const flat = await compileDeclarationProject(withRadius(0), options());
+    const rounded = await compileDeclarationProject(withRadius(3), options());
+    const repeated = await compileDeclarationProject(withRadius(3), options());
+    expect(flat.valid ? [] : flat.diagnostics).toEqual([]);
+    expect(rounded.valid ? [] : rounded.diagnostics).toEqual([]);
+    expect(repeated.valid ? [] : repeated.diagnostics).toEqual([]);
+    if (!flat.valid || !rounded.valid || !repeated.valid) return;
+    const flatIds = flat.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds;
+    const roundedIds =
+      rounded.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds;
+    expect(flatIds).toHaveLength(2);
+    expect(flatIds[0]).toBe(roundedIds[0]);
+    expect(flatIds[1]).not.toBe(roundedIds[1]);
+    expect(repeated.value.renderBundle.surfaces["instance:surface-root"]!.renderSurfaceIds).toEqual(
+      roundedIds,
+    );
+  }, 15_000);
+
+  it("fails the whole build when a later partition renderer call fails", async () => {
+    let calls = 0;
+    const failing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        calls++;
+        if (calls === 2)
+          return {
+            ok: false,
+            diagnostics: [
+              { code: "test-renderer-failure", path: [], message: "Second partition failed." },
+            ],
+          };
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(partitionedInput(), {
+      ...options(),
+      renderers: [failing],
+    });
+    expect(calls).toBe(2);
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain("test-renderer-failure");
+  });
+
+  it("clips partition bounds to the Surface cover window", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: { ...root, physicalSizeMeters: [1, 1], fit: "cover" },
+      } as ComponentStructure,
+    };
+    let bounds: { x: number; y: number; width: number; height: number } | undefined;
+    const probe: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        bounds = value.plan.logicalBounds;
+        return {
+          ok: false,
+          diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],
+        };
+      },
+    };
+    await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(bounds).toEqual({ x: 420, y: 0, width: 1080, height: 1080 });
+  });
+
+  it("clips a button region once by its ancestor Frame", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected standard Surface.");
+    const text = root.root.children[0]!;
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: {
+            ...root.root,
+            style: { clip: true },
+            children: [
+              { ...text, layout: { kind: "absolute", x: 1800, y: 0, width: 240, height: 100 } },
+            ],
+          },
+          baseSemanticTree: {
+            rootNodeIds: ["semantic-text"],
+            nodes: {
+              "semantic-text": {
+                id: "semantic-text",
+                parentId: null,
+                order: 0,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 2 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        },
+      } as ComponentStructure,
+    };
+    const result = await compileDeclarationProject(input, options());
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(
+      result.value.renderBundle.surfaces["instance:surface-root"]?.interactionsByState[
+        "instance:default"
+      ],
+    ).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:semantic-text",
+        bounds: { x: 0.9375, y: 0, width: 0.0625, height: 100 / 1080 },
+        priority: 2,
+        coordinateSpace: "normalized",
+      },
+    ]);
+  });
+
+  it("owns a Frame that paints only through a State override", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          states: {
+            default: {
+              id: "default",
+              contentOverrides: {
+                "frame-root": {
+                  kind: "frame",
+                  backgroundColor: { red: 1, green: 0, blue: 0, alpha: 1 },
+                },
+              },
+              semanticOverrides: [],
+              enabledInteractionIds: [],
+            },
+          },
+        },
+      } as ComponentStructure,
+    };
+    let owned: readonly string[] = [];
+    const probe: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        owned =
+          value.plan.ownership.kind === "structured"
+            ? value.plan.ownership.ownedContentNodeIds
+            : [];
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    expect(owned).toEqual(["instance:frame-root", "instance:text-content"]);
+  });
+
+  it("keeps a transparent button clickable without a paint partition", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    input.presentation.assets = [];
+    input.assets = {};
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface" || root.root.kind !== "frame")
+      throw new Error("Expected standard Surface.");
+    input.components[0] = {
+      ...entry,
+      structure: {
+        ...entry.structure,
+        root: {
+          ...root,
+          root: { ...root.root, children: [], semanticNodeId: "button" },
+          baseSemanticTree: {
+            rootNodeIds: ["button"],
+            nodes: {
+              button: {
+                id: "button",
+                parentId: null,
+                order: 0,
+                role: "button",
+                text: "Open",
+                interactionId: "open",
+              },
+            },
+          },
+          interactions: { open: { id: "open", kind: "click", event: "open", hitPriority: 3 } },
+          states: {
+            default: { id: "default", semanticOverrides: [], enabledInteractionIds: ["open"] },
+          },
+          renderIntent: { ...root.renderIntent, interaction: "regions" },
+        },
+      } as ComponentStructure,
+    };
+    let calls = 0;
+    const observing: RendererPlugin = {
+      ...renderer,
+      build: (value) => {
+        calls++;
+        return renderer.build(value);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(calls).toBe(0);
+    const compiled = result.value.renderBundle.surfaces["instance:surface-root"]!;
+    expect(compiled.renderSurfaceIds).toEqual([]);
+    expect(compiled.interactionsByState["instance:default"]).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:button",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        priority: 3,
+        coordinateSpace: "normalized",
+      },
+    ]);
+  });
+
+  it("keeps a non-painting semantic Frame as renderer context", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
     };
     const entry = input.components[0]!;
     const root = entry.structure.root;
@@ -2034,17 +2757,31 @@ describe("compileDeclarationProject", () => {
     const probe: RendererPlugin = {
       ...renderer,
       build: (value) => {
-        owned = value.plan.ownedContentNodeIds;
-        context = value.plan.contextNodeIds;
-        return {
-          ok: false,
-          diagnostics: [{ code: "test-stop", path: [], message: "Observed plan." }],
-        };
+        if (value.plan.ownership.kind !== "structured")
+          throw new Error("Expected structured ownership");
+        owned = value.plan.ownership.ownedContentNodeIds;
+        context = value.plan.ownership.contextNodeIds;
+        return renderer.build(value);
       },
     };
-    await compileDeclarationProject(input, { ...options(), renderers: [probe] });
-    expect(owned).toContain("instance:frame-root");
-    expect(context).not.toContain("instance:frame-root");
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [probe] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    if (!result.valid) return;
+    expect(owned).not.toContain("instance:frame-root");
+    expect(context).toContain("instance:frame-root");
+    expect(
+      result.value.renderBundle.surfaces["instance:surface-root"]?.interactionsByState[
+        "instance:default"
+      ],
+    ).toEqual([
+      {
+        interactionId: "instance:open",
+        semanticNodeId: "instance:frame-button",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        coordinateSpace: "normalized",
+        priority: 1,
+      },
+    ]);
   });
 
   it("reports every preflight texture budget violation before invoking a renderer", async () => {
@@ -2094,6 +2831,188 @@ describe("compileDeclarationProject", () => {
       ]);
     expect(calls).toBe(0);
   });
+  it("rejects opaque stability and encoded output budgets before invoking a renderer", async () => {
+    const states = Object.fromEntries(
+      Array.from({ length: 16 }, (_, index) => [
+        `state-${index}`,
+        { semanticOverrides: [], enabledInteractionIds: [] },
+      ]),
+    );
+    const metadata = validateStaticComponentMetadata({
+      id: "large",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [2048, 2048] },
+      semantics: {
+        rootNodeIds: ["title"],
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+      },
+      interactions: {},
+      initialState: "state-0",
+      states,
+      actions: {},
+      outputs: {},
+    });
+    const input = project();
+    const { theme: _theme, ...header } = input.presentation;
+    const scene = [
+      {
+        id: "large-one",
+        component: { id: "large", version: 1 },
+        props: {},
+        owner: { kind: "presentation" },
+        audience: { kind: "all" },
+        parent: { kind: "stage" },
+        physicalSizeMeters: [1, 1],
+        fit: "contain",
+        transform: { position: [0, 0, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      },
+    ];
+    let calls = 0;
+    const countingRenderer: RendererPlugin = {
+      ...renderer,
+      build: (rendererInput) => {
+        calls++;
+        return renderer.build(rendererInput);
+      },
+    };
+    const result = await compileDeclarationProject(
+      {
+        presentation: { ...header, scene, assets: [] },
+        themes: [],
+        components: [
+          {
+            manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
+            metadata,
+            rendererEntry: "large.component.tsx#render",
+            rendererSource: "export default () => null",
+            lock: {
+              mode: "opaque",
+              origin: {
+                kind: "local",
+                entryFile: "large.component.tsx",
+                files: [],
+                sourceHash: "sha256:source",
+              },
+              manifestHash: "sha256:manifest",
+              rendererInputHash: "sha256:renderer",
+            },
+          },
+        ],
+        assets: {},
+      },
+      { ...options(), renderers: [countingRenderer] },
+    );
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      const codes = result.diagnostics.map((item) => item.code);
+      expect(codes).toContain("compiler-budget-output-bytes-exceeded");
+      expect(codes).toContain("compiler-budget-accounted-peak-exceeded");
+    }
+    expect(calls).toBe(0);
+  });
+
+  it("counts Structured PNG output before a mixed opaque capture", async () => {
+    const input = project();
+    const entry = input.components[0]!;
+    const largeStructure = {
+      ...entry.structure,
+      root: { ...entry.structure.root, logicalSize: [2048, 2048] },
+    } as unknown as ComponentStructure;
+    const states = Object.fromEntries(
+      Array.from({ length: 15 }, (_, index) => [
+        `state-${index}`,
+        { semanticOverrides: [], enabledInteractionIds: [] },
+      ]),
+    );
+    const metadata = validateStaticComponentMetadata({
+      id: "large",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [2048, 2048] },
+      semantics: {
+        rootNodeIds: ["title"],
+        nodes: { title: { role: "heading", level: 1, parentId: null, order: 0, text: "Hello" } },
+      },
+      interactions: {},
+      initialState: "state-0",
+      states,
+      actions: {},
+      outputs: {},
+    });
+    const reactItem = {
+      id: "large-one",
+      component: { id: "large", version: 1 },
+      props: {},
+      owner: { kind: "presentation" },
+      audience: { kind: "all" },
+      parent: { kind: "stage" },
+      physicalSizeMeters: [1, 1],
+      fit: "contain",
+      transform: { position: [0, 0, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    };
+    const mixed = {
+      ...input,
+      presentation: {
+        ...input.presentation,
+        scene: {
+          ...input.presentation.scene,
+          spatial: [
+            ...input.presentation.scene.spatial,
+            { ...input.presentation.scene.spatial[0]!, id: "spatial-two", order: 1 },
+          ],
+          components: [
+            ...input.presentation.scene.components,
+            {
+              ...input.presentation.scene.components[0]!,
+              id: "instance-two",
+              spatialNodeId: "spatial-two",
+            },
+            reactItem,
+          ],
+        },
+      },
+      components: [
+        { ...entry, structure: largeStructure },
+        {
+          manifest: buildOpaqueComponentManifest(metadata, "large.component.tsx#render"),
+          metadata,
+          rendererEntry: "large.component.tsx#render",
+          rendererSource: "export default () => null",
+          lock: {
+            mode: "opaque",
+            origin: {
+              kind: "local",
+              entryFile: "large.component.tsx",
+              files: [],
+              sourceHash: "sha256:source",
+            },
+            manifestHash: "sha256:manifest",
+            rendererInputHash: "sha256:renderer",
+          },
+        },
+      ],
+    };
+    let calls = 0;
+    const countingRenderer: RendererPlugin = {
+      ...renderer,
+      build: (rendererInput) => {
+        calls++;
+        return renderer.build(rendererInput);
+      },
+    };
+    const result = await compileDeclarationProject(mixed, {
+      ...options(),
+      renderers: [countingRenderer],
+    });
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(
+        result.diagnostics.map((item) => item.code),
+        JSON.stringify(result.diagnostics),
+      ).toContain("compiler-budget-output-bytes-exceeded");
+    expect(calls).toBe(0);
+  });
 
   it("renders every Surface state into a canonical valid RenderBundle without changing check", async () => {
     const before = checkDeclarationProject(project());
@@ -2117,14 +3036,15 @@ describe("compileDeclarationProject", () => {
     });
     expect(result.value.buildManifestJson).toBeTruthy();
     const surface = result.value.renderBundle.surfaces["instance:surface-root"]!;
-    const renderSurface = surface.renderSurfaces["instance:surface-root:render"]!;
-    expect(renderSurface.artifacts["instance:surface-root:render:artifact"]).toHaveProperty(
-      "states.instance:default.texture",
-    );
+    const renderSurfaceId = surface.renderSurfaceIds[0]!;
+    const renderSurface = surface.renderSurfaces[renderSurfaceId]!;
+    const artifactId = Object.keys(renderSurface.artifacts)[0]!;
+    expect(renderSurface.artifacts[artifactId]).toHaveProperty("states.instance:default.texture");
+    expect(renderSurface.partitionStrategyVersion).toBe(1);
     expect(renderSurface.stateBindings).toEqual({
       "instance:default": {
         kind: "artifacts",
-        artifactIds: ["instance:surface-root:render:artifact"],
+        artifactIds: [artifactId],
       },
     });
     expect(checkDeclarationProject(project())).toEqual(before);

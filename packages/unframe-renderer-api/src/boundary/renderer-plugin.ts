@@ -26,55 +26,71 @@ const compareStrings = (left: string, right: string) => (left < right ? -1 : lef
 const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean => {
   const { surface, semanticsByState } = input;
   if (!Object.hasOwn(surface.states, surface.initialStateId)) return false;
-  const root = surface.contentNodes[surface.rootFrameId];
-  if (!root || root.kind !== "frame" || root.parentId !== null) return false;
-  const reachableContentNodeIds = new Set<string>();
-  const pendingContentNodeIds = [surface.rootFrameId];
-  while (pendingContentNodeIds.length > 0) {
-    const nodeId = pendingContentNodeIds.pop();
-    if (nodeId === undefined || reachableContentNodeIds.has(nodeId)) continue;
-    const node = surface.contentNodes[nodeId];
-    if (!node) return false;
-    reachableContentNodeIds.add(nodeId);
-    if (node.kind === "frame") pendingContentNodeIds.push(...node.children);
-  }
-  if (reachableContentNodeIds.size !== Object.keys(surface.contentNodes).length) return false;
-  const contentOrders = new Set<string>();
-  for (const [id, node] of Object.entries(surface.contentNodes)) {
+  if (surface.content.kind === "structured") {
+    const { rootFrameId, nodes: contentNodes } = surface.content;
+    const root = contentNodes[rootFrameId];
+    if (!root || root.kind !== "frame" || root.parentId !== null) return false;
+    const reachableContentNodeIds = new Set<string>();
+    const pendingContentNodeIds = [rootFrameId];
+    while (pendingContentNodeIds.length > 0) {
+      const nodeId = pendingContentNodeIds.pop();
+      if (nodeId === undefined || reachableContentNodeIds.has(nodeId)) continue;
+      const node = contentNodes[nodeId];
+      if (!node) return false;
+      reachableContentNodeIds.add(nodeId);
+      if (node.kind === "frame") pendingContentNodeIds.push(...node.children);
+    }
+    if (reachableContentNodeIds.size !== Object.keys(contentNodes).length) return false;
+    const contentOrders = new Set<string>();
+    for (const [id, node] of Object.entries(contentNodes)) {
+      if (
+        node.id !== id ||
+        (node.parentId === null ? id !== rootFrameId : !contentNodes[node.parentId])
+      )
+        return false;
+      const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
+      if (contentOrders.has(orderKey)) return false;
+      contentOrders.add(orderKey);
+      if (node.kind === "frame") {
+        const canonicalChildren = [...node.children].sort((left, right) => {
+          const orderDifference =
+            (contentNodes[left]?.order ?? Number.POSITIVE_INFINITY) -
+            (contentNodes[right]?.order ?? Number.POSITIVE_INFINITY);
+          return orderDifference || compareStrings(left, right);
+        });
+        if (
+          new Set(node.children).size !== node.children.length ||
+          node.children.some(
+            (childId, index) =>
+              contentNodes[childId]?.parentId !== id || childId !== canonicalChildren[index],
+          )
+        )
+          return false;
+      } else {
+        const parent = contentNodes[node.parentId ?? ""];
+        if (!parent || parent.kind !== "frame" || !parent.children.includes(id)) return false;
+        if (
+          node.kind === "text" &&
+          [node.style.fontAssetId, ...node.style.fallbackFontAssetIds].some(
+            (assetId) => !Object.hasOwn(input.fontAssets, assetId),
+          )
+        )
+          return false;
+      }
+    }
+  } else {
     if (
-      node.id !== id ||
-      (node.parentId === null ? id !== surface.rootFrameId : !surface.contentNodes[node.parentId])
+      Object.values(surface.states).some((state) => Object.keys(state.contentOverrides).length > 0)
     )
       return false;
-    const orderKey = `${node.parentId === null ? "\0root" : `id:${node.parentId}`}\0${node.order}`;
-    if (contentOrders.has(orderKey)) return false;
-    contentOrders.add(orderKey);
-    if (node.kind === "frame") {
-      const canonicalChildren = [...node.children].sort((left, right) => {
-        const orderDifference =
-          (surface.contentNodes[left]?.order ?? Number.POSITIVE_INFINITY) -
-          (surface.contentNodes[right]?.order ?? Number.POSITIVE_INFINITY);
-        return orderDifference || compareStrings(left, right);
-      });
-      if (
-        new Set(node.children).size !== node.children.length ||
-        node.children.some(
-          (childId, index) =>
-            surface.contentNodes[childId]?.parentId !== id || childId !== canonicalChildren[index],
-        )
-      )
-        return false;
-    } else {
-      const parent = surface.contentNodes[node.parentId ?? ""];
-      if (!parent || parent.kind !== "frame" || !parent.children.includes(id)) return false;
-      if (
-        node.kind === "text" &&
-        [node.style.fontAssetId, ...node.style.fallbackFontAssetIds].some(
-          (assetId) => !Object.hasOwn(input.fontAssets, assetId),
-        )
-      )
-        return false;
-    }
+    const boundSemanticIds = Object.values(surface.content.bindings);
+    if (
+      boundSemanticIds.length !== Object.keys(surface.baseSemanticTree.nodes).length ||
+      new Set(boundSemanticIds).size !== boundSemanticIds.length
+    )
+      return false;
+    if (boundSemanticIds.some((id) => !Object.hasOwn(surface.baseSemanticTree.nodes, id)))
+      return false;
   }
   const validateTree = (tree: {
     readonly rootNodeIds: readonly string[];
@@ -343,30 +359,76 @@ const validateInput = (
         [...prefix, "resolvedIntent", "selectedRendererId"],
       ),
     );
-  for (const contentNodeId of [...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds])
-    if (
-      !rendererIdSchema.safeParse(contentNodeId).success ||
-      !Object.hasOwn(input.surface.contentNodes, contentNodeId)
-    )
-      diagnostics.push(
-        diagnostic("missing-content-node", "Render plan references an unknown content node.", [
-          ...prefix,
-          "plan",
-          "ownedContentNodeIds",
-          contentNodeId,
-        ]),
-      );
-  if (
-    new Set([...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds]).size !==
-    input.plan.ownedContentNodeIds.length + input.plan.contextNodeIds.length
-  )
+  const ownership = input.plan.ownership;
+  if (input.entry.kind !== input.surface.content.kind)
     diagnostics.push(
-      diagnostic("duplicate-content-node", "Render plan content node IDs must be unique.", [
+      diagnostic("surface-entry-mismatch", "Renderer entry must match Surface content.", [
         ...prefix,
-        "plan",
-        "ownedContentNodeIds",
+        "entry",
       ]),
     );
+  if (ownership.kind !== input.surface.content.kind)
+    diagnostics.push(
+      diagnostic("surface-ownership-mismatch", "Plan ownership must match Surface content.", [
+        ...prefix,
+        "plan",
+        "ownership",
+      ]),
+    );
+  if (ownership.kind === "structured" && input.surface.content.kind === "structured") {
+    const nodeIds = [...ownership.ownedContentNodeIds, ...ownership.contextNodeIds];
+    for (const contentNodeId of nodeIds)
+      if (
+        !rendererIdSchema.safeParse(contentNodeId).success ||
+        !Object.hasOwn(input.surface.content.nodes, contentNodeId)
+      )
+        diagnostics.push(
+          diagnostic("missing-content-node", "Render plan references an unknown content node.", [
+            ...prefix,
+            "plan",
+            "ownership",
+            "ownedContentNodeIds",
+            contentNodeId,
+          ]),
+        );
+    if (new Set(nodeIds).size !== nodeIds.length)
+      diagnostics.push(
+        diagnostic("duplicate-content-node", "Render plan content node IDs must be unique.", [
+          ...prefix,
+          "plan",
+          "ownership",
+          "ownedContentNodeIds",
+        ]),
+      );
+  }
+  if (ownership.kind === "opaque" && input.surface.content.kind === "opaque") {
+    const bindings = input.surface.content.bindings;
+    if (
+      new Set(ownership.bindingKeys).size !== ownership.bindingKeys.length ||
+      !sameKeySet(Object.fromEntries(ownership.bindingKeys.map((key) => [key, true])), bindings)
+    )
+      diagnostics.push(
+        diagnostic("invalid-opaque-bindings", "Opaque plan must own every binding exactly once.", [
+          ...prefix,
+          "plan",
+          "ownership",
+          "bindingKeys",
+        ]),
+      );
+    const wholeSurface = (bounds: typeof input.plan.logicalBounds) =>
+      bounds.x === 0 &&
+      bounds.y === 0 &&
+      bounds.width === input.surface.logicalSize[0] &&
+      bounds.height === input.surface.logicalSize[1];
+    if (!wholeSurface(input.plan.logicalBounds) || !wholeSurface(input.plan.clipWindow))
+      diagnostics.push(
+        diagnostic(
+          "opaque-surface-must-be-whole",
+          "Opaque content must use one whole-Surface plan.",
+          [...prefix, "plan", "logicalBounds"],
+        ),
+      );
+  }
   if (
     !logicalBoundsConstraintSchema.safeParse({
       bounds: input.plan.clipWindow,
@@ -380,23 +442,28 @@ const validateInput = (
         "clipWindow",
       ]),
     );
-  for (const [interactionId, priority] of Object.entries(input.plan.hitPriorityByInteractionId))
-    if (input.surface.interactions[interactionId]?.hitPriority !== priority)
-      diagnostics.push(
-        diagnostic(
-          "invalid-hit-priority-plan",
-          "Planned priority must match the interaction definition.",
-          [...prefix, "plan", "hitPriorityByInteractionId", interactionId],
-        ),
-      );
-  if (!sameKeySet(input.plan.hitPriorityByInteractionId, input.surface.interactions))
-    diagnostics.push(
-      diagnostic(
-        "hit-priority-plan-mismatch",
-        "Planned interaction priorities must cover every interaction.",
-        [...prefix, "plan", "hitPriorityByInteractionId"],
-      ),
-    );
+  if (ownership.kind === "structured" && input.surface.content.kind === "structured") {
+    const nodes = input.surface.content.nodes;
+    for (const contextNodeId of ownership.contextNodeIds) {
+      const node = nodes[contextNodeId];
+      const ancestorOfOwned = ownership.ownedContentNodeIds.some((ownedId) => {
+        let parentId = nodes[ownedId]?.parentId;
+        while (parentId !== null && parentId !== undefined) {
+          if (parentId === contextNodeId) return true;
+          parentId = nodes[parentId]?.parentId;
+        }
+        return false;
+      });
+      if (node?.kind !== "frame" || !ancestorOfOwned)
+        diagnostics.push(
+          diagnostic(
+            "invalid-context-node",
+            "Context nodes must be ancestor Frames of owned content.",
+            [...prefix, "plan", "ownership", "contextNodeIds", contextNodeId],
+          ),
+        );
+    }
+  }
 };
 
 type PreparedRendererBoundary = {

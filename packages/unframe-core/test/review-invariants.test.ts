@@ -50,7 +50,8 @@ describe("PresentationDefinition v2 semantic invariants", () => {
   it("rejects broken content trees and incompatible semantic roles", () => {
     const { definition } = makeM3AArtifacts();
     const surface = definition.scene.surfaces.baked!;
-    const root = surface.contentNodes.root;
+    if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+    const root = surface.content.nodes.root;
     if (root?.kind !== "frame") throw new TypeError("Expected baked Frame root.");
     root.children = ["text", "missing"];
     surface.baseSemanticTree.nodes.label = {

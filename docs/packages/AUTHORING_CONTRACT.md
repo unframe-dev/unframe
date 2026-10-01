@@ -6,6 +6,8 @@
 
 この文書は M3A の Authoring と compile-time 解決規則の正本である。公開 TypeScript 名、Zod field、diagnostic code などの実装詳細は、以下の意味を変えない範囲で実装時に確定する。
 
+React `.component.tsx` の Props・semantics・render 分離は [React Component 実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。本書の Structured composition / layout 規則はそのまま維持する。Component Instance は package lock を持たず、catalog と lock v2 が origin と宣言 hash を接続する。
+
 ## Scope and resolution
 
 M3A は静的な `baked-web` の生成経路を Authoring から Presentation v2 成果物まで接続する。旧 v1 出力の互換経路は追加しない。State の visual variation、Interaction、Timeline、Native UI、Video、Delivery、Runtime、Unity 接続は後続へ残し、M3A では明示的に拒否する。静的 Surface に必要な基本 State の宣言と v2 State envelope はこの拒否対象ではない。
@@ -93,7 +95,7 @@ Text content、位置、寸法、primary font、font size、line height には�
 
 ## Version, lock, and deferred migration
 
-M3A は Component version、package lock、package integrity と Theme / Manifest / Structure の hash 整合性 を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
+Component version、lock v2 の local / package origin と Theme / Manifest / Structure の hash 整合性を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
 
 Component migration metadata と自動変換は後続へ延期する。State、Interaction、Action / Output、Runtime、partition isolate の契約もこの文書では確定しない。
 

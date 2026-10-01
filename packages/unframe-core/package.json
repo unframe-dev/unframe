@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./domain/model": "./src/domain/model.ts",
+    "./runtime/cue-executor": "./src/runtime/cue-executor.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",

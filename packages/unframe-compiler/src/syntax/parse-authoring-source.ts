@@ -28,7 +28,13 @@ export type ParsedAuthoringSource =
 
 const scriptKindFor = (fileName: string) => {
   if (fileName.endsWith(".tsx")) return ts.ScriptKind.TSX;
-  if (fileName.endsWith(".ts") || fileName.endsWith(".d.ts")) return ts.ScriptKind.TS;
+  if (
+    fileName.endsWith(".ts") ||
+    fileName.endsWith(".d.ts") ||
+    fileName.endsWith(".mts") ||
+    fileName.endsWith(".cts")
+  )
+    return ts.ScriptKind.TS;
   return undefined;
 };
 
@@ -118,7 +124,7 @@ export const parseAuthoringSource = (input: unknown): ParsedAuthoringSource => {
         {
           code: "compiler-source-kind-unsupported",
           fileName,
-          message: "Authoring source must use a .ts, .tsx, or .d.ts file name.",
+          message: "Authoring source must use a TypeScript source or declaration file name.",
           start: 0,
           length: 0,
           line: 1,

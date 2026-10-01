@@ -12,14 +12,15 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
-import { verifyBuildIntegrityV2 } from "@unframe/unframe-core";
+import { canonicalizeJsonPayload, verifyBuildIntegrityV2 } from "@unframe/unframe-core";
 import {
   checkAuthoringProject,
   checkAuthoringProjectAssembly,
   hashComponentManifestDeclaration,
+  computeFrozenComponentInputs,
 } from "@unframe/unframe-compiler";
 
 import { runPresentationCli } from "../src/index.js";
@@ -71,15 +72,16 @@ const defaultPropsProject = async (explicit = false) => {
     },
   };
   const manifestHash = hashComponentManifestDeclaration(manifest);
+  const original = checked.value.presentation.value;
+  assert("components" in original.scene);
   const presentation = {
-    ...checked.value.presentation.value,
+    ...original,
     scene: {
-      ...checked.value.presentation.value.scene,
-      components: checked.value.presentation.value.scene.components.map((instance) =>
-        instance.componentId === "reference-surface"
+      ...original.scene,
+      components: original.scene.components.map((instance) =>
+        "componentId" in instance && instance.componentId === "reference-surface"
           ? {
               ...instance,
-              packageLock: { ...instance.packageLock, manifestHash },
               props: {
                 ...instance.props,
                 ...(explicit ? { defaultLabel: "", defaultCount: 0, defaultVisible: false } : {}),
@@ -91,7 +93,7 @@ const defaultPropsProject = async (explicit = false) => {
   };
   const lock = JSON.parse(new TextDecoder().decode(discovered.lockBytes));
   for (const entry of lock.componentLocks)
-    if (entry.componentId === "reference-surface") entry.lock.manifestHash = manifestHash;
+    if (entry.componentId === "reference-surface") entry.manifestHash = manifestHash;
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
@@ -101,8 +103,11 @@ const defaultPropsProject = async (explicit = false) => {
       join(directory, checked.value.presentation.fileName),
       `import { definePresentation } from "@unframe/unframe-authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
     ),
-    writeFile(join(directory, "unframe.lock"), JSON.stringify(lock)),
+    writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(lock) + "\n"),
   ]);
+  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
+  expect(refreshed.stderr).toBe("");
+  expect(refreshed.exitCode).toBe(0);
   return directory;
 };
 
@@ -115,9 +120,7 @@ const buildContext = {
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  webRendererConfig: {
-    documentBackground: [0, 0, 0, 255] as const,
-  },
+  webRendererConfig: {},
 };
 
 const fakeBrowser = (
@@ -126,6 +129,7 @@ const fakeBrowser = (
     readonly failClose?: boolean;
     readonly failCapture?: boolean;
     readonly beforeClose?: () => Promise<void>;
+    readonly duringCapture?: () => Promise<void>;
   } = {},
 ) => {
   const observed = { close: 0, capture: 0, signals: [] as (AbortSignal | undefined)[] };
@@ -151,6 +155,7 @@ const fakeBrowser = (
         throw new DOMException("cancelled", "AbortError");
       }
       if (configuration.failCapture) throw new Error("capture failed");
+      await configuration.duringCapture?.();
       const [width, height] = request.pixelTarget;
       const stateRed = request.document.includes("Waiting") ? 1 : 0;
       return {
@@ -175,6 +180,7 @@ const diagnostics = (result: Awaited<ReturnType<typeof runPresentationCli>>) =>
   JSON.parse(result.stderr).diagnostics as readonly {
     family: string;
     code: string;
+    message: string;
     path: readonly (string | number)[];
   }[];
 
@@ -187,16 +193,19 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
-  it("keeps definition and source hashes identical across JSX composition and literal builders", async () => {
+  it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
     const { checked, source, loaded } = await checkedProject(directory);
     const declarations = [
       { ...checked.value.presentation, builder: "definePresentation" },
       ...checked.value.themes.map((theme) => ({ ...theme, builder: "defineTheme" })),
-      ...checked.value.components.flatMap(({ manifest, structure }) => [
-        { ...manifest, builder: "defineComponentManifest" },
-        { ...structure, builder: "defineComponentStructure" },
-      ]),
+      ...checked.value.components.flatMap((component) => {
+        assert("structure" in component);
+        return [
+          { ...component.manifest, builder: "defineComponentManifest" },
+          { ...component.structure, builder: "defineComponentStructure" },
+        ];
+      }),
     ];
     const literal = {
       ...source,
@@ -206,13 +215,20 @@ describe("reference Authoring Project", () => {
       })),
     };
     const composed = checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier);
-    const direct = checkAuthoringProjectAssembly(literal, loaded.value.assemblyCarrier);
+    const literalCatalog = checkAuthoringProject(literal);
+    assert(literalCatalog.valid);
+    const inputs = computeFrozenComponentInputs(literal, literalCatalog.value);
+    assert(inputs.valid);
+    const direct = checkAuthoringProjectAssembly(literal, {
+      ...loaded.value.assemblyCarrier,
+      ...inputs.value,
+    });
     expect(composed.valid ? [] : composed.diagnostics).toEqual([]);
     expect(direct.valid ? [] : direct.diagnostics).toEqual([]);
     if (!composed.valid || !direct.valid) return;
     expect(composed.value.definition).toEqual(direct.value.definition);
     expect(composed.value.definitionHash).toBe(direct.value.definitionHash);
-    expect(composed.value.sourceHash).toBe(direct.value.sourceHash);
+    expect(composed.value.sourceHash).not.toBe(direct.value.sourceHash);
   });
 
   it.each(["check", "build"] as const)(
@@ -250,8 +266,9 @@ describe("reference Authoring Project", () => {
           },
         ],
       });
-      expect(browser.observed.capture).toBe(command === "build" ? 2 : 0);
+      expect(browser.observed.capture).toBe(command === "build" ? 6 : 0);
     },
+    15_000,
   );
 
   it("does not warn for explicit empty, zero, false, or values equal to defaults", async () => {
@@ -277,12 +294,15 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const { checked } = await checkedProject(directory);
     const presentation = checked.value.presentation.value;
+    assert("components" in presentation.scene);
     const omitted = {
       ...presentation,
       scene: {
         ...presentation.scene,
         components: presentation.scene.components.map((instance) =>
-          instance.componentId === "reference-surface" ? { ...instance, variants: {} } : instance,
+          "componentId" in instance && instance.componentId === "reference-surface"
+            ? { ...instance, variants: {} }
+            : instance,
         ),
       },
     };
@@ -309,14 +329,14 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const path = join(directory, "unframe.lock");
     const lock = JSON.parse(await readFile(path, "utf8"));
-    lock.assets["reference-font"] = {
+    lock.assets[lock.assets.findIndex((asset: { id: string }) => asset.id === "reference-font")] = {
       id: "reference-font",
       mediaType: "font/ttf",
       dataBase64: "AAEAAAAAAAAAAAAA",
-      encodedSizeBytes: 12,
-      checksum: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
+      size: 12,
+      hash: "sha256:028e2518bd2b8b19b650bf2ed80b5dbb7105936e582dd82fff99215313d09295",
     };
-    await writeFile(path, JSON.stringify(lock));
+    await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
     const browser = fakeBrowser();
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -333,8 +353,9 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const lockPath = join(directory, "unframe.lock");
     const lock = JSON.parse(await readFile(lockPath, "utf8"));
-    lock.assets["reference-font"].dataBase64 = "AAEAAAAAAAAAAAAA";
-    await writeFile(lockPath, JSON.stringify(lock));
+    lock.assets.find((asset: { id: string }) => asset.id === "reference-font").dataBase64 =
+      "AAEAAAAAAAAAAAAA";
+    await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
     let calls = 0;
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -388,10 +409,10 @@ describe("reference Authoring Project", () => {
     const firstTarget = await readlink(join(directory, "dist"));
     expect(firstTarget).toMatch(/^\.unframe\/generations\/[0-9a-f]{32}$/u);
     const assetNames = await readdir(join(directory, "dist", "assets"));
-    expect(assetNames).toHaveLength(3);
+    expect(assetNames).toHaveLength(5);
     expect(assetNames).toContain("reference-font.ttf");
     const assetNamesPng = assetNames.filter((name) => name.endsWith(".png"));
-    expect(assetNamesPng).toHaveLength(2);
+    expect(assetNamesPng).toHaveLength(4);
     const firstAssetSet = await readFile(join(directory, "dist/asset-set.json"));
     const firstBuild = await readFile(join(directory, "dist/build-manifest.json"));
     expect(JSON.parse(firstDefinition.toString()).schemaVersion).toBe(2);
@@ -427,16 +448,16 @@ describe("reference Authoring Project", () => {
     expect(Object.keys(definition.scene.nodes)).toHaveLength(1);
     expect(Object.keys(definition.scene.surfaces)).toHaveLength(1);
     const surface = Object.values(definition.scene.surfaces)[0] as {
-      contentNodes: Record<string, unknown>;
+      content: { kind: "structured"; nodes: Record<string, unknown> };
       baseSemanticTree: { nodes: Record<string, unknown> };
       states: Record<string, unknown>;
       interactions: Record<string, unknown>;
     };
-    expect(surface.contentNodes["reference-surface:reference-text"]).toMatchObject({
+    expect(surface.content.nodes["reference-surface:reference-text"]).toMatchObject({
       value: { kind: "literal", value: "Structured authoring" },
       style: { fontAssetId: "reference-font", fontSize: 72 },
     });
-    expect(surface.contentNodes["reference-surface:card"]).toMatchObject({
+    expect(surface.content.nodes["reference-surface:card"]).toMatchObject({
       placement: { x: 64, y: 184 },
       clip: true,
       children: [
@@ -445,11 +466,11 @@ describe("reference Authoring Project", () => {
         "reference-badge:badge-frame",
       ],
     });
-    expect(surface.contentNodes["reference-badge:badge-frame"]).toMatchObject({
+    expect(surface.content.nodes["reference-badge:badge-frame"]).toMatchObject({
       parentId: "reference-surface:card",
       placement: { x: 32, y: 264 },
     });
-    expect(surface.contentNodes["reference-badge:badge-text"]).toMatchObject({
+    expect(surface.content.nodes["reference-badge:badge-text"]).toMatchObject({
       value: { kind: "literal", value: "One nested Component, one placement" },
     });
     expect(surface.baseSemanticTree.nodes["reference-badge:badge-label"]).toMatchObject({
@@ -496,11 +517,15 @@ describe("reference Authoring Project", () => {
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(
       (await readFile(join(directory, "dist/assets/reference-font.ttf"))).equals(
-        Buffer.from(sourceLock.assets["reference-font"].dataBase64, "base64"),
+        Buffer.from(
+          sourceLock.assets.find((asset: { id: string }) => asset.id === "reference-font")
+            .dataBase64,
+          "base64",
+        ),
       ),
     ).toBe(true);
-    expect(first.observed).toMatchObject({ capture: 2, close: 1 });
-    expect(first.observed.signals).toEqual([controller.signal, controller.signal]);
+    expect(first.observed).toMatchObject({ capture: 6, close: 1 });
+    expect(first.observed.signals).toEqual(Array(6).fill(controller.signal));
 
     expect((await build(second)).exitCode).toBe(0);
     expect(
@@ -520,9 +545,9 @@ describe("reference Authoring Project", () => {
     expect((await readFile(join(directory, "dist/build-manifest.json"))).equals(firstBuild)).toBe(
       true,
     );
-    expect(second.observed).toMatchObject({ capture: 2, close: 1 });
-    expect(second.observed.signals).toEqual([controller.signal, controller.signal]);
-  });
+    expect(second.observed).toMatchObject({ capture: 6, close: 1 });
+    expect(second.observed.signals).toEqual(Array(6).fill(controller.signal));
+  }, 15_000);
 
   it.each([
     [
@@ -553,7 +578,7 @@ describe("reference Authoring Project", () => {
           themeHashes: { hash: string }[];
         };
         lock.themeHashes[0]!.hash = `sha256:${"0".repeat(64)}`;
-        await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+        await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
       },
       {
         family: "semantic",
@@ -660,6 +685,38 @@ describe("reference Authoring Project", () => {
     expect(browser.observed.close).toBe(1);
   });
 
+  it.each(["presentation.unframe.tsx", "unframe.lock", "unframe.config.ts"])(
+    "preserves dist when %s changes during capture",
+    async (name) => {
+      const directory = await projectCopy();
+      const initial = await runPresentationCli({
+        args: ["build", directory],
+        host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
+      });
+      expect(initial.stderr).toBe("");
+      expect(initial.exitCode).toBe(0);
+      const previous = await readlink(join(directory, "dist"));
+      const path = join(directory, name);
+      const original = await readFile(path);
+      const browser = fakeBrowser({
+        duringCapture: async () => {
+          await writeFile(path, Buffer.concat([original, Buffer.from("\n")]));
+        },
+      });
+      const stale = await runPresentationCli({
+        args: ["build", directory, "--format", "json"],
+        host: { openFixedBrowser: async () => browser.session, buildContext },
+      });
+      expect(stale.exitCode).toBe(3);
+      expect(diagnostics(stale)).toContainEqual(
+        expect.objectContaining({ code: "cli-output-stale" }),
+      );
+      expect(await readlink(join(directory, "dist"))).toBe(previous);
+      expect(await readFile(path)).toEqual(Buffer.concat([original, Buffer.from("\n")]));
+    },
+    30_000,
+  );
+
   it("keeps the previous managed dist unchanged for renderer and I/O failures", async () => {
     const directory = await projectCopy();
     const initial = fakeBrowser();
@@ -691,8 +748,12 @@ describe("reference Authoring Project", () => {
     });
     expect(io.exitCode).toBe(3);
     expect(diagnostics(io)[0]?.family).toBe("io");
+    expect(diagnostics(io)[0]?.message).toBe(
+      "Build artifacts could not be published. (stage: inspect-dist)",
+    );
+    expect(io.stderr).not.toContain(directory);
     await expect(readFile(join(directory, "dist"), "utf8")).resolves.toBe("unmanaged output");
-  });
+  }, 30_000);
 
   it("reports a stable I/O diagnostic when its build lock cannot be released", async () => {
     const directory = await projectCopy();
@@ -719,5 +780,5 @@ describe("reference Authoring Project", () => {
       },
     ]);
     await expect(readFile(lockPath, "utf8")).resolves.toBe("replacement");
-  });
+  }, 15_000);
 });

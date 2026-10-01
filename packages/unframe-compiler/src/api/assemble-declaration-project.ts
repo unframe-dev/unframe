@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   ComponentManifest,
   ComponentStructure,
+  StaticComponentMetadata,
   ThemeDeclaration,
 } from "@unframe/unframe-authoring";
 import {
@@ -63,23 +64,67 @@ const structureCatalogSchema = catalogValueSchema(
   "component-structure",
   "defineComponentStructure",
 );
-const componentCatalogSchema = z
-  .object({ manifest: manifestCatalogSchema, structure: structureCatalogSchema })
-  .strict();
-const componentLockSchema = z
+const componentCatalogSchema = z.union([
+  z.object({ manifest: manifestCatalogSchema, structure: structureCatalogSchema }).strict(),
+  z
+    .object({
+      manifest: manifestCatalogSchema,
+      metadata: z.unknown(),
+      rendererEntry: nonEmptyStringSchema,
+      renderer: z
+        .object({
+          entrySource: z.string(),
+          localDependencies: z.array(nonEmptyStringSchema),
+          packageImports: z.array(nonEmptyStringSchema),
+          renderOrigin: sourceOriginSchema,
+          helperOrigins: z.array(sourceOriginSchema),
+          entryOrigins: z
+            .array(
+              z
+                .object({
+                  startLine: z.int().positive(),
+                  endLine: z.int().positive(),
+                  firstLinePrefix: z.int().nonnegative(),
+                  origin: sourceOriginSchema,
+                })
+                .strict(),
+            )
+            .optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+]);
+const contentHashSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
+const localOriginSchema = z
   .object({
-    componentId: nonEmptyStringSchema,
-    version: z.int().positive(),
-    lock: z
-      .object({
-        packageVersion: nonEmptyStringSchema,
-        packageIntegrity: nonEmptyStringSchema,
-        manifestHash: nonEmptyStringSchema,
-        structureHash: nonEmptyStringSchema,
-      })
-      .strict(),
+    kind: z.literal("local"),
+    entryFile: nonEmptyStringSchema,
+    files: z.array(z.object({ path: nonEmptyStringSchema, hash: contentHashSchema }).strict()),
+    sourceHash: contentHashSchema,
   })
   .strict();
+const packageOriginSchema = z
+  .object({
+    kind: z.literal("package"),
+    packageKey: contentHashSchema,
+    subpath: nonEmptyStringSchema,
+  })
+  .strict();
+const lockBase = {
+  componentId: nonEmptyStringSchema,
+  version: z.int().positive(),
+  origin: z.union([localOriginSchema, packageOriginSchema]),
+  manifestHash: contentHashSchema,
+};
+const componentLockSchema = z.union([
+  z
+    .object({ ...lockBase, mode: z.literal("structured"), structureHash: contentHashSchema })
+    .strict(),
+  z
+    .object({ ...lockBase, mode: z.literal("opaque"), rendererInputHash: contentHashSchema })
+    .strict(),
+]);
 const assetCarrierSchema = z
   .object({
     id: nonEmptyStringSchema,
@@ -112,8 +157,15 @@ type ComponentEntry = {
   readonly componentId: string;
   readonly version: number;
   readonly manifest: ComponentManifest;
-  readonly structure: ComponentStructure;
-};
+} & (
+  | { readonly mode: "structured"; readonly structure: ComponentStructure }
+  | {
+      readonly mode: "opaque";
+      readonly metadata: StaticComponentMetadata;
+      readonly rendererEntry: string;
+      readonly rendererSource: string;
+    }
+);
 
 const assemblyEnvelopeDiagnostics = (issues: readonly z.core.$ZodIssue[]): Diagnostic[] => {
   const diagnostics = issues.map((issue) => {
@@ -206,7 +258,7 @@ const collectThemes = (input: AssemblyInput, diagnostics: Diagnostic[]): ThemeEn
 const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): ComponentEntry[] =>
   input.catalog.components.map((candidate, index) => {
     const manifest = record(candidate.manifest.value);
-    const structure = record(candidate.structure.value);
+    const structure = "structure" in candidate ? record(candidate.structure.value) : undefined;
     const componentId = manifest?.componentId;
     const rawVersion = manifest?.version;
     const version =
@@ -225,10 +277,20 @@ const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): Com
         componentId: `\u0000${index}`,
         version: 0,
         manifest: candidate.manifest.value as ComponentManifest,
-        structure: candidate.structure.value as ComponentStructure,
+        ...("structure" in candidate
+          ? {
+              mode: "structured" as const,
+              structure: candidate.structure.value as ComponentStructure,
+            }
+          : {
+              mode: "opaque" as const,
+              metadata: candidate.metadata as StaticComponentMetadata,
+              rendererEntry: candidate.rendererEntry,
+              rendererSource: candidate.renderer.entrySource,
+            }),
       };
     }
-    if (structure?.componentId !== componentId)
+    if ("structure" in candidate && structure?.componentId !== componentId)
       diagnostics.push(
         diagnostic(
           "compiler-component-lock-identity-mismatch",
@@ -237,12 +299,20 @@ const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): Com
         ),
       );
     const authoring = record(manifest?.authoring);
-    if (authoring?.mode === "opaque")
+    if (authoring?.mode === "opaque" && "structure" in candidate)
       diagnostics.push(
         diagnostic(
-          "compiler-opaque-component-unsupported",
-          ["catalog", "components", index, "manifest", "authoring", "mode"],
-          "Opaque component authoring is not supported by this milestone.",
+          "compiler-component-lock-mode-mismatch",
+          ["catalog", "components", index],
+          "Opaque Component catalog entries require metadata and renderer entry.",
+        ),
+      );
+    if (authoring?.mode === "structured" && !("structure" in candidate))
+      diagnostics.push(
+        diagnostic(
+          "compiler-component-lock-mode-mismatch",
+          ["catalog", "components", index],
+          "Structured Component catalog entries require a structure.",
         ),
       );
     if (authoring?.mode === "structured") {
@@ -250,7 +320,7 @@ const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): Com
         typeof authoring.structure === "string"
           ? resolveAuthoringStructurePath(candidate.manifest.fileName, authoring.structure)
           : undefined;
-      if (expectedStructurePath !== candidate.structure.fileName)
+      if ("structure" in candidate && expectedStructurePath !== candidate.structure.fileName)
         diagnostics.push(
           diagnostic(
             "compiler-component-structure-path-mismatch",
@@ -263,7 +333,17 @@ const collectComponents = (input: AssemblyInput, diagnostics: Diagnostic[]): Com
       componentId,
       version,
       manifest: candidate.manifest.value as ComponentManifest,
-      structure: candidate.structure.value as ComponentStructure,
+      ...("structure" in candidate
+        ? {
+            mode: "structured" as const,
+            structure: candidate.structure.value as ComponentStructure,
+          }
+        : {
+            mode: "opaque" as const,
+            metadata: candidate.metadata as StaticComponentMetadata,
+            rendererEntry: candidate.rendererEntry,
+            rendererSource: candidate.renderer.entrySource,
+          }),
     };
   });
 
@@ -415,7 +495,15 @@ export const assembleDeclarationProjectValidated = (
   components.forEach((component) => {
     const entry = locks.get(keyForComponent(component.componentId, component.version));
     if (entry === undefined) return;
-    const { lock } = entry.item;
+    const lock = entry.item;
+    if (lock.mode !== component.mode)
+      diagnostics.push(
+        diagnostic(
+          "compiler-component-lock-mode-mismatch",
+          ["componentLocks", entry.index, "mode"],
+          "Component lock mode must match its catalog entry.",
+        ),
+      );
     if (
       isComponentManifest(component.manifest) &&
       lock.manifestHash !== hashComponentManifestDeclaration(component.manifest)
@@ -423,18 +511,20 @@ export const assembleDeclarationProjectValidated = (
       diagnostics.push(
         diagnostic(
           "compiler-component-manifest-hash-mismatch",
-          ["componentLocks", entry.index, "lock", "manifestHash"],
+          ["componentLocks", entry.index, "manifestHash"],
           "Component manifest hash must match the declaration semantic payload.",
         ),
       );
     if (
+      component.mode === "structured" &&
+      lock.mode === "structured" &&
       isComponentStructure(component.structure) &&
       lock.structureHash !== hashComponentStructureDeclaration(component.structure)
     )
       diagnostics.push(
         diagnostic(
           "compiler-component-structure-hash-mismatch",
-          ["componentLocks", entry.index, "lock", "structureHash"],
+          ["componentLocks", entry.index, "structureHash"],
           "Component structure hash must match the declaration semantic payload.",
         ),
       );
@@ -447,12 +537,32 @@ export const assembleDeclarationProjectValidated = (
       declaration: theme.declaration as CompilerDeclarationProject["themes"][number]["declaration"],
       hash: themeHashes.get(theme.id)!.item.hash,
     })),
-    components: components.sort(byComponent).map((component) => ({
-      manifest: component.manifest as CompilerDeclarationProject["components"][number]["manifest"],
-      structure:
-        component.structure as CompilerDeclarationProject["components"][number]["structure"],
-      lock: locks.get(keyForComponent(component.componentId, component.version))!.item.lock,
-    })),
+    components: components.sort(byComponent).map((component) => {
+      const {
+        componentId: _componentId,
+        version: _version,
+        ...lock
+      } = locks.get(keyForComponent(component.componentId, component.version))!.item;
+      return component.mode === "structured"
+        ? {
+            manifest: component.manifest,
+            structure: component.structure,
+            lock: lock as Extract<
+              CompilerDeclarationProject["components"][number]["lock"],
+              { mode: "structured" }
+            >,
+          }
+        : {
+            manifest: component.manifest,
+            metadata: component.metadata,
+            rendererEntry: component.rendererEntry,
+            rendererSource: component.rendererSource,
+            lock: lock as Extract<
+              CompilerDeclarationProject["components"][number]["lock"],
+              { mode: "opaque" }
+            >,
+          };
+    }) as CompilerDeclarationProject["components"],
     assets: canonicalRecord(
       value.assets as CompilerDeclarationProject["assets"],
     ) as CompilerDeclarationProject["assets"],

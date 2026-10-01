@@ -245,6 +245,11 @@ export const normalizeDeclarationGraph = (graph: DeclarationGraph): NormalizedDe
           : copyObject(arguments_[0], path, materialize, createObject(), new Set(["kind"]));
       if (!result) return undefined;
       generated(result, "kind", shape.resultKind, origin);
+      if (node.builder === "editableText") {
+        const editor = createObject();
+        editor.kind = "text";
+        generated(result, "editor", editor, origin);
+      }
       return result;
     }
     if (shape.kind === "identity") {

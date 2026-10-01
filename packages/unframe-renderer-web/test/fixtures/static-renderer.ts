@@ -12,9 +12,12 @@ import {
   type WebRendererConfig,
 } from "../../src/index.js";
 
-export const config = {
-  documentBackground: [0, 0, 0, 255],
-} as const satisfies WebRendererConfig;
+const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
+  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  return surface.content;
+};
+
+export const config = {} as const satisfies WebRendererConfig;
 
 export const environment = {
   browser: { id: "test-browser", version: "1", fontFingerprint: "sha256:fonts" },
@@ -80,45 +83,48 @@ export const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInp
       physicalSizeMeters: [1, 1],
       logicalSize: [100, 50],
       fit: "contain",
-      rootFrameId: "root",
-      contentNodes: {
-        root: {
-          id: "root",
-          kind: "frame",
-          parentId: null,
-          order: 0,
-          visible: true,
-          opacity: 1,
-          placement: { kind: "absolute", x: 0, y: 0, width: 100, height: 50 },
-          layout: { kind: "absolute" },
-          children: ["text"],
-          backgroundColor: { red: 0, green: 0, blue: 0, alpha: 1 },
-          border: {
-            color: { red: 0, green: 0, blue: 0, alpha: 0 },
-            width: 0,
-            radius: 0,
+      content: {
+        kind: "structured",
+        rootFrameId: "root",
+        nodes: {
+          root: {
+            id: "root",
+            kind: "frame",
+            parentId: null,
+            order: 0,
+            visible: true,
+            opacity: 1,
+            placement: { kind: "absolute", x: 0, y: 0, width: 100, height: 50 },
+            layout: { kind: "absolute" },
+            children: ["text"],
+            backgroundColor: { red: 0, green: 0, blue: 0, alpha: 1 },
+            border: {
+              color: { red: 0, green: 0, blue: 0, alpha: 0 },
+              width: 0,
+              radius: 0,
+            },
+            clip: false,
           },
-          clip: false,
-        },
-        text: {
-          id: "text",
-          kind: "text",
-          parentId: "root",
-          order: 0,
-          visible: true,
-          opacity: 1,
-          placement: { kind: "absolute", x: 10, y: 5, width: 40, height: 20 },
-          value: { kind: "literal", value: "<&>\"'" },
-          maxCodePoints: 100,
-          style: {
-            fontAssetId: "font-main",
-            fallbackFontAssetIds: [],
-            fontSize: 10,
-            lineHeight: 12,
-            color: { red: 1, green: 1, blue: 1, alpha: 1 },
-            weight: "regular",
-            align: "start",
-            overflow: "clip",
+          text: {
+            id: "text",
+            kind: "text",
+            parentId: "root",
+            order: 0,
+            visible: true,
+            opacity: 1,
+            placement: { kind: "absolute", x: 10, y: 5, width: 40, height: 20 },
+            value: { kind: "literal", value: "<&>\"'" },
+            maxCodePoints: 100,
+            style: {
+              fontAssetId: "font-main",
+              fallbackFontAssetIds: [],
+              fontSize: 10,
+              lineHeight: 12,
+              color: { red: 1, green: 1, blue: 1, alpha: 1 },
+              weight: "regular",
+              align: "start",
+              overflow: "clip",
+            },
           },
         },
       },
@@ -160,10 +166,8 @@ export const inputFor = (rendererConfigHash: string): CompilerResolvedSurfaceInp
       semanticSurfaceId: "surface",
       logicalBounds: { x: 0, y: 0, width: 100, height: 50 },
       layer: 0,
-      ownedContentNodeIds: ["text"],
-      contextNodeIds: ["root"],
+      ownership: { kind: "structured", ownedContentNodeIds: ["text"], contextNodeIds: ["root"] },
       clipWindow: { x: 0, y: 0, width: 100, height: 50 },
-      hitPriorityByInteractionId: {},
       states: { z: { kind: "capture" }, a: { kind: "capture" } },
     },
     entry: { kind: "structured" },
@@ -216,8 +220,8 @@ export const nestedInputFor = (
   renderer: ReturnType<typeof createBakedWebRenderer>,
 ): CompilerResolvedSurfaceInput => {
   const source = inputFor(rendererConfigHash);
-  const root = source.surface.contentNodes.root;
-  const text = source.surface.contentNodes.text;
+  const root = structuredContent(source.surface).nodes.root;
+  const text = structuredContent(source.surface).nodes.text;
   if (!root || root.kind !== "frame" || !text || text.kind !== "text")
     throw new TypeError("Expected Frame/Text fixture.");
   return withRendererFingerprint(
@@ -225,56 +229,59 @@ export const nestedInputFor = (
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          root: { ...root, children: ["nested"] },
-          nested: {
-            ...root,
-            id: "nested",
-            parentId: "root",
-            placement: { kind: "absolute", x: 10, y: 5, width: 60, height: 30 },
-            children: ["text-first", "text-second", "clipped"],
-            backgroundColor: { red: 1, green: 0, blue: 0, alpha: 0.5 },
-            border: {
-              color: { red: 0, green: 1, blue: 0, alpha: 1 },
-              width: 2,
-              radius: 3,
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            root: { ...root, children: ["nested"] },
+            nested: {
+              ...root,
+              id: "nested",
+              parentId: "root",
+              placement: { kind: "absolute", x: 10, y: 5, width: 60, height: 30 },
+              children: ["text-first", "text-second", "clipped"],
+              backgroundColor: { red: 1, green: 0, blue: 0, alpha: 0.5 },
+              border: {
+                color: { red: 0, green: 1, blue: 0, alpha: 1 },
+                width: 2,
+                radius: 3,
+              },
+              clip: true,
+              opacity: 0.75,
             },
-            clip: true,
-            opacity: 0.75,
-          },
-          "text-second": {
-            ...text,
-            id: "text-second",
-            parentId: "nested",
-            order: 1,
-            placement: { kind: "absolute", x: 7, y: 3, width: 20, height: 8 },
-            value: { kind: "literal", value: "&" },
-            style: {
-              ...text.style,
-              fallbackFontAssetIds: ["font-fallback"],
+            "text-second": {
+              ...text,
+              id: "text-second",
+              parentId: "nested",
+              order: 1,
+              placement: { kind: "absolute", x: 7, y: 3, width: 20, height: 8 },
+              value: { kind: "literal", value: "&" },
+              style: {
+                ...text.style,
+                fallbackFontAssetIds: ["font-fallback"],
+              },
             },
-          },
-          "text-first": {
-            ...text,
-            id: "text-first",
-            parentId: "nested",
-            order: 0,
-            placement: { kind: "absolute", x: 2, y: 1, width: 20, height: 8 },
-            value: { kind: "literal", value: "<" },
-            style: {
-              ...text.style,
-              fallbackFontAssetIds: ["font-fallback"],
+            "text-first": {
+              ...text,
+              id: "text-first",
+              parentId: "nested",
+              order: 0,
+              placement: { kind: "absolute", x: 2, y: 1, width: 20, height: 8 },
+              value: { kind: "literal", value: "<" },
+              style: {
+                ...text.style,
+                fallbackFontAssetIds: ["font-fallback"],
+              },
             },
-          },
-          clipped: {
-            ...root,
-            id: "clipped",
-            parentId: "nested",
-            order: 2,
-            placement: { kind: "absolute", x: 55, y: 5, width: 20, height: 10 },
-            children: [],
-            backgroundColor: { red: 0, green: 0, blue: 1, alpha: 1 },
-            border: { ...root.border },
+            clipped: {
+              ...root,
+              id: "clipped",
+              parentId: "nested",
+              order: 2,
+              placement: { kind: "absolute", x: 55, y: 5, width: 20, height: 10 },
+              children: [],
+              backgroundColor: { red: 0, green: 0, blue: 1, alpha: 1 },
+              border: { ...root.border },
+            },
           },
         },
       },
@@ -284,8 +291,11 @@ export const nestedInputFor = (
       },
       plan: {
         ...source.plan,
-        ownedContentNodeIds: ["text-second", "text-first", "clipped"],
-        contextNodeIds: ["root", "nested"],
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["text-second", "text-first", "clipped"],
+          contextNodeIds: ["root", "nested"],
+        },
       },
       context: { ...source.context, pixelTarget: [200, 100] },
     },

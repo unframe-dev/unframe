@@ -354,16 +354,20 @@ export type PartOverrideDeclaration =
       style?: NamedTextStyleDeclaration;
     };
 export type ComponentPackageLock = {
-  packageVersion: string;
-  packageIntegrity: string;
+  origin:
+    | {
+        kind: "local";
+        entryFile: string;
+        files: readonly { path: string; hash: string }[];
+        sourceHash: string;
+      }
+    | { kind: "package"; packageKey: string; subpath: string };
   manifestHash: string;
-  structureHash?: string;
-};
+} & ({ mode: "structured"; structureHash: string } | { mode: "opaque"; rendererInputHash: string });
 export type ComponentInstanceDeclaration = StableDeclaration & {
   kind: "component-instance";
   componentId: string;
   version: number;
-  packageLock: ComponentPackageLock;
   owner: ResourceOwner;
   spatialNodeId?: string;
   props: Readonly<Record<string, string | number | boolean>>;

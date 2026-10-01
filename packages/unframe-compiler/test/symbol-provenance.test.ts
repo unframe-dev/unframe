@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 import { collectPackageValueProvenance } from "../src/resolution/symbol-provenance.js";
@@ -42,16 +43,48 @@ const project = ({
   readonly files?: readonly { readonly fileName: string; readonly sourceText: string }[];
   readonly packages?: readonly ReturnType<typeof lockedPackage>[];
 }) => {
+  const keyFor = (item: {
+    packageName: string;
+    packageVersion: string;
+    packageIntegrity: string;
+  }) => hashCanonicalJsonPayload([item.packageName, item.packageVersion, item.packageIntegrity]);
+  const snapshot = packages
+    .map((item) => ({
+      key: keyFor(item),
+      locator: `${item.packageName}@${item.packageVersion}`,
+      name: item.packageName,
+      version: item.packageVersion,
+      contentIntegrity: hashCanonicalJsonPayload(item),
+      files: item.files
+        .map((file) => ({
+          path: file.fileName,
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(file.sourceText),
+          encoding: "utf8",
+          data: file.sourceText,
+        }))
+        .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
+      exports: item.exports.map((entry) => ({
+        subpath: entry.subpath,
+        runtimeImport: entry.targetFile,
+        runtimeRequire: null,
+        types: entry.targetFile,
+      })),
+      dependencies: item.dependencies.map((dependency) => ({
+        specifier: dependency.packageName,
+        usage: "runtime",
+        packageKey: keyFor(dependency),
+      })),
+    }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const parsed = parseAuthoringProject({
     projectRoot: "/virtual/presentation",
     entryFile: "presentation.ts",
     files: [{ fileName: "presentation.ts", sourceText }, ...files],
-    packageDependencies: packages.map(({ packageName, packageVersion, packageIntegrity }) => ({
-      packageName,
-      packageVersion,
-      packageIntegrity,
-    })),
-    packages,
+    rootDependencies: packages
+      .map((item) => ({ specifier: item.packageName, usage: "runtime", packageKey: keyFor(item) }))
+      .sort((a, b) => (a.specifier < b.specifier ? -1 : a.specifier > b.specifier ? 1 : 0)),
+    packages: snapshot,
   });
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
   return parsed.value;
@@ -82,7 +115,7 @@ describe("collectPackageValueProvenance", () => {
       {
         packageName: "pkg",
         packageVersion: "1",
-        packageIntegrity: "integrity",
+        packageIntegrity: hashCanonicalJsonPayload(pkg()),
         subpath: ".",
         exportName: "value",
         targetFile: "index.ts",
@@ -104,7 +137,7 @@ describe("collectPackageValueProvenance", () => {
         lockedPackage({
           packageName: "pkg",
           files: [
-            { fileName: "index.ts", sourceText: 'export { value } from "./definitions";' },
+            { fileName: "index.ts", sourceText: 'export { value } from "./definitions.ts";' },
             { fileName: "definitions.ts", sourceText: "export const value = 1;" },
           ],
           exports: [{ subpath: ".", targetFile: "index.ts" }],
@@ -216,7 +249,7 @@ describe("collectPackageValueProvenance", () => {
         {
           packageName: "builder",
           packageVersion: "2",
-          packageIntegrity: "builder-integrity",
+          packageIntegrity: hashCanonicalJsonPayload(builder),
           exportName: "define",
           fileName: "owner@1/index.ts",
         },

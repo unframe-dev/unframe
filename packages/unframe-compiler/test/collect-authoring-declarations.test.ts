@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 import { collectAuthoringDeclarations } from "../src/project/collect-authoring-declarations.js";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
@@ -21,20 +22,32 @@ const analyze = (
     projectRoot: "/virtual/presentation",
     entryFile,
     files,
-    packageDependencies: [
+    rootDependencies: [
       {
-        packageName: "@unframe/unframe-authoring",
-        packageVersion: "1",
-        packageIntegrity: "integrity",
+        specifier: "@unframe/unframe-authoring",
+        usage: "runtime",
+        packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
       },
     ],
     packages: [
       {
-        packageName: "@unframe/unframe-authoring",
-        packageVersion: "1",
-        packageIntegrity: "integrity",
-        files: [{ fileName: "index.ts", sourceText: builders }],
-        exports: [{ subpath: ".", targetFile: "index.ts" }],
+        key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+        locator: "@unframe/unframe-authoring@1",
+        name: "@unframe/unframe-authoring",
+        version: "1",
+        contentIntegrity: hashCanonicalJsonPayload(builders),
+        files: [
+          {
+            path: "index.ts",
+            mediaType: "text/typescript",
+            hash: hashCanonicalJsonPayload(builders),
+            encoding: "utf8",
+            data: builders,
+          },
+        ],
+        exports: [
+          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+        ],
         dependencies: [],
       },
     ],

@@ -307,7 +307,7 @@ describe("verifyPublicationIntegrityV2", () => {
   it("rejects an AssetSet missing a font selected by a State text override", () => {
     const input = makeFixture();
     const style = structuredClone(
-      recordAt(input.definition, "scene", "surfaces", "baked", "contentNodes", "text", "style"),
+      recordAt(input.definition, "scene", "surfaces", "baked", "content", "nodes", "text", "style"),
     );
     recordAt(style).fontAssetId = "state-font";
     recordAt(

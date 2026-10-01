@@ -120,24 +120,26 @@ const collectDefinitionAssetReferences = (
       add(node.assetId, ["definition", "scene", "nodes", nodeId, "assetId"], ["model/gltf-binary"]);
 
   for (const [surfaceId, surface] of Object.entries(definition.scene.surfaces)) {
-    for (const [contentId, content] of Object.entries(surface.contentNodes)) {
-      const base = [
-        "definition",
-        "scene",
-        "surfaces",
-        surfaceId,
-        "contentNodes",
-        contentId,
-      ] as const;
-      if (content.kind === "image")
-        add(content.assetId, [...base, "assetId"], ["image/png", "image/jpeg"]);
-      if (content.kind === "video") add(content.assetId, [...base, "assetId"], ["video/mp4"]);
-      if (content.kind === "text") {
-        add(content.style.fontAssetId, [...base, "style", "fontAssetId"], fontMediaTypes);
-        for (const [index, assetId] of content.style.fallbackFontAssetIds.entries())
-          add(assetId, [...base, "style", "fallbackFontAssetIds", index], fontMediaTypes);
+    if (surface.content.kind === "structured")
+      for (const [contentId, content] of Object.entries(surface.content.nodes)) {
+        const base = [
+          "definition",
+          "scene",
+          "surfaces",
+          surfaceId,
+          "content",
+          "nodes",
+          contentId,
+        ] as const;
+        if (content.kind === "image")
+          add(content.assetId, [...base, "assetId"], ["image/png", "image/jpeg"]);
+        if (content.kind === "video") add(content.assetId, [...base, "assetId"], ["video/mp4"]);
+        if (content.kind === "text") {
+          add(content.style.fontAssetId, [...base, "style", "fontAssetId"], fontMediaTypes);
+          for (const [index, assetId] of content.style.fallbackFontAssetIds.entries())
+            add(assetId, [...base, "style", "fallbackFontAssetIds", index], fontMediaTypes);
+        }
       }
-    }
     for (const [stateId, state] of Object.entries(surface.states))
       for (const [contentId, override] of Object.entries(state.contentOverrides))
         if (override.kind === "image" && override.assetId !== undefined)

@@ -11,7 +11,7 @@ jobs:
   check:
     name: presentation / check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -29,3 +29,9 @@ jobs:
 
       - name: shared config / typecheck / lint / test
         run: nix run .#presentation
+
+      - name: Prepare isolated Opaque capture host
+        run: nix develop --command bash scripts/ci/setup-opaque-host.sh
+
+      - name: Opaque capture and React CLI acceptance
+        run: nix develop --command scripts/ci/opaque-capture.sh

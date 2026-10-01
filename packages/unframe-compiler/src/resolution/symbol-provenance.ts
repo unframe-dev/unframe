@@ -68,9 +68,9 @@ export const collectPackageValueProvenance = (
                 const owner = analyzed.value.context.ownerFor(declarationSource);
                 return (
                   owner?.kind === "package" &&
-                  owner.package.packageName === packageExport.packageName &&
-                  owner.package.packageVersion === packageExport.packageVersion &&
-                  owner.package.packageIntegrity === packageExport.packageIntegrity
+                  owner.package.name === packageExport.packageName &&
+                  owner.package.version === packageExport.packageVersion &&
+                  owner.package.contentIntegrity === packageExport.packageIntegrity
                 );
               })
             )

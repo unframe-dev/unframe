@@ -116,152 +116,6 @@
         "physicalSizeMeters": [1, 1],
         "logicalSize": [100, 100],
         "fit": "contain",
-        "rootFrameId": "root",
-        "contentNodes": {
-          "root": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "id": "root",
-            "parentId": null,
-            "order": 0,
-            "kind": "frame",
-            "children": ["text", "image", "shape"],
-            "layout": {
-              "kind": "absolute"
-            },
-            "backgroundColor": {
-              "red": 1,
-              "green": 1,
-              "blue": 1,
-              "alpha": 1
-            },
-            "border": {
-              "color": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "width": 0,
-              "radius": 0
-            },
-            "clip": true
-          },
-          "text": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "parentId": "root",
-            "order": 0,
-            "id": "text",
-            "kind": "text",
-            "semanticNodeId": "label",
-            "maxCodePoints": 16,
-            "value": {
-              "kind": "literal",
-              "value": "Hello"
-            },
-            "style": {
-              "fontAssetId": "font",
-              "fallbackFontAssetIds": [],
-              "fontSize": 20,
-              "lineHeight": 24,
-              "color": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "weight": "regular",
-              "align": "start",
-              "overflow": "clip"
-            }
-          },
-          "image": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "parentId": "root",
-            "order": 1,
-            "id": "image",
-            "kind": "image",
-            "assetId": "image",
-            "style": {
-              "fit": "contain",
-              "tint": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "border": {
-                "color": {
-                  "red": 1,
-                  "green": 1,
-                  "blue": 1,
-                  "alpha": 1
-                },
-                "width": 0,
-                "radius": 0
-              }
-            }
-          },
-          "shape": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "parentId": "root",
-            "order": 2,
-            "id": "shape",
-            "kind": "shape",
-            "geometry": {
-              "kind": "rectangle",
-              "width": 10,
-              "height": 10,
-              "radius": 0
-            },
-            "style": {
-              "fill": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "stroke": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "strokeWidth": 0
-            }
-          }
-        },
         "baseSemanticTree": {
           "rootNodeIds": ["label"],
           "nodes": {
@@ -296,6 +150,155 @@
           },
           "rendererPreference": "baked-web",
           "fallbackPolicy": "reject"
+        },
+        "content": {
+          "kind": "structured",
+          "rootFrameId": "root",
+          "nodes": {
+            "root": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "id": "root",
+              "parentId": null,
+              "order": 0,
+              "kind": "frame",
+              "children": ["text", "image", "shape"],
+              "layout": {
+                "kind": "absolute"
+              },
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "border": {
+                "color": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "width": 0,
+                "radius": 0
+              },
+              "clip": true
+            },
+            "text": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "parentId": "root",
+              "order": 0,
+              "id": "text",
+              "kind": "text",
+              "semanticNodeId": "label",
+              "maxCodePoints": 16,
+              "value": {
+                "kind": "literal",
+                "value": "Hello"
+              },
+              "style": {
+                "fontAssetId": "font",
+                "fallbackFontAssetIds": [],
+                "fontSize": 20,
+                "lineHeight": 24,
+                "color": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "weight": "regular",
+                "align": "start",
+                "overflow": "clip"
+              }
+            },
+            "image": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "parentId": "root",
+              "order": 1,
+              "id": "image",
+              "kind": "image",
+              "assetId": "image",
+              "style": {
+                "fit": "contain",
+                "tint": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "border": {
+                  "color": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1,
+                    "alpha": 1
+                  },
+                  "width": 0,
+                  "radius": 0
+                }
+              }
+            },
+            "shape": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "parentId": "root",
+              "order": 2,
+              "id": "shape",
+              "kind": "shape",
+              "geometry": {
+                "kind": "rectangle",
+                "width": 10,
+                "height": 10,
+                "radius": 0
+              },
+              "style": {
+                "fill": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "stroke": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "strokeWidth": 0
+              }
+            }
+          }
         }
       },
       "native": {
@@ -304,86 +307,6 @@
         "physicalSizeMeters": [1, 1],
         "logicalSize": [100, 100],
         "fit": "contain",
-        "rootFrameId": "root",
-        "contentNodes": {
-          "root": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "id": "root",
-            "parentId": null,
-            "order": 0,
-            "kind": "frame",
-            "children": ["text"],
-            "layout": {
-              "kind": "absolute"
-            },
-            "backgroundColor": {
-              "red": 1,
-              "green": 1,
-              "blue": 1,
-              "alpha": 0
-            },
-            "border": {
-              "color": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "width": 0,
-              "radius": 0
-            },
-            "clip": true
-          },
-          "text": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "parentId": "root",
-            "order": 0,
-            "id": "text",
-            "kind": "text",
-            "semanticNodeId": "label",
-            "maxCodePoints": 16,
-            "value": {
-              "kind": "variableNumber",
-              "variableId": "counter",
-              "expectedType": "number",
-              "format": {
-                "kind": "number",
-                "fractionDigits": 0
-              }
-            },
-            "style": {
-              "fontAssetId": "font",
-              "fallbackFontAssetIds": [],
-              "fontSize": 20,
-              "lineHeight": 24,
-              "color": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
-              },
-              "weight": "regular",
-              "align": "start",
-              "overflow": "clip"
-            }
-          }
-        },
         "baseSemanticTree": {
           "rootNodeIds": ["label"],
           "nodes": {
@@ -419,75 +342,34 @@
           },
           "rendererPreference": "native-ui",
           "fallbackPolicy": "reject"
-        }
-      },
-      "video": {
-        "id": "video",
-        "hostNodeId": "node-video",
-        "physicalSizeMeters": [1, 1],
-        "logicalSize": [100, 100],
-        "fit": "contain",
-        "rootFrameId": "root",
-        "contentNodes": {
-          "root": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "id": "root",
-            "parentId": null,
-            "order": 0,
-            "kind": "frame",
-            "children": ["video"],
-            "layout": {
-              "kind": "absolute"
-            },
-            "backgroundColor": {
-              "red": 1,
-              "green": 1,
-              "blue": 1,
-              "alpha": 1
-            },
-            "border": {
-              "color": {
-                "red": 1,
-                "green": 1,
-                "blue": 1,
-                "alpha": 1
+        },
+        "content": {
+          "kind": "structured",
+          "rootFrameId": "root",
+          "nodes": {
+            "root": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
               },
-              "width": 0,
-              "radius": 0
-            },
-            "clip": true
-          },
-          "video": {
-            "visible": true,
-            "opacity": 1,
-            "placement": {
-              "kind": "absolute",
-              "x": 0,
-              "y": 0,
-              "width": 100,
-              "height": 100
-            },
-            "parentId": "root",
-            "order": 0,
-            "id": "video",
-            "kind": "video",
-            "assetId": "video-asset",
-            "loop": false,
-            "style": {
-              "fit": "contain",
-              "tint": {
+              "id": "root",
+              "parentId": null,
+              "order": 0,
+              "kind": "frame",
+              "children": ["text"],
+              "layout": {
+                "kind": "absolute"
+              },
+              "backgroundColor": {
                 "red": 1,
                 "green": 1,
                 "blue": 1,
-                "alpha": 1
+                "alpha": 0
               },
               "border": {
                 "color": {
@@ -498,11 +380,59 @@
                 },
                 "width": 0,
                 "radius": 0
-              }
+              },
+              "clip": true
             },
-            "semanticNodeId": "label"
+            "text": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "parentId": "root",
+              "order": 0,
+              "id": "text",
+              "kind": "text",
+              "semanticNodeId": "label",
+              "maxCodePoints": 16,
+              "value": {
+                "kind": "variableNumber",
+                "variableId": "counter",
+                "expectedType": "number",
+                "format": {
+                  "kind": "number",
+                  "fractionDigits": 0
+                }
+              },
+              "style": {
+                "fontAssetId": "font",
+                "fallbackFontAssetIds": [],
+                "fontSize": 20,
+                "lineHeight": 24,
+                "color": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "weight": "regular",
+                "align": "start",
+                "overflow": "clip"
+              }
+            }
           }
-        },
+        }
+      },
+      "video": {
+        "id": "video",
+        "hostNodeId": "node-video",
+        "physicalSizeMeters": [1, 1],
+        "logicalSize": [100, 100],
+        "fit": "contain",
         "baseSemanticTree": {
           "rootNodeIds": ["label"],
           "nodes": {
@@ -538,6 +468,85 @@
           },
           "rendererPreference": "video",
           "fallbackPolicy": "reject"
+        },
+        "content": {
+          "kind": "structured",
+          "rootFrameId": "root",
+          "nodes": {
+            "root": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "id": "root",
+              "parentId": null,
+              "order": 0,
+              "kind": "frame",
+              "children": ["video"],
+              "layout": {
+                "kind": "absolute"
+              },
+              "backgroundColor": {
+                "red": 1,
+                "green": 1,
+                "blue": 1,
+                "alpha": 1
+              },
+              "border": {
+                "color": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "width": 0,
+                "radius": 0
+              },
+              "clip": true
+            },
+            "video": {
+              "visible": true,
+              "opacity": 1,
+              "placement": {
+                "kind": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 100
+              },
+              "parentId": "root",
+              "order": 0,
+              "id": "video",
+              "kind": "video",
+              "assetId": "video-asset",
+              "loop": false,
+              "style": {
+                "fit": "contain",
+                "tint": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "border": {
+                  "color": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1,
+                    "alpha": 1
+                  },
+                  "width": 0,
+                  "radius": 0
+                }
+              },
+              "semanticNodeId": "label"
+            }
+          }
         }
       }
     }

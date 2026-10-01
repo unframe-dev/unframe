@@ -1,4 +1,5 @@
 export { createBakedWebRenderer } from "./rendering/baked-web-renderer.js";
+export { combineBakedWebRenderers } from "./rendering/combined-renderer.js";
 
 export { createWebRendererConfigHash } from "./config/config-environment.js";
 
@@ -22,3 +23,9 @@ export type {
   FixedBrowserSession,
   WebRendererConfig,
 } from "./public-types.js";
+
+export { openOpaqueCaptureRuntime } from "./opaque/capture/runtime.js";
+export {
+  createOpaqueBakedWebRenderer,
+  type OpaqueRenderProgram,
+} from "./opaque/capture/renderer.js";

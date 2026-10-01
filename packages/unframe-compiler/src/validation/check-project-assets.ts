@@ -22,7 +22,9 @@ export const checkProjectAssets = (
   const referencedAssetIds = new Set(assetReferences.map((asset) => asset.assetId));
   const referencedFontIds = new Set<string>();
   for (const surface of Object.values(surfaces))
-    for (const node of Object.values(surface.contentNodes))
+    for (const node of Object.values(
+      surface.content.kind === "structured" ? surface.content.nodes : {},
+    ))
       if (node.kind === "text") {
         referencedFontIds.add(node.style.fontAssetId);
         for (const fontAssetId of node.style.fallbackFontAssetIds)

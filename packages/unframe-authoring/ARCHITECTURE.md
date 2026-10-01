@@ -84,7 +84,7 @@ Compiler は locked SDK の export provenance を確認し、Source module と b
 
 ## 7. Dependency rules
 
-`unframe-authoring` は `unframe-core` と Zod 4 にだけ依存する。Compiler、Web Editor、Component package がこの package を利用する。Compiler や Web Editor への逆依存は禁止する。
+`unframe-authoring` の実行時依存は `unframe-core` と Zod 4 である。React Component の公開描画型には `@types/react` を使うが、React runtime は import しない。Compiler、Web Editor、Component package がこの package を利用する。Compiler や Web Editor への逆依存は禁止する。
 
 ## 8. Validation strategy
 
@@ -115,7 +115,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - 6 category の Theme Token、同 category alias、Text / Frame の部分 Named Style
 - `tokenRef`、`propRef`、`namedStyleRef`、`assetRef` と、Frame children に置く `slotPlaceholder`
-- Stage、Flow、resource owner / audience、Component Instance と package lock
+- Stage、Flow、resource owner / audience、Component Instance と catalog が接続する lock v2
 - Component Action の Surface State cut / crossfade、即時 Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
 - Structured Surface Component の host Spatial Node を対象とする Timeline、`playTimeline` Action、`timelineCompleted` Output
 - Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
@@ -123,7 +123,7 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Surface root が持つ semantic tree と、Frame-root Structure が持つ `baseSemanticTree`
 - topology を変更しない semantic override と Structured Component の Detach vocabulary
 
-Topology を持つ宣言は explicit ID を必須とする。source metadata は Compiler が AST から付与するため入力では任意とし、source correlation と diagnostic に共有できる型を提供する。API は finite な JSON plain data だけを受け取り、import 時登録、暗黙 ID、入力 mutation、function 値を持たない。
+Topology を持つ宣言は explicit ID を必須とする。source metadata は Compiler が AST から付与するため入力では任意とし、source correlation と diagnostic に共有できる型を提供する。既存の静的宣言 API は finite な JSON plain data だけを受け取り、import 時登録、暗黙 ID、入力 mutation、function 値を持たない。React Component API の `render` は後述の例外であり、静的メタデータには含めない。
 
 現行実装は static / finite-state、none / regions interaction の baked-web Surface、absolute layout、primitive な string / number / boolean Prop に限定する。State は Frame / Text の visual override、semantic override、enabled Interaction ID を宣言できる。Interaction は click event と hitPriority を明示する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値、旧 Slot / Part field、category のない Token reference、任意の style property を拒否する。参照の存在、一意性、alias cycle、tree、owner 継承、Manifest と Structure の整合性、解決後の値域は declaration を横断するため、Compiler / Core の semantic validation に残す。
 
@@ -138,3 +138,5 @@ Theme、Props、Slots、Parts、Variants、nested Frame / Text の意味規則�
 Frame-root Structure の semantic tree を宣言できる。Slot placeholder に `semanticParentId` があれば nested Component の semantic root をその node の子へ接続し、省略時は Surface の追加 root として扱う。参照先の存在と接続規則の検証は Compiler が所有する。
 
 Structured Surface Component の Timeline track は `target: { kind: "host", property }` として Component Instance の host Spatial Node だけを対象にする。対応 property は `opacity`、`transform.position`、`transform.rotation`、`transform.scale` である。Slotted / Opaque Component の Timeline、別 Spatial Node への target、migration、自動変換、Part partition isolate は未対応である。
+
+React Component は `defineComponent` / `editableText` / `prop`、scene 配列の Props 型推論、render-free metadata guard と Opaque Manifest 生成を提供する。heading / paragraph / button、有限 State、Interaction、公開 Action / Output を扱う。React の関数は描画 field に限定し、plain metadata と分離して検証する。Compiler の非実行抽出、lock v2、配置変換、CLI frozen check / 全 State の隔離 capture、ローカル Inspector の編集・操作 preview まで接続している。Runtime の遷移は既存の Output → Cue → Action が所有する。

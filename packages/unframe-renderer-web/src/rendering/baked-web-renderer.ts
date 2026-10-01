@@ -8,7 +8,6 @@ import {
   type RendererBuildResult,
   type RendererCapabilities,
   type RendererPlugin,
-  type RendererPrivateHitRegion,
   type RendererSupportRequest,
 } from "@unframe/unframe-renderer-api";
 
@@ -24,7 +23,6 @@ import type {
   BrowserRgbaCapture,
   CreateBakedWebRendererOptions,
   FixedBrowserAdapter,
-  WebRendererConfig,
 } from "../public-types.js";
 import {
   configHashFromSnapshot,
@@ -103,42 +101,34 @@ const rgbaCss = (color: {
 }) =>
   `rgba(${cssNumber(color.red * 255)},${cssNumber(color.green * 255)},${cssNumber(color.blue * 255)},${cssNumber(color.alpha)})`;
 
-type Rect = {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-};
-const intersect = (a: Rect, b: Rect): Rect | undefined => {
-  const x = Math.max(a.x, b.x);
-  const y = Math.max(a.y, b.y);
-  const right = Math.min(a.x + a.width, b.x + b.width);
-  const bottom = Math.min(a.y + a.height, b.y + b.height);
-  return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : undefined;
-};
-
 const documentFor = (
   input: CompilerResolvedSurfaceInput,
-  config: WebRendererConfig,
   stateId: string,
 ):
   | {
       readonly document: string;
       readonly fontFaceCount: number;
-      readonly hitRegions: readonly RendererPrivateHitRegion[];
     }
   | RendererBuildFailure => {
+  if (input.surface.content.kind !== "structured" || input.plan.ownership.kind !== "structured")
+    return failure(
+      "unsupported-structured-tree",
+      "Baked Web requires structured Surface content.",
+      ["surface", "content"],
+    );
+  const content = input.surface.content;
+  const ownership = input.plan.ownership;
   const state = input.surface.states[stateId];
   if (!state)
     return failure("missing-render-state", "Planned state is absent.", ["plan", "states", stateId]);
   const effectiveNode = (id: string) => {
-    const node = input.surface.contentNodes[id];
+    const node = content.nodes[id];
     const override = state.contentOverrides[id];
     if (!node || !override) return node;
     if (override.kind !== node.kind) return undefined;
     return { ...node, ...override } as typeof node;
   };
-  const root = effectiveNode(input.surface.rootFrameId);
+  const root = effectiveNode(content.rootFrameId);
   if (
     !root ||
     root.kind !== "frame" ||
@@ -149,26 +139,30 @@ const documentFor = (
     return failure(
       "unsupported-structured-tree",
       "Structured rendering requires an absolute root Frame.",
-      ["surface", "rootFrameId"],
+      ["surface", "content", "rootFrameId"],
     );
   if (
-    !input.plan.contextNodeIds.includes(root.id) &&
-    !input.plan.ownedContentNodeIds.includes(root.id)
+    !ownership.contextNodeIds.includes(root.id) &&
+    !ownership.ownedContentNodeIds.includes(root.id)
   )
     return failure("unsupported-structured-tree", "Render plan must include the root Frame.", [
       "plan",
+      "ownership",
       "ownedContentNodeIds",
     ]);
-  const planned = new Set([...input.plan.ownedContentNodeIds, ...input.plan.contextNodeIds]);
-  if (planned.size !== input.plan.ownedContentNodeIds.length + input.plan.contextNodeIds.length)
+  const planned = new Set([...ownership.ownedContentNodeIds, ...ownership.contextNodeIds]);
+  const owned = new Set(ownership.ownedContentNodeIds);
+  if (planned.size !== ownership.ownedContentNodeIds.length + ownership.contextNodeIds.length)
     return failure("unsupported-structured-tree", "Render plan node IDs must be unique.", [
       "plan",
+      "ownership",
       "ownedContentNodeIds",
     ]);
   if (new Set(root.children).size !== root.children.length)
     return failure("unsupported-structured-tree", "Root Frame children must be unique.", [
       "surface",
-      "contentNodes",
+      "content",
+      "nodes",
       root.id,
       "children",
     ]);
@@ -182,40 +176,6 @@ const documentFor = (
       "logicalBounds",
     ]);
   const rootPlacement = root.placement;
-  const hitRegions: RendererPrivateHitRegion[] = [];
-  const visibleWindow = intersect(bounds, input.plan.clipWindow);
-  const addHitRegion = (
-    node: { readonly id: string; readonly semanticNodeId?: string | undefined },
-    global: Rect,
-    visible: Rect | undefined,
-  ) => {
-    if (!node.semanticNodeId || !visible || !input.plan.ownedContentNodeIds.includes(node.id))
-      return;
-    const semantic = input.semanticsByState[stateId]?.nodes[node.semanticNodeId];
-    if (
-      !semantic ||
-      semantic.role !== "button" ||
-      !semantic.stateEnabled ||
-      !semantic.interactionId
-    )
-      return;
-    if (!state.enabledInteractionIds.includes(semantic.interactionId)) return;
-    const priority = input.plan.hitPriorityByInteractionId[semantic.interactionId];
-    if (priority === undefined) return;
-    const rect = intersect(global, visible);
-    if (!rect) return;
-    hitRegions.push({
-      interactionId: semantic.interactionId,
-      semanticNodeId: node.semanticNodeId,
-      bounds: {
-        x: rect.x - bounds.x,
-        y: rect.y - bounds.y,
-        width: rect.width,
-        height: rect.height,
-      },
-      priority,
-    });
-  };
   const referencedFontIds = new Set<string>();
   const textFontRequirements: {
     readonly nodeId: string;
@@ -227,33 +187,28 @@ const documentFor = (
     id: string,
     parentId: string,
     parentOrigin: readonly [number, number],
-    clip: Rect | undefined,
-    ancestorVisible: boolean,
   ): string | RendererBuildFailure => {
     const node = effectiveNode(id);
     if (!planned.has(id) || !node || node.parentId !== parentId || renderedNodeIds.has(id))
       return failure(
         "unsupported-structured-tree",
         "Render plan must contain one connected Frame/Text tree.",
-        ["surface", "contentNodes", id],
+        ["surface", "content", "nodes", id],
       );
     renderedNodeIds.add(id);
     if (node.placement.kind !== "absolute")
       return failure(
         "unsupported-structured-tree",
         "Structured rendering accepts absolute placement only.",
-        ["surface", "contentNodes", id, "placement"],
+        ["surface", "content", "nodes", id, "placement"],
       );
     const placement = node.placement;
-    const global: Rect = {
+    const global = {
       x: parentOrigin[0] + placement.x,
       y: parentOrigin[1] + placement.y,
       width: placement.width,
       height: placement.height,
     };
-    const active = ancestorVisible && node.visible && node.opacity > 0;
-    const visible = active && clip ? intersect(global, clip) : undefined;
-    addHitRegion(node, global, visible);
     const [left, top, width, height] = [
       placement.x * xScale,
       placement.y * yScale,
@@ -263,7 +218,8 @@ const documentFor = (
     if (![left, top, width, height].every(finite))
       return failure("invalid-render-geometry", "Scaled render geometry must remain finite.", [
         "surface",
-        "contentNodes",
+        "content",
+        "nodes",
         id,
         "placement",
       ]);
@@ -272,33 +228,30 @@ const documentFor = (
         return failure(
           "unsupported-structured-tree",
           "Structured rendering accepts absolute Frame children only.",
-          ["surface", "contentNodes", id],
+          ["surface", "content", "nodes", id],
         );
       const children: string[] = [];
       for (const childId of node.children) {
-        const child = renderNode(
-          childId,
-          id,
-          [global.x, global.y],
-          node.clip ? visible : clip,
-          active,
-        );
+        if (!planned.has(childId)) continue;
+        const child = renderNode(childId, id, [global.x, global.y]);
         if (typeof child !== "string") return child;
         children.push(child);
       }
       const borderWidth = node.border.width * yScale;
-      return `<div class="frame" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};background:${rgbaCss(node.backgroundColor)};border:${cssNumber(borderWidth)}px solid ${rgbaCss(node.border.color)};border-radius:${cssNumber(node.border.radius * yScale)}px;overflow:${node.clip ? "hidden" : "visible"}"><div class="frame-children" style="left:${cssNumber(-borderWidth)}px;top:${cssNumber(-borderWidth)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px">${children.join("")}</div></div>`;
+      const paint = owned.has(id);
+      return `<div class="frame" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};background:${paint ? rgbaCss(node.backgroundColor) : "rgba(0,0,0,0)"};border:${cssNumber(borderWidth)}px solid ${paint ? rgbaCss(node.border.color) : "rgba(0,0,0,0)"};border-radius:${cssNumber(node.border.radius * yScale)}px;overflow:${node.clip ? "hidden" : "visible"}"><div class="frame-children" style="left:${cssNumber(-borderWidth)}px;top:${cssNumber(-borderWidth)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px">${children.join("")}</div></div>`;
     }
     if (node.kind !== "text" || node.value.kind !== "literal")
       return failure(
         "unsupported-structured-tree",
         "Structured rendering accepts literal Text children only.",
-        ["surface", "contentNodes", id],
+        ["surface", "content", "nodes", id],
       );
     if (Array.from(node.value.value).length > node.maxCodePoints)
       return failure("text-max-code-points-exceeded", "Literal Text exceeds maxCodePoints.", [
         "surface",
-        "contentNodes",
+        "content",
+        "nodes",
         id,
         "value",
       ]);
@@ -318,24 +271,15 @@ const documentFor = (
     return `<div class="text" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};font-family:${families};font-size:${cssNumber(node.style.fontSize * yScale)}px;line-height:${cssNumber(node.style.lineHeight * yScale)}px;color:${rgbaCss(node.style.color)};font-weight:${node.style.weight === "bold" ? "700" : "400"};text-align:${node.style.align};${overflow}">${escapeHtml(node.value.value)}</div>`;
   };
   const renderedChildren: string[] = [];
-  const rootRect: Rect = {
+  const rootRect = {
     x: rootPlacement.x,
     y: rootPlacement.y,
     width: rootPlacement.width,
     height: rootPlacement.height,
   };
-  const rootVisible =
-    root.visible && root.opacity > 0 && visibleWindow
-      ? intersect(rootRect, visibleWindow)
-      : undefined;
   for (const childId of root.children) {
-    const child = renderNode(
-      childId,
-      root.id,
-      [rootRect.x, rootRect.y],
-      root.clip ? rootVisible : visibleWindow,
-      root.visible && root.opacity > 0,
-    );
+    if (!planned.has(childId)) continue;
+    const child = renderNode(childId, root.id, [rootRect.x, rootRect.y]);
     if (typeof child !== "string") return child;
     renderedChildren.push(child);
   }
@@ -343,7 +287,7 @@ const documentFor = (
     return failure(
       "unsupported-structured-tree",
       "Render plan must contain one connected Frame/Text tree.",
-      ["plan", "ownedContentNodeIds"],
+      ["plan", "ownership", "ownedContentNodeIds"],
     );
   const fontFaces: string[] = [];
   const coverageByAssetId = new Map<string, FontCoverage>();
@@ -375,32 +319,20 @@ const documentFor = (
         return failure(
           "font-glyph-missing",
           "No declared Font Asset contains a glyph required by literal Text.",
-          ["surface", "contentNodes", requirement.nodeId, "value"],
+          ["surface", "content", "nodes", requirement.nodeId, "value"],
         );
     }
   }
-  const [red, green, blue, alpha] = config.documentBackground;
   const rootLeft = (rootPlacement.x - bounds.x) * xScale;
   const rootTop = (rootPlacement.y - bounds.y) * yScale;
   const rootWidth = rootPlacement.width * xScale;
   const rootHeight = rootPlacement.height * yScale;
   const rootBorderWidth = root.border.width * yScale;
-  addHitRegion(root, rootRect, rootVisible);
-  hitRegions.sort(
-    (left, right) =>
-      right.priority - left.priority ||
-      compare(left.interactionId, right.interactionId) ||
-      compare(left.semanticNodeId, right.semanticNodeId) ||
-      left.bounds.x - right.bounds.x ||
-      left.bounds.y - right.bounds.y ||
-      left.bounds.width - right.bounds.width ||
-      left.bounds.height - right.bounds.height,
-  );
-  const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(${red},${green},${blue},${cssNumber(alpha / 255)});color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rgbaCss(root.backgroundColor)};border:${cssNumber(rootBorderWidth)}px solid ${rgbaCss(root.border.color)};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.frame,.frame-children,.text{position:absolute;box-sizing:border-box}`;
+  const rootPaint = owned.has(root.id);
+  const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,0);color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rootPaint ? rgbaCss(root.backgroundColor) : "rgba(0,0,0,0)"};border:${cssNumber(rootBorderWidth)}px solid ${rootPaint ? rgbaCss(root.border.color) : "rgba(0,0,0,0)"};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.frame,.frame-children,.text{position:absolute;box-sizing:border-box}`;
   return Object.freeze({
     document: `<!doctype html><html lang="${escapeHtml(input.context.locale)}"><head><meta charset="utf-8"><style>${style}</style></head><body><main id="viewport"><div id="surface"><div class="frame-children" style="left:${cssNumber(-rootBorderWidth)}px;top:${cssNumber(-rootBorderWidth)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px">${renderedChildren.join("")}</div></div></main></body></html>`,
     fontFaceCount: fontFaces.length,
-    hitRegions,
   });
 };
 
@@ -498,9 +430,6 @@ export const createBakedWebRenderer = (options: CreateBakedWebRendererOptions): 
       if (resolvedConfig === undefined)
         return failure("invalid-renderer-config", "Renderer config is invalid.", ["config"]);
       const captures: RawSurfaceCapture[] = [];
-      const hitRegionsByState: Record<string, readonly RendererPrivateHitRegion[]> = Object.create(
-        null,
-      ) as Record<string, readonly RendererPrivateHitRegion[]>;
       for (const stateId of Object.keys(input.plan.states).sort(compare)) {
         const state = input.plan.states[stateId];
         if (!state)
@@ -510,30 +439,10 @@ export const createBakedWebRenderer = (options: CreateBakedWebRendererOptions): 
             stateId,
           ]);
         if (state.kind === "empty") {
-          hitRegionsByState[stateId] = [];
           continue;
         }
-        const rendered = documentFor(input, resolvedConfig, stateId);
+        const rendered = documentFor(input, stateId);
         if ("ok" in rendered) return rendered;
-        const wholeSurface =
-          input.plan.logicalBounds.x === 0 &&
-          input.plan.logicalBounds.y === 0 &&
-          input.plan.logicalBounds.width === input.surface.logicalSize[0] &&
-          input.plan.logicalBounds.height === input.surface.logicalSize[1] &&
-          input.plan.clipWindow.x === 0 &&
-          input.plan.clipWindow.y === 0 &&
-          input.plan.clipWindow.width === input.surface.logicalSize[0] &&
-          input.plan.clipWindow.height === input.surface.logicalSize[1];
-        if (wholeSurface) {
-          for (const interactionId of input.surface.states[stateId]?.enabledInteractionIds ?? [])
-            if (!rendered.hitRegions.some((region) => region.interactionId === interactionId))
-              return failure(
-                "missing-enabled-interaction-region",
-                "Every enabled interaction needs visible geometry.",
-                ["states", stateId, "enabledInteractionIds", interactionId],
-              );
-        }
-        hitRegionsByState[stateId] = rendered.hitRegions;
         const request: BrowserCaptureRequest = Object.freeze({
           stateId,
           document: rendered.document,
@@ -592,7 +501,6 @@ export const createBakedWebRenderer = (options: CreateBakedWebRendererOptions): 
           layer: input.plan.layer,
         },
         captures,
-        hitRegionsByState,
         provenance,
         diagnostics: [],
       };

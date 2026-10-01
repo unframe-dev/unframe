@@ -166,6 +166,7 @@ const regionSchema = z.strictObject({
 const renderSurfaceSchema = z.strictObject({
   id: idV2Schema,
   semanticSurfaceId: idV2Schema,
+  partitionStrategyVersion: z.literal(1),
   logicalBounds: boundsV2Schema,
   layer: uint32V2Schema,
   artifacts: z.record(idV2Schema, artifactSchema),
@@ -175,7 +176,7 @@ const compiledSurfaceSchema = z.strictObject({
   semanticSurfaceId: idV2Schema,
   logicalSize: positiveVector2V2Schema,
   physicalSizeMeters: positiveVector2V2Schema,
-  renderSurfaceIds: z.array(idV2Schema).min(1),
+  renderSurfaceIds: z.array(idV2Schema),
   renderSurfaces: z.record(idV2Schema, renderSurfaceSchema),
   semanticsByState: z.record(idV2Schema, completedSemanticTreeV2Schema),
   interactionsByState: z.record(idV2Schema, z.array(regionSchema)),

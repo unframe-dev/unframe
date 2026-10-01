@@ -1,225 +1,190 @@
-import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
+import { createHash } from "node:crypto";
+import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { describe, expect, it } from "vitest";
 
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import {
+  hashDependencyGraph,
+  hashLocalSource,
+  hashLockedPackageContent,
+  hashPackageLocator,
+  type UnframeLockV2,
+} from "../src/filesystem/lock-v2.js";
 
-const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
-const hash = (value: unknown) => hashCanonicalJsonPayload(value);
-const identity = (packageName: string, packageVersion = "1.0.0", packageIntegrity?: string) => ({
-  packageName,
-  packageVersion,
-  packageIntegrity: packageIntegrity ?? `sha256:${"a".repeat(64)}`,
-});
+const digest = (value: string | Uint8Array): `sha256:${string}` =>
+  `sha256:${createHash("sha256").update(value).digest("hex")}`;
+const bytes = (value: unknown) => new TextEncoder().encode(canonicalizeJsonPayload(value) + "\n");
+const componentBytes = "export const Component = 1;";
+const localFiles = [{ path: "src/card.component.tsx", hash: digest(componentBytes) }];
+const packageFile = "export const value = 1;";
 
-const lockedPackage = (overrides: Partial<Record<string, unknown>> = {}) => {
-  const base = {
-    ...identity("example-package"),
-    files: [{ fileName: "index.ts", sourceText: "export const example = true;" }],
-    exports: [{ subpath: ".", targetFile: "index.ts" }],
+const validLock = (): UnframeLockV2 => {
+  const pkg: UnframeLockV2["packages"][number] = {
+    key: hashPackageLocator("example-package@1.0.0"),
+    locator: "example-package@1.0.0",
+    name: "example-package",
+    version: "1.0.0",
+    contentIntegrity: digest("unused"),
+    files: [
+      {
+        path: "index.js",
+        mediaType: "text/javascript",
+        hash: digest(packageFile),
+        encoding: "utf8",
+        data: packageFile,
+      },
+    ],
+    exports: [{ subpath: ".", runtimeImport: "index.js", runtimeRequire: null, types: null }],
     dependencies: [],
   };
-  const payload = { ...base, ...overrides };
-  const { packageIntegrity: _ignored, ...integrityPayload } = payload;
-  return { ...payload, packageIntegrity: hash(integrityPayload) };
-};
-
-const validLock = () => {
-  const pkg = lockedPackage();
-  return {
-    schemaVersion: 1,
-    packageDependencies: [
-      { ...identity(pkg.packageName, pkg.packageVersion, pkg.packageIntegrity) },
-    ],
+  pkg.contentIntegrity = hashLockedPackageContent(pkg);
+  const lock: UnframeLockV2 = {
+    schemaVersion: 2,
+    packageSnapshotProfile: "pnpm-lock9-locator-v1",
+    resolutionProfile: "browser-import-production-types-v1",
+    extractionProfile: "react-component-v1",
+    packageManagerLockHash: digest("pnpm-lock"),
+    rootDependencies: [{ specifier: "example-package", usage: "runtime", packageKey: pkg.key }],
     packages: [pkg],
-    themeHashes: [{ themeId: "default", hash: `sha256:${"b".repeat(64)}` }],
+    dependencyGraphHash: digest("unused"),
+    themeHashes: [{ themeId: "default", hash: digest("theme") }],
     componentLocks: [
       {
-        componentId: "example-component",
+        componentId: "card",
         version: 1,
-        lock: {
-          packageVersion: "1.0.0",
-          packageIntegrity: `sha256:${"c".repeat(64)}`,
-          manifestHash: `sha256:${"d".repeat(64)}`,
-          structureHash: `sha256:${"e".repeat(64)}`,
+        origin: {
+          kind: "local",
+          entryFile: "src/card.component.tsx",
+          files: localFiles,
+          sourceHash: hashLocalSource("src/card.component.tsx", localFiles),
         },
+        manifestHash: digest("manifest"),
+        mode: "opaque",
+        rendererInputHash: digest("renderer"),
       },
     ],
-    assets: {
-      "asset-b": {
-        id: "asset-b",
-        mediaType: "font/ttf",
-        encodedSizeBytes: 12,
-        dataBase64: "AAEAAAAAAAAAAAAA",
-        checksum: `sha256:${"f".repeat(64)}`,
-      },
-      "asset-a": {
-        id: "asset-a",
-        mediaType: "font/ttf",
-        encodedSizeBytes: 12,
-        dataBase64: "AAEAAAAAAAAAAAAA",
-        checksum: `sha256:${"0".repeat(64)}`,
-      },
-    } as Record<
-      string,
+    assets: [
       {
-        id: string;
-        mediaType: string;
-        checksum: string;
-        encodedSizeBytes: number;
-        dataBase64: string;
-      }
-    >,
+        id: "font",
+        mediaType: "font/ttf",
+        hash: digest(new Uint8Array([1, 2, 3])),
+        size: 3,
+        dataBase64: "AQID",
+      },
+    ],
   };
+  lock.dependencyGraphHash = hashDependencyGraph(lock);
+  return lock;
 };
 
-describe("unframe.lock v1 boundary", () => {
-  it("normalizes lock arrays and materializes typed compiler carriers", () => {
+const errorCode = (lock: unknown) => {
+  const result = loadUnframeLock(bytes(lock));
+  return result.ok ? "ok" : result.diagnostic.code;
+};
+
+describe("unframe.lock v2 boundary", () => {
+  it("loads a frozen local Component and package graph", () => {
     const lock = validLock();
-    lock.assets = Object.fromEntries(Object.entries(lock.assets).reverse());
-
     const result = loadUnframeLock(bytes(lock));
-
     expect(result).toMatchObject({ ok: true });
     if (!result.ok) return;
-    expect(result.value.virtualSource.packageDependencies).toEqual(lock.packageDependencies);
-    expect(result.value.virtualSource.packages[0]?.files.map((item) => item.fileName)).toEqual([
-      "index.ts",
-    ]);
-    expect(Object.keys(result.value.assemblyCarrier.assets)).toEqual(["asset-a", "asset-b"]);
-    expect(result.value.lockHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
-    expect(Object.isFrozen(result.value.virtualSource.packages[0]?.files[0])).toBe(true);
-    expect(Object.isFrozen(result.value.assemblyCarrier.assets["asset-a"])).toBe(true);
-  });
-
-  it.each([
-    [{ ...validLock(), extra: true }, "semantic", "cli-lock-shape-invalid"],
-    [{ ...validLock(), schemaVersion: 2 }, "semantic", "cli-lock-schema-version-invalid"],
-    [
-      {
-        ...validLock(),
-        packages: [{ ...validLock().packages[0], packageIntegrity: "sha256:UPPER" }],
-      },
-      "semantic",
-      "cli-lock-content-hash-invalid",
-    ],
-    [
-      {
-        ...validLock(),
-        packages: [{ ...validLock().packages[0], packageIntegrity: `sha256:${"1".repeat(64)}` }],
-      },
-      "semantic",
-      "cli-lock-package-integrity-mismatch",
-    ],
-  ] as const)("rejects invalid semantic lock data", (value, family, code) => {
-    expect(loadUnframeLock(bytes(value))).toMatchObject({
-      ok: false,
-      diagnostic: { family, code },
+    expect(result.value.virtualSource.rootDependencies).toEqual(lock.rootDependencies);
+    expect(result.value.assemblyCarrier.componentLocks[0]).toMatchObject({
+      componentId: "card",
+      mode: "opaque",
+    });
+    expect(result.value.assemblyCarrier.assets.font).toMatchObject({
+      checksum: lock.assets[0]?.hash,
     });
   });
 
-  it("rejects nested unknown fields before materializing the package", () => {
+  it("rejects v1 and unknown nested fields", () => {
+    expect(errorCode({ ...validLock(), schemaVersion: 1 })).toBe("cli-lock-shape-invalid");
     const lock = validLock();
-    const source = lock.packages[0]!;
-    const pkg = lockedPackage({ files: [{ ...source.files[0]!, extra: true }] });
-    lock.packages = [pkg];
-    lock.packageDependencies = [
-      identity(pkg.packageName, pkg.packageVersion, pkg.packageIntegrity),
-    ];
-    expect(loadUnframeLock(bytes(lock))).toMatchObject({
-      ok: false,
-      diagnostic: { code: "cli-lock-package-file-shape-invalid" },
-    });
+    lock.packages[0]!.files[0] = { ...lock.packages[0]!.files[0]!, extra: 1 } as never;
+    expect(errorCode(lock)).toBe("cli-lock-shape-invalid");
   });
 
-  it.each([
-    [
-      JSON.stringify(validLock()).replace(
-        '{"schemaVersion":1',
-        '{"__proto__":{},"schemaVersion":1',
-      ),
-      "cli-lock-shape-invalid",
-    ],
-    [
-      JSON.stringify(validLock()).replace('"files":[', '"__proto__":{},"files":['),
-      "cli-lock-package-shape-invalid",
-    ],
-  ])("rejects own __proto__ fields omitted by Zod object parsing", (source, code) => {
-    expect(loadUnframeLock(new TextEncoder().encode(source))).toMatchObject({
-      ok: false,
-      diagnostic: { code },
-    });
+  it("rejects changed package bytes and graph edges", () => {
+    const bytesChanged = validLock();
+    bytesChanged.packages[0]!.files[0] = {
+      ...bytesChanged.packages[0]!.files[0]!,
+      data: "changed",
+    };
+    expect(errorCode(bytesChanged)).toBe("cli-lock-package-file-hash-invalid");
+
+    const graphChanged = validLock();
+    graphChanged.rootDependencies[0]!.usage = "types";
+    expect(errorCode(graphChanged)).toBe("cli-lock-graph-hash-mismatch");
   });
 
-  it("preserves an asset named __proto__", () => {
+  it("rejects a package file whose claimed media type disagrees with its path", () => {
     const lock = validLock();
-    lock.assets = Object.fromEntries([
-      [
-        "__proto__",
-        {
-          id: "prototype-asset",
-          mediaType: "font/ttf",
-          encodedSizeBytes: 12,
-          dataBase64: "AAEAAAAAAAAAAAAA",
-          checksum: `sha256:${"1".repeat(64)}`,
-        },
-      ],
-    ]);
-
-    const result = loadUnframeLock(bytes(lock));
-
-    expect(result).toMatchObject({ ok: true });
-    if (!result.ok) return;
-    expect(Object.hasOwn(result.value.assemblyCarrier.assets, "__proto__")).toBe(true);
-    expect(result.value.assemblyCarrier.assets["__proto__"]?.id).toBe("prototype-asset");
+    lock.packages[0]!.files[0]!.mediaType = "image/png";
+    expect(errorCode(lock)).toBe("cli-lock-package-file-media-invalid");
   });
 
-  it("reports the root shape before an invalid schema version when a key is missing", () => {
-    const { assets: _missing, ...lock } = { ...validLock(), schemaVersion: 2 };
+  it("rejects invalid binary, missing references, and unreachable packages", () => {
+    const invalidAsset = validLock();
+    invalidAsset.assets[0]!.dataBase64 = "AQI=";
+    expect(errorCode(invalidAsset)).toBe("cli-lock-asset-hash-invalid");
 
-    expect(loadUnframeLock(bytes(lock))).toMatchObject({
-      ok: false,
-      diagnostic: { code: "cli-lock-shape-invalid" },
-    });
+    const missing = validLock();
+    missing.rootDependencies[0]!.packageKey = digest("missing");
+    expect(errorCode(missing)).toBe("cli-lock-package-reference-missing");
+
+    const unused = validLock();
+    unused.rootDependencies = [];
+    unused.dependencyGraphHash = hashDependencyGraph(unused);
+    expect(errorCode(unused)).toBe("cli-lock-package-unreferenced");
   });
 
-  it.each([
-    ['{"schemaVersion":1,"schemaVersion":1}', "cli-lock-json-duplicate-key"],
-    ["{", "cli-lock-json-syntax"],
-  ])("preserves strict JSON failure as syntax diagnostic", (source, code) => {
-    expect(loadUnframeLock(new TextEncoder().encode(source))).toMatchObject({
-      ok: false,
-      diagnostic: { family: "syntax", code },
-    });
+  it("requires a package Component origin to name a frozen export", () => {
+    const lock = validLock();
+    lock.componentLocks[0]!.origin = {
+      kind: "package",
+      packageKey: lock.packages[0]!.key,
+      subpath: "./private",
+    };
+    expect(errorCode(lock)).toBe("cli-lock-component-export-missing");
   });
 
-  it("rejects duplicate keys, unresolved exact identities, and missing export targets", () => {
-    const duplicate = validLock();
-    duplicate.themeHashes = [duplicate.themeHashes[0]!, { ...duplicate.themeHashes[0]! }];
-    expect(loadUnframeLock(bytes(duplicate))).toMatchObject({
-      ok: false,
-      diagnostic: { code: "cli-lock-duplicate-theme-id" },
-    });
+  it("rejects a changed local Component source closure", () => {
+    const lock = validLock();
+    const origin = lock.componentLocks[0]!.origin;
+    if (origin.kind !== "local") throw new Error("Expected local Component");
+    origin.files[0]!.hash = digest("changed");
+    expect(errorCode(lock)).toBe("cli-lock-local-source-hash-mismatch");
+  });
 
-    const unresolved = validLock();
-    unresolved.packageDependencies = [identity("missing")];
-    expect(loadUnframeLock(bytes(unresolved))).toMatchObject({
-      ok: false,
-      diagnostic: { code: "cli-lock-package-reference-missing" },
-    });
-
-    const missingExport = validLock();
-    missingExport.packages[0]!.exports = [{ subpath: ".", targetFile: "missing.ts" }];
-    missingExport.packages[0] = lockedPackage(missingExport.packages[0]);
-    missingExport.packageDependencies = [
-      identity(
-        missingExport.packages[0]!.packageName,
-        missingExport.packages[0]!.packageVersion,
-        missingExport.packages[0]!.packageIntegrity,
-      ),
+  it("orders Component versions numerically beyond ten digits", () => {
+    const lock = validLock();
+    lock.componentLocks = [
+      { ...lock.componentLocks[0]!, version: 9_999_999_999 },
+      { ...lock.componentLocks[0]!, version: 10_000_000_000 },
     ];
-    expect(loadUnframeLock(bytes(missingExport))).toMatchObject({
+    expect(errorCode(lock)).toBe("ok");
+  });
+
+  it("rejects duplicate JSON keys and invalid UTF-8", () => {
+    expect(
+      loadUnframeLock(new TextEncoder().encode('{"schemaVersion":2,"schemaVersion":2}')),
+    ).toMatchObject({
       ok: false,
-      diagnostic: { code: "cli-lock-package-export-target-missing" },
+      diagnostic: { family: "syntax", code: "cli-lock-json-duplicate-key" },
+    });
+    expect(loadUnframeLock(new Uint8Array([0xff]))).toMatchObject({
+      ok: false,
+      diagnostic: { family: "syntax" },
+    });
+  });
+
+  it("rejects a valid lock serialized with noncanonical whitespace", () => {
+    expect(
+      loadUnframeLock(new TextEncoder().encode(JSON.stringify(validLock(), null, 2))),
+    ).toMatchObject({
+      ok: false,
+      diagnostic: { code: "cli-lock-not-canonical" },
     });
   });
 });

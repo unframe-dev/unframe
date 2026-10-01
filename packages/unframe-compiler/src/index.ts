@@ -1,4 +1,5 @@
 export { checkDeclarationProject } from "./api/check-declaration-project.js";
+export { reactResourceId } from "./resolution/resolve-opaque-component.js";
 export { checkAuthoringProject } from "./api/check-authoring-project.js";
 export { checkAuthoringProjectAssembly } from "./api/check-authoring-project-assembly.js";
 export { compileAuthoringProject } from "./api/compile-authoring-project.js";
@@ -30,3 +31,19 @@ export type {
   PairedAuthoringDeclarationCatalog,
   PairedComponentDeclaration,
 } from "./project/pair-authoring-declarations.js";
+
+export { computeFrozenComponentInputs } from "./semantic/frozen-component-inputs.js";
+
+export {
+  prepareLockedOpaqueBundleInput,
+  type LockedOpaqueBundleInput,
+} from "./semantic/prepare-locked-opaque-bundle-input.js";
+export { assembleAuthoringProject } from "./api/authoring-project-pipeline.js";
+export {
+  readEditableReactScene,
+  patchEditableReactScene,
+  type EditableReactSceneInstance,
+  type ReactSceneEditCommand,
+  type ReactSceneEditDiagnostic,
+  type ReactSceneTransform,
+} from "./editing/react-scene-source.js";
