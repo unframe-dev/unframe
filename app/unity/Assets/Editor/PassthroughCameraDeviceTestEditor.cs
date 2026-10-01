@@ -118,6 +118,12 @@ public static class PassthroughCameraDeviceTestEditor
 
     private static void Build(bool run)
     {
+        PrepareScene();
+        BuildScene(ScenePath, ApplicationId, "unframe-pca-preview.apk", run);
+    }
+
+    internal static void BuildScene(string scenePath, string applicationId, string fileName, bool run)
+    {
         if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
         {
             throw new InvalidOperationException("Install Unity Android Build Support, SDK/NDK and OpenJDK from Unity Hub.");
@@ -131,12 +137,11 @@ public static class PassthroughCameraDeviceTestEditor
         {
             throw new InvalidOperationException("The PCA test requires Android IL2CPP and ARM64 only.");
         }
-        if (!File.Exists(ScenePath))
+        if (!File.Exists(scenePath))
         {
-            throw new InvalidOperationException("Use Unframe > PCA > Open Device Test Scene first.");
+            throw new InvalidOperationException("Prepare the device test scene before building.");
         }
-        PrepareScene();
-        string output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "PCA", "unframe-pca-preview.apk"));
+        string output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "PCA", fileName));
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         var target = UnityEditor.Build.NamedBuildTarget.Android;
         string originalId = PlayerSettings.GetApplicationIdentifier(target);
@@ -153,12 +158,12 @@ public static class PassthroughCameraDeviceTestEditor
             PassthroughCameraBuildAssetExclusion.ActiveExclusion = exclusion;
             PlayerSettings.SetPreloadedAssets(preloaded.Where((asset, index) =>
                 preloadedPaths[index] != PassthroughCameraBuildAssetExclusion.SettingsPath).ToArray());
-            PlayerSettings.SetApplicationIdentifier(target, ApplicationId);
+            PlayerSettings.SetApplicationIdentifier(target, applicationId);
             PlayerSettings.productName = "Unframe PCA Preview";
             EditorUserBuildSettings.buildAppBundle = false;
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = new[] { ScenePath },
+                scenes = new[] { scenePath },
                 locationPathName = output,
                 target = BuildTarget.Android,
                 options = BuildOptions.Development | (run ? BuildOptions.AutoRunPlayer : BuildOptions.None)
@@ -167,7 +172,7 @@ public static class PassthroughCameraDeviceTestEditor
             {
                 throw new InvalidOperationException($"PCA build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
             }
-            Debug.Log($"[PCA Preview] APK: {output} | Application: {ApplicationId}");
+            Debug.Log($"[PCA Preview] APK: {output} | Application: {applicationId}");
         }
         finally
         {

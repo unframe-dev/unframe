@@ -46,25 +46,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static void ApplyTransform(UnityEngine.Transform target, Unframe.Presentation.V2.Transform source)
         {
-            if (source == null)
+            if (!PresentationCoordinateAdapter.TryToUnityTransform(source, out UnityEngine.Vector3 position, out UnityEngine.Quaternion rotation, out UnityEngine.Vector3 scale))
             {
                 return;
             }
 
-            if (source.Position != null)
-            {
-                target.localPosition = new UnityEngine.Vector3((float)source.Position.X, (float)source.Position.Y, (float)source.Position.Z);
-            }
-
-            if (source.Rotation != null)
-            {
-                target.localRotation = new UnityEngine.Quaternion((float)source.Rotation.X, (float)source.Rotation.Y, (float)source.Rotation.Z, (float)source.Rotation.W);
-            }
-
-            if (source.Scale != null)
-            {
-                target.localScale = new UnityEngine.Vector3((float)source.Scale.X, (float)source.Scale.Y, (float)source.Scale.Z);
-            }
+            target.localPosition = position;
+            target.localRotation = rotation;
+            target.localScale = scale;
         }
     }
 }

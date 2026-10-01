@@ -22,6 +22,9 @@ namespace Unframe.Unity.PresentationRuntime
             this.delivery = delivery;
         }
 
+        private PresentationOrigin presentationOrigin;
+
+        internal PresentationOrigin PresentationOrigin { get { return presentationOrigin == null ? null : presentationOrigin.Clone(); } }
         internal ulong LastReliableSequence { get; private set; }
         internal ulong LastStateFrameSequence { get; private set; }
 
@@ -31,6 +34,7 @@ namespace Unframe.Unity.PresentationRuntime
             surfaceStates.Clear();
             variableStates.Clear();
             modelClipStates.Clear();
+            presentationOrigin = null;
             LastReliableSequence = 0;
             LastStateFrameSequence = 0;
         }
@@ -106,13 +110,20 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (delivery.Delivery == null || envelope == null || envelope.SchemaVersion != RealtimeSnapshotSchemaVersion
                 || envelope.ProjectionInstance == null || !envelope.ProjectionInstance.Equals(delivery.Delivery.ProjectionInstance)
-                || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingFence(envelope.Fence))
+                || envelope.Snapshot == null || envelope.Snapshot.RuntimeView == null || !HasMatchingDeliveryFence(envelope.Fence))
             {
                 error = "realtime.snapshot is missing, incompatible, or fenced for another delivery.";
                 return false;
             }
 
             ParticipantRuntimeView view = envelope.Snapshot.RuntimeView;
+            if (view.PresentationOrigin == null || !PresentationCoordinateAdapter.IsValidPose(view.PresentationOrigin.Pose)
+                || envelope.Fence.PresentationOriginVersion != view.PresentationOrigin.Version)
+            {
+                error = "realtime.snapshot presentation origin is missing, invalid, or fenced for another version.";
+                return false;
+            }
+
             if (envelope.Snapshot.ProjectionProfileId != delivery.Delivery.ProjectionProfile.ProjectionProfileId
                 || envelope.Snapshot.AssignmentEpoch != delivery.Delivery.ProjectionInstance.AssignmentEpoch
                 || envelope.Snapshot.ReliableSequence != envelope.ReliableSequence
@@ -129,6 +140,7 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
+            presentationOrigin = view.PresentationOrigin.Clone();
             LastReliableSequence = envelope.ReliableSequence;
             LastStateFrameSequence = 0;
             return true;
@@ -150,9 +162,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         private bool TryApplyReliableEvent(ProjectedReliableEvent reliableEvent, out string error)
         {
-            if (delivery.Delivery == null)
+            if (delivery.Delivery == null || presentationOrigin == null)
             {
-                error = "realtime.event cannot be applied before a Delivery is loaded.";
+                error = "realtime.event cannot be applied before a Delivery and snapshot are loaded.";
                 return false;
             }
 
@@ -162,13 +174,28 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
-            if (!HasMatchingFence(reliableEvent.Fence))
+            ulong eventOriginVersion = presentationOrigin.Version;
+            if (reliableEvent.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.PresentationOriginChanged)
+            {
+                PresentationOrigin incomingOrigin = reliableEvent.PresentationOriginChanged.Origin;
+                if (incomingOrigin == null || incomingOrigin.Version <= presentationOrigin.Version
+                    || !PresentationCoordinateAdapter.IsValidPose(incomingOrigin.Pose))
+                {
+                    error = "realtime.event presentation origin is missing, invalid, or does not advance its version.";
+                    return false;
+                }
+
+                eventOriginVersion = incomingOrigin.Version;
+            }
+
+            if (!HasMatchingDeliveryFence(reliableEvent.Fence)
+                || reliableEvent.Fence.PresentationOriginVersion != eventOriginVersion)
             {
                 error = "realtime.event fence does not match the loaded Delivery. Reload Local Presentation and retry.";
                 return false;
             }
 
-            if (reliableEvent.Sequence != LastReliableSequence + 1)
+            if (LastReliableSequence == ulong.MaxValue || reliableEvent.Sequence != LastReliableSequence + 1)
             {
                 error = "realtime.event sequence is not contiguous; request a snapshot or replay.";
                 return false;
@@ -176,6 +203,10 @@ namespace Unframe.Unity.PresentationRuntime
 
             switch (reliableEvent.PayloadCase)
             {
+                case ProjectedReliableEvent.PayloadOneofCase.PresentationOriginChanged:
+                    presentationOrigin = reliableEvent.PresentationOriginChanged.Origin.Clone();
+                    LastStateFrameSequence = 0;
+                    break;
                 case ProjectedReliableEvent.PayloadOneofCase.NodeStateCommitted:
                     if (!TrySetNodeState(reliableEvent.NodeStateCommitted.State, out error)) return false;
                     break;
@@ -294,18 +325,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static bool IsValidTransform(Unframe.Presentation.V2.Transform transform)
         {
-            if (transform.Position == null || transform.Rotation == null || transform.Scale == null)
-            {
-                return false;
-            }
-
-            Unframe.Presentation.V2.Vector3 position = transform.Position;
-            Unframe.Presentation.V2.Quaternion rotation = transform.Rotation;
-            Unframe.Presentation.V2.Vector3 scale = transform.Scale;
-            return PresentationDeliveryCatalog.IsFinite(position.X) && PresentationDeliveryCatalog.IsFinite(position.Y) && PresentationDeliveryCatalog.IsFinite(position.Z)
-                && PresentationDeliveryCatalog.IsFinite(scale.X) && PresentationDeliveryCatalog.IsFinite(scale.Y) && PresentationDeliveryCatalog.IsFinite(scale.Z) && scale.X > 0 && scale.Y > 0 && scale.Z > 0
-                && PresentationDeliveryCatalog.IsFinite(rotation.X) && PresentationDeliveryCatalog.IsFinite(rotation.Y) && PresentationDeliveryCatalog.IsFinite(rotation.Z) && PresentationDeliveryCatalog.IsFinite(rotation.W)
-                && (rotation.X != 0 || rotation.Y != 0 || rotation.Z != 0 || rotation.W != 0);
+            return transform != null && PresentationCoordinateAdapter.IsValidPosition(transform.Position)
+                && PresentationCoordinateAdapter.IsValidRotation(transform.Rotation)
+                && PresentationCoordinateAdapter.IsValidScale(transform.Scale);
         }
 
         private bool TryReplaceRuntimeState(IEnumerable<NodeRuntimeState> incomingNodes, IEnumerable<SurfaceRuntimeState> incomingSurfaces, IEnumerable<VariableState> incomingVariables, IEnumerable<ModelClipRuntimeState> incomingModelClips, out string error)
@@ -387,6 +409,12 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private bool HasMatchingFence(RuntimeProjectionFence fence)
+        {
+            return presentationOrigin != null && HasMatchingDeliveryFence(fence)
+                && fence.PresentationOriginVersion == presentationOrigin.Version;
+        }
+
+        private bool HasMatchingDeliveryFence(RuntimeProjectionFence fence)
         {
             return fence != null && delivery.Delivery != null && fence.SessionId == delivery.Delivery.SessionId && fence.AssignmentEpoch == delivery.Delivery.ProjectionInstance.AssignmentEpoch && fence.ProjectionProfileId == delivery.Delivery.ProjectionProfile.ProjectionProfileId && fence.Publication != null && delivery.Delivery.Publication != null && fence.Publication.Equals(delivery.Delivery.Publication);
         }

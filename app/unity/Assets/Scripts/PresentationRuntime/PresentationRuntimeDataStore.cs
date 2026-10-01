@@ -22,6 +22,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public DeliveryManifest Delivery { get { return delivery.Delivery; } }
+        public PresentationOrigin PresentationOrigin { get { return runtime.PresentationOrigin; } }
         public ulong LastReliableSequence { get { return runtime.LastReliableSequence; } }
         public ulong LastStateFrameSequence { get { return runtime.LastStateFrameSequence; } }
         public IEnumerable<ProjectedNodeDefinition> Nodes { get { return delivery.Nodes; } }

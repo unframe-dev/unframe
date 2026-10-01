@@ -168,9 +168,9 @@ namespace Unframe.Unity.PresentationRuntime
 
             foreach (TimelineKeyframe keyframe in track.Keyframes)
             {
-                if (!HasExpectedValue(track.Target.Property, keyframe))
+                if (!HasExpectedValue(track.Target.Property, keyframe) || !HasValidValue(track.Target.Property, keyframe))
                 {
-                    error = "timeline track value does not match its property.";
+                    error = "timeline track value is invalid or does not match its property.";
                     return false;
                 }
             }
@@ -190,6 +190,23 @@ namespace Unframe.Unity.PresentationRuntime
             return property == TimelineProperty.Opacity && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Number
                 || (property == TimelineProperty.TransformPosition || property == TimelineProperty.TransformScale) && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Vector3
                 || property == TimelineProperty.TransformRotation && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Quaternion;
+        }
+
+        private static bool HasValidValue(TimelineProperty property, TimelineKeyframe keyframe)
+        {
+            switch (property)
+            {
+                case TimelineProperty.Opacity:
+                    return keyframe.Number != null && !Double.IsNaN(keyframe.Number.Value) && keyframe.Number.Value >= 0 && keyframe.Number.Value <= 1;
+                case TimelineProperty.TransformPosition:
+                    return keyframe.Vector3 != null && PresentationCoordinateAdapter.IsValidPosition(keyframe.Vector3.Value);
+                case TimelineProperty.TransformScale:
+                    return keyframe.Vector3 != null && PresentationCoordinateAdapter.IsValidScale(keyframe.Vector3.Value);
+                case TimelineProperty.TransformRotation:
+                    return keyframe.Quaternion != null && PresentationCoordinateAdapter.IsValidRotation(keyframe.Quaternion.Value);
+                default:
+                    return false;
+            }
         }
 
         private static void SetTargetVisible(GameObject target, bool visible)
@@ -248,10 +265,10 @@ namespace Unframe.Unity.PresentationRuntime
                     PresentationVisualOpacity.Apply(track.Target, Mathf.Lerp((float)before.Number.Value, (float)after.Number.Value, progress));
                     break;
                 case TimelineProperty.TransformPosition:
-                    track.Target.transform.localPosition = UnityEngine.Vector3.Lerp(ToUnityVector(before.Vector3.Value), ToUnityVector(after.Vector3.Value), progress);
+                    track.Target.transform.localPosition = ToUnityPosition(InterpolateVector(before.Vector3.Value, after.Vector3.Value, progress));
                     break;
                 case TimelineProperty.TransformScale:
-                    track.Target.transform.localScale = UnityEngine.Vector3.Lerp(ToUnityVector(before.Vector3.Value), ToUnityVector(after.Vector3.Value), progress);
+                    track.Target.transform.localScale = ToUnityScale(InterpolateVector(before.Vector3.Value, after.Vector3.Value, progress));
                     break;
                 case TimelineProperty.TransformRotation:
                     track.Target.transform.localRotation = UnityEngine.Quaternion.Slerp(ToUnityQuaternion(before.Quaternion.Value), ToUnityQuaternion(after.Quaternion.Value), progress);
@@ -259,14 +276,33 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private static UnityEngine.Vector3 ToUnityVector(Unframe.Presentation.V2.Vector3 value)
+        private static Unframe.Presentation.V2.Vector3 InterpolateVector(Unframe.Presentation.V2.Vector3 before, Unframe.Presentation.V2.Vector3 after, float progress)
         {
-            return new UnityEngine.Vector3((float)value.X, (float)value.Y, (float)value.Z);
+            double beforeWeight = 1d - progress;
+            return new Unframe.Presentation.V2.Vector3
+            {
+                X = before.X * beforeWeight + after.X * progress,
+                Y = before.Y * beforeWeight + after.Y * progress,
+                Z = before.Z * beforeWeight + after.Z * progress,
+            };
+        }
+
+        private static UnityEngine.Vector3 ToUnityPosition(Unframe.Presentation.V2.Vector3 value)
+        {
+            PresentationCoordinateAdapter.TryToUnityPosition(value, out UnityEngine.Vector3 result);
+            return result;
+        }
+
+        private static UnityEngine.Vector3 ToUnityScale(Unframe.Presentation.V2.Vector3 value)
+        {
+            PresentationCoordinateAdapter.TryToUnityScale(value, out UnityEngine.Vector3 result);
+            return result;
         }
 
         private static UnityEngine.Quaternion ToUnityQuaternion(Unframe.Presentation.V2.Quaternion value)
         {
-            return new UnityEngine.Quaternion((float)value.X, (float)value.Y, (float)value.Z, (float)value.W);
+            PresentationCoordinateAdapter.TryToUnityRotation(value, out UnityEngine.Quaternion result);
+            return result;
         }
     }
 }

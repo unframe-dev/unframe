@@ -26,6 +26,13 @@
         "projectionProfileId": "profile:local",
         "assignmentEpoch": "1",
         "baseReliableSequence": "0",
+        "presentationOrigin": {
+          "version": "0",
+          "pose": {
+            "position": { "x": 0, "y": 0, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0, "w": 1 }
+          }
+        },
         "nodeStates": [
           {
             "nodeId": "node:local-stage",
