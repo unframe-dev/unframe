@@ -34,6 +34,10 @@ go run ./cmd/server
 
 `internal/gen/realtime/v1` は protobuf generator の出力先です。`.proto` の source of truth は `packages/contracts/proto/` で、generated Go files は手で編集しません。repository root の Nix development shell で `scripts/contracts/generate-proto.sh check` を実行すると drift を検出できます。
 
+v2 の generated message / service は `internal/gen/{presentation,delivery,realtime}/v2` に置く。`scripts/contracts/generate-v2-consumers.sh check` は C# とともに再生成と provenance を検査する。`internal/protocol/v2` は required variant / enum / scalar、信頼済み catalog と Snapshot の resource closure、checkpoint の生 bytes hash / identity、Connection Snapshot の fence / origin / sequence、Replay cursor / State frame の順序を検証する。checkpoint restore は logical clock を進めず `paused/processRecovered` にする。
+
+これらは v2 consumer の純粋な境界であり、現在起動する gRPC service は上記の v1 foundation のままである。v2 の Control / State service registration、nonce、live replay retention、Snapshot cut と subscriber 登録の atomicity、Flow / Cue の authoritative evaluator、永続化 lifecycle は application integration で接続する。wire admission の成功だけで Action / ownership の全意味検証や Runtime の稼働を保証しない。
+
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier、assignment guard、session coordinator なしでは構築できません。
 
 現在の composition root は `runtimeKind` にかかわらず同じ Runtime Core を起動しますが、単一 Session の assignment は環境変数から読み取ります。Control Plane から assignment / Manifest を取得して lease を更新する profile adapter、Asset Gateway の local HTTPS listener、runtime state machine と State mailbox の gRPC contract への接続は後続実装です。`internal/persistence/http` の callback client / bounded buffer も transport 境界までで、Snapshot schema や session lifecycle には未接続です。`internal/asset`、`internal/session.Runtime`、`internal/state` は transport-independent な検証済み domain primitive です。
