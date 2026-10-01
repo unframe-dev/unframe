@@ -16,12 +16,23 @@
     "test:presentation": "tsx test/presentation.contract.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src/presentation scripts test",
-    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:presentation:v2 && pnpm typecheck && pnpm test:presentation && pnpm test:presentation:v2 && pnpm lint",
+    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:presentation:v2 && pnpm check:wire-descriptor && pnpm check:wire-static && pnpm check:wire-types && pnpm check:wire-fixtures && pnpm typecheck && pnpm test:presentation && pnpm test:presentation:v2 && pnpm test:wire && pnpm lint",
     "generate:presentation:v2": "tsx scripts/generate-presentation-v2.ts",
     "check:presentation:v2": "tsx scripts/generate-presentation-v2.ts --check",
-    "test:presentation:v2": "tsx --test test/presentation-v2.contract.test.ts test/runtime-projection-v2.contract.test.ts"
+    "test:presentation:v2": "tsx --test test/presentation-v2.contract.test.ts test/runtime-projection-v2.contract.test.ts",
+    "generate:wire-descriptor": "tsx scripts/generate-wire-descriptor.ts",
+    "check:wire-descriptor": "tsx scripts/generate-wire-descriptor.ts --check",
+    "generate:wire-static": "tsx scripts/generate-wire-static.ts",
+    "check:wire-static": "tsx scripts/generate-wire-static.ts --check",
+    "generate:wire-types": "tsx scripts/generate-wire-types.ts",
+    "check:wire-types": "tsx scripts/generate-wire-types.ts --check",
+    "generate:wire-fixtures": "tsx scripts/generate-wire-fixtures.ts",
+    "check:wire-fixtures": "tsx scripts/generate-wire-fixtures.ts --check",
+    "test:wire": "tsx --test test/wire-conformance.test.ts test/wire-long.test.ts"
   },
   "dependencies": {
+    "long": "5.3.2",
+    "protobufjs": "7.5.6",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -30,6 +41,7 @@
     "ajv": "8.20.0",
     "canonicalize": "3.0.0",
     "openapi-typescript": "^7.12.0",
+    "protobufjs-cli": "2.7.0",
     "tsx": "^4.22.1",
     "typescript": "^5.9.3",
     "vite-plus": "catalog:"

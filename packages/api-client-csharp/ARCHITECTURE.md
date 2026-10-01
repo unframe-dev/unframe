@@ -1,6 +1,6 @@
 # C# Generated Client Architecture
 
-- **Status**: Current placeholder / Target generation boundary
+- **Status**: Generated standalone consumers; Unity uses generated source
 - **Scope**: OpenAPI と Protocol Buffers から生成する C# artifact
 - **Related**:
   - [Contracts Architecture](../contracts/ARCHITECTURE.md)
@@ -10,7 +10,7 @@
 
 `api-client-csharp` は Unity / C# consumer が Control Plane、Delivery、Realtime contract を利用するための generated artifact boundary である。Source contract の正本でも Unity integration layer でもない。
 
-現状は生成先の placeholder だけが存在し、C# generation と Unity consumer 接続は未実装である。
+OpenAPI と v2 Protobuf から生成した C# client / message / service を別 assembly として保持する。Unity は既存の message source copy を利用しており、この package の assembly 接続は未実装である。
 
 ## 2. Target contents
 
@@ -46,7 +46,7 @@ Generated partial class や手書き Unity adapter を generated source director
 
 ## 5. Dependency rules
 
-依存方向は `packages/contracts` の source からこの package を生成し、Unity がこの package を参照する一方向とする。この package は Unity project、Control Plane implementation、Realtime implementation に依存しない。
+`packages/contracts` の source からこの package と Unity 用 message source をそれぞれ生成する。現在の Unity はこの package の assembly を参照しない。この package は Unity project、Control Plane implementation、Realtime implementation に依存しない。
 
 ## 6. Validation strategy
 
@@ -58,7 +58,5 @@ Generated partial class や手書き Unity adapter を generated source director
 
 ## 7. Deferred decisions
 
-- OpenAPI / Protobuf generator と version
 - package distribution と Unity Package Manager 接続
-- generated namespace と assembly boundary
 - Unity projectへ組み込む migration path

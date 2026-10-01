@@ -36,7 +36,7 @@
 
 現行 TypeScript runtime client は OpenAPI path type ではなく、Control Plane が公開する Hono RPC `AppType` を利用する。OpenAPI artifact は language-neutral consumer のための境界として維持する。
 
-### Presentation v2（契約定義済み、consumer 未接続）
+### Presentation v2
 
 - `src/presentation/v2/`: Definition、RenderBundle、AssetSet、Build、Publication、Capability と M3D Cue Runtime projection subset の Zod と導出型
 - `presentation/v2/`: 生成 JSON Schema、Protobuf descriptor、portable fixture
@@ -47,7 +47,9 @@
 
 既存 `src/presentation/` 直下と `presentation/` 直下の v1 artifact は M1 consumer の初期 subset である。v2 の正本として参照しない。
 
-M3D の `m3dCueRuntimeSnapshotV2Schema`、`runtimeVisibilitySelectionV2Schema`、`m3dCueParticipantRuntimeViewV2Schema` は、現行 Cue 実行器が扱う純粋な意味モデルと portable fixture を固定する。Media / Model、完全な ProjectionProfileDescriptor、CanonicalRuntimeSnapshot の Protobuf wire 表現を置き換えるものではない。これらの Delivery / Realtime 接続は M5 で扱う。
+M3D の `m3dCueRuntimeSnapshotV2Schema`、`runtimeVisibilitySelectionV2Schema`、`m3dCueParticipantRuntimeViewV2Schema` は、現行 Cue 実行器が扱う subset を固定する。完全な構造は `canonicalRuntimeSnapshotV2Schema` と `participantRuntimeViewV2Schema` が扱い、Media / Model を含む。意味検証と role projection は Core が所有する。
+
+v2 Proto から TypeScript の descriptor / 静的 codec / 型、Go、C# の message / service source を生成する。TypeScript の公開 wire codec は decimal string の `uint64` を使い、動的コード生成を必要としない。生成 consumer の配置と検証境界は [ADR-0023](../../docs/decisions/0023-m5-generated-consumer-boundaries.md) に従う。稼働中の Realtime service は v1 のままであり、v2 の生成物を置くことと service integration の完了を区別する。
 
 ## 3. Ownership split
 
@@ -104,6 +106,8 @@ Target の Presentation schema と Protocol Buffers は、consumer が generated
 
 ## 8. Current gap
 
-PresentationDefinition / baked-web first RenderBundle のZod 4 source、最小fixture、生成JSON Schema、schema validationとdrift checkは実装済みである。M3BのState / Semantic Tree / click Interaction / Hit Regionの意味検証は`unframe-core`に実装済みである。Timeline catalog / Runtime Run wire の accepted semantics は [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)、Reliable Event / Snapshot / State Stream の exact envelope、retention、microstep上限は [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md)、role別Semantic Tree / Hit Regionのtarget schemaは [ADR-0009](../../docs/decisions/0009-semantic-tree-hit-region-contract.md)、Spatial / Surface / Unity座標変換は [ADR-0010](../../docs/decisions/0010-spatial-surface-coordinate-contract.md)、Surface Partition / Part isolate overrideは [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)、Texture metadata / budget / residencyは [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) に定義した。旧 v1 texture schema は `pixelSize` を持つが、`mipCount` / `gpuBytes` は持たず、`premultiplied` を許可する。現行 Compiler / Core が使う v2 baked-web texture schema は `pixelSize`、`mipCount: 1`、`gpuBytes` を持ち、alpha は `opaque` / `straight` だけを許可する。現行 Compiler は Structured baked-web を自動 partition し、State 別 click Hit Region は Surface 全体で解決する。Render Surface は `partitionStrategyVersion: 1` を持ち、非表示 State を `empty` binding で表す。全 State で描画がなければ partition は 0 件とする。Core は Quaternion の単位長に加え、canonical sign と負のゼロも検証する。Unity sample importer は旧 contract のままであり、残る fixture と実装の接続は後続とする。v2 は完全版の構造と意味規則を定義し、JSON Schema / Protobuf descriptor と fixture を生成・検証する。Delivery projection、version negotiation、v2 Go / C# consumer generation と実行処理は未実装である。`realtime/v1/realtime.proto` は既存 foundation として残る。
+Presentation v2 の Definition / RenderBundle / AssetSet / Build / Publication と Runtime snapshot は Zod source と生成 JSON Schema を持つ。Cue / Action / Timeline、State / Semantic Tree / Hit Region の意味検証は Core が所有し、wire field の存在だけで実行機能の完成を判断しない。
 
-最初のmilestoneではCueの詳細contractをまだ固定しない。schemaは`cues`を空配列に限定し、任意のCue objectを受け入れない。Frame layoutとText placementは`absolute` subsetのみを構造契約に含める。参照整合性、所有権、tree不変条件、Quaternion正規化、Scalar値の型整合性は`unframe-core`のsemantic validationへ委譲する。
+Compiler は Structured baked-web を自動 partition し、State 別 Hit Region を Surface 全体で解決する。v2 texture は `pixelSize`、`mipCount: 1`、`gpuBytes` を持ち、alpha は `opaque` / `straight` に限定する。Native UI / Video の Delivery admission は、対応する budget tier と consumer の採用条件に従う。schema の定義を renderer や実機 residency の実装と区別する。
+
+Delivery projection / admission は Core、wire version / fence / checkpoint / cursor 検査は Go / Unity の純粋 adapter が扱う。Go / C# / TypeScript の generated consumer は v2 を扱うが、稼働中の Realtime service は v1 foundation である。authoritative evaluation、live replay / reconnect と persistence lifecycle は application integration に残る。Unity の旧 `PresentationImport` は独立した transitional implementation として維持する。

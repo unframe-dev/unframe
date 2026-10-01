@@ -9,6 +9,8 @@ import {
   assetSetManifestV2Schema,
   buildManifestV2Schema,
   capabilityProfileV2Schema,
+  canonicalRuntimeSnapshotV2Schema,
+  participantRuntimeViewV2Schema,
   presentationDefinitionV2Schema,
   publishedPresentationV2Schema,
   renderBundleV2Schema,
@@ -52,6 +54,29 @@ const validateDefinition = ajv.getSchema(
   "https://contracts.unframe.dev/presentation/presentation-definition.v2.schema.json",
 )!;
 const bundle = await fixture("render-bundle");
+const partialSnapshot = await fixture("m3d-cue-runtime-snapshot");
+const partialView = await fixture("m3d-cue-participant-runtime-view");
+test("full Runtime schemas retain Media and Model state across Zod and JSON Schema", async () => {
+  const snapshot = {
+    ...partialSnapshot,
+    mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },
+    modelClipStates: { model: { kind: "defaultPose" } },
+  };
+  const view = {
+    ...partialView,
+    mediaStates: snapshot.mediaStates,
+    modelClipStates: snapshot.modelClipStates,
+  };
+  for (const [name, schema, sample] of [
+    ["canonical-runtime-snapshot", canonicalRuntimeSnapshotV2Schema, snapshot],
+    ["participant-runtime-view", participantRuntimeViewV2Schema, view],
+  ] as const) {
+    const jsonSchema = JSON.parse(await readFile(resolve(root, `${name}.schema.json`), "utf8"));
+    const validate = ajv.compile(jsonSchema);
+    assert.equal(schema.safeParse(sample).success, true);
+    assert.equal(validate(sample), true, ajv.errorsText(validate.errors));
+  }
+});
 const validateBundle = ajv.getSchema(
   "https://contracts.unframe.dev/presentation/render-bundle.v2.schema.json",
 )!;

@@ -1,0 +1,60 @@
+[
+  {
+    "typeName": "unframe.delivery.v2.DeliveryManifest",
+    "value": {
+      "schemaVersion": 2,
+      "deliveryContractVersion": 2,
+      "sessionId": "session-1",
+      "publication": {
+        "presentationId": "presentation-1",
+        "publicationEpoch": "9007199254740993",
+        "publicationManifestHash": "sha256:publication"
+      },
+      "projectionProfile": {
+        "projectionProfileId": "profile-1"
+      },
+      "projectionInstance": {
+        "projectionProfileId": "profile-1",
+        "participantId": "participant-1",
+        "assignmentEpoch": "9007199254740995"
+      },
+      "assetAccess": [
+        {
+          "assetId": "asset-1",
+          "checksum": "sha256:asset",
+          "mediaType": "image/png",
+          "encodedSizeBytes": "12345",
+          "url": "https://example.invalid/asset",
+          "expiresAtUnixMs": "9007199254740997"
+        }
+      ]
+    },
+    "hex": "080210021a0973657373696f6e2d31222d0a0e70726573656e746174696f6e2d311081808080808080101a127368613235363a7075626c69636174696f6e4a0b0a0970726f66696c652d3152230a0970726f66696c652d31120d7061727469636970616e742d311883808080808080105a4d0a0761737365742d31120c7368613235363a61737365741a09696d6167652f706e6720b9602a1d68747470733a2f2f6578616d706c652e696e76616c69642f6173736574308580808080808010"
+  },
+  {
+    "typeName": "unframe.realtime.v2.ControlClientItem",
+    "value": {
+      "handshake": {
+        "protocolVersion": "v2",
+        "progressionContractVersion": 2,
+        "supportedCapabilities": [1, 5],
+        "resume": {
+          "priorConnectionId": "connection-1",
+          "appliedReliableSequence": "9007199254740999",
+          "fence": {
+            "sessionId": "session-1",
+            "publication": {
+              "presentationId": "presentation-1",
+              "publicationEpoch": "9007199254740993",
+              "publicationManifestHash": "sha256:publication"
+            },
+            "assignmentEpoch": "9007199254740995",
+            "projectionProfileId": "profile-1",
+            "presentationOriginVersion": "9007199254741001"
+          }
+        }
+      }
+    },
+    "hex": "0a7c0a02763210021a02010522700a0c636f6e6e656374696f6e2d311087808080808080101a570a0973657373696f6e2d31122d0a0e70726573656e746174696f6e2d311081808080808080101a127368613235363a7075626c69636174696f6e188380808080808010220970726f66696c652d31288980808080808010"
+  }
+]
