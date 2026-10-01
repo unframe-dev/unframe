@@ -42,6 +42,16 @@ public sealed class ArucoTrackingDiagnosticEvent
     public float[] markerCornersPixels = new float[0];
     public double detectionProcessingMilliseconds;
     public double cameraReadbackMilliseconds;
+    public double cameraCopyMilliseconds;
+    public double imagePreprocessingMilliseconds;
+    public double poseEstimationMilliseconds;
+    public double detectionTotalMilliseconds;
+    public int detectionRequestCount;
+    public int detectionAcceptedCount;
+    public int detectionTimeoutCount;
+    public int detectionInvalidatedCount;
+    public int detectionFailureCount;
+    public string detectionDropReason;
     public bool poseValid;
     public float[] cameraFromMarkerPositionMeters = new float[0];
     public float[] cameraFromMarkerRotationXyzw = new float[0];
@@ -55,12 +65,12 @@ public sealed class ArucoTrackingDiagnosticEvent
 public sealed class ArucoTrackingDiagnostics : IDisposable
 {
     private readonly object writeLock = new object();
-    private readonly StreamWriter writer;
+    private readonly TextWriter writer;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
     private long nextSequence;
     private bool disposed;
 
-    public ArucoTrackingDiagnostics(string directoryPath)
+    public ArucoTrackingDiagnostics(string directoryPath, Func<string, TextWriter> writerFactory = null)
     {
         if (string.IsNullOrWhiteSpace(directoryPath))
         {
@@ -72,9 +82,18 @@ public sealed class ArucoTrackingDiagnostics : IDisposable
             + "-"
             + Guid.NewGuid().ToString("N");
         FilePath = Path.Combine(directoryPath, SessionId + ".jsonl");
-        writer = new StreamWriter(FilePath, false, new UTF8Encoding(false));
+        writer = writerFactory == null ? new StreamWriter(FilePath, false, new UTF8Encoding(false)) : writerFactory(FilePath);
 
-        WriteRecord(new ArucoTrackingDiagnosticEvent { eventType = "session_start" });
+        try
+        {
+            WriteRecord(new ArucoTrackingDiagnosticEvent { eventType = "session_start" });
+        }
+        catch
+        {
+            try { writer?.Dispose(); }
+            catch { }
+            throw;
+        }
         Debug.Log($"[ArucoTracking] Diagnostic log: {FilePath}");
     }
 
@@ -116,9 +135,15 @@ public sealed class ArucoTrackingDiagnostics : IDisposable
                 return;
             }
 
-            WriteRecord(new ArucoTrackingDiagnosticEvent { eventType = "session_end" });
-            writer.Dispose();
-            disposed = true;
+            try
+            {
+                WriteRecord(new ArucoTrackingDiagnosticEvent { eventType = "session_end" });
+            }
+            finally
+            {
+                try { writer.Dispose(); }
+                finally { disposed = true; }
+            }
         }
     }
 
