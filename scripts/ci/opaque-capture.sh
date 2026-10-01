@@ -26,8 +26,10 @@ if [ -z "${UNFRAME_OPAQUE_CGROUP_ROOT:-}" ]; then
   exec "${repo_root}/scripts/dev/opaque-capture-scope.sh" "${repo_root}/scripts/ci/opaque-capture.sh"
 fi
 
-pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run \
+pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run --maxWorkers=1 \
   test/opaque-isolation.integration.test.ts test/opaque-capture.integration.test.ts \
-  test/opaque-fonts.integration.test.ts test/opaque-runtime-lifecycle.integration.test.ts
-pnpm --dir "${repo_root}" --filter @unframe/unframe-cli exec vp test run \
-  test/opaque-project.integration.test.ts test/author-capture.integration.test.ts
+  test/opaque-fonts.integration.test.ts test/opaque-runtime-lifecycle.integration.test.ts \
+  test/playwright-fixed-browser.integration.test.ts
+pnpm --dir "${repo_root}" --filter @unframe/unframe-cli exec vp test run --maxWorkers=1 \
+  test/opaque-project.integration.test.ts test/author-capture.integration.test.ts \
+  test/author-source-diagnostics.integration.test.ts
