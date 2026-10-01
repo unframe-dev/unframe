@@ -1,0 +1,16 @@
+{
+  "name": "Unframe.Unity.PresentationRuntime",
+  "rootNamespace": "Unframe.Unity.PresentationRuntime",
+  "references": [
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

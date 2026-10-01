@@ -124,6 +124,7 @@ public static class PassthroughCameraDeviceTestEditor
 
     internal static void BuildScene(string scenePath, string applicationId, string fileName, bool run)
     {
+        OpenCvSampleBuildPreparation.ValidateSamplesExcluded(Path.GetDirectoryName(Application.dataPath));
         if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
         {
             throw new InvalidOperationException("Install Unity Android Build Support, SDK/NDK and OpenJDK from Unity Hub.");
@@ -143,46 +144,51 @@ public static class PassthroughCameraDeviceTestEditor
         }
         string output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "PCA", fileName));
         Directory.CreateDirectory(Path.GetDirectoryName(output));
-        var target = UnityEditor.Build.NamedBuildTarget.Android;
-        string originalId = PlayerSettings.GetApplicationIdentifier(target);
-        string originalName = PlayerSettings.productName;
-        bool originalBundle = EditorUserBuildSettings.buildAppBundle;
         var preloaded = PlayerSettings.GetPreloadedAssets();
         var preloadedPaths = preloaded.Select(AssetDatabase.GetAssetPath).ToArray();
         var preloadedIds = preloaded.Select(GlobalObjectId.GetGlobalObjectIdSlow).ToArray();
         var exclusion = new PassthroughCameraBuildAssetExclusion.AssetFileExclusion(
             PassthroughCameraBuildAssetExclusion.SettingsPath,
             Path.Combine("Library", "PcaBuildBackup", Guid.NewGuid().ToString("N")));
-        try
+        using (new PassthroughCameraDiagnosticBuildSettings(applicationId))
         {
-            PassthroughCameraBuildAssetExclusion.ActiveExclusion = exclusion;
-            PlayerSettings.SetPreloadedAssets(preloaded.Where((asset, index) =>
-                preloadedPaths[index] != PassthroughCameraBuildAssetExclusion.SettingsPath).ToArray());
-            PlayerSettings.SetApplicationIdentifier(target, applicationId);
-            PlayerSettings.productName = "Unframe PCA Preview";
-            EditorUserBuildSettings.buildAppBundle = false;
-            BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            try
             {
-                scenes = new[] { scenePath },
-                locationPathName = output,
-                target = BuildTarget.Android,
-                options = BuildOptions.Development | (run ? BuildOptions.AutoRunPlayer : BuildOptions.None)
-            });
-            if (report.summary.result != BuildResult.Succeeded)
-            {
-                throw new InvalidOperationException($"PCA build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
+                PassthroughCameraBuildAssetExclusion.ActiveExclusion = exclusion;
+                PlayerSettings.SetPreloadedAssets(preloaded.Where((asset, index) =>
+                    preloadedPaths[index] != PassthroughCameraBuildAssetExclusion.SettingsPath).ToArray());
+                BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = new[] { scenePath },
+                    locationPathName = output,
+                    target = BuildTarget.Android,
+                    options = BuildOptions.Development | (run ? BuildOptions.AutoRunPlayer : BuildOptions.None)
+                });
+                if (report.summary.result != BuildResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"PCA build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
+                }
+                Debug.Log($"[PCA Preview] APK: {output} | Application: {applicationId}");
             }
-            Debug.Log($"[PCA Preview] APK: {output} | Application: {applicationId}");
-        }
-        finally
-        {
-            PassthroughCameraBuildAssetExclusion.ActiveExclusion = null;
-            PlayerSettings.SetApplicationIdentifier(target, originalId);
-            PlayerSettings.productName = originalName;
-            EditorUserBuildSettings.buildAppBundle = originalBundle;
-            exclusion.Dispose();
-            AssetDatabase.Refresh();
-            PlayerSettings.SetPreloadedAssets(preloadedIds.Select(GlobalObjectId.GlobalObjectIdentifierToObjectSlow).ToArray());
+            finally
+            {
+                PassthroughCameraBuildAssetExclusion.ActiveExclusion = null;
+                try
+                {
+                    exclusion.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        AssetDatabase.Refresh();
+                    }
+                    finally
+                    {
+                        PlayerSettings.SetPreloadedAssets(preloadedIds.Select(GlobalObjectId.GlobalObjectIdentifierToObjectSlow).ToArray());
+                    }
+                }
+            }
         }
     }
 }

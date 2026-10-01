@@ -827,7 +827,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 890796c9597ab42349225dcccf3a9951, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::Unframe.Unity.PresentationRuntime.LocalPresentationFixtureRunner
+  m_EditorClassIdentifier: Unframe.Unity.PresentationRuntime::Unframe.Unity.PresentationRuntime.LocalPresentationFixtureRunner
   deliveryFixture: {fileID: 0}
   snapshotFixture: {fileID: 0}
   reliableEventFixtures: []
