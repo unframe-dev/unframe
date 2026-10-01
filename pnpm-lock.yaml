@@ -712,6 +712,9 @@ importers:
       '@noble/hashes':
         specifier: 2.3.0
         version: 2.3.0
+      '@unframe/unframe-core':
+        specifier: workspace:*
+        version: link:../unframe-core
       '@unframe/unframe-renderer-api':
         specifier: workspace:*
         version: link:../unframe-renderer-api

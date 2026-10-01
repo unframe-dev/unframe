@@ -16,6 +16,7 @@ import {
 } from "@unframe/unframe-renderer-web";
 
 import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
+import { createFilesystemBuildCache } from "../filesystem/build-cache.js";
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
@@ -528,15 +529,23 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         renderer = renderer ? combineBakedWebRenderers(structured, renderer) : structured;
       }
       if (!renderer) throw new BrowserProvisionFailure();
-      const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
-        compiler: context.compiler,
-        locale: context.locale,
-        timezone: context.timezone,
-        colorScheme: context.colorScheme,
-        rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-        renderers: [renderer],
-        encodeLimits: limits,
-      });
+      const compiled = await compileAuthoringProject(
+        source,
+        lock.value.assemblyCarrier,
+        {
+          compiler: context.compiler,
+          locale: context.locale,
+          timezone: context.timezone,
+          colorScheme: context.colorScheme,
+          rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
+          renderers: [renderer],
+          encodeLimits: limits,
+        },
+        createFilesystemBuildCache(
+          discovered.projectDirectory,
+          host.signal ? { signal: host.signal } : {},
+        ),
+      );
       if (!compiled.valid)
         return output(
           host.signal?.aborted ? 130 : 1,

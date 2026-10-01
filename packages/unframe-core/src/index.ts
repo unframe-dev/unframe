@@ -1,4 +1,5 @@
 export * from "./domain/model.js";
+export * from "./semantic-tree/structured-layout.js";
 export * from "./runtime/cue-executor.js";
 export {
   createM3dCueRuntimeSnapshot,

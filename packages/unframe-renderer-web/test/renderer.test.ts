@@ -1,4 +1,7 @@
 import { runInNewContext } from "node:vm";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+import { PNG } from "pngjs";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createBakedWebRenderer,
@@ -30,6 +33,171 @@ const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => 
 };
 
 describe("baked web renderer", () => {
+  it("State override を反映した Stack/Grid 内の Shape と checksum 付き Image を描画する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const content = structuredContent(source.surface);
+    const root = content.nodes.root;
+    if (!root || root.kind !== "frame") throw new Error("expected root Frame");
+    const png = new PNG({ width: 1, height: 1 });
+    png.data.set([255, 255, 255, 255]);
+    const pngBase64 = PNG.sync.write(png).toString("base64");
+    const imageBytes = Buffer.from(pngBase64, "base64");
+    const clear = { red: 0, green: 0, blue: 0, alpha: 0 };
+    const margin = { top: 0, right: 0, bottom: 0, left: 0 };
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      imageAssets: {
+        logo: {
+          mediaType: "image/png",
+          dataBase64: pngBase64,
+          checksum: `sha256:${bytesToHex(sha256(imageBytes))}`,
+        },
+      },
+      surface: {
+        ...source.surface,
+        content: {
+          ...content,
+          nodes: {
+            root: {
+              ...root,
+              children: ["grid", "shape"],
+              layout: {
+                kind: "stack",
+                direction: "horizontal",
+                gap: 2,
+                padding: margin,
+                alignItems: "start",
+                justifyContent: "start",
+              },
+            },
+            grid: {
+              ...root,
+              id: "grid",
+              parentId: "root",
+              order: 0,
+              placement: {
+                kind: "stack",
+                grow: 0,
+                width: 30,
+                height: 20,
+                alignSelf: "auto",
+                margin,
+              },
+              layout: {
+                kind: "grid",
+                columns: [{ kind: "fraction", fraction: 1 }],
+                rows: [{ kind: "fraction", fraction: 1 }],
+                columnGap: 0,
+                rowGap: 0,
+                padding: margin,
+              },
+              children: ["image"],
+            },
+            image: {
+              id: "image",
+              kind: "image",
+              parentId: "grid",
+              order: 0,
+              visible: true,
+              opacity: 1,
+              assetId: "logo",
+              placement: {
+                kind: "grid",
+                column: 1,
+                row: 1,
+                columnSpan: 1,
+                rowSpan: 1,
+                width: 10,
+                height: 10,
+                alignSelf: "center",
+                justifySelf: "center",
+                margin,
+              },
+              style: {
+                fit: "contain",
+                tint: { red: 0, green: 1, blue: 0, alpha: 1 },
+                border: { color: clear, width: 0, radius: 0 },
+              },
+            },
+            shape: {
+              id: "shape",
+              kind: "shape",
+              parentId: "root",
+              order: 1,
+              visible: true,
+              opacity: 1,
+              placement: { kind: "stack", grow: 0, width: 8, height: 8, alignSelf: "auto", margin },
+              geometry: { kind: "rectangle", width: 8, height: 8, radius: 1 },
+              style: { fill: clear, stroke: clear, strokeWidth: 1 },
+            },
+          },
+        },
+        states: {
+          a: {
+            ...source.surface.states.a!,
+            contentOverrides: {
+              shape: { kind: "shape", geometry: { kind: "ellipse", width: 8, height: 8 } },
+            },
+          },
+          z: { ...source.surface.states.z!, contentOverrides: {} },
+        },
+      },
+      plan: {
+        ...source.plan,
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["grid", "image", "shape"],
+          contextNodeIds: ["root"],
+        },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(requests[0]?.document).toContain('data-node-id="image" style="left:0.2px;top:0.1px;');
+    expect(requests[0]?.document).toContain(`src="data:image/png;base64,${pngBase64}"`);
+    expect(requests[0]?.document).toMatch(/filter id="tint-[0-9a-f]{64}"/);
+    expect(requests[0]?.document).toContain("<ellipse");
+    expect(requests[1]?.document).toContain("<rect");
+    const bad = await renderer.build({
+      ...input,
+      imageAssets: { logo: { ...input.imageAssets!.logo!, checksum: `sha256:${"0".repeat(64)}` } },
+    });
+    expect(bad).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "image-asset-checksum-mismatch" }],
+    });
+    const huge = Buffer.from(pngBase64, "base64");
+    huge.writeUInt32BE(4097, 16);
+    expect(
+      await renderer.build({
+        ...input,
+        imageAssets: {
+          logo: {
+            mediaType: "image/png",
+            dataBase64: huge.toString("base64"),
+            checksum: `sha256:${bytesToHex(sha256(huge))}`,
+          },
+        },
+      }),
+    ).toMatchObject({ ok: false, diagnostics: [{ code: "image-asset-dimensions-exceeded" }] });
+    const corrupt = Buffer.from(pngBase64, "base64");
+    corrupt[corrupt.length - 16] = corrupt[corrupt.length - 16]! ^ 0xff;
+    expect(
+      await renderer.build({
+        ...input,
+        imageAssets: {
+          logo: {
+            mediaType: "image/png",
+            dataBase64: corrupt.toString("base64"),
+            checksum: `sha256:${bytesToHex(sha256(corrupt))}`,
+          },
+        },
+      }),
+    ).toMatchObject({ ok: false, diagnostics: [{ code: "invalid-image-asset" }] });
+  });
   it("nonzero boundsの部分partitionではcontext Frameのpaintを省き、owned childだけを描画する", async () => {
     const requests: BrowserCaptureRequest[] = [];
     const renderer = createBakedWebRenderer({
@@ -198,7 +366,7 @@ describe("baked web renderer", () => {
     expect(document).toContain("</div></div></main>");
   });
 
-  it("nested Stack layoutを引き続き拒否する", async () => {
+  it("親 layout と子 placement が一致しない Stack を拒否する", async () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const input = nestedInputFor(createWebRendererConfigHash(config), renderer);
     const nested = structuredContent(input.surface).nodes.nested;
@@ -230,7 +398,7 @@ describe("baked web renderer", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
-      diagnostics: [{ code: "unsupported-structured-tree" }],
+      diagnostics: [{ code: "invalid-structured-layout" }],
     });
   });
 

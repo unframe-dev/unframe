@@ -1,6 +1,7 @@
 import {
   hashCanonicalJsonPayload,
   materializeCompletedSemanticTree,
+  resolveStructuredLayout,
   type RenderBundle,
   type SemanticSurface,
   type ValidationResult,
@@ -63,7 +64,12 @@ const union = (a: Bounds | null, b: Bounds): Bounds => {
 const paintFrame = (node: Node) =>
   node.kind === "frame" &&
   (node.backgroundColor.alpha > 0 || (node.border.width > 0 && node.border.color.alpha > 0));
-const painted = (node: Node) => node.kind === "text" || paintFrame(node);
+const painted = (node: Node) =>
+  node.kind === "text" ||
+  node.kind === "image" ||
+  (node.kind === "shape" &&
+    (node.style.fill.alpha > 0 || (node.style.strokeWidth > 0 && node.style.stroke.alpha > 0))) ||
+  paintFrame(node);
 const visibleWindow = (surface: SemanticSurface): Bounds => {
   const [width, height] = surface.logicalSize;
   const [physicalWidth, physicalHeight] = surface.physicalSizeMeters;
@@ -115,23 +121,15 @@ export const planSurfacePartitions = (
   let unsupportedNodeId: string | undefined;
   const visit = (id: string): string[] => {
     const node = content.nodes[id]!;
-    if (node.kind !== "frame" && node.kind !== "text") unsupportedNodeId = id;
+    if (node.kind === "video") unsupportedNodeId = id;
     const subtree: string[] = [];
     if (node.kind === "frame") frameIds.push(id);
     const canPaint =
       painted(node) ||
-      (node.kind === "frame" &&
-        stateIds.some((stateId) => {
-          const override = surface.states[stateId]?.contentOverrides[id];
-          return (
-            override?.kind === "frame" &&
-            paintFrame({
-              ...node,
-              backgroundColor: override.backgroundColor ?? node.backgroundColor,
-              border: override.border ?? node.border,
-            })
-          );
-        }));
+      stateIds.some((stateId) => {
+        const override = surface.states[stateId]?.contentOverrides[id];
+        return override?.kind === node.kind && painted({ ...node, ...override } as Node);
+      });
     if (canPaint) {
       atoms.push({ id, boundsByState: {} });
       subtree.push(id);
@@ -148,7 +146,7 @@ export const planSurfacePartitions = (
         diagnostic(
           "compiler-partition-content-unsupported",
           ["surface", surface.id, "contentNodes", unsupportedNodeId],
-          "The current structured renderer supports Frame and Text content only.",
+          "The current structured renderer does not support Video content.",
         ),
       ],
     };
@@ -168,23 +166,12 @@ export const planSurfacePartitions = (
     };
     const regions: NonNullable<PlannedSurface["interactionsByState"][string]> = [];
     interactionsByState[stateId] = regions;
-    const walk = (
-      id: string,
-      origin: readonly [number, number],
-      clip: Bounds | null,
-      active: boolean,
-    ) => {
+    const layout = resolveStructuredLayout(surface, stateId);
+    const walk = (id: string, clip: Bounds | null, active: boolean) => {
       const base = content.nodes[id]!;
       const override = state.contentOverrides[id];
       const node = override ? ({ ...base, ...override } as Node) : base;
-      if (node.placement.kind !== "absolute")
-        throw new Error("Validated Surface has non-absolute placement.");
-      const raw: Bounds = {
-        x: origin[0] + node.placement.x,
-        y: origin[1] + node.placement.y,
-        width: node.placement.width,
-        height: node.placement.height,
-      };
+      const raw = layout[id]!;
       const visible = active && node.visible && node.opacity > 0;
       const clipped = visible && clip ? intersect(raw, clip) : null;
       const semantic = node.semanticNodeId
@@ -252,9 +239,9 @@ export const planSurfacePartitions = (
           });
       }
       const childClip = node.clip ? clipped : clip;
-      for (const childId of node.children) walk(childId, [raw.x, raw.y], childClip, visible);
+      for (const childId of node.children) walk(childId, childClip, visible);
     };
-    walk(content.rootFrameId, [0, 0], fullWindow, true);
+    walk(content.rootFrameId, fullWindow, true);
     regions.sort(
       (left, right) =>
         right.priority - left.priority ||

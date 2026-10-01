@@ -10,6 +10,7 @@ export {
   hashThemeDeclaration,
 } from "./semantic/declaration-hashes.js";
 export { compileDeclarationProject } from "./api/compile-declaration-project.js";
+export type { CompilerBuildCache } from "./cache/build-cache.js";
 export type {
   CheckedDeclarationProject,
   CompiledDeclarationProject,

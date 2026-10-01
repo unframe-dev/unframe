@@ -128,7 +128,7 @@ const componentLockSchema = z.union([
 const assetCarrierSchema = z
   .object({
     id: nonEmptyStringSchema,
-    mediaType: z.enum(["font/ttf", "font/otf"]),
+    mediaType: z.enum(["font/ttf", "font/otf", "image/png", "image/jpeg"]),
     checksum: nonEmptyStringSchema,
     encodedSizeBytes: z.int().nonnegative(),
     dataBase64: z.string(),

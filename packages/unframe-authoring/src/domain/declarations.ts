@@ -161,6 +161,59 @@ export type AbsoluteLayoutDeclaration = {
   width: NumberValueDeclaration;
   height: NumberValueDeclaration;
 };
+export type EdgeInsetsDeclaration = {
+  top: NumberValueDeclaration;
+  right: NumberValueDeclaration;
+  bottom: NumberValueDeclaration;
+  left: NumberValueDeclaration;
+};
+export type StackPlacementDeclaration = {
+  kind: "stack";
+  grow: NumberValueDeclaration;
+  width: NumberValueDeclaration;
+  height: NumberValueDeclaration;
+  alignSelf: "auto" | "start" | "center" | "end" | "stretch";
+  margin: EdgeInsetsDeclaration;
+};
+export type GridPlacementDeclaration = {
+  kind: "grid";
+  column: number;
+  row: number;
+  columnSpan: number;
+  rowSpan: number;
+  width: NumberValueDeclaration;
+  height: NumberValueDeclaration;
+  alignSelf: "start" | "center" | "end" | "stretch";
+  justifySelf: "start" | "center" | "end" | "stretch";
+  margin: EdgeInsetsDeclaration;
+};
+export type PlacementDeclaration =
+  | AbsoluteLayoutDeclaration
+  | StackPlacementDeclaration
+  | GridPlacementDeclaration;
+export type FrameFlowDeclaration =
+  | {
+      kind: "stack";
+      direction: "horizontal" | "vertical";
+      gap: NumberValueDeclaration;
+      padding: EdgeInsetsDeclaration;
+      alignItems: "start" | "center" | "end" | "stretch";
+      justifyContent: "start" | "center" | "end" | "spaceBetween";
+    }
+  | {
+      kind: "grid";
+      columns: readonly (
+        | { kind: "fixed"; size: NumberValueDeclaration }
+        | { kind: "fraction"; fraction: NumberValueDeclaration }
+      )[];
+      rows: readonly (
+        | { kind: "fixed"; size: NumberValueDeclaration }
+        | { kind: "fraction"; fraction: NumberValueDeclaration }
+      )[];
+      columnGap: NumberValueDeclaration;
+      rowGap: NumberValueDeclaration;
+      padding: EdgeInsetsDeclaration;
+    };
 export type ConcreteAbsoluteLayoutDeclaration = {
   kind: "absolute";
   x: number;
@@ -196,18 +249,20 @@ export type InteractionDeclaration = StableDeclaration & {
 type CommonContentOverrideDeclaration = {
   visible?: BooleanValueDeclaration;
   opacity?: NumberValueDeclaration;
-  placement?: AbsoluteLayoutDeclaration;
+  placement?: PlacementDeclaration;
 };
 export type ContentOverrideDeclaration = CommonContentOverrideDeclaration &
   (
     | {
         kind: "frame";
-        layout?: { kind: "absolute" };
+        flow?: FrameFlowDeclaration | { kind: "absolute" };
         backgroundColor?: ColorValueDeclaration;
         border?: BorderDeclaration;
         clip?: BooleanValueDeclaration;
       }
     | { kind: "text"; value?: StringValueDeclaration; style?: TextStyleDeclaration }
+    | { kind: "image"; asset?: AssetReference; style?: ImageStyleDeclaration }
+    | { kind: "shape"; geometry?: ShapeGeometryDeclaration; style?: ShapeStyleDeclaration }
   );
 export type SemanticOverrideDeclaration = StableDeclaration & {
   kind: "semantic-override";
@@ -261,6 +316,25 @@ export type FrameStyleDeclaration = {
   border?: BorderDeclaration;
   clip?: BooleanValueDeclaration;
 };
+export type ImageStyleDeclaration = {
+  fit: "contain" | "cover" | "stretch";
+  tint: ColorValueDeclaration;
+  border: BorderDeclaration;
+};
+export type ShapeStyleDeclaration = {
+  fill: ColorValueDeclaration;
+  stroke: ColorValueDeclaration;
+  strokeWidth: LogicalLengthValueDeclaration;
+};
+export type ShapeGeometryDeclaration =
+  | {
+      kind: "rectangle";
+      width: NumberValueDeclaration;
+      height: NumberValueDeclaration;
+      radius: NumberValueDeclaration;
+    }
+  | { kind: "ellipse"; width: NumberValueDeclaration; height: NumberValueDeclaration }
+  | { kind: "line"; endX: NumberValueDeclaration; endY: NumberValueDeclaration };
 type CommonPrimitiveDeclaration = {
   visible?: BooleanValueDeclaration;
   opacity?: NumberValueDeclaration;
@@ -270,7 +344,8 @@ type CommonPrimitiveDeclaration = {
 export type FrameDeclaration = StableDeclaration &
   CommonPrimitiveDeclaration & {
     kind: "frame";
-    layout: AbsoluteLayoutDeclaration;
+    layout: PlacementDeclaration;
+    flow?: FrameFlowDeclaration;
     children: readonly ContentNodeDeclaration[];
     style?: FrameStyleDeclaration;
     namedStyle?: NamedStyleReference;
@@ -284,10 +359,24 @@ export type TextDeclaration = StableDeclaration &
   CommonPrimitiveDeclaration & {
     kind: "text";
     value: StringValueDeclaration;
-    layout: AbsoluteLayoutDeclaration;
+    layout: PlacementDeclaration;
     maxCodePoints: NumberValueDeclaration;
     style?: TextStyleDeclaration;
     namedStyle?: NamedStyleReference;
+  };
+export type ImageDeclaration = StableDeclaration &
+  CommonPrimitiveDeclaration & {
+    kind: "image";
+    asset: AssetReference;
+    layout: PlacementDeclaration;
+    style: ImageStyleDeclaration;
+  };
+export type ShapeDeclaration = StableDeclaration &
+  CommonPrimitiveDeclaration & {
+    kind: "shape";
+    geometry: ShapeGeometryDeclaration;
+    layout: PlacementDeclaration;
+    style: ShapeStyleDeclaration;
   };
 export type SurfaceDeclaration = StableDeclaration & {
   kind: "surface";
@@ -310,6 +399,8 @@ export type SurfaceDeclaration = StableDeclaration & {
 export type ContentNodeDeclaration =
   | FrameDeclaration
   | TextDeclaration
+  | ImageDeclaration
+  | ShapeDeclaration
   | SlotPlaceholderDeclaration;
 export type StructureRootDeclaration = SurfaceDeclaration | FrameDeclaration;
 

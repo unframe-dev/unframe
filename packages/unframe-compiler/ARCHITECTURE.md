@@ -32,7 +32,7 @@ plain declaration catalog + source map
         ↓ assemble with theme hashes / component locks / asset carriers
 CompilerDeclarationProject
         ↓ theme / component / layout / surface resolution + Core validation
-v2 PresentationDefinition + font AssetSet
+v2 PresentationDefinition + source AssetSet
         ↓ renderer plugin + PNG encode + artifact integrity validation
 v2 RenderBundle + AssetSet + BuildManifest + font / PNG bytes
 ```
@@ -60,17 +60,19 @@ src/
 
 ## 4. Current implementation
 
-`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font Asset carrier を解決する。cross-reference、duplicate、M3C subset の制約は semantic invariant として個別に検査する。実装済み subset は型付き Theme token と同category alias、NamedStyle、scalar Props、style Variants、Parts、absolute な nested Frame / Text、明示 Slot placeholder による Frame-root Component composition を扱う。解決順は default、NamedStyle、inline、Variant、Part であり、配列は全置換する。選択済み Variant が同じ node/property を変更する場合は拒否する。
+`checkDeclarationProject(unknown)` は accessor を実行しない descriptor-safe plain-data clone の後、Zod 4 で project envelope を検査し、Theme、Component manifest/structure/lock、Spatial instance、自己完結した font / image Asset carrier を解決する。cross-reference、duplicate、M3C subset の制約は semantic invariant として個別に検査する。実装済み subset は型付き Theme token と同category alias、NamedStyle、scalar Props、style Variants、Parts、Frame / Text / Shape / Image と Stack / Grid placement、明示 Slot placeholder による Frame-root Component composition を扱う。解決順は default、NamedStyle、inline、Variant、Part であり、配列は全置換する。選択済み Variant が同じ node/property を変更する場合は拒否する。
 
 Slot の子は placeholder の children 位置で順序付きに展開する。`semanticParentId` がある場合は子 Component の Semantic Tree roots を親 Component 内の該当 node の既存 children 後へ接続し、省略時は親 Surface の roots へ追加する。どちらも sibling order を決定論的に再採番する。top-level instance は Surface root と Spatial node を必須とし、slotted instance は Frame root かつ Spatial node なしを必須とする。欠落・重複・self reference・cycle・owner mismatch を build error にする。
 
-すべての Authoring 値は具体的な v2 Text / Frame 値へ解決してから Core validation へ渡す。省略した Prop / default 付き Variant は `CheckedDeclarationProject.warnings` に instance ID、宣言名、default 値、利用可能な source metadata を記録する。明示された空文字、`0`、`false`、または default と同じ値は warning にしない。結果には v2 Definition、Core canonical JSON、source hash、definition hash、font AssetSet と warnings を含む。
+すべての Authoring 値は具体的な v2 content 値へ解決してから Core validation へ渡す。省略した Prop / default 付き Variant は `CheckedDeclarationProject.warnings` に instance ID、宣言名、default 値、利用可能な source metadata を記録する。明示された空文字、`0`、`false`、または default と同じ値は warning にしない。結果には v2 Definition、Core canonical JSON、source hash、definition hash、source AssetSet と warnings を含む。
 
 Component ActionをSurface State cut / crossfade、Variable / Nodeの即時Actionとhost Timelineのplay Actionへ、Component OutputをSurface Interaction、Step timer、Timeline completionのTriggerと固定Scalar payloadへ展開する。CueのGuard、priority、fire policy、空ActionのStep遷移を保持し、Coreの意味検証へ渡す。Structured Surface Component の Timeline は instance host Spatial Node、instance owner、canonical resource ID に lower する。Slotted / Opaque Component の Timeline は拒否する。
 
-`compileDeclarationProject(unknown, options)` は同じ subset を canonical paint order と compositing closure から自動 partition し、全 State の完成 Semantic Tree を Core で materialize する。Hit Region は同じ Surface layout の visibility / opacity・ancestor clip から一度生成し、画像 partition の bounds では切り取らない（[ADR-0021](../../docs/decisions/0021-surface-interaction-geometry.md)）。注入された `baked-web` Renderer には検証済み font bytes と、partition bounds から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と font・PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
+`compileDeclarationProject(unknown, options)` は同じ subset を canonical paint order と compositing closure から自動 partition し、全 State の完成 Semantic Tree を Core で materialize する。Core の `resolveStructuredLayout` を paint bounds と Hit Region が共用し、後者は visibility / opacity・ancestor clip を適用してから正規化する（[ADR-0021](../../docs/decisions/0021-surface-interaction-geometry.md)）。注入された `baked-web` Renderer には検証済み font / image bytes と、partition bounds から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と source / PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
-Renderer registry は `baked-web` ID がちょうど一つに解決されることを要求する。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
+Renderer registry は host が明示注入した plugin 配列であり、重複 ID と未対応の contract version を拒否する。`baked-web` ID はちょうど一つに解決される必要がある。Bundle identity と renderer build context は source / Definition、Compiler identity、明示 build context、Renderer fingerprint、PNG encoder identity を入力に含める。Host は `baseEnvironmentHash` として Compiler host の基礎環境を渡し、Compiler は Renderer / encoder identity を結合した `environmentHash` を RenderBundle に固定する。
+
+Compile API の任意 cache 境界は host が `get` / `set` を注入する。key は project 全体、build options、全 Renderer registry identity / capabilities、encoder identity、固定 build policy に依存する。cache hit では現在の checked Definition、artifact integrity、全 asset bytes の checksum を再検証し、無効な entry は再 build する。永続化と容量管理は host が所有する。
 
 Source frontend は、明示的な logical project root、root-relative TS / TSX / declaration file、locked virtual package を descriptor-safe に snapshot する。TypeScript Compiler API は virtual source だけを読み、project 内 relative import、package 内 relative import、direct locked dependency、exact package export を解決する。user source / package の実 filesystem や `node_modules` へ fallback しない。React 型検査だけは Compiler に固定された TypeScript 標準 lib を読む。
 
@@ -152,9 +154,9 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 ## 10. Deferred decisions
 
 - named entry export
-- plugin discovery と version negotiation
+- renderer plugin の動的探索と複数 contract version の negotiation
 - ADR-0011 の author isolate override と異なる renderer 間の required boundary 接続
-- cache layout と remote cache policy
+- 永続 cache layout と remote cache policy
 - M1後のBrowser pooling / multi-project isolate topology
 - release間のdiagnostic compatibility policy
 

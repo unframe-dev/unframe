@@ -137,6 +137,12 @@ build lease と一時 dist link は revision に含めない。これは外部�
 で reference project の check と temp copy への build を2回行う。4つの v2 JSON と PNG / Font asset set
 の relative path と SHA-256 manifest が完全一致することを検証する。fix mode と通常 package check は Browser を起動しない。
 
+## Local build cache
+
+`build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。Browser identity を現在環境から取得するため、hit でも Browser session は開閉する。
+
+Linux の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。詳細は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md) に従う。
+
 ## 7. Deferred
 
 以下は current implementation に含めない。
@@ -144,7 +150,7 @@ build lease と一時 dist link は revision に含めない。これは外部�
 - TUI command selection と M1 process command の接続
 - remote package registry、plugin discovery、distribution update
 - `init`、`dev`、`test`、`preview`、`publish` command
-- watch / incremental cache、remote publish adapter、credential integration
+- watch、remote cache / publish adapter、credential integration
 - Windows / case-insensitive filesystem support
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの

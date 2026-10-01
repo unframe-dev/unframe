@@ -334,6 +334,17 @@ M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface tr
 - raw capture、encoded artifact、descriptor checksumが一致する。
 - fixed baselineでvisual regressionを検出できる。
 
+### 現行実装と検証境界
+
+[ADR-0022](../decisions/0022-m4-structured-rendering-and-build-cache.md) と [Structured Authoring contract](../packages/AUTHORING_CONTRACT.md) に従い、static Frame / Text / Image / Shape と absolute / Stack / Grid を Authoring→Compiler→Core→Renderer に接続する。Core の共通 State 別 layout が paint / partition / Hit Region の正本になる。
+
+- Compiler の host 注入 renderer registry は ID / contract version を検証する。全候補 identity / capability、font / locale / config / encoder / policy を cache key に含め、hit でも metadata / binary integrity を検査する。
+- CLI の project-local content-addressed cache は atomic entry publish、破損時の再 build、保持上限、成功・失敗・cancel の staging cleanup を持つ。Opaque の隔離 / capability / deadline / budget は既存 React execution contract を維持する。
+- 固定 Browser の Frame clipping / transparent gap と Grid Shape / Image の State 別 exact RGBA baseline、Image tint / decode の実 Browser fixture を持つ。Compiler / Assets fixture は raw capture→PNG→descriptor checksum、cache invalidation、alpha-safe resize を検証する。
+- capture は単一 2K pixelTarget で直接生成し、通常 build は resize を行わない。Assets は明示 target の独立 `resizeRgba` を公開する。mipmap / GPU compression は ADR-0012 v1 の対象外。font は宣言 Asset / fallback / glyph coverage を解決し、subset は必要 consumer 確定後。Video / Model adapter も consumer 未確定のため追加しない。
+
+検証入口は `nix run .#check` と別途 `nix develop --command scripts/ci/opaque-capture.sh`。前者は schema / generated artifact drift と reference project の再現 build を含み、後者は隔離 Opaque と React CLI acceptance を実行する。Unity 実機の texture residency と Delivery / wire 接続は M5 以降の検証境界に残す。
+
 ## 9. Milestone 5: Delivery / Runtime contract とC# generation
 
 ### 9.1 Protocol Buffers

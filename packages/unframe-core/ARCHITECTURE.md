@@ -22,7 +22,7 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 ### Current first milestone
 
 - generated contractから導出したPresentationDefinition / RenderBundle model
-- Stage、SurfaceNode、Frame / Text、Surface State、baked-web artifactのsemantic invariant
+- Stage、SurfaceNode、Frame / Text / Image / Shape、Surface State、baked-web artifactのsemantic invariant
 - Structured の Content Tree と Opaque の semantic binding を区別した Surface 検証（[ADR-0020](../../docs/decisions/0020-structured-and-opaque-surface-content.md)）
 - stable diagnostic codeとsemantic path
 - 配列順を保持するRFC 8785 canonical JSON、SHA-256 content hash
@@ -59,7 +59,7 @@ src/
 
 `index.ts` は public export の集約だけを担う。型、contract schema boundary、semantic validation、canonicalization は変更理由の異なる責務として owning model の近くへ分離し、単一の entrypoint や package 共通の巨大な `types.ts` に集約しない。小さな value object は型と constructor を同じ module に置いてよく、実装前に空 directory を作る必要はない。
 
-現在の実装は、Stage、SurfaceNode、Frame / Text、Surface State、Cue / Guard / Action、Timeline catalog、baked-web RenderBundle
+現在の実装は、Stage、SurfaceNode、Frame / Text / Image / Shape、Surface State、Cue / Guard / Action、Timeline catalog、baked-web RenderBundle
 subsetのsemantic validation、純粋な Cue / Runtime Run 実行、Timeline track 補間、M3D Cue Runtime Snapshot の生成・検証、role別 visibility selection と Participant Runtime View の純粋な投影、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
 canonicalizationは配列を並べ替えず、契約上の順序を保持してRFC 8785 JSONへ直列化する。
 
@@ -75,6 +75,8 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 `createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。Variable の正確な dependency closure、ProjectionProfileDescriptor の identity、Media / Model を含む完全な CanonicalRuntimeSnapshot、Delivery / wire 接続は後続段階の責務とする。
 
 `evaluateTimelineTrack`は検証済みTimeline trackと経過時間から表示値を計算する純粋関数である。Run停止・完了時のNode stateへのcommitは実行器が扱う。
+
+`resolveStructuredLayout(surface, stateId)` は State override を適用した Structured graph の全 Node を Surface logical 座標へ解決する。absolute / Stack / Grid の配置を同じ純粋関数で計算し、Compiler の partition・Hit Region と Web Renderer の描画が共有する。不正なグラフや配置は例外で拒否するため、外部入力は先に Definition validation を通す。
 
 Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
