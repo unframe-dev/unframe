@@ -34,12 +34,14 @@ namespace Unframe.Unity.PresentationRuntime
 
             foreach (ProjectedNodeDefinition definition in definitions)
             {
-                if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.PresenterAnchor)
+                if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.PresenterAnchor
+                    && (definition.Parent.PresenterAnchor.Target == AnchorTarget.Unspecified
+                        || !Enum.IsDefined(typeof(AnchorTarget), definition.Parent.PresenterAnchor.Target)
+                        || !definition.Parent.PresenterAnchor.FollowPosition && !definition.Parent.PresenterAnchor.FollowRotation))
                 {
-                    error = "Presenter anchors require an anchor resolver.";
+                    error = "Delivery presenter anchor is invalid.";
                     return false;
                 }
-
                 if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Node && !byId.ContainsKey(definition.Parent.Node.NodeId))
                 {
                     error = "Delivery node parent is absent.";
@@ -54,6 +56,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             Dictionary<string, GameObject> created = new Dictionary<string, GameObject>();
+            Dictionary<string, GameObject> anchors = new Dictionary<string, GameObject>();
             try
             {
                 foreach (ProjectedNodeDefinition definition in definitions)
@@ -75,6 +78,14 @@ namespace Unframe.Unity.PresentationRuntime
                     {
                         parent = created[definition.Parent.Node.NodeId].transform;
                     }
+                    else if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.PresenterAnchor)
+                    {
+                        GameObject anchor = new GameObject("Presenter Anchor " + definition.NodeId);
+                        anchor.transform.SetParent(root, false);
+                        anchor.SetActive(false);
+                        anchors.Add(definition.NodeId, anchor);
+                        parent = anchor.transform;
+                    }
 
                     created[definition.NodeId].transform.SetParent(parent, false);
                 }
@@ -93,6 +104,7 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     registry.Register(definition.NodeId, created[definition.NodeId]);
                 }
+                foreach (KeyValuePair<string, GameObject> anchor in anchors) registry.RegisterAnchor(anchor.Key, anchor.Value);
 
                 error = null;
                 return true;
@@ -106,6 +118,8 @@ namespace Unframe.Unity.PresentationRuntime
                         UnityEngine.Object.Destroy(nodeObject);
                     }
                 }
+                foreach (GameObject anchor in anchors.Values)
+                    if (anchor != null) UnityEngine.Object.Destroy(anchor);
 
                 error = "Unable to create the presentation node hierarchy: " + exception.Message;
                 return false;
@@ -147,7 +161,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (parentNodeId == null)
             {
-                return definition.Parent.ParentCase != SpatialParent.ParentOneofCase.Node;
+                return definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Stage;
             }
 
             return definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Node && definition.Parent.Node.NodeId == parentNodeId;

@@ -23,7 +23,12 @@
         "presentation": {}
       },
       "cause": {
-        "cueId": "cue:local-story-26"
+        "cueId": "cue:local-story-26",
+        "causeEventId": "event:local-story-26",
+        "groupId": "group:local",
+        "groupEntryEpoch": "1",
+        "stepId": "step:local",
+        "stepEntryEpoch": "1"
       },
       "completion": "RUN_COMPLETION_NON_BLOCKING",
       "startedAtRuntimeTimeMs": "26000"

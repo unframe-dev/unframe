@@ -215,6 +215,7 @@ message ProjectedReliableEvent {
     ModelClipCrossfadeCompleted model_clip_crossfade_completed = 326;
     ModelClipCanceled model_clip_canceled = 327;
     ParticipantPresenceChanged participant_presence_changed = 400;
+    MediaStoppedSeeked media_stopped_seeked = 1000;
   }
   reserved 6 to 19;
   reserved 22 to 99;
@@ -416,6 +417,11 @@ message MediaCompleted {
   unframe.presentation.v2.RuntimeRunId run_id = 1;
   string surface_id = 2;
   double held_position_ms = 3;
+}
+
+message MediaStoppedSeeked {
+  string surface_id = 1;
+  double held_position_ms = 2;
 }
 
 message MediaStopped {

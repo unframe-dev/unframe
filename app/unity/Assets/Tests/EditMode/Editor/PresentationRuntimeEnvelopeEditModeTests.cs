@@ -89,7 +89,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
     }
 
     [Test]
-    public void UnsupportedReliablePayloadDoesNotAdvanceTheCursor()
+    public void MalformedOriginEventDoesNotAdvanceTheCursor()
     {
         PresentationRuntimeDataStore store = CreateLoadedStore(out _, out ControlServerItem snapshot);
         Assert.That(store.TryReceiveControl(snapshot, out string error), Is.True, error);
@@ -108,7 +108,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         };
 
         Assert.That(store.TryReceiveControl(originChanged, out error), Is.False);
-        Assert.That(error, Does.Contain("unsupported"));
+        Assert.That(error, Does.Contain("origin is invalid"));
         Assert.That(store.LastReliableSequence, Is.Zero);
     }
 
@@ -119,7 +119,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock = new RuntimeClockSnapshot { RuntimeTimeMs = 42, Running = new Running() };
         view.Progression = new ProgressionRuntimeState { CurrentGroupId = "group:local", GroupEntryEpoch = 1, CurrentStepId = "step:local", StepEntryEpoch = 1, Stable = new StableProgression() };
-        view.PresentationOrigin = new PresentationOrigin { Version = 0 };
+        view.PresentationOrigin = new PresentationOrigin { Version = 0, Pose = new Unframe.Presentation.V2.Pose { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } } };
         view.MediaStates.Add(new MediaRuntimeState { SurfaceId = "semantic-surface:text-greeting", Stopped = new MediaStoppedState { HeldPositionMs = 12 } });
         view.ActiveRuns.Add(new RuntimeRunSnapshot
         {

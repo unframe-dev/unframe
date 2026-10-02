@@ -8,10 +8,18 @@ using Unframe.Unity.PresentationRuntime;
 
 static class Program
 {
-    private static int Main()
+    private static int Main(string[] args)
     {
         try
         {
+            if (args.Length == 1)
+            {
+                var store = new PresentationRuntimeDataStore();
+                Require(store.TryReceiveDelivery(File.ReadAllBytes(args[0]), out string error), error);
+                Console.WriteLine("External Delivery admission passed.");
+                return 0;
+            }
+            Require(args.Length == 0, "Expected at most one Delivery protobuf path.");
             CheckBinaryDeliveryAndAssetDescriptor();
             CheckOriginFenceAndUnsupportedEvent();
             CheckFullSnapshotCut();
@@ -75,7 +83,7 @@ static class Program
                 PresentationOriginChanged = new PresentationOriginChanged { Origin = new PresentationOrigin { Version = 1 } },
             },
         };
-        Require(!store.TryReceiveControl(originChanged.ToByteArray(), out _), "unsupported origin event was accepted");
+        Require(!store.TryReceiveControl(originChanged.ToByteArray(), out _), "origin event without a pose was accepted");
         Require(store.LastReliableSequence == 0, "reliable cursor advanced after rejected items");
     }
 
@@ -87,7 +95,7 @@ static class Program
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock = new RuntimeClockSnapshot { RuntimeTimeMs = 42, Running = new Running() };
         view.Progression = new ProgressionRuntimeState { CurrentGroupId = "group:local", GroupEntryEpoch = 1, CurrentStepId = "step:local", StepEntryEpoch = 1, Stable = new StableProgression() };
-        view.PresentationOrigin = new PresentationOrigin { Version = 0 };
+        view.PresentationOrigin = new PresentationOrigin { Version = 0, Pose = new Pose { Position = new Vector3(), Rotation = new Quaternion { W = 1 } } };
         view.MediaStates.Add(new MediaRuntimeState { SurfaceId = "semantic-surface:text-greeting", Stopped = new MediaStoppedState { HeldPositionMs = 12 } });
         view.ActiveRuns.Add(new RuntimeRunSnapshot
         {

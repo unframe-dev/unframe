@@ -9,6 +9,572 @@ using UnityEngine;
 public sealed class PresentationRuntimeDataStoreEditModeTests
 {
     [Test]
+    public void SurfaceInteractionAcceptancePreservesStateAndAdvancesReliableCut()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                SurfaceInteractionAccepted = new SurfaceInteractionAccepted
+                {
+                    SurfaceId = "surface:main",
+                    InteractionId = "interaction:submit"
+                },
+            }
+        }, out string error), Is.True, error);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState node), Is.True);
+        Assert.That(node.Opacity, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void GroupInitializationRejectsPresentationOwnedStateWithoutMutation()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                GroupExited = new GroupExited { GroupId = "group:main", GroupEntryEpoch = 1 },
+            }
+        }, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                Fence = CreateFence(delivery),
+                GroupEntered = new GroupEntered
+                {
+                    GroupId = "group:next",
+                    GroupEntryEpoch = 2,
+                    Initialization = new GroupRuntimeInitialization { NodeStates = { new NodeRuntimeState { NodeId = "node:model", Active = true, Visible = true, Opacity = 0.5 } } }
+                },
+            }
+        }, out error), Is.False);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState node), Is.True);
+        Assert.That(node.Opacity, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void StateFrameSamplesAdvanceTheRunningClock()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        ElementStateFrame frame = CreateStateFrame(delivery, 1, StateFrameKind.Keyframe, new NodeStatePatch { Opacity = 0.5 });
+        frame.ProducedAtRuntimeTimeMs = 17;
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out string error), Is.True, error);
+        Assert.That(store.RuntimeClock.RuntimeTimeMs, Is.EqualTo(17));
+    }
+
+    [Test]
+    public void GroupExitRemovesOwnedStateAndHidesItsGeneratedNode()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:main" } };
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        GameObject root = new GameObject("group-stage");
+        PresentationNodeHierarchy hierarchy = new PresentationNodeHierarchy();
+        try
+        {
+            Assert.That(hierarchy.TryReplace(store, root.transform, out string error), Is.True, error);
+            PresentationNodeStateApplier applier = new PresentationNodeStateApplier();
+            applier.Apply(store, hierarchy);
+            Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject node), Is.True);
+            Assert.That(node.activeSelf, Is.True);
+            Assert.That(store.TryReceiveControl(new ControlServerItem
+            {
+                ReliableEvent = new ProjectedReliableEvent
+                {
+                    Sequence = 1,
+                    Fence = CreateFence(delivery),
+                    GroupExited = new GroupExited { GroupId = "group:main", GroupEntryEpoch = 1 },
+                }
+            }, out error), Is.True, error);
+            Assert.That(store.TryGetNodeState("node:model", out _), Is.False);
+            applier.Apply(store, hierarchy);
+            Assert.That(node.activeSelf, Is.False);
+        }
+        finally { hierarchy.Clear(); Object.DestroyImmediate(root); }
+    }
+
+    [TestCase("node")]
+    [TestCase("surface")]
+    [TestCase("variable")]
+    public void InactiveGroupResourceEventsDoNotRecreateOwnedState(string resource)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        ResourceOwner groupOwner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:main" } };
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Owner = groupOwner.Clone();
+        delivery.ProjectionProfile.RuntimeCatalog.Surfaces[0].Owner = groupOwner.Clone();
+        delivery.ProjectionProfile.RuntimeCatalog.Variables[0].Owner = groupOwner.Clone();
+        delivery.ProjectionProfile.RuntimeCatalog.Variables[0].Type = ScalarType.String;
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveNetworkControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                GroupExited = new GroupExited { GroupId = "group:main", GroupEntryEpoch = 1 },
+            }
+        }, out string error), Is.True, error);
+        ProjectedReliableEvent oldGroupEvent = new ProjectedReliableEvent { Sequence = 2, Fence = CreateFence(delivery) };
+        switch (resource)
+        {
+            case "node":
+                oldGroupEvent.NodeStateCommitted = new NodeStateCommitted
+                {
+                    State = new NodeRuntimeState
+                    {
+                        NodeId = "node:model",
+                        Active = true,
+                        Visible = true,
+                        Opacity = 1,
+                        Transform = CreateValidTransform(),
+                    }
+                }; break;
+            case "surface": oldGroupEvent.SurfaceStateChanged = new SurfaceStateChanged { SurfaceId = "surface:main", StateId = "state:main" }; break;
+            case "variable":
+                oldGroupEvent.VariableChanged = new VariableChanged
+                {
+                    State = new VariableState
+                    {
+                        VariableId = "variable:title",
+                        Value = new ScalarValue { StringValue = "stale" },
+                    }
+                }; break;
+        }
+        Assert.That(store.TryReceiveNetworkControl(new ControlServerItem { ReliableEvent = oldGroupEvent }, out _), Is.False, resource);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1), resource);
+        Assert.That(store.TryGetNodeState("node:model", out _), Is.False, resource);
+        Assert.That(store.TryGetSurfaceState("surface:main", out _), Is.False, resource);
+        Assert.That(store.TryGetVariableState("variable:title", out _), Is.False, resource);
+    }
+
+    [TestCase("node")]
+    [TestCase("variable")]
+    public void NetworkResourceEventsRejectMissingStateWithoutThrowing(string resource)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        ProjectedReliableEvent malformed = new ProjectedReliableEvent { Sequence = 1, Fence = CreateFence(delivery) };
+        if (resource == "node") malformed.NodeStateCommitted = new NodeStateCommitted();
+        else malformed.VariableChanged = new VariableChanged();
+        Assert.That(store.TryReceiveNetworkControl(new ControlServerItem { ReliableEvent = malformed }, out _), Is.False, resource);
+        Assert.That(store.LastReliableSequence, Is.Zero, resource);
+    }
+
+    [Test]
+    public void NetworkReadinessRequiresEveryOwnedResourceAtTheSnapshotCut()
+    {
+        DeliveryManifest delivery = JsonParser.Default.Parse<DeliveryManifest>(Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text);
+        ProjectedRuntimeCatalog catalog = delivery.ProjectionProfile.RuntimeCatalog;
+        foreach (ProjectedNodeDefinition node in catalog.Nodes) node.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces) surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        foreach (ProjectedVariableDefinition variable in catalog.Variables) { variable.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() }; variable.Type = ScalarType.String; }
+        ControlServerItem snapshot = JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryValidateRuntimeOwnership(out _), Is.False);
+        foreach (ProjectedVariableDefinition variable in catalog.Variables)
+            snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new VariableState { VariableId = variable.VariableId, Value = new ScalarValue { StringValue = "value" } });
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryValidateRuntimeOwnership(out error), Is.True, error);
+        VariableState firstVariable = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables[0];
+        ScalarValue validValue = firstVariable.Value.Clone();
+        firstVariable.Value = new ScalarValue { NumberValue = 1 };
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryValidateRuntimeOwnership(out _), Is.False, "A value with a different declared scalar type must not reach StateReady.");
+        firstVariable.Value = null;
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryValidateRuntimeOwnership(out _), Is.False, "Missing scalar values must not reach StateReady.");
+        firstVariable.Value = validValue;
+        snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0].Transform = null;
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryValidateRuntimeOwnership(out _), Is.False, "Incomplete node state must not reach StateReady.");
+    }
+
+    [Test]
+    public void NetworkVariableChangesRejectMismatchedValuesWithoutAdvancingCursor()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Variables[0].Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        delivery.ProjectionProfile.RuntimeCatalog.Variables[0].Type = ScalarType.String;
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        ControlServerItem item = new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                VariableChanged = new VariableChanged
+                {
+                    State = new VariableState { VariableId = "variable:title", Value = new ScalarValue { NumberValue = 1 } },
+                },
+            }
+        };
+        Assert.That(store.TryReceiveNetworkControl(item, out _), Is.False);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.TryGetVariableState("variable:title", out _), Is.False);
+        item.ReliableEvent.VariableChanged.State.Value = new ScalarValue { StringValue = "title" };
+        Assert.That(store.TryReceiveNetworkControl(item, out string error), Is.True, error);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+    }
+
+    [TestCase("negative-zero opacity")]
+    [TestCase("negative-zero transform")]
+    [TestCase("non-unit quaternion")]
+    public void NetworkSnapshotRejectsNonCanonicalNodeValues(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+        NodeRuntimeState state = snapshot.Snapshot.RuntimeView.NodeStates[0];
+        if (invalidCase == "negative-zero opacity") state.Opacity = -0.0;
+        else if (invalidCase == "negative-zero transform") state.Transform.Position.X = -0.0;
+        else state.Transform.Rotation.W = 2;
+
+        Assert.That(store.TryReceiveNetworkControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out _), Is.False, invalidCase);
+        Assert.That(store.LastReliableSequence, Is.Zero, invalidCase);
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState retained), Is.True);
+        Assert.That(retained.Opacity, Is.EqualTo(1), invalidCase);
+        Assert.That(retained.Transform.Rotation.W, Is.EqualTo(1), invalidCase);
+    }
+
+    [TestCase("negative-zero position")]
+    [TestCase("non-canonical quaternion sign")]
+    public void NetworkOriginEventRejectsNonCanonicalPoseWithoutAdvancingCursor(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Unframe.Presentation.V2.Pose pose = new Unframe.Presentation.V2.Pose
+        {
+            Position = new Unframe.Presentation.V2.Vector3(),
+            Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 },
+        };
+        if (invalidCase == "negative-zero position") pose.Position.X = -0.0;
+        else pose.Rotation.W = -1;
+        Assert.That(store.TryReceiveNetworkControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                PresentationOriginChanged = new PresentationOriginChanged
+                {
+                    Origin = new PresentationOrigin { Version = 1, Pose = pose },
+                },
+            }
+        }, out _), Is.False, invalidCase);
+        Assert.That(store.LastReliableSequence, Is.Zero, invalidCase);
+        Assert.That(store.PresentationOrigin, Is.Null, invalidCase);
+    }
+
+    [Test]
+    public void OriginChangesAdvanceTheFenceAndPresenceEventsRemainReliable()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                PresentationOriginChanged = new PresentationOriginChanged
+                {
+                    Origin = new PresentationOrigin { Version = 1, Pose = new Unframe.Presentation.V2.Pose { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } } }
+                },
+            }
+        }, out string error), Is.True, error);
+        RuntimeProjectionFence fence = CreateFence(delivery);
+        fence.PresentationOriginVersion = 1;
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                Fence = fence,
+                ParticipantPresenceChanged = new ParticipantPresenceChanged { ParticipantId = "participant:viewer", Role = SessionRole.Viewer, Connected = true },
+            }
+        }, out error), Is.True, error);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(2));
+    }
+
+    [TestCase(2U, 1U)]
+    [TestCase(1U, 2U)]
+    public void DeliveryRejectsUnknownProgressionAndProjectionVersions(uint progression, uint projection)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.CapabilityProfile.ContractVersions.Progression = progression;
+        delivery.CapabilityProfile.ContractVersions.Projection = projection;
+        delivery.ProjectionProfile.Key.ProjectionContractVersion = projection;
+        Assert.That(new PresentationRuntimeDataStore().TryReceiveDelivery(delivery, out _), Is.False);
+    }
+
+    [Test]
+    public void SurfaceTransitionRetainsBothStatesUntilItsMatchingCompletion()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Surfaces[0].ReachableStateIds.Add("state:next");
+        delivery.ProjectionProfile.SemanticSurfaces[0].States.Add(new SurfaceSemanticState { StateId = "state:next", SemanticTree = new ProjectedSemanticTree() });
+        delivery.ProjectionProfile.RenderSurfaces[0].StateBindings.Add(new DeliveredStateBinding { StateId = "state:next", Artifact = new ArtifactStateBinding { ArtifactId = "artifact:main" } });
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                SurfaceStateChanged = new SurfaceStateChanged { SurfaceId = "surface:main", StateId = "state:main" },
+            }
+        }, out string error), Is.True, error);
+        RuntimeRunId id = new RuntimeRunId { AssignmentEpoch = 7, RunSequence = 1 };
+        RuntimeRunSnapshot run = new RuntimeRunSnapshot
+        {
+            RunId = id,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:main", CauseEventId = "event:input" },
+            Completion = RunCompletion.NonBlocking,
+            SurfaceTransition = new SurfaceTransitionRunSnapshot { SurfaceId = "surface:main", FromStateId = "state:main", ToStateId = "state:next", DurationMs = 100, Easing = Easing.Linear }
+        };
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                Fence = CreateFence(delivery),
+                SurfaceTransitionStarted = new SurfaceTransitionStarted
+                {
+                    SurfaceId = "surface:main",
+                    RunId = id,
+                    FromStateId = "state:main",
+                    StateId = "state:next",
+                    DurationMs = 100,
+                    Easing = Easing.Linear,
+                    Run = run
+                },
+            }
+        }, out error), Is.True, error);
+        Assert.That(store.TryGetSurfaceState("surface:main", out SurfaceRuntimeState state), Is.True);
+        Assert.That(state.TransitionRunId, Is.EqualTo(id));
+        Assert.That(state.StateId, Is.EqualTo("state:next"));
+        Assert.That(System.Linq.Enumerable.Count(store.ActiveRuns), Is.EqualTo(1));
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 3,
+                Fence = CreateFence(delivery),
+                OccurredAtRuntimeTimeMs = 100,
+                SurfaceTransitionCompleted = new SurfaceTransitionCompleted { SurfaceId = "surface:main", RunId = id, StateId = "state:next" },
+            }
+        }, out error), Is.True, error);
+        Assert.That(System.Linq.Enumerable.Count(store.ActiveRuns), Is.Zero);
+        Assert.That(store.TryGetSurfaceState("surface:main", out state), Is.True);
+        Assert.That(state.TransitionRunId, Is.Null);
+    }
+
+    [Test]
+    public void PresentationEndClearsInFlightSurfaceTransitionRunReference()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Surfaces[0].ReachableStateIds.Add("state:next");
+        delivery.ProjectionProfile.SemanticSurfaces[0].States.Add(new SurfaceSemanticState { StateId = "state:next", SemanticTree = new ProjectedSemanticTree() });
+        delivery.ProjectionProfile.RenderSurfaces[0].StateBindings.Add(new DeliveredStateBinding { StateId = "state:next", Artifact = new ArtifactStateBinding { ArtifactId = "artifact:main" } });
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                SurfaceStateChanged = new SurfaceStateChanged { SurfaceId = "surface:main", StateId = "state:main" },
+            }
+        }, out string error), Is.True, error);
+        RuntimeRunId id = new RuntimeRunId { AssignmentEpoch = 7, RunSequence = 1 };
+        RuntimeRunSnapshot run = new RuntimeRunSnapshot
+        {
+            RunId = id,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:main", CauseEventId = "event:input" },
+            Completion = RunCompletion.NonBlocking,
+            SurfaceTransition = new SurfaceTransitionRunSnapshot { SurfaceId = "surface:main", FromStateId = "state:main", ToStateId = "state:next", DurationMs = 100, Easing = Easing.Linear }
+        };
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                Fence = CreateFence(delivery),
+                SurfaceTransitionStarted = new SurfaceTransitionStarted
+                {
+                    SurfaceId = "surface:main",
+                    RunId = id,
+                    FromStateId = "state:main",
+                    StateId = "state:next",
+                    DurationMs = 100,
+                    Easing = Easing.Linear,
+                    Run = run
+                },
+            }
+        }, out error), Is.True, error);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 3,
+                Fence = CreateFence(delivery),
+                PresentationEnded = new PresentationEnded { Reason = TerminationReason.ExplicitEnd },
+            }
+        }, out error), Is.True, error);
+        Assert.That(System.Linq.Enumerable.Count(store.ActiveRuns), Is.Zero);
+        Assert.That(store.TryGetSurfaceState("surface:main", out SurfaceRuntimeState state), Is.True);
+        Assert.That(state.StateId, Is.EqualTo("state:next"));
+        Assert.That(state.TransitionRunId, Is.Null);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void GroupInitializationAndStepEntryReplaceTheCurrentProgression()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes.Add(new ProjectedNodeDefinition
+        {
+            NodeId = "node:next",
+            Parent = new SpatialParent { Stage = new StageParent() },
+            Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:next" } },
+            Container = new ContainerNode()
+        });
+        delivery.ProjectionProfile.VisibleNodeIds.Add("node:next");
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = CreateFence(delivery),
+                GroupExited = new GroupExited { GroupId = "group:main", GroupEntryEpoch = 1 },
+            }
+        }, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                Fence = CreateFence(delivery),
+                GroupEntered = new GroupEntered
+                {
+                    GroupId = "group:next",
+                    GroupEntryEpoch = 2,
+                    Initialization = new GroupRuntimeInitialization { NodeStates = { new NodeRuntimeState { NodeId = "node:next", Active = true, Visible = true, Opacity = 0.5, Transform = CreateValidTransform() } } }
+                },
+            }
+        }, out error), Is.True, error);
+        Assert.That(store.Progression.CurrentGroupId, Is.EqualTo("group:next"));
+        Assert.That(store.TryGetNodeState("node:next", out NodeRuntimeState node), Is.True);
+        Assert.That(node.Opacity, Is.EqualTo(0.5));
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 3,
+                Fence = CreateFence(delivery),
+                StepEntered = new StepEntered { GroupId = "group:next", GroupEntryEpoch = 2, StepId = "step:next", StepEntryEpoch = 2 },
+            }
+        }, out error), Is.True, error);
+    }
+
+    [Test]
+    public void TimelineRunIsRestoredAndRemovedOnlyByTheMatchingCompletion()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        RuntimeRunId runId = new RuntimeRunId { AssignmentEpoch = 7, RunSequence = 1 };
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                EventId = "event:timeline",
+                Fence = CreateFence(delivery),
+                TimelineStarted = new TimelineStarted { RunId = runId, TimelineId = "timeline:main", Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() }, Cause = new RuntimeRunCause { CueId = "cue:main", CauseEventId = "event:input" }, Completion = RunCompletion.NonBlocking },
+            }
+        }, out string error), Is.True, error);
+        Assert.That(System.Linq.Enumerable.Count(store.ActiveRuns), Is.EqualTo(1));
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                EventId = "event:wrong",
+                Fence = CreateFence(delivery),
+                OccurredAtRuntimeTimeMs = 3,
+                TimelineCompleted = new TimelineCompleted { RunId = new RuntimeRunId { AssignmentEpoch = 7, RunSequence = 2 }, TimelineId = "timeline:main" },
+            }
+        }, out error), Is.False);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                EventId = "event:complete",
+                Fence = CreateFence(delivery),
+                OccurredAtRuntimeTimeMs = 3,
+                TimelineCompleted = new TimelineCompleted { RunId = runId, TimelineId = "timeline:main" },
+            }
+        }, out error), Is.True, error);
+        Assert.That(System.Linq.Enumerable.Count(store.ActiveRuns), Is.Zero);
+    }
+
+    [Test]
+    public void RuntimeStatusAndStepEventsUpdateTheProjectedClockAndProgression()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                EventId = "event:pause",
+                Fence = CreateFence(delivery),
+                OccurredAtRuntimeTimeMs = 42,
+                RuntimeStatusChanged = new RuntimeStatusChanged { Paused = new Paused { Reason = PauseReason.ExplicitPause } },
+            }
+        }, out string error), Is.True, error);
+        Assert.That(store.RuntimeClock.RuntimeTimeMs, Is.EqualTo(42));
+        Assert.That(store.RuntimeClock.StatusCase, Is.EqualTo(RuntimeClockSnapshot.StatusOneofCase.Paused));
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 2,
+                EventId = "event:step",
+                Fence = CreateFence(delivery),
+                OccurredAtRuntimeTimeMs = 42,
+                StepEntered = new StepEntered { GroupId = "group:main", GroupEntryEpoch = 1, StepId = "step:next", StepEntryEpoch = 2, EnteredAtRuntimeTimeMs = 42 },
+            }
+        }, out error), Is.True, error);
+        Assert.That(store.Progression.CurrentStepId, Is.EqualTo("step:next"));
+        Assert.That(store.Progression.StepEntryEpoch, Is.EqualTo(2));
+        Assert.That(store.LastReliableSequence, Is.EqualTo(2));
+    }
+
+    [Test]
     public void Delivery_IndexesContractEntitiesById()
     {
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
@@ -231,6 +797,11 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     [TestCase("non-finite scale")]
     [TestCase("zero quaternion")]
     [TestCase("non-finite quaternion")]
+    [TestCase("negative-zero opacity")]
+    [TestCase("negative-zero position")]
+    [TestCase("negative-zero quaternion")]
+    [TestCase("non-unit quaternion")]
+    [TestCase("non-canonical quaternion sign")]
     public void StateFrame_RejectsInvalidPatches(string invalidCase)
     {
         DeliveryManifest delivery = CreateDelivery();
@@ -251,6 +822,11 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             case "non-finite scale": patch.Transform = CreateValidTransform(); patch.Transform.Scale.Y = double.PositiveInfinity; break;
             case "zero quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation = new Unframe.Presentation.V2.Quaternion(); break;
             case "non-finite quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation.W = double.NaN; break;
+            case "negative-zero opacity": patch.Opacity = -0.0; break;
+            case "negative-zero position": patch.Transform = CreateValidTransform(); patch.Transform.Position.X = -0.0; break;
+            case "negative-zero quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation.X = -0.0; break;
+            case "non-unit quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation.W = 0.5; break;
+            case "non-canonical quaternion sign": patch.Transform = CreateValidTransform(); patch.Transform.Rotation.W = -1; break;
         }
 
         ElementStateFrame frame = CreateStateFrame(delivery, 1, StateFrameKind.Keyframe, patch);
@@ -376,6 +952,49 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         Assert.That(error, Does.Contain("timeline"));
     }
 
+    [TestCase("negative-zero opacity")]
+    [TestCase("opacity over one")]
+    [TestCase("negative-zero position")]
+    [TestCase("zero scale")]
+    [TestCase("negative scale")]
+    [TestCase("negative-zero rotation")]
+    [TestCase("non-unit rotation")]
+    [TestCase("non-canonical rotation sign")]
+    public void Delivery_RejectsNonCanonicalTimelineKeyframes(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        ProjectedTimelineTrack track = delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0];
+        switch (invalidCase)
+        {
+            case "negative-zero opacity": track.Keyframes[0].Number.Value = -0.0; break;
+            case "opacity over one": track.Keyframes[0].Number.Value = 1.1; break;
+            case "negative-zero position":
+                track.Target.Property = TimelineProperty.TransformPosition;
+                track.Keyframes[0].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = -0.0 } };
+                track.Keyframes[1].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3() };
+                break;
+            case "zero scale":
+            case "negative scale":
+                track.Target.Property = TimelineProperty.TransformScale;
+                track.Keyframes[0].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = invalidCase == "zero scale" ? 0 : -1, Y = 1, Z = 1 } };
+                track.Keyframes[1].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 } };
+                break;
+            default:
+                track.Target.Property = TimelineProperty.TransformRotation;
+                Unframe.Presentation.V2.Quaternion rotation = new Unframe.Presentation.V2.Quaternion { W = 1 };
+                if (invalidCase == "negative-zero rotation") rotation.X = -0.0;
+                else if (invalidCase == "non-unit rotation") rotation.W = 0.5;
+                else rotation.W = -1;
+                track.Keyframes[0].Quaternion = new QuaternionKeyframeValue { Value = rotation };
+                track.Keyframes[1].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.V2.Quaternion { W = 1 } };
+                break;
+        }
+
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False, invalidCase);
+        Assert.That(error, Does.Contain("timeline"), invalidCase);
+    }
+
     [Test]
     public void NodeFactory_BuildsTheContractHierarchyWithoutLoadingAssets()
     {
@@ -437,28 +1056,290 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
-    public void NodeFactory_RejectsAnchorNodesUntilAnAnchorResolverExists()
+    public void AnchorKeyframeIncludesOnlyCurrentlyOwnedNodes()
     {
         DeliveryManifest delivery = CreateDelivery();
         delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
         {
-            PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head },
+            PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
         };
-        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
-        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes.Add(new ProjectedNodeDefinition
+        {
+            NodeId = "node:future-anchor",
+            Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:next" } },
+            Parent = new SpatialParent { PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true } },
+            Container = new ContainerNode(),
+        });
+        delivery.ProjectionProfile.VisibleNodeIds.Add("node:future-anchor");
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+
+        ElementStateFrame keyframe = CreateAnchorFrame(delivery, 1, 1000, 900);
+        Assert.That(store.TryValidateNetworkStateFrame(keyframe, out string error), Is.True, error);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = keyframe }, out error), Is.True, error);
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(1));
+
+        ElementStateFrame unowned = CreateStateFrame(delivery, 2, StateFrameKind.Delta, null);
+        unowned.Elements.Clear();
+        unowned.ProducedAtRuntimeMonotonicMs = 1100;
+        unowned.AnchorBindings.Add(new ProjectedAnchorBindingPatch { NodeId = "node:future-anchor", Unavailable = new AnchorBindingUnavailable() });
+        Assert.That(store.TryValidateNetworkStateFrame(unowned, out error), Is.False);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unowned }, out error), Is.False);
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void PresenterAnchorStartsUnavailableAndFreshBindingControlsItsSubtree()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        {
+            PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true, FollowRotation = true },
+        };
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+        double halfTurn = System.Math.Sqrt(0.5d);
+        snapshot.Fence.PresentationOriginVersion = 1;
+        snapshot.Snapshot.RuntimeView.PresentationOrigin = new PresentationOrigin
+        {
+            Version = 1,
+            Pose = new Unframe.Presentation.V2.Pose
+            {
+                Position = new Unframe.Presentation.V2.Vector3 { X = 1, Z = 2 },
+                Rotation = new Unframe.Presentation.V2.Quaternion { Y = halfTurn, W = halfTurn },
+            }
+        };
+        snapshot.Snapshot.RuntimeView.NodeStates[0].Transform.Position.Z = 1;
+        snapshot.Snapshot.RuntimeView.NodeStates[0].Transform.Scale.X = 2;
+        snapshot.Snapshot.RuntimeView.NodeStates[0].Transform.Scale.Z = 3;
+        snapshot.Snapshot.RuntimeView.NodeStates.Add(new NodeRuntimeState
+        {
+            NodeId = "node:surface",
+            Active = true,
+            Visible = true,
+            Opacity = 1,
+            Transform = CreateValidTransform()
+        });
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out string snapshotError), Is.True, snapshotError);
 
         GameObject root = new GameObject("test-root");
+        PresentationNodeHierarchy hierarchy = new PresentationNodeHierarchy();
         try
         {
-            PresentationNodeFactory factory = new PresentationNodeFactory();
-            Assert.That(factory.TryBuild(store, root.transform, out _, out error), Is.False);
-            Assert.That(error, Does.Contain("anchor resolver"));
-            Assert.That(root.transform.childCount, Is.Zero);
+            Assert.That(hierarchy.TryReplace(store, root.transform, out string error), Is.True, error);
+            PresentationNodeStateApplier applier = new PresentationNodeStateApplier();
+            applier.Apply(store, hierarchy);
+            Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject anchored), Is.True);
+            Assert.That(anchored.activeInHierarchy, Is.False);
+            Assert.That(hierarchy.Registry.TryGet("node:surface", out GameObject descendant), Is.True);
+            Assert.That(descendant.activeInHierarchy, Is.False);
+
+            ElementStateFrame frame = CreateStateFrame(delivery, 1, StateFrameKind.Keyframe, FullNodePatch());
+            frame.Fence.PresentationOriginVersion = 1;
+            frame.Elements[0].Node.Transform = snapshot.Snapshot.RuntimeView.NodeStates[0].Transform.Clone();
+            frame.Elements.Add(new ElementStatePatch { ElementId = "node:surface", Node = FullNodePatch() });
+            frame.ProducedAtRuntimeMonotonicMs = 1000;
+            frame.AnchorBindings.Add(new ProjectedAnchorBindingPatch
+            {
+                NodeId = "node:model",
+                Sample = new ProjectedAnchorBindingSample
+                {
+                    TrackingFrameSequence = 1,
+                    ObservedAtRuntimeMonotonicMs = 900,
+                    Position = new Unframe.Presentation.V2.Vector3 { X = 2, Y = 3, Z = 4 },
+                    Rotation = new Unframe.Presentation.V2.Quaternion { X = halfTurn, W = halfTurn },
+                }
+            });
+            Assert.That(store.TryValidateNetworkStateFrame(frame, out error), Is.True, error);
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), Is.True, error);
+            applier.Apply(store, hierarchy);
+            Assert.That(anchored.activeInHierarchy, Is.True);
+            Assert.That(descendant.activeInHierarchy, Is.True);
+            Assert.That(anchored.transform.parent.localPosition, Is.EqualTo(new UnityEngine.Vector3(2, 3, -4)));
+            Assert.That(anchored.transform.localPosition, Is.EqualTo(new UnityEngine.Vector3(0, 0, -1)));
+            Assert.That(anchored.transform.localScale, Is.EqualTo(new UnityEngine.Vector3(2, 1, 3)));
+            Assert.That(anchored.transform.position.x, Is.EqualTo(5f).Within(0.0001f));
+            Assert.That(anchored.transform.position.y, Is.EqualTo(2f).Within(0.0001f));
+            Assert.That(anchored.transform.position.z, Is.EqualTo(0f).Within(0.0001f));
+
+            ElementStateFrame unavailable = CreateStateFrame(delivery, 2, StateFrameKind.Delta, null);
+            unavailable.Fence.PresentationOriginVersion = 1;
+            unavailable.Elements.Clear();
+            unavailable.ProducedAtRuntimeMonotonicMs = 1100;
+            unavailable.AnchorBindings.Add(new ProjectedAnchorBindingPatch { NodeId = "node:model", Unavailable = new AnchorBindingUnavailable() });
+            Assert.That(store.TryValidateNetworkStateFrame(unavailable, out error), Is.True, error);
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unavailable }, out error), Is.True, error);
+            applier.ApplyAnchors(store, hierarchy);
+            Assert.That(anchored.activeInHierarchy, Is.False);
+            Assert.That(descendant.activeInHierarchy, Is.False);
         }
         finally
         {
+            hierarchy.Clear();
             Object.DestroyImmediate(root);
         }
+    }
+
+    [Test]
+    public void RealtimeDisconnectImmediatelyHidesFreshAnchorSubtree()
+    {
+        GameObject host = new GameObject("anchor-runtime");
+        PresentationBakedRuntime runtime = host.AddComponent<PresentationBakedRuntime>();
+        var fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        PresentationRuntimeDataStore store = (PresentationRuntimeDataStore)typeof(PresentationBakedRuntime).GetField("store", fields).GetValue(runtime);
+        PresentationNodeHierarchy hierarchy = (PresentationNodeHierarchy)typeof(PresentationBakedRuntime).GetField("hierarchy", fields).GetValue(runtime);
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        {
+            PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
+        };
+        try
+        {
+            Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+            PresentationRuntimeDataStore seeded = CreateStoreWithNodeState(delivery);
+            Assert.That(seeded.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+            Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out error), Is.True, error);
+            Assert.That(hierarchy.TryReplace(store, host.transform, out error), Is.True, error);
+            ElementStateFrame frame = CreateAnchorFrame(delivery, 1, 1000, 900);
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), Is.True, error);
+            new PresentationNodeStateApplier().Apply(store, hierarchy);
+            Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject anchored), Is.True);
+            Assert.That(anchored.activeInHierarchy, Is.True);
+            Assert.That(store.TryGetAnchorSample("node:model", out _), Is.True);
+
+            var handler = typeof(PresentationBakedRuntime).GetMethod("HandleDisconnected", fields);
+            Assert.That(handler, Is.Not.Null);
+            handler.Invoke(runtime, null);
+            Assert.That(anchored.activeInHierarchy, Is.False);
+            Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+            new PresentationNodeStateApplier().ApplyAnchors(store, hierarchy);
+            Assert.That(anchored.activeInHierarchy, Is.False);
+        }
+        finally { hierarchy.Clear(); Object.DestroyImmediate(host); }
+    }
+
+    [TestCase(false, AnchorTarget.Head)]
+    [TestCase(true, AnchorTarget.Unspecified)]
+    public void NodeFactoryRejectsInvalidPresenterAnchorParent(bool followPosition, AnchorTarget target)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        {
+            PresenterAnchor = new PresenterAnchorParent { Target = target, FollowPosition = followPosition },
+        };
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        GameObject root = new GameObject("test-root");
+        try
+        {
+            Assert.That(new PresentationNodeFactory().TryBuild(store, root.transform, out _, out error), Is.False);
+            Assert.That(error, Does.Contain("anchor"));
+            Assert.That(root.transform.childCount, Is.Zero);
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
+    [TestCase("position-overflow")]
+    [TestCase("scale-overflow")]
+    [TestCase("scale-underflow")]
+    public void DeliveryRejectsTimelineCoordinatesOutsideUnityFloatRange(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        ProjectedTimelineTrack track = delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0];
+        track.Target.Property = invalidCase == "position-overflow" ? TimelineProperty.TransformPosition : TimelineProperty.TransformScale;
+        double value = invalidCase == "scale-underflow" ? 1e-323d : (double)float.MaxValue * 2d;
+        foreach (TimelineKeyframe keyframe in track.Keyframes)
+            keyframe.Vector3 = new Vector3KeyframeValue
+            {
+                Value = new Unframe.Presentation.V2.Vector3
+                {
+                    X = value,
+                    Y = 1,
+                    Z = 1,
+                }
+            };
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False, invalidCase);
+        Assert.That(error, Does.Contain("timeline"), invalidCase);
+    }
+
+    [TestCase("missing")]
+    [TestCase("duplicate")]
+    [TestCase("unknown")]
+    [TestCase("missing-position")]
+    [TestCase("unexpected-rotation")]
+    [TestCase("future-observation")]
+    [TestCase("noncanonical-position")]
+    public void AnchorBindingRejectsMalformedKeyframesAtomically(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        {
+            PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
+        };
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        ElementStateFrame frame = CreateAnchorFrame(delivery, 1, 1000, 900);
+        switch (invalidCase)
+        {
+            case "missing": frame.AnchorBindings.Clear(); break;
+            case "duplicate": frame.AnchorBindings.Add(frame.AnchorBindings[0].Clone()); break;
+            case "unknown": frame.AnchorBindings[0].NodeId = "node:unknown"; break;
+            case "missing-position": frame.AnchorBindings[0].Sample.Position = null; break;
+            case "unexpected-rotation": frame.AnchorBindings[0].Sample.Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 }; break;
+            case "future-observation": frame.AnchorBindings[0].Sample.ObservedAtRuntimeMonotonicMs = 1001; break;
+            case "noncanonical-position": frame.AnchorBindings[0].Sample.Position.X = double.NaN; break;
+        }
+        Assert.That(store.TryValidateNetworkStateFrame(frame, out _), Is.False, invalidCase);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out _), Is.False, invalidCase);
+        Assert.That(store.LastStateFrameSequence, Is.Zero, invalidCase);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False, invalidCase);
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState state), Is.True);
+        Assert.That(state.Opacity, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void AnchorSampleExpiresAndAKeyframeWithoutItCannotReuseTheOldPose()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        {
+            PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
+        };
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        ElementStateFrame first = CreateAnchorFrame(delivery, 1, 1000, 900);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = first }, out string error), Is.True, error);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.True);
+        System.Threading.Thread.Sleep(420);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+
+        ElementStateFrame stale = CreateAnchorFrame(delivery, 2, 2000, 1499);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = stale }, out error), Is.True, error);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+        ElementStateFrame unavailable = CreateAnchorFrame(delivery, 3, 3000, 2900);
+        unavailable.AnchorBindings[0].Unavailable = new AnchorBindingUnavailable();
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unavailable }, out error), Is.True, error);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+        ElementStateFrame recovered = CreateAnchorFrame(delivery, 4, 4000, 3900);
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = recovered }, out error), Is.True, error);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.True);
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out error), Is.True, error);
+        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+    }
+
+    [Test]
+    public void PartialNodePatchWithoutFullBaseTransformFailsWithoutAdvancingCursor()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
+        Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
+        snapshot.Snapshot.RuntimeView.NodeStates[0].Transform = null;
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out string error), Is.True, error);
+        ElementStateFrame frame = CreateStateFrame(delivery, 1, StateFrameKind.Keyframe, new NodeStatePatch
+        {
+            Transform = new Unframe.Presentation.V2.Transform { Position = new Unframe.Presentation.V2.Vector3 { X = 2 } },
+        });
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), Is.False);
+        Assert.That(store.LastStateFrameSequence, Is.Zero);
     }
 
     [Test]
@@ -501,13 +1382,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
             Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject original), Is.True);
 
-            DeliveryManifest anchorDelivery = CreateDelivery();
-            anchorDelivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
-            {
-                PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head },
-            };
-            Assert.That(store.TryReceiveDelivery(anchorDelivery, out error), Is.True, error);
-            Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.False);
+            Assert.That(hierarchy.TryReplace(null, root.transform, out error), Is.False);
             Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject retained), Is.True);
             Assert.That(retained, Is.EqualTo(original));
         }
@@ -695,7 +1570,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
                 else if (i == 23)
                 {
                     Assert.That(GetRendererAlpha(verticalText.GetComponentInChildren<Renderer>(true)), Is.EqualTo(0f).Within(0.001f));
-                    Assert.That(verticalText.transform.localPosition.z, Is.EqualTo(2f).Within(0.001f));
+                    Assert.That(verticalText.transform.localPosition.z, Is.EqualTo(-2f).Within(0.001f));
                     Assert.That(GetRendererAlpha(foregroundPanel.GetComponentInChildren<Renderer>(true)), Is.EqualTo(1f).Within(0.001f));
                 }
                 else if (i == 25)
@@ -943,7 +1818,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             {
                 SchemaVersion = 2,
                 CapabilityProfileId = "capability:quest",
-                ContractVersions = new ContractVersions { Delivery = 2, Runtime = 2, Progression = 2, Projection = 1 },
+                ContractVersions = new ContractVersions { Delivery = 2, Runtime = 2, Progression = 1, Projection = 1 },
                 Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
             },
             ProjectionProfile = new ProjectionProfileDescriptor
@@ -1030,6 +1905,28 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Kind = kind,
             Elements = { new ElementStatePatch { ElementId = "node:model", Node = patch } },
         };
+    }
+
+    private static NodeStatePatch FullNodePatch()
+    {
+        return new NodeStatePatch { Active = true, Visible = true, Opacity = 1, Transform = CreateValidTransform() };
+    }
+
+    private static ElementStateFrame CreateAnchorFrame(DeliveryManifest delivery, ulong sequence, ulong producedAt, ulong observedAt)
+    {
+        ElementStateFrame frame = CreateStateFrame(delivery, sequence, StateFrameKind.Keyframe, FullNodePatch());
+        frame.ProducedAtRuntimeMonotonicMs = producedAt;
+        frame.AnchorBindings.Add(new ProjectedAnchorBindingPatch
+        {
+            NodeId = "node:model",
+            Sample = new ProjectedAnchorBindingSample
+            {
+                TrackingFrameSequence = sequence,
+                ObservedAtRuntimeMonotonicMs = observedAt,
+                Position = new Unframe.Presentation.V2.Vector3 { X = 2, Y = 3, Z = 4 },
+            }
+        });
+        return frame;
     }
 
     private static Unframe.Presentation.V2.Transform CreateValidTransform()
