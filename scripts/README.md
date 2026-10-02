@@ -19,10 +19,41 @@ nix run .#presentation
 nix run .#unity-proto -- check
 nix run .#realtime
 nix run .#web
+nix run .#unity-web-preview
 nix run .#lp
 nix run .#notion-sync
 nix flake check
 ```
+
+## Unity Web プレビュー
+
+Unity Hub で `app/unity-preview/ProjectSettings/ProjectVersion.txt` の Editor と Web
+Build Support を導入し、ライセンス認証を済ませてください。`app/unity-preview/` は
+MR アプリの `app/unity/` とは別の Unity プロジェクトです。ビルド前にプレビュー側の
+Editor を閉じてください。
+
+```bash
+nix run .#unity-web-preview
+nix develop --command pnpm --filter @unframe/web dev
+```
+
+開発サーバーの `/dev/unity-preview` で「dist フォルダーを開く」を押し、フレームワークが
+生成したフォルダーを選びます。サンプルの生成手順は
+[`examples/presentation/README.md`](../examples/presentation/README.md) を参照してください。
+4 つの JSON と Asset の整合性をブラウザー内で検証し、画像を Unity に渡します。
+サーバーへのファイル送信はありません。
+
+「プレゼン操作」で現在の Cue を発火し、「再生 / 一時停止」「最初に戻す」で動作を確認します。
+正面・左斜め上・右斜めの視点を切り替えても再生状態は維持されます。
+Cue と Timeline の時間・補間は既存の `unframe-core` が担当し、Unity は描画とカメラを担当します。
+対象は現在の Compiler が出力する baked-web Surface です。モデル・動画・native-ui・
+追跡 Anchor など未対応の描画形式は読み込み時にエラーにします。
+
+Editor の標準インストール先以外を使う場合は `UNITY_EDITOR` に実行ファイルを指定します。
+Linux x86_64 の Nix タスクは Unity Hub の FHS 環境内で Editor を実行します。
+生成物は `app/unity-preview/Builds/WebPreview/`、ログは
+`app/unity-preview/Logs/web-preview-build.log` に出力し、いずれも Git 管理しません。
+開発サーバーだけが `/unity-preview/` で生成物を配信し、通常の Web ビルドには含めません。
 
 GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し、`magic-nix-cache-action` で Nix store をキャッシュします。
 

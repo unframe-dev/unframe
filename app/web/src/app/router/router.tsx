@@ -15,6 +15,7 @@ import { ApplicationShell } from "@/app/shell/application-shell";
 import { DevicesPage, RoomsPage } from "@/app/shell/application-placeholder-pages";
 import { LoginPage, RecoverPage, ResetPage, SignupPage } from "@/features/auth/auth-pages";
 import { ProfilePage, SecurityPage } from "@/features/settings/settings-pages";
+import { UnityPreviewPage } from "@/features/dev-unity-preview/unity-preview-page";
 import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";
 const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
@@ -87,6 +88,13 @@ const deviceRoute = createRoute({
   validateSearch: z.object({ user_code: z.string().catch("") }),
   component: () => <DeviceAuthorizationPage initialUserCode={deviceRoute.useSearch().user_code} />,
 });
+const unityPreviewRoute = import.meta.env.DEV
+  ? createRoute({
+      getParentRoute: () => rootRoute,
+      path: "dev/unity-preview",
+      component: UnityPreviewPage,
+    })
+  : null;
 const applicationRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "application",
@@ -141,6 +149,7 @@ const routeTree = rootRoute.addChildren([
   recoverRoute,
   resetRoute,
   deviceRoute,
+  ...(unityPreviewRoute ? [unityPreviewRoute] : []),
   applicationRoute.addChildren([
     homeRoute,
     devicesRoute,

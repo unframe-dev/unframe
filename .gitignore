@@ -19,6 +19,8 @@ pnpm-debug.log*
 
 # build artifacts
 dist/
+examples/presentation/dist
+examples/presentation/.unframe/
 build/
 .svelte-kit/
 .cache/
@@ -64,3 +66,13 @@ app/unity/*.unityproj
 app/unity/sysinfo.txt
 # Unity Licensing — Manual Activation File (機密性は低いが追跡不要)
 app/unity/*.alf
+
+# Standalone Unity preview editor
+app/unity-preview/Library/
+app/unity-preview/Temp/
+app/unity-preview/Obj/
+app/unity-preview/Builds/
+app/unity-preview/Logs/
+app/unity-preview/UserSettings/
+app/unity-preview/*.csproj
+app/unity-preview/*.sln
