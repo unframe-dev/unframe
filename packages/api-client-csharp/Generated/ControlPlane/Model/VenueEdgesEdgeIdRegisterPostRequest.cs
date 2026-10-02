@@ -63,12 +63,7 @@ namespace Unframe.ControlPlane.Model
             /// <summary>
             /// Enum V1 for value: v1
             /// </summary>
-            V1 = 1,
-
-            /// <summary>
-            /// Enum V2 for value: v2
-            /// </summary>
-            V2 = 2
+            V1 = 1
         }
 
         /// <summary>
@@ -81,9 +76,6 @@ namespace Unframe.ControlPlane.Model
         {
             if (value.Equals("v1"))
                 return ProtocolVersionEnum.V1;
-
-            if (value.Equals("v2"))
-                return ProtocolVersionEnum.V2;
 
             throw new NotImplementedException($"Could not convert value to type ProtocolVersionEnum: '{value}'");
         }
@@ -98,9 +90,6 @@ namespace Unframe.ControlPlane.Model
             if (value.Equals("v1"))
                 return ProtocolVersionEnum.V1;
 
-            if (value.Equals("v2"))
-                return ProtocolVersionEnum.V2;
-
             return null;
         }
 
@@ -114,9 +103,6 @@ namespace Unframe.ControlPlane.Model
         {
             if (value == ProtocolVersionEnum.V1)
                 return "v1";
-
-            if (value == ProtocolVersionEnum.V2)
-                return "v2";
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }
