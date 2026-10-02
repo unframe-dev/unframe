@@ -1,6 +1,6 @@
 # Unframe Realtime Runtime
 
-Go 1.25.7 と gRPC を使う、Control Plane から独立した Cloud / Venue Edge 共通 Realtime Runtime の実行基盤です。`RealtimeService.Connect` は Control Plane の JWKS で session-bound Runtime JWT を検証し、local `RuntimeAssignment` の session、Runtime ID / kind、epoch、Presentation revision、lease で接続と command を fencing します。JWKS cache は5分で失効し、refresh 失敗時は stale key を使用しません。protocol-version handshake 後は presenter の page-change command を session 単位で採番し、接続中の participant へ順序付きで in-memory fan-out します。replay と resume は未実装です。
+Go 1.25.7 と gRPC を使う、Control Plane から独立した Cloud / Venue Edge 共通 Realtime Runtime です。Control Plane の JWKS で session-bound Runtime JWT を検証し、assignment の session、Runtime ID / kind、epoch、Presentation revision、lease で接続と command を fencing します。JWKS cache は5分で失効し、refresh 失敗時は stale key を使用しません。v2 Control / State service は publication-pinned Definition と participant projection を使います。v1 page-change service も独立した protocol-version 検証付きで登録しています。
 
 Realtime Backend / Venue Edge の目標設計は [ARCHITECTURE.md](./ARCHITECTURE.md)、Control Plane との authority handoff は [`../ARCHITECTURE.md`](../ARCHITECTURE.md) を参照してください。
 
@@ -14,7 +14,7 @@ set +a
 go run ./cmd/server
 ```
 
-`REALTIME_LISTEN_ADDR` で listen address を指定でき、既定値は `:9090` です。起動には `REALTIME_ISSUER`、Control Planeと共通の`REALTIME_AUDIENCE=unframe-realtime-runtime`、`REALTIME_JWKS_URL` と、Control Plane が発行した assignment の `REALTIME_SESSION_ID`、`REALTIME_RUNTIME_ID`、`REALTIME_RUNTIME_KIND`、`REALTIME_RUNTIME_ENDPOINT`、`REALTIME_ASSIGNMENT_EPOCH`、`REALTIME_PRESENTATION_REVISION`、`REALTIME_ASSIGNMENT_ISSUED_AT`、`REALTIME_LEASE_EXPIRES_AT` が必要です。lease duration は Runtime 側で補完せず、Control Plane の値をそのまま使用します。
+`REALTIME_LISTEN_ADDR` で listen address を指定でき、既定値は `:9090` です。起動には `REALTIME_ISSUER`、Control Planeと共通の`REALTIME_AUDIENCE=unframe-realtime-runtime`、`REALTIME_JWKS_URL` と、Control Plane が発行した assignment の `REALTIME_SESSION_ID`、`REALTIME_RUNTIME_ID`、`REALTIME_RUNTIME_KIND`、`REALTIME_RUNTIME_ENDPOINT`、`REALTIME_ASSIGNMENT_EPOCH`、`REALTIME_PRESENTATION_REVISION`、`REALTIME_ASSIGNMENT_ISSUED_AT`、`REALTIME_LEASE_EXPIRES_AT` が必要です。lease duration は Runtime 側で補完せず、Control Plane の値をそのまま使用します。`REALTIME_CONTROL_PLANE_URL` と32文字以上の `REALTIME_SERVICE_IDENTITY` も必須です。起動時に service Bearer で Control Plane の internal bootstrap を取得し、publication-pinned Definition を検証して v2 service を登録します。service identity をログやクライアントへ渡してはいけません。
 
 標準 gRPC Health Checking service は process 起動だけでは `SERVING` になりません。composition root が local assignment lease と JWKS cache を期限付きで確認した後に application ready を公開し、稼働中も再評価して依存障害時または shutdown 開始時に `NOT_SERVING` へ戻します。assignment guard は期限後の command / reliable delivery を拒否しますが、`NOT_SERVING` 遷移時に既存の idle stream を閉じて Session Runtime を pause する lifecycle 接続は未実装です。`SIGINT` または `SIGTERM` を受け取ると、10秒を上限に graceful shutdown します。
 
@@ -34,9 +34,13 @@ go run ./cmd/server
 
 `internal/gen/realtime/v1` は protobuf generator の出力先です。`.proto` の source of truth は `packages/contracts/proto/` で、generated Go files は手で編集しません。repository root の Nix development shell で `scripts/contracts/generate-proto.sh check` を実行すると drift を検出できます。
 
+v2 の generated message / service は `internal/gen/{presentation,delivery,realtime}/v2` に置く。`scripts/contracts/generate-v2-consumers.sh check` は C# とともに再生成と provenance を検査する。`internal/protocol/v2` は required variant / enum / scalar、信頼済み catalog と Snapshot の resource closure、checkpoint の生 bytes hash / identity、Connection Snapshot の fence / origin / sequence、Replay cursor / State frame の順序を検証する。checkpoint restore は logical clock を進めず `paused/processRecovered` にする。
+
+v2 は Control / State service registration、single-use nonce、Snapshot cut と subscriber 登録、bounded reliable replay、Logical Input / Surface Interaction、Guard と即時 Action、checkpoint 書込み・復元を application に接続しています。checkpoint 保存に失敗した Command は変更を戻して fault pause にし、event を公開しません。復元直後に過去の in-memory event log は存在しないため、保持範囲外の resume は Snapshot 再同期を要求します。Timeline / Surface transition / Media / Model Run、Group 遷移、Timer、Presence、Runtime Control、fault 時の pause、completion callback を接続しました。assignment lease の再検証、Presenter disconnect による pause、再検証後の明示 resume を実装しています。各 mutation の全 canonical checkpoint を保存してから event を公開し、復旧では最新 checkpoint を使います。checkpoint の hash / fence / snapshot 検証に失敗した場合は起動を拒否します。`recoveryGap` 中の resume も拒否します。`pauseTimeout` は期間と自動終了 policy が未定義のため未実装です。Presenter State stream は Tracking frame を受理して Cue と Anchor binding を評価します。ローカルの実 Control Plane と TLS 接続では Cue 実行、replay / resume、checkpoint 保存と Session 終了を確認しています。Video / Model の配信受理と Unity 実機での表示は、consumer と capability 条件の検証が別途必要です。
+
 接続の session、participant、role、Runtime ID / kind、assignment epoch、Presentation revision は message payload ではなく、認証 interceptor が検証して stream context へ設定した identity から取得します。gRPC server は JWT verifier、assignment guard、session coordinator なしでは構築できません。
 
-現在の composition root は `runtimeKind` にかかわらず同じ Runtime Core を起動しますが、単一 Session の assignment は環境変数から読み取ります。Control Plane から assignment / Manifest を取得して lease を更新する profile adapter、Asset Gateway の local HTTPS listener、runtime state machine と State mailbox の gRPC contract への接続は後続実装です。`internal/persistence/http` の callback client / bounded buffer も transport 境界までで、Snapshot schema や session lifecycle には未接続です。`internal/asset`、`internal/session.Runtime`、`internal/state` は transport-independent な検証済み domain primitive です。
+composition root は単一 Session の assignment を環境変数から読み、Control Plane の internal bootstrap で publication と Definition を照合します。同じassignment / publicationのlease延長をControl Planeで再検証し、期限切れ時はclockと入力を停止します。lease更新だけではRuntimeを再開せず、明示resumeで再検証します。Asset Gatewayのlocal HTTPS listenerは未接続です。`internal/asset` の cache と `internal/state` の mailbox は独立した primitive であり、v2 transport の配線済み機能とは区別してください。現在の Unity Baked Web 経路は Control Plane が発行した Asset URL から直接取得します。
 
 `fly.toml` は TLS 終端から H2C backend へ接続する共通 service profile だけを定義します。app、region、Machine 構成、autoscaling、Runtime identity、health routing は未決定であり、この repository では固定していません。
 
