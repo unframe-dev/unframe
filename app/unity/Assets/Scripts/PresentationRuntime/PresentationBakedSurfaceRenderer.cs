@@ -43,10 +43,13 @@ namespace Unframe.Unity.PresentationRuntime
                 PresentationTextureResidency.Destroy(quad.GetComponent<Collider>());
                 quad.transform.SetParent(host.transform, false);
                 LogicalBounds bounds = surface.LogicalBounds;
-                quad.transform.localScale = new UnityEngine.Vector3((float)(bounds.Width / semantic.LogicalSize.X * semantic.PhysicalSizeMeters.X),
-                    (float)(bounds.Height / semantic.LogicalSize.Y * semantic.PhysicalSizeMeters.Y), 1);
-                quad.transform.localPosition = new UnityEngine.Vector3((float)((bounds.X + bounds.Width / 2) / semantic.LogicalSize.X * semantic.PhysicalSizeMeters.X - semantic.PhysicalSizeMeters.X / 2),
-                    (float)(semantic.PhysicalSizeMeters.Y / 2 - (bounds.Y + bounds.Height / 2) / semantic.LogicalSize.Y * semantic.PhysicalSizeMeters.Y), -(float)surface.Layer * 0.0001f);
+                double fitX = semantic.PhysicalSizeMeters.X / semantic.LogicalSize.X;
+                double fitY = semantic.PhysicalSizeMeters.Y / semantic.LogicalSize.Y;
+                if (semantic.Fit == SurfaceFit.Contain) fitX = fitY = Math.Min(fitX, fitY);
+                if (semantic.Fit == SurfaceFit.Cover) fitX = fitY = Math.Max(fitX, fitY);
+                quad.transform.localScale = new UnityEngine.Vector3((float)(bounds.Width * fitX), (float)(bounds.Height * fitY), 1);
+                quad.transform.localPosition = new UnityEngine.Vector3((float)((bounds.X + bounds.Width / 2 - semantic.LogicalSize.X / 2) * fitX),
+                    (float)((semantic.LogicalSize.Y / 2 - bounds.Y - bounds.Height / 2) * fitY), -(float)surface.Layer * 0.0001f);
                 MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
                 renderer.sharedMaterial = material;
                 renderer.enabled = false;
@@ -94,6 +97,43 @@ namespace Unframe.Unity.PresentationRuntime
             }
             error = null;
             return true;
+        }
+
+        public bool TryPickInteraction(Ray ray, PresentationRuntimeDataStore store, PresentationTextureResidency textures,
+            out string surfaceId, out string interactionId)
+        {
+            surfaceId = null;
+            interactionId = null;
+            Partition nearest = null;
+            QuestNormalizedPoint point = default;
+            float nearestDistance = float.PositiveInfinity;
+            foreach (Partition partition in partitions)
+            {
+                if (!partition.Renderer.enabled || !partition.Object.activeInHierarchy
+                    || !store.TryGetSurfaceState(partition.Surface.SemanticSurfaceId, out SurfaceRuntimeState state)
+                    || !store.TryGetNodeState(partition.HostNodeId, out NodeRuntimeState node)
+                    || !node.Active || !node.Visible
+                    || !TryTexture(partition.Surface, state.StateId, textures, out _, out bool visible) || !visible
+                    || !store.TryGetSurface(partition.Surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
+                    || !QuestPresentationSurfacePicking.TryIntersect(ray, partition.Object.transform, partition.Surface.LogicalBounds,
+                        semantic.LogicalSize.X, semantic.LogicalSize.Y, out QuestNormalizedPoint candidatePoint, out float distance)
+                    || distance > nearestDistance
+                    || distance == nearestDistance && nearest != null
+                        && StringComparer.Ordinal.Compare(partition.Surface.SemanticSurfaceId, nearest.Surface.SemanticSurfaceId) >= 0) continue;
+                nearest = partition;
+                point = candidatePoint;
+                nearestDistance = distance;
+            }
+            if (nearest == null) return false;
+            foreach (ProjectedSemanticSurface semantic in store.Delivery.ProjectionProfile.SemanticSurfaces)
+            {
+                if (semantic.SemanticSurfaceId != nearest.Surface.SemanticSurfaceId) continue;
+                if (!store.TryGetSurfaceState(semantic.SemanticSurfaceId, out SurfaceRuntimeState state)
+                    || !QuestPresentationSurfacePicking.TryResolve(semantic, state.StateId, point, out interactionId)) return false;
+                surfaceId = semantic.SemanticSurfaceId;
+                return true;
+            }
+            return false;
         }
 
         private static bool TryTexture(DeliveredRenderSurface surface, string stateId, PresentationTextureResidency textures, out Texture2D resident, out bool visible)

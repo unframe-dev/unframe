@@ -3,7 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current milestone**: Milestone 6 実装中。CLI / Control Plane / Realtimeの接続とUnity Editorの実HTTPS Asset取得を確認済み。Quest用Scene / 実機入力の接続と端末での取得・入力・性能検証は未完了
+- **Current milestone**: Milestone 6 実装中。CLI / Control Plane / Realtimeの接続とUnity Editorの実HTTPS Asset取得を確認済み。Quest用SceneとXR Pose / 入力adapterを実装し、ARM64 Android APKの生成と最終manifestを確認済み。Quest未接続のため実機検証は未着手
 - **Architecture source**:
   - [Presentation Architecture](../packages/ARCHITECTURE.md)
   - [Presentation Implementation Design](../packages/DESIGN.md)
@@ -34,7 +34,8 @@ RenderBundle + AssetSet + BuildManifest + PNG / Font
 v2 local build artifact
         ↓ 実装済み: publication integrity、role / capability 別 Delivery projection
         ↓ 実装済み: persistence、network delivery、Unity Editorのlive consumer lifecycle
-        ↓ 未検証: Quest用Scene / 実機入力と端末上のend-to-end動作
+        ↓ 実装済み: Quest用Scene / XR Pose・入力adapter
+        ↓ 未検証: Quest端末上のend-to-end動作と性能
 consumer
 ```
 
@@ -407,7 +408,7 @@ M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface tr
 - local buildとpublish対象artifactのhashが一致する。
 - application integrationがpackage内部moduleへdeep importしない。
 - 実サービスのauthoritative execution、replay / resume、checkpoint / completionを検証する（[ADR-0024](../decisions/0024-m6-application-transport-boundaries.md)）。
-- Quest実機でDeliveryとAsset取得、入力、texture residency、GPU / CPU・upload peakを検証する。端末用SceneとPose / 入力adapterの接続、および端末計測は未完了である。
+- Quest実機でDeliveryとAsset取得、入力、texture residency、GPU / CPU・upload peakを検証する。端末用SceneとPose / 入力adapterは実装済み。端末上の接続と計測は未検証である。
 
 ## 11. 横断的な検証戦略
 

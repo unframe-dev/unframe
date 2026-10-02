@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Unframe.Delivery.V2;
+using Unframe.Presentation.V2;
 using Unframe.Realtime.V2;
 using UnityEngine;
 
@@ -25,6 +26,9 @@ namespace Unframe.Unity.PresentationRuntime
         public bool DownloadReady { get; private set; }
         public bool ResidentReady { get { return textures != null && store.Delivery != null && store.Delivery.Residency.Textures != null && textures.IsReady(store.Delivery.Residency.Textures.Textures); } }
         public bool SessionReady { get { return DownloadReady && ResidentReady && connection != null && connection.SessionReady; } }
+        public ulong PresentationOriginVersion { get { return SessionReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
+        public bool CanSendInput { get { return SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
+        public bool CanSendTracking { get { return CanSendInput; } }
         public string LastError { get; private set; }
 
         public async Task RunAsync(DeliveryManifest manifest, Uri realtimeEndpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken,
@@ -195,7 +199,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public Task SendAsync(ControlClientItem command, CancellationToken token)
         {
-            if (!SessionReady) throw new InvalidOperationException("Runtime input is disabled until session readiness.");
+            if (!CanSendInput) throw new InvalidOperationException("Runtime input requires a ready Presenter session.");
             return connection.SendAsync(command, token);
         }
 
@@ -203,6 +207,14 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (!SessionReady) throw new InvalidOperationException("Runtime tracking is disabled until session readiness.");
             return connection.SendTrackingAsync(frame, token);
+        }
+
+        public bool TryPickInteraction(Ray ray, out string surfaceId, out string interactionId)
+        {
+            surfaceId = null;
+            interactionId = null;
+            return CanSendInput && surfaceRenderer != null
+                && surfaceRenderer.TryPickInteraction(ray, store, textures, out surfaceId, out interactionId);
         }
 
         private void Update()
