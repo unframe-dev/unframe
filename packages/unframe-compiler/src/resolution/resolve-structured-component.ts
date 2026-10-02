@@ -5,6 +5,7 @@ import type {
   ContentOverrideDeclaration,
   ContentNodeDeclaration,
   FrameStyleDeclaration,
+  FrameFlowDeclaration,
   NamedFrameStyleDeclaration,
   NamedTextStyleDeclaration,
   PartOverrideDeclaration,
@@ -282,7 +283,7 @@ export const resolveStructuredComponent = ({
   }
 
   const namedStyle = <T extends "frame" | "text">(node: ContentNodeDeclaration, kind: T) => {
-    if (node.kind === "slot-placeholder") return undefined;
+    if (node.kind !== "frame" && node.kind !== "text") return undefined;
     if (!node.namedStyle) return undefined;
     const named = theme.namedStyles[node.namedStyle.styleId];
     if (!named) {
@@ -304,19 +305,116 @@ export const resolveStructuredComponent = ({
     return named.style;
   };
 
+  const resolveInsets = (
+    source: { top: unknown; right: unknown; bottom: unknown; left: unknown },
+    at: Path,
+  ) => ({
+    top: resolveNumber(source.top, "logicalLength", [...at, "top"]) ?? 0,
+    right: resolveNumber(source.right, "logicalLength", [...at, "right"]) ?? 0,
+    bottom: resolveNumber(source.bottom, "logicalLength", [...at, "bottom"]) ?? 0,
+    left: resolveNumber(source.left, "logicalLength", [...at, "left"]) ?? 0,
+  });
+  const resolveFlow = (
+    flow: FrameFlowDeclaration | { kind: "absolute" } | undefined,
+    at: Path,
+  ): CoreFrame["layout"] => {
+    if (!flow || flow.kind === "absolute") return { kind: "absolute" };
+    if (flow.kind === "stack")
+      return {
+        kind: "stack",
+        direction: flow.direction,
+        gap: resolveNumber(flow.gap, "logicalLength", [...at, "gap"]) ?? 0,
+        padding: resolveInsets(flow.padding, [...at, "padding"]),
+        alignItems: flow.alignItems,
+        justifyContent: flow.justifyContent,
+      };
+    const grid = flow;
+    return {
+      kind: "grid",
+      columns: grid.columns.map((track, index) =>
+        track.kind === "fixed"
+          ? {
+              kind: "fixed" as const,
+              size:
+                resolveNumber(track.size, "logicalLength", [...at, "columns", index, "size"]) ?? 1,
+            }
+          : {
+              kind: "fraction" as const,
+              fraction:
+                resolveNumber(track.fraction, "logicalLength", [
+                  ...at,
+                  "columns",
+                  index,
+                  "fraction",
+                ]) ?? 1,
+            },
+      ),
+      rows: grid.rows.map((track, index) =>
+        track.kind === "fixed"
+          ? {
+              kind: "fixed" as const,
+              size: resolveNumber(track.size, "logicalLength", [...at, "rows", index, "size"]) ?? 1,
+            }
+          : {
+              kind: "fraction" as const,
+              fraction:
+                resolveNumber(track.fraction, "logicalLength", [
+                  ...at,
+                  "rows",
+                  index,
+                  "fraction",
+                ]) ?? 1,
+            },
+      ),
+      columnGap: resolveNumber(grid.columnGap, "logicalLength", [...at, "columnGap"]) ?? 0,
+      rowGap: resolveNumber(grid.rowGap, "logicalLength", [...at, "rowGap"]) ?? 0,
+      padding: resolveInsets(grid.padding, [...at, "padding"]),
+    };
+  };
+  const resolvePlacementSource = (
+    source: Exclude<ContentNodeDeclaration, { kind: "slot-placeholder" }>["layout"],
+    at: Path,
+  ) => {
+    if (source.kind === "absolute")
+      return {
+        kind: "absolute" as const,
+        x: resolveNumber(source.x, "logicalLength", [...at, "x"]) ?? 0,
+        y: resolveNumber(source.y, "logicalLength", [...at, "y"]) ?? 0,
+        width: resolveNumber(source.width, "logicalLength", [...at, "width"]) ?? 1,
+        height: resolveNumber(source.height, "logicalLength", [...at, "height"]) ?? 1,
+      };
+    if (source.kind === "stack")
+      return {
+        kind: "stack" as const,
+        grow: resolveNumber(source.grow, "logicalLength", [...at, "grow"]) ?? 0,
+        width: resolveNumber(source.width, "logicalLength", [...at, "width"]) ?? 1,
+        height: resolveNumber(source.height, "logicalLength", [...at, "height"]) ?? 1,
+        alignSelf: source.alignSelf,
+        margin: resolveInsets(source.margin, [...at, "margin"]),
+      };
+    return {
+      kind: "grid" as const,
+      column: source.column,
+      row: source.row,
+      columnSpan: source.columnSpan,
+      rowSpan: source.rowSpan,
+      width: resolveNumber(source.width, "logicalLength", [...at, "width"]) ?? 1,
+      height: resolveNumber(source.height, "logicalLength", [...at, "height"]) ?? 1,
+      alignSelf: source.alignSelf,
+      justifySelf: source.justifySelf,
+      margin: resolveInsets(source.margin, [...at, "margin"]),
+    };
+  };
   const resolvePlacement = (node: ContentNodeDeclaration) => {
     if (node.kind === "slot-placeholder")
       return { kind: "absolute" as const, x: 0, y: 0, width: 1, height: 1 };
     const part = partByTarget.get(node.id);
-    const source = part?.placement ?? node.layout;
-    const at = [...path, "structure", node.id, "layout"];
-    return {
-      kind: "absolute" as const,
-      x: resolveNumber(source.x, "logicalLength", [...at, "x"]) ?? 0,
-      y: resolveNumber(source.y, "logicalLength", [...at, "y"]) ?? 0,
-      width: resolveNumber(source.width, "logicalLength", [...at, "width"]) ?? 1,
-      height: resolveNumber(source.height, "logicalLength", [...at, "height"]) ?? 1,
-    };
+    return resolvePlacementSource(part?.placement ?? node.layout, [
+      ...path,
+      "structure",
+      node.id,
+      "layout",
+    ]);
   };
   const resolveTextStyle = (
     node: Extract<ContentNodeDeclaration, { kind: "text" }>,
@@ -471,6 +569,102 @@ export const resolveStructuredComponent = ({
       };
       return;
     }
+    if (node.kind === "image") {
+      const at = [...path, "structure", node.id];
+      contentNodes[id] = {
+        ...common,
+        kind: "image",
+        assetId: node.asset.assetId,
+        style: {
+          fit: node.style.fit,
+          tint: resolveColor(node.style.tint, [...at, "style", "tint"]) ?? transparent,
+          border: {
+            color:
+              resolveColor(node.style.border.color, [...at, "style", "border", "color"]) ??
+              transparent,
+            width:
+              resolveNumber(node.style.border.width, "logicalLength", [
+                ...at,
+                "style",
+                "border",
+                "width",
+              ]) ?? 0,
+            radius:
+              resolveNumber(node.style.border.radius, "logicalLength", [
+                ...at,
+                "style",
+                "border",
+                "radius",
+              ]) ?? 0,
+          },
+        },
+      };
+      return;
+    }
+    if (node.kind === "shape") {
+      const at = [...path, "structure", node.id];
+      const geometry =
+        node.geometry.kind === "rectangle"
+          ? {
+              kind: "rectangle" as const,
+              width:
+                resolveNumber(node.geometry.width, "logicalLength", [...at, "geometry", "width"]) ??
+                1,
+              height:
+                resolveNumber(node.geometry.height, "logicalLength", [
+                  ...at,
+                  "geometry",
+                  "height",
+                ]) ?? 1,
+              radius:
+                resolveNumber(node.geometry.radius, "logicalLength", [
+                  ...at,
+                  "geometry",
+                  "radius",
+                ]) ?? 0,
+            }
+          : node.geometry.kind === "ellipse"
+            ? {
+                kind: "ellipse" as const,
+                width:
+                  resolveNumber(node.geometry.width, "logicalLength", [
+                    ...at,
+                    "geometry",
+                    "width",
+                  ]) ?? 1,
+                height:
+                  resolveNumber(node.geometry.height, "logicalLength", [
+                    ...at,
+                    "geometry",
+                    "height",
+                  ]) ?? 1,
+              }
+            : {
+                kind: "line" as const,
+                endX:
+                  resolveNumber(node.geometry.endX, "logicalLength", [...at, "geometry", "endX"]) ??
+                  0,
+                endY:
+                  resolveNumber(node.geometry.endY, "logicalLength", [...at, "geometry", "endY"]) ??
+                  0,
+              };
+      contentNodes[id] = {
+        ...common,
+        kind: "shape",
+        geometry,
+        style: {
+          fill: resolveColor(node.style.fill, [...at, "style", "fill"]) ?? transparent,
+          stroke: resolveColor(node.style.stroke, [...at, "style", "stroke"]) ?? transparent,
+          strokeWidth:
+            resolveNumber(node.style.strokeWidth, "logicalLength", [
+              ...at,
+              "style",
+              "strokeWidth",
+            ]) ?? 0,
+        },
+      };
+      return;
+    }
     const childIds = node.children
       .filter((child) => child.kind !== "slot-placeholder")
       .map((child) => resourceId(instance.id, child.id));
@@ -486,7 +680,7 @@ export const resolveStructuredComponent = ({
     const frame: CoreFrame = {
       ...common,
       kind: "frame",
-      layout: { kind: "absolute" },
+      layout: resolveFlow(node.flow, [...path, "structure", node.id, "flow"]),
       children: childIds,
       backgroundColor:
         style.backgroundColor === undefined
@@ -573,14 +767,6 @@ export const resolveStructuredComponent = ({
       );
       return undefined;
     }
-    if (target.placement.kind !== "absolute") {
-      failure(
-        "compiler-content-override-placement-unsupported",
-        at,
-        "State overrides require absolute placement.",
-      );
-      return undefined;
-    }
     const common = {
       ...(override.visible === undefined
         ? {}
@@ -594,35 +780,15 @@ export const resolveStructuredComponent = ({
           }),
       ...(override.placement === undefined
         ? {}
-        : {
-            placement: {
-              kind: "absolute" as const,
-              x:
-                resolveNumber(override.placement.x, "logicalLength", [...at, "placement", "x"]) ??
-                target.placement.x,
-              y:
-                resolveNumber(override.placement.y, "logicalLength", [...at, "placement", "y"]) ??
-                target.placement.y,
-              width:
-                resolveNumber(override.placement.width, "logicalLength", [
-                  ...at,
-                  "placement",
-                  "width",
-                ]) ?? target.placement.width,
-              height:
-                resolveNumber(override.placement.height, "logicalLength", [
-                  ...at,
-                  "placement",
-                  "height",
-                ]) ?? target.placement.height,
-            },
-          }),
+        : { placement: resolvePlacementSource(override.placement, [...at, "placement"]) }),
     };
     if (override.kind === "frame" && target.kind === "frame")
       return {
         kind: "frame",
         ...common,
-        ...(override.layout === undefined ? {} : { layout: override.layout }),
+        ...(override.flow === undefined
+          ? {}
+          : { layout: resolveFlow(override.flow, [...at, "flow"]) }),
         ...(override.backgroundColor === undefined
           ? {}
           : {
@@ -655,6 +821,98 @@ export const resolveStructuredComponent = ({
           ? {}
           : { clip: resolveBoolean(override.clip, [...at, "clip"]) ?? target.clip }),
       };
+    if (override.kind === "image" && target.kind === "image")
+      return {
+        kind: "image",
+        ...common,
+        ...(override.asset === undefined ? {} : { assetId: override.asset.assetId }),
+        ...(override.style === undefined
+          ? {}
+          : {
+              style: {
+                fit: override.style.fit,
+                tint:
+                  resolveColor(override.style.tint, [...at, "style", "tint"]) ?? target.style.tint,
+                border: {
+                  color:
+                    resolveColor(override.style.border.color, [
+                      ...at,
+                      "style",
+                      "border",
+                      "color",
+                    ]) ?? target.style.border.color,
+                  width:
+                    resolveNumber(override.style.border.width, "logicalLength", [
+                      ...at,
+                      "style",
+                      "border",
+                      "width",
+                    ]) ?? target.style.border.width,
+                  radius:
+                    resolveNumber(override.style.border.radius, "logicalLength", [
+                      ...at,
+                      "style",
+                      "border",
+                      "radius",
+                    ]) ?? target.style.border.radius,
+                },
+              },
+            }),
+      };
+    if (override.kind === "shape" && target.kind === "shape") {
+      const source = override.geometry;
+      const geometry =
+        source === undefined
+          ? undefined
+          : source.kind === "rectangle"
+            ? {
+                kind: "rectangle" as const,
+                width:
+                  resolveNumber(source.width, "logicalLength", [...at, "geometry", "width"]) ?? 1,
+                height:
+                  resolveNumber(source.height, "logicalLength", [...at, "geometry", "height"]) ?? 1,
+                radius:
+                  resolveNumber(source.radius, "logicalLength", [...at, "geometry", "radius"]) ?? 0,
+              }
+            : source.kind === "ellipse"
+              ? {
+                  kind: "ellipse" as const,
+                  width:
+                    resolveNumber(source.width, "logicalLength", [...at, "geometry", "width"]) ?? 1,
+                  height:
+                    resolveNumber(source.height, "logicalLength", [...at, "geometry", "height"]) ??
+                    1,
+                }
+              : {
+                  kind: "line" as const,
+                  endX:
+                    resolveNumber(source.endX, "logicalLength", [...at, "geometry", "endX"]) ?? 0,
+                  endY:
+                    resolveNumber(source.endY, "logicalLength", [...at, "geometry", "endY"]) ?? 0,
+                };
+      return {
+        kind: "shape",
+        ...common,
+        ...(geometry === undefined ? {} : { geometry }),
+        ...(override.style === undefined
+          ? {}
+          : {
+              style: {
+                fill:
+                  resolveColor(override.style.fill, [...at, "style", "fill"]) ?? target.style.fill,
+                stroke:
+                  resolveColor(override.style.stroke, [...at, "style", "stroke"]) ??
+                  target.style.stroke,
+                strokeWidth:
+                  resolveNumber(override.style.strokeWidth, "logicalLength", [
+                    ...at,
+                    "style",
+                    "strokeWidth",
+                  ]) ?? target.style.strokeWidth,
+              },
+            }),
+      };
+    }
     if (override.kind !== "text" || target.kind !== "text") return undefined;
     const style = override.style;
     const baseStyle = target.style;

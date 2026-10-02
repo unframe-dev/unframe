@@ -31,6 +31,8 @@
           pkgs.protoc-gen-go
           pkgs.protoc-gen-go-grpc
           pkgs.dotnet-sdk_8
+          pkgs.openapi-generator-cli
+          pkgs.buf
           pkgs.powershell
           pkgs.git
           pkgs.git-lfs
@@ -154,6 +156,10 @@
           unity-proto = mkApp {
             name = "unity-proto";
             script = "contracts/generate-unity-proto.sh";
+          };
+          v2-consumers = mkApp {
+            name = "v2-consumers";
+            script = "contracts/generate-v2-consumers.sh";
           };
           realtime = mkApp {
             name = "realtime";

@@ -114,6 +114,16 @@ export const rendererBuildInputSchema = z.strictObject({
       checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
     }),
   ),
+  imageAssets: z
+    .record(
+      rendererIdSchema,
+      z.strictObject({
+        mediaType: z.enum(["image/png", "image/jpeg"]),
+        dataBase64: z.string().min(1),
+        checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+      }),
+    )
+    .optional(),
   plan: renderSurfacePlanSchema,
   entry: rendererEntrySchema,
   context: z.strictObject({

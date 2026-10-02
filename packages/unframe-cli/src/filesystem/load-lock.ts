@@ -99,6 +99,7 @@ const root = strict({
   themeHashes: z.array(theme),
   componentLocks: z.array(component),
   assets: z.array(asset),
+  rendererPlugins: z.array(strict({ id: nonempty, version: nonempty, contractVersion: nonempty })),
 });
 
 export type LoadedUnframeLock = Readonly<{
@@ -146,6 +147,16 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
         message: "unframe.lock must be strict UTF-8 JSON.",
       },
     };
+  if (
+    parsed.value !== null &&
+    typeof parsed.value === "object" &&
+    !Array.isArray(parsed.value) &&
+    !("rendererPlugins" in parsed.value)
+  )
+    return fail(
+      "cli-lock-renderer-plugins-refresh-required",
+      "unframe.lock has no renderer plugin pins; run update-lock to refresh it.",
+    );
   const result = root.safeParse(parsed.value);
   if (!result.success)
     return fail(
@@ -165,7 +176,8 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
         (previous.componentId === item.componentId && previous.version < item.version)
       );
     }) ||
-    !orderedUnique(lock.assets, (item) => item.id)
+    !orderedUnique(lock.assets, (item) => item.id) ||
+    !orderedUnique(lock.rendererPlugins, (item) => `${item.id}\0${item.version}`)
   )
     return fail("cli-lock-order-invalid", "Lock collections must be sorted and unique.");
   const packages = new Map(lock.packages.map((item) => [item.key, item]));

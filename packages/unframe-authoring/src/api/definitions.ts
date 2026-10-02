@@ -45,10 +45,12 @@ import type {
   NamedStyleReference,
   AssetReference,
   SpatialDeclaration,
-  AbsoluteLayoutDeclaration,
+  PlacementDeclaration,
   SemanticOverrideDeclaration,
   FrameDeclaration,
   TextDeclaration,
+  ImageDeclaration,
+  ShapeDeclaration,
   SlotPlaceholderDeclaration,
   SurfaceDeclaration,
   ContentNodeDeclaration,
@@ -147,6 +149,78 @@ const absoluteLayoutSchema = z.strictObject({
   width: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
   height: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
 });
+const nonNegativeNumberValueSchema = z.union([
+  finiteNumberSchema.nonnegative(),
+  numberPropReferenceSchema,
+]);
+const positiveNumberValueSchema = z.union([
+  finiteNumberSchema.positive(),
+  numberPropReferenceSchema,
+]);
+const edgeInsetsSchema = z.strictObject({
+  top: nonNegativeNumberValueSchema,
+  right: nonNegativeNumberValueSchema,
+  bottom: nonNegativeNumberValueSchema,
+  left: nonNegativeNumberValueSchema,
+});
+const stackPlacementSchema = z.strictObject({
+  kind: z.literal("stack"),
+  grow: nonNegativeNumberValueSchema,
+  width: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  height: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]),
+  margin: edgeInsetsSchema,
+});
+const gridPlacementSchema = z.strictObject({
+  kind: z.literal("grid"),
+  column: positiveSafeIntegerSchema,
+  row: positiveSafeIntegerSchema,
+  columnSpan: positiveSafeIntegerSchema,
+  rowSpan: positiveSafeIntegerSchema,
+  width: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  height: z.union([finiteNumberSchema.positive(), numberPropReferenceSchema]),
+  alignSelf: z.enum(["start", "center", "end", "stretch"]),
+  justifySelf: z.enum(["start", "center", "end", "stretch"]),
+  margin: edgeInsetsSchema,
+});
+const placementSchema = z.discriminatedUnion("kind", [
+  absoluteLayoutSchema,
+  stackPlacementSchema,
+  gridPlacementSchema,
+]);
+const flowSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("absolute") }),
+  z.strictObject({
+    kind: z.literal("stack"),
+    direction: z.enum(["horizontal", "vertical"]),
+    gap: nonNegativeNumberValueSchema,
+    padding: edgeInsetsSchema,
+    alignItems: z.enum(["start", "center", "end", "stretch"]),
+    justifyContent: z.enum(["start", "center", "end", "spaceBetween"]),
+  }),
+  z.strictObject({
+    kind: z.literal("grid"),
+    columns: z
+      .array(
+        z.discriminatedUnion("kind", [
+          z.strictObject({ kind: z.literal("fixed"), size: positiveNumberValueSchema }),
+          z.strictObject({ kind: z.literal("fraction"), fraction: positiveNumberValueSchema }),
+        ]),
+      )
+      .min(1),
+    rows: z
+      .array(
+        z.discriminatedUnion("kind", [
+          z.strictObject({ kind: z.literal("fixed"), size: positiveNumberValueSchema }),
+          z.strictObject({ kind: z.literal("fraction"), fraction: positiveNumberValueSchema }),
+        ]),
+      )
+      .min(1),
+    columnGap: nonNegativeNumberValueSchema,
+    rowGap: nonNegativeNumberValueSchema,
+    padding: edgeInsetsSchema,
+  }),
+]);
 const concreteAbsoluteLayoutSchema = z.strictObject({
   kind: z.literal("absolute"),
   x: finiteNumberSchema,
@@ -233,6 +307,30 @@ const frameStyleSchema = z.strictObject({
   border: borderSchema.optional(),
   clip: booleanValueSchema.optional(),
 });
+const imageStyleSchema = z.strictObject({
+  fit: z.enum(["contain", "cover", "stretch"]),
+  tint: colorValueSchema,
+  border: borderSchema,
+});
+const shapeStyleSchema = z.strictObject({
+  fill: colorValueSchema,
+  stroke: colorValueSchema,
+  strokeWidth: nonNegativeLogicalLengthValueSchema,
+});
+const shapeGeometrySchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("rectangle"),
+    width: positiveLogicalLengthValueSchema,
+    height: positiveLogicalLengthValueSchema,
+    radius: nonNegativeLogicalLengthValueSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("ellipse"),
+    width: positiveLogicalLengthValueSchema,
+    height: positiveLogicalLengthValueSchema,
+  }),
+  z.strictObject({ kind: z.literal("line"), endX: numberValueSchema, endY: numberValueSchema }),
+]);
 const namedBorderSchema = z.strictObject({
   color: concreteColorValueSchema,
   width: nonNegativeConcreteLogicalLengthValueSchema,
@@ -273,8 +371,8 @@ const contentOverrideSchema = z.discriminatedUnion("kind", [
     kind: z.literal("frame"),
     visible: booleanValueSchema.optional(),
     opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
-    placement: absoluteLayoutSchema.optional(),
-    layout: z.strictObject({ kind: z.literal("absolute") }).optional(),
+    placement: placementSchema.optional(),
+    flow: flowSchema.optional(),
     backgroundColor: colorValueSchema.optional(),
     border: borderSchema.optional(),
     clip: booleanValueSchema.optional(),
@@ -283,9 +381,25 @@ const contentOverrideSchema = z.discriminatedUnion("kind", [
     kind: z.literal("text"),
     visible: booleanValueSchema.optional(),
     opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
-    placement: absoluteLayoutSchema.optional(),
+    placement: placementSchema.optional(),
     value: stringValueSchema.optional(),
     style: textStyleSchema.optional(),
+  }),
+  z.strictObject({
+    kind: z.literal("image"),
+    visible: booleanValueSchema.optional(),
+    opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
+    placement: placementSchema.optional(),
+    asset: assetReferenceSchema.optional(),
+    style: imageStyleSchema.optional(),
+  }),
+  z.strictObject({
+    kind: z.literal("shape"),
+    visible: booleanValueSchema.optional(),
+    opacity: z.union([unitIntervalSchema, numberPropReferenceSchema]).optional(),
+    placement: placementSchema.optional(),
+    geometry: shapeGeometrySchema.optional(),
+    style: shapeStyleSchema.optional(),
   }),
 ]);
 const interactionDeclarationSchema = z.strictObject({
@@ -377,7 +491,8 @@ const contentNodeSchema: z.ZodType = z.lazy(() =>
       ...stableShape,
       ...primitiveShape,
       kind: z.literal("frame"),
-      layout: absoluteLayoutSchema,
+      layout: placementSchema,
+      flow: flowSchema.optional(),
       children: z.array(contentNodeSchema),
       style: frameStyleSchema.optional(),
       namedStyle: namedStyleReferenceSchema.optional(),
@@ -387,10 +502,26 @@ const contentNodeSchema: z.ZodType = z.lazy(() =>
       ...primitiveShape,
       kind: z.literal("text"),
       value: stringValueSchema,
-      layout: absoluteLayoutSchema,
+      layout: placementSchema,
       maxCodePoints: z.union([positiveSafeIntegerSchema, numberPropReferenceSchema]),
       style: textStyleSchema.optional(),
       namedStyle: namedStyleReferenceSchema.optional(),
+    }),
+    z.strictObject({
+      ...stableShape,
+      ...primitiveShape,
+      kind: z.literal("image"),
+      asset: assetReferenceSchema,
+      layout: placementSchema,
+      style: imageStyleSchema,
+    }),
+    z.strictObject({
+      ...stableShape,
+      ...primitiveShape,
+      kind: z.literal("shape"),
+      geometry: shapeGeometrySchema,
+      layout: placementSchema,
+      style: shapeStyleSchema,
     }),
     z.strictObject({
       ...stableShape,
@@ -404,7 +535,8 @@ const frameDeclarationSchema = z.strictObject({
   ...stableShape,
   ...primitiveShape,
   kind: z.literal("frame"),
-  layout: absoluteLayoutSchema,
+  layout: placementSchema,
+  flow: flowSchema.optional(),
   children: z.array(contentNodeSchema),
   style: frameStyleSchema.optional(),
   namedStyle: namedStyleReferenceSchema.optional(),
@@ -904,6 +1036,8 @@ const staticBuilderResultSchemas = new Map<string, z.ZodType>([
   ["spatial", spatialDeclarationSchema],
   ["frame", frameDeclarationSchema],
   ["text", contentNodeSchema],
+  ["image", contentNodeSchema],
+  ["shape", contentNodeSchema],
   ["surface", surfaceDeclarationSchema],
   ["semanticOverride", semanticOverrideSchema],
   ["componentInstance", componentInstanceSchema],
@@ -952,8 +1086,8 @@ const build = <const T>(value: T): T => {
   return value;
 };
 
-const assertLayout = (layout: AbsoluteLayoutDeclaration): void => {
-  const result = absoluteLayoutSchema.safeParse(layout);
+const assertLayout = (layout: PlacementDeclaration): void => {
+  const result = placementSchema.safeParse(layout);
   if (!result.success) {
     const dimensions = result.error.issues.some(
       ({ path }) => path[0] === "width" || path[0] === "height",
@@ -1471,6 +1605,20 @@ export const text = <const T extends WithoutStableKind<TextDeclaration>>(value: 
   assertLayout(declaration.layout);
   const result = { ...declaration, kind: "text" as const };
   assertSchema(contentNodeSchema, result, "Invalid text declaration.");
+  return defineStable(result);
+};
+export const image = <const T extends WithoutStableKind<ImageDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertLayout(declaration.layout);
+  const result = { ...declaration, kind: "image" as const };
+  assertSchema(contentNodeSchema, result, "Invalid image declaration.");
+  return defineStable(result);
+};
+export const shape = <const T extends WithoutStableKind<ShapeDeclaration>>(value: T) => {
+  const declaration = assertJsonSafe(value);
+  assertLayout(declaration.layout);
+  const result = { ...declaration, kind: "shape" as const };
+  assertSchema(contentNodeSchema, result, "Invalid shape declaration.");
   return defineStable(result);
 };
 export const slotPlaceholder = <const T extends WithoutStableKind<SlotPlaceholderDeclaration>>(

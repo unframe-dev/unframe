@@ -30,6 +30,7 @@ const validValue = (
 export const validateTimelineInvariants = (
   definition: PresentationDefinitionV2,
   diagnostics: Diagnostic[],
+  options: { fullDelivery?: boolean } = {},
 ) => {
   const nodes = definition.scene.nodes;
   for (const [timelineId, timeline] of Object.entries(definition.flow.timelines)) {
@@ -47,7 +48,7 @@ export const validateTimelineInvariants = (
           ),
         );
       else {
-        if (target.audience.kind !== "all")
+        if (!options.fullDelivery && target.audience.kind !== "all")
           diagnostics.push(
             diagnostic(
               "graph.invalid",

@@ -28,11 +28,14 @@ type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "comp
 };
 import { safePlainClone } from "../src/validation/safe-plain-clone.js";
 import {
+  SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
 } from "@unframe/unframe-renderer-api";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
+import { checksumBytes } from "../src/validation/source-assets.js";
+import { planSurfacePartitions } from "../src/api/plan-surface-partitions.js";
 
 const structuredContent = (surface: SemanticSurface | undefined) => {
   if (surface?.content.kind !== "structured") throw new Error("Expected structured Surface");
@@ -140,6 +143,203 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it("resolves Grid placement into partition bounds", () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected a Surface fixture.");
+    const margin = { top: 0, right: 0, bottom: 0, left: 0 };
+    const text = root.root.children[0]!;
+    entry.structure = {
+      ...entry.structure,
+      root: {
+        ...root,
+        root: {
+          ...root.root,
+          flow: {
+            kind: "grid",
+            columns: [
+              { kind: "fixed", size: 100 },
+              { kind: "fraction", fraction: 1 },
+            ],
+            rows: [
+              { kind: "fixed", size: 50 },
+              { kind: "fraction", fraction: 1 },
+            ],
+            columnGap: 10,
+            rowGap: 10,
+            padding: margin,
+          },
+          children: [
+            {
+              ...text,
+              layout: {
+                kind: "grid",
+                column: 2,
+                row: 2,
+                columnSpan: 1,
+                rowSpan: 1,
+                width: 100,
+                height: 50,
+                alignSelf: "start",
+                justifySelf: "start",
+                margin,
+              },
+            },
+          ],
+        },
+      },
+    } as ComponentStructure;
+    const checked = checkDeclarationProject(input);
+    expect(checked.valid ? [] : checked.diagnostics).toEqual([]);
+    if (!checked.valid) return;
+    const surface = checked.value.definition.scene.surfaces["instance:surface-root"]!;
+    const planned = planSurfacePartitions(surface, {
+      id: "baked-web",
+      version: "2",
+      contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
+      implementationHash: "sha256:test",
+    });
+    expect(planned.valid ? [] : planned.diagnostics).toEqual([]);
+    if (planned.valid)
+      expect(planned.value.partitions[0]?.plan.logicalBounds).toMatchObject({
+        x: 110,
+        y: 60,
+        width: 100,
+        height: 50,
+      });
+  });
+  it("lowers Shape, Image, and Stack into one resolved paint geometry", () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected a Surface fixture.");
+    const margin = { top: 0, right: 0, bottom: 0, left: 0 };
+    const child = root.root.children[0]!;
+    const bytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aWQAAAAASUVORK5CYII=",
+      ),
+      (char) => char.charCodeAt(0),
+    );
+    const dataBase64 = btoa(String.fromCharCode(...bytes));
+    input.assets = {
+      ...input.assets,
+      picture: {
+        id: "picture",
+        mediaType: "image/png",
+        checksum: checksumBytes(bytes),
+        encodedSizeBytes: bytes.length,
+        dataBase64,
+      },
+    };
+    input.presentation = {
+      ...input.presentation,
+      assets: [...input.presentation.assets, { kind: "asset-ref", assetId: "picture" }],
+    };
+    entry.structure = {
+      ...entry.structure,
+      root: {
+        ...root,
+        root: {
+          ...root.root,
+          flow: {
+            kind: "stack",
+            direction: "horizontal",
+            gap: 10,
+            padding: { ...margin, left: 20 },
+            alignItems: "start",
+            justifyContent: "start",
+          },
+          children: [
+            {
+              ...child,
+              layout: { kind: "stack", grow: 0, width: 100, height: 50, alignSelf: "auto", margin },
+            },
+            {
+              id: "shape",
+              kind: "shape",
+              layout: { kind: "stack", grow: 0, width: 50, height: 50, alignSelf: "auto", margin },
+              geometry: { kind: "rectangle", width: 50, height: 50, radius: 0 },
+              style: {
+                fill: { red: 1, green: 0, blue: 0, alpha: 1 },
+                stroke: { red: 0, green: 0, blue: 0, alpha: 0 },
+                strokeWidth: 0,
+              },
+            },
+            {
+              id: "image",
+              kind: "image",
+              layout: { kind: "stack", grow: 0, width: 60, height: 50, alignSelf: "auto", margin },
+              asset: { kind: "asset-ref", assetId: "picture" },
+              style: {
+                fit: "contain",
+                tint: { red: 1, green: 1, blue: 1, alpha: 1 },
+                border: { color: { red: 0, green: 0, blue: 0, alpha: 0 }, width: 0, radius: 0 },
+              },
+            },
+          ],
+        },
+      },
+    } as ComponentStructure;
+    const checked = checkDeclarationProject(input);
+    expect(checked.valid ? [] : checked.diagnostics).toEqual([]);
+    if (!checked.valid) return;
+    const surface = checked.value.definition.scene.surfaces["instance:surface-root"]!;
+    const planned = planSurfacePartitions(surface, {
+      id: "baked-web",
+      version: "2",
+      contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
+      implementationHash: "sha256:test",
+    });
+    expect(planned.valid ? [] : planned.diagnostics).toEqual([]);
+    if (!planned.valid) return;
+    expect(
+      planned.value.partitions.flatMap(({ plan }) =>
+        plan.ownership.kind === "structured" ? plan.ownership.ownedContentNodeIds : [],
+      ),
+    ).toEqual(["instance:text-content", "instance:shape", "instance:image"]);
+    expect(checked.value.assetSet.assets.picture?.mediaType).toBe("image/png");
+    const semanticId = "instance:semantic-text";
+    const interactionId = "instance:open";
+    const stateId = surface.initialStateId;
+    const interactive = {
+      ...surface,
+      baseSemanticTree: {
+        rootNodeIds: [semanticId],
+        nodes: {
+          [semanticId]: {
+            ...surface.baseSemanticTree.nodes[semanticId],
+            role: "button",
+            interactionId,
+            text: "Open",
+          },
+        },
+      },
+      interactions: {
+        [interactionId]: { id: interactionId, kind: "click", event: "open", hitPriority: 1 },
+      },
+      states: {
+        ...surface.states,
+        [stateId]: { ...surface.states[stateId], enabledInteractionIds: [interactionId] },
+      },
+    } as SemanticSurface;
+    const interactivePlan = planSurfacePartitions(interactive, {
+      id: "baked-web",
+      version: "2",
+      contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
+      implementationHash: "sha256:test",
+    });
+    expect(interactivePlan.valid ? [] : interactivePlan.diagnostics).toEqual([]);
+    if (interactivePlan.valid)
+      expect(interactivePlan.value.interactionsByState[stateId]).toMatchObject([
+        { interactionId, bounds: { x: 20 / 1920, width: 100 / 1920 } },
+      ]);
+  });
   it("keeps Structured and React Surfaces in one Presentation", () => {
     const input = project();
     const metadata = validateStaticComponentMetadata({
@@ -795,7 +995,7 @@ describe("checkDeclarationProject", () => {
                   visible: true,
                   opacity: 0.8,
                   placement: { kind: "absolute", x: 1, y: 2, width: 1600, height: 900 },
-                  layout: { kind: "absolute" },
+                  flow: { kind: "absolute" },
                   backgroundColor: { kind: "token-ref", category: "color", tokenId: "accent" },
                   border: { color: { red: 1, green: 0, blue: 0, alpha: 1 }, width: 2, radius: 3 },
                   clip: true,
@@ -2156,7 +2356,7 @@ describe("compileDeclarationProject", () => {
     identity: {
       id: "baked-web",
       version: "1",
-      contractVersion: "1",
+      contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
       implementationHash: "sha256:renderer",
     },
     capabilities: {
@@ -2212,6 +2412,70 @@ describe("compileDeclarationProject", () => {
     rendererConfigHash: "sha256:config",
     renderers: [renderer],
     encodeLimits: PNG_ABSOLUTE_LIMITS,
+  });
+
+  it("passes verified image bytes to the selected renderer", async () => {
+    const input = project() as StructuredProject & {
+      components: StructuredProject["components"][number][];
+    };
+    const dataBase64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aWQAAAAASUVORK5CYII=";
+    const bytes = Uint8Array.from(atob(dataBase64), (char) => char.charCodeAt(0));
+    input.assets = {
+      ...input.assets,
+      picture: {
+        id: "picture",
+        mediaType: "image/png",
+        checksum: checksumBytes(bytes),
+        encodedSizeBytes: bytes.length,
+        dataBase64,
+      },
+    };
+    input.presentation = {
+      ...input.presentation,
+      assets: [...input.presentation.assets, { kind: "asset-ref", assetId: "picture" }],
+    };
+    const entry = input.components[0]!;
+    const root = entry.structure.root;
+    if (root.kind !== "surface") throw new Error("Expected a Surface fixture.");
+    entry.structure = {
+      ...entry.structure,
+      root: {
+        ...root,
+        root: {
+          ...root.root,
+          children: [
+            ...root.root.children,
+            {
+              id: "image",
+              kind: "image",
+              layout: { kind: "absolute", x: 0, y: 0, width: 100, height: 50 },
+              asset: { kind: "asset-ref", assetId: "picture" },
+              style: {
+                fit: "contain",
+                tint: { red: 1, green: 1, blue: 1, alpha: 1 },
+                border: { color: { red: 0, green: 0, blue: 0, alpha: 0 }, width: 0, radius: 0 },
+              },
+            },
+          ],
+        },
+      },
+    } as ComponentStructure;
+    let received: unknown;
+    const observing = {
+      ...renderer,
+      build: (buildInput: Parameters<typeof renderer.build>[0]) => {
+        received = buildInput.imageAssets?.picture;
+        return renderer.build(buildInput);
+      },
+    };
+    const result = await compileDeclarationProject(input, { ...options(), renderers: [observing] });
+    expect(result.valid ? [] : result.diagnostics).toEqual([]);
+    expect(received).toEqual({
+      mediaType: "image/png",
+      checksum: checksumBytes(bytes),
+      dataBase64,
+    });
   });
 
   it("does not render a Surface with no paint in any state", async () => {
@@ -2377,8 +2641,8 @@ describe("compileDeclarationProject", () => {
     if (!result.valid) return;
     const compiled = Object.values(result.value.renderBundle.surfaces)[0]!;
     expect(compiled.renderSurfaceIds).toEqual([
-      "rs_72492e420a8d63224465f844a782dd31ef0c6e948ca29dc6e0571e8cd3ede04c",
-      "rs_4ad6b5a5009dcbbd660389e2de40f038ea3475eefb324c445c6f600d52290982",
+      "rs_965cd3fb33bf97dc2684e86467ff62117b7ce26f1f754f4725d1b4683e7c6233",
+      "rs_c48fa221bbb5a568a62f648abeba1315e2d5d1827a61f667ab1991bed567c334",
     ]);
     expect(seen.map(({ layer }) => layer)).toEqual([0, 1]);
     expect(seen.flatMap(({ owned }) => owned)).toEqual([
@@ -3195,6 +3459,159 @@ describe("compileDeclarationProject", () => {
     expect(encoding.valid).toBe(false);
     if (!encoding.valid)
       expect(encoding.diagnostics.map((item) => item.code)).toContain("encode-limit-exceeded");
+  });
+
+  it("rejects an unsupported renderer contract before building", async () => {
+    const result = await compileDeclarationProject(project(), {
+      ...options(),
+      renderers: [{ ...renderer, identity: { ...renderer.identity, contractVersion: "999" } }],
+    });
+    expect(result.valid).toBe(false);
+    if (!result.valid)
+      expect(result.diagnostics.map(({ code }) => code)).toContain(
+        "compiler-renderer-contract-unsupported",
+      );
+  });
+
+  it("reuses valid cached builds and invalidates changed build context", async () => {
+    const entries = new Map<string, unknown>();
+    const cache = {
+      get: (key: string) => entries.get(key),
+      set: (key: string, value: unknown) => {
+        entries.set(key, value);
+      },
+    };
+    let builds = 0;
+    const counting = {
+      ...renderer,
+      build: (input: Parameters<typeof renderer.build>[0]) => {
+        builds++;
+        return renderer.build(input);
+      },
+    };
+    const first = await compileDeclarationProject(
+      project(),
+      { ...options(), renderers: [counting] },
+      cache,
+    );
+    const repeated = await compileDeclarationProject(
+      project(),
+      { ...options(), renderers: [counting] },
+      cache,
+    );
+    const changed = await compileDeclarationProject(
+      project(),
+      { ...options(), locale: "en-US", renderers: [counting] },
+      cache,
+    );
+    expect(first.valid && repeated.valid && changed.valid).toBe(true);
+    expect(builds).toBe(2);
+  });
+
+  it("includes the complete renderer registry in cache identity independent of order", async () => {
+    const entries = new Map<string, unknown>();
+    const cache = {
+      get: (key: string) => entries.get(key),
+      set: (key: string, value: unknown) => {
+        entries.set(key, value);
+      },
+    };
+    let builds = 0;
+    const counting = {
+      ...renderer,
+      build: (input: Parameters<typeof renderer.build>[0]) => {
+        builds++;
+        return renderer.build(input);
+      },
+    };
+    const alternative = { ...renderer, identity: { ...renderer.identity, id: "alternative" } };
+    const first = await compileDeclarationProject(
+      project(),
+      { ...options(), renderers: [counting, alternative] },
+      cache,
+    );
+    const reordered = await compileDeclarationProject(
+      project(),
+      { ...options(), renderers: [alternative, counting] },
+      cache,
+    );
+    const changed = await compileDeclarationProject(
+      project(),
+      {
+        ...options(),
+        renderers: [
+          counting,
+          { ...alternative, identity: { ...alternative.identity, version: "changed" } },
+        ],
+      },
+      cache,
+    );
+    expect(first.valid && reordered.valid && changed.valid).toBe(true);
+    expect(builds).toBe(2);
+  });
+
+  it("rebuilds when cached asset bytes fail their declared checksum", async () => {
+    const entries = new Map<string, unknown>();
+    const cache = {
+      get: (key: string) => entries.get(key),
+      set: (key: string, value: unknown) => {
+        entries.set(key, value);
+      },
+    };
+    let builds = 0;
+    const counting = {
+      ...renderer,
+      build: (input: Parameters<typeof renderer.build>[0]) => {
+        builds++;
+        return renderer.build(input);
+      },
+    };
+    const config = { ...options(), renderers: [counting] };
+    const first = await compileDeclarationProject(project(), config, cache);
+    expect(first.valid).toBe(true);
+    const key = [...entries.keys()][0];
+    if (!key) throw new Error("Expected a cached build.");
+    const entry = entries.get(key) as { assets: Record<string, Uint8Array> };
+    const bytes = Object.values(entry.assets)[0];
+    if (!bytes) throw new Error("Expected an encoded asset.");
+    bytes[0] = (bytes[0] ?? 0) ^ 1;
+    const repeated = await compileDeclarationProject(project(), config, cache);
+    expect(repeated.valid).toBe(true);
+    expect(builds).toBe(2);
+  });
+
+  it("rebuilds when a cached Definition differs from the current checked input", async () => {
+    const entries = new Map<string, unknown>();
+    const cache = {
+      get: (key: string) => entries.get(key),
+      set: (key: string, value: unknown) => {
+        entries.set(key, value);
+      },
+    };
+    let builds = 0;
+    const counting = {
+      ...renderer,
+      build: (input: Parameters<typeof renderer.build>[0]) => {
+        builds++;
+        return renderer.build(input);
+      },
+    };
+    const config = { ...options(), renderers: [counting] };
+    const first = await compileDeclarationProject(project(), config, cache);
+    expect(first.valid).toBe(true);
+    const key = [...entries.keys()][0];
+    if (!key) throw new Error("Expected a cached build.");
+    const entry = entries.get(key) as {
+      definition: { presentationId: string };
+      warnings: unknown[];
+    };
+    entry.definition.presentationId = "tampered";
+    entry.warnings.push({ code: "tampered" });
+    const repeated = await compileDeclarationProject(project(), config, cache);
+    expect(repeated.valid).toBe(true);
+    if (repeated.valid && first.valid)
+      expect(repeated.value.warnings).toEqual(first.value.warnings);
+    expect(builds).toBe(2);
   });
 
   it("does not invoke renderers from the check-only API", () => {

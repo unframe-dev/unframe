@@ -55,6 +55,7 @@ export type UnframeLockV2 = {
   themeHashes: { themeId: string; hash: ContentHash }[];
   componentLocks: ComponentLock[];
   assets: { id: string; mediaType: string; hash: ContentHash; size: number; dataBase64: string }[];
+  rendererPlugins: { id: string; version: string; contractVersion: string }[];
 };
 
 export const hashPackageLocator = (locator: string): ContentHash =>

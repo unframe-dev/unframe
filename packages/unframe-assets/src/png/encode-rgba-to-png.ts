@@ -62,17 +62,25 @@ const typedArrayByteLength = Object.getOwnPropertyDescriptor(
   "byteLength",
 )?.get;
 const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
-const copyUint8Array = (value: unknown): Uint8Array | undefined => {
+const copyUint8Array = (
+  value: unknown,
+  expectedLength?: number,
+): { bytes?: Uint8Array; length?: number } => {
   try {
-    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return undefined;
-    if (typedArrayTag.call(value) !== "Uint8Array") return undefined;
+    if (!ArrayBuffer.isView(value) || !typedArrayByteLength || !typedArrayTag) return {};
+    if (typedArrayTag.call(value) !== "Uint8Array") return {};
     const byteLength = typedArrayByteLength.call(value);
-    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return undefined;
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0) return {};
+    if (
+      byteLength > INTERNAL_PNG_HARD_CAPS.maxInputBytes ||
+      (expectedLength !== undefined && byteLength !== expectedLength)
+    )
+      return { bytes: new Uint8Array(0), length: byteLength };
     const copy = new Uint8Array(byteLength);
     Uint8Array.prototype.set.call(copy, value as Uint8Array);
-    return copy;
+    return { bytes: copy, length: byteLength };
   } catch {
-    return undefined;
+    return {};
   }
 };
 
@@ -134,14 +142,31 @@ const snapshotDenseArray = (value: unknown): readonly unknown[] | undefined => {
   }
 };
 
-const snapshotRequest = (value: unknown): unknown => {
+const snapshotRequest = (
+  value: unknown,
+): { request: unknown; rgbaByteLength: number | undefined } => {
   const request = snapshotRecord(value);
-  if (!request) return undefined;
+  if (!request) return { request: undefined, rgbaByteLength: undefined };
+  const pixelSize = snapshotDenseArray(request.pixelSize);
+  const [width, height] = pixelSize ?? [];
+  const expectedLength =
+    typeof width === "number" &&
+    typeof height === "number" &&
+    Number.isSafeInteger(width) &&
+    Number.isSafeInteger(height) &&
+    width > 0 &&
+    height > 0
+      ? width * height * 4
+      : undefined;
+  const rgba = copyUint8Array(request.rgba, expectedLength);
   return {
-    ...request,
-    rgba: copyUint8Array(request.rgba),
-    pixelSize: snapshotDenseArray(request.pixelSize),
-    limits: snapshotRecord(request.limits),
+    request: {
+      ...request,
+      rgba: rgba.bytes,
+      pixelSize,
+      limits: snapshotRecord(request.limits),
+    },
+    rgbaByteLength: rgba.length,
   };
 };
 
@@ -193,7 +218,8 @@ const validateLimits = (limits: EncodeLimits): ValidationResult<EncodeLimits> =>
 };
 
 const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => {
-  const parsed = encodeRequestSchema.safeParse(snapshotRequest(value));
+  const snapshot = snapshotRequest(value);
+  const parsed = encodeRequestSchema.safeParse(snapshot.request);
   if (!parsed.success) return { valid: false, diagnostics: [validationIssue(parsed)] };
   const { sourceId, rgba, pixelSize, alphaMode } = parsed.data;
   if (alphaMode === "premultiplied")
@@ -220,7 +246,16 @@ const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => 
       ["pixelSize"],
       "PNG dimensions or input bytes exceed the package hard cap.",
     );
-  if (rgba.length !== inputBytes)
+  if (
+    snapshot.rgbaByteLength !== undefined &&
+    snapshot.rgbaByteLength > INTERNAL_PNG_HARD_CAPS.maxInputBytes
+  )
+    return invalid(
+      "png-hard-cap-exceeded",
+      ["rgba"],
+      "RGBA input bytes exceed the package hard cap.",
+    );
+  if (snapshot.rgbaByteLength !== inputBytes)
     return invalid(
       "rgba-length-mismatch",
       ["rgba"],

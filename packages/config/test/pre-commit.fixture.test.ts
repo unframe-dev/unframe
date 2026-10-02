@@ -41,6 +41,18 @@ const main = async () => {
     );
     await symlink(join(repositoryRoot, "node_modules"), join(fixtureRoot, "node_modules"), "dir");
     await writeFile(join(fixtureRoot, "sample.ts"), "const sample={value:1}\n");
+    const generatedPaths = [
+      "packages/contracts/openapi/control-plane.openapi.json",
+      "packages/contracts/src/control-plane.openapi.ts",
+    ];
+    const generatedContents = await Promise.all(
+      generatedPaths.map(async (path) => {
+        await mkdir(join(fixtureRoot, path, ".."), { recursive: true });
+        const contents = await readFile(join(repositoryRoot, path));
+        await writeFile(join(fixtureRoot, path), contents);
+        return contents;
+      }),
+    );
 
     run(fixtureRoot, "git", [
       "add",
@@ -48,6 +60,7 @@ const main = async () => {
       "vite.config.ts",
       "packages/config/vite.config.ts",
       "sample.ts",
+      ...generatedPaths,
     ]);
     run(fixtureRoot, "git", ["commit", "--quiet", "-m", "test: staged fixture"]);
 
@@ -55,6 +68,15 @@ const main = async () => {
       await readFile(join(fixtureRoot, "sample.ts"), "utf8"),
       "const sample = { value: 1 };\n",
     );
+    for (const [index, path] of generatedPaths.entries()) {
+      const expected = generatedContents[index];
+      assert.ok(expected);
+      assert.equal(
+        (await readFile(join(fixtureRoot, path))).equals(expected),
+        true,
+        `Generated file changed: ${path}`,
+      );
+    }
   } finally {
     await rm(fixtureRoot, { force: true, recursive: true });
   }

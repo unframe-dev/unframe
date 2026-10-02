@@ -38,6 +38,8 @@ const objectResults = new Map<string, string>([
   ["spatial", "spatial"],
   ["frame", "frame"],
   ["text", "text"],
+  ["image", "image"],
+  ["shape", "shape"],
   ["surface", "surface"],
   ["semanticOverride", "semantic-override"],
   ["componentInstance", "component-instance"],

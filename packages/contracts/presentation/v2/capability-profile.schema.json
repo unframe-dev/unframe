@@ -115,15 +115,10 @@
         },
         "formats": {
           "type": "array",
-          "prefixItems": [
-            {
-              "type": "string",
-              "const": "model/gltf-binary"
-            }
-          ],
-          "items": false,
-          "minItems": 1,
-          "maxItems": 1
+          "items": {
+            "type": "string",
+            "const": "model/gltf-binary"
+          }
         },
         "features": {
           "type": "array",

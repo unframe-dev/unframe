@@ -8,6 +8,8 @@ import {
   assetSetManifestV2Schema,
   buildManifestV2Schema,
   capabilityProfileV2Schema,
+  canonicalRuntimeSnapshotV2Schema,
+  participantRuntimeViewV2Schema,
   m3dCueParticipantRuntimeViewV2Schema,
   m3dCueRuntimeSnapshotV2Schema,
   presentationDefinitionV2Schema,
@@ -28,6 +30,8 @@ const schemas: ReadonlyArray<readonly [string, z.ZodType]> = [
   ["m3d-cue-runtime-snapshot", m3dCueRuntimeSnapshotV2Schema],
   ["runtime-visibility-selection", runtimeVisibilitySelectionV2Schema],
   ["m3d-cue-participant-runtime-view", m3dCueParticipantRuntimeViewV2Schema],
+  ["canonical-runtime-snapshot", canonicalRuntimeSnapshotV2Schema],
+  ["participant-runtime-view", participantRuntimeViewV2Schema],
 ];
 
 async function output(relative: string, bytes: string | Uint8Array): Promise<void> {

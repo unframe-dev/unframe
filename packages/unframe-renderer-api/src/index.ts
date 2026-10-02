@@ -1,3 +1,5 @@
+export const SUPPORTED_RENDERER_CONTRACT_VERSION = "2";
+
 export {
   prepareRendererBuildInput,
   validateRendererBuildInput,
@@ -27,6 +29,7 @@ export type {
   RendererConformanceFixture,
   RendererEntry,
   RendererFontAssets,
+  RendererImageAssets,
   RendererIdentity,
   RendererPlugin,
   RendererProvenance,

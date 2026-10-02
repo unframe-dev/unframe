@@ -14,6 +14,7 @@ const accessible = (owner: Owner, groupId: string) =>
 export const validateCueInvariants = (
   definition: PresentationDefinitionV2,
   diagnostics: Diagnostic[],
+  options: { fullDelivery?: boolean } = {},
 ) => {
   const { groups, variables, timelines } = definition.flow;
   const { nodes, surfaces } = definition.scene;
@@ -53,6 +54,20 @@ export const validateCueInvariants = (
               "Target must exist and be accessible from this Group.",
             );
           return resource;
+        };
+        const mediaTarget = (surfaceId: string, suffix: string) => {
+          const surface = target(surfaces, surfaceId, suffix);
+          if (!surface) return;
+          const videoCount =
+            surface.content.kind === "structured"
+              ? Object.values(surface.content.nodes).filter((node) => node.kind === "video").length
+              : 0;
+          if (videoCount !== 1)
+            issue(
+              "behavior.invalid",
+              suffix,
+              "Media target requires exactly one Video content node.",
+            );
         };
         const trigger = cue.trigger;
         switch (trigger.kind) {
@@ -116,11 +131,20 @@ export const validateCueInvariants = (
           case "timelineCompleted":
             target(timelines, trigger.timelineId, "/trigger/timelineId");
             break;
+          case "mediaCompleted":
+            if (!options.fullDelivery)
+              issue(
+                "feature.unsupported",
+                "/trigger",
+                "Media triggers are not executable in this slice.",
+              );
+            else mediaTarget(trigger.surfaceId, "/trigger/surfaceId");
+            break;
           default:
             issue(
               "feature.unsupported",
               "/trigger",
-              "Media and model triggers are not executable in this slice.",
+              "Model triggers are not executable in this slice.",
             );
         }
         const valueType = (value: Value, suffix: string): string | undefined => {
@@ -186,7 +210,10 @@ export const validateCueInvariants = (
               const surface = target(surfaces, action.surfaceId, `${suffix}/surfaceId`);
               if (surface && !Object.hasOwn(surface.states, action.stateId))
                 issue("reference.invalid", `${suffix}/stateId`, "Surface State does not exist.");
-              claim(`surface:${action.surfaceId}:state`, suffix);
+              const stateClaim = `surface:${action.surfaceId}:state`;
+              const repeatedState = claims.has(stateClaim);
+              claim(stateClaim, suffix);
+              if (!repeatedState) claim(`media:${action.surfaceId}:playback`, suffix);
               break;
             }
             case "variable.set": {
@@ -240,6 +267,53 @@ export const validateCueInvariants = (
               if (timeline)
                 for (const track of timeline.tracks)
                   claim(`node:${track.target.nodeId}:${track.target.property}`, suffix);
+              break;
+            }
+            case "media.play":
+            case "media.pause":
+            case "media.seek": {
+              if (!options.fullDelivery) {
+                issue(
+                  "feature.unsupported",
+                  suffix,
+                  "Media actions are not executable in this slice.",
+                );
+                break;
+              }
+              mediaTarget(action.surfaceId, `${suffix}/surfaceId`);
+              claim(`media:${action.surfaceId}:playback`, suffix);
+              break;
+            }
+            case "modelClip.play":
+            case "modelClip.pause":
+            case "modelClip.resume":
+            case "modelClip.stop": {
+              if (!options.fullDelivery) {
+                issue(
+                  "feature.unsupported",
+                  suffix,
+                  "Model actions are not executable in this slice.",
+                );
+                break;
+              }
+              const node = target(nodes, action.nodeId, `${suffix}/nodeId`);
+              if (node && node.kind !== "model")
+                issue(
+                  "behavior.invalid",
+                  `${suffix}/nodeId`,
+                  "Model clip action requires a Model Node.",
+                );
+              if (
+                action.kind === "modelClip.play" &&
+                action.loop &&
+                action.completion === "blocking"
+              )
+                issue(
+                  "behavior.invalid",
+                  `${suffix}/completion`,
+                  "Looping Model clip cannot block progression.",
+                );
+              claim(`modelClip:${action.nodeId}:playback`, suffix);
               break;
             }
             default:

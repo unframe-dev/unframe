@@ -36,7 +36,11 @@ const temporaryDirectories: string[] = [];
 const projectCopy = async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-reference-project-"));
   temporaryDirectories.push(directory);
-  await cp(referenceDirectory, directory, { recursive: true });
+  await cp(referenceDirectory, directory, {
+    recursive: true,
+    filter: (path) =>
+      path !== join(referenceDirectory, ".unframe") && path !== join(referenceDirectory, "dist"),
+  });
   return directory;
 };
 
@@ -134,7 +138,10 @@ const fakeBrowser = (
 ) => {
   const observed = { close: 0, capture: 0, signals: [] as (AbortSignal | undefined)[] };
   const session: FixedBrowserSession = {
-    identity: { id: "reference-fake-browser", implementationHash: "sha256:fake-browser" },
+    identity: {
+      id: "reference-fake-browser",
+      implementationHash: `sha256:fake-browser:${Boolean(configuration.failCapture)}:${Boolean(configuration.duringCapture)}`,
+    },
     environment: {
       browser: { id: "reference-fake-browser", version: "1", fontFingerprint: "sha256:fonts" },
       locale: "ja-JP",
@@ -545,8 +552,8 @@ describe("reference Authoring Project", () => {
     expect((await readFile(join(directory, "dist/build-manifest.json"))).equals(firstBuild)).toBe(
       true,
     );
-    expect(second.observed).toMatchObject({ capture: 6, close: 1 });
-    expect(second.observed.signals).toEqual(Array(6).fill(controller.signal));
+    expect(second.observed).toMatchObject({ capture: 0, close: 1 });
+    expect(second.observed.signals).toEqual([]);
   }, 15_000);
 
   it.each([

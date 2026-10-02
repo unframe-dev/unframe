@@ -72,6 +72,10 @@ const validLock = (): UnframeLockV2 => {
         dataBase64: "AQID",
       },
     ],
+    rendererPlugins: [
+      { id: "baked-web", version: "3", contractVersion: "2" },
+      { id: "baked-web", version: "4", contractVersion: "2" },
+    ],
   };
   lock.dependencyGraphHash = hashDependencyGraph(lock);
   return lock;
@@ -103,6 +107,11 @@ describe("unframe.lock v2 boundary", () => {
     const lock = validLock();
     lock.packages[0]!.files[0] = { ...lock.packages[0]!.files[0]!, extra: 1 } as never;
     expect(errorCode(lock)).toBe("cli-lock-shape-invalid");
+  });
+
+  it("requires explicit renderer pins and directs old locks to refresh", () => {
+    const { rendererPlugins: _removed, ...withoutPins } = validLock();
+    expect(errorCode(withoutPins)).toBe("cli-lock-renderer-plugins-refresh-required");
   });
 
   it("rejects changed package bytes and graph edges", () => {

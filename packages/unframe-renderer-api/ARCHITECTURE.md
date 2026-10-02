@@ -98,27 +98,26 @@ Conformance harness は renderer implementation の process topology を固定�
 
 ## 8. Deferred decisions
 
-- plugin discovery と version negotiation
+- remote plugin distribution と複数 execution class の negotiation
 - process / isolate boundary
 - capability vocabulary
 - ADR-0012のcapture前budget、deadline / abort、resource guard APIの実装
 - Native UI / Video renderer API の追加時期
-- Compiler cache key への `rendererFingerprint` 結合と integration test
 - Theme / Props / Slots / Variants / Parts の宣言入力（Compiler が concrete tree へ解決する）
 
 ## 9. Current implementation
 
-現在は Compiler が v2 Semantic Surface を自動 partition し、各 Render Surface plan を個別に Renderer へ渡す。対応範囲は `static | finite-state` / `interaction: none | regions` / `internalAnimation: none` / `baked-web` / `reject` の absolute Frame / literal Text tree である。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。
+現在は Compiler が v2 Semantic Surface を自動 partition し、各 Render Surface plan を個別に Renderer へ渡す。対応範囲は `static | finite-state` / `interaction: none | regions` / `internalAnimation: none` / `baked-web` / `reject` の静的 Frame / Text / Image / Shape graph と absolute / Stack / Grid 配置である。`context.pixelTarget` はCompilerが導出した値を受け取り、Renderer APIで別のresolution policyを計算しない。Image は `imageAssets` に media type、canonical base64、SHA-256 checksum を明示し、host path や URL は受け取らない。
 
 現行 Renderer は capture State の未 encode RGBA を返し、empty State の capture は生成しない。PNG encode、checksum、Asset ID、最終的なRenderBundle artifact / state bindingは`unframe-assets`とCompilerが所有する。Rendererがplan、完成Semantic Tree、入力hashを変更することを許可しない。
 
-`unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler cache 自体は未実装であり、cache keyへの結合とintegration testは後続である。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
+`unframe-core` が generated contract から導出した read-only Surface / Semantic Tree 型を入力に使用し、この package で canonical contract を再定義しない。Renderer identity、contract version、implementation hash、明示 config hash から `rendererFingerprint` を作り、入力 context と provenance の一致を conformance harness で検査する。Compiler はこの fingerprint を `environmentHash` の入力に含めている。Compiler は host 注入 registry を発見範囲とし、重複 ID と未対応 contract version を build 前に拒否する。全候補 identity / capabilities とこの fingerprint は Compiler build cache key に結合され、変更時の失効を integration fixture で検証する。current RenderBundle schema に独立 field がないため、schema 拡張時に明示 field へ移す。
 
-Theme、Props、Slots、Variants、Parts の宣言はRenderer入力に含めずCompilerがconcrete treeへ解決する。State別のFrame / Text visual overrideは受理し、Stack / Gridと他Primitiveは受理しない。
+Theme、Props、Slots、Variants、Parts の宣言はRenderer入力に含めずCompilerがconcrete treeへ解決する。State別の静的 visual override を受理する。Runtime Text と Video は受理しない。
 
 共通 conformance harness は support / build の整合、unsupported failure、malformed output、入力不変性、state / capture completeness、RGBA、provenance、同一入力二回の determinism を検査する。Browser process、Opaque execution、encode、cache orchestrationは含めない。
 
-`prepareRendererBuildInput` は現行 contract の Surface、Frame / Text、State、Semantic Tree、
+`prepareRendererBuildInput` は現行 contract の Surface、Frame / Text / Image / Shape、State、Semantic Tree、
 Render Surface plan、build context の shape を `src/validation/schemas.ts` の Zod schema で検査し、
 参照関係だけを API 固有の invariant として検査する。Plugin capability、support decision、build result、
 diagnostic、capture も同じく Zod schema を通す。各 schema の前段では dense own-data snapshot を

@@ -6,6 +6,7 @@ import { validateCueInvariants } from "./cue-invariants.js";
 import { validateProjectionAudienceInvariants } from "./projection-audience-invariants.js";
 import { validateSemanticRoles, validateSurfaceStates } from "./semantic-invariants.js";
 import { validateTimelineInvariants } from "./timeline-invariants.js";
+import { resolveStructuredLayout } from "../semantic-tree/structured-layout.js";
 import {
   diagnostic,
   hasCanonicalQuaternionSign,
@@ -21,7 +22,10 @@ import {
 const unsupported = (diagnostics: Diagnostic[], path: string, message: string) =>
   diagnostics.push(diagnostic("feature.unsupported", path, message));
 
-const semanticRolesByContentKind: Record<"frame" | "text", ReadonlySet<string>> = {
+const semanticRolesByContentKind: Record<
+  "frame" | "text" | "image" | "shape" | "video",
+  ReadonlySet<string>
+> = {
   frame: new Set(["button", "list", "row", "table"]),
   text: new Set([
     "button",
@@ -32,6 +36,9 @@ const semanticRolesByContentKind: Record<"frame" | "text", ReadonlySet<string>> 
     "paragraph",
     "rowHeader",
   ]),
+  image: new Set(["image", "button"]),
+  shape: new Set(["image", "button"]),
+  video: new Set(["image", "button"]),
 };
 
 const validateCanonicalQuaternion = (
@@ -59,6 +66,7 @@ const validateCanonicalQuaternion = (
 
 export const validatePresentationDefinition = (
   input: unknown,
+  options: { fullDelivery?: boolean } = {},
 ): ValidationResult<PresentationDefinitionV2> => {
   const parsed = parsePresentationDefinitionInput(input);
   if (!parsed.success)
@@ -99,7 +107,7 @@ export const validatePresentationDefinition = (
     const path = `/scene/nodes/${pathSegment(nodeId)}`;
     validateGroupOwner(diagnostics, node, groupIds, path);
     validateCanonicalQuaternion(diagnostics, node.transform.rotation, `${path}/transform/rotation`);
-    if (node.kind !== "container" && node.kind !== "surface")
+    if (!options.fullDelivery && node.kind !== "container" && node.kind !== "surface")
       unsupported(diagnostics, `${path}/kind`, "M3A supports container and surface nodes only.");
     const parentId = node.parent.kind === "node" ? node.parent.nodeId : null;
     parentByNode.set(nodeId, parentId);
@@ -226,26 +234,14 @@ export const validatePresentationDefinition = (
         );
       for (const [contentId, content] of Object.entries(nodes)) {
         const contentPath = `${path}/content/nodes/${pathSegment(contentId)}`;
-        if (content.kind !== "frame" && content.kind !== "text") {
+        if (content.kind === "video" && !options.fullDelivery) {
           unsupported(
             diagnostics,
             `${contentPath}/kind`,
-            "M3A supports frame and text content only.",
+            "Video content requires a runtime media renderer.",
           );
           continue;
         }
-        if (content.kind === "frame" && content.layout.kind !== "absolute")
-          unsupported(
-            diagnostics,
-            `${contentPath}/layout/kind`,
-            "M3A supports absolute layout only.",
-          );
-        if (content.placement.kind !== "absolute")
-          unsupported(
-            diagnostics,
-            `${contentPath}/placement/kind`,
-            "M3A supports absolute placement only.",
-          );
         if (content.semanticNodeId === undefined) continue;
         const semantic = surface.baseSemanticTree.nodes[content.semanticNodeId];
         if (semantic === undefined)
@@ -311,6 +307,20 @@ export const validatePresentationDefinition = (
         );
 
     validateSurfaceStates(diagnostics, surface, path);
+    if (surface.content.kind === "structured")
+      for (const stateId of Object.keys(surface.states)) {
+        try {
+          resolveStructuredLayout(surface, stateId);
+        } catch {
+          diagnostics.push(
+            diagnostic(
+              "graph.invalid",
+              `${path}/states/${pathSegment(stateId)}/contentOverrides`,
+              "State must resolve to a connected Structured layout with matching placements.",
+            ),
+          );
+        }
+      }
     if (surface.renderIntent.updateModel.kind === "finite-state") {
       const listed = surface.renderIntent.updateModel.stateIds;
       const actual = Object.keys(surface.states);
@@ -343,10 +353,11 @@ export const validatePresentationDefinition = (
         diagnostic("reference.invalid", `${path}/initialStateId`, "Initial State does not exist."),
       );
     if (
-      surface.renderIntent.updateModel.kind === "continuous-native-text" ||
-      surface.renderIntent.internalAnimation.kind !== "none" ||
-      surface.renderIntent.rendererPreference !== "baked-web" ||
-      surface.renderIntent.fallbackPolicy !== "reject"
+      !options.fullDelivery &&
+      (surface.renderIntent.updateModel.kind === "continuous-native-text" ||
+        surface.renderIntent.internalAnimation.kind !== "none" ||
+        surface.renderIntent.rendererPreference !== "baked-web" ||
+        surface.renderIntent.fallbackPolicy !== "reject")
     )
       unsupported(
         diagnostics,
@@ -391,8 +402,8 @@ export const validatePresentationDefinition = (
       groupIds,
       `/flow/timelines/${pathSegment(timelineId)}`,
     );
-  validateTimelineInvariants(definition, diagnostics);
-  validateCueInvariants(definition, diagnostics);
+  validateTimelineInvariants(definition, diagnostics, options);
+  validateCueInvariants(definition, diagnostics, options);
 
   return diagnostics.length === 0
     ? { valid: true, value: definition, diagnostics: [] }

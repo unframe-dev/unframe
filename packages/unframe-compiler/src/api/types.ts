@@ -47,7 +47,7 @@ export type CompilerDeclarationProject = {
 };
 export type CompilerSourceAsset = {
   readonly id: string;
-  readonly mediaType: "font/ttf" | "font/otf";
+  readonly mediaType: "font/ttf" | "font/otf" | "image/png" | "image/jpeg";
   readonly checksum: string;
   readonly encodedSizeBytes: number;
   readonly dataBase64: string;

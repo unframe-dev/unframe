@@ -14,6 +14,7 @@ import { PresentationTuiView } from "./view.js";
 
 export type RunPresentationTuiOptions = Readonly<{
   onCommandSelected?: (command: PresentationTuiCommandId) => void;
+  onQuit?: () => void;
 }>;
 
 type PresentationTuiAppProps = RunPresentationTuiOptions &
@@ -43,8 +44,14 @@ const PresentationTuiApp = (props: PresentationTuiAppProps) => {
   createEffect(() => {
     const effect = state().effect;
     if (!effect) return;
-    if (effect.type === "command-selected") props.onCommandSelected?.(effect.command);
-    if (effect.type === "quit") props.renderer.destroy();
+    if (effect.type === "command-selected") {
+      props.onCommandSelected?.(effect.command);
+      props.renderer.destroy();
+    }
+    if (effect.type === "quit") {
+      props.onQuit?.();
+      props.renderer.destroy();
+    }
     dispatch({ type: "effect-handled" });
   });
 

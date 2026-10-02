@@ -272,6 +272,19 @@ const pageFor = (page: PlaywrightPage): BrowserPage => ({
       await document.fonts.ready;
       if (faces.some((face) => face.status !== "loaded"))
         throw new TypeError("A renderer font face failed to load.");
+      await Promise.all([...document.querySelectorAll("svg image")].map(async (element) => {
+        const source = element.getAttribute("href");
+        if (!source || !source.startsWith("data:image/"))
+          throw new TypeError("Renderer image must use an embedded data URI.");
+        const image = new Image();
+        image.src = source;
+        await image.decode();
+      }));
+      await Promise.all([...document.querySelectorAll("img")].map(async (image) => {
+        if (!image.src.startsWith("data:image/"))
+          throw new TypeError("Renderer image must use an embedded data URI.");
+        await image.decode();
+      }));
     })()`);
   },
   screenshot: async (options) => Uint8Array.from(await page.screenshot(options)),

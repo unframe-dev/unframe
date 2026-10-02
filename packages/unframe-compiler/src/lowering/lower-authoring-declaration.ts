@@ -99,6 +99,8 @@ const nested = new Set([
   "spatial",
   "frame",
   "text",
+  "image",
+  "shape",
   "surface",
   "semanticOverride",
   "componentInstance",
