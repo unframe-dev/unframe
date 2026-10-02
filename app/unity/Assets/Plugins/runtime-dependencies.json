@@ -1,0 +1,77 @@
+[
+  {
+    "id": "Grpc.Net.Client",
+    "version": "2.76.0",
+    "framework": "netstandard2.1",
+    "sha256": "75044054c09c569cf8a4683b4beb5ac00c7a4e4319f1468626443cc5be3b644d",
+    "packageSha256": "46c2c622e82a46fe4f5211bf48c51d5c062c3e065ffe03e1bc87e5e6b071b26d",
+    "licenseFile": "Grpc.LICENSE.txt",
+    "licenseSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "licenseUrl": "https://raw.githubusercontent.com/grpc/grpc-dotnet/c52862d2be28c252a20786e08b82c48edcbf7325/LICENSE"
+  },
+  {
+    "id": "Grpc.Net.Common",
+    "version": "2.76.0",
+    "framework": "netstandard2.1",
+    "sha256": "f11bc1f5f51a9ff9c42095d2ff6c72c09673967d146088f96470446501e1ff5c",
+    "packageSha256": "4d2a0d3af50c464b32d81cff546dc9e64efa4a735a654007ca49d4290cbd12d7",
+    "licenseFile": "Grpc.LICENSE.txt",
+    "licenseSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "licenseUrl": "https://raw.githubusercontent.com/grpc/grpc-dotnet/c52862d2be28c252a20786e08b82c48edcbf7325/LICENSE"
+  },
+  {
+    "id": "Grpc.Core.Api",
+    "version": "2.76.0",
+    "framework": "netstandard2.1",
+    "sha256": "3535e79c38523d239303a33d420c8a856babdcc4d08a167d532decdcc5453951",
+    "packageSha256": "0fd55c36301d3370cf17ab82ea1aec88926c37b511eaebde4785e338145b405e",
+    "licenseFile": "Grpc.LICENSE.txt",
+    "licenseSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "licenseUrl": "https://raw.githubusercontent.com/grpc/grpc-dotnet/c52862d2be28c252a20786e08b82c48edcbf7325/LICENSE"
+  },
+  {
+    "id": "Microsoft.Extensions.Logging.Abstractions",
+    "version": "8.0.0",
+    "framework": "netstandard2.0",
+    "sha256": "e899e37dfc2dd433807c205e764c32ea34bb95da083e189d7615947dd16c51e8",
+    "packageSha256": "26675d8de83c5394be8814f046554054b7881f1738cabacd82a54c381ec48cce",
+    "licenseFile": "Microsoft.Extensions.Logging.Abstractions.LICENSE.txt",
+    "licenseSha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b"
+  },
+  {
+    "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+    "version": "8.0.0",
+    "framework": "netstandard2.1",
+    "sha256": "3a588921e88c7b989f805adc5721ed25e24d389e8a9bc968ebcff79f412a5288",
+    "packageSha256": "ef92b31065a36d110b7332690a226e6fe96d35430c6f3e40ff529053ee5d80ff",
+    "licenseFile": "Microsoft.Extensions.DependencyInjection.Abstractions.LICENSE.txt",
+    "licenseSha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b"
+  },
+  {
+    "id": "System.Diagnostics.DiagnosticSource",
+    "version": "6.0.1",
+    "framework": "netstandard2.0",
+    "sha256": "06eb3af44d64c4739c7801493619ad9af86ff05b5444c42609370c26e5caf1f4",
+    "packageSha256": "5e2f30ad48d5962a33fff4cf423147a9c57f406853aa74df51c96db0d95c089e",
+    "licenseFile": "System.Diagnostics.DiagnosticSource.LICENSE.txt",
+    "licenseSha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b"
+  },
+  {
+    "id": "System.IO.Pipelines",
+    "version": "8.0.0",
+    "framework": "netstandard2.0",
+    "sha256": "3702e2403cf265588d1544a292ea17c01d337cdb91b5bdd64690894331345ad4",
+    "packageSha256": "2dda41d6ce2f433b0e3836b188ab2d2e4b39ed7f434c3e43e9c3f1f03135c301",
+    "licenseFile": "System.IO.Pipelines.LICENSE.txt",
+    "licenseSha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b"
+  },
+  {
+    "id": "System.Runtime.CompilerServices.Unsafe",
+    "version": "6.0.0",
+    "framework": "netstandard2.0",
+    "sha256": "01748200f2400c742aa689f1f5101bd6298efdfd92c00c18f4fa473847235ba9",
+    "packageSha256": "6c41b53e70e9eee298cff3a02ce5acdd15b04125589be0273f0566026720a762",
+    "licenseFile": "System.Runtime.CompilerServices.Unsafe.LICENSE.txt",
+    "licenseSha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b"
+  }
+]

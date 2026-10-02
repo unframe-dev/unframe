@@ -6,11 +6,19 @@ namespace Unframe.Unity.PresentationRuntime
     public sealed class PresentationNodeRegistry
     {
         private readonly Dictionary<string, GameObject> nodes = new Dictionary<string, GameObject>();
+        private readonly Dictionary<string, GameObject> anchorParents = new Dictionary<string, GameObject>();
 
         public bool TryGet(string nodeId, out GameObject nodeObject)
         {
             return nodes.TryGetValue(nodeId, out nodeObject);
         }
+
+        internal bool TryGetAnchorParent(string nodeId, out GameObject anchorParent)
+        {
+            return anchorParents.TryGetValue(nodeId, out anchorParent);
+        }
+
+        internal IEnumerable<KeyValuePair<string, GameObject>> AnchorParents { get { return anchorParents; } }
 
         public void Clear()
         {
@@ -30,11 +38,17 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             nodes.Clear();
+            anchorParents.Clear();
         }
 
         internal void Register(string nodeId, GameObject nodeObject)
         {
             nodes.Add(nodeId, nodeObject);
+        }
+
+        internal void RegisterAnchor(string nodeId, GameObject anchorParent)
+        {
+            anchorParents.Add(nodeId, anchorParent);
         }
     }
 }
