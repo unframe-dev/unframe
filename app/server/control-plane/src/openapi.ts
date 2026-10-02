@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { idV2Schema, publishedPresentationV2Schema } from "@unframe/contracts/presentation/v2";
 import { assetInitInputSchema, assetMediaTypeSchema } from "./modules/assets/schema";
 import {
   checkpointInputSchema,
@@ -80,6 +81,14 @@ const realtimeConnectionSchema = z.object({
   presentationRevision: z.number().int().positive(),
   credential: z.string(),
   expiresAt: z.string().datetime(),
+  publicationFence: z
+    .object({
+      presentationId: identifierSchema,
+      publicationEpoch: z.number().int().positive(),
+      publicationManifestHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    })
+    .optional(),
+  projectionProfileId: identifierSchema.optional(),
 });
 const venueEdgeResourceSchema = z.object({
   id: identifierSchema,
@@ -640,13 +649,19 @@ export const publicRoutes = [
               .object({
                 runtimeId: identifierSchema,
                 runtimeVersion: z.string().min(1),
-                protocolVersion: z.literal("v1"),
+                protocolVersion: z.enum(["v1", "v2"]),
                 capacity: z.number().int().nonnegative(),
                 localEndpoint: httpsUrlSchema,
                 certificateFingerprint: z.string().min(1),
                 health: z.string().min(1),
               })
-              .strict(),
+              .strict()
+              .refine(
+                (input) =>
+                  input.protocolVersion !== "v2" ||
+                  /^sha256:[0-9a-f]{64}$/.test(input.certificateFingerprint),
+                "v2 certificate fingerprint must be SHA-256 hex",
+              ),
           },
         },
       },
@@ -725,3 +740,237 @@ export const getRuntimeAssignmentRoute = publicRoutes[23];
 export const registerVenueEdgeRoute = publicRoutes[24];
 export const renewVenueEdgeLeaseRoute = publicRoutes[25];
 export const releaseVenueEdgeLeaseRoute = publicRoutes[26];
+
+const publicationPresentationId = z.object({ presentationId: identifierSchema }).strict();
+const publicationBuildId = publicationPresentationId.extend({ buildId: idV2Schema });
+const publicationAssetId = publicationBuildId.extend({ assetId: idV2Schema });
+export const createPublicationBuildRoute = createRoute({
+  method: "post",
+  path: "/presentations/{presentationId}/builds",
+  security,
+  request: {
+    params: publicationPresentationId,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z.strictObject({
+            definitionJson: z
+              .string()
+              .min(2)
+              .max(8 * 1024 * 1024)
+              .describe("RFC 8785 canonical PresentationDefinitionV2 JSON"),
+            renderBundleJson: z
+              .string()
+              .min(2)
+              .max(8 * 1024 * 1024)
+              .describe("RFC 8785 canonical RenderBundleV2 JSON"),
+            assetSetJson: z
+              .string()
+              .min(2)
+              .max(8 * 1024 * 1024)
+              .describe("RFC 8785 canonical AssetSetManifestV2 JSON"),
+            buildManifestJson: z
+              .string()
+              .min(2)
+              .max(8 * 1024 * 1024)
+              .describe("RFC 8785 canonical BuildManifestV2 JSON"),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Build stored",
+      content: {
+        "application/json": {
+          schema: z.object({ buildId: idV2Schema, assetIds: z.array(idV2Schema) }),
+        },
+      },
+    },
+    400: errorResponse("Invalid build"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Presentation not found"),
+    409: errorResponse("Build conflict"),
+    422: errorResponse("Invalid build semantics"),
+  },
+});
+export const uploadPublicationAssetRoute = createRoute({
+  method: "put",
+  path: "/presentations/{presentationId}/builds/{buildId}/assets/{assetId}",
+  security,
+  request: {
+    params: publicationAssetId,
+    body: { required: true, content: { "application/octet-stream": { schema: z.any() } } },
+  },
+  responses: {
+    204: { description: "Asset stored" },
+    400: errorResponse("Invalid asset"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Build not found"),
+    422: errorResponse("Asset bytes mismatch"),
+  },
+});
+export const publishPresentationRoute = createRoute({
+  method: "post",
+  path: "/presentations/{presentationId}/publications",
+  security,
+  request: {
+    params: publicationPresentationId,
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z.strictObject({
+            buildId: idV2Schema,
+            expectedPublicationEpoch: z.number().int().nonnegative(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Published",
+      content: { "application/json": { schema: publishedPresentationV2Schema } },
+    },
+    400: errorResponse("Invalid publication"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Build not found"),
+    409: errorResponse("Active use or epoch conflict"),
+    422: errorResponse("Invalid build assets"),
+  },
+});
+export const getPublicationRoute = createRoute({
+  method: "get",
+  path: "/presentations/{presentationId}/publication",
+  security,
+  request: { params: publicationPresentationId },
+  responses: {
+    200: {
+      description: "Current publication",
+      content: { "application/json": { schema: publishedPresentationV2Schema } },
+    },
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Publication not found"),
+  },
+});
+export const deliveryManifestRoute = createRoute({
+  method: "post",
+  path: "/sessions/{sessionId}/delivery",
+  security,
+  request: {
+    params: z.object({ sessionId: identifierSchema }).strict(),
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z.strictObject({
+            capabilityProfileId: identifierSchema,
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Validated protobuf DeliveryManifest v2",
+      content: {
+        "application/x-protobuf": { schema: z.string().openapi({ format: "binary" }) },
+      },
+    },
+    400: errorResponse("Invalid capability selection"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Not a session participant"),
+    404: errorResponse("Publication not found"),
+    409: errorResponse("Session or assignment changed"),
+    422: errorResponse("Unsupported capability"),
+  },
+});
+
+const runtimeBootstrapQuery = z
+  .object({
+    sessionId: identifierSchema,
+    runtimeId: identifierSchema,
+    assignmentEpoch: z.coerce.number().int().positive(),
+  })
+  .strict();
+export const internalRuntimeBootstrapRoute = createRoute({
+  method: "get",
+  path: "/internal/runtime/bootstrap",
+  security: serviceSecurity,
+  request: { query: runtimeBootstrapQuery },
+  responses: {
+    200: {
+      description: "Trusted Runtime v2 bootstrap",
+      content: {
+        "application/json": {
+          schema: z.object({
+            assignment: z.object({
+              sessionId: identifierSchema,
+              runtimeId: identifierSchema,
+              runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+              assignmentEpoch: z.number().int().positive(),
+              presentationRevision: z.number().int().positive(),
+              leaseExpiresAt: z.string().datetime(),
+            }),
+            publication: z.object({
+              presentationId: identifierSchema,
+              publicationEpoch: z.number().int().positive(),
+              publicationManifestHash: z.string(),
+              definitionHash: z.string(),
+              renderBundleHash: z.string(),
+            }),
+            definition: z
+              .record(z.string(), z.unknown())
+              .describe("PresentationDefinitionV2; strict v2 schema validated at storage boundary"),
+            renderBundle: z
+              .record(z.string(), z.unknown())
+              .describe(
+                "RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash",
+              ),
+            checkpoint: z.record(z.string(), z.unknown()).nullable(),
+          }),
+        },
+      },
+    },
+    400: errorResponse("Invalid bootstrap request"),
+    401: errorResponse("Unauthorized"),
+    404: errorResponse("Runtime assignment not found"),
+    409: errorResponse("Runtime fence conflict"),
+  },
+});
+export const internalRuntimeProjectionRoute = createRoute({
+  method: "get",
+  path: "/internal/runtime/projection",
+  security: serviceSecurity,
+  request: {
+    query: z.object({ sessionId: identifierSchema, participantId: identifierSchema }).strict(),
+  },
+  responses: {
+    200: {
+      description: "Trusted participant projection",
+      content: {
+        "application/json": {
+          schema: z.object({
+            role: z.enum(["presenter", "viewer"]),
+            profile: z
+              .record(z.string(), z.any())
+              .describe(
+                "ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract",
+              ),
+          }),
+        },
+      },
+    },
+    400: errorResponse("Invalid projection request"),
+    401: errorResponse("Unauthorized"),
+    404: errorResponse("Participant not found"),
+    409: errorResponse("Publication or capability conflict"),
+  },
+});

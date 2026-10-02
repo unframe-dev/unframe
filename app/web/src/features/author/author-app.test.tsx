@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ProjectSnapshot } from "../../../../../packages/unframe-cli/src/author/contract";
+import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
 import type { PresentationDefinition } from "@unframe/unframe-core/domain/model";
 import { AuthorApp } from "./author-app";
 import { AuthorApiError, type AuthorApi } from "./api";
