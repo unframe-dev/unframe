@@ -18,6 +18,14 @@
 
 Presenter は `SendTrackingAsync` へ canonical Quest-local Pose と同じ frame の calibration を渡して State stream へ送信できます。frame sequence は接続が割り当てます。Pose の実機取得と校正は呼び出し元が行い、body target には body の Pose を渡します。Anchor-bound Node は fresh binding を受信するまで描画を開始せず、500 ms を超えた binding は失効します。
 
-ローカルControl Planeから取得した実DeliveryのC# consumer admission、Editorの受信・描画テストを確認済みです。Editorのnative HTTP/2 handlerと生成C# clientでは、実TLS Realtimeへの証明書pin付き接続、Control Snapshot、StateReady、keyframe受信まで確認しています。Quest実機のAndroid native HTTP/2、GPU / CPU peakとcontext lossは未検証です。
+ローカルControl Planeから取得した実DeliveryのC# consumer admission、Editorの受信・描画テストを確認済みです。Editorのnative HTTP/2 handlerと生成C# clientでは、実TLS Realtimeへの証明書pin付き接続、Control Snapshot、StateReady、keyframe受信まで確認しています。別のEditor検証では、既定 `HttpClient` と通常の証明書検証で、default Fixed Browser buildの4枚のPNGを実HTTPSから取得し、encoded cache、texture residency、StateReadyまで確認しています。いずれもQuest実機のAndroid transport、入力、GPU / CPU peak、context lossの証拠にはなりません。
 
-既定 `HttpClient` による実 HTTPS Asset 取得の Editor 検証は、ローカル検証用 CA が UnityTLS に信頼されず TLS 検証で失敗しました。この経路の PNG ダウンロード、cache、residency、StateReady は未確認です。システムの信頼設定や証明書検証は変更していません。
+## Quest実機で残る受け入れ確認
+
+1. Unity 6000.3.22f1のAndroid arm64 / OpenXR buildをQuestへ導入し、`nix shell --inputs-from . nixpkgs#android-tools --command adb devices` で端末が `device` と表示されることを確認する。接続先として、認証済みSessionのHTTPS Control Plane origin、Session ID、更新可能なcredential provider、端末から到達できるRealtime HTTPS endpointと有効な証明書、期限内のHTTPS PNG URLを持つ公開済みBaked Web Presentationを用意する。認証情報をSceneやrepositoryへ保存しない。
+2. `PresentationControlPlaneConnection.RunAsync` に `PresentationBakedRuntime` を渡す端末用Sceneまたは一時検証fixtureを用意し、Control Plane Delivery / bootstrap、Android native HTTP/2 Realtime、既定 `HttpClient` のAsset取得を同一Sessionで通す。現行 `SampleScene` はこの経路を起動しないため、Sceneへの接続と実機Pose / 入力adapterの用意が先に必要である。端末用build / deployを自動化するrepository commandも現時点ではない。
+3. Deliveryで選ばれた全PNGについて、HTTPSの証明書検証、サイズ・MIME・checksum、encoded cacheのpin、順次decode / RGBA32 upload、CPU readback copy破棄、全textureのresidencyを確認する。Control / StateのSnapshotとreplayを適用して `StateReady` が送られるまで入力が無効であり、その後にState変更・crossfade・Timelineが正しい絵と順序で表示されることを確認する。再接続とアプリ再起動では同じSession選択、cache pin、fresh Snapshotへの復帰を確認する。
+4. PresenterのQuest-local body / head / hand Poseと同じframeのcalibration、実機入力をadapterから送信し、Tracking Trigger、Anchor bindingの新鮮さ、Logical Eventの確定を確認する。未接続・stale anchorでは対象を描画しない。context lossなどでpinned textureのresidencyを失わせた場合は描画と入力が止まり、Control / Stateが `asset_residency_lost` で閉じることを確認する。
+5. 端末、OS、Unity build、Presentation / Delivery hash、選択texture数と解像度、測定ツールと時刻を記録する。Deliveryのunique selected textureのdecoded GPU bytes合計とserial load CPU bytes最大値を[ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)の各256 MiB tier、encoded cacheを実際に設定したhard limit / reserve（baselineは4 GiB / 512 MiB）に照合する。別にpreload中の実CPU / GPU memory peak、upload peak、process / driver overhead、State変更・crossfade中の追加download / allocation、cacheの空き容量・evictionを計測する。実process peakをportable tierの256 MiBと直接比較して失格にしない。端末log、Realtime / Control Planeのfence・ready・disconnect記録、Profiler capture、画面記録を合否の証拠として残す。
+
+これらの実機確認は未実施です。端末用SceneとPose / 入力adapterも未接続であり、現在のEditor成功を実機合格として扱いません。

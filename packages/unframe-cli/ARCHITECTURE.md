@@ -102,9 +102,9 @@ discovery / read / write I/O は exit code `3` とする。
 ## 4. Interactive TUI boundary
 
 interactive shell は Bun を runtime とし、OpenTUI の Solid renderer を使用する。pnpm は引き続き dependency と
-lockfile の管理を担当し、Bun を package manager として使用しない。TUI が現在所有するのは `check` / `build`
-command の選択、keyboard navigation、quit lifecycle までであり、選択後の filesystem host や Browser process
-はまだ接続しない。
+lockfile の管理を担当し、Bun を package manager として使用しない。TUI は command の選択、keyboard navigation、
+quit lifecycle を所有する。選択後は TUI を閉じ、選択した command と project directory を headless process に渡す。
+filesystem host と Browser process は headless process が所有する。
 
 - `@opentui/core`: Zig native renderer と terminal lifecycle
 - `@opentui/solid` + `solid-js`: declarative view
@@ -147,11 +147,11 @@ Linux の directory FD に保存先を固定し、symlink を拒否する。entr
 
 以下は current implementation に含めない。
 
-- TUI command selection と M1 process command の接続
-- remote package registry、plugin discovery、distribution update
-- `init`、`dev`、`test`、`preview`、`publish` command
-- watch、remote cache / publish adapter、credential integration
+- remote package registry、任意外部 renderer plugin の自動 discovery、distribution update
+- remote build cache
 - Windows / case-insensitive filesystem support
+
+`init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
 package に移さない。

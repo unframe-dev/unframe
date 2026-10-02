@@ -107,5 +107,5 @@ Editor 内部では、永続 DTO と編集しやすい projection を分けて�
 `pnpm --filter @unframe/web build:author` が `dist-author/` に静的 assets を生成し、CLI が同一 origin で配信する。
 公開 Props の直接 literal と host Transform を編集し、Source 保存後の build と PNG preview を扱う。
 この画面は Control Plane や既存 fixture Editor の browser persistence を使用しない。
-HTTP 型は `packages/unframe-cli/src/author/contract.ts`、Source patch は Compiler が所有する。
+HTTP 型は CLI の公開入口 `@unframe/unframe-cli/author-contract`、Source patch は Compiler が所有する。
 起動 token は fragment から取得して直ちに URL から除去し、メモリに保持する。

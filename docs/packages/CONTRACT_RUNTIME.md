@@ -117,7 +117,7 @@ Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replaya
 
 認証済みcontextだけがsession、participant、role、assignmentを所有する。client payloadからidentityやroleを採用しない。Control handshakeは`protocol_version="v2"`、progression `1`、required capability全件を満たす。State handshakeはControlで選択済みの値、connection IDと一致し、Controlが発行した32-byte nonceを30,000 ms以内に一回だけ使用する。nonceの再利用、別connection利用、expiryは`UNAUTHENTICATED / state_nonce_invalid`で閉じる。
 
-serverはControl接続後に`ControlConnected`、Snapshot、State nonceの順に送る。Stateは`StateConnected`後、Control clientがSnapshotを適用して`StateReady`を送り、そのsequenceとorigin versionがcurrent cutに一致してからframeを送る。不一致は`FAILED_PRECONDITION / state_ready_fence_mismatch`とする。
+初回Control接続では`ControlConnected`、Snapshot、State nonceの順に送る。resumeではSnapshotの代わりにReliable replayを送り、その後State nonceを送る。Stateは`StateConnected`後、Control clientがSnapshotまたはreplayを適用して`StateReady`を送り、そのsequenceとorigin versionが接続のcutに一致してからframeを送る。初回のcutは送信Snapshotのcut、resumeのcutは最後に送信した投影済みreplay eventのcursorであり、replayが空ならresume cursorを維持する。hidden eventだけによるcanonical sequenceの進行をcutへ含めない。不一致は`FAILED_PRECONDITION / state_ready_fence_mismatch`とする。
 
 ### 4.1 Protocol limits
 
@@ -142,6 +142,8 @@ serverはControl接続後に`ControlConnected`、Snapshot、State nonceの順に
 server implementationは上表の値を緩和・縮小せず、Handshakeで明示する。item byte上限とtracking rateはv2で上表の値に固定する。変更には新contractを必要とする。超過itemは`RESOURCE_EXHAUSTED / message_limit_exceeded`とする。Tracking rateはserver monotonic timeの各rolling 1,000 msで90 frameまでを受理し、超過frameをdropする。3つの連続するrolling windowで一件以上dropした場合は`RESOURCE_EXHAUSTED / state_rate_exceeded`でStateだけを閉じる。
 
 ### 4.2 Command とidempotency
+
+`PresentationOriginChanged`自身のevent fenceは変更前のorigin versionを持つ。payloadのorigin versionは直前値から1だけ進め、clientはevent適用後に保持fenceを更新する。後続event / State frameは更新後のversionを使う。resumeは更新後のfenceを送り、古いoriginのState frameを破棄する。
 
 PresenterだけがLogical Input、Surface Interaction、Runtime Controlを送れる。Viewer commandは`PERMISSION_DENIED / presenter_required`。origin version不一致はoutcomeを返さず`FAILED_PRECONDITION / presentation_origin_mismatch`でControlを閉じる。
 
@@ -181,13 +183,13 @@ Snapshot cutはlogical time `T`以下の全internal completionを処理後、rel
 
 Durable checkpoint field 12だけは例外的にtyped `CanonicalRuntimeSnapshot`のdeterministic protobuf bytesを保持する。任意bytesではない。writerはunknown fieldを含めず、field 11は受信したfield 12そのものの`sha256:` hashとする。hash検証後にschema 2としてparseする。外側のsession、runtime、assignment、Publication、Definition/Bundle hashをロード対象の信頼済み値と照合し、外側の`reliable_sequence`と内側の同fieldを一致させる。内側ではRun ID assignment、owner epoch、catalog参照と全invariantを検証する。parse/re-serialize結果をhash sourceにしない。
 
-recoveryは同じassignment epochでだけ行う。保存時にrunningでもclockを進めず`paused/processRecovered`へ変更する。active Runとarmed timerからscheduleを再構築し、contiguous event logでgapを埋められなければ`paused/recoveryGap`のまま継続を拒否する。
+recoveryは同じassignment epochでだけ行う。保存時にrunningでもclockを進めず`paused/processRecovered`へ変更する。active Runとarmed timerからscheduleを再構築する。checkpoint以降の確定済みeventはcontiguous event log、または全後続eventを含む新checkpointで復元する。どちらでもgapを埋められなければ`paused/recoveryGap`のまま継続を拒否する。
 
 State frameはlatest-winsでreplayしない。keyframeは全visible latest-wins elementと全visible Anchor binding、deltaは前回送信後に変わったentryだけを持つ。frame sequenceは正に単調増加し、delta gap、fence不一致、`base_reliable_sequence`がControl適用cursorより新しい場合はframeを捨て、次のkeyframeを要求する。Timeline、Surface crossfade、Media、Model clipの毎frame補間値を送らない。
 
-Node keyframe patchはactive、visible、opacity、transformの全fieldを持つ。delta patchは一つ以上の変更fieldを持つ。empty patch、同じframeのduplicate element ID、profile外Node、Timelineが現在所有するpropertyを含むpatchをrejectする。State mailboxはelement/field単位でlatest-wins mergeし、送信中のimmutable frameを書き換えない。
+Node keyframe patchは全visible Nodeについて、Timelineが現在所有しないactive、visible、opacity、およびtransformのposition・rotation・scale各componentを全て持つ。delta patchは所有されていないfield/componentの変更分だけを持つ。`NodeStatePatch.transform`ではcomponentごとの省略を許すが、空のtransform patchはrejectする。DefinitionとSnapshotのtransformは全component必須のままとする。empty patch、同じframeのduplicate element ID、profile外Node、Timeline所有propertyを含むpatchをrejectする。State mailboxはelement/field単位でlatest-wins mergeし、送信中のimmutable frameを書き換えない。
 
-TrackingはPresenterのState streamだけが送れる。frame sequenceは正に単調増加、sample targetはduplicate-free、最大4件である。frameはfiniteでcanonicalな`presentation_from_quest_local` rigid Poseをrequiredで持つ。capture timestampは診断だけに使い、freshnessやcanonical ingress orderに使わない。Runtimeは同じframeのcalibrationでQuest-local poseをPresentation Spaceへ変換し、受理時のRuntime monotonic時刻をfreshness authorityとしてfresh sampleからtracking evaluatorをseedする。recovery直後のsampleで疑似edgeを生成しない。
+TrackingはPresenterのState streamだけが送れる。frame sequenceは正に単調増加、sample targetはduplicate-free、最大4件である。frameはfiniteでcanonicalな`presentation_from_quest_local` rigid Poseをrequiredで持つ。capture timestampは診断だけに使い、freshnessやcanonical ingress orderに使わない。Runtimeは同じframeのcalibrationでQuest-local poseをPresentation Spaceへ変換し、受理時のRuntime monotonic時刻をfreshness authorityとしてfresh sampleからtracking evaluatorをseedする。Presenter本人selectorはbody sampleで判定する。motionは固定した時間窓の開始点からの直線距離で判定する。zone dwellは越境後の状態が指定時間継続した時点でedge成立とし、途中で戻れば取消す。recovery直後のsampleで疑似edgeを生成しない。
 
 Anchor patchはvisibleなAnchor-bound Node IDをkeyにし、`unavailable`または`sample`のexactly oneを持つ。sampleはfollowするposition/rotationだけをoptional fieldで持つ。500 msを超えたsample、cut/origin/assignment不一致をunavailableとし、対象Nodeを描画もhit-testもしない。別AnchorやStageへfallbackしない。
 
@@ -195,7 +197,7 @@ Anchor patchはvisibleなAnchor-bound Node IDをkeyにし、`unavailable`また�
 
 Runtime CoreだけがTrigger、Guard、Cue選択、Action、Run allocator、completionを確定する。一つのexternal inputまたはdue-event drainはArchitecture §12.9の順序に従い、1,024回目までのmicrostepを確定できる。1,025回目は評価・適用せず、それ以前の確定済みmutationを維持して`paused/microstepLimitExceeded`へ一つのatomic mutationで遷移する。
 
-Action batchは全Actionと`next`をpre-event snapshotに対して解決し、property claimを作ってから一度だけcommitする。同一claim、active Runとの競合、型不一致、存在しないlive target、同じStateへのcrossfade、active transitionへのsetState、crossfade中のmodel clip要求が一つでもあれば全体をrejectする。Action配列順、last-write-wins、queue、interrupt、replaceで解決しない。永続化を含むcommit失敗はstate/eventを公開せず`paused/atomicCommitFailed`にする。
+Action batchは全Actionと`next`をpre-event snapshotに対して解決し、property claimを作ってから一度だけcommitする。`surface.setState`は対象Surfaceのstate/transitionとMedia lifecycle/playbackをclaimするため、同一Surfaceへの`media.play`/`pause`/`seek`とは両方のAction配列順で競合し、異なるSurfaceなら競合しない。同一claim、active Runとの競合、型不一致、存在しないlive target、同じStateへのcrossfade、active transitionへのsetState、crossfade中のmodel clip要求が一つでもあれば全体をrejectする。Action配列順、last-write-wins、queue、interrupt、replaceで解決しない。永続化を含むcommit失敗はstate/eventを公開せず`paused/atomicCommitFailed`にする。
 
 Published artifact上存在すべきtargetや型がRuntimeで欠落する場合は入力rejectではなくinvariant faultである。RuntimeStatusChangedを確定し、以後Presenterの明示resumeと再検証まで新規inputを受理しない。
 
@@ -219,9 +221,11 @@ Timeline local timeは`t = clamp(runtimeTime - startedAt, 0, duration)`。easing
 
 ### 7.4 Video media
 
-Media playbackのraw位置はplaying時に`raw = positionAtReference + (runtimeTime-referenceRuntimeTime)`、paused時に固定positionとする。loopなら`position = raw mod duration`、non-loopなら`position = clamp(raw, 0, duration)`とする。Global pauseはlogical clock停止だけで表す。play中へのplay、paused中へのpauseは成功no-op、停止状態へのpauseはbatch rejectとする。停止状態へのplayは`MediaStoppedState.held_position_ms`から新しいRunとして開始する。`media.seek.positionSeconds`はActionValue解決後にfiniteかつnon-negativeを検査し、`position_ms = positionSeconds * 1000`をbinary64のまま求める。`0..duration`だけを受理し、playingなら同じruntime timeへrebase、pausedなら固定位置を置換する。停止状態へのseekはRunを作らず、`MediaStoppedState.held_position_ms`をseek位置へ置換する。explicit stopは現在位置を`MediaStopped.held_position_ms`と`MediaStoppedState.held_position_ms`へ保存する。自然完了は`MediaCompleted.held_position_ms = duration`を通知し、同じevent適用で`MediaStoppedState.held_position_ms = 0`へresetするため、seekを挟まない再playは位置`0`から始まる。
+MediaのloopはSurface Stateごとのeffective Video content `loop`が正本であり、同じStateにboundされた全Video artifact variantの`loop`を一致させる。異なるState間では異なってよい。Media対象SurfaceはVideo content nodeをちょうど一つ持つ。対応する全StateとvariantのVideo artifactは同じ正の`durationMilliseconds`を持ち、そのadmitted値を再生時間の正本とする。State変更時はactive Media Runを現在位置でexplicit stopし、停止位置を保持してから新Stateを適用する。
 
-非loop動画がdurationへ達したらRunを除去し最終位置を保持してMediaCompletedを一度生成する。loop動画は`position mod duration`で継続し自然完了しない。Group exitはRunをcancelしてgroup stateを破棄する。Presentation endでは値をcommitせずcancelする。音声trackは同じposition、pause、seek、loopに従う。
+Media playbackのraw位置はplaying時に`raw = positionAtReference + (runtimeTime-referenceRuntimeTime)`、paused時に固定positionとする。loopなら`position = raw mod duration`、non-loopなら`position = clamp(raw, 0, duration)`とする。Global pauseはlogical clock停止だけで表す。play中へのplay、paused中へのpauseは成功no-op、停止状態へのpauseはbatch rejectとする。停止状態へのplayは`MediaStoppedState.held_position_ms`から新しいRunとして開始する。`media.seek.positionSeconds`はActionValue解決後にfiniteかつnon-negativeを検査し、`position_ms = positionSeconds * 1000`をbinary64のまま求める。`0..duration`だけを受理し、playingなら同じruntime timeへrebase、pausedなら固定位置を置換する。停止状態へのseekはRunを作らず、`MediaStoppedState.held_position_ms`をseek位置へ置換する。この変更は`MediaStoppedSeeked(surface_id, held_position_ms)`で通知し、clientも同じ停止位置を適用する。active Runへのseekは完全なRunを持つ`MediaSeeked`で通知する。explicit stopは現在位置を`MediaStopped.held_position_ms`と`MediaStoppedState.held_position_ms`へ保存する。自然完了は`MediaCompleted.held_position_ms = duration`を通知し、同じevent適用で`MediaStoppedState.held_position_ms = 0`へresetするため、seekを挟まない再playは位置`0`から始まる。
+
+loop動画は`position mod duration`で継続し自然完了しない。Group exitはRunをcancelしてgroup stateを破棄する。Presentation endでは値をcommitせずcancelする。音声trackは同じposition、pause、seek、loopに従う。
 
 ### 7.5 Model clip
 
@@ -250,24 +254,33 @@ Model clipは骨格内部だけを評価し、ModelNode Transformを変更しな
 
 ## 8. gRPC status とstable reason
 
-| Status                | reason                           | 条件                                     |
-| --------------------- | -------------------------------- | ---------------------------------------- |
-| `INVALID_ARGUMENT`    | `handshake_order_invalid`        | handshake順、空payload、重複handshake    |
-| `INVALID_ARGUMENT`    | `message_invalid`                | required presence、enum、range、参照不能 |
-| `INVALID_ARGUMENT`    | `idempotency_key_reused`         | keyを別fingerprintで再利用               |
-| `UNAUTHENTICATED`     | `authentication_required`        | 認証なし・期限切れ                       |
-| `UNAUTHENTICATED`     | `state_nonce_invalid`            | nonce不正、期限切れ、再利用              |
-| `PERMISSION_DENIED`   | `presenter_required`             | Viewerがcommand/tracking送信             |
-| `FAILED_PRECONDITION` | `protocol_incompatible`          | version/capability不一致                 |
-| `FAILED_PRECONDITION` | `publication_fence_mismatch`     | Publication不一致                        |
-| `FAILED_PRECONDITION` | `presentation_origin_mismatch`   | input origin不一致                       |
-| `FAILED_PRECONDITION` | `state_ready_fence_mismatch`     | StateReady cut不一致                     |
-| `FAILED_PRECONDITION` | `asset_residency_lost`           | active asset residency喪失               |
-| `RESOURCE_EXHAUSTED`  | `reliable_subscriber_slow`       | reliable送信queue上限                    |
-| `RESOURCE_EXHAUSTED`  | `snapshot_catch_up_exhausted`    | Snapshot再試行上限                       |
-| `RESOURCE_EXHAUSTED`  | `message_limit_exceeded`         | item byte上限                            |
-| `RESOURCE_EXHAUSTED`  | `state_rate_exceeded`            | 継続的State rate超過                     |
-| `UNAVAILABLE`         | `runtime_assignment_unavailable` | assignmentへ到達不能                     |
+| Status                | reason                            | 条件                                                                                |
+| --------------------- | --------------------------------- | ----------------------------------------------------------------------------------- |
+| `INVALID_ARGUMENT`    | `handshake_order_invalid`         | handshake順、空payload、重複handshake                                               |
+| `INVALID_ARGUMENT`    | `message_invalid`                 | required presence、enum、range、参照不能                                            |
+| `INVALID_ARGUMENT`    | `idempotency_key_reused`          | keyを別fingerprintで再利用                                                          |
+| `UNAUTHENTICATED`     | `authentication_required`         | 認証なし・期限切れ                                                                  |
+| `UNAUTHENTICATED`     | `state_nonce_invalid`             | nonce不正、期限切れ、再利用                                                         |
+| `PERMISSION_DENIED`   | `presenter_required`              | Viewerがcommand/tracking送信                                                        |
+| `PERMISSION_DENIED`   | `assignment_fence_mismatch`       | 接続のassignment fence不一致                                                        |
+| `ALREADY_EXISTS`      | `participant_already_connected`   | 同一参加者の接続が既に有効                                                          |
+| `FAILED_PRECONDITION` | `protocol_incompatible`           | version/capability不一致                                                            |
+| `FAILED_PRECONDITION` | `publication_fence_mismatch`      | Publication不一致                                                                   |
+| `FAILED_PRECONDITION` | `assignment_lease_expired`        | assignment lease期限切れ                                                            |
+| `FAILED_PRECONDITION` | `assignment_inactive`             | assignmentが有効でない                                                              |
+| `FAILED_PRECONDITION` | `presentation_origin_mismatch`    | input origin不一致                                                                  |
+| `FAILED_PRECONDITION` | `state_ready_fence_mismatch`      | StateReady cut不一致                                                                |
+| `FAILED_PRECONDITION` | `runtime_snapshot_required`       | private fault後、古いControl/Stateを終了しfresh paused Snapshotを取得する必要がある |
+| `FAILED_PRECONDITION` | `runtime_snapshot_invalid`        | canonical projectionまたは接続cutの不変条件違反                                     |
+| `FAILED_PRECONDITION` | `asset_residency_lost`            | active asset residency喪失                                                          |
+| `RESOURCE_EXHAUSTED`  | `reliable_subscriber_slow`        | reliable送信queue上限                                                               |
+| `RESOURCE_EXHAUSTED`  | `snapshot_catch_up_exhausted`     | Snapshot再試行上限                                                                  |
+| `RESOURCE_EXHAUSTED`  | `message_limit_exceeded`          | item byte上限                                                                       |
+| `RESOURCE_EXHAUSTED`  | `state_rate_exceeded`             | 継続的State rate超過                                                                |
+| `UNAVAILABLE`         | `runtime_assignment_unavailable`  | assignmentへ到達不能                                                                |
+| `UNAVAILABLE`         | `runtime_persistence_unavailable` | checkpoint/presence callbackへ到達不能                                              |
+| `UNAVAILABLE`         | `runtime_projection_unavailable`  | Control Planeのprojection取得不可                                                   |
+| `INTERNAL`            | `internal_error`                  | nonceまたはconnection ID生成失敗                                                    |
 
 status codeは標準`grpc-status`で返す。reasonはtrailing metadata key `unframe-reason`の単一ASCII lower-snake valueとして表の値を返す。同じresponseにこのkeyを複数付与してはならない。`grpc-message`は診断専用で、その本文の解析をcontractにしない。`CommandRejected`は回復可能な入力結果だけに使い、認証、role、fence、protocol、idempotency違反を丸めない。
 

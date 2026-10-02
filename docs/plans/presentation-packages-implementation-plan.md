@@ -3,7 +3,7 @@
 - **Status**: Active
 - **Date**: 2026-08-29
 - **Scope**: `packages/` に存在する Presentation 関連 package、共有 contract、生成 client、repository tooling
-- **Current milestone**: Milestone 5 完了。Delivery / Runtime v2 の生成 consumer と純粋 adapter を検証済み。Milestone 6 は application integration の後続として保持する
+- **Current milestone**: Milestone 6 実装中。CLI / Control Plane / Realtimeの接続とUnity Editorの実HTTPS Asset取得を確認済み。Quest用Scene / 実機入力の接続と端末での取得・入力・性能検証は未完了
 - **Architecture source**:
   - [Presentation Architecture](../packages/ARCHITECTURE.md)
   - [Presentation Implementation Design](../packages/DESIGN.md)
@@ -14,7 +14,7 @@
 
 ## 1. 目的
 
-現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../packages/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition を静的 v2 経路へ接続した。M5 では Delivery / Runtime の生成 consumer と純粋 adapter を接続しており、実サービスの authoritative execution / live replay は M6 の application integration に残る。
+現在の `packages/` は、Presentation package chain の初期 subset と、Authoring Source から実際の build artifact を生成する M1 Local Compiler を実装済みである。完全版のデータ契約は [Presentation v2](../packages/DATA_MODEL.md) に定義する。静的 Compiler / Core は v2 成果物へ移行し、Theme / composition を静的 v2 経路へ接続した。M5 では Delivery / Runtime の生成 consumer と純粋 adapter を接続した。M6では実サービスの公開処理、authoritative execution、live replayを実装中であり、全Runtime経路と実機の検証は完了していない。
 
 本計画は、未実装事項を package ごとの独立した TODO として消化するのではなく、各段階で利用可能な結果を残す縦断的な milestone として整理する。
 
@@ -33,7 +33,8 @@ RenderBundle + AssetSet + BuildManifest + PNG / Font
         ↓ 実装済み: filesystem CLI の managed staging / atomic dist replacement
 v2 local build artifact
         ↓ 実装済み: publication integrity、role / capability 別 Delivery projection
-        ↓ 未接続: persistence、network delivery、live consumer lifecycle
+        ↓ 実装済み: persistence、network delivery、Unity Editorのlive consumer lifecycle
+        ↓ 未検証: Quest用Scene / 実機入力と端末上のend-to-end動作
 consumer
 ```
 
@@ -41,17 +42,17 @@ consumer
 
 | Package                          | Current                                                                                                                                                                                            | 主な未実装                                                                                        |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 / v2 の Zod / Protobuf、完全版 Snapshot / View、静的 Wire codec、生成物、drift / breaking check                                                             | 実サービスの v2 transport 接続                                                                    |
-| `packages/api-client-csharp`     | 固定 generator の OpenAPI / Protobuf artifact、standalone compile / conformance、provenance / drift check                                                                                          | Unity の実サービス接続・renderer lifecycle                                                        |
-| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                                                                                                                     | Presentation CLI の publish adapter との接続                                                      |
-| `packages/unframe-core`          | v2 Definition / Cue / Timeline 検証、純粋な Cue / Runtime Run 実行、完全版 Snapshot 検証 / role別 View、Delivery artifact / budget / profile、build / publication integrity、canonical JSON / hash | Media / Model の authoritative execution、migration                                               |
+| `packages/contracts`             | Control Plane OpenAPI、Presentation v1 / v2 の Zod / Protobuf、完全版 Snapshot / View、静的 Wire codec、生成物、drift / breaking check                                                             | —（transport は各 application が所有）                                                            |
+| `packages/api-client-csharp`     | 固定 generator の OpenAPI / Protobuf artifact、standalone compile / conformance、provenance / drift check                                                                                          | Quest 実機の consumer / renderer 検証                                                             |
+| `packages/api-client-typescript` | Hono RPC と Better Auth client                                                                                                                                                                     | —（CLI の publish は独立した HTTP adapter を使用）                                                |
+| `packages/unframe-core`          | v2 Definition / Cue / Timeline 検証、純粋な Cue / Runtime Run 実行、完全版 Snapshot 検証 / role別 View、Delivery artifact / budget / profile、build / publication integrity、canonical JSON / hash | migration                                                                                         |
 | `packages/unframe-authoring`     | 型付き Theme、Props / Slots / Parts / Variants、State visual override、click Interaction、Action / Output / Cue、host Timeline、crossfade 宣言                                                     | Lossless Syntax Tree / source patch、distribution                                                 |
 | `packages/unframe-components`    | static な標準 Surface / Frame / Text                                                                                                                                                               | Spatial、Interaction、Action / Output、Opaque component、migration                                |
 | `packages/unframe-compiler`      | virtual project / Static DSL、Theme / composition / State / Interaction 解決、Action / Output / Cue / host Timeline / crossfade lowering、v2 compile、自動 partition、Surface Hit Region           | cache、Part isolate                                                                               |
 | `packages/unframe-renderer-api`  | baked-web partition plugin contract と conformance harness                                                                                                                                         | discovery / version negotiation、cancel / timeout / resource budget、Native UI / Video capability |
 | `packages/unframe-renderer-web`  | Fixed Browser の partition / State 別 Frame / Text capture、透明合成、Opaque bundle                                                                                                                | Opaque execution / isolation、generic Primitive                                                   |
 | `packages/unframe-assets`        | deterministic memory-only PNG encoder                                                                                                                                                              | resize、mipmap、font subset、video / model adapter、temporary workspace、cache                    |
-| `packages/unframe-cli`           | filesystem check / build、default warning、atomic v2 output、TUI command selector                                                                                                                  | TUIとprocess commandの接続、watch / dev / preview / test / publish                                |
+| `packages/unframe-cli`           | init / check / build / test / dev / preview / publish、watch、atomic v2 output、TUI と headless command                                                                                            | —                                                                                                 |
 | `packages/config`                | TypeScript 基底設定、Vite+ 共有 lint / formatter、`pre-commit` / `vp staged`、check / test、CI filter                                                                                              | —                                                                                                 |
 
 ## 3. 実装原則
@@ -398,13 +399,15 @@ M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface tr
 - Unity Presentation Runtime
 - Web EditorからLocal Compilerを呼ぶexecution topology
 
-`publish` commandはControl Plane側のPublication contractとactive-use lockが実装されるまで仮APIを作らない。Web Editor、Realtime、Unityのapplication実装は、それぞれのowning directoryの計画と品質ゲートで進める。
+`publish` はControl PlaneのBuild / Publication / Deliveryとactive-use lockへ接続した。ローカルの実Control Plane、TLS Realtime、生成Go clientではCue実行、replay / resume、checkpoint / completionを検証し、Unity Editorのnative HTTP/2 handlerと生成C# clientではSnapshot / StateReady / keyframe受信を確認した。これらはQuest実機のAsset residency、入力、性能検証を代替しない。TrackingとAnchor binding、Timeline所有propertyを省略するState keyframeを接続した。Media / ModelのRun lifecycleはGo actorで検証した。各mutationは全canonical checkpointの保存成功後にeventを公開し、復旧では最新checkpointを使う。Unity Editorでは既定HTTP clientと通常の証明書検証によるHTTPS取得を実行し、default Fixed Browser buildの4枚のPNG、encoded cache、texture residency、StateReadyを確認した。Quest実機での取得・入力・性能検証は未完了である。pauseTimeoutは期間と自動終了policyが未定義のため未実装とする。Web Editor、Realtime、Unityは、それぞれのowning directoryの品質ゲートで検証する。
 
 ### 完了条件
 
 - local authoring、check、build、previewが同じproject/config/lockを使用する。
 - local buildとpublish対象artifactのhashが一致する。
 - application integrationがpackage内部moduleへdeep importしない。
+- 実サービスのauthoritative execution、replay / resume、checkpoint / completionを検証する（[ADR-0024](../decisions/0024-m6-application-transport-boundaries.md)）。
+- Quest実機でDeliveryとAsset取得、入力、texture residency、GPU / CPU・upload peakを検証する。端末用SceneとPose / 入力adapterの接続、および端末計測は未完了である。
 
 ## 11. 横断的な検証戦略
 
