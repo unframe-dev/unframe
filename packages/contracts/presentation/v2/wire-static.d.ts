@@ -19801,6 +19801,9 @@ export namespace unframe {
         /** ProjectedReliableEvent participantPresenceChanged. */
         participantPresenceChanged?: unframe.realtime.v2.ParticipantPresenceChanged.$Properties | null;
 
+        /** ProjectedReliableEvent mediaStoppedSeeked. */
+        mediaStoppedSeeked?: unframe.realtime.v2.MediaStoppedSeeked.$Properties | null;
+
         /** ProjectedReliableEvent payload. */
         payload?:
           | "runtimeStatusChanged"
@@ -19835,7 +19838,8 @@ export namespace unframe {
           | "modelClipCrossfadeStarted"
           | "modelClipCrossfadeCompleted"
           | "modelClipCanceled"
-          | "participantPresenceChanged";
+          | "participantPresenceChanged"
+          | "mediaStoppedSeeked";
 
         /**
          * Creates a new ProjectedReliableEvent instance using the specified properties.
@@ -20054,6 +20058,9 @@ export namespace unframe {
           /** ProjectedReliableEvent participantPresenceChanged */
           participantPresenceChanged?: unframe.realtime.v2.ParticipantPresenceChanged.$Properties | null;
 
+          /** ProjectedReliableEvent mediaStoppedSeeked */
+          mediaStoppedSeeked?: unframe.realtime.v2.MediaStoppedSeeked.$Properties | null;
+
           /** ProjectedReliableEvent payload */
           payload?:
             | "runtimeStatusChanged"
@@ -20088,7 +20095,8 @@ export namespace unframe {
             | "modelClipCrossfadeStarted"
             | "modelClipCrossfadeCompleted"
             | "modelClipCanceled"
-            | "participantPresenceChanged";
+            | "participantPresenceChanged"
+            | "mediaStoppedSeeked";
 
           /** Unknown fields preserved while decoding when enabled */
           $unknowns?: Uint8Array[];
@@ -20134,6 +20142,7 @@ export namespace unframe {
           modelClipCrossfadeCompleted?: unframe.realtime.v2.ModelClipCrossfadeCompleted.$Shape | null;
           modelClipCanceled?: unframe.realtime.v2.ModelClipCanceled.$Shape | null;
           participantPresenceChanged?: unframe.realtime.v2.ParticipantPresenceChanged.$Shape | null;
+          mediaStoppedSeeked?: unframe.realtime.v2.MediaStoppedSeeked.$Shape | null;
           $unknowns?: Uint8Array[];
         } & (
           | {
@@ -20171,6 +20180,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "runtimeStatusChanged";
@@ -20207,6 +20217,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "presentationOriginChanged";
@@ -20243,6 +20254,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "groupEntered";
@@ -20279,6 +20291,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "groupExited";
@@ -20315,6 +20328,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "stepEntered";
@@ -20351,6 +20365,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "cueAccepted";
@@ -20387,6 +20402,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "presentationEnded";
@@ -20423,6 +20439,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "logicalInputAccepted";
@@ -20459,6 +20476,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "surfaceInteractionAccepted";
@@ -20495,6 +20513,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "surfaceStateChanged";
@@ -20531,6 +20550,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "surfaceTransitionStarted";
@@ -20567,6 +20587,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "surfaceTransitionCompleted";
@@ -20603,6 +20624,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "nodeStateCommitted";
@@ -20639,6 +20661,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "variableChanged";
@@ -20675,6 +20698,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "timelineStarted";
@@ -20711,6 +20735,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "timelineCompleted";
@@ -20747,6 +20772,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "timelineCanceled";
@@ -20783,6 +20809,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaStarted";
@@ -20819,6 +20846,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaPaused";
@@ -20855,6 +20883,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaResumed";
@@ -20891,6 +20920,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaSeeked";
@@ -20927,6 +20957,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaCompleted";
@@ -20963,6 +20994,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaCanceled";
@@ -20999,6 +21031,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "mediaStopped";
@@ -21035,6 +21068,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipStarted";
@@ -21071,6 +21105,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipPaused";
@@ -21107,6 +21142,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipResumed";
@@ -21143,6 +21179,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipStopped";
@@ -21179,6 +21216,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipCompleted";
@@ -21215,6 +21253,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipCrossfadeStarted";
@@ -21251,6 +21290,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipCrossfadeCompleted";
@@ -21287,6 +21327,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted: unframe.realtime.v2.ModelClipCrossfadeCompleted.$Shape;
               modelClipCanceled?: null;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "modelClipCanceled";
@@ -21323,6 +21364,7 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled: unframe.realtime.v2.ModelClipCanceled.$Shape;
               participantPresenceChanged?: null;
+              mediaStoppedSeeked?: null;
             }
           | {
               payload?: "participantPresenceChanged";
@@ -21359,6 +21401,44 @@ export namespace unframe {
               modelClipCrossfadeCompleted?: null;
               modelClipCanceled?: null;
               participantPresenceChanged: unframe.realtime.v2.ParticipantPresenceChanged.$Shape;
+              mediaStoppedSeeked?: null;
+            }
+          | {
+              payload?: "mediaStoppedSeeked";
+              runtimeStatusChanged?: null;
+              presentationOriginChanged?: null;
+              groupEntered?: null;
+              groupExited?: null;
+              stepEntered?: null;
+              cueAccepted?: null;
+              presentationEnded?: null;
+              logicalInputAccepted?: null;
+              surfaceInteractionAccepted?: null;
+              surfaceStateChanged?: null;
+              surfaceTransitionStarted?: null;
+              surfaceTransitionCompleted?: null;
+              nodeStateCommitted?: null;
+              variableChanged?: null;
+              timelineStarted?: null;
+              timelineCompleted?: null;
+              timelineCanceled?: null;
+              mediaStarted?: null;
+              mediaPaused?: null;
+              mediaResumed?: null;
+              mediaSeeked?: null;
+              mediaCompleted?: null;
+              mediaCanceled?: null;
+              mediaStopped?: null;
+              modelClipStarted?: null;
+              modelClipPaused?: null;
+              modelClipResumed?: null;
+              modelClipStopped?: null;
+              modelClipCompleted?: null;
+              modelClipCrossfadeStarted?: null;
+              modelClipCrossfadeCompleted?: null;
+              modelClipCanceled?: null;
+              participantPresenceChanged?: null;
+              mediaStoppedSeeked: unframe.realtime.v2.MediaStoppedSeeked.$Shape;
             }
         );
       }
@@ -25962,6 +26042,143 @@ export namespace unframe {
 
         /** Shape of a MediaCompleted. */
         type $Shape = unframe.realtime.v2.MediaCompleted.$Properties;
+      }
+
+      /**
+       * Properties of a MediaStoppedSeeked.
+       * @deprecated Use unframe.realtime.v2.MediaStoppedSeeked.$Properties instead.
+       */
+      interface IMediaStoppedSeeked extends unframe.realtime.v2.MediaStoppedSeeked.$Properties {}
+
+      /** Represents a MediaStoppedSeeked. */
+      class MediaStoppedSeeked {
+        /**
+         * Constructs a new MediaStoppedSeeked.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: unframe.realtime.v2.MediaStoppedSeeked.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** MediaStoppedSeeked surfaceId. */
+        surfaceId: string;
+
+        /** MediaStoppedSeeked heldPositionMs. */
+        heldPositionMs: number;
+
+        /**
+         * Creates a new MediaStoppedSeeked instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns MediaStoppedSeeked instance
+         */
+        static create(
+          properties: unframe.realtime.v2.MediaStoppedSeeked.$Shape,
+        ): unframe.realtime.v2.MediaStoppedSeeked & unframe.realtime.v2.MediaStoppedSeeked.$Shape;
+        static create(
+          properties?: unframe.realtime.v2.MediaStoppedSeeked.$Properties,
+        ): unframe.realtime.v2.MediaStoppedSeeked;
+
+        /**
+         * Encodes the specified MediaStoppedSeeked message. Does not implicitly {@link unframe.realtime.v2.MediaStoppedSeeked.verify|verify} messages.
+         * @param message MediaStoppedSeeked message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(
+          message: unframe.realtime.v2.MediaStoppedSeeked.$Properties,
+          writer?: $protobuf.Writer,
+        ): $protobuf.Writer;
+
+        /**
+         * Encodes the specified MediaStoppedSeeked message, length delimited. Does not implicitly {@link unframe.realtime.v2.MediaStoppedSeeked.verify|verify} messages.
+         * @param message MediaStoppedSeeked message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(
+          message: unframe.realtime.v2.MediaStoppedSeeked.$Properties,
+          writer?: $protobuf.Writer,
+        ): $protobuf.Writer;
+
+        /**
+         * Decodes a MediaStoppedSeeked message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {unframe.realtime.v2.MediaStoppedSeeked & unframe.realtime.v2.MediaStoppedSeeked.$Shape} MediaStoppedSeeked
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(
+          reader: $protobuf.Reader | Uint8Array,
+          length?: number,
+        ): unframe.realtime.v2.MediaStoppedSeeked & unframe.realtime.v2.MediaStoppedSeeked.$Shape;
+
+        /**
+         * Decodes a MediaStoppedSeeked message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {unframe.realtime.v2.MediaStoppedSeeked & unframe.realtime.v2.MediaStoppedSeeked.$Shape} MediaStoppedSeeked
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(
+          reader: $protobuf.Reader | Uint8Array,
+        ): unframe.realtime.v2.MediaStoppedSeeked & unframe.realtime.v2.MediaStoppedSeeked.$Shape;
+
+        /**
+         * Verifies a MediaStoppedSeeked message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): string | null;
+
+        /**
+         * Creates a MediaStoppedSeeked message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns MediaStoppedSeeked
+         */
+        static fromObject(object: { [k: string]: any }): unframe.realtime.v2.MediaStoppedSeeked;
+
+        /**
+         * Creates a plain object from a MediaStoppedSeeked message. Also converts values to other types if specified.
+         * @param message MediaStoppedSeeked
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(
+          message: unframe.realtime.v2.MediaStoppedSeeked,
+          options?: $protobuf.IConversionOptions,
+        ): { [k: string]: any };
+
+        /**
+         * Converts this MediaStoppedSeeked to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for MediaStoppedSeeked
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+      }
+
+      namespace MediaStoppedSeeked {
+        /** Properties of a MediaStoppedSeeked. */
+        interface $Properties {
+          /** MediaStoppedSeeked surfaceId */
+          surfaceId?: string | null;
+
+          /** MediaStoppedSeeked heldPositionMs */
+          heldPositionMs?: number | null;
+
+          /** Unknown fields preserved while decoding when enabled */
+          $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a MediaStoppedSeeked. */
+        type $Shape = unframe.realtime.v2.MediaStoppedSeeked.$Properties;
       }
 
       /**

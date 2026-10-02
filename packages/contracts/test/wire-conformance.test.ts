@@ -17,6 +17,32 @@ interface Fixture {
 const path = resolve(import.meta.dirname, "../presentation/v2/fixtures/wire/conformance.json");
 const fixtures = JSON.parse(await readFile(path, "utf8")) as Fixture[];
 
+test("node transform patches preserve independent component presence", () => {
+  for (const [transform, hex] of [
+    [{ position: { x: 1 } }, "220b0a0909000000000000f03f"],
+    [{ rotation: { w: 1 } }, "220b120921000000000000f03f"],
+    [{ scale: { x: 1 } }, "220b1a0909000000000000f03f"],
+  ] as const) {
+    const value = { transform };
+    const bytes = encodeWireMessage("unframe.realtime.v2.NodeStatePatch", value);
+    assert.equal(Buffer.from(bytes).toString("hex"), hex);
+    assert.deepEqual(decodeWireMessage("unframe.realtime.v2.NodeStatePatch", bytes), value);
+  }
+});
+
+test("stopped media seek carries its held position without creating a Run", () => {
+  const value = { surfaceId: "video", heldPositionMs: 1.25 };
+  const encoded = encodeWireMessage("unframe.realtime.v2.MediaStoppedSeeked", value);
+  assert.equal(Buffer.from(encoded).toString("hex"), "0a05766964656f11000000000000f43f");
+  assert.deepEqual(decodeWireMessage("unframe.realtime.v2.MediaStoppedSeeked", encoded), value);
+  const event = { mediaStoppedSeeked: value };
+  const envelope = encodeWireMessage("unframe.realtime.v2.ProjectedReliableEvent", event);
+  assert.deepEqual(
+    decodeWireMessage("unframe.realtime.v2.ProjectedReliableEvent", envelope),
+    event,
+  );
+});
+
 test("static TypeScript codec matches the Go/C# binary fixtures without Function constructor", () => {
   const original = globalThis.Function;
   globalThis.Function = function blocked(): never {

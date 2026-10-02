@@ -277,6 +277,7 @@ const contentOverrideSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     ...commonOverride,
     kind: z.literal("video"),
+    loop: z.boolean().optional(),
     style: videoStyleSchema.optional(),
   }),
 ]);

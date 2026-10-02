@@ -156,6 +156,10 @@ namespace Unframe.ControlPlane.Client
                 return CallbacksCompletionsPostRequest.RuntimeKindEnumToJsonValue(callbacksCompletionsPostRequestRuntimeKindEnum);
             if (obj is CallbacksCompletionsPostRequestParticipantsInner.RoleEnum callbacksCompletionsPostRequestParticipantsInnerRoleEnum)
                 return CallbacksCompletionsPostRequestParticipantsInner.RoleEnumToJsonValue(callbacksCompletionsPostRequestParticipantsInnerRoleEnum);
+            if (obj is InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnum internalRuntimeBootstrapGet200ResponseAssignmentRuntimeKindEnum)
+                return InternalRuntimeBootstrapGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeBootstrapGet200ResponseAssignmentRuntimeKindEnum);
+            if (obj is InternalRuntimeProjectionGet200Response.RoleEnum internalRuntimeProjectionGet200ResponseRoleEnum)
+                return InternalRuntimeProjectionGet200Response.RoleEnumToJsonValue(internalRuntimeProjectionGet200ResponseRoleEnum);
             if (obj is PresentationsGet200ResponsePresentationsInnerDefinition.SchemaVersionEnum presentationsGet200ResponsePresentationsInnerDefinitionSchemaVersionEnum)
                 return PresentationsGet200ResponsePresentationsInnerDefinition.SchemaVersionEnumToJsonValue(presentationsGet200ResponsePresentationsInnerDefinitionSchemaVersionEnum).ToString();
             if (obj is PresentationsGet200ResponsePresentationsInnerDefinitionGroupsInnerAnchoredElementGroupsInner.AnchorEnum presentationsGet200ResponsePresentationsInnerDefinitionGroupsInnerAnchoredElementGroupsInnerAnchorEnum)
@@ -204,6 +208,22 @@ namespace Unframe.ControlPlane.Client
                 return PresentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystem.ForwardAxisEnumToJsonValue(presentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystemForwardAxisEnum);
             if (obj is PresentationsPostRequest.SchemaVersionEnum presentationsPostRequestSchemaVersionEnum)
                 return PresentationsPostRequest.SchemaVersionEnumToJsonValue(presentationsPostRequestSchemaVersionEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201Response.SchemaVersionEnum presentationsPresentationIdPublicationsPost201ResponseSchemaVersionEnum)
+                return PresentationsPresentationIdPublicationsPost201Response.SchemaVersionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseSchemaVersionEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.DefinitionEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsDefinitionEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.DefinitionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsDefinitionEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.RenderBundleEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsRenderBundleEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.RenderBundleEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsRenderBundleEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.AssetSetEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsAssetSetEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.AssetSetEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsAssetSetEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.DeliveryEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsDeliveryEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.DeliveryEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsDeliveryEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.RuntimeEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsRuntimeEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.RuntimeEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsRuntimeEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProgressionEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsProgressionEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProgressionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsProgressionEnum).ToString();
+            if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProjectionEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsProjectionEnum)
+                return PresentationsPresentationIdPublicationsPost201ResponseContractVersions.ProjectionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseContractVersionsProjectionEnum).ToString();
             if (obj is SessionsIdBootstrapPost200Response.RuntimeKindEnum sessionsIdBootstrapPost200ResponseRuntimeKindEnum)
                 return SessionsIdBootstrapPost200Response.RuntimeKindEnumToJsonValue(sessionsIdBootstrapPost200ResponseRuntimeKindEnum);
             if (obj is SessionsPost201ResponseSession.StateEnum sessionsPost201ResponseSessionStateEnum)

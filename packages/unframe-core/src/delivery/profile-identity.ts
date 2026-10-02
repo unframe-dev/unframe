@@ -15,23 +15,28 @@ const ascending = (left: string | number, right: string | number) => left < righ
 const keyedEntry = (parent: string, field: string, item: unknown): string | number | undefined => {
   if (!isRecord(item)) return undefined;
   if (field === "renderSurfaces")
-    return `${String(item.semanticSurfaceId)}\u0000${String(item.layer ?? 0).padStart(10, "0")}`;
-  if (field === "modelClips") return `${String(item.modelNodeId)}\u0000${String(item.clipId)}`;
+    return `${String(item["semanticSurfaceId"])}\u0000${String(item["layer"] ?? 0).padStart(10, "0")}`;
+  if (field === "modelClips")
+    return `${String(item["modelNodeId"])}\u0000${String(item["clipId"])}`;
   if (field === "nodes" && parent.endsWith(".ProjectedSemanticTree"))
-    return item.semanticNodeId as string | undefined;
+    return item["semanticNodeId"] as string | undefined;
   if (field === "nodes" && parent.endsWith(".NativeUiArtifact")) {
-    const node = isRecord(item.group) ? item.group : isRecord(item.text) ? item.text : undefined;
-    return node?.nodeId as string | undefined;
+    const node = isRecord(item["group"])
+      ? item["group"]
+      : isRecord(item["text"])
+        ? item["text"]
+        : undefined;
+    return node?.["nodeId"] as string | undefined;
   }
   if (field === "artifacts") {
-    const artifact = isRecord(item.bakedWeb)
-      ? item.bakedWeb
-      : isRecord(item.nativeUi)
-        ? item.nativeUi
-        : isRecord(item.video)
-          ? item.video
+    const artifact = isRecord(item["bakedWeb"])
+      ? item["bakedWeb"]
+      : isRecord(item["nativeUi"])
+        ? item["nativeUi"]
+        : isRecord(item["video"])
+          ? item["video"]
           : undefined;
-    return artifact?.artifactId as string | undefined;
+    return artifact?.["artifactId"] as string | undefined;
   }
   const key = (
     {
@@ -175,6 +180,6 @@ export const calculateProjectionProfileId = (descriptor: unknown): string => {
     withoutId,
     profileTypeName,
   );
-  delete mapping.projection_profile_id;
+  delete mapping["projection_profile_id"];
   return `pp_${hashCanonicalJsonPayload(mapping).slice("sha256:".length)}`;
 };

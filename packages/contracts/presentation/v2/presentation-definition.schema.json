@@ -5887,6 +5887,9 @@
                                 "type": "string",
                                 "const": "video"
                               },
+                              "loop": {
+                                "type": "boolean"
+                              },
                               "style": {
                                 "type": "object",
                                 "properties": {

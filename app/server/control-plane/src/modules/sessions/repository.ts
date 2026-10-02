@@ -50,9 +50,34 @@ export class D1SessionRepository implements SessionRepository {
   }
 
   async create(record: SessionRecord, presenter: SessionParticipant) {
-    await this.db.batch([
-      this.db.insert(presentationSessions).values(record),
-      this.db.insert(sessionParticipants).values(presenter),
+    await this.database.batch([
+      this.database
+        .prepare(
+          `INSERT INTO presentation_sessions
+         (id, presentation_id, presenter_id, join_code_hash, state, participant_count,
+          max_participants, created_at, ended_at, publication_epoch)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                (SELECT MAX(epoch) FROM presentation_publications WHERE presentation_id = ?)
+         WHERE EXISTS (SELECT 1 FROM presentations WHERE id = ?)`,
+        )
+        .bind(
+          record.id,
+          record.presentationId,
+          record.presenterId,
+          record.joinCodeHash,
+          record.state,
+          record.participantCount,
+          record.maxParticipants,
+          record.createdAt,
+          record.endedAt,
+          record.presentationId,
+          record.presentationId,
+        ),
+      this.database
+        .prepare(
+          "INSERT INTO session_participants (session_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(presenter.sessionId, presenter.userId, presenter.role, presenter.joinedAt),
     ]);
   }
 

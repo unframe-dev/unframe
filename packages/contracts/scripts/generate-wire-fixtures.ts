@@ -6,6 +6,26 @@ import { formatGenerated } from "./format-generated";
 
 const fixtures = [
   {
+    typeName: "unframe.realtime.v2.NodeStatePatch",
+    value: { transform: { position: { x: 1 } } },
+  },
+  {
+    typeName: "unframe.realtime.v2.NodeStatePatch",
+    value: { transform: { rotation: { w: 1 } } },
+  },
+  {
+    typeName: "unframe.realtime.v2.NodeStatePatch",
+    value: { transform: { scale: { x: 1 } } },
+  },
+  {
+    typeName: "unframe.realtime.v2.MediaStoppedSeeked",
+    value: { surfaceId: "video", heldPositionMs: 1.25 },
+  },
+  {
+    typeName: "unframe.realtime.v2.ProjectedReliableEvent",
+    value: { mediaStoppedSeeked: { surfaceId: "video", heldPositionMs: 1.25 } },
+  },
+  {
     typeName: "unframe.delivery.v2.DeliveryManifest",
     value: {
       schemaVersion: 2,

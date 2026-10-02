@@ -72,23 +72,33 @@ const painted = (node: Node) =>
   paintFrame(node);
 const visibleWindow = (surface: SemanticSurface): Bounds => {
   const [width, height] = surface.logicalSize;
+  if (surface.fit !== "cover") return { x: 0, y: 0, width, height };
   const [physicalWidth, physicalHeight] = surface.physicalSizeMeters;
-  const sx =
-    surface.fit === "stretch"
-      ? physicalWidth / width
-      : surface.fit === "contain"
-        ? Math.min(physicalWidth / width, physicalHeight / height)
-        : Math.max(physicalWidth / width, physicalHeight / height);
-  const sy = surface.fit === "stretch" ? physicalHeight / height : sx;
-  return intersect(
-    { x: 0, y: 0, width, height },
-    {
-      x: width / 2 - physicalWidth / (2 * sx),
-      y: height / 2 - physicalHeight / (2 * sy),
-      width: physicalWidth / sx,
-      height: physicalHeight / sy,
-    },
-  )!;
+  const physicalAspect = physicalWidth / physicalHeight;
+  const logicalAspect = width / height;
+  const logPhysicalAspect = Math.log(physicalWidth) - Math.log(physicalHeight);
+  const logLogicalAspect = Math.log(width) - Math.log(height);
+  const cropWidth =
+    Number.isFinite(physicalAspect) &&
+    physicalAspect > 0 &&
+    Number.isFinite(logicalAspect) &&
+    logicalAspect > 0
+      ? physicalAspect < logicalAspect
+      : logPhysicalAspect < logLogicalAspect;
+  if (cropWidth) {
+    const measured =
+      Number.isFinite(physicalAspect) && physicalAspect > 0
+        ? height * physicalAspect
+        : Math.exp(Math.log(height) + logPhysicalAspect);
+    const croppedWidth = Math.min(width, Math.max(Number.MIN_VALUE, measured));
+    return { x: (width - croppedWidth) / 2, y: 0, width: croppedWidth, height };
+  }
+  const measured =
+    Number.isFinite(physicalAspect) && physicalAspect > 0
+      ? width / physicalAspect
+      : Math.exp(Math.log(width) - logPhysicalAspect);
+  const croppedHeight = Math.min(height, Math.max(Number.MIN_VALUE, measured));
+  return { x: 0, y: (height - croppedHeight) / 2, width, height: croppedHeight };
 };
 const pixelTargetFor = (bounds: Bounds): readonly [number, number] => {
   const scale = 2048 / Math.max(bounds.width, bounds.height);
@@ -97,6 +107,12 @@ const pixelTargetFor = (bounds: Bounds): readonly [number, number] => {
     Math.max(1, Math.floor(bounds.height * scale + 0.5)),
   ];
 };
+const representableWindow = (bounds: Bounds) =>
+  Number.isFinite(bounds.x + bounds.width) &&
+  Number.isFinite(bounds.y + bounds.height) &&
+  bounds.x + bounds.width > bounds.x &&
+  bounds.y + bounds.height > bounds.y &&
+  Number.isFinite(2048 / Math.max(bounds.width, bounds.height));
 
 export const planSurfacePartitions = (
   surface: SemanticSurface,
@@ -151,6 +167,17 @@ export const planSurfacePartitions = (
       ],
     };
   const fullWindow = visibleWindow(surface);
+  if (!representableWindow(fullWindow))
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-partition-geometry-unrepresentable",
+          ["surface", surface.id, "physicalSizeMeters"],
+          "The visible window cannot be represented as logical geometry.",
+        ),
+      ],
+    };
   const closures: Closure[] = [];
   const semanticsByState: PlannedSurface["semanticsByState"] = {};
   const interactionsByState: PlannedSurface["interactionsByState"] = {};

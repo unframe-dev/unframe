@@ -1,5 +1,56 @@
 [
   {
+    "typeName": "unframe.realtime.v2.NodeStatePatch",
+    "value": {
+      "transform": {
+        "position": {
+          "x": 1
+        }
+      }
+    },
+    "hex": "220b0a0909000000000000f03f"
+  },
+  {
+    "typeName": "unframe.realtime.v2.NodeStatePatch",
+    "value": {
+      "transform": {
+        "rotation": {
+          "w": 1
+        }
+      }
+    },
+    "hex": "220b120921000000000000f03f"
+  },
+  {
+    "typeName": "unframe.realtime.v2.NodeStatePatch",
+    "value": {
+      "transform": {
+        "scale": {
+          "x": 1
+        }
+      }
+    },
+    "hex": "220b1a0909000000000000f03f"
+  },
+  {
+    "typeName": "unframe.realtime.v2.MediaStoppedSeeked",
+    "value": {
+      "surfaceId": "video",
+      "heldPositionMs": 1.25
+    },
+    "hex": "0a05766964656f11000000000000f43f"
+  },
+  {
+    "typeName": "unframe.realtime.v2.ProjectedReliableEvent",
+    "value": {
+      "mediaStoppedSeeked": {
+        "surfaceId": "video",
+        "heldPositionMs": 1.25
+      }
+    },
+    "hex": "c23e100a05766964656f11000000000000f43f"
+  },
+  {
     "typeName": "unframe.delivery.v2.DeliveryManifest",
     "value": {
       "schemaVersion": 2,

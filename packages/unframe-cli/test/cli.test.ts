@@ -1,8 +1,49 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { runPresentationCli } from "../src/index.js";
+import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 
 describe("runPresentationCli", () => {
+  it("initializes a project that check can read and refuses to overwrite it", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "unframe-init-"));
+    const directory = join(parent, "project");
+    try {
+      expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
+      expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
+      const repeated = await runPresentationCli({ args: ["init", directory] });
+      expect(repeated.exitCode).toBe(3);
+      expect(repeated.stderr).toContain("cli-init-target-exists");
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects renderer plugins that the explicit bundled registry does not provide", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "unframe-plugin-"));
+    const directory = join(parent, "project");
+    try {
+      expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
+      const path = join(directory, "unframe.lock");
+      const lock = JSON.parse(await readFile(path, "utf8"));
+      lock.rendererPlugins = [{ id: "untrusted", version: "1", contractVersion: "2" }];
+      await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
+      const result = await runPresentationCli({ args: ["check", directory] });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("cli-renderer-plugin-unsupported");
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+  it("runs project tests through the same checked build and reports the test command", async () => {
+    const result = await runPresentationCli({
+      args: ["test", "/missing-project", "--format", "json"],
+    });
+    expect(result.exitCode).toBe(3);
+    expect(JSON.parse(result.stderr)).toMatchObject({ ok: false, command: "test" });
+  });
   it("accepts only the M1 project-root command grammar", async () => {
     const result = await runPresentationCli({ args: ["build", "/project", "/output"] });
     expect(result.exitCode).toBe(2);

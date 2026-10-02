@@ -206,14 +206,15 @@ const semanticTree = (
       role: semanticRoles[node.role],
       interactionEnabled: node.role === "button" && role === "presenter" && node.stateEnabled,
     };
-    if (node.parentId !== null) base.parentNodeId = node.parentId;
-    if ("text" in node) base.text = node.text;
-    if ("language" in node && node.language !== undefined) base.language = node.language;
-    if ("alt" in node) base.alt = node.alt;
-    if ("label" in node && node.label !== undefined) base.label = node.label;
-    if (node.role === "heading") base.headingLevel = node.level;
-    if (node.role === "list") base.ordered = node.ordered;
-    if (node.role === "button" && base.interactionEnabled) base.interactionId = node.interactionId;
+    if (node.parentId !== null) base["parentNodeId"] = node.parentId;
+    if ("text" in node) base["text"] = node.text;
+    if ("language" in node && node.language !== undefined) base["language"] = node.language;
+    if ("alt" in node) base["alt"] = node.alt;
+    if ("label" in node && node.label !== undefined) base["label"] = node.label;
+    if (node.role === "heading") base["headingLevel"] = node.level;
+    if (node.role === "list") base["ordered"] = node.ordered;
+    if (node.role === "button" && base["interactionEnabled"])
+      base["interactionId"] = node.interactionId;
     return base;
   }),
 });

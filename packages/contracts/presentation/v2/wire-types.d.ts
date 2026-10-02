@@ -1152,6 +1152,11 @@ export interface MediaStoppedWire {
   heldPositionMs?: number;
 }
 
+export interface MediaStoppedSeekedWire {
+  surfaceId?: string;
+  heldPositionMs?: number;
+}
+
 export interface MediaStoppedStateWire {
   heldPositionMs?: number;
 }
@@ -1426,6 +1431,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       presentationOriginChanged: PresentationOriginChangedWire;
@@ -1461,6 +1467,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       groupEntered: GroupEnteredWire;
@@ -1496,6 +1503,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       groupExited: GroupExitedWire;
@@ -1531,6 +1539,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       stepEntered: StepEnteredWire;
@@ -1566,6 +1575,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       cueAccepted: CueAcceptedWire;
@@ -1601,6 +1611,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       presentationEnded: PresentationEndedWire;
@@ -1636,6 +1647,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       logicalInputAccepted: LogicalInputAcceptedWire;
@@ -1671,6 +1683,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       surfaceInteractionAccepted: SurfaceInteractionAcceptedWire;
@@ -1706,6 +1719,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       surfaceStateChanged: SurfaceStateChangedWire;
@@ -1741,6 +1755,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       surfaceTransitionStarted: SurfaceTransitionStartedWire;
@@ -1776,6 +1791,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       surfaceTransitionCompleted: SurfaceTransitionCompletedWire;
@@ -1811,6 +1827,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       nodeStateCommitted: NodeStateCommittedWire;
@@ -1846,6 +1863,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       variableChanged: VariableChangedWire;
@@ -1881,6 +1899,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       timelineStarted: TimelineStartedWire;
@@ -1916,6 +1935,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       timelineCompleted: TimelineCompletedWire;
@@ -1951,6 +1971,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       timelineCanceled: TimelineCanceledWire;
@@ -1986,6 +2007,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaStarted: MediaStartedWire;
@@ -2021,6 +2043,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaPaused: MediaPausedWire;
@@ -2056,6 +2079,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaResumed: MediaResumedWire;
@@ -2091,6 +2115,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaSeeked: MediaSeekedWire;
@@ -2126,6 +2151,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaCompleted: MediaCompletedWire;
@@ -2161,6 +2187,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaCanceled: MediaCanceledWire;
@@ -2196,6 +2223,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       mediaStopped: MediaStoppedWire;
@@ -2231,6 +2259,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipStarted: ModelClipStartedWire;
@@ -2266,6 +2295,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipPaused: ModelClipPausedWire;
@@ -2301,6 +2331,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipResumed: ModelClipResumedWire;
@@ -2336,6 +2367,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipStopped: ModelClipStoppedWire;
@@ -2371,6 +2403,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipCompleted: ModelClipCompletedWire;
@@ -2406,6 +2439,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipCrossfadeStarted: ModelClipCrossfadeStartedWire;
@@ -2441,6 +2475,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipCrossfadeCompleted: ModelClipCrossfadeCompletedWire;
@@ -2476,6 +2511,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeStarted?: never;
       modelClipCanceled?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       modelClipCanceled: ModelClipCanceledWire;
@@ -2511,6 +2547,7 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeStarted?: never;
       modelClipCrossfadeCompleted?: never;
       participantPresenceChanged?: never;
+      mediaStoppedSeeked?: never;
     }
   | {
       participantPresenceChanged: ParticipantPresenceChangedWire;
@@ -2546,6 +2583,43 @@ export type ProjectedReliableEventWire_payload =
       modelClipCrossfadeStarted?: never;
       modelClipCrossfadeCompleted?: never;
       modelClipCanceled?: never;
+      mediaStoppedSeeked?: never;
+    }
+  | {
+      mediaStoppedSeeked: MediaStoppedSeekedWire;
+      runtimeStatusChanged?: never;
+      presentationOriginChanged?: never;
+      groupEntered?: never;
+      groupExited?: never;
+      stepEntered?: never;
+      cueAccepted?: never;
+      presentationEnded?: never;
+      logicalInputAccepted?: never;
+      surfaceInteractionAccepted?: never;
+      surfaceStateChanged?: never;
+      surfaceTransitionStarted?: never;
+      surfaceTransitionCompleted?: never;
+      nodeStateCommitted?: never;
+      variableChanged?: never;
+      timelineStarted?: never;
+      timelineCompleted?: never;
+      timelineCanceled?: never;
+      mediaStarted?: never;
+      mediaPaused?: never;
+      mediaResumed?: never;
+      mediaSeeked?: never;
+      mediaCompleted?: never;
+      mediaCanceled?: never;
+      mediaStopped?: never;
+      modelClipStarted?: never;
+      modelClipPaused?: never;
+      modelClipResumed?: never;
+      modelClipStopped?: never;
+      modelClipCompleted?: never;
+      modelClipCrossfadeStarted?: never;
+      modelClipCrossfadeCompleted?: never;
+      modelClipCanceled?: never;
+      participantPresenceChanged?: never;
     };
 export type ProjectedReliableEventWire = ProjectedReliableEventWireFields &
   ProjectedReliableEventWire__causeEventId &

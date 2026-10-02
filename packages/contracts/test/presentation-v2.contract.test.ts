@@ -153,6 +153,20 @@ test("state patches cannot replace topology or video identity", () => {
   });
 });
 
+test("Video State may override playback loop without replacing its asset", () => {
+  const valid = structuredClone(definition);
+  valid.scene.surfaces.video.states.default.contentOverrides.video = { kind: "video", loop: true };
+  assert.equal(presentationDefinitionV2Schema.safeParse(valid).success, true);
+  assert.equal(validateDefinition(valid), true, ajv.errorsText(validateDefinition.errors));
+  rejectsDefinition((value) => {
+    value.scene.surfaces.video.states.default.contentOverrides.video = {
+      kind: "video",
+      assetId: "another-video",
+      loop: true,
+    };
+  });
+});
+
 test("clip controls require positive speed and typed transition", () => {
   for (const speed of [0, -1]) {
     rejectsDefinition((value) => {

@@ -57,6 +57,54 @@ export const readRegularFile = async (path: string): Promise<Uint8Array | undefi
   return stable && bytes ? bytes.slice() : undefined;
 };
 
+export const readBoundedRegularFile = async (
+  path: string,
+  maxBytes: number,
+  expectedBytes?: number,
+): Promise<Uint8Array | undefined> => {
+  if (
+    !Number.isSafeInteger(maxBytes) ||
+    maxBytes < 0 ||
+    (expectedBytes !== undefined &&
+      (!Number.isSafeInteger(expectedBytes) || expectedBytes < 0 || expectedBytes > maxBytes))
+  )
+    return undefined;
+  const before = await checkedPath(path, false);
+  if (!before) return undefined;
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => undefined);
+  if (!handle) return undefined;
+  let bytes: Uint8Array | undefined;
+  try {
+    const stat = await handle.stat();
+    if (
+      stat.isFile() &&
+      sameIdentity(before.identity, { dev: stat.dev, ino: stat.ino }) &&
+      Number.isSafeInteger(stat.size) &&
+      stat.size <= maxBytes &&
+      (expectedBytes === undefined || stat.size === expectedBytes)
+    ) {
+      const candidate = Buffer.allocUnsafe(stat.size);
+      let offset = 0;
+      while (offset < candidate.byteLength) {
+        const result = await handle.read(candidate, offset, candidate.byteLength - offset, offset);
+        if (result.bytesRead === 0) break;
+        offset += result.bytesRead;
+      }
+      const probe = await handle.read(Buffer.alloc(1), 0, 1, offset);
+      const after = await handle.stat();
+      if (offset === candidate.byteLength && probe.bytesRead === 0 && after.size === stat.size)
+        bytes = candidate;
+    }
+  } catch {}
+  const stable = bytes && (await stablePath(path, before, false));
+  try {
+    await handle.close();
+  } catch {
+    return undefined;
+  }
+  return stable ? bytes : undefined;
+};
+
 export const projectDirectory = async (path: string) => {
   const before = await checkedPath(path, true);
   if (!before) return undefined;

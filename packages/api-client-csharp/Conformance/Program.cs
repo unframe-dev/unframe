@@ -17,6 +17,35 @@ foreach (var path in args)
         var value = fixture.GetProperty("value").GetRawText();
         switch (typeName)
         {
+            case "unframe.realtime.v2.NodeStatePatch":
+                {
+                    var fromJson = JsonParser.Default.Parse<NodeStatePatch>(value);
+                    var fromWire = NodeStatePatch.Parser.ParseFrom(expected);
+                    var transform = fromWire.Transform;
+                    if (!fromJson.Equals(fromWire) || !fromWire.ToByteArray().SequenceEqual(expected) ||
+                        transform == null || new[] { transform.Position != null, transform.Rotation != null, transform.Scale != null }.Count(present => present) != 1)
+                        throw new Exception("Partial Transform presence conformance failed");
+                    break;
+                }
+            case "unframe.realtime.v2.MediaStoppedSeeked":
+                {
+                    var fromJson = JsonParser.Default.Parse<MediaStoppedSeeked>(value);
+                    var fromWire = MediaStoppedSeeked.Parser.ParseFrom(expected);
+                    if (!fromJson.Equals(fromWire) || !fromWire.ToByteArray().SequenceEqual(expected) ||
+                        fromWire.SurfaceId != "video" || fromWire.HeldPositionMs != 1.25)
+                        throw new Exception("MediaStoppedSeeked JSON/binary conformance failed");
+                    break;
+                }
+            case "unframe.realtime.v2.ProjectedReliableEvent":
+                {
+                    var fromJson = JsonParser.Default.Parse<ProjectedReliableEvent>(value);
+                    var fromWire = ProjectedReliableEvent.Parser.ParseFrom(expected);
+                    if (!fromJson.Equals(fromWire) || !fromWire.ToByteArray().SequenceEqual(expected) ||
+                        fromWire.PayloadCase != ProjectedReliableEvent.PayloadOneofCase.MediaStoppedSeeked ||
+                        fromWire.MediaStoppedSeeked.HeldPositionMs != 1.25)
+                        throw new Exception("Stopped media seek Reliable Event conformance failed");
+                    break;
+                }
             case "unframe.delivery.v2.DeliveryManifest":
                 {
                     var fromJson = JsonParser.Default.Parse<DeliveryManifest>(value);
