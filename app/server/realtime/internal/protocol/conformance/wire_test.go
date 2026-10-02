@@ -42,10 +42,16 @@ func TestSharedWireConformance(t *testing.T) {
 			t.Run(filename+"/"+fixture.TypeName, func(t *testing.T) {
 				var message proto.Message
 				switch fixture.TypeName {
+				case "unframe.realtime.v2.NodeStatePatch":
+					message = &realtimev2.NodeStatePatch{}
 				case "unframe.delivery.v2.DeliveryManifest":
 					message = &deliveryv2.DeliveryManifest{}
 				case "unframe.realtime.v2.ControlClientItem":
 					message = &realtimev2.ControlClientItem{}
+				case "unframe.realtime.v2.MediaStoppedSeeked":
+					message = &realtimev2.MediaStoppedSeeked{}
+				case "unframe.realtime.v2.ProjectedReliableEvent":
+					message = &realtimev2.ProjectedReliableEvent{}
 				default:
 					t.Fatalf("unexpected fixture type %q", fixture.TypeName)
 				}

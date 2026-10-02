@@ -14,6 +14,24 @@ func publication() *presentationv2.PublicationFence {
 	return &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64)}
 }
 
+func TestNodeStatePatchAllowsOnlyPresentTransformComponents(t *testing.T) {
+	partial := &presentationv2.Transform{Position: &presentationv2.Vector3{X: 1, Y: 2, Z: 3}}
+	if err := ValidateMessage(&realtimev2.NodeStatePatch{Transform: partial}); err != nil {
+		t.Fatalf("partial transform patch rejected: %v", err)
+	}
+	if err := ValidateMessage(partial); err == nil {
+		t.Fatal("partial full transform admitted")
+	}
+	if err := ValidateMessage(&realtimev2.NodeStatePatch{Transform: &presentationv2.Transform{}}); err == nil {
+		t.Fatal("empty transform patch admitted")
+	}
+	fence := &presentationv2.RuntimeProjectionFence{SessionId: "session-1", Publication: publication(), AssignmentEpoch: 1, ProjectionProfileId: "profile-1", PresentationOriginVersion: 1}
+	frame := &realtimev2.ElementStateFrame{Fence: fence, FrameSequence: 1, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, Elements: []*realtimev2.ElementStatePatch{{ElementId: "node-1", Node: &realtimev2.NodeStatePatch{Transform: partial}}}}
+	if err := ValidateMessage(&realtimev2.StateServerItem{Item: &realtimev2.StateServerItem_StateFrame{StateFrame: frame}}); err != nil {
+		t.Fatalf("nested partial transform patch rejected: %v", err)
+	}
+}
+
 func TestPublicationAdmission(t *testing.T) {
 	valid := publication()
 	if err := ValidateMessage(valid); err != nil {
@@ -78,6 +96,29 @@ func TestPlaybackPositionsCanonicalizeNegativeZeroButScalarDoesNot(t *testing.T)
 	}
 	if err := ValidateMessage(&realtimev2.PausedClock{PositionMs: -1}); err == nil {
 		t.Fatal("negative playback position admitted")
+	}
+}
+
+func TestHeldMediaPositionsAreNonnegativeAndFinite(t *testing.T) {
+	for _, position := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		for _, message := range []proto.Message{
+			&realtimev2.MediaStoppedState{HeldPositionMs: position},
+			&realtimev2.MediaStoppedSeeked{SurfaceId: "surface", HeldPositionMs: position},
+			&realtimev2.MediaStopped{SurfaceId: "surface", HeldPositionMs: position},
+			&realtimev2.MediaCompleted{SurfaceId: "surface", HeldPositionMs: position},
+		} {
+			if err := ValidateMessage(message); err == nil {
+				t.Fatalf("invalid held position admitted: %T %v", message, position)
+			}
+		}
+	}
+	for _, message := range []proto.Message{
+		&realtimev2.MediaStoppedState{HeldPositionMs: math.Copysign(0, -1)},
+		&realtimev2.MediaStoppedSeeked{SurfaceId: "surface", HeldPositionMs: math.Copysign(0, -1)},
+	} {
+		if err := ValidateMessage(message); err != nil {
+			t.Fatalf("negative zero sample rejected: %T: %v", message, err)
+		}
 	}
 }
 

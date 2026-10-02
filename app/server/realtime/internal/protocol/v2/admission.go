@@ -21,10 +21,10 @@ func ValidateMessage(message proto.Message) error {
 	if message == nil || !message.ProtoReflect().IsValid() {
 		return fmt.Errorf("message_invalid: missing message")
 	}
-	return validate(message.ProtoReflect(), string(message.ProtoReflect().Descriptor().Name()))
+	return validate(message.ProtoReflect(), string(message.ProtoReflect().Descriptor().Name()), false)
 }
 
-func validate(message protoreflect.Message, path string) error {
+func validate(message protoreflect.Message, path string, partialTransform bool) error {
 	if !message.IsValid() {
 		return fmt.Errorf("message_invalid: %s is required", path)
 	}
@@ -58,7 +58,7 @@ func validate(message protoreflect.Message, path string) error {
 			list := value.List()
 			previousKey := ""
 			for j := 0; j < list.Len(); j++ {
-				if err := validateValue(field, list.Get(j), fmt.Sprintf("%s[%d]", fieldPath, j)); err != nil {
+				if err := validateValue(field, list.Get(j), fmt.Sprintf("%s[%d]", fieldPath, j), false); err != nil {
 					return err
 				}
 				if field.Kind() == protoreflect.EnumKind && j > 0 && list.Get(j-1).Enum() >= list.Get(j).Enum() {
@@ -75,13 +75,17 @@ func validate(message protoreflect.Message, path string) error {
 			continue
 		}
 		if field.Kind() == protoreflect.MessageKind && !message.Has(field) {
+			if descriptor.Name() == "Transform" && partialTransform {
+				continue
+			}
 			return fmt.Errorf("message_invalid: %s is required", fieldPath)
 		}
-		if err := validateValue(field, value, fieldPath); err != nil {
+		childPartial := descriptor.Name() == "NodeStatePatch" && field.Name() == "transform"
+		if err := validateValue(field, value, fieldPath, childPartial); err != nil {
 			return err
 		}
 	}
-	return validateKnownMessage(message, path)
+	return validateKnownMessage(message, path, partialTransform)
 }
 
 func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value) string {
@@ -112,19 +116,19 @@ func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value)
 	return strings.Join(parts, "\x00")
 }
 
-func validateValue(field protoreflect.FieldDescriptor, value protoreflect.Value, path string) error {
+func validateValue(field protoreflect.FieldDescriptor, value protoreflect.Value, path string, partialTransform bool) error {
 	name := string(field.Name())
 	invalid := func() error { return fmt.Errorf("message_invalid: %s", path) }
 	switch field.Kind() {
 	case protoreflect.MessageKind:
-		return validate(value.Message(), path)
+		return validate(value.Message(), path, partialTransform)
 	case protoreflect.EnumKind:
 		if value.Enum() == 0 || field.Enum().Values().ByNumber(value.Enum()) == nil {
 			return invalid()
 		}
 	case protoreflect.DoubleKind, protoreflect.FloatKind:
 		number := value.Float()
-		samplePosition := name == "position_ms" || name == "position_at_reference_ms"
+		samplePosition := name == "position_ms" || name == "position_at_reference_ms" || name == "held_position_ms"
 		if math.IsNaN(number) || math.IsInf(number, 0) || number == 0 && math.Signbit(number) && !samplePosition {
 			return invalid()
 		}
@@ -159,7 +163,7 @@ func validateValue(field protoreflect.FieldDescriptor, value protoreflect.Value,
 	return nil
 }
 
-func validateKnownMessage(message protoreflect.Message, path string) error {
+func validateKnownMessage(message protoreflect.Message, path string, partialTransform bool) error {
 	invalid := func() error { return fmt.Errorf("message_invalid: %s", path) }
 	get := func(name string) protoreflect.Value {
 		return message.Get(message.Descriptor().Fields().ByName(protoreflect.Name(name)))
@@ -179,6 +183,14 @@ func validateKnownMessage(message protoreflect.Message, path string) error {
 			}
 		}
 	case "Transform":
+		if partialTransform {
+			if !message.Has(message.Descriptor().Fields().ByName("position")) && !message.Has(message.Descriptor().Fields().ByName("rotation")) && !message.Has(message.Descriptor().Fields().ByName("scale")) {
+				return invalid()
+			}
+			if !message.Has(message.Descriptor().Fields().ByName("scale")) {
+				break
+			}
+		}
 		scale := get("scale").Message()
 		for _, name := range []protoreflect.Name{"x", "y", "z"} {
 			if scale.Get(scale.Descriptor().Fields().ByName(name)).Float() <= 0 {
@@ -255,7 +267,7 @@ func rejectUnknown(message protoreflect.Message) error {
 
 func canonicalizeSamplePositions(message protoreflect.Message) {
 	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
-		if field.Kind() == protoreflect.DoubleKind && (field.Name() == "position_ms" || field.Name() == "position_at_reference_ms") && value.Float() == 0 && math.Signbit(value.Float()) {
+		if field.Kind() == protoreflect.DoubleKind && (field.Name() == "position_ms" || field.Name() == "position_at_reference_ms" || field.Name() == "held_position_ms") && value.Float() == 0 && math.Signbit(value.Float()) {
 			message.Set(field, protoreflect.ValueOfFloat64(0))
 		}
 		if field.Kind() == protoreflect.MessageKind {

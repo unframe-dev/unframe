@@ -12,16 +12,20 @@ import (
 var ErrInvalidConfiguration = errors.New("realtime server configuration is invalid")
 
 type serverConfig struct {
-	issuer     string
-	audience   string
-	jwksURL    string
-	assignment assignment.RuntimeAssignment
+	issuer          string
+	audience        string
+	jwksURL         string
+	controlPlaneURL string
+	serviceIdentity string
+	assignment      assignment.RuntimeAssignment
 }
 
 func loadConfig(getenv func(string) string) (serverConfig, error) {
 	issuer, issuerOK := requiredHTTPSURL(getenv, "REALTIME_ISSUER")
 	audience, audienceOK := requiredEnvironment(getenv, "REALTIME_AUDIENCE")
 	jwksURL, jwksOK := requiredHTTPSURL(getenv, "REALTIME_JWKS_URL")
+	controlPlaneURL, controlPlaneOK := requiredHTTPSURL(getenv, "REALTIME_CONTROL_PLANE_URL")
+	serviceIdentity, serviceIdentityOK := requiredEnvironment(getenv, "REALTIME_SERVICE_IDENTITY")
 	sessionID, sessionOK := requiredEnvironment(getenv, "REALTIME_SESSION_ID")
 	runtimeID, runtimeIDOK := requiredEnvironment(getenv, "REALTIME_RUNTIME_ID")
 	runtimeKind, runtimeKindOK := requiredRuntimeKind(getenv, "REALTIME_RUNTIME_KIND")
@@ -30,7 +34,7 @@ func loadConfig(getenv func(string) string) (serverConfig, error) {
 	presentationRevision, revisionOK := requiredPositiveUint64(getenv, "REALTIME_PRESENTATION_REVISION")
 	issuedAt, issuedOK := requiredRFC3339Time(getenv, "REALTIME_ASSIGNMENT_ISSUED_AT")
 	leaseExpiresAt, leaseOK := requiredRFC3339Time(getenv, "REALTIME_LEASE_EXPIRES_AT")
-	if !issuerOK || !audienceOK || !jwksOK || !sessionOK || !runtimeIDOK || !runtimeKindOK || !endpointOK || !epochOK || !revisionOK || !issuedOK || !leaseOK {
+	if !issuerOK || !audienceOK || !jwksOK || !controlPlaneOK || !serviceIdentityOK || len(serviceIdentity) < 32 || !sessionOK || !runtimeIDOK || !runtimeKindOK || !endpointOK || !epochOK || !revisionOK || !issuedOK || !leaseOK {
 		return serverConfig{}, ErrInvalidConfiguration
 	}
 	runtimeAssignment := assignment.RuntimeAssignment{
@@ -46,7 +50,7 @@ func loadConfig(getenv func(string) string) (serverConfig, error) {
 	if err := runtimeAssignment.Validate(); err != nil {
 		return serverConfig{}, ErrInvalidConfiguration
 	}
-	return serverConfig{issuer: issuer, audience: audience, jwksURL: jwksURL, assignment: runtimeAssignment}, nil
+	return serverConfig{issuer: issuer, audience: audience, jwksURL: jwksURL, controlPlaneURL: controlPlaneURL, serviceIdentity: serviceIdentity, assignment: runtimeAssignment}, nil
 }
 
 func requiredEnvironment(getenv func(string) string, name string) (string, bool) {
