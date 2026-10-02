@@ -3,7 +3,7 @@ import type {
   PatchRequest,
   ProjectSnapshot,
   SavedCommand,
-} from "../../../../../packages/unframe-cli/src/author/contract";
+} from "@unframe/unframe-cli/author-contract";
 
 export function takeAuthorToken(): string | null {
   const fragment = location.hash;
