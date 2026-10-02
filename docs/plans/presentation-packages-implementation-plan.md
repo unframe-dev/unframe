@@ -389,7 +389,7 @@ M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface tr
 - `init`、`dev`、`test`、`preview`
 - watch / incremental build
 - local build cache
-- plugin discoveryと`unframe.lock`
+- hostの固定renderer registryからのplugin解決と`unframe.lock`（任意外部pluginの自動discoveryは対象外）
 - credentialを保持しないControl Plane publish adapter
 - TUI command selectionとheadless commandの接続
 
