@@ -4,7 +4,10 @@ public sealed class ArucoCameraSessionStateTests
 {
     private static ArucoCameraSessionState Ready() => new ArucoCameraSessionState
     {
-        Active = true, Supported = true, PermissionGranted = true, TrackingAvailable = true
+        Active = true,
+        Supported = true,
+        PermissionGranted = true,
+        TrackingAvailable = true
     };
 
     [Test]
