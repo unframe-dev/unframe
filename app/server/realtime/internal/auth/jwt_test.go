@@ -53,6 +53,26 @@ func TestBearerTokenVerifierVerifiesRuntimeAssignmentClaimsAndRequiredScope(t *t
 	}
 }
 
+func TestBearerTokenVerifierAcceptsV2AndRejectsUnknownProtocol(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	server := newJWKSServer(t, "key-1", publicKey)
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	for _, version := range []uint64{2, 3} {
+		claims := validClaims(now)
+		claims["protocol_version"] = version
+		identity, err := verifier.VerifyBearer(context.Background(), "Bearer "+issueToken(t, privateKey, "key-1", claims), "realtime:connect")
+		if version == 2 && (err != nil || identity.ProtocolVersion != 2) {
+			t.Fatalf("v2 identity = %#v, error = %v", identity, err)
+		}
+		if version == 3 && err != ErrInvalidTokenClaims {
+			t.Fatalf("v3 error = %v, want %v", err, ErrInvalidTokenClaims)
+		}
+	}
+}
+
 func TestBearerTokenVerifierUsesBoundedDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -470,7 +490,7 @@ func TestBearerTokenVerifierRejectsInvalidHeaderSignatureAndClaimsWithoutLeaking
 		{name: "zero presentation revision", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "presentation_revision", 0)), want: ErrInvalidTokenClaims},
 		{name: "missing scope", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "scope")), want: ErrInvalidTokenClaims},
 		{name: "zero protocol version", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "protocol_version", 0)), want: ErrInvalidTokenClaims},
-		{name: "unsupported protocol version", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "protocol_version", 2)), want: ErrInvalidTokenClaims},
+		{name: "unsupported protocol version", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "protocol_version", 3)), want: ErrInvalidTokenClaims},
 		{name: "unknown role", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "role", "admin")), want: ErrInvalidTokenClaims},
 	}
 	for _, test := range tests {

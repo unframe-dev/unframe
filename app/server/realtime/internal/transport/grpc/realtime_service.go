@@ -42,6 +42,9 @@ func (s *RealtimeService) Connect(stream grpcgo.BidiStreamingServer[realtimev1.C
 	if err != nil {
 		return status.Error(codes.Unauthenticated, "realtime connection is unauthenticated")
 	}
+	if identity.ProtocolVersion != 0 && identity.ProtocolVersion != 1 {
+		return status.Error(codes.FailedPrecondition, "realtime credential protocol version does not match v1")
+	}
 	claim := assignmentClaim(identity)
 	if err := s.assignments.AllowNewConnection(claim); err != nil {
 		return assignmentError(err)

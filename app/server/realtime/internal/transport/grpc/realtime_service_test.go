@@ -66,6 +66,17 @@ func TestRealtimeServiceRejectsViewerCommand(t *testing.T) {
 	}
 }
 
+func TestV1RealtimeServiceRejectsV2Credential(t *testing.T) {
+	t.Parallel()
+	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, ProtocolVersion: 2}
+	listener, stop := startRealtimeService(t, identity)
+	defer stop()
+	client := connectClient(t, listener, identity.ParticipantID)
+	if _, err := client.Recv(); status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("v2 credential on v1 service code = %s, want FailedPrecondition (error: %v)", status.Code(err), err)
+	}
+}
+
 func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +84,6 @@ func TestRealtimeServiceRejectsConnectionWhenAssignmentLeaseExpired(t *testing.T
 	listener, stop := startRealtimeServiceWithAssignment(t, rejectingAssignment{connection: assignment.ErrLeaseExpired}, identity)
 	defer stop()
 	client := connectClient(t, listener, identity.ParticipantID)
-	sendHandshake(t, client)
 	if _, err := client.Recv(); status.Code(err) != codes.FailedPrecondition {
 		t.Errorf("expired assignment connection code = %s, want %s (error: %v)", status.Code(err), codes.FailedPrecondition, err)
 	}
