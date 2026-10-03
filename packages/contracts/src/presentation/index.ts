@@ -1,6 +1,10 @@
-export { idSchema } from "./common";
-export { presentationDefinitionSchema, semanticSurfaceSchema } from "./definition";
-export { presentationDefinitionJsonSchema, renderBundleJsonSchema } from "./json-schema";
-export { renderBundleSchema } from "./render-bundle";
-export type { SerializedPresentationDefinitionV1 } from "./definition";
-export type { SerializedRenderBundleV1 } from "./render-bundle";
+export * from "./asset-set";
+export * from "./capability";
+export * from "./common";
+export * from "./definition";
+export * from "./publication";
+export * from "./render-bundle";
+export * from "./runtime-projection";
+export * from "./semantics";
+export * from "./wire";
+export type * from "../../presentation/wire-types";

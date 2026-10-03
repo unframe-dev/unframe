@@ -1,8 +1,8 @@
 using NUnit.Framework;
 using Google.Protobuf;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -137,11 +137,11 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             case "infinite opacity": patch.Opacity = double.PositiveInfinity; break;
             case "negative opacity": patch.Opacity = -0.01; break;
             case "opacity over one": patch.Opacity = 1.01; break;
-            case "missing transform position": patch.Transform = new Unframe.Presentation.V2.Transform(); break;
+            case "missing transform position": patch.Transform = new Unframe.Presentation.Transform(); break;
             case "non-finite position": patch.Transform = CreateValidTransform(); patch.Transform.Position.X = double.NaN; break;
             case "zero scale": patch.Transform = CreateValidTransform(); patch.Transform.Scale.X = 0; break;
             case "non-finite scale": patch.Transform = CreateValidTransform(); patch.Transform.Scale.Y = double.PositiveInfinity; break;
-            case "zero quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation = new Unframe.Presentation.V2.Quaternion(); break;
+            case "zero quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation = new Unframe.Presentation.Quaternion(); break;
             case "non-finite quaternion": patch.Transform = CreateValidTransform(); patch.Transform.Rotation.W = double.NaN; break;
         }
 
@@ -254,16 +254,16 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         DeliveryManifest delivery = CreateDelivery();
         ProjectedTimelineTrack track = delivery.ProjectionProfile.RuntimeCatalog.Timelines[0].Tracks[0];
         track.Target.Property = TimelineProperty.TransformPosition;
-        track.Keyframes[0].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = double.PositiveInfinity } };
-        track.Keyframes[1].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3() };
+        track.Keyframes[0].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.Vector3 { X = double.PositiveInfinity } };
+        track.Keyframes[1].Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.Vector3() };
 
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.False);
         Assert.That(error, Does.Contain("timeline"));
 
         track.Target.Property = TimelineProperty.TransformRotation;
-        track.Keyframes[0].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.V2.Quaternion() };
-        track.Keyframes[1].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.V2.Quaternion { W = 1 } };
+        track.Keyframes[0].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.Quaternion() };
+        track.Keyframes[1].Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.Quaternion { W = 1 } };
         Assert.That(store.TryReceiveDelivery(delivery, out error), Is.False);
         Assert.That(error, Does.Contain("timeline"));
     }
@@ -507,13 +507,13 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             for (int i = 1; i <= 35; i++)
             {
                 string timelineId = "timeline:story-" + i.ToString("D2");
-                Assert.That(runner.Store.TryGetTimeline(timelineId, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline), Is.True);
-                foreach (Unframe.Presentation.V2.ProjectedTimelineTrack track in timeline.Tracks)
+                Assert.That(runner.Store.TryGetTimeline(timelineId, out Unframe.Presentation.ProjectedTimelineDefinition timeline), Is.True);
+                foreach (Unframe.Presentation.ProjectedTimelineTrack track in timeline.Tracks)
                 {
                     bool hasPositionMotion = i == 17 || (i >= 22 && i <= 24);
                     Assert.That(
-                        track.Target.Property == Unframe.Presentation.V2.TimelineProperty.Opacity
-                            || (hasPositionMotion && track.Target.Property == Unframe.Presentation.V2.TimelineProperty.TransformPosition),
+                        track.Target.Property == Unframe.Presentation.TimelineProperty.Opacity
+                            || (hasPositionMotion && track.Target.Property == Unframe.Presentation.TimelineProperty.TransformPosition),
                         Is.True);
                 }
             }
@@ -658,8 +658,8 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             Target = new TimelineTrackTarget { NodeId = "node:model", Property = TimelineProperty.TransformPosition },
             Keyframes =
             {
-                new TimelineKeyframe { TimeMs = 0, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = 0, Y = -1, Z = 0 } }, EasingToNext = Easing.Linear },
-                new TimelineKeyframe { TimeMs = 1000, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.V2.Vector3 { X = 0, Y = 0, Z = 0 } } },
+                new TimelineKeyframe { TimeMs = 0, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.Vector3 { X = 0, Y = -1, Z = 0 } }, EasingToNext = Easing.Linear },
+                new TimelineKeyframe { TimeMs = 1000, Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.Vector3 { X = 0, Y = 0, Z = 0 } } },
             },
         });
         timeline.Tracks.Add(new ProjectedTimelineTrack
@@ -859,7 +859,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         delivery.ProjectionProfile.VisibleNodeIds.Add("node:surface");
         delivery.ProjectionProfile.VisibleSurfaceIds.Add("surface:main");
         delivery.ProjectionProfile.VisibleVariableIds.Add("variable:title");
-        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TimelineRunV2);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TimelineRun);
         delivery.ProjectionProfile.SemanticSurfaces.Add(new ProjectedSemanticSurface
         {
             SemanticSurfaceId = "surface:main",
@@ -922,13 +922,13 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         };
     }
 
-    private static Unframe.Presentation.V2.Transform CreateValidTransform()
+    private static Unframe.Presentation.Transform CreateValidTransform()
     {
-        return new Unframe.Presentation.V2.Transform
+        return new Unframe.Presentation.Transform
         {
-            Position = new Unframe.Presentation.V2.Vector3(),
-            Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 },
-            Scale = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 },
+            Position = new Unframe.Presentation.Vector3(),
+            Rotation = new Unframe.Presentation.Quaternion { W = 1 },
+            Scale = new Unframe.Presentation.Vector3 { X = 1, Y = 1, Z = 1 },
         };
     }
 

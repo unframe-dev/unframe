@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { readlink } from "node:fs/promises";
 import { join } from "node:path";
-import { verifyBuildIntegrityV2 } from "@unframe/unframe-core";
+import { verifyBuildIntegrity } from "@unframe/unframe-core";
 import { projectDirectory, readBoundedRegularFile } from "../filesystem/path-policy.js";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import type { PresentationCliResult } from "../application/types.js";
@@ -67,7 +67,7 @@ export const loadPreviewImages = async (generation: string) => {
     readJson("asset-set"),
     readJson("build-manifest"),
   ]);
-  const integrity = verifyBuildIntegrityV2({ definition, renderBundle, assetSet, buildManifest });
+  const integrity = verifyBuildIntegrity({ definition, renderBundle, assetSet, buildManifest });
   return integrity.valid
     ? loadPreviewImageAssets(join(generation, "assets"), integrity.value.assetSet.assets)
     : undefined;

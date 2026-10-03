@@ -1,19 +1,19 @@
-# Presentation v2 契約成果物
+# Presentation 契約成果物
 
 - **Status**: Normative target contract
-- **Source**: `packages/contracts/src/presentation/v2/`
-- **Scope**: Compiler 出力と publish 入力。現行 v1 consumer の移行は対象外。
+- **Source**: `packages/contracts/src/presentation/`
+- **Scope**: Compiler 出力と publish 入力。旧HTTP CRUD契約の更新は別途行う。旧Presentation v1のportable契約は廃止する。
 
 ## 成果物と leaf
 
-| Schema                           | 意味                                                         |
-| -------------------------------- | ------------------------------------------------------------ |
-| `presentationDefinitionV2Schema` | Stage、Scene、Surface、Flow、Variable、Cue、Action、Timeline |
-| `renderBundleV2Schema`           | Baked Web、Native UI、Video、Model の実行用成果物            |
-| `assetSetManifestV2Schema`       | 配信する全 Asset descriptor の正本                           |
-| `buildManifestV2Schema`          | build の source revision、成果物 hash、contract version      |
-| `publishedPresentationV2Schema`  | 公開した build と `PublicationFence`                         |
-| `capabilityProfileV2Schema`      | 正規化済み端末能力と resource limit                          |
+| Schema                         | 意味                                                         |
+| ------------------------------ | ------------------------------------------------------------ |
+| `presentationDefinitionSchema` | Stage、Scene、Surface、Flow、Variable、Cue、Action、Timeline |
+| `renderBundleSchema`           | Baked Web、Native UI、Video、Model の実行用成果物            |
+| `assetSetManifestSchema`       | 配信する全 Asset descriptor の正本                           |
+| `buildManifestSchema`          | build の source revision、成果物 hash、contract version      |
+| `publishedPresentationSchema`  | 公開した build と `PublicationFence`                         |
+| `capabilityProfileSchema`      | 正規化済み端末能力と resource limit                          |
 
 全 object は strict とする。ID は ASCII の英数字で始まり、以降を英数字と `._:/-` に限定した
 1〜128文字、media type は `image/png | image/jpeg | font/ttf | font/otf | video/mp4 |

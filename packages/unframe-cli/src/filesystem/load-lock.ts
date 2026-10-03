@@ -9,8 +9,8 @@ import {
   hashLockedPackageContent,
   hashPackageLocator,
   type ContentHash,
-  type UnframeLockV2,
-} from "./lock-v2.js";
+  type UnframeLock,
+} from "./lock.js";
 import { mediaTypeFor } from "./package-snapshot.js";
 import { parseStrictJson } from "./strict-json.js";
 
@@ -103,8 +103,8 @@ const root = strict({
 });
 
 export type LoadedUnframeLock = Readonly<{
-  lock: UnframeLockV2;
-  virtualSource: Readonly<Pick<UnframeLockV2, "rootDependencies" | "packages">>;
+  lock: UnframeLock;
+  virtualSource: Readonly<Pick<UnframeLock, "rootDependencies" | "packages">>;
   assemblyCarrier: DeclarationProjectAssemblyCarrier;
   lockHash: `sha256:${string}`;
 }>;
@@ -163,7 +163,7 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
       "cli-lock-shape-invalid",
       "unframe.lock must match the v2 serialized shape exactly.",
     );
-  const lock = result.data as UnframeLockV2;
+  const lock = result.data as UnframeLock;
   if (
     !orderedUnique(lock.rootDependencies, edgeKey) ||
     !orderedUnique(lock.packages, (item) => item.key) ||

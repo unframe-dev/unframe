@@ -1,0 +1,1509 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "projectionProfileId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+    },
+    "assignmentEpoch": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "baseReliableSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "progression": {
+      "type": "object",
+      "properties": {
+        "currentGroupId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        },
+        "groupEntryEpoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "currentStepId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        },
+        "stepEntryEpoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "stepEnteredAtRuntimeTimeMilliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "phase": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "stable"
+                }
+              },
+              "required": ["kind"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "transitioning"
+                },
+                "blockingRunIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "assignmentEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "runSequence": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["assignmentEpoch", "runSequence"],
+                    "additionalProperties": false
+                  }
+                },
+                "pendingNext": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "stay"
+                        }
+                      },
+                      "required": ["kind"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "end"
+                        }
+                      },
+                      "required": ["kind"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "step"
+                        },
+                        "stepId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        }
+                      },
+                      "required": ["kind", "stepId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "group"
+                        },
+                        "groupId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        }
+                      },
+                      "required": ["kind", "groupId"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": ["kind", "blockingRunIds", "pendingNext"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "currentGroupId",
+        "groupEntryEpoch",
+        "currentStepId",
+        "stepEntryEpoch",
+        "stepEnteredAtRuntimeTimeMilliseconds",
+        "phase"
+      ],
+      "additionalProperties": false
+    },
+    "surfaceStates": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "stateId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+          },
+          "transitionRunId": {
+            "type": "object",
+            "properties": {
+              "assignmentEpoch": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "runSequence": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["assignmentEpoch", "runSequence"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["stateId"],
+        "additionalProperties": false
+      }
+    },
+    "nodeStates": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "opacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "transform": {
+            "type": "object",
+            "properties": {
+              "position": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "rotation": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "items": false,
+                "minItems": 4,
+                "maxItems": 4
+              },
+              "scale": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3
+              }
+            },
+            "required": ["position", "rotation", "scale"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["active", "visible", "opacity", "transform"],
+        "additionalProperties": false
+      }
+    },
+    "mediaStates": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "stopped"
+              },
+              "heldPositionMilliseconds": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": ["kind", "heldPositionMilliseconds"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "active"
+              },
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "playback": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "playing"
+                      },
+                      "positionAtReferenceMilliseconds": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "referenceRuntimeTimeMilliseconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "positionAtReferenceMilliseconds",
+                      "referenceRuntimeTimeMilliseconds"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "paused"
+                      },
+                      "positionMilliseconds": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["kind", "positionMilliseconds"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "runId", "playback"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "modelClipStates": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "defaultPose"
+              }
+            },
+            "required": ["kind"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "heldClip"
+              },
+              "clip": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "positionMilliseconds": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": ["clipId", "positionMilliseconds"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["kind", "clip"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "heldBlend"
+              },
+              "from": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "positionMilliseconds": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": ["clipId", "positionMilliseconds"],
+                "additionalProperties": false
+              },
+              "to": {
+                "type": "object",
+                "properties": {
+                  "clipId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "positionMilliseconds": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": ["clipId", "positionMilliseconds"],
+                "additionalProperties": false
+              },
+              "toWeight": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": ["kind", "from", "to", "toWeight"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "active"
+              },
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["kind", "runId"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "variables": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "activeRuns": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "presentation"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "group"
+                      },
+                      "groupId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "groupEntryEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["kind", "groupId", "groupEntryEpoch"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "cause": {
+                "type": "object",
+                "properties": {
+                  "cueId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "causeEventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "stepId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "stepEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "cueId",
+                  "causeEventId",
+                  "groupId",
+                  "groupEntryEpoch",
+                  "stepId",
+                  "stepEntryEpoch"
+                ],
+                "additionalProperties": false
+              },
+              "startedAtRuntimeTimeMilliseconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "timeline"
+              },
+              "timelineId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "completion": {
+                "type": "string",
+                "enum": ["blocking", "nonBlocking"]
+              }
+            },
+            "required": [
+              "runId",
+              "owner",
+              "cause",
+              "startedAtRuntimeTimeMilliseconds",
+              "kind",
+              "timelineId",
+              "completion"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "presentation"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "group"
+                      },
+                      "groupId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "groupEntryEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["kind", "groupId", "groupEntryEpoch"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "cause": {
+                "type": "object",
+                "properties": {
+                  "cueId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "causeEventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "stepId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "stepEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "cueId",
+                  "causeEventId",
+                  "groupId",
+                  "groupEntryEpoch",
+                  "stepId",
+                  "stepEntryEpoch"
+                ],
+                "additionalProperties": false
+              },
+              "startedAtRuntimeTimeMilliseconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "surfaceTransition"
+              },
+              "surfaceId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "fromStateId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "toStateId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "durationMilliseconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "completion": {
+                "type": "string",
+                "const": "blocking"
+              },
+              "easing": {
+                "type": "string",
+                "enum": ["linear", "cubicIn", "cubicOut", "cubicInOut"]
+              }
+            },
+            "required": [
+              "runId",
+              "owner",
+              "cause",
+              "startedAtRuntimeTimeMilliseconds",
+              "kind",
+              "surfaceId",
+              "fromStateId",
+              "toStateId",
+              "durationMilliseconds",
+              "completion",
+              "easing"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "presentation"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "group"
+                      },
+                      "groupId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "groupEntryEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["kind", "groupId", "groupEntryEpoch"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "cause": {
+                "type": "object",
+                "properties": {
+                  "cueId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "causeEventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "stepId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "stepEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "cueId",
+                  "causeEventId",
+                  "groupId",
+                  "groupEntryEpoch",
+                  "stepId",
+                  "stepEntryEpoch"
+                ],
+                "additionalProperties": false
+              },
+              "startedAtRuntimeTimeMilliseconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "media"
+              },
+              "surfaceId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "playback": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "playing"
+                      },
+                      "positionAtReferenceMilliseconds": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "referenceRuntimeTimeMilliseconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "positionAtReferenceMilliseconds",
+                      "referenceRuntimeTimeMilliseconds"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "paused"
+                      },
+                      "positionMilliseconds": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["kind", "positionMilliseconds"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "completion": {
+                "type": "string",
+                "enum": ["blocking", "nonBlocking"]
+              }
+            },
+            "required": [
+              "runId",
+              "owner",
+              "cause",
+              "startedAtRuntimeTimeMilliseconds",
+              "kind",
+              "surfaceId",
+              "playback",
+              "completion"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "runId": {
+                "type": "object",
+                "properties": {
+                  "assignmentEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "runSequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["assignmentEpoch", "runSequence"],
+                "additionalProperties": false
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "presentation"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "group"
+                      },
+                      "groupId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "groupEntryEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["kind", "groupId", "groupEntryEpoch"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "cause": {
+                "type": "object",
+                "properties": {
+                  "cueId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "causeEventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "stepId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "stepEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "cueId",
+                  "causeEventId",
+                  "groupId",
+                  "groupEntryEpoch",
+                  "stepId",
+                  "stepEntryEpoch"
+                ],
+                "additionalProperties": false
+              },
+              "startedAtRuntimeTimeMilliseconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "modelClip"
+              },
+              "modelNodeId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "phase": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "single"
+                      },
+                      "clip": {
+                        "type": "object",
+                        "properties": {
+                          "clipId": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                          },
+                          "playback": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "playing"
+                                  },
+                                  "positionAtReferenceMilliseconds": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "referenceRuntimeTimeMilliseconds": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "positionAtReferenceMilliseconds",
+                                  "referenceRuntimeTimeMilliseconds"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "paused"
+                                  },
+                                  "positionMilliseconds": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": ["kind", "positionMilliseconds"],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "speed": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "loop": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["clipId", "playback", "speed", "loop"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["kind", "clip"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "crossfade"
+                      },
+                      "transition": {
+                        "type": "object",
+                        "properties": {
+                          "from": {
+                            "type": "object",
+                            "properties": {
+                              "clipId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                              },
+                              "playback": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "playing"
+                                      },
+                                      "positionAtReferenceMilliseconds": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "referenceRuntimeTimeMilliseconds": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "positionAtReferenceMilliseconds",
+                                      "referenceRuntimeTimeMilliseconds"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "paused"
+                                      },
+                                      "positionMilliseconds": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["kind", "positionMilliseconds"],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              "speed": {
+                                "type": "number",
+                                "exclusiveMinimum": 0
+                              },
+                              "loop": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["clipId", "playback", "speed", "loop"],
+                            "additionalProperties": false
+                          },
+                          "to": {
+                            "type": "object",
+                            "properties": {
+                              "clipId": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                              },
+                              "playback": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "playing"
+                                      },
+                                      "positionAtReferenceMilliseconds": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "referenceRuntimeTimeMilliseconds": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "positionAtReferenceMilliseconds",
+                                      "referenceRuntimeTimeMilliseconds"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "paused"
+                                      },
+                                      "positionMilliseconds": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["kind", "positionMilliseconds"],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              "speed": {
+                                "type": "number",
+                                "exclusiveMinimum": 0
+                              },
+                              "loop": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["clipId", "playback", "speed", "loop"],
+                            "additionalProperties": false
+                          },
+                          "transitionClock": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "playing"
+                                  },
+                                  "positionAtReferenceMilliseconds": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "referenceRuntimeTimeMilliseconds": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "positionAtReferenceMilliseconds",
+                                  "referenceRuntimeTimeMilliseconds"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "paused"
+                                  },
+                                  "positionMilliseconds": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": ["kind", "positionMilliseconds"],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "durationMilliseconds": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "easing": {
+                            "type": "string",
+                            "enum": ["linear", "cubicIn", "cubicOut", "cubicInOut"]
+                          },
+                          "fromIsHeld": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "from",
+                          "to",
+                          "transitionClock",
+                          "durationMilliseconds",
+                          "easing",
+                          "fromIsHeld"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["kind", "transition"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "completion": {
+                "type": "string",
+                "enum": ["blocking", "nonBlocking"]
+              }
+            },
+            "required": [
+              "runId",
+              "owner",
+              "cause",
+              "startedAtRuntimeTimeMilliseconds",
+              "kind",
+              "modelNodeId",
+              "phase",
+              "completion"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "clock": {
+      "type": "object",
+      "properties": {
+        "runtimeTimeMilliseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "lifecycle": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "running"
+                }
+              },
+              "required": ["kind"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "paused"
+                },
+                "reason": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                }
+              },
+              "required": ["kind", "reason"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "terminating"
+                },
+                "reason": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                }
+              },
+              "required": ["kind", "reason"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["runtimeTimeMilliseconds", "lifecycle"],
+      "additionalProperties": false
+    },
+    "presentationOrigin": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pose": {
+          "type": "object",
+          "properties": {
+            "position": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "items": false,
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "rotation": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "items": false,
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": ["position", "rotation"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["version", "pose"],
+      "additionalProperties": false
+    },
+    "enabledLogicalInputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+      }
+    }
+  },
+  "required": [
+    "projectionProfileId",
+    "assignmentEpoch",
+    "baseReliableSequence",
+    "progression",
+    "surfaceStates",
+    "nodeStates",
+    "mediaStates",
+    "modelClipStates",
+    "variables",
+    "activeRuns",
+    "clock",
+    "presentationOrigin",
+    "enabledLogicalInputs"
+  ],
+  "additionalProperties": false,
+  "$id": "https://contracts.unframe.dev/presentation/participant-runtime-view.schema.json"
+}

@@ -1,32 +1,32 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { encodeWireMessage } from "../src/presentation/v2/wire";
+import { encodeWireMessage } from "../src/presentation/wire";
 import { formatGenerated } from "./format-generated";
 
 const fixtures = [
   {
-    typeName: "unframe.realtime.v2.NodeStatePatch",
+    typeName: "unframe.realtime.NodeStatePatch",
     value: { transform: { position: { x: 1 } } },
   },
   {
-    typeName: "unframe.realtime.v2.NodeStatePatch",
+    typeName: "unframe.realtime.NodeStatePatch",
     value: { transform: { rotation: { w: 1 } } },
   },
   {
-    typeName: "unframe.realtime.v2.NodeStatePatch",
+    typeName: "unframe.realtime.NodeStatePatch",
     value: { transform: { scale: { x: 1 } } },
   },
   {
-    typeName: "unframe.realtime.v2.MediaStoppedSeeked",
+    typeName: "unframe.realtime.MediaStoppedSeeked",
     value: { surfaceId: "video", heldPositionMs: 1.25 },
   },
   {
-    typeName: "unframe.realtime.v2.ProjectedReliableEvent",
+    typeName: "unframe.realtime.ProjectedReliableEvent",
     value: { mediaStoppedSeeked: { surfaceId: "video", heldPositionMs: 1.25 } },
   },
   {
-    typeName: "unframe.delivery.v2.DeliveryManifest",
+    typeName: "unframe.delivery.DeliveryManifest",
     value: {
       schemaVersion: 2,
       deliveryContractVersion: 2,
@@ -57,7 +57,7 @@ const fixtures = [
     },
   },
   {
-    typeName: "unframe.realtime.v2.ControlClientItem",
+    typeName: "unframe.realtime.ControlClientItem",
     value: {
       handshake: {
         protocolVersion: "v2",
@@ -83,7 +83,7 @@ const fixtures = [
   },
 ] as const;
 
-const output = resolve(import.meta.dirname, "../presentation/v2/fixtures/wire/conformance.json");
+const output = resolve(import.meta.dirname, "../presentation/fixtures/wire/conformance.json");
 const rows = fixtures.map(({ typeName, value }) => ({
   typeName,
   value,
@@ -92,7 +92,7 @@ const rows = fixtures.map(({ typeName, value }) => ({
 const content = formatGenerated(output, `${JSON.stringify(rows, null, 2)}\n`);
 if (process.argv.includes("--check")) {
   if ((await readFile(output, "utf8")) !== content) {
-    process.stderr.write("Presentation v2 wire conformance fixture is stale\n");
+    process.stderr.write("Presentation wire conformance fixture is stale\n");
     process.exitCode = 1;
   }
 } else {

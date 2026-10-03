@@ -1,0 +1,602 @@
+{
+  "typeName": "unframe.delivery.DeliveryManifest",
+  "value": {
+    "schemaVersion": 2,
+    "deliveryContractVersion": 2,
+    "sessionId": "compiler-session",
+    "publication": {
+      "presentationId": "reference-presentation",
+      "publicationEpoch": "1",
+      "publicationManifestHash": "sha256:ebc4e68ebdb2b76dc0988fa5c7f2c943696a822f55ee1ec87ee32939f57e499f"
+    },
+    "definitionHash": "sha256:d875752ee157bfc5c205f2d4e302572daf2f2a8eb9831162d3307dd9dc22b426",
+    "renderBundleHash": "sha256:ad8669493cd1ffb0e6a4055087b1373deb6fe4772273dda4d81dcf77e18de429",
+    "assetSetHash": "sha256:02db18ba8000770ae824811fd138b742d6ea63db7283a78fd022b276bb1b052c",
+    "capabilityProfile": {
+      "schemaVersion": 2,
+      "capabilityProfileId": "synthetic-test-only",
+      "contractVersions": {
+        "delivery": 2,
+        "runtime": 2,
+        "progression": 1,
+        "projection": 1
+      },
+      "renderers": {
+        "bakedWeb": {
+          "supported": true,
+          "contractVersion": 1,
+          "features": [1, 2, 3, 4]
+        },
+        "nativeUi": {
+          "supported": true,
+          "contractVersion": 1,
+          "features": [1, 2, 3]
+        },
+        "video": {
+          "supported": true,
+          "contractVersion": 1,
+          "features": [1, 5]
+        }
+      },
+      "model": {
+        "supported": true,
+        "contractVersion": 1,
+        "formats": [1],
+        "features": [1, 2, 3, 7]
+      },
+      "limits": {
+        "texture": {
+          "tierId": "synthetic-test-only",
+          "maxTextureWidth": "2048",
+          "maxTextureHeight": "2048",
+          "maxTexturePixels": "4194304",
+          "maxTextureBindings": "1000000",
+          "maxGpuBytes": "67108864",
+          "maxSerialLoadCpuBytes": "67108864",
+          "maxEncodedCacheBytes": "67108864",
+          "encodedCacheReserveBytes": "1024"
+        },
+        "nativeUi": {
+          "tierId": "synthetic-test-only",
+          "maxNodesPerArtifact": "1000000",
+          "maxTreeDepth": "1000000",
+          "maxTextNodesPerArtifact": "1000000",
+          "maxCodePointsPerText": "1000000",
+          "maxGlyphs": "1000000",
+          "maxFontAssets": "1000000"
+        },
+        "video": {
+          "tierId": "synthetic-test-only",
+          "maxWidth": "1000000",
+          "maxHeight": "1000000",
+          "maxPixels": "1000000",
+          "maxConcurrentDecoders": "1000000",
+          "maxEncodedBytes": "1000000",
+          "maxDecodedFrameBytes": "1000000"
+        },
+        "model": {
+          "tierId": "synthetic-test-only",
+          "maxAssets": "1000000",
+          "maxInstances": "1000000",
+          "maxEncodedBytes": "1000000",
+          "maxNodes": "1000000",
+          "maxPrimitives": "1000000",
+          "maxVertices": "1000000",
+          "maxTriangles": "1000000",
+          "maxBonesPerSkin": "1000000",
+          "maxMorphTargetsPerPrimitive": "1000000",
+          "maxAnimationClipsPerAsset": "1000000"
+        }
+      }
+    },
+    "projectionProfile": {
+      "projectionProfileId": "pp_80aa3c1973dfb2243ed4a01665525e74d73609d78605fea325320e18c645c6d0",
+      "key": {
+        "publication": {
+          "presentationId": "reference-presentation",
+          "publicationEpoch": "1",
+          "publicationManifestHash": "sha256:ebc4e68ebdb2b76dc0988fa5c7f2c943696a822f55ee1ec87ee32939f57e499f"
+        },
+        "projectionContractVersion": 1,
+        "role": 1,
+        "capabilityProfileId": "synthetic-test-only"
+      },
+      "visibleNodeIds": ["reference-surface:surface-node"],
+      "visibleSurfaceIds": ["reference-surface:reference-surface-root"],
+      "visibleVariableIds": [],
+      "renderSurfaces": [
+        {
+          "renderSurfaceId": "rs_4547976f19cfba52c1dbd8591d7ffca42670e95f1b5cbb9696b4960d8b6a461c",
+          "semanticSurfaceId": "reference-surface:reference-surface-root",
+          "logicalBounds": {
+            "width": 1920,
+            "height": 1080
+          },
+          "rendererKind": 1,
+          "artifactContractVersion": 1,
+          "stateBindings": [
+            {
+              "stateId": "reference-surface:default",
+              "artifact": {
+                "artifactId": "rs_4547976f19cfba52c1dbd8591d7ffca42670e95f1b5cbb9696b4960d8b6a461c:artifact"
+              }
+            },
+            {
+              "stateId": "reference-surface:inactive",
+              "artifact": {
+                "artifactId": "rs_4547976f19cfba52c1dbd8591d7ffca42670e95f1b5cbb9696b4960d8b6a461c:artifact"
+              }
+            }
+          ],
+          "artifacts": [
+            {
+              "bakedWeb": {
+                "artifactId": "rs_4547976f19cfba52c1dbd8591d7ffca42670e95f1b5cbb9696b4960d8b6a461c:artifact",
+                "contractVersion": 1,
+                "requiredFeatures": [1, 2, 3],
+                "states": [
+                  {
+                    "stateId": "reference-surface:default",
+                    "texture": {
+                      "assetId": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+                      "checksum": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+                      "encodedSizeBytes": "9439137",
+                      "pixelSize": {
+                        "width": "2048",
+                        "height": "1152"
+                      },
+                      "alphaMode": 1,
+                      "mipCount": 1,
+                      "decodedGpuBytes": "9437184"
+                    }
+                  },
+                  {
+                    "stateId": "reference-surface:inactive",
+                    "texture": {
+                      "assetId": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+                      "checksum": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+                      "encodedSizeBytes": "9439137",
+                      "pixelSize": {
+                        "width": "2048",
+                        "height": "1152"
+                      },
+                      "alphaMode": 1,
+                      "mipCount": 1,
+                      "decodedGpuBytes": "9437184"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "renderSurfaceId": "rs_c4ce17c4190d7216c2315446d6b36529fe14f7ff1b47d819c5be0ef8b5f7c6f7",
+          "semanticSurfaceId": "reference-surface:reference-surface-root",
+          "logicalBounds": {
+            "x": 64,
+            "y": 184,
+            "width": 1792,
+            "height": 392
+          },
+          "layer": 1,
+          "rendererKind": 1,
+          "artifactContractVersion": 1,
+          "stateBindings": [
+            {
+              "stateId": "reference-surface:default",
+              "artifact": {
+                "artifactId": "rs_c4ce17c4190d7216c2315446d6b36529fe14f7ff1b47d819c5be0ef8b5f7c6f7:artifact"
+              }
+            },
+            {
+              "stateId": "reference-surface:inactive",
+              "artifact": {
+                "artifactId": "rs_c4ce17c4190d7216c2315446d6b36529fe14f7ff1b47d819c5be0ef8b5f7c6f7:artifact"
+              }
+            }
+          ],
+          "artifacts": [
+            {
+              "bakedWeb": {
+                "artifactId": "rs_c4ce17c4190d7216c2315446d6b36529fe14f7ff1b47d819c5be0ef8b5f7c6f7:artifact",
+                "contractVersion": 1,
+                "requiredFeatures": [1, 2, 4],
+                "states": [
+                  {
+                    "stateId": "reference-surface:default",
+                    "texture": {
+                      "assetId": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+                      "checksum": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+                      "encodedSizeBytes": "3670825",
+                      "pixelSize": {
+                        "width": "2048",
+                        "height": "448"
+                      },
+                      "alphaMode": 2,
+                      "mipCount": 1,
+                      "decodedGpuBytes": "3670016"
+                    }
+                  },
+                  {
+                    "stateId": "reference-surface:inactive",
+                    "texture": {
+                      "assetId": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+                      "checksum": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+                      "encodedSizeBytes": "3670825",
+                      "pixelSize": {
+                        "width": "2048",
+                        "height": "448"
+                      },
+                      "alphaMode": 2,
+                      "mipCount": 1,
+                      "decodedGpuBytes": "3670016"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "renderSurfaceId": "rs_cd56beb4e3d134d1b7e9df809be4335f31b63f3ceef3ce8aab036be5e95a5fb9",
+          "semanticSurfaceId": "reference-surface:reference-surface-root",
+          "logicalBounds": {
+            "x": 128,
+            "y": 640,
+            "width": 416,
+            "height": 80
+          },
+          "layer": 2,
+          "rendererKind": 1,
+          "artifactContractVersion": 1,
+          "stateBindings": [
+            {
+              "stateId": "reference-surface:default",
+              "artifact": {
+                "artifactId": "rs_cd56beb4e3d134d1b7e9df809be4335f31b63f3ceef3ce8aab036be5e95a5fb9:artifact"
+              }
+            },
+            {
+              "stateId": "reference-surface:inactive",
+              "artifact": {
+                "artifactId": "rs_cd56beb4e3d134d1b7e9df809be4335f31b63f3ceef3ce8aab036be5e95a5fb9:artifact"
+              }
+            }
+          ],
+          "artifacts": [
+            {
+              "bakedWeb": {
+                "artifactId": "rs_cd56beb4e3d134d1b7e9df809be4335f31b63f3ceef3ce8aab036be5e95a5fb9:artifact",
+                "contractVersion": 1,
+                "requiredFeatures": [1, 2, 4],
+                "states": [
+                  {
+                    "stateId": "reference-surface:default",
+                    "texture": {
+                      "assetId": "sha256:105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+                      "checksum": "sha256:105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+                      "encodedSizeBytes": "3228368",
+                      "pixelSize": {
+                        "width": "2048",
+                        "height": "394"
+                      },
+                      "alphaMode": 2,
+                      "mipCount": 1,
+                      "decodedGpuBytes": "3227648"
+                    }
+                  },
+                  {
+                    "stateId": "reference-surface:inactive",
+                    "texture": {
+                      "assetId": "sha256:a9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+                      "checksum": "sha256:a9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+                      "encodedSizeBytes": "3228368",
+                      "pixelSize": {
+                        "width": "2048",
+                        "height": "394"
+                      },
+                      "alphaMode": 2,
+                      "mipCount": 1,
+                      "decodedGpuBytes": "3227648"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "semanticSurfaces": [
+        {
+          "semanticSurfaceId": "reference-surface:reference-surface-root",
+          "renderSurfaceIds": [
+            "rs_4547976f19cfba52c1dbd8591d7ffca42670e95f1b5cbb9696b4960d8b6a461c",
+            "rs_c4ce17c4190d7216c2315446d6b36529fe14f7ff1b47d819c5be0ef8b5f7c6f7",
+            "rs_cd56beb4e3d134d1b7e9df809be4335f31b63f3ceef3ce8aab036be5e95a5fb9"
+          ],
+          "states": [
+            {
+              "stateId": "reference-surface:default",
+              "semanticTree": {
+                "rootNodeIds": [
+                  "reference-surface:heading",
+                  "reference-surface:summary",
+                  "reference-surface:detail",
+                  "reference-surface:continue-button",
+                  "reference-badge:badge-label"
+                ],
+                "nodes": [
+                  {
+                    "semanticNodeId": "reference-badge:badge-label",
+                    "order": 4,
+                    "role": 2,
+                    "text": "One nested Component, one placement"
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:continue-button",
+                    "order": 3,
+                    "role": 4,
+                    "text": "Continue",
+                    "interactionEnabled": true,
+                    "interactionId": "reference-surface:continue"
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:detail",
+                    "order": 2,
+                    "role": 2,
+                    "text": "Typed themes, explicit fonts, stable artifacts"
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:heading",
+                    "role": 1,
+                    "text": "Structured authoring",
+                    "headingLevel": 1
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:summary",
+                    "order": 1,
+                    "role": 2,
+                    "text": "Unframe / M3A"
+                  }
+                ]
+              },
+              "interactiveRegions": [
+                {
+                  "interactionId": "reference-surface:continue",
+                  "semanticNodeId": "reference-surface:continue-button",
+                  "normalizedBounds": {
+                    "x": 0.06666666666666667,
+                    "y": 0.5925925925925926,
+                    "width": 0.21666666666666667,
+                    "height": 0.07407407407407407
+                  },
+                  "priority": 10
+                }
+              ]
+            },
+            {
+              "stateId": "reference-surface:inactive",
+              "semanticTree": {
+                "rootNodeIds": [
+                  "reference-surface:heading",
+                  "reference-surface:summary",
+                  "reference-surface:detail",
+                  "reference-surface:continue-button",
+                  "reference-badge:badge-label"
+                ],
+                "nodes": [
+                  {
+                    "semanticNodeId": "reference-badge:badge-label",
+                    "order": 4,
+                    "role": 2,
+                    "text": "One nested Component, one placement"
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:continue-button",
+                    "order": 3,
+                    "role": 4,
+                    "text": "Waiting"
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:detail",
+                    "order": 2,
+                    "role": 2,
+                    "text": "Typed themes, explicit fonts, stable artifacts"
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:heading",
+                    "role": 1,
+                    "text": "Structured authoring",
+                    "headingLevel": 1
+                  },
+                  {
+                    "semanticNodeId": "reference-surface:summary",
+                    "order": 1,
+                    "role": 2,
+                    "text": "Unframe / M3A"
+                  }
+                ]
+              },
+              "interactiveRegions": []
+            }
+          ]
+        }
+      ],
+      "localOverlays": [],
+      "requiredRuntimeCapabilities": [1, 2, 3],
+      "runtimeCatalog": {
+        "catalogContractVersion": 2,
+        "nodes": [
+          {
+            "nodeId": "reference-surface:surface-node",
+            "parent": {
+              "stage": {}
+            },
+            "owner": {
+              "presentation": {}
+            },
+            "surface": {
+              "semanticSurfaceId": "reference-surface:reference-surface-root"
+            }
+          }
+        ],
+        "surfaces": [
+          {
+            "surfaceId": "reference-surface:reference-surface-root",
+            "hostNodeId": "reference-surface:surface-node",
+            "reachableStateIds": ["reference-surface:default", "reference-surface:inactive"],
+            "physicalSizeMeters": {
+              "x": 1,
+              "y": 0.5625
+            },
+            "logicalSize": {
+              "x": 1920,
+              "y": 1080
+            },
+            "fit": 1,
+            "owner": {
+              "presentation": {}
+            }
+          }
+        ],
+        "variables": [],
+        "timelines": [
+          {
+            "timelineId": "reference-surface:fade",
+            "durationMs": "1000",
+            "tracks": [
+              {
+                "target": {
+                  "nodeId": "reference-surface:surface-node",
+                  "property": 1
+                },
+                "keyframes": [
+                  {
+                    "number": {
+                      "value": 1
+                    },
+                    "easingToNext": 4
+                  },
+                  {
+                    "timeMs": "1000",
+                    "number": {
+                      "value": 0.5
+                    }
+                  }
+                ]
+              }
+            ],
+            "owner": {
+              "presentation": {}
+            }
+          }
+        ],
+        "modelClips": []
+      }
+    },
+    "projectionInstance": {
+      "projectionProfileId": "pp_80aa3c1973dfb2243ed4a01665525e74d73609d78605fea325320e18c645c6d0",
+      "participantId": "compiler-participant",
+      "assignmentEpoch": "1"
+    },
+    "assetAccess": [
+      {
+        "assetId": "sha256:105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+        "checksum": "sha256:105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+        "mediaType": "image/png",
+        "encodedSizeBytes": "3228368",
+        "url": "https://assets.example.invalid/sha256%3A105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+        "expiresAtUnixMs": "2000"
+      },
+      {
+        "assetId": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+        "checksum": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+        "mediaType": "image/png",
+        "encodedSizeBytes": "3670825",
+        "url": "https://assets.example.invalid/sha256%3A409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+        "expiresAtUnixMs": "2000"
+      },
+      {
+        "assetId": "sha256:a9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+        "checksum": "sha256:a9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+        "mediaType": "image/png",
+        "encodedSizeBytes": "3228368",
+        "url": "https://assets.example.invalid/sha256%3Aa9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+        "expiresAtUnixMs": "2000"
+      },
+      {
+        "assetId": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+        "checksum": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+        "mediaType": "image/png",
+        "encodedSizeBytes": "9439137",
+        "url": "https://assets.example.invalid/sha256%3Afae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+        "expiresAtUnixMs": "2000"
+      }
+    ],
+    "residency": {
+      "textures": {
+        "budgetTierId": "synthetic-test-only",
+        "textures": [
+          {
+            "assetId": "sha256:105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+            "checksum": "sha256:105a134c5e5456d556b2989065191ce42c58a76f4650a46fc185330392e0c3f2",
+            "pixelSize": {
+              "width": "2048",
+              "height": "394"
+            },
+            "decodedGpuBytes": "3227648",
+            "peakLoadCpuBytes": "9683664"
+          },
+          {
+            "assetId": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+            "checksum": "sha256:409b75d1ddc4c07a6bbc55210e0701512df59b750ae40642382bef30f59dd4f5",
+            "pixelSize": {
+              "width": "2048",
+              "height": "448"
+            },
+            "decodedGpuBytes": "3670016",
+            "peakLoadCpuBytes": "11010857"
+          },
+          {
+            "assetId": "sha256:a9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+            "checksum": "sha256:a9f23af31e3dda9d851e3edeb641c9cad126471f97365e7e8dc848506f0ba4d0",
+            "pixelSize": {
+              "width": "2048",
+              "height": "394"
+            },
+            "decodedGpuBytes": "3227648",
+            "peakLoadCpuBytes": "9683664"
+          },
+          {
+            "assetId": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+            "checksum": "sha256:fae123dc8ae13034db2c11f6c93abe9feb73b14490e96ebf04a0efdd558d571f",
+            "pixelSize": {
+              "width": "2048",
+              "height": "1152"
+            },
+            "decodedGpuBytes": "9437184",
+            "peakLoadCpuBytes": "28313505"
+          }
+        ],
+        "totalDecodedGpuBytes": "19562496",
+        "maximumPeakLoadCpuBytes": "28313505"
+      },
+      "models": {
+        "budgetTierId": "synthetic-test-only",
+        "models": []
+      },
+      "nativeUi": {
+        "budgetTierId": "synthetic-test-only",
+        "fontAssetIds": [],
+        "glyphs": []
+      },
+      "video": {
+        "budgetTierId": "synthetic-test-only",
+        "videos": []
+      },
+      "totalSelectedEncodedBytes": "19566698"
+    }
+  },
+  "hex": "080210021a10636f6d70696c65722d73657373696f6e22630a167265666572656e63652d70726573656e746174696f6e10011a477368613235363a656263346536386562646232623736646330393838666135633766326339343336393661383232663535656531656338376565333239333966353765343939662a477368613235363a6438373537353265653135376266633563323035663264346533303235373264616632663261386562393833313136326433333037646439646332326234323632477368613235363a616438363639343933636431666662306536613430353530383762313337336465623666653437373232373364646134643831646366373765313864653432393a477368613235363a3032646231386261383030303737306165383234383131666431333862373432643665613633646237323833613738666430323262323736626231623035326342ab020802121373796e7468657469632d746573742d6f6e6c791a08080210021801200122210a0a080110011a04010203041209080110011a030102031a08080110011a0201052a0d080110011a010122040102030732d5010a360a1373796e7468657469632d746573742d6f6e6c79108010188010208080800228c0843d308080802038808080204080808020488008122d0a1373796e7468657469632d746573742d6f6e6c7910c0843d18c0843d20c0843d28c0843d30c0843d38c0843d1a2d0a1373796e7468657469632d746573742d6f6e6c7910c0843d18c0843d20c0843d28c0843d30c0843d38c0843d223d0a1373796e7468657469632d746573742d6f6e6c7910c0843d18c0843d20c0843d28c0843d30c0843d38c0843d40c0843d48c0843d50c0843d58c0843d4af1230a4370705f38306161336331393733646662323234336564346130313636353532356537346437333630396437383630356665613332353332306531386336343563366430127e0a630a167265666572656e63652d70726573656e746174696f6e10011a477368613235363a6562633465363865626462326237366463303938386661356337663263393433363936613832326635356565316563383765653332393339663537653439396610011801221373796e7468657469632d746573742d6f6e6c791a1e7265666572656e63652d737572666163653a737572666163652d6e6f646522287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f7432d0060a4372735f3435343739373666313963666261353263316462643835393164376666636134323637306539356631623563626239363936623439363064386236613436316312287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f741a12190000000000009e40210000000000e09040280130013a6b0a197265666572656e63652d737572666163653a64656661756c741a4e0a4c72735f343534373937366631396366626135326331646264383539316437666663613432363730653935663162356362623936393662343936306438623661343631633a61727469666163743a6c0a1a7265666572656e63652d737572666163653a696e6163746976651a4e0a4c72735f343534373937366631396366626135326331646264383539316437666663613432363730653935663162356362623936393662343936306438623661343631633a617274696661637442eb030ae8030a4c72735f343534373937366631396366626135326331646264383539316437666663613432363730653935663162356362623936393662343936306438623661343631633a617274696661637410011a0301020322c6010a197265666572656e63652d737572666163653a64656661756c7412a8010a477368613235363a6661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316612477368613235363a6661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316618a18fc004220608801010800928013001388080c00422c7010a1a7265666572656e63652d737572666163653a696e61637469766512a8010a477368613235363a6661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316612477368613235363a6661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316618a18fc004220608801010800928013001388080c00432e4060a4372735f6334636531376334313930643732313663323331353434366436623336353239666531346637666631623437643831396335626530656638623566376336663712287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f741a24090000000000005040110000000000006740190000000000009c402100000000008078402001280130013a6b0a197265666572656e63652d737572666163653a64656661756c741a4e0a4c72735f633463653137633431393064373231366332333135343436643662333635323966653134663766663162343764383139633562653065663862356637633666373a61727469666163743a6c0a1a7265666572656e63652d737572666163653a696e6163746976651a4e0a4c72735f633463653137633431393064373231366332333135343436643662333635323966653134663766663162343764383139633562653065663862356637633666373a617274696661637442eb030ae8030a4c72735f633463653137633431393064373231366332333135343436643662333635323966653134663766663162343764383139633562653065663862356637633666373a617274696661637410011a0301020422c6010a197265666572656e63652d737572666163653a64656661756c7412a8010a477368613235363a3430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663512477368613235363a3430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663518a986e001220608801010c00328023001388080e00122c7010a1a7265666572656e63652d737572666163653a696e61637469766512a8010a477368613235363a3430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663512477368613235363a3430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663518a986e001220608801010c00328023001388080e00132e4060a4372735f6364353662656234653364313334643162376539646638303962653433333566333162363366336365656633636538616162303336626535653935613566623912287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f741a24090000000000006040110000000000008440190000000000007a402100000000000054402002280130013a6b0a197265666572656e63652d737572666163653a64656661756c741a4e0a4c72735f636435366265623465336431333464316237653964663830396265343333356633316236336633636565663363653861616230333662653565393561356662393a61727469666163743a6c0a1a7265666572656e63652d737572666163653a696e6163746976651a4e0a4c72735f636435366265623465336431333464316237653964663830396265343333356633316236336633636565663363653861616230333662653565393561356662393a617274696661637442eb030ae8030a4c72735f636435366265623465336431333464316237653964663830396265343333356633316236336633636565663363653861616230333662653565393561356662393a617274696661637410011a0301020422c6010a197265666572656e63652d737572666163653a64656661756c7412a8010a477368613235363a3130356131333463356535343536643535366232393839303635313931636534326335386137366634363530613436666331383533333033393265306333663212477368613235363a3130356131333463356535343536643535366232393839303635313931636534326335386137366634363530613436666331383533333033393265306333663218d085c5012206088010108a0328023001388080c50122c7010a1a7265666572656e63652d737572666163653a696e61637469766512a8010a477368613235363a6139663233616633316533646461396438353165336564656236343163396361643132363437316639373336356537653864633834383530366630626134643012477368613235363a6139663233616633316533646461396438353165336564656236343163396361643132363437316639373336356537653864633834383530366630626134643018d085c5012206088010108a0328023001388080c5013ac60a0a287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f74124372735f34353437393736663139636662613532633164626438353931643766666361343236373065393566316235636262393639366234393630643862366134363163124372735f63346365313763343139306437323136633233313534343664366233363532396665313466376666316234376438313963356265306566386235663763366637124372735f636435366265623465336431333464316237653964663830396265343333356633316236336633636565663363653861616230333662653565393561356662391ae7040a197265666572656e63652d737572666163653a64656661756c7412e0030a197265666572656e63652d737572666163653a68656164696e670a197265666572656e63652d737572666163653a73756d6d6172790a187265666572656e63652d737572666163653a64657461696c0a217265666572656e63652d737572666163653a636f6e74696e75652d627574746f6e0a1b7265666572656e63652d62616467653a62616467652d6c6162656c12460a1b7265666572656e63652d62616467653a62616467652d6c6162656c180420022a234f6e65206e657374656420436f6d706f6e656e742c206f6e6520706c6163656d656e74124f0a217265666572656e63652d737572666163653a636f6e74696e75652d627574746f6e180320042a08436f6e74696e75655801621a7265666572656e63652d737572666163653a636f6e74696e7565124e0a187265666572656e63652d737572666163653a64657461696c180220022a2e5479706564207468656d65732c206578706c6963697420666f6e74732c20737461626c652061727469666163747312350a197265666572656e63652d737572666163653a68656164696e6720012a145374727563747572656420617574686f72696e674801122e0a197265666572656e63652d737572666163653a73756d6d617279180120022a0d556e6672616d65202f204d33411a670a1a7265666572656e63652d737572666163653a636f6e74696e756512217265666572656e63652d737572666163653a636f6e74696e75652d627574746f6e1a2409111111111111b13f11682fa1bd84f6e23f19bcbbbbbbbbbbcb3f21682fa1bd84f6b23f200a1ae0030a1a7265666572656e63652d737572666163653a696e61637469766512c1030a197265666572656e63652d737572666163653a68656164696e670a197265666572656e63652d737572666163653a73756d6d6172790a187265666572656e63652d737572666163653a64657461696c0a217265666572656e63652d737572666163653a636f6e74696e75652d627574746f6e0a1b7265666572656e63652d62616467653a62616467652d6c6162656c12460a1b7265666572656e63652d62616467653a62616467652d6c6162656c180420022a234f6e65206e657374656420436f6d706f6e656e742c206f6e6520706c6163656d656e7412300a217265666572656e63652d737572666163653a636f6e74696e75652d627574746f6e180320042a0757616974696e67124e0a187265666572656e63652d737572666163653a64657461696c180220022a2e5479706564207468656d65732c206578706c6963697420666f6e74732c20737461626c652061727469666163747312350a197265666572656e63652d737572666163653a68656164696e6720012a145374727563747572656420617574686f72696e674801122e0a197265666572656e63652d737572666163653a73756d6d617279180120022a0d556e6672616d65202f204d33414a0301020352f002080212540a1e7265666572656e63652d737572666163653a737572666163652d6e6f646512020a0022020a005a2a0a287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f741aaf010a287265666572656e63652d737572666163653a7265666572656e63652d737572666163652d726f6f74121e7265666572656e63652d737572666163653a737572666163652d6e6f64651a197265666572656e63652d737572666163653a64656661756c741a1a7265666572656e63652d737572666163653a696e6163746976652a1209000000000000f03f11000000000000e23f3212090000000000009e40110000000000e09040380142020a002a640a167265666572656e63652d737572666163653a6661646510e8071a430a220a1e7265666572656e63652d737572666163653a737572666163652d6e6f64651001120d120909000000000000f03f2804120e08e807120909000000000000e03f22020a00525d0a4370705f383061613363313937336466623232343365643461303136363535323565373464373336303964373836303566656133323533323065313863363435633664301214636f6d70696c65722d7061727469636970616e7418015a8f020a477368613235363a3130356131333463356535343536643535366232393839303635313931636534326335386137366634363530613436666331383533333033393265306333663212477368613235363a313035613133346335653534353664353536623239383930363531393163653432633538613736663436353061343666633138353333303339326530633366321a09696d6167652f706e6720d085c5012a6868747470733a2f2f6173736574732e6578616d706c652e696e76616c69642f7368613235362533413130356131333463356535343536643535366232393839303635313931636534326335386137366634363530613436666331383533333033393265306333663230d00f5a8f020a477368613235363a3430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663512477368613235363a343039623735643164646334633037613662626335353231306530373031353132646635396237353061653430363432333832626566333066353964643466351a09696d6167652f706e6720a986e0012a6868747470733a2f2f6173736574732e6578616d706c652e696e76616c69642f7368613235362533413430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663530d00f5a8f020a477368613235363a6139663233616633316533646461396438353165336564656236343163396361643132363437316639373336356537653864633834383530366630626134643012477368613235363a613966323361663331653364646139643835316533656465623634316339636164313236343731663937333635653765386463383438353036663062613464301a09696d6167652f706e6720d085c5012a6868747470733a2f2f6173736574732e6578616d706c652e696e76616c69642f7368613235362533416139663233616633316533646461396438353165336564656236343163396361643132363437316639373336356537653864633834383530366630626134643030d00f5a8f020a477368613235363a6661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316612477368613235363a666165313233646338616531333033346462326331316636633933616265396665623733623134343930653936656266303461306566646435353864353731661a09696d6167652f706e6720a18fc0042a6868747470733a2f2f6173736574732e6578616d706c652e696e76616c69642f7368613235362533416661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316630d00f6288060abb050a1373796e7468657469632d746573742d6f6e6c7912a4010a477368613235363a3130356131333463356535343536643535366232393839303635313931636534326335386137366634363530613436666331383533333033393265306333663212477368613235363a313035613133346335653534353664353536623239383930363531393163653432633538613736663436353061343666633138353333303339326530633366321a06088010108a03208080c50128d085cf0412a4010a477368613235363a3430396237356431646463346330376136626263353532313065303730313531326466353962373530616534303634323338326265663330663539646434663512477368613235363a343039623735643164646334633037613662626335353231306530373031353132646635396237353061653430363432333832626566333066353964643466351a0608801010c003208080e00128a986a00512a4010a477368613235363a6139663233616633316533646461396438353165336564656236343163396361643132363437316639373336356537653864633834383530366630626134643012477368613235363a613966323361663331653364646139643835316533656465623634316339636164313236343731663937333635653765386463383438353036663062613464301a06088010108a03208080c50128d085cf0412a4010a477368613235363a6661653132336463386165313330333464623263313166366339336162653966656237336231343439306539366562663034613065666464353538643537316612477368613235363a666165313233646338616531333033346462326331316636633933616265396665623733623134343930653936656266303461306566646435353864353731661a06088010108009208080c00428a18fc00d188080aa0920a18fc00d12150a1373796e7468657469632d746573742d6f6e6c791a150a1373796e7468657469632d746573742d6f6e6c7922150a1373796e7468657469632d746573742d6f6e6c7928eaa0aa09"
+}

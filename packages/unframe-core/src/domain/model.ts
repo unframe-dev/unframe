@@ -1,11 +1,11 @@
 import type {
-  CompletedSemanticTreeV2,
-  PresentationDefinitionV2,
-  RenderBundleV2,
-  SemanticSurfaceV2,
-  SurfaceContentNodeV2,
-  TextureArtifactV2,
-} from "@unframe/contracts/presentation/v2";
+  CompletedSemanticTree as ContractCompletedSemanticTree,
+  PresentationDefinition as ContractPresentationDefinition,
+  RenderBundle as ContractRenderBundle,
+  SemanticSurface as ContractSemanticSurface,
+  SurfaceContentNode as ContractSurfaceContentNode,
+  TextureArtifact as ContractTextureArtifact,
+} from "@unframe/contracts/presentation";
 
 type DeepReadonly<T> = T extends readonly unknown[]
   ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
@@ -13,16 +13,16 @@ type DeepReadonly<T> = T extends readonly unknown[]
     ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
     : T;
 
-export type PresentationDefinition = PresentationDefinitionV2;
-export type RenderBundle = RenderBundleV2;
-export type SemanticSurface = DeepReadonly<SemanticSurfaceV2>;
+export type PresentationDefinition = ContractPresentationDefinition;
+export type RenderBundle = ContractRenderBundle;
+export type SemanticSurface = DeepReadonly<ContractSemanticSurface>;
 export type SurfaceRenderIntent = SemanticSurface["renderIntent"];
-export type SurfaceContentNode = DeepReadonly<SurfaceContentNodeV2>;
-export type CompletedSemanticTree = DeepReadonly<CompletedSemanticTreeV2>;
+export type SurfaceContentNode = DeepReadonly<ContractSurfaceContentNode>;
+export type CompletedSemanticTree = DeepReadonly<ContractCompletedSemanticTree>;
 export type HitRegion = DeepReadonly<
-  RenderBundleV2["surfaces"][string]["interactionsByState"][string][number]
+  ContractRenderBundle["surfaces"][string]["interactionsByState"][string][number]
 >;
-export type TextureArtifact = DeepReadonly<TextureArtifactV2>;
+export type TextureArtifact = DeepReadonly<ContractTextureArtifact>;
 
 export type Diagnostic = {
   code: string;
