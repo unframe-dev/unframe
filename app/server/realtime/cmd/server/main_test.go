@@ -11,7 +11,6 @@ import (
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
 	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	transportgrpc "github.com/unframe-dev/unframe/app/server/realtime/internal/transport/grpc"
 )
 
@@ -231,5 +230,5 @@ func testDependencies(t *testing.T) transportgrpc.Dependencies {
 	if err != nil {
 		t.Fatalf("new guard: %v", err)
 	}
-	return transportgrpc.Dependencies{Verifier: verifier, Guard: guard, Coordinator: session.NewCoordinator()}
+	return transportgrpc.Dependencies{Verifier: verifier, Guard: guard, V2: &transportgrpc.V2Service{}}
 }

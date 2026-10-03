@@ -1,2 +1,2 @@
-// Package session will coordinate transient per-session realtime state.
+// Package session contains authenticated participant identities and single-use State credentials.
 package session

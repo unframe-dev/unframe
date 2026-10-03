@@ -4,7 +4,7 @@
 - **Wire source**: `packages/contracts/proto/unframe/{presentation,delivery,realtime}/v2/`
 - **Related**: [Architecture](./ARCHITECTURE.md), [Data model](./DATA_MODEL.md), [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md), [ADR-0008](../decisions/0008-runtime-transport-contract.md), [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md), [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md), [ADR-0011](../decisions/0011-surface-partition-contract.md), [ADR-0012](../decisions/0012-texture-budget-residency-contract.md), [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md), [ADR-0016](../decisions/0016-model-animation-scope.md)
 
-この文書は Delivery と Runtime の v2 wire を実装する際の required presence、検証、状態遷移、失敗結果を固定する。`realtime.v1` は未完成の foundation であり、v2 への互換 adapter、fallback、downgrade は作らない。
+この文書は Delivery と Runtime の v2 wire を実装する際の required presence、検証、状態遷移、失敗結果を固定する。`realtime.v1` は廃止済みであり、v2 への互換 adapter、fallback、downgrade は持たない。
 
 ## 1. Version と数値
 

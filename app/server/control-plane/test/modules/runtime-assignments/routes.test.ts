@@ -141,7 +141,7 @@ describe("runtime assignment HTTP routes", () => {
     const edgeId = `edge-${suffix}`;
     const runtimeId = `runtime-${suffix}`;
     await env.DB.prepare(
-      "INSERT INTO venue_edges (id, runtime_id, status, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', 'v1', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z')",
+      "INSERT INTO venue_edges (id, runtime_id, status, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', 'v2', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z')",
     )
       .bind(edgeId, runtimeId)
       .run();

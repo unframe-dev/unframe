@@ -170,10 +170,11 @@ export function createSessionRoutes(options: SessionRouteOptions) {
               manifest: string | null;
               projectionProfileId: string | null;
             }>();
-          if (!publication) throw new SessionError("conflict");
           if (
-            publication.publicationEpoch !== null &&
-            (!publication.manifest || !publication.projectionProfileId)
+            !publication ||
+            publication.publicationEpoch === null ||
+            !publication.manifest ||
+            !publication.projectionProfileId
           )
             throw new SessionError("conflict");
           const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
@@ -191,7 +192,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
               assignmentEpoch: assignment.assignmentEpoch,
               presentationId: session.presentationId,
               presentationRevision: assignment.presentationRevision,
-              ...(publication.publicationEpoch !== null ? { protocolVersion: 2 as const } : {}),
+              protocolVersion: 2,
               scopes:
                 assignment.runtimeKind === "VenueEdge"
                   ? ["realtime:connect", "assets:read"]
@@ -244,22 +245,18 @@ export function createSessionRoutes(options: SessionRouteOptions) {
             presentationRevision: currentAssignment.presentationRevision,
             credential: credential.token,
             expiresAt: new Date(credential.expiresAt).toISOString(),
-            ...(publication.manifest
-              ? {
-                  publicationFence: (({
-                    presentationId,
-                    publicationEpoch,
-                    publicationManifestHash,
-                  }) => ({ presentationId, publicationEpoch, publicationManifestHash }))(
-                    JSON.parse(publication.manifest) as {
-                      presentationId: string;
-                      publicationEpoch: number;
-                      publicationManifestHash: string;
-                    },
-                  ),
-                  projectionProfileId: publication.projectionProfileId!,
-                }
-              : {}),
+            publicationFence: (({ presentationId, publicationEpoch, publicationManifestHash }) => ({
+              presentationId,
+              publicationEpoch,
+              publicationManifestHash,
+            }))(
+              JSON.parse(publication.manifest) as {
+                presentationId: string;
+                publicationEpoch: number;
+                publicationManifestHash: string;
+              },
+            ),
+            projectionProfileId: publication.projectionProfileId,
           };
         },
       );

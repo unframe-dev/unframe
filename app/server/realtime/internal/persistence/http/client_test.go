@@ -300,39 +300,6 @@ func TestClientErrorsDoNotExposeResponseBodyOrCredential(t *testing.T) {
 	}
 }
 
-func TestBufferIsBoundedAndNonBlocking(t *testing.T) {
-	t.Parallel()
-
-	buffer := NewBuffer(callbackClientFunc(func(context.Context, Checkpoint) (Result, error) { return Result{}, nil }), 1)
-	if err := buffer.EnqueueCheckpoint(context.Background(), checkpointFixture()); err != nil {
-		t.Fatalf("first enqueue: %v", err)
-	}
-	if err := buffer.EnqueueCompletion(context.Background(), completionFixture()); !errors.Is(err, ErrBufferFull) {
-		t.Errorf("full enqueue error = %v, want ErrBufferFull", err)
-	}
-}
-
-func TestBufferKeepsLaterJobsAfterDeliveryFailure(t *testing.T) {
-	t.Parallel()
-
-	want := errors.New("callback unavailable")
-	buffer := NewBuffer(callbackClientFunc(func(context.Context, Checkpoint) (Result, error) {
-		return Result{}, want
-	}), 2)
-	if err := buffer.EnqueueCheckpoint(context.Background(), checkpointFixture()); err != nil {
-		t.Fatalf("first enqueue: %v", err)
-	}
-	if err := buffer.EnqueueCompletion(context.Background(), completionFixture()); err != nil {
-		t.Fatalf("second enqueue: %v", err)
-	}
-	if err := buffer.Run(context.Background()); !errors.Is(err, want) {
-		t.Fatalf("Run() error = %v, want %v", err, want)
-	}
-	if pending := len(buffer.jobs); pending != 1 {
-		t.Errorf("pending jobs = %d, want 1", pending)
-	}
-}
-
 func checkpointFixture() Checkpoint {
 	return Checkpoint{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationRevision: 2, Version: 1, LastSequence: 5, IdempotencyKey: "checkpoint-1", Payload: json.RawMessage(`{"step":2}`)}
 }
@@ -340,13 +307,6 @@ func checkpointFixture() Checkpoint {
 func completionFixture() Completion {
 	return Completion{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindVenueEdge, AssignmentEpoch: 2, PresentationRevision: 3, CheckpointVersion: 1, LastSequence: 5, IdempotencyKey: "completion-1", StartedAt: "2026-08-21T12:00:00Z", EndedAt: "2026-08-21T12:01:00Z", ParticipantCount: 1, Participants: []Participant{{UserID: "presenter-1", Role: "presenter"}}, FinalCheckpoint: json.RawMessage(`{"state":"complete"}`)}
 }
-
-type callbackClientFunc func(context.Context, Checkpoint) (Result, error)
-
-func (f callbackClientFunc) Checkpoint(ctx context.Context, value Checkpoint) (Result, error) {
-	return f(ctx, value)
-}
-func (callbackClientFunc) Complete(context.Context, Completion) (Result, error) { return Result{}, nil }
 
 type roundTripperFunc func(*stdhttp.Request) (*stdhttp.Response, error)
 
