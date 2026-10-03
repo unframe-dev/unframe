@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import legacyDefinition from "../../contracts/presentation/fixtures/minimal.presentation-definition.v1.json";
-import legacyBundle from "../../contracts/presentation/fixtures/minimal.render-bundle.v1.json";
 import {
   canonicalizeJsonPayload,
   canonicalizePresentationDefinition,
@@ -23,9 +21,15 @@ describe("unframe-core v2", () => {
     expect(validatePresentationArtifacts(definition, renderBundle)).toMatchObject({ valid: true });
   });
 
-  it("rejects legacy v1 artifacts instead of converting them", () => {
-    expect(validatePresentationDefinition(legacyDefinition)).toMatchObject({ valid: false });
-    expect(validateRenderBundle(legacyBundle)).toMatchObject({ valid: false });
+  it("rejects v1 artifact versions instead of converting them", () => {
+    const { definition, renderBundle } = makeM3AArtifacts();
+
+    expect(validatePresentationDefinition({ ...definition, schemaVersion: 1 })).toMatchObject({
+      valid: false,
+    });
+    expect(validateRenderBundle({ ...renderBundle, schemaVersion: 1 })).toMatchObject({
+      valid: false,
+    });
   });
 
   it("materializes the v2 completed semantic tree", () => {

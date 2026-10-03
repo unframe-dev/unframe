@@ -12,13 +12,15 @@ Cloudflare Workers / Hono / D1 / R2 で動作する Control Plane です。
 - R2 直接uploadの初期化、署名済みContent-Length / MIME / SHA-256制約、finalize時のsize / magic bytes検証、download、監査log付き削除、metadata-less objectを含む孤児回収
 - Waiting / Presenting / Ended のSession lifecycle、50人上限、固定presenter、hash化join codeとcode / user / IP別rate limit
 - adminによるVenue Edge provisioning、hash化したEdge固有credential、rotation / revoke、registration、単一Sessionのlease付きassignment / epoch fencing。lease日時はcanonical ISOで保存し、Edgeからのrenewは5分以内に制限する
-- active assignmentのendpoint / certificate fingerprintと、lease期限に拘束したsession-bound Venue Edge JWTを返すbootstrap、公開JWKS
+- v2 専用の Venue Edge registration / Realtime JWT と公開 JWKS。bootstrap は公開済み v2 build に pin された Session と参加者の Projection Profile を必須とし、Publication Fence を返す
 - Realtime service identity専用のidempotent checkpoint / completion callback
 - 実行ルートと一体化した OpenAPI 生成、Hono RPC TypeScript client、契約 drift check
 
 認証endpointとserver-side policyまでが実装済みです。Web / Unityのemail/password UIはこのcomponentの対象外で、まだ接続していません。
-Realtime BackendでのJWT / scope検証とlocal assignment fencingは実装済みです。Control Planeのsession終了を既存Realtime接続へ反映するCloud Agentと、Web / Unityからのconsumer接続は未実装です。
+Realtime Backend の JWT / scope 検証、assignment fencing と Unity の v2 Delivery / bootstrap 接続は実装済みです。Control Plane の Session 終了を既存 Realtime 接続へ反映する Cloud Agent と、Web の旧 CRUD 定義の v2 移行は後続作業です。
 R2 objectを孤児化させないため、Asset metadataが残るPresentationは削除できません。先に各Assetの削除APIを完了させてください。
+
+未公開 Presentation の Session は Waiting として作成できますが、start / bootstrap は 409 を返します。先に Session を終了し、v2 build を公開してから Session を作り直してください。既存 v1 Venue Edge は assignment / renew / bootstrap の対象にならず、v2 で再登録が必要です。v1 データを v2 として読み替えません。
 
 ## Setup
 
@@ -65,3 +67,7 @@ Product-owned D1 tables の通常の CRUD・一覧・lookup は Drizzle ORM を�
 ## Validation boundary
 
 通常 CI は Miniflare の D1 / R2 binding を使って migration、repository、HTTP、asset finalize を検証します。R2 S3 endpoint の SigV4、browser CORS、実 bucket の checksum metadata は local runtime と完全には同一ではないため、remote 設定後に staging bucket で upload / finalize / download の smoke test が必要です。
+
+## TODO
+
+- Presentation CRUD API の旧 `groups / elements` 定義を共有 v2 Definition 契約へ更新し、Web の作成・保存と生成クライアントを揃える。既存 v1 データの移行・互換読み込みは行わない。この更新は Delivery / Realtime の v2 専用化とは別途実施する。

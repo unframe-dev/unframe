@@ -10845,7 +10845,9 @@
                     "presentationId",
                     "presentationRevision",
                     "credential",
-                    "expiresAt"
+                    "expiresAt",
+                    "publicationFence",
+                    "projectionProfileId"
                   ]
                 }
               }
@@ -12117,7 +12119,6 @@
                   "protocolVersion": {
                     "type": "string",
                     "enum": [
-                      "v1",
                       "v2"
                     ]
                   },
@@ -12131,7 +12132,7 @@
                   },
                   "certificateFingerprint": {
                     "type": "string",
-                    "minLength": 1
+                    "pattern": "^sha256:[0-9a-f]{64}$"
                   },
                   "health": {
                     "type": "string",

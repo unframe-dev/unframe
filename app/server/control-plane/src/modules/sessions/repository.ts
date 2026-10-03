@@ -185,7 +185,7 @@ export class D1SessionRepository implements SessionRepository {
   async start(id: string) {
     const result = await this.database
       .prepare(
-        "UPDATE presentation_sessions SET state = 'Presenting' WHERE id = ? AND state = 'Waiting'",
+        "UPDATE presentation_sessions SET state = 'Presenting' WHERE id = ? AND state = 'Waiting' AND EXISTS (SELECT 1 FROM presentation_publications WHERE presentation_id = presentation_sessions.presentation_id AND epoch = presentation_sessions.publication_epoch)",
       )
       .bind(id)
       .run();

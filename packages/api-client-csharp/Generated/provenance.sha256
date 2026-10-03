@@ -1,4 +1,4 @@
-5a4586fde08532f2387fadc726a7d7bde8e10024c9499ec2d25cfbe9263ddf3c  openapi/control-plane.openapi.json
+8c7b0ee80cf9178cd989b56cd5332d4154b74fc8e29e53e68b04f7d23f5dd111  openapi/control-plane.openapi.json
 368ba2accfe93517c90fe92b74c12482244079d6835c240bff4f820063121b0c  proto/unframe/presentation/v2/runtime.proto
 069ab64a432dd227527237adbdb1625e20d09b703f067251c32dac595883134d  proto/unframe/delivery/v2/delivery.proto
 a71433ef2a9a011b585736b39deb712e6051284e36df6d2948a09b7205e55234  proto/unframe/realtime/v2/realtime.proto

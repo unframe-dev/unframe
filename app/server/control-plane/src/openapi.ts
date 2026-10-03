@@ -81,14 +81,12 @@ const realtimeConnectionSchema = z.object({
   presentationRevision: z.number().int().positive(),
   credential: z.string(),
   expiresAt: z.string().datetime(),
-  publicationFence: z
-    .object({
-      presentationId: identifierSchema,
-      publicationEpoch: z.number().int().positive(),
-      publicationManifestHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-    })
-    .optional(),
-  projectionProfileId: identifierSchema.optional(),
+  publicationFence: z.object({
+    presentationId: identifierSchema,
+    publicationEpoch: z.number().int().positive(),
+    publicationManifestHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  }),
+  projectionProfileId: identifierSchema,
 });
 const venueEdgeResourceSchema = z.object({
   id: identifierSchema,
@@ -649,19 +647,13 @@ export const publicRoutes = [
               .object({
                 runtimeId: identifierSchema,
                 runtimeVersion: z.string().min(1),
-                protocolVersion: z.enum(["v1", "v2"]),
+                protocolVersion: z.literal("v2"),
                 capacity: z.number().int().nonnegative(),
                 localEndpoint: httpsUrlSchema,
-                certificateFingerprint: z.string().min(1),
+                certificateFingerprint: z.string().regex(/^sha256:[0-9a-f]{64}$/),
                 health: z.string().min(1),
               })
-              .strict()
-              .refine(
-                (input) =>
-                  input.protocolVersion !== "v2" ||
-                  /^sha256:[0-9a-f]{64}$/.test(input.certificateFingerprint),
-                "v2 certificate fingerprint must be SHA-256 hex",
-              ),
+              .strict(),
           },
         },
       },

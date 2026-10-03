@@ -61,14 +61,9 @@ namespace Unframe.ControlPlane.Model
         public enum ProtocolVersionEnum
         {
             /// <summary>
-            /// Enum V1 for value: v1
-            /// </summary>
-            V1 = 1,
-
-            /// <summary>
             /// Enum V2 for value: v2
             /// </summary>
-            V2 = 2
+            V2 = 1
         }
 
         /// <summary>
@@ -79,9 +74,6 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static ProtocolVersionEnum ProtocolVersionEnumFromString(string value)
         {
-            if (value.Equals("v1"))
-                return ProtocolVersionEnum.V1;
-
             if (value.Equals("v2"))
                 return ProtocolVersionEnum.V2;
 
@@ -95,9 +87,6 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static ProtocolVersionEnum? ProtocolVersionEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("v1"))
-                return ProtocolVersionEnum.V1;
-
             if (value.Equals("v2"))
                 return ProtocolVersionEnum.V2;
 
@@ -112,9 +101,6 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static string ProtocolVersionEnumToJsonValue(ProtocolVersionEnum value)
         {
-            if (value == ProtocolVersionEnum.V1)
-                return "v1";
-
             if (value == ProtocolVersionEnum.V2)
                 return "v2";
 
@@ -223,10 +209,14 @@ namespace Unframe.ControlPlane.Model
                 yield return new ValidationResult("Invalid value for Capacity, must be a value greater than or equal to 0.", new [] { "Capacity" });
             }
 
-            // CertificateFingerprint (string) minLength
-            if (this.CertificateFingerprint != null && this.CertificateFingerprint.Length < 1)
-            {
-                yield return new ValidationResult("Invalid value for CertificateFingerprint, length must be greater than 1.", new [] { "CertificateFingerprint" });
+            if (this.CertificateFingerprint != null) {
+                // CertificateFingerprint (string) pattern
+                Regex regexCertificateFingerprint = new Regex(@"^sha256:[0-9a-f]{64}$", RegexOptions.CultureInvariant);
+
+                if (!regexCertificateFingerprint.Match(this.CertificateFingerprint).Success)
+                {
+                    yield return new System.ComponentModel.DataAnnotations.ValidationResult("Invalid value for CertificateFingerprint, must match a pattern of " + regexCertificateFingerprint, new [] { "CertificateFingerprint" });
+                }
             }
 
             // Health (string) minLength

@@ -41,11 +41,11 @@ namespace Unframe.ControlPlane.Model
         /// <param name="presentationRevision">presentationRevision</param>
         /// <param name="credential">credential</param>
         /// <param name="expiresAt">expiresAt</param>
-        /// <param name="fingerprint">fingerprint</param>
         /// <param name="publicationFence">publicationFence</param>
         /// <param name="projectionProfileId">projectionProfileId</param>
+        /// <param name="fingerprint">fingerprint</param>
         [JsonConstructor]
-        public SessionsIdBootstrapPost200Response(string endpoint, string runtimeId, RuntimeKindEnum runtimeKind, long assignmentEpoch, string presentationId, long presentationRevision, string credential, DateTime expiresAt, string? fingerprint = default, Option<SessionsIdBootstrapPost200ResponsePublicationFence?> publicationFence = default, Option<string?> projectionProfileId = default)
+        public SessionsIdBootstrapPost200Response(string endpoint, string runtimeId, RuntimeKindEnum runtimeKind, long assignmentEpoch, string presentationId, long presentationRevision, string credential, DateTime expiresAt, SessionsIdBootstrapPost200ResponsePublicationFence publicationFence, string projectionProfileId, string? fingerprint = default)
         {
             Endpoint = endpoint;
             RuntimeId = runtimeId;
@@ -55,9 +55,9 @@ namespace Unframe.ControlPlane.Model
             PresentationRevision = presentationRevision;
             Credential = credential;
             ExpiresAt = expiresAt;
+            PublicationFence = publicationFence;
+            ProjectionProfileId = projectionProfileId;
             Fingerprint = fingerprint;
-            PublicationFenceOption = publicationFence;
-            ProjectionProfileIdOption = projectionProfileId;
             OnCreated();
         }
 
@@ -178,36 +178,22 @@ namespace Unframe.ControlPlane.Model
         public DateTime ExpiresAt { get; set; }
 
         /// <summary>
-        /// Gets or Sets Fingerprint
-        /// </summary>
-        [JsonPropertyName("fingerprint")]
-        public string? Fingerprint { get; set; }
-
-        /// <summary>
-        /// Used to track the state of PublicationFence
-        /// </summary>
-        [JsonIgnore]
-        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
-        public Option<SessionsIdBootstrapPost200ResponsePublicationFence?> PublicationFenceOption { get; private set; }
-
-        /// <summary>
         /// Gets or Sets PublicationFence
         /// </summary>
         [JsonPropertyName("publicationFence")]
-        public SessionsIdBootstrapPost200ResponsePublicationFence? PublicationFence { get { return this.PublicationFenceOption.Value; } set { this.PublicationFenceOption = new(value); } }
-
-        /// <summary>
-        /// Used to track the state of ProjectionProfileId
-        /// </summary>
-        [JsonIgnore]
-        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
-        public Option<string?> ProjectionProfileIdOption { get; private set; }
+        public SessionsIdBootstrapPost200ResponsePublicationFence PublicationFence { get; set; }
 
         /// <summary>
         /// Gets or Sets ProjectionProfileId
         /// </summary>
         [JsonPropertyName("projectionProfileId")]
-        public string? ProjectionProfileId { get { return this.ProjectionProfileIdOption.Value; } set { this.ProjectionProfileIdOption = new(value); } }
+        public string ProjectionProfileId { get; set; }
+
+        /// <summary>
+        /// Gets or Sets Fingerprint
+        /// </summary>
+        [JsonPropertyName("fingerprint")]
+        public string? Fingerprint { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -225,9 +211,9 @@ namespace Unframe.ControlPlane.Model
             sb.Append("  PresentationRevision: ").Append(PresentationRevision).Append("\n");
             sb.Append("  Credential: ").Append(Credential).Append("\n");
             sb.Append("  ExpiresAt: ").Append(ExpiresAt).Append("\n");
-            sb.Append("  Fingerprint: ").Append(Fingerprint).Append("\n");
             sb.Append("  PublicationFence: ").Append(PublicationFence).Append("\n");
             sb.Append("  ProjectionProfileId: ").Append(ProjectionProfileId).Append("\n");
+            sb.Append("  Fingerprint: ").Append(Fingerprint).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -307,11 +293,11 @@ namespace Unframe.ControlPlane.Model
                 yield return new ValidationResult("Invalid value for ProjectionProfileId, length must be greater than 1.", new [] { "ProjectionProfileId" });
             }
 
-            if (this.ProjectionProfileIdOption.Value != null) {
+            if (this.ProjectionProfileId != null) {
                 // ProjectionProfileId (string) pattern
                 Regex regexProjectionProfileId = new Regex(@"^[A-Za-z0-9_-]+$", RegexOptions.CultureInvariant);
 
-                if (this.ProjectionProfileIdOption.Value != null &&!regexProjectionProfileId.Match(this.ProjectionProfileIdOption.Value).Success)
+                if (!regexProjectionProfileId.Match(this.ProjectionProfileId).Success)
                 {
                     yield return new System.ComponentModel.DataAnnotations.ValidationResult("Invalid value for ProjectionProfileId, must match a pattern of " + regexProjectionProfileId, new [] { "ProjectionProfileId" });
                 }
@@ -356,9 +342,9 @@ namespace Unframe.ControlPlane.Model
             Option<long?> presentationRevision = default;
             Option<string?> credential = default;
             Option<DateTime?> expiresAt = default;
-            Option<string?> fingerprint = default;
             Option<SessionsIdBootstrapPost200ResponsePublicationFence?> publicationFence = default;
             Option<string?> projectionProfileId = default;
+            Option<string?> fingerprint = default;
 
             while (utf8JsonReader.Read())
             {
@@ -401,14 +387,14 @@ namespace Unframe.ControlPlane.Model
                         case "expiresAt":
                             expiresAt = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
-                        case "fingerprint":
-                            fingerprint = new Option<string?>(utf8JsonReader.GetString());
-                            break;
                         case "publicationFence":
                             publicationFence = new Option<SessionsIdBootstrapPost200ResponsePublicationFence?>(JsonSerializer.Deserialize<SessionsIdBootstrapPost200ResponsePublicationFence>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         case "projectionProfileId":
                             projectionProfileId = new Option<string?>(utf8JsonReader.GetString()!);
+                            break;
+                        case "fingerprint":
+                            fingerprint = new Option<string?>(utf8JsonReader.GetString());
                             break;
                         default:
                             break;
@@ -439,6 +425,12 @@ namespace Unframe.ControlPlane.Model
 
             if (!expiresAt.IsSet)
                 throw new ArgumentException("Property is required for class SessionsIdBootstrapPost200Response.", nameof(expiresAt));
+
+            if (!publicationFence.IsSet)
+                throw new ArgumentException("Property is required for class SessionsIdBootstrapPost200Response.", nameof(publicationFence));
+
+            if (!projectionProfileId.IsSet)
+                throw new ArgumentException("Property is required for class SessionsIdBootstrapPost200Response.", nameof(projectionProfileId));
 
             if (!fingerprint.IsSet)
                 throw new ArgumentException("Property is required for class SessionsIdBootstrapPost200Response.", nameof(fingerprint));
@@ -473,7 +465,7 @@ namespace Unframe.ControlPlane.Model
             if (projectionProfileId.IsSet && projectionProfileId.Value == null)
                 throw new ArgumentNullException(nameof(projectionProfileId), "Property is not nullable for class SessionsIdBootstrapPost200Response.");
 
-            return new SessionsIdBootstrapPost200Response(endpoint.Value!, runtimeId.Value!, runtimeKind.Value!.Value!, assignmentEpoch.Value!.Value!, presentationId.Value!, presentationRevision.Value!.Value!, credential.Value!, expiresAt.Value!.Value!, fingerprint.Value!, publicationFence, projectionProfileId);
+            return new SessionsIdBootstrapPost200Response(endpoint.Value!, runtimeId.Value!, runtimeKind.Value!.Value!, assignmentEpoch.Value!.Value!, presentationId.Value!, presentationRevision.Value!.Value!, credential.Value!, expiresAt.Value!.Value!, publicationFence.Value!, projectionProfileId.Value!, fingerprint.Value!);
         }
 
         /// <summary>
@@ -512,10 +504,10 @@ namespace Unframe.ControlPlane.Model
             if (sessionsIdBootstrapPost200Response.Credential == null)
                 throw new ArgumentNullException(nameof(sessionsIdBootstrapPost200Response.Credential), "Property is required for class SessionsIdBootstrapPost200Response.");
 
-            if (sessionsIdBootstrapPost200Response.PublicationFenceOption.IsSet && sessionsIdBootstrapPost200Response.PublicationFence == null)
+            if (sessionsIdBootstrapPost200Response.PublicationFence == null)
                 throw new ArgumentNullException(nameof(sessionsIdBootstrapPost200Response.PublicationFence), "Property is required for class SessionsIdBootstrapPost200Response.");
 
-            if (sessionsIdBootstrapPost200Response.ProjectionProfileIdOption.IsSet && sessionsIdBootstrapPost200Response.ProjectionProfileId == null)
+            if (sessionsIdBootstrapPost200Response.ProjectionProfileId == null)
                 throw new ArgumentNullException(nameof(sessionsIdBootstrapPost200Response.ProjectionProfileId), "Property is required for class SessionsIdBootstrapPost200Response.");
 
             writer.WriteString("endpoint", sessionsIdBootstrapPost200Response.Endpoint);
@@ -534,18 +526,14 @@ namespace Unframe.ControlPlane.Model
 
             writer.WriteString("expiresAt", sessionsIdBootstrapPost200Response.ExpiresAt.ToString(ExpiresAtFormat));
 
+            writer.WritePropertyName("publicationFence");
+            JsonSerializer.Serialize(writer, sessionsIdBootstrapPost200Response.PublicationFence, jsonSerializerOptions);
+            writer.WriteString("projectionProfileId", sessionsIdBootstrapPost200Response.ProjectionProfileId);
+
             if (sessionsIdBootstrapPost200Response.Fingerprint != null)
                 writer.WriteString("fingerprint", sessionsIdBootstrapPost200Response.Fingerprint);
             else
                 writer.WriteNull("fingerprint");
-
-            if (sessionsIdBootstrapPost200Response.PublicationFenceOption.IsSet)
-            {
-                writer.WritePropertyName("publicationFence");
-                JsonSerializer.Serialize(writer, sessionsIdBootstrapPost200Response.PublicationFence, jsonSerializerOptions);
-            }
-            if (sessionsIdBootstrapPost200Response.ProjectionProfileIdOption.IsSet)
-                writer.WriteString("projectionProfileId", sessionsIdBootstrapPost200Response.ProjectionProfileId);
         }
     }
 }
