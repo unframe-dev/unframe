@@ -1,0 +1,58 @@
+# 20cm ArUco マーカーによる原点合わせ
+
+`PassthroughCameraDeviceTest` シーンで PCA 左カメラからマーカーを検出し、位置・向きを推定します。安定した観測からマーカー中心を原点として確定すると、カメラ取得・検出を停止し、Quest の位置追跡で立方体と XYZ 軸を表示します。プレゼンへの接続、端末間通信、アプリ再起動をまたぐ原点保存は未実装です。
+
+## 実機で確認する
+
+1. [ID 0 の印刷マーカー](aruco-markers/4x4-50-id-0.svg) を印刷する。辞書は `DICT_4X4_50`、**黒い正方形の一辺は200mm**、白い余白は寸法に含めない。SVG全体は240×260mmなのでA3用紙などへ倍率100%で印刷し、黒い部分を定規で実測する。用紙に合わせた自動縮小は使わない。平らな板へ貼り、白い余白を残す。
+2. Quest を USB 接続し、Android Run Device に選ぶ。`Unframe > PCA > Open Device Test Scene`、`Build and Run on Quest` を実行する。接続と権限の詳細は [PCA 手順](pca-device-preview.md) を参照する。
+3. マーカー全体を映す。検出中は緑の枠と ID が表示される。位置合わせ対象は **ID 0のみ**。ID 23 は検出できても原点には採用しない。
+4. マーカーと頭をなるべく静止させる。8回以上かつ1秒以上の有効な観測で、位置2cm・向き3度以内の安定性が確認できると `ALIGNED` になる。有効な観測の間隔が0.5秒以内なら、一時的な未検出・`ambiguous pose` があっても観測を保持する。無効な姿勢は平均や観測数に含めず、0.5秒を超えて有効な姿勢が得られなければ最初から測り直す。最大5Hzなので最低約1.4秒かかる。これらは初期の判定値で、実機の精度保証ではない。
+5. 黄色い立方体が中心の表側に、赤・緑・青の軸が中心から表示される。映像パネルは小さな状態表示へ切り替わる。マーカーを隠し、頭を動かしても立方体が元の場所に残ることを確認する。
+6. B/Y で原点を解除し、再度位置合わせする。マーカー自体を動かした場合も再測定が必要。トラッキング喪失・再センタリング・tracking space変更・アプリ休止後は原点を解除して再測定する。
+
+`ambiguous pose` が続く場合は、近づくか、マーカーを少し斜めから見て試す。`excessive reprojection error` が続く場合は、印刷の平面性・ピント・照明と撮影中の動きを確認する。`ArUco ERROR` は B/Y で再試行し、ログを回収する。
+
+印刷 SVG は `Unframe > ArUco > Generate Printable Test Markers` で再生成できる。標準辞書から生成したもので、有料アセットの配布物は含まない。OpenCV for Unity は各環境の `Assets/OpenCVForUnity` に導入する。
+
+## 座標と推定
+
+- 内部単位はメートル。原点はID 0の黒い正方形の中心、+Xはマーカー右、+Yは上、+Zは紙の裏方向。紙の表側の法線は-Z。立方体中心は原点から表側へ3cm、各軸の長さは20cm。
+- 20cm正方形の四隅とカメラ内部パラメーターを `SOLVEPNP_IPPE_SQUARE` へ渡し、2つの姿勢候補を評価する。全四隅の正の深度と有限値を確認し、元の画像で再投影誤差を計算する。
+- 再投影RMSが3pxを超える候補は採用しない。候補の誤差差が0.25px以下で、姿勢差が10度または位置差が2cmを超える場合は曖昧な姿勢として採用しない。
+- `GetCameraPose()`・画像時刻・内部パラメーターを要求時に保存し、その姿勢を使ってマーカーをQuestのworld座標へ変換する。SDKのsensor座標から取得画像への中心crop・解像度変換・上下原点変更を反映する。後から現在の頭部姿勢を使わない。
+- MRUK207は歪み係数を公開せず、SDK自身のray計算もpinholeモデルを使うため、同じモデルを採用する。完全な歪み補正や実機精度を保証するものではない。
+- 原点はworld座標で保持する。撮影画像はPCAのrender threadで更新されるため、要求時の画像と保存したposeの厳密な一致、頭部移動時の精度は実機で確認する。現在のテストrigは初期transformを使用する。
+
+参照: [Meta PCA](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation/) / [OpenCV PnP](https://docs.opencv.org/4.13.0/d5/d1f/calib3d_solvePnP.html)
+
+## 処理と負荷
+
+- カメラは1280×960を要求し、実際に取得した画像を縮小せず検出・Corner Refinement・姿勢推定に使用する。同じ解像度に補正したCamera Intrinsicsを使い、独立したRenderTextureからRGBA8を読み戻す。最大5Hz、一度に1件だけ処理する。元解像度化で処理量が増えるため、実機では処理時間と0.5秒以内に結果が得られるかを確認する。
+- GPU読み戻し後の上下反転・グレースケール変換・検出・姿勢推定はバックグラウンドで実行し、Unity表示と状態更新はメインスレッドで行う。
+- 要求から0.5秒を超えた結果と、停止・再測定前の結果を破棄する。GPUコピーの停止時は進行中のコピーを完了させ、worker終了まではバッファを再利用・破棄しない。
+- 原点確定後はPCA取得・検出・プレビューを停止する。Questの通常のパススルー表示と頭部追跡は続く。
+
+## 診断ログ
+
+同じJSON Linesセッションへ次のイベントを記録する。画像は保存・送信しない。
+
+- `marker_detection` / `marker_detection_error`: ID、四隅、画像寸法、要求時の撮影時刻、検出・読み戻し時間。検出ログはID変更時と約1Hz。`ms detect`は画像変換と姿勢推定を含まず、`ms readback`はフレーム待ち時間を含む。
+- `detection_pipeline_summary`: 約1Hz。GPU読み戻し、RGBAコピー、画像前処理、検出、姿勢推定、要求から完了までの合計時間を記録する。要求・採用・タイムアウト・無効化・失敗の累積数と直近の結果も記録する。合計時間にはスレッド切り替えやフレーム待ちを含む。
+- `pose_estimated`: 約1Hz。`poseValid`、カメラ相対姿勢、保存したカメラworld姿勢、マーカーworld姿勢、実効内部パラメーター、再投影誤差、安定観測数。
+- `alignment_confirmed` / `alignment_reset`: 確定・解除時。`markerSizeMeters=0.2`、`alignmentConfirmed`、`trackingAvailable`。
+
+これらの姿勢フィールドはUnity座標のメートル・quaternion `(x,y,z,w)`。原点確定は端末間の同期完了を意味しない。ログ回収は [PCA 手順](pca-device-preview.md#診断ログ) を参照する。
+
+## コンポーネントの責務
+
+- `PassthroughCameraDevicePreview` は権限・PCA制御と観測の接続を担当し、起動条件は `ArucoCameraSessionState`、表示は `ArucoCameraPreviewView` が担当する。
+- `ArucoCameraMarkerDetection` はGPUコピー・非同期処理の寿命と結果の鮮度を管理し、画像変換・検出・姿勢推定は `ArucoFrameProcessor` が担当する。
+- `ArucoOriginAlignment` は安定性・原点・追跡イベントを管理し、立方体・軸・materialの生成と解放は `ArucoOriginVisualizer` が担当する。
+- 全プロデューサーが `ArucoTrackingDiagnosticSession.TryRecord` を経由する。ログI/Oが失敗した場合は一度だけ報告し、writerを閉じて以後の記録を停止する。カメラや位置合わせの処理は継続する。
+
+## ローカル検証と実機確認
+
+EditModeテストで20cmマーカーの合成投影、真正面・傾き・面内回転、尺度、座標変換、曖昧解、観測安定性、再測定を確認する。GPUテストは上下非対称の生成画像をRenderTextureへ元解像度のまま転送して読み戻し、1280×960でのバックグラウンド検出・姿勢推定・古い結果破棄を確認する。無効化・破棄・解像度変更中のworker寿命、0.5秒を超えた処理の破棄、ログI/O失敗、権限と休止の状態遷移、原点表示の解放も検証する。GPUテストのバッチ実行には `-nographics` を付けない。
+
+ローカルGPUテストはQuestのVulkan・実カメラの精度を代替しない。実機では上下・左右と軸の向き、原点固定後の頭部移動、再測定、トラッキング復帰、位置合わせ中と完了後のかくつきを確認する。
