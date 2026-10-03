@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import definitionFixture from "../../contracts/presentation/v2/fixtures/presentation-definition.json";
-import renderBundleFixture from "../../contracts/presentation/v2/fixtures/render-bundle.json";
+import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
+import renderBundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
 import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "../src/index.js";
 
 type RecordValue = Record<string, any>;

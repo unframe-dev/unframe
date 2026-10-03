@@ -1,12 +1,12 @@
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
 import { evaluateTimelineTrack } from "./timeline-interpolation.js";
 
-type Cue = PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["cues"][number];
+type Cue = PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];
 type Scalar = string | number | boolean | null;
-type Transform = PresentationDefinitionV2["scene"]["nodes"][string]["transform"];
+type Transform = PresentationDefinition["scene"]["nodes"][string]["transform"];
 type Next = Cue["next"];
-type Timeline = PresentationDefinitionV2["flow"]["timelines"][string];
+type Timeline = PresentationDefinition["flow"]["timelines"][string];
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const checkedTimeAddition = (start: number, duration: number): number => {
   if (
@@ -131,7 +131,7 @@ const ownerActive = (owner: { kind: string; groupId?: string }, groupId: string)
   owner.kind === "presentation" || owner.groupId === groupId;
 
 const initializeResources = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   groupId: string,
   includePresentation: boolean,
@@ -161,7 +161,7 @@ const initializeResources = (
       state.variables[id] = variable.initialValue;
 };
 
-const enterStep = (definition: PresentationDefinitionV2, state: CueState, stepId: string) => {
+const enterStep = (definition: PresentationDefinition, state: CueState, stepId: string) => {
   state.currentStepId = stepId;
   state.stepEntryEpoch += 1;
   state.stepEnteredAtRuntimeTimeMilliseconds = state.runtimeTimeMilliseconds;
@@ -180,7 +180,7 @@ const enterStep = (definition: PresentationDefinitionV2, state: CueState, stepId
 };
 
 export const createCueState = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   assignmentEpoch: number,
 ): CueState => {
   if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0)
@@ -350,7 +350,7 @@ const runIdEquals = (a: RuntimeRunId, b: RuntimeRunId) =>
 const runTarget = (run: RuntimeRun | PendingRun) =>
   run.kind === "timeline" ? `timeline:${run.timelineId}` : `surface:${run.surfaceId}`;
 const trackClaim = (nodeId: string, property: string) => `node:${nodeId}:${property}`;
-const runClaims = (definition: PresentationDefinitionV2, run: RuntimeRun): string[] =>
+const runClaims = (definition: PresentationDefinition, run: RuntimeRun): string[] =>
   run.kind === "timeline"
     ? definition.flow.timelines[run.timelineId]!.tracks.map((track) =>
         trackClaim(track.target.nodeId, track.target.property),
@@ -384,7 +384,7 @@ const allocateRun = (state: CueState): RuntimeRunId => {
   return { assignmentEpoch: state.assignmentEpoch, runSequence: ++state.lastRunSequence };
 };
 const timelineRunValue = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   run: Extract<RuntimeRun, { kind: "timeline" }>,
 ) => {
@@ -404,7 +404,7 @@ const timelineRunValue = (
   }
 };
 const removeRun = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   run: RuntimeRun,
   commit: boolean,
@@ -413,7 +413,7 @@ const removeRun = (
   state.activeRuns = state.activeRuns.filter((active) => !runIdEquals(active.runId, run.runId));
 };
 const applyNext = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   next: Next,
   canceledRuns: CanceledRuntimeRun[],
@@ -470,7 +470,7 @@ const applyNext = (
 };
 
 const evaluateCueEvent = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   input: CueInput,
   allowTimer: boolean,
@@ -689,14 +689,14 @@ const evaluateCueEvent = (
 };
 
 export const executeCueEvent = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   input: CueInput,
 ): { state: CueState; outcome: CueOutcome; canceledRuns?: CanceledRuntimeRun[] } =>
   evaluateCueEvent(definition, state, input, false);
 
 export const completeRuntimeRun = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   runId: RuntimeRunId,
 ): { state: CueState; completed: boolean; canceledRuns?: CanceledRuntimeRun[] } => {
@@ -731,7 +731,7 @@ export const completeRuntimeRun = (
 };
 
 export const advanceCueClock = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   toRuntimeTimeMilliseconds: number,
 ): { state: CueState; outcomes: CueOutcome[]; canceledRuns?: CanceledRuntimeRun[] } => {

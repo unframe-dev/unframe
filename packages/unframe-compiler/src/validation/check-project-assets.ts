@@ -1,5 +1,5 @@
 import type { PresentationDeclaration } from "@unframe/unframe-authoring";
-import type { BuildArtifactsV2, Diagnostic, PresentationDefinition } from "@unframe/unframe-core";
+import type { BuildArtifacts, Diagnostic, PresentationDefinition } from "@unframe/unframe-core";
 import { diagnostic } from "../diagnostics/diagnostics.js";
 import { isRecord, nonEmptyString } from "../lowering/support.js";
 import {
@@ -14,7 +14,7 @@ export const checkProjectAssets = (
   assetReferences: PresentationDeclaration["assets"],
   assets: CompilerDeclarationProject["assets"],
   surfaces: PresentationDefinition["scene"]["surfaces"],
-): { assetSetAssets: BuildArtifactsV2["assetSet"]["assets"]; diagnostics: Diagnostic[] } => {
+): { assetSetAssets: BuildArtifacts["assetSet"]["assets"]; diagnostics: Diagnostic[] } => {
   const diagnostics: Diagnostic[] = [];
   if (assetReferences.some((asset) => !Object.hasOwn(assets, asset.assetId)))
     diagnostics.push(
@@ -72,7 +72,7 @@ export const checkProjectAssets = (
           "Every declared source Asset must be referenced by resolved content.",
         ),
       );
-  const assetSetAssets: BuildArtifactsV2["assetSet"]["assets"] = {};
+  const assetSetAssets: BuildArtifacts["assetSet"]["assets"] = {};
   for (const [assetId, asset] of Object.entries(assets)) {
     const maxBytes =
       isRecord(asset) && (asset.mediaType === "image/png" || asset.mediaType === "image/jpeg")

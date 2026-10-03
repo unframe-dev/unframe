@@ -25,18 +25,18 @@ export type { DeliverySourceInput } from "./delivery/input.js";
 export { validateCanonicalRuntimeSnapshot } from "./runtime/projection.js";
 export { projectCanonicalParticipantRuntimeView } from "./runtime/canonical-participant-projection.js";
 export {
-  completedSemanticTreeV2Schema,
-  semanticSurfaceV2Schema,
-  surfaceContentNodeV2Schema,
-  textureArtifactV2Schema,
-} from "@unframe/contracts/presentation/v2";
+  completedSemanticTreeSchema,
+  semanticSurfaceSchema,
+  surfaceContentNodeSchema,
+  textureArtifactSchema,
+} from "@unframe/contracts/presentation";
 export * from "./validation/presentation.js";
 export { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "./canonicalization/payload.js";
 export {
-  verifyPublicationIntegrityV2,
-  verifyBuildIntegrityV2,
-  type BuildArtifactsV2,
-  type BuildIntegrityInputV2,
-  type PublicationArtifactsV2,
-  type PublicationIntegrityInputV2,
-} from "./publication-v2/integrity.js";
+  verifyPublicationIntegrity,
+  verifyBuildIntegrity,
+  type BuildArtifacts,
+  type BuildIntegrityInput,
+  type PublicationArtifacts,
+  type PublicationIntegrityInput,
+} from "./publication/integrity.js";

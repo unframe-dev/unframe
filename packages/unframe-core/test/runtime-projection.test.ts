@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  m3dCueRuntimeSnapshotV2Schema,
-  type CanonicalRuntimeSnapshotV2,
-  type PresentationDefinitionV2,
-} from "@unframe/contracts/presentation/v2";
+  m3dCueRuntimeSnapshotSchema,
+  type CanonicalRuntimeSnapshot,
+  type PresentationDefinition,
+} from "@unframe/contracts/presentation";
 
-import definitionFixture from "../../contracts/presentation/v2/fixtures/presentation-definition.json";
-import snapshotFixture from "../../contracts/presentation/v2/fixtures/m3d-cue-runtime-snapshot.json";
-import invalidSnapshotFixture from "../../contracts/presentation/v2/fixtures/m3d-cue-runtime-snapshot.invalid.json";
-import renderBundleFixture from "../../contracts/presentation/v2/fixtures/render-bundle.json";
-import visibilityFixture from "../../contracts/presentation/v2/fixtures/runtime-visibility-selection.json";
+import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
+import snapshotFixture from "../../contracts/presentation/fixtures/m3d-cue-runtime-snapshot.json";
+import invalidSnapshotFixture from "../../contracts/presentation/fixtures/m3d-cue-runtime-snapshot.invalid.json";
+import renderBundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
+import visibilityFixture from "../../contracts/presentation/fixtures/runtime-visibility-selection.json";
 import {
   createM3dCueRuntimeSnapshot,
   createRuntimeVisibilitySelection,
@@ -20,8 +20,8 @@ import {
 } from "../src/runtime/projection.js";
 import { createCueState } from "../src/runtime/cue-executor.js";
 
-const definition = structuredClone(definitionFixture) as unknown as PresentationDefinitionV2;
-const snapshot = m3dCueRuntimeSnapshotV2Schema.parse(snapshotFixture);
+const definition = structuredClone(definitionFixture) as unknown as PresentationDefinition;
+const snapshot = m3dCueRuntimeSnapshotSchema.parse(snapshotFixture);
 
 describe("M3D Runtime projection and canonical snapshot", () => {
   it("requires all active Media and Model resources in a full snapshot", () => {
@@ -31,7 +31,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
       "mediaStates differs from the active resource set.",
       "modelClipStates differs from the active resource set.",
     ]);
-    const full = structuredClone(snapshot) as CanonicalRuntimeSnapshotV2;
+    const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
     full.mediaStates = { video: { kind: "stopped", heldPositionMilliseconds: 0 } };
     full.modelClipStates = { model: { kind: "defaultPose" } };
     expect(
@@ -73,7 +73,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
   });
 
   it("rejects computed Model positions that overflow while allowing finite loop positions", () => {
-    const full = structuredClone(snapshot) as CanonicalRuntimeSnapshotV2;
+    const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
     full.clock.runtimeTimeMilliseconds = 2;
     full.lastAllocatedRunSequence = 1;
     full.mediaStates = { video: { kind: "stopped", heldPositionMilliseconds: 0 } };
@@ -327,7 +327,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     expect(validateM3dCueRuntimeSnapshot(timelineDefinition, running, 1)).toEqual([]);
     timelineDefinition.flow.timelines.reveal!.owner = { kind: "group", groupId: "intro" };
     running.activeRuns[0]!.owner = { kind: "group", groupId: "intro", groupEntryEpoch: 1 };
-    const fullGroupRun = structuredClone(running) as CanonicalRuntimeSnapshotV2;
+    const fullGroupRun = structuredClone(running) as CanonicalRuntimeSnapshot;
     fullGroupRun.mediaStates = { video: { kind: "stopped", heldPositionMilliseconds: 0 } };
     fullGroupRun.modelClipStates = { model: { kind: "defaultPose" } };
     expect(

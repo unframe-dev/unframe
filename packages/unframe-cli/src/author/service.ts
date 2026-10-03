@@ -16,7 +16,7 @@ import type { RunPresentationCliInput } from "../application/types.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
-import { hashDependencyGraph, type UnframeLockV2 } from "../filesystem/lock-v2.js";
+import { hashDependencyGraph, type UnframeLock } from "../filesystem/lock.js";
 import { lockedFile } from "../filesystem/package-snapshot.js";
 import { readRegularFile } from "../filesystem/path-policy.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
@@ -392,13 +392,13 @@ export const createAuthorService = async (
           ...base,
           componentLocks: computed.value.componentLocks.map((item) => ({
             ...item,
-          })) as UnframeLockV2["componentLocks"],
+          })) as UnframeLock["componentLocks"],
           themeHashes: computed.value.themeHashes.map((item) => ({
             themeId: item.themeId,
-            hash: item.hash as UnframeLockV2["themeHashes"][number]["hash"],
+            hash: item.hash as UnframeLock["themeHashes"][number]["hash"],
           })),
         };
-        const nextLock: UnframeLockV2 = {
+        const nextLock: UnframeLock = {
           ...nextWithoutHash,
           dependencyGraphHash: hashDependencyGraph(nextWithoutHash),
         };

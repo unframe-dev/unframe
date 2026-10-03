@@ -1,4 +1,4 @@
-# Presentation Runtime v2 protobuf inputs
+# Presentation Runtime protobuf inputs
 
 The source of truth is `packages/contracts/proto/`. These Unity `.proto` files
 are synchronized copies, and the C# bindings in

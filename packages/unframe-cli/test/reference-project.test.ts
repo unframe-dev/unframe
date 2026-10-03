@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, assert, describe, expect, it } from "vitest";
 import type { FixedBrowserSession } from "@unframe/unframe-renderer-web";
 
-import { canonicalizeJsonPayload, verifyBuildIntegrityV2 } from "@unframe/unframe-core";
+import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe/unframe-core";
 import {
   checkAuthoringProject,
   checkAuthoringProjectAssembly,
@@ -520,7 +520,7 @@ describe("reference Authoring Project", () => {
     expect(activeBounds.width).toBeCloseTo(416 / 1920);
     expect(activeBounds.height).toBeCloseTo(80 / 1080);
     expect(bundleSurface.interactionsByState["reference-surface:inactive"]).toEqual([]);
-    expect(verifyBuildIntegrityV2(buildArtifacts).valid).toBe(true);
+    expect(verifyBuildIntegrity(buildArtifacts).valid).toBe(true);
     const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
     expect(
       (await readFile(join(directory, "dist/assets/reference-font.ttf"))).equals(

@@ -35,9 +35,7 @@
       "projectionContractVersion": 1,
       "role": "SESSION_ROLE_PRESENTER"
     },
-    "requiredRuntimeCapabilities": [
-      "RUNTIME_CAPABILITY_TIMELINE_RUN_V2"
-    ],
+    "requiredRuntimeCapabilities": ["RUNTIME_CAPABILITY_TIMELINE_RUN"],
     "runtimeCatalog": {
       "catalogContractVersion": 2,
       "nodes": [
@@ -547,93 +545,67 @@
         {
           "surfaceId": "semantic-surface:text-greeting",
           "hostNodeId": "node:text-greeting",
-          "reachableStateIds": [
-            "state:text-greeting"
-          ]
+          "reachableStateIds": ["state:text-greeting"]
         },
         {
           "surfaceId": "semantic-surface:text-self",
           "hostNodeId": "node:text-self",
-          "reachableStateIds": [
-            "state:text-self"
-          ]
+          "reachableStateIds": ["state:text-self"]
         },
         {
           "surfaceId": "semantic-surface:text-overview",
           "hostNodeId": "node:text-overview",
-          "reachableStateIds": [
-            "state:text-overview"
-          ]
+          "reachableStateIds": ["state:text-overview"]
         },
         {
           "surfaceId": "semantic-surface:text-only",
           "hostNodeId": "node:text-only",
-          "reachableStateIds": [
-            "state:text-only"
-          ]
+          "reachableStateIds": ["state:text-only"]
         },
         {
           "surfaceId": "semantic-surface:text-project",
           "hostNodeId": "node:text-project",
-          "reachableStateIds": [
-            "state:text-project"
-          ]
+          "reachableStateIds": ["state:text-project"]
         },
         {
           "surfaceId": "semantic-surface:text-issue",
           "hostNodeId": "node:text-issue",
-          "reachableStateIds": [
-            "state:text-issue"
-          ]
+          "reachableStateIds": ["state:text-issue"]
         },
         {
           "surfaceId": "semantic-surface:text-result",
           "hostNodeId": "node:text-result",
-          "reachableStateIds": [
-            "state:text-result"
-          ]
+          "reachableStateIds": ["state:text-result"]
         },
         {
           "surfaceId": "semantic-surface:text-long",
           "hostNodeId": "node:text-long",
-          "reachableStateIds": [
-            "state:text-long"
-          ]
+          "reachableStateIds": ["state:text-long"]
         },
         {
           "surfaceId": "semantic-surface:vertical-text-1",
           "hostNodeId": "node:vertical-text-1",
-          "reachableStateIds": [
-            "state:vertical-text-1"
-          ]
+          "reachableStateIds": ["state:vertical-text-1"]
         },
         {
           "surfaceId": "semantic-surface:vertical-text-2",
           "hostNodeId": "node:vertical-text-2",
-          "reachableStateIds": [
-            "state:vertical-text-2"
-          ]
+          "reachableStateIds": ["state:vertical-text-2"]
         },
         {
           "surfaceId": "semantic-surface:vertical-text-3",
           "hostNodeId": "node:vertical-text-3",
-          "reachableStateIds": [
-            "state:vertical-text-3"
-          ]
+          "reachableStateIds": ["state:vertical-text-3"]
         },
         {
           "surfaceId": "semantic-surface:vertical-text-4",
           "hostNodeId": "node:vertical-text-4",
-          "reachableStateIds": [
-            "state:vertical-text-4"
-          ]
+          "reachableStateIds": ["state:vertical-text-4"]
         },
         {
           "surfaceId": "semantic-surface:vertical-text-new",
           "hostNodeId": "node:vertical-text-new",
-          "reachableStateIds": [
-            "state:vertical-text-new"
-          ]
+          "reachableStateIds": ["state:vertical-text-new"]
         }
       ],
       "variables": [
@@ -3586,15 +3558,11 @@
       "semantic-surface:vertical-text-4",
       "semantic-surface:vertical-text-new"
     ],
-    "visibleVariableIds": [
-      "variable:local-title"
-    ],
+    "visibleVariableIds": ["variable:local-title"],
     "semanticSurfaces": [
       {
         "semanticSurfaceId": "semantic-surface:text-greeting",
-        "renderSurfaceIds": [
-          "render-text-greeting"
-        ],
+        "renderSurfaceIds": ["render-text-greeting"],
         "states": [
           {
             "stateId": "state:text-greeting",
@@ -3604,9 +3572,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-self",
-        "renderSurfaceIds": [
-          "render-text-self"
-        ],
+        "renderSurfaceIds": ["render-text-self"],
         "states": [
           {
             "stateId": "state:text-self",
@@ -3616,9 +3582,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-overview",
-        "renderSurfaceIds": [
-          "render-text-overview"
-        ],
+        "renderSurfaceIds": ["render-text-overview"],
         "states": [
           {
             "stateId": "state:text-overview",
@@ -3628,9 +3592,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-only",
-        "renderSurfaceIds": [
-          "render-text-only"
-        ],
+        "renderSurfaceIds": ["render-text-only"],
         "states": [
           {
             "stateId": "state:text-only",
@@ -3640,9 +3602,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-project",
-        "renderSurfaceIds": [
-          "render-text-project"
-        ],
+        "renderSurfaceIds": ["render-text-project"],
         "states": [
           {
             "stateId": "state:text-project",
@@ -3652,9 +3612,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-issue",
-        "renderSurfaceIds": [
-          "render-text-issue"
-        ],
+        "renderSurfaceIds": ["render-text-issue"],
         "states": [
           {
             "stateId": "state:text-issue",
@@ -3664,9 +3622,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-result",
-        "renderSurfaceIds": [
-          "render-text-result"
-        ],
+        "renderSurfaceIds": ["render-text-result"],
         "states": [
           {
             "stateId": "state:text-result",
@@ -3676,9 +3632,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:text-long",
-        "renderSurfaceIds": [
-          "render-text-long"
-        ],
+        "renderSurfaceIds": ["render-text-long"],
         "states": [
           {
             "stateId": "state:text-long",
@@ -3688,9 +3642,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:vertical-text-1",
-        "renderSurfaceIds": [
-          "render-vertical-text-1"
-        ],
+        "renderSurfaceIds": ["render-vertical-text-1"],
         "states": [
           {
             "stateId": "state:vertical-text-1",
@@ -3700,9 +3652,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:vertical-text-2",
-        "renderSurfaceIds": [
-          "render-vertical-text-2"
-        ],
+        "renderSurfaceIds": ["render-vertical-text-2"],
         "states": [
           {
             "stateId": "state:vertical-text-2",
@@ -3712,9 +3662,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:vertical-text-3",
-        "renderSurfaceIds": [
-          "render-vertical-text-3"
-        ],
+        "renderSurfaceIds": ["render-vertical-text-3"],
         "states": [
           {
             "stateId": "state:vertical-text-3",
@@ -3724,9 +3672,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:vertical-text-4",
-        "renderSurfaceIds": [
-          "render-vertical-text-4"
-        ],
+        "renderSurfaceIds": ["render-vertical-text-4"],
         "states": [
           {
             "stateId": "state:vertical-text-4",
@@ -3736,9 +3682,7 @@
       },
       {
         "semanticSurfaceId": "semantic-surface:vertical-text-new",
-        "renderSurfaceIds": [
-          "render-vertical-text-new"
-        ],
+        "renderSurfaceIds": ["render-vertical-text-new"],
         "states": [
           {
             "stateId": "state:vertical-text-new",

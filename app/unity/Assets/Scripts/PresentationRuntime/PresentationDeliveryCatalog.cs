@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -113,7 +113,7 @@ namespace Unframe.Unity.PresentationRuntime
             HashSet<RuntimeCapability> requiredCapabilities = new HashSet<RuntimeCapability>();
             foreach (RuntimeCapability required in profile.RequiredRuntimeCapabilities)
             {
-                if (required != RuntimeCapability.TimelineRunV2 || !requiredCapabilities.Add(required))
+                if (required != RuntimeCapability.TimelineRun || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);
                 }

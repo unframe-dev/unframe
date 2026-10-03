@@ -11,7 +11,7 @@ import {
   type LockedFile,
   type PackageSnapshot,
   type LockedDependency,
-} from "./lock-v2.js";
+} from "./lock.js";
 
 const record = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value))

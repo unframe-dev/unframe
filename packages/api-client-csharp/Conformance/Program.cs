@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Google.Protobuf;
-using Unframe.Delivery.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Realtime;
 
 if (args.Length != 2) throw new ArgumentException("Pass conformance.json and valid-delivery.json paths");
 foreach (var path in args)
@@ -17,7 +17,7 @@ foreach (var path in args)
         var value = fixture.GetProperty("value").GetRawText();
         switch (typeName)
         {
-            case "unframe.realtime.v2.NodeStatePatch":
+            case "unframe.realtime.NodeStatePatch":
                 {
                     var fromJson = JsonParser.Default.Parse<NodeStatePatch>(value);
                     var fromWire = NodeStatePatch.Parser.ParseFrom(expected);
@@ -27,7 +27,7 @@ foreach (var path in args)
                         throw new Exception("Partial Transform presence conformance failed");
                     break;
                 }
-            case "unframe.realtime.v2.MediaStoppedSeeked":
+            case "unframe.realtime.MediaStoppedSeeked":
                 {
                     var fromJson = JsonParser.Default.Parse<MediaStoppedSeeked>(value);
                     var fromWire = MediaStoppedSeeked.Parser.ParseFrom(expected);
@@ -36,7 +36,7 @@ foreach (var path in args)
                         throw new Exception("MediaStoppedSeeked JSON/binary conformance failed");
                     break;
                 }
-            case "unframe.realtime.v2.ProjectedReliableEvent":
+            case "unframe.realtime.ProjectedReliableEvent":
                 {
                     var fromJson = JsonParser.Default.Parse<ProjectedReliableEvent>(value);
                     var fromWire = ProjectedReliableEvent.Parser.ParseFrom(expected);
@@ -46,7 +46,7 @@ foreach (var path in args)
                         throw new Exception("Stopped media seek Reliable Event conformance failed");
                     break;
                 }
-            case "unframe.delivery.v2.DeliveryManifest":
+            case "unframe.delivery.DeliveryManifest":
                 {
                     var fromJson = JsonParser.Default.Parse<DeliveryManifest>(value);
                     var fromWire = DeliveryManifest.Parser.ParseFrom(expected);
@@ -70,7 +70,7 @@ foreach (var path in args)
                         throw new Exception("DeliveryManifest unknown field was lost");
                     break;
                 }
-            case "unframe.realtime.v2.ControlClientItem":
+            case "unframe.realtime.ControlClientItem":
                 {
                     var fromJson = JsonParser.Default.Parse<ControlClientItem>(value);
                     var fromWire = ControlClientItem.Parser.ParseFrom(expected);

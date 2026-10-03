@@ -1,8 +1,8 @@
-import type { CapabilityProfileV2, DeliveryManifestWire } from "@unframe/contracts/presentation/v2";
-import { idV2Schema } from "@unframe/contracts/presentation/v2";
+import type { CapabilityProfile, DeliveryManifestWire } from "@unframe/contracts/presentation";
+import { idSchema } from "@unframe/contracts/presentation";
 import { buildProjectionProfile } from "./profile.js";
 import type { DeliverySourceInput } from "./input.js";
-import { snapshotPlainJson } from "../publication-v2/plain-json.js";
+import { snapshotPlainJson } from "../publication/plain-json.js";
 
 const asUint64 = (value: number) => {
   if (!Number.isSafeInteger(value) || value < 0)
@@ -27,7 +27,7 @@ const limits = (value: Record<string, string | number>) =>
       key === "tierId" ? entry : asUint64(entry as number),
     ]),
   );
-const capabilityWire = (capability: CapabilityProfileV2) => ({
+const capabilityWire = (capability: CapabilityProfile) => ({
   schemaVersion: capability.schemaVersion,
   capabilityProfileId: capability.capabilityProfileId,
   contractVersions: capability.contractVersions,
@@ -101,8 +101,8 @@ export const buildDeliveryManifest = (input: DeliveryManifestBuildInput) => {
   if (!frozen.valid)
     throw new TypeError("Delivery Manifest input must be plain JSON data properties.");
   input = frozen.value as unknown as DeliveryManifestBuildInput;
-  idV2Schema.parse(input.sessionId);
-  idV2Schema.parse(input.participantId);
+  idSchema.parse(input.sessionId);
+  idSchema.parse(input.participantId);
   const { profile, selection } = buildProjectionProfile(
     {
       definition: input.definition,
