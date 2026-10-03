@@ -29,9 +29,10 @@ packageExtensions:
 allowBuilds:
   better-sqlite3: false
   esbuild: true
+  protobufjs: false
   sharp: true
   workerd: true
 
 minimumReleaseAge: 720
 minimumReleaseAgeExclude:
-  - '@cloudflare/workers-types@5.20260718.1'
+  - "@cloudflare/workers-types@5.20260718.1"

@@ -8,10 +8,17 @@ import {
 
 describe("presentation TUI model", () => {
   it("wraps command selection without depending on a terminal renderer", () => {
-    expect(presentationTuiCommands.map((command) => command.id)).toEqual(["check", "build"]);
+    expect(presentationTuiCommands.map((command) => command.id)).toEqual([
+      "check",
+      "build",
+      "test",
+      "dev",
+      "preview",
+      "author",
+    ]);
 
     const previous = reducePresentationTuiState(initialPresentationTuiState, { type: "previous" });
-    expect(previous.selectedIndex).toBe(1);
+    expect(previous.selectedIndex).toBe(5);
     expect(reducePresentationTuiState(previous, { type: "next" })).toEqual(
       initialPresentationTuiState,
     );

@@ -16,6 +16,7 @@ import {
 } from "@unframe/unframe-renderer-web";
 
 import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
+import { createFilesystemBuildCache } from "../filesystem/build-cache.js";
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
@@ -24,6 +25,7 @@ import { updateProjectLock } from "../filesystem/update-lock.js";
 import { lockedFile } from "../filesystem/package-snapshot.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
+import { initPresentationProject } from "../filesystem/init-project.js";
 import type {
   PresentationCliDiagnostic,
   PresentationCliExitCode,
@@ -33,7 +35,7 @@ import type {
 import { sourceDiagnosticFamily } from "./source-diagnostic-family.js";
 
 type Command = Readonly<{
-  command: "check" | "build" | "lock";
+  command: "check" | "build" | "test" | "init" | "lock";
   directory: string;
   format: "text" | "json";
   operation?: "refresh" | "update";
@@ -67,7 +69,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe-cli check <absolute-project-directory> [--format text|json]\n       unframe-cli build <absolute-project-directory> [--format text|json]\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
+  "Usage: unframe-cli init|check|build|test <absolute-project-directory> [--format text|json]\n       unframe-cli dev|preview|author <absolute-project-directory>\n       unframe-cli publish <absolute-project-directory> <presentation-id> <control-plane-origin>\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",
@@ -205,7 +207,13 @@ const parse = (
       ],
     };
   const command =
-    args[0] === "check" || args[0] === "build" || args[0] === "lock" ? args[0] : undefined;
+    args[0] === "check" ||
+    args[0] === "build" ||
+    args[0] === "test" ||
+    args[0] === "init" ||
+    args[0] === "lock"
+      ? args[0]
+      : undefined;
   const at = args.indexOf("--format");
   const format = at >= 0 && args[at + 1] === "json" ? "json" : "text";
   const positional = at < 0 ? args : args.filter((_, i) => i !== at && i !== at + 1);
@@ -354,6 +362,14 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     return output(130, command, format, [
       diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
     ]);
+  if (command === "init") {
+    const result = await initPresentationProject(directory);
+    return result.ok
+      ? output(0, command, format)
+      : output(3, command, format, [
+          diagnostic("io", result.code, "Project could not be initialized at this path."),
+        ]);
+  }
   if (command === "lock") {
     const result = await updateProjectLock(
       directory,
@@ -391,6 +407,22 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       diagnostic(lock.diagnostic.family, lock.diagnostic.code, lock.diagnostic.message, [
         "unframe.lock",
       ]),
+    ]);
+  const pinnedRenderers = lock.value.lock.rendererPlugins;
+  if (
+    pinnedRenderers.some(
+      (item) =>
+        item.id !== "baked-web" ||
+        item.contractVersion !== "2" ||
+        !["3", "4"].includes(item.version),
+    )
+  )
+    return output(1, command, format, [
+      diagnostic(
+        "renderer",
+        "cli-renderer-plugin-unsupported",
+        "Locked renderer plugin is not available in this CLI.",
+      ),
     ]);
   const frozenFailures = verifyFrozenLocalFiles(
     discovered.localFiles,
@@ -528,15 +560,38 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         renderer = renderer ? combineBakedWebRenderers(structured, renderer) : structured;
       }
       if (!renderer) throw new BrowserProvisionFailure();
-      const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
-        compiler: context.compiler,
-        locale: context.locale,
-        timezone: context.timezone,
-        colorScheme: context.colorScheme,
-        rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-        renderers: [renderer],
-        encodeLimits: limits,
-      });
+      if (
+        !pinnedRenderers.some(
+          (item) =>
+            item.id === renderer.identity.id &&
+            item.version === renderer.identity.version &&
+            item.contractVersion === renderer.identity.contractVersion,
+        )
+      )
+        return output(1, command, format, [
+          diagnostic(
+            "renderer",
+            "cli-renderer-plugin-unlocked",
+            "Resolved renderer plugin is absent from unframe.lock.",
+          ),
+        ]);
+      const compiled = await compileAuthoringProject(
+        source,
+        lock.value.assemblyCarrier,
+        {
+          compiler: context.compiler,
+          locale: context.locale,
+          timezone: context.timezone,
+          colorScheme: context.colorScheme,
+          rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
+          renderers: [renderer],
+          encodeLimits: limits,
+        },
+        createFilesystemBuildCache(
+          discovered.projectDirectory,
+          host.signal ? { signal: host.signal } : {},
+        ),
+      );
       if (!compiled.valid)
         return output(
           host.signal?.aborted ? 130 : 1,

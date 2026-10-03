@@ -1,4 +1,4 @@
-import type { RenderBundleV2 } from "@unframe/contracts/presentation/v2";
+import type { RenderBundle } from "@unframe/contracts/presentation";
 
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
@@ -18,7 +18,10 @@ const equalSet = (left: Iterable<string>, right: Iterable<string>) => {
   return a.size === b.size && [...a].every((item) => b.has(item));
 };
 
-export const validateRenderBundle = (input: unknown): ValidationResult<RenderBundleV2> => {
+export const validateRenderBundle = (
+  input: unknown,
+  options: { fullDelivery?: boolean } = {},
+): ValidationResult<RenderBundle> => {
   const parsed = parseRenderBundleInput(input);
   if (!parsed.success)
     return {
@@ -42,7 +45,7 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
     );
   validateRecordIds(diagnostics, bundle.surfaces, "/surfaces", "semanticSurfaceId");
   validateRecordIds(diagnostics, bundle.models, "/models", "assetId");
-  if (Object.keys(bundle.models).length > 0)
+  if (!options.fullDelivery && Object.keys(bundle.models).length > 0)
     diagnostics.push(
       diagnostic("feature.unsupported", "/models", "Native 3D artifacts are deferred beyond M3A."),
     );
@@ -177,13 +180,14 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
           );
         else globalArtifactIds.set(artifactId, artifactPath);
         if (artifact.kind !== "baked-web") {
-          diagnostics.push(
-            diagnostic(
-              "feature.unsupported",
-              `${artifactPath}/kind`,
-              "M3A accepts baked-web artifacts only.",
-            ),
-          );
+          if (!options.fullDelivery)
+            diagnostics.push(
+              diagnostic(
+                "feature.unsupported",
+                `${artifactPath}/kind`,
+                "M3A accepts baked-web artifacts only.",
+              ),
+            );
           continue;
         }
         const referencedStates = Object.entries(renderSurface.stateBindings)
@@ -266,7 +270,10 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
       for (const [stateId, binding] of Object.entries(renderSurface.stateBindings)) {
         const bindingPath = `${renderPath}/stateBindings/${pathSegment(stateId)}`;
         if (binding.kind === "empty") continue;
-        if (binding.artifactIds.length !== 1)
+        if (
+          new Set(binding.artifactIds).size !== binding.artifactIds.length ||
+          (!options.fullDelivery && binding.artifactIds.length !== 1)
+        )
           diagnostics.push(
             diagnostic(
               "artifact.invalid",
@@ -276,15 +283,22 @@ export const validateRenderBundle = (input: unknown): ValidationResult<RenderBun
           );
         else {
           textureBindings += binding.artifactIds.length;
-          const artifact = artifacts[binding.artifactIds[0]!];
-          if (artifact?.kind !== "baked-web" || !Object.hasOwn(artifact.states, stateId))
-            diagnostics.push(
-              diagnostic(
-                "reference.invalid",
-                `${bindingPath}/artifactIds/0`,
-                "State binding must reference a baked-web artifact containing the same State.",
-              ),
-            );
+          for (const [index, artifactId] of binding.artifactIds.entries()) {
+            const artifact = artifacts[artifactId];
+            if (
+              !artifact ||
+              (!options.fullDelivery &&
+                (artifact.kind !== "baked-web" || !Object.hasOwn(artifact.states, stateId))) ||
+              (artifact.kind === "baked-web" && !Object.hasOwn(artifact.states, stateId))
+            )
+              diagnostics.push(
+                diagnostic(
+                  "reference.invalid",
+                  `${bindingPath}/artifactIds/${index}`,
+                  "State binding must reference a compatible artifact containing the same State.",
+                ),
+              );
+          }
         }
       }
     }

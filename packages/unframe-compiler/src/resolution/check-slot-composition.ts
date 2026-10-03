@@ -24,7 +24,7 @@ export const checkSlotComposition = (
   const slotEdges = new Map<string, string[]>();
   const collectSlotIds = (node: ContentNodeDeclaration): string[] => {
     if (node.kind === "slot-placeholder") return [node.slotId];
-    if (node.kind === "text") return [];
+    if (node.kind !== "frame") return [];
     return node.children.flatMap(collectSlotIds);
   };
   for (const [index, instance] of instances.entries()) {

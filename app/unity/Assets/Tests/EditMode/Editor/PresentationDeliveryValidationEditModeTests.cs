@@ -1,7 +1,7 @@
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -33,7 +33,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
     public void Delivery_RejectsUnsupportedRequiredRuntimeCapability()
     {
         DeliveryManifest delivery = CreateFixture();
-        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.Tracking);
         AssertRejected(delivery, "capability");
     }
 

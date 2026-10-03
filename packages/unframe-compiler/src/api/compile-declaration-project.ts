@@ -4,14 +4,15 @@ import {
   hashCanonicalJsonPayload,
   materializeCompletedSemanticTree,
   validatePresentationArtifacts,
-  verifyBuildIntegrityV2,
-  type BuildArtifactsV2,
+  verifyBuildIntegrity,
+  type BuildArtifacts,
   type Diagnostic,
   type RenderBundle,
   type SemanticSurface,
   type ValidationResult,
 } from "@unframe/unframe-core";
 import {
+  SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   executeRendererPlugin,
   type RendererIdentity,
@@ -19,6 +20,11 @@ import {
   validateRendererPlugin,
 } from "@unframe/unframe-renderer-api";
 import { compareStrings, diagnostic, sortDiagnostics } from "../diagnostics/diagnostics.js";
+import {
+  readCachedBuild,
+  writeCachedBuild,
+  type CompilerBuildCache,
+} from "../cache/build-cache.js";
 import {
   compilerBuildOptionsSchema,
   declarationProjectEnvelopeSchema,
@@ -134,6 +140,7 @@ const compileUnchecked = async (
   input: unknown,
   options: unknown,
   checkedOverride?: CheckedDeclarationProject,
+  cache?: CompilerBuildCache,
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
   const checked = checkedOverride
     ? { valid: true as const, value: checkedOverride, diagnostics: [] as const }
@@ -175,6 +182,22 @@ const compileUnchecked = async (
       rendererDiagnostics.push({ ...item, path: ["options", "renderers", index, ...item.path] });
   if (rendererDiagnostics.length)
     return { valid: false, diagnostics: sortDiagnostics(rendererDiagnostics) };
+  const rendererIds = new Set<string>();
+  for (const [index, candidate] of buildOptions.renderers.entries()) {
+    if (candidate.identity.contractVersion !== SUPPORTED_RENDERER_CONTRACT_VERSION)
+      return failure(
+        "compiler-renderer-contract-unsupported",
+        ["options", "renderers", index, "identity", "contractVersion"],
+        "Renderer contract version is unsupported.",
+      );
+    if (rendererIds.has(candidate.identity.id))
+      return failure(
+        "compiler-renderer-ambiguous",
+        ["options", "renderers"],
+        "Renderer ID must resolve exactly once.",
+      );
+    rendererIds.add(candidate.identity.id);
+  }
   const renderers = buildOptions.renderers.filter(({ identity }) => identity.id === "baked-web");
   if (renderers.length !== 1)
     return failure(
@@ -194,11 +217,50 @@ const compileUnchecked = async (
     pngEncoder: PNG_ENCODER_IDENTITY,
     rendererFingerprint,
   });
+  const cacheKey = cache
+    ? hashCanonicalJsonPayload({
+        cacheVersion: 1,
+        project,
+        compiler: buildOptions.compiler,
+        locale: buildOptions.locale,
+        timezone: buildOptions.timezone,
+        colorScheme: buildOptions.colorScheme,
+        rendererConfigHash: buildOptions.rendererConfigHash,
+        encodeLimits: buildOptions.encodeLimits,
+        rendererIdentity: renderer.identity,
+        rendererCapabilities: renderer.capabilities,
+        rendererRegistry: buildOptions.renderers
+          .map(({ identity, capabilities }) => ({ identity, capabilities }))
+          .sort((left, right) => compareStrings(left.identity.id, right.identity.id)),
+        rendererFingerprint,
+        environmentHash,
+        pngEncoder: PNG_ENCODER_IDENTITY,
+        textureBuildPolicy: POLICY,
+      })
+    : undefined;
+  if (cache && cacheKey) {
+    const cached = await readCachedBuild(cache, cacheKey, checked.value, {
+      environmentHash,
+      compilerName: buildOptions.compiler.name,
+      compilerVersion: buildOptions.compiler.version,
+      locale: buildOptions.locale,
+      timezone: buildOptions.timezone,
+      colorScheme: buildOptions.colorScheme,
+      themeId: bundleThemeId,
+      themeHash,
+      textureBuildPolicyHash: hashCanonicalJsonPayload(POLICY),
+    });
+    if (cached) return { valid: true, value: cached, diagnostics: [] };
+  }
 
   const assets: Record<string, Uint8Array> = {};
   const fontAssets: Record<
     string,
     { mediaType: "font/ttf" | "font/otf"; checksum: `sha256:${string}`; dataBase64: string }
+  > = {};
+  const imageAssets: Record<
+    string,
+    { mediaType: "image/png" | "image/jpeg"; checksum: `sha256:${string}`; dataBase64: string }
   > = {};
   for (const [assetId, asset] of Object.entries(project.assets)) {
     const bytes = decodeCanonicalBase64(asset.dataBase64);
@@ -209,16 +271,18 @@ const compileUnchecked = async (
         "Asset bytes must be canonical base64.",
       );
     assets[assetId] = bytes;
-    fontAssets[assetId] = {
-      mediaType: asset.mediaType,
+    const carrier = {
       checksum: asset.checksum as `sha256:${string}`,
       dataBase64: asset.dataBase64,
     };
+    if (asset.mediaType === "font/ttf" || asset.mediaType === "font/otf")
+      fontAssets[assetId] = { ...carrier, mediaType: asset.mediaType };
+    else imageAssets[assetId] = { ...carrier, mediaType: asset.mediaType };
   }
 
   const definition = checked.value.definition;
   const surfaces: RenderBundle["surfaces"] = {};
-  const generatedDescriptors: Record<string, BuildArtifactsV2["assetSet"]["assets"][string]> = {};
+  const generatedDescriptors: Record<string, BuildArtifacts["assetSet"]["assets"][string]> = {};
   const retainedChecksums = new Set<string>();
   let outputBytes = 0;
   for (const asset of Object.values(checked.value.assetSet.assets))
@@ -417,6 +481,7 @@ const compileUnchecked = async (
         },
         semanticsByState,
         fontAssets,
+        imageAssets,
         plan,
         entry: opaqueRendererHash
           ? { kind: "opaque", entryId: surfaceId, moduleHash: opaqueRendererHash }
@@ -589,7 +654,7 @@ const compileUnchecked = async (
     surfaces,
     models: {},
   };
-  const assetSet: BuildArtifactsV2["assetSet"] = {
+  const assetSet: BuildArtifacts["assetSet"] = {
     schemaVersion: 2,
     assets: { ...checked.value.assetSet.assets, ...generatedDescriptors },
   };
@@ -597,7 +662,7 @@ const compileUnchecked = async (
   const renderBundleHash = hashCanonicalJsonPayload(bundle);
   const assetSetJson = canonicalizeJsonPayload(assetSet);
   const assetSetHash = hashCanonicalJsonPayload(assetSet);
-  const buildManifest: BuildArtifactsV2["buildManifest"] = {
+  const buildManifest: BuildArtifacts["buildManifest"] = {
     schemaVersion: 2,
     buildId: `build:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, renderBundleHash, assetSetHash }).slice(7)}`,
     presentationId: definition.presentationId,
@@ -617,28 +682,30 @@ const compileUnchecked = async (
   };
   const artifactValidation = validatePresentationArtifacts(definition, bundle);
   if (!artifactValidation.valid) return artifactValidation;
-  const verified = verifyBuildIntegrityV2({
+  const verified = verifyBuildIntegrity({
     definition,
     renderBundle: bundle,
     assetSet,
     buildManifest,
   });
   if (!verified.valid) return verified;
+  const compiled: CompiledDeclarationProject = {
+    ...checked.value,
+    renderBundle: verified.value.renderBundle,
+    renderBundleJson,
+    renderBundleHash,
+    assetSet: verified.value.assetSet,
+    assetSetJson,
+    assetSetHash,
+    buildManifest: verified.value.buildManifest,
+    buildManifestJson: canonicalizeJsonPayload(verified.value.buildManifest),
+    buildManifestHash: hashCanonicalJsonPayload(verified.value.buildManifest),
+    assets,
+  };
+  if (cache && cacheKey) await writeCachedBuild(cache, cacheKey, compiled);
   return {
     valid: true,
-    value: {
-      ...checked.value,
-      renderBundle: verified.value.renderBundle,
-      renderBundleJson,
-      renderBundleHash,
-      assetSet: verified.value.assetSet,
-      assetSetJson,
-      assetSetHash,
-      buildManifest: verified.value.buildManifest,
-      buildManifestJson: canonicalizeJsonPayload(verified.value.buildManifest),
-      buildManifestHash: hashCanonicalJsonPayload(verified.value.buildManifest),
-      assets,
-    },
+    value: compiled,
     diagnostics: [],
   };
 };
@@ -647,13 +714,15 @@ export const compileCheckedDeclarationProject = (
   project: CompilerDeclarationProject,
   checked: CheckedDeclarationProject,
   options: unknown,
-) => compileUnchecked(project, options, checked);
+  cache?: CompilerBuildCache,
+) => compileUnchecked(project, options, checked, cache);
 export const compileDeclarationProject = async (
   input: unknown,
   options: unknown,
+  cache?: CompilerBuildCache,
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
   try {
-    return await compileUnchecked(input, options);
+    return await compileUnchecked(input, options, undefined, cache);
   } catch {
     return failure("compiler-invalid-input", [], "Compiler input could not be inspected safely.");
   }

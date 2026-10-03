@@ -9,7 +9,7 @@ import type {
   SourceMetadata,
 } from "@unframe/unframe-authoring";
 import type { EncodeLimits } from "@unframe/unframe-assets";
-import type { BuildArtifactsV2, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
+import type { BuildArtifacts, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
 import type { Diagnostic } from "@unframe/unframe-core";
 import type { RendererPlugin } from "@unframe/unframe-renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
@@ -47,7 +47,7 @@ export type CompilerDeclarationProject = {
 };
 export type CompilerSourceAsset = {
   readonly id: string;
-  readonly mediaType: "font/ttf" | "font/otf";
+  readonly mediaType: "font/ttf" | "font/otf" | "image/png" | "image/jpeg";
   readonly checksum: string;
   readonly encodedSizeBytes: number;
   readonly dataBase64: string;
@@ -103,7 +103,7 @@ export type CheckedDeclarationProject = {
   definitionJson: string;
   sourceHash: string;
   definitionHash: string;
-  assetSet: BuildArtifactsV2["assetSet"];
+  assetSet: BuildArtifacts["assetSet"];
   warnings: readonly CompilerWarning[];
 };
 export type CompilerBuildOptions = {
@@ -125,7 +125,7 @@ export type CompiledDeclarationProject = CheckedDeclarationProject & {
   readonly renderBundleHash: string;
   readonly assetSetJson: string;
   readonly assetSetHash: string;
-  readonly buildManifest: BuildArtifactsV2["buildManifest"];
+  readonly buildManifest: BuildArtifacts["buildManifest"];
   readonly buildManifestJson: string;
   readonly buildManifestHash: string;
   readonly assets: Readonly<Record<string, Uint8Array>>;

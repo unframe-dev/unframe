@@ -22,6 +22,7 @@
 - Component Manifest builder
 - Props、Slots、Parts、Variants、States、Actions、Outputs の builder
 - Spatial / Surface / Layout primitive の authoring declaration
+- Frame / Text / Image / Shape と absolute / Stack / Grid 配置。Frame の `layout` は親内での配置、`flow` は子の配置方式を表す
 - Theme、Token、Named Style、Asset reference
 - 型付き Prop / Token reference と Slot placeholder
 - Stable ID、source metadata、Component Instance operation
@@ -118,14 +119,14 @@ definition ごとの pure type guard は builder と同じ local declaration val
 - Stage、Flow、resource owner / audience、Component Instance と catalog が接続する lock v2
 - Component Action の Surface State cut / crossfade、即時 Variable / Node effect、固定 Scalar payload の Output、Guard と fire policy を持つ Cue
 - Structured Surface Component の host Spatial Node を対象とする Timeline、`playTimeline` Action、`timelineCompleted` Output
-- Spatial、Semantic Surface、absolute layout の nested Frame / Text。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
+- Spatial、Semantic Surface、absolute / Stack / Grid 配置の nested Frame / Text / Image / Shape。Text 本文、寸法、表示属性、対応する style scalar は型付き Prop reference を受け取る
 - Structured Component の typed Variant style、typed Part override、Frame children 内の明示 `slot-placeholder` と Opaque Component の semantic binding
 - Surface root が持つ semantic tree と、Frame-root Structure が持つ `baseSemanticTree`
 - topology を変更しない semantic override と Structured Component の Detach vocabulary
 
 Topology を持つ宣言は explicit ID を必須とする。source metadata は Compiler が AST から付与するため入力では任意とし、source correlation と diagnostic に共有できる型を提供する。既存の静的宣言 API は finite な JSON plain data だけを受け取り、import 時登録、暗黙 ID、入力 mutation、function 値を持たない。React Component API の `render` は後述の例外であり、静的メタデータには含めない。
 
-現行実装は static / finite-state、none / regions interaction の baked-web Surface、absolute layout、primitive な string / number / boolean Prop に限定する。State は Frame / Text の visual override、semantic override、enabled Interaction ID を宣言できる。Interaction は click event と hitPriority を明示する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値、旧 Slot / Part field、category のない Token reference、任意の style property を拒否する。参照の存在、一意性、alias cycle、tree、owner 継承、Manifest と Structure の整合性、解決後の値域は declaration を横断するため、Compiler / Core の semantic validation に残す。
+現行実装は static / finite-state、none / regions interaction の baked-web Surface と primitive な string / number / boolean Prop を扱う。State は Frame / Text / Image / Shape の visual override、semantic override、enabled Interaction ID を宣言できる。Interaction は click event と hitPriority を明示する。API 境界では空 ID、非 finite な数値、不正な source range、JSON で表現できない値、旧 Slot / Part field、category のない Token reference、任意の style property を拒否する。参照の存在、一意性、alias cycle、tree、owner 継承、Manifest と Structure の整合性、解決後の値域は declaration を横断するため、Compiler / Core の semantic validation に残す。
 
 parse、AST lowering、reference resolution、normalization、renderer、filesystem は実装せず、それぞれ Compiler、Core、concrete renderer の境界に残す。
 

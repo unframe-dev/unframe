@@ -15,6 +15,7 @@
   "dependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
     "@noble/hashes": "2.3.0",
+    "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-api": "workspace:*",
     "playwright-core": "1.62.1",
     "pngjs": "7.0.0",

@@ -102,9 +102,9 @@ discovery / read / write I/O は exit code `3` とする。
 ## 4. Interactive TUI boundary
 
 interactive shell は Bun を runtime とし、OpenTUI の Solid renderer を使用する。pnpm は引き続き dependency と
-lockfile の管理を担当し、Bun を package manager として使用しない。TUI が現在所有するのは `check` / `build`
-command の選択、keyboard navigation、quit lifecycle までであり、選択後の filesystem host や Browser process
-はまだ接続しない。
+lockfile の管理を担当し、Bun を package manager として使用しない。TUI は command の選択、keyboard navigation、
+quit lifecycle を所有する。選択後は TUI を閉じ、選択した command と project directory を headless process に渡す。
+filesystem host と Browser process は headless process が所有する。
 
 - `@opentui/core`: Zig native renderer と terminal lifecycle
 - `@opentui/solid` + `solid-js`: declarative view
@@ -137,15 +137,21 @@ build lease と一時 dist link は revision に含めない。これは外部�
 で reference project の check と temp copy への build を2回行う。4つの v2 JSON と PNG / Font asset set
 の relative path と SHA-256 manifest が完全一致することを検証する。fix mode と通常 package check は Browser を起動しない。
 
+## Local build cache
+
+`build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。Browser identity を現在環境から取得するため、hit でも Browser session は開閉する。
+
+Linux の directory FD に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。詳細は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md) に従う。
+
 ## 7. Deferred
 
 以下は current implementation に含めない。
 
-- TUI command selection と M1 process command の接続
-- remote package registry、plugin discovery、distribution update
-- `init`、`dev`、`test`、`preview`、`publish` command
-- watch / incremental cache、remote publish adapter、credential integration
+- remote package registry、任意外部 renderer plugin の自動 discovery、distribution update
+- remote build cache
 - Windows / case-insensitive filesystem support
+
+`init`、`dev`、`test`、`preview`、`publish`、watch と TUI / headless command の接続は実装済みである。renderer は host の固定 registry 内で `unframe.lock` の pin を解決し、publish の credential は process 外へ保存しない。
 
 これらを追加する場合も、Compiler rule、Renderer implementation、durable publication state の所有権はこの
 package に移さない。

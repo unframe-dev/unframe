@@ -333,6 +333,7 @@ const snapshotArtifacts = (artifacts: AtomicOutputArtifacts): readonly FileArtif
     if (!encodedAssetId) fail();
     const extension = new Map([
       ["image/png", "png"],
+      ["image/jpeg", "jpg"],
       ["font/ttf", "ttf"],
       ["font/otf", "otf"],
     ]).get(asset.mediaType);

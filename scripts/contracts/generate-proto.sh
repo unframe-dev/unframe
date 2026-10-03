@@ -17,14 +17,25 @@ esac
 proto_root="${CONTRACTS_DIR}/proto"
 output_root="${REALTIME_SERVER_DIR}"
 module="github.com/unframe-dev/unframe/app/server/realtime"
-proto_files=("${proto_root}/unframe/realtime/v1/realtime.proto")
+proto_files=(
+  "${proto_root}/unframe/realtime/v1/realtime.proto"
+  "${proto_root}/unframe/presentation/runtime.proto"
+  "${proto_root}/unframe/delivery/delivery.proto"
+  "${proto_root}/unframe/realtime/realtime.proto"
+)
+service_proto_files=(
+  "${proto_root}/unframe/realtime/v1/realtime.proto"
+  "${proto_root}/unframe/realtime/realtime.proto"
+)
 
 generate() {
   local destination="$1"
   protoc --proto_path="${proto_root}" \
     --go_out="${destination}" --go_opt="module=${module}" \
-    --go-grpc_out="${destination}" --go-grpc_opt="module=${module}" \
     "${proto_files[@]}"
+  protoc --proto_path="${proto_root}" \
+    --go-grpc_out="${destination}" --go-grpc_opt="module=${module}" \
+    "${service_proto_files[@]}"
 }
 
 if [[ "${mode}" == "generate" ]]; then
@@ -39,6 +50,10 @@ generate "${temporary_output}"
 generated_files=(
   "internal/gen/realtime/v1/realtime.pb.go"
   "internal/gen/realtime/v1/realtime_grpc.pb.go"
+  "internal/gen/presentation/runtime.pb.go"
+  "internal/gen/delivery/delivery.pb.go"
+  "internal/gen/realtime/realtime.pb.go"
+  "internal/gen/realtime/realtime_grpc.pb.go"
 )
 drift=0
 for generated_file in "${generated_files[@]}"; do
@@ -48,6 +63,6 @@ for generated_file in "${generated_files[@]}"; do
   fi
 done
 if [[ "${drift}" -ne 0 ]]; then
-  echo "generated Realtime protobuf Go files are stale; run scripts/contracts/generate-proto.sh" >&2
+  echo "generated Realtime/Delivery/Presentation protobuf Go files are stale; run scripts/contracts/generate-proto.sh" >&2
   exit 1
 fi

@@ -1,16 +1,25 @@
-# M3A Structured Authoring Contract
+# Structured Authoring Contract
 
 - **Status**: Implemented for static baked-web; runtime features deferred
-- **Scope**: Static `baked-web` Theme and Structured composition
+- **Scope**: Static / finite-state `baked-web` Theme and Structured composition
 - **Related**: [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md), [Presentation v2](./DATA_MODEL.md), [Presentation Architecture](./ARCHITECTURE.md)
 
-この文書は M3A の Authoring と compile-time 解決規則の正本である。公開 TypeScript 名、Zod field、diagnostic code などの実装詳細は、以下の意味を変えない範囲で実装時に確定する。
+この文書は M3A と M4 の Structured Authoring と compile-time 解決規則の正本である。公開 TypeScript 名、Zod field、diagnostic code などの実装詳細は、以下の意味を変えない範囲で実装時に確定する。
 
 React `.component.tsx` の Props・semantics・render 分離は [React Component 実行契約](./REACT_COMPONENT_EXECUTION_CONTRACT.md) に従う。本書の Structured composition / layout 規則はそのまま維持する。Component Instance は package lock を持たず、catalog と lock v2 が origin と宣言 hash を接続する。
 
+## M4 Structured graph
+
+[ADR-0022](../decisions/0022-m4-structured-rendering-and-build-cache.md) に従い、M3A の Primitive 範囲を Frame / literal Text / Image / Shape へ拡張する。初期の M3A は absolute Frame / Text に限定したが、現在の対応範囲はこの文書に記載する M4 の graph とする。
+
+- `frame` / `text` に加えて `image` / `shape` builder を使う。Image は明示 Asset reference と fit / tint / border、Shape は rectangle / ellipse / line geometry と fill / stroke / strokeWidth を必須指定する。Named Style は Frame / Text に維持し、Image / Shape は inline style を使う。
+- 各 Node の `layout` は absolute / Stack / Grid placement。Frame の `flow` は子の Stack / Grid layout、省略時は absolute。root は absolute placement。親 flow と child placement の kind、Grid の cell / span、有限な正の resolved geometry を検証する。Stack / Grid の field は Presentation v2 schema に従う。
+- Core の共通 resolver が State 別 logical rect を計算し、Compiler の partition / Hit Region と Renderer が共有する。Browser intrinsic layout や DOM から意味・geometry を推測しない。
+- Image source は checksum 付き PNG / JPEG bytes に限定し、host path / network 読み込みを許可しない。Variable Text、Video / Model、Runtime HTML / JavaScript はこの拡張に含めない。
+
 ## Scope and resolution
 
-M3A は静的な `baked-web` の生成経路を Authoring から Presentation v2 成果物まで接続する。旧 v1 出力の互換経路は追加しない。State の visual variation、Interaction、Timeline、Native UI、Video、Delivery、Runtime、Unity 接続は後続へ残し、M3A では明示的に拒否する。静的 Surface に必要な基本 State の宣言と v2 State envelope はこの拒否対象ではない。
+Structured 宣言を Presentation v2 と baked-web 成果物へ接続する。宣言 State ごとの visual override と、明示 Semantic Node に対応した click Interaction を扱う。State と Interaction の意味は [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md)、[ADR-0021](../decisions/0021-surface-interaction-geometry.md) に従う。Native UI、Video / Model、Delivery / Unity 接続はこの Authoring 拡張に含めず、旧 v1 出力の互換経路は追加しない。
 
 値の解決順は次のとおりとし、後段が同じ property を上書きする。配列は要素単位に merge せず全置換する。
 
@@ -20,7 +29,7 @@ M3A は静的な `baked-web` の生成経路を Authoring から Presentation v2
 4. Variant
 5. 公開 Part の Instance override
 
-Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/v2/definition.ts) に従い、必須値の不足や不正値は build error とする。
+Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/definition.ts) に従い、必須値の不足や不正値は build error とする。
 
 ## TypeScript / JSX source
 
@@ -41,7 +50,7 @@ JSX は `Surface`、`Frame`、`Text`、`Slot`、`ComponentInstance` を SDK か�
 
 Token category は `color`、`logicalLength`、`spatialLength`、`fontFace`、`duration`、`easing` とする。同じ Theme 内の同じ category の Token を alias できる。参照先の欠落、category の不一致、循環参照は build error とし、Compiler が具体値まで解決する。計算式と文字列展開は導入しない。
 
-Named Style は部分指定可能な `TextStyle` と `FrameStyle` に限定する。対象 Primitive に適合する property だけを指定でき、値は具体値または適合する category の Token 参照とする。任意の CSS は受理しない。Shape / Model の style と、Theme による Layout、topology、親子関係、Spatial Transform、Flow の変更は M3A の対象外である。
+Named Style は部分指定可能な `TextStyle` と `FrameStyle` に限定する。対象 Primitive に適合する property だけを指定でき、値は具体値または適合する category の Token 参照とする。任意の CSS は受理しない。Image / Shape は inline style を使う。Theme による Layout、topology、親子関係、Spatial Transform、Flow の変更は受理しない。
 
 Font Face Token は一つの Font Asset ID を参照する。TextStyle の primary font と順序付き fallback fonts は、それぞれ Asset を直接参照するか Font Face Token を参照する。Compiler は具体的な Asset ID に解決し、renderer はその素材を読み込む。primary font の未指定、参照先の欠落、読み込み失敗は build error とする。OS font への暗黙 fallback は行わず、fallback の空配列は許可する。
 
@@ -81,7 +90,7 @@ Part isolate と partition permission は [ADR-0011](../decisions/0011-surface-p
 
 ## Primitive nesting and defaults
 
-M3A は `Frame` 内の `Frame` / `Text` と absolute layout に対応する。子の位置は親 Frame を基準とし、入れ子の Frame にも style と clipping を適用する。Stack / Grid は拒否する。
+`Frame` 内に `Frame` / `Text` / `Image` / `Shape` を配置できる。absolute child は親 Frame 基準、Stack / Grid child は親 flow の共通 layout resolver に従う。入れ子の Frame にも style と clipping を適用する。
 
 Primitive default は次のとおりとする。
 
@@ -97,8 +106,8 @@ Text content、位置、寸法、primary font、font size、line height には�
 
 Component version、lock v2 の local / package origin と Theme / Manifest / Structure の hash 整合性を検証する。不適合な Props、Slots、Parts、Variants を含む package 更新は build error とし、暗黙に変換しない。
 
-Component migration metadata と自動変換は後続へ延期する。State、Interaction、Action / Output、Runtime、partition isolate の契約もこの文書では確定しない。
+Component migration metadata と自動変換は後続へ延期する。Action / Output、Runtime transport、partition isolate はそれぞれの契約・ADR を正本とし、本書では再定義しない。
 
 ## Implementation prerequisite
 
-Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な v2 値へ解決する。M3A の範囲外にある動的機能の拒否制限は維持する。
+Authoring SDK の個別 builder と declaration 全体の guard は local declaration schema を共有し、Compiler の post-lowering も同じ guard を使う。Prop default、Slot / Part の旧 field、Named Style の JSON object 形状をこの境界で検証する。型付き Theme と composition は Compiler が具体的な v2 値へ解決する。Runtime Text と media renderer の未対応制限を baked-web の境界で維持する。

@@ -1,4 +1,5 @@
 import {
+  SUPPORTED_RENDERER_CONTRACT_VERSION,
   evaluateFirstMilestoneSupport,
   prepareRendererBuildInput,
   type CompilerResolvedSurfaceInput,
@@ -10,9 +11,11 @@ import {
   type RendererPlugin,
   type RendererSupportRequest,
 } from "@unframe/unframe-renderer-api";
+import { resolveStructuredLayout } from "@unframe/unframe-core";
 
 import { snapshotDenseArray, snapshotStrictRecord } from "../validation/safe-data.js";
 import { decodeFontAsset, fontFamilyForChecksum, type FontCoverage } from "./font-assets.js";
+import { imageDataUri } from "./image-assets.js";
 import {
   adapterCaptureSchema,
   browserCaptureSchemaFor,
@@ -34,8 +37,8 @@ import {
   snapshotEnvironment,
 } from "../config/config-environment.js";
 
-const RENDERER_VERSION = "2";
-const CONTRACT_VERSION = "2";
+const RENDERER_VERSION = "3";
+const CONTRACT_VERSION = SUPPORTED_RENDERER_CONTRACT_VERSION;
 const applyFunction = Reflect.apply;
 const capabilities = Object.freeze({
   inputKinds: Object.freeze(["structured"] as const),
@@ -133,12 +136,11 @@ const documentFor = (
     !root ||
     root.kind !== "frame" ||
     root.parentId !== null ||
-    root.layout.kind !== "absolute" ||
     root.placement.kind !== "absolute"
   )
     return failure(
       "unsupported-structured-tree",
-      "Structured rendering requires an absolute root Frame.",
+      "Structured rendering requires an absolute root Frame placement.",
       ["surface", "content", "rootFrameId"],
     );
   if (
@@ -168,6 +170,16 @@ const documentFor = (
     ]);
 
   const bounds = input.plan.logicalBounds;
+  let layout: ReturnType<typeof resolveStructuredLayout>;
+  try {
+    layout = resolveStructuredLayout(input.surface, stateId);
+  } catch {
+    return failure("invalid-structured-layout", "State has an invalid Structured layout.", [
+      "surface",
+      "states",
+      stateId,
+    ]);
+  }
   const xScale = input.context.pixelTarget[0] / bounds.width;
   const yScale = input.context.pixelTarget[1] / bounds.height;
   if (!finite(xScale) || !finite(yScale))
@@ -175,7 +187,7 @@ const documentFor = (
       "plan",
       "logicalBounds",
     ]);
-  const rootPlacement = root.placement;
+  const rootPlacement = layout[root.id]!;
   const referencedFontIds = new Set<string>();
   const textFontRequirements: {
     readonly nodeId: string;
@@ -186,32 +198,27 @@ const documentFor = (
   const renderNode = (
     id: string,
     parentId: string,
-    parentOrigin: readonly [number, number],
+    parentRect: { readonly x: number; readonly y: number },
   ): string | RendererBuildFailure => {
     const node = effectiveNode(id);
     if (!planned.has(id) || !node || node.parentId !== parentId || renderedNodeIds.has(id))
       return failure(
         "unsupported-structured-tree",
-        "Render plan must contain one connected Frame/Text tree.",
+        "Render plan must contain one connected Structured tree.",
         ["surface", "content", "nodes", id],
       );
     renderedNodeIds.add(id);
-    if (node.placement.kind !== "absolute")
-      return failure(
-        "unsupported-structured-tree",
-        "Structured rendering accepts absolute placement only.",
-        ["surface", "content", "nodes", id, "placement"],
-      );
-    const placement = node.placement;
-    const global = {
-      x: parentOrigin[0] + placement.x,
-      y: parentOrigin[1] + placement.y,
-      width: placement.width,
-      height: placement.height,
-    };
+    const placement = layout[id];
+    if (!placement)
+      return failure("invalid-structured-layout", "Node has no resolved geometry.", [
+        "surface",
+        "content",
+        "nodes",
+        id,
+      ]);
     const [left, top, width, height] = [
-      placement.x * xScale,
-      placement.y * yScale,
+      (placement.x - parentRect.x) * xScale,
+      (placement.y - parentRect.y) * yScale,
       placement.width * xScale,
       placement.height * yScale,
     ];
@@ -224,22 +231,56 @@ const documentFor = (
         "placement",
       ]);
     if (node.kind === "frame") {
-      if (node.layout.kind !== "absolute" || new Set(node.children).size !== node.children.length)
-        return failure(
-          "unsupported-structured-tree",
-          "Structured rendering accepts absolute Frame children only.",
-          ["surface", "content", "nodes", id],
-        );
+      if (new Set(node.children).size !== node.children.length)
+        return failure("unsupported-structured-tree", "Frame children must be unique.", [
+          "surface",
+          "content",
+          "nodes",
+          id,
+        ]);
       const children: string[] = [];
       for (const childId of node.children) {
         if (!planned.has(childId)) continue;
-        const child = renderNode(childId, id, [global.x, global.y]);
+        const child = renderNode(childId, id, placement);
         if (typeof child !== "string") return child;
         children.push(child);
       }
       const borderWidth = node.border.width * yScale;
       const paint = owned.has(id);
       return `<div class="frame" data-node-id="${escapeHtml(node.id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};background:${paint ? rgbaCss(node.backgroundColor) : "rgba(0,0,0,0)"};border:${cssNumber(borderWidth)}px solid ${paint ? rgbaCss(node.border.color) : "rgba(0,0,0,0)"};border-radius:${cssNumber(node.border.radius * yScale)}px;overflow:${node.clip ? "hidden" : "visible"}"><div class="frame-children" style="left:${cssNumber(-borderWidth)}px;top:${cssNumber(-borderWidth)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px">${children.join("")}</div></div>`;
+    }
+    if (node.kind === "shape") {
+      const geometry = node.geometry;
+      const fill = rgbaCss(node.style.fill);
+      const stroke = rgbaCss(node.style.stroke);
+      const strokeWidth = cssNumber(node.style.strokeWidth);
+      const shape =
+        geometry.kind === "rectangle"
+          ? `<rect x="0" y="0" width="${cssNumber(geometry.width)}" height="${cssNumber(geometry.height)}" rx="${cssNumber(geometry.radius)}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`
+          : geometry.kind === "ellipse"
+            ? `<ellipse cx="${cssNumber(geometry.width / 2)}" cy="${cssNumber(geometry.height / 2)}" rx="${cssNumber(geometry.width / 2)}" ry="${cssNumber(geometry.height / 2)}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`
+            : `<line x1="0" y1="0" x2="${cssNumber(geometry.endX)}" y2="${cssNumber(geometry.endY)}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
+      return `<svg class="shape" data-node-id="${escapeHtml(id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};overflow:hidden" viewBox="0 0 ${cssNumber(placement.width)} ${cssNumber(placement.height)}">${owned.has(id) ? shape : ""}</svg>`;
+    }
+    if (node.kind === "image") {
+      const asset = input.imageAssets?.[node.assetId];
+      if (!asset)
+        return failure("missing-image-asset", "Image references a missing binary asset.", [
+          "imageAssets",
+          node.assetId,
+        ]);
+      const uri = imageDataUri(node.assetId, asset);
+      if (typeof uri !== "string") return uri;
+      const fit = node.style.fit === "stretch" ? "fill" : node.style.fit;
+      const tint = node.style.tint;
+      const neutralTint = tint.red === 1 && tint.green === 1 && tint.blue === 1 && tint.alpha === 1;
+      const filterId = `tint-${hash({ nodeId: id }).slice(7)}`;
+      const matrix = `${cssNumber(tint.red)} 0 0 0 0 0 ${cssNumber(tint.green)} 0 0 0 0 0 ${cssNumber(tint.blue)} 0 0 0 0 0 ${cssNumber(tint.alpha)} 0`;
+      const border = node.style.border;
+      const content = owned.has(id)
+        ? `${neutralTint ? "" : `<svg aria-hidden="true" width="1" height="1" style="position:absolute;left:-10000px;top:-10000px"><defs><filter id="${filterId}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${matrix}"/></filter></defs></svg>`}<img src="${uri}" alt="" style="display:block;width:100%;height:100%;object-fit:${fit}${neutralTint ? "" : `;filter:url(#${filterId})`}">`
+        : "";
+      return `<div class="image" data-node-id="${escapeHtml(id)}" style="left:${cssNumber(left)}px;top:${cssNumber(top)}px;width:${cssNumber(width)}px;height:${cssNumber(height)}px;display:${node.visible ? "block" : "none"};opacity:${cssNumber(node.opacity)};border:${cssNumber(border.width * yScale)}px solid ${owned.has(id) ? rgbaCss(border.color) : "rgba(0,0,0,0)"};border-radius:${cssNumber(border.radius * yScale)}px;overflow:hidden">${content}</div>`;
     }
     if (node.kind !== "text" || node.value.kind !== "literal")
       return failure(
@@ -279,14 +320,14 @@ const documentFor = (
   };
   for (const childId of root.children) {
     if (!planned.has(childId)) continue;
-    const child = renderNode(childId, root.id, [rootRect.x, rootRect.y]);
+    const child = renderNode(childId, root.id, rootRect);
     if (typeof child !== "string") return child;
     renderedChildren.push(child);
   }
   if (renderedNodeIds.size !== planned.size || [...planned].some((id) => !renderedNodeIds.has(id)))
     return failure(
       "unsupported-structured-tree",
-      "Render plan must contain one connected Frame/Text tree.",
+      "Render plan must contain one connected Structured tree.",
       ["plan", "ownership", "ownedContentNodeIds"],
     );
   const fontFaces: string[] = [];
@@ -329,7 +370,7 @@ const documentFor = (
   const rootHeight = rootPlacement.height * yScale;
   const rootBorderWidth = root.border.width * yScale;
   const rootPaint = owned.has(root.id);
-  const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,0);color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rootPaint ? rgbaCss(root.backgroundColor) : "rgba(0,0,0,0)"};border:${cssNumber(rootBorderWidth)}px solid ${rootPaint ? rgbaCss(root.border.color) : "rgba(0,0,0,0)"};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.frame,.frame-children,.text{position:absolute;box-sizing:border-box}`;
+  const style = `${fontFaces.join("")}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,0);color-scheme:${input.context.colorScheme}}#viewport{position:relative;width:${input.context.pixelTarget[0]}px;height:${input.context.pixelTarget[1]}px}#surface{position:absolute;box-sizing:border-box;left:${cssNumber(rootLeft)}px;top:${cssNumber(rootTop)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px;display:${root.visible ? "block" : "none"};opacity:${cssNumber(root.opacity)};background:${rootPaint ? rgbaCss(root.backgroundColor) : "rgba(0,0,0,0)"};border:${cssNumber(rootBorderWidth)}px solid ${rootPaint ? rgbaCss(root.border.color) : "rgba(0,0,0,0)"};border-radius:${cssNumber(root.border.radius * yScale)}px;overflow:${root.clip ? "hidden" : "visible"}}.frame,.frame-children,.text,.image,.shape{position:absolute;box-sizing:border-box}`;
   return Object.freeze({
     document: `<!doctype html><html lang="${escapeHtml(input.context.locale)}"><head><meta charset="utf-8"><style>${style}</style></head><body><main id="viewport"><div id="surface"><div class="frame-children" style="left:${cssNumber(-rootBorderWidth)}px;top:${cssNumber(-rootBorderWidth)}px;width:${cssNumber(rootWidth)}px;height:${cssNumber(rootHeight)}px">${renderedChildren.join("")}</div></div></main></body></html>`,
     fontFaceCount: fontFaces.length,

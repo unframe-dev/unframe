@@ -1,6 +1,7 @@
 import {
   hashCanonicalJsonPayload,
   materializeCompletedSemanticTree,
+  resolveStructuredLayout,
   type RenderBundle,
   type SemanticSurface,
   type ValidationResult,
@@ -63,26 +64,41 @@ const union = (a: Bounds | null, b: Bounds): Bounds => {
 const paintFrame = (node: Node) =>
   node.kind === "frame" &&
   (node.backgroundColor.alpha > 0 || (node.border.width > 0 && node.border.color.alpha > 0));
-const painted = (node: Node) => node.kind === "text" || paintFrame(node);
+const painted = (node: Node) =>
+  node.kind === "text" ||
+  node.kind === "image" ||
+  (node.kind === "shape" &&
+    (node.style.fill.alpha > 0 || (node.style.strokeWidth > 0 && node.style.stroke.alpha > 0))) ||
+  paintFrame(node);
 const visibleWindow = (surface: SemanticSurface): Bounds => {
   const [width, height] = surface.logicalSize;
+  if (surface.fit !== "cover") return { x: 0, y: 0, width, height };
   const [physicalWidth, physicalHeight] = surface.physicalSizeMeters;
-  const sx =
-    surface.fit === "stretch"
-      ? physicalWidth / width
-      : surface.fit === "contain"
-        ? Math.min(physicalWidth / width, physicalHeight / height)
-        : Math.max(physicalWidth / width, physicalHeight / height);
-  const sy = surface.fit === "stretch" ? physicalHeight / height : sx;
-  return intersect(
-    { x: 0, y: 0, width, height },
-    {
-      x: width / 2 - physicalWidth / (2 * sx),
-      y: height / 2 - physicalHeight / (2 * sy),
-      width: physicalWidth / sx,
-      height: physicalHeight / sy,
-    },
-  )!;
+  const physicalAspect = physicalWidth / physicalHeight;
+  const logicalAspect = width / height;
+  const logPhysicalAspect = Math.log(physicalWidth) - Math.log(physicalHeight);
+  const logLogicalAspect = Math.log(width) - Math.log(height);
+  const cropWidth =
+    Number.isFinite(physicalAspect) &&
+    physicalAspect > 0 &&
+    Number.isFinite(logicalAspect) &&
+    logicalAspect > 0
+      ? physicalAspect < logicalAspect
+      : logPhysicalAspect < logLogicalAspect;
+  if (cropWidth) {
+    const measured =
+      Number.isFinite(physicalAspect) && physicalAspect > 0
+        ? height * physicalAspect
+        : Math.exp(Math.log(height) + logPhysicalAspect);
+    const croppedWidth = Math.min(width, Math.max(Number.MIN_VALUE, measured));
+    return { x: (width - croppedWidth) / 2, y: 0, width: croppedWidth, height };
+  }
+  const measured =
+    Number.isFinite(physicalAspect) && physicalAspect > 0
+      ? width / physicalAspect
+      : Math.exp(Math.log(width) - logPhysicalAspect);
+  const croppedHeight = Math.min(height, Math.max(Number.MIN_VALUE, measured));
+  return { x: 0, y: (height - croppedHeight) / 2, width, height: croppedHeight };
 };
 const pixelTargetFor = (bounds: Bounds): readonly [number, number] => {
   const scale = 2048 / Math.max(bounds.width, bounds.height);
@@ -91,6 +107,12 @@ const pixelTargetFor = (bounds: Bounds): readonly [number, number] => {
     Math.max(1, Math.floor(bounds.height * scale + 0.5)),
   ];
 };
+const representableWindow = (bounds: Bounds) =>
+  Number.isFinite(bounds.x + bounds.width) &&
+  Number.isFinite(bounds.y + bounds.height) &&
+  bounds.x + bounds.width > bounds.x &&
+  bounds.y + bounds.height > bounds.y &&
+  Number.isFinite(2048 / Math.max(bounds.width, bounds.height));
 
 export const planSurfacePartitions = (
   surface: SemanticSurface,
@@ -115,23 +137,15 @@ export const planSurfacePartitions = (
   let unsupportedNodeId: string | undefined;
   const visit = (id: string): string[] => {
     const node = content.nodes[id]!;
-    if (node.kind !== "frame" && node.kind !== "text") unsupportedNodeId = id;
+    if (node.kind === "video") unsupportedNodeId = id;
     const subtree: string[] = [];
     if (node.kind === "frame") frameIds.push(id);
     const canPaint =
       painted(node) ||
-      (node.kind === "frame" &&
-        stateIds.some((stateId) => {
-          const override = surface.states[stateId]?.contentOverrides[id];
-          return (
-            override?.kind === "frame" &&
-            paintFrame({
-              ...node,
-              backgroundColor: override.backgroundColor ?? node.backgroundColor,
-              border: override.border ?? node.border,
-            })
-          );
-        }));
+      stateIds.some((stateId) => {
+        const override = surface.states[stateId]?.contentOverrides[id];
+        return override?.kind === node.kind && painted({ ...node, ...override } as Node);
+      });
     if (canPaint) {
       atoms.push({ id, boundsByState: {} });
       subtree.push(id);
@@ -148,11 +162,22 @@ export const planSurfacePartitions = (
         diagnostic(
           "compiler-partition-content-unsupported",
           ["surface", surface.id, "contentNodes", unsupportedNodeId],
-          "The current structured renderer supports Frame and Text content only.",
+          "The current structured renderer does not support Video content.",
         ),
       ],
     };
   const fullWindow = visibleWindow(surface);
+  if (!representableWindow(fullWindow))
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-partition-geometry-unrepresentable",
+          ["surface", surface.id, "physicalSizeMeters"],
+          "The visible window cannot be represented as logical geometry.",
+        ),
+      ],
+    };
   const closures: Closure[] = [];
   const semanticsByState: PlannedSurface["semanticsByState"] = {};
   const interactionsByState: PlannedSurface["interactionsByState"] = {};
@@ -168,23 +193,12 @@ export const planSurfacePartitions = (
     };
     const regions: NonNullable<PlannedSurface["interactionsByState"][string]> = [];
     interactionsByState[stateId] = regions;
-    const walk = (
-      id: string,
-      origin: readonly [number, number],
-      clip: Bounds | null,
-      active: boolean,
-    ) => {
+    const layout = resolveStructuredLayout(surface, stateId);
+    const walk = (id: string, clip: Bounds | null, active: boolean) => {
       const base = content.nodes[id]!;
       const override = state.contentOverrides[id];
       const node = override ? ({ ...base, ...override } as Node) : base;
-      if (node.placement.kind !== "absolute")
-        throw new Error("Validated Surface has non-absolute placement.");
-      const raw: Bounds = {
-        x: origin[0] + node.placement.x,
-        y: origin[1] + node.placement.y,
-        width: node.placement.width,
-        height: node.placement.height,
-      };
+      const raw = layout[id]!;
       const visible = active && node.visible && node.opacity > 0;
       const clipped = visible && clip ? intersect(raw, clip) : null;
       const semantic = node.semanticNodeId
@@ -252,9 +266,9 @@ export const planSurfacePartitions = (
           });
       }
       const childClip = node.clip ? clipped : clip;
-      for (const childId of node.children) walk(childId, [raw.x, raw.y], childClip, visible);
+      for (const childId of node.children) walk(childId, childClip, visible);
     };
-    walk(content.rootFrameId, [0, 0], fullWindow, true);
+    walk(content.rootFrameId, fullWindow, true);
     regions.sort(
       (left, right) =>
         right.priority - left.priority ||

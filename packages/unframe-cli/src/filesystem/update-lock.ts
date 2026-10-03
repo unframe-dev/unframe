@@ -12,11 +12,12 @@ import {
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
+import { parseStrictJson } from "./strict-json.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile } from "./path-policy.js";
 import { digestBytes, lockedFile, snapshotInstalledPackages } from "./package-snapshot.js";
-import { hashDependencyGraph, type UnframeLockV2 } from "./lock-v2.js";
+import { hashDependencyGraph, type UnframeLock } from "./lock.js";
 
 const execute = promisify(execFile);
 
@@ -41,7 +42,31 @@ export const updateProjectLock = async (
     discovered = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
     if (!discovered.ok) return discovered;
     if (signal?.aborted) return failure("cli-cancelled", "Lock update was cancelled.");
-    const loaded = recreate ? undefined : loadUnframeLock(discovered.lockBytes);
+    let loaded = recreate ? undefined : loadUnframeLock(discovered.lockBytes);
+    if (
+      loaded &&
+      !loaded.ok &&
+      loaded.diagnostic.code === "cli-lock-renderer-plugins-refresh-required"
+    ) {
+      const old = parseStrictJson(discovered.lockBytes);
+      if (
+        old.ok &&
+        old.value !== null &&
+        typeof old.value === "object" &&
+        !Array.isArray(old.value)
+      ) {
+        const migrated = {
+          ...old.value,
+          rendererPlugins: [
+            { id: "baked-web", version: "3", contractVersion: "2" },
+            { id: "baked-web", version: "4", contractVersion: "2" },
+          ],
+        };
+        loaded = loadUnframeLock(
+          new TextEncoder().encode(canonicalizeJsonPayload(migrated) + "\n"),
+        );
+      }
+    }
     if (loaded && !loaded.ok) return failure(loaded.diagnostic.code, loaded.diagnostic.message);
     const previous = loaded?.ok ? loaded.value.lock : undefined;
     if (operation === "update") {
@@ -107,8 +132,12 @@ export const updateProjectLock = async (
       themeHashes: computed.value.themeHashes,
       componentLocks: computed.value.componentLocks,
       assets: previous?.assets ?? [],
-    } as Omit<UnframeLockV2, "dependencyGraphHash">;
-    const lock: UnframeLockV2 = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
+      rendererPlugins: previous?.rendererPlugins ?? [
+        { id: "baked-web", version: "3", contractVersion: "2" },
+        { id: "baked-web", version: "4", contractVersion: "2" },
+      ],
+    } as Omit<UnframeLock, "dependencyGraphHash">;
+    const lock: UnframeLock = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
     const bytes = new TextEncoder().encode(canonicalizeJsonPayload(lock) + "\n");
     const validated = loadUnframeLock(bytes);
     if (!validated.ok) return failure(validated.diagnostic.code, validated.diagnostic.message);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Presentation v2 protobuf contracts の Unity C# binding を生成し、コピーと生成物の drift を検出する。
+# Shared Presentation protobuf contracts の Unity C# binding を生成し、コピーと生成物の drift を検出する。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh
@@ -15,9 +15,9 @@ case "${mode}" in
 esac
 
 proto_files=(
-  "unframe/presentation/v2/runtime.proto"
-  "unframe/delivery/v2/delivery.proto"
-  "unframe/realtime/v2/realtime.proto"
+  "unframe/presentation/runtime.proto"
+  "unframe/delivery/delivery.proto"
+  "unframe/realtime/realtime.proto"
 )
 unity_proto_root="${REPO_ROOT}/app/unity/Assets/Contracts/Proto"
 unity_generated_root="${REPO_ROOT}/app/unity/Assets/Scripts/PresentationRuntime/Generated"

@@ -1,4 +1,4 @@
-using Unframe.Presentation.V2;
+using Unframe.Presentation;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -24,7 +24,7 @@ namespace Unframe.Unity.PresentationRuntime
         public void ApplyNodeState(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy, string nodeId)
         {
             if (store == null || hierarchy == null || hierarchy.Registry == null
-                || !store.TryGetNodeState(nodeId, out Unframe.Realtime.V2.NodeRuntimeState state)
+                || !store.TryGetNodeState(nodeId, out Unframe.Realtime.NodeRuntimeState state)
                 || !hierarchy.Registry.TryGet(nodeId, out GameObject nodeObject))
             {
                 return;
@@ -44,7 +44,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private static void ApplyTransform(UnityEngine.Transform target, Unframe.Presentation.V2.Transform source)
+        private static void ApplyTransform(UnityEngine.Transform target, Unframe.Presentation.Transform source)
         {
             if (source == null)
             {

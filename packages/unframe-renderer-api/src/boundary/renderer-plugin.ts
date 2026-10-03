@@ -76,6 +76,8 @@ const validateInputReferences = (input: CompilerResolvedSurfaceInput): boolean =
           )
         )
           return false;
+        if (node.kind === "image" && !Object.hasOwn(input.imageAssets ?? {}, node.assetId))
+          return false;
       }
     }
   } else {

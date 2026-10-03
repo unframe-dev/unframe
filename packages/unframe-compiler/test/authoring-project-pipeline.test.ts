@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
 import {
+  SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
@@ -154,7 +155,7 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
   const identity = {
     id: "baked-web",
     version: "1",
-    contractVersion: "1",
+    contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
     implementationHash: "renderer-implementation",
   } as const;
   const capabilities = {

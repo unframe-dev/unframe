@@ -1,6 +1,6 @@
 # Presentation Assets Architecture
 
-- **Status**: Initial memory-only PNG encoder implemented
+- **Status**: Memory-only RGBA resize and PNG encoder implemented
 - **Scope**: Compiler build 中の deterministic asset transformation
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -19,15 +19,9 @@ Asset の upload、ownership、delivery URL、Unity runtime cache はこの pack
 
 ## 2. Owned pipeline
 
-次は変換adapterのownership候補である。Baked Web v1のformat、resolution、byte式、aggregate budgetは [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) でAcceptedだが、現行実装はmemory-only PNG encodeだけである。
+現在は memory-only RGBA resize、PNG encode、checksum、portable descriptor と固定 provenance を所有する。Baked Web v1 の format、resolution、byte式、aggregate budget は [ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md) に従う。Compiler は pixelTarget で直接 capture するため、通常 build は resize を行わず PNG encode だけを呼ぶ。
 
-- image / renderer capture の resize
-- texture encode、mipmap、checksum
-- font resolution と必要な場合の subset
-- video / model transformer を追加する adapter boundary
-- content-addressed binary output
-- media type、dimensions、size、checksum、encoder provenance
-- temporary workspace と output cleanup の library boundary
+font subset、video / model 変換と、それらに必要な temporary workspace は具体 consumer 確定後の adapter に残す。mipmap / GPU compression は v1 の対象外である。cache storage は Compiler / CLI、upload / Delivery は別の所有境界とする。
 
 ```text
 declared input + transform request + toolchain provenance
@@ -80,7 +74,9 @@ declared input + transform request + toolchain provenance
 
 ## 8. Current implementation
 
-最初の milestone は memory-only の `encodeRgbaToPng` を公開する。入力は source ID、sRGB RGBA8 bytes、pixel size、alpha mode と caller budget であり、filesystem path、process environment、renderer固有型を含まない。
+Memory-only の `resizeRgba` と `encodeRgbaToPng` を公開する。入力は source ID、sRGB RGBA8 bytes、pixel size、alpha mode と caller budget であり、resize は明示的な target pixel size を追加で受け取る。filesystem path、process environment、renderer固有型を含まない。
+
+Resize は縮小時に各 target pixel の source 上の矩形 footprint と source pixel の重なり面積で平均し、拡大時に pixel center に揃えた線形補間を使う。各 channel は sRGB から linear light に変換し、alpha を掛けてから合成し、出力時に alpha で割って sRGB8 へ戻す。alpha が 0 に丸められる場合は RGB も 0 にする。出力RGBAは新規bufferとし、source/output byte列の SHA-256 checksum、resize identity、source ID、target sizeを返す。
 
 PNG byte列は 8-bit RGBA / non-interlaceのIHDR、sRGB rendering intent 0、各scanlineのfilter 0、`78 01` zlib headerと最大65,535 byteのstored DEFLATE block、Adler-32、CRC32、IENDに固定する。timestampや可変metadataを持たず、native codecやOS toolへ依存しない。同じ入力は同じbyte列になるが、圧縮率は最適化しない。
 
@@ -94,11 +90,11 @@ Callerはwidth、height、pixel数、input byte数、output byte数の上限を�
 
 返却された`bytes`はcallerが所有し、別のencode結果や入力bufferとは共有しない。callerはchecksum検証後のbytesを変更できるが、descriptor/checksumを永続化または後段へ渡した後は変更してはならない。mutable/untrustedなbytesを受け取る永続化・Delivery境界はdescriptorのchecksumを再検証する。
 
-resize、mipmap、temporary workspace、font / video / model変換、cache、Surface State binding、RenderBundle組み立て、upload / Deliveryは実装しない。
+mipmap、temporary workspace、font / video / model変換、cache、Surface State binding、RenderBundle組み立て、upload / Deliveryは実装しない。
 
 ## 9. Deferred decisions
 
-- ADR-0012でAcceptedになったtexture metadata / aggregate budget / resolution policyの実装
+- 新しい consumer が必要とする texture format / resolution policy（現行 v1 policy は Compiler / Core に実装済み）
 - font resolver と subset toolchain
 - video / model adapter の初期範囲
 - cross-platform reproducibility と container / Nix boundary

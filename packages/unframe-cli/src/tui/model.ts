@@ -1,4 +1,4 @@
-export type PresentationTuiCommandId = "build" | "check";
+export type PresentationTuiCommandId = "build" | "check" | "test" | "dev" | "preview" | "author";
 
 export type PresentationTuiCommand = Readonly<{
   id: PresentationTuiCommandId;
@@ -16,6 +16,26 @@ export const presentationTuiCommands: readonly PresentationTuiCommand[] = Object
     id: "build",
     label: "Build presentation",
     description: "Compile and render a complete artifact set.",
+  }),
+  Object.freeze({
+    id: "test",
+    label: "Test presentation",
+    description: "Validate and render the complete artifact set.",
+  }),
+  Object.freeze({
+    id: "dev",
+    label: "Watch project",
+    description: "Rebuild when project inputs change.",
+  }),
+  Object.freeze({
+    id: "preview",
+    label: "Preview presentation",
+    description: "Build and open a local artifact preview.",
+  }),
+  Object.freeze({
+    id: "author",
+    label: "Open author editor",
+    description: "Edit the current project in the local editor.",
   }),
 ]);
 

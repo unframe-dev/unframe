@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Google.Protobuf;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -292,16 +292,16 @@ namespace Unframe.Unity.PresentationRuntime
                 && (state.Transform == null || IsValidTransform(state.Transform));
         }
 
-        private static bool IsValidTransform(Unframe.Presentation.V2.Transform transform)
+        private static bool IsValidTransform(Unframe.Presentation.Transform transform)
         {
             if (transform.Position == null || transform.Rotation == null || transform.Scale == null)
             {
                 return false;
             }
 
-            Unframe.Presentation.V2.Vector3 position = transform.Position;
-            Unframe.Presentation.V2.Quaternion rotation = transform.Rotation;
-            Unframe.Presentation.V2.Vector3 scale = transform.Scale;
+            Unframe.Presentation.Vector3 position = transform.Position;
+            Unframe.Presentation.Quaternion rotation = transform.Rotation;
+            Unframe.Presentation.Vector3 scale = transform.Scale;
             return PresentationDeliveryCatalog.IsFinite(position.X) && PresentationDeliveryCatalog.IsFinite(position.Y) && PresentationDeliveryCatalog.IsFinite(position.Z)
                 && PresentationDeliveryCatalog.IsFinite(scale.X) && PresentationDeliveryCatalog.IsFinite(scale.Y) && PresentationDeliveryCatalog.IsFinite(scale.Z) && scale.X > 0 && scale.Y > 0 && scale.Z > 0
                 && PresentationDeliveryCatalog.IsFinite(rotation.X) && PresentationDeliveryCatalog.IsFinite(rotation.Y) && PresentationDeliveryCatalog.IsFinite(rotation.Z) && PresentationDeliveryCatalog.IsFinite(rotation.W)

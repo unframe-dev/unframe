@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { completedSemanticTreeV2Schema, semanticSurfaceV2Schema } from "@unframe/unframe-core";
+import { completedSemanticTreeSchema, semanticSurfaceSchema } from "@unframe/unframe-core";
 
 export const rendererIdSchema = z.string().min(1);
 const finiteNumberSchema = z.number().finite();
@@ -31,7 +31,7 @@ export const logicalBoundsConstraintSchema = z
       bounds.y + bounds.height <= logicalSize[1],
   );
 
-const sourceIntentSchema = semanticSurfaceV2Schema.shape.renderIntent;
+const sourceIntentSchema = semanticSurfaceSchema.shape.renderIntent;
 
 const resolvedIntentSchema = z.strictObject({
   updateModel: sourceIntentSchema.shape.updateModel,
@@ -102,10 +102,10 @@ export const rendererCapabilitiesSchema = z.strictObject({
 });
 
 export const rendererBuildInputSchema = z.strictObject({
-  surface: semanticSurfaceV2Schema,
+  surface: semanticSurfaceSchema,
   sourceIntent: sourceIntentSchema,
   resolvedIntent: resolvedIntentSchema,
-  semanticsByState: z.record(rendererIdSchema, completedSemanticTreeV2Schema),
+  semanticsByState: z.record(rendererIdSchema, completedSemanticTreeSchema),
   fontAssets: z.record(
     rendererIdSchema,
     z.strictObject({
@@ -114,6 +114,16 @@ export const rendererBuildInputSchema = z.strictObject({
       checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
     }),
   ),
+  imageAssets: z
+    .record(
+      rendererIdSchema,
+      z.strictObject({
+        mediaType: z.enum(["image/png", "image/jpeg"]),
+        dataBase64: z.string().min(1),
+        checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+      }),
+    )
+    .optional(),
   plan: renderSurfacePlanSchema,
   entry: rendererEntrySchema,
   context: z.strictObject({
