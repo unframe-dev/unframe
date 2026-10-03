@@ -4,7 +4,7 @@ import type {
   SemanticSurface,
   ValidationResult,
 } from "../domain/model.js";
-import { completedSemanticTreeV2Schema } from "@unframe/contracts/presentation/v2";
+import { completedSemanticTreeSchema } from "@unframe/contracts/presentation";
 import { parseIdInput, parseSemanticSurfaceInput } from "../validation/contract-input.js";
 import {
   diagnostic,
@@ -319,7 +319,7 @@ export const materializeCompletedSemanticTree = (
     for (const node of Object.values(tree["nodes"] ?? {}))
       if (isRecord(node) && node["role"] === "button" && id(node["interactionId"]))
         node["stateEnabled"] = enabledInteractions.has(node["interactionId"]);
-    const completed = completedSemanticTreeV2Schema.safeParse(tree);
+    const completed = completedSemanticTreeSchema.safeParse(tree);
     if (!completed.success)
       diagnostics.push(
         diagnostic(

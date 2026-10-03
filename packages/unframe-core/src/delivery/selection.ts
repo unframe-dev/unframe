@@ -1,14 +1,14 @@
 import type {
-  AssetSetManifestV2,
-  CapabilityProfileV2,
-  PresentationDefinitionV2,
-  RenderBundleV2,
-} from "@unframe/contracts/presentation/v2";
+  AssetSetManifest,
+  CapabilityProfile,
+  PresentationDefinition,
+  RenderBundle,
+} from "@unframe/contracts/presentation";
 import { createRuntimeVisibilitySelection } from "../runtime/projection.js";
 import { parseDeliveryInputs, type DeliverySourceInput } from "./input.js";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
 
-type Artifact = RenderBundleV2["surfaces"][string]["renderSurfaces"][string]["artifacts"][string];
+type Artifact = RenderBundle["surfaces"][string]["renderSurfaces"][string]["artifacts"][string];
 type SelectedState = { stateId: string; artifact: Artifact | null };
 export type SelectedRenderSurface = {
   renderSurfaceId: string;
@@ -17,7 +17,7 @@ export type SelectedRenderSurface = {
   rendererKind: Artifact["kind"] | null;
   states: SelectedState[];
 };
-export type SelectedAsset = { assetId: string; descriptor: AssetSetManifestV2["assets"][string] };
+export type SelectedAsset = { assetId: string; descriptor: AssetSetManifest["assets"][string] };
 export type DeliverySelection = {
   visibleNodeIds: string[];
   visibleSurfaceIds: string[];
@@ -69,7 +69,7 @@ const within = (value: number, limit: number, name: string) => {
   if (value > limit) throw new Error(`${name} exceeds capability limit.`);
 };
 
-const compatible = (artifact: Artifact, capability: CapabilityProfileV2): boolean => {
+const compatible = (artifact: Artifact, capability: CapabilityProfile): boolean => {
   const renderer =
     artifact.kind === "baked-web"
       ? capability.renderers.bakedWeb
@@ -122,21 +122,21 @@ const requiredCodePoints = (value: Artifact & { kind: "native-ui" }, maximumGlyp
 };
 
 const selectDeliveryArtifactsParsed = (
-  definition: PresentationDefinitionV2,
-  bundle: RenderBundleV2,
-  assetSet: AssetSetManifestV2,
-  capability: CapabilityProfileV2,
+  definition: PresentationDefinition,
+  bundle: RenderBundle,
+  assetSet: AssetSetManifest,
+  capability: CapabilityProfile,
   role: "presenter" | "viewer",
 ): DeliverySelection => {
   const visibility = createRuntimeVisibilitySelection(definition, "selection", role, []);
   const selected: SelectedRenderSurface[] = [];
-  const assets = new Map<string, AssetSetManifestV2["assets"][string]>();
+  const assets = new Map<string, AssetSetManifest["assets"][string]>();
   const textureByChecksum = new Map<string, DeliverySelection["residency"]["textures"][number]>();
   const videoByChecksum = new Map<
     string,
     DeliverySelection["residency"]["videos"][number] & { encodedSizeBytes: number }
   >();
-  const modelByChecksum = new Map<string, RenderBundleV2["models"][string]>();
+  const modelByChecksum = new Map<string, RenderBundle["models"][string]>();
   const checksumMetadata = new Map<string, string>();
   const assertSameChecksumMetadata = (checksum: string, data: Record<string, unknown>) => {
     const identity = hashCanonicalJsonPayload(data);

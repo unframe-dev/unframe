@@ -59,14 +59,14 @@ case "${mode}" in
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check
     log "presentation(check): generated Go/C# consumers and wire compatibility"
-    "${REPO_ROOT}/scripts/contracts/generate-v2-consumers.sh" check
-    "${REPO_ROOT}/scripts/contracts/check-v2-breaking.sh" check
-    "${REPO_ROOT}/scripts/contracts/test-v2-breaking.sh"
+    "${REPO_ROOT}/scripts/contracts/generate-consumers.sh" check
+    "${REPO_ROOT}/scripts/contracts/check-breaking.sh" check
+    "${REPO_ROOT}/scripts/contracts/test-breaking.sh"
     dotnet build "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --no-restore --verbosity quiet
     dotnet build "${REPO_ROOT}/packages/api-client-csharp/Generated/ControlPlane/Unframe.ControlPlane.csproj" --verbosity quiet
     dotnet run --project "${REPO_ROOT}/packages/api-client-csharp/Conformance/Unframe.Wire.Conformance.csproj" -- \
-      "${REPO_ROOT}/packages/contracts/presentation/v2/fixtures/wire/conformance.json" \
-      "${REPO_ROOT}/packages/contracts/presentation/v2/fixtures/wire/valid-delivery.json"
+      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/conformance.json" \
+      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/valid-delivery.json"
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check

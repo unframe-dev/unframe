@@ -1,9 +1,9 @@
-import { getPresentationWireType } from "@unframe/contracts/presentation/v2";
+import { getPresentationWireType } from "@unframe/contracts/presentation";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
-import { snapshotPlainJson } from "../publication-v2/plain-json.js";
+import { snapshotPlainJson } from "../publication/plain-json.js";
 
 type WireType = ReturnType<typeof getPresentationWireType>;
-const profileTypeName = "unframe.delivery.v2.ProjectionProfileDescriptor";
+const profileTypeName = "unframe.delivery.ProjectionProfileDescriptor";
 const snakeCase = (name: string) =>
   name.replace(/[A-Z]/gu, (character) => `_${character.toLowerCase()}`);
 const isRecord = (value: unknown): value is Record<string, unknown> =>

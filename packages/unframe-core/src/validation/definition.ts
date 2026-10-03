@@ -1,4 +1,4 @@
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { parsePresentationDefinitionInput } from "./contract-input.js";
@@ -67,7 +67,7 @@ const validateCanonicalQuaternion = (
 export const validatePresentationDefinition = (
   input: unknown,
   options: { fullDelivery?: boolean } = {},
-): ValidationResult<PresentationDefinitionV2> => {
+): ValidationResult<PresentationDefinition> => {
   const parsed = parsePresentationDefinitionInput(input);
   if (!parsed.success)
     return {

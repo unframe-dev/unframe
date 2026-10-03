@@ -15,7 +15,7 @@ import {
   hashDependencyGraph,
   hashLockedPackageContent,
   hashPackageLocator,
-} from "../src/filesystem/lock-v2.js";
+} from "../src/filesystem/lock.js";
 import { lockedFile } from "../src/filesystem/package-snapshot.js";
 
 const temporary: string[] = [];

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Unframe.Presentation.V2;
+using Unframe.Presentation;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -259,12 +259,12 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private static UnityEngine.Vector3 ToUnityVector(Unframe.Presentation.V2.Vector3 value)
+        private static UnityEngine.Vector3 ToUnityVector(Unframe.Presentation.Vector3 value)
         {
             return new UnityEngine.Vector3((float)value.X, (float)value.Y, (float)value.Z);
         }
 
-        private static UnityEngine.Quaternion ToUnityQuaternion(Unframe.Presentation.V2.Quaternion value)
+        private static UnityEngine.Quaternion ToUnityQuaternion(Unframe.Presentation.Quaternion value)
         {
             return new UnityEngine.Quaternion((float)value.X, (float)value.Y, (float)value.Z, (float)value.W);
         }

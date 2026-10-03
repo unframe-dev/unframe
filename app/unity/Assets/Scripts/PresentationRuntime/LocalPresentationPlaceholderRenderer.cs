@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -71,7 +71,7 @@ namespace Unframe.Unity.PresentationRuntime
                     visible = previousRenderer.enabled;
                     opacity = GetRendererOpacity(previousRenderer);
                 }
-                else if (store.TryGetNodeState(entry.Key, out Unframe.Realtime.V2.NodeRuntimeState state))
+                else if (store.TryGetNodeState(entry.Key, out Unframe.Realtime.NodeRuntimeState state))
                 {
                     visible = state.Visible;
                     opacity = (float)state.Opacity;
@@ -180,7 +180,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (store.TryGetNode(surface.HostNodeId, out ProjectedNodeDefinition node)
                     && node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Surface
                     && node.Surface.SemanticSurfaceId == semanticSurfaceId
-                    && store.TryGetSurfaceState(surface.SurfaceId, out Unframe.Realtime.V2.SurfaceRuntimeState state))
+                    && store.TryGetSurfaceState(surface.SurfaceId, out Unframe.Realtime.SurfaceRuntimeState state))
                 {
                     return state.StateId;
                 }

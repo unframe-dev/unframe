@@ -129,7 +129,7 @@ PR 内の掲載順で識別する。全項目を対象とし、コードの存�
 
 ## 検証とレビューの進め方
 
-各工程で対象テストの Red → Green → Refactor を行う。例：`pnpm --filter @unframe/unframe-compiler test test/extract-react-components.test.ts`、CLI の `test/react-project.test.ts`、Core の `test/publication-integrity-v2.test.ts`。実行時には変更範囲に合わせ package scripts を確認する。
+各工程で対象テストの Red → Green → Refactor を行う。例：`pnpm --filter @unframe/unframe-compiler test test/extract-react-components.test.ts`、CLI の `test/react-project.test.ts`、Core の `test/publication-integrity.test.ts`。実行時には変更範囲に合わせ package scripts を確認する。
 
 Browser integration は Renderer Web の通常 test から除外されているため、`scripts/dev/test-presentation-browser.sh` と追加する Opaque integration 経路を明示的に実行する。Structured reference の反復 build は `scripts/ci/presentation.sh` にある。通常 unit test の成功を Browser 隔離成功の代用にしない。
 

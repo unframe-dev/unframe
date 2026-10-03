@@ -67,7 +67,7 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 
 `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、
 `canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、
-`hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation/v2`のZod schemaから
+`hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation`のZod schemaから
 推論した型を正本とし、Core内でserialized modelを再定義しない。v1入力の受理・変換経路は持たない。
 
 `createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
@@ -147,14 +147,14 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 10. v2 公開物の整合性検証
 
-`verifyBuildIntegrityV2` は、公開前の `definition`、`renderBundle`、`assetSet`、
-`buildManifest` を受け取り、`ValidationResult<BuildArtifactsV2>` を返す。
+`verifyBuildIntegrity` は、公開前の `definition`、`renderBundle`、`assetSet`、
+`buildManifest` を受け取り、`ValidationResult<BuildArtifacts>` を返す。
 公開 epoch や `publishedPresentation` は要求せず、入力に含まれる場合は拒否する。
 素材参照・descriptor・モデル参照・成果物 hash・presentation ID の検証を公開物の入口と共有する。
 
-`verifyPublicationIntegrityV2` は、`definition`、`renderBundle`、`assetSet`、`buildManifest`、
-`publishedPresentation` をまとめて受け取り、`ValidationResult<PublicationArtifactsV2>` を返す。
-型は `@unframe/contracts/presentation/v2` を正本とする。
+`verifyPublicationIntegrity` は、`definition`、`renderBundle`、`assetSet`、`buildManifest`、
+`publishedPresentation` をまとめて受け取り、`ValidationResult<PublicationArtifacts>` を返す。
+型は `@unframe/contracts/presentation` を正本とする。
 
 この入口は安全な plain JSON snapshot、v2 構造、素材の参照集合と descriptor、モデル・clip 参照、
 成果物間の hash と公開 manifest の一致を検証する。入力を変更せず、JCS hash では配列順を保持する。

@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import protobuf from "protobufjs/light";
 
-import descriptor from "../presentation/v2/wire-descriptor.json";
+import descriptor from "../presentation/wire-descriptor.json";
 import { formatGenerated } from "./format-generated";
 
 const root = protobuf.Root.fromJSON(descriptor as protobuf.INamespace);
@@ -55,7 +55,7 @@ for (const type of messages.sort((a, b) => a.fullName.localeCompare(b.fullName, 
     });
     if (
       (oneof.name.startsWith("_") && selected.length === 1) ||
-      (type.fullName === ".unframe.realtime.v2.CommandAccepted" && oneof.name === "cueEvaluation")
+      (type.fullName === ".unframe.realtime.CommandAccepted" && oneof.name === "cueEvaluation")
     ) {
       variants.push(`{ ${selected.map((field) => `${field.name}?: never`).join("; ")} }`);
     }
@@ -68,7 +68,7 @@ for (const type of messages.sort((a, b) => a.fullName.localeCompare(b.fullName, 
   }
   lines.push("");
 }
-const destination = resolve(import.meta.dirname, "../presentation/v2/wire-types.d.ts");
+const destination = resolve(import.meta.dirname, "../presentation/wire-types.d.ts");
 const content = formatGenerated(destination, `${lines.join("\n")}\n`);
 if (process.argv.includes("--check")) {
   if ((await readFile(destination, "utf8")) !== content) {

@@ -1,9 +1,9 @@
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
 import type { Diagnostic } from "../domain/model.js";
 import { diagnostic, pathSegment } from "./shared.js";
 
-type Cue = PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["cues"][number];
+type Cue = PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];
 type Value = Extract<Cue["actions"][number], { kind: "variable.set" }>["value"];
 type Owner = { kind: "presentation" } | { kind: "group"; groupId: string };
 const scalarType = (value: null | boolean | number | string) =>
@@ -12,7 +12,7 @@ const accessible = (owner: Owner, groupId: string) =>
   owner.kind === "presentation" || owner.groupId === groupId;
 
 export const validateCueInvariants = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   diagnostics: Diagnostic[],
   options: { fullDelivery?: boolean } = {},
 ) => {

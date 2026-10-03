@@ -1,8 +1,8 @@
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -104,11 +104,11 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         Assert.That(store.TryGetNodeState(previous.NodeId, out NodeRuntimeState before), Is.True);
 
         NodeRuntimeState invalidState = before.Clone();
-        invalidState.Transform = new Unframe.Presentation.V2.Transform
+        invalidState.Transform = new Unframe.Presentation.Transform
         {
-            Position = new Unframe.Presentation.V2.Vector3(),
-            Rotation = new Unframe.Presentation.V2.Quaternion(),
-            Scale = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 },
+            Position = new Unframe.Presentation.Vector3(),
+            Rotation = new Unframe.Presentation.Quaternion(),
+            Scale = new Unframe.Presentation.Vector3 { X = 1, Y = 1, Z = 1 },
         };
         ControlServerItem item = new ControlServerItem
         {
