@@ -27,20 +27,6 @@ trap 'rm -rf -- "${temporary_root}"' EXIT
 generate() {
   local destination="$1"
   protoc --proto_path="${CONTRACTS_DIR}/proto" --csharp_out="${destination}" "${proto_files[@]}"
-  dotnet restore "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --verbosity quiet
-  local nuget_root grpc_platform grpc_plugin
-  nuget_root="$(dotnet nuget locals global-packages --list | sed 's/^global-packages: //')"
-  case "$(uname -s)-$(uname -m)" in
-    Linux-x86_64) grpc_platform=linux_x64 ;;
-    Linux-aarch64) grpc_platform=linux_arm64 ;;
-    Darwin-x86_64) grpc_platform=macosx_x64 ;;
-    Darwin-arm64) grpc_platform=macosx_arm64 ;;
-    *) echo "unsupported Grpc.Tools platform" >&2; return 1 ;;
-  esac
-  grpc_plugin="${nuget_root}/grpc.tools/2.76.0/tools/${grpc_platform}/grpc_csharp_plugin"
-  test -x "${grpc_plugin}"
-  protoc --proto_path="${CONTRACTS_DIR}/proto" "--plugin=protoc-gen-grpc=${grpc_plugin}" \
-    --grpc_out="${destination}" unframe/realtime/realtime.proto
 }
 
 list_files() {

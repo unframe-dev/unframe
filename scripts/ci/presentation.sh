@@ -62,6 +62,7 @@ case "${mode}" in
     "${REPO_ROOT}/scripts/contracts/generate-consumers.sh" check
     "${REPO_ROOT}/scripts/contracts/check-breaking.sh" check
     "${REPO_ROOT}/scripts/contracts/test-breaking.sh"
+    bash "${REPO_ROOT}/scripts/contracts/test-unity-proto.sh"
     dotnet build "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --no-restore --verbosity quiet
     dotnet build "${REPO_ROOT}/packages/api-client-csharp/Generated/ControlPlane/Unframe.ControlPlane.csproj" --verbosity quiet
     dotnet run --project "${REPO_ROOT}/packages/api-client-csharp/Conformance/Unframe.Wire.Conformance.csproj" -- \
