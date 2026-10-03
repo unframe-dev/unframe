@@ -342,7 +342,7 @@ func (v *BearerTokenVerifier) validateClaims(claimsJSON []byte) (session.Identit
 	epoch, epochOK := requiredPositiveUint64(claims, "assignment_epoch")
 	revision, revisionOK := requiredPositiveUint64(claims, "presentation_revision")
 	protocolVersion, protocolOK := requiredPositiveUint64(claims, "protocol_version")
-	protocolOK = protocolOK && (protocolVersion == 1 || protocolVersion == currentProtocolVersion)
+	protocolOK = protocolOK && protocolVersion == currentProtocolVersion
 	expiresAt, expiresOK := requiredUnixTime(claims, "exp")
 	notBefore, notBeforeOK := requiredUnixTime(claims, "nbf")
 	scopes, scopesOK := parseScopes(claims["scope"])

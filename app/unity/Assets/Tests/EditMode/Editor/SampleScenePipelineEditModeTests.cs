@@ -16,10 +16,7 @@ public sealed class SampleScenePipelineEditModeTests
             LocalPresentationFixtureRunner runner = null;
             foreach (GameObject root in scene.GetRootGameObjects())
             {
-                Assert.That(root.GetComponentInChildren<PresentationSourceRunner>(true), Is.Null);
-                Assert.That(root.GetComponentInChildren<PresentationJsonImporter>(true), Is.Null);
-                Assert.That(root.GetComponentInChildren<PresentationRuntimeSession>(true), Is.Null);
-                Assert.That(root.GetComponentInChildren<PresentationInputBridge>(true), Is.Null);
+                Assert.That(root.GetComponentsInChildren<MonoBehaviour>(true), Has.None.Null);
                 LocalPresentationFixtureRunner candidate = root.GetComponentInChildren<LocalPresentationFixtureRunner>(true);
                 if (candidate != null)
                 {

@@ -22,7 +22,6 @@ const (
 )
 
 var (
-	ErrBufferFull      = errors.New("persistence callback buffer is full")
 	ErrInvalidConfig   = errors.New("invalid persistence callback client configuration")
 	ErrInvalidCallback = errors.New("invalid persistence callback")
 )
@@ -66,12 +65,6 @@ type Completion struct {
 // Result reports whether the Control Plane applied a callback.
 type Result struct {
 	Applied bool `json:"applied"`
-}
-
-// CallbackClient is the persistence boundary used by runtime session code.
-type CallbackClient interface {
-	Checkpoint(context.Context, Checkpoint) (Result, error)
-	Complete(context.Context, Completion) (Result, error)
 }
 
 // Config controls the Control Plane HTTP client. AllowInsecureLoopback is only
@@ -310,65 +303,5 @@ func wait(ctx context.Context, delay time.Duration) error {
 		return ctx.Err()
 	case <-timer.C:
 		return nil
-	}
-}
-
-// Buffer is a bounded asynchronous callback queue for runtime hot paths.
-type Buffer struct {
-	client CallbackClient
-	jobs   chan callbackJob
-}
-
-type callbackJob struct {
-	checkpoint *Checkpoint
-	completion *Completion
-}
-
-func NewBuffer(client CallbackClient, capacity int) *Buffer {
-	if capacity < 1 {
-		capacity = 1
-	}
-	return &Buffer{client: client, jobs: make(chan callbackJob, capacity)}
-}
-
-func (b *Buffer) EnqueueCheckpoint(ctx context.Context, value Checkpoint) error {
-	return b.enqueue(ctx, callbackJob{checkpoint: &value})
-}
-
-func (b *Buffer) EnqueueCompletion(ctx context.Context, value Completion) error {
-	return b.enqueue(ctx, callbackJob{completion: &value})
-}
-
-func (b *Buffer) enqueue(ctx context.Context, job callbackJob) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-	select {
-	case b.jobs <- job:
-		return nil
-	default:
-		return ErrBufferFull
-	}
-}
-
-// Run delivers queued callbacks until cancellation or the first delivery error.
-func (b *Buffer) Run(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case job := <-b.jobs:
-			var err error
-			if job.checkpoint != nil {
-				_, err = b.client.Checkpoint(ctx, *job.checkpoint)
-			} else {
-				_, err = b.client.Complete(ctx, *job.completion)
-			}
-			if err != nil {
-				return err
-			}
-		}
 	}
 }

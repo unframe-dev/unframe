@@ -248,25 +248,16 @@ namespace Unframe.Unity.PresentationRuntime
                     PresentationVisualOpacity.Apply(track.Target, Mathf.Lerp((float)before.Number.Value, (float)after.Number.Value, progress));
                     break;
                 case TimelineProperty.TransformPosition:
-                    track.Target.transform.localPosition = UnityEngine.Vector3.Lerp(ToUnityVector(before.Vector3.Value), ToUnityVector(after.Vector3.Value), progress);
+                    track.Target.transform.localPosition = UnityEngine.Vector3.Lerp(PresentationUnityCoordinates.Position(before.Vector3.Value), PresentationUnityCoordinates.Position(after.Vector3.Value), progress);
                     break;
                 case TimelineProperty.TransformScale:
-                    track.Target.transform.localScale = UnityEngine.Vector3.Lerp(ToUnityVector(before.Vector3.Value), ToUnityVector(after.Vector3.Value), progress);
+                    track.Target.transform.localScale = UnityEngine.Vector3.Lerp(PresentationUnityCoordinates.Scale(before.Vector3.Value), PresentationUnityCoordinates.Scale(after.Vector3.Value), progress);
                     break;
                 case TimelineProperty.TransformRotation:
-                    track.Target.transform.localRotation = UnityEngine.Quaternion.Slerp(ToUnityQuaternion(before.Quaternion.Value), ToUnityQuaternion(after.Quaternion.Value), progress);
+                    track.Target.transform.localRotation = UnityEngine.Quaternion.Slerp(PresentationUnityCoordinates.Rotation(before.Quaternion.Value), PresentationUnityCoordinates.Rotation(after.Quaternion.Value), progress);
                     break;
             }
         }
 
-        private static UnityEngine.Vector3 ToUnityVector(Unframe.Presentation.V2.Vector3 value)
-        {
-            return new UnityEngine.Vector3((float)value.X, (float)value.Y, (float)value.Z);
-        }
-
-        private static UnityEngine.Quaternion ToUnityQuaternion(Unframe.Presentation.V2.Quaternion value)
-        {
-            return new UnityEngine.Quaternion((float)value.X, (float)value.Y, (float)value.Z, (float)value.W);
-        }
     }
 }

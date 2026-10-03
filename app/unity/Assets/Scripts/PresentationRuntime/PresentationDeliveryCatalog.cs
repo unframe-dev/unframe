@@ -92,7 +92,7 @@ namespace Unframe.Unity.PresentationRuntime
             ContractVersions versions = capability.ContractVersions;
             if (capability.SchemaVersion != DeliverySchemaVersion || !IsId(capability.CapabilityProfileId) || versions == null
                 || versions.Delivery != DeliveryContractVersion || versions.Runtime != RuntimeCatalogContractVersion
-                || versions.Progression == 0 || versions.Projection == 0)
+                || versions.Progression != 1 || versions.Projection != 1)
             {
                 return Fail("delivery capability profile is incompatible.", out error);
             }
@@ -113,7 +113,7 @@ namespace Unframe.Unity.PresentationRuntime
             HashSet<RuntimeCapability> requiredCapabilities = new HashSet<RuntimeCapability>();
             foreach (RuntimeCapability required in profile.RequiredRuntimeCapabilities)
             {
-                if (required != RuntimeCapability.TimelineRunV2 || !requiredCapabilities.Add(required))
+                if (required != RuntimeCapability.TimelineRunV2 && required != RuntimeCapability.RuntimeTransportV2 && required != RuntimeCapability.SurfaceTransitionV2 || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);
                 }
@@ -183,6 +183,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             if (!TryValidateRenderGraph(profile, capability, next.Surfaces, next.Assets, out error)) return false;
+            if (!PresentationBakedDeliveryValidation.TryValidate(manifest, out error)) return false;
 
             foreach (ProjectedTimelineDefinition timeline in catalog.Timelines)
             {
@@ -232,21 +233,24 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!TryAdd(renderSurfaces, render == null ? null : render.RenderSurfaceId, render, "render surface", out error)) return false;
                 if (!IsId(render.SemanticSurfaceId) || !semanticSurfaces.ContainsKey(render.SemanticSurfaceId))
                     return Fail("delivery render surface references an unknown semantic surface.", out error);
-                if (render.RendererKind != RendererKind.NativeUi || render.ArtifactContractVersion == 0
-                    || capability.Renderers == null || capability.Renderers.NativeUi == null
-                    || !capability.Renderers.NativeUi.Supported
-                    || capability.Renderers.NativeUi.ContractVersion != render.ArtifactContractVersion)
+                bool baked = render.RendererKind == RendererKind.BakedWeb;
+                if (render.ArtifactContractVersion == 0 || capability.Renderers == null
+                    || (baked ? capability.Renderers.BakedWeb == null || !capability.Renderers.BakedWeb.Supported
+                        || capability.Renderers.BakedWeb.ContractVersion != render.ArtifactContractVersion
+                        : render.RendererKind != RendererKind.NativeUi || capability.Renderers.NativeUi == null
+                            || !capability.Renderers.NativeUi.Supported || capability.Renderers.NativeUi.ContractVersion != render.ArtifactContractVersion))
                     return Fail("delivery renderer capability is unsupported.", out error);
 
                 ProjectedSurfaceDefinition catalogSurface = surfaces[render.SemanticSurfaceId];
                 Dictionary<string, DeliveredArtifact> artifacts = new Dictionary<string, DeliveredArtifact>();
                 foreach (DeliveredArtifact artifact in render.Artifacts)
                 {
-                    if (artifact == null || artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.NativeUi
-                        || artifact.NativeUi.ContractVersion != render.ArtifactContractVersion)
+                    if (artifact == null || (baked ? artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.BakedWeb
+                        || artifact.BakedWeb.ContractVersion != render.ArtifactContractVersion
+                        : artifact.ArtifactCase != DeliveredArtifact.ArtifactOneofCase.NativeUi || artifact.NativeUi.ContractVersion != render.ArtifactContractVersion))
                         return Fail("delivery artifact kind or version is incompatible.", out error);
-                    if (!TryAdd(artifacts, artifact.NativeUi.ArtifactId, artifact, "artifact", out error)) return false;
-                    if (!TryValidateNativeUiArtifact(artifact.NativeUi, assets, out error)) return false;
+                    if (!TryAdd(artifacts, baked ? artifact.BakedWeb.ArtifactId : artifact.NativeUi.ArtifactId, artifact, "artifact", out error)) return false;
+                    if (!baked && !TryValidateNativeUiArtifact(artifact.NativeUi, assets, out error)) return false;
                 }
 
                 HashSet<string> boundStates = new HashSet<string>();
@@ -325,7 +329,7 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        private static bool IsContentHash(string value)
+        internal static bool IsContentHash(string value)
         {
             if (value == null || value.Length != 71 || !value.StartsWith("sha256:", StringComparison.Ordinal)) return false;
             for (int index = 7; index < value.Length; index++)
@@ -430,28 +434,42 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (property == TimelineProperty.Opacity && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Number)
             {
-                return IsFinite(keyframe.Number.Value);
+                return IsCanonicalFinite(keyframe.Number.Value) && keyframe.Number.Value >= 0 && keyframe.Number.Value <= 1;
             }
 
             if ((property == TimelineProperty.TransformPosition || property == TimelineProperty.TransformScale)
                 && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Vector3 && keyframe.Vector3.Value != null)
             {
                 Vector3 value = keyframe.Vector3.Value;
-                return IsFinite(value.X) && IsFinite(value.Y) && IsFinite(value.Z);
+                return IsCanonicalFinite(value.X) && IsCanonicalFinite(value.Y) && IsCanonicalFinite(value.Z)
+                    && (property == TimelineProperty.TransformPosition
+                        ? PresentationUnityCoordinates.IsRenderable(value)
+                        : PresentationUnityCoordinates.IsRenderableScale(value))
+                    && (property != TimelineProperty.TransformScale || value.X > 0 && value.Y > 0 && value.Z > 0);
             }
 
             if (property == TimelineProperty.TransformRotation
                 && keyframe.ValueCase == TimelineKeyframe.ValueOneofCase.Quaternion && keyframe.Quaternion.Value != null)
             {
                 Quaternion value = keyframe.Quaternion.Value;
-                return IsFinite(value.X) && IsFinite(value.Y) && IsFinite(value.Z) && IsFinite(value.W)
-                    && (value.X != 0 || value.Y != 0 || value.Z != 0 || value.W != 0);
+                return IsCanonicalUnitQuaternion(value);
             }
 
             return false;
         }
 
         internal static bool IsFinite(double value) { return !Double.IsNaN(value) && !Double.IsInfinity(value); }
+
+        internal static bool IsCanonicalFinite(double value) { return IsFinite(value) && (value != 0 || BitConverter.DoubleToInt64Bits(value) == 0); }
+
+        internal static bool IsCanonicalUnitQuaternion(Quaternion value)
+        {
+            if (value == null || !IsCanonicalFinite(value.X) || !IsCanonicalFinite(value.Y)
+                || !IsCanonicalFinite(value.Z) || !IsCanonicalFinite(value.W)) return false;
+            double length = Math.Sqrt(value.X * value.X + value.Y * value.Y + value.Z * value.Z + value.W * value.W);
+            return Math.Abs(length - 1) <= 1e-9
+                && (value.W != 0 ? value.W > 0 : value.X != 0 ? value.X > 0 : value.Y != 0 ? value.Y > 0 : value.Z > 0);
+        }
 
         private static bool IsSupportedEasing(Easing easing) { return easing == Easing.Linear || easing == Easing.CubicIn || easing == Easing.CubicOut || easing == Easing.CubicInOut; }
 

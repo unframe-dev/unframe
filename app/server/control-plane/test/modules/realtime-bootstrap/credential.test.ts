@@ -23,6 +23,29 @@ const generatePrivateJwk = async () => {
 };
 
 describe("RealtimeBootstrapCredentials", () => {
+  it("rejects an explicitly requested protocol v1 credential", async () => {
+    const credentials = new RealtimeBootstrapCredentials(await generatePrivateJwk(), {
+      issuer: "https://control-plane.example.com",
+      keyId: "v2",
+      audience: "runtime",
+      now: () => 1_700_000_000,
+    });
+    await expect(
+      credentials.issue({
+        sessionId: "session-2",
+        userId: "user-2",
+        role: "viewer",
+        runtimeId: "runtime-2",
+        runtimeKind: "Cloud",
+        assignmentEpoch: 1,
+        presentationId: "presentation-2",
+        presentationRevision: 1,
+        scopes: ["realtime:connect"],
+        expiresAt: 1_700_000_300,
+        protocolVersion: 1 as unknown as 2,
+      }),
+    ).rejects.toThrow();
+  });
   it("marks a publication-backed credential as protocol v2", async () => {
     const credentials = new RealtimeBootstrapCredentials(await generatePrivateJwk(), {
       issuer: "https://control-plane.example.com",
@@ -103,7 +126,7 @@ describe("RealtimeBootstrapCredentials", () => {
       nbf: 1_699_999_970,
       exp: 1_700_000_300,
       jti: "credential-id",
-      protocol_version: 1,
+      protocol_version: 2,
     });
     expect(expiresAt).toBe(1_700_000_300_000);
 

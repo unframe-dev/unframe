@@ -5,13 +5,11 @@ import (
 	"errors"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
 
 var ErrInvalidDependencies = errors.New("runtime core dependencies are invalid")
 
 type Core struct {
-	coordinator *session.Coordinator
 	assignments *assignment.AssignmentGuard
 }
 
@@ -20,13 +18,8 @@ func New(assignments *assignment.AssignmentGuard) (*Core, error) {
 		return nil, ErrInvalidDependencies
 	}
 	return &Core{
-		coordinator: session.NewCoordinator(),
 		assignments: assignments,
 	}, nil
-}
-
-func (c *Core) Coordinator() *session.Coordinator {
-	return c.coordinator
 }
 
 func (c *Core) Assignments() *assignment.AssignmentGuard {

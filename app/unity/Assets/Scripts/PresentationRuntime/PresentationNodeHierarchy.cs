@@ -30,6 +30,13 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
+        public void ApplyOrigin(Unframe.Realtime.V2.PresentationOrigin origin)
+        {
+            if (generatedRoot == null || origin?.Pose == null) return;
+            generatedRoot.localPosition = PresentationUnityCoordinates.Position(origin.Pose.Position);
+            generatedRoot.localRotation = PresentationUnityCoordinates.Rotation(origin.Pose.Rotation);
+        }
+
         public void Clear()
         {
             DestroyRoot(generatedRoot);
