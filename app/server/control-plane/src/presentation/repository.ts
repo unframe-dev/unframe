@@ -125,6 +125,10 @@ export class D1PresentationRepository implements PresentationRepository {
                 AND assets.status = 'ready'
               WHERE assets.id IS NULL
             )
+            AND NOT EXISTS (
+              SELECT 1 FROM presentation_sessions
+              WHERE presentation_id = ? AND state != 'Ended'
+            )
           RETURNING id
         `,
       )
@@ -134,6 +138,7 @@ export class D1PresentationRepository implements PresentationRepository {
         id,
         expectedRevision,
         JSON.stringify(definition),
+        id,
         id,
       )
       .all<{ id: string }>();
@@ -152,9 +157,13 @@ export class D1PresentationRepository implements PresentationRepository {
               FROM assets
               WHERE presentation_id = ?
             )
+            AND NOT EXISTS (
+              SELECT 1 FROM presentation_sessions
+              WHERE presentation_id = ? AND state != 'Ended'
+            )
         `,
       )
-      .bind(id, expectedRevision, id)
+      .bind(id, expectedRevision, id, id)
       .run();
     return result.meta.changes === 1;
   }

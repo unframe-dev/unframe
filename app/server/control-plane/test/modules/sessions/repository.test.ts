@@ -20,6 +20,42 @@ const addPresentation = async (id: string, ownerId: string) => {
 };
 
 describe("D1SessionRepository", () => {
+  it("pins the latest publication epoch when creating a session", async () => {
+    const suffix = crypto.randomUUID();
+    const ownerId = `owner-${suffix}`;
+    const presentationId = `presentation-${suffix}`;
+    const sessionId = `session-${suffix}`;
+    await addUser(ownerId);
+    await addPresentation(presentationId, ownerId);
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES (?, ?, 1, '{}', '2026')",
+      ).bind(presentationId, `build-${suffix}`),
+      env.DB.prepare(
+        "INSERT INTO presentation_publications (presentation_id, epoch, build_id, manifest, published_at) VALUES (?, 1, ?, '{}', '2026')",
+      ).bind(presentationId, `build-${suffix}`),
+    ]);
+    await new D1SessionRepository(env.DB).create(
+      {
+        id: sessionId,
+        presentationId,
+        presenterId: ownerId,
+        joinCodeHash: `hash-${suffix}`,
+        state: "Waiting",
+        participantCount: 1,
+        maxParticipants: 50,
+        createdAt: "2026",
+        endedAt: null,
+      },
+      { sessionId, userId: ownerId, role: "presenter", joinedAt: "2026" },
+    );
+    const pinned = await env.DB.prepare(
+      "SELECT publication_epoch AS epoch FROM presentation_sessions WHERE id = ?",
+    )
+      .bind(sessionId)
+      .first<{ epoch: number }>();
+    expect(pinned?.epoch).toBe(1);
+  });
   it("persists only a join-code hash and its presenter participant", async () => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-${suffix}`;

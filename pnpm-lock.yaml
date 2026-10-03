@@ -236,6 +236,12 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.5.2
         version: 1.6.1(hono@4.13.4)(zod@4.4.3)
+      '@unframe/contracts':
+        specifier: workspace:*
+        version: link:../../../packages/contracts
+      '@unframe/unframe-core':
+        specifier: workspace:*
+        version: link:../../../packages/unframe-core
       aws4fetch:
         specifier: 1.0.20
         version: 1.0.20
@@ -300,6 +306,9 @@ importers:
       '@unframe/api-client-typescript':
         specifier: workspace:*
         version: link:../../packages/api-client-typescript
+      '@unframe/unframe-cli':
+        specifier: workspace:*
+        version: link:../../packages/unframe-cli
       '@unframe/unframe-core':
         specifier: workspace:*
         version: link:../../packages/unframe-core

@@ -2,6 +2,7 @@
   "extends": "../../../packages/config/tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false,
     "types": ["@cloudflare/workers-types"]
   },
   "include": ["src", "vitest.config.ts", "vitest.startup.config.ts"]

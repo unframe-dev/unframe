@@ -15,6 +15,7 @@ describe("Control Plane OpenAPI", () => {
               route.path.startsWith("/sessions") ||
               route.path.startsWith("/venue-edges") ||
               route.path.startsWith("/callbacks") ||
+              route.path.startsWith("/internal/runtime") ||
               route.path === "/.well-known/jwks.json"),
         )
         .map((route) => `${route.method.toLowerCase()} ${normalizePath(route.path)}`),

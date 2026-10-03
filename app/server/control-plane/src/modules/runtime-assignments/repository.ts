@@ -48,7 +48,7 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
   async assign(input: AssignmentRequest) {
     const result = await this.database
       .prepare(
-        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(epoch) + 1 FROM runtime_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND ((? = 'Cloud' AND ? IS NULL AND ? IS NULL) OR (? = 'VenueEdge' AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND runtime_id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND last_seen_at >= ? AND capacity > 0 AND local_endpoint = ? AND certificate_fingerprint = ?))) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE runtime_id = ? AND released_at IS NULL AND lease_expires_at > ?) RETURNING session_id AS sessionId, runtime_id AS runtimeId, runtime_kind AS runtimeKind, endpoint, certificate_fingerprint AS certificateFingerprint, provisioning_edge_id AS provisioningEdgeId, epoch AS assignmentEpoch, revision AS presentationRevision, issued_at AS issuedAt, lease_expires_at AS leaseExpiresAt, released_at AS releasedAt",
+        "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at, released_at) SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(epoch) + 1 FROM runtime_assignments WHERE session_id = ?), 1), ?, ?, ?, NULL WHERE EXISTS (SELECT 1 FROM presentation_sessions AS session JOIN presentations AS presentation ON presentation.id = session.presentation_id WHERE session.id = ? AND session.state != 'Ended' AND presentation.revision = ?) AND ((? = 'Cloud' AND ? IS NULL AND ? IS NULL) OR (? = 'VenueEdge' AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND runtime_id = ? AND status = 'active' AND protocol_version = (SELECT CASE WHEN publication_epoch IS NULL THEN 'v1' ELSE 'v2' END FROM presentation_sessions WHERE id = ?) AND health = 'healthy' AND registered_at IS NOT NULL AND last_seen_at >= ? AND capacity > 0 AND local_endpoint = ? AND certificate_fingerprint = ?))) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE session_id = ? AND released_at IS NULL AND lease_expires_at > ?) AND NOT EXISTS (SELECT 1 FROM runtime_assignments WHERE runtime_id = ? AND released_at IS NULL AND lease_expires_at > ?) RETURNING session_id AS sessionId, runtime_id AS runtimeId, runtime_kind AS runtimeKind, endpoint, certificate_fingerprint AS certificateFingerprint, provisioning_edge_id AS provisioningEdgeId, epoch AS assignmentEpoch, revision AS presentationRevision, issued_at AS issuedAt, lease_expires_at AS leaseExpiresAt, released_at AS releasedAt",
       )
       .bind(
         input.sessionId,
@@ -69,6 +69,7 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
         input.runtimeKind,
         input.provisioningEdgeId,
         input.runtimeId,
+        input.sessionId,
         input.edgeHealthyAfter,
         input.endpoint,
         input.certificateFingerprint,
@@ -84,7 +85,7 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
     return (
       (await this.database
         .prepare(
-          "SELECT assignment.session_id AS sessionId, assignment.runtime_id AS runtimeId, assignment.runtime_kind AS runtimeKind, assignment.endpoint, assignment.certificate_fingerprint AS certificateFingerprint, assignment.provisioning_edge_id AS provisioningEdgeId, assignment.epoch AS assignmentEpoch, assignment.revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt FROM runtime_assignments AS assignment JOIN presentation_sessions AS session ON session.id = assignment.session_id LEFT JOIN venue_edges AS edge ON edge.id = assignment.provisioning_edge_id WHERE assignment.session_id = ? AND session.state != 'Ended' AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND ((assignment.runtime_kind = 'Cloud' AND assignment.provisioning_edge_id IS NULL) OR (assignment.runtime_kind = 'VenueEdge' AND edge.runtime_id = assignment.runtime_id AND edge.status = 'active' AND edge.protocol_version = 'v1' AND edge.health = 'healthy' AND edge.registered_at IS NOT NULL AND edge.last_seen_at >= ? AND edge.capacity > 0 AND edge.local_endpoint = assignment.endpoint AND edge.certificate_fingerprint = assignment.certificate_fingerprint)) ORDER BY assignment.epoch DESC LIMIT 1",
+          "SELECT assignment.session_id AS sessionId, assignment.runtime_id AS runtimeId, assignment.runtime_kind AS runtimeKind, assignment.endpoint, assignment.certificate_fingerprint AS certificateFingerprint, assignment.provisioning_edge_id AS provisioningEdgeId, assignment.epoch AS assignmentEpoch, assignment.revision AS presentationRevision, assignment.issued_at AS issuedAt, assignment.lease_expires_at AS leaseExpiresAt, assignment.released_at AS releasedAt FROM runtime_assignments AS assignment JOIN presentation_sessions AS session ON session.id = assignment.session_id LEFT JOIN venue_edges AS edge ON edge.id = assignment.provisioning_edge_id WHERE assignment.session_id = ? AND session.state != 'Ended' AND assignment.released_at IS NULL AND assignment.lease_expires_at > ? AND ((assignment.runtime_kind = 'Cloud' AND assignment.provisioning_edge_id IS NULL) OR (assignment.runtime_kind = 'VenueEdge' AND edge.runtime_id = assignment.runtime_id AND edge.status = 'active' AND edge.protocol_version = CASE WHEN session.publication_epoch IS NULL THEN 'v1' ELSE 'v2' END AND edge.health = 'healthy' AND edge.registered_at IS NOT NULL AND edge.last_seen_at >= ? AND edge.capacity > 0 AND edge.local_endpoint = assignment.endpoint AND edge.certificate_fingerprint = assignment.certificate_fingerprint)) ORDER BY assignment.epoch DESC LIMIT 1",
         )
         .bind(sessionId, now, edgeHealthyAfter)
         .first<RuntimeAssignment>()) ?? null
@@ -99,7 +100,7 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
   }: Required<LeaseRequest>) {
     const result = await this.database
       .prepare(
-        "UPDATE runtime_assignments SET lease_expires_at = ? WHERE session_id = ? AND runtime_kind = 'VenueEdge' AND provisioning_edge_id = ? AND epoch = ? AND released_at IS NULL AND lease_expires_at > ? AND lease_expires_at < ? AND EXISTS (SELECT 1 FROM presentation_sessions WHERE id = ? AND state != 'Ended') AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND runtime_id = runtime_assignments.runtime_id AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint = runtime_assignments.endpoint AND certificate_fingerprint = runtime_assignments.certificate_fingerprint)",
+        "UPDATE runtime_assignments SET lease_expires_at = ? WHERE session_id = ? AND runtime_kind = 'VenueEdge' AND provisioning_edge_id = ? AND epoch = ? AND released_at IS NULL AND lease_expires_at > ? AND lease_expires_at < ? AND EXISTS (SELECT 1 FROM presentation_sessions WHERE id = ? AND state != 'Ended') AND EXISTS (SELECT 1 FROM venue_edges WHERE id = ? AND runtime_id = runtime_assignments.runtime_id AND status = 'active' AND protocol_version = (SELECT CASE WHEN publication_epoch IS NULL THEN 'v1' ELSE 'v2' END FROM presentation_sessions WHERE id = ?) AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint = runtime_assignments.endpoint AND certificate_fingerprint = runtime_assignments.certificate_fingerprint)",
       )
       .bind(
         leaseExpiresAt,
@@ -110,6 +111,7 @@ export class D1RuntimeAssignmentRepository implements RuntimeAssignmentRepositor
         leaseExpiresAt,
         sessionId,
         provisioningEdgeId,
+        sessionId,
       )
       .run();
     return result.meta.changes === 1 ? this.byEpoch(sessionId, assignmentEpoch) : null;

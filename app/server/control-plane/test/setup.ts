@@ -9,6 +9,7 @@ import persistenceMigration from "../migrations/0007_realtime_persistence.sql?ra
 import venueEdgesMigration from "../migrations/0008_venue_edges.sql?raw";
 import runtimeAssignmentsMigration from "../migrations/0009_runtime_assignments.sql?raw";
 import authAccountIssuerMigration from "../migrations/0010_better_auth_account_issuer.sql?raw";
+import publicationMigration from "../migrations/0011_publications.sql?raw";
 
 const [assetTables, ...assetTriggers] = assetMigration.split("CREATE TRIGGER");
 
@@ -108,6 +109,13 @@ await applyD1Migrations(env.DB, [
   {
     name: "0010_better_auth_account_issuer.sql",
     queries: authAccountIssuerMigration
+      .split(";")
+      .map((query: string) => query.trim())
+      .filter(Boolean),
+  },
+  {
+    name: "0011_publications.sql",
+    queries: publicationMigration
       .split(";")
       .map((query: string) => query.trim())
       .filter(Boolean),
