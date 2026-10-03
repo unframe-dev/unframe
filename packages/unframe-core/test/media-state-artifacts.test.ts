@@ -272,6 +272,26 @@ describe("Video State publication admission", () => {
     ]);
   });
 
+  it("rejects a visible Media State with only empty bindings on an otherwise used RenderSurface", () => {
+    const { definition, renderBundle, surface } = fixture();
+    referenceMedia(definition);
+    definition.scene.surfaces.video.states.second = {
+      ...definition.scene.surfaces.video.states.default,
+      id: "second",
+    };
+    renderBundle.surfaces.video.semanticsByState.second = structuredClone(
+      renderBundle.surfaces.video.semanticsByState.default,
+    );
+    renderBundle.surfaces.video.interactionsByState.second = [];
+    surface.stateBindings.second = { kind: "empty" };
+
+    expect(artifactDiagnostics(validate(definition, renderBundle))).toEqual([
+      expect.objectContaining({
+        message: "Visible Media State requires a bound Video artifact candidate.",
+      }),
+    ]);
+  });
+
   it("does not require a Video candidate on a Surface without Media references", () => {
     const { definition, renderBundle, surface } = fixture();
     bindOnlyBakedArtifact(renderBundle, surface);

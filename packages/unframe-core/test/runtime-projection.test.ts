@@ -24,6 +24,80 @@ const definition = structuredClone(definitionFixture) as unknown as Presentation
 const snapshot = m3dCueRuntimeSnapshotSchema.parse(snapshotFixture);
 
 describe("M3D Runtime projection and canonical snapshot", () => {
+  it.each([false, true])("uses current State loop %s for an over-duration playback", (loop) => {
+    const currentDefinition = structuredClone(definition);
+    const surface = currentDefinition.scene.surfaces.video!;
+    surface.states.repeat = {
+      ...surface.states.default!,
+      id: "repeat",
+      contentOverrides: { video: { kind: "video", loop: true } },
+    };
+    const bundle = structuredClone(renderBundleFixture);
+    const render = bundle.surfaces.video.renderSurfaces["render-video"];
+    const base = render.artifacts["artifact-video"];
+    Object.assign(render.artifacts, {
+      "artifact-loop": { ...base, id: "artifact-loop", loop: true },
+    });
+    Object.assign(render.stateBindings, {
+      repeat: { kind: "artifacts", artifactIds: ["artifact-loop"] },
+    });
+    Object.assign(bundle.surfaces.video.semanticsByState, {
+      repeat: structuredClone(bundle.surfaces.video.semanticsByState.default),
+    });
+    Object.assign(bundle.surfaces.video.interactionsByState, { repeat: [] });
+    const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
+    full.surfaceStates.video = { stateId: loop ? "repeat" : "default" };
+    full.mediaStates = {
+      video: {
+        kind: "active",
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        playback: { kind: "paused", positionMilliseconds: 1001 },
+      },
+    };
+    full.modelClipStates = { model: { kind: "defaultPose" } };
+    full.lastAllocatedRunSequence = 1;
+    full.activeRuns = [
+      {
+        kind: "media",
+        surfaceId: "video",
+        completion: "nonBlocking",
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        playback: { kind: "paused", positionMilliseconds: 1001 },
+        owner: { kind: "presentation" },
+        startedAtRuntimeTimeMilliseconds: 0,
+        cause: {
+          cueId: "wave",
+          causeEventId: "event-1",
+          groupId: "intro",
+          groupEntryEpoch: 1,
+          stepId: "start",
+          stepEntryEpoch: 1,
+        },
+      },
+    ];
+
+    expect(validateCanonicalRuntimeSnapshot(currentDefinition, bundle as never, full, 1)).toEqual(
+      loop ? [] : ["mediaStates.video position exceeds duration."],
+    );
+  });
+
+  it.each([1500, 2001])(
+    "bounds stopped Video position %i by admitted artifact duration",
+    (heldPositionMilliseconds) => {
+      const bundle = structuredClone(renderBundleFixture);
+      bundle.surfaces.video.renderSurfaces["render-video"].artifacts[
+        "artifact-video"
+      ].durationMilliseconds = 2000;
+      const full = structuredClone(snapshot) as CanonicalRuntimeSnapshot;
+      full.mediaStates = { video: { kind: "stopped", heldPositionMilliseconds } };
+      full.modelClipStates = { model: { kind: "defaultPose" } };
+
+      expect(validateCanonicalRuntimeSnapshot(definition, bundle as never, full, 1)).toEqual(
+        heldPositionMilliseconds <= 2000 ? [] : ["mediaStates.video position exceeds duration."],
+      );
+    },
+  );
+
   it("requires all active Media and Model resources in a full snapshot", () => {
     expect(
       validateCanonicalRuntimeSnapshot(definition, renderBundleFixture as never, snapshot, 1),

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import {
   assetSetManifestSchema,
   capabilityProfileSchema,
@@ -58,6 +58,18 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it("rejects a hash-consistent publication whose compiled Surface size differs from its Definition", () => {
+    const input = baselineSource((current) => {
+      const surface = current.renderBundle.surfaces.baked;
+      assert.isDefined(surface);
+      surface.physicalSizeMeters = [3, 2];
+    });
+
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(
+      "Compiled surface sizes must match the Definition.",
+    );
+  });
+
   it("selects the first compatible candidate and only its transitive Asset closure", () => {
     const selection = selectDeliveryArtifacts(baselineSource(), "presenter");
     expect(selection.renderSurfaces.map((surface) => surface.states[0]?.artifact?.id)).toEqual([

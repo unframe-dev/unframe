@@ -5,8 +5,7 @@ import {
   type PublicationIntegrityInput,
 } from "../publication/integrity.js";
 import { snapshotPlainJson } from "../publication/plain-json.js";
-import { validatePresentationDefinition } from "../validation/definition.js";
-import { validateRenderBundle } from "../validation/render-bundle.js";
+import { validatePresentationArtifacts } from "../validation/artifacts.js";
 
 export type DeliverySourceInput = PublicationArtifacts & {
   capability: CapabilityProfile;
@@ -47,22 +46,18 @@ export const parseDeliveryInputs = (
     throw new Error(
       `Delivery publication is invalid: ${integrity.diagnostics.map((entry) => entry.message).join(" ")}`,
     );
-  const definition = validatePresentationDefinition(integrity.value.definition, {
-    fullDelivery: true,
-  });
-  if (!definition.valid)
+  const presentation = validatePresentationArtifacts(
+    integrity.value.definition,
+    integrity.value.renderBundle,
+    { fullDelivery: true },
+  );
+  if (!presentation.valid)
     throw new Error(
-      `Delivery Definition is invalid: ${definition.diagnostics.map((entry) => entry.message).join(" ")}`,
-    );
-  const renderBundle = validateRenderBundle(integrity.value.renderBundle, { fullDelivery: true });
-  if (!renderBundle.valid)
-    throw new Error(
-      `Delivery RenderBundle is invalid: ${renderBundle.diagnostics.map((entry) => entry.message).join(" ")}`,
+      `Delivery presentation artifacts are invalid: ${presentation.diagnostics.map((entry) => entry.message).join(" ")}`,
     );
   return {
     ...integrity.value,
-    definition: definition.value,
-    renderBundle: renderBundle.value,
+    ...presentation.value,
     capability: capabilityProfileSchema.parse(capability),
   };
 };

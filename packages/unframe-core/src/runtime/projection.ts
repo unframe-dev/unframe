@@ -446,20 +446,31 @@ export const validateCanonicalRuntimeSnapshot = (
       : clock.positionAtReferenceMilliseconds! +
         (runtimeTime - clock.referenceRuntimeTimeMilliseconds!) * speed;
   for (const [surfaceId, state] of Object.entries(snapshot.mediaStates)) {
-    const surface = definition.scene.surfaces[surfaceId];
-    const duration =
-      surface?.renderIntent.internalAnimation.kind === "precomputed-video"
-        ? surface.renderIntent.internalAnimation.durationMilliseconds
-        : undefined;
+    const renders = Object.values(renderBundle.surfaces[surfaceId]?.renderSurfaces ?? {});
+    const boundVideos = renders.flatMap((render) =>
+      Object.values(render.stateBindings).flatMap((binding) =>
+        binding.kind === "artifacts"
+          ? binding.artifactIds.flatMap((id) => {
+              const artifact = render.artifacts[id];
+              return artifact?.kind === "video" ? [artifact] : [];
+            })
+          : [],
+      ),
+    );
+    const duration = boundVideos[0]?.durationMilliseconds;
     if (duration === undefined) continue;
     const clock = state.kind === "active" ? state.playback : undefined;
     const held = state.kind === "stopped" ? state.heldPositionMilliseconds : undefined;
-    const hasLoop = Object.values(renderBundle.surfaces[surfaceId]?.renderSurfaces ?? {}).some(
-      (render) =>
-        Object.values(render.artifacts).some(
-          (artifact) => artifact.kind === "video" && artifact.loop,
-        ),
-    );
+    const hasLoop = renders.some((render) => {
+      const binding = render.stateBindings[snapshot.surfaceStates[surfaceId]?.stateId ?? ""];
+      return (
+        binding?.kind === "artifacts" &&
+        binding.artifactIds.some((id) => {
+          const artifact = render.artifacts[id];
+          return artifact?.kind === "video" && artifact.loop;
+        })
+      );
+    });
     const at = clock ? position(clock) : undefined;
     if (at !== undefined && !Number.isFinite(at))
       issues.push(`mediaStates.${surfaceId} computed position must be finite.`);
