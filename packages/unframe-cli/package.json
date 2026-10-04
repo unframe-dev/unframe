@@ -18,17 +18,17 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:tui"
   },
   "dependencies": {
-    "@opentui/core": "0.4.5",
-    "@opentui/keymap": "0.4.5",
-    "@opentui/solid": "0.4.5",
+    "@opentui/core": "0.5.14",
+    "@opentui/keymap": "0.5.14",
+    "@opentui/solid": "0.5.14",
     "@unframe/unframe-compiler": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-web": "workspace:*",
-    "solid-js": "1.9.12",
-    "typescript": "5.9.3",
-    "web-tree-sitter": "0.25.10",
-    "yaml": "2.9.0",
-    "zod": "4.4.3"
+    "solid-js": "1.9.15",
+    "typescript": "7.0.2",
+    "web-tree-sitter": "0.27.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@unframe/unframe-components": "workspace:*",

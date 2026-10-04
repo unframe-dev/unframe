@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
-    "@noble/hashes": "2.3.0",
+    "@noble/hashes": "2.4.0",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-api": "workspace:*",
-    "playwright-core": "1.62.1",
+    "playwright-core": "1.63.0",
     "pngjs": "7.0.0",
-    "rolldown": "1.1.5",
-    "zod": "4.4.3"
+    "rolldown": "1.2.12",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
