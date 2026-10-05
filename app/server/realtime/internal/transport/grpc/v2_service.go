@@ -313,6 +313,9 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		var err error
 		select {
 		case <-control.stateDetached:
+			if err := s.v2ControlClosed(control); err != nil {
+				return err
+			}
 			if err := issueNonce(); err != nil {
 				return err
 			}
@@ -657,7 +660,7 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 		return nil, status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
 	nowMs := uint64(time.Since(s.trackingStarted)/time.Millisecond) + 1
-	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: delivered, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: nowMs}
+	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: delivered, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeTimeMs: snapshot.Clock.RuntimeTimeMs, ProducedAtRuntimeMonotonicMs: nowMs}
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}
