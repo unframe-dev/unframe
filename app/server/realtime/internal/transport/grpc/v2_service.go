@@ -165,7 +165,11 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	faultGeneration := s.runtime.FaultGeneration()
 	snapshot, presence, events, unsubscribe := s.runtime.SnapshotPresenceAndSubscribe()
 	defer unsubscribe()
-	view, err := runtimecore.ProjectV2Snapshot(snapshot, profile, identity.AssignmentEpoch, nil)
+	var enabledLogicalInputs []string
+	if identity.Role == session.RolePresenter {
+		enabledLogicalInputs = s.runtime.EnabledLogicalInputs(snapshot)
+	}
+	view, err := runtimecore.ProjectV2Snapshot(snapshot, profile, identity.AssignmentEpoch, enabledLogicalInputs)
 	if err != nil {
 		return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
@@ -218,9 +222,9 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 		}
 		observed = event.Sequence
-		control.observedSequence.Store(observed)
 		projected, visible := runtimecore.ProjectV2ReliableEvent(event, profile)
 		if !visible {
+			control.observedSequence.Store(observed)
 			return nil
 		}
 		projected.Fence = proto.Clone(fence).(*presentationv2.RuntimeProjectionFence)
@@ -239,6 +243,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		lastVisible = event.Sequence
 		control.deliveredSequence.Store(lastVisible)
+		control.observedSequence.Store(observed)
 		return nil
 	}
 	connected := &realtimev2.ControlConnected{ProtocolVersion: "v2", ProgressionContractVersion: 1, RequiredCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, ProjectionInstance: instance, Limits: v2ProtocolLimits()}
@@ -635,7 +640,12 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 
 func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.ElementStateFrame, error) {
 	snapshot := s.runtime.Snapshot()
-	if control.observedSequence.Load() < snapshot.ReliableSequence || control.deliveredSequence.Load() > snapshot.ReliableSequence {
+	if snapshot.Clock.GetRunning() == nil {
+		return nil, errV2StatePending
+	}
+	observed := control.observedSequence.Load()
+	delivered := control.deliveredSequence.Load()
+	if observed < snapshot.ReliableSequence || delivered > snapshot.ReliableSequence {
 		return nil, errV2StatePending
 	}
 	view, err := runtimecore.ProjectV2Snapshot(snapshot, control.profile, control.identity.AssignmentEpoch, nil)
@@ -647,7 +657,7 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 		return nil, status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
 	nowMs := uint64(time.Since(s.trackingStarted)/time.Millisecond) + 1
-	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: control.deliveredSequence.Load(), Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: nowMs}
+	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: delivered, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: nowMs}
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}
