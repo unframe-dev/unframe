@@ -34,7 +34,7 @@ namespace Unframe.ControlPlane.Model
         /// Initializes a new instance of the <see cref="InternalRuntimeProjectionGet200Response" /> class.
         /// </summary>
         /// <param name="role">role</param>
-        /// <param name="profile">ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract</param>
+        /// <param name="profile">ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract</param>
         [JsonConstructor]
         public InternalRuntimeProjectionGet200Response(RoleEnum role, Dictionary<string, Object> profile)
         {
@@ -118,9 +118,9 @@ namespace Unframe.ControlPlane.Model
         public RoleEnum Role { get; set; }
 
         /// <summary>
-        /// ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract
+        /// ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract
         /// </summary>
-        /// <value>ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract</value>
+        /// <value>ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract</value>
         [JsonPropertyName("profile")]
         public Dictionary<string, Object> Profile { get; set; }
 

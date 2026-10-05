@@ -33,10 +33,10 @@ namespace Unframe.ControlPlane.Model
         /// <summary>
         /// Initializes a new instance of the <see cref="PresentationsPresentationIdBuildsPostRequest" /> class.
         /// </summary>
-        /// <param name="definitionJson">RFC 8785 canonical PresentationDefinitionV2 JSON</param>
-        /// <param name="renderBundleJson">RFC 8785 canonical RenderBundleV2 JSON</param>
-        /// <param name="assetSetJson">RFC 8785 canonical AssetSetManifestV2 JSON</param>
-        /// <param name="buildManifestJson">RFC 8785 canonical BuildManifestV2 JSON</param>
+        /// <param name="definitionJson">RFC 8785 canonical PresentationDefinition JSON</param>
+        /// <param name="renderBundleJson">RFC 8785 canonical RenderBundle JSON</param>
+        /// <param name="assetSetJson">RFC 8785 canonical AssetSetManifest JSON</param>
+        /// <param name="buildManifestJson">RFC 8785 canonical BuildManifest JSON</param>
         [JsonConstructor]
         public PresentationsPresentationIdBuildsPostRequest(string definitionJson, string renderBundleJson, string assetSetJson, string buildManifestJson)
         {
@@ -50,30 +50,30 @@ namespace Unframe.ControlPlane.Model
         partial void OnCreated();
 
         /// <summary>
-        /// RFC 8785 canonical PresentationDefinitionV2 JSON
+        /// RFC 8785 canonical PresentationDefinition JSON
         /// </summary>
-        /// <value>RFC 8785 canonical PresentationDefinitionV2 JSON</value>
+        /// <value>RFC 8785 canonical PresentationDefinition JSON</value>
         [JsonPropertyName("definitionJson")]
         public string DefinitionJson { get; set; }
 
         /// <summary>
-        /// RFC 8785 canonical RenderBundleV2 JSON
+        /// RFC 8785 canonical RenderBundle JSON
         /// </summary>
-        /// <value>RFC 8785 canonical RenderBundleV2 JSON</value>
+        /// <value>RFC 8785 canonical RenderBundle JSON</value>
         [JsonPropertyName("renderBundleJson")]
         public string RenderBundleJson { get; set; }
 
         /// <summary>
-        /// RFC 8785 canonical AssetSetManifestV2 JSON
+        /// RFC 8785 canonical AssetSetManifest JSON
         /// </summary>
-        /// <value>RFC 8785 canonical AssetSetManifestV2 JSON</value>
+        /// <value>RFC 8785 canonical AssetSetManifest JSON</value>
         [JsonPropertyName("assetSetJson")]
         public string AssetSetJson { get; set; }
 
         /// <summary>
-        /// RFC 8785 canonical BuildManifestV2 JSON
+        /// RFC 8785 canonical BuildManifest JSON
         /// </summary>
-        /// <value>RFC 8785 canonical BuildManifestV2 JSON</value>
+        /// <value>RFC 8785 canonical BuildManifest JSON</value>
         [JsonPropertyName("buildManifestJson")]
         public string BuildManifestJson { get; set; }
 

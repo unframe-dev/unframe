@@ -4429,6 +4429,56 @@
                 }
               }
             },
+            "RuntimeRecoveryMetadata": {
+              "fields": {
+                "startedAt": {
+                  "type": "string",
+                  "id": 1
+                },
+                "participants": {
+                  "rule": "repeated",
+                  "type": "RuntimeParticipantHistory",
+                  "id": 2
+                },
+                "commands": {
+                  "rule": "repeated",
+                  "type": "RuntimeCommandHistory",
+                  "id": 3
+                }
+              }
+            },
+            "RuntimeParticipantHistory": {
+              "fields": {
+                "participantId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "role": {
+                  "type": "unframe.presentation.SessionRole",
+                  "id": 2
+                }
+              }
+            },
+            "RuntimeCommandHistory": {
+              "fields": {
+                "key": {
+                  "type": "string",
+                  "id": 1
+                },
+                "fingerprint": {
+                  "type": "string",
+                  "id": 2
+                },
+                "outcome": {
+                  "type": "CommandOutcome",
+                  "id": 3
+                },
+                "rememberedAtUnixMs": {
+                  "type": "int64",
+                  "id": 4
+                }
+              }
+            },
             "ParticipantRuntimeView": {
               "fields": {
                 "projectionProfileId": {
@@ -4577,6 +4627,14 @@
               }
             },
             "DurableCheckpointEnvelope": {
+              "oneofs": {
+                "_recoveryPayload": {
+                  "oneof": ["recoveryPayload"]
+                },
+                "_recoveryHash": {
+                  "oneof": ["recoveryHash"]
+                }
+              },
               "fields": {
                 "schemaVersion": {
                   "type": "uint32",
@@ -4625,6 +4683,20 @@
                 "canonicalSnapshotPayload": {
                   "type": "bytes",
                   "id": 12
+                },
+                "recoveryPayload": {
+                  "type": "bytes",
+                  "id": 14,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                },
+                "recoveryHash": {
+                  "type": "string",
+                  "id": 15,
+                  "options": {
+                    "proto3_optional": true
+                  }
                 }
               }
             },

@@ -4143,13 +4143,13 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        /** @description RFC 8785 canonical PresentationDefinitionV2 JSON */
+                        /** @description RFC 8785 canonical PresentationDefinition JSON */
                         definitionJson: string;
-                        /** @description RFC 8785 canonical RenderBundleV2 JSON */
+                        /** @description RFC 8785 canonical RenderBundle JSON */
                         renderBundleJson: string;
-                        /** @description RFC 8785 canonical AssetSetManifestV2 JSON */
+                        /** @description RFC 8785 canonical AssetSetManifest JSON */
                         assetSetJson: string;
-                        /** @description RFC 8785 canonical BuildManifestV2 JSON */
+                        /** @description RFC 8785 canonical BuildManifest JSON */
                         buildManifestJson: string;
                     };
                 };
@@ -4657,7 +4657,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Validated protobuf DeliveryManifest v2 */
+                /** @description Validated protobuf DeliveryManifest */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4802,11 +4802,11 @@ export interface paths {
                                 definitionHash: string;
                                 renderBundleHash: string;
                             };
-                            /** @description PresentationDefinitionV2; strict v2 schema validated at storage boundary */
+                            /** @description PresentationDefinition; strict schema validated at storage boundary */
                             definition: {
                                 [key: string]: unknown;
                             };
-                            /** @description RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash */
+                            /** @description RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash */
                             renderBundle: {
                                 [key: string]: unknown;
                             };
@@ -4882,6 +4882,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/runtime/lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    sessionId: string;
+                    runtimeId: string;
+                    assignmentEpoch: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current Runtime assignment and pinned publication fence */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            assignment: {
+                                sessionId: string;
+                                runtimeId: string;
+                                /** @enum {string} */
+                                runtimeKind: "Cloud" | "VenueEdge";
+                                assignmentEpoch: number;
+                                presentationRevision: number;
+                                /** Format: date-time */
+                                leaseExpiresAt: string;
+                            };
+                            publication: {
+                                presentationId: string;
+                                publicationEpoch: number;
+                                publicationManifestHash: string;
+                                definitionHash: string;
+                                renderBundleHash: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid lease request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Runtime fence conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/runtime/projection": {
         parameters: {
             query?: never;
@@ -4910,7 +5009,7 @@ export interface paths {
                         "application/json": {
                             /** @enum {string} */
                             role: "presenter" | "viewer";
-                            /** @description ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract */
+                            /** @description ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract */
                             profile: {
                                 [key: string]: unknown;
                             };

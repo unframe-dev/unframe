@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { idV2Schema, publishedPresentationV2Schema } from "@unframe/contracts/presentation/v2";
+import { idSchema, publishedPresentationSchema } from "@unframe/contracts/presentation";
 import { assetInitInputSchema, assetMediaTypeSchema } from "./modules/assets/schema";
 import {
   checkpointInputSchema,
@@ -742,8 +742,8 @@ export const renewVenueEdgeLeaseRoute = publicRoutes[25];
 export const releaseVenueEdgeLeaseRoute = publicRoutes[26];
 
 const publicationPresentationId = z.object({ presentationId: identifierSchema }).strict();
-const publicationBuildId = publicationPresentationId.extend({ buildId: idV2Schema });
-const publicationAssetId = publicationBuildId.extend({ assetId: idV2Schema });
+const publicationBuildId = publicationPresentationId.extend({ buildId: idSchema });
+const publicationAssetId = publicationBuildId.extend({ assetId: idSchema });
 export const createPublicationBuildRoute = createRoute({
   method: "post",
   path: "/presentations/{presentationId}/builds",
@@ -759,22 +759,22 @@ export const createPublicationBuildRoute = createRoute({
               .string()
               .min(2)
               .max(8 * 1024 * 1024)
-              .describe("RFC 8785 canonical PresentationDefinitionV2 JSON"),
+              .describe("RFC 8785 canonical PresentationDefinition JSON"),
             renderBundleJson: z
               .string()
               .min(2)
               .max(8 * 1024 * 1024)
-              .describe("RFC 8785 canonical RenderBundleV2 JSON"),
+              .describe("RFC 8785 canonical RenderBundle JSON"),
             assetSetJson: z
               .string()
               .min(2)
               .max(8 * 1024 * 1024)
-              .describe("RFC 8785 canonical AssetSetManifestV2 JSON"),
+              .describe("RFC 8785 canonical AssetSetManifest JSON"),
             buildManifestJson: z
               .string()
               .min(2)
               .max(8 * 1024 * 1024)
-              .describe("RFC 8785 canonical BuildManifestV2 JSON"),
+              .describe("RFC 8785 canonical BuildManifest JSON"),
           }),
         },
       },
@@ -785,7 +785,7 @@ export const createPublicationBuildRoute = createRoute({
       description: "Build stored",
       content: {
         "application/json": {
-          schema: z.object({ buildId: idV2Schema, assetIds: z.array(idV2Schema) }),
+          schema: z.object({ buildId: idSchema, assetIds: z.array(idSchema) }),
         },
       },
     },
@@ -825,7 +825,7 @@ export const publishPresentationRoute = createRoute({
       content: {
         "application/json": {
           schema: z.strictObject({
-            buildId: idV2Schema,
+            buildId: idSchema,
             expectedPublicationEpoch: z.number().int().nonnegative(),
           }),
         },
@@ -835,7 +835,7 @@ export const publishPresentationRoute = createRoute({
   responses: {
     201: {
       description: "Published",
-      content: { "application/json": { schema: publishedPresentationV2Schema } },
+      content: { "application/json": { schema: publishedPresentationSchema } },
     },
     400: errorResponse("Invalid publication"),
     401: errorResponse("Unauthorized"),
@@ -853,7 +853,7 @@ export const getPublicationRoute = createRoute({
   responses: {
     200: {
       description: "Current publication",
-      content: { "application/json": { schema: publishedPresentationV2Schema } },
+      content: { "application/json": { schema: publishedPresentationSchema } },
     },
     401: errorResponse("Unauthorized"),
     403: errorResponse("Forbidden"),
@@ -879,7 +879,7 @@ export const deliveryManifestRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Validated protobuf DeliveryManifest v2",
+      description: "Validated protobuf DeliveryManifest",
       content: {
         "application/x-protobuf": { schema: z.string().openapi({ format: "binary" }) },
       },
@@ -900,6 +900,23 @@ const runtimeBootstrapQuery = z
     assignmentEpoch: z.coerce.number().int().positive(),
   })
   .strict();
+const runtimeLeaseSchema = z.object({
+  assignment: z.object({
+    sessionId: identifierSchema,
+    runtimeId: identifierSchema,
+    runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+    assignmentEpoch: z.number().int().positive(),
+    presentationRevision: z.number().int().positive(),
+    leaseExpiresAt: z.string().datetime(),
+  }),
+  publication: z.object({
+    presentationId: identifierSchema,
+    publicationEpoch: z.number().int().positive(),
+    publicationManifestHash: z.string(),
+    definitionHash: z.string(),
+    renderBundleHash: z.string(),
+  }),
+});
 export const internalRuntimeBootstrapRoute = createRoute({
   method: "get",
   path: "/internal/runtime/bootstrap",
@@ -910,29 +927,14 @@ export const internalRuntimeBootstrapRoute = createRoute({
       description: "Trusted Runtime v2 bootstrap",
       content: {
         "application/json": {
-          schema: z.object({
-            assignment: z.object({
-              sessionId: identifierSchema,
-              runtimeId: identifierSchema,
-              runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-              assignmentEpoch: z.number().int().positive(),
-              presentationRevision: z.number().int().positive(),
-              leaseExpiresAt: z.string().datetime(),
-            }),
-            publication: z.object({
-              presentationId: identifierSchema,
-              publicationEpoch: z.number().int().positive(),
-              publicationManifestHash: z.string(),
-              definitionHash: z.string(),
-              renderBundleHash: z.string(),
-            }),
+          schema: runtimeLeaseSchema.extend({
             definition: z
               .record(z.string(), z.unknown())
-              .describe("PresentationDefinitionV2; strict v2 schema validated at storage boundary"),
+              .describe("PresentationDefinition; strict schema validated at storage boundary"),
             renderBundle: z
               .record(z.string(), z.unknown())
               .describe(
-                "RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash",
+                "RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash",
               ),
             checkpoint: z.record(z.string(), z.unknown()).nullable(),
           }),
@@ -942,6 +944,21 @@ export const internalRuntimeBootstrapRoute = createRoute({
     400: errorResponse("Invalid bootstrap request"),
     401: errorResponse("Unauthorized"),
     404: errorResponse("Runtime assignment not found"),
+    409: errorResponse("Runtime fence conflict"),
+  },
+});
+export const internalRuntimeLeaseRoute = createRoute({
+  method: "get",
+  path: "/internal/runtime/lease",
+  security: serviceSecurity,
+  request: { query: runtimeBootstrapQuery },
+  responses: {
+    200: {
+      description: "Current Runtime assignment and pinned publication fence",
+      content: { "application/json": { schema: runtimeLeaseSchema } },
+    },
+    400: errorResponse("Invalid lease request"),
+    401: errorResponse("Unauthorized"),
     409: errorResponse("Runtime fence conflict"),
   },
 });
@@ -962,7 +979,7 @@ export const internalRuntimeProjectionRoute = createRoute({
             profile: z
               .record(z.string(), z.any())
               .describe(
-                "ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract",
+                "ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract",
               ),
           }),
         },

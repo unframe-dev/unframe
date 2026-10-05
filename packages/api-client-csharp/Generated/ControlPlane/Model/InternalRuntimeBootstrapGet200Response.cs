@@ -35,8 +35,8 @@ namespace Unframe.ControlPlane.Model
         /// </summary>
         /// <param name="assignment">assignment</param>
         /// <param name="publication">publication</param>
-        /// <param name="definition">PresentationDefinitionV2; strict v2 schema validated at storage boundary</param>
-        /// <param name="renderBundle">RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash</param>
+        /// <param name="definition">PresentationDefinition; strict schema validated at storage boundary</param>
+        /// <param name="renderBundle">RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash</param>
         /// <param name="checkpoint">checkpoint</param>
         [JsonConstructor]
         public InternalRuntimeBootstrapGet200Response(InternalRuntimeBootstrapGet200ResponseAssignment assignment, InternalRuntimeBootstrapGet200ResponsePublication publication, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default)
@@ -64,16 +64,16 @@ namespace Unframe.ControlPlane.Model
         public InternalRuntimeBootstrapGet200ResponsePublication Publication { get; set; }
 
         /// <summary>
-        /// PresentationDefinitionV2; strict v2 schema validated at storage boundary
+        /// PresentationDefinition; strict schema validated at storage boundary
         /// </summary>
-        /// <value>PresentationDefinitionV2; strict v2 schema validated at storage boundary</value>
+        /// <value>PresentationDefinition; strict schema validated at storage boundary</value>
         [JsonPropertyName("definition")]
         public Dictionary<string, Object> Definition { get; set; }
 
         /// <summary>
-        /// RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash
+        /// RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash
         /// </summary>
-        /// <value>RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash</value>
+        /// <value>RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash</value>
         [JsonPropertyName("renderBundle")]
         public Dictionary<string, Object> RenderBundle { get; set; }
 

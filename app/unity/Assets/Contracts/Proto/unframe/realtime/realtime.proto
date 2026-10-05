@@ -692,6 +692,23 @@ message CanonicalRuntimeSnapshot {
   repeated ModelClipRuntimeState model_clip_states = 15;
 }
 
+// Durable server-only history, excluded from participant projections.
+message RuntimeRecoveryMetadata {
+  string started_at = 1;
+  repeated RuntimeParticipantHistory participants = 2;
+  repeated RuntimeCommandHistory commands = 3;
+}
+message RuntimeParticipantHistory {
+  string participant_id = 1;
+  unframe.presentation.SessionRole role = 2;
+}
+message RuntimeCommandHistory {
+  string key = 1;
+  string fingerprint = 2;
+  CommandOutcome outcome = 3;
+  int64 remembered_at_unix_ms = 4;
+}
+
 message ParticipantRuntimeView {
   string projection_profile_id = 1;
   uint64 assignment_epoch = 2;
@@ -752,6 +769,8 @@ message DurableCheckpointEnvelope {
   uint64 reliable_sequence = 10;
   string canonical_snapshot_hash = 11;
   bytes canonical_snapshot_payload = 12;
+  optional bytes recovery_payload = 14;
+  optional string recovery_hash = 15;
 }
 
 enum ResyncReason {
