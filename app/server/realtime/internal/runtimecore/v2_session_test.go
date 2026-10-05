@@ -365,7 +365,7 @@ func TestV2SessionDoesNotPublishMutationWhenCheckpointFails(t *testing.T) {
 		t.Fatalf("checkpoint failure produced events %#v, sequence %d, error %v", events, core.Snapshot().ReliableSequence, err)
 	}
 	second, extra, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "click-2", LogicalEventName: "next"})
-	if err != nil || len(extra) != 0 || second.GetRejected().Reason != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT {
+	if !errors.Is(err, ErrV2PersistenceUnavailable) || len(extra) != 0 || second != nil {
 		t.Fatalf("fault gate outcome=%#v events=%#v error=%v", second, extra, err)
 	}
 }

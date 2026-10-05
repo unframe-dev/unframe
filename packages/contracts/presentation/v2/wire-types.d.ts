@@ -1020,7 +1020,7 @@ export interface CueNotSelectedWire {}
 
 export interface DefaultModelPoseWire {}
 
-export interface DurableCheckpointEnvelopeWire {
+export interface DurableCheckpointEnvelopeWireFields {
   schemaVersion?: number;
   checkpointSequence?: string;
   sessionId?: string;
@@ -1034,6 +1034,15 @@ export interface DurableCheckpointEnvelopeWire {
   canonicalSnapshotHash?: string;
   canonicalSnapshotPayload?: Uint8Array;
 }
+export type DurableCheckpointEnvelopeWire__recoveryPayload =
+  | { recoveryPayload: Uint8Array }
+  | { recoveryPayload?: never };
+export type DurableCheckpointEnvelopeWire__recoveryHash =
+  | { recoveryHash: string }
+  | { recoveryHash?: never };
+export type DurableCheckpointEnvelopeWire = DurableCheckpointEnvelopeWireFields &
+  DurableCheckpointEnvelopeWire__recoveryPayload &
+  DurableCheckpointEnvelopeWire__recoveryHash;
 
 export interface ElementStateFrameWire {
   fence?: RuntimeProjectionFenceWire;
@@ -2665,10 +2674,22 @@ export type RuntimeClockSnapshotWire_status =
 export type RuntimeClockSnapshotWire = RuntimeClockSnapshotWireFields &
   RuntimeClockSnapshotWire_status;
 
+export interface RuntimeCommandHistoryWire {
+  key?: string;
+  fingerprint?: string;
+  outcome?: CommandOutcomeWire;
+  rememberedAtUnixMs?: string;
+}
+
 export interface RuntimeControlCommandWire {
   clientEventId?: string;
   kind?: number;
   presentationOriginVersion?: string;
+}
+
+export interface RuntimeParticipantHistoryWire {
+  participantId?: string;
+  role?: number;
 }
 
 export interface RuntimeProtocolLimitsWire {
@@ -2692,6 +2713,12 @@ export interface RuntimeProtocolLimitsWire {
   catchUpQueueMaximumBytes?: string;
   stateDependencyBufferMaximumValues?: number;
   stateDependencyBufferMaximumMs?: string;
+}
+
+export interface RuntimeRecoveryMetadataWire {
+  startedAt?: string;
+  participants?: RuntimeParticipantHistoryWire[];
+  commands?: RuntimeCommandHistoryWire[];
 }
 
 export interface RuntimeRunSnapshotWireFields {

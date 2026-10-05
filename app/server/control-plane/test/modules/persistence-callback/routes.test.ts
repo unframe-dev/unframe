@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, assert } from "vitest";
 import { createApp } from "../../../src/app";
 import { runtimeEnvironment } from "../../runtime-environment";
 
@@ -60,7 +60,12 @@ describe("persistence callback HTTP boundary", () => {
       version: 1,
       lastSequence: 5,
       idempotencyKey: "cp-1",
-      payload: { step: 2 },
+      payload: {
+        canonicalSnapshotPayload: "AQID",
+        canonicalSnapshotHash: `sha256:${"a".repeat(64)}`,
+        recoveryPayload: "BAUG",
+        recoveryHash: `sha256:${"b".repeat(64)}`,
+      },
     };
     expect((await callback("/callbacks/checkpoints", checkpoint, "wrong-secret")).status).toBe(401);
     await expect((await callback("/callbacks/checkpoints", checkpoint)).json()).resolves.toEqual({
@@ -69,6 +74,14 @@ describe("persistence callback HTTP boundary", () => {
     await expect((await callback("/callbacks/checkpoints", checkpoint)).json()).resolves.toEqual({
       applied: false,
     });
+
+    const storedCheckpoint = await env.DB.prepare(
+      "SELECT payload FROM session_checkpoints WHERE session_id = ? AND version = 1",
+    )
+      .bind(sessionId)
+      .first<{ payload: string }>();
+    assert.isNotNull(storedCheckpoint);
+    expect(JSON.parse(storedCheckpoint.payload)).toEqual(checkpoint.payload);
     const completion = {
       sessionId,
       runtimeId: "runtime",
@@ -82,7 +95,7 @@ describe("persistence callback HTTP boundary", () => {
       endedAt: "2026-08-11T00:01:00.000Z",
       participantCount: 1,
       participants: [{ userId: "presenter", role: "presenter" }],
-      finalCheckpoint: { step: 2 },
+      finalCheckpoint: { ...checkpoint.payload },
     };
     const staleResponse = await callback("/callbacks/completions", {
       ...completion,
@@ -94,6 +107,14 @@ describe("persistence callback HTTP boundary", () => {
     await expect((await callback("/callbacks/completions", completion)).json()).resolves.toEqual({
       applied: true,
     });
+
+    const storedCompletion = await env.DB.prepare(
+      "SELECT final_state FROM session_completions WHERE session_id = ?",
+    )
+      .bind(sessionId)
+      .first<{ final_state: string }>();
+    assert.isNotNull(storedCompletion);
+    expect(JSON.parse(storedCompletion.final_state)).toEqual(completion.finalCheckpoint);
     await expect(
       env.DB.prepare("SELECT state FROM presentation_sessions WHERE id = ?")
         .bind(sessionId)

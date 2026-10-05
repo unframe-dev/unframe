@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
@@ -110,6 +111,47 @@ func TestV2StateReadyAfterVisibleConnectedBeforeSendReturns(t *testing.T) {
 	frame, err := state.Recv()
 	if err != nil || frame.GetStateFrame().GetKind() != realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME {
 		t.Fatalf("keyframe after immediate StateReady = %v, error = %v", frame, err)
+	}
+	if err := state.CloseSend(); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := control.Recv()
+	for err == nil && fresh.GetStateConnectionNonce() == nil {
+		fresh, err = control.Recv()
+	}
+	if err != nil || fresh.GetStateConnectionNonce() == nil {
+		t.Fatalf("State-only disconnect did not issue a fresh nonce: item=%v error=%v", fresh, err)
+	}
+	if bytes.Equal(fresh.GetStateConnectionNonce().Nonce, nonceItem.GetStateConnectionNonce().Nonce) {
+		t.Fatal("State-only disconnect reused the consumed nonce")
+	}
+	reconnected, err := client.ConnectState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reconnected.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_Handshake{Handshake: &realtimev2.StateHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectedItem.GetConnected().ConnectionId, StateConnectionNonce: fresh.GetStateConnectionNonce().Nonce}}}); err != nil {
+		t.Fatal(err)
+	}
+	if item, err := reconnected.Recv(); err != nil || item.GetConnected() == nil {
+		t.Fatalf("reattachment connected=%v error=%v", item, err)
+	}
+	frames := make(chan *realtimev2.StateServerItem, 1)
+	go func() { item, _ := reconnected.Recv(); frames <- item }()
+	select {
+	case item := <-frames:
+		t.Fatalf("reattachment sent frame before renewed StateReady: %v", item)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_StateReady{StateReady: &realtimev2.StateReady{AppliedReliableSequence: cut.ReliableSequence, PresentationOriginVersion: cut.Fence.PresentationOriginVersion}}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case item := <-frames:
+		if item.GetStateFrame() == nil {
+			t.Fatalf("reattachment frame=%v", item)
+		}
+	case <-ctx.Done():
+		t.Fatal("reattachment failed after renewed StateReady")
 	}
 }
 

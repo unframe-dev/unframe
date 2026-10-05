@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, assert } from "vitest";
 import { D1PersistenceCallbackRepository } from "../../../src/modules/persistence-callback/repository";
 
 const suffix = () => crypto.randomUUID();
@@ -53,10 +53,23 @@ describe("D1PersistenceCallbackRepository", () => {
       version: 1,
       lastSequence: 12,
       idempotencyKey: "checkpoint-1",
-      payload: { slide: 2 },
+      payload: {
+        canonicalSnapshotPayload: "AQID",
+        canonicalSnapshotHash: `sha256:${"a".repeat(64)}`,
+        recoveryPayload: "BAUG",
+        recoveryHash: `sha256:${"b".repeat(64)}`,
+      },
     };
     await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("applied");
     await expect(repository.applyCheckpoint(checkpoint)).resolves.toBe("duplicate");
+    const stored = await env.DB.prepare(
+      "SELECT payload FROM session_checkpoints WHERE session_id = ? AND version = 1",
+    )
+      .bind(sessionId)
+      .first<{ payload: string }>();
+    assert.isNotNull(stored);
+    expect(JSON.parse(stored.payload)).toEqual(checkpoint.payload);
+
     await expect(
       repository.applyCheckpoint({ ...checkpoint, idempotencyKey: "different-key" }),
     ).resolves.toBe("duplicate");
@@ -77,10 +90,23 @@ describe("D1PersistenceCallbackRepository", () => {
       endedAt: "2026-08-11T00:01:00.000Z",
       participantCount: 1,
       participants: [{ userId: "presenter", role: "presenter" as const }],
-      finalCheckpoint: { slide: 2 },
+      finalCheckpoint: {
+        canonicalSnapshotPayload: "AQID",
+        canonicalSnapshotHash: `sha256:${"a".repeat(64)}`,
+        recoveryPayload: "BAUG",
+        recoveryHash: `sha256:${"b".repeat(64)}`,
+      },
     };
     await expect(repository.applyCompletion(completion)).resolves.toBe("applied");
     await expect(repository.applyCompletion(completion)).resolves.toBe("duplicate");
+    const stored = await env.DB.prepare(
+      "SELECT final_state FROM session_completions WHERE session_id = ?",
+    )
+      .bind(sessionId)
+      .first<{ final_state: string }>();
+    assert.isNotNull(stored);
+    expect(JSON.parse(stored.final_state)).toEqual(completion.finalCheckpoint);
+
     await expect(
       env.DB.prepare(
         "SELECT session.state, session.ended_at, assignment.released_at FROM presentation_sessions AS session JOIN runtime_assignments AS assignment ON assignment.session_id = session.id WHERE session.id = ?",

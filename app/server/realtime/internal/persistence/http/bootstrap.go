@@ -69,7 +69,7 @@ type RuntimeProjection struct {
 }
 
 func (c *Client) Bootstrap(ctx context.Context, request BootstrapRequest) (RuntimeBootstrap, error) {
-	if request.SessionID == "" || request.RuntimeID == "" || (request.RuntimeKind != assignment.RuntimeKindCloud && request.RuntimeKind != assignment.RuntimeKindVenueEdge) || request.AssignmentEpoch == 0 || request.PresentationRevision == 0 {
+	if !validBootstrapRequest(request) {
 		return RuntimeBootstrap{}, ErrInvalidBootstrap
 	}
 	query := url.Values{"sessionId": {request.SessionID}, "runtimeId": {request.RuntimeID}, "assignmentEpoch": {strconv.FormatUint(request.AssignmentEpoch, 10)}}
@@ -78,7 +78,7 @@ func (c *Client) Bootstrap(ctx context.Context, request BootstrapRequest) (Runti
 		return RuntimeBootstrap{}, err
 	}
 	var value RuntimeBootstrap
-	if err := json.Unmarshal(body, &value); err != nil || value.Assignment.SessionID != request.SessionID || value.Assignment.RuntimeID != request.RuntimeID || value.Assignment.RuntimeKind != request.RuntimeKind || value.Assignment.AssignmentEpoch != request.AssignmentEpoch || value.Assignment.PresentationRevision != request.PresentationRevision || value.Assignment.LeaseExpiresAt.IsZero() || value.Publication.PresentationID == "" || value.Publication.PublicationEpoch == 0 || !bootstrapHash.MatchString(value.Publication.PublicationManifestHash) || !bootstrapHash.MatchString(value.Publication.DefinitionHash) || !bootstrapHash.MatchString(value.Publication.RenderBundleHash) || !json.Valid(value.Definition) || string(value.Definition) == "null" || !json.Valid(value.RenderBundle) || string(value.RenderBundle) == "null" {
+	if err := json.Unmarshal(body, &value); err != nil || !validRuntimeFence(request, value.Assignment, value.Publication) || !json.Valid(value.Definition) || string(value.Definition) == "null" || !json.Valid(value.RenderBundle) || string(value.RenderBundle) == "null" {
 		return RuntimeBootstrap{}, ErrInvalidBootstrap
 	}
 	if len(value.Checkpoint) != 0 && string(value.Checkpoint) != "null" {
@@ -114,6 +114,10 @@ func (c *Client) Projection(ctx context.Context, request ProjectionRequest) (Run
 }
 
 func (c *Client) get(ctx context.Context, operation, path string, query url.Values) ([]byte, error) {
+	return c.getBounded(ctx, operation, path, query, maximumBootstrapBytes)
+}
+
+func (c *Client) getBounded(ctx context.Context, operation, path string, query url.Values, maximumBytes int64) ([]byte, error) {
 	endpoint, err := c.callbackEndpoint(path)
 	if err != nil {
 		return nil, err
@@ -137,8 +141,8 @@ func (c *Client) get(ctx context.Context, operation, path string, query url.Valu
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, &ResponseError{Operation: operation, StatusCode: response.StatusCode}
 	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, maximumBootstrapBytes+1))
-	if err != nil || len(body) > maximumBootstrapBytes {
+	body, err := io.ReadAll(io.LimitReader(response.Body, maximumBytes+1))
+	if err != nil || int64(len(body)) > maximumBytes {
 		return nil, ErrInvalidBootstrap
 	}
 	return body, nil

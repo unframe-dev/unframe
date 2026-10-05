@@ -64,6 +64,9 @@ func validCheckpointEnvelope(envelope *realtimev2.DurableCheckpointEnvelope) boo
 	if envelope == nil || envelope.SchemaVersion != 2 || envelope.CheckpointSequence == 0 || protocolv2.ValidateMessage(envelope) != nil {
 		return false
 	}
+	if _, err := protocolv2.DecodeRecoveryMetadata(envelope); err != nil {
+		return false
+	}
 	digest := sha256.Sum256(envelope.CanonicalSnapshotPayload)
 	if envelope.CanonicalSnapshotHash != "sha256:"+hex.EncodeToString(digest[:]) {
 		return false

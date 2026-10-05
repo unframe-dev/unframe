@@ -107,7 +107,7 @@ func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value)
 		"ProjectedTimelineDefinition": {"timeline_id"}, "ProjectedModelClipDefinition": {"model_node_id", "clip_id"},
 		"AssetAccessBinding": {"asset_id"}, "TextureResidencyBinding": {"asset_id"},
 		"ModelResidencyBinding": {"asset_id"}, "VideoResidencyBinding": {"asset_id"},
-		"ProjectedParticipantPresence": {"participant_id"}, "ArmedTimer": {"cue_id"}, "CueCooldown": {"cue_id"},
+		"RuntimeParticipantHistory": {"participant_id"}, "ProjectedParticipantPresence": {"participant_id"}, "ArmedTimer": {"cue_id"}, "CueCooldown": {"cue_id"},
 	}
 	var parts []string
 	for _, key := range keys[message.Descriptor().Name()] {

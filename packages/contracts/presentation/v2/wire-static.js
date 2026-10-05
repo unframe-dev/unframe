@@ -73649,6 +73649,1021 @@ export const unframe = ($root.unframe = (() => {
         return CanonicalRuntimeSnapshot;
       })();
 
+      v2.RuntimeRecoveryMetadata = (function () {
+        /**
+         * Properties of a RuntimeRecoveryMetadata.
+         * @typedef {Object} unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties
+         * @property {string|null} [startedAt] RuntimeRecoveryMetadata startedAt
+         * @property {Array.<unframe.realtime.v2.RuntimeParticipantHistory.$Properties>|null} [participants] RuntimeRecoveryMetadata participants
+         * @property {Array.<unframe.realtime.v2.RuntimeCommandHistory.$Properties>|null} [commands] RuntimeRecoveryMetadata commands
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a RuntimeRecoveryMetadata.
+         * @memberof unframe.realtime.v2
+         * @interface IRuntimeRecoveryMetadata
+         * @augments unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties
+         * @deprecated Use unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties instead.
+         */
+
+        /**
+         * Shape of a RuntimeRecoveryMetadata.
+         * @typedef {{
+         *   startedAt?: string|null;
+         *   participants?: Array.<unframe.realtime.v2.RuntimeParticipantHistory.$Shape>|null;
+         *   commands?: Array.<unframe.realtime.v2.RuntimeCommandHistory.$Shape>|null;
+         *   $unknowns?: Array.<Uint8Array>;
+         * }} unframe.realtime.v2.RuntimeRecoveryMetadata.$Shape
+         */
+
+        /**
+         * Constructs a new RuntimeRecoveryMetadata.
+         * @memberof unframe.realtime.v2
+         * @classdesc Represents a RuntimeRecoveryMetadata.
+         * @constructor
+         * @param {unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        const RuntimeRecoveryMetadata = function RuntimeRecoveryMetadata(properties) {
+          this.participants = [];
+          this.commands = [];
+          if (properties)
+            for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+              if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * RuntimeRecoveryMetadata startedAt.
+         * @member {string} startedAt
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @instance
+         */
+        RuntimeRecoveryMetadata.prototype.startedAt = "";
+
+        /**
+         * RuntimeRecoveryMetadata participants.
+         * @member {Array.<unframe.realtime.v2.RuntimeParticipantHistory.$Properties>} participants
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @instance
+         */
+        RuntimeRecoveryMetadata.prototype.participants = $util.emptyArray;
+
+        /**
+         * RuntimeRecoveryMetadata commands.
+         * @member {Array.<unframe.realtime.v2.RuntimeCommandHistory.$Properties>} commands
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @instance
+         */
+        RuntimeRecoveryMetadata.prototype.commands = $util.emptyArray;
+
+        /**
+         * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
+         * @function create
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties=} [properties] Properties to set
+         * @returns {unframe.realtime.v2.RuntimeRecoveryMetadata} RuntimeRecoveryMetadata instance
+         * @type {{
+         *   (properties: unframe.realtime.v2.RuntimeRecoveryMetadata.$Shape): unframe.realtime.v2.RuntimeRecoveryMetadata & unframe.realtime.v2.RuntimeRecoveryMetadata.$Shape;
+         *   (properties?: unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties): unframe.realtime.v2.RuntimeRecoveryMetadata;
+         * }}
+         */
+        RuntimeRecoveryMetadata.create = function (properties) {
+          return new RuntimeRecoveryMetadata(properties);
+        };
+
+        /**
+         * Encodes the specified RuntimeRecoveryMetadata message. Does not implicitly {@link unframe.realtime.v2.RuntimeRecoveryMetadata.verify|verify} messages.
+         * @function encode
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties} message RuntimeRecoveryMetadata message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RuntimeRecoveryMetadata.encode = function RuntimeRecoveryMetadata$encode(message, writer) {
+          if (!writer) writer = $Writer.create();
+          if (message.startedAt != null && $Object.hasOwnProperty.call(message, "startedAt"))
+            writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.startedAt);
+          if (message.participants != null && message.participants.length)
+            for (let i = 0; i < message.participants.length; ++i)
+              $root.unframe.realtime.v2.RuntimeParticipantHistory.encode(
+                message.participants[i],
+                writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+              ).ldelim();
+          if (message.commands != null && message.commands.length)
+            for (let i = 0; i < message.commands.length; ++i)
+              $root.unframe.realtime.v2.RuntimeCommandHistory.encode(
+                message.commands[i],
+                writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+              ).ldelim();
+          return writer;
+        };
+
+        /**
+         * Encodes the specified RuntimeRecoveryMetadata message, length delimited. Does not implicitly {@link unframe.realtime.v2.RuntimeRecoveryMetadata.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {unframe.realtime.v2.RuntimeRecoveryMetadata.$Properties} message RuntimeRecoveryMetadata message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RuntimeRecoveryMetadata.encodeDelimited = function (message, writer) {
+          return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a RuntimeRecoveryMetadata message from the specified reader or buffer.
+         * @function decode
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {unframe.realtime.v2.RuntimeRecoveryMetadata & unframe.realtime.v2.RuntimeRecoveryMetadata.$Shape} RuntimeRecoveryMetadata
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RuntimeRecoveryMetadata.decode = function RuntimeRecoveryMetadata$decode(
+          reader,
+          length,
+          error,
+          long,
+        ) {
+          if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+          if (long === $undefined) long = 0;
+          if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let end = length === $undefined ? reader.len : reader.pos + length,
+            message = new this.ctor();
+          while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error) break;
+            switch (tag >>> 3) {
+              case 1: {
+                message.startedAt = reader.string();
+                break;
+              }
+              case 2: {
+                if (!(message.participants && message.participants.length))
+                  message.participants = [];
+                message.participants.push(
+                  $root.unframe.realtime.v2.RuntimeParticipantHistory.decode(
+                    reader,
+                    reader.uint32(),
+                    $undefined,
+                    long + 1,
+                  ),
+                );
+                break;
+              }
+              case 3: {
+                if (!(message.commands && message.commands.length)) message.commands = [];
+                message.commands.push(
+                  $root.unframe.realtime.v2.RuntimeCommandHistory.decode(
+                    reader,
+                    reader.uint32(),
+                    $undefined,
+                    long + 1,
+                  ),
+                );
+                break;
+              }
+              default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+          }
+          return message;
+        };
+
+        /**
+         * Decodes a RuntimeRecoveryMetadata message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {unframe.realtime.v2.RuntimeRecoveryMetadata & unframe.realtime.v2.RuntimeRecoveryMetadata.$Shape} RuntimeRecoveryMetadata
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RuntimeRecoveryMetadata.decodeDelimited = function (reader) {
+          if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+          return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a RuntimeRecoveryMetadata message.
+         * @function verify
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        RuntimeRecoveryMetadata.verify = function RuntimeRecoveryMetadata$verify(message, long) {
+          if (typeof message !== "object" || message === null) return "object expected";
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+          if (message.startedAt != null && message.hasOwnProperty("startedAt"))
+            if (!$util.isString(message.startedAt)) return "startedAt: string expected";
+          if (message.participants != null && message.hasOwnProperty("participants")) {
+            if (!$Array.isArray(message.participants)) return "participants: array expected";
+            for (let i = 0; i < message.participants.length; ++i) {
+              let error = $root.unframe.realtime.v2.RuntimeParticipantHistory.verify(
+                message.participants[i],
+                long + 1,
+              );
+              if (error) return "participants." + error;
+            }
+          }
+          if (message.commands != null && message.hasOwnProperty("commands")) {
+            if (!$Array.isArray(message.commands)) return "commands: array expected";
+            for (let i = 0; i < message.commands.length; ++i) {
+              let error = $root.unframe.realtime.v2.RuntimeCommandHistory.verify(
+                message.commands[i],
+                long + 1,
+              );
+              if (error) return "commands." + error;
+            }
+          }
+          return null;
+        };
+
+        /**
+         * Creates a RuntimeRecoveryMetadata message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {unframe.realtime.v2.RuntimeRecoveryMetadata} RuntimeRecoveryMetadata
+         */
+        RuntimeRecoveryMetadata.fromObject = function RuntimeRecoveryMetadata$fromObject(
+          object,
+          long,
+        ) {
+          if (object instanceof this.ctor) return object;
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let message = new this.ctor();
+          if (object.startedAt != null) message.startedAt = $String(object.startedAt);
+          if (object.participants) {
+            if (!$Array.isArray(object.participants))
+              throw $TypeError(
+                ".unframe.realtime.v2.RuntimeRecoveryMetadata.participants: array expected",
+              );
+            message.participants = [];
+            for (let i = 0; i < object.participants.length; ++i) {
+              if (typeof object.participants[i] !== "object")
+                throw $TypeError(
+                  ".unframe.realtime.v2.RuntimeRecoveryMetadata.participants: object expected",
+                );
+              message.participants[i] =
+                $root.unframe.realtime.v2.RuntimeParticipantHistory.fromObject(
+                  object.participants[i],
+                  long + 1,
+                );
+            }
+          }
+          if (object.commands) {
+            if (!$Array.isArray(object.commands))
+              throw $TypeError(
+                ".unframe.realtime.v2.RuntimeRecoveryMetadata.commands: array expected",
+              );
+            message.commands = [];
+            for (let i = 0; i < object.commands.length; ++i) {
+              if (typeof object.commands[i] !== "object")
+                throw $TypeError(
+                  ".unframe.realtime.v2.RuntimeRecoveryMetadata.commands: object expected",
+                );
+              message.commands[i] = $root.unframe.realtime.v2.RuntimeCommandHistory.fromObject(
+                object.commands[i],
+                long + 1,
+              );
+            }
+          }
+          return message;
+        };
+
+        /**
+         * Creates a plain object from a RuntimeRecoveryMetadata message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {unframe.realtime.v2.RuntimeRecoveryMetadata} message RuntimeRecoveryMetadata
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        RuntimeRecoveryMetadata.toObject = function RuntimeRecoveryMetadata$toObject(
+          message,
+          options,
+        ) {
+          if (!options) options = {};
+          let object = {};
+          if (options.arrays || options.defaults) {
+            object.participants = [];
+            object.commands = [];
+          }
+          if (options.defaults) object.startedAt = "";
+          if (message.startedAt != null && message.hasOwnProperty("startedAt"))
+            object.startedAt = message.startedAt;
+          if (message.participants && message.participants.length) {
+            object.participants = [];
+            for (let j = 0; j < message.participants.length; ++j)
+              object.participants[j] = $root.unframe.realtime.v2.RuntimeParticipantHistory.toObject(
+                message.participants[j],
+                options,
+              );
+          }
+          if (message.commands && message.commands.length) {
+            object.commands = [];
+            for (let j = 0; j < message.commands.length; ++j)
+              object.commands[j] = $root.unframe.realtime.v2.RuntimeCommandHistory.toObject(
+                message.commands[j],
+                options,
+              );
+          }
+          return object;
+        };
+
+        /**
+         * Converts this RuntimeRecoveryMetadata to JSON.
+         * @function toJSON
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        RuntimeRecoveryMetadata.prototype.toJSON = function () {
+          return RuntimeRecoveryMetadata.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for RuntimeRecoveryMetadata
+         * @function getTypeUrl
+         * @memberof unframe.realtime.v2.RuntimeRecoveryMetadata
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        RuntimeRecoveryMetadata.getTypeUrl = function (prefix) {
+          if (prefix === $undefined) prefix = "type.googleapis.com";
+          return prefix + "/unframe.realtime.v2.RuntimeRecoveryMetadata";
+        };
+
+        return RuntimeRecoveryMetadata;
+      })();
+
+      v2.RuntimeParticipantHistory = (function () {
+        /**
+         * Properties of a RuntimeParticipantHistory.
+         * @typedef {Object} unframe.realtime.v2.RuntimeParticipantHistory.$Properties
+         * @property {string|null} [participantId] RuntimeParticipantHistory participantId
+         * @property {unframe.presentation.v2.SessionRole|null} [role] RuntimeParticipantHistory role
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a RuntimeParticipantHistory.
+         * @memberof unframe.realtime.v2
+         * @interface IRuntimeParticipantHistory
+         * @augments unframe.realtime.v2.RuntimeParticipantHistory.$Properties
+         * @deprecated Use unframe.realtime.v2.RuntimeParticipantHistory.$Properties instead.
+         */
+
+        /**
+         * Shape of a RuntimeParticipantHistory.
+         * @typedef {unframe.realtime.v2.RuntimeParticipantHistory.$Properties} unframe.realtime.v2.RuntimeParticipantHistory.$Shape
+         */
+
+        /**
+         * Constructs a new RuntimeParticipantHistory.
+         * @memberof unframe.realtime.v2
+         * @classdesc Represents a RuntimeParticipantHistory.
+         * @constructor
+         * @param {unframe.realtime.v2.RuntimeParticipantHistory.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        const RuntimeParticipantHistory = function RuntimeParticipantHistory(properties) {
+          if (properties)
+            for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+              if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * RuntimeParticipantHistory participantId.
+         * @member {string} participantId
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @instance
+         */
+        RuntimeParticipantHistory.prototype.participantId = "";
+
+        /**
+         * RuntimeParticipantHistory role.
+         * @member {unframe.presentation.v2.SessionRole} role
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @instance
+         */
+        RuntimeParticipantHistory.prototype.role = 0;
+
+        /**
+         * Creates a new RuntimeParticipantHistory instance using the specified properties.
+         * @function create
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeParticipantHistory.$Properties=} [properties] Properties to set
+         * @returns {unframe.realtime.v2.RuntimeParticipantHistory} RuntimeParticipantHistory instance
+         * @type {{
+         *   (properties: unframe.realtime.v2.RuntimeParticipantHistory.$Shape): unframe.realtime.v2.RuntimeParticipantHistory & unframe.realtime.v2.RuntimeParticipantHistory.$Shape;
+         *   (properties?: unframe.realtime.v2.RuntimeParticipantHistory.$Properties): unframe.realtime.v2.RuntimeParticipantHistory;
+         * }}
+         */
+        RuntimeParticipantHistory.create = function (properties) {
+          return new RuntimeParticipantHistory(properties);
+        };
+
+        /**
+         * Encodes the specified RuntimeParticipantHistory message. Does not implicitly {@link unframe.realtime.v2.RuntimeParticipantHistory.verify|verify} messages.
+         * @function encode
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeParticipantHistory.$Properties} message RuntimeParticipantHistory message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RuntimeParticipantHistory.encode = function RuntimeParticipantHistory$encode(
+          message,
+          writer,
+        ) {
+          if (!writer) writer = $Writer.create();
+          if (
+            message.participantId != null &&
+            $Object.hasOwnProperty.call(message, "participantId")
+          )
+            writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.participantId);
+          if (message.role != null && $Object.hasOwnProperty.call(message, "role"))
+            writer.uint32(/* id 2, wireType 0 =*/ 16).int32(message.role);
+          return writer;
+        };
+
+        /**
+         * Encodes the specified RuntimeParticipantHistory message, length delimited. Does not implicitly {@link unframe.realtime.v2.RuntimeParticipantHistory.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeParticipantHistory.$Properties} message RuntimeParticipantHistory message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RuntimeParticipantHistory.encodeDelimited = function (message, writer) {
+          return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a RuntimeParticipantHistory message from the specified reader or buffer.
+         * @function decode
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {unframe.realtime.v2.RuntimeParticipantHistory & unframe.realtime.v2.RuntimeParticipantHistory.$Shape} RuntimeParticipantHistory
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RuntimeParticipantHistory.decode = function RuntimeParticipantHistory$decode(
+          reader,
+          length,
+          error,
+          long,
+        ) {
+          if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+          if (long === $undefined) long = 0;
+          if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let end = length === $undefined ? reader.len : reader.pos + length,
+            message = new this.ctor();
+          while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error) break;
+            switch (tag >>> 3) {
+              case 1: {
+                message.participantId = reader.string();
+                break;
+              }
+              case 2: {
+                message.role = reader.int32();
+                break;
+              }
+              default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+          }
+          return message;
+        };
+
+        /**
+         * Decodes a RuntimeParticipantHistory message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {unframe.realtime.v2.RuntimeParticipantHistory & unframe.realtime.v2.RuntimeParticipantHistory.$Shape} RuntimeParticipantHistory
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RuntimeParticipantHistory.decodeDelimited = function (reader) {
+          if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+          return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a RuntimeParticipantHistory message.
+         * @function verify
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        RuntimeParticipantHistory.verify = function RuntimeParticipantHistory$verify(
+          message,
+          long,
+        ) {
+          if (typeof message !== "object" || message === null) return "object expected";
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+          if (message.participantId != null && message.hasOwnProperty("participantId"))
+            if (!$util.isString(message.participantId)) return "participantId: string expected";
+          if (message.role != null && message.hasOwnProperty("role"))
+            switch (message.role) {
+              default:
+                return "role: enum value expected";
+              case 0:
+              case 1:
+              case 2:
+                break;
+            }
+          return null;
+        };
+
+        /**
+         * Creates a RuntimeParticipantHistory message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {unframe.realtime.v2.RuntimeParticipantHistory} RuntimeParticipantHistory
+         */
+        RuntimeParticipantHistory.fromObject = function RuntimeParticipantHistory$fromObject(
+          object,
+          long,
+        ) {
+          if (object instanceof this.ctor) return object;
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let message = new this.ctor();
+          if (object.participantId != null) message.participantId = $String(object.participantId);
+          switch (object.role) {
+            default:
+              if (typeof object.role === "number") {
+                message.role = object.role;
+                break;
+              }
+              break;
+            case "SESSION_ROLE_UNSPECIFIED":
+            case 0:
+              message.role = 0;
+              break;
+            case "SESSION_ROLE_PRESENTER":
+            case 1:
+              message.role = 1;
+              break;
+            case "SESSION_ROLE_VIEWER":
+            case 2:
+              message.role = 2;
+              break;
+          }
+          return message;
+        };
+
+        /**
+         * Creates a plain object from a RuntimeParticipantHistory message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeParticipantHistory} message RuntimeParticipantHistory
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        RuntimeParticipantHistory.toObject = function RuntimeParticipantHistory$toObject(
+          message,
+          options,
+        ) {
+          if (!options) options = {};
+          let object = {};
+          if (options.defaults) {
+            object.participantId = "";
+            object.role = options.enums === $String ? "SESSION_ROLE_UNSPECIFIED" : 0;
+          }
+          if (message.participantId != null && message.hasOwnProperty("participantId"))
+            object.participantId = message.participantId;
+          if (message.role != null && message.hasOwnProperty("role"))
+            object.role =
+              options.enums === $String
+                ? $root.unframe.presentation.v2.SessionRole[message.role] === $undefined
+                  ? message.role
+                  : $root.unframe.presentation.v2.SessionRole[message.role]
+                : message.role;
+          return object;
+        };
+
+        /**
+         * Converts this RuntimeParticipantHistory to JSON.
+         * @function toJSON
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        RuntimeParticipantHistory.prototype.toJSON = function () {
+          return RuntimeParticipantHistory.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for RuntimeParticipantHistory
+         * @function getTypeUrl
+         * @memberof unframe.realtime.v2.RuntimeParticipantHistory
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        RuntimeParticipantHistory.getTypeUrl = function (prefix) {
+          if (prefix === $undefined) prefix = "type.googleapis.com";
+          return prefix + "/unframe.realtime.v2.RuntimeParticipantHistory";
+        };
+
+        return RuntimeParticipantHistory;
+      })();
+
+      v2.RuntimeCommandHistory = (function () {
+        /**
+         * Properties of a RuntimeCommandHistory.
+         * @typedef {Object} unframe.realtime.v2.RuntimeCommandHistory.$Properties
+         * @property {string|null} [key] RuntimeCommandHistory key
+         * @property {string|null} [fingerprint] RuntimeCommandHistory fingerprint
+         * @property {unframe.realtime.v2.CommandOutcome.$Properties|null} [outcome] RuntimeCommandHistory outcome
+         * @property {number|Long|null} [rememberedAtUnixMs] RuntimeCommandHistory rememberedAtUnixMs
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a RuntimeCommandHistory.
+         * @memberof unframe.realtime.v2
+         * @interface IRuntimeCommandHistory
+         * @augments unframe.realtime.v2.RuntimeCommandHistory.$Properties
+         * @deprecated Use unframe.realtime.v2.RuntimeCommandHistory.$Properties instead.
+         */
+
+        /**
+         * Shape of a RuntimeCommandHistory.
+         * @typedef {{
+         *   key?: string|null;
+         *   fingerprint?: string|null;
+         *   outcome?: unframe.realtime.v2.CommandOutcome.$Shape|null;
+         *   rememberedAtUnixMs?: number|Long|null;
+         *   $unknowns?: Array.<Uint8Array>;
+         * }} unframe.realtime.v2.RuntimeCommandHistory.$Shape
+         */
+
+        /**
+         * Constructs a new RuntimeCommandHistory.
+         * @memberof unframe.realtime.v2
+         * @classdesc Represents a RuntimeCommandHistory.
+         * @constructor
+         * @param {unframe.realtime.v2.RuntimeCommandHistory.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        const RuntimeCommandHistory = function RuntimeCommandHistory(properties) {
+          if (properties)
+            for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+              if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * RuntimeCommandHistory key.
+         * @member {string} key
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @instance
+         */
+        RuntimeCommandHistory.prototype.key = "";
+
+        /**
+         * RuntimeCommandHistory fingerprint.
+         * @member {string} fingerprint
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @instance
+         */
+        RuntimeCommandHistory.prototype.fingerprint = "";
+
+        /**
+         * RuntimeCommandHistory outcome.
+         * @member {unframe.realtime.v2.CommandOutcome.$Properties|null|undefined} outcome
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @instance
+         */
+        RuntimeCommandHistory.prototype.outcome = null;
+
+        /**
+         * RuntimeCommandHistory rememberedAtUnixMs.
+         * @member {number|Long} rememberedAtUnixMs
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @instance
+         */
+        RuntimeCommandHistory.prototype.rememberedAtUnixMs = $util.Long
+          ? $util.Long.fromBits(0, 0, false)
+          : 0;
+
+        /**
+         * Creates a new RuntimeCommandHistory instance using the specified properties.
+         * @function create
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeCommandHistory.$Properties=} [properties] Properties to set
+         * @returns {unframe.realtime.v2.RuntimeCommandHistory} RuntimeCommandHistory instance
+         * @type {{
+         *   (properties: unframe.realtime.v2.RuntimeCommandHistory.$Shape): unframe.realtime.v2.RuntimeCommandHistory & unframe.realtime.v2.RuntimeCommandHistory.$Shape;
+         *   (properties?: unframe.realtime.v2.RuntimeCommandHistory.$Properties): unframe.realtime.v2.RuntimeCommandHistory;
+         * }}
+         */
+        RuntimeCommandHistory.create = function (properties) {
+          return new RuntimeCommandHistory(properties);
+        };
+
+        /**
+         * Encodes the specified RuntimeCommandHistory message. Does not implicitly {@link unframe.realtime.v2.RuntimeCommandHistory.verify|verify} messages.
+         * @function encode
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeCommandHistory.$Properties} message RuntimeCommandHistory message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RuntimeCommandHistory.encode = function RuntimeCommandHistory$encode(message, writer) {
+          if (!writer) writer = $Writer.create();
+          if (message.key != null && $Object.hasOwnProperty.call(message, "key"))
+            writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.key);
+          if (message.fingerprint != null && $Object.hasOwnProperty.call(message, "fingerprint"))
+            writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.fingerprint);
+          if (message.outcome != null && $Object.hasOwnProperty.call(message, "outcome"))
+            $root.unframe.realtime.v2.CommandOutcome.encode(
+              message.outcome,
+              writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+            ).ldelim();
+          if (
+            message.rememberedAtUnixMs != null &&
+            $Object.hasOwnProperty.call(message, "rememberedAtUnixMs")
+          )
+            writer.uint32(/* id 4, wireType 0 =*/ 32).int64(message.rememberedAtUnixMs);
+          return writer;
+        };
+
+        /**
+         * Encodes the specified RuntimeCommandHistory message, length delimited. Does not implicitly {@link unframe.realtime.v2.RuntimeCommandHistory.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeCommandHistory.$Properties} message RuntimeCommandHistory message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RuntimeCommandHistory.encodeDelimited = function (message, writer) {
+          return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a RuntimeCommandHistory message from the specified reader or buffer.
+         * @function decode
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {unframe.realtime.v2.RuntimeCommandHistory & unframe.realtime.v2.RuntimeCommandHistory.$Shape} RuntimeCommandHistory
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RuntimeCommandHistory.decode = function RuntimeCommandHistory$decode(
+          reader,
+          length,
+          error,
+          long,
+        ) {
+          if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+          if (long === $undefined) long = 0;
+          if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let end = length === $undefined ? reader.len : reader.pos + length,
+            message = new this.ctor();
+          while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error) break;
+            switch (tag >>> 3) {
+              case 1: {
+                message.key = reader.string();
+                break;
+              }
+              case 2: {
+                message.fingerprint = reader.string();
+                break;
+              }
+              case 3: {
+                message.outcome = $root.unframe.realtime.v2.CommandOutcome.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                );
+                break;
+              }
+              case 4: {
+                message.rememberedAtUnixMs = reader.int64();
+                break;
+              }
+              default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+          }
+          return message;
+        };
+
+        /**
+         * Decodes a RuntimeCommandHistory message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {unframe.realtime.v2.RuntimeCommandHistory & unframe.realtime.v2.RuntimeCommandHistory.$Shape} RuntimeCommandHistory
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RuntimeCommandHistory.decodeDelimited = function (reader) {
+          if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+          return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a RuntimeCommandHistory message.
+         * @function verify
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        RuntimeCommandHistory.verify = function RuntimeCommandHistory$verify(message, long) {
+          if (typeof message !== "object" || message === null) return "object expected";
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+          if (message.key != null && message.hasOwnProperty("key"))
+            if (!$util.isString(message.key)) return "key: string expected";
+          if (message.fingerprint != null && message.hasOwnProperty("fingerprint"))
+            if (!$util.isString(message.fingerprint)) return "fingerprint: string expected";
+          if (message.outcome != null && message.hasOwnProperty("outcome")) {
+            let error = $root.unframe.realtime.v2.CommandOutcome.verify(message.outcome, long + 1);
+            if (error) return "outcome." + error;
+          }
+          if (message.rememberedAtUnixMs != null && message.hasOwnProperty("rememberedAtUnixMs"))
+            if (
+              !$util.isInteger(message.rememberedAtUnixMs) &&
+              !(
+                message.rememberedAtUnixMs &&
+                $util.isInteger(message.rememberedAtUnixMs.low) &&
+                $util.isInteger(message.rememberedAtUnixMs.high)
+              )
+            )
+              return "rememberedAtUnixMs: integer|Long expected";
+          return null;
+        };
+
+        /**
+         * Creates a RuntimeCommandHistory message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {unframe.realtime.v2.RuntimeCommandHistory} RuntimeCommandHistory
+         */
+        RuntimeCommandHistory.fromObject = function RuntimeCommandHistory$fromObject(object, long) {
+          if (object instanceof this.ctor) return object;
+          if (long === $undefined) long = 0;
+          if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+          let message = new this.ctor();
+          if (object.key != null) message.key = $String(object.key);
+          if (object.fingerprint != null) message.fingerprint = $String(object.fingerprint);
+          if (object.outcome != null) {
+            if (typeof object.outcome !== "object")
+              throw $TypeError(
+                ".unframe.realtime.v2.RuntimeCommandHistory.outcome: object expected",
+              );
+            message.outcome = $root.unframe.realtime.v2.CommandOutcome.fromObject(
+              object.outcome,
+              long + 1,
+            );
+          }
+          if (object.rememberedAtUnixMs != null)
+            if ($util.Long)
+              (message.rememberedAtUnixMs = $util.Long.fromValue(
+                object.rememberedAtUnixMs,
+              )).unsigned = false;
+            else if (typeof object.rememberedAtUnixMs === "string")
+              message.rememberedAtUnixMs = $parseInt(object.rememberedAtUnixMs, 10);
+            else if (typeof object.rememberedAtUnixMs === "number")
+              message.rememberedAtUnixMs = object.rememberedAtUnixMs;
+            else if (typeof object.rememberedAtUnixMs === "object")
+              message.rememberedAtUnixMs = new $util.LongBits(
+                object.rememberedAtUnixMs.low >>> 0,
+                object.rememberedAtUnixMs.high >>> 0,
+              ).toNumber();
+          return message;
+        };
+
+        /**
+         * Creates a plain object from a RuntimeCommandHistory message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {unframe.realtime.v2.RuntimeCommandHistory} message RuntimeCommandHistory
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        RuntimeCommandHistory.toObject = function RuntimeCommandHistory$toObject(message, options) {
+          if (!options) options = {};
+          let object = {};
+          if (options.defaults) {
+            object.key = "";
+            object.fingerprint = "";
+            object.outcome = null;
+            if ($util.Long) {
+              let long = new $util.Long(0, 0, false);
+              object.rememberedAtUnixMs =
+                options.longs === $String
+                  ? long.toString()
+                  : options.longs === $Number
+                    ? long.toNumber()
+                    : long;
+            } else object.rememberedAtUnixMs = options.longs === $String ? "0" : 0;
+          }
+          if (message.key != null && message.hasOwnProperty("key")) object.key = message.key;
+          if (message.fingerprint != null && message.hasOwnProperty("fingerprint"))
+            object.fingerprint = message.fingerprint;
+          if (message.outcome != null && message.hasOwnProperty("outcome"))
+            object.outcome = $root.unframe.realtime.v2.CommandOutcome.toObject(
+              message.outcome,
+              options,
+            );
+          if (message.rememberedAtUnixMs != null && message.hasOwnProperty("rememberedAtUnixMs"))
+            if (typeof message.rememberedAtUnixMs === "number")
+              object.rememberedAtUnixMs =
+                options.longs === $String
+                  ? $String(message.rememberedAtUnixMs)
+                  : message.rememberedAtUnixMs;
+            else
+              object.rememberedAtUnixMs =
+                options.longs === $String
+                  ? $util.Long.prototype.toString.call(message.rememberedAtUnixMs)
+                  : options.longs === $Number
+                    ? new $util.LongBits(
+                        message.rememberedAtUnixMs.low >>> 0,
+                        message.rememberedAtUnixMs.high >>> 0,
+                      ).toNumber()
+                    : message.rememberedAtUnixMs;
+          return object;
+        };
+
+        /**
+         * Converts this RuntimeCommandHistory to JSON.
+         * @function toJSON
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        RuntimeCommandHistory.prototype.toJSON = function () {
+          return RuntimeCommandHistory.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for RuntimeCommandHistory
+         * @function getTypeUrl
+         * @memberof unframe.realtime.v2.RuntimeCommandHistory
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        RuntimeCommandHistory.getTypeUrl = function (prefix) {
+          if (prefix === $undefined) prefix = "type.googleapis.com";
+          return prefix + "/unframe.realtime.v2.RuntimeCommandHistory";
+        };
+
+        return RuntimeCommandHistory;
+      })();
+
       v2.ParticipantRuntimeView = (function () {
         /**
          * Properties of a ParticipantRuntimeView.
@@ -76185,6 +77200,8 @@ export const unframe = ($root.unframe = (() => {
          * @property {number|Long|null} [reliableSequence] DurableCheckpointEnvelope reliableSequence
          * @property {string|null} [canonicalSnapshotHash] DurableCheckpointEnvelope canonicalSnapshotHash
          * @property {Uint8Array|null} [canonicalSnapshotPayload] DurableCheckpointEnvelope canonicalSnapshotPayload
+         * @property {Uint8Array|null} [recoveryPayload] DurableCheckpointEnvelope recoveryPayload
+         * @property {string|null} [recoveryHash] DurableCheckpointEnvelope recoveryHash
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -76319,6 +77336,37 @@ export const unframe = ($root.unframe = (() => {
         DurableCheckpointEnvelope.prototype.canonicalSnapshotPayload = $util.newBuffer([]);
 
         /**
+         * DurableCheckpointEnvelope recoveryPayload.
+         * @member {Uint8Array|null|undefined} recoveryPayload
+         * @memberof unframe.realtime.v2.DurableCheckpointEnvelope
+         * @instance
+         */
+        DurableCheckpointEnvelope.prototype.recoveryPayload = null;
+
+        /**
+         * DurableCheckpointEnvelope recoveryHash.
+         * @member {string|null|undefined} recoveryHash
+         * @memberof unframe.realtime.v2.DurableCheckpointEnvelope
+         * @instance
+         */
+        DurableCheckpointEnvelope.prototype.recoveryHash = null;
+
+        // OneOf field names bound to virtual getters and setters
+        let $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        $Object.defineProperty(DurableCheckpointEnvelope.prototype, "_recoveryPayload", {
+          get: $util.oneOfGetter(($oneOfFields = ["recoveryPayload"])),
+          set: $util.oneOfSetter($oneOfFields),
+        });
+
+        // Virtual OneOf for proto3 optional field
+        $Object.defineProperty(DurableCheckpointEnvelope.prototype, "_recoveryHash", {
+          get: $util.oneOfGetter(($oneOfFields = ["recoveryHash"])),
+          set: $util.oneOfSetter($oneOfFields),
+        });
+
+        /**
          * Creates a new DurableCheckpointEnvelope instance using the specified properties.
          * @function create
          * @memberof unframe.realtime.v2.DurableCheckpointEnvelope
@@ -76399,6 +77447,13 @@ export const unframe = ($root.unframe = (() => {
             $Object.hasOwnProperty.call(message, "canonicalSnapshotPayload")
           )
             writer.uint32(/* id 12, wireType 2 =*/ 98).bytes(message.canonicalSnapshotPayload);
+          if (
+            message.recoveryPayload != null &&
+            $Object.hasOwnProperty.call(message, "recoveryPayload")
+          )
+            writer.uint32(/* id 14, wireType 2 =*/ 114).bytes(message.recoveryPayload);
+          if (message.recoveryHash != null && $Object.hasOwnProperty.call(message, "recoveryHash"))
+            writer.uint32(/* id 15, wireType 2 =*/ 122).string(message.recoveryHash);
           return writer;
         };
 
@@ -76494,6 +77549,14 @@ export const unframe = ($root.unframe = (() => {
                 message.canonicalSnapshotPayload = reader.bytes();
                 break;
               }
+              case 14: {
+                message.recoveryPayload = reader.bytes();
+                break;
+              }
+              case 15: {
+                message.recoveryHash = reader.string();
+                break;
+              }
               default:
                 reader.skipType(tag & 7, long);
                 break;
@@ -76532,6 +77595,7 @@ export const unframe = ($root.unframe = (() => {
           if (typeof message !== "object" || message === null) return "object expected";
           if (long === $undefined) long = 0;
           if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+          let properties = {};
           if (message.schemaVersion != null && message.hasOwnProperty("schemaVersion"))
             if (!$util.isInteger(message.schemaVersion)) return "schemaVersion: integer expected";
           if (message.checkpointSequence != null && message.hasOwnProperty("checkpointSequence"))
@@ -76607,6 +77671,20 @@ export const unframe = ($root.unframe = (() => {
               )
             )
               return "canonicalSnapshotPayload: buffer expected";
+          if (message.recoveryPayload != null && message.hasOwnProperty("recoveryPayload")) {
+            properties._recoveryPayload = 1;
+            if (
+              !(
+                (message.recoveryPayload && typeof message.recoveryPayload.length === "number") ||
+                $util.isString(message.recoveryPayload)
+              )
+            )
+              return "recoveryPayload: buffer expected";
+          }
+          if (message.recoveryHash != null && message.hasOwnProperty("recoveryHash")) {
+            properties._recoveryHash = 1;
+            if (!$util.isString(message.recoveryHash)) return "recoveryHash: string expected";
+          }
           return null;
         };
 
@@ -76716,6 +77794,18 @@ export const unframe = ($root.unframe = (() => {
               );
             else if (object.canonicalSnapshotPayload.length >= 0)
               message.canonicalSnapshotPayload = object.canonicalSnapshotPayload;
+          if (object.recoveryPayload != null)
+            if (typeof object.recoveryPayload === "string")
+              $util.base64.decode(
+                object.recoveryPayload,
+                (message.recoveryPayload = $util.newBuffer(
+                  $util.base64.length(object.recoveryPayload),
+                )),
+                0,
+              );
+            else if (object.recoveryPayload.length >= 0)
+              message.recoveryPayload = object.recoveryPayload;
+          if (object.recoveryHash != null) message.recoveryHash = $String(object.recoveryHash);
           return message;
         };
 
@@ -76866,6 +77956,19 @@ export const unframe = ($root.unframe = (() => {
                 : options.bytes === $Array
                   ? $Array.prototype.slice.call(message.canonicalSnapshotPayload)
                   : message.canonicalSnapshotPayload;
+          if (message.recoveryPayload != null && message.hasOwnProperty("recoveryPayload")) {
+            object.recoveryPayload =
+              options.bytes === $String
+                ? $util.base64.encode(message.recoveryPayload, 0, message.recoveryPayload.length)
+                : options.bytes === $Array
+                  ? $Array.prototype.slice.call(message.recoveryPayload)
+                  : message.recoveryPayload;
+            if (options.oneofs) object._recoveryPayload = "recoveryPayload";
+          }
+          if (message.recoveryHash != null && message.hasOwnProperty("recoveryHash")) {
+            object.recoveryHash = message.recoveryHash;
+            if (options.oneofs) object._recoveryHash = "recoveryHash";
+          }
           return object;
         };
 

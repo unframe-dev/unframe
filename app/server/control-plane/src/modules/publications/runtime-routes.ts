@@ -1,8 +1,15 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { capabilityProfileV2Schema } from "@unframe/contracts/presentation/v2";
-import { buildProjectionProfile } from "@unframe/unframe-core";
+import {
+  capabilityProfileV2Schema,
+  publishedPresentationV2Schema,
+} from "@unframe/contracts/presentation/v2";
+import { buildProjectionProfile, hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import type { AppEnvironment } from "../../config";
-import { internalRuntimeBootstrapRoute, internalRuntimeProjectionRoute } from "../../openapi";
+import {
+  internalRuntimeBootstrapRoute,
+  internalRuntimeLeaseRoute,
+  internalRuntimeProjectionRoute,
+} from "../../openapi";
 import { ServiceIdentity } from "../persistence-callback/service-identity";
 import { PublicationService } from "./service";
 
@@ -94,6 +101,73 @@ export function createRuntimePublicationRoutes() {
       if (!current)
         return context.json({ error: { code: "conflict", message: "Runtime fence changed" } }, 409);
       return context.json(result, 200);
+    })
+    .openapi(internalRuntimeLeaseRoute, async (context) => {
+      const { sessionId, runtimeId, assignmentEpoch } = context.req.valid("query");
+      const { DB } = context.get("config");
+      const row = await DB.prepare(
+        `SELECT session.presentation_id AS presentationId,
+                session.publication_epoch AS publicationEpoch,
+                assignment.runtime_kind AS runtimeKind,
+                assignment.revision AS presentationRevision,
+                assignment.lease_expires_at AS leaseExpiresAt,
+                publication.manifest AS manifest
+         FROM presentation_sessions AS session
+         JOIN runtime_assignments AS assignment ON assignment.session_id = session.id
+         JOIN presentation_publications AS publication
+           ON publication.presentation_id = session.presentation_id
+           AND publication.epoch = session.publication_epoch
+         WHERE session.id = ? AND session.state != 'Ended'
+           AND assignment.runtime_id = ? AND assignment.epoch = ?
+           AND assignment.released_at IS NULL AND assignment.lease_expires_at > ?`,
+      )
+        .bind(sessionId, runtimeId, assignmentEpoch, new Date().toISOString())
+        .first<{
+          presentationId: string;
+          publicationEpoch: number;
+          runtimeKind: "Cloud" | "VenueEdge";
+          presentationRevision: number;
+          leaseExpiresAt: string;
+          manifest: string;
+        }>();
+      const conflict = () =>
+        context.json({ error: { code: "conflict", message: "Runtime fence unavailable" } }, 409);
+      if (!row) return conflict();
+      let manifest: unknown;
+      try {
+        manifest = JSON.parse(row.manifest);
+      } catch {
+        return conflict();
+      }
+      const parsed = publishedPresentationV2Schema.safeParse(manifest);
+      if (!parsed.success) return conflict();
+      const { publicationManifestHash, ...payload } = parsed.data;
+      if (
+        parsed.data.presentationId !== row.presentationId ||
+        parsed.data.publicationEpoch !== row.publicationEpoch ||
+        hashCanonicalJsonPayload(payload) !== publicationManifestHash
+      )
+        return conflict();
+      return context.json(
+        {
+          assignment: {
+            sessionId,
+            runtimeId,
+            runtimeKind: row.runtimeKind,
+            assignmentEpoch,
+            presentationRevision: row.presentationRevision,
+            leaseExpiresAt: row.leaseExpiresAt,
+          },
+          publication: {
+            presentationId: row.presentationId,
+            publicationEpoch: row.publicationEpoch,
+            publicationManifestHash,
+            definitionHash: parsed.data.definitionHash,
+            renderBundleHash: parsed.data.renderBundleHash,
+          },
+        },
+        200,
+      );
     })
     .openapi(internalRuntimeProjectionRoute, async (context) => {
       const { sessionId, participantId } = context.req.valid("query");

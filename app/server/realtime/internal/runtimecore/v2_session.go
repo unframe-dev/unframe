@@ -43,32 +43,34 @@ type V2CompletionWriter interface {
 
 // V2Session owns canonical progression and serializes command evaluation.
 type V2Session struct {
-	operationMu        sync.Mutex
-	mu                 sync.Mutex
-	definition         v2Definition
-	rawDefinition      json.RawMessage
-	snapshot           *realtimev2.CanonicalRuntimeSnapshot
-	events             []*realtimev2.ProjectedReliableEvent
-	eventTimes         []time.Time
-	eventBytes         uint64
-	outcomes           map[string]v2OutcomeRecord
-	order              []string
-	outcomeTimes       map[string]time.Time
-	subscribers        map[chan *realtimev2.ProjectedReliableEvent]struct{}
-	checkpointWriter   V2CheckpointWriter
-	checkpointMetadata *realtimev2.DurableCheckpointEnvelope
-	checkpointCatalog  *presentationv2.ProjectedRuntimeCatalog
-	validationCatalog  *presentationv2.ProjectedRuntimeCatalog
-	mediaSpecs         map[string]map[string]v2MediaSpec
-	modelClips         map[string]map[string]v2ModelClipSpec
-	tracking           v2TrackingEvaluator
-	completionWriter   V2CompletionWriter
-	resumeValidator    func(context.Context) error
-	lastTick           time.Time
-	presence           map[string]session.Role
-	participants       map[string]session.Role
-	startedAt          time.Time
-	faultGeneration    uint64
+	operationMu               sync.Mutex
+	mu                        sync.Mutex
+	definition                v2Definition
+	rawDefinition             json.RawMessage
+	snapshot                  *realtimev2.CanonicalRuntimeSnapshot
+	events                    []*realtimev2.ProjectedReliableEvent
+	eventTimes                []time.Time
+	eventBytes                uint64
+	outcomes                  map[string]v2OutcomeRecord
+	order                     []string
+	outcomeTimes              map[string]time.Time
+	subscribers               map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription
+	checkpointWriter          V2CheckpointWriter
+	checkpointMetadata        *realtimev2.DurableCheckpointEnvelope
+	checkpointCatalog         *presentationv2.ProjectedRuntimeCatalog
+	validationCatalog         *presentationv2.ProjectedRuntimeCatalog
+	mediaSpecs                map[string]map[string]v2MediaSpec
+	modelClips                map[string]map[string]v2ModelClipSpec
+	tracking                  v2TrackingEvaluator
+	completionWriter          V2CompletionWriter
+	resumeValidator           func(context.Context) error
+	lastTick                  time.Time
+	lastCheckpointRuntimeTime uint64
+	presence                  map[string]session.Role
+	participants              map[string]session.Role
+	startedAt                 time.Time
+	faultGeneration           uint64
+	committedRecovery         *realtimev2.RuntimeRecoveryMetadata
 }
 
 func (s *V2Session) ConfigureResumeValidation(validate func(context.Context) error) {
@@ -108,7 +110,19 @@ func (s *V2Session) RestoreCheckpoint(envelope *realtimev2.DurableCheckpointEnve
 	if err != nil {
 		return err
 	}
+	recovery, err := protocolv2.DecodeRecoveryMetadata(envelope)
+	if err != nil {
+		return err
+	}
+	if recovery == nil {
+		return fmt.Errorf("%w: recovery metadata missing", ErrV2RuntimeDefinition)
+	}
+	if err := s.restoreV2Recovery(recovery); err != nil {
+		return err
+	}
+	s.committedRecovery = recovery
 	s.snapshot = restored
+	s.lastCheckpointRuntimeTime = restored.Clock.RuntimeTimeMs
 	s.lastTick = time.Now()
 	s.checkpointMetadata.CheckpointSequence = envelope.CheckpointSequence
 	return nil
@@ -147,7 +161,9 @@ func newV2Session(raw json.RawMessage, mediaSpecs map[string]map[string]v2MediaS
 	if err != nil {
 		return nil, err
 	}
-	return &V2Session{definition: definition, rawDefinition: append(json.RawMessage(nil), raw...), snapshot: snapshot, validationCatalog: catalog, mediaSpecs: mediaSpecs, modelClips: modelClips, outcomes: make(map[string]v2OutcomeRecord), outcomeTimes: make(map[string]time.Time), subscribers: make(map[chan *realtimev2.ProjectedReliableEvent]struct{}), lastTick: time.Now(), presence: make(map[string]session.Role), participants: make(map[string]session.Role), startedAt: time.Now()}, nil
+	s := &V2Session{definition: definition, rawDefinition: append(json.RawMessage(nil), raw...), snapshot: snapshot, validationCatalog: catalog, mediaSpecs: mediaSpecs, modelClips: modelClips, outcomes: make(map[string]v2OutcomeRecord), outcomeTimes: make(map[string]time.Time), subscribers: make(map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription), lastTick: time.Now(), presence: make(map[string]session.Role), participants: make(map[string]session.Role), startedAt: time.Now()}
+	s.committedRecovery = s.v2Recovery()
+	return s, nil
 }
 
 func BuildV2CanonicalCatalogWithBundle(raw, bundle json.RawMessage) (*presentationv2.ProjectedRuntimeCatalog, error) {
@@ -182,7 +198,7 @@ func (s *V2Session) SnapshotAndSubscribe() (*realtimev2.CanonicalRuntimeSnapshot
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stream := make(chan *realtimev2.ProjectedReliableEvent, 1024)
-	s.subscribers[stream] = struct{}{}
+	s.subscribers[stream] = &v2Subscription{}
 	snapshot := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	var once sync.Once
 	closeSubscription := func() {
@@ -274,7 +290,10 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		return nil, nil, ErrV2OriginMismatch
 	}
 	key := identity.ParticipantID + "\x00" + input.clientEventID
-	fingerprint := fmt.Sprintf("%s\x00%s\x00%s\x00%s\x00%d", input.kind, input.logicalEventName, input.surfaceID, input.interactionID, input.originVersion)
+	fingerprint := v2CommandFingerprint("logical_input", []string{input.logicalEventName}, realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_UNSPECIFIED, input.originVersion)
+	if input.kind == "surfaceInteraction" {
+		fingerprint = v2CommandFingerprint("surface_interaction", []string{input.surfaceID, input.interactionID}, realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_UNSPECIFIED, input.originVersion)
+	}
 	if stored, found := s.outcomes[key]; found {
 		if stored.fingerprint != fingerprint {
 			return nil, nil, ErrV2IdempotencyKeyReused
@@ -283,7 +302,9 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	}
 	if s.snapshot.Clock.GetRunning() == nil || s.snapshot.Progression.GetTransitioning() != nil {
 		outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT}}}
-		s.rememberOutcome(key, fingerprint, outcome)
+		if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
+			return nil, nil, err
+		}
 		return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
 	}
 	group := s.definition.Flow.Groups[s.snapshot.Progression.CurrentGroupId]
@@ -295,7 +316,9 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		}
 		if !found || !surfaceInteractionVisible(s.definition, s.snapshot, input.surfaceID) || json.Unmarshal(surface.States[surfaceStateID(s.snapshot, input.surfaceID)], &state) != nil || !containsV2(state.EnabledInteractionIDs, input.interactionID) {
 			outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE}}}
-			s.rememberOutcome(key, fingerprint, outcome)
+			if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
+				return nil, nil, err
+			}
 			return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
 		}
 	}
@@ -325,7 +348,9 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	}
 	if !inputAvailable && input.kind == "logicalInput" {
 		outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE}}}
-		s.rememberOutcome(key, fingerprint, outcome)
+		if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
+			return nil, nil, err
+		}
 		return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
@@ -362,6 +387,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 			events = append(events, cueEvents...)
 		}
 	}
+	s.rememberOutcome(key, fingerprint, outcome)
 	var err error
 	if s.snapshot.Clock.GetTerminating() != nil {
 		err = s.commitV2Completion(ctx, previous, events)
@@ -371,16 +397,17 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	if err != nil {
 		return nil, nil, err
 	}
-	s.rememberOutcome(key, fingerprint, outcome)
 	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(events), nil
 }
 
 func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+	recovery := s.v2Recovery()
 	if s.checkpointWriter != nil {
 		candidate := s.snapshot
 		candidateTracking := s.tracking
 		metadata := proto.Clone(s.checkpointMetadata).(*realtimev2.DurableCheckpointEnvelope)
 		metadata.CheckpointSequence++
+		metadata.RecoveryPayload, _ = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
 		catalog := proto.Clone(s.checkpointCatalog).(*presentationv2.ProjectedRuntimeCatalog)
 		writer := s.checkpointWriter
 		s.snapshot = previous
@@ -407,13 +434,18 @@ func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.C
 			s.tracking = candidateTracking
 		}
 		s.checkpointMetadata.CheckpointSequence = checkpoint.CheckpointSequence
+		s.lastCheckpointRuntimeTime = candidate.Clock.RuntimeTimeMs
 	}
+	s.committedRecovery = recovery
 	s.publishV2Events(events)
 	return nil
 }
 
 func (s *V2Session) rollbackV2Fault(previous *realtimev2.CanonicalRuntimeSnapshot, reason realtimev2.PauseReason) {
 	s.snapshot = previous
+	if s.committedRecovery != nil {
+		_ = s.restoreV2Recovery(s.committedRecovery)
+	}
 	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: reason}}
 	s.lastTick = time.Now()
 	s.faultGeneration++
@@ -427,11 +459,20 @@ func (s *V2Session) publishV2Events(events []*realtimev2.ProjectedReliableEvent)
 		s.eventBytes += uint64(proto.Size(event))
 	}
 	s.evictV2Events(now)
-	for subscriber := range s.subscribers {
+	for subscriber, queue := range s.subscribers {
 	delivery:
 		for _, event := range events {
+			queue.discardConsumed(len(subscriber))
+			size := proto.Size(event)
+			if queue.bytes+size > 1<<20 {
+				delete(s.subscribers, subscriber)
+				close(subscriber)
+				break delivery
+			}
 			select {
 			case subscriber <- proto.Clone(event).(*realtimev2.ProjectedReliableEvent):
+				queue.sizes = append(queue.sizes, size)
+				queue.bytes += size
 			default:
 				delete(s.subscribers, subscriber)
 				close(subscriber)

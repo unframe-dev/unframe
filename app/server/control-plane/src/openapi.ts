@@ -900,6 +900,23 @@ const runtimeBootstrapQuery = z
     assignmentEpoch: z.coerce.number().int().positive(),
   })
   .strict();
+const runtimeLeaseSchema = z.object({
+  assignment: z.object({
+    sessionId: identifierSchema,
+    runtimeId: identifierSchema,
+    runtimeKind: z.enum(["Cloud", "VenueEdge"]),
+    assignmentEpoch: z.number().int().positive(),
+    presentationRevision: z.number().int().positive(),
+    leaseExpiresAt: z.string().datetime(),
+  }),
+  publication: z.object({
+    presentationId: identifierSchema,
+    publicationEpoch: z.number().int().positive(),
+    publicationManifestHash: z.string(),
+    definitionHash: z.string(),
+    renderBundleHash: z.string(),
+  }),
+});
 export const internalRuntimeBootstrapRoute = createRoute({
   method: "get",
   path: "/internal/runtime/bootstrap",
@@ -910,22 +927,7 @@ export const internalRuntimeBootstrapRoute = createRoute({
       description: "Trusted Runtime v2 bootstrap",
       content: {
         "application/json": {
-          schema: z.object({
-            assignment: z.object({
-              sessionId: identifierSchema,
-              runtimeId: identifierSchema,
-              runtimeKind: z.enum(["Cloud", "VenueEdge"]),
-              assignmentEpoch: z.number().int().positive(),
-              presentationRevision: z.number().int().positive(),
-              leaseExpiresAt: z.string().datetime(),
-            }),
-            publication: z.object({
-              presentationId: identifierSchema,
-              publicationEpoch: z.number().int().positive(),
-              publicationManifestHash: z.string(),
-              definitionHash: z.string(),
-              renderBundleHash: z.string(),
-            }),
+          schema: runtimeLeaseSchema.extend({
             definition: z
               .record(z.string(), z.unknown())
               .describe("PresentationDefinitionV2; strict v2 schema validated at storage boundary"),
@@ -942,6 +944,21 @@ export const internalRuntimeBootstrapRoute = createRoute({
     400: errorResponse("Invalid bootstrap request"),
     401: errorResponse("Unauthorized"),
     404: errorResponse("Runtime assignment not found"),
+    409: errorResponse("Runtime fence conflict"),
+  },
+});
+export const internalRuntimeLeaseRoute = createRoute({
+  method: "get",
+  path: "/internal/runtime/lease",
+  security: serviceSecurity,
+  request: { query: runtimeBootstrapQuery },
+  responses: {
+    200: {
+      description: "Current Runtime assignment and pinned publication fence",
+      content: { "application/json": { schema: runtimeLeaseSchema } },
+    },
+    400: errorResponse("Invalid lease request"),
+    401: errorResponse("Unauthorized"),
     409: errorResponse("Runtime fence conflict"),
   },
 });

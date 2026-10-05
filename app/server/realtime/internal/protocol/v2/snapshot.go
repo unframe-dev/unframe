@@ -360,6 +360,9 @@ func DecodeCheckpoint(envelope, expected *realtimev2.DurableCheckpointEnvelope, 
 	if snapshot.ReliableSequence != envelope.ReliableSequence {
 		return nil, fmt.Errorf("message_invalid: checkpoint reliable sequence")
 	}
+	if _, err := DecodeRecoveryMetadata(envelope); err != nil {
+		return nil, err
+	}
 	canonicalizeSamplePositions(snapshot.ProtoReflect())
 	if err := ValidateSnapshot(snapshot, catalog, envelope.AssignmentEpoch); err != nil {
 		return nil, err
@@ -394,6 +397,13 @@ func EncodeCheckpoint(snapshot *realtimev2.CanonicalRuntimeSnapshot, metadata *r
 	checkpoint.CanonicalSnapshotPayload = payload
 	checkpoint.CanonicalSnapshotHash = "sha256:" + hex.EncodeToString(digest[:])
 	checkpoint.ReliableSequence = snapshot.ReliableSequence
+	if len(checkpoint.RecoveryPayload) != 0 {
+		hash := sha256.Sum256(checkpoint.RecoveryPayload)
+		checkpoint.RecoveryHash = proto.String("sha256:" + hex.EncodeToString(hash[:]))
+	}
+	if _, err := DecodeRecoveryMetadata(checkpoint); err != nil {
+		return nil, err
+	}
 	if err := ValidateMessage(checkpoint); err != nil {
 		return nil, err
 	}

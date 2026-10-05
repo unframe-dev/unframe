@@ -66,6 +66,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 	var currentDeadline uint64
 	stepsAtDeadline := 0
 	firstDeadline := true
+	drainedDue := false
 	for s.snapshot.Clock.GetTerminating() == nil {
 		run, timer, deadline, err := s.nextV2Due(runtimeTimeMs)
 		if err != nil {
@@ -75,6 +76,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 		if run == nil && timer == nil {
 			break
 		}
+		drainedDue = true
 		if firstDeadline || deadline != currentDeadline {
 			currentDeadline, stepsAtDeadline, firstDeadline = deadline, 0, false
 		}
@@ -268,7 +270,9 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 	if s.snapshot.Clock.GetTerminating() != nil {
 		err = s.commitV2Completion(ctx, previous, events)
 	} else {
-		err = s.commitV2Mutation(ctx, previous, events)
+		if drainedDue || len(events) != 0 || s.snapshot.Clock.RuntimeTimeMs-s.lastCheckpointRuntimeTime >= 1000 {
+			err = s.commitV2Mutation(ctx, previous, events)
+		}
 	}
 	if err != nil {
 		return nil, err
