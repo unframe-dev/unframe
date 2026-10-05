@@ -9,6 +9,11 @@ import (
 )
 
 func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realtimev2.ProjectedReliableEvent, *realtimev2.CueBatchRejected, error) {
+	if conflict, err := s.v2TimelineBatchConflict(cue); err != nil {
+		return nil, nil, err
+	} else if conflict {
+		return nil, &realtimev2.CueBatchRejected{CueId: cue.ID, Reason: realtimev2.CueRejectionReason_CUE_REJECTION_REASON_ACTION_BATCH_CONFLICT}, nil
+	}
 	group := s.definition.Flow.Groups[s.snapshot.Progression.CurrentGroupId]
 	step := group.Steps[s.snapshot.Progression.CurrentStepId]
 	if cue.Next.Kind == "step" {
@@ -50,7 +55,27 @@ func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realt
 		return nil, rejection, err
 	}
 	blocking = append(blocking, modelBlocking...)
+	if cue.FirePolicy.Kind == "repeatable" && next.Clock.RuntimeTimeMs > math.MaxUint64-cue.FirePolicy.CooldownMilliseconds {
+		return nil, nil, ErrV2RuntimeDefinition
+	}
 	s.snapshot = next
+	if cue.FirePolicy.Kind == "repeatable" {
+		deadline := next.Clock.RuntimeTimeMs + cue.FirePolicy.CooldownMilliseconds
+		found := false
+		for _, cooldown := range next.StepExecution.Cooldowns {
+			if cooldown.CueId == cue.ID {
+				cooldown.NextEligibleRuntimeTimeMs = deadline
+				found = true
+				break
+			}
+		}
+		if !found {
+			next.StepExecution.Cooldowns = append(next.StepExecution.Cooldowns, &realtimev2.CueCooldown{CueId: cue.ID, NextEligibleRuntimeTimeMs: deadline})
+		}
+		sort.Slice(next.StepExecution.Cooldowns, func(i, j int) bool {
+			return next.StepExecution.Cooldowns[i].CueId < next.StepExecution.Cooldowns[j].CueId
+		})
+	}
 	if cue.FirePolicy.Kind == "oncePerStepEntry" {
 		s.snapshot.StepExecution.ConsumedCueIds = append(s.snapshot.StepExecution.ConsumedCueIds, cue.ID)
 		sort.Strings(s.snapshot.StepExecution.ConsumedCueIds)
@@ -151,7 +176,7 @@ func (s *V2Session) fireV2Timer(timer *realtimev2.ArmedTimer) ([]*realtimev2.Pro
 		if cue.Trigger.Kind != "timer" {
 			return nil, ErrV2RuntimeDefinition
 		}
-		if s.snapshot.Progression.GetTransitioning() != nil || cue.FirePolicy.Kind == "oncePerStepEntry" && containsV2(s.snapshot.StepExecution.ConsumedCueIds, cue.ID) || !v2GuardPasses(cue, s.snapshot, nil) {
+		if s.snapshot.Progression.GetTransitioning() != nil || !v2CueEligible(cue, s.snapshot) || !v2GuardPasses(cue, s.snapshot, nil) {
 			return nil, nil
 		}
 		cause := fmt.Sprintf("event-%d", s.snapshot.ReliableSequence+1)
@@ -175,7 +200,7 @@ func (s *V2Session) fireV2MediaCompleted(surfaceID string, causeEventID string) 
 	step := group.Steps[s.snapshot.Progression.CurrentStepId]
 	var candidates []v2Cue
 	for _, cue := range step.Cues {
-		if cue.Trigger.Kind != "mediaCompleted" || cue.Trigger.SurfaceID != surfaceID || cue.FirePolicy.Kind == "oncePerStepEntry" && containsV2(s.snapshot.StepExecution.ConsumedCueIds, cue.ID) || !v2GuardPasses(cue, s.snapshot, nil) {
+		if cue.Trigger.Kind != "mediaCompleted" || cue.Trigger.SurfaceID != surfaceID || !v2CueEligible(cue, s.snapshot) || !v2GuardPasses(cue, s.snapshot, nil) {
 			continue
 		}
 		candidates = append(candidates, cue)
@@ -207,7 +232,7 @@ func (s *V2Session) fireV2ModelCompleted(nodeID, clipID, causeEventID string) ([
 	step := group.Steps[s.snapshot.Progression.CurrentStepId]
 	var candidates []v2Cue
 	for _, cue := range step.Cues {
-		if cue.Trigger.Kind != "modelClipCompleted" || cue.Trigger.NodeID != nodeID || cue.Trigger.ClipID != clipID || cue.FirePolicy.Kind == "oncePerStepEntry" && containsV2(s.snapshot.StepExecution.ConsumedCueIds, cue.ID) || !v2GuardPasses(cue, s.snapshot, nil) {
+		if cue.Trigger.Kind != "modelClipCompleted" || cue.Trigger.NodeID != nodeID || cue.Trigger.ClipID != clipID || !v2CueEligible(cue, s.snapshot) || !v2GuardPasses(cue, s.snapshot, nil) {
 			continue
 		}
 		candidates = append(candidates, cue)
@@ -220,6 +245,67 @@ func (s *V2Session) fireV2ModelCompleted(nodeID, clipID, causeEventID string) ([
 			return candidates[i].Order < candidates[j].Order
 		}
 		return candidates[i].ID < candidates[j].ID
+	})
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	events, rejection, err := s.applySelectedV2Cue(candidates[0], causeEventID)
+	if rejection != nil {
+		return nil, nil
+	}
+	return events, err
+}
+
+func v2CueEligible(cue v2Cue, snapshot *realtimev2.CanonicalRuntimeSnapshot) bool {
+	if cue.FirePolicy.Kind == "oncePerStepEntry" {
+		return !containsV2(snapshot.StepExecution.ConsumedCueIds, cue.ID)
+	}
+	for _, cooldown := range snapshot.StepExecution.Cooldowns {
+		if cooldown.CueId == cue.ID && snapshot.Clock.RuntimeTimeMs < cooldown.NextEligibleRuntimeTimeMs {
+			return false
+		}
+	}
+	return true
+}
+
+// EnabledLogicalInputs derives input availability from the same canonical cut used for projection.
+func (s *V2Session) EnabledLogicalInputs(snapshot *realtimev2.CanonicalRuntimeSnapshot) []string {
+	if snapshot.Clock.GetRunning() == nil || snapshot.Progression.GetTransitioning() != nil {
+		return nil
+	}
+	names := map[string]bool{}
+	for _, cue := range s.definition.Flow.Groups[snapshot.Progression.CurrentGroupId].Steps[snapshot.Progression.CurrentStepId].Cues {
+		if cue.Trigger.Kind == "logicalInput" && cue.Trigger.Actor.Kind != "system" && v2CueEligible(cue, snapshot) && v2GuardPasses(cue, snapshot, nil) {
+			names[cue.Trigger.Action] = true
+		}
+	}
+	result := make([]string, 0, len(names))
+	for name := range names {
+		result = append(result, name)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func (s *V2Session) fireV2TimelineCompleted(timelineID, causeEventID string) ([]*realtimev2.ProjectedReliableEvent, error) {
+	if s.snapshot.Progression.GetTransitioning() != nil {
+		return nil, nil
+	}
+	var candidates []v2Cue
+	for _, cue := range s.definition.Flow.Groups[s.snapshot.Progression.CurrentGroupId].Steps[s.snapshot.Progression.CurrentStepId].Cues {
+		if cue.Trigger.Kind == "timelineCompleted" && cue.Trigger.TimelineID == timelineID && v2CueEligible(cue, s.snapshot) && v2GuardPasses(cue, s.snapshot, nil) {
+			candidates = append(candidates, cue)
+		}
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		a, b := candidates[i], candidates[j]
+		if a.Priority != b.Priority {
+			return a.Priority > b.Priority
+		}
+		if a.Order != b.Order {
+			return a.Order < b.Order
+		}
+		return a.ID < b.ID
 	})
 	if len(candidates) == 0 {
 		return nil, nil

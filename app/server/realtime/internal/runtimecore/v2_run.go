@@ -178,6 +178,7 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 			}
 		}
 		var timeline v2Timeline
+		timelineCompletionEventID := ""
 		if run.GetModelClip() != nil {
 			// The Model run was removed above; blocking progression is resolved below.
 		} else if run.GetTimeline() != nil {
@@ -212,6 +213,9 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 		if transition := run.GetSurfaceTransition(); transition != nil {
 			events = append(events, s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_SurfaceTransitionCompleted{SurfaceTransitionCompleted: &realtimev2.SurfaceTransitionCompleted{SurfaceId: transition.SurfaceId, RunId: proto.Clone(run.RunId).(*presentationv2.RuntimeRunId), StateId: transition.ToStateId}}}))
 		}
+		if run.GetTimeline() != nil {
+			timelineCompletionEventID = fmt.Sprintf("event-%d", s.snapshot.ReliableSequence)
+		}
 		for _, track := range timeline.Tracks {
 			for _, node := range s.snapshot.NodeStates {
 				if node.NodeId == track.Target.NodeID {
@@ -219,6 +223,14 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 					break
 				}
 			}
+		}
+		if run.GetTimeline() != nil && s.snapshot.Progression.GetTransitioning() == nil {
+			cueEvents, err := s.fireV2TimelineCompleted(timeline.ID, timelineCompletionEventID)
+			if err != nil {
+				s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
+				return nil, err
+			}
+			events = append(events, cueEvents...)
 		}
 		if transitioning := s.snapshot.Progression.GetTransitioning(); transitioning != nil {
 			var remaining []*presentationv2.RuntimeRunId
@@ -338,6 +350,7 @@ type v2Timeline struct {
 		Keyframes []struct {
 			TimeMilliseconds uint64          `json:"timeMilliseconds"`
 			Value            json.RawMessage `json:"value"`
+			EasingToNext     string          `json:"easingToNext"`
 		} `json:"keyframes"`
 	} `json:"tracks"`
 }
@@ -402,7 +415,30 @@ func (s *V2Session) evaluateV2RunActions(next *realtimev2.CanonicalRuntimeSnapsh
 	})
 	for _, action := range actions {
 		if action.Kind == "timeline.stop" {
-			return nil, nil, nil, ErrV2RuntimeUnsupported
+			for index, run := range next.ActiveRuns {
+				if run.GetTimeline().GetTimelineId() != action.TimelineID {
+					continue
+				}
+				var timeline v2Timeline
+				if json.Unmarshal(s.definition.Flow.Timelines[action.TimelineID], &timeline) != nil {
+					return nil, nil, nil, ErrV2RuntimeDefinition
+				}
+				if err := applyV2TimelineAt(next, timeline, next.Clock.RuntimeTimeMs-run.StartedAtRuntimeTimeMs); err != nil {
+					return nil, nil, nil, err
+				}
+				next.ActiveRuns = append(next.ActiveRuns[:index], next.ActiveRuns[index+1:]...)
+				events = append(events, &realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_TimelineCanceled{TimelineCanceled: &realtimev2.TimelineCanceled{RunId: proto.Clone(run.RunId).(*presentationv2.RuntimeRunId), TimelineId: action.TimelineID, Reason: realtimev2.TimelineCancelReason_TIMELINE_CANCEL_REASON_EXPLICIT_STOP}}})
+				for _, track := range timeline.Tracks {
+					for _, node := range next.NodeStates {
+						if node.NodeId == track.Target.NodeID {
+							events = append(events, &realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_NodeStateCommitted{NodeStateCommitted: &realtimev2.NodeStateCommitted{State: proto.Clone(node).(*realtimev2.NodeRuntimeState)}}})
+							break
+						}
+					}
+				}
+				break
+			}
+			continue
 		}
 		if s.checkpointMetadata == nil {
 			return nil, nil, nil, ErrV2RuntimeDefinition
@@ -472,6 +508,19 @@ func (s *V2Session) evaluateV2RunActions(next *realtimev2.CanonicalRuntimeSnapsh
 			return nil, nil, nil, ErrV2RuntimeDefinition
 		}
 		for _, run := range next.ActiveRuns {
+			if run.GetTimeline() != nil {
+				var existing v2Timeline
+				if json.Unmarshal(s.definition.Flow.Timelines[run.GetTimeline().TimelineId], &existing) != nil {
+					return nil, nil, nil, ErrV2RuntimeDefinition
+				}
+				for _, a := range existing.Tracks {
+					for _, b := range timeline.Tracks {
+						if a.Target == b.Target {
+							return reject(realtimev2.CueRejectionReason_CUE_REJECTION_REASON_ACTION_BATCH_CONFLICT)
+						}
+					}
+				}
+			}
 			if run.GetTimeline().GetTimelineId() == timeline.ID {
 				return reject(realtimev2.CueRejectionReason_CUE_REJECTION_REASON_ACTION_BATCH_CONFLICT)
 			}

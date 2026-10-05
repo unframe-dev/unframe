@@ -80,6 +80,7 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 		delete(s.presence, identity.ParticipantID)
 		return nil
 	}
+	defer delete(s.presence, identity.ParticipantID)
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	events := []*realtimev2.ProjectedReliableEvent{s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged{ParticipantPresenceChanged: &realtimev2.ParticipantPresenceChanged{ParticipantId: identity.ParticipantID, Role: v2SessionRole(role), Connected: false}}})}
 	pausePresenter := role == session.RolePresenter && s.snapshot.Clock.GetRunning() != nil

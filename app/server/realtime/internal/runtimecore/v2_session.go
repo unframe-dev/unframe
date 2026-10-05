@@ -324,13 +324,17 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	}
 	var candidates []v2Cue
 	inputAvailable := false
+	semanticEvent := ""
+	if input.kind == "surfaceInteraction" {
+		semanticEvent = s.definition.Scene.Surfaces[input.surfaceID].Interactions[input.interactionID].Event
+	}
 	for _, cue := range step.Cues {
-		matches := input.kind == "logicalInput" && cue.Trigger.Kind == "logicalInput" && cue.Trigger.Action == input.logicalEventName || input.kind == "surfaceInteraction" && cue.Trigger.Kind == "surfaceInteraction" && cue.Trigger.SurfaceID == input.surfaceID && cue.Trigger.InteractionID == input.interactionID
-		if !matches {
+		matches := input.kind == "logicalInput" && cue.Trigger.Kind == "logicalInput" && cue.Trigger.Action == input.logicalEventName || input.kind == "surfaceInteraction" && cue.Trigger.Kind == "surfaceInteraction" && cue.Trigger.SurfaceID == input.surfaceID && cue.Trigger.InteractionID == input.interactionID || input.kind == "surfaceInteraction" && semanticEvent != "" && cue.Trigger.Kind == "semanticEvent" && cue.Trigger.Event == semanticEvent
+		if !matches || cue.Trigger.Actor.Kind == "system" {
 			continue
 		}
 		inputAvailable = true
-		if cue.FirePolicy.Kind == "oncePerStepEntry" && containsV2(s.snapshot.StepExecution.ConsumedCueIds, cue.ID) {
+		if !v2CueEligible(cue, s.snapshot) {
 			continue
 		}
 		if !v2GuardPasses(cue, s.snapshot, nil) {

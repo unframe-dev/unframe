@@ -46,6 +46,10 @@ type v2Node struct {
 }
 
 type v2Surface struct {
+	Interactions map[string]struct {
+		ID    string `json:"id"`
+		Event string `json:"event"`
+	} `json:"interactions"`
 	ID             string                     `json:"id"`
 	HostNodeID     string                     `json:"hostNodeId"`
 	InitialStateID string                     `json:"initialStateId"`
@@ -79,7 +83,12 @@ type v2Cue struct {
 	Priority uint64 `json:"priority"`
 	Order    uint32 `json:"order"`
 	Trigger  struct {
-		Kind                  string  `json:"kind"`
+		Kind       string `json:"kind"`
+		Event      string `json:"event"`
+		TimelineID string `json:"timelineId"`
+		Actor      struct {
+			Kind string `json:"kind"`
+		} `json:"actor"`
 		Action                string  `json:"action"`
 		SurfaceID             string  `json:"surfaceId"`
 		NodeID                string  `json:"nodeId"`

@@ -73,7 +73,7 @@ func (s *V2Session) AcceptTracking(ctx context.Context, identity session.Identit
 	var candidates []v2Cue
 	for _, id := range fired {
 		cue := byID[id]
-		if cue.FirePolicy.Kind == "oncePerStepEntry" && containsV2(s.snapshot.StepExecution.ConsumedCueIds, id) || !v2GuardPasses(cue, s.snapshot, nil) {
+		if !v2CueEligible(cue, s.snapshot) || !v2GuardPasses(cue, s.snapshot, nil) {
 			continue
 		}
 		candidates = append(candidates, cue)
