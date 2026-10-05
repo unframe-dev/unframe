@@ -340,6 +340,47 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
         }
     }
 
+    [Test]
+    public void NewStateStreamAcceptsRestartedSequenceAfterControlReplay()
+    {
+        DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var replay = new ControlServerItem
+        {
+            ReliableEvent = new ProjectedReliableEvent
+            {
+                Sequence = 1,
+                Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                RuntimeStatusChanged = new RuntimeStatusChanged { Paused = new Paused { Reason = PauseReason.ExplicitPause } }
+            }
+        };
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        {
+            AssertAccepted(connection, Frame(snapshot.ConnectionSnapshot.Fence, 20, 0, StateFrameKind.Keyframe), true);
+            InvokeResume(connection, "BeginReplayBootstrap");
+            Assert.That(ReceiveReplay(connection, replay, out error), Is.True, error);
+            InvokeResume(connection, "CompleteReplayBootstrap");
+            RuntimeClockSnapshot clock = store.RuntimeClock;
+            NodeRuntimeState original = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0];
+            InvokeResume(connection, "BeginStateStream");
+            Assert.That(store.RuntimeClock, Is.EqualTo(clock));
+            Assert.That(store.TryGetNodeState(original.NodeId, out NodeRuntimeState retained), Is.True);
+            Assert.That(retained, Is.EqualTo(original));
+            Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+            Assert.That(store.LastStateFrameSequence, Is.Zero);
+            Assert.That(store.TryGetLastConnectionSnapshot(out _), Is.True);
+            AssertAccepted(connection, Frame(snapshot.ConnectionSnapshot.Fence, 1, 1, StateFrameKind.Delta), false);
+            AssertAccepted(connection, Frame(snapshot.ConnectionSnapshot.Fence, 1, 1, StateFrameKind.Keyframe), true);
+            AssertAccepted(connection, Frame(snapshot.ConnectionSnapshot.Fence, 1, 1, StateFrameKind.Keyframe), false);
+            AssertAccepted(connection, Frame(snapshot.ConnectionSnapshot.Fence, 2, 1, StateFrameKind.Delta), true);
+            Assert.That(store.LastStateFrameSequence, Is.EqualTo(2));
+        }
+    }
+
     private static StateServerItem Frame(RuntimeProjectionFence fence, ulong sequence, ulong baseReliable, StateFrameKind kind)
     {
         var frame = new ElementStateFrame { Fence = fence.Clone(), FrameSequence = sequence, BaseReliableSequence = baseReliable, Kind = kind };

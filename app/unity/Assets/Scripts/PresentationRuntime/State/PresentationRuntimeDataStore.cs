@@ -145,6 +145,8 @@ namespace Unframe.Unity.PresentationRuntime
                         || !IsValidScalar(definition.Type, state.Value)) return false;
             return runtime.TryReceiveControl(item, out error);
         }
+        internal void ResetStateStream() { runtime.ResetStateStream(); }
+
         public bool TryValidateNetworkStateFrame(ElementStateFrame frame, out string error) { return runtime.TryValidateNetworkStateFrame(frame, out error); }
         public bool TryReceiveState(byte[] payload, out string error) { return runtime.TryReceiveState(payload, out error); }
         public bool TryReceiveState(StateServerItem item, out string error) { return runtime.TryReceiveState(item, out error); }

@@ -113,7 +113,9 @@ namespace Unframe.Unity.PresentationRuntime
             HashSet<RuntimeCapability> requiredCapabilities = new HashSet<RuntimeCapability>();
             foreach (RuntimeCapability required in profile.RequiredRuntimeCapabilities)
             {
-                if (required != RuntimeCapability.TimelineRunV2 && required != RuntimeCapability.RuntimeTransportV2 && required != RuntimeCapability.SurfaceTransitionV2 || !requiredCapabilities.Add(required))
+                if (required != RuntimeCapability.TimelineRunV2 && required != RuntimeCapability.RuntimeTransportV2
+                    && required != RuntimeCapability.SurfaceTransitionV2 && required != RuntimeCapability.TrackingV2
+                    || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);
                 }
@@ -443,8 +445,8 @@ namespace Unframe.Unity.PresentationRuntime
                 Vector3 value = keyframe.Vector3.Value;
                 return IsCanonicalFinite(value.X) && IsCanonicalFinite(value.Y) && IsCanonicalFinite(value.Z)
                     && (property == TimelineProperty.TransformPosition
-                        ? PresentationUnityCoordinates.IsRenderable(value)
-                        : PresentationUnityCoordinates.IsRenderableScale(value))
+                        ? PresentationCoordinateValidation.IsRenderable(value)
+                        : PresentationCoordinateValidation.IsRenderableScale(value))
                     && (property != TimelineProperty.TransformScale || value.X > 0 && value.Y > 0 && value.Z > 0);
             }
 

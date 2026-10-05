@@ -52,6 +52,12 @@ namespace Unframe.Unity.PresentationRuntime
             get { List<RuntimeRunSnapshot> result = new List<RuntimeRunSnapshot>(); foreach (RuntimeRunSnapshot run in activeRuns.Values) result.Add(run.Clone()); return result; }
         }
 
+        internal void ResetStateStream()
+        {
+            LastStateFrameSequence = 0;
+            anchorSamples.Clear();
+        }
+
         internal void Reset()
         {
             nodeStates.Clear();
@@ -567,7 +573,7 @@ namespace Unframe.Unity.PresentationRuntime
                     || parent.FollowPosition != (sample.Position != null)
                     || parent.FollowRotation != (sample.Rotation != null)
                     || sample.Position != null && (!IsValidVector(sample.Position)
-                        || !PresentationUnityCoordinates.IsRenderable(sample.Position))
+                        || !PresentationCoordinateValidation.IsRenderable(sample.Position))
                     || sample.Rotation != null && !PresentationDeliveryCatalog.IsCanonicalUnitQuaternion(sample.Rotation)) return false;
             }
             error = null;
@@ -594,10 +600,10 @@ namespace Unframe.Unity.PresentationRuntime
             Unframe.Presentation.V2.Transform transform = patch.Transform;
             if (transform.Position == null && transform.Rotation == null && transform.Scale == null) return false;
             if (transform.Position != null && (!IsValidVector(transform.Position)
-                || !PresentationUnityCoordinates.IsRenderable(transform.Position))) return false;
+                || !PresentationCoordinateValidation.IsRenderable(transform.Position))) return false;
             if (transform.Rotation != null && !PresentationDeliveryCatalog.IsCanonicalUnitQuaternion(transform.Rotation)) return false;
             return transform.Scale == null || IsValidVector(transform.Scale)
-                && PresentationUnityCoordinates.IsRenderableScale(transform.Scale)
+                && PresentationCoordinateValidation.IsRenderableScale(transform.Scale)
                 && transform.Scale.X > 0 && transform.Scale.Y > 0 && transform.Scale.Z > 0;
         }
 
@@ -626,9 +632,9 @@ namespace Unframe.Unity.PresentationRuntime
             Unframe.Presentation.V2.Quaternion rotation = transform.Rotation;
             Unframe.Presentation.V2.Vector3 scale = transform.Scale;
             return PresentationDeliveryCatalog.IsCanonicalFinite(position.X) && PresentationDeliveryCatalog.IsCanonicalFinite(position.Y) && PresentationDeliveryCatalog.IsCanonicalFinite(position.Z)
-                && PresentationUnityCoordinates.IsRenderable(position)
+                && PresentationCoordinateValidation.IsRenderable(position)
                 && PresentationDeliveryCatalog.IsCanonicalFinite(scale.X) && PresentationDeliveryCatalog.IsCanonicalFinite(scale.Y) && PresentationDeliveryCatalog.IsCanonicalFinite(scale.Z) && scale.X > 0 && scale.Y > 0 && scale.Z > 0
-                && PresentationUnityCoordinates.IsRenderableScale(scale)
+                && PresentationCoordinateValidation.IsRenderableScale(scale)
                 && PresentationDeliveryCatalog.IsCanonicalUnitQuaternion(rotation);
         }
 

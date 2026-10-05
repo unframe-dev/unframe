@@ -310,8 +310,8 @@ namespace Unframe.Unity.PresentationRuntime
             if (!store.TryValidateRuntimeOwnership(out string ownershipError)) throw Failure(ownershipError);
             await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
             RequireResidency();
+            BeginStateStream();
             SessionReady = true;
-            awaitingKeyframe = true;
             while (await state.ResponseStream.MoveNext(token))
             {
                 RequireResidency();
@@ -320,6 +320,13 @@ namespace Unframe.Unity.PresentationRuntime
             }
             SessionReady = false;
             throw new RpcException(new Status(StatusCode.Unavailable, "realtime state stream ended"));
+        }
+
+        private void BeginStateStream()
+        {
+            // State sequences and tracking samples belong to the stream, even when Control resumes.
+            store.ResetStateStream();
+            awaitingKeyframe = true;
         }
 
         internal bool TryReceiveStateFrame(StateServerItem item, out bool applied, out string error)

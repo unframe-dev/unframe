@@ -30,9 +30,38 @@ public sealed class PresentationDeliveryValidationEditModeTests
     }
 
     [Test]
-    public void Delivery_RejectsUnsupportedRequiredRuntimeCapability()
+    public void Delivery_AcceptsTrackingRequiredPresenterAnchor()
     {
         DeliveryManifest delivery = CreateFixture();
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
+        delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
+        {
+            PresenterAnchor = new PresenterAnchorParent
+            {
+                Target = AnchorTarget.Head,
+                FollowPosition = true,
+                FollowRotation = true,
+            },
+        };
+        AssertAccepted(delivery);
+    }
+
+    [TestCase(RuntimeCapability.Unspecified)]
+    [TestCase(RuntimeCapability.VideoPlaybackV2)]
+    [TestCase(RuntimeCapability.ModelClipV2)]
+    [TestCase((RuntimeCapability)999)]
+    public void Delivery_RejectsUnsupportedRequiredRuntimeCapability(RuntimeCapability capability)
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(capability);
+        AssertRejected(delivery, "capability");
+    }
+
+    [Test]
+    public void Delivery_RejectsDuplicateRequiredTrackingCapability()
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
         delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
         AssertRejected(delivery, "capability");
     }

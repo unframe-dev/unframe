@@ -3,10 +3,26 @@ using NUnit.Framework;
 using Unframe.Presentation.V2;
 using Unframe.Realtime.V2;
 using Unframe.Unity.PresentationRuntime;
+using UnityEditor;
 using UnityEngine;
 
 public sealed class PresentationBakedRenderingEditModeTests
 {
+    [Test]
+    public void BakedShaderTargetsUniversalRenderPipelineWithoutImportErrors()
+    {
+        Shader shader = Resources.Load<Shader>("BakedSurface");
+        Assert.That(shader, Is.Not.Null);
+        var material = new Material(shader);
+        try
+        {
+            Assert.That(material.GetTag("RenderPipeline", false), Is.EqualTo("UniversalPipeline"));
+            Assert.That(material.FindPass("BakedSurface"), Is.GreaterThanOrEqualTo(0));
+            Assert.That(ShaderUtil.ShaderHasError(shader), Is.False);
+        }
+        finally { Object.DestroyImmediate(material); }
+    }
+
     [Test]
     public void BakedShaderIsPackagedWithTwoResidentTextureSlotsAndOpacity()
     {
