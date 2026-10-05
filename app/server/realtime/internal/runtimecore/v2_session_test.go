@@ -448,6 +448,7 @@ func TestV2LeaseExpiryStopsClockAndPresenterInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	core.PauseLeaseExpired()
 	cut := core.Snapshot()
 	if cut.Clock.GetPaused() == nil || cut.Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED || cut.ReliableSequence != 0 {
@@ -553,6 +554,7 @@ func TestV2SessionStartsBlockingTimelineAndDefersStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	catalog, err := BuildV2CanonicalCatalog(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -584,6 +586,7 @@ func TestV2SessionSurfaceCrossfadeCompletesAtRuntimeDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	catalog, err := BuildV2CanonicalCatalog(definition)
 	if err != nil {
 		t.Fatal(err)

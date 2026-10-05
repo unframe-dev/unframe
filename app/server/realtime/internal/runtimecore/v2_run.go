@@ -16,6 +16,11 @@ import (
 func (s *V2Session) AdvanceFromWall(ctx context.Context, now time.Time) ([]*realtimev2.ProjectedReliableEvent, error) {
 	s.operationMu.Lock()
 	defer s.operationMu.Unlock()
+	return s.advanceFromWall(ctx, now)
+}
+
+// Caller holds operationMu so clock advancement and command evaluation cannot interleave.
+func (s *V2Session) advanceFromWall(ctx context.Context, now time.Time) ([]*realtimev2.ProjectedReliableEvent, error) {
 	s.mu.Lock()
 	if !now.After(s.lastTick) {
 		s.mu.Unlock()
@@ -27,10 +32,6 @@ func (s *V2Session) AdvanceFromWall(ctx context.Context, now time.Time) ([]*real
 		return nil, nil
 	}
 	delta := uint64(now.Sub(s.lastTick) / time.Millisecond)
-	if delta == 0 {
-		s.mu.Unlock()
-		return nil, nil
-	}
 	if s.snapshot.Clock.RuntimeTimeMs > math.MaxUint64-delta {
 		previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 		s.rollbackV2Fault(previous, realtimev2.PauseReason_PAUSE_REASON_INVARIANT_VIOLATION)
@@ -38,14 +39,21 @@ func (s *V2Session) AdvanceFromWall(ctx context.Context, now time.Time) ([]*real
 		return nil, ErrV2RuntimeDefinition
 	}
 	target := s.snapshot.Clock.RuntimeTimeMs + delta
+	consumedUntil := s.lastTick.Add(time.Duration(delta) * time.Millisecond)
 	s.mu.Unlock()
 	events, err := s.advanceTo(ctx, target)
 	if err != nil {
 		return nil, err
 	}
-	s.mu.Lock()
-	s.lastTick = now
-	s.mu.Unlock()
+	if delta != 0 {
+		s.mu.Lock()
+		if s.snapshot.Clock.GetRunning() != nil {
+			s.lastTick = consumedUntil
+		} else {
+			s.lastTick = now
+		}
+		s.mu.Unlock()
+	}
 	return events, nil
 }
 

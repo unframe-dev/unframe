@@ -27,6 +27,7 @@ func reviewSession(t *testing.T) (*V2Session, *recordingV2Checkpoint) {
 	if err := s.ConfigureDurability(w, m, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}); err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(s)
 	return s, w
 }
 func TestV2WallTickCheckpointsAtBoundedCadence(t *testing.T) {

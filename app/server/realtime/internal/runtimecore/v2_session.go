@@ -300,12 +300,21 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		}
 		return proto.Clone(stored.outcome).(*realtimev2.CommandOutcome), nil, nil
 	}
+	s.mu.Unlock()
+	dueEvents, advanceErr := s.advanceFromWall(ctx, time.Now())
+	s.mu.Lock()
+	if advanceErr != nil {
+		return nil, nil, advanceErr
+	}
 	if s.snapshot.Clock.GetRunning() == nil || s.snapshot.Progression.GetTransitioning() != nil {
 		outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT}}}
-		if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
+		if s.snapshot.Clock.GetTerminating() != nil {
+			// Completion already released the assignment; no checkpoint may follow it.
+			s.rememberOutcome(key, fingerprint, outcome)
+		} else if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
 			return nil, nil, err
 		}
-		return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
+		return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(dueEvents), nil
 	}
 	group := s.definition.Flow.Groups[s.snapshot.Progression.CurrentGroupId]
 	step := group.Steps[s.snapshot.Progression.CurrentStepId]
@@ -314,12 +323,12 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		var state struct {
 			EnabledInteractionIDs []string `json:"enabledInteractionIds"`
 		}
-		if !found || !surfaceInteractionVisible(s.definition, s.snapshot, input.surfaceID) || json.Unmarshal(surface.States[surfaceStateID(s.snapshot, input.surfaceID)], &state) != nil || !containsV2(state.EnabledInteractionIDs, input.interactionID) {
+		if !found || !s.surfaceInteractionVisible(input.surfaceID, time.Now()) || json.Unmarshal(surface.States[surfaceStateID(s.snapshot, input.surfaceID)], &state) != nil || !containsV2(state.EnabledInteractionIDs, input.interactionID) {
 			outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INTERACTION_UNAVAILABLE}}}
 			if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
 				return nil, nil, err
 			}
-			return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
+			return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(dueEvents), nil
 		}
 	}
 	var candidates []v2Cue
@@ -355,7 +364,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
 			return nil, nil, err
 		}
-		return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
+		return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(dueEvents), nil
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	sort.Slice(candidates, func(i, j int) bool {
@@ -401,7 +410,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	if err != nil {
 		return nil, nil, err
 	}
-	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(events), nil
+	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(append(dueEvents, events...)), nil
 }
 
 func (s *V2Session) commitV2Mutation(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
@@ -537,7 +546,8 @@ func surfaceStateID(snapshot *realtimev2.CanonicalRuntimeSnapshot, surfaceID str
 	return ""
 }
 
-func surfaceInteractionVisible(definition v2Definition, snapshot *realtimev2.CanonicalRuntimeSnapshot, surfaceID string) bool {
+func (s *V2Session) surfaceInteractionVisible(surfaceID string, now time.Time) bool {
+	definition, snapshot := s.definition, s.snapshot
 	if surfaceStateID(snapshot, surfaceID) == "" {
 		return false
 	}
@@ -568,6 +578,10 @@ func surfaceInteractionVisible(definition v2Definition, snapshot *realtimev2.Can
 		}
 		if node.Parent.Kind == "stage" || node.Parent.Kind == "" {
 			return true
+		}
+		if node.Parent.Kind == "anchor" {
+			sample, available, err := s.anchorTrackingSample(node)
+			return err == nil && available && !now.Before(sample.ReceivedAt) && now.Sub(sample.ReceivedAt) <= 500*time.Millisecond
 		}
 		if node.Parent.Kind != "node" {
 			return false

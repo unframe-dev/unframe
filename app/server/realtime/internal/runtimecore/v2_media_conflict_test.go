@@ -29,6 +29,7 @@ func v2MediaConflictSession(t *testing.T, actions string) (*V2Session, *recordin
 	if err := core.ConfigureDurability(writer, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	return core, writer
 }
 
