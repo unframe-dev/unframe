@@ -1,8 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
-  capabilityProfileV2Schema,
-  publishedPresentationV2Schema,
-} from "@unframe/contracts/presentation/v2";
+  capabilityProfileSchema,
+  publishedPresentationSchema,
+} from "@unframe/contracts/presentation";
 import { buildProjectionProfile, hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import type { AppEnvironment } from "../../config";
 import {
@@ -139,7 +139,7 @@ export function createRuntimePublicationRoutes() {
       } catch {
         return conflict();
       }
-      const parsed = publishedPresentationV2Schema.safeParse(manifest);
+      const parsed = publishedPresentationSchema.safeParse(manifest);
       if (!parsed.success) return conflict();
       const { publicationManifestHash, ...payload } = parsed.data;
       if (
@@ -201,7 +201,7 @@ export function createRuntimePublicationRoutes() {
         row.presentationId,
         row.publicationEpoch,
       );
-      const capability = capabilityProfileV2Schema.parse(JSON.parse(row.capabilityJson));
+      const capability = capabilityProfileSchema.parse(JSON.parse(row.capabilityJson));
       const { profile } = buildProjectionProfile({ ...artifacts, capability }, row.role);
       if (profile.projectionProfileId !== row.projectionProfileId)
         return context.json(

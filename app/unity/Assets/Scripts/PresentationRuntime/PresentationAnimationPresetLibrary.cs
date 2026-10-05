@@ -51,7 +51,7 @@ namespace Unframe.Unity.PresentationRuntime
             return false;
         }
 
-        public bool TryCreateTimeline(string timelineId, string nodeId, UnityEngine.Vector3 restingPosition, ulong durationMs, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out string error)
+        public bool TryCreateTimeline(string timelineId, string nodeId, UnityEngine.Vector3 restingPosition, ulong durationMs, out Unframe.Presentation.ProjectedTimelineDefinition timeline, out string error)
         {
             if (PresentationAnimationPresetIds.IsBuiltIn(timelineId))
             {

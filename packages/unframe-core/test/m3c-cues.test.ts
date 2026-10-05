@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { validatePresentationDefinition } from "../src/index.js";
 import { makeM3AArtifacts } from "./fixtures.js";
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
 const fixture = () => {
   const { definition } = makeM3AArtifacts();
@@ -21,7 +21,7 @@ const fixture = () => {
       },
     ],
     next: { kind: "stay" },
-  } as PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["cues"][number];
+  } as PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];
   definition.flow.groups.intro!.steps.start!.cues = [structuredClone(cue)];
   return { definition, cue: definition.flow.groups.intro!.steps.start!.cues[0]! };
 };

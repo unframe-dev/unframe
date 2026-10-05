@@ -5,7 +5,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"math"
 
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 )
 
 func (s *V2Session) nextV2Due(target uint64) (*realtimev2.RuntimeRunSnapshot, *realtimev2.ArmedTimer, uint64, error) {

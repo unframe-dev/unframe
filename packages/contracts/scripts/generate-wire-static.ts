@@ -6,9 +6,9 @@ import { formatGenerated } from "./format-generated";
 
 const root = resolve(import.meta.dirname, "..");
 const names = [
-  "unframe/presentation/v2/runtime.proto",
-  "unframe/delivery/v2/delivery.proto",
-  "unframe/realtime/v2/realtime.proto",
+  "unframe/presentation/runtime.proto",
+  "unframe/delivery/delivery.proto",
+  "unframe/realtime/realtime.proto",
 ];
 const temporary = await mkdtemp(resolve(tmpdir(), "unframe-wire-static-"));
 try {
@@ -21,7 +21,7 @@ try {
   );
   execFileSync("pnpm", ["exec", "pbts", "-o", types, js], { cwd: root });
   for (const file of [js, types]) {
-    const destination = resolve(root, `presentation/v2/${file.split("/").at(-1)}`);
+    const destination = resolve(root, `presentation/${file.split("/").at(-1)}`);
     const content = Buffer.from(formatGenerated(destination, await readFile(file, "utf8")));
     if (process.argv.includes("--check")) {
       const current = await readFile(destination);

@@ -1,12 +1,12 @@
 import {
-  idV2Schema,
-  presentationDefinitionV2Schema,
-  renderBundleV2Schema,
-  semanticSurfaceV2Schema,
-  type PresentationDefinitionV2,
-  type RenderBundleV2,
-  type SemanticSurfaceV2,
-} from "@unframe/contracts/presentation/v2";
+  idSchema,
+  presentationDefinitionSchema,
+  renderBundleSchema,
+  semanticSurfaceSchema,
+  type PresentationDefinition,
+  type RenderBundle,
+  type SemanticSurface,
+} from "@unframe/contracts/presentation";
 import type * as z from "zod";
 
 type SnapshotResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
@@ -112,13 +112,13 @@ const parseContract = <T>(input: unknown, schema: z.ZodType<T>): ContractParseRe
 
 export const parsePresentationDefinitionInput = (
   input: unknown,
-): ContractParseResult<PresentationDefinitionV2> =>
-  parseContract(input, presentationDefinitionV2Schema);
+): ContractParseResult<PresentationDefinition> =>
+  parseContract(input, presentationDefinitionSchema);
 
-export const parseRenderBundleInput = (input: unknown): ContractParseResult<RenderBundleV2> =>
-  parseContract(input, renderBundleV2Schema);
+export const parseRenderBundleInput = (input: unknown): ContractParseResult<RenderBundle> =>
+  parseContract(input, renderBundleSchema);
 
-export const parseSemanticSurfaceInput = (input: unknown): ContractParseResult<SemanticSurfaceV2> =>
-  parseContract(input, semanticSurfaceV2Schema);
+export const parseSemanticSurfaceInput = (input: unknown): ContractParseResult<SemanticSurface> =>
+  parseContract(input, semanticSurfaceSchema);
 
-export const parseIdInput = (input: unknown) => idV2Schema.safeParse(input);
+export const parseIdInput = (input: unknown) => idSchema.safeParse(input);

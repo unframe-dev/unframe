@@ -4143,13 +4143,13 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        /** @description RFC 8785 canonical PresentationDefinitionV2 JSON */
+                        /** @description RFC 8785 canonical PresentationDefinition JSON */
                         definitionJson: string;
-                        /** @description RFC 8785 canonical RenderBundleV2 JSON */
+                        /** @description RFC 8785 canonical RenderBundle JSON */
                         renderBundleJson: string;
-                        /** @description RFC 8785 canonical AssetSetManifestV2 JSON */
+                        /** @description RFC 8785 canonical AssetSetManifest JSON */
                         assetSetJson: string;
-                        /** @description RFC 8785 canonical BuildManifestV2 JSON */
+                        /** @description RFC 8785 canonical BuildManifest JSON */
                         buildManifestJson: string;
                     };
                 };
@@ -4657,7 +4657,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Validated protobuf DeliveryManifest v2 */
+                /** @description Validated protobuf DeliveryManifest */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -4802,11 +4802,11 @@ export interface paths {
                                 definitionHash: string;
                                 renderBundleHash: string;
                             };
-                            /** @description PresentationDefinitionV2; strict v2 schema validated at storage boundary */
+                            /** @description PresentationDefinition; strict schema validated at storage boundary */
                             definition: {
                                 [key: string]: unknown;
                             };
-                            /** @description RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash */
+                            /** @description RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash */
                             renderBundle: {
                                 [key: string]: unknown;
                             };
@@ -5009,7 +5009,7 @@ export interface paths {
                         "application/json": {
                             /** @enum {string} */
                             role: "presenter" | "viewer";
-                            /** @description ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract */
+                            /** @description ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract */
                             profile: {
                                 [key: string]: unknown;
                             };

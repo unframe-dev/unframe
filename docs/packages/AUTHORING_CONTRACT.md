@@ -29,7 +29,7 @@ Structured 宣言を Presentation v2 と baked-web 成果物へ接続する。�
 4. Variant
 5. 公開 Part の Instance override
 
-Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/v2/definition.ts) に従い、必須値の不足や不正値は build error とする。
+Named Style の継承と、一つの Primitive への複数 Named Style 適用は行わない。解決後の値は [v2 Definition schema](../../packages/contracts/src/presentation/definition.ts) に従い、必須値の不足や不正値は build error とする。
 
 ## TypeScript / JSX source
 

@@ -3,7 +3,7 @@ package runtimecore
 import (
 	"encoding/json"
 
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 )
 
 func (s *V2Session) TimelineOwnedNodeProperties(snapshot *realtimev2.CanonicalRuntimeSnapshot) (map[string]map[string]bool, error) {

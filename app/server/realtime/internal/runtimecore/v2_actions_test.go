@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 )
 
 func TestV2ImmediateActionsAreAtomicAndUsePreEventValues(t *testing.T) {

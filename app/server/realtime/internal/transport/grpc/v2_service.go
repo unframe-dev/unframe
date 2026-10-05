@@ -12,9 +12,9 @@ import (
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery/v2"
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
@@ -57,7 +57,7 @@ type v2ResumeRecord struct {
 }
 
 type V2Service struct {
-	realtimev2.UnimplementedRealtimeServiceV2Server
+	realtimev2.UnimplementedRealtimeServiceServer
 	runtime         *runtimecore.V2Session
 	bootstrap       persistencehttp.RuntimeBootstrap
 	projections     V2ProjectionProvider

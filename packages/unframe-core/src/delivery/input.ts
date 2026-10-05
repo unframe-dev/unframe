@@ -1,24 +1,20 @@
+import { capabilityProfileSchema, type CapabilityProfile } from "@unframe/contracts/presentation";
 import {
-  capabilityProfileV2Schema,
-  type CapabilityProfileV2,
-} from "@unframe/contracts/presentation/v2";
-import {
-  verifyPublicationIntegrityV2,
-  type PublicationArtifactsV2,
-  type PublicationIntegrityInputV2,
-} from "../publication-v2/integrity.js";
-import { snapshotPlainJson } from "../publication-v2/plain-json.js";
-import { validatePresentationDefinition } from "../validation/definition.js";
-import { validateRenderBundle } from "../validation/render-bundle.js";
+  verifyPublicationIntegrity,
+  type PublicationArtifacts,
+  type PublicationIntegrityInput,
+} from "../publication/integrity.js";
+import { snapshotPlainJson } from "../publication/plain-json.js";
+import { validatePresentationArtifacts } from "../validation/artifacts.js";
 
-export type DeliverySourceInput = PublicationArtifactsV2 & {
-  capability: CapabilityProfileV2;
+export type DeliverySourceInput = PublicationArtifacts & {
+  capability: CapabilityProfile;
 };
 
 export const parseDeliveryInputs = (
   input: DeliverySourceInput,
-): PublicationArtifactsV2 & {
-  capability: CapabilityProfileV2;
+): PublicationArtifacts & {
+  capability: CapabilityProfile;
 } => {
   const frozen = snapshotPlainJson(input);
   if (
@@ -45,27 +41,23 @@ export const parseDeliveryInputs = (
       "Delivery input envelope must contain only required artifacts and CapabilityProfile.",
     );
   const { capability, ...artifacts } = source;
-  const integrity = verifyPublicationIntegrityV2(artifacts as PublicationIntegrityInputV2);
+  const integrity = verifyPublicationIntegrity(artifacts as PublicationIntegrityInput);
   if (!integrity.valid)
     throw new Error(
       `Delivery publication is invalid: ${integrity.diagnostics.map((entry) => entry.message).join(" ")}`,
     );
-  const definition = validatePresentationDefinition(integrity.value.definition, {
-    fullDelivery: true,
-  });
-  if (!definition.valid)
+  const presentation = validatePresentationArtifacts(
+    integrity.value.definition,
+    integrity.value.renderBundle,
+    { fullDelivery: true },
+  );
+  if (!presentation.valid)
     throw new Error(
-      `Delivery Definition is invalid: ${definition.diagnostics.map((entry) => entry.message).join(" ")}`,
-    );
-  const renderBundle = validateRenderBundle(integrity.value.renderBundle, { fullDelivery: true });
-  if (!renderBundle.valid)
-    throw new Error(
-      `Delivery RenderBundle is invalid: ${renderBundle.diagnostics.map((entry) => entry.message).join(" ")}`,
+      `Delivery presentation artifacts are invalid: ${presentation.diagnostics.map((entry) => entry.message).join(" ")}`,
     );
   return {
     ...integrity.value,
-    definition: definition.value,
-    renderBundle: renderBundle.value,
-    capability: capabilityProfileV2Schema.parse(capability),
+    ...presentation.value,
+    capability: capabilityProfileSchema.parse(capability),
   };
 };

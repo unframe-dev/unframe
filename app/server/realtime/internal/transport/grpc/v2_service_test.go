@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
-	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery/v2"
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
@@ -47,7 +47,7 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT_V2}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
 	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 	}
 	listener := bufconn.Listen(1024 * 1024)
 	server := grpcgo.NewServer()
-	realtimev2.RegisterRealtimeServiceV2Server(server, service)
+	realtimev2.RegisterRealtimeServiceServer(server, service)
 	go func() { _ = server.Serve(listener) }()
 	defer server.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -65,7 +65,7 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = connection.Close() }()
-	client := realtimev2.NewRealtimeServiceV2Client(connection)
+	client := realtimev2.NewRealtimeServiceClient(connection)
 	control, err := client.ConnectControl(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +164,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "viewer-profile", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_VIEWER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT_V2}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "viewer-profile", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_VIEWER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
 	identity := session.Identity{SessionID: "session-1", ParticipantID: "viewer-1", Role: session.RoleViewer, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 2}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "viewer", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
@@ -172,7 +172,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 	}
 	listener := bufconn.Listen(1024 * 1024)
 	server := grpcgo.NewServer()
-	realtimev2.RegisterRealtimeServiceV2Server(server, service)
+	realtimev2.RegisterRealtimeServiceServer(server, service)
 	go func() { _ = server.Serve(listener) }()
 	defer server.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -182,7 +182,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 		t.Fatal(err)
 	}
 	defer func() { _ = connection.Close() }()
-	control, err := realtimev2.NewRealtimeServiceV2Client(connection).ConnectControl(ctx)
+	control, err := realtimev2.NewRealtimeServiceClient(connection).ConnectControl(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 	if !seenAdvance {
 		t.Fatal("invisible event was not collapsed before the next visible event")
 	}
-	state, err := realtimev2.NewRealtimeServiceV2Client(connection).ConnectState(ctx)
+	state, err := realtimev2.NewRealtimeServiceClient(connection).ConnectState(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 			break
 		}
 	}
-	resume, err := realtimev2.NewRealtimeServiceV2Client(connection).ConnectControl(ctx)
+	resume, err := realtimev2.NewRealtimeServiceClient(connection).ConnectControl(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestV2ServiceViewerReceivesProjectionAdvanceWithoutPrivateVariable(t *testi
 			t.Fatalf("post-resume visible=%#v error=%v", item, err)
 		}
 	}
-	resumeState, err := realtimev2.NewRealtimeServiceV2Client(connection).ConnectState(ctx)
+	resumeState, err := realtimev2.NewRealtimeServiceClient(connection).ConnectState(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -23,7 +23,7 @@ type wireFixture struct {
 
 func TestSharedWireConformance(t *testing.T) {
 	for _, filename := range []string{"conformance.json", "valid-delivery.json"} {
-		path := filepath.Join("../../../../../../packages/contracts/presentation/v2/fixtures/wire", filename)
+		path := filepath.Join("../../../../../../packages/contracts/presentation/fixtures/wire", filename)
 		content, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
@@ -42,15 +42,15 @@ func TestSharedWireConformance(t *testing.T) {
 			t.Run(filename+"/"+fixture.TypeName, func(t *testing.T) {
 				var message proto.Message
 				switch fixture.TypeName {
-				case "unframe.realtime.v2.NodeStatePatch":
+				case "unframe.realtime.NodeStatePatch":
 					message = &realtimev2.NodeStatePatch{}
-				case "unframe.delivery.v2.DeliveryManifest":
+				case "unframe.delivery.DeliveryManifest":
 					message = &deliveryv2.DeliveryManifest{}
-				case "unframe.realtime.v2.ControlClientItem":
+				case "unframe.realtime.ControlClientItem":
 					message = &realtimev2.ControlClientItem{}
-				case "unframe.realtime.v2.MediaStoppedSeeked":
+				case "unframe.realtime.MediaStoppedSeeked":
 					message = &realtimev2.MediaStoppedSeeked{}
-				case "unframe.realtime.v2.ProjectedReliableEvent":
+				case "unframe.realtime.ProjectedReliableEvent":
 					message = &realtimev2.ProjectedReliableEvent{}
 				default:
 					t.Fatalf("unexpected fixture type %q", fixture.TypeName)

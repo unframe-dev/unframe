@@ -14,7 +14,7 @@ import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService, BuildJob, ProjectSnapshot } from "../src/author/contract.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
-import { hashDependencyGraph, type UnframeLockV2 } from "../src/filesystem/lock-v2.js";
+import { hashDependencyGraph, type UnframeLock } from "../src/filesystem/lock.js";
 import { lockedFile, snapshotInstalledPackages } from "../src/filesystem/package-snapshot.js";
 
 const execute = promisify(execFile);
@@ -112,7 +112,7 @@ const createProject = async () => {
     packages: [...graph.packages, sdkPackage].sort((a, b) => compare(a.key, b.key)),
     assets: [],
   };
-  const fresh: UnframeLockV2 = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
+  const fresh: UnframeLock = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
   await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(fresh) + "\n");
   for (const name of await readdir(directory))
     if (

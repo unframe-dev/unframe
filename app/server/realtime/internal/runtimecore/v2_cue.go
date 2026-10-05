@@ -5,7 +5,7 @@ import (
 	"math"
 	"sort"
 
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 )
 
 func (s *V2Session) applySelectedV2Cue(cue v2Cue, causeEventID string) ([]*realtimev2.ProjectedReliableEvent, *realtimev2.CueBatchRejected, error) {

@@ -1,4 +1,4 @@
-import { encodeWireMessage, type CapabilityProfileV2 } from "@unframe/contracts/presentation/v2";
+import { encodeWireMessage, type CapabilityProfile } from "@unframe/contracts/presentation";
 import {
   buildDeliveryManifest,
   buildProjectionProfile,
@@ -41,7 +41,7 @@ export class DeliveryService {
 
   async select(identity: Identity, sessionId: string, capabilityProfileId: string) {
     const participant = await this.participant(sessionId, identity.userId);
-    let capability: CapabilityProfileV2;
+    let capability: CapabilityProfile;
     try {
       capability = normalizedCapability(capabilityProfileId);
     } catch {
@@ -147,6 +147,6 @@ export class DeliveryService {
       active.runtimeId !== assignment.runtimeId
     )
       throw new PublicationError("conflict");
-    return encodeWireMessage("unframe.delivery.v2.DeliveryManifest", manifest);
+    return encodeWireMessage("unframe.delivery.DeliveryManifest", manifest);
   }
 }

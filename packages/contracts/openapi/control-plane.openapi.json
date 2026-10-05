@@ -13210,25 +13210,25 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 8388608,
-                    "description": "RFC 8785 canonical PresentationDefinitionV2 JSON"
+                    "description": "RFC 8785 canonical PresentationDefinition JSON"
                   },
                   "renderBundleJson": {
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 8388608,
-                    "description": "RFC 8785 canonical RenderBundleV2 JSON"
+                    "description": "RFC 8785 canonical RenderBundle JSON"
                   },
                   "assetSetJson": {
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 8388608,
-                    "description": "RFC 8785 canonical AssetSetManifestV2 JSON"
+                    "description": "RFC 8785 canonical AssetSetManifest JSON"
                   },
                   "buildManifestJson": {
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 8388608,
-                    "description": "RFC 8785 canonical BuildManifestV2 JSON"
+                    "description": "RFC 8785 canonical BuildManifest JSON"
                   }
                 },
                 "required": [
@@ -14301,7 +14301,7 @@
         },
         "responses": {
           "200": {
-            "description": "Validated protobuf DeliveryManifest v2",
+            "description": "Validated protobuf DeliveryManifest",
             "content": {
               "application/x-protobuf": {
                 "schema": {
@@ -14626,14 +14626,14 @@
                       "additionalProperties": {
                         "nullable": true
                       },
-                      "description": "PresentationDefinitionV2; strict v2 schema validated at storage boundary"
+                      "description": "PresentationDefinition; strict schema validated at storage boundary"
                     },
                     "renderBundle": {
                       "type": "object",
                       "additionalProperties": {
                         "nullable": true
                       },
-                      "description": "RenderBundleV2; strict v2 schema validated at storage boundary; identity bound by publication.renderBundleHash"
+                      "description": "RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash"
                     },
                     "checkpoint": {
                       "type": "object",
@@ -15057,7 +15057,7 @@
                       "additionalProperties": {
                         "nullable": true
                       },
-                      "description": "ProjectionProfileDescriptor v2 ProtoJSON; validated by Realtime wire contract"
+                      "description": "ProjectionProfileDescriptor ProtoJSON; validated by Realtime wire contract"
                     }
                   },
                   "required": [

@@ -1,9 +1,6 @@
-import {
-  capabilityProfileV2Schema,
-  type CapabilityProfileV2,
-} from "@unframe/contracts/presentation/v2";
+import { capabilityProfileSchema, type CapabilityProfile } from "@unframe/contracts/presentation";
 
-const bakedWebQuestProfile = capabilityProfileV2Schema.parse({
+const bakedWebQuestProfile = capabilityProfileSchema.parse({
   schemaVersion: 2,
   capabilityProfileId: "quest-baked-web-v1",
   contractVersions: { delivery: 2, runtime: 2, progression: 1, projection: 1 },
@@ -64,7 +61,7 @@ const bakedWebQuestProfile = capabilityProfileV2Schema.parse({
   localOverlaySupported: false,
 });
 
-export const normalizedCapability = (profileId: string): CapabilityProfileV2 => {
+export const normalizedCapability = (profileId: string): CapabilityProfile => {
   if (profileId !== bakedWebQuestProfile.capabilityProfileId)
     throw new RangeError("Unsupported device capability profile");
   return structuredClone(bakedWebQuestProfile);

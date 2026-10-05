@@ -1,6 +1,6 @@
 using System;
-using Unframe.Realtime.V2;
-using Unframe.Delivery.V2;
+using Unframe.Realtime;
+using Unframe.Delivery;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -220,7 +220,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 case ProjectedReliableEvent.PayloadOneofCase.TimelineStarted:
                     string timelineId = reliableEvent.TimelineStarted.TimelineId;
-                    if (!TryResolveTimeline(timelineId, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out error)
+                    if (!TryResolveTimeline(timelineId, out Unframe.Presentation.ProjectedTimelineDefinition timeline, out error)
                         || !timelinePlayer.TryStart(timeline, Hierarchy, Time.realtimeSinceStartupAsDouble, out error))
                     {
                         return false;
@@ -253,11 +253,11 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             return TryResolveTimeline(item.ReliableEvent.TimelineStarted.TimelineId,
-                    out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out error)
+                    out Unframe.Presentation.ProjectedTimelineDefinition timeline, out error)
                 && timelinePlayer.CanStart(timeline, Hierarchy, out error);
         }
 
-        private bool TryResolveTimeline(string timelineId, out Unframe.Presentation.V2.ProjectedTimelineDefinition timeline, out string error)
+        private bool TryResolveTimeline(string timelineId, out Unframe.Presentation.ProjectedTimelineDefinition timeline, out string error)
         {
             timeline = null;
             if (String.IsNullOrEmpty(timelineId))

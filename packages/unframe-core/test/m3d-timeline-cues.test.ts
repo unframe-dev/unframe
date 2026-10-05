@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 import { validatePresentationDefinition } from "../src/index.js";
 import { makeM3AArtifacts } from "./fixtures.js";
 
-type Cue = PresentationDefinitionV2["flow"]["groups"][string]["steps"][string]["cues"][number];
+type Cue = PresentationDefinition["flow"]["groups"][string]["steps"][string]["cues"][number];
 
 const fixture = () => {
   const { definition } = makeM3AArtifacts();

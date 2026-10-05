@@ -1,8 +1,8 @@
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
 import { canonicalizeQuaternion } from "../validation/shared.js";
 
-type Timeline = PresentationDefinitionV2["flow"]["timelines"][string];
+type Timeline = PresentationDefinition["flow"]["timelines"][string];
 type Track = Timeline["tracks"][number];
 type Value = Track["keyframes"][number]["value"];
 type Vector = [number, number, number];

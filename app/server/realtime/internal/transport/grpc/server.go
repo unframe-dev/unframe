@@ -9,8 +9,8 @@ import (
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/observability"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
@@ -60,7 +60,7 @@ func NewServer(listener net.Listener, dependencies Dependencies, options ...grpc
 	healthServer.SetServingStatus("", healthv1.HealthCheckResponse_NOT_SERVING)
 	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(dependencies.Coordinator, auth.ContextIdentityResolver{}, dependencies.Guard))
 	if dependencies.V2 != nil {
-		realtimev2.RegisterRealtimeServiceV2Server(grpcServer, dependencies.V2)
+		realtimev2.RegisterRealtimeServiceServer(grpcServer, dependencies.V2)
 	}
 	healthv1.RegisterHealthServer(grpcServer, healthServer)
 	return &Server{

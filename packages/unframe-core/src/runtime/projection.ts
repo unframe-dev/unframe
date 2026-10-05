@@ -1,17 +1,17 @@
 import {
-  m3dCueRuntimeSnapshotV2Schema,
-  canonicalRuntimeSnapshotV2Schema,
-  runtimeVisibilitySelectionV2Schema,
-  type M3dCueRuntimeSnapshotV2,
-  type M3dCueParticipantRuntimeViewV2,
-  type PresentationDefinitionV2,
-  type RuntimeVisibilitySelectionV2,
-  type RenderBundleV2,
-  presentationDefinitionV2Schema,
-  renderBundleV2Schema,
-} from "@unframe/contracts/presentation/v2";
+  m3dCueRuntimeSnapshotSchema,
+  canonicalRuntimeSnapshotSchema,
+  runtimeVisibilitySelectionSchema,
+  type M3dCueRuntimeSnapshot,
+  type M3dCueParticipantRuntimeView,
+  type PresentationDefinition,
+  type RuntimeVisibilitySelection,
+  type RenderBundle,
+  presentationDefinitionSchema,
+  renderBundleSchema,
+} from "@unframe/contracts/presentation";
 import type { CueState } from "./cue-executor.js";
-import { snapshotPlainJson } from "../publication-v2/plain-json.js";
+import { snapshotPlainJson } from "../publication/plain-json.js";
 import { hasCanonicalQuaternionSign, isUnitQuaternion } from "../validation/shared.js";
 
 const sorted = (values: Iterable<string>) => [...values].sort();
@@ -21,7 +21,7 @@ const equals = (actual: string[], expected: string[]) =>
 const activeOwner = (owner: { kind: string; groupId?: string }, currentGroupId: string) =>
   owner.kind === "presentation" || owner.groupId === currentGroupId;
 
-const visibleResources = (definition: PresentationDefinitionV2, role: "presenter" | "viewer") => {
+const visibleResources = (definition: PresentationDefinition, role: "presenter" | "viewer") => {
   const nodes = Object.values(definition.scene.nodes).filter(
     (node) => node.audience.kind === "all" || node.audience.role === role,
   );
@@ -39,7 +39,7 @@ const visibleResources = (definition: PresentationDefinitionV2, role: "presenter
 };
 
 const potentiallyVisibleNativeVariables = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   visibleSurfaceIds: string[],
 ): Set<string> => {
   const variableIds = new Set<string>();
@@ -62,12 +62,12 @@ const potentiallyVisibleNativeVariables = (
 };
 
 export const createRuntimeVisibilitySelection = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   projectionProfileId: string,
   role: "presenter" | "viewer",
   visibleVariableIds: string[],
-): RuntimeVisibilitySelectionV2 => {
-  const selection = runtimeVisibilitySelectionV2Schema.parse({
+): RuntimeVisibilitySelection => {
+  const selection = runtimeVisibilitySelectionSchema.parse({
     projectionProfileId,
     role,
     ...visibleResources(definition, role),
@@ -79,10 +79,10 @@ export const createRuntimeVisibilitySelection = (
 };
 
 export const validateRuntimeVisibilitySelection = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   input: unknown,
 ): string[] => {
-  const parsed = runtimeVisibilitySelectionV2Schema.safeParse(input);
+  const parsed = runtimeVisibilitySelectionSchema.safeParse(input);
   if (!parsed.success) return parsed.error.issues.map((issue) => issue.message);
   try {
     const expected = visibleResources(definition, parsed.data.role);
@@ -109,15 +109,15 @@ export const validateRuntimeVisibilitySelection = (
 };
 
 export const validateM3dCueRuntimeSnapshot = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   input: unknown,
   assignmentEpoch: number,
   complete = false,
 ): string[] => {
-  const parsed = canonicalRuntimeSnapshotV2Schema.safeParse(input);
+  const parsed = canonicalRuntimeSnapshotSchema.safeParse(input);
   if (!parsed.success) return parsed.error.issues.map((issue) => issue.message);
   if (!complete) {
-    const subset = m3dCueRuntimeSnapshotV2Schema.safeParse(input);
+    const subset = m3dCueRuntimeSnapshotSchema.safeParse(input);
     if (!subset.success) return subset.error.issues.map((issue) => issue.message);
   }
   const snapshot = parsed.data;
@@ -335,8 +335,8 @@ export const validateM3dCueRuntimeSnapshot = (
 };
 
 export const validateCanonicalRuntimeSnapshot = (
-  definition: PresentationDefinitionV2,
-  renderBundle: RenderBundleV2,
+  definition: PresentationDefinition,
+  renderBundle: RenderBundle,
   input: unknown,
   assignmentEpoch: number,
 ): string[] => {
@@ -345,8 +345,8 @@ export const validateCanonicalRuntimeSnapshot = (
   const frozenInput = snapshotPlainJson(input);
   if (!frozenDefinition.valid || !frozenBundle.valid || !frozenInput.valid)
     return ["Canonical snapshot inputs must be plain JSON data properties."];
-  const parsedDefinition = presentationDefinitionV2Schema.safeParse(frozenDefinition.value);
-  const parsedBundle = renderBundleV2Schema.safeParse(frozenBundle.value);
+  const parsedDefinition = presentationDefinitionSchema.safeParse(frozenDefinition.value);
+  const parsedBundle = renderBundleSchema.safeParse(frozenBundle.value);
   if (!parsedDefinition.success || !parsedBundle.success)
     return ["Canonical snapshot Definition and RenderBundle must be structurally valid."];
   definition = parsedDefinition.data;
@@ -357,7 +357,7 @@ export const validateCanonicalRuntimeSnapshot = (
     assignmentEpoch,
     true,
   );
-  const parsed = canonicalRuntimeSnapshotV2Schema.safeParse(frozenInput.value);
+  const parsed = canonicalRuntimeSnapshotSchema.safeParse(frozenInput.value);
   if (!parsed.success) return issues;
   const snapshot = parsed.data;
   const runtimeTime = snapshot.clock.runtimeTimeMilliseconds;
@@ -446,20 +446,31 @@ export const validateCanonicalRuntimeSnapshot = (
       : clock.positionAtReferenceMilliseconds! +
         (runtimeTime - clock.referenceRuntimeTimeMilliseconds!) * speed;
   for (const [surfaceId, state] of Object.entries(snapshot.mediaStates)) {
-    const surface = definition.scene.surfaces[surfaceId];
-    const duration =
-      surface?.renderIntent.internalAnimation.kind === "precomputed-video"
-        ? surface.renderIntent.internalAnimation.durationMilliseconds
-        : undefined;
+    const renders = Object.values(renderBundle.surfaces[surfaceId]?.renderSurfaces ?? {});
+    const boundVideos = renders.flatMap((render) =>
+      Object.values(render.stateBindings).flatMap((binding) =>
+        binding.kind === "artifacts"
+          ? binding.artifactIds.flatMap((id) => {
+              const artifact = render.artifacts[id];
+              return artifact?.kind === "video" ? [artifact] : [];
+            })
+          : [],
+      ),
+    );
+    const duration = boundVideos[0]?.durationMilliseconds;
     if (duration === undefined) continue;
     const clock = state.kind === "active" ? state.playback : undefined;
     const held = state.kind === "stopped" ? state.heldPositionMilliseconds : undefined;
-    const hasLoop = Object.values(renderBundle.surfaces[surfaceId]?.renderSurfaces ?? {}).some(
-      (render) =>
-        Object.values(render.artifacts).some(
-          (artifact) => artifact.kind === "video" && artifact.loop,
-        ),
-    );
+    const hasLoop = renders.some((render) => {
+      const binding = render.stateBindings[snapshot.surfaceStates[surfaceId]?.stateId ?? ""];
+      return (
+        binding?.kind === "artifacts" &&
+        binding.artifactIds.some((id) => {
+          const artifact = render.artifacts[id];
+          return artifact?.kind === "video" && artifact.loop;
+        })
+      );
+    });
     const at = clock ? position(clock) : undefined;
     if (at !== undefined && !Number.isFinite(at))
       issues.push(`mediaStates.${surfaceId} computed position must be finite.`);
@@ -538,15 +549,15 @@ export const validateCanonicalRuntimeSnapshot = (
 };
 
 type CueSnapshotMetadata = Pick<
-  M3dCueRuntimeSnapshotV2,
+  M3dCueRuntimeSnapshot,
   "reliableSequence" | "lastIngressSequence" | "presentationOrigin" | "recentEventIds"
-> & { lifecycle: M3dCueRuntimeSnapshotV2["clock"]["lifecycle"] };
+> & { lifecycle: M3dCueRuntimeSnapshot["clock"]["lifecycle"] };
 
 export const createM3dCueRuntimeSnapshot = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   state: CueState,
   metadata: CueSnapshotMetadata,
-): M3dCueRuntimeSnapshotV2 => {
+): M3dCueRuntimeSnapshot => {
   const surfaceStates = Object.fromEntries(
     Object.entries(state.surfaces).map(([surfaceId, stateId]) => {
       const transition = state.activeRuns.find(
@@ -555,7 +566,7 @@ export const createM3dCueRuntimeSnapshot = (
       return [surfaceId, { stateId, ...(transition ? { transitionRunId: transition.runId } : {}) }];
     }),
   );
-  const snapshot = m3dCueRuntimeSnapshotV2Schema.parse({
+  const snapshot = m3dCueRuntimeSnapshotSchema.parse({
     schemaVersion: 2,
     reliableSequence: metadata.reliableSequence,
     lastIngressSequence: metadata.lastIngressSequence,
@@ -598,11 +609,11 @@ const select = <T>(record: Record<string, T>, ids: string[]): Record<string, T> 
   );
 
 export const projectM3dCueParticipantRuntimeView = (
-  definition: PresentationDefinitionV2,
-  snapshot: M3dCueRuntimeSnapshotV2,
-  profile: RuntimeVisibilitySelectionV2,
+  definition: PresentationDefinition,
+  snapshot: M3dCueRuntimeSnapshot,
+  profile: RuntimeVisibilitySelection,
   assignmentEpoch: number,
-): M3dCueParticipantRuntimeViewV2 => {
+): M3dCueParticipantRuntimeView => {
   const errors = [
     ...validateM3dCueRuntimeSnapshot(definition, snapshot, assignmentEpoch),
     ...validateRuntimeVisibilitySelection(definition, profile),

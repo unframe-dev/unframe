@@ -3,8 +3,8 @@ import { readlink } from "node:fs/promises";
 import { join } from "node:path";
 import {
   canonicalizeJsonPayload,
-  verifyBuildIntegrityV2,
-  verifyPublicationIntegrityV2,
+  verifyBuildIntegrity,
+  verifyPublicationIntegrity,
 } from "@unframe/unframe-core";
 import { projectDirectory, readBoundedRegularFile } from "../filesystem/path-policy.js";
 
@@ -74,7 +74,7 @@ export const publishPresentation = async (input: PublishInput): Promise<PublishR
       readJson("asset-set"),
       readJson("build-manifest"),
     ]);
-    const integrity = verifyBuildIntegrityV2({ definition, renderBundle, assetSet, buildManifest });
+    const integrity = verifyBuildIntegrity({ definition, renderBundle, assetSet, buildManifest });
     if (!integrity.valid) return failure("cli-publish-build-invalid");
     const artifacts = integrity.value;
     const envelope = {
@@ -173,7 +173,7 @@ export const publishPresentation = async (input: PublishInput): Promise<PublishR
     });
     if (publication.status !== 201) return failure("cli-publish-publication-rejected");
     const published = (await publication.json()) as unknown;
-    const verified = verifyPublicationIntegrityV2({
+    const verified = verifyPublicationIntegrity({
       ...artifacts,
       publishedPresentation: published,
     });

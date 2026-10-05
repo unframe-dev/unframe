@@ -4,7 +4,7 @@ import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   validatePresentationArtifacts,
-  verifyBuildIntegrityV2,
+  verifyBuildIntegrity,
 } from "@unframe/unframe-core";
 import type { CheckedDeclarationProject, CompiledDeclarationProject } from "../api/types.js";
 
@@ -76,7 +76,7 @@ export const readCachedBuild = async (
     if (!validatePresentationArtifacts(checked.definition, value.renderBundle).valid)
       return undefined;
     if (
-      !verifyBuildIntegrityV2({
+      !verifyBuildIntegrity({
         definition: checked.definition,
         renderBundle: value.renderBundle,
         assetSet: value.assetSet,

@@ -1,5 +1,5 @@
 using System;
-using Unframe.Presentation.V2;
+using Unframe.Presentation;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -122,9 +122,9 @@ namespace Unframe.Unity.PresentationRuntime
             return track;
         }
 
-        private static Unframe.Presentation.V2.Vector3 ToContractVector(UnityEngine.Vector3 value)
+        private static Unframe.Presentation.Vector3 ToContractVector(UnityEngine.Vector3 value)
         {
-            return new Unframe.Presentation.V2.Vector3 { X = value.x, Y = value.y, Z = value.z };
+            return new Unframe.Presentation.Vector3 { X = value.x, Y = value.y, Z = value.z };
         }
     }
 }

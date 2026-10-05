@@ -7,7 +7,7 @@
 
 ## A1 の前提契約：canonical Surface
 
-変更前の [SemanticSurfaceV2](../../packages/contracts/src/presentation/v2/definition.ts) は `rootFrameId` / `contentNodes` を必須とし、当時の [Core validation](../../packages/unframe-core/src/validation/definition.ts) は全 Semantic Node と Content Node の一対一対応を要求する。[Renderer の出力検証](../../packages/unframe-renderer-api/src/execution/plugin-execution.ts) も `ownedContentNodeIds` を経由して Interaction の意味を検査していた。空の root Frame と独立した Semantic Tree だけではこの契約を満たせなかった。描画と一致しない仮の Text / Frame を追加してこの条件を満たす方法は採らない。
+変更前の [SemanticSurface](../../packages/contracts/src/presentation/definition.ts) は `rootFrameId` / `contentNodes` を必須とし、当時の [Core validation](../../packages/unframe-core/src/validation/definition.ts) は全 Semantic Node と Content Node の一対一対応を要求する。[Renderer の出力検証](../../packages/unframe-renderer-api/src/execution/plugin-execution.ts) も `ownedContentNodeIds` を経由して Interaction の意味を検査していた。空の root Frame と独立した Semantic Tree だけではこの契約を満たせなかった。描画と一致しない仮の Text / Frame を追加してこの条件を満たす方法は採らない。
 
 [ADR-0020](../decisions/0020-structured-and-opaque-surface-content.md) により、canonical Surface の `content` を次の二種類に明示的に分ける。
 
@@ -60,7 +60,7 @@ type ComponentLock = {
   origin: ComponentOrigin;
   manifestHash: Hash;
 } & ({ mode: "structured"; structureHash: Hash } | { mode: "opaque"; rendererInputHash: Hash });
-type UnframeLockV2 = {
+type UnframeLock = {
   schemaVersion: 2;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";

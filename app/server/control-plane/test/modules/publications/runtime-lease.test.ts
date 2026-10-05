@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import publication from "../../../../../../packages/contracts/presentation/v2/fixtures/published-presentation.json";
+import publication from "../../../../../../packages/contracts/presentation/fixtures/published-presentation.json";
 import { createApp } from "../../../src/app";
 import { runtimeEnvironment } from "../../runtime-environment";
 

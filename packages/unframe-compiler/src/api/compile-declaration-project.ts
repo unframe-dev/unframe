@@ -4,8 +4,8 @@ import {
   hashCanonicalJsonPayload,
   materializeCompletedSemanticTree,
   validatePresentationArtifacts,
-  verifyBuildIntegrityV2,
-  type BuildArtifactsV2,
+  verifyBuildIntegrity,
+  type BuildArtifacts,
   type Diagnostic,
   type RenderBundle,
   type SemanticSurface,
@@ -282,7 +282,7 @@ const compileUnchecked = async (
 
   const definition = checked.value.definition;
   const surfaces: RenderBundle["surfaces"] = {};
-  const generatedDescriptors: Record<string, BuildArtifactsV2["assetSet"]["assets"][string]> = {};
+  const generatedDescriptors: Record<string, BuildArtifacts["assetSet"]["assets"][string]> = {};
   const retainedChecksums = new Set<string>();
   let outputBytes = 0;
   for (const asset of Object.values(checked.value.assetSet.assets))
@@ -654,7 +654,7 @@ const compileUnchecked = async (
     surfaces,
     models: {},
   };
-  const assetSet: BuildArtifactsV2["assetSet"] = {
+  const assetSet: BuildArtifacts["assetSet"] = {
     schemaVersion: 2,
     assets: { ...checked.value.assetSet.assets, ...generatedDescriptors },
   };
@@ -662,7 +662,7 @@ const compileUnchecked = async (
   const renderBundleHash = hashCanonicalJsonPayload(bundle);
   const assetSetJson = canonicalizeJsonPayload(assetSet);
   const assetSetHash = hashCanonicalJsonPayload(assetSet);
-  const buildManifest: BuildArtifactsV2["buildManifest"] = {
+  const buildManifest: BuildArtifacts["buildManifest"] = {
     schemaVersion: 2,
     buildId: `build:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, renderBundleHash, assetSetHash }).slice(7)}`,
     presentationId: definition.presentationId,
@@ -682,7 +682,7 @@ const compileUnchecked = async (
   };
   const artifactValidation = validatePresentationArtifacts(definition, bundle);
   if (!artifactValidation.valid) return artifactValidation;
-  const verified = verifyBuildIntegrityV2({
+  const verified = verifyBuildIntegrity({
     definition,
     renderBundle: bundle,
     assetSet,
