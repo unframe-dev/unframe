@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery/v2"
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
@@ -61,7 +61,7 @@ func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-e2e", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-e2e", RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationRevision: 1}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT_V2}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
 	service, err := transportgrpc.NewV2Service(runtime, bootstrap, projectionProvider{profile}, auth.ContextIdentityResolver{}, guard)
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +91,7 @@ func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	client := realtimev2.NewRealtimeServiceV2Client(conn)
+	client := realtimev2.NewRealtimeServiceClient(conn)
 	identity := e2eIdentity("presenter-e2e", session.RolePresenter)
 	authorized := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+issueToken(t, privateKey, identity, now))
 	controlCtx, closeControl := context.WithCancel(authorized)

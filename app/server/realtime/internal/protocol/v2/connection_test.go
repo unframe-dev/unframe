@@ -3,17 +3,17 @@ package protocolv2
 import (
 	"testing"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestCapabilityNegotiation(t *testing.T) {
-	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT_V2}}
+	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}}
 	if err := NegotiateControl(handshake, handshake.SupportedCapabilities); err != nil {
 		t.Fatal(err)
 	}
-	if err := NegotiateControl(handshake, []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_MODEL_CLIP_V2}); err == nil {
+	if err := NegotiateControl(handshake, []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_MODEL_CLIP}); err == nil {
 		t.Fatal("unsupported required capability admitted")
 	}
 	handshake.ProtocolVersion = "v1"

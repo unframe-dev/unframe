@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationBakedRuntimeDownloadEditModeTests

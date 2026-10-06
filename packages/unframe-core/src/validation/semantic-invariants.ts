@@ -1,7 +1,7 @@
 import type {
-  CompletedSemanticTreeV2,
-  SemanticTreeDefinitionV2,
-} from "@unframe/contracts/presentation/v2";
+  CompletedSemanticTree,
+  SemanticTreeDefinition,
+} from "@unframe/contracts/presentation";
 
 import type { Diagnostic } from "../domain/model.js";
 import { materializeCompletedSemanticTree } from "../semantic-tree/materialize.js";
@@ -10,10 +10,7 @@ import { diagnostic, pathSegment, validateTree } from "./shared.js";
 type Tree = {
   readonly rootNodeIds: readonly string[];
   readonly nodes: Readonly<
-    Record<
-      string,
-      SemanticTreeDefinitionV2["nodes"][string] | CompletedSemanticTreeV2["nodes"][string]
-    >
+    Record<string, SemanticTreeDefinition["nodes"][string] | CompletedSemanticTree["nodes"][string]>
   >;
 };
 const parents: Record<string, string | null> = {
@@ -207,7 +204,7 @@ export const compareRegions = (a: Region, b: Region) =>
 
 export const validateRegions = (
   diagnostics: Diagnostic[],
-  tree: CompletedSemanticTreeV2,
+  tree: CompletedSemanticTree,
   regions: Region[],
   path: string,
 ) => {

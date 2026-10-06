@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using UnityEngine;
 using UnityEngine.XR;
-using ProtoPose = Unframe.Presentation.V2.Pose;
-using ProtoQuaternion = Unframe.Presentation.V2.Quaternion;
-using ProtoVector3 = Unframe.Presentation.V2.Vector3;
+using ProtoPose = Unframe.Presentation.Pose;
+using ProtoQuaternion = Unframe.Presentation.Quaternion;
+using ProtoVector3 = Unframe.Presentation.Vector3;
 
 namespace Unframe.Unity.PresentationRuntime
 {

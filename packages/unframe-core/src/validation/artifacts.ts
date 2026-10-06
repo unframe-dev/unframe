@@ -155,11 +155,13 @@ export const validatePresentationArtifacts = (
       let stateVideoLoop: boolean | undefined;
       let firstVideoArtifactPath: string | undefined;
       let firstNonemptyBindingPath: string | undefined;
+      let firstBindingPath: string | undefined;
       let variantLoopMismatch = false;
       for (const renderSurfaceId of Object.keys(bundleSurface.renderSurfaces).sort()) {
         const renderSurface = bundleSurface.renderSurfaces[renderSurfaceId];
         if (renderSurface === undefined) continue;
         const binding = renderSurface.stateBindings[stateId];
+        firstBindingPath ??= `${path}/renderSurfaces/${pathSegment(renderSurface.id)}/stateBindings/${pathSegment(stateId)}`;
         if (binding?.kind !== "artifacts") continue;
         firstNonemptyBindingPath ??= `${path}/renderSurfaces/${pathSegment(renderSurface.id)}/stateBindings/${pathSegment(stateId)}`;
         for (const artifactId of [...binding.artifactIds].sort()) {
@@ -195,7 +197,6 @@ export const validatePresentationArtifacts = (
       }
       if (
         mediaSurfaceIds.has(surfaceId) &&
-        firstNonemptyBindingPath !== undefined &&
         firstVideoArtifactPath === undefined &&
         videoContent.length === 1 &&
         visibleVideoInState(definitionSurface, stateId, videoContent[0]!.id)
@@ -203,7 +204,7 @@ export const validatePresentationArtifacts = (
         diagnostics.push(
           diagnostic(
             "artifact.invalid",
-            firstNonemptyBindingPath,
+            firstNonemptyBindingPath ?? firstBindingPath ?? `${path}/renderSurfaces`,
             "Visible Media State requires a bound Video artifact candidate.",
           ),
         );

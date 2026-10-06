@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveStructuredLayout, validatePresentationDefinition } from "../src/index.js";
 import { makeM3AArtifacts } from "./fixtures.js";
-import originalDefinition from "../../contracts/presentation/v2/fixtures/presentation-definition.json";
+import originalDefinition from "../../contracts/presentation/fixtures/presentation-definition.json";
 
 const insets = { top: 0, right: 0, bottom: 0, left: 0 };
 

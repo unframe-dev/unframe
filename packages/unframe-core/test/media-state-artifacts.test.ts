@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import definitionFixture from "../../contracts/presentation/v2/fixtures/presentation-definition.json";
-import renderBundleFixture from "../../contracts/presentation/v2/fixtures/render-bundle.json";
+import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
+import renderBundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
 import { hashCanonicalJsonPayload, validatePresentationArtifacts } from "../src/index.js";
 
 type RecordValue = Record<string, any>;
@@ -268,6 +268,26 @@ describe("Video State publication admission", () => {
     expect(artifactDiagnostics(validate(definition, renderBundle))).toEqual([
       expect.objectContaining({
         message: "A RenderSurface must be nonempty in at least one State.",
+      }),
+    ]);
+  });
+
+  it("rejects a visible Media State with only empty bindings on an otherwise used RenderSurface", () => {
+    const { definition, renderBundle, surface } = fixture();
+    referenceMedia(definition);
+    definition.scene.surfaces.video.states.second = {
+      ...definition.scene.surfaces.video.states.default,
+      id: "second",
+    };
+    renderBundle.surfaces.video.semanticsByState.second = structuredClone(
+      renderBundle.surfaces.video.semanticsByState.default,
+    );
+    renderBundle.surfaces.video.interactionsByState.second = [];
+    surface.stateBindings.second = { kind: "empty" };
+
+    expect(artifactDiagnostics(validate(definition, renderBundle))).toEqual([
+      expect.objectContaining({
+        message: "Visible Media State requires a bound Video artifact candidate.",
       }),
     ]);
   });

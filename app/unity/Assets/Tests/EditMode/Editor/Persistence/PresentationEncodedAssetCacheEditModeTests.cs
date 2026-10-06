@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationEncodedAssetCacheEditModeTests

@@ -1,9 +1,9 @@
 using System.Reflection;
 using System.Linq;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -227,9 +227,9 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         NodeRuntimeState original = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0];
         var expected = original.Transform.Clone();
-        var patch = new Unframe.Presentation.V2.Transform();
+        var patch = new Unframe.Presentation.Transform();
         if (component == "position") { expected.Position.X += 1; patch.Position = expected.Position.Clone(); }
-        if (component == "rotation") { expected.Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 }; patch.Rotation = expected.Rotation.Clone(); }
+        if (component == "rotation") { expected.Rotation = new Unframe.Presentation.Quaternion { W = 1 }; patch.Rotation = expected.Rotation.Clone(); }
         if (component == "scale") { expected.Scale.X *= 2; patch.Scale = expected.Scale.Clone(); }
         using (var textures = new PresentationTextureResidency())
         using (var connection = new PresentationRealtimeConnection(store, textures))
@@ -262,10 +262,10 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         NodeRuntimeState original = snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0];
-        var patch = new Unframe.Presentation.V2.Transform();
-        if (invalid == "position") patch.Position = new Unframe.Presentation.V2.Vector3 { X = double.NaN };
-        if (invalid == "rotation") patch.Rotation = new Unframe.Presentation.V2.Quaternion { W = 0.5 };
-        if (invalid == "scale") patch.Scale = new Unframe.Presentation.V2.Vector3 { Y = 1, Z = 1 };
+        var patch = new Unframe.Presentation.Transform();
+        if (invalid == "position") patch.Position = new Unframe.Presentation.Vector3 { X = double.NaN };
+        if (invalid == "rotation") patch.Rotation = new Unframe.Presentation.Quaternion { W = 0.5 };
+        if (invalid == "scale") patch.Scale = new Unframe.Presentation.Vector3 { Y = 1, Z = 1 };
         using (var textures = new PresentationTextureResidency())
         using (var connection = new PresentationRealtimeConnection(store, textures))
         {

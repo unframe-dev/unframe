@@ -20,6 +20,12 @@ func (f bootstrapReaderFunc) Bootstrap(ctx context.Context, request persistenceh
 	return f(ctx, request)
 }
 
+type leaseReaderFunc func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error)
+
+func (f leaseReaderFunc) Lease(ctx context.Context, request persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error) {
+	return f(ctx, request)
+}
+
 func TestRefreshV2LeaseKeepsPublicationPinAndExtendsOnlyTrustedAssignment(t *testing.T) {
 	issued := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
 	initial := assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "runtime.internal:9090", AssignmentEpoch: 2, PresentationRevision: 4, IssuedAt: issued, LeaseExpiresAt: issued.Add(time.Minute)}
@@ -29,16 +35,16 @@ func TestRefreshV2LeaseKeepsPublicationPinAndExtendsOnlyTrustedAssignment(t *tes
 	}
 	request := persistencehttp.BootstrapRequest{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
 	pin := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
-	reader := bootstrapReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeBootstrap, error) {
-		return persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(2 * time.Minute)}, Publication: pin}, nil
+	reader := leaseReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error) {
+		return persistencehttp.RuntimeLease{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(2 * time.Minute)}, Publication: pin}, nil
 	})
 	if err := refreshV2Lease(context.Background(), reader, guard, request, pin); err != nil || !guard.Assignment().LeaseExpiresAt.Equal(issued.Add(2*time.Minute)) {
 		t.Fatalf("lease=%#v err=%v", guard.Assignment(), err)
 	}
-	reader = bootstrapReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeBootstrap, error) {
+	reader = leaseReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error) {
 		changed := pin
 		changed.PublicationEpoch++
-		return persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(3 * time.Minute)}, Publication: changed}, nil
+		return persistencehttp.RuntimeLease{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(3 * time.Minute)}, Publication: changed}, nil
 	})
 	if err := refreshV2Lease(context.Background(), reader, guard, request, pin); err == nil || !guard.Assignment().LeaseExpiresAt.Equal(issued.Add(2*time.Minute)) {
 		t.Fatalf("changed publication accepted lease=%#v err=%v", guard.Assignment(), err)
@@ -231,4 +237,24 @@ func testDependencies(t *testing.T) transportgrpc.Dependencies {
 		t.Fatalf("new guard: %v", err)
 	}
 	return transportgrpc.Dependencies{Verifier: verifier, Guard: guard, V2: &transportgrpc.V2Service{}}
+}
+
+func TestBootstrapRenewsExpiredEnvironmentLeaseBeforeReadiness(t *testing.T) {
+	issued := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
+	initial := assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "runtime.internal:9090", AssignmentEpoch: 2, PresentationRevision: 4, IssuedAt: issued, LeaseExpiresAt: issued.Add(time.Minute)}
+	guard, err := assignment.NewAssignmentGuard(initial, func() time.Time { return issued.Add(90 * time.Second) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := bootstrapReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeBootstrap, error) {
+		return persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(2 * time.Minute)}}, nil
+	})
+	request := persistencehttp.BootstrapRequest{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
+	if _, err := loadV2Bootstrap(context.Background(), reader, guard, request); err != nil {
+		t.Fatal(err)
+	}
+	claim := assignment.AssignmentClaim{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
+	if err := guard.AllowNewConnection(claim); err != nil {
+		t.Fatalf("authoritative bootstrap lease must be ready before server start: %v", err)
+	}
 }

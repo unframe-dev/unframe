@@ -1,6 +1,6 @@
 # Contracts Architecture
 
-- **Status**: Current boundary with Presentation v2 contracts
+- **Status**: Current boundary with Presentation contracts
 - **Scope**: Application、language、runtime をまたぐ serialized artifact と wire contract
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -23,7 +23,7 @@
 
 - Control Plane OpenAPI は Control Plane の型付き route と runtime schema から生成する。
 - Realtime / Delivery の wire contract は Protocol Buffers source を正本とする。
-- PresentationDefinition / RenderBundle / AssetSetManifest は `src/presentation/v2/` 配下の Zod 4 schema を正本とし、portable JSON Schemaを生成する。詳細な意味規則は [Presentation v2](../../docs/packages/DATA_MODEL.md) を正本とする。
+- PresentationDefinition / RenderBundle / AssetSetManifest は `src/presentation/` 配下の Zod 4 schema を正本とし、portable JSON Schemaを生成する。詳細な意味規則は [Presentation v2](../../docs/packages/DATA_MODEL.md) を正本とする。
 
 ## 2. Owned boundaries
 
@@ -31,23 +31,23 @@
 
 - `openapi/control-plane.openapi.json`: generated OpenAPI document
 - `src/control-plane.openapi.ts`: generated TypeScript OpenAPI types
-- `proto/unframe/realtime/v2/realtime.proto`: Realtime gRPC source
+- `proto/unframe/realtime/realtime.proto`: Realtime gRPC source
 - source と generated artifact の drift check
 
 現行 TypeScript runtime client は OpenAPI path type ではなく、Control Plane が公開する Hono RPC `AppType` を利用する。OpenAPI artifact は language-neutral consumer のための境界として維持する。
 
-### Presentation v2
+### Presentation
 
-- `src/presentation/v2/`: Definition、RenderBundle、AssetSet、Build、Publication、Capability と M3D Cue Runtime projection subset の Zod と導出型
-- `presentation/v2/`: 生成 JSON Schema、Protobuf descriptor、portable fixture
-- `proto/unframe/presentation/v2/runtime.proto`: 共通型と投影 catalog
-- `proto/unframe/delivery/v2/delivery.proto`: DeliveryManifest と capability / residency
-- `proto/unframe/realtime/v2/realtime.proto`: Command、Event、Run、Snapshot、State Stream
-- `scripts/generate-presentation-v2.ts`: JSON Schema / descriptor の生成と drift check
+- `src/presentation/`: Definition、RenderBundle、AssetSet、Build、Publication、Capability と M3D Cue Runtime projection subset の Zod と導出型
+- `presentation/`: 生成 JSON Schema、Protobuf descriptor、portable fixture
+- `proto/unframe/presentation/runtime.proto`: 共通型と投影 catalog
+- `proto/unframe/delivery/delivery.proto`: DeliveryManifest と capability / residency
+- `proto/unframe/realtime/realtime.proto`: Command、Event、Run、Snapshot、State Stream
+- `scripts/generate-presentation.ts`: JSON Schema / descriptor の生成と drift check
 
-Presentation v1 の公開 export、schema、fixture、生成経路と Realtime v1 wire は廃止した。旧 Control Plane Presentation CRUD の groups / elements DTO は後続の移行対象として残る。
+Presentation v1 の公開 export、schema、fixture、生成経路と Realtime v1 wire は廃止した。現行契約の名前にバージョン suffix を付けず、serialized version 値で検査する。命名と互換性の判断は [ADR-0024](../../docs/decisions/0024-canonical-presentation-contract-names.md) に従う。旧 Control Plane Presentation CRUD の groups / elements DTO は後続の移行対象として残る。
 
-M3D の `m3dCueRuntimeSnapshotV2Schema`、`runtimeVisibilitySelectionV2Schema`、`m3dCueParticipantRuntimeViewV2Schema` は、現行 Cue 実行器が扱う subset を固定する。完全な構造は `canonicalRuntimeSnapshotV2Schema` と `participantRuntimeViewV2Schema` が扱い、Media / Model を含む。意味検証と role projection は Core が所有する。
+M3D の `m3dCueRuntimeSnapshotSchema`、`runtimeVisibilitySelectionSchema`、`m3dCueParticipantRuntimeViewSchema` は、現行 Cue 実行器が扱う subset を固定する。完全な構造は `canonicalRuntimeSnapshotSchema` と `participantRuntimeViewSchema` が扱い、Media / Model を含む。意味検証と role projection は Core が所有する。
 
 v2 Proto から TypeScript の descriptor / 静的 codec / 型、Go、C# の message / service source を生成する。TypeScript の公開 wire codec は decimal string の `uint64` を使い、動的コード生成を必要としない。生成 consumer の配置と検証境界は [ADR-0023](../../docs/decisions/0023-m5-generated-consumer-boundaries.md) に従う。Realtime の通信契約は v2 に限定する。生成物と authoritative Runtime の実装・検証を区別する。
 
@@ -106,7 +106,7 @@ Target の Presentation schema と Protocol Buffers は、consumer が generated
 
 ## 8. Current gap
 
-Presentation v2 の Definition / RenderBundle / AssetSet / Build / Publication と Runtime snapshot は Zod source と生成 JSON Schema を持つ。Cue / Action / Timeline、State / Semantic Tree / Hit Region の意味検証は Core が所有し、wire field の存在だけで実行機能の完成を判断しない。
+Presentation の Definition / RenderBundle / AssetSet / Build / Publication と Runtime snapshot は Zod source と生成 JSON Schema を持つ。Cue / Action / Timeline、State / Semantic Tree / Hit Region の意味検証は Core が所有し、wire field の存在だけで実行機能の完成を判断しない。
 
 Compiler は Structured baked-web を自動 partition し、State 別 Hit Region を Surface 全体で解決する。v2 texture は `pixelSize`、`mipCount: 1`、`gpuBytes` を持ち、alpha は `opaque` / `straight` に限定する。Native UI / Video の Delivery admission は、対応する budget tier と consumer の採用条件に従う。schema の定義を renderer や実機 residency の実装と区別する。
 

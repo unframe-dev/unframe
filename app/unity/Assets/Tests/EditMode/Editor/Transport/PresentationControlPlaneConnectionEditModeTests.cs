@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationControlPlaneConnectionEditModeTests
@@ -80,7 +80,7 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
             var method = typeof(PresentationControlPlaneConnection).GetMethod("LoadBootstrapAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             var exception = Assert.ThrowsAsync<PresentationDeliveryReloadRequiredException>(async () =>
                 await (Task)method.Invoke(connection, new object[] { client, manifest, CancellationToken.None }));
-            Assert.That(exception.Reason, Is.EqualTo(Unframe.Realtime.V2.ResyncReason.PublicationFenceChanged));
+            Assert.That(exception.Reason, Is.EqualTo(Unframe.Realtime.ResyncReason.PublicationFenceChanged));
         }
         await Task.CompletedTask;
     }

@@ -10,13 +10,13 @@ test("fresh no-Function codec preserves full uint64 values even when protobufjs 
     throw new Error("Function constructor is unavailable");
   } as unknown as FunctionConstructor;
   try {
-    const { encodeWireMessage, decodeWireMessage } = await import("../src/presentation/v2/wire");
+    const { encodeWireMessage, decodeWireMessage } = await import("../src/presentation/wire");
     for (const publicationEpoch of ["9007199254740993", "18446744073709551615"]) {
-      const binary = encodeWireMessage("unframe.presentation.v2.PublicationFence", {
+      const binary = encodeWireMessage("unframe.presentation.PublicationFence", {
         publicationEpoch,
       });
       assert.equal(
-        decodeWireMessage("unframe.presentation.v2.PublicationFence", binary)["publicationEpoch"],
+        decodeWireMessage("unframe.presentation.PublicationFence", binary)["publicationEpoch"],
         publicationEpoch,
       );
     }

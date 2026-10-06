@@ -3,8 +3,8 @@ package runtimecore
 import (
 	"sort"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -20,22 +20,12 @@ func (s *V2Session) ProjectedAnchorBindings(nodes []*realtimev2.NodeRuntimeState
 		if definition.Parent.Kind != "anchor" {
 			continue
 		}
-		var target realtimev2.TrackedTarget
-		switch definition.Parent.Target {
-		case "head":
-			target = realtimev2.TrackedTarget_TRACKED_TARGET_HEAD
-		case "leftHand":
-			target = realtimev2.TrackedTarget_TRACKED_TARGET_LEFT_HAND
-		case "rightHand":
-			target = realtimev2.TrackedTarget_TRACKED_TARGET_RIGHT_HAND
-		case "body":
-			target = realtimev2.TrackedTarget_TRACKED_TARGET_BODY
-		default:
-			return nil, ErrV2RuntimeDefinition
+		sample, found, err := s.anchorTrackingSample(definition)
+		if err != nil {
+			return nil, err
 		}
 		patch := &realtimev2.ProjectedAnchorBindingPatch{NodeId: node.NodeId, State: &realtimev2.ProjectedAnchorBindingPatch_Unavailable{Unavailable: &realtimev2.AnchorBindingUnavailable{}}}
-		sample, found := s.tracking.lastSamples[target]
-		if found && sample.OriginVersion == s.snapshot.PresentationOrigin.Version && nowMs >= sample.ObservedAtMs && nowMs-sample.ObservedAtMs <= 500 && (!definition.Parent.FollowPosition || sample.PositionAvailable) && (!definition.Parent.FollowRotation || sample.RotationAvailable) {
+		if found && nowMs >= sample.ObservedAtMs && nowMs-sample.ObservedAtMs <= 500 {
 			binding := &realtimev2.ProjectedAnchorBindingSample{TrackingFrameSequence: sample.FrameSequence, ObservedAtRuntimeMonotonicMs: sample.ObservedAtMs}
 			if definition.Parent.FollowPosition {
 				binding.Position = proto.Clone(sample.Pose.Position).(*presentationv2.Vector3)
@@ -49,4 +39,23 @@ func (s *V2Session) ProjectedAnchorBindings(nodes []*realtimev2.NodeRuntimeState
 	}
 	sort.Slice(patches, func(i, j int) bool { return patches[i].NodeId < patches[j].NodeId })
 	return patches, nil
+}
+
+func (s *V2Session) anchorTrackingSample(node v2Node) (v2PresentedTrackingSample, bool, error) {
+	var target realtimev2.TrackedTarget
+	switch node.Parent.Target {
+	case "head":
+		target = realtimev2.TrackedTarget_TRACKED_TARGET_HEAD
+	case "leftHand":
+		target = realtimev2.TrackedTarget_TRACKED_TARGET_LEFT_HAND
+	case "rightHand":
+		target = realtimev2.TrackedTarget_TRACKED_TARGET_RIGHT_HAND
+	case "body":
+		target = realtimev2.TrackedTarget_TRACKED_TARGET_BODY
+	default:
+		return v2PresentedTrackingSample{}, false, ErrV2RuntimeDefinition
+	}
+	sample, found := s.tracking.lastSamples[target]
+	available := found && sample.OriginVersion == s.snapshot.PresentationOrigin.Version && (!node.Parent.FollowPosition || sample.PositionAvailable) && (!node.Parent.FollowRotation || sample.RotationAvailable)
+	return sample, available, nil
 }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { evaluateTimelineTrack } from "../src/index.js";
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
-type Track = PresentationDefinitionV2["flow"]["timelines"][string]["tracks"][number];
+type Track = PresentationDefinition["flow"]["timelines"][string]["tracks"][number];
 
 const track = (
   property: Track["target"]["property"],

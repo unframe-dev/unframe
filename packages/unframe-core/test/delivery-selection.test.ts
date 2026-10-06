@@ -1,32 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import {
-  assetSetManifestV2Schema,
-  capabilityProfileV2Schema,
-  presentationDefinitionV2Schema,
-  renderBundleV2Schema,
-  publishedPresentationV2Schema,
-  buildManifestV2Schema,
+  assetSetManifestSchema,
+  capabilityProfileSchema,
+  presentationDefinitionSchema,
+  renderBundleSchema,
+  publishedPresentationSchema,
+  buildManifestSchema,
   encodeWireMessage,
   decodeWireMessage,
-} from "@unframe/contracts/presentation/v2";
-import definitionFixture from "../../contracts/presentation/v2/fixtures/presentation-definition.json";
-import bundleFixture from "../../contracts/presentation/v2/fixtures/render-bundle.json";
-import assetSetFixture from "../../contracts/presentation/v2/fixtures/asset-set-manifest.json";
-import capabilityFixture from "../../contracts/presentation/v2/fixtures/capability-profile.json";
-import publicationFixture from "../../contracts/presentation/v2/fixtures/published-presentation.json";
-import buildFixture from "../../contracts/presentation/v2/fixtures/build-manifest.json";
+} from "@unframe/contracts/presentation";
+import definitionFixture from "../../contracts/presentation/fixtures/presentation-definition.json";
+import bundleFixture from "../../contracts/presentation/fixtures/render-bundle.json";
+import assetSetFixture from "../../contracts/presentation/fixtures/asset-set-manifest.json";
+import capabilityFixture from "../../contracts/presentation/fixtures/capability-profile.json";
+import publicationFixture from "../../contracts/presentation/fixtures/published-presentation.json";
+import buildFixture from "../../contracts/presentation/fixtures/build-manifest.json";
 import { selectDeliveryArtifacts } from "../src/delivery/selection.js";
 import { buildProjectionProfile } from "../src/delivery/profile.js";
 import { calculateProjectionProfileId } from "../src/delivery/profile-identity.js";
 import { buildDeliveryManifest } from "../src/delivery/manifest.js";
 import { hashCanonicalJsonPayload } from "../src/canonicalization/payload.js";
 
-const definition = presentationDefinitionV2Schema.parse(definitionFixture);
-const bundle = renderBundleV2Schema.parse(bundleFixture);
-const assets = assetSetManifestV2Schema.parse(assetSetFixture);
-const capability = capabilityProfileV2Schema.parse(capabilityFixture);
-const publication = publishedPresentationV2Schema.parse(publicationFixture);
-const build = buildManifestV2Schema.parse(buildFixture);
+const definition = presentationDefinitionSchema.parse(definitionFixture);
+const bundle = renderBundleSchema.parse(bundleFixture);
+const assets = assetSetManifestSchema.parse(assetSetFixture);
+const capability = capabilityProfileSchema.parse(capabilityFixture);
+const publication = publishedPresentationSchema.parse(publicationFixture);
+const build = buildManifestSchema.parse(buildFixture);
 const source = {
   definition,
   renderBundle: bundle,
@@ -58,6 +58,18 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it("rejects a hash-consistent publication whose compiled Surface size differs from its Definition", () => {
+    const input = baselineSource((current) => {
+      const surface = current.renderBundle.surfaces.baked;
+      assert.isDefined(surface);
+      surface.physicalSizeMeters = [3, 2];
+    });
+
+    expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(
+      "Compiled surface sizes must match the Definition.",
+    );
+  });
+
   it("selects the first compatible candidate and only its transitive Asset closure", () => {
     const selection = selectDeliveryArtifacts(baselineSource(), "presenter");
     expect(selection.renderSurfaces.map((surface) => surface.states[0]?.artifact?.id)).toEqual([
@@ -145,8 +157,8 @@ describe("Delivery artifact selection and admission", () => {
 
   it("builds a profile that carries semantic, render, and runtime catalog data through Protobuf", () => {
     const { profile } = buildProjectionProfile(baselineSource(), "presenter");
-    const encoded = encodeWireMessage("unframe.delivery.v2.ProjectionProfileDescriptor", profile);
-    const decoded = decodeWireMessage("unframe.delivery.v2.ProjectionProfileDescriptor", encoded);
+    const encoded = encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", profile);
+    const decoded = decodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", encoded);
     expect(decoded.projectionProfileId).toBe(profile.projectionProfileId);
     expect(profile.runtimeCatalog?.catalogContractVersion).toBe(2);
     expect((decoded.runtimeCatalog as Record<string, unknown>).catalogContractVersion).toBe(2);
@@ -159,8 +171,8 @@ describe("Delivery artifact selection and admission", () => {
     layered.renderSurfaces!.push(secondLayer);
     layered.projectionProfileId = calculateProjectionProfileId(layered);
     const decodedLayered = decodeWireMessage(
-      "unframe.delivery.v2.ProjectionProfileDescriptor",
-      encodeWireMessage("unframe.delivery.v2.ProjectionProfileDescriptor", layered),
+      "unframe.delivery.ProjectionProfileDescriptor",
+      encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", layered),
     );
     delete (decodedLayered.renderSurfaces as Record<string, unknown>[])[0]!.layer;
     expect(calculateProjectionProfileId(decodedLayered)).toBe(layered.projectionProfileId);
@@ -190,8 +202,8 @@ describe("Delivery artifact selection and admission", () => {
       assetAccess: grants,
     });
     const decoded = decodeWireMessage(
-      "unframe.delivery.v2.DeliveryManifest",
-      encodeWireMessage("unframe.delivery.v2.DeliveryManifest", manifest),
+      "unframe.delivery.DeliveryManifest",
+      encodeWireMessage("unframe.delivery.DeliveryManifest", manifest),
     );
     expect((decoded.assetAccess as unknown[]).length).toBe(selected.assets.length);
     expect((decoded.projectionInstance as Record<string, unknown>).projectionProfileId).toBe(

@@ -98,7 +98,7 @@ Product route の validation error は安定した JSON error に変換する。
 | Venue Edge API             | Admin / Venue Edge                         | Current | Provisioning、registration、assignment、lease、失効           |
 | JWKS / Realtime credential | Realtime consumer                          | Current | Control Planeが署名・公開し、Realtime側が検証する             |
 | Persistence callback       | Realtime Backend                           | Current | Service-authenticated checkpoint / completion                 |
-| Publication / Delivery v2  | Build publisher / Session participant      | Current | Build・Publication確定、capability別Protobuf DeliveryManifest |
+| Publication / Delivery     | Build publisher / Session participant      | Current | Build・Publication確定、capability別Protobuf DeliveryManifest |
 
 Endpoint、request / response、status codeのsource of truthは生成OpenAPIとBetter Authのversioned contractであり、本表はroute contractを置き換えない。
 
@@ -211,11 +211,11 @@ Checkpoint と completion は Realtime Backend から受け取る Control Plane 
 
 Control Plane は active assignment / revision の fencing、checkpoint の重複排除、completion と Session 終了の永続化を行う。Realtime v2 process は bounded retry 付き callback を送信し、起動時の internal runtime bootstrap から保存済み checkpoint を取得・検証・復元する。snapshot の意味検証と resume は Realtime の責務であり、Cloud / Edge の配置先をまたぐ自動 recovery は未実装である。
 
-### 6.5 Publication と Delivery v2
+### 6.5 Publication と Delivery
 
 Current は、認証済み publisher から canonical JSON の Definition / RenderBundle / AssetSet / BuildManifest を受け取り、参照 Asset bytes を個別に upload する。Publication 確定時に artifact と R2 bytes を再検証し、Presentation revision、expected publication epoch、active Session を D1 で fencing する。確定後の Publication は immutable で、Session は開始時に選んだ publication epoch を固定する。
 
-Session participant は `POST /sessions/{sessionId}/delivery` に device の `capabilityProfileId` を渡す。Control Plane は membership、role、固定 Publication、active assignment を確認し、role と capability で選んだ projection、期限付き HTTPS Asset access を生成済み Protobuf v2 `DeliveryManifest` として返す。発行後にも publication epoch と assignment epoch / runtime ID を再確認し、変更された場合は失敗させる。Delivery は bootstrap と別の response であり、Unity は両者の PublicationFence、assignment、projection を照合する。
+Session participant は `POST /sessions/{sessionId}/delivery` に device の `capabilityProfileId` を渡す。Control Plane は membership、role、固定 Publication、active assignment を確認し、role と capability で選んだ projection、期限付き HTTPS Asset access を生成済み Protobuf `DeliveryManifest` として返す。発行後にも publication epoch と assignment epoch / runtime ID を再確認し、変更された場合は失敗させる。Delivery は bootstrap と別の response であり、Unity は両者の PublicationFence、assignment、projection を照合する。
 
 Realtime process 向けには service identity で認証する internal runtime bootstrap / projection route を設ける。Control Plane が D1 / R2 と signed URL の authority を保ち、Realtime process へ R2 credential や D1 access を渡さない。従来の設計案にあった `GET /presentations/{presentationId}/delivery` と JSON `PresentationDelivery` は現行 contract ではない。
 
@@ -344,7 +344,7 @@ Component gate は次を検証する。
 | Session create / join / start / end / bootstrap                 | Current | Cloud / Venue Edge 共通の active assignment と固定 Publication を検証      |
 | Ed25519 JWT と JWKS                                             | Current | RuntimeAssignment-bound contract を Realtime 側も検証                      |
 | Checkpoint / completion callback                                | Current | Fenced 受付と Realtime v2 の送信・retry・復元を接続                        |
-| Publication / Delivery v2                                       | Current | Build / publish / session-scoped Protobuf Delivery を接続                  |
+| Publication / Delivery                                          | Current | Build / publish / session-scoped Protobuf Delivery を接続                  |
 | Venue Edge registry / assignment / lease / fencing              | Current | RuntimeAssignment は Cloud / Edge 共通。Agent / Machine lifecycle は未実装 |
 | Realtime signing key rotation                                   | Open    | 旧公開鍵の保持期間とrotation手順を決定する                                 |
 | Durable audit storage と運用 SLO                                | Open    | Privacy と retention を先に定義する                                        |

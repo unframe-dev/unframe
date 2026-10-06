@@ -1,15 +1,15 @@
 import { assert, describe, expect, it } from "vitest";
 import {
-  canonicalRuntimeSnapshotV2Schema,
-  type CanonicalRuntimeSnapshotV2,
-} from "@unframe/contracts/presentation/v2";
-import definition from "../../contracts/presentation/v2/fixtures/presentation-definition.json";
-import renderBundle from "../../contracts/presentation/v2/fixtures/render-bundle.json";
-import assetSet from "../../contracts/presentation/v2/fixtures/asset-set-manifest.json";
-import buildManifest from "../../contracts/presentation/v2/fixtures/build-manifest.json";
-import publishedPresentation from "../../contracts/presentation/v2/fixtures/published-presentation.json";
-import capability from "../../contracts/presentation/v2/fixtures/capability-profile.json";
-import snapshotFixture from "../../contracts/presentation/v2/fixtures/m3d-cue-runtime-snapshot.json";
+  canonicalRuntimeSnapshotSchema,
+  type CanonicalRuntimeSnapshot,
+} from "@unframe/contracts/presentation";
+import definition from "../../contracts/presentation/fixtures/presentation-definition.json";
+import renderBundle from "../../contracts/presentation/fixtures/render-bundle.json";
+import assetSet from "../../contracts/presentation/fixtures/asset-set-manifest.json";
+import buildManifest from "../../contracts/presentation/fixtures/build-manifest.json";
+import publishedPresentation from "../../contracts/presentation/fixtures/published-presentation.json";
+import capability from "../../contracts/presentation/fixtures/capability-profile.json";
+import snapshotFixture from "../../contracts/presentation/fixtures/m3d-cue-runtime-snapshot.json";
 import { hashCanonicalJsonPayload } from "../src/canonicalization/payload.js";
 import type { DeliverySourceInput } from "../src/delivery/input.js";
 import { projectCanonicalParticipantRuntimeView } from "../src/runtime/canonical-participant-projection.js";
@@ -35,8 +35,8 @@ const rehash = (source: DeliverySourceInput) => {
   source.publishedPresentation.publicationManifestHash = hashCanonicalJsonPayload(payload);
   return source;
 };
-const fullSnapshot = (): CanonicalRuntimeSnapshotV2 =>
-  canonicalRuntimeSnapshotV2Schema.parse({
+const fullSnapshot = (): CanonicalRuntimeSnapshot =>
+  canonicalRuntimeSnapshotSchema.parse({
     ...structuredClone(snapshotFixture),
     reliableSequence: 7,
     mediaStates: { video: { kind: "stopped", heldPositionMilliseconds: 0 } },

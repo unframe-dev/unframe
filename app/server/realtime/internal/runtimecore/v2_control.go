@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	"google.golang.org/protobuf/proto"
@@ -38,7 +38,7 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		return nil, nil, ErrV2OriginMismatch
 	}
 	key := identity.ParticipantID + "\x00" + command.ClientEventId
-	fingerprint := fmt.Sprintf("runtimeControl\x00%d\x00%d", command.Kind, command.PresentationOriginVersion)
+	fingerprint := v2CommandFingerprint("runtime_control", nil, command.Kind, command.PresentationOriginVersion)
 	if stored, ok := s.outcomes[key]; ok {
 		if stored.fingerprint != fingerprint {
 			return nil, nil, ErrV2IdempotencyKeyReused
@@ -55,7 +55,9 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 	}
 	if noOp != realtimev2.CommandNoOpReason_COMMAND_NO_OP_REASON_UNSPECIFIED {
 		outcome := &realtimev2.CommandOutcome{ClientEventId: command.ClientEventId, Result: &realtimev2.CommandOutcome_NoOp{NoOp: &realtimev2.CommandNoOp{Reason: noOp}}}
-		s.rememberOutcome(key, fingerprint, outcome)
+		if err := s.commitV2Outcome(ctx, key, fingerprint, outcome); err != nil {
+			return nil, nil, err
+		}
 		return proto.Clone(outcome).(*realtimev2.CommandOutcome), nil, nil
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
@@ -94,6 +96,8 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 	} else {
 		mainEvent = events[len(events)-2]
 	}
+	outcome := &realtimev2.CommandOutcome{ClientEventId: command.ClientEventId, Result: &realtimev2.CommandOutcome_Accepted{Accepted: &realtimev2.CommandAccepted{CanonicalEventId: mainEvent.EventId, ReliableSequence: mainEvent.Sequence}}}
+	s.rememberOutcome(key, fingerprint, outcome)
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_END {
 		if err := s.commitV2Completion(ctx, previous, events); err != nil {
 			return nil, nil, err
@@ -104,8 +108,6 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME {
 		s.lastTick = time.Now()
 	}
-	outcome := &realtimev2.CommandOutcome{ClientEventId: command.ClientEventId, Result: &realtimev2.CommandOutcome_Accepted{Accepted: &realtimev2.CommandAccepted{CanonicalEventId: mainEvent.EventId, ReliableSequence: mainEvent.Sequence}}}
-	s.rememberOutcome(key, fingerprint, outcome)
 	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(events), nil
 }
 
@@ -193,10 +195,12 @@ func (s *V2Session) prepareV2Termination(events []*realtimev2.ProjectedReliableE
 }
 
 func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2.CanonicalRuntimeSnapshot, events []*realtimev2.ProjectedReliableEvent, previousTracking ...v2TrackingEvaluator) error {
+	recovery := s.v2Recovery()
 	candidate := s.snapshot
 	candidateTracking := s.tracking
 	metadata := proto.Clone(s.checkpointMetadata).(*realtimev2.DurableCheckpointEnvelope)
 	metadata.CheckpointSequence++
+	metadata.RecoveryPayload, _ = proto.MarshalOptions{Deterministic: true}.Marshal(recovery)
 	catalog := proto.Clone(s.checkpointCatalog).(*presentationv2.ProjectedRuntimeCatalog)
 	writer := s.completionWriter
 	participants := make([]V2Participant, 0, len(s.participants))
@@ -229,6 +233,8 @@ func (s *V2Session) commitV2Completion(ctx context.Context, previous *realtimev2
 		s.tracking = candidateTracking
 	}
 	s.checkpointMetadata.CheckpointSequence = checkpoint.CheckpointSequence
+	s.lastCheckpointRuntimeTime = candidate.Clock.RuntimeTimeMs
+	s.committedRecovery = recovery
 	s.publishV2Events(events)
 	return nil
 }

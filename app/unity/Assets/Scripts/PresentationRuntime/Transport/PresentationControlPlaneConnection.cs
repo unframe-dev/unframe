@@ -3,8 +3,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
-using Unframe.Delivery.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Realtime;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime

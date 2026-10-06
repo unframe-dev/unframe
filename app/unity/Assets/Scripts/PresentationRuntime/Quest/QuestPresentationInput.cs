@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics;
-using Unframe.Realtime.V2;
+using Unframe.Realtime;
 
 namespace Unframe.Unity.PresentationRuntime
 {

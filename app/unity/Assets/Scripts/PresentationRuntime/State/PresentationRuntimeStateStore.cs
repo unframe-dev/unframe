@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Google.Protobuf;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -597,7 +597,7 @@ namespace Unframe.Unity.PresentationRuntime
                 return true;
             }
 
-            Unframe.Presentation.V2.Transform transform = patch.Transform;
+            Unframe.Presentation.Transform transform = patch.Transform;
             if (transform.Position == null && transform.Rotation == null && transform.Scale == null) return false;
             if (transform.Position != null && (!IsValidVector(transform.Position)
                 || !PresentationCoordinateValidation.IsRenderable(transform.Position))) return false;
@@ -607,7 +607,7 @@ namespace Unframe.Unity.PresentationRuntime
                 && transform.Scale.X > 0 && transform.Scale.Y > 0 && transform.Scale.Z > 0;
         }
 
-        private static bool IsValidVector(Unframe.Presentation.V2.Vector3 value)
+        private static bool IsValidVector(Unframe.Presentation.Vector3 value)
         {
             return PresentationDeliveryCatalog.IsCanonicalFinite(value.X)
                 && PresentationDeliveryCatalog.IsCanonicalFinite(value.Y)
@@ -621,16 +621,16 @@ namespace Unframe.Unity.PresentationRuntime
                 && (state.Transform == null || IsValidTransform(state.Transform));
         }
 
-        private static bool IsValidTransform(Unframe.Presentation.V2.Transform transform)
+        private static bool IsValidTransform(Unframe.Presentation.Transform transform)
         {
             if (transform.Position == null || transform.Rotation == null || transform.Scale == null)
             {
                 return false;
             }
 
-            Unframe.Presentation.V2.Vector3 position = transform.Position;
-            Unframe.Presentation.V2.Quaternion rotation = transform.Rotation;
-            Unframe.Presentation.V2.Vector3 scale = transform.Scale;
+            Unframe.Presentation.Vector3 position = transform.Position;
+            Unframe.Presentation.Quaternion rotation = transform.Rotation;
+            Unframe.Presentation.Vector3 scale = transform.Scale;
             return PresentationDeliveryCatalog.IsCanonicalFinite(position.X) && PresentationDeliveryCatalog.IsCanonicalFinite(position.Y) && PresentationDeliveryCatalog.IsCanonicalFinite(position.Z)
                 && PresentationCoordinateValidation.IsRenderable(position)
                 && PresentationDeliveryCatalog.IsCanonicalFinite(scale.X) && PresentationDeliveryCatalog.IsCanonicalFinite(scale.Y) && PresentationDeliveryCatalog.IsCanonicalFinite(scale.Z) && scale.X > 0 && scale.Y > 0 && scale.Z > 0
@@ -886,11 +886,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static bool ValidOrigin(PresentationOrigin origin)
         {
-            return origin != null && origin.Pose != null && IsValidTransform(new Unframe.Presentation.V2.Transform
+            return origin != null && origin.Pose != null && IsValidTransform(new Unframe.Presentation.Transform
             {
                 Position = origin.Pose.Position,
                 Rotation = origin.Pose.Rotation,
-                Scale = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 }
+                Scale = new Unframe.Presentation.Vector3 { X = 1, Y = 1, Z = 1 }
             });
         }
 

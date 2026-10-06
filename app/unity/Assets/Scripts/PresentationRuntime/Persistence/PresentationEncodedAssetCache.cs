@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime

@@ -19,7 +19,7 @@ func TestStreamServerInterceptorTracksFailuresWithoutLoggingSensitiveDetails(t *
 	metrics := &Metrics{}
 	interceptor := StreamServerInterceptor(slog.New(slog.NewTextHandler(&output, nil)), metrics)
 	stream := testStream{context: context.Background()}
-	err := interceptor(nil, stream, &grpcgo.StreamServerInfo{FullMethod: "/unframe.realtime.v2.RealtimeServiceV2/ConnectControl"}, func(any, grpcgo.ServerStream) error {
+	err := interceptor(nil, stream, &grpcgo.StreamServerInfo{FullMethod: "/unframe.realtime.RealtimeService/ConnectControl"}, func(any, grpcgo.ServerStream) error {
 		if got := metrics.Snapshot().ActiveStreams; got != 1 {
 			t.Fatalf("active streams while handling = %d, want 1", got)
 		}
@@ -32,7 +32,7 @@ func TestStreamServerInterceptorTracksFailuresWithoutLoggingSensitiveDetails(t *
 	if snapshot.ActiveStreams != 0 || snapshot.CompletedStreams != 1 || snapshot.AuthenticationFailures != 1 {
 		t.Fatalf("metrics = %#v, want one completed authentication failure", snapshot)
 	}
-	if logOutput := output.String(); !strings.Contains(logOutput, "code=Unauthenticated") || !strings.Contains(logOutput, "RealtimeServiceV2/ConnectControl") || strings.Contains(logOutput, "secret-token") {
+	if logOutput := output.String(); !strings.Contains(logOutput, "code=Unauthenticated") || !strings.Contains(logOutput, "RealtimeService/ConnectControl") || strings.Contains(logOutput, "secret-token") {
 		t.Errorf("unsafe or incomplete log output: %q", logOutput)
 	}
 }

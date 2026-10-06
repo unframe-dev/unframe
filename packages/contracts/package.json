@@ -5,17 +5,17 @@
   "type": "module",
   "exports": {
     "./control-plane": "./src/control-plane.openapi.ts",
-    "./presentation/v2": "./src/presentation/v2/index.ts"
+    "./presentation": "./src/presentation/index.ts"
   },
   "scripts": {
     "generate:control-plane": "tsx scripts/generate-control-plane.ts",
     "check:control-plane": "tsx scripts/generate-control-plane.ts --check",
+    "generate:presentation": "tsx scripts/generate-presentation.ts",
+    "check:presentation": "tsx scripts/generate-presentation.ts --check",
+    "test:presentation": "tsx --test test/presentation.contract.test.ts test/runtime-projection.contract.test.ts test/public-contract.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src/presentation scripts test",
-    "check": "pnpm check:control-plane && pnpm check:presentation:v2 && pnpm check:wire-descriptor && pnpm check:wire-static && pnpm check:wire-types && pnpm check:wire-fixtures && pnpm typecheck && pnpm test:presentation:v2 && pnpm test:wire && pnpm lint",
-    "generate:presentation:v2": "tsx scripts/generate-presentation-v2.ts",
-    "check:presentation:v2": "tsx scripts/generate-presentation-v2.ts --check",
-    "test:presentation:v2": "tsx --test test/presentation-v2.contract.test.ts test/runtime-projection-v2.contract.test.ts test/public-contracts.test.ts",
+    "check": "pnpm check:control-plane && pnpm check:presentation && pnpm check:wire-descriptor && pnpm check:wire-static && pnpm check:wire-types && pnpm check:wire-fixtures && pnpm typecheck && pnpm test:presentation && pnpm test:wire && pnpm lint",
     "generate:wire-descriptor": "tsx scripts/generate-wire-descriptor.ts",
     "check:wire-descriptor": "tsx scripts/generate-wire-descriptor.ts --check",
     "generate:wire-static": "tsx scripts/generate-wire-static.ts",

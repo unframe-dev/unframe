@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -89,7 +89,7 @@ public sealed class PresentationTextureResidencyEditModeTests
     public void BakedDeliveryAcceptsTheRuntimeTransportCapability()
     {
         DeliveryManifest manifest = BakedDelivery();
-        manifest.ProjectionProfile.RequiredRuntimeCapabilities.Insert(0, Unframe.Presentation.V2.RuntimeCapability.RuntimeTransportV2);
+        manifest.ProjectionProfile.RequiredRuntimeCapabilities.Insert(0, Unframe.Presentation.RuntimeCapability.RuntimeTransport);
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
         Assert.That(store.TryReceiveDelivery(manifest, out string error), Is.True, error);
     }

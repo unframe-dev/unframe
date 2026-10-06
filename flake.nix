@@ -157,9 +157,9 @@
             name = "unity-proto";
             script = "contracts/generate-unity-proto.sh";
           };
-          v2-consumers = mkApp {
-            name = "v2-consumers";
-            script = "contracts/generate-v2-consumers.sh";
+          contracts-consumers = mkApp {
+            name = "contracts-consumers";
+            script = "contracts/generate-consumers.sh";
           };
           realtime = mkApp {
             name = "realtime";

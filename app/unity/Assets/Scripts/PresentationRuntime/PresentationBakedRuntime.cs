@@ -3,9 +3,9 @@ using System.Net.Http;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -101,8 +101,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (store.Delivery.Residency.Textures == null || store.Delivery.ProjectionProfile.LocalOverlays.Count != 0) return false;
             foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces) if (surface.RendererKind != RendererKind.BakedWeb) return false;
-            foreach (Unframe.Presentation.V2.ProjectedNodeDefinition node in store.Nodes)
-                if (node.NodeCase == Unframe.Presentation.V2.ProjectedNodeDefinition.NodeOneofCase.Model) return false;
+            foreach (Unframe.Presentation.ProjectedNodeDefinition node in store.Nodes)
+                if (node.NodeCase == Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model) return false;
             return true;
         }
 

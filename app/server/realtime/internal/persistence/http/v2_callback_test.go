@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -90,5 +91,56 @@ func TestCheckpointEnvelopeRejectsTamperedPayloadBeforeHTTP(t *testing.T) {
 	client := NewClient(Config{})
 	if _, err := client.CheckpointEnvelope(context.Background(), envelope, 4); err != ErrInvalidCallback {
 		t.Fatalf("tampered payload error = %v", err)
+	}
+}
+
+func recoveryEnvelope(t *testing.T) *realtimev2.DurableCheckpointEnvelope {
+	t.Helper()
+	envelope := callbackEnvelope(t)
+	payload, err := proto.MarshalOptions{Deterministic: true}.Marshal(&realtimev2.RuntimeRecoveryMetadata{
+		StartedAt:    "2026-10-02T00:00:00Z",
+		Participants: []*realtimev2.RuntimeParticipantHistory{{ParticipantId: "presenter-1", Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER}},
+		Commands:     []*realtimev2.RuntimeCommandHistory{{Key: "presenter-1\x00command-1", Fingerprint: "sha256:" + strings.Repeat("d", 64), RememberedAtUnixMs: 1790899260000, Outcome: &realtimev2.CommandOutcome{ClientEventId: "command-1", Result: &realtimev2.CommandOutcome_Accepted{Accepted: &realtimev2.CommandAccepted{CanonicalEventId: "event-10", ReliableSequence: 10, CueEvaluation: &realtimev2.CommandAccepted_CueNotSelected{CueNotSelected: &realtimev2.CueNotSelected{}}}}}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(payload)
+	hash := "sha256:" + hex.EncodeToString(digest[:])
+	envelope.RecoveryPayload = payload
+	envelope.RecoveryHash = &hash
+	return envelope
+}
+
+func TestCheckpointEnvelopeRejectsTamperedRecoveryBeforeHTTP(t *testing.T) {
+	envelope := recoveryEnvelope(t)
+	envelope.RecoveryPayload = append(envelope.RecoveryPayload, 0x78, 0x01)
+	client := NewClient(Config{})
+	if _, err := client.CheckpointEnvelope(context.Background(), envelope, 4); err != ErrInvalidCallback {
+		t.Fatalf("tampered recovery error=%v", err)
+	}
+}
+
+func TestCheckpointEnvelopePreservesRecoveryPayloadOverHTTP(t *testing.T) {
+	envelope := recoveryEnvelope(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Payload json.RawMessage `json:"payload"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			http.Error(w, "bad callback", 400)
+			return
+		}
+		restored := new(realtimev2.DurableCheckpointEnvelope)
+		if err := protojson.Unmarshal(body.Payload, restored); err != nil || !proto.Equal(envelope, restored) {
+			t.Errorf("recovery did not survive callback JSON: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"applied":true}`))
+	}))
+	defer server.Close()
+	client := NewClient(Config{BaseURL: server.URL, ServiceIdentity: "service-token", AllowInsecureLoopback: true})
+	if _, err := client.CheckpointEnvelope(context.Background(), envelope, 4); err != nil {
+		t.Fatal(err)
 	}
 }

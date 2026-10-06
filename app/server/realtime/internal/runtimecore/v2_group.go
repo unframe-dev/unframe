@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"sort"
 
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -44,6 +44,7 @@ func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliab
 	var events []*realtimev2.ProjectedReliableEvent
 	originalRuns := append([]*realtimev2.RuntimeRunSnapshot(nil), s.snapshot.ActiveRuns...)
 	cancellations := make(map[uint64]*realtimev2.ProjectedReliableEvent)
+	timelineCommits := make(map[uint64][]*realtimev2.ProjectedReliableEvent)
 	for _, canceled := range cancelV2MediaRuns(s.snapshot, realtimev2.MediaCancelReason_MEDIA_CANCEL_REASON_GROUP_EXIT, oldID) {
 		cancellations[canceled.GetMediaCanceled().RunId.RunSequence] = canceled
 	}
@@ -51,6 +52,21 @@ func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliab
 	for _, run := range originalRuns {
 		if run.Owner.GetGroup() != nil && run.Owner.GetGroup().GroupId == oldID {
 			if timeline := run.GetTimeline(); timeline != nil {
+				var definition v2Timeline
+				if json.Unmarshal(s.definition.Flow.Timelines[timeline.TimelineId], &definition) != nil {
+					return nil, ErrV2RuntimeDefinition
+				}
+				if err := applyV2TimelineAt(s.snapshot, definition, s.snapshot.Clock.RuntimeTimeMs-run.StartedAtRuntimeTimeMs); err != nil {
+					return nil, err
+				}
+				for _, track := range definition.Tracks {
+					for _, node := range s.snapshot.NodeStates {
+						if node.NodeId == track.Target.NodeID {
+							timelineCommits[run.RunId.RunSequence] = append(timelineCommits[run.RunId.RunSequence], &realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_NodeStateCommitted{NodeStateCommitted: &realtimev2.NodeStateCommitted{State: proto.Clone(node).(*realtimev2.NodeRuntimeState)}}})
+							break
+						}
+					}
+				}
 				cancellations[run.RunId.RunSequence] = &realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_TimelineCanceled{TimelineCanceled: &realtimev2.TimelineCanceled{RunId: run.RunId, TimelineId: timeline.TimelineId, Reason: realtimev2.TimelineCancelReason_TIMELINE_CANCEL_REASON_GROUP_EXIT}}}
 			}
 			if model := run.GetModelClip(); model != nil {
@@ -81,6 +97,7 @@ func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliab
 	for _, run := range originalRuns {
 		if canceled := cancellations[run.RunId.RunSequence]; canceled != nil {
 			events = append(events, canceled)
+			events = append(events, timelineCommits[run.RunId.RunSequence]...)
 		}
 	}
 	s.snapshot.ActiveRuns = active

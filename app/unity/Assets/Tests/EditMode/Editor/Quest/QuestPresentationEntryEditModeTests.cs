@@ -4,15 +4,15 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Unframe.Presentation.V2;
-using Unframe.Delivery.V2;
-using Unframe.Realtime.V2;
+using Unframe.Presentation;
+using Unframe.Delivery;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
-using Pose = Unframe.Presentation.V2.Pose;
+using Pose = Unframe.Presentation.Pose;
 using Vector3 = UnityEngine.Vector3;
 using Quaternion = UnityEngine.Quaternion;
 
@@ -22,7 +22,7 @@ public sealed class QuestPresentationEntryEditModeTests
     public void TrackingFrameUsesOnlyAvailableTargetsAndCanonicalQuestLocalCoordinates()
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose
-        { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } },
+        { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } },
             new QuestPoseSample(TrackedTarget.Head, new Vector3(1, 2, 3), Quaternion.identity),
             new QuestPoseSample(TrackedTarget.RightHand, new Vector3(4, 5, 6), Quaternion.identity));
 
@@ -39,7 +39,7 @@ public sealed class QuestPresentationEntryEditModeTests
     public void UnavailableBodyIsExplicitlyClearedWithoutBorrowingHeadPose()
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose
-        { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } },
+        { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } },
             new QuestPoseSample(TrackedTarget.Head, new Vector3(1, 2, 3), Quaternion.identity),
             new QuestPoseSample(TrackedTarget.Body, new Vector3(9, 9, 9), Quaternion.identity, false));
         Assert.That(frame.Samples[1].Target, Is.EqualTo(TrackedTarget.Body));
@@ -164,7 +164,7 @@ public sealed class QuestPresentationEntryEditModeTests
             host.AddComponent<PresentationBakedRuntime>();
             QuestPresentationEntry entry = host.AddComponent<QuestPresentationEntry>();
             var calibration = new Pose
-            { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } };
+            { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } };
             async Task<string> WaitForCredential(CancellationToken token)
             {
                 await Task.Delay(Timeout.Infinite, token);

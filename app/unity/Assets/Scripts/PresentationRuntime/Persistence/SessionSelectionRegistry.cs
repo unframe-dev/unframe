@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 
 namespace Unframe.Unity.PresentationRuntime
 {

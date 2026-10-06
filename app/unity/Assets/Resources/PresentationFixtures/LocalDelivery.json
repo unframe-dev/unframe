@@ -35,7 +35,7 @@
       "projectionContractVersion": 1,
       "role": "SESSION_ROLE_PRESENTER"
     },
-    "requiredRuntimeCapabilities": ["RUNTIME_CAPABILITY_TIMELINE_RUN_V2"],
+    "requiredRuntimeCapabilities": ["RUNTIME_CAPABILITY_TIMELINE_RUN"],
     "runtimeCatalog": {
       "catalogContractVersion": 2,
       "nodes": [

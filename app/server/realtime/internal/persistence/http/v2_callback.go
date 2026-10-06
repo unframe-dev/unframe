@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -62,6 +62,9 @@ func (c *Client) CompleteEnvelope(ctx context.Context, envelope *realtimev2.Dura
 
 func validCheckpointEnvelope(envelope *realtimev2.DurableCheckpointEnvelope) bool {
 	if envelope == nil || envelope.SchemaVersion != 2 || envelope.CheckpointSequence == 0 || protocolv2.ValidateMessage(envelope) != nil {
+		return false
+	}
+	if _, err := protocolv2.DecodeRecoveryMetadata(envelope); err != nil {
 		return false
 	}
 	digest := sha256.Sum256(envelope.CanonicalSnapshotPayload)

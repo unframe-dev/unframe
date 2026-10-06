@@ -10,10 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery/v2"
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
@@ -41,6 +42,7 @@ type v2Control struct {
 	snapshotCut       uint64
 	originCut         uint64
 	stateConnected    bool
+	stateDetached     chan struct{}
 	faultGeneration   uint64
 	observedSequence  atomic.Uint64
 	deliveredSequence atomic.Uint64
@@ -55,7 +57,7 @@ type v2ResumeRecord struct {
 }
 
 type V2Service struct {
-	realtimev2.UnimplementedRealtimeServiceV2Server
+	realtimev2.UnimplementedRealtimeServiceServer
 	runtime         *runtimecore.V2Session
 	bootstrap       persistencehttp.RuntimeBootstrap
 	projections     V2ProjectionProvider
@@ -82,12 +84,28 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		return status.Error(codes.Unauthenticated, "v2 realtime credential is required")
 	}
 	claim := assignmentClaim(identity)
+	var sendMu sync.Mutex
+	sendRaw := func(item *realtimev2.ControlServerItem) error {
+		if proto.Size(item) > 1<<20 {
+			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
+		}
+		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ReliableDeliveryDeadline(claim) }, func() (struct{}, error) { return struct{}{}, stream.Send(item) })
+		return err
+	}
+	send := func(item *realtimev2.ControlServerItem) error {
+		sendMu.Lock()
+		defer sendMu.Unlock()
+		return sendRaw(item)
+	}
 	if err := s.assignments.AllowNewConnection(claim); err != nil {
 		return assignmentError(err)
 	}
-	first, err := stream.Recv()
+	first, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ConnectionDeadline(assignmentClaim(identity)) }, stream.Recv)
 	if err != nil {
-		return status.Error(codes.InvalidArgument, "handshake_order_invalid")
+		if errors.Is(err, io.EOF) {
+			return status.Error(codes.InvalidArgument, "handshake_order_invalid")
+		}
+		return err
 	}
 	if proto.Size(first) > 1<<20 {
 		return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
@@ -116,6 +134,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	}
 	if resume := handshake.Resume; resume != nil {
 		s.mu.Lock()
+		s.evictResumeRecords(time.Now())
 		previous, known := s.resumeRecords[resume.PriorConnectionId]
 		if known && time.Now().After(previous.expiresAt) {
 			delete(s.resumeRecords, resume.PriorConnectionId)
@@ -123,11 +142,14 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		s.mu.Unlock()
 		if !known || previous.faultGeneration != s.runtime.FaultGeneration() || previous.participantID != identity.ParticipantID || !proto.Equal(previous.fence, resume.Fence) {
-			return s.resync(func(item *realtimev2.ControlServerItem) error { return stream.Send(item) }, s.runtime.Snapshot().ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
+			return s.resync(send, s.runtime.Snapshot().ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
 		}
 		if previous.profileID != profile.ProjectionProfileId {
-			return s.resync(func(item *realtimev2.ControlServerItem) error { return stream.Send(item) }, s.runtime.Snapshot().ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_PROJECTION_CHANGED)
+			return s.resync(send, s.runtime.Snapshot().ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_PROJECTION_CHANGED)
 		}
+	}
+	if err := s.assignments.AllowNewConnection(claim); err != nil {
+		return assignmentError(err)
 	}
 	if err := s.runtime.JoinParticipant(stream.Context(), identity); err != nil {
 		if errors.Is(err, session.ErrParticipantActive) {
@@ -143,7 +165,11 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	faultGeneration := s.runtime.FaultGeneration()
 	snapshot, presence, events, unsubscribe := s.runtime.SnapshotPresenceAndSubscribe()
 	defer unsubscribe()
-	view, err := runtimecore.ProjectV2Snapshot(snapshot, profile, identity.AssignmentEpoch, nil)
+	var enabledLogicalInputs []string
+	if identity.Role == session.RolePresenter {
+		enabledLogicalInputs = s.runtime.EnabledLogicalInputs(snapshot)
+	}
+	view, err := runtimecore.ProjectV2Snapshot(snapshot, profile, identity.AssignmentEpoch, enabledLogicalInputs)
 	if err != nil {
 		return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
@@ -153,16 +179,16 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	var resumed []*realtimev2.ProjectedReliableEvent
 	if resume := handshake.Resume; resume != nil {
 		if !proto.Equal(resume.Fence, fence) {
-			return s.resync(func(item *realtimev2.ControlServerItem) error { return stream.Send(item) }, snapshot.ReliableSequence, v2FenceResyncReason(resume.Fence, fence))
+			return s.resync(send, snapshot.ReliableSequence, v2FenceResyncReason(resume.Fence, fence))
 		}
 		resumed, err = s.runtime.ReplayThrough(resume.AppliedReliableSequence, snapshot.ReliableSequence)
 		if err != nil {
-			return s.resync(func(item *realtimev2.ControlServerItem) error { return stream.Send(item) }, snapshot.ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
+			return s.resync(send, snapshot.ReliableSequence, realtimev2.ResyncReason_RESYNC_REASON_REPLAY_RANGE_UNAVAILABLE)
 		}
 	} else if _, err := protocolv2.NewConnectionCursor(cut, fence, profile.RuntimeCatalog); err != nil {
 		return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
-	control := &v2Control{identity: identity, profile: profile, fence: fence, ready: make(chan struct{}), done: make(chan struct{}), snapshotCut: snapshot.ReliableSequence, originCut: snapshot.PresentationOrigin.Version, faultGeneration: faultGeneration}
+	control := &v2Control{identity: identity, profile: profile, fence: fence, ready: make(chan struct{}), stateDetached: make(chan struct{}, 1), done: make(chan struct{}), snapshotCut: snapshot.ReliableSequence, originCut: snapshot.PresentationOrigin.Version, faultGeneration: faultGeneration}
 	initialCursor := snapshot.ReliableSequence
 	if handshake.Resume != nil {
 		initialCursor = handshake.Resume.AppliedReliableSequence
@@ -174,21 +200,13 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
+		close(control.done)
 		delete(s.controls, connectionID)
+		s.evictResumeRecords(time.Now())
 		s.resumeRecords[connectionID] = v2ResumeRecord{participantID: identity.ParticipantID, profileID: profile.ProjectionProfileId, fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), expiresAt: time.Now().Add(15 * time.Minute), faultGeneration: faultGeneration}
 		s.mu.Unlock()
 		s.nonces.Revoke(connectionID)
-		close(control.done)
 	}()
-	var sendMu sync.Mutex
-	send := func(item *realtimev2.ControlServerItem) error {
-		if proto.Size(item) > 1<<20 {
-			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
-		}
-		sendMu.Lock()
-		defer sendMu.Unlock()
-		return stream.Send(item)
-	}
 	lastVisible := snapshot.ReliableSequence
 	if handshake.Resume != nil {
 		lastVisible = handshake.Resume.AppliedReliableSequence
@@ -204,15 +222,15 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			return status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 		}
 		observed = event.Sequence
-		control.observedSequence.Store(observed)
 		projected, visible := runtimecore.ProjectV2ReliableEvent(event, profile)
 		if !visible {
+			control.observedSequence.Store(observed)
 			return nil
 		}
 		projected.Fence = proto.Clone(fence).(*presentationv2.RuntimeProjectionFence)
 		if lastVisible+1 < event.Sequence {
 			advance := &realtimev2.ProjectionAdvance{Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), FromExclusive: lastVisible, ThroughSequence: event.Sequence - 1}
-			if err := stream.Send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ProjectionAdvance{ProjectionAdvance: advance}}); err != nil {
+			if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ProjectionAdvance{ProjectionAdvance: advance}}); err != nil {
 				return err
 			}
 		}
@@ -220,11 +238,12 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		if proto.Size(item) > 1<<20 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
-		if err := stream.Send(item); err != nil {
+		if err := sendRaw(item); err != nil {
 			return err
 		}
 		lastVisible = event.Sequence
 		control.deliveredSequence.Store(lastVisible)
+		control.observedSequence.Store(observed)
 		return nil
 	}
 	connected := &realtimev2.ControlConnected{ProtocolVersion: "v2", ProgressionContractVersion: 1, RequiredCapabilities: profile.RequiredRuntimeCapabilities, ConnectionId: connectionID, ProjectionInstance: instance, Limits: v2ProtocolLimits()}
@@ -243,11 +262,14 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		}
 		control.snapshotCut = control.deliveredSequence.Load()
 	}
-	nonce, err := s.nonces.Issue(connectionID, identity.ParticipantID)
-	if err != nil {
-		return status.Error(codes.Internal, "internal_error")
+	issueNonce := func() error {
+		nonce, err := s.nonces.Issue(connectionID, identity.ParticipantID)
+		if err != nil {
+			return status.Error(codes.Internal, "internal_error")
+		}
+		return send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_StateConnectionNonce{StateConnectionNonce: &realtimev2.StateConnectionNonce{Nonce: nonce, ExpiresInMs: 30000}}})
 	}
-	if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_StateConnectionNonce{StateConnectionNonce: &realtimev2.StateConnectionNonce{Nonce: nonce, ExpiresInMs: 30000}}}); err != nil {
+	if err := issueNonce(); err != nil {
 		return err
 	}
 	streamErrors := make(chan error, 1)
@@ -278,16 +300,41 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			}
 		}
 	}()
+	deadline, err := s.assignments.ConnectionDeadline(claim)
+	if err != nil {
+		return assignmentError(err)
+	}
+	leaseTimer := time.NewTimer(time.Until(deadline))
+	defer leaseTimer.Stop()
 	leaseCheck := time.NewTicker(time.Second)
 	defer leaseCheck.Stop()
 	for {
 		var item *realtimev2.ControlClientItem
 		var err error
 		select {
+		case <-control.stateDetached:
+			if err := s.v2ControlClosed(control); err != nil {
+				return err
+			}
+			if err := issueNonce(); err != nil {
+				return err
+			}
+			continue
 		case incoming := <-received:
 			item, err = incoming.item, incoming.err
 		case err := <-streamErrors:
 			return err
+		case <-leaseTimer.C:
+			deadline, err := s.assignments.ConnectionDeadline(claim)
+			if err != nil {
+				return assignmentError(err)
+			}
+			remaining := time.Until(deadline)
+			if remaining <= 0 {
+				return assignmentError(assignment.ErrLeaseExpired)
+			}
+			leaseTimer.Reset(remaining)
+			continue
 		case <-leaseCheck.C:
 			if s.runtime.FaultGeneration() != control.faultGeneration {
 				return status.Error(codes.FailedPrecondition, "private_runtime_fault")
@@ -323,15 +370,16 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 		switch value := item.Item.(type) {
 		case *realtimev2.ControlClientItem_StateReady:
 			s.mu.Lock()
-			stateConnected := control.stateConnected
-			s.mu.Unlock()
-			if !stateConnected {
+			if !control.stateConnected {
+				s.mu.Unlock()
 				return status.Error(codes.InvalidArgument, "handshake_order_invalid")
 			}
 			if value.StateReady.AppliedReliableSequence != control.snapshotCut || value.StateReady.PresentationOriginVersion != control.originCut {
+				s.mu.Unlock()
 				return status.Error(codes.FailedPrecondition, "state_ready_fence_mismatch")
 			}
 			control.readyOnce.Do(func() { close(control.ready) })
+			s.mu.Unlock()
 		case *realtimev2.ControlClientItem_LogicalInput:
 			outcome, _, err := s.runtime.LogicalInputContext(stream.Context(), identity, value.LogicalInput)
 			if err != nil {
@@ -371,7 +419,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 				projected.Fence = proto.Clone(fence).(*presentationv2.RuntimeProjectionFence)
 				if replayLast+1 < event.Sequence {
 					advance := &realtimev2.ProjectionAdvance{Fence: proto.Clone(fence).(*presentationv2.RuntimeProjectionFence), FromExclusive: replayLast, ThroughSequence: event.Sequence - 1}
-					if err := stream.Send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ProjectionAdvance{ProjectionAdvance: advance}}); err != nil {
+					if err := sendRaw(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_ProjectionAdvance{ProjectionAdvance: advance}}); err != nil {
 						sendMu.Unlock()
 						return err
 					}
@@ -381,7 +429,7 @@ func (s *V2Service) ConnectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 					sendMu.Unlock()
 					return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 				}
-				if err := stream.Send(item); err != nil {
+				if err := sendRaw(item); err != nil {
 					sendMu.Unlock()
 					return err
 				}
@@ -400,11 +448,20 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 	if err != nil || identity.ProtocolVersion != 2 {
 		return status.Error(codes.Unauthenticated, "v2 realtime credential is required")
 	}
+	send := func(item *realtimev2.StateServerItem) error {
+		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) {
+			return s.assignments.ConnectionDeadline(assignmentClaim(identity))
+		}, func() (struct{}, error) { return struct{}{}, stream.Send(item) })
+		return err
+	}
 	if err := s.assignments.AllowNewConnection(assignmentClaim(identity)); err != nil {
 		return assignmentError(err)
 	}
-	first, err := stream.Recv()
-	if err != nil || first.GetHandshake() == nil {
+	first, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ConnectionDeadline(assignmentClaim(identity)) }, stream.Recv)
+	if err != nil {
+		return err
+	}
+	if first.GetHandshake() == nil {
 		return status.Error(codes.InvalidArgument, "handshake_order_invalid")
 	}
 	if proto.Size(first) > 256<<10 {
@@ -421,12 +478,27 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 		return status.Error(codes.Unauthenticated, "state_nonce_invalid")
 	}
 	s.mu.Lock()
+	if control.stateConnected || s.controls[handshake.ConnectionId] != control {
+		s.mu.Unlock()
+		return status.Error(codes.Unauthenticated, "state_nonce_invalid")
+	}
 	control.stateConnected = true
+	ready := control.ready
 	s.mu.Unlock()
-	if err := stream.Send(&realtimev2.StateServerItem{Item: &realtimev2.StateServerItem_Connected{Connected: &realtimev2.StateConnected{ConnectionId: handshake.ConnectionId, NextStateFrameSequence: 1}}}); err != nil {
+	defer func() {
 		s.mu.Lock()
 		control.stateConnected = false
+		control.ready = make(chan struct{})
+		control.readyOnce = sync.Once{}
+		if s.controls[handshake.ConnectionId] == control {
+			select {
+			case control.stateDetached <- struct{}{}:
+			default:
+			}
+		}
 		s.mu.Unlock()
+	}()
+	if err := send(&realtimev2.StateServerItem{Item: &realtimev2.StateServerItem_Connected{Connected: &realtimev2.StateConnected{ConnectionId: handshake.ConnectionId, NextStateFrameSequence: 1}}}); err != nil {
 		return err
 	}
 	stateInput := make(chan error, 1)
@@ -451,7 +523,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 				return
 			}
 			select {
-			case <-control.ready:
+			case <-ready:
 			default:
 				stateInput <- status.Error(codes.InvalidArgument, "handshake_order_invalid")
 				return
@@ -490,20 +562,47 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 			}
 		}
 	}()
-	select {
-	case <-control.ready:
-	case <-control.done:
-		return s.v2ControlClosed(control)
-	case err := <-stateInput:
+	_, err = v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ConnectionDeadline(assignmentClaim(identity)) }, func() (struct{}, error) {
+		select {
+		case <-ready:
+			return struct{}{}, nil
+		case <-control.done:
+			return struct{}{}, s.v2ControlClosed(control)
+		case err := <-stateInput:
+			return struct{}{}, err
+		case <-stream.Context().Done():
+			return struct{}{}, stream.Context().Err()
+		}
+	})
+	if err != nil {
 		return err
-	case <-stream.Context().Done():
-		return stream.Context().Err()
+	}
+
+	waitTick := func(ticks <-chan time.Time) error {
+		_, err := v2BeforeLeaseExpiry(stream.Context(), func() (time.Time, error) { return s.assignments.ConnectionDeadline(assignmentClaim(identity)) }, func() (struct{}, error) {
+			select {
+			case <-ticks:
+				return struct{}{}, nil
+			case <-control.done:
+				return struct{}{}, s.v2ControlClosed(control)
+			case err := <-stateInput:
+				return struct{}{}, err
+			case <-stream.Context().Done():
+				return struct{}{}, stream.Context().Err()
+			}
+		})
+		return err
 	}
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	sequence := uint64(1)
 	cadence := time.Second
 	for {
+		select {
+		case <-control.done:
+			return s.v2ControlClosed(control)
+		default:
+		}
 		if s.runtime.FaultGeneration() != control.faultGeneration {
 			return status.Error(codes.FailedPrecondition, "private_runtime_fault")
 		}
@@ -512,14 +611,8 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 		}
 		frame, err := s.keyframe(control, sequence)
 		if errors.Is(err, errV2StatePending) {
-			select {
-			case <-ticker.C:
-			case <-control.done:
-				return s.v2ControlClosed(control)
-			case err := <-stateInput:
+			if err := waitTick(ticker.C); err != nil {
 				return err
-			case <-stream.Context().Done():
-				return stream.Context().Err()
 			}
 			continue
 		}
@@ -530,7 +623,7 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 		if proto.Size(outbound) > 256<<10 {
 			return status.Error(codes.ResourceExhausted, "message_limit_exceeded")
 		}
-		if err := stream.Send(outbound); err != nil {
+		if err := send(outbound); err != nil {
 			return err
 		}
 		nextCadence := time.Second
@@ -542,21 +635,20 @@ func (s *V2Service) ConnectState(stream grpcgo.BidiStreamingServer[realtimev2.St
 			cadence = nextCadence
 		}
 		sequence++
-		select {
-		case <-ticker.C:
-		case <-control.done:
-			return s.v2ControlClosed(control)
-		case err := <-stateInput:
+		if err := waitTick(ticker.C); err != nil {
 			return err
-		case <-stream.Context().Done():
-			return stream.Context().Err()
 		}
 	}
 }
 
 func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.ElementStateFrame, error) {
 	snapshot := s.runtime.Snapshot()
-	if control.observedSequence.Load() < snapshot.ReliableSequence || control.deliveredSequence.Load() > snapshot.ReliableSequence {
+	if snapshot.Clock.GetRunning() == nil {
+		return nil, errV2StatePending
+	}
+	observed := control.observedSequence.Load()
+	delivered := control.deliveredSequence.Load()
+	if observed < snapshot.ReliableSequence || delivered > snapshot.ReliableSequence {
 		return nil, errV2StatePending
 	}
 	view, err := runtimecore.ProjectV2Snapshot(snapshot, control.profile, control.identity.AssignmentEpoch, nil)
@@ -568,7 +660,7 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 		return nil, status.Error(codes.FailedPrecondition, "runtime_snapshot_invalid")
 	}
 	nowMs := uint64(time.Since(s.trackingStarted)/time.Millisecond) + 1
-	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: control.deliveredSequence.Load(), Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: nowMs}
+	frame := &realtimev2.ElementStateFrame{Fence: proto.Clone(control.fence).(*presentationv2.RuntimeProjectionFence), FrameSequence: sequence, BaseReliableSequence: delivered, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeTimeMs: snapshot.Clock.RuntimeTimeMs, ProducedAtRuntimeMonotonicMs: nowMs}
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}
@@ -717,5 +809,14 @@ func setV2ReasonTrailer(stream grpcgo.ServerStream, err error) {
 	}
 	if reason != "" {
 		stream.SetTrailer(metadata.Pairs("unframe-reason", reason))
+	}
+}
+
+// Caller owns s.mu; expired credentials must not accumulate without resume lookups.
+func (s *V2Service) evictResumeRecords(now time.Time) {
+	for id, record := range s.resumeRecords {
+		if !now.Before(record.expiresAt) {
+			delete(s.resumeRecords, id)
+		}
 	}
 }

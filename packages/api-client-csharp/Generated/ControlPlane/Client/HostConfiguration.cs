@@ -58,6 +58,7 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponseAssignmentJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeBootstrapGet200ResponsePublicationJsonConverter());
+            _jsonOptions.Converters.Add(new InternalRuntimeLeaseGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new InternalRuntimeProjectionGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsGet200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsGet200ResponsePresentationsInnerJsonConverter());

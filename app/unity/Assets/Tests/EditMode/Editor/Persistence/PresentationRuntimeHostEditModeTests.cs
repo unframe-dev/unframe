@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationRuntimeHostEditModeTests

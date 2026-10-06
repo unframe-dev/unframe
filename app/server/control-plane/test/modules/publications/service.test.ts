@@ -1,19 +1,19 @@
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import definition from "../../../../../../packages/contracts/presentation/v2/fixtures/presentation-definition.json";
-import renderBundle from "../../../../../../packages/contracts/presentation/v2/fixtures/render-bundle.json";
-import assetSet from "../../../../../../packages/contracts/presentation/v2/fixtures/asset-set-manifest.json";
-import buildManifest from "../../../../../../packages/contracts/presentation/v2/fixtures/build-manifest.json";
+import definition from "../../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
+import renderBundle from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
+import assetSet from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
+import buildManifest from "../../../../../../packages/contracts/presentation/fixtures/build-manifest.json";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
 import {
   buildProjectionProfile,
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
-  verifyBuildIntegrityV2,
+  verifyBuildIntegrity,
   validatePresentationArtifacts,
-  type BuildIntegrityInputV2,
+  type BuildIntegrityInput,
 } from "@unframe/unframe-core";
-import { renderBundleV2Schema } from "@unframe/contracts/presentation/v2";
+import { renderBundleSchema } from "@unframe/contracts/presentation";
 import { PublicationError, PublicationService } from "../../../src/modules/publications/service";
 import { createApp } from "../../../src/app";
 import { runtimeEnvironment } from "../../runtime-environment";
@@ -25,14 +25,14 @@ const artifacts = {
   assetSet,
   buildManifest: { ...buildManifest, sourceDraftRevision: 0 },
 };
-const upload = (value: BuildIntegrityInputV2) => ({
+const upload = (value: BuildIntegrityInput) => ({
   definitionJson: canonicalizeJsonPayload(value.definition),
   renderBundleJson: canonicalizeJsonPayload(value.renderBundle),
   assetSetJson: canonicalizeJsonPayload(value.assetSet),
   buildManifestJson: canonicalizeJsonPayload(value.buildManifest),
 });
 const publishable = async () => {
-  const verified = verifyBuildIntegrityV2(artifacts);
+  const verified = verifyBuildIntegrity(artifacts);
   if (!verified.valid) throw new Error("Invalid build fixture");
   const copy = structuredClone(verified.value);
   const bakedNode = copy.definition.scene.nodes["node-baked"];
@@ -82,7 +82,7 @@ const publishable = async () => {
     bundle = bundle.replaceAll(descriptor.checksum, next);
     descriptor.checksum = next;
   }
-  copy.renderBundle = renderBundleV2Schema.parse(JSON.parse(bundle) as unknown);
+  copy.renderBundle = renderBundleSchema.parse(JSON.parse(bundle) as unknown);
   copy.buildManifest.buildId = "build-publishable";
   copy.buildManifest.renderBundleHash = hashCanonicalJsonPayload(copy.renderBundle);
   copy.buildManifest.assetSetHash = hashCanonicalJsonPayload(copy.assetSet);
@@ -149,7 +149,7 @@ describe("publication service", () => {
       expect(read).toBe(false);
     },
   );
-  it("accepts a semantically valid v2 build and rejects tampering and unauthorized writers", async () => {
+  it("accepts a semantically valid build and rejects tampering and unauthorized writers", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     await expect(service.createBuild(owner, "demo", upload(artifacts))).resolves.toEqual({
       buildId: "build-1",
@@ -234,7 +234,7 @@ describe("publication service", () => {
   it("publishes verified R2 bytes atomically and refuses updates during active use", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     const { copy, bytes } = await publishable();
-    const integrity = verifyBuildIntegrityV2(copy);
+    const integrity = verifyBuildIntegrity(copy);
     expect(integrity.valid, JSON.stringify(integrity.diagnostics)).toBe(true);
     const validation = validatePresentationArtifacts(copy.definition, copy.renderBundle, {
       fullDelivery: true,

@@ -436,7 +436,7 @@ State Connection
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
 - connection間の到着順は仮定せず、Reliable sequenceと`baseReliableSequence`でapplication上の依存関係を解決する。
 
-現行の Realtime は v2 の Control / State 二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run を実装する。wire の正本は `packages/contracts/proto/unframe/realtime/v2/realtime.proto` と [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) であり、ページ番号を直接指定する v1 service は公開しない。
+現行の Realtime は v2 の Control / State 二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run を実装する。wire の正本は `packages/contracts/proto/unframe/realtime/realtime.proto` と [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) であり、ページ番号を直接指定する v1 service は公開しない。
 
 実測で TCP retransmission、head-of-line blocking、write blocking、jitter が UX 上の問題になる場合のみ、State Connection を UDP / QUIC 系 transport へ置き換える。Control Connection は gRPC のまま維持する。
 

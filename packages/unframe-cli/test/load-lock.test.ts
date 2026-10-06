@@ -8,8 +8,8 @@ import {
   hashLocalSource,
   hashLockedPackageContent,
   hashPackageLocator,
-  type UnframeLockV2,
-} from "../src/filesystem/lock-v2.js";
+  type UnframeLock,
+} from "../src/filesystem/lock.js";
 
 const digest = (value: string | Uint8Array): `sha256:${string}` =>
   `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -18,8 +18,8 @@ const componentBytes = "export const Component = 1;";
 const localFiles = [{ path: "src/card.component.tsx", hash: digest(componentBytes) }];
 const packageFile = "export const value = 1;";
 
-const validLock = (): UnframeLockV2 => {
-  const pkg: UnframeLockV2["packages"][number] = {
+const validLock = (): UnframeLock => {
+  const pkg: UnframeLock["packages"][number] = {
     key: hashPackageLocator("example-package@1.0.0"),
     locator: "example-package@1.0.0",
     name: "example-package",
@@ -38,7 +38,7 @@ const validLock = (): UnframeLockV2 => {
     dependencies: [],
   };
   pkg.contentIntegrity = hashLockedPackageContent(pkg);
-  const lock: UnframeLockV2 = {
+  const lock: UnframeLock = {
     schemaVersion: 2,
     packageSnapshotProfile: "pnpm-lock9-locator-v1",
     resolutionProfile: "browser-import-production-types-v1",

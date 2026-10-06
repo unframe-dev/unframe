@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sort"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 )
 
@@ -46,6 +46,10 @@ type v2Node struct {
 }
 
 type v2Surface struct {
+	Interactions map[string]struct {
+		ID    string `json:"id"`
+		Event string `json:"event"`
+	} `json:"interactions"`
 	ID             string                     `json:"id"`
 	HostNodeID     string                     `json:"hostNodeId"`
 	InitialStateID string                     `json:"initialStateId"`
@@ -79,7 +83,12 @@ type v2Cue struct {
 	Priority uint64 `json:"priority"`
 	Order    uint32 `json:"order"`
 	Trigger  struct {
-		Kind                  string  `json:"kind"`
+		Kind       string `json:"kind"`
+		Event      string `json:"event"`
+		TimelineID string `json:"timelineId"`
+		Actor      struct {
+			Kind string `json:"kind"`
+		} `json:"actor"`
 		Action                string  `json:"action"`
 		SurfaceID             string  `json:"surfaceId"`
 		NodeID                string  `json:"nodeId"`
@@ -458,10 +467,27 @@ func buildV2CanonicalCatalog(raw json.RawMessage, mediaSpecs map[string]map[stri
 			p := &presentationv2.ProjectedTimelineTrack{Target: &presentationv2.TimelineTrackTarget{NodeId: track.Target.NodeID, Property: property}}
 			for _, key := range track.Keyframes {
 				frame := &presentationv2.TimelineKeyframe{TimeMs: key.TimeMilliseconds}
-				if value, ok := key.Value.(float64); ok {
+				if value, ok := key.Value.(float64); ok && property == presentationv2.TimelineProperty_TIMELINE_PROPERTY_OPACITY {
 					frame.Value = &presentationv2.TimelineKeyframe_Number{Number: &presentationv2.NumberKeyframeValue{Value: value}}
+				} else if values, ok := key.Value.([]any); ok {
+					numbers := make([]float64, len(values))
+					for i, value := range values {
+						var valid bool
+						numbers[i], valid = value.(float64)
+						if !valid {
+							return nil, ErrV2RuntimeDefinition
+						}
+					}
+					switch {
+					case (property == presentationv2.TimelineProperty_TIMELINE_PROPERTY_TRANSFORM_POSITION || property == presentationv2.TimelineProperty_TIMELINE_PROPERTY_TRANSFORM_SCALE) && len(numbers) == 3:
+						frame.Value = &presentationv2.TimelineKeyframe_Vector3{Vector3: &presentationv2.Vector3KeyframeValue{Value: &presentationv2.Vector3{X: numbers[0], Y: numbers[1], Z: numbers[2]}}}
+					case property == presentationv2.TimelineProperty_TIMELINE_PROPERTY_TRANSFORM_ROTATION && len(numbers) == 4:
+						frame.Value = &presentationv2.TimelineKeyframe_Quaternion{Quaternion: &presentationv2.QuaternionKeyframeValue{Value: &presentationv2.Quaternion{X: numbers[0], Y: numbers[1], Z: numbers[2], W: numbers[3]}}}
+					default:
+						return nil, ErrV2RuntimeDefinition
+					}
 				} else {
-					return nil, ErrV2RuntimeUnsupported
+					return nil, ErrV2RuntimeDefinition
 				}
 				p.Keyframes = append(p.Keyframes, frame)
 			}

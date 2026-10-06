@@ -1,9 +1,9 @@
 import type {
-  PresentationDefinitionV2,
-  RenderBundleV2,
+  PresentationDefinition,
+  RenderBundle,
   ProjectionProfileDescriptorWire,
   ProjectedRuntimeCatalogWire,
-} from "@unframe/contracts/presentation/v2";
+} from "@unframe/contracts/presentation";
 import { calculateProjectionProfileId } from "./profile-identity.js";
 import { selectDeliveryArtifacts, type DeliverySelection } from "./selection.js";
 import { parseDeliveryInputs } from "./input.js";
@@ -195,7 +195,7 @@ const artifactWire = (
 };
 
 const semanticTree = (
-  tree: RenderBundleV2["surfaces"][string]["semanticsByState"][string],
+  tree: RenderBundle["surfaces"][string]["semanticsByState"][string],
   role: "presenter" | "viewer",
 ) => ({
   rootNodeIds: tree.rootNodeIds,
@@ -220,8 +220,8 @@ const semanticTree = (
 });
 
 const runtimeCatalog = (
-  definition: PresentationDefinitionV2,
-  bundle: RenderBundleV2,
+  definition: PresentationDefinition,
+  bundle: RenderBundle,
   selection: DeliverySelection,
 ) => {
   const visibleNodes = new Set(selection.visibleNodeIds);

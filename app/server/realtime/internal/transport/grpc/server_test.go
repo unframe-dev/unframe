@@ -93,7 +93,7 @@ func TestNewServerRegistersOnlyV2RealtimeService(t *testing.T) {
 	if _, ok := services["unframe.realtime.v1.RealtimeService"]; ok {
 		t.Fatal("legacy v1 service is registered")
 	}
-	service, ok := services["unframe.realtime.v2.RealtimeServiceV2"]
+	service, ok := services["unframe.realtime.RealtimeService"]
 	if !ok {
 		t.Fatal("v2 service is not registered")
 	}

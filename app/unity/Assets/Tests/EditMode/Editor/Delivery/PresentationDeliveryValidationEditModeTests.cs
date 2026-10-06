@@ -1,7 +1,7 @@
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -33,7 +33,7 @@ public sealed class PresentationDeliveryValidationEditModeTests
     public void Delivery_AcceptsTrackingRequiredPresenterAnchor()
     {
         DeliveryManifest delivery = CreateFixture();
-        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.Tracking);
         delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
         {
             PresenterAnchor = new PresenterAnchorParent
@@ -47,8 +47,8 @@ public sealed class PresentationDeliveryValidationEditModeTests
     }
 
     [TestCase(RuntimeCapability.Unspecified)]
-    [TestCase(RuntimeCapability.VideoPlaybackV2)]
-    [TestCase(RuntimeCapability.ModelClipV2)]
+    [TestCase(RuntimeCapability.VideoPlayback)]
+    [TestCase(RuntimeCapability.ModelClip)]
     [TestCase((RuntimeCapability)999)]
     public void Delivery_RejectsUnsupportedRequiredRuntimeCapability(RuntimeCapability capability)
     {
@@ -61,8 +61,8 @@ public sealed class PresentationDeliveryValidationEditModeTests
     public void Delivery_RejectsDuplicateRequiredTrackingCapability()
     {
         DeliveryManifest delivery = CreateFixture();
-        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
-        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackingV2);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.Tracking);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.Tracking);
         AssertRejected(delivery, "capability");
     }
 

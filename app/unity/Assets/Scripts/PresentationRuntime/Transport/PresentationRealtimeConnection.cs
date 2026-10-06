@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using Cysharp.Net.Http;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Presentation;
+using Unframe.Realtime;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -110,7 +110,7 @@ namespace Unframe.Unity.PresentationRuntime
                     handler.OnVerifyServerCertificate = (serverName, certificateDer, now) => VerifyCertificate(endpoint.Host, serverName, certificateDer, now, certFingerprint);
                 using (GrpcChannel channel = GrpcChannel.ForAddress(endpoint, new GrpcChannelOptions { HttpHandler = handler, MaxReceiveMessageSize = 4 * 1024 * 1024, MaxSendMessageSize = 1024 * 1024 }))
                 {
-                    RealtimeServiceV2.RealtimeServiceV2Client client = new RealtimeServiceV2.RealtimeServiceV2Client(channel);
+                    RealtimeService.RealtimeServiceClient client = new RealtimeService.RealtimeServiceClient(channel);
                     Metadata headers = new Metadata { { "authorization", "Bearer " + bearer } };
                     using (control = client.ConnectControl(headers, cancellationToken: token))
                     {

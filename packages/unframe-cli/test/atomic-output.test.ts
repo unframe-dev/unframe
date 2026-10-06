@@ -45,6 +45,23 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it("preserves JPEG asset bytes at the path consumed by publish", async () => {
+    const directory = await project();
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: {
+        ...artifacts(),
+        assets: [{ assetId: "photo/cover", mediaType: "image/jpeg", bytes: jpeg }],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(await readFile(join(directory, "dist/assets/photo%2Fcover.jpg"))).toEqual(
+      Buffer.from(jpeg),
+    );
+  });
+
   it("keeps the successful generation when its source revision expires during staging", async () => {
     const directory = await project();
     const initial = await publishAtomicArtifacts({

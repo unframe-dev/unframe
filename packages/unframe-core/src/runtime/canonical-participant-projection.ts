@@ -1,11 +1,11 @@
 import {
-  canonicalRuntimeSnapshotV2Schema,
-  participantRuntimeViewV2Schema,
-  type ParticipantRuntimeViewV2,
-} from "@unframe/contracts/presentation/v2";
+  canonicalRuntimeSnapshotSchema,
+  participantRuntimeViewSchema,
+  type ParticipantRuntimeView,
+} from "@unframe/contracts/presentation";
 import { parseDeliveryInputs, type DeliverySourceInput } from "../delivery/input.js";
 import { buildProjectionProfile } from "../delivery/profile.js";
-import { snapshotPlainJson } from "../publication-v2/plain-json.js";
+import { snapshotPlainJson } from "../publication/plain-json.js";
 import { validateCanonicalRuntimeSnapshot } from "./projection.js";
 
 const select = <T>(values: Record<string, T>, ids: readonly string[]): Record<string, T> =>
@@ -18,7 +18,7 @@ export const projectCanonicalParticipantRuntimeView = (
   role: "presenter" | "viewer",
   input: unknown,
   assignmentEpoch: number,
-): ParticipantRuntimeViewV2 => {
+): ParticipantRuntimeView => {
   if (role !== "presenter" && role !== "viewer") throw new TypeError("Unknown participant role.");
   if (!Number.isSafeInteger(assignmentEpoch) || assignmentEpoch <= 0)
     throw new RangeError("Assignment epoch must be a positive safe integer.");
@@ -33,7 +33,7 @@ export const projectCanonicalParticipantRuntimeView = (
     assignmentEpoch,
   );
   if (issues.length) throw new Error(issues.join(" "));
-  const snapshot = canonicalRuntimeSnapshotV2Schema.parse(frozen.value);
+  const snapshot = canonicalRuntimeSnapshotSchema.parse(frozen.value);
   const { profile, selection } = buildProjectionProfile(artifacts, role);
   const nodes = new Set(selection.visibleNodeIds);
   const surfaces = new Set(selection.visibleSurfaceIds);
@@ -86,7 +86,7 @@ export const projectCanonicalParticipantRuntimeView = (
           ),
         ].sort()
       : [];
-  return participantRuntimeViewV2Schema.parse({
+  return participantRuntimeViewSchema.parse({
     projectionProfileId: profile.projectionProfileId,
     assignmentEpoch,
     baseReliableSequence: snapshot.reliableSequence,

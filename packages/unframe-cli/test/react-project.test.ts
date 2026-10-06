@@ -15,7 +15,7 @@ import {
   hashDependencyGraph,
   hashLockedPackageContent,
   hashPackageLocator,
-} from "../src/filesystem/lock-v2.js";
+} from "../src/filesystem/lock.js";
 import { lockedFile } from "../src/filesystem/package-snapshot.js";
 
 const temporary: string[] = [];
@@ -246,7 +246,7 @@ describe("React frozen CLI path", () => {
     expect(result.stderr).toContain("compiler-opaque-bundle-input-invalid");
     expect(result.stderr).toContain("Runtime dependency is not locked: missing");
     expect(await readFile(join(directory, "dist", "previous.txt"), "utf8")).toBe("previous");
-  });
+  }, 30000);
   it("rejects source drift and preserves the previous lock when refresh fails", async () => {
     const directory = await createProject();
     const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });

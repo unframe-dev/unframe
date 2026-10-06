@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../../../src/app";
 import { D1SessionRepository } from "../../../src/modules/sessions/repository";
 import { runtimeEnvironment } from "../../runtime-environment";
-import publishedPresentation from "../../../../../../packages/contracts/presentation/v2/fixtures/published-presentation.json";
+import publishedPresentation from "../../../../../../packages/contracts/presentation/fixtures/published-presentation.json";
 
 const addUser = async (id: string) => {
   await env.DB.prepare(

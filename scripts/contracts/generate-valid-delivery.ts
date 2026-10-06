@@ -8,19 +8,19 @@ import {
   calculateProjectionProfileId,
   hashCanonicalJsonPayload,
   selectDeliveryArtifacts,
-  verifyPublicationIntegrityV2,
+  verifyPublicationIntegrity,
 } from "../../packages/unframe-core/src/index.ts";
 import {
   decodeWireMessage,
   encodeWireMessage,
   getPresentationWireType,
-  type AssetSetManifestV2,
-  type BuildManifestV2,
-  type CapabilityProfileV2,
-  type PresentationDefinitionV2,
-  type RenderBundleV2,
-} from "../../packages/contracts/src/presentation/v2/index.ts";
-import type { WireMessageType } from "../../packages/contracts/src/presentation/v2/wire-metadata.ts";
+  type AssetSetManifest,
+  type BuildManifest,
+  type CapabilityProfile,
+  type PresentationDefinition,
+  type RenderBundle,
+} from "../../packages/contracts/src/presentation/index.ts";
+import type { WireMessageType } from "../../packages/contracts/src/presentation/wire-metadata.ts";
 import { formatGenerated } from "../../packages/contracts/scripts/format-generated.ts";
 
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
@@ -67,12 +67,12 @@ const canonicalWireValue = (
   }
   return result;
 };
-const definition = readArtifact<PresentationDefinitionV2>("definition.json");
-const renderBundle = readArtifact<RenderBundleV2>("render-bundle.json");
-const assetSet = readArtifact<AssetSetManifestV2>("asset-set.json");
-const buildManifest = readArtifact<BuildManifestV2>("build-manifest.json");
-const capability = readArtifact<CapabilityProfileV2>(
-  resolve(root, "packages/contracts/presentation/v2/fixtures/capability-profile.json"),
+const definition = readArtifact<PresentationDefinition>("definition.json");
+const renderBundle = readArtifact<RenderBundle>("render-bundle.json");
+const assetSet = readArtifact<AssetSetManifest>("asset-set.json");
+const buildManifest = readArtifact<BuildManifest>("build-manifest.json");
+const capability = readArtifact<CapabilityProfile>(
+  resolve(root, "packages/contracts/presentation/fixtures/capability-profile.json"),
 );
 
 const surfaces = Object.values(renderBundle.surfaces);
@@ -109,7 +109,7 @@ const source = {
   publishedPresentation,
   capability,
 };
-const integrity = verifyPublicationIntegrityV2({
+const integrity = verifyPublicationIntegrity({
   definition,
   renderBundle,
   assetSet,
@@ -142,7 +142,7 @@ assert.ok(manifest.projectionProfile?.renderSurfaces.length >= 2);
 assert.ok(manifest.projectionProfile?.runtimeCatalog);
 assert.equal(manifest.assetAccess.length, selection.assets.length);
 
-const typeName = "unframe.delivery.v2.DeliveryManifest";
+const typeName = "unframe.delivery.DeliveryManifest";
 const value = canonicalWireValue(getPresentationWireType(typeName), manifest);
 const bytes = encodeWireMessage(typeName, value);
 assert.deepEqual(decodeWireMessage(typeName, bytes), value);
@@ -153,10 +153,7 @@ assert.equal(
   manifest.projectionProfile.projectionProfileId,
   "Wire roundtrip must preserve the complete ProjectionProfile identity",
 );
-const target = resolve(
-  root,
-  "packages/contracts/presentation/v2/fixtures/wire/valid-delivery.json",
-);
+const target = resolve(root, "packages/contracts/presentation/fixtures/wire/valid-delivery.json");
 const fixture = formatGenerated(
   target,
   `${JSON.stringify({ typeName, value, hex: Buffer.from(bytes).toString("hex") }, null, 2)}\n`,

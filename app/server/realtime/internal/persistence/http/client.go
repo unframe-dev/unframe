@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	stdhttp "net/http"
 	"net/url"
@@ -261,11 +262,21 @@ func (c *Client) attempt(ctx context.Context, operation, endpoint string, body [
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return Result{}, response.StatusCode == stdhttp.StatusTooManyRequests || response.StatusCode >= 500, &ResponseError{Operation: operation, StatusCode: response.StatusCode}
 	}
-	var result Result
-	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+	var result struct {
+		Applied *bool `json:"applied"`
+	}
+	decoder := json.NewDecoder(response.Body)
+	if err := decoder.Decode(&result); err != nil {
 		return Result{}, false, fmt.Errorf("decode persistence callback %s response: %w", operation, err)
 	}
-	return result, false, nil
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return Result{}, false, fmt.Errorf("decode persistence callback %s response: trailing data", operation)
+	}
+	if result.Applied == nil {
+		return Result{}, false, fmt.Errorf("decode persistence callback %s response: missing applied result", operation)
+	}
+	return Result{Applied: *result.Applied}, false, nil
 }
 
 type requestError struct{ operation string }

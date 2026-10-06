@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
 
@@ -365,7 +365,7 @@ func TestV2SessionDoesNotPublishMutationWhenCheckpointFails(t *testing.T) {
 		t.Fatalf("checkpoint failure produced events %#v, sequence %d, error %v", events, core.Snapshot().ReliableSequence, err)
 	}
 	second, extra, err := core.LogicalInput(session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, &realtimev2.LogicalInputCommand{ClientEventId: "click-2", LogicalEventName: "next"})
-	if err != nil || len(extra) != 0 || second.GetRejected().Reason != realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT {
+	if !errors.Is(err, ErrV2PersistenceUnavailable) || len(extra) != 0 || second != nil {
 		t.Fatalf("fault gate outcome=%#v events=%#v error=%v", second, extra, err)
 	}
 }
@@ -448,6 +448,7 @@ func TestV2LeaseExpiryStopsClockAndPresenterInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	core.PauseLeaseExpired()
 	cut := core.Snapshot()
 	if cut.Clock.GetPaused() == nil || cut.Clock.GetPaused().Reason != realtimev2.PauseReason_PAUSE_REASON_ASSIGNMENT_LEASE_EXPIRED || cut.ReliableSequence != 0 {
@@ -553,6 +554,7 @@ func TestV2SessionStartsBlockingTimelineAndDefersStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	catalog, err := BuildV2CanonicalCatalog(definition)
 	if err != nil {
 		t.Fatal(err)
@@ -584,6 +586,7 @@ func TestV2SessionSurfaceCrossfadeCompletesAtRuntimeDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	catalog, err := BuildV2CanonicalCatalog(definition)
 	if err != nil {
 		t.Fatal(err)

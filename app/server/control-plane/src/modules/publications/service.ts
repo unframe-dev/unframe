@@ -1,12 +1,12 @@
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
-  verifyBuildIntegrityV2,
-  verifyPublicationIntegrityV2,
+  verifyBuildIntegrity,
+  verifyPublicationIntegrity,
   validatePresentationArtifacts,
-  type BuildArtifactsV2,
+  type BuildArtifacts,
 } from "@unframe/unframe-core";
-import type { PublishedPresentationV2 } from "@unframe/contracts/presentation/v2";
+import type { PublishedPresentation } from "@unframe/contracts/presentation";
 import type { Identity } from "../../presentation/service";
 
 export class PublicationError extends Error {
@@ -73,7 +73,7 @@ export class PublicationService {
 
   async createBuild(identity: Identity, presentationId: string, input: BuildUpload) {
     const record = await this.authorize(identity, presentationId, true);
-    const parsed = verifyBuildIntegrityV2({
+    const parsed = verifyBuildIntegrity({
       definition: parseCanonical(input.definitionJson),
       renderBundle: parseCanonical(input.renderBundleJson),
       assetSet: parseCanonical(input.assetSetJson),
@@ -121,7 +121,7 @@ export class PublicationService {
       .bind(presentationId, buildId)
       .first<{ artifacts: string }>();
     if (!row) throw new PublicationError("not_found");
-    const parsed = verifyBuildIntegrityV2(JSON.parse(row.artifacts));
+    const parsed = verifyBuildIntegrity(JSON.parse(row.artifacts));
     if (!parsed.valid) throw new PublicationError("invalid_build");
     return parsed.value;
   }
@@ -190,11 +190,11 @@ export class PublicationService {
       ...artifacts.buildManifest,
       publicationEpoch: expectedPublicationEpoch + 1,
     };
-    const manifest: PublishedPresentationV2 = {
+    const manifest: PublishedPresentation = {
       ...payload,
       publicationManifestHash: hashCanonicalJsonPayload(payload),
     };
-    if (!verifyPublicationIntegrityV2({ ...artifacts, publishedPresentation: manifest }).valid)
+    if (!verifyPublicationIntegrity({ ...artifacts, publishedPresentation: manifest }).valid)
       throw new PublicationError("invalid_build");
     const inserted = await this.db
       .prepare(
@@ -238,13 +238,13 @@ export class PublicationService {
       .bind(presentationId)
       .first<{ manifest: string }>();
     if (!row) throw new PublicationError("not_found");
-    return JSON.parse(row.manifest) as PublishedPresentationV2;
+    return JSON.parse(row.manifest) as PublishedPresentation;
   }
 
   async publishedArtifacts(
     presentationId: string,
     epoch?: number,
-  ): Promise<BuildArtifactsV2 & { publishedPresentation: PublishedPresentationV2 }> {
+  ): Promise<BuildArtifacts & { publishedPresentation: PublishedPresentation }> {
     const row = await this.db
       .prepare(
         `SELECT build.artifacts AS artifacts, publication.manifest AS manifest
@@ -257,7 +257,7 @@ export class PublicationService {
       .bind(presentationId, epoch ?? null, epoch ?? null)
       .first<{ artifacts: string; manifest: string }>();
     if (!row) throw new PublicationError("not_found");
-    const parsed = verifyPublicationIntegrityV2({
+    const parsed = verifyPublicationIntegrity({
       ...JSON.parse(row.artifacts),
       publishedPresentation: JSON.parse(row.manifest),
     });

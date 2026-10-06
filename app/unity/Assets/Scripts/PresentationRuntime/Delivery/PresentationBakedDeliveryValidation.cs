@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 
 namespace Unframe.Unity.PresentationRuntime
 {

@@ -1,8 +1,8 @@
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -119,7 +119,7 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         ParticipantRuntimeView view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock = new RuntimeClockSnapshot { RuntimeTimeMs = 42, Running = new Running() };
         view.Progression = new ProgressionRuntimeState { CurrentGroupId = "group:local", GroupEntryEpoch = 1, CurrentStepId = "step:local", StepEntryEpoch = 1, Stable = new StableProgression() };
-        view.PresentationOrigin = new PresentationOrigin { Version = 0, Pose = new Unframe.Presentation.V2.Pose { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } } };
+        view.PresentationOrigin = new PresentationOrigin { Version = 0, Pose = new Unframe.Presentation.Pose { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } } };
         view.MediaStates.Add(new MediaRuntimeState { SurfaceId = "semantic-surface:text-greeting", Stopped = new MediaStoppedState { HeldPositionMs = 12 } });
         view.ActiveRuns.Add(new RuntimeRunSnapshot
         {
@@ -321,11 +321,11 @@ public sealed class PresentationRuntimeEnvelopeEditModeTests
         Assert.That(store.TryGetNodeState(previous.NodeId, out NodeRuntimeState before), Is.True);
 
         NodeRuntimeState invalidState = before.Clone();
-        invalidState.Transform = new Unframe.Presentation.V2.Transform
+        invalidState.Transform = new Unframe.Presentation.Transform
         {
-            Position = new Unframe.Presentation.V2.Vector3(),
-            Rotation = new Unframe.Presentation.V2.Quaternion(),
-            Scale = new Unframe.Presentation.V2.Vector3 { X = 1, Y = 1, Z = 1 },
+            Position = new Unframe.Presentation.Vector3(),
+            Rotation = new Unframe.Presentation.Quaternion(),
+            Scale = new Unframe.Presentation.Vector3 { X = 1, Y = 1, Z = 1 },
         };
         ControlServerItem item = new ControlServerItem
         {

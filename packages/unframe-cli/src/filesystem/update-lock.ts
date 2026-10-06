@@ -17,7 +17,7 @@ import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile } from "./path-policy.js";
 import { digestBytes, lockedFile, snapshotInstalledPackages } from "./package-snapshot.js";
-import { hashDependencyGraph, type UnframeLockV2 } from "./lock-v2.js";
+import { hashDependencyGraph, type UnframeLock } from "./lock.js";
 
 const execute = promisify(execFile);
 
@@ -136,8 +136,8 @@ export const updateProjectLock = async (
         { id: "baked-web", version: "3", contractVersion: "2" },
         { id: "baked-web", version: "4", contractVersion: "2" },
       ],
-    } as Omit<UnframeLockV2, "dependencyGraphHash">;
-    const lock: UnframeLockV2 = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
+    } as Omit<UnframeLock, "dependencyGraphHash">;
+    const lock: UnframeLock = { ...next, dependencyGraphHash: hashDependencyGraph(next) };
     const bytes = new TextEncoder().encode(canonicalizeJsonPayload(lock) + "\n");
     const validated = loadUnframeLock(bytes);
     if (!validated.ok) return failure(validated.diagnostic.code, validated.diagnostic.message);

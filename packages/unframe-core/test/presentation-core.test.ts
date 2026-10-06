@@ -21,7 +21,7 @@ describe("unframe-core v2", () => {
     expect(validatePresentationArtifacts(definition, renderBundle)).toMatchObject({ valid: true });
   });
 
-  it("rejects v1 artifact versions instead of converting them", () => {
+  it("rejects schemaVersion 1 artifacts instead of converting them", () => {
     const { definition, renderBundle } = makeM3AArtifacts();
 
     expect(validatePresentationDefinition({ ...definition, schemaVersion: 1 })).toMatchObject({

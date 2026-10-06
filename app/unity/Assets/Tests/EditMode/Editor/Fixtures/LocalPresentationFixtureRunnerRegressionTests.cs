@@ -1,8 +1,8 @@
 using Google.Protobuf;
 using NUnit.Framework;
-using Unframe.Delivery.V2;
-using Unframe.Presentation.V2;
-using Unframe.Realtime.V2;
+using Unframe.Delivery;
+using Unframe.Presentation;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 
@@ -122,7 +122,7 @@ public sealed class LocalPresentationFixtureRunnerRegressionTests
                 out error), Is.True, error);
 
             const string presetId = "preset:missing";
-            foreach (Unframe.Presentation.V2.ProjectedTimelineDefinition timeline in delivery.ProjectionProfile.RuntimeCatalog.Timelines)
+            foreach (Unframe.Presentation.ProjectedTimelineDefinition timeline in delivery.ProjectionProfile.RuntimeCatalog.Timelines)
             {
                 if (timeline.TimelineId == firstEvent.ReliableEvent.TimelineStarted.TimelineId)
                 {

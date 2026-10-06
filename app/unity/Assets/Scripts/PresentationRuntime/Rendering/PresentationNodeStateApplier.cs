@@ -1,4 +1,4 @@
-using Unframe.Presentation.V2;
+using Unframe.Presentation;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime
@@ -29,7 +29,7 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (var entry in hierarchy.Registry.AnchorParents)
             {
                 GameObject parent = entry.Value;
-                if (!store.TryGetAnchorSample(entry.Key, out Unframe.Realtime.V2.ProjectedAnchorBindingSample sample))
+                if (!store.TryGetAnchorSample(entry.Key, out Unframe.Realtime.ProjectedAnchorBindingSample sample))
                 {
                     parent.SetActive(false);
                     continue;
@@ -50,7 +50,7 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
 
-            if (!store.TryGetNodeState(nodeId, out Unframe.Realtime.V2.NodeRuntimeState state))
+            if (!store.TryGetNodeState(nodeId, out Unframe.Realtime.NodeRuntimeState state))
             {
                 nodeObject.SetActive(false);
                 return;
@@ -69,7 +69,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private static void ApplyTransform(UnityEngine.Transform target, Unframe.Presentation.V2.Transform source)
+        private static void ApplyTransform(UnityEngine.Transform target, Unframe.Presentation.Transform source)
         {
             if (source == null)
             {

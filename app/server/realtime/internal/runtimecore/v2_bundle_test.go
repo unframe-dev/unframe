@@ -6,11 +6,17 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 )
+
+// Manual-time fixtures must not consume wall-clock time between input commands.
+func freezeV2WallClock(core *V2Session) {
+	core.lastTick = time.Now().Add(time.Hour)
+}
 
 func TestV2MediaSpecsUseEffectiveStateLoopAndBoundVideoVariants(t *testing.T) {
 	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"demo","scene":{"nodes":{"host":{"id":"host","kind":"surface","surfaceId":"screen","owner":{"kind":"presentation"}}},"surfaces":{"screen":{"id":"screen","hostNodeId":"host","content":{"kind":"structured","nodes":{"video":{"kind":"video","loop":false}}},"renderIntent":{"internalAnimation":{"kind":"precomputed-video","durationMilliseconds":77}},"states":{"stopped":{"id":"stopped","contentOverrides":{}},"looping":{"id":"looping","contentOverrides":{"video":{"kind":"video","loop":true}}},"hidden":{"id":"hidden","contentOverrides":{}}}}}},"flow":{}}`)
@@ -37,6 +43,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	cut := core.Snapshot()
 	if len(cut.MediaStates) != 1 || cut.MediaStates[0].SurfaceId != "screen" || cut.MediaStates[0].GetStopped() == nil || core.mediaSpecs["screen"]["idle"].DurationMS != 100 {
 		t.Fatalf("initial media state=%#v", cut.MediaStates)
@@ -76,6 +83,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(hidden)
 	if err := hidden.ConfigureDurability(&recordingV2Checkpoint{}, metadata, hidden.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
@@ -110,6 +118,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(controls)
 	if err := controls.ConfigureDurability(&recordingV2Checkpoint{}, metadata, controls.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
@@ -160,6 +169,7 @@ func TestV2SessionWithBundleInitializesVideoMediaState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(seekStopped)
 	if err := seekStopped.ConfigureDurability(&recordingV2Checkpoint{}, metadata, seekStopped.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
@@ -186,6 +196,7 @@ func TestV2MediaPlayResumesFromPublicDefinition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
@@ -219,6 +230,7 @@ func TestV2SessionWithBundleInitializesModelCatalogFromArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	if len(core.Snapshot().ModelClipStates) != 1 || core.Snapshot().ModelClipStates[0].GetDefaultPose() == nil || len(core.validationCatalog.ModelClips) != 1 || core.validationCatalog.ModelClips[0].DurationMs != 125 || core.validationCatalog.ModelClips[0].SourceAnimationIndex != 3 {
 		t.Fatalf("model state=%#v catalog=%#v", core.Snapshot().ModelClipStates, core.validationCatalog.ModelClips)
 	}
@@ -231,6 +243,7 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
@@ -250,6 +263,7 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(ending)
 	if err := ending.ConfigureDurability(&recordingV2Checkpoint{}, metadata, ending.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
@@ -267,6 +281,7 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(fading)
 	if err := fading.ConfigureDurability(&recordingV2Checkpoint{}, metadata, fading.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
@@ -288,6 +303,7 @@ func TestV2ModelActionCompletesAtArtifactDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(controls)
 	if err := controls.ConfigureDurability(&recordingV2Checkpoint{}, metadata, controls.validationCatalog); err != nil {
 		t.Fatal(err)
 	}
@@ -347,6 +363,7 @@ func TestV2ModelGroupExitCancelsOwnedRunBeforeGroupEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)
@@ -380,6 +397,7 @@ func TestV2MediaGroupExitCancelsOwnedRunBeforeGroupEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	freezeV2WallClock(core)
 	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 2, SessionId: "session-1", RuntimeId: "runtime-1", RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: 1, Publication: &presentationv2.PublicationFence{PresentationId: "demo", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	if err := core.ConfigureDurability(&recordingV2Checkpoint{}, metadata, core.validationCatalog); err != nil {
 		t.Fatal(err)

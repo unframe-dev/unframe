@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"math"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -227,6 +227,9 @@ func evaluateV2ActionsWithMedia(def v2Definition, pre *realtimev2.CanonicalRunti
 				return reject(invalid)
 			}
 			old := target.StateId
+			if old == action.StateID {
+				continue
+			}
 			if old != action.StateID && mediaRun(next, action.SurfaceID) != nil {
 				spec, ok := mediaSpecs[action.SurfaceID][old]
 				if !ok {

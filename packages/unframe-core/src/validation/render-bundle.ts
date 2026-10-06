@@ -1,4 +1,4 @@
-import type { RenderBundleV2 } from "@unframe/contracts/presentation/v2";
+import type { RenderBundle } from "@unframe/contracts/presentation";
 
 import type { Diagnostic, ValidationResult } from "../domain/model.js";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
@@ -21,7 +21,7 @@ const equalSet = (left: Iterable<string>, right: Iterable<string>) => {
 export const validateRenderBundle = (
   input: unknown,
   options: { fullDelivery?: boolean } = {},
-): ValidationResult<RenderBundleV2> => {
+): ValidationResult<RenderBundle> => {
   const parsed = parseRenderBundleInput(input);
   if (!parsed.success)
     return {

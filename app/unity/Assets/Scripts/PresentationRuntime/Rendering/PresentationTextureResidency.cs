@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using Unframe.Delivery.V2;
+using Unframe.Delivery;
 using UnityEngine;
 
 namespace Unframe.Unity.PresentationRuntime

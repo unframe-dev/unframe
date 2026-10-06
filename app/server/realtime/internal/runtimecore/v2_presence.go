@@ -6,11 +6,26 @@ import (
 	"sync"
 	"time"
 
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation/v2"
-	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v2"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	"google.golang.org/protobuf/proto"
 )
+
+type v2Subscription struct {
+	sizes []int
+	bytes int
+}
+
+// A channel consumer does not hold the session lock. Its length lets the sole
+// producer reclaim charges conservatively without moving queued events.
+func (q *v2Subscription) discardConsumed(remaining int) {
+	consumed := len(q.sizes) - remaining
+	for _, size := range q.sizes[:consumed] {
+		q.bytes -= size
+	}
+	q.sizes = q.sizes[consumed:]
+}
 
 func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identity) error {
 	if identity.ParticipantID == "" || (identity.Role != session.RolePresenter && identity.Role != session.RoleViewer) {
@@ -28,11 +43,11 @@ func (s *V2Session) JoinParticipant(ctx context.Context, identity session.Identi
 	}
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	event := s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged{ParticipantPresenceChanged: &realtimev2.ParticipantPresenceChanged{ParticipantId: identity.ParticipantID, Role: v2SessionRole(identity.Role), Connected: true}}})
+	s.participants[identity.ParticipantID] = identity.Role
 	if err := s.commitV2Mutation(ctx, previous, []*realtimev2.ProjectedReliableEvent{event}); err != nil {
 		return err
 	}
 	s.presence[identity.ParticipantID] = identity.Role
-	s.participants[identity.ParticipantID] = identity.Role
 	return nil
 }
 
@@ -65,6 +80,7 @@ func (s *V2Session) LeaveParticipant(ctx context.Context, identity session.Ident
 		delete(s.presence, identity.ParticipantID)
 		return nil
 	}
+	defer delete(s.presence, identity.ParticipantID)
 	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	events := []*realtimev2.ProjectedReliableEvent{s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_ParticipantPresenceChanged{ParticipantPresenceChanged: &realtimev2.ParticipantPresenceChanged{ParticipantId: identity.ParticipantID, Role: v2SessionRole(role), Connected: false}}})}
 	pausePresenter := role == session.RolePresenter && s.snapshot.Clock.GetRunning() != nil
@@ -86,7 +102,7 @@ func (s *V2Session) SnapshotPresenceAndSubscribe() (*realtimev2.CanonicalRuntime
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stream := make(chan *realtimev2.ProjectedReliableEvent, 1024)
-	s.subscribers[stream] = struct{}{}
+	s.subscribers[stream] = &v2Subscription{}
 	snapshot := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
 	presence := &realtimev2.ProjectedPresenceState{}
 	for participantID, role := range s.presence {

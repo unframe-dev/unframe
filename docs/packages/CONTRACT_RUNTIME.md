@@ -1,7 +1,7 @@
-# Presentation Delivery / Runtime v2 contract
+# Presentation Delivery / Runtime contract
 
 - **Status**: Normative target contract
-- **Wire source**: `packages/contracts/proto/unframe/{presentation,delivery,realtime}/v2/`
+- **Wire source**: `packages/contracts/proto/unframe/{presentation,delivery,realtime}/`
 - **Related**: [Architecture](./ARCHITECTURE.md), [Data model](./DATA_MODEL.md), [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md), [ADR-0008](../decisions/0008-runtime-transport-contract.md), [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md), [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md), [ADR-0011](../decisions/0011-surface-partition-contract.md), [ADR-0012](../decisions/0012-texture-budget-residency-contract.md), [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md), [ADR-0016](../decisions/0016-model-animation-scope.md)
 
 この文書は Delivery と Runtime の v2 wire を実装する際の required presence、検証、状態遷移、失敗結果を固定する。`realtime.v1` は廃止済みであり、v2 への互換 adapter、fallback、downgrade は持たない。
@@ -117,7 +117,7 @@ Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replaya
 
 認証済みcontextだけがsession、participant、role、assignmentを所有する。client payloadからidentityやroleを採用しない。Control handshakeは`protocol_version="v2"`、progression `1`、required capability全件を満たす。State handshakeはControlで選択済みの値、connection IDと一致し、Controlが発行した32-byte nonceを30,000 ms以内に一回だけ使用する。nonceの再利用、別connection利用、expiryは`UNAUTHENTICATED / state_nonce_invalid`で閉じる。
 
-初回Control接続では`ControlConnected`、Snapshot、State nonceの順に送る。resumeではSnapshotの代わりにReliable replayを送り、その後State nonceを送る。Stateは`StateConnected`後、Control clientがSnapshotまたはreplayを適用して`StateReady`を送り、そのsequenceとorigin versionが接続のcutに一致してからframeを送る。初回のcutは送信Snapshotのcut、resumeのcutは最後に送信した投影済みreplay eventのcursorであり、replayが空ならresume cursorを維持する。hidden eventだけによるcanonical sequenceの進行をcutへ含めない。不一致は`FAILED_PRECONDITION / state_ready_fence_mismatch`とする。
+初回Control接続では`ControlConnected`、Snapshot、State nonceの順に送る。resumeではSnapshotの代わりにReliable replayを送り、その後State nonceを送る。Stateは`StateConnected`後、Control clientがSnapshotまたはreplayを適用して`StateReady`を送り、そのsequenceとorigin versionが接続のcutに一致してからframeを送る。初回のcutは送信Snapshotのcut、resumeのcutは最後に送信した投影済みreplay eventのcursorであり、replayが空ならresume cursorを維持する。hidden eventだけによるcanonical sequenceの進行をcutへ含めない。不一致は`FAILED_PRECONDITION / state_ready_fence_mismatch`とする。Stateだけが切断した場合はattachmentとreadyを解除し、生存するControlで新しいsingle-use nonceを発行する。再接続したStateは`StateConnected`の後、Control接続のcutに対する`StateReady`を再度必要とする。
 
 ### 4.1 Protocol limits
 
@@ -147,7 +147,7 @@ server implementationは上表の値を緩和・縮小せず、Handshakeで明�
 
 PresenterだけがLogical Input、Surface Interaction、Runtime Controlを送れる。Viewer commandは`PERMISSION_DENIED / presenter_required`。origin version不一致はoutcomeを返さず`FAILED_PRECONDITION / presentation_origin_mismatch`でControlを閉じる。
 
-`client_event_id`はSessionとparticipant範囲で接続をまたぐidempotency keyである。fingerprint bytesはASCII `unframe-command-v2`、NUL、command variant名、NULに続けて、`client_event_id`と診断用capture時刻を除く各stringをfield number順の`uint32 big-endian byte-length + UTF-8 bytes`、各enumを`uint32 big-endian`、各`uint64`をbig-endianで連結した値とする。fingerprintはそのSHA-256である。同じkey / fingerprintは保存済みOutcomeを返し、event、sequence、ingressを増やさない。異なるfingerprintでの再利用は`INVALID_ARGUMENT / idempotency_key_reused`で閉じる。
+`client_event_id`はSessionとparticipant範囲で接続をまたぐidempotency keyである。fingerprint bytesはASCII `unframe-command-v2`、NUL、ControlClientItem oneofのvariant名（`logical_input`、`surface_interaction`、`runtime_control`）、NULに続けて、`client_event_id`と診断用capture時刻を除く各stringをfield number順の`uint32 big-endian byte-length + UTF-8 bytes`、各enumを`uint32 big-endian`、各`uint64`をbig-endianで連結した値とする。fingerprintはそのSHA-256で、recovery metadataには`sha256:`に小文字hexを続けた形式で保存する。同じkey / fingerprintは保存済みOutcomeを返し、event、sequence、ingressを増やさない。異なるfingerprintでの再利用は`INVALID_ARGUMENT / idempotency_key_reused`で閉じる。
 
 Logical InputとSurface InteractionはRuntimeがpaused、terminating、transitioningの場合、targetを探索する前に`RUNTIME_NOT_ACCEPTING_INPUT`とする。Logical inputが現在Stepで利用不能なら`INPUT_UNAVAILABLE`。Surfaceが未知、不可視、inactive、transition中、現在Stateでinteraction無効のいずれでも`INTERACTION_UNAVAILABLE`に丸める。これらのrejectはingress、Cue消費、cooldown、state、event sequenceを変更しない。
 
@@ -182,6 +182,10 @@ Canonical snapshotはShared Runtime Stateだけを持つ。participant、connect
 Snapshot cutはlogical time `T`以下の全internal completionを処理後、reliable sequence `S`のstate freezeと`S+1` subscriber登録を同じcritical sectionで行う。serializationとprojectionはlock外のimmutable valueだけを読む。catch-up overflowではpartial resultを捨て、新cutから初回を含む最大3回かつ合計250 msまで再試行し、超過は`RESOURCE_EXHAUSTED / snapshot_catch_up_exhausted`とする。
 
 Durable checkpoint field 12だけは例外的にtyped `CanonicalRuntimeSnapshot`のdeterministic protobuf bytesを保持する。任意bytesではない。writerはunknown fieldを含めず、field 11は受信したfield 12そのものの`sha256:` hashとする。hash検証後にschema 2としてparseする。外側のsession、runtime、assignment、Publication、Definition/Bundle hashをロード対象の信頼済み値と照合し、外側の`reliable_sequence`と内側の同fieldを一致させる。内側ではRun ID assignment、owner epoch、catalog参照と全invariantを検証する。parse/re-serialize結果をhash sourceにしない。
+
+Durable checkpointの`recovery_payload`はSession開始日時、過去の参加者とrole、保持期間内のcommand key・fingerprint・outcome・記録時刻を持つ`RuntimeRecoveryMetadata`のdeterministic protobuf bytesとする。`recovery_hash`はその生bytesの`sha256:` hashであり、parse前に検証する。両fieldは一組で扱い、canonical stateやProjected snapshotには含めない。Runtimeによる復旧はこのmetadataを必須とし、欠落したcheckpointを拒否する。stateとcommand記録を同じcheckpointに確定し、再送では保存済みoutcomeを返してActionを再実行しない。
+
+状態mutationはcheckpoint保存後に公開する。時計だけの進行は最大1秒に一回の保存とし、復旧時は最後の保存時刻から進めずpauseする。
 
 recoveryは同じassignment epochでだけ行う。保存時にrunningでもclockを進めず`paused/processRecovered`へ変更する。active Runとarmed timerからscheduleを再構築する。checkpoint以降の確定済みeventはcontiguous event log、または全後続eventを含む新checkpointで復元する。どちらでもgapを埋められなければ`paused/recoveryGap`のまま継続を拒否する。
 

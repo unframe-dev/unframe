@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Cysharp.Net.Http;
 using Grpc.Core;
 using NUnit.Framework;
-using Unframe.Realtime.V2;
+using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 
 public sealed class PresentationRealtimeConnectionEditModeTests
@@ -117,7 +117,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             if (invalid == "quaternion") input.PresentationFromQuestLocal.Rotation.W = 0.5;
             if (invalid == "target") input.Samples[0].Target = (TrackedTarget)99;
             if (invalid == "limit") for (int i = 0; i < 4; i++) input.Samples.Add(input.Samples[0].Clone());
-            if (invalid == "viewer") store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.V2.SessionRole.Viewer;
+            if (invalid == "viewer") store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
             if (invalid == "not-ready") typeof(PresentationRealtimeConnection).GetProperty("SessionReady").SetValue(connection, false);
             Assert.ThrowsAsync<InvalidOperationException>(async () => await SendTracking(connection, input));
             Assert.That(writer.Items, Is.Empty);
@@ -126,7 +126,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
 
     private static TrackingFrame TrackingInput()
     {
-        var pose = new Unframe.Presentation.V2.Pose { Position = new Unframe.Presentation.V2.Vector3(), Rotation = new Unframe.Presentation.V2.Quaternion { W = 1 } };
+        var pose = new Unframe.Presentation.Pose { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } };
         var frame = new TrackingFrame { CapturedAtClientMonotonicMs = 123, PresentationFromQuestLocal = pose.Clone() };
         frame.Samples.Add(new TrackedPoseSample { Target = TrackedTarget.Body, QuestLocalPose = pose, PositionAvailable = true, RotationAvailable = true });
         return frame;
