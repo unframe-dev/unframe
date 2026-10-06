@@ -2982,12 +2982,12 @@ export interface paths {
                             credential: string;
                             /** Format: date-time */
                             expiresAt: string;
-                            publicationFence?: {
+                            publicationFence: {
                                 presentationId: string;
                                 publicationEpoch: number;
                                 publicationManifestHash: string;
                             };
-                            projectionProfileId?: string;
+                            projectionProfileId: string;
                         };
                     };
                 };
@@ -3625,7 +3625,7 @@ export interface paths {
                         runtimeId: string;
                         runtimeVersion: string;
                         /** @enum {string} */
-                        protocolVersion: "v1" | "v2";
+                        protocolVersion: "v2";
                         capacity: number;
                         /** Format: uri */
                         localEndpoint: string;

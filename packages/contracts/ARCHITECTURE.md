@@ -23,7 +23,7 @@
 
 - Control Plane OpenAPI は Control Plane の型付き route と runtime schema から生成する。
 - Realtime / Delivery の wire contract は Protocol Buffers source を正本とする。
-- Target の PresentationDefinition / RenderBundle / AssetSetManifest は `src/presentation/` 配下の Zod 4 schema を正本とし、portable JSON Schemaを生成する。詳細な意味規則は [Presentation v2](../../docs/packages/DATA_MODEL.md) を正本とする。
+- PresentationDefinition / RenderBundle / AssetSetManifest は `src/presentation/` 配下の Zod 4 schema を正本とし、portable JSON Schemaを生成する。詳細な意味規則は [Presentation v2](../../docs/packages/DATA_MODEL.md) を正本とする。
 
 ## 2. Owned boundaries
 
@@ -31,7 +31,7 @@
 
 - `openapi/control-plane.openapi.json`: generated OpenAPI document
 - `src/control-plane.openapi.ts`: generated TypeScript OpenAPI types
-- `proto/unframe/realtime/v1/realtime.proto`: Realtime gRPC source
+- `proto/unframe/realtime/realtime.proto`: Realtime gRPC source
 - source と generated artifact の drift check
 
 現行 TypeScript runtime client は OpenAPI path type ではなく、Control Plane が公開する Hono RPC `AppType` を利用する。OpenAPI artifact は language-neutral consumer のための境界として維持する。
@@ -45,11 +45,11 @@
 - `proto/unframe/realtime/realtime.proto`: Command、Event、Run、Snapshot、State Stream
 - `scripts/generate-presentation.ts`: JSON Schema / descriptor の生成と drift check
 
-旧Presentation v1のportable schema・fixture・exportは廃止した。現行契約の名前にバージョンsuffixを付けず、serialized version値で検査する。命名と互換性の判断は [ADR-0024](../../docs/decisions/0024-canonical-presentation-contract-names.md) に従う。
+Presentation v1 の公開 export、schema、fixture、生成経路と Realtime v1 wire は廃止した。現行契約の名前にバージョン suffix を付けず、serialized version 値で検査する。命名と互換性の判断は [ADR-0024](../../docs/decisions/0024-canonical-presentation-contract-names.md) に従う。旧 Control Plane Presentation CRUD の groups / elements DTO は後続の移行対象として残る。
 
 M3D の `m3dCueRuntimeSnapshotSchema`、`runtimeVisibilitySelectionSchema`、`m3dCueParticipantRuntimeViewSchema` は、現行 Cue 実行器が扱う subset を固定する。完全な構造は `canonicalRuntimeSnapshotSchema` と `participantRuntimeViewSchema` が扱い、Media / Model を含む。意味検証と role projection は Core が所有する。
 
-v2 Proto から TypeScript の descriptor / 静的 codec / 型、Go、C# の message / service source を生成する。TypeScript の公開 wire codec は decimal string の `uint64` を使い、動的コード生成を必要としない。生成 consumer の配置と検証境界は [ADR-0023](../../docs/decisions/0023-m5-generated-consumer-boundaries.md) に従う。稼働中の Realtime service は v1 のままであり、v2 の生成物を置くことと service integration の完了を区別する。
+v2 Proto から TypeScript の descriptor / 静的 codec / 型、Go、C# の message / service source を生成する。TypeScript の公開 wire codec は decimal string の `uint64` を使い、動的コード生成を必要としない。生成 consumer の配置と検証境界は [ADR-0023](../../docs/decisions/0023-m5-generated-consumer-boundaries.md) に従う。Realtime の通信契約は v2 に限定する。生成物と authoritative Runtime の実装・検証を区別する。
 
 ## 3. Ownership split
 
@@ -110,4 +110,4 @@ Presentation の Definition / RenderBundle / AssetSet / Build / Publication と 
 
 Compiler は Structured baked-web を自動 partition し、State 別 Hit Region を Surface 全体で解決する。v2 texture は `pixelSize`、`mipCount: 1`、`gpuBytes` を持ち、alpha は `opaque` / `straight` に限定する。Native UI / Video の Delivery admission は、対応する budget tier と consumer の採用条件に従う。schema の定義を renderer や実機 residency の実装と区別する。
 
-Delivery projection / admission は Core、wire version / fence / checkpoint / cursor 検査は Go / Unity の純粋 adapter が扱う。Go / C# / TypeScript の generated consumer は v2 を扱うが、稼働中の Realtime service は v1 foundation である。authoritative evaluation、live replay / reconnect と persistence lifecycle は application integration に残る。Unity の旧 `PresentationImport` は独立した transitional implementation として維持する。
+Delivery projection / admission は Core、wire version / fence / checkpoint / cursor 検査は Go / Unity の純粋 adapter が扱う。Go / C# / TypeScript の generated consumer と Realtime 通信契約は v2 に限定する。authoritative evaluation、live replay / reconnect と persistence lifecycle は application が所有する。Unity の接続と実機での検証は、生成契約の同期とは別に確認する。

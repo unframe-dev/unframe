@@ -205,6 +205,28 @@ MonoBehaviour:
   targetOpenXRApiVersion: 
   required: 0
   customRuntimeLoaderName: 
+--- !u!114 &-6074490042430422607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8173df156af0474e936e0a72b5444271, type: 3}
+  m_Name: QuestBodyTrackingFeature Android
+  m_EditorClassIdentifier: Assembly-CSharp::Unframe.Unity.PresentationRuntime.QuestBodyTrackingFeature
+  m_enabled: 1
+  nameUi: Unframe Quest Body Tracking
+  version: 1.0.0
+  featureIdInternal: dev.unframe.openxr.quest-body-tracking
+  openxrExtensionStrings: XR_FB_body_tracking
+  company: Unframe
+  priority: 0
+  targetOpenXRApiVersion:
+  required: 0
+  customRuntimeLoaderName:
 --- !u!114 &-5792218297367689689
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1291,6 +1313,7 @@ MonoBehaviour:
   - {fileID: -5005740730930924738}
   - {fileID: 6837884344807282262}
   - {fileID: 4518982251298801171}
+  - {fileID: -6074490042430422607}
   - {fileID: 2499679936398878967}
   customLoaderName: 
   m_renderMode: 1

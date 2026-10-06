@@ -29,7 +29,7 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | readiness / health / observability           | 部分実装 | assignment lease・JWKS に基づく gRPC health と metrics / structured log は接続済み。exporter、trace、alert は未実装                                                                                    |
 | checkpoint / completion callback と recovery | 実装済み | v2 mutation の checkpoint、completion を Control Plane の fenced callback へ送り、起動時に検証して復元する。Cloud / Edge の自動再配置・local checkpoint store は未実装                                 |
 | message / rate protection                    | 部分実装 | v2 gRPC は message size と Tracking rate を制限する。全 message 種別に共通の invalid-message count 切断 policy は未接続                                                                                |
-| Venue Edge Asset cache / Range gateway       | 部分実装 | `realtime/internal/asset/` に検証・cache・Range handler がある。local HTTPS listener、証明書、容量・pin・eviction policy への接続は未実装                                                              |
+| Venue Edge Asset cache / Range gateway       | 未実装   | v2 Delivery の publication / projection / access binding に基づく local cache、HTTPS listener、証明書、容量・pin・eviction policy は未実装                                                             |
 | Runtime pause / resume                       | 部分実装 | v2 Session は明示 pause / resume、Presenter 切断、lease 失効を扱う。`pauseTimeout` による自動終了は未実装                                                                                              |
 | State frame / latest-wins mailbox            | 部分実装 | v2 State stream の keyframe と Anchor patch は接続済み。`internal/state/mailbox.go` の field-merge primitive は State fan-out に未接続                                                                 |
 | Fly.io Cloud Runtime                         | 部分実装 | Docker image、H2C service profile と共通 binary はある。Machine lifecycle、公開 endpoint、deploy は未実装                                                                                              |
@@ -436,7 +436,7 @@ State Connection
 - Control Connection終了時は`connectionId`と未使用の`stateConnectionNonce`を無効化する。
 - connection間の到着順は仮定せず、Reliable sequenceと`baseReliableSequence`でapplication上の依存関係を解決する。
 
-現行の`realtime.proto`とRealtime実装は、単一双方向streamでpresenterの`PageChangeCommand`をserver採番の`PageChanged`へfan-outするfoundationだけを提供する。Control / State二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run、Progression wireは [ADR-0007](../../../docs/decisions/0007-timeline-runtime-run-wire-contract.md) と [ADR-0008](../../../docs/decisions/0008-runtime-transport-contract.md) で Accepted のtarget contractだが、現行protoまたは実装済み挙動ではない。
+現行の Realtime は v2 の Control / State 二接続、Snapshot / Replay、ProjectionAdvance、Runtime Run を実装する。wire の正本は `packages/contracts/proto/unframe/realtime/realtime.proto` と [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) であり、ページ番号を直接指定する v1 service は公開しない。
 
 実測で TCP retransmission、head-of-line blocking、write blocking、jitter が UX 上の問題になる場合のみ、State Connection を UDP / QUIC 系 transport へ置き換える。Control Connection は gRPC のまま維持する。
 
@@ -472,13 +472,13 @@ ReliableEvent
 - gap 検知時は replay、保持範囲外なら Snapshot を取得する。
 - exactly-once delivery は仮定せず、`eventId` で idempotent に適用する。
 - profile projectionでparticipantに不可視なReliable Eventが発生しても、そのeventごとのControl itemを送信しない。Runtime Coreはconnectionごとに連続する不可視sequence範囲を保持し、次の可視Reliable Eventを送る直前に一つの`ProjectionAdvance { fromExclusive, throughSequence }`へ集約する。不可視eventだけを理由にnetwork writeを開始せず、後続の可視eventがなければmarkerも送らない。新しいConnection Snapshotはcutの`reliableSequence`で未送信範囲を置き換える。markerはpayload、resource ID、event kindを含まず、clientはmarkerと直後の可視eventをControl stream順に適用する。これにより可視同期境界ではcanonical event数の集約差分が分かり得るが、不可視eventごとの発生時刻とtraffic patternは公開しない。
-- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。v1 の retention、replay / catch-up queue、Snapshot retry、idempotency、State dependency buffer、microstep の値と超過時の挙動は [ADR-0008](../../../docs/decisions/0008-runtime-transport-contract.md) を正本とする。保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
+- `RuntimeProtocolLimits`はprotocol versionに紐付くcontractとしてReliable Eventのretention、connectionごとのreplay queue、idempotency window、message size、rate、State buffer、runtime microstep、Snapshot projectionの試行回数と総時間budgetの上限を所有する。v2 の retention、replay / catch-up queue、Snapshot retry、idempotency、State dependency buffer、microstep の値と超過時の挙動は [配信・実行契約](../../../docs/packages/CONTRACT_RUNTIME.md) を正本とする。保持範囲外のreplay、projection queue overflow、無効inputの許容回数超過は値を推測して継続せず、当該connectionをresyncまたは`RESOURCE_EXHAUSTED` / protocol errorでfail closedにする。
 
 同一logical runtime timeに複数のTimerまたはRun completionがある場合は、versionedなevent kind順、stable target ID順、Run ID順で処理する。zero-duration actionから生じる内部eventは同一event loopで処理するが、`RuntimeProtocolLimits`のmicrostep上限を超えた場合は無限遷移としてRuntimeを`Paused`にし、runtime faultをReliable Controlで通知する。
 
 Surface transition / interaction の canonical wire contract は [Presentation Architecture](../../../docs/packages/ARCHITECTURE.md#surface-transition--interaction-wire-contract) を正本とする。target protocol の意味論上の入力は Presenter の `clientEventId`、`SemanticSurfaceId`、`InteractionId`、`presentationOriginVersion`であり、任意の`capturedAt`は診断にだけ使う。Surface State、Hit Region、RenderSurfaceId、座標、renderer artifact、任意payloadを入力として信用しない。accepted input は `SurfaceInteractionAccepted`、cut は `SurfaceStateChanged`、crossfade は `SurfaceTransitionStarted` / `SurfaceTransitionCompleted` として Reliable Event に lower する。interaction outcome は接続単位のcommand結果であり、rejectをsession-global event logへ追加しない。projected Reliable EventはSession、PublicationFence、assignment epoch、projection profile、Presentation Originをfenceする。
 
-crossfade開始時はcanonical State変更、Run追加、interaction無効化をatomicに確定し、完了時はRun除去と遷移先Hit Region有効化をatomicに確定する。interaction / Hit Region専用のmutable wire fieldは持たず、Projected Snapshotの`stateId`、`transitionRunId`、active RunとDelivery済みstate artifactから導出する。crossfade weightは開始時刻、duration、easingからQuestが計算し、Element State Streamへ毎frame送信しない。これらはtarget contractであり、現行`realtime.proto`の`PageChangeCommand` / `PageChanged` foundationへ実装済みとはみなさない。
+crossfade開始時はcanonical State変更、Run追加、interaction無効化をatomicに確定し、完了時はRun除去と遷移先Hit Region有効化をatomicに確定する。interaction / Hit Region専用のmutable wire fieldは持たず、Projected Snapshotの`stateId`、`transitionRunId`、active RunとDelivery済みstate artifactから導出する。crossfade weightは開始時刻、duration、easingからQuestが計算し、Element State Streamへ毎frame送信しない。これらの Snapshot / Event を v2 Control stream で配信する。
 
 ### 8.3 Presenter Tracking Stream
 

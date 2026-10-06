@@ -18,7 +18,7 @@ Control Plane の `src/openapi.ts`、共有 schema、HTTP routeを変更した�
 
 ## Presentation
 
-現行契約の構造は `src/presentation/` の Zod と `proto/unframe/{presentation,delivery,realtime}/` の Protobuf が正本です。型は `@unframe/contracts/presentation` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/packages/DATA_MODEL.md) を併読してください。旧Presentation v1の構造・fixture・exportは廃止しています。データ移行・互換adapterは提供しません。schemaVersion / contractVersion の値 `2` と通信の `"v2"` は維持します。
+完成版の構造は `src/presentation/` の Zod と `proto/unframe/{presentation,delivery,realtime}/` の Protobuf が正本です。型は `@unframe/contracts/presentation` から import できます。参照整合性・状態遷移・拒否条件は [Presentation データ契約](../../docs/packages/DATA_MODEL.md) を併読してください。実機対応の検証は含みません。
 
 repository root の Nix development shell で実行します。
 
@@ -30,17 +30,19 @@ pnpm --filter @unframe/contracts test:presentation
 
 `presentation/*.schema.json` と `contract.pb` は生成物です。fixture は合成データで、モデル・動画・フォントの実バイトや実機測定値を含みません。構造の受理・拒否と生成物の一致を検証し、素材の変換・描画成功とは区別します。
 
-## Realtime v1（既存 foundation）
+## Realtime / Delivery v2 consumers
 
-`proto/unframe/realtime/v1/realtime.proto` は Realtime gRPC protocol の source of truth です。Go generated code は `app/server/realtime/internal/gen/realtime/v1/` に出力します。generated files は手で編集しません。
+`proto/unframe/{presentation,delivery,realtime}/` が wire の正本です。Realtime v1 と Presentation v1 の公開 schema、fixture、生成経路は廃止しています。旧 Control Plane Presentation CRUD の DTO は独立した未移行の境界です。
 
-Presentation の `runtime.proto`、`delivery.proto`、`realtime.proto` は Unity C# bindings の source of truth でもあります。Unity 側の `.proto` copies と generated C# を同期・検証する repository task は `nix run .#unity-proto` です。
-
-repository root の Nix development shell で次を実行します。
+repository root の Nix development shell で実行します。
 
 ```sh
 scripts/contracts/generate-proto.sh
 scripts/contracts/generate-proto.sh check
+scripts/contracts/generate-consumers.sh
+scripts/contracts/generate-consumers.sh check
+scripts/contracts/generate-unity-proto.sh
+scripts/contracts/generate-unity-proto.sh check
 ```
 
-`nix run .#realtime` は生成物の drift check を含みます。現行契約のC#生成物のdrift checkは `nix run .#contracts-consumers -- check` で行います。
+Go は `app/server/realtime/internal/gen/`、C# は `packages/api-client-csharp/Generated/` に生成します。Unity の `.proto` copies と C# bindings も生成元から同期します。`nix run .#realtime` と `nix run .#unity-proto` は各生成物の drift を検出します。生成 consumer と authoritative Runtime の実装・実機検証は区別します。

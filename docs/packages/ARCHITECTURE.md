@@ -86,7 +86,7 @@ Session path の authority は Cloud または Venue Edge に配置された割�
 
 ### 基本原則
 
-- TSX、JSON、Protobuf は用途ごとの表現形式とする。v1 の PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
+- TSX、JSON、Protobuf は用途ごとの表現形式とする。v2 の PresentationDefinition は canonical JSON として build するが、JSON を Authoring Source にはしない。
 - `.unframe.tsx` はプレゼンテーション全体を直接描画する巨大な実装ではなく、Component の配置と接続を行う composition root とする。
 - Component の公開契約と renderer 実装を分離する。
 - GUI と Code は同じ Semantic Authoring IR を編集する。
@@ -163,7 +163,7 @@ PresentationDefinition
 
 素材の使用箇所は `assetId` だけを参照する。checksum、media type、encoded size を持つ素材 descriptor は、Definition と RenderBundle から独立した immutable な `AssetSetManifest` に置く。Compiler は Definition、RenderBundle、AssetSetManifest、素材実体の参照完全性を検証し、Control Plane はそれぞれの hash を PublishedPresentation に固定する。現行 M1 の `definition.assets` と出力 layout にこの分離が実装済みとは扱わない。独立音声用 descriptor は持たず、Video 内の audio track は Video asset の一部として検証する。
 
-エンコード方式自体は意味モデルの一部ではないが、v1 の Local Compiler は PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
+エンコード方式自体は意味モデルの一部ではないが、現行 Local Compiler は v2 PresentationDefinition JSON を canonical に生成する。この JSON は永続化、検証、export、interop に使う最終的な意味 artifact であるが、GUI / Code 編集の Authoring Source ではない。M1 local outputでの file name は `definition.json` であり、後続の full Delivery target の layout と混同しない。
 
 ### 3.4 RenderBundle
 
