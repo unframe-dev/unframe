@@ -8,7 +8,6 @@ Shader "Unframe/BakedSurface"
         _ToVisible ("To Visible", Range(0,1)) = 1
         _Blend ("Blend", Range(0,1)) = 0
         _Color ("Color", Color) = (1,1,1,1)
-        _Opacity ("Opacity", Range(0,1)) = 1
     }
     SubShader
     {
@@ -46,7 +45,6 @@ Shader "Unframe/BakedSurface"
             float _ToVisible;
             float _Blend;
             half4 _Color;
-            float _Opacity;
             CBUFFER_END
             Output vert(Input input)
             {
@@ -68,7 +66,7 @@ Shader "Unframe/BakedSurface"
                 float toAlpha = to.a * _ToVisible * _Blend;
                 float alpha = fromAlpha + toAlpha;
                 float3 rgb = alpha > 0 ? (from.rgb * fromAlpha + to.rgb * toAlpha) / alpha : float3(0, 0, 0);
-                return half4(rgb * _Color.rgb, alpha * _Opacity * _Color.a);
+                return half4(rgb * _Color.rgb, alpha * _Color.a);
             }
             ENDHLSL
         }

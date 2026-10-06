@@ -252,6 +252,32 @@ public sealed class PresentationEncodedAssetCacheEditModeTests
     }
 
     [Test]
+    public async Task ReleasedDownloadCannotDeleteAFileCommittedByANewerReservation()
+    {
+        byte[] bytes = { 1, 2, 3 };
+        AssetAccessBinding asset = Asset(bytes);
+        using (var cache = NewCache(10))
+        {
+            cache.RecoverSessions(Array.Empty<PresentationEncodedAssetCache.SessionSelection>());
+            Assert.That(cache.TryReserveSession("session:old", new[] { asset }, out var staleLease, out string error), Is.True, error);
+            var delayed = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<byte[]> staleDownload = staleLease.GetAsync(asset, (_, _) => delayed.Task, CancellationToken.None);
+            staleLease.Dispose();
+
+            Assert.That(cache.TryReserveSession("session:new", new[] { asset }, out var currentLease, out error), Is.True, error);
+            using (currentLease)
+            {
+                Assert.That(await currentLease.GetAsync(asset, (_, _) => Task.FromResult(bytes), CancellationToken.None), Is.EqualTo(bytes));
+                delayed.SetResult(bytes);
+                Assert.ThrowsAsync<OperationCanceledException>(async () => await staleDownload);
+                Assert.That(File.Exists(Path.Combine(directory, asset.Checksum.Substring(7) + ".bin")), Is.True);
+                Assert.That(await currentLease.GetAsync(asset, (_, _) => throw new AssertionException("verified bytes must remain cached"), CancellationToken.None), Is.EqualTo(bytes));
+                Assert.That(cache.IsReady, Is.True);
+            }
+        }
+    }
+
+    [Test]
     public async Task DurableSelectionSurvivesLeaseReleaseUntilHostRemovesIt()
     {
         byte[] a = { 1, 1, 1 }, b = { 2, 2, 2 };

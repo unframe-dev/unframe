@@ -91,7 +91,6 @@ namespace Unframe.Unity.PresentationRuntime
                 properties.SetFloat("_FromVisible", fromVisible ? 1 : 0);
                 properties.SetFloat("_ToVisible", toVisible ? 1 : 0);
                 properties.SetFloat("_Blend", blend);
-                properties.SetFloat("_Opacity", (float)node.Opacity);
                 partition.Renderer.SetPropertyBlock(properties);
                 partition.Renderer.enabled = node.Active && node.Visible && (fromVisible || toVisible);
             }

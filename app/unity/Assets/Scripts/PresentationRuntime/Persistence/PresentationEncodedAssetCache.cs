@@ -412,6 +412,7 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task<byte[]> DownloadAndStoreAsync(Reservation pending, AssetAccessBinding asset,
             Func<AssetAccessBinding, CancellationToken, Task<byte[]>> download)
         {
+            VerifiedEntry committedEntry = null;
             try
             {
                 byte[] bytes = await download(asset, pending.Cancellation.Token);
@@ -435,6 +436,7 @@ namespace Unframe.Unity.PresentationRuntime
                         LastAccessSequence = checked(++metadata.LastAccessSequence)
                     };
                     verified.Add(entry.Checksum, entry);
+                    committedEntry = entry;
                     reservations.Remove(asset.Checksum);
                     Persist();
                     pending.Cancellation.Dispose();
@@ -445,11 +447,14 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 lock (gate)
                 {
-                    if (!disposed)
+                    bool ownsReservation = reservations.TryGetValue(asset.Checksum, out Reservation current) && current == pending;
+                    bool ownsCommittedEntry = committedEntry != null
+                        && verified.TryGetValue(asset.Checksum, out VerifiedEntry currentEntry) && currentEntry == committedEntry;
+                    if (!disposed && (ownsReservation || ownsCommittedEntry))
                     {
-                        if (reservations.TryGetValue(asset.Checksum, out Reservation current) && current == pending)
-                        { reservations.Remove(asset.Checksum); pending.Cancellation.Dispose(); }
-                        verified.Remove(asset.Checksum);
+                        if (ownsReservation) reservations.Remove(asset.Checksum);
+                        pending.Cancellation.Dispose();
+                        if (ownsCommittedEntry) verified.Remove(asset.Checksum);
                         try
                         {
                             if (File.Exists(StagingPath(asset.Checksum))) File.Delete(StagingPath(asset.Checksum));
