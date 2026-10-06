@@ -78,6 +78,42 @@ const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
 };
 
 describe("D1RuntimeAssignmentRepository", () => {
+  it("selects only v2 Venue Edges for sessions pinned to a v2 publication", async () => {
+    const suffix = crypto.randomUUID();
+    const sessionId = await addSession(`v2-${suffix}`);
+    const edgeId = `edge-v2-${suffix}`;
+    const runtimeId = `runtime-v2-${suffix}`;
+    const fingerprint = `sha256:${"a".repeat(64)}`;
+    await env.DB.batch([
+      env.DB.prepare("UPDATE presentation_sessions SET publication_epoch = 1 WHERE id = ?").bind(
+        sessionId,
+      ),
+      env.DB.prepare(
+        "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '2', 'v1', 1, 'https://edge.example.com', ?, 'healthy', '2026', '2026', '2026')",
+      ).bind(edgeId, runtimeId, fingerprint),
+    ]);
+    const repository = new D1RuntimeAssignmentRepository(env.DB);
+    const request = {
+      sessionId,
+      runtimeId,
+      runtimeKind: "VenueEdge" as const,
+      endpoint: "https://edge.example.com",
+      certificateFingerprint: fingerprint,
+      provisioningEdgeId: edgeId,
+      presentationRevision: 1,
+      issuedAt: "2026-08-20T00:00:00.000Z",
+      leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+      edgeHealthyAfter: "2025-12-31T23:59:00.000Z",
+    };
+    await expect(repository.assign(request)).resolves.toBeNull();
+    await env.DB.prepare("UPDATE venue_edges SET protocol_version = 'v2' WHERE id = ?")
+      .bind(edgeId)
+      .run();
+    await expect(repository.assign(request)).resolves.toMatchObject({ assignmentEpoch: 1 });
+    await expect(
+      repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2025-12-31T00:00:00.000Z"),
+    ).resolves.toMatchObject({ runtimeId });
+  });
   it("fences one active assignment per session and runtime while incrementing the session epoch", async () => {
     const suffix = crypto.randomUUID();
     const firstSession = await addSession(`first-${suffix}`);

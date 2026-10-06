@@ -13,7 +13,7 @@ import type {
   EditCommand,
   ProjectSnapshot,
   Transform,
-} from "../../../../../packages/unframe-cli/src/author/contract";
+} from "@unframe/unframe-cli/author-contract";
 import { AuthorApiError, type AuthorApi } from "./api";
 import "./author.css";
 

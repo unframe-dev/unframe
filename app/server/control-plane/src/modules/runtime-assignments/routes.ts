@@ -60,9 +60,9 @@ export function createRuntimeAssignmentRoutes(options: RuntimeAssignmentRouteOpt
       let provisioningEdgeId: string | null = null;
       if (input.runtimeKind === "VenueEdge") {
         const edge = await config.DB.prepare(
-          "SELECT id, local_endpoint AS endpoint, certificate_fingerprint AS certificateFingerprint FROM venue_edges WHERE runtime_id = ? AND status = 'active' AND protocol_version = 'v1' AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL",
+          "SELECT id, local_endpoint AS endpoint, certificate_fingerprint AS certificateFingerprint FROM venue_edges WHERE runtime_id = ? AND status = 'active' AND protocol_version = (SELECT CASE WHEN publication_epoch IS NULL THEN 'v1' ELSE 'v2' END FROM presentation_sessions WHERE id = ?) AND health = 'healthy' AND registered_at IS NOT NULL AND capacity > 0 AND local_endpoint IS NOT NULL AND certificate_fingerprint IS NOT NULL",
         )
-          .bind(input.runtimeId)
+          .bind(input.runtimeId, sessionId)
           .first<{ id: string; endpoint: string; certificateFingerprint: string }>();
         if (!edge) {
           throw new HTTPException(409, {

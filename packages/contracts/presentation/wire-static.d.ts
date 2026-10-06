@@ -32420,6 +32420,451 @@ export namespace unframe {
     }
 
     /**
+     * Properties of a RuntimeRecoveryMetadata.
+     * @deprecated Use unframe.realtime.RuntimeRecoveryMetadata.$Properties instead.
+     */
+    interface IRuntimeRecoveryMetadata
+      extends unframe.realtime.RuntimeRecoveryMetadata.$Properties {}
+
+    /** Represents a RuntimeRecoveryMetadata. */
+    class RuntimeRecoveryMetadata {
+      /**
+       * Constructs a new RuntimeRecoveryMetadata.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.RuntimeRecoveryMetadata.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** RuntimeRecoveryMetadata startedAt. */
+      startedAt: string;
+
+      /** RuntimeRecoveryMetadata participants. */
+      participants: unframe.realtime.RuntimeParticipantHistory.$Properties[];
+
+      /** RuntimeRecoveryMetadata commands. */
+      commands: unframe.realtime.RuntimeCommandHistory.$Properties[];
+
+      /**
+       * Creates a new RuntimeRecoveryMetadata instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns RuntimeRecoveryMetadata instance
+       */
+      static create(
+        properties: unframe.realtime.RuntimeRecoveryMetadata.$Shape,
+      ): unframe.realtime.RuntimeRecoveryMetadata & unframe.realtime.RuntimeRecoveryMetadata.$Shape;
+      static create(
+        properties?: unframe.realtime.RuntimeRecoveryMetadata.$Properties,
+      ): unframe.realtime.RuntimeRecoveryMetadata;
+
+      /**
+       * Encodes the specified RuntimeRecoveryMetadata message. Does not implicitly {@link unframe.realtime.RuntimeRecoveryMetadata.verify|verify} messages.
+       * @param message RuntimeRecoveryMetadata message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.RuntimeRecoveryMetadata.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified RuntimeRecoveryMetadata message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeRecoveryMetadata.verify|verify} messages.
+       * @param message RuntimeRecoveryMetadata message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.RuntimeRecoveryMetadata.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a RuntimeRecoveryMetadata message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeRecoveryMetadata & unframe.realtime.RuntimeRecoveryMetadata.$Shape} RuntimeRecoveryMetadata
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.RuntimeRecoveryMetadata & unframe.realtime.RuntimeRecoveryMetadata.$Shape;
+
+      /**
+       * Decodes a RuntimeRecoveryMetadata message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeRecoveryMetadata & unframe.realtime.RuntimeRecoveryMetadata.$Shape} RuntimeRecoveryMetadata
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.RuntimeRecoveryMetadata & unframe.realtime.RuntimeRecoveryMetadata.$Shape;
+
+      /**
+       * Verifies a RuntimeRecoveryMetadata message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a RuntimeRecoveryMetadata message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns RuntimeRecoveryMetadata
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.RuntimeRecoveryMetadata;
+
+      /**
+       * Creates a plain object from a RuntimeRecoveryMetadata message. Also converts values to other types if specified.
+       * @param message RuntimeRecoveryMetadata
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.RuntimeRecoveryMetadata,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this RuntimeRecoveryMetadata to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for RuntimeRecoveryMetadata
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RuntimeRecoveryMetadata {
+      /** Properties of a RuntimeRecoveryMetadata. */
+      interface $Properties {
+        /** RuntimeRecoveryMetadata startedAt */
+        startedAt?: string | null;
+
+        /** RuntimeRecoveryMetadata participants */
+        participants?: unframe.realtime.RuntimeParticipantHistory.$Properties[] | null;
+
+        /** RuntimeRecoveryMetadata commands */
+        commands?: unframe.realtime.RuntimeCommandHistory.$Properties[] | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a RuntimeRecoveryMetadata. */
+      type $Shape = {
+        startedAt?: string | null;
+        participants?: unframe.realtime.RuntimeParticipantHistory.$Shape[] | null;
+        commands?: unframe.realtime.RuntimeCommandHistory.$Shape[] | null;
+        $unknowns?: Uint8Array[];
+      };
+    }
+
+    /**
+     * Properties of a RuntimeParticipantHistory.
+     * @deprecated Use unframe.realtime.RuntimeParticipantHistory.$Properties instead.
+     */
+    interface IRuntimeParticipantHistory
+      extends unframe.realtime.RuntimeParticipantHistory.$Properties {}
+
+    /** Represents a RuntimeParticipantHistory. */
+    class RuntimeParticipantHistory {
+      /**
+       * Constructs a new RuntimeParticipantHistory.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.RuntimeParticipantHistory.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** RuntimeParticipantHistory participantId. */
+      participantId: string;
+
+      /** RuntimeParticipantHistory role. */
+      role: unframe.presentation.SessionRole;
+
+      /**
+       * Creates a new RuntimeParticipantHistory instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns RuntimeParticipantHistory instance
+       */
+      static create(
+        properties: unframe.realtime.RuntimeParticipantHistory.$Shape,
+      ): unframe.realtime.RuntimeParticipantHistory &
+        unframe.realtime.RuntimeParticipantHistory.$Shape;
+      static create(
+        properties?: unframe.realtime.RuntimeParticipantHistory.$Properties,
+      ): unframe.realtime.RuntimeParticipantHistory;
+
+      /**
+       * Encodes the specified RuntimeParticipantHistory message. Does not implicitly {@link unframe.realtime.RuntimeParticipantHistory.verify|verify} messages.
+       * @param message RuntimeParticipantHistory message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.RuntimeParticipantHistory.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified RuntimeParticipantHistory message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeParticipantHistory.verify|verify} messages.
+       * @param message RuntimeParticipantHistory message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.RuntimeParticipantHistory.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a RuntimeParticipantHistory message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeParticipantHistory & unframe.realtime.RuntimeParticipantHistory.$Shape} RuntimeParticipantHistory
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.RuntimeParticipantHistory &
+        unframe.realtime.RuntimeParticipantHistory.$Shape;
+
+      /**
+       * Decodes a RuntimeParticipantHistory message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeParticipantHistory & unframe.realtime.RuntimeParticipantHistory.$Shape} RuntimeParticipantHistory
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.RuntimeParticipantHistory &
+        unframe.realtime.RuntimeParticipantHistory.$Shape;
+
+      /**
+       * Verifies a RuntimeParticipantHistory message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a RuntimeParticipantHistory message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns RuntimeParticipantHistory
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.RuntimeParticipantHistory;
+
+      /**
+       * Creates a plain object from a RuntimeParticipantHistory message. Also converts values to other types if specified.
+       * @param message RuntimeParticipantHistory
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.RuntimeParticipantHistory,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this RuntimeParticipantHistory to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for RuntimeParticipantHistory
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RuntimeParticipantHistory {
+      /** Properties of a RuntimeParticipantHistory. */
+      interface $Properties {
+        /** RuntimeParticipantHistory participantId */
+        participantId?: string | null;
+
+        /** RuntimeParticipantHistory role */
+        role?: unframe.presentation.SessionRole | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a RuntimeParticipantHistory. */
+      type $Shape = unframe.realtime.RuntimeParticipantHistory.$Properties;
+    }
+
+    /**
+     * Properties of a RuntimeCommandHistory.
+     * @deprecated Use unframe.realtime.RuntimeCommandHistory.$Properties instead.
+     */
+    interface IRuntimeCommandHistory extends unframe.realtime.RuntimeCommandHistory.$Properties {}
+
+    /** Represents a RuntimeCommandHistory. */
+    class RuntimeCommandHistory {
+      /**
+       * Constructs a new RuntimeCommandHistory.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.realtime.RuntimeCommandHistory.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** RuntimeCommandHistory key. */
+      key: string;
+
+      /** RuntimeCommandHistory fingerprint. */
+      fingerprint: string;
+
+      /** RuntimeCommandHistory outcome. */
+      outcome?: unframe.realtime.CommandOutcome.$Properties | null;
+
+      /** RuntimeCommandHistory rememberedAtUnixMs. */
+      rememberedAtUnixMs: number | Long;
+
+      /**
+       * Creates a new RuntimeCommandHistory instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns RuntimeCommandHistory instance
+       */
+      static create(
+        properties: unframe.realtime.RuntimeCommandHistory.$Shape,
+      ): unframe.realtime.RuntimeCommandHistory & unframe.realtime.RuntimeCommandHistory.$Shape;
+      static create(
+        properties?: unframe.realtime.RuntimeCommandHistory.$Properties,
+      ): unframe.realtime.RuntimeCommandHistory;
+
+      /**
+       * Encodes the specified RuntimeCommandHistory message. Does not implicitly {@link unframe.realtime.RuntimeCommandHistory.verify|verify} messages.
+       * @param message RuntimeCommandHistory message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.realtime.RuntimeCommandHistory.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified RuntimeCommandHistory message, length delimited. Does not implicitly {@link unframe.realtime.RuntimeCommandHistory.verify|verify} messages.
+       * @param message RuntimeCommandHistory message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.realtime.RuntimeCommandHistory.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a RuntimeCommandHistory message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.realtime.RuntimeCommandHistory & unframe.realtime.RuntimeCommandHistory.$Shape} RuntimeCommandHistory
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.realtime.RuntimeCommandHistory & unframe.realtime.RuntimeCommandHistory.$Shape;
+
+      /**
+       * Decodes a RuntimeCommandHistory message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.realtime.RuntimeCommandHistory & unframe.realtime.RuntimeCommandHistory.$Shape} RuntimeCommandHistory
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.realtime.RuntimeCommandHistory & unframe.realtime.RuntimeCommandHistory.$Shape;
+
+      /**
+       * Verifies a RuntimeCommandHistory message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a RuntimeCommandHistory message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns RuntimeCommandHistory
+       */
+      static fromObject(object: { [k: string]: any }): unframe.realtime.RuntimeCommandHistory;
+
+      /**
+       * Creates a plain object from a RuntimeCommandHistory message. Also converts values to other types if specified.
+       * @param message RuntimeCommandHistory
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.realtime.RuntimeCommandHistory,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this RuntimeCommandHistory to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for RuntimeCommandHistory
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RuntimeCommandHistory {
+      /** Properties of a RuntimeCommandHistory. */
+      interface $Properties {
+        /** RuntimeCommandHistory key */
+        key?: string | null;
+
+        /** RuntimeCommandHistory fingerprint */
+        fingerprint?: string | null;
+
+        /** RuntimeCommandHistory outcome */
+        outcome?: unframe.realtime.CommandOutcome.$Properties | null;
+
+        /** RuntimeCommandHistory rememberedAtUnixMs */
+        rememberedAtUnixMs?: number | Long | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a RuntimeCommandHistory. */
+      type $Shape = {
+        key?: string | null;
+        fingerprint?: string | null;
+        outcome?: unframe.realtime.CommandOutcome.$Shape | null;
+        rememberedAtUnixMs?: number | Long | null;
+        $unknowns?: Uint8Array[];
+      };
+    }
+
+    /**
      * Properties of a ParticipantRuntimeView.
      * @deprecated Use unframe.realtime.ParticipantRuntimeView.$Properties instead.
      */
@@ -33322,6 +33767,12 @@ export namespace unframe {
       /** DurableCheckpointEnvelope canonicalSnapshotPayload. */
       canonicalSnapshotPayload: Uint8Array;
 
+      /** DurableCheckpointEnvelope recoveryPayload. */
+      recoveryPayload?: Uint8Array | null;
+
+      /** DurableCheckpointEnvelope recoveryHash. */
+      recoveryHash?: string | null;
+
       /**
        * Creates a new DurableCheckpointEnvelope instance using the specified properties.
        * @param [properties] Properties to set
@@ -33460,6 +33911,12 @@ export namespace unframe {
 
         /** DurableCheckpointEnvelope canonicalSnapshotPayload */
         canonicalSnapshotPayload?: Uint8Array | null;
+
+        /** DurableCheckpointEnvelope recoveryPayload */
+        recoveryPayload?: Uint8Array | null;
+
+        /** DurableCheckpointEnvelope recoveryHash */
+        recoveryHash?: string | null;
 
         /** Unknown fields preserved while decoding when enabled */
         $unknowns?: Uint8Array[];

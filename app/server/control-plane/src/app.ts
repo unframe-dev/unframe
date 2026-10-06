@@ -6,6 +6,8 @@ import { type AppEnvironment, validateConfig } from "./config";
 import { identityFromSession } from "./auth/identity";
 import { createAuth } from "./auth/options";
 import { createPresentationRoutes, type PresentationRouteOptions } from "./presentation/routes";
+import { createPublicationRoutes } from "./modules/publications/routes";
+import { createRuntimePublicationRoutes } from "./modules/publications/runtime-routes";
 import { createAssetRoutes, type AssetRouteOptions } from "./modules/assets/routes";
 import { createPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
 import { RealtimeBootstrapCredentials } from "./modules/realtime-bootstrap/credential";
@@ -42,6 +44,7 @@ const productRoutePrefixes = [
   "/sessions",
   "/venue-edges",
   "/callbacks",
+  "/internal/runtime",
 ];
 
 type AppOptions = Partial<PresentationRouteOptions & AssetRouteOptions> &
@@ -96,7 +99,9 @@ export function createProductApi(options: AppOptions = {}) {
     }),
   );
   const callbacks = venueEdges.route("/", createPersistenceCallbackRoutes());
-  return callbacks.openapi(jwksRoute, async (context) => {
+  const publications = callbacks.route("/", createPublicationRoutes({ identityProvider }));
+  const runtimePublication = publications.route("/", createRuntimePublicationRoutes());
+  return runtimePublication.openapi(jwksRoute, async (context) => {
     const config = context.get("config");
     return context.json(
       await new RealtimeBootstrapCredentials(config.REALTIME_SIGNING_JWK, {
