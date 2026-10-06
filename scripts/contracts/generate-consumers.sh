@@ -68,7 +68,7 @@ bun "${script_dir}/normalize-csharp-source.ts" "${temp}/openapi/src/Unframe.Cont
 sync_tree() {
   local source="$1" destination="$2" label="$3"
   if [[ "${mode}" == check ]]; then
-    if ! diff -qr --exclude=bin --exclude=obj --exclude=v1 "${source}" "${destination}"; then
+    if ! diff -qr --exclude=bin --exclude=obj "${source}" "${destination}"; then
       echo "${label} generated artifact drift; run scripts/contracts/generate-consumers.sh" >&2
       return 1
     fi
@@ -79,10 +79,6 @@ sync_tree() {
   fi
 }
 
-# The legacy transport remains isolated under realtime/v1 until its runtime is removed.
-if [[ "${mode}" == generate ]]; then
-  cp -R "${REALTIME_SERVER_DIR}/internal/gen/realtime/v1" "${temp}/go/internal/gen/realtime/v1"
-fi
 sync_tree "${temp}/go/internal/gen/presentation" "${REALTIME_SERVER_DIR}/internal/gen/presentation" 'Go Presentation'
 sync_tree "${temp}/go/internal/gen/delivery" "${REALTIME_SERVER_DIR}/internal/gen/delivery" 'Go Delivery'
 sync_tree "${temp}/go/internal/gen/realtime" "${REALTIME_SERVER_DIR}/internal/gen/realtime" 'Go Realtime'

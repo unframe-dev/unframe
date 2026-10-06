@@ -361,16 +361,15 @@ Current implementation は filesystem host と Fixed Browser を接続した `ch
 
 ```text
 packages/contracts/
-├─ presentation/
-│  ├─ presentation-definition.<schema-source>
-│  ├─ render-bundle.<schema-source>
-│  └─ fixtures/
+├─ src/presentation/v2/       Zod schema と導出型
+├─ presentation/v2/           生成 schema / descriptor / fixtures
 └─ proto/unframe/
-   ├─ delivery/v1/delivery.proto
-   └─ realtime/v1/realtime.proto
+   ├─ presentation/v2/runtime.proto
+   ├─ delivery/v2/delivery.proto
+   └─ realtime/v2/realtime.proto
 ```
 
-- PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/presentation/`をsource of truthとする。
+- PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/src/presentation/v2/`をsource of truthとする。
 - `unframe-core`はcontractから生成または導出したTypeScript modelを使用し、serialized fieldを独自に再定義しない。
 - `unframe-core`は、portable structural schemaだけでは表せないreference validation、semantic invariant、canonicalizationを所有する。
 - DeliveryManifest、Reliable Event、ConnectionSnapshotEnvelope、DurableCheckpointEnvelope、State Streamなどのwire sourceは`packages/contracts/proto/`に置く。CanonicalRuntimeSnapshot は renderer、participant、connection、transport、serialization format から独立した semantic model とし、用途別 envelope の内側へ encode する。
@@ -436,7 +435,7 @@ Connection presence は ConnectionSnapshotEnvelope にだけ含め、Raw Trackin
 - calibration、viewport、selection、personal annotation、Local Overlay stateのClient-local ownership
 - Realtime接続、reconnect、state convergence
 
-既存`PresentationImport/`はCurrent schema向けのtransitional implementationとして扱う。Target Runtimeへの移行方法をUnity architectureで決めるまで、名前変更や一括移動を前提にしない。
+Unity の配信・実行は v2 consumer に統一する。旧 `PresentationImport/` と v1 JSON サンプルは廃止し、互換 importer は設けない。
 
 ### 6.5 `app/server/integration`
 

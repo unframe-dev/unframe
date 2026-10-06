@@ -13,7 +13,7 @@
     "contractVersions": {
       "delivery": 2,
       "runtime": 2,
-      "progression": 2,
+      "progression": 1,
       "projection": 1
     },
     "renderers": {

@@ -268,3 +268,57 @@ func TestV2HandshakeUsesRenewedLeaseDeadline(t *testing.T) {
 		t.Fatal("handshake outlived renewed lease")
 	}
 }
+
+type deadlineAssignment struct{ deadline time.Time }
+
+func (deadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
+
+func (a deadlineAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return a.deadline, nil
+}
+
+func (deadlineAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
+
+func (a deadlineAssignment) ReliableDeliveryDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	return a.deadline, nil
+}
+
+type renewableDeadlineAssignment struct {
+	mu              sync.Mutex
+	deadline        time.Time
+	initialDuration time.Duration
+	initialized     chan struct{}
+}
+
+func (*renewableDeadlineAssignment) AllowNewConnection(assignment.AssignmentClaim) error { return nil }
+
+func (a *renewableDeadlineAssignment) ConnectionDeadline(assignment.AssignmentClaim) (time.Time, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.deadline.IsZero() {
+		a.deadline = time.Now().Add(a.initialDuration)
+		if a.initialized != nil {
+			close(a.initialized)
+			a.initialized = nil
+		}
+	}
+	return a.deadline, nil
+}
+
+func (*renewableDeadlineAssignment) AllowCommand(assignment.AssignmentClaim) error { return nil }
+
+func (a *renewableDeadlineAssignment) ReliableDeliveryDeadline(claim assignment.AssignmentClaim) (time.Time, error) {
+	return a.ConnectionDeadline(claim)
+}
+
+func (a *renewableDeadlineAssignment) renew(duration time.Duration) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.deadline = time.Now().Add(duration)
+}
+
+func (a *renewableDeadlineAssignment) currentDeadline() time.Time {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.deadline
+}

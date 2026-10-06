@@ -18,13 +18,11 @@ proto_root="${CONTRACTS_DIR}/proto"
 output_root="${REALTIME_SERVER_DIR}"
 module="github.com/unframe-dev/unframe/app/server/realtime"
 proto_files=(
-  "${proto_root}/unframe/realtime/v1/realtime.proto"
   "${proto_root}/unframe/presentation/runtime.proto"
   "${proto_root}/unframe/delivery/delivery.proto"
   "${proto_root}/unframe/realtime/realtime.proto"
 )
 service_proto_files=(
-  "${proto_root}/unframe/realtime/v1/realtime.proto"
   "${proto_root}/unframe/realtime/realtime.proto"
 )
 
@@ -38,24 +36,32 @@ generate() {
     "${service_proto_files[@]}"
 }
 
-if [[ "${mode}" == "generate" ]]; then
-  generate "${output_root}"
-  exit 0
-fi
-
 temporary_output="$(mktemp -d)"
 trap 'rm -rf "${temporary_output}"' EXIT
 generate "${temporary_output}"
 
+if [[ "${mode}" == "generate" ]]; then
+  rm -rf -- "${output_root}/internal/gen"
+  cp -R -- "${temporary_output}/internal/gen" "${output_root}/internal/gen"
+  exit 0
+fi
+
 generated_files=(
-  "internal/gen/realtime/v1/realtime.pb.go"
-  "internal/gen/realtime/v1/realtime_grpc.pb.go"
   "internal/gen/presentation/runtime.pb.go"
   "internal/gen/delivery/delivery.pb.go"
   "internal/gen/realtime/realtime.pb.go"
   "internal/gen/realtime/realtime_grpc.pb.go"
 )
 drift=0
+expected_files="${temporary_output}/expected-files"
+actual_files="${temporary_output}/actual-files"
+printf '%s\n' "${generated_files[@]}" | LC_ALL=C sort > "${expected_files}"
+(cd "${output_root}" && find internal/gen -type f -name '*.go' | LC_ALL=C sort) > "${actual_files}"
+if ! cmp -s "${expected_files}" "${actual_files}"; then
+  diff -u "${expected_files}" "${actual_files}" || true
+  echo "generated protobuf Go file set is stale" >&2
+  drift=1
+fi
 for generated_file in "${generated_files[@]}"; do
   if ! cmp -s "${output_root}/${generated_file}" "${temporary_output}/${generated_file}"; then
     diff -u "${output_root}/${generated_file}" "${temporary_output}/${generated_file}" || true
