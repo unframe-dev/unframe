@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using Meta.XR;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -8,51 +7,25 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public static class PassthroughCameraDeviceTestEditor
+public static class QuestMrSceneBuild
 {
-    public const string ScenePath = "Assets/Scenes/PassthroughCameraDeviceTest.unity";
-    public const string ApplicationId = "dev.unframe.pca.preview";
-
-    [MenuItem("Unframe/PCA/Open Device Test Scene")]
-    public static void OpenScene()
+    public static void ValidateMarkerDetection(string symbols, bool installed)
     {
-        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-        PrepareScene();
-        EditorSceneManager.OpenScene(ScenePath);
+        if (!installed)
+            throw new InvalidOperationException("Install OpenCV for Unity before building marker calibration.");
+        if (string.IsNullOrEmpty(symbols) || !Array.Exists(symbols.Split(';'), symbol => symbol.Trim() == "UNFRAME_OPENCV_FOR_UNITY"))
+            throw new InvalidOperationException("Marker detection is disabled. Add UNFRAME_OPENCV_FOR_UNITY to Android Player Settings > Scripting Define Symbols and wait for compilation before building.");
     }
 
-    public static void PrepareScene()
+    public static void ValidateAndroidMarkerDetection() => ValidateMarkerDetection(
+        PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Android),
+        Directory.Exists(Path.Combine(Application.dataPath, "OpenCVForUnity")));
+
+    public static void CreateCalibrationScene(string scenePath)
     {
+        if (string.IsNullOrWhiteSpace(scenePath)) throw new ArgumentException("A scene path is required.", nameof(scenePath));
         ConfigureProject();
         PrepareDiagnosticMaterial();
-        if (File.Exists(ScenePath))
-        {
-            var existing = SceneManager.GetActiveScene();
-            if (existing.path != ScenePath)
-            {
-                if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-                    throw new OperationCanceledException("Device scene preparation was cancelled.");
-                existing = EditorSceneManager.OpenScene(ScenePath);
-            }
-            var existingPreview = existing.GetRootGameObjects()
-                .SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Single();
-            if (existingPreview.GetComponent<ArucoOriginVisualizer>() == null)
-            {
-                existingPreview.gameObject.AddComponent<ArucoOriginVisualizer>();
-            }
-            if (existingPreview.GetComponent<ArucoOriginAlignment>() == null)
-            {
-                existingPreview.gameObject.AddComponent<ArucoOriginAlignment>();
-            }
-            if (existingPreview.GetComponent<ArucoCameraMarkerDetection>() == null)
-            {
-                existingPreview.gameObject.AddComponent<ArucoCameraMarkerDetection>();
-            }
-            // RequireComponent may already have added these while loading; persist them for the player scene.
-            EditorSceneManager.MarkSceneDirty(existing);
-            EditorSceneManager.SaveScene(existing);
-            return;
-        }
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Packages/com.meta.xr.sdk.core/Prefabs/OVRCameraRig.prefab");
         if (prefab == null) throw new InvalidOperationException("Meta XR Core SDK Camera Rig prefab is missing.");
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -78,14 +51,14 @@ public static class PassthroughCameraDeviceTestEditor
         source.CameraPosition = PassthroughCameraAccess.CameraPositionType.Left;
         source.RequestedResolution = new Vector2Int(1280, 960);
         source.MaxFramerate = 30;
-        var preview = new GameObject("PCA Device Preview").AddComponent<PassthroughCameraDevicePreview>();
+        var preview = new GameObject("Marker Calibration Camera").AddComponent<PassthroughCameraDevicePreview>();
         var settings = new SerializedObject(preview);
         settings.FindProperty("cameraAccess").objectReferenceValue = source;
         settings.FindProperty("head").objectReferenceValue = rig.centerEyeAnchor;
         settings.ApplyModifiedPropertiesWithoutUndo();
-        EditorSceneManager.SaveScene(scene, ScenePath);
+        if (!EditorSceneManager.SaveScene(scene, scenePath)) throw new IOException("Could not save the calibration scene.");
         AssetDatabase.SaveAssets();
-        Debug.Log($"[PCA Preview] Scene created: {ScenePath}");
+        Debug.Log($"[MR Presentation] Calibration scene created: {scenePath}");
     }
 
     private static void PrepareDiagnosticMaterial()
@@ -110,20 +83,9 @@ public static class PassthroughCameraDeviceTestEditor
         OVRProjectConfig.CommitProjectConfig(config);
     }
 
-    [MenuItem("Unframe/PCA/Build Device Test APK")]
-    public static void BuildApk() => Build(false);
-
-    [MenuItem("Unframe/PCA/Build and Run on Quest")]
-    public static void BuildAndRun() => Build(true);
-
-    private static void Build(bool run)
-    {
-        PrepareScene();
-        BuildScene(ScenePath, ApplicationId, "unframe-pca-preview.apk", run);
-    }
-
     internal static void BuildScene(string scenePath, string applicationId, string fileName, bool run)
     {
+        ValidateAndroidMarkerDetection();
         OpenCvSampleBuildPreparation.ValidateSamplesExcluded(Path.GetDirectoryName(Application.dataPath));
         if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android, BuildTarget.Android))
         {
@@ -131,16 +93,16 @@ public static class PassthroughCameraDeviceTestEditor
         }
         if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
         {
-            throw new InvalidOperationException("Switch the active Build Profile to Android before building the PCA test.");
+            throw new InvalidOperationException("Switch the active Build Profile to Android before building the MR presentation.");
         }
         if (PlayerSettings.GetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Android) != ScriptingImplementation.IL2CPP
             || PlayerSettings.Android.targetArchitectures != AndroidArchitecture.ARM64)
         {
-            throw new InvalidOperationException("The PCA test requires Android IL2CPP and ARM64 only.");
+            throw new InvalidOperationException("The MR presentation requires Android IL2CPP and ARM64 only.");
         }
         if (!File.Exists(scenePath))
         {
-            throw new InvalidOperationException("Prepare the device test scene before building.");
+            throw new InvalidOperationException("Prepare the presentation scene before building.");
         }
         string output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "PCA", fileName));
         Directory.CreateDirectory(Path.GetDirectoryName(output));
@@ -156,9 +118,9 @@ public static class PassthroughCameraDeviceTestEditor
                 }));
             if (report.summary.result != BuildResult.Succeeded)
             {
-                throw new InvalidOperationException($"PCA build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
+                throw new InvalidOperationException($"MR presentation build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
             }
-            Debug.Log($"[PCA Preview] APK: {output} | Application: {applicationId}");
+            Debug.Log($"[MR Presentation] APK: {output} | Application: {applicationId}");
         }
     }
 }

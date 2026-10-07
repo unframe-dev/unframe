@@ -8,6 +8,29 @@ using UnityEngine;
 public sealed class ArucoPresentationSceneTests
 {
     [Test]
+    public void NetworkSceneAssignsRemeasurementInputToItsPresentationStatus()
+    {
+        var scene = EditorSceneManager.NewPreviewScene();
+        var host = new GameObject("Network Preview Input Test");
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(host, scene);
+        try
+        {
+            var preview = host.AddComponent<PassthroughCameraDevicePreview>();
+            typeof(QuestPresentationSceneEditor).GetMethod("ConfigurePreviewInput",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).Invoke(null, new object[] { scene });
+            Assert.That(new SerializedObject(preview).FindProperty("handleRemeasurementInput").boolValue, Is.False);
+        }
+        finally { EditorSceneManager.ClosePreviewScene(scene); }
+    }
+
+    [Test]
+    public void DefaultBuildUsesTheLocalPresentationScene()
+    {
+        Assert.That(EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path),
+            Is.EqualTo(new[] { ArucoPresentationTestEditor.ScenePath }));
+    }
+
+    [Test]
     public void DeviceSceneKeepsControllersOutsideHiddenContentAndUsesDeliveryFixture()
     {
         var scene = EditorSceneManager.OpenScene(ArucoPresentationTestEditor.ScenePath, OpenSceneMode.Additive);
@@ -40,6 +63,9 @@ public sealed class ArucoPresentationSceneTests
             Assert.That(controlsSettings.FindProperty("calibrationSource").objectReferenceValue, Is.EqualTo(calibration));
             Assert.That(controlsSettings.FindProperty("runner").objectReferenceValue, Is.EqualTo(runner));
             Assert.That(controls.transform.IsChildOf(space), Is.False);
+            var preview = roots.SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Single();
+            Assert.That(new SerializedObject(preview).FindProperty("handleRemeasurementInput").boolValue, Is.False,
+                "Local controls must be the only owner of the physical remeasurement input.");
             var view = roots.SelectMany(root => root.GetComponentsInChildren<QuestLocalPresentationStatusView>(true)).Single();
             var viewSettings = new SerializedObject(view);
             var rig = roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();

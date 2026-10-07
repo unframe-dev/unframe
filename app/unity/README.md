@@ -2,11 +2,11 @@
 
 `Assets/Scripts/PresentationRuntime/` は `Delivery`（配信検証）、`State`（受信状態）、`Transport`（接続）、`Persistence`（選択・cache）、`Rendering`（描画）、`Animation`、`Fixtures`、`Quest` に分けています。`PresentationBakedRuntime` はこれらを接続する入口で、`Generated` は生成専用です。EditMode テストは `Assets/Tests/EditMode/Editor/` 内で同じ責務ごとに分け、Quest の build hook は `Assets/Editor/Quest/`、Animation と Fixtures の Inspector は `Assets/Editor/PresentationRuntime/` の対応するディレクトリに置きます。
 
-`Assets/Scenes/SampleScene.unity` は `LocalPresentationFixtureRunner` だけを表示経路として使用します。Play 開始時に `Resources/PresentationFixtures/LocalDelivery.json` と `LocalSnapshot.json` を読み込み、最初の Reliable Event を適用します。Editor では Space または Enter で後続イベントを進められます。
+`Assets/Scenes/ArucoPresentationTest.unity` は `LocalPresentationFixtureRunner` だけを表示経路として使用します。Play 開始時に `Resources/PresentationFixtures/LocalDelivery.json` と `LocalSnapshot.json` を読み込み、最初の Reliable Event を適用します。Editor では Space または Enter で後続イベントを進められます。
 
 通信なしのQuest検証には `Unframe > ArUco > Open Presentation Test Scene` を使用します。共有マーカー校正、各端末のローカル操作、休止・追跡喪失後の再測定を検証する手順は [ローカルMR検証](docs/local-mr-verification.md) を参照してください。
 
-現在の fixture はリポジトリに置いた protobuf JSON です。SampleScene にはサーバー接続や実機入力をまだ組み込んでいません。表示も `LocalPresentationPlaceholderRenderer` による仮表示です。
+現在の fixture はリポジトリに置いた protobuf JSON です。ローカル検証Sceneはサーバー接続を行わず、Questのコントローラー操作で進行します。表示も `LocalPresentationPlaceholderRenderer` による仮表示です。
 
 ローカル受信処理は Delivery の参照関係、Snapshot の投影情報と sequence、Reliable Event の連番を検証します。`LocalDelivery.json` の hash は動作確認用の値で、Asset URL も含まれていません。公開成果物の内容検証や Asset ダウンロードは行いません。現在の描画経路が受け付ける Delivery renderer は Native UI の仮表示です。
 
@@ -40,9 +40,9 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 
 ## ArUco・カメラの実機検証
 
-`Assets/Scripts/MR/` は `Camera`（権限・映像取得・プレビュー）、`MarkerDetection`（マーカー検出・姿勢推定）、`Alignment`（原点確定・Presentation への接続）、`Diagnostics`（計測・ログ）に分けています。対応する EditMode テストは `Assets/Tests/EditMode/Editor/MR/` の同じ責務のディレクトリに置きます。MR の Editor 操作は `Assets/Editor/MR/` の `Camera`、`MarkerDetection`、`Alignment` に、ビルド設定・アセット除外処理は `Build` に置きます。座標契約から Unity への変換は `PresentationRuntime/Rendering/PresentationCoordinateAdapter.cs` が担います。
+`Assets/Scripts/MR/` は `Camera`（権限・映像取得・プレビュー）、`MarkerDetection`（マーカー検出・姿勢推定）、`Alignment`（原点確定・Presentation への接続）、`Diagnostics`（計測・ログ）に分けています。対応する EditMode テストは `Assets/Tests/EditMode/Editor/MR/` の同じ責務のディレクトリに置きます。MR の Editor 操作は `Assets/Editor/MR/` の `MarkerDetection`、`Alignment` に、共通Scene生成・ビルド設定・アセット除外処理は `Build` に置きます。座標契約から Unity への変換は `PresentationRuntime/Rendering/PresentationCoordinateAdapter.cs` が担います。
 
-Quest のカメラ映像表示は、専用の `Assets/Scenes/PassthroughCameraDeviceTest.unity` で検証します。Unity の `Unframe > PCA > Open Device Test Scene` で開き、`Build and Run on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
+Quest のカメラ映像表示とマーカー校正は `Assets/Scenes/ArucoPresentationTest.unity` に集約しています。Unity の `Unframe > ArUco > Open Presentation Test Scene` で開き、`Build and Run Presentation on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
 
 ArUco 検出は任意の有償依存 OpenCV for Unity を使用します。通常の checkout は依存なしでコンパイル・EditMode テストを実行できます。この状態ではカメラ映像表示と Presentation Runtime を利用できますが、ArUco パネルには `DISABLED` とセットアップ要件が表示され、検出・姿勢推定・マーカーからの原点確定は開始しません。OpenCV に依存しない原点・座標・Runtime のテストは常に実行します。OpenCV を直接使う検出・GPU・worker のテストと印刷マーカー生成メニューは有効化時にのみコンパイルします。
 

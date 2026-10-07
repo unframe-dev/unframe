@@ -26,7 +26,7 @@ Unity プロジェクトは Unity 6000.3.22f1 です。`Packages/manifest.json` 
 参考: [Meta Passthrough Camera API](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation/) / [OpenCV ArUco 姿勢推定](https://docs.opencv.org/4.11.0/d5/dae/tutorial_aruco_detection.html)
 
 1. Meta XR Core SDK / MRUK のバージョンを固定し、Unity Editor でパッケージの解決と Android ビルドを確認する。
-2. `horizonos.permission.HEADSET_CAMERA` の manifest 宣言と実行時許可要求を追加し、拒否・再許可・設定からの再許可をそれぞれログに残す。既存の `ScenePermissionGate` の Scene 権限で代用しない。
+2. `horizonos.permission.HEADSET_CAMERA` の manifest 宣言と実行時許可要求を追加し、拒否・再許可・設定からの再許可をそれぞれログに残す。Scene API の部屋モデル用権限で代用しない。
 3. Quest 3 / 3S 実機で Passthrough Camera API の画像、解像度、内部パラメーター、撮影時刻、カメラ姿勢を記録する。XR Simulator は実カメラの検証に使わない。
 4. 実測した一辺の長さを設定した印刷マーカーを用意し、検出 ID、角、推定姿勢、再投影誤差をログに記録する。生画像を保存する必要がある場合は、別途、明示的な診断オプションを設ける。
 5. 原点確定後にマーカーを隠し、頭を動かして立方体の固定を確認する。B/Y・再センタリング・トラッキング復帰で再測定できることを確認する。

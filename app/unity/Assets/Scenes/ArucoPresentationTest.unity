@@ -218,6 +218,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PassthroughCameraDevicePreview
   cameraAccess: {fileID: 2135378172}
   head: {fileID: 382092642}
+  handleRemeasurementInput: 0
 --- !u!114 &169578528
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -9,12 +9,6 @@ using UnityEngine;
 
 public static class ArucoTestMarkerEditor
 {
-    public static void PrepareDeviceTest()
-    {
-        PassthroughCameraDeviceTestEditor.PrepareScene();
-        GenerateMarkers();
-    }
-
     [MenuItem("Unframe/ArUco/Generate Printable Test Markers")]
     public static void GenerateMarkers()
     {

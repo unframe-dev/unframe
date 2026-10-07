@@ -1,6 +1,6 @@
 # マーカー原点とプレゼン表示の接続
 
-20cmのID 0マーカーで端末を位置合わせし、Delivery v2のローカルfixtureを配置する検証シーンです。マーカー検出には[OpenCVの有効化手順](../README.md#aruco・カメラの実機検証)が必要です。通常のSampleSceneとPCAカメラ診断シーンは別に保持します。実際のSurface artifact描画・サーバー通信・複数端末同期・authoritative hit-testはこのシーンでは実装していません。表示は既存のDelivery placeholder rendererです。
+20cmのID 0マーカーで端末を位置合わせし、Delivery v2のローカルfixtureを配置する検証シーンです。マーカー検出には[OpenCVの有効化手順](../README.md#aruco・カメラの実機検証)が必要です。カメラ単体検証とEditor専用の旧SceneはこのSceneへ集約しています。実際のSurface artifact描画・サーバー通信・複数端末同期・authoritative hit-testはこのシーンでは実装していません。表示は既存のDelivery placeholder rendererです。
 
 ## 座標と状態の責務
 

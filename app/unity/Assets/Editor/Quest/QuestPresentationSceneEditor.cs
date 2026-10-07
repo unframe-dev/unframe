@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using Meta.XR;
 using Unframe.Unity.PresentationRuntime;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -21,39 +20,19 @@ public static class QuestPresentationSceneEditor
         {
             var existing = EditorSceneManager.OpenScene(ScenePath);
             if (existing.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<QuestPresentationSession>(true)).Any())
+            {
+                ConfigurePreviewInput(existing);
+                if (!EditorSceneManager.SaveScene(existing, ScenePath))
+                    throw new IOException("Could not save the Quest presentation scene.");
                 return;
+            }
         }
-        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Packages/com.meta.xr.sdk.core/Prefabs/OVRCameraRig.prefab");
-        if (prefab == null) throw new InvalidOperationException("Meta XR Core SDK Camera Rig prefab is missing.");
-
-        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        var rigObject = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
-        rigObject.transform.localScale = Vector3.one;
-        var rig = rigObject.GetComponent<OVRCameraRig>();
-        rig.EnsureGameObjectIntegrity();
-        var manager = rigObject.GetComponent<OVRManager>();
-        manager.isInsightPassthroughEnabled = true;
-        var managerSettings = new SerializedObject(manager);
-        managerSettings.FindProperty("requestPassthroughCameraAccessPermissionOnStartup").boolValue = false;
-        managerSettings.ApplyModifiedPropertiesWithoutUndo();
-        foreach (var camera in rigObject.GetComponentsInChildren<Camera>(true))
-        {
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = Color.clear;
-            camera.nearClipPlane = 0.05f;
-            PrefabUtility.RecordPrefabInstancePropertyModifications(camera);
-        }
-        PrefabUtility.RecordPrefabInstancePropertyModifications(manager);
-        new GameObject("Passthrough Background").AddComponent<OVRPassthroughLayer>();
-
-        var cameraAccess = new GameObject("Left Passthrough Camera").AddComponent<PassthroughCameraAccess>();
-        cameraAccess.enabled = false;
-        cameraAccess.CameraPosition = PassthroughCameraAccess.CameraPositionType.Left;
-        cameraAccess.RequestedResolution = new Vector2Int(1280, 960);
-        cameraAccess.MaxFramerate = 30;
-        var preview = new GameObject("Marker Calibration Camera").AddComponent<PassthroughCameraDevicePreview>();
-        SetReference(preview, "cameraAccess", cameraAccess);
-        SetReference(preview, "head", rig.centerEyeAnchor);
+        QuestMrSceneBuild.CreateCalibrationScene(ScenePath);
+        Scene scene = SceneManager.GetActiveScene();
+        var roots = scene.GetRootGameObjects();
+        var rig = roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();
+        var preview = roots.SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Single();
+        ConfigurePreviewInput(scene);
 
         var host = new GameObject("Quest Presentation Session");
         var runtime = host.AddComponent<PresentationBakedRuntime>();
@@ -74,6 +53,15 @@ public static class QuestPresentationSceneEditor
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
             throw new IOException("Could not save the Quest presentation scene.");
         AssetDatabase.SaveAssets();
+    }
+
+    private static void ConfigurePreviewInput(Scene scene)
+    {
+        var preview = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Single();
+        var settings = new SerializedObject(preview);
+        settings.FindProperty("handleRemeasurementInput").boolValue = false;
+        settings.ApplyModifiedPropertiesWithoutUndo();
+        EditorSceneManager.MarkSceneDirty(scene);
     }
 
     private static void SetReference(UnityEngine.Object component, string propertyName, UnityEngine.Object value)

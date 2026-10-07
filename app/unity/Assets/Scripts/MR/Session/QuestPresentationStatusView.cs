@@ -73,7 +73,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             panel = new GameObject("Session Status", typeof(RectTransform), typeof(Canvas), typeof(Image));
             panel.transform.SetParent(head, false);
-            panel.transform.localPosition = new Vector3(0.65f, 0.65f, 1.25f);
+            panel.transform.localPosition = new Vector3(0, -0.48f, 1.25f);
             panel.transform.localScale = Vector3.one * 0.00075f;
             panel.GetComponent<RectTransform>().sizeDelta = new Vector2(600, 150);
             var canvas = panel.GetComponent<Canvas>();
