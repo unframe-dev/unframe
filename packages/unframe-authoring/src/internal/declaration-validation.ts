@@ -2,6 +2,58 @@ const invalid = (message: string): never => {
   throw new TypeError(message);
 };
 
+export const readOwnDataRecord = (value: unknown): Record<string, unknown> => {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    invalid("Expected a plain data object.");
+  const object = value as object;
+  const prototype = Object.getPrototypeOf(object);
+  if (prototype !== Object.prototype && prototype !== null)
+    invalid("Expected a plain data object.");
+  const result = Object.create(null) as Record<string, unknown>;
+  for (const key of Reflect.ownKeys(object)) {
+    if (typeof key !== "string") invalid("Data objects must use string keys.");
+    const descriptor = Object.getOwnPropertyDescriptor(object, key);
+    if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor))
+      throw new TypeError("Data objects must contain enumerable data properties.");
+    Object.defineProperty(result, key, {
+      value: descriptor.value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  }
+  return result;
+};
+
+export const readOwnDataArray = (value: unknown): unknown[] => {
+  if (!Array.isArray(value)) invalid("Expected an array.");
+  const array = value as unknown[];
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(array, "length");
+  if (lengthDescriptor === undefined || !("value" in lengthDescriptor))
+    throw new TypeError("Arrays must have a data length.");
+  const length: unknown = lengthDescriptor.value;
+  if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0)
+    throw new TypeError("Arrays must have a valid length.");
+  const keys = Reflect.ownKeys(array);
+  if (
+    keys.length !== length + 1 ||
+    keys.some(
+      (key) =>
+        key !== "length" &&
+        (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length),
+    )
+  )
+    invalid("Arrays must not contain holes or custom properties.");
+  const result: unknown[] = [];
+  for (let index = 0; index < length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(array, String(index));
+    if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor))
+      throw new TypeError("Arrays must contain data properties.");
+    result.push(descriptor.value);
+  }
+  return result;
+};
+
 /**
  * Copies only descriptor-backed JSON data. This prevents declaration validation
  * from invoking user supplied getters while isolating declarations from inherited data.

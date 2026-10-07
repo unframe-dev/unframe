@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.cysharp.yetanotherhttphandler": "https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#2dfd96caf7123321fe6b55a4f3e4db7965b36f27",
     "com.meta.xr.mrutilitykit": "207.0.0",
     "com.meta.xr.sdk.core": "207.0.0",
     "com.unity.ai.inference": "2.6.1",

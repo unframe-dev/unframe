@@ -251,7 +251,7 @@ Compiler と concrete renderer の間の plugin contract を所有する。
 - Opaque Component web renderer entry の bundle と実行
 - Browser lifecycle と fixed rendering environment
 - Surface State ごとの layout と capture
-- Hit Region geometry の解決
+- Compiler が渡した partition geometry の描画
 - pixel size、color space、alpha modeを持つ未encodeのSurface capture生成
 - Browser、font、locale、timezone、layoutのrenderer provenance
 - visual regression fixture
@@ -291,7 +291,7 @@ Compiler build 中に使用する deterministic asset transformation を所有�
 
 OS toolやcodec依存はこのpackageかそのadapterに閉じ込め、`unframe-core`へ持ち込まない。
 
-`unframe-renderer-web`はBrowser上のlayout、capture条件、Hit Region geometryを所有する。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`unframe-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
+`unframe-renderer-web` は Browser 上の描画と capture 条件を所有する。Structured Frame / Text の Hit Region は Compiler が Surface 全体の layout から解決し、画像 partition から独立させる（[ADR-0021](../decisions/0021-surface-interaction-geometry.md)）。Semantic Tree の意味は Structured Component では Structure、Opaque Component では Manifest の `semantics` から Compiler が生成し、Browser DOM から抽出しない。`unframe-assets`はcapture後のbinary変換を所有する。Control Planeはupload後のownershipとR2 lifecycle、Unityはdownload後のruntime cacheを所有する。
 
 このpackageはartifact descriptorとdiagnosticsの型に限って`unframe-core`へ依存する。
 
@@ -361,16 +361,15 @@ Current implementation は filesystem host と Fixed Browser を接続した `ch
 
 ```text
 packages/contracts/
-├─ presentation/
-│  ├─ presentation-definition.<schema-source>
-│  ├─ render-bundle.<schema-source>
-│  └─ fixtures/
+├─ src/presentation/v2/       Zod schema と導出型
+├─ presentation/v2/           生成 schema / descriptor / fixtures
 └─ proto/unframe/
-   ├─ delivery/v1/delivery.proto
-   └─ realtime/v1/realtime.proto
+   ├─ presentation/v2/runtime.proto
+   ├─ delivery/v2/delivery.proto
+   └─ realtime/v2/realtime.proto
 ```
 
-- PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/presentation/`をsource of truthとする。
+- PresentationDefinitionとRenderBundleのserialized shapeは`packages/contracts/src/presentation/v2/`をsource of truthとする。
 - `unframe-core`はcontractから生成または導出したTypeScript modelを使用し、serialized fieldを独自に再定義しない。
 - `unframe-core`は、portable structural schemaだけでは表せないreference validation、semantic invariant、canonicalizationを所有する。
 - DeliveryManifest、Reliable Event、ConnectionSnapshotEnvelope、DurableCheckpointEnvelope、State Streamなどのwire sourceは`packages/contracts/proto/`に置く。CanonicalRuntimeSnapshot は renderer、participant、connection、transport、serialization format から独立した semantic model とし、用途別 envelope の内側へ encode する。
@@ -436,7 +435,7 @@ Connection presence は ConnectionSnapshotEnvelope にだけ含め、Raw Trackin
 - calibration、viewport、selection、personal annotation、Local Overlay stateのClient-local ownership
 - Realtime接続、reconnect、state convergence
 
-既存`PresentationImport/`はCurrent schema向けのtransitional implementationとして扱う。Target Runtimeへの移行方法をUnity architectureで決めるまで、名前変更や一括移動を前提にしない。
+Unity の配信・実行は v2 consumer に統一する。旧 `PresentationImport/` と v1 JSON サンプルは廃止し、互換 importer は設けない。
 
 ### 6.5 `app/server/integration`
 

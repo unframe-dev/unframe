@@ -48,13 +48,32 @@ describe("venue edge HTTP routes", () => {
     expect(credential.edge).toEqual({ id: expect.any(String), status: "active" });
     expect(
       (
+        await request(
+          `/venue-edges/${credential.edge.id}/register`,
+          "POST",
+          undefined,
+          {
+            runtimeId: `runtime-${suffix}`,
+            runtimeVersion: "2",
+            protocolVersion: "v1",
+            capacity: 10,
+            localEndpoint: "https://edge.example.com",
+            certificateFingerprint: `sha256:${"a".repeat(64)}`,
+            health: "healthy",
+          },
+          credential.token,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
         await request(`/venue-edges/${credential.edge.id}/register`, "POST", undefined, {
           runtimeId: `runtime-${suffix}`,
           runtimeVersion: "1",
-          protocolVersion: "v1",
+          protocolVersion: "v2",
           capacity: 10,
           localEndpoint: "https://edge.example.com",
-          certificateFingerprint: "sha256:test",
+          certificateFingerprint: `sha256:${"a".repeat(64)}`,
           health: "healthy",
         })
       ).status,
@@ -68,10 +87,10 @@ describe("venue edge HTTP routes", () => {
           {
             runtimeId: `runtime-${suffix}`,
             runtimeVersion: "1",
-            protocolVersion: "v1",
+            protocolVersion: "v2",
             capacity: 10,
             localEndpoint: "http://edge.example.com",
-            certificateFingerprint: "sha256:test",
+            certificateFingerprint: `sha256:${"a".repeat(64)}`,
             health: "healthy",
           },
           credential.token,
@@ -87,10 +106,10 @@ describe("venue edge HTTP routes", () => {
           {
             runtimeId: `runtime-${suffix}`,
             runtimeVersion: "1",
-            protocolVersion: "v1",
+            protocolVersion: "v2",
             capacity: 10,
             localEndpoint: "https://edge.example.com",
-            certificateFingerprint: "sha256:test",
+            certificateFingerprint: `sha256:${"a".repeat(64)}`,
             health: "healthy",
           },
           credential.token,

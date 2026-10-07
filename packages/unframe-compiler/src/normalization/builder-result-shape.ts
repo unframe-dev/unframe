@@ -19,6 +19,7 @@ export type BuilderResultShape =
 
 const objectResults = new Map<string, string>([
   ["stringProp", "string"],
+  ["editableText", "string"],
   ["numberProp", "number"],
   ["booleanProp", "boolean"],
   ["propRef", "prop-ref"],
@@ -37,6 +38,8 @@ const objectResults = new Map<string, string>([
   ["spatial", "spatial"],
   ["frame", "frame"],
   ["text", "text"],
+  ["image", "image"],
+  ["shape", "shape"],
   ["surface", "surface"],
   ["semanticOverride", "semantic-override"],
   ["componentInstance", "component-instance"],
@@ -47,6 +50,17 @@ const positionalResults = new Map<
   string,
   Omit<Extract<BuilderResultShape, { kind: "positional" }>, "kind">
 >([
+  [
+    "setState",
+    { resultKind: "setState", fields: [{ key: "stateId", argument: 0, valueType: "string" }] },
+  ],
+  [
+    "prop",
+    {
+      resultKind: "prop-ref",
+      fields: [{ key: "name", argument: 0, valueType: "string" }],
+    },
+  ],
   [
     "surfaceState",
     {

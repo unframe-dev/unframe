@@ -3,7 +3,6 @@ import theme from "./reference-theme.unframe";
 import surfaceManifest from "./reference-surface.manifest";
 import badgeManifest from "./reference-badge.manifest";
 import { presentationOwner } from "./reference-values";
-import { surfaceLock, badgeLock } from "./reference-locks";
 
 const components = [
   <ComponentInstance
@@ -12,7 +11,6 @@ const components = [
     version={surfaceManifest.version}
     owner={presentationOwner}
     spatialNodeId="surface-node"
-    packageLock={surfaceLock}
     props={{
       title: "Unframe / M3A",
       offset: 64,
@@ -45,7 +43,6 @@ const components = [
     componentId={badgeManifest.componentId}
     version={badgeManifest.version}
     owner={presentationOwner}
-    packageLock={badgeLock}
     props={{
       label: "One nested Component, one placement",
     }}

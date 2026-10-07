@@ -75,7 +75,7 @@ const structuralDiagnostic = (
         "Quaternion does not match the contract schema.",
       );
     const placementPath = containerPath(path, ["placement"]);
-    if (joined.includes("/contentNodes/") && placementPath)
+    if (joined.includes("/content/nodes/") && placementPath)
       return diagnostic(
         "invalid-text-placement",
         placementPath,
@@ -149,8 +149,8 @@ const validateGroupOwner = (
   groupIds: Set<string>,
   path: string,
 ) => {
-  const owner = isRecord(resource.owner) ? resource.owner : undefined;
-  if (owner?.kind === "group" && (!id(owner.groupId) || !groupIds.has(owner.groupId)))
+  const owner = isRecord(resource["owner"]) ? resource["owner"] : undefined;
+  if (owner?.["kind"] === "group" && (!id(owner["groupId"]) || !groupIds.has(owner["groupId"])))
     diagnostics.push(
       diagnostic(
         "missing-owner-group",
@@ -244,7 +244,7 @@ const validateTree = (
     );
 
   for (const [nodeId, node] of entries) {
-    const parentId = node.parentId;
+    const parentId = node["parentId"];
     if (parentId !== null && !id(parentId)) {
       diagnostics.push(
         diagnostic(
@@ -280,7 +280,7 @@ const validateTree = (
           ),
         );
     }
-    if (!Number.isInteger(node.order) || (node.order as number) < 0)
+    if (!Number.isInteger(node["order"]) || (node["order"] as number) < 0)
       diagnostics.push(
         diagnostic(
           "invalid-order",
@@ -313,8 +313,8 @@ const validateTree = (
     if (!nodeIds.has(rootId))
       diagnostics.push(diagnostic("missing-root", `${path}/rootNodeIds`, "Root does not exist."));
   const canonicalRoots = [...rootIds].sort((left, right) => {
-    const leftOrder = entries.find(([nodeId]) => nodeId === left)?.[1].order;
-    const rightOrder = entries.find(([nodeId]) => nodeId === right)?.[1].order;
+    const leftOrder = entries.find(([nodeId]) => nodeId === left)?.[1]["order"];
+    const rightOrder = entries.find(([nodeId]) => nodeId === right)?.[1]["order"];
     return Number(leftOrder) - Number(rightOrder) || compareStrings(left, right);
   });
   if (rootIds.some((rootId, index) => rootId !== canonicalRoots[index]))
@@ -328,10 +328,10 @@ const validateTree = (
   const siblingOrders = new Map<string, Set<number>>();
   for (const [nodeId, node] of entries) {
     const parentId = parentById.get(nodeId);
-    if (parentId === undefined || !Number.isInteger(node.order)) continue;
+    if (parentId === undefined || !Number.isInteger(node["order"])) continue;
     const key = parentId ?? "<root>";
     const orders = siblingOrders.get(key) ?? new Set<number>();
-    if (orders.has(node.order as number))
+    if (orders.has(node["order"] as number))
       diagnostics.push(
         diagnostic(
           "duplicate-sibling-order",
@@ -339,7 +339,7 @@ const validateTree = (
           "Sibling order must be unique.",
         ),
       );
-    orders.add(node.order as number);
+    orders.add(node["order"] as number);
     siblingOrders.set(key, orders);
   }
   for (const nodeId of nodeIds) {
@@ -374,8 +374,8 @@ const validateTree = (
           ),
         );
       const canonicalChildren = [...children].sort((left, right) => {
-        const leftOrder = entries.find(([childId]) => childId === left)?.[1].order;
-        const rightOrder = entries.find(([childId]) => childId === right)?.[1].order;
+        const leftOrder = entries.find(([childId]) => childId === left)?.[1]["order"];
+        const rightOrder = entries.find(([childId]) => childId === right)?.[1]["order"];
         return Number(leftOrder) - Number(rightOrder) || compareStrings(left, right);
       });
       if (children.some((childId, index) => childId !== canonicalChildren[index]))

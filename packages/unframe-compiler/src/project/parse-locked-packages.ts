@@ -3,49 +3,74 @@ import { z } from "zod";
 
 import { parseAuthoringSource } from "../syntax/parse-authoring-source.js";
 
-// Zod ignores an own `__proto__` key while parsing objects, so reject it before strict parsing.
-const noOwnProtoFieldSchema = z
-  .unknown()
+const hash = z.templateLiteral(["sha256:", z.string().regex(/^[0-9a-f]{64}$/u)]);
+const path = z
+  .string()
+  .min(1)
   .refine(
     (value) =>
-      typeof value !== "object" ||
-      value === null ||
-      Array.isArray(value) ||
-      !Object.hasOwn(value, "__proto__"),
+      !value.startsWith("/") &&
+      !value.includes("\\") &&
+      !value.includes("\0") &&
+      value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== ".."),
   );
-const identityShape = {
-  packageName: z.string(),
-  packageVersion: z.string(),
-  packageIntegrity: z.string(),
-};
-const lockedPackageIdentitySchema = noOwnProtoFieldSchema.pipe(z.strictObject(identityShape));
-
-const packageInputSchema = noOwnProtoFieldSchema.pipe(
-  z.strictObject({
-    ...identityShape,
-    files: z.array(
-      noOwnProtoFieldSchema.pipe(z.strictObject({ fileName: z.string(), sourceText: z.string() })),
-    ),
-    exports: z.array(
-      noOwnProtoFieldSchema.pipe(z.strictObject({ subpath: z.string(), targetFile: z.string() })),
-    ),
-    dependencies: z.array(lockedPackageIdentitySchema),
-  }),
-);
-
-const lockedPackagesInputSchema = z.strictObject({
-  packageDependencies: z.array(lockedPackageIdentitySchema),
-  packages: z.array(packageInputSchema),
+const subpath = z
+  .string()
+  .refine(
+    (value) => value === "." || (value.startsWith("./") && path.safeParse(value.slice(2)).success),
+  );
+const edge = z.strictObject({
+  specifier: z.string().min(1),
+  usage: z.enum(["runtime", "types"]),
+  packageKey: hash,
 });
+const file = z.discriminatedUnion("encoding", [
+  z.strictObject({
+    path,
+    mediaType: z.string().min(1),
+    hash,
+    encoding: z.literal("utf8"),
+    data: z.string(),
+  }),
+  z.strictObject({
+    path,
+    mediaType: z.string().min(1),
+    hash,
+    encoding: z.literal("base64"),
+    data: z.string(),
+  }),
+]);
+const exportEntry = z.strictObject({
+  subpath,
+  runtimeImport: path.nullable(),
+  runtimeRequire: path.nullable(),
+  types: path.nullable(),
+});
+const pkg = z.strictObject({
+  key: hash,
+  locator: z.string().min(1),
+  name: z.string().min(1),
+  version: z.string().min(1),
+  contentIntegrity: hash,
+  files: z.array(file),
+  exports: z.array(exportEntry),
+  dependencies: z.array(edge),
+});
+const input = z.strictObject({ rootDependencies: z.array(edge), packages: z.array(pkg) });
 
-export type LockedPackageIdentity = Readonly<z.output<typeof lockedPackageIdentitySchema>>;
-
-export type ParsedLockedPackage = LockedPackageIdentity & {
+export type LockedDependency = Readonly<z.output<typeof edge>>;
+export type LockedFile = Readonly<z.output<typeof file>>;
+export type ParsedLockedPackage = {
+  readonly key: string;
+  readonly locator: string;
+  readonly name: string;
+  readonly version: string;
+  readonly contentIntegrity: string;
   readonly files: Readonly<Record<string, ts.SourceFile>>;
-  readonly exports: readonly { readonly subpath: string; readonly targetFile: string }[];
-  readonly dependencies: readonly LockedPackageIdentity[];
+  readonly rawFiles: Readonly<Record<string, LockedFile>>;
+  readonly exports: readonly Readonly<z.output<typeof exportEntry>>[];
+  readonly dependencies: readonly LockedDependency[];
 };
-
 export type LockedPackageDiagnostic = {
   readonly code: string;
   readonly fileName: string;
@@ -56,28 +81,14 @@ export type LockedPackageDiagnostic = {
   readonly column: number;
   readonly typescriptCode?: number;
 };
-
 export type ParsedLockedPackages =
   | {
       readonly valid: true;
-      readonly packageDependencies: readonly LockedPackageIdentity[];
+      readonly rootDependencies: readonly LockedDependency[];
       readonly packages: readonly ParsedLockedPackage[];
       readonly diagnostics: [];
     }
   | { readonly valid: false; readonly diagnostics: readonly LockedPackageDiagnostic[] };
-
-type UnknownRecord = Record<string, unknown>;
-type PackageInput = z.output<typeof packageInputSchema>;
-
-const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
-
-const compareDiagnostics = (left: LockedPackageDiagnostic, right: LockedPackageDiagnostic) =>
-  compareStrings(left.fileName, right.fileName) ||
-  left.start - right.start ||
-  left.end - right.end ||
-  compareStrings(left.code, right.code) ||
-  (left.typescriptCode ?? 0) - (right.typescriptCode ?? 0) ||
-  compareStrings(left.message, right.message);
 
 const diagnostic = (code: string, message: string, fileName = ""): LockedPackageDiagnostic => ({
   code,
@@ -88,227 +99,129 @@ const diagnostic = (code: string, message: string, fileName = ""): LockedPackage
   line: 1,
   column: 1,
 });
+const compare = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+const orderedUnique = <T>(items: readonly T[], key: (item: T) => string) =>
+  items.every((item, index) => index === 0 || compare(key(items[index - 1]!), key(item)) < 0);
+const edgeKey = (item: LockedDependency) => `${item.specifier}\0${item.usage}`;
+const sourceFile = (path: string) => /\.(?:tsx?|[mc]ts|d\.[mc]?ts)$/u.test(path);
+const virtualPath = (key: string, fileName: string) =>
+  `unframe-package://${key.slice("sha256:".length)}/${fileName}`;
 
-const packageNamePattern =
-  /^(?:@[-a-z0-9][a-z0-9._-]*\/[-a-z0-9._][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/;
-const sourceExtensions = [".ts", ".tsx", ".d.ts"] as const;
-
-const isRootRelativePath = (value: string) =>
-  value.length > 0 &&
-  !value.startsWith("/") &&
-  !value.includes("\\") &&
-  !value.includes("\0") &&
-  value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
-
-const sameIdentity = (left: LockedPackageIdentity, right: LockedPackageIdentity) =>
-  left.packageName === right.packageName &&
-  left.packageVersion === right.packageVersion &&
-  left.packageIntegrity === right.packageIntegrity;
-
-const compareIdentity = (left: LockedPackageIdentity, right: LockedPackageIdentity) =>
-  compareStrings(left.packageName, right.packageName) ||
-  compareStrings(left.packageVersion, right.packageVersion) ||
-  compareStrings(left.packageIntegrity, right.packageIntegrity);
-
-const hasDuplicateIdentity = (dependencies: readonly LockedPackageIdentity[]) =>
-  dependencies.some((dependency, index) =>
-    dependencies.slice(0, index).some((previous) => sameIdentity(previous, dependency)),
-  );
-
-const packageDisplayFileName = (item: LockedPackageIdentity, fileName: string) =>
-  `${item.packageName}@${item.packageVersion}/${fileName}`;
-
-const encodeVirtualPathSegment = (value: string) => {
-  let encoded = "p";
-  for (let index = 0; index < value.length; index++)
-    encoded += value.charCodeAt(index).toString(16).toUpperCase().padStart(4, "0");
-  return encoded;
-};
-
-const packageVirtualFileName = (item: LockedPackageIdentity, fileName: string) =>
-  `unframe-package://${encodeVirtualPathSegment(item.packageName)}/${encodeVirtualPathSegment(item.packageVersion)}/${encodeVirtualPathSegment(item.packageIntegrity)}/${fileName}`;
-
-export const parseLockedPackages = (value: UnknownRecord): ParsedLockedPackages => {
-  const parsedInput = lockedPackagesInputSchema.safeParse({
-    packageDependencies: value.packageDependencies,
+export const parseLockedPackages = (value: Record<string, unknown>): ParsedLockedPackages => {
+  const parsed = input.safeParse({
+    rootDependencies: value.rootDependencies,
     packages: value.packages,
   });
-  if (!parsedInput.success)
+  if (!parsed.success)
     return {
       valid: false,
       diagnostics: [
-        diagnostic("compiler-invalid-input", "Project input has an invalid package shape."),
+        diagnostic(
+          "compiler-invalid-input",
+          "Project input has an invalid v2 package graph shape.",
+        ),
       ],
     };
-  const { packageDependencies: dependencies, packages } = parsedInput.data;
-
+  const { rootDependencies, packages } = parsed.data;
+  if (
+    !orderedUnique(rootDependencies, edgeKey) ||
+    !orderedUnique(packages, (item) => item.key) ||
+    packages.some(
+      (item) =>
+        !orderedUnique(item.files, (entry) => entry.path) ||
+        !orderedUnique(item.exports, (entry) => entry.subpath) ||
+        !orderedUnique(item.dependencies, edgeKey),
+    )
+  )
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-package-order-invalid",
+          "Package graph entries must be sorted and unique.",
+        ),
+      ],
+    };
+  const byKey = new Map(packages.map((item) => [item.key, item]));
+  if (
+    [...rootDependencies, ...packages.flatMap((item) => item.dependencies)].some(
+      (item) => !byKey.has(item.packageKey),
+    )
+  )
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-package-dependency-mismatch",
+          "Package edges must resolve by exact key.",
+        ),
+      ],
+    };
+  const result: ParsedLockedPackage[] = [];
   const diagnostics: LockedPackageDiagnostic[] = [];
-  const identities = [
-    ...dependencies,
-    ...packages.map(({ packageName, packageVersion, packageIntegrity }): LockedPackageIdentity => ({
-      packageName,
-      packageVersion,
-      packageIntegrity,
-    })),
-    ...packages.flatMap((item) => item.dependencies),
-  ];
-  for (const identity of identities)
+  for (const item of packages) {
+    const rawFiles = Object.fromEntries(item.files.map((entry) => [entry.path, entry]));
     if (
-      identity.packageName.length > 214 ||
-      !packageNamePattern.test(identity.packageName) ||
-      identity.packageVersion.length === 0 ||
-      identity.packageIntegrity.length === 0
+      item.exports.some((entry) =>
+        [entry.runtimeImport, entry.runtimeRequire, entry.types].some(
+          (target) => target !== null && rawFiles[target] === undefined,
+        ),
+      )
     )
       diagnostics.push(
         diagnostic(
-          "compiler-package-identity-invalid",
-          "Package name, version, and integrity must be valid nonempty locked identities.",
-          identity.packageName,
+          "compiler-package-export-target-missing",
+          "Package exports must target locked files.",
+          item.name,
         ),
       );
-
-  const packageByName = new Map<string, PackageInput>();
-  if (hasDuplicateIdentity(dependencies))
-    diagnostics.push(
-      diagnostic(
-        "compiler-package-dependency-duplicate",
-        "Project package dependencies must not repeat the same locked identity.",
-      ),
-    );
-  for (const item of packages) {
-    if (packageByName.has(item.packageName))
-      diagnostics.push(
-        diagnostic(
-          "compiler-package-duplicate",
-          "Only one locked package version may be present for a package name.",
-          item.packageName,
-        ),
-      );
-    else packageByName.set(item.packageName, item);
-    if (hasDuplicateIdentity(item.dependencies))
-      diagnostics.push(
-        diagnostic(
-          "compiler-package-dependency-duplicate",
-          "Package dependencies must not repeat the same locked identity.",
-          item.packageName,
-        ),
-      );
-    const files = new Set<string>();
-    for (const file of item.files) {
-      if (!isRootRelativePath(file.fileName))
-        diagnostics.push(
-          diagnostic(
-            "compiler-package-file-path-invalid",
-            "Package file names must be relative POSIX paths.",
-            item.packageName,
-          ),
-        );
-      else if (files.has(file.fileName))
-        diagnostics.push(
-          diagnostic(
-            "compiler-package-file-duplicate",
-            "Package file names must be unique.",
-            item.packageName,
-          ),
-        );
-      else files.add(file.fileName);
-      if (!sourceExtensions.some((extension) => file.fileName.endsWith(extension)))
+    const files: Record<string, ts.SourceFile> = {};
+    for (const lockedFile of item.files) {
+      if (!sourceFile(lockedFile.path)) continue;
+      if (lockedFile.encoding !== "utf8") {
         diagnostics.push(
           diagnostic(
             "compiler-source-kind-unsupported",
-            "Package sources must use a .ts, .tsx, or .d.ts file name.",
-            item.packageName,
+            "TypeScript package source must be UTF-8.",
+            item.name,
           ),
         );
-    }
-    const exports = new Set<string>();
-    for (const entry of item.exports) {
-      const validSubpath =
-        entry.subpath === "." ||
-        (entry.subpath.startsWith("./") && isRootRelativePath(entry.subpath.slice(2)));
-      if (!validSubpath)
-        diagnostics.push(
-          diagnostic(
-            "compiler-package-export-subpath-invalid",
-            "Package export subpaths must be '.' or root-relative './' paths.",
-            item.packageName,
-          ),
-        );
-      if (exports.has(entry.subpath))
-        diagnostics.push(
-          diagnostic(
-            "compiler-package-export-duplicate",
-            "Package export subpaths must be unique.",
-            item.packageName,
-          ),
-        );
-      else exports.add(entry.subpath);
-      if (!files.has(entry.targetFile))
-        diagnostics.push(
-          diagnostic(
-            "compiler-package-export-target-missing",
-            "Package export targets must name a package source file.",
-            item.packageName,
-          ),
-        );
-    }
-  }
-  const allDependencies = [...dependencies, ...packages.flatMap((item) => item.dependencies)];
-  for (const dependency of allDependencies) {
-    const candidate = packageByName.get(dependency.packageName);
-    if (candidate === undefined || !sameIdentity(candidate, dependency))
-      diagnostics.push(
-        diagnostic(
-          "compiler-package-dependency-mismatch",
-          "Package dependencies must match one locked package identity exactly.",
-          dependency.packageName,
-        ),
-      );
-  }
-  if (diagnostics.length > 0)
-    return { valid: false, diagnostics: diagnostics.sort(compareDiagnostics) };
-
-  const parsedPackages: ParsedLockedPackage[] = [];
-  for (const item of [...packages].sort(compareIdentity)) {
-    const files: Record<string, ts.SourceFile> = {};
-    for (const file of [...item.files].sort((left, right) =>
-      compareStrings(left.fileName, right.fileName),
-    )) {
-      const displayFileName = packageDisplayFileName(item, file.fileName);
-      const parsed = parseAuthoringSource({
-        fileName: packageVirtualFileName(item, file.fileName),
-        sourceText: file.sourceText,
+        continue;
+      }
+      const parsedFile = parseAuthoringSource({
+        fileName: virtualPath(item.key, lockedFile.path),
+        sourceText: lockedFile.data,
       });
-      if (!parsed.ok) {
+      if (parsedFile.ok) files[lockedFile.path] = parsedFile.value;
+      else
         diagnostics.push(
-          ...parsed.diagnostics.map((item): LockedPackageDiagnostic => ({
-            code: item.code,
-            fileName: displayFileName,
-            message: item.message,
-            start: item.start,
-            end: item.start + item.length,
-            line: item.line,
-            column: item.column,
-            ...(item.typescriptCode === undefined ? {} : { typescriptCode: item.typescriptCode }),
+          ...parsedFile.diagnostics.map((failure): LockedPackageDiagnostic => ({
+            code: failure.code,
+            fileName: `${item.name}@${item.version}/${lockedFile.path}`,
+            message: failure.message,
+            start: failure.start,
+            end: failure.start + failure.length,
+            line: failure.line,
+            column: failure.column,
+            ...(failure.typescriptCode === undefined
+              ? {}
+              : { typescriptCode: failure.typescriptCode }),
           })),
         );
-      } else files[file.fileName] = parsed.value;
     }
-    parsedPackages.push({
-      packageName: item.packageName,
-      packageVersion: item.packageVersion,
-      packageIntegrity: item.packageIntegrity,
+    result.push({
+      key: item.key,
+      locator: item.locator,
+      name: item.name,
+      version: item.version,
+      contentIntegrity: item.contentIntegrity,
       files,
-      exports: [...item.exports].sort((left, right) => compareStrings(left.subpath, right.subpath)),
-      dependencies: [...item.dependencies].sort(compareIdentity),
+      rawFiles,
+      exports: item.exports,
+      dependencies: item.dependencies,
     });
   }
   return diagnostics.length > 0
-    ? { valid: false, diagnostics: diagnostics.sort(compareDiagnostics) }
-    : {
-        valid: true,
-        packageDependencies: [...dependencies].sort(compareIdentity),
-        packages: parsedPackages,
-        diagnostics: [],
-      };
+    ? { valid: false, diagnostics }
+    : { valid: true, rootDependencies, packages: result, diagnostics: [] };
 };

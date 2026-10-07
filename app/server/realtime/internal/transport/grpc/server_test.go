@@ -9,7 +9,6 @@ import (
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -88,16 +87,37 @@ func TestServerShutdownBeforeStartSucceeds(t *testing.T) {
 	}
 }
 
-func TestNewServerRegistersRealtimeBidiService(t *testing.T) {
-	t.Parallel()
-
+func TestNewServerRegistersOnlyV2RealtimeService(t *testing.T) {
 	server := mustNewServer(t, nil)
-	service, ok := server.GRPCServer().GetServiceInfo()["unframe.realtime.v1.RealtimeService"]
-	if !ok {
-		t.Fatal("RealtimeService is not registered")
+	services := server.GRPCServer().GetServiceInfo()
+	if _, ok := services["unframe.realtime.v1.RealtimeService"]; ok {
+		t.Fatal("legacy v1 service is registered")
 	}
-	if len(service.Methods) != 1 || service.Methods[0].Name != "Connect" || !service.Methods[0].IsClientStream || !service.Methods[0].IsServerStream {
-		t.Errorf("registered methods = %#v, want one bidi Connect method", service.Methods)
+	service, ok := services["unframe.realtime.RealtimeService"]
+	if !ok {
+		t.Fatal("v2 service is not registered")
+	}
+	if len(service.Methods) != 2 {
+		t.Fatalf("methods = %#v, want Control and State", service.Methods)
+	}
+	for _, method := range service.Methods {
+		if (method.Name != "ConnectControl" && method.Name != "ConnectState") || !method.IsClientStream || !method.IsServerStream {
+			t.Fatalf("unexpected method %#v", method)
+		}
+	}
+}
+
+func TestNewServerRequiresV2Service(t *testing.T) {
+	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{Issuer: "test", Audience: "test", JWKSURL: "https://example.test/jwks"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "test:443", AssignmentEpoch: 1, PresentationRevision: 1, IssuedAt: time.Unix(0, 0), LeaseExpiresAt: time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewServer(nil, Dependencies{Verifier: verifier, Guard: guard}); !errors.Is(err, ErrServerConfiguration) {
+		t.Fatalf("missing v2 error = %v", err)
 	}
 }
 
@@ -167,7 +187,7 @@ func mustNewServer(t *testing.T, listener net.Listener) *Server {
 	if err != nil {
 		t.Fatalf("new verifier: %v", err)
 	}
-	server, err := NewServer(listener, Dependencies{Verifier: verifier, Guard: guard, Coordinator: session.NewCoordinator()})
+	server, err := NewServer(listener, Dependencies{Verifier: verifier, Guard: guard, V2: &V2Service{}})
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}

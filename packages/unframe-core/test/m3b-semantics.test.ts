@@ -11,7 +11,8 @@ import { makeM3AArtifacts } from "./fixtures.js";
 const fixture = () => {
   const { definition, renderBundle } = makeM3AArtifacts();
   const surface = definition.scene.surfaces.baked!;
-  const text = surface.contentNodes.text!;
+  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  const text = surface.content.nodes.text!;
   text.semanticNodeId = "button";
   surface.baseSemanticTree = {
     rootNodeIds: ["button"],

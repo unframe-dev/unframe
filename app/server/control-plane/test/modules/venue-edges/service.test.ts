@@ -113,7 +113,7 @@ describe("VenueEdgeService", () => {
     await service.register(value.edge.id, {
       runtimeId: "runtime-1",
       runtimeVersion: "1",
-      protocolVersion: "v1",
+      protocolVersion: "v2",
       capacity: 50,
       localEndpoint: "https://edge.local",
       certificateFingerprint: "fingerprint",
@@ -149,7 +149,7 @@ describe("VenueEdgeService", () => {
       service.register(value.edge.id, {
         runtimeId: "runtime-in-use",
         runtimeVersion: "1",
-        protocolVersion: "v1",
+        protocolVersion: "v2",
         capacity: 50,
         localEndpoint: "https://edge.local",
         certificateFingerprint: "fingerprint",

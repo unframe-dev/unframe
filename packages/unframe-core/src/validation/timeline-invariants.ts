@@ -1,9 +1,9 @@
-import type { PresentationDefinitionV2 } from "@unframe/contracts/presentation/v2";
+import type { PresentationDefinition } from "@unframe/contracts/presentation";
 
 import type { Diagnostic } from "../domain/model.js";
 import { diagnostic, hasCanonicalQuaternionSign, isUnitQuaternion, pathSegment } from "./shared.js";
 
-type Timeline = PresentationDefinitionV2["flow"]["timelines"][string];
+type Timeline = PresentationDefinition["flow"]["timelines"][string];
 type TimelineValue = Timeline["tracks"][number]["keyframes"][number]["value"];
 
 const validValue = (
@@ -28,8 +28,9 @@ const validValue = (
 };
 
 export const validateTimelineInvariants = (
-  definition: PresentationDefinitionV2,
+  definition: PresentationDefinition,
   diagnostics: Diagnostic[],
+  options: { fullDelivery?: boolean } = {},
 ) => {
   const nodes = definition.scene.nodes;
   for (const [timelineId, timeline] of Object.entries(definition.flow.timelines)) {
@@ -47,7 +48,7 @@ export const validateTimelineInvariants = (
           ),
         );
       else {
-        if (target.audience.kind !== "all")
+        if (!options.fullDelivery && target.audience.kind !== "all")
           diagnostics.push(
             diagnostic(
               "graph.invalid",

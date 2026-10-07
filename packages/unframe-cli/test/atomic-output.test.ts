@@ -2,7 +2,9 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readFile,
+  readdir,
   readlink,
   rm,
   symlink,
@@ -11,7 +13,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { publishAtomicArtifacts } from "../src/filesystem/atomic-output.js";
 
@@ -36,12 +38,55 @@ const artifacts = (suffix = "one") => ({
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
   );
 });
 
 describe("atomic artifact publication", () => {
+  it("preserves JPEG asset bytes at the path consumed by publish", async () => {
+    const directory = await project();
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: {
+        ...artifacts(),
+        assets: [{ assetId: "photo/cover", mediaType: "image/jpeg", bytes: jpeg }],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(await readFile(join(directory, "dist/assets/photo%2Fcover.jpg"))).toEqual(
+      Buffer.from(jpeg),
+    );
+  });
+
+  it("keeps the successful generation when its source revision expires during staging", async () => {
+    const directory = await project();
+    const initial = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts(),
+    });
+    expect(initial.ok).toBe(true);
+    const previous = await readlink(join(directory, "dist"));
+    let current = true;
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      artifacts: artifacts("stale"),
+      isCurrentRevision: async () => current,
+      testing: {
+        onPhase: (phase) => {
+          if (phase === "before-dist-replace") current = false;
+        },
+      },
+    });
+    expect(result).toEqual({ ok: false, family: "io", code: "cli-output-stale" });
+    expect(await readlink(join(directory, "dist"))).toBe(previous);
+    expect(await readdir(join(directory, ".unframe/generations"))).toHaveLength(1);
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-one");
+  });
+
   it("publishes all v2 manifests and preserves font bytes with their media type", async () => {
     const directory = await project();
     const value = artifacts();
@@ -414,7 +459,12 @@ describe("atomic artifact publication", () => {
           },
         },
       }),
-    ).resolves.toEqual({ ok: false, family: "io", code: "cli-output-io" });
+    ).resolves.toEqual({
+      ok: false,
+      family: "io",
+      code: "cli-output-io",
+      detail: { stage: "inspect-dist", code: "EACCES" },
+    });
   });
 
   it("reports an absent-dist recheck metadata failure as I/O without publishing dist", async () => {
@@ -434,7 +484,51 @@ describe("atomic artifact publication", () => {
           },
         },
       }),
-    ).resolves.toEqual({ ok: false, family: "io", code: "cli-output-io" });
+    ).resolves.toEqual({
+      ok: false,
+      family: "io",
+      code: "cli-output-io",
+      detail: { stage: "verify-generation", code: "EIO" },
+    });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
+  });
+
+  it("does not expose hostile error metadata while reporting a publication failure", async () => {
+    const directory = await project();
+    await expect(
+      publishAtomicArtifacts({
+        projectDirectory: directory,
+        artifacts: artifacts(),
+        testing: {
+          lstat: async () => {
+            throw Object.assign(new Error("private detail"), { code: "EPRIVATE" });
+          },
+        },
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      family: "io",
+      code: "cli-output-io",
+      detail: { stage: "inspect-dist" },
+    });
+  });
+
+  it("identifies the file operation when synchronization fails", async () => {
+    const directory = await project();
+    const probe = await open(join(directory, "probe"), "w");
+    const handlePrototype = Object.getPrototypeOf(probe) as { sync: () => Promise<void> };
+    await probe.close();
+    vi.spyOn(handlePrototype, "sync").mockRejectedValueOnce(
+      Object.assign(new Error("bad file descriptor"), { code: "EBADF" }),
+    );
+
+    await expect(
+      publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts() }),
+    ).resolves.toEqual({
+      ok: false,
+      family: "io",
+      code: "cli-output-io",
+      detail: { stage: "write-artifacts", operation: "sync", code: "EBADF" },
+    });
   });
 });

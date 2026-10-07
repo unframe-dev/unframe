@@ -4,12 +4,12 @@
 
 v2 は今回の機能範囲に対するデータ契約である。構造は Zod / Protobuf、構造だけでは表せない参照整合性・計算・状態遷移・拒否条件は以下の仕様を正本とする。両方を満たして初めて有効なデータとなる。
 
-| 対象                                                                    | 構造の正本                                                                              | 意味規則                                |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------- |
-| Definition / RenderBundle / AssetSet / Build / Publication / Capability | [Zod v2](../../packages/contracts/src/presentation/v2/index.ts)                         | [成果物契約](./CONTRACT_ARTIFACTS.md)   |
-| 配信と再接続に共通の型                                                  | [presentation v2](../../packages/contracts/proto/unframe/presentation/v2/runtime.proto) | [配信・実行契約](./CONTRACT_RUNTIME.md) |
-| DeliveryManifest                                                        | [delivery v2](../../packages/contracts/proto/unframe/delivery/v2/delivery.proto)        | 同上                                    |
-| Command / Event / Run / Snapshot / StateFrame                           | [realtime v2](../../packages/contracts/proto/unframe/realtime/v2/realtime.proto)        | 同上                                    |
+| 対象                                                                    | 構造の正本                                                                           | 意味規則                                |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------- |
+| Definition / RenderBundle / AssetSet / Build / Publication / Capability | [Zod v2](../../packages/contracts/src/presentation/index.ts)                         | [成果物契約](./CONTRACT_ARTIFACTS.md)   |
+| 配信と再接続に共通の型                                                  | [presentation v2](../../packages/contracts/proto/unframe/presentation/runtime.proto) | [配信・実行契約](./CONTRACT_RUNTIME.md) |
+| DeliveryManifest                                                        | [delivery v2](../../packages/contracts/proto/unframe/delivery/delivery.proto)        | 同上                                    |
+| Command / Event / Run / Snapshot / StateFrame                           | [realtime v2](../../packages/contracts/proto/unframe/realtime/realtime.proto)        | 同上                                    |
 
 型・意味規則が旧 Architecture の例や初期 v1 と異なる場合は、この v2 契約を優先する。Architecture と ADR は設計理由を説明する。v1 は初期 subset の履歴であり、現在の静的 Compiler / Core は v2 だけを生成・検証する。Delivery / Runtime / Unity の接続は別途必要である。
 

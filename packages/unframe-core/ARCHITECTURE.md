@@ -1,6 +1,6 @@
 # Presentation Core Architecture
 
-- **Status**: Presentation v2 M3D Timeline / Runtime Run と純粋な Runtime projection subset を実装済み
+- **Status**: Presentation v2、純粋な Cue / Runtime Run、Delivery projection / admission、snapshot 検証
 - **Scope**: Runtime-neutral な Presentation semantic model、validation、canonicalization
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
@@ -22,7 +22,8 @@ Web、Compiler、Control Plane が同じ意味を利用できるようにする�
 ### Current first milestone
 
 - generated contractから導出したPresentationDefinition / RenderBundle model
-- Stage、SurfaceNode、Frame / Text、Surface State、baked-web artifactのsemantic invariant
+- Stage、SurfaceNode、Frame / Text / Image / Shape、Surface State、baked-web artifactのsemantic invariant
+- Structured の Content Tree と Opaque の semantic binding を区別した Surface 検証（[ADR-0020](../../docs/decisions/0020-structured-and-opaque-surface-content.md)）
 - stable diagnostic codeとsemantic path
 - 配列順を保持するRFC 8785 canonical JSON、SHA-256 content hash
 
@@ -58,7 +59,7 @@ src/
 
 `index.ts` は public export の集約だけを担う。型、contract schema boundary、semantic validation、canonicalization は変更理由の異なる責務として owning model の近くへ分離し、単一の entrypoint や package 共通の巨大な `types.ts` に集約しない。小さな value object は型と constructor を同じ module に置いてよく、実装前に空 directory を作る必要はない。
 
-現在の実装は、Stage、SurfaceNode、Frame / Text、Surface State、Cue / Guard / Action、Timeline catalog、baked-web RenderBundle
+現在の実装は、Stage、SurfaceNode、Frame / Text / Image / Shape、Surface State、Cue / Guard / Action、Timeline catalog、baked-web RenderBundle
 subsetのsemantic validation、純粋な Cue / Runtime Run 実行、Timeline track 補間、M3D Cue Runtime Snapshot の生成・検証、role別 visibility selection と Participant Runtime View の純粋な投影、Semantic Tree materialization、canonical JSON、SHA-256 hashを実装する。
 canonicalizationは配列を並べ替えず、契約上の順序を保持してRFC 8785 JSONへ直列化する。
 
@@ -66,14 +67,20 @@ canonicalizationは配列を並べ替えず、契約上の順序を保持してR
 
 `validatePresentationDefinition`、`validateRenderBundle`、`validatePresentationArtifacts`、
 `canonicalizePresentationDefinition`、`canonicalizeRenderBundle`、`hashPresentationDefinition`、
-`hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation/v2`のZod schemaから
+`hashRenderBundle`を公開する。入力型は`@unframe/contracts/presentation`のZod schemaから
 推論した型を正本とし、Core内でserialized modelを再定義しない。v1入力の受理・変換経路は持たない。
 
 `createCueState`、`executeCueEvent`、`advanceCueClock`、`completeRuntimeRun`は検証済みDefinitionと明示的な入力・論理時刻を受ける純粋な実行器である。Cueの選択、Guard、Action batch、Step / Group entry、消費、cooldown、timer、Timeline / Surface transition Runを扱う。`createCueState`にはassignment epochが必要である。認証、接続、永続化、wire event は呼び出し側または後続段階の責務とする。
 
-`createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。Variable の正確な dependency closure、ProjectionProfileDescriptor の identity、Media / Model を含む完全な CanonicalRuntimeSnapshot、Delivery / wire 接続は後続段階の責務とする。
+`createM3dCueRuntimeSnapshot` と `validateM3dCueRuntimeSnapshot` は Cue 実行状態と明示的な sequence / clock metadata から現行 subset の portable snapshot を生成・検証する。`createRuntimeVisibilitySelection`、`validateRuntimeVisibilitySelection`、`projectM3dCueParticipantRuntimeView` は role別 resource closure と participant 向け View を扱う。`enabledLogicalInputs` は現在の状態で候補となる入力一覧であり、任意 payload / Guard / Action conflict を含む受理判定ではない。
+
+`selectDeliveryArtifacts`、`buildProjectionProfile`、`buildDeliveryManifest` は Definition / RenderBundle / AssetSet / BuildManifest / PublishedPresentation の整合性を検査し、role と CapabilityProfile に応じた artifact / Asset closure と予算を解決する。`calculateProjectionProfileId` は規範 mapping に従う profile identity を計算する。署名付き取得 URL は呼び出し側が渡し、Core は発行や認証を行わない。
+
+`validateCanonicalRuntimeSnapshot` は Media / Model を含む snapshot の意味検証を扱う。`projectCanonicalParticipantRuntimeView` は検証済み publication と role から profile を導出し、非表示の resource / Run / variable を除いた view を生成する。Media / Model の authoritative execution、network replay、永続化は application integration の責務である。
 
 `evaluateTimelineTrack`は検証済みTimeline trackと経過時間から表示値を計算する純粋関数である。Run停止・完了時のNode stateへのcommitは実行器が扱う。
+
+`resolveStructuredLayout(surface, stateId)` は State override を適用した Structured graph の全 Node を Surface logical 座標へ解決する。absolute / Stack / Grid の配置を同じ純粋関数で計算し、Compiler の partition・Hit Region と Web Renderer の描画が共有する。不正なグラフや配置は例外で拒否するため、外部入力は先に Definition validation を通す。
 
 Compiler、renderer、asset transformer の read boundary には、この生成型から導出した read-only の `SemanticSurface`、`SurfaceRenderIntent`、`SurfaceContentNode`、`CompletedSemanticTree`、`HitRegion`、`TextureArtifact` を公開する。これらは別の normalized model ではなく、構造・意味検証を通過した current serialized subset を mutation せず参照するための alias である。
 
@@ -89,9 +96,11 @@ DefinitionとRenderBundleのsurface / state / Completed Semantic Tree対応を�
 Hit Regionのbounds、priority、canonical order、enabled buttonとの整合、全Stateのbindingと
 texture policy予算も検証する。Cueの参照・型・owner・actor・payload・Action競合を検証し、Surfaceのcut / crossfade、Variable、Nodeの即時Action、Timeline Action / Runを実行する。Timeline catalogではtarget / owner / audience、track、keyframe、easingを検証する。Media、Modelに依存する操作は`feature.unsupported`で拒否する。
 
+Render Surface は `partitionStrategyVersion: 1` と全 State の binding を持つ。非表示 State は `empty` とし、artifact は自身を参照する State の texture だけを保持する。全 State で空の partition、未参照 artifact、layer の欠落・重複を拒否する。描画が不要な Surface は partition を持たず、意味情報と Hit Region を保持できる（[ADR-0021](../../docs/decisions/0021-surface-interaction-geometry.md)）。encoded output budget は checksum ごとに一度だけ計上する。
+
 次はtarget全体でCoreが所有するinvariantである。初期schemaにまだ存在しないmodelの検証は未実装である。
 
-- SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:N とする。
+- SurfaceNode と SemanticSurface は 1:1、SemanticSurface と RenderSurface は 1:0..N とする。
 - Runtime contract の Surface ID は SemanticSurfaceId とし、RenderSurfaceId を progression に含めない。
 - Resource owner は `presentation` または一つの `group` に限定する。
 - reference は同じか長い lifetime の resource へだけ向ける。
@@ -138,14 +147,14 @@ property test、migration fixture、Go / C# consumerとのsemantic conformance�
 
 ## 10. v2 公開物の整合性検証
 
-`verifyBuildIntegrityV2` は、公開前の `definition`、`renderBundle`、`assetSet`、
-`buildManifest` を受け取り、`ValidationResult<BuildArtifactsV2>` を返す。
+`verifyBuildIntegrity` は、公開前の `definition`、`renderBundle`、`assetSet`、
+`buildManifest` を受け取り、`ValidationResult<BuildArtifacts>` を返す。
 公開 epoch や `publishedPresentation` は要求せず、入力に含まれる場合は拒否する。
 素材参照・descriptor・モデル参照・成果物 hash・presentation ID の検証を公開物の入口と共有する。
 
-`verifyPublicationIntegrityV2` は、`definition`、`renderBundle`、`assetSet`、`buildManifest`、
-`publishedPresentation` をまとめて受け取り、`ValidationResult<PublicationArtifactsV2>` を返す。
-型は `@unframe/contracts/presentation/v2` を正本とする。
+`verifyPublicationIntegrity` は、`definition`、`renderBundle`、`assetSet`、`buildManifest`、
+`publishedPresentation` をまとめて受け取り、`ValidationResult<PublicationArtifacts>` を返す。
+型は `@unframe/contracts/presentation` を正本とする。
 
 この入口は安全な plain JSON snapshot、v2 構造、素材の参照集合と descriptor、モデル・clip 参照、
 成果物間の hash と公開 manifest の一致を検証する。入力を変更せず、JCS hash では配列順を保持する。

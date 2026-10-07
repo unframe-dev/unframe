@@ -2,6 +2,31 @@ import { z } from "zod";
 
 export const nonEmptyStringSchema = z.string().min(1);
 export const plainRecordSchema = z.record(z.string(), z.unknown());
+const lockOriginSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("local"),
+    entryFile: nonEmptyStringSchema,
+    files: z.array(z.strictObject({ path: nonEmptyStringSchema, hash: nonEmptyStringSchema })),
+    sourceHash: nonEmptyStringSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("package"),
+    packageKey: nonEmptyStringSchema,
+    subpath: nonEmptyStringSchema,
+  }),
+]);
+const structuredLockSchema = z.strictObject({
+  mode: z.literal("structured"),
+  origin: lockOriginSchema,
+  manifestHash: nonEmptyStringSchema,
+  structureHash: nonEmptyStringSchema,
+});
+const opaqueLockSchema = z.strictObject({
+  mode: z.literal("opaque"),
+  origin: lockOriginSchema,
+  manifestHash: nonEmptyStringSchema,
+  rendererInputHash: nonEmptyStringSchema,
+});
 export const declarationProjectEnvelopeSchema = z
   .object({
     presentation: plainRecordSchema,
@@ -9,20 +34,20 @@ export const declarationProjectEnvelopeSchema = z
       z.object({ declaration: plainRecordSchema, hash: nonEmptyStringSchema }).strict(),
     ),
     components: z.array(
-      z
-        .object({
+      z.union([
+        z.strictObject({
           manifest: plainRecordSchema,
           structure: plainRecordSchema,
-          lock: z
-            .object({
-              packageVersion: nonEmptyStringSchema,
-              packageIntegrity: nonEmptyStringSchema,
-              manifestHash: nonEmptyStringSchema,
-              structureHash: nonEmptyStringSchema,
-            })
-            .strict(),
-        })
-        .strict(),
+          lock: structuredLockSchema,
+        }),
+        z.strictObject({
+          manifest: plainRecordSchema,
+          metadata: plainRecordSchema,
+          rendererEntry: nonEmptyStringSchema,
+          rendererSource: nonEmptyStringSchema,
+          lock: opaqueLockSchema,
+        }),
+      ]),
     ),
     assets: plainRecordSchema,
   })

@@ -6,6 +6,10 @@ import {
 } from "../normalization/normalize-declaration-graph.js";
 import type { AnalyzedAuthoringProject } from "../resolution/typecheck-authoring-project.js";
 import {
+  extractReactComponents,
+  type ExtractedReactComponent,
+} from "./extract-react-components.js";
+import {
   lowerAuthoringDeclarationFile,
   validateStaticAuthoringProject,
 } from "../lowering/lower-authoring-declaration.js";
@@ -43,6 +47,7 @@ export type CollectedAuthoringDeclarations =
   | {
       readonly ok: true;
       readonly declarations: readonly CollectedAuthoringDeclaration[];
+      readonly reactComponents: readonly ExtractedReactComponent[];
       readonly diagnostics: readonly [];
     }
   | {
@@ -95,7 +100,29 @@ export const collectAuthoringDeclarations = (
   const { context, entrySourceFile } = analyzed.value;
   const entryFileName = context.displayFileName(entrySourceFile);
   const diagnostics: DeclarationCollectionDiagnostic[] = [];
-  diagnostics.push(...validateStaticAuthoringProject(analyzed));
+  const extracted = extractReactComponents(analyzed);
+  if (!extracted.ok) diagnostics.push(...extracted.diagnostics);
+  const reactFacades = new Map(
+    extracted.ok
+      ? extracted.components.map(
+          (component) =>
+            [
+              component.fileName,
+              {
+                exportName: component.exportName,
+                id: component.metadata.id,
+                version: component.metadata.version,
+              },
+            ] as const,
+        )
+      : [],
+  );
+  const renderOnlyFiles = new Set(
+    extracted.ok
+      ? extracted.components.flatMap((component) => component.renderer.localDependencies)
+      : [],
+  );
+  diagnostics.push(...validateStaticAuthoringProject(analyzed, reactFacades, renderOnlyFiles));
   if (entryFileName.endsWith(".d.ts"))
     diagnostics.push({
       code: "compiler-declaration-entry-file-unsupported",
@@ -122,7 +149,7 @@ export const collectAuthoringDeclarations = (
     if (fileName.endsWith(".d.ts")) continue;
     const role = roleFor(fileName, entryFileName);
     if (!role) continue;
-    const lowered = lowerAuthoringDeclarationFile(analyzed, sourceFile, false);
+    const lowered = lowerAuthoringDeclarationFile(analyzed, sourceFile, false, reactFacades);
     if (!lowered.ok) {
       diagnostics.push(...lowered.diagnostics);
       continue;
@@ -152,5 +179,10 @@ export const collectAuthoringDeclarations = (
   }
   if (diagnostics.length !== 0)
     return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
-  return { ok: true, declarations, diagnostics: [] };
+  return {
+    ok: true,
+    declarations,
+    reactComponents: extracted.ok ? extracted.components : [],
+    diagnostics: [],
+  };
 };

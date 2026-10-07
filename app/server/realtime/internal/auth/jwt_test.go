@@ -42,7 +42,7 @@ func TestBearerTokenVerifierVerifiesRuntimeAssignmentClaimsAndRequiredScope(t *t
 		AssignmentEpoch:      3,
 		PresentationID:       "presentation-1",
 		PresentationRevision: 7,
-		ProtocolVersion:      1,
+		ProtocolVersion:      2,
 	}
 	if identity != want {
 		t.Errorf("identity = %#v, want %#v", identity, want)
@@ -50,6 +50,26 @@ func TestBearerTokenVerifierVerifiesRuntimeAssignmentClaimsAndRequiredScope(t *t
 
 	if _, err := verifier.VerifyBearer(context.Background(), "Bearer "+token, "assets:read"); err != ErrInsufficientScope {
 		t.Errorf("missing scope error = %v, want %v", err, ErrInsufficientScope)
+	}
+}
+
+func TestBearerTokenVerifierAcceptsV2AndRejectsLegacyAndUnknownProtocol(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	privateKey, publicKey := testKey(t)
+	server := newJWKSServer(t, "key-1", publicKey)
+	defer server.Close()
+	verifier := newTestVerifier(t, server.URL, &now)
+	for _, version := range []uint64{1, 2, 3} {
+		claims := validClaims(now)
+		claims["protocol_version"] = version
+		identity, err := verifier.VerifyBearer(context.Background(), "Bearer "+issueToken(t, privateKey, "key-1", claims), "realtime:connect")
+		if version == 2 && (err != nil || identity.ProtocolVersion != 2) {
+			t.Fatalf("v2 identity = %#v, error = %v", identity, err)
+		}
+		if version != 2 && err != ErrInvalidTokenClaims {
+			t.Fatalf("v%d error = %v, want %v", version, err, ErrInvalidTokenClaims)
+		}
 	}
 }
 
@@ -470,7 +490,7 @@ func TestBearerTokenVerifierRejectsInvalidHeaderSignatureAndClaimsWithoutLeaking
 		{name: "zero presentation revision", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "presentation_revision", 0)), want: ErrInvalidTokenClaims},
 		{name: "missing scope", token: issueToken(t, privateKey, "key-1", withoutClaim(validClaims(now), "scope")), want: ErrInvalidTokenClaims},
 		{name: "zero protocol version", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "protocol_version", 0)), want: ErrInvalidTokenClaims},
-		{name: "unsupported protocol version", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "protocol_version", 2)), want: ErrInvalidTokenClaims},
+		{name: "unsupported protocol version", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "protocol_version", 3)), want: ErrInvalidTokenClaims},
 		{name: "unknown role", token: issueToken(t, privateKey, "key-1", withClaim(validClaims(now), "role", "admin")), want: ErrInvalidTokenClaims},
 	}
 	for _, test := range tests {
@@ -537,7 +557,7 @@ func validClaims(now time.Time) map[string]any {
 		"presentation_id":       "presentation-1",
 		"presentation_revision": 7,
 		"scope":                 "realtime:connect",
-		"protocol_version":      1,
+		"protocol_version":      2,
 		"nbf":                   now.Add(-time.Second).Unix(),
 		"exp":                   now.Add(time.Minute).Unix(),
 	}

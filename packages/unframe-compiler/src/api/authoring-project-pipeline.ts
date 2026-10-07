@@ -1,3 +1,5 @@
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
+import { computeFrozenComponentInputs } from "../semantic/frozen-component-inputs.js";
 import { checkAuthoringProject } from "./check-authoring-project.js";
 import { assembleDeclarationProjectValidated } from "./assemble-declaration-project.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
@@ -13,6 +15,7 @@ export const assembleAuthoringProject = (
 ): AuthoringProjectPipelineResult<{
   project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
+  catalog: Extract<ReturnType<typeof checkAuthoringProject>, { valid: true }>["value"];
 }> => {
   const catalog = checkAuthoringProject(source);
   if (!catalog.valid) return { valid: false, phase: "source", diagnostics: catalog.diagnostics };
@@ -38,11 +41,31 @@ export const assembleAuthoringProject = (
         },
       ],
     };
+  const expected = computeFrozenComponentInputs(source, catalog.value);
+  if (!expected.valid)
+    return { valid: false, phase: "assembly", diagnostics: expected.diagnostics };
+  const supplied = snapshot.value as { componentLocks?: unknown };
+  if (
+    hashCanonicalJsonPayload(supplied.componentLocks ?? null) !==
+    hashCanonicalJsonPayload(expected.value.componentLocks)
+  )
+    return {
+      valid: false,
+      phase: "assembly",
+      diagnostics: [
+        {
+          code: "compiler-frozen-component-lock-mismatch",
+          path: ["componentLocks"],
+          message:
+            "Component origins, source closure, or renderer inputs differ from the frozen lock. Refresh the lock explicitly.",
+        },
+      ],
+    };
   const assembled = assembleDeclarationProjectValidated({
     ...(snapshot.value as object),
     catalog: catalog.value,
   });
   return assembled.valid
-    ? { valid: true, value: assembled.value, diagnostics: [] }
+    ? { valid: true, value: { ...assembled.value, catalog: catalog.value }, diagnostics: [] }
     : { valid: false, phase: "assembly", diagnostics: assembled.diagnostics };
 };

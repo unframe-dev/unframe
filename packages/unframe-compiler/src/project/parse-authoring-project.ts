@@ -1,9 +1,11 @@
 import type * as ts from "typescript";
 import { z } from "zod";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 
 import {
   parseLockedPackages,
-  type LockedPackageIdentity,
+  type LockedDependency,
   type ParsedLockedPackage,
 } from "./parse-locked-packages.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
@@ -24,8 +26,17 @@ export type ParsedAuthoringProjectValue = {
   readonly projectRoot: string;
   readonly entryFile: string;
   readonly files: Readonly<Record<string, ts.SourceFile>>;
-  readonly packageDependencies: readonly LockedPackageIdentity[];
+  readonly rootDependencies: readonly LockedDependency[];
   readonly packages: readonly ParsedLockedPackage[];
+  readonly rawFiles: Readonly<Record<string, RawProjectFile>>;
+};
+
+export type RawProjectFile = {
+  readonly path: string;
+  readonly mediaType: string;
+  readonly hash: string;
+  readonly encoding: "utf8" | "base64";
+  readonly data: string;
 };
 
 export type ParsedAuthoringProject =
@@ -41,8 +52,19 @@ const inputSchema = z
     projectRoot: z.string(),
     entryFile: z.string(),
     files: z.array(z.object({ fileName: z.string(), sourceText: z.string() }).strict()),
-    packageDependencies: z.array(z.unknown()),
+    rootDependencies: z.array(z.unknown()),
     packages: z.array(z.unknown()),
+    rawFiles: z
+      .array(
+        z.strictObject({
+          path: z.string(),
+          mediaType: z.string(),
+          hash: z.string(),
+          encoding: z.enum(["utf8", "base64"]),
+          data: z.string(),
+        }),
+      )
+      .optional(),
   })
   .strict();
 
@@ -59,17 +81,26 @@ const hasProjectEnvelopeShape = (value: unknown) => {
       "projectRoot",
       "entryFile",
       "files",
-      "packageDependencies",
+      "rootDependencies",
       "packages",
+    ]) &&
+    !hasExactOwnKeys(value, [
+      "projectRoot",
+      "entryFile",
+      "files",
+      "rootDependencies",
+      "packages",
+      "rawFiles",
     ])
   )
     return false;
-  const { files, packageDependencies, packages } = value as Record<string, unknown>;
+  const { files, rootDependencies, packages, rawFiles } = value as Record<string, unknown>;
   return (
     Array.isArray(files) &&
     files.every((file) => hasExactOwnKeys(file, ["fileName", "sourceText"])) &&
-    Array.isArray(packageDependencies) &&
-    Array.isArray(packages)
+    Array.isArray(rootDependencies) &&
+    Array.isArray(packages) &&
+    (rawFiles === undefined || Array.isArray(rawFiles))
   );
 };
 
@@ -144,7 +175,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
       ],
     };
 
-  const { projectRoot, entryFile, files } = parsed.data;
+  const { projectRoot, entryFile, files, rawFiles = [] } = parsed.data;
   const lockedPackages = parseLockedPackages(snapshot.value as Record<string, unknown>);
   if (!lockedPackages.valid)
     return { ok: false, diagnostics: [...lockedPackages.diagnostics].sort(compareDiagnostics) };
@@ -194,6 +225,58 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         ),
       });
   }
+  const rawMap: Record<string, RawProjectFile> = Object.create(null) as Record<
+    string,
+    RawProjectFile
+  >;
+  for (const file of rawFiles) {
+    if (!isRootRelativePath(file.path) || sourceKindSupported(file.path))
+      diagnostics.push(
+        projectDiagnostic(
+          "compiler-project-path-invalid",
+          file.path,
+          "Raw file path must be root-relative and must not use a TypeScript source suffix.",
+        ),
+      );
+    else if (seen.has(file.path) || Object.hasOwn(rawMap, file.path))
+      diagnostics.push(
+        projectDiagnostic(
+          "compiler-project-file-duplicate",
+          file.path,
+          "Virtual project file names must be unique.",
+        ),
+      );
+    else {
+      let decoded = "";
+      try {
+        if (file.encoding === "base64") decoded = atob(file.data);
+      } catch {
+        decoded = "\ufffd";
+      }
+      const canonicalBase64 =
+        file.encoding === "utf8" ||
+        (/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.data) &&
+          btoa(decoded) === file.data);
+      const bytes =
+        file.encoding === "utf8"
+          ? new TextEncoder().encode(file.data)
+          : Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+      if (
+        !canonicalBase64 ||
+        !/^sha256:[0-9a-f]{64}$/.test(file.hash) ||
+        file.hash !== `sha256:${bytesToHex(sha256(bytes))}` ||
+        file.mediaType.length === 0
+      )
+        diagnostics.push(
+          projectDiagnostic(
+            "compiler-invalid-input",
+            file.path,
+            "Raw file bytes, media type, or hash are invalid.",
+          ),
+        );
+      else rawMap[file.path] = file;
+    }
+  }
   if (isRootRelativePath(entryFile) && !seen.has(entryFile))
     diagnostics.push(
       projectDiagnostic(
@@ -238,8 +321,9 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           projectRoot,
           entryFile,
           files: parsedFiles,
-          packageDependencies: lockedPackages.packageDependencies,
+          rootDependencies: lockedPackages.rootDependencies,
           packages: lockedPackages.packages,
+          rawFiles: rawMap,
         },
         diagnostics: [],
       };

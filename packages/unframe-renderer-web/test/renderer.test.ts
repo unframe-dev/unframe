@@ -1,4 +1,7 @@
 import { runInNewContext } from "node:vm";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+import { PNG } from "pngjs";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createBakedWebRenderer,
@@ -24,7 +27,231 @@ import {
   type CompilerResolvedSurfaceInput,
 } from "@unframe/unframe-renderer-api";
 
+const structuredContent = (surface: CompilerResolvedSurfaceInput["surface"]) => {
+  if (surface.content.kind !== "structured") throw new TypeError("Expected structured fixture.");
+  return surface.content;
+};
+
 describe("baked web renderer", () => {
+  it("State override を反映した Stack/Grid 内の Shape と checksum 付き Image を描画する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
+    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
+    const content = structuredContent(source.surface);
+    const root = content.nodes.root;
+    if (!root || root.kind !== "frame") throw new Error("expected root Frame");
+    const png = new PNG({ width: 1, height: 1 });
+    png.data.set([255, 255, 255, 255]);
+    const pngBase64 = PNG.sync.write(png).toString("base64");
+    const imageBytes = Buffer.from(pngBase64, "base64");
+    const clear = { red: 0, green: 0, blue: 0, alpha: 0 };
+    const margin = { top: 0, right: 0, bottom: 0, left: 0 };
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      imageAssets: {
+        logo: {
+          mediaType: "image/png",
+          dataBase64: pngBase64,
+          checksum: `sha256:${bytesToHex(sha256(imageBytes))}`,
+        },
+      },
+      surface: {
+        ...source.surface,
+        content: {
+          ...content,
+          nodes: {
+            root: {
+              ...root,
+              children: ["grid", "shape"],
+              layout: {
+                kind: "stack",
+                direction: "horizontal",
+                gap: 2,
+                padding: margin,
+                alignItems: "start",
+                justifyContent: "start",
+              },
+            },
+            grid: {
+              ...root,
+              id: "grid",
+              parentId: "root",
+              order: 0,
+              placement: {
+                kind: "stack",
+                grow: 0,
+                width: 30,
+                height: 20,
+                alignSelf: "auto",
+                margin,
+              },
+              layout: {
+                kind: "grid",
+                columns: [{ kind: "fraction", fraction: 1 }],
+                rows: [{ kind: "fraction", fraction: 1 }],
+                columnGap: 0,
+                rowGap: 0,
+                padding: margin,
+              },
+              children: ["image"],
+            },
+            image: {
+              id: "image",
+              kind: "image",
+              parentId: "grid",
+              order: 0,
+              visible: true,
+              opacity: 1,
+              assetId: "logo",
+              placement: {
+                kind: "grid",
+                column: 1,
+                row: 1,
+                columnSpan: 1,
+                rowSpan: 1,
+                width: 10,
+                height: 10,
+                alignSelf: "center",
+                justifySelf: "center",
+                margin,
+              },
+              style: {
+                fit: "contain",
+                tint: { red: 0, green: 1, blue: 0, alpha: 1 },
+                border: { color: clear, width: 0, radius: 0 },
+              },
+            },
+            shape: {
+              id: "shape",
+              kind: "shape",
+              parentId: "root",
+              order: 1,
+              visible: true,
+              opacity: 1,
+              placement: { kind: "stack", grow: 0, width: 8, height: 8, alignSelf: "auto", margin },
+              geometry: { kind: "rectangle", width: 8, height: 8, radius: 1 },
+              style: { fill: clear, stroke: clear, strokeWidth: 1 },
+            },
+          },
+        },
+        states: {
+          a: {
+            ...source.surface.states.a!,
+            contentOverrides: {
+              shape: { kind: "shape", geometry: { kind: "ellipse", width: 8, height: 8 } },
+            },
+          },
+          z: { ...source.surface.states.z!, contentOverrides: {} },
+        },
+      },
+      plan: {
+        ...source.plan,
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["grid", "image", "shape"],
+          contextNodeIds: ["root"],
+        },
+      },
+    };
+    const result = await renderer.build(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(requests[0]?.document).toContain('data-node-id="image" style="left:0.2px;top:0.1px;');
+    expect(requests[0]?.document).toContain(`src="data:image/png;base64,${pngBase64}"`);
+    expect(requests[0]?.document).toMatch(/filter id="tint-[0-9a-f]{64}"/);
+    expect(requests[0]?.document).toContain("<ellipse");
+    expect(requests[1]?.document).toContain("<rect");
+    const bad = await renderer.build({
+      ...input,
+      imageAssets: { logo: { ...input.imageAssets!.logo!, checksum: `sha256:${"0".repeat(64)}` } },
+    });
+    expect(bad).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "image-asset-checksum-mismatch" }],
+    });
+    const huge = Buffer.from(pngBase64, "base64");
+    huge.writeUInt32BE(4097, 16);
+    expect(
+      await renderer.build({
+        ...input,
+        imageAssets: {
+          logo: {
+            mediaType: "image/png",
+            dataBase64: huge.toString("base64"),
+            checksum: `sha256:${bytesToHex(sha256(huge))}`,
+          },
+        },
+      }),
+    ).toMatchObject({ ok: false, diagnostics: [{ code: "image-asset-dimensions-exceeded" }] });
+    const corrupt = Buffer.from(pngBase64, "base64");
+    corrupt[corrupt.length - 16] = corrupt[corrupt.length - 16]! ^ 0xff;
+    expect(
+      await renderer.build({
+        ...input,
+        imageAssets: {
+          logo: {
+            mediaType: "image/png",
+            dataBase64: corrupt.toString("base64"),
+            checksum: `sha256:${bytesToHex(sha256(corrupt))}`,
+          },
+        },
+      }),
+    ).toMatchObject({ ok: false, diagnostics: [{ code: "invalid-image-asset" }] });
+  });
+  it("nonzero boundsの部分partitionではcontext Frameのpaintを省き、owned childだけを描画する", async () => {
+    const requests: BrowserCaptureRequest[] = [];
+    const renderer = createBakedWebRenderer({
+      adapter: {
+        identity: adapterIdentity,
+        environment,
+        capture(request) {
+          requests.push(request);
+          return {
+            rgba: new Uint8Array(request.pixelTarget[0] * request.pixelTarget[1] * 4),
+            pixelSize: request.pixelTarget,
+            colorSpace: "srgb" as const,
+            alphaMode: "straight" as const,
+          };
+        },
+      },
+      config,
+    });
+    const source = nestedInputFor(createWebRendererConfigHash(config), renderer);
+    const input: CompilerResolvedSurfaceInput = {
+      ...source,
+      plan: {
+        ...source.plan,
+        logicalBounds: { x: 12, y: 6, width: 20, height: 8 },
+        clipWindow: { x: 12, y: 6, width: 20, height: 8 },
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["text-first"],
+          contextNodeIds: ["root", "nested"],
+        },
+        states: { a: { kind: "capture" }, z: { kind: "empty" } },
+      },
+      context: { ...source.context, pixelTarget: [40, 16] },
+    };
+
+    const result = await renderer.build(input);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.pixelTarget).toEqual([40, 16]);
+    const document = requests[0]?.document ?? "";
+    expect(document).toContain('data-node-id="text-first"');
+    expect(document).not.toContain('data-node-id="text-second"');
+    expect(document).not.toContain('data-node-id="clipped"');
+    expect(document).toMatch(/#surface\{[^}]*left:-24px;top:-12px/);
+    expect(document).toMatch(
+      /data-node-id="nested"[^>]*background:rgba\(0,0,0,0\);border:4px solid rgba\(0,0,0,0\)/,
+    );
+    expect(document).toContain(
+      "body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(0,0,0,0)",
+    );
+    expect(result.captures.map(({ stateId }) => stateId)).toEqual(["a"]);
+  });
   it("2K static captureを通常実行境界でbounded memoryのcaller-owned RGBAとして返す", async () => {
     let adapterBytes: Uint8Array | undefined;
     const renderer = createBakedWebRenderer({
@@ -67,7 +294,7 @@ describe("baked web renderer", () => {
   it("固定環境と設定から決定論的な plugin を作り、capture を状態順に生成する", async () => {
     const requests: BrowserCaptureRequest[] = [];
     const hash = createWebRendererConfigHash(config);
-    expect(hash).toBe("sha256:3a5eb53c58755df665e1be21fe56d96f4f63c2cfda60a9b7203c3c869ad54075");
+    expect(hash).toBe("sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a");
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const input = withRendererFingerprint(inputFor(hash), renderer);
     const result = await renderer.build(input);
@@ -91,13 +318,12 @@ describe("baked web renderer", () => {
     );
     expect(firstRequest?.document).not.toMatch(/style="[^"]*font-family:"unframe-font-/);
     expect(firstRequest?.document).toContain(
-      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:block;opacity:1;background:rgba(0,0,0,1);border:0px solid rgba(0,0,0,0);border-radius:0px;overflow:visible}",
+      "#surface{position:absolute;box-sizing:border-box;left:0px;top:0px;width:2px;height:1px;display:block;opacity:1;background:rgba(0,0,0,0);border:0px solid rgba(0,0,0,0);border-radius:0px;overflow:visible}",
     );
     expect(firstRequest?.document).toContain(
       'font-size:0.2px;line-height:0.24px;color:rgba(255,255,255,1);font-weight:400;text-align:start;overflow:hidden;white-space:pre-wrap">&lt;&amp;&gt;&quot;&#39;',
     );
     expect(result.captures.map((capture) => capture.stateId)).toEqual(["a", "z"]);
-    expect(result.hitRegionsByState).toEqual({ a: [], z: [] });
     expect(result.provenance.implementationHash).toMatch(/^sha256:/);
     expect(await runRendererConformance(renderer, [{ name: "web", input }])).toMatchObject({
       valid: true,
@@ -128,7 +354,7 @@ describe("baked web renderer", () => {
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const document = requests[0]?.document ?? "";
     expect(document).toContain(
-      'data-node-id="nested" style="left:20px;top:10px;width:120px;height:60px;display:block;opacity:0.75;background:rgba(255,0,0,0.5);border:4px solid rgba(0,255,0,1);border-radius:6px;overflow:hidden"',
+      'data-node-id="nested" style="left:20px;top:10px;width:120px;height:60px;display:block;opacity:0.75;background:rgba(0,0,0,0);border:4px solid rgba(0,0,0,0);border-radius:6px;overflow:hidden"',
     );
     expect(document).toContain(
       'data-node-id="text-second" style="left:14px;top:6px;width:40px;height:16px;',
@@ -140,10 +366,10 @@ describe("baked web renderer", () => {
     expect(document).toContain("</div></div></main>");
   });
 
-  it("nested Stack layoutを引き続き拒否する", async () => {
+  it("親 layout と子 placement が一致しない Stack を拒否する", async () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const input = nestedInputFor(createWebRendererConfigHash(config), renderer);
-    const nested = input.surface.contentNodes.nested;
+    const nested = structuredContent(input.surface).nodes.nested;
     if (!nested || nested.kind !== "frame") throw new Error("expected nested Frame fixture");
 
     await expect(
@@ -151,17 +377,20 @@ describe("baked web renderer", () => {
         ...input,
         surface: {
           ...input.surface,
-          contentNodes: {
-            ...input.surface.contentNodes,
-            nested: {
-              ...nested,
-              layout: {
-                kind: "stack",
-                direction: "horizontal",
-                gap: 0,
-                padding: { top: 0, right: 0, bottom: 0, left: 0 },
-                alignItems: "start",
-                justifyContent: "start",
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              nested: {
+                ...nested,
+                layout: {
+                  kind: "stack",
+                  direction: "horizontal",
+                  gap: 0,
+                  padding: { top: 0, right: 0, bottom: 0, left: 0 },
+                  alignItems: "start",
+                  justifyContent: "start",
+                },
               },
             },
           },
@@ -169,7 +398,7 @@ describe("baked web renderer", () => {
       }),
     ).resolves.toMatchObject({
       ok: false,
-      diagnostics: [{ code: "unsupported-structured-tree" }],
+      diagnostics: [{ code: "invalid-structured-layout" }],
     });
   });
 
@@ -221,7 +450,7 @@ describe("baked web renderer", () => {
       "glyph coverage",
       testFontAsset("x"),
       "font-glyph-missing",
-      ["surface", "contentNodes", "text", "value"],
+      ["surface", "content", "nodes", "text", "value"],
     ],
   ])("Font Assetの%s違反をcapture前に拒否する", async (_name, fontAsset, code, path) => {
     let captures = 0;
@@ -246,17 +475,20 @@ describe("baked web renderer", () => {
     const requests: BrowserCaptureRequest[] = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = source.surface.contentNodes.text;
+    const text = structuredContent(source.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text fixture");
     const result = await renderer.build({
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          text: {
-            ...text,
-            style: { ...text.style, fallbackFontAssetIds: ["font-fallback"] },
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            ...structuredContent(source.surface).nodes,
+            text: {
+              ...text,
+              style: { ...text.style, fallbackFontAssetIds: ["font-fallback"] },
+            },
           },
         },
       },
@@ -308,7 +540,6 @@ describe("baked web renderer", () => {
     expect(() =>
       createWebRendererConfigHash({
         documentBackground: [0, 0, 0, 255],
-        fontFamily: "unexpected",
       } as unknown as WebRendererConfig),
     ).toThrow();
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
@@ -388,10 +619,18 @@ describe("baked web renderer", () => {
     const requests: BrowserCaptureRequest[] = [];
     const renderer = createBakedWebRenderer({ adapter: adapter(requests), config });
     const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = source.surface.contentNodes.text;
+    const text = structuredContent(source.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text");
     const input: CompilerResolvedSurfaceInput = {
       ...source,
+      plan: {
+        ...source.plan,
+        ownership: {
+          kind: "structured",
+          ownedContentNodeIds: ["root", "text"],
+          contextNodeIds: [],
+        },
+      },
       surface: {
         ...source.surface,
         states: {
@@ -446,197 +685,7 @@ describe("baked web renderer", () => {
     );
   });
 
-  it("owned root Frame の button から private region を生成する", async () => {
-    const renderer = createBakedWebRenderer({ adapter: adapter(), config });
-    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const root = source.surface.contentNodes.root;
-    if (!root || root.kind !== "frame") throw new Error("expected Frame");
-    const interaction = { kind: "regions" as const, events: ["click"] };
-    const semantic = {
-      id: "root-button",
-      parentId: null,
-      order: 0,
-      role: "button" as const,
-      text: "Open",
-      interactionId: "tap",
-      stateEnabled: true,
-    };
-    const input: CompilerResolvedSurfaceInput = {
-      ...source,
-      surface: {
-        ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          root: { ...root, semanticNodeId: "root-button" },
-        },
-        baseSemanticTree: {
-          rootNodeIds: ["root-button"],
-          nodes: {
-            "root-button": {
-              id: "root-button",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Open",
-              interactionId: "tap",
-            },
-          },
-        },
-        interactions: { tap: { id: "tap", kind: "click", event: "click", hitPriority: 4 } },
-        states: {
-          a: { ...source.surface.states.a!, enabledInteractionIds: ["tap"] },
-          z: { ...source.surface.states.z!, enabledInteractionIds: ["tap"] },
-        },
-        renderIntent: { ...source.surface.renderIntent, interaction },
-      },
-      sourceIntent: { ...source.sourceIntent, interaction },
-      resolvedIntent: { ...source.resolvedIntent, interaction },
-      semanticsByState: {
-        a: { rootNodeIds: ["root-button"], nodes: { "root-button": semantic } },
-        z: { rootNodeIds: ["root-button"], nodes: { "root-button": semantic } },
-      },
-      plan: {
-        ...source.plan,
-        ownedContentNodeIds: ["root", "text"],
-        contextNodeIds: [],
-        hitPriorityByInteractionId: { tap: 4 },
-      },
-    };
-    const result = await renderer.build(input);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.hitRegionsByState.a).toEqual([
-      {
-        interactionId: "tap",
-        semanticNodeId: "root-button",
-        bounds: { x: 0, y: 0, width: 100, height: 50 },
-        priority: 4,
-      },
-    ]);
-    expect((await executeRendererPlugin(renderer, input)).valid).toBe(true);
-    for (const contentOverride of [
-      { kind: "frame" as const, visible: false },
-      { kind: "frame" as const, opacity: 0 },
-    ]) {
-      const hiddenInput: CompilerResolvedSurfaceInput = {
-        ...input,
-        surface: {
-          ...input.surface,
-          states: {
-            ...input.surface.states,
-            z: { ...input.surface.states.z!, contentOverrides: { root: contentOverride } },
-          },
-        },
-      };
-      const hiddenResult = await renderer.build(hiddenInput);
-      expect(hiddenResult).toMatchObject({
-        ok: false,
-        diagnostics: [{ code: "missing-enabled-interaction-region" }],
-      });
-      expect((await executeRendererPlugin(renderer, hiddenInput)).valid).toBe(false);
-      const partitionResult = await renderer.build({
-        ...hiddenInput,
-        plan: {
-          ...hiddenInput.plan,
-          clipWindow: { x: 0, y: 0, width: 99, height: 50 },
-        },
-      });
-      expect(partitionResult.ok).toBe(true);
-      if (partitionResult.ok) expect(partitionResult.hitRegionsByState.z).toEqual([]);
-    }
-  });
-
-  it("明示 semantic binding の visible geometry を partition-local region にする", async () => {
-    const renderer = createBakedWebRenderer({ adapter: adapter(), config });
-    const source = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = source.surface.contentNodes.text;
-    if (!text || text.kind !== "text") throw new Error("expected Text");
-    const interaction = { kind: "regions" as const, events: ["click"] };
-    const semantic = {
-      id: "button",
-      parentId: null,
-      order: 0,
-      role: "button" as const,
-      text: "Button",
-      interactionId: "tap",
-      stateEnabled: true,
-    };
-    const input: CompilerResolvedSurfaceInput = {
-      ...source,
-      surface: {
-        ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          text: { ...text, semanticNodeId: "button" },
-        },
-        baseSemanticTree: {
-          rootNodeIds: ["button"],
-          nodes: {
-            button: {
-              id: "button",
-              parentId: null,
-              order: 0,
-              role: "button",
-              text: "Button",
-              interactionId: "tap",
-            },
-          },
-        },
-        interactions: { tap: { id: "tap", kind: "click", event: "click", hitPriority: 7 } },
-        states: {
-          a: { ...source.surface.states.a!, enabledInteractionIds: ["tap"] },
-          z: {
-            ...source.surface.states.z!,
-            enabledInteractionIds: ["tap"],
-            contentOverrides: {
-              text: {
-                kind: "text",
-                placement: { kind: "absolute", x: 30, y: 5, width: 40, height: 20 },
-              },
-            },
-          },
-        },
-        renderIntent: { ...source.surface.renderIntent, interaction },
-      },
-      sourceIntent: { ...source.sourceIntent, interaction },
-      resolvedIntent: { ...source.resolvedIntent, interaction },
-      semanticsByState: {
-        a: { rootNodeIds: ["button"], nodes: { button: semantic } },
-        z: { rootNodeIds: ["button"], nodes: { button: semantic } },
-      },
-      plan: {
-        ...source.plan,
-        clipWindow: { x: 20, y: 0, width: 30, height: 50 },
-        hitPriorityByInteractionId: { tap: 7 },
-      },
-    };
-    const result = await renderer.build(input);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.hitRegionsByState).toEqual({
-      a: [
-        {
-          interactionId: "tap",
-          semanticNodeId: "button",
-          bounds: { x: 20, y: 5, width: 30, height: 20 },
-          priority: 7,
-        },
-      ],
-      z: [
-        {
-          interactionId: "tap",
-          semanticNodeId: "button",
-          bounds: { x: 30, y: 5, width: 20, height: 20 },
-          priority: 7,
-        },
-      ],
-    });
-  });
-
-  it("factory config と capture bytes の所有権を固定し、cross-realm Uint8Array を受け取る", async () => {
-    const mutableConfig = {
-      documentBackground: [0, 0, 0, 255] as [number, number, number, number],
-    };
+  it("capture bytes の所有権を固定し、cross-realm Uint8Array を受け取る", async () => {
     const requests: BrowserCaptureRequest[] = [];
     const foreignBytes = runInNewContext(
       "new Uint8Array([1, 2, 3, 255, 4, 5, 6, 255])",
@@ -656,21 +705,13 @@ describe("baked web renderer", () => {
           };
         },
       },
-      config: mutableConfig,
+      config,
     });
-    mutableConfig.documentBackground[0] = 255;
-    const input = withRendererFingerprint(
-      inputFor(
-        createWebRendererConfigHash({
-          documentBackground: [0, 0, 0, 255],
-        } as const),
-      ),
-      renderer,
-    );
+    const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     const result = await renderer.build(input);
     expect(result).toMatchObject({ ok: true });
     if (!result.ok) return;
-    expect(requests[0]?.document).toContain("background:rgba(0,0,0,1)");
+    expect(requests[0]?.document).toContain("background:rgba(0,0,0,0)");
     foreignBytes[0] = 99;
     foreignPixelSize[0] = 99;
     expect(result.captures[0]?.rgba[0]).toBe(1);
@@ -733,7 +774,7 @@ describe("baked web renderer", () => {
       config,
     });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
-    const text = input.surface.contentNodes.text;
+    const text = structuredContent(input.surface).nodes.text;
     if (!text || text.kind !== "text") throw new Error("expected Text fixture");
     await expect(renderer.build(input)).resolves.toMatchObject({ ok: true });
     await expect(
@@ -742,18 +783,21 @@ describe("baked web renderer", () => {
         surface: {
           ...input.surface,
           logicalSize: [Number.MIN_VALUE, 50],
-          contentNodes: {
-            ...input.surface.contentNodes,
-            text: {
-              ...text,
-              placement: {
-                kind: "absolute",
-                x: 0,
-                y: 0,
-                width: Number.MIN_VALUE,
-                height: 20,
+          content: {
+            ...structuredContent(input.surface),
+            nodes: {
+              ...structuredContent(input.surface).nodes,
+              text: {
+                ...text,
+                placement: {
+                  kind: "absolute",
+                  x: 0,
+                  y: 0,
+                  width: Number.MIN_VALUE,
+                  height: 20,
+                },
+                value: { kind: "literal", value: "scaled" },
               },
-              value: { kind: "literal", value: "scaled" },
             },
           },
         },
@@ -840,7 +884,12 @@ describe("baked web renderer", () => {
     const renderer = createBakedWebRenderer({ adapter: adapter(), config });
     const input = withRendererFingerprint(inputFor(createWebRendererConfigHash(config)), renderer);
     await expect(
-      renderer.build({ ...input, entry: { kind: "opaque", entryId: "x", moduleHash: "x" } }),
+      renderer.build({
+        ...input,
+        surface: { ...input.surface, content: { kind: "opaque", bindings: {} } },
+        plan: { ...input.plan, ownership: { kind: "opaque", bindingKeys: [] } },
+        entry: { kind: "opaque", entryId: "x", moduleHash: "x" },
+      }),
     ).resolves.toMatchObject({
       ok: false,
       diagnostics: [{ code: "unsupported-input-kind" }],
@@ -922,19 +971,17 @@ describe("baked web renderer", () => {
       semanticsByState: semantics,
     } as CompilerResolvedSurfaceInput);
     expect(result).toMatchObject({ ok: true });
-    if (result.ok) expect(Object.hasOwn(result.hitRegionsByState, "constructor")).toBe(true);
+    if (result.ok) expect(result.captures.map(({ stateId }) => stateId)).toContain("constructor");
   });
 
-  it("config と opaque capture の厳格な byte 境界を検証する", async () => {
-    const sparse = Object.assign([], { length: 4, 0: 0, 2: 0, 3: 255 }) as number[];
+  it("空config と opaque capture の厳格な境界を検証する", async () => {
     expect(() =>
       createWebRendererConfigHash({
-        documentBackground: sparse,
+        documentBackground: [0, 0, 0, 255],
       } as unknown as WebRendererConfig),
     ).toThrow();
     expect(() =>
       createWebRendererConfigHash({
-        documentBackground: [0, 0, 0, 255],
         fontFamily: "unexpected",
       } as unknown as WebRendererConfig),
     ).toThrow();
@@ -1090,9 +1137,12 @@ describe("baked web renderer", () => {
       ...source,
       surface: {
         ...source.surface,
-        contentNodes: {
-          ...source.surface.contentNodes,
-          text: { ...source.surface.contentNodes.text, value: 1 },
+        content: {
+          ...structuredContent(source.surface),
+          nodes: {
+            ...structuredContent(source.surface).nodes,
+            text: { ...structuredContent(source.surface).nodes.text, value: 1 },
+          },
         },
       },
     } as unknown as CompilerResolvedSurfaceInput;

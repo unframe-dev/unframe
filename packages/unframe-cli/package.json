@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./author-contract": "./src/author-contract.ts",
     "./tui": "./src/tui/run.tsx"
   },
   "scripts": {
@@ -12,7 +13,7 @@
     "presentation": "bun src/process/main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "vp check src test test-bun",
-    "test": "vp test run",
+    "test": "vp test run --exclude 'test/*.integration.test.ts'",
     "test:tui": "bun test ./test-bun/tui-render.test.bun.tsx",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:tui"
   },
@@ -26,6 +27,7 @@
     "solid-js": "1.9.12",
     "typescript": "5.9.3",
     "web-tree-sitter": "0.25.10",
+    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

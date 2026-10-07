@@ -5,6 +5,39 @@ import { definition } from "./schema.test";
 import type { PresentationDefinition } from "../../src/presentation/schema";
 
 describe("D1 presentation migration", () => {
+  it("locks draft replacement and deletion while a session uses the presentation", async () => {
+    const suffix = crypto.randomUUID();
+    const ownerId = `owner-lock-${suffix}`;
+    const presentationId = `presentation-lock-${suffix}`;
+    await env.DB.prepare(
+      "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, 'Owner', ?, 1, '2026', '2026')",
+    )
+      .bind(ownerId, `${ownerId}@example.test`)
+      .run();
+    const repository = new D1PresentationRepository(env.DB);
+    const value = { ...definition, assets: [] } as unknown as PresentationDefinition;
+    await repository.create({
+      id: presentationId,
+      ownerId,
+      revision: 1,
+      definition: value,
+      createdAt: "2026",
+      updatedAt: "2026",
+    });
+    await env.DB.prepare(
+      "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at) VALUES (?, ?, ?, ?, 'Waiting', '2026')",
+    )
+      .bind(`session-${suffix}`, presentationId, ownerId, `hash-${suffix}`)
+      .run();
+    await expect(repository.replace(presentationId, 1, value, "2027")).resolves.toBeNull();
+    await expect(repository.delete(presentationId, 1)).resolves.toBe(false);
+    await env.DB.prepare("UPDATE presentation_sessions SET state = 'Ended' WHERE id = ?")
+      .bind(`session-${suffix}`)
+      .run();
+    await expect(repository.replace(presentationId, 1, value, "2027")).resolves.toMatchObject({
+      revision: 2,
+    });
+  });
   it("creates the presentation tables in an empty database", async () => {
     const tables = await env.DB.prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",

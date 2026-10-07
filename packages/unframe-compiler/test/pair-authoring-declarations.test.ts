@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildOpaqueComponentManifest,
   defineComponentManifest,
   defineComponentStructure,
   definePresentation,
   defineTheme,
   frame,
+  validateStaticComponentMetadata,
 } from "@unframe/unframe-authoring";
 import type { CollectedAuthoringDeclaration } from "../src/project/collect-authoring-declarations.js";
 import {
@@ -94,6 +96,7 @@ const structure = (componentId: string) =>
 const collected = (declarations: readonly CollectedAuthoringDeclaration[]) => ({
   ok: true as const,
   declarations,
+  reactComponents: [],
   diagnostics: [] as const,
 });
 
@@ -122,6 +125,62 @@ describe("resolveAuthoringStructurePath", () => {
 });
 
 describe("pairAuthoringDeclarations", () => {
+  it.each([null, 42])("rejects a mixed scene with malformed component item %s", (item) => {
+    const base = presentation();
+    const mixed = {
+      ...base,
+      scene: {
+        ...base.scene,
+        components: [
+          {
+            id: "react-one",
+            component: { id: "react", version: 1 },
+            props: {},
+            owner: { kind: "presentation" },
+            audience: { kind: "all" },
+            parent: { kind: "stage" },
+            physicalSizeMeters: [1, 1],
+            fit: "contain",
+            transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+          },
+          item,
+        ],
+      },
+    };
+    expect(
+      pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", mixed)])),
+    ).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: "compiler-invalid-declaration", fileName: "entry.ts" }],
+    });
+  });
+  it("accepts a mixed Presentation descriptor with a React scene item", () => {
+    const base = presentation();
+    const mixed = {
+      ...base,
+      scene: {
+        ...base.scene,
+        components: [
+          {
+            id: "react-one",
+            component: { id: "react", version: 1 },
+            props: {},
+            owner: { kind: "presentation" },
+            audience: { kind: "all" },
+            parent: { kind: "stage" },
+            physicalSizeMeters: [1, 1],
+            fit: "contain",
+            transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+          },
+        ],
+      },
+    };
+    const result = pairAuthoringDeclarations(collected([entry("presentation", "entry.ts", mixed)]));
+    expect(result).toMatchObject({
+      ok: true,
+      catalog: { presentation: { value: { scene: { components: [{ id: "react-one" }] } } } },
+    });
+  });
   it("pairs structured manifest and structure deterministically while retaining collected entries", () => {
     const declarations = [
       entry("component-structure", "components/Button.structure.tsx", structure("button")),
@@ -468,7 +527,7 @@ describe("pairAuthoringDeclarations", () => {
     );
   });
 
-  it("rejects opaque manifests without attempting to pair their structures", () => {
+  it("rejects standalone opaque manifests without attempting to pair their structures", () => {
     const opaque = defineComponentManifest({
       componentId: "opaque",
       version: 1,
@@ -493,8 +552,65 @@ describe("pairAuthoringDeclarations", () => {
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.diagnostics.map((item) => item.code)).toEqual([
-      "compiler-opaque-component-unsupported",
+      "compiler-opaque-component-unpaired",
       "compiler-component-structure-unreferenced",
     ]);
+  });
+
+  it("pairs extracted React metadata and renderer without executing the component", () => {
+    const metadata = validateStaticComponentMetadata({
+      id: "hero",
+      version: 1,
+      props: {},
+      surface: { logicalSize: [800, 450] },
+      semantics: { rootNodeIds: [], nodes: {} },
+    });
+    const reactManifest = buildOpaqueComponentManifest(metadata, "hero.component.tsx#render");
+    const reactPresentation = {
+      ...presentation(),
+      scene: [
+        {
+          id: "hero-instance",
+          component: { id: "hero", version: 1 },
+          props: {},
+          owner: { kind: "presentation" },
+          audience: { kind: "all" },
+          parent: { kind: "stage" },
+          physicalSizeMeters: [1, 1],
+          fit: "contain",
+          transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        },
+      ],
+    };
+    const result = pairAuthoringDeclarations({
+      ok: true,
+      declarations: [entry("presentation", "entry.ts", reactPresentation)],
+      reactComponents: [
+        {
+          fileName: "hero.component.tsx",
+          exportName: "Hero",
+          metadata,
+          manifest: reactManifest,
+          renderer: {
+            entrySource: "export default () => null",
+            localDependencies: [],
+            packageImports: [],
+            renderOrigin: origin("hero.component.tsx"),
+            helperOrigins: [],
+          },
+          sourceMap: [{ path: [], origin: origin("hero.component.tsx") }],
+        },
+      ],
+      diagnostics: [],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.catalog.components).toHaveLength(1);
+      expect(result.catalog.components[0]).toMatchObject({
+        metadata,
+        rendererEntry: "hero.component.tsx#render",
+        renderer: { entrySource: "export default () => null" },
+      });
+    }
   });
 });
