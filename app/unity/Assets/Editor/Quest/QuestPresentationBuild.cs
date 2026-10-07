@@ -7,8 +7,6 @@ using UnityEngine;
 
 public static class QuestPresentationBuild
 {
-    private const string Scene = "Assets/Scenes/QuestPresentationScene.unity";
-
     [MenuItem("Unframe/Build Quest Presentation")]
     public static void BuildAndroid()
     {
@@ -18,16 +16,17 @@ public static class QuestPresentationBuild
             || (PlayerSettings.Android.targetArchitectures & AndroidArchitecture.ARM64) == 0)
             throw new InvalidOperationException("Quest Presentation requires Android IL2CPP and ARM64 Player Settings.");
         string projectRoot = Path.GetDirectoryName(Application.dataPath);
-        if (!File.Exists(Path.Combine(projectRoot, Scene))) throw new FileNotFoundException("Quest Presentation scene is missing.", Scene);
+        OpenCvSampleBuildPreparation.ValidateSamplesExcluded(projectRoot);
+        if (!File.Exists(Path.Combine(projectRoot, QuestPresentationSceneEditor.ScenePath))) throw new FileNotFoundException("Quest Presentation scene is missing.", QuestPresentationSceneEditor.ScenePath);
         string output = Path.Combine(projectRoot, "Builds", "QuestPresentation.apk");
         Directory.CreateDirectory(Path.GetDirectoryName(output));
-        BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+        BuildReport report = PassthroughCameraBuildAssetExclusion.BuildWithoutLocalSettings(() => BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
-            scenes = new[] { Scene },
+            scenes = new[] { QuestPresentationSceneEditor.ScenePath },
             locationPathName = output,
             target = BuildTarget.Android,
             options = BuildOptions.None,
-        });
+        }));
         if (report.summary.result != BuildResult.Succeeded)
             throw new InvalidOperationException("Quest Presentation Android build failed: " + report.summary.result);
     }

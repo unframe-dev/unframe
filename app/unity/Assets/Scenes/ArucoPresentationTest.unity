@@ -794,6 +794,7 @@ GameObject:
   - component: {fileID: 1046883112}
   - component: {fileID: 1046883111}
   - component: {fileID: 1046883110}
+  - component: {fileID: 1046883113}
   m_Layer: 0
   m_Name: Marker Presentation Controller
   m_TagString: Untagged
@@ -813,7 +814,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 142c32b4bac64ea7ab4e45d5fdb45cd5, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::ArucoPresentationOriginBinding
-  alignment: {fileID: 169578530}
+  calibrationSource: {fileID: 1046883113}
   runner: {fileID: 1046883111}
   presentationSpace: {fileID: 137190504}
   stageRoot: {fileID: 1513387502}
@@ -850,6 +851,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1046883113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1046883109}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c0b9c7eb2b840818d6785aab79033f6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ArucoPresentationCalibration
+  alignment: {fileID: 169578530}
+  questTrackingOrigin: {fileID: 382092643}
 --- !u!1 &1513387501
 GameObject:
   m_ObjectHideFlags: 0

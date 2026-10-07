@@ -7,6 +7,7 @@ using Unframe.Delivery;
 using Unframe.Presentation;
 using Unframe.Realtime;
 using UnityEngine;
+using Transform = UnityEngine.Transform;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -23,11 +24,51 @@ namespace Unframe.Unity.PresentationRuntime
         private RuntimeClockSnapshot clock;
         private double clockReceivedAt;
         private CancellationTokenSource lifetime;
+        private PresentationCalibrationState calibration;
+        private Transform questTrackingOrigin;
+        private Transform presentationSpace;
+        public Transform PresentationSpace => presentationSpace;
+        public bool CalibrationReady => calibration != null && calibration.IsValid
+            && PresentationCalibrationMath.TryWorldFromPresentation(calibration.PresentationFromQuestLocal, questTrackingOrigin, out _, out _);
+        public string CalibrationError { get; private set; }
+
+        public void ConfigureCalibration(PresentationCalibrationState state, Transform trackingOrigin)
+        {
+            if (state == null || trackingOrigin == null) throw new ArgumentException("Calibration state and Quest tracking origin are required.");
+            if (lifetime != null) throw new InvalidOperationException("Stop the runtime before changing its calibration source.");
+            if (calibration != null) calibration.Changed -= RefreshCalibration;
+            calibration = state;
+            questTrackingOrigin = trackingOrigin;
+            calibration.Changed += RefreshCalibration;
+            if (presentationSpace == null) presentationSpace = new GameObject("Calibrated Presentation Space").transform;
+            RefreshCalibration();
+        }
+
+        public void RefreshCalibration()
+        {
+            if (presentationSpace == null) return;
+            CalibrationError = calibration?.Reason ?? "not-calibrated";
+            if (calibration == null || !calibration.IsValid)
+            {
+                presentationSpace.gameObject.SetActive(false);
+                return;
+            }
+            if (!PresentationCalibrationMath.TryWorldFromPresentation(calibration.PresentationFromQuestLocal, questTrackingOrigin,
+                out UnityEngine.Pose worldFromPresentation, out string error))
+            {
+                calibration.Invalidate(error);
+                return;
+            }
+            CalibrationError = null;
+            presentationSpace.SetPositionAndRotation(worldFromPresentation.position, worldFromPresentation.rotation);
+            presentationSpace.localScale = UnityEngine.Vector3.one;
+            presentationSpace.gameObject.SetActive(isActiveAndEnabled && SessionReady);
+        }
         public bool DownloadReady { get; private set; }
         public bool ResidentReady { get { return textures != null && store.Delivery != null && store.Delivery.Residency.Textures != null && textures.IsReady(store.Delivery.Residency.Textures.Textures); } }
         public bool SessionReady { get { return DownloadReady && ResidentReady && connection != null && connection.SessionReady; } }
         public ulong PresentationOriginVersion { get { return SessionReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
-        public bool CanSendInput { get { return SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
+        public bool CanSendInput { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public bool CanSendTracking { get { return CanSendInput; } }
         public string LastError { get; private set; }
 
@@ -35,6 +76,7 @@ namespace Unframe.Unity.PresentationRuntime
             string certFingerprint = null, PresentationEncodedAssetCache encodedCache = null)
         {
             if (lifetime != null) throw new InvalidOperationException("A presentation is already running.");
+            if (calibration == null || questTrackingOrigin == null) throw new InvalidOperationException("Presentation calibration must be configured before running.");
             LastError = null;
             DownloadReady = false;
             lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -64,7 +106,7 @@ namespace Unframe.Unity.PresentationRuntime
                 }
                 DownloadReady = true;
                 if (!ResidentReady) throw new InvalidOperationException("asset-texture-residency-failed");
-                if (!hierarchy.TryReplace(store, transform, out error)) throw new InvalidOperationException(error);
+                if (!hierarchy.TryReplace(store, presentationSpace, out error)) throw new InvalidOperationException(error);
                 surfaceRenderer = new PresentationBakedSurfaceRenderer();
                 if (!surfaceRenderer.TryBuild(store, hierarchy, out error)) throw new InvalidOperationException(error);
                 connection = new PresentationRealtimeConnection(store, textures);
@@ -92,6 +134,7 @@ namespace Unframe.Unity.PresentationRuntime
                 textures?.Dispose();
                 textures = null;
                 DownloadReady = false;
+                RefreshCalibration();
                 lifetime.Dispose();
                 lifetime = null;
             }
@@ -135,6 +178,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Refresh()
         {
+            RefreshCalibration();
             RuntimeClockSnapshot latest = store.RuntimeClock;
             if (latest != null && (clock == null || latest.RuntimeTimeMs != clock.RuntimeTimeMs || latest.StatusCase != clock.StatusCase))
             {
@@ -155,6 +199,7 @@ namespace Unframe.Unity.PresentationRuntime
             store.InvalidateAnchorSamples();
             stateApplier.ApplyAnchors(store, hierarchy);
             surfaceRenderer?.Disable();
+            RefreshCalibration();
         }
 
         private double RuntimeTimeMs()
@@ -205,7 +250,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
         {
-            if (!SessionReady) throw new InvalidOperationException("Runtime tracking is disabled until session readiness.");
+            if (!CanSendTracking) throw new InvalidOperationException("Runtime tracking requires a calibrated ready Presenter.");
+            if (frame == null || !calibration.PresentationFromQuestLocal.Equals(frame.PresentationFromQuestLocal))
+                throw new InvalidOperationException("Tracking calibration does not match the active local calibration.");
             return connection.SendTrackingAsync(frame, token);
         }
 
@@ -219,6 +266,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Update()
         {
+            RefreshCalibration();
             if (connection != null && !connection.SessionReady) HandleDisconnected();
             if (connection != null && connection.SessionReady && ResidentReady)
             {
@@ -239,6 +287,20 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private void OnDisable() { lifetime?.Cancel(); }
+        private void OnDisable()
+        {
+            lifetime?.Cancel();
+            if (presentationSpace != null) presentationSpace.gameObject.SetActive(false);
+        }
+
+        private void OnDestroy()
+        {
+            if (calibration != null) calibration.Changed -= RefreshCalibration;
+            if (presentationSpace != null)
+            {
+                if (Application.isPlaying) Destroy(presentationSpace.gameObject);
+                else DestroyImmediate(presentationSpace.gameObject);
+            }
+        }
     }
 }

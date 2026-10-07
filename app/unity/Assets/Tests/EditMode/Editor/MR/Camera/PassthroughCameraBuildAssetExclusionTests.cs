@@ -6,6 +6,28 @@ using UnityEditor.Build;
 
 public sealed class PassthroughCameraBuildAssetExclusionTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ScopedBuildRestoresPreloadedAssetsAndClearsExclusionWhenCallbackFinishes(bool failBuild)
+    {
+        var original = PlayerSettings.GetPreloadedAssets();
+        bool invoked = false;
+        try
+        {
+            PassthroughCameraBuildAssetExclusion.BuildWithoutLocalSettings(() =>
+            {
+                invoked = true;
+                Assert.That(PassthroughCameraBuildAssetExclusion.ActiveExclusion, Is.Not.Null);
+                if (failBuild) throw new InvalidOperationException("Simulated build failure");
+                return null;
+            });
+        }
+        catch (InvalidOperationException) when (failBuild) { }
+        Assert.That(invoked, Is.True);
+        Assert.That(PassthroughCameraBuildAssetExclusion.ActiveExclusion, Is.Null);
+        Assert.That(PlayerSettings.GetPreloadedAssets(), Is.EqualTo(original));
+    }
+
     [Test]
     public void AndroidBuildRejectsLocalSettingsWhenScopedExclusionIsInactive()
     {

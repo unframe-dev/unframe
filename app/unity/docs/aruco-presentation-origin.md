@@ -16,7 +16,7 @@ Presentation Space（端末のworldFromPresentation、Unity world座標）
 
 このローカル検証では、マーカー中心をPresentation Spaceの基準点と定義します。マーカーの+Xは右、+Yは上、Unityの+Zは紙の裏方向です。端末で得た `ArucoOriginAlignment.OriginPose` は変換済みUnity world poseであり、再度Z反転しません。表示の合成順は `worldFromPresentation * presentationFromStage * nodeLocalChain` です。Bindingは外側とStageのscaleを1に保ち、ノード固有のscaleには触れません。
 
-`presentationOrigin.pose` は生成階層のルートが所有し、Unity座標へ変換して一度だけ適用します。BindingはStageのlocal poseをidentityに保ち、ロード後のOrigin更新も生成ルートへ反映します。端末の再位置合わせは外側のローカル補正だけを変更し、共有 `presentationOrigin.version` を変更しません。将来のParticipantCalibration通信やcalibrationRevisionの発行は未実装です。
+`presentationOrigin.pose` は生成階層のルートが所有し、Unity座標へ変換して一度だけ適用します。BindingはStageのlocal poseをidentityに保ち、ロード後のOrigin更新も生成ルートへ反映します。端末校正は `ArucoPresentationCalibration` の共有Stateを使い、[Session校正](session-calibration.md)と同じ座標変換で描画用world poseを復元します。端末の再位置合わせは外側のローカル補正だけを変更し、共有 `presentationOrigin.version` を変更しません。将来のParticipantCalibration通信やcalibrationRevisionの発行は未実装です。
 
 SnapshotのOriginが省略された場合はversion 0として扱い、Originがある場合はposeとversionを検証してfenceのversionとの一致を要求します。`PresentationOriginChanged` は変更前のOrigin versionのfenceと、現在のversionに1を加えたOriginを持つeventだけを受け取ります。Origin変更時はanchor sampleを破棄し、State Frame sequenceは維持します。通常event・State Frame・Projection Advanceは保持中のOrigin versionとの一致が必要です。不正な入力は既存の状態やsequenceを変更しません。
 

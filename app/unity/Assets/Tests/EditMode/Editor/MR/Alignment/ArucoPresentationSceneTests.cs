@@ -17,10 +17,14 @@ public sealed class ArucoPresentationSceneTests
             var runner = roots.SelectMany(root => root.GetComponentsInChildren<LocalPresentationFixtureRunner>(true)).Single();
             var binding = roots.SelectMany(root => root.GetComponentsInChildren<ArucoPresentationOriginBinding>(true)).Single();
             var alignment = roots.SelectMany(root => root.GetComponentsInChildren<ArucoOriginAlignment>(true)).Single();
+            var calibration = roots.SelectMany(root => root.GetComponentsInChildren<ArucoPresentationCalibration>(true)).Single();
+            var calibrationSettings = new SerializedObject(calibration);
+            Assert.That(calibrationSettings.FindProperty("alignment").objectReferenceValue, Is.EqualTo(alignment));
+            Assert.That(calibrationSettings.FindProperty("questTrackingOrigin").objectReferenceValue, Is.Not.Null);
             var settings = new SerializedObject(binding);
             var space = (Transform)settings.FindProperty("presentationSpace").objectReferenceValue;
             var stage = (Transform)settings.FindProperty("stageRoot").objectReferenceValue;
-            Assert.That(settings.FindProperty("alignment").objectReferenceValue, Is.EqualTo(alignment));
+            Assert.That(settings.FindProperty("calibrationSource").objectReferenceValue, Is.EqualTo(calibration));
             Assert.That(settings.FindProperty("runner").objectReferenceValue, Is.EqualTo(runner));
             Assert.That(space.gameObject.activeSelf, Is.False);
             Assert.That(space.parent, Is.Null);

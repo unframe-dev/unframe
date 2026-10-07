@@ -35,9 +35,17 @@ public static class ArucoPresentationTestEditor
             space.SetActive(false);
             var stage = new GameObject("Stage (Runtime origin)");
             stage.transform.SetParent(space.transform, false);
-            var binding = controller.AddComponent<ArucoPresentationOriginBinding>();
-            binding.Configure(alignment, runner, space.transform, stage.transform);
+            controller.AddComponent<ArucoPresentationOriginBinding>();
         }
+        var binding = runner.GetComponent<ArucoPresentationOriginBinding>();
+        if (binding == null) binding = runner.gameObject.AddComponent<ArucoPresentationOriginBinding>();
+        var calibration = runner.GetComponent<ArucoPresentationCalibration>();
+        if (calibration == null) calibration = runner.gameObject.AddComponent<ArucoPresentationCalibration>();
+        var rig = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();
+        calibration.Configure(alignment, rig.trackingSpace);
+        var presentationSpace = scene.GetRootGameObjects().Single(root => root.name == "Presentation Space (device calibration)");
+        var stageRoot = presentationSpace.transform.GetChild(0);
+        binding.Configure(calibration, runner, presentationSpace.transform, stageRoot);
         var settings = new SerializedObject(runner);
         settings.FindProperty("startOnPlay").boolValue = true;
         settings.ApplyModifiedPropertiesWithoutUndo();

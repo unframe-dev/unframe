@@ -144,51 +144,21 @@ public static class PassthroughCameraDeviceTestEditor
         }
         string output = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "PCA", fileName));
         Directory.CreateDirectory(Path.GetDirectoryName(output));
-        var preloaded = PlayerSettings.GetPreloadedAssets();
-        var preloadedPaths = preloaded.Select(AssetDatabase.GetAssetPath).ToArray();
-        var preloadedIds = preloaded.Select(GlobalObjectId.GetGlobalObjectIdSlow).ToArray();
-        var exclusion = new PassthroughCameraBuildAssetExclusion.AssetFileExclusion(
-            PassthroughCameraBuildAssetExclusion.SettingsPath,
-            Path.Combine("Library", "PcaBuildBackup", Guid.NewGuid().ToString("N")));
         using (new PassthroughCameraDiagnosticBuildSettings(applicationId))
         {
-            try
-            {
-                PassthroughCameraBuildAssetExclusion.ActiveExclusion = exclusion;
-                PlayerSettings.SetPreloadedAssets(preloaded.Where((asset, index) =>
-                    preloadedPaths[index] != PassthroughCameraBuildAssetExclusion.SettingsPath).ToArray());
-                BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            BuildReport report = PassthroughCameraBuildAssetExclusion.BuildWithoutLocalSettings(() =>
+                BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
                     scenes = new[] { scenePath },
                     locationPathName = output,
                     target = BuildTarget.Android,
                     options = BuildOptions.Development | (run ? BuildOptions.AutoRunPlayer : BuildOptions.None)
-                });
-                if (report.summary.result != BuildResult.Succeeded)
-                {
-                    throw new InvalidOperationException($"PCA build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
-                }
-                Debug.Log($"[PCA Preview] APK: {output} | Application: {applicationId}");
-            }
-            finally
+                }));
+            if (report.summary.result != BuildResult.Succeeded)
             {
-                PassthroughCameraBuildAssetExclusion.ActiveExclusion = null;
-                try
-                {
-                    exclusion.Dispose();
-                }
-                finally
-                {
-                    try
-                    {
-                        AssetDatabase.Refresh();
-                    }
-                    finally
-                    {
-                        PlayerSettings.SetPreloadedAssets(preloadedIds.Select(GlobalObjectId.GlobalObjectIdentifierToObjectSlow).ToArray());
-                    }
-                }
+                throw new InvalidOperationException($"PCA build {report.summary.result}: {report.summary.totalErrors} errors. See Console.");
             }
+            Debug.Log($"[PCA Preview] APK: {output} | Application: {applicationId}");
         }
     }
 }

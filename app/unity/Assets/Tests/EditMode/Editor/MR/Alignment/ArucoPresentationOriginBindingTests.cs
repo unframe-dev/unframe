@@ -11,6 +11,7 @@ public sealed class ArucoPresentationOriginBindingTests
     private GameObject space;
     private Transform stage;
     private ArucoOriginAlignment alignment;
+    private ArucoPresentationCalibration calibration;
     private LocalPresentationFixtureRunner runner;
     private ArucoPresentationOriginBinding binding;
 
@@ -23,10 +24,12 @@ public sealed class ArucoPresentationOriginBindingTests
         stage.SetParent(space.transform, false);
         alignment = host.AddComponent<ArucoOriginAlignment>();
         Invoke(alignment, "Awake");
+        calibration = host.AddComponent<ArucoPresentationCalibration>();
+        calibration.Configure(alignment, host.transform);
         runner = host.AddComponent<LocalPresentationFixtureRunner>();
         runner.SetHierarchyRoot(stage);
         binding = host.AddComponent<ArucoPresentationOriginBinding>();
-        binding.Configure(alignment, runner, space.transform, stage);
+        binding.Configure(calibration, runner, space.transform, stage);
     }
 
     [TearDown]
@@ -196,7 +199,9 @@ public sealed class ArucoPresentationOriginBindingTests
         // The serialized source can belong to another host, which may be destroyed first.
         var other = new GameObject("Destroyed Alignment Source");
         var source = other.AddComponent<ArucoOriginAlignment>();
-        binding.Configure(source, runner, space.transform, stage);
+        var otherCalibration = other.AddComponent<ArucoPresentationCalibration>();
+        otherCalibration.Configure(source, host.transform);
+        binding.Configure(otherCalibration, runner, space.transform, stage);
         Object.DestroyImmediate(other);
         Assert.DoesNotThrow(() => binding.Refresh());
         Assert.That(space.activeSelf, Is.False);
@@ -207,7 +212,7 @@ public sealed class ArucoPresentationOriginBindingTests
     public void ConfigurationRejectsAControllerUnderTheHiddenPresentationRoot()
     {
         host.transform.SetParent(space.transform, false);
-        Assert.Throws<System.ArgumentException>(() => binding.Configure(alignment, runner, space.transform, stage));
+        Assert.Throws<System.ArgumentException>(() => binding.Configure(calibration, runner, space.transform, stage));
         host.transform.SetParent(null);
     }
 
