@@ -20,6 +20,8 @@ pnpm-debug.log*
 # build artifacts
 dist/
 build/
+# Unity Editor build scripts are source files, not build artifacts.
+!app/unity/Assets/Editor/MR/Build/
 .svelte-kit/
 .cache/
 .turbo/
