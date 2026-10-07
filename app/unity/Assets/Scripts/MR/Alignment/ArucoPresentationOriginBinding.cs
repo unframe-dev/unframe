@@ -61,14 +61,7 @@ public sealed class ArucoPresentationOriginBinding : MonoBehaviour
 
     private void OnEnable() => Refresh();
 
-    private void LateUpdate()
-    {
-        Refresh();
-        if (IsPresentationVisible && runner.CanAdvance && OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger))
-        {
-            if (!runner.TryAdvance(out string error)) Debug.LogError("[Presentation] " + error, this);
-        }
-    }
+    private void LateUpdate() => Refresh();
 
     private void Hide()
     {

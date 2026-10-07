@@ -35,6 +35,16 @@ public sealed class ArucoPresentationSceneTests
             var runnerSettings = new SerializedObject(runner);
             Assert.That(runnerSettings.FindProperty("hierarchyRoot").objectReferenceValue, Is.EqualTo(stage));
             Assert.That(runnerSettings.FindProperty("startOnPlay").boolValue, Is.True);
+            var controls = roots.SelectMany(root => root.GetComponentsInChildren<QuestLocalPresentationControls>(true)).Single();
+            var controlsSettings = new SerializedObject(controls);
+            Assert.That(controlsSettings.FindProperty("calibrationSource").objectReferenceValue, Is.EqualTo(calibration));
+            Assert.That(controlsSettings.FindProperty("runner").objectReferenceValue, Is.EqualTo(runner));
+            Assert.That(controls.transform.IsChildOf(space), Is.False);
+            var view = roots.SelectMany(root => root.GetComponentsInChildren<QuestLocalPresentationStatusView>(true)).Single();
+            var viewSettings = new SerializedObject(view);
+            var rig = roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();
+            Assert.That(viewSettings.FindProperty("controls").objectReferenceValue, Is.EqualTo(controls));
+            Assert.That(viewSettings.FindProperty("head").objectReferenceValue, Is.EqualTo(rig.centerEyeAnchor));
         }
         finally { EditorSceneManager.CloseScene(scene, true); }
     }

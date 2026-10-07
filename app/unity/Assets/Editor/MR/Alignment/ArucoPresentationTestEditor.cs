@@ -46,6 +46,12 @@ public static class ArucoPresentationTestEditor
         var presentationSpace = scene.GetRootGameObjects().Single(root => root.name == "Presentation Space (device calibration)");
         var stageRoot = presentationSpace.transform.GetChild(0);
         binding.Configure(calibration, runner, presentationSpace.transform, stageRoot);
+        var controls = runner.GetComponent<QuestLocalPresentationControls>();
+        if (controls == null) controls = runner.gameObject.AddComponent<QuestLocalPresentationControls>();
+        controls.Configure(calibration, runner);
+        var statusView = runner.GetComponent<QuestLocalPresentationStatusView>();
+        if (statusView == null) statusView = runner.gameObject.AddComponent<QuestLocalPresentationStatusView>();
+        statusView.Configure(controls, rig.centerEyeAnchor);
         var settings = new SerializedObject(runner);
         settings.FindProperty("startOnPlay").boolValue = true;
         settings.ApplyModifiedPropertiesWithoutUndo();
