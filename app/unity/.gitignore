@@ -105,3 +105,14 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Meta XR development settings can contain local access tokens.
+/Assets/Resources/DevAgentSettings.asset
+/Assets/Resources/DevAgentSettings.asset.meta
+
+# OpenCV for Unity is a paid asset and must be installed locally by each developer.
+/Assets/OpenCVForUnity/
+/Assets/OpenCVForUnity.meta
+/Assets/StreamingAssets/OpenCVForUnityExamples/
+/Assets/StreamingAssets/OpenCVForUnityExamples.meta
+/Assets/StreamingAssets.meta

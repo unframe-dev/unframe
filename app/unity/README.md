@@ -35,3 +35,9 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 5. 端末、OS、Unity build、Presentation / Delivery hash、選択texture数と解像度、測定ツールと時刻を記録する。Deliveryのunique selected textureのdecoded GPU bytes合計とserial load CPU bytes最大値を[ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)の各256 MiB tier、encoded cacheを実際に設定したhard limit / reserve（baselineは4 GiB / 512 MiB）に照合する。別にpreload中の実CPU / GPU memory peak、upload peak、process / driver overhead、State変更・crossfade中の追加download / allocation、cacheの空き容量・evictionを計測する。実process peakをportable tierの256 MiBと直接比較して失格にしない。端末log、Realtime / Control Planeのfence・ready・disconnect記録、Profiler capture、画面記録を合否の証拠として残す。
 
 これらの実機確認は未実施です。端末用SceneとPose / 入力adapterはEditorでの配線・契約検証まで完了しており、端末上の動作・性能測定は未検証です。
+
+## PCA・ArUco の実機検証
+
+Quest のカメラ映像表示は、専用の `Assets/Scenes/PassthroughCameraDeviceTest.unity` で検証します。Unity の `Unframe > PCA > Open Device Test Scene` で開き、`Build and Run on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
+
+同じシーンで OpenCV for Unity の ArUco 検出・姿勢推定を実行します。`DICT_4X4_50` の ID 0、黒い正方形の一辺20cmを使用します。安定した原点を確定すると立方体と XYZ 軸を表示し、PCA 取得・検出を停止します。B/Y で再測定できます。[印刷マーカーと原点合わせの実機手順](docs/aruco-marker-detection.md) を参照してください。
