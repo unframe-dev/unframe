@@ -18,3 +18,8 @@ export const encodeRequestSchema = z.strictObject({
   alphaMode: z.enum(["opaque", "straight", "premultiplied"]),
   limits: encodeLimitsSchema,
 });
+
+export const resizeRequestSchema = encodeRequestSchema.omit({ limits: true }).extend({
+  targetPixelSize: z.tuple([positiveSafeIntegerSchema, positiveSafeIntegerSchema]),
+  limits: encodeLimitsSchema,
+});

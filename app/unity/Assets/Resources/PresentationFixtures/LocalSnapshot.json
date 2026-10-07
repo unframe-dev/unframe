@@ -33,6 +33,14 @@
             "rotation": { "x": 0, "y": 0, "z": 0, "w": 1 }
           }
         },
+        "clock": { "runtimeTimeMs": "0", "running": {} },
+        "progression": {
+          "currentGroupId": "group:local",
+          "groupEntryEpoch": "1",
+          "currentStepId": "step:local",
+          "stepEntryEpoch": "1",
+          "stable": {}
+        },
         "nodeStates": [
           {
             "nodeId": "node:local-stage",

@@ -38,7 +38,7 @@ type BrowserPage = {
   screenshot(options: {
     readonly type: "png";
     readonly scale: "css";
-    readonly omitBackground: false;
+    readonly omitBackground: true;
     readonly animations: "disabled";
     readonly caret: "hide";
   }): Promise<Uint8Array<ArrayBufferLike>>;
@@ -214,7 +214,7 @@ const FONT_PROBE_DOCUMENT = `<!doctype html><html><head><style>html,body{margin:
 const screenshotOptions = Object.freeze({
   type: "png" as const,
   scale: "css" as const,
-  omitBackground: false as const,
+  omitBackground: true as const,
   animations: "disabled" as const,
   caret: "hide" as const,
 });
@@ -272,6 +272,19 @@ const pageFor = (page: PlaywrightPage): BrowserPage => ({
       await document.fonts.ready;
       if (faces.some((face) => face.status !== "loaded"))
         throw new TypeError("A renderer font face failed to load.");
+      await Promise.all([...document.querySelectorAll("svg image")].map(async (element) => {
+        const source = element.getAttribute("href");
+        if (!source || !source.startsWith("data:image/"))
+          throw new TypeError("Renderer image must use an embedded data URI.");
+        const image = new Image();
+        image.src = source;
+        await image.decode();
+      }));
+      await Promise.all([...document.querySelectorAll("img")].map(async (image) => {
+        if (!image.src.startsWith("data:image/"))
+          throw new TypeError("Renderer image must use an embedded data URI.");
+        await image.decode();
+      }));
     })()`);
   },
   screenshot: async (options) => Uint8Array.from(await page.screenshot(options)),
@@ -453,3 +466,5 @@ export const createPlaywrightFixedBrowserFactory =
   };
 
 export const openPlaywrightFixedBrowser = createPlaywrightFixedBrowserFactory(playwrightDriver);
+
+export { initScript as fixedBrowserInitScript };

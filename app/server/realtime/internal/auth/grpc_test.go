@@ -31,7 +31,7 @@ func TestBearerStreamServerInterceptorBindsVerifiedIdentity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolve identity: %v", err)
 		}
-		if identity != (session.Identity{SessionID: "session-1", ParticipantID: "participant-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 7, ProtocolVersion: 1}) {
+		if identity != (session.Identity{SessionID: "session-1", ParticipantID: "participant-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 7, ProtocolVersion: 2}) {
 			t.Errorf("identity = %#v", identity)
 		}
 		return nil

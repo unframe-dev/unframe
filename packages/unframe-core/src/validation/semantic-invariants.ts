@@ -1,7 +1,7 @@
 import type {
-  CompletedSemanticTreeV2,
-  SemanticTreeDefinitionV2,
-} from "@unframe/contracts/presentation/v2";
+  CompletedSemanticTree,
+  SemanticTreeDefinition,
+} from "@unframe/contracts/presentation";
 
 import type { Diagnostic } from "../domain/model.js";
 import { materializeCompletedSemanticTree } from "../semantic-tree/materialize.js";
@@ -10,10 +10,7 @@ import { diagnostic, pathSegment, validateTree } from "./shared.js";
 type Tree = {
   readonly rootNodeIds: readonly string[];
   readonly nodes: Readonly<
-    Record<
-      string,
-      SemanticTreeDefinitionV2["nodes"][string] | CompletedSemanticTreeV2["nodes"][string]
-    >
+    Record<string, SemanticTreeDefinition["nodes"][string] | CompletedSemanticTree["nodes"][string]>
   >;
 };
 const parents: Record<string, string | null> = {
@@ -76,7 +73,6 @@ export const validateSurfaceStates = (
   path: string,
 ) => {
   const interactionIds = new Set(Object.keys(surface.interactions));
-  const contentIds = new Set(Object.keys(surface.contentNodes));
   const eventIds = new Set(
     surface.renderIntent.interaction.kind === "regions"
       ? surface.renderIntent.interaction.events
@@ -105,17 +101,26 @@ export const validateSurfaceStates = (
         );
       enabled.add(interactionId);
     }
-    for (const [contentId, override] of Object.entries(state.contentOverrides)) {
-      const content = surface.contentNodes[contentId];
-      if (!contentIds.has(contentId) || content?.kind !== override.kind)
-        diagnostics.push(
-          diagnostic(
-            "reference.invalid",
-            `${statePath}/contentOverrides/${pathSegment(contentId)}`,
-            "Content override must match an existing node kind.",
-          ),
-        );
-    }
+    if (surface.content.kind === "opaque" && Object.keys(state.contentOverrides).length > 0)
+      diagnostics.push(
+        diagnostic(
+          "behavior.invalid",
+          `${statePath}/contentOverrides`,
+          "Opaque Surface State cannot override structured content.",
+        ),
+      );
+    if (surface.content.kind === "structured")
+      for (const [contentId, override] of Object.entries(state.contentOverrides)) {
+        const content = surface.content.nodes[contentId];
+        if (content === undefined || content.kind !== override.kind)
+          diagnostics.push(
+            diagnostic(
+              "reference.invalid",
+              `${statePath}/contentOverrides/${pathSegment(contentId)}`,
+              "Content override must match an existing node kind.",
+            ),
+          );
+      }
     for (const [layerIndex, layer] of state.semanticOverrides.entries())
       for (const [nodeId, override] of Object.entries(layer.nodes)) {
         const node = surface.baseSemanticTree.nodes[nodeId];
@@ -199,7 +204,7 @@ export const compareRegions = (a: Region, b: Region) =>
 
 export const validateRegions = (
   diagnostics: Diagnostic[],
-  tree: CompletedSemanticTreeV2,
+  tree: CompletedSemanticTree,
   regions: Region[],
   path: string,
 ) => {

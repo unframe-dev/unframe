@@ -37,7 +37,7 @@ describe("runtime assignment persistence", () => {
     await repository.register(`edge-${suffix}`, {
       runtimeId: `runtime-${suffix}`,
       runtimeVersion: "1",
-      protocolVersion: "v1",
+      protocolVersion: "v2",
       capacity: 10,
       localEndpoint: "https://edge.example.com",
       certificateFingerprint: "sha256:test",
@@ -53,7 +53,7 @@ describe("runtime assignment persistence", () => {
       repository.register(`edge-${suffix}`, {
         runtimeId: `other-runtime-${suffix}`,
         runtimeVersion: "1",
-        protocolVersion: "v1",
+        protocolVersion: "v2",
         capacity: 10,
         localEndpoint: "https://edge.example.com",
         certificateFingerprint: "sha256:test",
@@ -93,7 +93,7 @@ describe("runtime assignment persistence", () => {
       repository.register(`other-edge-${suffix}`, {
         runtimeId: `runtime-${suffix}`,
         runtimeVersion: "1",
-        protocolVersion: "v1",
+        protocolVersion: "v2",
         capacity: 10,
         localEndpoint: "https://other-edge.example.com",
         certificateFingerprint: "sha256:other",

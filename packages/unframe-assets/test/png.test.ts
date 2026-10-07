@@ -1,6 +1,6 @@
 import { runInNewContext } from "node:vm";
 import { inflateSync } from "node:zlib";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import {
   PNG_ABSOLUTE_LIMITS,
   PNG_ENCODER_IDENTITY,
@@ -332,6 +332,25 @@ describe("PNG trust boundary", () => {
         },
       }),
     ).toContain("png-hard-cap-exceeded");
+  });
+
+  it("rejects over-cap and wrong-size RGBA before copying", () => {
+    const set = vi.spyOn(Uint8Array.prototype, "set");
+    try {
+      expect(
+        diagnosticCodes({
+          ...request,
+          rgba: new Uint8Array(PNG_ABSOLUTE_LIMITS.maxInputBytes + 1),
+        }),
+      ).toContain("png-hard-cap-exceeded");
+      expect(set).not.toHaveBeenCalled();
+      expect(diagnosticCodes({ ...request, rgba: new Uint8Array(1024) })).toContain(
+        "rgba-length-mismatch",
+      );
+      expect(set).not.toHaveBeenCalled();
+    } finally {
+      set.mockRestore();
+    }
   });
 
   it("converts hostile property access into stable diagnostics", () => {

@@ -150,6 +150,33 @@ export function createSessionRoutes(options: SessionRouteOptions) {
           const id = context.req.valid("param").id;
           const { participant, session } = await service.bootstrap(identity, id);
           const assignment = await assignments.active(id);
+          const publication = await context
+            .get("config")
+            .DB.prepare(
+              `SELECT publication.epoch AS publicationEpoch,
+                    publication.manifest AS manifest,
+                    capability.projection_profile_id AS projectionProfileId
+             FROM presentation_sessions AS session
+             LEFT JOIN presentation_publications AS publication
+               ON publication.presentation_id = session.presentation_id
+              AND publication.epoch = session.publication_epoch
+             LEFT JOIN session_participant_capabilities AS capability
+               ON capability.session_id = session.id AND capability.user_id = ?
+             WHERE session.id = ?`,
+            )
+            .bind(identity.userId, id)
+            .first<{
+              publicationEpoch: number | null;
+              manifest: string | null;
+              projectionProfileId: string | null;
+            }>();
+          if (
+            !publication ||
+            publication.publicationEpoch === null ||
+            !publication.manifest ||
+            !publication.projectionProfileId
+          )
+            throw new SessionError("conflict");
           const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
           if (expiresAt <= Math.floor(now().getTime() / 1_000)) {
             throw new SessionError("conflict");
@@ -165,6 +192,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
               assignmentEpoch: assignment.assignmentEpoch,
               presentationId: session.presentationId,
               presentationRevision: assignment.presentationRevision,
+              protocolVersion: 2,
               scopes:
                 assignment.runtimeKind === "VenueEdge"
                   ? ["realtime:connect", "assets:read"]
@@ -177,6 +205,21 @@ export function createSessionRoutes(options: SessionRouteOptions) {
           }
           const current = await service.bootstrap(identity, id);
           const currentAssignment = await assignments.active(id);
+          const currentPublication = await context
+            .get("config")
+            .DB.prepare(
+              `SELECT session.publication_epoch AS publicationEpoch,
+                    capability.projection_profile_id AS projectionProfileId
+             FROM presentation_sessions AS session
+             LEFT JOIN session_participant_capabilities AS capability
+               ON capability.session_id = session.id AND capability.user_id = ?
+             WHERE session.id = ?`,
+            )
+            .bind(identity.userId, id)
+            .first<{
+              publicationEpoch: number | null;
+              projectionProfileId: string | null;
+            }>();
           if (
             current.session.presentationId !== session.presentationId ||
             current.participant.userId !== participant.userId ||
@@ -186,7 +229,9 @@ export function createSessionRoutes(options: SessionRouteOptions) {
             currentAssignment.assignmentEpoch !== assignment.assignmentEpoch ||
             currentAssignment.presentationRevision !== assignment.presentationRevision ||
             currentAssignment.endpoint !== assignment.endpoint ||
-            currentAssignment.certificateFingerprint !== assignment.certificateFingerprint
+            currentAssignment.certificateFingerprint !== assignment.certificateFingerprint ||
+            currentPublication?.publicationEpoch !== publication.publicationEpoch ||
+            currentPublication?.projectionProfileId !== publication.projectionProfileId
           ) {
             throw new SessionError("conflict");
           }
@@ -200,6 +245,18 @@ export function createSessionRoutes(options: SessionRouteOptions) {
             presentationRevision: currentAssignment.presentationRevision,
             credential: credential.token,
             expiresAt: new Date(credential.expiresAt).toISOString(),
+            publicationFence: (({ presentationId, publicationEpoch, publicationManifestHash }) => ({
+              presentationId,
+              publicationEpoch,
+              publicationManifestHash,
+            }))(
+              JSON.parse(publication.manifest) as {
+                presentationId: string;
+                publicationEpoch: number;
+                publicationManifestHash: string;
+              },
+            ),
+            projectionProfileId: publication.projectionProfileId,
           };
         },
       );

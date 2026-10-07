@@ -34,6 +34,9 @@ jobs:
       - name: Unity protobuf source and C# drift check
         run: nix run .#unity-proto -- check
 
+      - name: Unity managed runtime dependency checksums
+        run: python3 app/unity/scripts/sync-runtime-dependencies.py check
+
   csharp-format:
     name: MR / csharp-format
     runs-on: ubuntu-latest

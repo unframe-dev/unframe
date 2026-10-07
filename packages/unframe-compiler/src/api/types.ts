@@ -2,29 +2,52 @@ import type {
   ComponentManifest,
   ComponentPackageLock,
   ComponentStructure,
+  StaticComponentMetadata,
+  StaticReactSceneItem,
   PresentationDeclaration,
   ThemeDeclaration,
   SourceMetadata,
 } from "@unframe/unframe-authoring";
 import type { EncodeLimits } from "@unframe/unframe-assets";
-import type { BuildArtifactsV2, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
+import type { BuildArtifacts, PresentationDefinition, RenderBundle } from "@unframe/unframe-core";
 import type { Diagnostic } from "@unframe/unframe-core";
 import type { RendererPlugin } from "@unframe/unframe-renderer-api";
 import type { PairedAuthoringDeclarationCatalog } from "../project/pair-authoring-declarations.js";
 
 export type CompilerDeclarationProject = {
-  presentation: PresentationDeclaration;
+  presentation:
+    | PresentationDeclaration
+    | (Omit<PresentationDeclaration, "scene"> & {
+        scene: readonly StaticReactSceneItem[];
+      })
+    | (Omit<PresentationDeclaration, "scene"> & {
+        scene: Omit<PresentationDeclaration["scene"], "components"> & {
+          components: readonly (
+            | PresentationDeclaration["scene"]["components"][number]
+            | StaticReactSceneItem
+          )[];
+        };
+      });
   themes: readonly { declaration: ThemeDeclaration; hash: string }[];
-  components: readonly {
-    manifest: ComponentManifest;
-    structure: ComponentStructure;
-    lock: Required<ComponentPackageLock>;
-  }[];
+  components: readonly (
+    | {
+        manifest: ComponentManifest;
+        structure: ComponentStructure;
+        lock: ComponentPackageLock & { mode: "structured" };
+      }
+    | {
+        manifest: ComponentManifest;
+        metadata: StaticComponentMetadata;
+        rendererEntry: string;
+        rendererSource: string;
+        lock: ComponentPackageLock & { mode: "opaque" };
+      }
+  )[];
   assets: Readonly<Record<string, CompilerSourceAsset>>;
 };
 export type CompilerSourceAsset = {
   readonly id: string;
-  readonly mediaType: "font/ttf" | "font/otf";
+  readonly mediaType: "font/ttf" | "font/otf" | "image/png" | "image/jpeg";
   readonly checksum: string;
   readonly encodedSizeBytes: number;
   readonly dataBase64: string;
@@ -33,10 +56,9 @@ export type DeclarationProjectThemeHash = {
   readonly themeId: string;
   readonly hash: string;
 };
-export type DeclarationProjectComponentLock = {
+export type DeclarationProjectComponentLock = ComponentPackageLock & {
   readonly componentId: string;
   readonly version: number;
-  readonly lock: Required<ComponentPackageLock>;
 };
 export type DeclarationProjectAssemblyInput = {
   readonly catalog: PairedAuthoringDeclarationCatalog;
@@ -81,7 +103,7 @@ export type CheckedDeclarationProject = {
   definitionJson: string;
   sourceHash: string;
   definitionHash: string;
-  assetSet: BuildArtifactsV2["assetSet"];
+  assetSet: BuildArtifacts["assetSet"];
   warnings: readonly CompilerWarning[];
 };
 export type CompilerBuildOptions = {
@@ -103,7 +125,7 @@ export type CompiledDeclarationProject = CheckedDeclarationProject & {
   readonly renderBundleHash: string;
   readonly assetSetJson: string;
   readonly assetSetHash: string;
-  readonly buildManifest: BuildArtifactsV2["buildManifest"];
+  readonly buildManifest: BuildArtifacts["buildManifest"];
   readonly buildManifestJson: string;
   readonly buildManifestHash: string;
   readonly assets: Readonly<Record<string, Uint8Array>>;

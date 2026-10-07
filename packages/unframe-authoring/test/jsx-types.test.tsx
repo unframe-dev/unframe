@@ -86,12 +86,6 @@ export const checkJsxTypes = (presentation: PresentationDeclaration) => {
       componentId="card"
       version={1}
       owner={{ kind: "presentation" }}
-      packageLock={{
-        packageVersion: "1",
-        packageIntegrity: "sha256:test",
-        manifestHash: "sha256:manifest",
-        structureHash: "sha256:structure",
-      }}
       props={{}}
       slots={{}}
       variants={{}}

@@ -78,6 +78,61 @@ const withPostInsertHook = (hook: () => Promise<void>): D1Database => {
 };
 
 describe("D1RuntimeAssignmentRepository", () => {
+  it.each([null, 1])(
+    "selects only v2 Venue Edges for publication epoch %s",
+    async (publicationEpoch) => {
+      const suffix = crypto.randomUUID();
+      const sessionId = await addSession(`v2-${suffix}`);
+      const edgeId = `edge-v2-${suffix}`;
+      const runtimeId = `runtime-v2-${suffix}`;
+      const fingerprint = `sha256:${"a".repeat(64)}`;
+      await env.DB.batch([
+        env.DB.prepare("UPDATE presentation_sessions SET publication_epoch = ? WHERE id = ?").bind(
+          publicationEpoch,
+          sessionId,
+        ),
+        env.DB.prepare(
+          "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '2', 'v1', 1, 'https://edge.example.com', ?, 'healthy', '2026', '2026', '2026')",
+        ).bind(edgeId, runtimeId, fingerprint),
+      ]);
+      const repository = new D1RuntimeAssignmentRepository(env.DB);
+      const request = {
+        sessionId,
+        runtimeId,
+        runtimeKind: "VenueEdge" as const,
+        endpoint: "https://edge.example.com",
+        certificateFingerprint: fingerprint,
+        provisioningEdgeId: edgeId,
+        presentationRevision: 1,
+        issuedAt: "2026-08-20T00:00:00.000Z",
+        leaseExpiresAt: "2026-08-21T00:00:00.000Z",
+        edgeHealthyAfter: "2025-12-31T23:59:00.000Z",
+      };
+      await expect(repository.assign(request)).resolves.toBeNull();
+      await env.DB.prepare("UPDATE venue_edges SET protocol_version = 'v2' WHERE id = ?")
+        .bind(edgeId)
+        .run();
+      await expect(repository.assign(request)).resolves.toMatchObject({ assignmentEpoch: 1 });
+      await expect(
+        repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2025-12-31T00:00:00.000Z"),
+      ).resolves.toMatchObject({ runtimeId });
+      await env.DB.prepare("UPDATE venue_edges SET protocol_version = 'v1' WHERE id = ?")
+        .bind(edgeId)
+        .run();
+      await expect(
+        repository.findActive(sessionId, "2026-08-20T01:00:00.000Z", "2025-12-31T00:00:00.000Z"),
+      ).resolves.toBeNull();
+      await expect(
+        repository.renew({
+          sessionId,
+          provisioningEdgeId: edgeId,
+          assignmentEpoch: 1,
+          now: "2026-08-20T01:00:00.000Z",
+          leaseExpiresAt: "2026-08-22T00:00:00.000Z",
+        }),
+      ).resolves.toBeNull();
+    },
+  );
   it("fences one active assignment per session and runtime while incrementing the session epoch", async () => {
     const suffix = crypto.randomUUID();
     const firstSession = await addSession(`first-${suffix}`);
@@ -170,7 +225,7 @@ describe("D1RuntimeAssignmentRepository", () => {
     const edgeId = `edge-${suffix}`;
     const runtimeId = `runtime-${suffix}`;
     await env.DB.prepare(
-      "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v1', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026', '2026', '2026')",
+      "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v2', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026', '2026', '2026')",
     )
       .bind(edgeId, runtimeId)
       .run();
@@ -240,7 +295,7 @@ describe("D1RuntimeAssignmentRepository", () => {
     const edgeId = `edge-${suffix}`;
     const runtimeId = `runtime-${suffix}`;
     await env.DB.prepare(
-      "INSERT INTO venue_edges (id, runtime_id, status, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', 'v1', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026', '2026', '2026')",
+      "INSERT INTO venue_edges (id, runtime_id, status, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', 'v2', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026', '2026', '2026')",
     )
       .bind(edgeId, runtimeId)
       .run();
@@ -281,7 +336,7 @@ describe("D1RuntimeAssignmentRepository", () => {
     const edgeId = `edge-stale-${suffix}`;
     const runtimeId = `runtime-stale-${suffix}`;
     await env.DB.prepare(
-      "INSERT INTO venue_edges (id, runtime_id, status, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', 'v1', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z')",
+      "INSERT INTO venue_edges (id, runtime_id, status, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', 'v2', 1, 'https://edge.example.com', 'sha256:test', 'healthy', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z', '2026-08-20T00:00:00.000Z')",
     )
       .bind(edgeId, runtimeId)
       .run();

@@ -9,23 +9,38 @@ import {
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import {
   createBakedWebRenderer,
+  combineBakedWebRenderers,
   createWebRendererConfigHash,
   openPlaywrightFixedBrowser,
   type FixedBrowserSession,
 } from "@unframe/unframe-renderer-web";
 
+import { prepareOpaqueRenderer, OpaquePreparationFailure } from "./opaque-renderer.js";
+import { createFilesystemBuildCache } from "../filesystem/build-cache.js";
 import { publishAtomicArtifacts } from "../filesystem/atomic-output.js";
+import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
+import { updateProjectLock } from "../filesystem/update-lock.js";
+import { lockedFile } from "../filesystem/package-snapshot.js";
+import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
+import { initPresentationProject } from "../filesystem/init-project.js";
 import type {
   PresentationCliDiagnostic,
   PresentationCliExitCode,
   PresentationCliHost,
   PresentationCliResult,
 } from "./types.js";
+import { sourceDiagnosticFamily } from "./source-diagnostic-family.js";
 
-type Command = Readonly<{ command: "check" | "build"; directory: string; format: "text" | "json" }>;
+type Command = Readonly<{
+  command: "check" | "build" | "test" | "init" | "lock";
+  directory: string;
+  format: "text" | "json";
+  operation?: "refresh" | "update";
+  recreate?: boolean;
+}>;
 class BrowserProvisionFailure extends Error {}
 class BrowserCleanupFailure extends Error {}
 const encoder = new TextEncoder();
@@ -44,9 +59,7 @@ const fixedContext = Object.freeze({
   locale: "ja-JP" as const,
   timezone: "Asia/Tokyo" as const,
   colorScheme: "light" as const,
-  webRendererConfig: Object.freeze({
-    documentBackground: [0, 0, 0, 255] as const,
-  }),
+  webRendererConfig: Object.freeze({}),
 });
 const limits = Object.freeze({
   maxWidth: 4096,
@@ -56,7 +69,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe-cli check <absolute-project-directory> [--format text|json]\n       unframe-cli build <absolute-project-directory> [--format text|json]";
+  "Usage: unframe-cli init|check|build|test <absolute-project-directory> [--format text|json]\n       unframe-cli dev|preview|author <absolute-project-directory>\n       unframe-cli publish <absolute-project-directory> <presentation-id> <control-plane-origin>\n       unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",
@@ -193,10 +206,44 @@ const parse = (
         diagnostic("usage", "cli-invalid-arguments", "Arguments must be a dense string array."),
       ],
     };
-  const command = args[0] === "check" || args[0] === "build" ? args[0] : undefined;
+  const command =
+    args[0] === "check" ||
+    args[0] === "build" ||
+    args[0] === "test" ||
+    args[0] === "init" ||
+    args[0] === "lock"
+      ? args[0]
+      : undefined;
   const at = args.indexOf("--format");
   const format = at >= 0 && args[at + 1] === "json" ? "json" : "text";
   const positional = at < 0 ? args : args.filter((_, i) => i !== at && i !== at + 1);
+  if (command === "lock") {
+    const operation = positional[1];
+    const recreate = positional[3] === "--recreate";
+    if (
+      (operation === "refresh" || operation === "update") &&
+      positional[2]?.startsWith("/") &&
+      (positional.length === 3 ||
+        (positional.length === 4 && recreate && operation === "update")) &&
+      (at < 0 || (at === args.length - 2 && ["text", "json"].includes(args[at + 1] ?? "")))
+    )
+      return {
+        ok: true,
+        value: { command, operation, directory: positional[2], format, recreate },
+      };
+    return {
+      ok: false,
+      command,
+      format,
+      diagnostics: [
+        diagnostic(
+          "usage",
+          "cli-invalid-usage",
+          "Usage: unframe-cli lock refresh|update <absolute-project-directory> [--recreate] [--format text|json]",
+        ),
+      ],
+    };
+  }
   if (
     !command ||
     (at >= 0 && (at !== args.length - 2 || !["text", "json"].includes(args[at + 1] ?? ""))) ||
@@ -221,15 +268,7 @@ const compilerDiagnostics = (
       const source = item as AuthoringProjectDiagnostic;
       return {
         ...diagnostic(
-          source.code === "compiler-source-syntax-error" ||
-            source.code === "compiler-source-kind-unsupported" ||
-            source.code.startsWith("compiler-static-")
-            ? "syntax"
-            : source.code === "compiler-source-type-error" ||
-                source.code.startsWith("compiler-module-") ||
-                source.code === "compiler-project-entry-invariant-invalid"
-              ? "type"
-              : "semantic",
+          sourceDiagnosticFamily(source.code),
           source.code,
           source.message,
           source.fileName ? [source.fileName] : [],
@@ -249,7 +288,28 @@ const compilerDiagnostics = (
     }
     const domain = item as { code: string; message: string; path: readonly (string | number)[] };
     const rendererCode =
-      domain.code.startsWith("compiler-renderer-") || rendererDiagnosticCodes.has(domain.code);
+      domain.code.startsWith("compiler-renderer-") ||
+      domain.code.startsWith("opaque-") ||
+      rendererDiagnosticCodes.has(domain.code);
+    if (
+      result.phase === "compile" &&
+      rendererCode &&
+      domain.path.length === 5 &&
+      typeof domain.path[0] === "string" &&
+      domain.path.slice(1).every((part) => typeof part === "number")
+    ) {
+      const [fileName, start, end, line, column] = domain.path as [
+        string,
+        number,
+        number,
+        number,
+        number,
+      ];
+      return {
+        ...diagnostic("renderer", domain.code, domain.message, [fileName]),
+        location: { fileName, start, end, line, column },
+      };
+    }
     return diagnostic(
       result.phase === "compile" && rendererCode ? "renderer" : "semantic",
       domain.code,
@@ -273,7 +333,7 @@ const artifacts = (compiled: CompiledDeclarationProject) =>
         }),
       ),
   });
-const closeSession = async (session: FixedBrowserSession) => {
+const closeSession = async (session: Pick<FixedBrowserSession, "close">) => {
   try {
     const close = session.close;
     if (typeof close !== "function") throw new Error("invalid close");
@@ -302,6 +362,31 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     return output(130, command, format, [
       diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
     ]);
+  if (command === "init") {
+    const result = await initPresentationProject(directory);
+    return result.ok
+      ? output(0, command, format)
+      : output(3, command, format, [
+          diagnostic("io", result.code, "Project could not be initialized at this path."),
+        ]);
+  }
+  if (command === "lock") {
+    const result = await updateProjectLock(
+      directory,
+      parsed.value.operation!,
+      parsed.value.recreate ?? false,
+      host.signal,
+    );
+    return result.ok
+      ? output(0, command, format)
+      : output(result.code === "cli-cancelled" ? 130 : 1, command, format, [
+          diagnostic(
+            result.code === "cli-cancelled" ? "cancel" : "semantic",
+            result.code,
+            result.message,
+          ),
+        ]);
+  }
   const discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok)
     return output(discovered.code === "cli-config-invalid" ? 1 : 3, command, format, [
@@ -312,6 +397,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         [directory],
       ),
     ]);
+  if (host.expectedRevision !== undefined && discovered.revision !== host.expectedRevision)
+    return output(3, command, format, [
+      diagnostic("io", "cli-output-stale", "Project inputs changed after the build was requested."),
+    ]);
   const lock = loadUnframeLock(discovered.lockBytes);
   if (!lock.ok)
     return output(1, command, format, [
@@ -319,15 +408,55 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         "unframe.lock",
       ]),
     ]);
+  const pinnedRenderers = lock.value.lock.rendererPlugins;
+  if (
+    pinnedRenderers.some(
+      (item) =>
+        item.id !== "baked-web" ||
+        item.contractVersion !== "2" ||
+        !["3", "4"].includes(item.version),
+    )
+  )
+    return output(1, command, format, [
+      diagnostic(
+        "renderer",
+        "cli-renderer-plugin-unsupported",
+        "Locked renderer plugin is not available in this CLI.",
+      ),
+    ]);
+  const frozenFailures = verifyFrozenLocalFiles(
+    discovered.localFiles,
+    lock.value.assemblyCarrier.componentLocks,
+  );
+  if (frozenFailures.length)
+    return output(
+      1,
+      command,
+      format,
+      frozenFailures.map(({ path, code }) =>
+        diagnostic(
+          "semantic",
+          code,
+          "Local Component inputs differ from the frozen lock. Refresh the lock explicitly.",
+          [path],
+        ),
+      ),
+    );
   const source = Object.freeze({
     projectRoot: discovered.projectDirectory,
     entryFile: discovered.entryFile,
     files: discovered.files,
+    rawFiles: discovered.localFiles
+      .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
+      .map(({ path, bytes }) => lockedFile(path, bytes)),
     ...lock.value.virtualSource,
   });
   const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
   if (command === "check") return output(0, command, format, [], checked.value.warnings);
+  const opaque = Object.values(checked.value.definition.scene.surfaces).find(
+    (surface) => surface.content.kind === "opaque",
+  );
   const acquired = await acquireBuildLock(discovered.projectDirectory);
   if (!acquired.ok)
     return output(3, command, format, [
@@ -372,43 +501,97 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
   let cleanupFailed = false;
   const buildResult = await (async (): Promise<PresentationCliResult> => {
-    let session: FixedBrowserSession | undefined;
+    let session: { close(): Promise<void> } | undefined;
     try {
-      const opener =
-        host.openFixedBrowser ??
-        ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
-      try {
-        session = await opener(host.signal ? { signal: host.signal } : {});
-      } catch {
+      const context = host.buildContext ?? fixedContext;
+      let renderer: ReturnType<typeof createBakedWebRenderer> | undefined;
+      const sessions: { close(): Promise<void> }[] = [];
+      session = {
+        close: async () => {
+          const results = await Promise.allSettled(sessions.map((item) => item.close()));
+          if (results.some((result) => result.status === "rejected"))
+            throw new BrowserCleanupFailure();
+        },
+      };
+      if (opaque) {
+        const prepared = await prepareOpaqueRenderer(
+          source,
+          lock.value.assemblyCarrier,
+          host.signal,
+          context.webRendererConfig,
+        );
+        sessions.push(prepared);
+        renderer = prepared.renderer;
+      }
+      if (
+        !opaque ||
+        Object.values(checked.value.definition.scene.surfaces).some(
+          (surface) => surface.content.kind === "structured",
+        )
+      ) {
+        let fixedSession: FixedBrowserSession;
+        const opener =
+          host.openFixedBrowser ??
+          ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
+        try {
+          fixedSession = await opener(host.signal ? { signal: host.signal } : {});
+          sessions.push(fixedSession);
+        } catch {
+          if (host.signal?.aborted)
+            return output(130, command, format, [
+              diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+            ]);
+          throw new BrowserProvisionFailure();
+        }
         if (host.signal?.aborted)
           return output(130, command, format, [
             diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
           ]);
-        throw new BrowserProvisionFailure();
+        const adapter = Object.freeze({
+          identity: fixedSession.identity,
+          environment: fixedSession.environment,
+          capture: (request: Parameters<FixedBrowserSession["capture"]>[0]) =>
+            Reflect.apply(fixedSession.capture, fixedSession, [
+              request,
+              ...(host.signal ? [{ signal: host.signal }] : []),
+            ]),
+        });
+        const structured = createBakedWebRenderer({ adapter, config: context.webRendererConfig });
+        renderer = renderer ? combineBakedWebRenderers(structured, renderer) : structured;
       }
-      if (host.signal?.aborted)
-        return output(130, command, format, [
-          diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+      if (!renderer) throw new BrowserProvisionFailure();
+      if (
+        !pinnedRenderers.some(
+          (item) =>
+            item.id === renderer.identity.id &&
+            item.version === renderer.identity.version &&
+            item.contractVersion === renderer.identity.contractVersion,
+        )
+      )
+        return output(1, command, format, [
+          diagnostic(
+            "renderer",
+            "cli-renderer-plugin-unlocked",
+            "Resolved renderer plugin is absent from unframe.lock.",
+          ),
         ]);
-      const context = host.buildContext ?? fixedContext;
-      const adapter = Object.freeze({
-        identity: session.identity,
-        environment: session.environment,
-        capture: (request: Parameters<FixedBrowserSession["capture"]>[0]) =>
-          Reflect.apply(session!.capture, session, [
-            request,
-            ...(host.signal ? [{ signal: host.signal }] : []),
-          ]),
-      });
-      const compiled = await compileAuthoringProject(source, lock.value.assemblyCarrier, {
-        compiler: context.compiler,
-        locale: context.locale,
-        timezone: context.timezone,
-        colorScheme: context.colorScheme,
-        rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-        renderers: [createBakedWebRenderer({ adapter, config: context.webRendererConfig })],
-        encodeLimits: limits,
-      });
+      const compiled = await compileAuthoringProject(
+        source,
+        lock.value.assemblyCarrier,
+        {
+          compiler: context.compiler,
+          locale: context.locale,
+          timezone: context.timezone,
+          colorScheme: context.colorScheme,
+          rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
+          renderers: [renderer],
+          encodeLimits: limits,
+        },
+        createFilesystemBuildCache(
+          discovered.projectDirectory,
+          host.signal ? { signal: host.signal } : {},
+        ),
+      );
       if (!compiled.valid)
         return output(
           host.signal?.aborted ? 130 : 1,
@@ -425,11 +608,28 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         return output(130, command, format, [
           diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
         ]);
-      const published = await publishAtomicArtifacts({
-        projectDirectory: discovered.projectDirectory,
-        artifacts: artifacts(compiled.value),
-        ...(host.signal ? { signal: host.signal } : {}),
-      });
+      const sourceLease = await acquireSourceLock(discovered.projectDirectory);
+      if (!sourceLease.ok)
+        return output(3, command, format, [
+          diagnostic("io", sourceLease.code, "Source is being saved or requires recovery."),
+        ]);
+      const published = await (async () => {
+        try {
+          return await publishAtomicArtifacts({
+            projectDirectory: discovered.projectDirectory,
+            artifacts: artifacts(compiled.value),
+            isCurrentRevision: async () => {
+              const current = await discoverPresentationProjectFiles(discovered.projectDirectory, {
+                sourceLeaseHeld: true,
+              });
+              return current.ok && current.revision === discovered.revision;
+            },
+            ...(host.signal ? { signal: host.signal } : {}),
+          });
+        } finally {
+          await sourceLease.value.release();
+        }
+      })();
       if (!published.ok)
         return output(published.family === "cancel" ? 130 : 3, command, format, [
           diagnostic(
@@ -437,15 +637,37 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
             published.code,
             published.family === "cancel"
               ? "Build was cancelled."
-              : "Build artifacts could not be published.",
+              : published.code === "cli-output-stale"
+                ? "Project inputs changed during build. Rebuild the current revision."
+                : published.detail
+                  ? `Build artifacts could not be published. (stage: ${published.detail.stage}${published.detail.operation ? `, operation: ${published.detail.operation}` : ""}${published.detail.code ? `, code: ${published.detail.code}` : ""})`
+                  : "Build artifacts could not be published.",
           ),
         ]);
       return output(0, command, format, [], compiled.value.warnings);
     } catch (error) {
+      if (error instanceof OpaquePreparationFailure && !host.signal?.aborted)
+        return output(
+          1,
+          command,
+          format,
+          error.diagnostics.map((item) =>
+            diagnostic("renderer", item.code, item.message, item.path),
+          ),
+        );
+      const opaqueCode =
+        error instanceof Error &&
+        "code" in error &&
+        typeof error.code === "string" &&
+        error.code.startsWith("opaque-")
+          ? error.code
+          : undefined;
       const cancel =
         host.signal?.aborted || (error instanceof Error && error.name === "AbortError");
       const browserFailure =
-        error instanceof BrowserProvisionFailure || error instanceof BrowserCleanupFailure;
+        error instanceof BrowserProvisionFailure ||
+        error instanceof BrowserCleanupFailure ||
+        opaqueCode !== undefined;
       return output(cancel ? 130 : browserFailure ? 1 : 3, command, format, [
         diagnostic(
           cancel ? "cancel" : browserFailure ? "renderer" : "io",
@@ -455,7 +677,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
               ? "cli-browser-cleanup-failed"
               : error instanceof BrowserProvisionFailure
                 ? "cli-browser-provision-failed"
-                : "cli-build-io",
+                : (opaqueCode ?? "cli-build-io"),
           cancel
             ? "Build was cancelled."
             : browserFailure

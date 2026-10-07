@@ -37,6 +37,7 @@ export type RenderStatePlan = DeepReadonly<RendererBuildInput["plan"]["states"][
 export type RenderSurfacePlan = DeepReadonly<RendererBuildInput["plan"]>;
 export type RendererEntry = DeepReadonly<RendererBuildInput["entry"]>;
 export type RendererFontAssets = DeepReadonly<RendererBuildInput["fontAssets"]>;
+export type RendererImageAssets = DeepReadonly<NonNullable<RendererBuildInput["imageAssets"]>>;
 type SchemaResolvedRendererIntent = DeepReadonly<RendererBuildInput["resolvedIntent"]>;
 export type ResolvedRendererIntent = Omit<
   SchemaResolvedRendererIntent,
@@ -49,14 +50,12 @@ export type CompilerResolvedSurfaceInput = {
   readonly resolvedIntent: ResolvedRendererIntent;
   readonly semanticsByState: Readonly<Record<string, CompletedSemanticTree>>;
   readonly fontAssets: RendererFontAssets;
+  readonly imageAssets?: RendererImageAssets;
   readonly plan: RenderSurfacePlan;
   readonly entry: RendererEntry;
   readonly context: RendererBuildContext;
 };
 export type RawSurfaceCapture = DeepReadonly<SchemaRendererBuildSuccess["captures"][number]>;
-export type RendererPrivateHitRegion = DeepReadonly<
-  SchemaRendererBuildSuccess["hitRegionsByState"][string][number]
->;
 export type RendererProvenance = DeepReadonly<SchemaRendererBuildSuccess["provenance"]>;
 export type ResolvedRenderSurface = DeepReadonly<SchemaRendererBuildSuccess["renderSurface"]>;
 export type RendererBuildSuccess = Omit<DeepReadonly<SchemaRendererBuildSuccess>, "diagnostics"> & {

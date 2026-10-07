@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	currentProtocolVersion    = 1
+	currentProtocolVersion    = 2
 	defaultJWKSCacheTTL       = 5 * time.Minute
 	defaultRefreshCooldown    = 30 * time.Second
 	defaultJWKSRequestTimeout = 5 * time.Second

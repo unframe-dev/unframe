@@ -1,5 +1,17 @@
-# `@unframe/api-client-csharp`
+# C# generated consumers
 
-Unity / C# client を生成する場合の成果物置き場です。
+`Generated/ControlPlane/` は Control Plane の OpenAPI 正本から OpenAPI Generator 7.22.0 が作る HTTP client と model、`Generated/Proto/` は Presentation / Delivery / Realtime v2 の `.proto` 正本から `protoc` 35.1 と Grpc.Tools 2.76.0 が作る message と gRPC service です。`Generated/provenance.sha256` に入力ハッシュと生成器バージョンを記録します。生成ファイルは編集せず、正本を更新して再生成します。
 
-旧 OpenAPI contract と生成設定は削除済みです。Control Plane contract と C# client の生成手順は、Unity consumer と Control Plane 実装を接続する変更で定義します。
+Nix 開発環境で次を実行します。
+
+```bash
+nix run .#contracts-consumers -- generate
+nix run .#contracts-consumers -- check
+scripts/contracts/generate-valid-delivery.sh generate
+scripts/contracts/check-breaking.sh check
+dotnet build packages/api-client-csharp/Proto/Unframe.Wire.csproj
+dotnet build packages/api-client-csharp/Generated/ControlPlane/Unframe.ControlPlane.csproj
+dotnet run --project packages/api-client-csharp/Conformance/Unframe.Wire.Conformance.csproj -- packages/contracts/presentation/fixtures/wire/conformance.json packages/contracts/presentation/fixtures/wire/valid-delivery.json
+```
+
+`Unframe.Wire` と `Unframe.ControlPlane` は独立した assembly です。Unity は既存の `scripts/contracts/generate-unity-proto.sh` で message source を配置しており、この package の assembly を Unity に追加する接続はまだありません。共有 wire fixture は TypeScript、Go、C# の codec を検証します。`valid-delivery.json` は参照プロジェクトの Fixed Browser ビルドと Core の出版・Delivery 検証を通した実コンパイラ由来の Manifest です。`scripts/ci/presentation.sh` はその再生成差分も確認します。

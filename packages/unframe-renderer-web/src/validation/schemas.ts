@@ -1,7 +1,6 @@
 import * as z from "zod";
 
 const nonEmptyStringSchema = z.string().min(1);
-const rgbaByteSchema = z.number().int().min(0).max(255);
 
 export const adapterIdentitySchema = z.strictObject({
   id: nonEmptyStringSchema,
@@ -31,9 +30,7 @@ export const fixedBrowserEnvironmentSchema = z.strictObject({
   random: z.literal("fixed"),
 });
 
-export const webRendererConfigSchema = z.strictObject({
-  documentBackground: z.tuple([rgbaByteSchema, rgbaByteSchema, rgbaByteSchema, rgbaByteSchema]),
-});
+export const webRendererConfigSchema = z.strictObject({});
 
 export const browserCaptureSchema = z
   .strictObject({

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Google.Protobuf">
+      <HintPath>../../Assets/Plugins/Google.Protobuf.dll</HintPath>
+    </Reference>
+    <Compile Include="Program.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Generated/*.cs" Exclude="../../Assets/Scripts/PresentationRuntime/Generated/RealtimeGrpc.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Fixtures/PresentationContractJsonFixtureLoader.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Animation/PresentationAnimationPresetIds.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationDeliveryCatalog.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationCoordinateValidation.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationBakedDeliveryValidation.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationRuntimeStateStore.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationRuntimeDataStore.cs" />
+    <Content Include="../../Assets/Resources/PresentationFixtures/LocalDelivery.json" CopyToOutputDirectory="PreserveNewest" Link="LocalDelivery.json" />
+    <Content Include="../../Assets/Resources/PresentationFixtures/LocalSnapshot.json" CopyToOutputDirectory="PreserveNewest" Link="LocalSnapshot.json" />
+  </ItemGroup>
+</Project>

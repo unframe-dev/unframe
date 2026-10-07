@@ -41,6 +41,8 @@ reference_acceptance() {
   pnpm --dir "${REPO_ROOT}" --filter @unframe/unframe-cli run presentation build "${temp}"
   second_manifest="$(manifest "${temp}")"
   test "${first_manifest}" = "${second_manifest}"
+  log "presentation(check): compiled Delivery wire fixture"
+  bun "${REPO_ROOT}/scripts/contracts/generate-valid-delivery.ts" check "${temp}/dist"
   trap - RETURN
   rm -rf "${temp}"
 }
@@ -53,9 +55,22 @@ case "${mode}" in
       "${REPO_ROOT}"/packages/unframe-*
     ;;
   check)
+    TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
+    export TMPDIR
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check
+    log "presentation(check): generated Go/C# consumers and wire compatibility"
+    bash "${REPO_ROOT}/scripts/contracts/test-grpc-tools.sh"
+    "${REPO_ROOT}/scripts/contracts/generate-consumers.sh" check
+    "${REPO_ROOT}/scripts/contracts/check-breaking.sh" check
+    "${REPO_ROOT}/scripts/contracts/test-breaking.sh"
+    bash "${REPO_ROOT}/scripts/contracts/test-unity-proto.sh"
+    dotnet build "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --no-restore --verbosity quiet
+    dotnet build "${REPO_ROOT}/packages/api-client-csharp/Generated/ControlPlane/Unframe.ControlPlane.csproj" --verbosity quiet
+    dotnet run --project "${REPO_ROOT}/packages/api-client-csharp/Conformance/Unframe.Wire.Conformance.csproj" -- \
+      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/conformance.json" \
+      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/valid-delivery.json"
     pnpm --config.verify-deps-before-run=false \
       --filter "${PRESENTATION_PACKAGES_FILTER}" \
       run check

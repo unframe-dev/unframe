@@ -6,16 +6,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"net"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
-
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/protocol"
+	deliveryv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
+	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	persistencehttp "github.com/unframe-dev/unframe/app/server/realtime/internal/persistence/http"
+	"github.com/unframe-dev/unframe/app/server/realtime/internal/runtimecore"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	transportgrpc "github.com/unframe-dev/unframe/app/server/realtime/internal/transport/grpc"
 	grpcgo "google.golang.org/grpc"
@@ -23,136 +20,141 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
 )
 
-func TestRealtimePageChangeOverTCP(t *testing.T) {
-	t.Parallel()
+type projectionProvider struct {
+	profile *deliveryv2.ProjectionProfileDescriptor
+}
 
+func (p projectionProvider) Projection(context.Context, persistencehttp.ProjectionRequest) (persistencehttp.RuntimeProjection, error) {
+	return persistencehttp.RuntimeProjection{Role: "presenter", Profile: p.profile}, nil
+}
+
+func TestV2AuthenticatedControlAndLegacyRejectionOverTCP(t *testing.T) {
 	now := time.Now().UTC()
-	presenterIdentity := e2eIdentity("presenter-e2e", session.RolePresenter)
-	viewerIdentity := e2eIdentity("viewer-e2e", session.RoleViewer)
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("generate signing key: %v", err)
+		t.Fatal(err)
 	}
-	jwks := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
-		response.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(response).Encode(map[string]any{"keys": []map[string]any{{
-			"kty": "OKP", "crv": "Ed25519", "kid": "e2e-key", "alg": "EdDSA", "use": "sig", "key_ops": []string{"verify"},
-			"x": base64.RawURLEncoding.EncodeToString(publicKey),
-		}}})
+	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]any{{"kty": "OKP", "crv": "Ed25519", "kid": "e2e-key", "alg": "EdDSA", "use": "sig", "key_ops": []string{"verify"}, "x": base64.RawURLEncoding.EncodeToString(publicKey)}}})
 	}))
 	defer jwks.Close()
-	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{
-		Issuer: "https://control-plane.example.test", Audience: "realtime-runtime-test", JWKSURL: jwks.URL, Clock: func() time.Time { return now },
-	})
+	verifier, err := auth.NewBearerTokenVerifier(auth.BearerTokenVerifierConfig{Issuer: "https://control-plane.example.test", Audience: "realtime-runtime-test", JWKSURL: jwks.URL})
 	if err != nil {
-		t.Fatalf("create verifier: %v", err)
+		t.Fatal(err)
 	}
-	guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{
-		SessionID: "session-e2e", RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud,
-		Endpoint: "127.0.0.1:9090", AssignmentEpoch: 1, PresentationRevision: 1,
-		IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour),
-	}, func() time.Time { return now })
+	guard, err := assignment.NewAssignmentGuard(assignment.RuntimeAssignment{SessionID: "session-e2e", RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, Endpoint: "127.0.0.1:9090", AssignmentEpoch: 1, PresentationRevision: 1, IssuedAt: now.Add(-time.Minute), LeaseExpiresAt: now.Add(time.Hour)}, nil)
 	if err != nil {
-		t.Fatalf("create assignment guard: %v", err)
+		t.Fatal(err)
 	}
-
+	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-e2e","scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[]}}}}},"variables":{},"timelines":{}}`)
+	runtime, err := runtimecore.NewV2Session(definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-e2e", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-e2e", RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationRevision: 1}, Publication: publication, Definition: definition}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 1, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT}, RuntimeCatalog: &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 2}}
+	service, err := transportgrpc.NewV2Service(runtime, bootstrap, projectionProvider{profile}, auth.ContextIdentityResolver{}, guard)
+	if err != nil {
+		t.Fatal(err)
+	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("listen: %v", err)
+		t.Fatal(err)
 	}
-	server, err := transportgrpc.NewServer(listener, transportgrpc.Dependencies{Verifier: verifier, Guard: guard, Coordinator: session.NewCoordinator()})
+	server, err := transportgrpc.NewServer(listener, transportgrpc.Dependencies{Verifier: verifier, Guard: guard, V2: service})
 	if err != nil {
-		t.Fatalf("create server: %v", err)
+		t.Fatal(err)
 	}
 	if err := server.Start(); err != nil {
-		t.Fatalf("start server: %v", err)
+		t.Fatal(err)
 	}
-	t.Cleanup(func() {
+	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			t.Errorf("shutdown server: %v", err)
+			t.Error(err)
 		}
-	})
-
+	}()
+	conn, err := grpcgo.NewClient(listener.Addr().String(), grpcgo.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	connection, err := grpcgo.NewClient(listener.Addr().String(), grpcgo.WithTransportCredentials(insecure.NewCredentials()))
+	client := realtimev2.NewRealtimeServiceClient(conn)
+	identity := e2eIdentity("presenter-e2e", session.RolePresenter)
+	authorized := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+issueToken(t, privateKey, identity, now))
+	controlCtx, closeControl := context.WithCancel(authorized)
+	defer closeControl()
+	control, err := client.ConnectControl(controlCtx)
 	if err != nil {
-		t.Fatalf("create client connection: %v", err)
+		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := connection.Close(); err != nil {
-			t.Errorf("close client connection: %v", err)
+	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v2", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}}); err != nil {
+		t.Fatal(err)
+	}
+	connected, err := control.Recv()
+	if err != nil || connected.GetConnected() == nil {
+		t.Fatalf("connected = %v, error = %v", connected, err)
+	}
+	snapshot, err := control.Recv()
+	if err != nil || snapshot.GetConnectionSnapshot() == nil {
+		t.Fatalf("snapshot = %v, error = %v", snapshot, err)
+	}
+	nonce, err := control.Recv()
+	if err != nil || len(nonce.GetStateConnectionNonce().GetNonce()) != 32 {
+		t.Fatalf("nonce = %v, error = %v", nonce, err)
+	}
+
+	t.Run("legacy JWT rejected by v2", func(t *testing.T) {
+		legacy := identity
+		legacy.ProtocolVersion = 1
+		stream, err := client.ConnectControl(metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+issueToken(t, privateKey, legacy, now)))
+		if err == nil {
+			_, err = stream.Recv()
+		}
+		if status.Code(err) != codes.Unauthenticated {
+			t.Fatalf("legacy JWT status = %v", err)
 		}
 	})
-	client := realtimev1.NewRealtimeServiceClient(connection)
-	presenter := connect(t, ctx, client, presenterIdentity, issueToken(t, privateKey, presenterIdentity, now))
-	viewer := connect(t, ctx, client, viewerIdentity, issueToken(t, privateKey, viewerIdentity, now))
-
-	command := &realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{
-		MessageId: "command-e2e",
-		PageIndex: 4,
-	}}}
-	if err := presenter.Send(command); err != nil {
-		t.Fatalf("presenter sends page change: %v", err)
-	}
-	assertPageChanged(t, presenter, 1, "command-e2e", 4)
-	assertPageChanged(t, viewer, 1, "command-e2e", 4)
-
-	if err := viewer.Send(&realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_PageChange{PageChange: &realtimev1.PageChangeCommand{
-		MessageId: "viewer-command-e2e",
-		PageIndex: 5,
-	}}}); err != nil {
-		t.Fatalf("viewer sends forbidden page change: %v", err)
-	}
-	if _, err := viewer.Recv(); status.Code(err) != codes.PermissionDenied {
-		t.Fatalf("viewer command status = %s, want %s (error: %v)", status.Code(err), codes.PermissionDenied, err)
-	}
-}
-
-func connect(t *testing.T, ctx context.Context, client realtimev1.RealtimeServiceClient, identity session.Identity, token string) realtimev1.RealtimeService_ConnectClient {
-	t.Helper()
-	streamContext := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
-	stream, err := client.Connect(streamContext)
-	if err != nil {
-		t.Fatalf("connect %s: %v", identity.ParticipantID, err)
-	}
-	if err := stream.Send(&realtimev1.ClientEnvelope{Payload: &realtimev1.ClientEnvelope_Handshake{Handshake: &realtimev1.Handshake{
-		ProtocolVersion: protocol.Version,
-	}}}); err != nil {
-		t.Fatalf("send %s handshake: %v", identity.ParticipantID, err)
-	}
-	message, err := stream.Recv()
-	if err != nil {
-		t.Fatalf("receive %s connected: %v", identity.ParticipantID, err)
-	}
-	connected := message.GetConnected()
-	if connected == nil || connected.GetSessionId() != identity.SessionID || connected.GetParticipantId() != identity.ParticipantID {
-		t.Fatalf("%s connected = %#v, want session=%s participant=%s", identity.ParticipantID, connected, identity.SessionID, identity.ParticipantID)
-	}
-	return stream
-}
-
-func assertPageChanged(t *testing.T, stream realtimev1.RealtimeService_ConnectClient, sequence uint64, messageID string, pageIndex uint32) {
-	t.Helper()
-	message, err := stream.Recv()
-	if err != nil {
-		t.Fatalf("receive page change: %v", err)
-	}
-	event := message.GetReliableEvent()
-	if event == nil || event.GetSequence() != sequence || event.GetCommandMessageId() != messageID || event.GetPageChanged().GetPageIndex() != pageIndex {
-		t.Fatalf("reliable event = %#v, want sequence=%d message=%s page=%d", event, sequence, messageID, pageIndex)
-	}
+	t.Run("legacy service unavailable", func(t *testing.T) {
+		stream, err := conn.NewStream(authorized, &grpcgo.StreamDesc{ServerStreams: true, ClientStreams: true}, "/unframe.realtime.v1.RealtimeService/Connect")
+		if err == nil {
+			err = stream.RecvMsg(&emptypb.Empty{})
+		}
+		if status.Code(err) != codes.Unimplemented {
+			t.Fatalf("legacy service status = %v", err)
+		}
+	})
+	t.Run("legacy handshake rejected", func(t *testing.T) {
+		stream, err := client.ConnectControl(authorized)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = stream.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_Handshake{Handshake: &realtimev2.ControlHandshake{ProtocolVersion: "v1", ProgressionContractVersion: 1, SupportedCapabilities: profile.RequiredRuntimeCapabilities}}})
+		_, err = stream.Recv()
+		if status.Code(err) != codes.InvalidArgument {
+			t.Fatalf("legacy handshake status = %v", err)
+		}
+	})
+	closeControl()
 }
 
 func e2eIdentity(participantID string, role session.Role) session.Identity {
 	return session.Identity{
 		SessionID: "session-e2e", ParticipantID: participantID, Role: role,
 		RuntimeID: "runtime-e2e", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 1, PresentationID: "presentation-e2e",
-		PresentationRevision: 1, ProtocolVersion: 1,
+		PresentationRevision: 1, ProtocolVersion: 2,
 	}
 }
 

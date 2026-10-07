@@ -64,7 +64,7 @@ type RealtimeCredentialClaims = {
   nbf: number;
   exp: number;
   jti: string;
-  protocol_version: 1;
+  protocol_version: 2;
 };
 
 const encodeBase64Url = (value: Uint8Array | string) => {
@@ -115,7 +115,7 @@ export class RealtimeBootstrapCredentials {
       nbf: iat - NOT_BEFORE_CLOCK_SKEW_SECONDS,
       exp,
       jti: this.newId(),
-      protocol_version: 1,
+      protocol_version: participant.protocolVersion ?? 2,
     };
     const payload = encodeBase64Url(JSON.stringify(claims));
     const key = await crypto.subtle.importKey("jwk", this.privateJwk, { name: "Ed25519" }, false, [

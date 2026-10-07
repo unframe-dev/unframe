@@ -145,12 +145,6 @@ const titleInstance = componentInstance({
   id: "title-component",
   componentId: surfaceManifest.componentId,
   version: 1,
-  packageLock: {
-    packageVersion: "1.0.0",
-    packageIntegrity: "sha256-package",
-    manifestHash: "sha256-manifest",
-    structureHash: "sha256-structure",
-  },
   owner: { kind: "presentation" },
   spatialNodeId: surfaceNode.id,
   props: { width: 1920, height: 1080, logo: "logo" },
@@ -294,9 +288,8 @@ describe("component contract", () => {
     expect(manifest.semantics.surfaces[0]?.bindingKey).toBe("chart-root");
   });
 
-  it("carries owner, package lock, variants, slots, and bounded Part overrides on instances", () => {
+  it("carries owner, variants, slots, and bounded Part overrides on instances", () => {
     expect(titleInstance.owner).toEqual({ kind: "presentation" });
-    expect(titleInstance.packageLock.structureHash).toBe("sha256-structure");
     expect(titleInstance.partOverrides[0]?.targetKind).toBe("frame");
   });
 

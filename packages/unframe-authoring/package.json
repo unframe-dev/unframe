@@ -15,6 +15,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "dependencies": {
+    "@types/react": "19.3.0",
     "@unframe/unframe-core": "workspace:*",
     "zod": "4.4.3"
   },

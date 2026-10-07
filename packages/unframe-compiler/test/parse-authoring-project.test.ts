@@ -5,7 +5,7 @@ import { parseAuthoringProject } from "../src/project/parse-authoring-project.js
 const project = () => ({
   projectRoot: "/virtual/presentation",
   entryFile: "presentation.unframe.tsx",
-  packageDependencies: [],
+  rootDependencies: [],
   packages: [],
   files: [
     {

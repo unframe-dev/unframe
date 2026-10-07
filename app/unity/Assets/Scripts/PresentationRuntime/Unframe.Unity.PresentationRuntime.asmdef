@@ -2,7 +2,10 @@
   "name": "Unframe.Unity.PresentationRuntime",
   "rootNamespace": "Unframe.Unity.PresentationRuntime",
   "references": [
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "Unity.XR.CoreUtils",
+    "Unity.XR.OpenXR",
+    "Cysharp.Net.Http.YetAnotherHttpHandler"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

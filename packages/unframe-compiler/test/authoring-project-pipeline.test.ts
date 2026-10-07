@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import { PNG_ABSOLUTE_LIMITS } from "@unframe/unframe-assets";
 import {
+  SUPPORTED_RENDERER_CONTRACT_VERSION,
   createRendererFingerprint,
   evaluateFirstMilestoneSupport,
   type RendererPlugin,
@@ -9,9 +11,7 @@ import {
   checkAuthoringProjectAssembly,
   checkAuthoringProject,
   compileAuthoringProject,
-  hashComponentManifestDeclaration,
-  hashComponentStructureDeclaration,
-  hashThemeDeclaration,
+  computeFrozenComponentInputs,
   type DeclarationProjectAssemblyCarrier,
 } from "../src/index.js";
 
@@ -31,7 +31,7 @@ export default definePresentation({
   theme: { themeId: "theme" },
   scene: {
     spatial: [{ id: "spatial", kind: "spatial", name: "Surface", owner: { kind: "presentation" }, audience: { kind: "all" }, parent: { kind: "stage" }, order: 0, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }, active: true, visible: true, opacity: 1 }],
-    components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", packageLock: { packageVersion: "1", packageIntegrity: "integrity", manifestHash: "__MANIFEST_HASH__", structureHash: "__STRUCTURE_HASH__" }, props: {}, slots: {}, variants: {}, partOverrides: [] }]
+    components: [{ id: "instance", kind: "component-instance", componentId: "surface", version: 1, owner: { kind: "presentation" }, spatialNodeId: "spatial", props: {}, slots: {}, variants: {}, partOverrides: [] }]
   }, assets: [{ kind: "asset-ref", assetId: "reference-font" }],
   flow: { initialGroupId: "group", groups: { group: { id: "group", initialStepId: "step", steps: { step: { id: "step", cues: [] } } } }, variables: {} }, operations: []
 });`;
@@ -69,20 +69,32 @@ const baseProject = (files: readonly VirtualFile[]) => ({
   projectRoot: "/virtual/pipeline",
   entryFile: "entry.ts",
   files,
-  packageDependencies: [
+  rootDependencies: [
     {
-      packageName: "@unframe/unframe-authoring",
-      packageVersion: "1",
-      packageIntegrity: "integrity",
+      specifier: "@unframe/unframe-authoring",
+      usage: "runtime",
+      packageKey: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
     },
   ],
   packages: [
     {
-      packageName: "@unframe/unframe-authoring",
-      packageVersion: "1",
-      packageIntegrity: "integrity",
-      files: [{ fileName: "index.ts", sourceText: builders }],
-      exports: [{ subpath: ".", targetFile: "index.ts" }],
+      key: hashCanonicalJsonPayload(["@unframe/unframe-authoring", "1"]),
+      locator: "@unframe/unframe-authoring@1",
+      name: "@unframe/unframe-authoring",
+      version: "1",
+      contentIntegrity: hashCanonicalJsonPayload(builders),
+      files: [
+        {
+          path: "index.ts",
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(builders),
+          encoding: "utf8",
+          data: builders,
+        },
+      ],
+      exports: [
+        { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+      ],
       dependencies: [],
     },
   ],
@@ -101,49 +113,17 @@ const sourceFiles = (): readonly VirtualFile[] => [
   },
 ];
 
-const virtualProject = (files?: readonly VirtualFile[]) => {
-  if (files !== undefined) return baseProject(files);
-  const unbound = baseProject(sourceFiles());
-  const catalog = checkAuthoringProject(unbound);
-  if (!catalog.valid) throw new Error("Test authoring project must parse.");
-  const component = catalog.value.components.find(
-    (item) => item.manifest.value.componentId === "surface",
-  )!;
-  const manifestHash = hashComponentManifestDeclaration(component.manifest.value);
-  const structureHash = hashComponentStructureDeclaration(component.structure.value);
-  return baseProject(
-    sourceFiles().map((file) =>
-      file.fileName === "entry.ts"
-        ? {
-            ...file,
-            sourceText: file.sourceText
-              .replace("__MANIFEST_HASH__", manifestHash)
-              .replace("__STRUCTURE_HASH__", structureHash),
-          }
-        : file,
-    ),
-  );
-};
+const virtualProject = (files?: readonly VirtualFile[]) => baseProject(files ?? sourceFiles());
 
 const carrier = (): DeclarationProjectAssemblyCarrier => {
-  const catalog = checkAuthoringProject(virtualProject());
+  const source = virtualProject();
+  const catalog = checkAuthoringProject(source);
   if (!catalog.valid) throw new Error("Test authoring project must parse.");
+  const frozen = computeFrozenComponentInputs(source, catalog.value);
+  if (!frozen.valid) throw new Error(JSON.stringify(frozen.diagnostics));
   return {
-    themeHashes: catalog.value.themes.map((theme) => ({
-      themeId: theme.value.id,
-      hash: hashThemeDeclaration(theme.value),
-    })),
-    componentLocks: catalog.value.components.map((component) => ({
-      componentId: component.manifest.value.componentId,
-      version: component.manifest.value.version,
-      lock: {
-        packageVersion: component.manifest.value.componentId === "surface" ? "1" : "2",
-        packageIntegrity:
-          component.manifest.value.componentId === "surface" ? "integrity" : "integrity-z",
-        manifestHash: hashComponentManifestDeclaration(component.manifest.value),
-        structureHash: hashComponentStructureDeclaration(component.structure.value),
-      },
-    })),
+    themeHashes: frozen.value.themeHashes,
+    componentLocks: frozen.value.componentLocks,
     assets: {
       "reference-font": {
         id: "reference-font",
@@ -175,7 +155,7 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
   const identity = {
     id: "baked-web",
     version: "1",
-    contractVersion: "1",
+    contractVersion: SUPPORTED_RENDERER_CONTRACT_VERSION,
     implementationHash: "renderer-implementation",
   } as const;
   const capabilities = {
@@ -202,19 +182,20 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
           logicalBounds: input.plan.logicalBounds,
           layer: input.plan.layer,
         },
-        captures: Object.keys(input.plan.states).map((stateId) => ({
-          id: `${stateId}:capture`,
-          stateId,
-          rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
-            index % 4 === 3 ? 255 : 0,
-          ),
-          pixelSize: [width, height] as [number, number],
-          colorSpace: "srgb" as const,
-          alphaMode: "opaque" as const,
-        })),
-        hitRegionsByState: Object.fromEntries(
-          Object.keys(input.plan.states).map((stateId) => [stateId, []]),
-        ),
+        captures: Object.entries(input.plan.states)
+          .filter(([, state]) => state.kind === "capture")
+          .map(([stateId]) => {
+            const rgba = new Uint8Array(width * height * 4);
+            for (let alpha = 3; alpha < rgba.length; alpha += 4) rgba[alpha] = 255;
+            return {
+              id: `${stateId}:capture`,
+              stateId,
+              rgba,
+              pixelSize: [width, height] as [number, number],
+              colorSpace: "srgb" as const,
+              alphaMode: "opaque" as const,
+            };
+          }),
         provenance: {
           ...identity,
           inputHash: input.context.inputHash,
@@ -400,21 +381,15 @@ describe("Authoring source to compiler pipeline", () => {
     }
   });
 
-  it("is deterministic when source files and carrier arrays are reversed", async () => {
+  it("is deterministic when source files are reversed", async () => {
     const first = await compileAuthoringProject(
       virtualProject(),
       carrier(),
       options(makeRenderer()),
     );
-    const baselineCarrier = carrier();
-    const reversedCarrier: DeclarationProjectAssemblyCarrier = {
-      ...baselineCarrier,
-      themeHashes: [...baselineCarrier.themeHashes].reverse(),
-      componentLocks: [...baselineCarrier.componentLocks].reverse(),
-    };
     const second = await compileAuthoringProject(
       virtualProject([...virtualProject().files].reverse()),
-      reversedCarrier,
+      carrier(),
       options(makeRenderer()),
     );
 

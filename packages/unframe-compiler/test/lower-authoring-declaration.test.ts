@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 import { lowerAuthoringDeclarationFile } from "../src/lowering/lower-authoring-declaration.js";
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
@@ -85,18 +86,54 @@ const analyze = (
     dependencies: [],
   };
   const lockedPackages = [presentationPackage, ...packages];
+  const snapshot = lockedPackages
+    .map((item) => {
+      const key = hashCanonicalJsonPayload([
+        item.packageName,
+        item.packageVersion,
+        item.packageIntegrity,
+      ]);
+      return {
+        key,
+        locator: `${item.packageName}@${item.packageVersion}`,
+        name: item.packageName,
+        version: item.packageVersion,
+        contentIntegrity: hashCanonicalJsonPayload(item),
+        files: item.files.map((file) => ({
+          path: file.fileName,
+          mediaType: "text/typescript",
+          hash: hashCanonicalJsonPayload(file.sourceText),
+          encoding: "utf8",
+          data: file.sourceText,
+        })),
+        exports: item.exports.map((entry) => ({
+          subpath: entry.subpath,
+          runtimeImport: entry.targetFile,
+          runtimeRequire: null,
+          types: entry.targetFile,
+        })),
+        dependencies: [],
+      };
+    })
+    .sort((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0));
   const parsed = parseAuthoringProject({
     projectRoot: "/virtual/presentation",
     entryFile: "presentation.ts",
     files: [{ fileName: "presentation.ts", sourceText }, ...files],
-    packageDependencies: lockedPackages.map(
-      ({ packageName, packageVersion, packageIntegrity }) => ({
-        packageName,
-        packageVersion,
-        packageIntegrity,
-      }),
-    ),
-    packages: lockedPackages,
+    rootDependencies: lockedPackages
+      .map((item) => ({
+        specifier: item.packageName,
+        usage: "runtime",
+        packageKey: hashCanonicalJsonPayload([
+          item.packageName,
+          item.packageVersion,
+          item.packageIntegrity,
+        ]),
+      }))
+      .sort((left, right) =>
+        left.specifier < right.specifier ? -1 : left.specifier > right.specifier ? 1 : 0,
+      ),
+    packages: snapshot,
   });
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
   const result = analyzeAuthoringProject(parsed.value);

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Shared Presentation v2 protobuf contracts の Unity C# binding を生成し、コピーと生成物の drift を検出する。
+# Shared Presentation protobuf contracts の Unity C# binding を生成し、コピーと生成物の drift を検出する。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh
 source "${DIR}/../lib/paths.sh"
+# shellcheck source=../lib/grpc-tools.sh
+source "${DIR}/../lib/grpc-tools.sh"
 
 mode="${1:-generate}"
 case "${mode}" in
@@ -15,9 +17,9 @@ case "${mode}" in
 esac
 
 proto_files=(
-  "unframe/presentation/v2/runtime.proto"
-  "unframe/delivery/v2/delivery.proto"
-  "unframe/realtime/v2/realtime.proto"
+  "unframe/presentation/runtime.proto"
+  "unframe/delivery/delivery.proto"
+  "unframe/realtime/realtime.proto"
 )
 unity_proto_root="${REPO_ROOT}/app/unity/Assets/Contracts/Proto"
 unity_generated_root="${REPO_ROOT}/app/unity/Assets/Scripts/PresentationRuntime/Generated"
@@ -27,6 +29,17 @@ trap 'rm -rf -- "${temporary_root}"' EXIT
 generate() {
   local destination="$1"
   protoc --proto_path="${CONTRACTS_DIR}/proto" --csharp_out="${destination}" "${proto_files[@]}"
+  dotnet restore "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --verbosity quiet
+  local nuget_root grpc_platform grpc_plugin
+  nuget_root="$(dotnet nuget locals global-packages --list | sed 's/^global-packages: //')"
+  grpc_platform="$(grpc_tools_platform "$(uname -s)" "$(uname -m)")"
+  grpc_plugin="${nuget_root}/grpc.tools/2.76.0/tools/${grpc_platform}/grpc_csharp_plugin"
+  if [[ ! -x "${grpc_plugin}" ]]; then
+    echo "Grpc.Tools plugin is missing or not executable: ${grpc_plugin}" >&2
+    return 1
+  fi
+  protoc --proto_path="${CONTRACTS_DIR}/proto" "--plugin=protoc-gen-grpc=${grpc_plugin}" \
+    --grpc_out="${destination}" unframe/realtime/realtime.proto
 }
 
 list_files() {

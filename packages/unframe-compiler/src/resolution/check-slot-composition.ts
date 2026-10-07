@@ -24,7 +24,7 @@ export const checkSlotComposition = (
   const slotEdges = new Map<string, string[]>();
   const collectSlotIds = (node: ContentNodeDeclaration): string[] => {
     if (node.kind === "slot-placeholder") return [node.slotId];
-    if (node.kind === "text") return [];
+    if (node.kind !== "frame") return [];
     return node.children.flatMap(collectSlotIds);
   };
   for (const [index, instance] of instances.entries()) {
@@ -36,6 +36,17 @@ export const checkSlotComposition = (
     );
     if (entries.length !== 1) continue;
     const entry = entries[0]!;
+    if (!("structure" in entry)) {
+      if (Object.keys(instance.slots).length)
+        diagnostics.push(
+          diagnostic(
+            "compiler-opaque-slot-unsupported",
+            [...path, "slots"],
+            "Opaque Components cannot contain Slots.",
+          ),
+        );
+      continue;
+    }
     const slotIds = collectSlotIds(
       entry.structure.root.kind === "surface" ? entry.structure.root.root : entry.structure.root,
     );
@@ -131,6 +142,7 @@ export const checkSlotComposition = (
         candidate.manifest.version === instance.version,
     );
     if (!entry) continue;
+    if (!("structure" in entry)) continue;
     if (nested && (instance.spatialNodeId !== undefined || entry.structure.root.kind !== "frame"))
       diagnostics.push(
         diagnostic(

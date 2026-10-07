@@ -12,20 +12,10 @@ export const opaqueRendererModuleTypeSchema = z.enum([
 export type OpaqueRendererModuleType = z.output<typeof opaqueRendererModuleTypeSchema>;
 export type SourceModuleType = Exclude<OpaqueRendererModuleType, "asset">;
 
-const assetExtensions = new Set([
-  ".avif",
-  ".gif",
-  ".jpeg",
-  ".jpg",
-  ".png",
-  ".svg",
-  ".webp",
-  ".woff",
-  ".woff2",
-]);
+const assetExtensions = new Set([".jpeg", ".jpg", ".png", ".webp", ".ttf", ".otf"]);
 const sourceTypeExtensions: Record<SourceModuleType, ReadonlySet<string>> = {
   css: new Set([".css"]),
-  js: new Set([".js"]),
+  js: new Set([".js", ".cjs", ".mjs"]),
   jsx: new Set([".jsx"]),
   json: new Set([".json"]),
   ts: new Set([".ts"]),
@@ -91,10 +81,20 @@ const sourceModuleSchema = z
 
 export const opaqueRendererModuleSchema = z.union([assetModuleSchema, sourceModuleSchema]);
 
+const resolutionSchema = z.strictObject({
+  importerPath: modulePathSchema,
+  specifier: z.string().min(1),
+  kind: z.enum(["import", "require"]),
+  targetPath: modulePathSchema,
+});
+
 export const opaqueRendererBundleInputSchema = z
   .strictObject({
     entry: modulePathSchema,
+    rendererInputHash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
     modules: z.array(opaqueRendererModuleSchema).min(1),
+    resolutions: z.array(resolutionSchema),
+    stylesheets: z.array(modulePathSchema),
   })
   .superRefine((input, context) => {
     const seen = new Set<string>();
@@ -106,6 +106,45 @@ export const opaqueRendererBundleInputSchema = z
           message: "Module paths must be unique.",
         });
       seen.add(module.path);
+    }
+    const resolved = new Set<string>();
+    for (const [index, resolution] of input.resolutions.entries()) {
+      const key = `${resolution.importerPath}\0${resolution.specifier}\0${resolution.kind}`;
+      if (resolved.has(key))
+        context.addIssue({
+          code: "custom",
+          path: ["resolutions", index],
+          message: "Resolution must be unique.",
+        });
+      resolved.add(key);
+      if (
+        resolution.importerPath !== "__unframe__/bootstrap.ts" &&
+        !seen.has(resolution.importerPath)
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["resolutions", index, "importerPath"],
+          message: "Resolution importer must be a locked module.",
+        });
+      if (!seen.has(resolution.targetPath))
+        context.addIssue({
+          code: "custom",
+          path: ["resolutions", index, "targetPath"],
+          message: "Resolved target must be locked.",
+        });
+    }
+    const stylesheetSet = new Set<string>();
+    for (const [index, path] of input.stylesheets.entries()) {
+      if (
+        stylesheetSet.has(path) ||
+        input.modules.find((item) => item.path === path)?.moduleType !== "css"
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["stylesheets", index],
+          message: "Stylesheet must name a unique locked CSS module.",
+        });
+      stylesheetSet.add(path);
     }
     const entryIndex = input.modules.findIndex((module) => module.path === input.entry);
     if (entryIndex < 0) {

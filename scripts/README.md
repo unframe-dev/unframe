@@ -26,6 +26,8 @@ nix flake check
 
 GitHub Actions では `nixbuild/nix-quick-install-action` で Nix を導入し、`magic-nix-cache-action` で Nix store をキャッシュします。
 
+Bun は `packages/config/bun.nix` で 1.4.2 に固定しています。1.3.13 ではブラウザ終了後の追加パイプの二重 close により、成果物の出力が `EBADF` で失敗するためです。開発環境と CI は同じ Nix toolchain を使います。
+
 `packages/contracts/` は Control Plane OpenAPI、Realtime Protocol Buffers、Presentation artifact schema の共有境界です。`nix run .#presentation` は実装済みの `packages/unframe-*` packageを検証した後、repository-local Fixed Browser で `examples/presentation` の check と実 build を2回行います。Definition、RenderBundle、PNG asset set の relative path と SHA-256 manifest が一致することまで確認します。source of truth と生成手順は、対応する component 実装と合わせて定義します。
 
 Presentation v2 の Unity C# bindings は `packages/contracts/proto/` の正本から `protoc` で生成します。Unity 側に置く `.proto` コピーと生成 C# の drift は次で確認でき、正本更新後は引数を省略して生成・同期します。
@@ -36,6 +38,15 @@ nix run .#unity-proto
 ```
 
 `nix run .#check` と Unity CI はこの drift check を含みます。
+
+Presentation 品質ゲートは一時ディレクトリを実パスへ正規化してから fixture を作成します。
+macOS の `/tmp` などの symlink を fixture の project root に持ち込まないためです。
+CLI の build cache と author transaction は Linux の `/proc/self/fd` に依存するため、
+これらを含む CLI 全テストの完走には Linux が必要です。
+
+Grpc.Tools 2.76.0 の macOS 向け plugin は x64 のみのため、Apple Silicon でも
+`scripts/lib/grpc-tools.sh` が x64 を選択します。Apple Silicon では Rosetta が必要です。
+platform 選択の回帰テストは `bash scripts/contracts/test-grpc-tools.sh` で単独実行できます。
 
 Fixed Browser の実機captureをローカルで試す前には、次を明示的に実行します。通常の package / repository check は browser binary を download / 起動せず、unit test だけを実行します。
 
@@ -50,3 +61,11 @@ Linuxでは `flake.nix` のNix devShellがmanaged headless shellの共有ライ�
 ```bash
 nix develop --command scripts/dev/test-presentation-browser.sh
 ```
+
+Opaque React capture は Linux の user namespace と、memory / pids controller を委譲できる systemd user manager を必要とします。Browser の provision 後、次で隔離・資源上限・React / Base UI の CLI build を実行します。capability が欠ける環境では skip せず失敗します。
+
+```bash
+nix develop --command scripts/ci/opaque-capture.sh
+```
+
+通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。この wrapper は一時的な delegated scope を作成し、終了時に worker を回収します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可も、この専用 step で使用する executable path に限定します。

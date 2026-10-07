@@ -3,9 +3,12 @@ import {
   isComponentStructure,
   isPresentationDeclaration,
   isThemeDeclaration,
+  validateStaticReactSceneItem,
   type ComponentManifest,
   type ComponentStructure,
   type PresentationDeclaration,
+  type StaticComponentMetadata,
+  type StaticReactSceneItem,
   type ThemeDeclaration,
 } from "@unframe/unframe-authoring";
 import type { DeclarationSourceOrigin } from "../lowering/lower-authoring-declaration.js";
@@ -17,13 +20,44 @@ import type {
 
 type TypedDeclaration<T> = Omit<CollectedAuthoringDeclaration, "value"> & { readonly value: T };
 
-export type PairedComponentDeclaration = {
-  readonly manifest: TypedDeclaration<ComponentManifest>;
-  readonly structure: TypedDeclaration<ComponentStructure>;
+export type PairedComponentDeclaration =
+  | {
+      readonly manifest: TypedDeclaration<ComponentManifest>;
+      readonly structure: TypedDeclaration<ComponentStructure>;
+    }
+  | {
+      readonly manifest: TypedDeclaration<ComponentManifest>;
+      readonly metadata: StaticComponentMetadata;
+      readonly rendererEntry: string;
+      readonly renderer: {
+        readonly entrySource: string;
+        readonly localDependencies: readonly string[];
+        readonly packageImports: readonly string[];
+        readonly entryOrigins?: readonly {
+          readonly startLine: number;
+          readonly endLine: number;
+          readonly firstLinePrefix: number;
+          readonly origin: DeclarationSourceOrigin;
+        }[];
+      };
+    };
+
+type ReactPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
+  readonly scene: readonly StaticReactSceneItem[];
+};
+type MixedPresentationDeclaration = Omit<PresentationDeclaration, "scene"> & {
+  readonly scene: Omit<PresentationDeclaration["scene"], "components"> & {
+    readonly components: readonly (
+      | PresentationDeclaration["scene"]["components"][number]
+      | StaticReactSceneItem
+    )[];
+  };
 };
 
 export type PairedAuthoringDeclarationCatalog = {
-  readonly presentation: TypedDeclaration<PresentationDeclaration>;
+  readonly presentation: TypedDeclaration<
+    PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+  >;
   readonly themes: readonly TypedDeclaration<ThemeDeclaration>[];
   readonly components: readonly PairedComponentDeclaration[];
 };
@@ -148,13 +182,67 @@ const compareComponentDeclarations = (
   left.manifest.value.version - right.manifest.value.version ||
   compareDeclarations(left.manifest, right.manifest);
 
+const isReactPresentation = (value: unknown): value is ReactPresentationDeclaration => {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !Array.isArray((value as { scene?: unknown }).scene)
+  )
+    return false;
+  const presentation = value as ReactPresentationDeclaration;
+  if (!isPresentationDeclaration({ ...presentation, scene: { spatial: [], components: [] } }))
+    return false;
+  try {
+    presentation.scene.forEach(validateStaticReactSceneItem);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const isMixedPresentation = (value: unknown): value is MixedPresentationDeclaration => {
+  if (value === null || typeof value !== "object") return false;
+  const presentation = value as MixedPresentationDeclaration;
+  if (
+    !presentation.scene ||
+    Array.isArray(presentation.scene) ||
+    !Array.isArray(presentation.scene.components)
+  )
+    return false;
+  if (
+    presentation.scene.components.some(
+      (item) => item === null || typeof item !== "object" || Array.isArray(item),
+    )
+  )
+    return false;
+  const react = presentation.scene.components.filter(
+    (item): item is StaticReactSceneItem => "component" in item,
+  );
+  if (!react.length) return false;
+  const structured = presentation.scene.components.filter((item) => !("component" in item));
+  if (
+    !isPresentationDeclaration({
+      ...presentation,
+      scene: { ...presentation.scene, components: structured },
+    })
+  )
+    return false;
+  try {
+    react.forEach(validateStaticReactSceneItem);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /** Pairs already-normalized static declarations without executing Authoring builders. */
 export const pairAuthoringDeclarations = (
   input: CollectedAuthoringDeclarationsSuccess,
 ): PairAuthoringDeclarationsResult => {
   const declarations = [...input.declarations].sort(compareDeclarations);
   const diagnostics: DeclarationCollectionDiagnostic[] = [];
-  const presentations: TypedDeclaration<PresentationDeclaration>[] = [];
+  const presentations: TypedDeclaration<
+    PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+  >[] = [];
   const themes: TypedDeclaration<ThemeDeclaration>[] = [];
   const manifests: TypedDeclaration<ComponentManifest>[] = [];
   const structures: TypedDeclaration<ComponentStructure>[] = [];
@@ -171,8 +259,16 @@ export const pairAuthoringDeclarations = (
   for (const declaration of declarations) {
     switch (declaration.role) {
       case "presentation":
-        if (isPresentationDeclaration(declaration.value))
-          presentations.push(declaration as TypedDeclaration<PresentationDeclaration>);
+        if (
+          isPresentationDeclaration(declaration.value) ||
+          isReactPresentation(declaration.value) ||
+          isMixedPresentation(declaration.value)
+        )
+          presentations.push(
+            declaration as TypedDeclaration<
+              PresentationDeclaration | ReactPresentationDeclaration | MixedPresentationDeclaration
+            >,
+          );
         else
           diagnostics.push(
             diagnosticAt(
@@ -285,8 +381,8 @@ export const pairAuthoringDeclarations = (
         diagnosticAt(
           manifest,
           ["authoring", "mode"],
-          "compiler-opaque-component-unsupported",
-          "Opaque component authoring is not supported by this milestone.",
+          "compiler-opaque-component-unpaired",
+          "Opaque Component manifests must come from a React Component source.",
         ),
       );
       continue;
@@ -296,6 +392,40 @@ export const pairAuthoringDeclarations = (
   const structuresByFile = new Map(structures.map((structure) => [structure.fileName, structure]));
   const referencedStructures = new Set<TypedDeclaration<ComponentStructure>>();
   const components: PairedComponentDeclaration[] = [];
+  for (const react of input.reactComponents) {
+    const manifest: TypedDeclaration<ComponentManifest> = {
+      fileName: react.fileName,
+      role: "component-manifest",
+      rootBuilder: "defineComponentManifest",
+      value: react.manifest,
+      sourceMap: react.sourceMap,
+    };
+    const identity = `${react.manifest.componentId}\0${react.manifest.version}`;
+    if (
+      manifestsByIdentity.has(identity) ||
+      components.some(
+        (entry) =>
+          entry.manifest.value.componentId === react.manifest.componentId &&
+          entry.manifest.value.version === react.manifest.version,
+      )
+    ) {
+      diagnostics.push(
+        diagnosticAt(
+          manifest,
+          ["componentId"],
+          "compiler-component-manifest-duplicate",
+          `Component id '${react.manifest.componentId}' is declared more than once.`,
+        ),
+      );
+      continue;
+    }
+    components.push({
+      manifest,
+      metadata: react.metadata,
+      rendererEntry: react.manifest.renderers["baked-web"]!.entry,
+      renderer: react.renderer,
+    });
+  }
   for (const manifest of manifestsByIdentity.values()) {
     const authoring = manifest.value.authoring;
     if (authoring.mode !== "structured") continue;

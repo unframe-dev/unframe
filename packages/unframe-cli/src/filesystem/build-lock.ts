@@ -41,12 +41,13 @@ const optionalLstat = async (fileSystem: BuildLockFileSystem, path: string) => {
  * Acquires a non-recovering build lease. A lock left by a crashed process is deliberately
  * fail-closed: only an operator may inspect and remove it after confirming that no build lives.
  */
-export const acquireBuildLock = async (
+export const acquireFileLease = async (
   projectDirectory: string,
-  fileSystem: BuildLockFileSystem = defaultFileSystem,
+  fileSystem: BuildLockFileSystem,
+  fileName: string,
 ): Promise<BuildLockResult> => {
   if (!isAbsolute(projectDirectory)) return { ok: false, code: "cli-build-lock-io" };
-  const path = join(projectDirectory, LOCK_FILE_NAME);
+  const path = join(projectDirectory, fileName);
   let handle;
   try {
     handle = await fileSystem.open(
@@ -113,5 +114,10 @@ export const acquireBuildLock = async (
   };
   return { ok: true, value: Object.freeze({ release }) };
 };
+
+export const acquireBuildLock = (
+  projectDirectory: string,
+  fileSystem: BuildLockFileSystem = defaultFileSystem,
+): Promise<BuildLockResult> => acquireFileLease(projectDirectory, fileSystem, LOCK_FILE_NAME);
 
 export const buildLockFileName = LOCK_FILE_NAME;

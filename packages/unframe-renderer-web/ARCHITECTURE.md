@@ -15,13 +15,13 @@
 
 `unframe-renderer-web` は `baked-web` concrete renderer を実装する。Structured Component から lower された Primitive graph を、固定された Browser 環境で layout / capture し、RenderBundle 候補を生成する。
 
-現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer sourceを実行せずにbundleする境界を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。
+現在は `FixedBrowserAdapter` を注入する Structured 初期実装と、Opaque renderer source を非実行で bundle し、Linux の隔離 worker で capture する経路を持つ。固定 environment（Browser / font / locale / timezone / sRGB / DSF 1 / network・filesystem deny / fixed clock・random）と adapter identity を plugin 作成時に snapshot し、後続の adapter mutation を build に反映しない。
 
 `openPlaywrightFixedBrowser` は `playwright-core@1.62.1` が managed Chromium headless shell を選択して起動し、外部 binary path / fallback を持たない。`install chromium --only-shell` と headless 起動を対応させるため、adapterはPlaywrightのmanaged browser registryに起動先の選択を委譲する。Chromium sandbox 有効、Node global signal handler 無効で起動し、Noto Sans CJK JP、`ja-JP`、`Asia/Tokyo`、DSF 1、sRGB、2000-01-01T00:00:00Z、seed `0x5eed` を固定する。font fingerprint は固定glyph baselineの実capture RGBAから内部導出し、adapter identity hash に font profile とともに結合する。capture ごとに隔離 context を作成し、offline、service worker block、download deny、全 route abort、clock / random init、font ready の後に CSS scale、背景保持、animation無効、caret非表示の PNG screenshot を decode して所有済み RGBA として返す。capture trust boundary は各辺4096px・総16,777,216pxまでで fail closed とし、これはCompiler の ADR-0012 2K artifact policyとは別の入力上限である。abort または session close は進行中 context を閉じ、context cleanup 後に browser を閉じる。通常 check は `*.integration.test.ts` を除外してこの adapter を fake で検証する unit test だけを実行し、browser binary の provision / 実機 integration は明示 script の後にのみ実行する。
 
-M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque renderer execution自体は引き続きDeferredである。
+M1のfixed script environmentはcall / construct両方の`Date`、`performance.now` / `timeOrigin`、`Math.random`、`crypto.getRandomValues` / `randomUUID`を固定する。deterministicな鍵生成や暗号乱数の意味を仮実装しないため`crypto.subtle`は拒否する。Opaque もこの固定 script environment を使用する。
 
-Structured path は Presentation v2 の absolute root `Frame` と、任意深度の absolute `Frame` / literal `Text` tree を deterministic な HTML/CSS に lower する。各 Frame の placement、background、border、clip、visible、opacity と、Text の全 style field を反映し、Frame の children 順と親相対座標を維持する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。State別のFrame / Text visual overrideとenabled Interactionのprivate Hit Regionを扱う。Stack / Grid と他のPrimitiveはfail closedにする。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
+Structured path は Presentation v2 の absolute root `Frame` と、任意深度の `Frame` / literal `Text` / `Image` / `Shape` graph を deterministic な HTML/CSS/SVG に lower する。Core の `resolveStructuredLayout` が absolute / Stack / Grid と State override を Surface logical 座標へ解決し、Renderer と Compiler の partition・Hit Region が同じ幾何を使う。各 Frame の background、border、clip、visible、opacity と、Text の全 style field を反映し、children 順を維持する。Image は明示バイナリを checksum・寸法・decode で検証した data URI とし、Shape の paint は placement 内へ clip する。logical bounds は Compiler が渡した pixel target へ明示的に scaleし、color scheme も Browser media emulation input として渡す。DOM から semantic を推測しない。Runtime Text と Video は拒否する。Theme / Props / Slots / Variants / Parts は Compiler が concrete tree へ解決し、renderer は Authoring 宣言を再解決しない。
 
 renderer config は CSS やfont familyを受け取らず、document backgroundの`[r, g, b, a]` 0–255 byteだけを持つ。Fontは入力`fontAssets`のcanonical base64、SHA-256、TTF/OTF signature、Unicode `cmap` format 4/12を検証し、全literal code pointがprimaryまたは明示fallbackのglyphへ解決できる場合だけdata URIの`@font-face`を生成する。Browser adapterは全faceの`FontFace.load()`と`document.fonts.ready`を待ち、失敗をcapture failureにする。CSS family列にhost fontやgeneric familyを追加しない。
 
@@ -42,29 +42,24 @@ Compiler が決定した Render Surface partition を build input として受�
 ### Current
 
 - injected `FixedBrowserAdapter` の identity / fixed environment を snapshot した Structured build
-- absolute root `Frame` と任意深度の absolute `Frame` / literal `Text` tree の HTML/CSS lower、state capture、raw RGBA ownership transfer
-- locked virtual packageからのOpaque TS/TSX/JS/JSX/JSON bundleとCSS/asset emit
-- Compilerが入力を検証し、現行subsetではSemantic Surface全体を一partitionにして、`unframe-assets`へのencode / checksum委譲とRenderBundle組立を行う
+- absolute root `Frame` と任意深度の静的 `Frame` / `Text` / `Image` / `Shape` graph の HTML/CSS/SVG lower、state capture、raw RGBA ownership transfer
+- locked virtual package からの Opaque TS/TSX/JS/JSX/JSON bundle と CSS/asset emit
+- bubblewrap namespace と cgroup v2 内の Chromium で全宣言 State を capture。明示 binding と decoded RGBA の二回一致を検証
+- Compiler が自動 partition と入力検証を行い、各 capture を `unframe-assets` へ encode / checksum 委譲して RenderBundle を組み立てる。現行 Opaque subset は Surface 全体を一つの partition とする
 
 ### Target
 
-- generic Web renderer による Structured Primitive graph の描画
-- Opaque renderer TS / React / CSS の isolated execution
-- Opaque renderer向けのBrowser isolate lifecycle
+- 静的 graph 以外の renderer capability の拡張
 - unencoded Surface capture の生成
 - Browser、font、locale、timezone、viewport、layout provenance
 - visual regression fixture
-
-### Deferred
-
-- Opaque execution
 
 ```text
 resolved semantic input + renderer source
                  ↓
           isolated Browser render
                  ↓
- layout / hit-region geometry / raw capture
+       partition raw RGBA capture
                  ↓
    unframe-assets encode and checksum
                  ↓
@@ -75,7 +70,7 @@ resolved semantic input + renderer source
 
 ### Current
 
-Structured path は absolute root `Frame` と、その子孫となる absolute `Frame` / literal `Text` を扱う。State 別の Frame / Text override を capture に適用し、明示された `semanticNodeId` を持つ content の visible geometry から partition-local Hit Region を生成する。DOM から意味は推測しない。Opaque sourceのbundle APIは実装済みだがBrowser execution/captureとは未接続であり、Renderer pluginの`support()`はOpaque entryを引き続き拒否する。
+Structured path は absolute root `Frame` と、その子孫となる静的 `Frame` / `Text` / `Image` / `Shape` を扱う。State 別 override を capture に適用する。owned Node だけを paint し、context Frame は配置・clip・opacity を保持する。未描画部分は透明で、背景は Frame の指定を使う。`documentBackground` は受理しない。Structured の Hit Region は Compiler が Surface 全体の layout から生成し、DOM から意味を推測しない。Opaque は `createOpaqueBakedWebRenderer` が heading / paragraph / button と有限 State を扱う。Structured adapter と Opaque worker は別の実行経路を持つ。
 
 ### Target
 
@@ -85,16 +80,18 @@ Opaque path は Component 固有 renderer entry を bundle / execute できる�
 
 ### Deferred
 
-Opaque Browser executionとReact/CSS runtime isolation、Frame/Text 以外の Primitive の lower は未実装である。
+Runtime Text、Video と Model の Structured lower は未実装である。
+
+隔離条件、asset subset、deadline と資源上限は [React execution contract](../../docs/packages/REACT_COMPONENT_EXECUTION_CONTRACT.md#4-browser-capture-profile) に従う。実行手順は [scripts](../../scripts/README.md) を参照する。
 
 ## 4. Invariants
 
 - Browser version、font、locale、timezone、viewport、device scale、color space を provenance に固定する。
 - network、clock、randomness、host filesystem などの capability は既定で許可せず、許可時は入力と provenance に含める。
-- State ごとの capture と Hit Region geometry は同じ layout result から生成する。
+- State ごとの capture は Compiler の partition bounds と Node ownership を保持する。
 - 一つの Render Surface の集合、bounds、layer は全 reachable State で共通とし、各 State に artifact または明示的な empty binding を持たせる。
 - semantic information が Manifest / Structure と一致しない場合は build error とする。
-- raw capture の resize、encode、checksum は `unframe-assets` に委譲する。
+- raw capture の encode / checksum は Compiler 経由で `unframe-assets` に委譲する。通常 build は指定 pixelTarget で直接 capture し、resize は行わない。`resizeRgba` は明示 target を必要とする独立した Assets 変換 API である。
 - PresentationDefinition の意味と Surface partition policy を変更しない。
 
 ## 5. Non-responsibilities
@@ -128,7 +125,8 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 - Renderer API conformance、fixed adapter / config / environment / fingerprint の境界テスト
 - HTML/CSS golden、state order、capture ownership、hostile output / direct build input の回帰テスト
-- State 別 capture と Semantic Tree / Hit Region binding の整合テスト
+- fixed Browser の Frame clip / transparent gap と Grid Shape / Image の State 別 exact RGBA baseline
+- State 別 capture、context Frame の描画抑止、透明 gap、分割前後の合成結果のテスト
 - Zod schemaによるconfig / environment / capture metadataとOpaque module inputのvalidation test
 - Opaque module/asset bundle、field path diagnostic、accessor非実行、capability denyの境界テスト
 
@@ -143,12 +141,9 @@ Capability はallowlistとする。現行bundle境界はlocked virtual package�
 
 ### Deferred
 
-- real Browser visual regression baseline、Opaque timeout / resource budget、Assets との end-to-end artifact test
+- font / antialias を含む platform 別の追加 visual baseline
 
 ## 9. Deferred decisions
 
-- Opaque bundleとRenderer plugin/Browser isolateの接続
-- ADR-0011で確定したmulti-partition planのCompiler production
-- ADR-0012で確定した2K capture resolution / capture budgetの実装
-- visual regression tolerance と platform baseline
-- Frame/Text 以外の Structured Primitive、Stack / Grid
+- font / antialias を含む platform 別の tolerance と追加 baseline
+- Runtime Text、Video、Model の Structured 描画

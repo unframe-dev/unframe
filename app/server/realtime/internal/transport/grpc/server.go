@@ -9,9 +9,8 @@ import (
 
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/assignment"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/auth"
-	realtimev1 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime/v1"
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/observability"
-	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	grpcgo "google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -35,18 +34,18 @@ type Server struct {
 }
 
 type Dependencies struct {
-	Verifier    *auth.BearerTokenVerifier
-	Guard       *assignment.AssignmentGuard
-	Coordinator *session.Coordinator
-	Logger      *slog.Logger
-	Metrics     *observability.Metrics
+	Verifier *auth.BearerTokenVerifier
+	Guard    *assignment.AssignmentGuard
+	V2       *V2Service
+	Logger   *slog.Logger
+	Metrics  *observability.Metrics
 }
 
 // NewServer creates an authenticated server and registers the realtime bidi
 // service. It requires the verified identity, assignment, and session-state
 // boundaries supplied by the composition root.
 func NewServer(listener net.Listener, dependencies Dependencies, options ...grpcgo.ServerOption) (*Server, error) {
-	if dependencies.Verifier == nil || dependencies.Guard == nil || dependencies.Coordinator == nil {
+	if dependencies.Verifier == nil || dependencies.Guard == nil || dependencies.V2 == nil {
 		return nil, ErrServerConfiguration
 	}
 	options = append(options, grpcgo.ChainStreamInterceptor(
@@ -56,7 +55,7 @@ func NewServer(listener net.Listener, dependencies Dependencies, options ...grpc
 	grpcServer := grpcgo.NewServer(options...)
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("", healthv1.HealthCheckResponse_NOT_SERVING)
-	realtimev1.RegisterRealtimeServiceServer(grpcServer, NewRealtimeService(dependencies.Coordinator, auth.ContextIdentityResolver{}, dependencies.Guard))
+	realtimev2.RegisterRealtimeServiceServer(grpcServer, dependencies.V2)
 	healthv1.RegisterHealthServer(grpcServer, healthServer)
 	return &Server{
 		listener:  listener,

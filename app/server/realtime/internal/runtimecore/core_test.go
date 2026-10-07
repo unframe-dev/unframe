@@ -19,8 +19,8 @@ func TestCoreUsesTheSameCompositionForEveryRuntimeKind(t *testing.T) {
 			if err != nil {
 				t.Fatalf("New() error = %v", err)
 			}
-			if core.Coordinator() == nil || core.Assignments() != guard {
-				t.Fatal("core did not expose shared coordinator and assignment boundary")
+			if core.Assignments() != guard {
+				t.Fatal("core did not expose assignment boundary")
 			}
 			if err := core.Ready(); err != nil {
 				t.Errorf("Ready() error = %v", err)
