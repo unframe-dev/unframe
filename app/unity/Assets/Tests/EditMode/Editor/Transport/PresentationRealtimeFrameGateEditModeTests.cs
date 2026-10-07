@@ -381,6 +381,45 @@ public sealed class PresentationRealtimeFrameGateEditModeTests
         }
     }
 
+    [TestCase("origin")]
+    [TestCase("reliable-cut")]
+    [TestCase("delta-gap")]
+    [TestCase("stream-reset")]
+    [TestCase("snapshot-reset")]
+    public void ReadinessRequiresCurrentKeyframeAndClosesOnResynchronization(string reason)
+    {
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(PresentationTextureResidencyEditModeTests.BakedDelivery(), out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        {
+            RuntimeProjectionFence fence = snapshot.ConnectionSnapshot.Fence.Clone();
+            InvokeResume(connection, "BeginStateStream");
+            AssertAccepted(connection, Frame(fence, 1, 0, StateFrameKind.Delta), false);
+            Assert.That(connection.SessionReady, Is.False);
+            AssertAccepted(connection, Frame(fence, 1, 0, StateFrameKind.Keyframe), true);
+            Assert.That(connection.SessionReady, Is.True);
+            if (reason == "stream-reset") InvokeResume(connection, "BeginStateStream");
+            else if (reason == "snapshot-reset") InvokeResume(connection, "ResetSnapshotBootstrap");
+            else
+            {
+                StateServerItem stale = Frame(fence, 3, 0, StateFrameKind.Delta);
+                if (reason == "origin") stale.StateFrame.Fence.PresentationOriginVersion++;
+                if (reason == "reliable-cut") stale.StateFrame.BaseReliableSequence++;
+                AssertAccepted(connection, stale, false);
+            }
+            Assert.That(connection.SessionReady, Is.False);
+            AssertAccepted(connection, Frame(fence, 4, 0, StateFrameKind.Delta), false);
+            Assert.That(connection.SessionReady, Is.False);
+            AssertAccepted(connection, Frame(fence, 5, 0, StateFrameKind.Keyframe), true);
+            Assert.That(connection.SessionReady, Is.True);
+            AssertAccepted(connection, Frame(fence, 5, 0, StateFrameKind.Keyframe), false);
+            Assert.That(connection.SessionReady, Is.True, "A duplicate current frame does not revoke readiness.");
+        }
+    }
+
     private static StateServerItem Frame(RuntimeProjectionFence fence, ulong sequence, ulong baseReliable, StateFrameKind kind)
     {
         var frame = new ElementStateFrame { Fence = fence.Clone(), FrameSequence = sequence, BaseReliableSequence = baseReliable, Kind = kind };
