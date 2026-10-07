@@ -1,6 +1,6 @@
 # マーカー原点とプレゼン表示の接続
 
-20cmのID 0マーカーで端末を位置合わせし、Delivery v2のローカルfixtureを配置する検証シーンです。通常のSampleSceneとPCAカメラ診断シーンは別に保持します。実際のSurface artifact描画・サーバー通信・複数端末同期・authoritative hit-testはこのシーンでは実装していません。表示は既存のDelivery placeholder rendererです。
+20cmのID 0マーカーで端末を位置合わせし、Delivery v2のローカルfixtureを配置する検証シーンです。マーカー検出には[OpenCVの有効化手順](../README.md#aruco・カメラの実機検証)が必要です。通常のSampleSceneとPCAカメラ診断シーンは別に保持します。実際のSurface artifact描画・サーバー通信・複数端末同期・authoritative hit-testはこのシーンでは実装していません。表示は既存のDelivery placeholder rendererです。
 
 ## 座標と状態の責務
 
@@ -9,13 +9,14 @@
 ```text
 Marker Presentation Controller（常に動作するRunnerとBinding）
 Presentation Space（端末のworldFromPresentation、Unity world座標）
-└─ Stage（RuntimeのpresentationOrigin.poseをUnity座標へ変換）
-   └─ Presentation Nodes（stage/nodeのローカルTRSとTimeline）
+└─ Stage（identityの配置用コンテナ）
+   └─ Presentation Nodes（生成ルートにRuntimeのpresentationOrigin.poseを適用）
+      └─ Nodes（stage/nodeのローカルTRSとTimeline）
 ```
 
 このローカル検証では、マーカー中心をPresentation Spaceの基準点と定義します。マーカーの+Xは右、+Yは上、Unityの+Zは紙の裏方向です。端末で得た `ArucoOriginAlignment.OriginPose` は変換済みUnity world poseであり、再度Z反転しません。表示の合成順は `worldFromPresentation * presentationFromStage * nodeLocalChain` です。Bindingは外側とStageのscaleを1に保ち、ノード固有のscaleには触れません。
 
-`presentationOrigin.pose` はStageからPresentation Spaceへの配置として適用します。端末の再位置合わせは外側のローカル補正だけを変更し、共有 `presentationOrigin.version` を変更しません。将来のParticipantCalibration通信やcalibrationRevisionの発行は未実装です。
+`presentationOrigin.pose` は生成階層のルートが所有し、Unity座標へ変換して一度だけ適用します。BindingはStageのlocal poseをidentityに保ち、ロード後のOrigin更新も生成ルートへ反映します。端末の再位置合わせは外側のローカル補正だけを変更し、共有 `presentationOrigin.version` を変更しません。将来のParticipantCalibration通信やcalibrationRevisionの発行は未実装です。
 
 SnapshotのOriginが省略された場合はversion 0として扱い、Originがある場合はposeとversionを検証してfenceのversionとの一致を要求します。`PresentationOriginChanged` は変更前のOrigin versionのfenceと、現在のversionに1を加えたOriginを持つeventだけを受け取ります。Origin変更時はanchor sampleを破棄し、State Frame sequenceは維持します。通常event・State Frame・Projection Advanceは保持中のOrigin versionとの一致が必要です。不正な入力は既存の状態やsequenceを変更しません。
 

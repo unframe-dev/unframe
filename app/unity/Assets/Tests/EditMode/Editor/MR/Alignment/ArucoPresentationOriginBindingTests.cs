@@ -1,4 +1,5 @@
 using System.Reflection;
+using Google.Protobuf;
 using NUnit.Framework;
 using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
@@ -76,11 +77,71 @@ public sealed class ArucoPresentationOriginBindingTests
         Assert.That(Quaternion.Angle(space.transform.rotation, marker.rotation), Is.LessThan(0.01));
         var originPosition = new Vector3(0.4f, 0.5f, 0.6f);
         var originRotation = new Quaternion(0, -0.6f, 0, 0.8f);
-        Assert.That(Vector3.Distance(stage.localPosition, originPosition), Is.LessThan(0.00001));
-        Assert.That(Quaternion.Angle(stage.localRotation, originRotation), Is.LessThan(0.01));
-        Assert.That(Vector3.Distance(stage.position, marker.position + marker.rotation * originPosition), Is.LessThan(0.00001));
+        Assert.That(stage.localPosition, Is.EqualTo(Vector3.zero));
+        Assert.That(stage.localRotation, Is.EqualTo(Quaternion.identity));
+        Assert.That(runner.Hierarchy.Registry.TryGet("node:local-stage", out GameObject node), Is.True);
+        Transform generatedRoot = node.transform.parent;
+        Assert.That(generatedRoot.parent, Is.EqualTo(stage));
+        Assert.That(Vector3.Distance(generatedRoot.localPosition, originPosition), Is.LessThan(0.00001));
+        Assert.That(Quaternion.Angle(generatedRoot.localRotation, originRotation), Is.LessThan(0.01));
+        Assert.That(Vector3.Distance(node.transform.position,
+            marker.position + marker.rotation * (originPosition + originRotation * node.transform.localPosition)), Is.LessThan(0.00001));
         Assert.That(runner.Store.PresentationOrigin.Version, Is.EqualTo(2));
         Assert.That(stage.localScale, Is.EqualTo(Vector3.one));
+    }
+
+    [Test]
+    public void NonIdentitySnapshotLoadedBeforeAlignmentAppliesRuntimeOriginExactlyOnce()
+    {
+        Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(
+            Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text,
+            out ControlServerItem item, out string error), Is.True, error);
+        var runtimePosition = new Vector3(0.4f, 0.5f, 0.6f);
+        var runtimeRotation = new Quaternion(0, -0.6f, 0, 0.8f);
+        item.ConnectionSnapshot.Snapshot.RuntimeView.PresentationOrigin = new PresentationOrigin
+        {
+            Version = 2,
+            Pose = new Unframe.Presentation.Pose
+            {
+                Position = new Unframe.Presentation.Vector3 { X = 0.4, Y = 0.5, Z = -0.6 },
+                Rotation = new Unframe.Presentation.Quaternion { Y = 0.6, W = 0.8 }
+            }
+        };
+        item.ConnectionSnapshot.Fence.PresentationOriginVersion = 2;
+        var nodePosition = new Vector3(0.7f, 0.8f, 0.9f);
+        var nodeRotation = new Quaternion(0.6f, 0, 0, 0.8f);
+        var nodeState = item.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates[0];
+        Assert.That(nodeState.NodeId, Is.EqualTo("node:local-stage"));
+        nodeState.Transform.Position = new Unframe.Presentation.Vector3 { X = 0.7, Y = 0.8, Z = -0.9 };
+        nodeState.Transform.Rotation = new Unframe.Presentation.Quaternion
+        {
+            X = -0.6,
+            W = 0.8
+        };
+        var snapshot = new TextAsset(JsonFormatter.Default.Format(item));
+        try
+        {
+            runner.SetSnapshotFixture(snapshot);
+            Assert.That(runner.TryLoad(out error), Is.True, error);
+            binding.Refresh();
+            Assert.That(space.activeSelf, Is.False);
+            var marker = new Pose(new Vector3(1, 2, 3), Quaternion.Euler(0, 30, 0));
+            Confirm(marker);
+            binding.Refresh();
+            binding.Refresh();
+            Assert.That(space.activeSelf, Is.True);
+            Assert.That(runner.Hierarchy.Registry.TryGet("node:local-stage", out GameObject node), Is.True);
+            var expectedPosition = marker.position + marker.rotation * (runtimePosition + runtimeRotation * nodePosition);
+            var expectedRotation = marker.rotation * runtimeRotation * nodeRotation;
+            Assert.That(Vector3.Distance(node.transform.position, expectedPosition), Is.LessThan(0.00001));
+            Assert.That(Quaternion.Angle(node.transform.rotation, expectedRotation), Is.LessThan(0.01));
+            Assert.That(Vector3.Distance(node.transform.localPosition, nodePosition), Is.LessThan(0.00001));
+            Assert.That(Quaternion.Angle(node.transform.localRotation, nodeRotation), Is.LessThan(0.01));
+        }
+        finally
+        {
+            Object.DestroyImmediate(snapshot);
+        }
     }
 
     [Test]

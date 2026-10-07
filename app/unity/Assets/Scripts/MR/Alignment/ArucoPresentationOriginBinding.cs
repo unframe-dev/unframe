@@ -37,18 +37,19 @@ public sealed class ArucoPresentationOriginBinding : MonoBehaviour
             && !transform.IsChildOf(presentationSpace)
             && runner != null && !runner.transform.IsChildOf(presentationSpace)
             && !alignment.transform.IsChildOf(presentationSpace);
-        if (!available || origin == null || !PresentationCoordinateAdapter.TryToUnityPose(origin.Pose, out Pose runtimeOrigin))
+        if (!available || origin == null || !PresentationCoordinateAdapter.TryToUnityPose(origin.Pose, out _))
         {
             Hide();
             return;
         }
 
-        // Calibration is already in Unity world space; only the portable Runtime origin needs reflection.
+        // Calibration is Unity world space; the generated hierarchy owns the reflected Runtime origin.
         Pose calibration = alignment.OriginPose;
         presentationSpace.SetPositionAndRotation(calibration.position, calibration.rotation);
         presentationSpace.localScale = Vector3.one;
-        stageRoot.SetLocalPositionAndRotation(runtimeOrigin.position, runtimeOrigin.rotation);
+        stageRoot.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
         stageRoot.localScale = Vector3.one;
+        runner.Hierarchy.ApplyOrigin(origin);
         presentationSpace.gameObject.SetActive(true);
     }
 
