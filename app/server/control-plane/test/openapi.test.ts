@@ -11,6 +11,7 @@ describe("Control Plane OpenAPI", () => {
           (route) =>
             route.method !== "ALL" &&
             (route.path.startsWith("/presentations") ||
+              route.path.startsWith("/publication-assets") ||
               route.path.startsWith("/assets") ||
               route.path.startsWith("/sessions") ||
               route.path.startsWith("/venue-edges") ||

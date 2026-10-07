@@ -8,6 +8,7 @@ const validDefinition = definition as unknown as PresentationDefinition;
 const record: PresentationRecord = {
   id: "presentation",
   ownerId: "owner",
+  name: "Demo",
   revision: 1,
   definition: validDefinition,
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -21,6 +22,7 @@ class FakeRepository implements PresentationRepository {
   ]);
   async create(value: PresentationRecord) {
     this.records.set(value.id, value);
+    this.roles.set(`${value.id}:${value.ownerId}`, "owner");
   }
   async listAll() {
     return [...this.records.values()];
@@ -57,11 +59,7 @@ class FakeRepository implements PresentationRepository {
   }
 }
 const service = () =>
-  new PresentationService(
-    new FakeRepository(),
-    () => "2026-01-02T00:00:00.000Z",
-    () => "new",
-  );
+  new PresentationService(new FakeRepository(), () => "2026-01-02T00:00:00.000Z");
 
 describe("PresentationService authorization", () => {
   it("allows owners and editors to update", async () => {

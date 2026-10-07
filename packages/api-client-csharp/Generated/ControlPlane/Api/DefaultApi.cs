@@ -503,6 +503,37 @@ namespace Unframe.ControlPlane.Api
         ///
         /// </remarks>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>&gt;</returns>
+        Task<IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse> PublicationAssetsPresentationIdBuildIdAssetIdGetAsync(string presentationId, string buildId, string assetId, string expires, string signature, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>?&gt;</returns>
+        Task<IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse?> PublicationAssetsPresentationIdBuildIdAssetIdGetOrDefaultAsync(string presentationId, string buildId, string assetId, string expires, string signature, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="id"></param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="ISessionsIdBootstrapPostApiResponse"/>&gt;</returns>
@@ -1400,7 +1431,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsPostApiResponse"/>
     /// </summary>
-    public interface IPresentationsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -1419,6 +1450,12 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
     }
 
     /// <summary>
@@ -1587,6 +1624,42 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsUnprocessableContent { get; }
+    }
+
+    /// <summary>
+    /// The <see cref="IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>
+    /// </summary>
+    public interface IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Object?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
     }
 
     /// <summary>
@@ -2554,6 +2627,26 @@ namespace Unframe.ControlPlane.Api
         internal void ExecuteOnErrorPresentationsPresentationIdPublicationsPost(Exception exception)
         {
             OnErrorPresentationsPresentationIdPublicationsPost?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnPublicationAssetsPresentationIdBuildIdAssetIdGet;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorPublicationAssetsPresentationIdBuildIdAssetIdGet;
+
+        internal void ExecuteOnPublicationAssetsPresentationIdBuildIdAssetIdGet(DefaultApi.PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse apiResponse)
+        {
+            OnPublicationAssetsPresentationIdBuildIdAssetIdGet?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorPublicationAssetsPresentationIdBuildIdAssetIdGet(Exception exception)
+        {
+            OnErrorPublicationAssetsPresentationIdBuildIdAssetIdGet?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -9063,6 +9156,44 @@ namespace Unframe.ControlPlane.Api
                 return result != null;
             }
 
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
             private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
             {
                 bool suppressDefaultLog = false;
@@ -10885,6 +11016,450 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)422);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatPublicationAssetsPresentationIdBuildIdAssetIdGet(ref string presentationId, ref string buildId, ref string assetId, ref string expires, ref string signature);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        /// <returns></returns>
+        private void ValidatePublicationAssetsPresentationIdBuildIdAssetIdGet(string presentationId, string buildId, string assetId, string expires, string signature)
+        {
+            if (presentationId == null)
+                throw new ArgumentNullException(nameof(presentationId));
+
+            if (buildId == null)
+                throw new ArgumentNullException(nameof(buildId));
+
+            if (assetId == null)
+                throw new ArgumentNullException(nameof(assetId));
+
+            if (expires == null)
+                throw new ArgumentNullException(nameof(expires));
+
+            if (signature == null)
+                throw new ArgumentNullException(nameof(signature));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        private void AfterPublicationAssetsPresentationIdBuildIdAssetIdGetDefaultImplementation(IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse apiResponseLocalVar, string presentationId, string buildId, string assetId, string expires, string signature)
+        {
+            bool suppressDefaultLog = false;
+            AfterPublicationAssetsPresentationIdBuildIdAssetIdGet(ref suppressDefaultLog, apiResponseLocalVar, presentationId, buildId, assetId, expires, signature);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        partial void AfterPublicationAssetsPresentationIdBuildIdAssetIdGet(ref bool suppressDefaultLog, IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse apiResponseLocalVar, string presentationId, string buildId, string assetId, string expires, string signature);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        private void OnErrorPublicationAssetsPresentationIdBuildIdAssetIdGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId, string assetId, string expires, string signature)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorPublicationAssetsPresentationIdBuildIdAssetIdGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, presentationId, buildId, assetId, expires, signature);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        partial void OnErrorPublicationAssetsPresentationIdBuildIdAssetIdGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string presentationId, string buildId, string assetId, string expires, string signature);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>&gt;</returns>
+        public async Task<IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse?> PublicationAssetsPresentationIdBuildIdAssetIdGetOrDefaultAsync(string presentationId, string buildId, string assetId, string expires, string signature, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await PublicationAssetsPresentationIdBuildIdAssetIdGetAsync(presentationId, buildId, assetId, expires, signature, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="presentationId"></param>
+        /// <param name="buildId"></param>
+        /// <param name="assetId"></param>
+        /// <param name="expires"></param>
+        /// <param name="signature"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>&gt;</returns>
+        public async Task<IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse> PublicationAssetsPresentationIdBuildIdAssetIdGetAsync(string presentationId, string buildId, string assetId, string expires, string signature, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidatePublicationAssetsPresentationIdBuildIdAssetIdGet(presentationId, buildId, assetId, expires, signature);
+
+                FormatPublicationAssetsPresentationIdBuildIdAssetIdGet(ref presentationId, ref buildId, ref assetId, ref expires, ref signature);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/publication-assets/{presentationId}/{buildId}/{assetId}"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/publication-assets/{presentationId}/{buildId}/{assetId}");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BpresentationId%7D", Uri.EscapeDataString(presentationId.ToString()));
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BbuildId%7D", Uri.EscapeDataString(buildId.ToString()));
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BassetId%7D", Uri.EscapeDataString(assetId.ToString()));
+
+                    System.Collections.Specialized.NameValueCollection parseQueryStringLocalVar = System.Web.HttpUtility.ParseQueryString(string.Empty);
+
+                    parseQueryStringLocalVar["expires"] = ClientUtils.ParameterToString(expires);
+                    parseQueryStringLocalVar["signature"] = ClientUtils.ParameterToString(signature);
+
+                    uriBuilderLocalVar.Query = parseQueryStringLocalVar.ToString();
+
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/octet-stream",
+                        "application/json"
+                    };
+
+                    IEnumerable<MediaTypeWithQualityHeaderValue> acceptHeaderValuesLocalVar = ClientUtils.SelectHeaderAcceptArray(acceptLocalVars);
+
+                    foreach (var acceptLocalVar in acceptHeaderValuesLocalVar)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(acceptLocalVar);
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Get;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        ILogger<PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse>();
+                        PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse apiResponseLocalVar;
+
+                        switch ((int)httpResponseMessageLocalVar.StatusCode) {
+                            default: {
+                                string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/publication-assets/{presentationId}/{buildId}/{assetId}", requestedAtLocalVar, _jsonSerializerOptions);
+
+                                break;
+                            }
+                        }
+
+                        AfterPublicationAssetsPresentationIdBuildIdAssetIdGetDefaultImplementation(apiResponseLocalVar, presentationId, buildId, assetId, expires, signature);
+
+                        Events.ExecuteOnPublicationAssetsPresentationIdBuildIdAssetIdGet(apiResponseLocalVar);
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorPublicationAssetsPresentationIdBuildIdAssetIdGetDefaultImplementation(e, "/publication-assets/{presentationId}/{buildId}/{assetId}", uriBuilderLocalVar.Path, presentationId, buildId, assetId, expires, signature);
+                Events.ExecuteOnErrorPublicationAssetsPresentationIdBuildIdAssetIdGet(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>
+        /// </summary>
+        public partial class PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse : Unframe.ControlPlane.Client.ApiResponse, IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse(ILogger<PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            /// <summary>
+            /// The <see cref="PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="contentStream"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse(ILogger<PublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, System.IO.Stream contentStream, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, contentStream, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Object? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Object>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Object? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
                 }
 
                 return result != null;

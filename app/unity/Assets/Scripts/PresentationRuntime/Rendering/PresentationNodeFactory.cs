@@ -10,22 +10,22 @@ namespace Unframe.Unity.PresentationRuntime
     /// </summary>
     public sealed class PresentationNodeFactory
     {
-        public bool TryBuild(PresentationRuntimeDataStore store, UnityEngine.Transform root, out PresentationNodeRegistry registry, out string error)
+        public bool TryBuild(IPresentationRenderView view, UnityEngine.Transform root, out PresentationNodeRegistry registry, out string error)
         {
             registry = null;
-            if (store == null || store.Delivery == null || root == null)
+            if (view == null || view.Catalog == null || root == null)
             {
-                error = "A received delivery and target root are required.";
+                error = "A validated render catalog and target root are required.";
                 return false;
             }
 
-            List<ProjectedNodeDefinition> definitions = new List<ProjectedNodeDefinition>(store.Nodes);
+            List<ProjectedNodeDefinition> definitions = new List<ProjectedNodeDefinition>(view.Catalog.Nodes);
             Dictionary<string, ProjectedNodeDefinition> byId = new Dictionary<string, ProjectedNodeDefinition>();
             foreach (ProjectedNodeDefinition definition in definitions)
             {
                 if (definition == null || String.IsNullOrEmpty(definition.NodeId) || definition.Parent == null || definition.Parent.ParentCase == SpatialParent.ParentOneofCase.None || definition.NodeCase == ProjectedNodeDefinition.NodeOneofCase.None || byId.ContainsKey(definition.NodeId))
                 {
-                    error = "Delivery contains an invalid projected node.";
+                    error = "Render catalog contains an invalid projected node.";
                     return false;
                 }
 
@@ -39,18 +39,18 @@ namespace Unframe.Unity.PresentationRuntime
                         || !Enum.IsDefined(typeof(AnchorTarget), definition.Parent.PresenterAnchor.Target)
                         || !definition.Parent.PresenterAnchor.FollowPosition && !definition.Parent.PresenterAnchor.FollowRotation))
                 {
-                    error = "Delivery presenter anchor is invalid.";
+                    error = "Render catalog presenter anchor is invalid.";
                     return false;
                 }
                 if (definition.Parent.ParentCase == SpatialParent.ParentOneofCase.Node && !byId.ContainsKey(definition.Parent.Node.NodeId))
                 {
-                    error = "Delivery node parent is absent.";
+                    error = "Render catalog node parent is absent.";
                     return false;
                 }
 
                 if (HasParentCycle(definition, byId))
                 {
-                    error = "Delivery node parent graph contains a cycle.";
+                    error = "Render catalog node parent graph contains a cycle.";
                     return false;
                 }
             }
@@ -66,7 +66,7 @@ namespace Unframe.Unity.PresentationRuntime
                     created.Add(definition.NodeId, nodeObject);
                 }
 
-                foreach (ProjectedSurfaceDefinition surface in store.Delivery.ProjectionProfile.RuntimeCatalog.Surfaces)
+                foreach (ProjectedSurfaceDefinition surface in view.Catalog.Surfaces)
                 {
                     created[surface.HostNodeId].AddComponent<PresentationSurfaceMetadata>().Initialize(surface);
                 }

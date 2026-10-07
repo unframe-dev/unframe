@@ -30,3 +30,5 @@ pnpm --filter @unframe/control-plane run dev
 ```
 
 `nix run .#control-plane` は binding 型、TypeScript、lint、Workers runtime test、OpenAPI / TypeScript client drift、deploy dry-runを検証します。実環境の resource ID と secret を設定する手順は [`control-plane/README.md`](./control-plane/README.md) を参照してください。
+
+`PUBLICATION_ASSET_ORIGIN` は任意の HTTPS origin（path・query・credentials なし）です。設定すると、Delivery の素材 URL は同じ Control Plane の `ASSETS` binding を読む `/publication-assets/{presentationId}/{buildId}/{assetId}` へ向き、対象素材と最大5分の期限を `SERVICE_IDENTITY_SECRET` の用途別 HMAC で拘束します。返送前に公開済み build の media type・size・checksum を照合します。未設定時は既存 R2 backend の署名 URL を使用します。ローカル検証では Worker と同じストレージへ接続する HTTPS 入口をこの origin に指定してください。

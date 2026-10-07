@@ -1,0 +1,434 @@
+{
+  "definition": {
+    "schemaVersion": 2,
+    "presentationId": "demo",
+    "metadata": {
+      "title": "Contract fixture"
+    },
+    "stage": {
+      "coordinateSystem": {
+        "unit": "meter",
+        "handedness": "right",
+        "upAxis": "+Y",
+        "forwardAxis": "-Z"
+      },
+      "size": [10, 10, 10],
+      "zones": {}
+    },
+    "scene": {
+      "nodes": {
+        "root": {
+          "owner": {
+            "kind": "presentation"
+          },
+          "audience": {
+            "kind": "all"
+          },
+          "parent": {
+            "kind": "stage"
+          },
+          "order": 0,
+          "transform": {
+            "position": [-1, 2, -3],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          },
+          "active": true,
+          "visible": false,
+          "opacity": 0.5,
+          "id": "root",
+          "kind": "container"
+        },
+        "node-baked": {
+          "owner": {
+            "kind": "group",
+            "groupId": "intro"
+          },
+          "audience": {
+            "kind": "all"
+          },
+          "parent": {
+            "kind": "node",
+            "nodeId": "root"
+          },
+          "order": 1,
+          "transform": {
+            "position": [1, -2, 3],
+            "rotation": [0, 0.6, 0, 0.8],
+            "scale": [2, 3, 4]
+          },
+          "active": false,
+          "visible": true,
+          "opacity": 0.25,
+          "id": "node-baked",
+          "kind": "surface",
+          "surfaceId": "baked"
+        },
+        "node-later": {
+          "owner": {
+            "kind": "group",
+            "groupId": "later"
+          },
+          "audience": {
+            "kind": "all"
+          },
+          "parent": {
+            "kind": "node",
+            "nodeId": "root"
+          },
+          "order": 2,
+          "transform": {
+            "position": [1, -2, 3],
+            "rotation": [0, 0.6, 0, 0.8],
+            "scale": [2, 3, 4]
+          },
+          "active": true,
+          "visible": true,
+          "opacity": 0.25,
+          "id": "node-later",
+          "kind": "surface",
+          "surfaceId": "later"
+        }
+      },
+      "surfaces": {
+        "baked": {
+          "id": "baked",
+          "hostNodeId": "node-baked",
+          "physicalSizeMeters": [1, 1],
+          "logicalSize": [100, 100],
+          "fit": "contain",
+          "baseSemanticTree": {
+            "rootNodeIds": ["label"],
+            "nodes": {
+              "label": {
+                "id": "label",
+                "parentId": null,
+                "order": 0,
+                "role": "paragraph",
+                "text": "Hello"
+              }
+            }
+          },
+          "interactions": {},
+          "initialStateId": "alternate",
+          "states": {
+            "default": {
+              "id": "default",
+              "contentOverrides": {},
+              "semanticOverrides": [],
+              "enabledInteractionIds": []
+            },
+            "alternate": {
+              "id": "alternate",
+              "contentOverrides": {},
+              "semanticOverrides": [],
+              "enabledInteractionIds": []
+            }
+          },
+          "renderIntent": {
+            "updateModel": {
+              "kind": "static"
+            },
+            "interaction": {
+              "kind": "none"
+            },
+            "internalAnimation": {
+              "kind": "none"
+            },
+            "rendererPreference": "baked-web",
+            "fallbackPolicy": "reject"
+          },
+          "content": {
+            "kind": "structured",
+            "rootFrameId": "root",
+            "nodes": {
+              "root": {
+                "visible": true,
+                "opacity": 1,
+                "placement": {
+                  "kind": "absolute",
+                  "x": 0,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+                },
+                "id": "root",
+                "parentId": null,
+                "order": 0,
+                "kind": "frame",
+                "children": ["text"],
+                "layout": {
+                  "kind": "absolute"
+                },
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "border": {
+                  "color": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1,
+                    "alpha": 1
+                  },
+                  "width": 0,
+                  "radius": 0
+                },
+                "clip": true
+              },
+              "text": {
+                "visible": true,
+                "opacity": 1,
+                "placement": {
+                  "kind": "absolute",
+                  "x": 0,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+                },
+                "parentId": "root",
+                "order": 0,
+                "id": "text",
+                "kind": "text",
+                "semanticNodeId": "label",
+                "maxCodePoints": 16,
+                "value": {
+                  "kind": "literal",
+                  "value": "Hello"
+                },
+                "style": {
+                  "fontAssetId": "font",
+                  "fallbackFontAssetIds": [],
+                  "fontSize": 20,
+                  "lineHeight": 24,
+                  "color": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1,
+                    "alpha": 1
+                  },
+                  "weight": "regular",
+                  "align": "start",
+                  "overflow": "clip"
+                }
+              }
+            }
+          }
+        },
+        "later": {
+          "id": "later",
+          "hostNodeId": "node-later",
+          "physicalSizeMeters": [1, 1],
+          "logicalSize": [100, 100],
+          "fit": "contain",
+          "baseSemanticTree": {
+            "rootNodeIds": ["label"],
+            "nodes": {
+              "label": {
+                "id": "label",
+                "parentId": null,
+                "order": 0,
+                "role": "paragraph",
+                "text": "Hello"
+              }
+            }
+          },
+          "interactions": {},
+          "initialStateId": "alternate",
+          "states": {
+            "default": {
+              "id": "default",
+              "contentOverrides": {},
+              "semanticOverrides": [],
+              "enabledInteractionIds": []
+            },
+            "alternate": {
+              "id": "alternate",
+              "contentOverrides": {},
+              "semanticOverrides": [],
+              "enabledInteractionIds": []
+            }
+          },
+          "renderIntent": {
+            "updateModel": {
+              "kind": "static"
+            },
+            "interaction": {
+              "kind": "none"
+            },
+            "internalAnimation": {
+              "kind": "none"
+            },
+            "rendererPreference": "baked-web",
+            "fallbackPolicy": "reject"
+          },
+          "content": {
+            "kind": "structured",
+            "rootFrameId": "root",
+            "nodes": {
+              "root": {
+                "visible": true,
+                "opacity": 1,
+                "placement": {
+                  "kind": "absolute",
+                  "x": 0,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+                },
+                "id": "root",
+                "parentId": null,
+                "order": 0,
+                "kind": "frame",
+                "children": ["text"],
+                "layout": {
+                  "kind": "absolute"
+                },
+                "backgroundColor": {
+                  "red": 1,
+                  "green": 1,
+                  "blue": 1,
+                  "alpha": 1
+                },
+                "border": {
+                  "color": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1,
+                    "alpha": 1
+                  },
+                  "width": 0,
+                  "radius": 0
+                },
+                "clip": true
+              },
+              "text": {
+                "visible": true,
+                "opacity": 1,
+                "placement": {
+                  "kind": "absolute",
+                  "x": 0,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+                },
+                "parentId": "root",
+                "order": 0,
+                "id": "text",
+                "kind": "text",
+                "semanticNodeId": "label",
+                "maxCodePoints": 16,
+                "value": {
+                  "kind": "literal",
+                  "value": "Hello"
+                },
+                "style": {
+                  "fontAssetId": "font",
+                  "fallbackFontAssetIds": [],
+                  "fontSize": 20,
+                  "lineHeight": 24,
+                  "color": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1,
+                    "alpha": 1
+                  },
+                  "weight": "regular",
+                  "align": "start",
+                  "overflow": "clip"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "flow": {
+      "initialGroupId": "intro",
+      "groups": {
+        "intro": {
+          "id": "intro",
+          "initialStepId": "start",
+          "steps": {
+            "start": {
+              "id": "start",
+              "cues": []
+            }
+          }
+        },
+        "later": {
+          "id": "later",
+          "initialStepId": "start",
+          "steps": {
+            "start": {
+              "id": "start",
+              "cues": []
+            }
+          }
+        }
+      },
+      "variables": {},
+      "timelines": {}
+    }
+  },
+  "expected": {
+    "nodeStates": [
+      {
+        "nodeId": "node-baked",
+        "active": false,
+        "visible": true,
+        "opacity": 0.25,
+        "transform": {
+          "position": {
+            "x": 1,
+            "y": -2,
+            "z": 3
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0.6,
+            "z": 0,
+            "w": 0.8
+          },
+          "scale": {
+            "x": 2,
+            "y": 3,
+            "z": 4
+          }
+        }
+      },
+      {
+        "nodeId": "root",
+        "active": true,
+        "visible": false,
+        "opacity": 0.5,
+        "transform": {
+          "position": {
+            "x": -1,
+            "y": 2,
+            "z": -3
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      }
+    ],
+    "surfaceStates": [
+      {
+        "surfaceId": "baked",
+        "stateId": "alternate"
+      }
+    ]
+  }
+}

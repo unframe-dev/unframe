@@ -81795,6 +81795,1810 @@ export const unframe = ($root.unframe = (() => {
     return realtime;
   })();
 
+  unframe.preview = (function () {
+    /**
+     * Namespace preview.
+     * @memberof unframe
+     * @namespace
+     */
+    const preview = {};
+
+    preview.LocalPreviewEnvelope = (function () {
+      /**
+       * Properties of a LocalPreviewEnvelope.
+       * @typedef {Object} unframe.preview.LocalPreviewEnvelope.$Properties
+       * @property {number|null} [schemaVersion] LocalPreviewEnvelope schemaVersion
+       * @property {string|null} [requestId] LocalPreviewEnvelope requestId
+       * @property {string|null} [sourceRevision] LocalPreviewEnvelope sourceRevision
+       * @property {string|null} [buildManifest] LocalPreviewEnvelope buildManifest
+       * @property {string|null} [assetSet] LocalPreviewEnvelope assetSet
+       * @property {unframe.preview.LocalPreviewProjection.$Properties|null} [projection] LocalPreviewEnvelope projection
+       * @property {unframe.preview.LocalPreviewInitialState.$Properties|null} [initialState] LocalPreviewEnvelope initialState
+       * @property {Array.<unframe.preview.LocalPreviewAsset.$Properties>|null} [assets] LocalPreviewEnvelope assets
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a LocalPreviewEnvelope.
+       * @memberof unframe.preview
+       * @interface ILocalPreviewEnvelope
+       * @augments unframe.preview.LocalPreviewEnvelope.$Properties
+       * @deprecated Use unframe.preview.LocalPreviewEnvelope.$Properties instead.
+       */
+
+      /**
+       * Shape of a LocalPreviewEnvelope.
+       * @typedef {{
+       *   schemaVersion?: number|null;
+       *   requestId?: string|null;
+       *   sourceRevision?: string|null;
+       *   buildManifest?: string|null;
+       *   assetSet?: string|null;
+       *   projection?: unframe.preview.LocalPreviewProjection.$Shape|null;
+       *   initialState?: unframe.preview.LocalPreviewInitialState.$Shape|null;
+       *   assets?: Array.<unframe.preview.LocalPreviewAsset.$Shape>|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.preview.LocalPreviewEnvelope.$Shape
+       */
+
+      /**
+       * Constructs a new LocalPreviewEnvelope.
+       * @memberof unframe.preview
+       * @classdesc Represents a LocalPreviewEnvelope.
+       * @constructor
+       * @param {unframe.preview.LocalPreviewEnvelope.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const LocalPreviewEnvelope = function LocalPreviewEnvelope(properties) {
+        this.assets = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * LocalPreviewEnvelope schemaVersion.
+       * @member {number} schemaVersion
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.schemaVersion = 0;
+
+      /**
+       * LocalPreviewEnvelope requestId.
+       * @member {string} requestId
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.requestId = "";
+
+      /**
+       * LocalPreviewEnvelope sourceRevision.
+       * @member {string|null|undefined} sourceRevision
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.sourceRevision = null;
+
+      /**
+       * LocalPreviewEnvelope buildManifest.
+       * @member {string} buildManifest
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.buildManifest = "";
+
+      /**
+       * LocalPreviewEnvelope assetSet.
+       * @member {string} assetSet
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.assetSet = "";
+
+      /**
+       * LocalPreviewEnvelope projection.
+       * @member {unframe.preview.LocalPreviewProjection.$Properties|null|undefined} projection
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.projection = null;
+
+      /**
+       * LocalPreviewEnvelope initialState.
+       * @member {unframe.preview.LocalPreviewInitialState.$Properties|null|undefined} initialState
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.initialState = null;
+
+      /**
+       * LocalPreviewEnvelope assets.
+       * @member {Array.<unframe.preview.LocalPreviewAsset.$Properties>} assets
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       */
+      LocalPreviewEnvelope.prototype.assets = $util.emptyArray;
+
+      // OneOf field names bound to virtual getters and setters
+      let $oneOfFields;
+
+      // Virtual OneOf for proto3 optional field
+      $Object.defineProperty(LocalPreviewEnvelope.prototype, "_sourceRevision", {
+        get: $util.oneOfGetter(($oneOfFields = ["sourceRevision"])),
+        set: $util.oneOfSetter($oneOfFields),
+      });
+
+      /**
+       * Creates a new LocalPreviewEnvelope instance using the specified properties.
+       * @function create
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {unframe.preview.LocalPreviewEnvelope.$Properties=} [properties] Properties to set
+       * @returns {unframe.preview.LocalPreviewEnvelope} LocalPreviewEnvelope instance
+       * @type {{
+       *   (properties: unframe.preview.LocalPreviewEnvelope.$Shape): unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape;
+       *   (properties?: unframe.preview.LocalPreviewEnvelope.$Properties): unframe.preview.LocalPreviewEnvelope;
+       * }}
+       */
+      LocalPreviewEnvelope.create = function (properties) {
+        return new LocalPreviewEnvelope(properties);
+      };
+
+      /**
+       * Encodes the specified LocalPreviewEnvelope message. Does not implicitly {@link unframe.preview.LocalPreviewEnvelope.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {unframe.preview.LocalPreviewEnvelope.$Properties} message LocalPreviewEnvelope message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewEnvelope.encode = function LocalPreviewEnvelope$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.schemaVersion != null && $Object.hasOwnProperty.call(message, "schemaVersion"))
+          writer.uint32(/* id 1, wireType 0 =*/ 8).uint32(message.schemaVersion);
+        if (message.requestId != null && $Object.hasOwnProperty.call(message, "requestId"))
+          writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.requestId);
+        if (
+          message.sourceRevision != null &&
+          $Object.hasOwnProperty.call(message, "sourceRevision")
+        )
+          writer.uint32(/* id 3, wireType 2 =*/ 26).string(message.sourceRevision);
+        if (message.buildManifest != null && $Object.hasOwnProperty.call(message, "buildManifest"))
+          writer.uint32(/* id 4, wireType 2 =*/ 34).string(message.buildManifest);
+        if (message.assetSet != null && $Object.hasOwnProperty.call(message, "assetSet"))
+          writer.uint32(/* id 5, wireType 2 =*/ 42).string(message.assetSet);
+        if (message.projection != null && $Object.hasOwnProperty.call(message, "projection"))
+          $root.unframe.preview.LocalPreviewProjection.encode(
+            message.projection,
+            writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+          ).ldelim();
+        if (message.initialState != null && $Object.hasOwnProperty.call(message, "initialState"))
+          $root.unframe.preview.LocalPreviewInitialState.encode(
+            message.initialState,
+            writer.uint32(/* id 7, wireType 2 =*/ 58).fork(),
+          ).ldelim();
+        if (message.assets != null && message.assets.length)
+          for (let i = 0; i < message.assets.length; ++i)
+            $root.unframe.preview.LocalPreviewAsset.encode(
+              message.assets[i],
+              writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+            ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified LocalPreviewEnvelope message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewEnvelope.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {unframe.preview.LocalPreviewEnvelope.$Properties} message LocalPreviewEnvelope message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewEnvelope.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a LocalPreviewEnvelope message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape} LocalPreviewEnvelope
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewEnvelope.decode = function LocalPreviewEnvelope$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.schemaVersion = reader.uint32();
+              break;
+            }
+            case 2: {
+              message.requestId = reader.string();
+              break;
+            }
+            case 3: {
+              message.sourceRevision = reader.string();
+              break;
+            }
+            case 4: {
+              message.buildManifest = reader.string();
+              break;
+            }
+            case 5: {
+              message.assetSet = reader.string();
+              break;
+            }
+            case 6: {
+              message.projection = $root.unframe.preview.LocalPreviewProjection.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 7: {
+              message.initialState = $root.unframe.preview.LocalPreviewInitialState.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 8: {
+              if (!(message.assets && message.assets.length)) message.assets = [];
+              message.assets.push(
+                $root.unframe.preview.LocalPreviewAsset.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a LocalPreviewEnvelope message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape} LocalPreviewEnvelope
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewEnvelope.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a LocalPreviewEnvelope message.
+       * @function verify
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      LocalPreviewEnvelope.verify = function LocalPreviewEnvelope$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        let properties = {};
+        if (message.schemaVersion != null && message.hasOwnProperty("schemaVersion"))
+          if (!$util.isInteger(message.schemaVersion)) return "schemaVersion: integer expected";
+        if (message.requestId != null && message.hasOwnProperty("requestId"))
+          if (!$util.isString(message.requestId)) return "requestId: string expected";
+        if (message.sourceRevision != null && message.hasOwnProperty("sourceRevision")) {
+          properties._sourceRevision = 1;
+          if (!$util.isString(message.sourceRevision)) return "sourceRevision: string expected";
+        }
+        if (message.buildManifest != null && message.hasOwnProperty("buildManifest"))
+          if (!$util.isString(message.buildManifest)) return "buildManifest: string expected";
+        if (message.assetSet != null && message.hasOwnProperty("assetSet"))
+          if (!$util.isString(message.assetSet)) return "assetSet: string expected";
+        if (message.projection != null && message.hasOwnProperty("projection")) {
+          let error = $root.unframe.preview.LocalPreviewProjection.verify(
+            message.projection,
+            long + 1,
+          );
+          if (error) return "projection." + error;
+        }
+        if (message.initialState != null && message.hasOwnProperty("initialState")) {
+          let error = $root.unframe.preview.LocalPreviewInitialState.verify(
+            message.initialState,
+            long + 1,
+          );
+          if (error) return "initialState." + error;
+        }
+        if (message.assets != null && message.hasOwnProperty("assets")) {
+          if (!$Array.isArray(message.assets)) return "assets: array expected";
+          for (let i = 0; i < message.assets.length; ++i) {
+            let error = $root.unframe.preview.LocalPreviewAsset.verify(message.assets[i], long + 1);
+            if (error) return "assets." + error;
+          }
+        }
+        return null;
+      };
+
+      /**
+       * Creates a LocalPreviewEnvelope message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.preview.LocalPreviewEnvelope} LocalPreviewEnvelope
+       */
+      LocalPreviewEnvelope.fromObject = function LocalPreviewEnvelope$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.schemaVersion != null) message.schemaVersion = object.schemaVersion >>> 0;
+        if (object.requestId != null) message.requestId = $String(object.requestId);
+        if (object.sourceRevision != null) message.sourceRevision = $String(object.sourceRevision);
+        if (object.buildManifest != null) message.buildManifest = $String(object.buildManifest);
+        if (object.assetSet != null) message.assetSet = $String(object.assetSet);
+        if (object.projection != null) {
+          if (typeof object.projection !== "object")
+            throw $TypeError(".unframe.preview.LocalPreviewEnvelope.projection: object expected");
+          message.projection = $root.unframe.preview.LocalPreviewProjection.fromObject(
+            object.projection,
+            long + 1,
+          );
+        }
+        if (object.initialState != null) {
+          if (typeof object.initialState !== "object")
+            throw $TypeError(".unframe.preview.LocalPreviewEnvelope.initialState: object expected");
+          message.initialState = $root.unframe.preview.LocalPreviewInitialState.fromObject(
+            object.initialState,
+            long + 1,
+          );
+        }
+        if (object.assets) {
+          if (!$Array.isArray(object.assets))
+            throw $TypeError(".unframe.preview.LocalPreviewEnvelope.assets: array expected");
+          message.assets = [];
+          for (let i = 0; i < object.assets.length; ++i) {
+            if (typeof object.assets[i] !== "object")
+              throw $TypeError(".unframe.preview.LocalPreviewEnvelope.assets: object expected");
+            message.assets[i] = $root.unframe.preview.LocalPreviewAsset.fromObject(
+              object.assets[i],
+              long + 1,
+            );
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a LocalPreviewEnvelope message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {unframe.preview.LocalPreviewEnvelope} message LocalPreviewEnvelope
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      LocalPreviewEnvelope.toObject = function LocalPreviewEnvelope$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) object.assets = [];
+        if (options.defaults) {
+          object.schemaVersion = 0;
+          object.requestId = "";
+          object.buildManifest = "";
+          object.assetSet = "";
+          object.projection = null;
+          object.initialState = null;
+        }
+        if (message.schemaVersion != null && message.hasOwnProperty("schemaVersion"))
+          object.schemaVersion = message.schemaVersion;
+        if (message.requestId != null && message.hasOwnProperty("requestId"))
+          object.requestId = message.requestId;
+        if (message.sourceRevision != null && message.hasOwnProperty("sourceRevision")) {
+          object.sourceRevision = message.sourceRevision;
+          if (options.oneofs) object._sourceRevision = "sourceRevision";
+        }
+        if (message.buildManifest != null && message.hasOwnProperty("buildManifest"))
+          object.buildManifest = message.buildManifest;
+        if (message.assetSet != null && message.hasOwnProperty("assetSet"))
+          object.assetSet = message.assetSet;
+        if (message.projection != null && message.hasOwnProperty("projection"))
+          object.projection = $root.unframe.preview.LocalPreviewProjection.toObject(
+            message.projection,
+            options,
+          );
+        if (message.initialState != null && message.hasOwnProperty("initialState"))
+          object.initialState = $root.unframe.preview.LocalPreviewInitialState.toObject(
+            message.initialState,
+            options,
+          );
+        if (message.assets && message.assets.length) {
+          object.assets = [];
+          for (let j = 0; j < message.assets.length; ++j)
+            object.assets[j] = $root.unframe.preview.LocalPreviewAsset.toObject(
+              message.assets[j],
+              options,
+            );
+        }
+        return object;
+      };
+
+      /**
+       * Converts this LocalPreviewEnvelope to JSON.
+       * @function toJSON
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      LocalPreviewEnvelope.prototype.toJSON = function () {
+        return LocalPreviewEnvelope.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for LocalPreviewEnvelope
+       * @function getTypeUrl
+       * @memberof unframe.preview.LocalPreviewEnvelope
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      LocalPreviewEnvelope.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.preview.LocalPreviewEnvelope";
+      };
+
+      return LocalPreviewEnvelope;
+    })();
+
+    preview.LocalPreviewProjection = (function () {
+      /**
+       * Properties of a LocalPreviewProjection.
+       * @typedef {Object} unframe.preview.LocalPreviewProjection.$Properties
+       * @property {Array.<string>|null} [visibleNodeIds] LocalPreviewProjection visibleNodeIds
+       * @property {Array.<string>|null} [visibleSurfaceIds] LocalPreviewProjection visibleSurfaceIds
+       * @property {Array.<string>|null} [visibleVariableIds] LocalPreviewProjection visibleVariableIds
+       * @property {Array.<unframe.delivery.DeliveredRenderSurface.$Properties>|null} [renderSurfaces] LocalPreviewProjection renderSurfaces
+       * @property {Array.<unframe.delivery.ProjectedSemanticSurface.$Properties>|null} [semanticSurfaces] LocalPreviewProjection semanticSurfaces
+       * @property {Array.<unframe.delivery.LocalOverlayDefinition.$Properties>|null} [localOverlays] LocalPreviewProjection localOverlays
+       * @property {Array.<unframe.presentation.RuntimeCapability>|null} [requiredRuntimeCapabilities] LocalPreviewProjection requiredRuntimeCapabilities
+       * @property {unframe.presentation.ProjectedRuntimeCatalog.$Properties|null} [runtimeCatalog] LocalPreviewProjection runtimeCatalog
+       * @property {unframe.delivery.TextureResidencyPlan.$Properties|null} [textureResidency] LocalPreviewProjection textureResidency
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a LocalPreviewProjection.
+       * @memberof unframe.preview
+       * @interface ILocalPreviewProjection
+       * @augments unframe.preview.LocalPreviewProjection.$Properties
+       * @deprecated Use unframe.preview.LocalPreviewProjection.$Properties instead.
+       */
+
+      /**
+       * Shape of a LocalPreviewProjection.
+       * @typedef {{
+       *   visibleNodeIds?: Array.<string>|null;
+       *   visibleSurfaceIds?: Array.<string>|null;
+       *   visibleVariableIds?: Array.<string>|null;
+       *   renderSurfaces?: Array.<unframe.delivery.DeliveredRenderSurface.$Shape>|null;
+       *   semanticSurfaces?: Array.<unframe.delivery.ProjectedSemanticSurface.$Shape>|null;
+       *   localOverlays?: Array.<unframe.delivery.LocalOverlayDefinition.$Shape>|null;
+       *   requiredRuntimeCapabilities?: Array.<unframe.presentation.RuntimeCapability>|null;
+       *   runtimeCatalog?: unframe.presentation.ProjectedRuntimeCatalog.$Shape|null;
+       *   textureResidency?: unframe.delivery.TextureResidencyPlan.$Shape|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.preview.LocalPreviewProjection.$Shape
+       */
+
+      /**
+       * Constructs a new LocalPreviewProjection.
+       * @memberof unframe.preview
+       * @classdesc Represents a LocalPreviewProjection.
+       * @constructor
+       * @param {unframe.preview.LocalPreviewProjection.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const LocalPreviewProjection = function LocalPreviewProjection(properties) {
+        this.visibleNodeIds = [];
+        this.visibleSurfaceIds = [];
+        this.visibleVariableIds = [];
+        this.renderSurfaces = [];
+        this.semanticSurfaces = [];
+        this.localOverlays = [];
+        this.requiredRuntimeCapabilities = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * LocalPreviewProjection visibleNodeIds.
+       * @member {Array.<string>} visibleNodeIds
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.visibleNodeIds = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection visibleSurfaceIds.
+       * @member {Array.<string>} visibleSurfaceIds
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.visibleSurfaceIds = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection visibleVariableIds.
+       * @member {Array.<string>} visibleVariableIds
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.visibleVariableIds = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection renderSurfaces.
+       * @member {Array.<unframe.delivery.DeliveredRenderSurface.$Properties>} renderSurfaces
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.renderSurfaces = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection semanticSurfaces.
+       * @member {Array.<unframe.delivery.ProjectedSemanticSurface.$Properties>} semanticSurfaces
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.semanticSurfaces = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection localOverlays.
+       * @member {Array.<unframe.delivery.LocalOverlayDefinition.$Properties>} localOverlays
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.localOverlays = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection requiredRuntimeCapabilities.
+       * @member {Array.<unframe.presentation.RuntimeCapability>} requiredRuntimeCapabilities
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.requiredRuntimeCapabilities = $util.emptyArray;
+
+      /**
+       * LocalPreviewProjection runtimeCatalog.
+       * @member {unframe.presentation.ProjectedRuntimeCatalog.$Properties|null|undefined} runtimeCatalog
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.runtimeCatalog = null;
+
+      /**
+       * LocalPreviewProjection textureResidency.
+       * @member {unframe.delivery.TextureResidencyPlan.$Properties|null|undefined} textureResidency
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       */
+      LocalPreviewProjection.prototype.textureResidency = null;
+
+      /**
+       * Creates a new LocalPreviewProjection instance using the specified properties.
+       * @function create
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {unframe.preview.LocalPreviewProjection.$Properties=} [properties] Properties to set
+       * @returns {unframe.preview.LocalPreviewProjection} LocalPreviewProjection instance
+       * @type {{
+       *   (properties: unframe.preview.LocalPreviewProjection.$Shape): unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape;
+       *   (properties?: unframe.preview.LocalPreviewProjection.$Properties): unframe.preview.LocalPreviewProjection;
+       * }}
+       */
+      LocalPreviewProjection.create = function (properties) {
+        return new LocalPreviewProjection(properties);
+      };
+
+      /**
+       * Encodes the specified LocalPreviewProjection message. Does not implicitly {@link unframe.preview.LocalPreviewProjection.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {unframe.preview.LocalPreviewProjection.$Properties} message LocalPreviewProjection message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewProjection.encode = function LocalPreviewProjection$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.visibleNodeIds != null && message.visibleNodeIds.length)
+          for (let i = 0; i < message.visibleNodeIds.length; ++i)
+            writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.visibleNodeIds[i]);
+        if (message.visibleSurfaceIds != null && message.visibleSurfaceIds.length)
+          for (let i = 0; i < message.visibleSurfaceIds.length; ++i)
+            writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.visibleSurfaceIds[i]);
+        if (message.visibleVariableIds != null && message.visibleVariableIds.length)
+          for (let i = 0; i < message.visibleVariableIds.length; ++i)
+            writer.uint32(/* id 3, wireType 2 =*/ 26).string(message.visibleVariableIds[i]);
+        if (message.renderSurfaces != null && message.renderSurfaces.length)
+          for (let i = 0; i < message.renderSurfaces.length; ++i)
+            $root.unframe.delivery.DeliveredRenderSurface.encode(
+              message.renderSurfaces[i],
+              writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
+            ).ldelim();
+        if (message.semanticSurfaces != null && message.semanticSurfaces.length)
+          for (let i = 0; i < message.semanticSurfaces.length; ++i)
+            $root.unframe.delivery.ProjectedSemanticSurface.encode(
+              message.semanticSurfaces[i],
+              writer.uint32(/* id 5, wireType 2 =*/ 42).fork(),
+            ).ldelim();
+        if (message.localOverlays != null && message.localOverlays.length)
+          for (let i = 0; i < message.localOverlays.length; ++i)
+            $root.unframe.delivery.LocalOverlayDefinition.encode(
+              message.localOverlays[i],
+              writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+            ).ldelim();
+        if (
+          message.requiredRuntimeCapabilities != null &&
+          message.requiredRuntimeCapabilities.length
+        ) {
+          writer.uint32(/* id 7, wireType 2 =*/ 58).fork();
+          for (let i = 0; i < message.requiredRuntimeCapabilities.length; ++i)
+            writer.int32(message.requiredRuntimeCapabilities[i]);
+          writer.ldelim();
+        }
+        if (
+          message.runtimeCatalog != null &&
+          $Object.hasOwnProperty.call(message, "runtimeCatalog")
+        )
+          $root.unframe.presentation.ProjectedRuntimeCatalog.encode(
+            message.runtimeCatalog,
+            writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
+          ).ldelim();
+        if (
+          message.textureResidency != null &&
+          $Object.hasOwnProperty.call(message, "textureResidency")
+        )
+          $root.unframe.delivery.TextureResidencyPlan.encode(
+            message.textureResidency,
+            writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
+          ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified LocalPreviewProjection message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewProjection.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {unframe.preview.LocalPreviewProjection.$Properties} message LocalPreviewProjection message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewProjection.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a LocalPreviewProjection message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape} LocalPreviewProjection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewProjection.decode = function LocalPreviewProjection$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              if (!(message.visibleNodeIds && message.visibleNodeIds.length))
+                message.visibleNodeIds = [];
+              message.visibleNodeIds.push(reader.string());
+              break;
+            }
+            case 2: {
+              if (!(message.visibleSurfaceIds && message.visibleSurfaceIds.length))
+                message.visibleSurfaceIds = [];
+              message.visibleSurfaceIds.push(reader.string());
+              break;
+            }
+            case 3: {
+              if (!(message.visibleVariableIds && message.visibleVariableIds.length))
+                message.visibleVariableIds = [];
+              message.visibleVariableIds.push(reader.string());
+              break;
+            }
+            case 4: {
+              if (!(message.renderSurfaces && message.renderSurfaces.length))
+                message.renderSurfaces = [];
+              message.renderSurfaces.push(
+                $root.unframe.delivery.DeliveredRenderSurface.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 5: {
+              if (!(message.semanticSurfaces && message.semanticSurfaces.length))
+                message.semanticSurfaces = [];
+              message.semanticSurfaces.push(
+                $root.unframe.delivery.ProjectedSemanticSurface.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 6: {
+              if (!(message.localOverlays && message.localOverlays.length))
+                message.localOverlays = [];
+              message.localOverlays.push(
+                $root.unframe.delivery.LocalOverlayDefinition.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 7: {
+              if (
+                !(message.requiredRuntimeCapabilities && message.requiredRuntimeCapabilities.length)
+              )
+                message.requiredRuntimeCapabilities = [];
+              if ((tag & 7) === 2) {
+                let end2 = reader.uint32() + reader.pos;
+                while (reader.pos < end2) message.requiredRuntimeCapabilities.push(reader.int32());
+              } else message.requiredRuntimeCapabilities.push(reader.int32());
+              break;
+            }
+            case 8: {
+              message.runtimeCatalog = $root.unframe.presentation.ProjectedRuntimeCatalog.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 9: {
+              message.textureResidency = $root.unframe.delivery.TextureResidencyPlan.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a LocalPreviewProjection message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape} LocalPreviewProjection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewProjection.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a LocalPreviewProjection message.
+       * @function verify
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      LocalPreviewProjection.verify = function LocalPreviewProjection$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.visibleNodeIds != null && message.hasOwnProperty("visibleNodeIds")) {
+          if (!$Array.isArray(message.visibleNodeIds)) return "visibleNodeIds: array expected";
+          for (let i = 0; i < message.visibleNodeIds.length; ++i)
+            if (!$util.isString(message.visibleNodeIds[i]))
+              return "visibleNodeIds: string[] expected";
+        }
+        if (message.visibleSurfaceIds != null && message.hasOwnProperty("visibleSurfaceIds")) {
+          if (!$Array.isArray(message.visibleSurfaceIds))
+            return "visibleSurfaceIds: array expected";
+          for (let i = 0; i < message.visibleSurfaceIds.length; ++i)
+            if (!$util.isString(message.visibleSurfaceIds[i]))
+              return "visibleSurfaceIds: string[] expected";
+        }
+        if (message.visibleVariableIds != null && message.hasOwnProperty("visibleVariableIds")) {
+          if (!$Array.isArray(message.visibleVariableIds))
+            return "visibleVariableIds: array expected";
+          for (let i = 0; i < message.visibleVariableIds.length; ++i)
+            if (!$util.isString(message.visibleVariableIds[i]))
+              return "visibleVariableIds: string[] expected";
+        }
+        if (message.renderSurfaces != null && message.hasOwnProperty("renderSurfaces")) {
+          if (!$Array.isArray(message.renderSurfaces)) return "renderSurfaces: array expected";
+          for (let i = 0; i < message.renderSurfaces.length; ++i) {
+            let error = $root.unframe.delivery.DeliveredRenderSurface.verify(
+              message.renderSurfaces[i],
+              long + 1,
+            );
+            if (error) return "renderSurfaces." + error;
+          }
+        }
+        if (message.semanticSurfaces != null && message.hasOwnProperty("semanticSurfaces")) {
+          if (!$Array.isArray(message.semanticSurfaces)) return "semanticSurfaces: array expected";
+          for (let i = 0; i < message.semanticSurfaces.length; ++i) {
+            let error = $root.unframe.delivery.ProjectedSemanticSurface.verify(
+              message.semanticSurfaces[i],
+              long + 1,
+            );
+            if (error) return "semanticSurfaces." + error;
+          }
+        }
+        if (message.localOverlays != null && message.hasOwnProperty("localOverlays")) {
+          if (!$Array.isArray(message.localOverlays)) return "localOverlays: array expected";
+          for (let i = 0; i < message.localOverlays.length; ++i) {
+            let error = $root.unframe.delivery.LocalOverlayDefinition.verify(
+              message.localOverlays[i],
+              long + 1,
+            );
+            if (error) return "localOverlays." + error;
+          }
+        }
+        if (
+          message.requiredRuntimeCapabilities != null &&
+          message.hasOwnProperty("requiredRuntimeCapabilities")
+        ) {
+          if (!$Array.isArray(message.requiredRuntimeCapabilities))
+            return "requiredRuntimeCapabilities: array expected";
+          for (let i = 0; i < message.requiredRuntimeCapabilities.length; ++i)
+            switch (message.requiredRuntimeCapabilities[i]) {
+              default:
+                return "requiredRuntimeCapabilities: enum value[] expected";
+              case 0:
+              case 1:
+              case 2:
+              case 3:
+              case 4:
+              case 5:
+              case 6:
+                break;
+            }
+        }
+        if (message.runtimeCatalog != null && message.hasOwnProperty("runtimeCatalog")) {
+          let error = $root.unframe.presentation.ProjectedRuntimeCatalog.verify(
+            message.runtimeCatalog,
+            long + 1,
+          );
+          if (error) return "runtimeCatalog." + error;
+        }
+        if (message.textureResidency != null && message.hasOwnProperty("textureResidency")) {
+          let error = $root.unframe.delivery.TextureResidencyPlan.verify(
+            message.textureResidency,
+            long + 1,
+          );
+          if (error) return "textureResidency." + error;
+        }
+        return null;
+      };
+
+      /**
+       * Creates a LocalPreviewProjection message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.preview.LocalPreviewProjection} LocalPreviewProjection
+       */
+      LocalPreviewProjection.fromObject = function LocalPreviewProjection$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.visibleNodeIds) {
+          if (!$Array.isArray(object.visibleNodeIds))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.visibleNodeIds: array expected",
+            );
+          message.visibleNodeIds = [];
+          for (let i = 0; i < object.visibleNodeIds.length; ++i)
+            message.visibleNodeIds[i] = $String(object.visibleNodeIds[i]);
+        }
+        if (object.visibleSurfaceIds) {
+          if (!$Array.isArray(object.visibleSurfaceIds))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.visibleSurfaceIds: array expected",
+            );
+          message.visibleSurfaceIds = [];
+          for (let i = 0; i < object.visibleSurfaceIds.length; ++i)
+            message.visibleSurfaceIds[i] = $String(object.visibleSurfaceIds[i]);
+        }
+        if (object.visibleVariableIds) {
+          if (!$Array.isArray(object.visibleVariableIds))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.visibleVariableIds: array expected",
+            );
+          message.visibleVariableIds = [];
+          for (let i = 0; i < object.visibleVariableIds.length; ++i)
+            message.visibleVariableIds[i] = $String(object.visibleVariableIds[i]);
+        }
+        if (object.renderSurfaces) {
+          if (!$Array.isArray(object.renderSurfaces))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.renderSurfaces: array expected",
+            );
+          message.renderSurfaces = [];
+          for (let i = 0; i < object.renderSurfaces.length; ++i) {
+            if (typeof object.renderSurfaces[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewProjection.renderSurfaces: object expected",
+              );
+            message.renderSurfaces[i] = $root.unframe.delivery.DeliveredRenderSurface.fromObject(
+              object.renderSurfaces[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.semanticSurfaces) {
+          if (!$Array.isArray(object.semanticSurfaces))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.semanticSurfaces: array expected",
+            );
+          message.semanticSurfaces = [];
+          for (let i = 0; i < object.semanticSurfaces.length; ++i) {
+            if (typeof object.semanticSurfaces[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewProjection.semanticSurfaces: object expected",
+              );
+            message.semanticSurfaces[i] =
+              $root.unframe.delivery.ProjectedSemanticSurface.fromObject(
+                object.semanticSurfaces[i],
+                long + 1,
+              );
+          }
+        }
+        if (object.localOverlays) {
+          if (!$Array.isArray(object.localOverlays))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.localOverlays: array expected",
+            );
+          message.localOverlays = [];
+          for (let i = 0; i < object.localOverlays.length; ++i) {
+            if (typeof object.localOverlays[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewProjection.localOverlays: object expected",
+              );
+            message.localOverlays[i] = $root.unframe.delivery.LocalOverlayDefinition.fromObject(
+              object.localOverlays[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.requiredRuntimeCapabilities) {
+          if (!$Array.isArray(object.requiredRuntimeCapabilities))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.requiredRuntimeCapabilities: array expected",
+            );
+          message.requiredRuntimeCapabilities = [];
+          for (let i = 0; i < object.requiredRuntimeCapabilities.length; ++i)
+            switch (object.requiredRuntimeCapabilities[i]) {
+              default:
+                if (typeof object.requiredRuntimeCapabilities[i] === "number") {
+                  message.requiredRuntimeCapabilities[i] = object.requiredRuntimeCapabilities[i];
+                  break;
+                }
+              case "RUNTIME_CAPABILITY_UNSPECIFIED":
+              case 0:
+                message.requiredRuntimeCapabilities[i] = 0;
+                break;
+              case "RUNTIME_CAPABILITY_RUNTIME_TRANSPORT":
+              case 1:
+                message.requiredRuntimeCapabilities[i] = 1;
+                break;
+              case "RUNTIME_CAPABILITY_TIMELINE_RUN":
+              case 2:
+                message.requiredRuntimeCapabilities[i] = 2;
+                break;
+              case "RUNTIME_CAPABILITY_SURFACE_TRANSITION":
+              case 3:
+                message.requiredRuntimeCapabilities[i] = 3;
+                break;
+              case "RUNTIME_CAPABILITY_VIDEO_PLAYBACK":
+              case 4:
+                message.requiredRuntimeCapabilities[i] = 4;
+                break;
+              case "RUNTIME_CAPABILITY_MODEL_CLIP":
+              case 5:
+                message.requiredRuntimeCapabilities[i] = 5;
+                break;
+              case "RUNTIME_CAPABILITY_TRACKING":
+              case 6:
+                message.requiredRuntimeCapabilities[i] = 6;
+                break;
+            }
+        }
+        if (object.runtimeCatalog != null) {
+          if (typeof object.runtimeCatalog !== "object")
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.runtimeCatalog: object expected",
+            );
+          message.runtimeCatalog = $root.unframe.presentation.ProjectedRuntimeCatalog.fromObject(
+            object.runtimeCatalog,
+            long + 1,
+          );
+        }
+        if (object.textureResidency != null) {
+          if (typeof object.textureResidency !== "object")
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewProjection.textureResidency: object expected",
+            );
+          message.textureResidency = $root.unframe.delivery.TextureResidencyPlan.fromObject(
+            object.textureResidency,
+            long + 1,
+          );
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a LocalPreviewProjection message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {unframe.preview.LocalPreviewProjection} message LocalPreviewProjection
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      LocalPreviewProjection.toObject = function LocalPreviewProjection$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) {
+          object.visibleNodeIds = [];
+          object.visibleSurfaceIds = [];
+          object.visibleVariableIds = [];
+          object.renderSurfaces = [];
+          object.semanticSurfaces = [];
+          object.localOverlays = [];
+          object.requiredRuntimeCapabilities = [];
+        }
+        if (options.defaults) {
+          object.runtimeCatalog = null;
+          object.textureResidency = null;
+        }
+        if (message.visibleNodeIds && message.visibleNodeIds.length) {
+          object.visibleNodeIds = [];
+          for (let j = 0; j < message.visibleNodeIds.length; ++j)
+            object.visibleNodeIds[j] = message.visibleNodeIds[j];
+        }
+        if (message.visibleSurfaceIds && message.visibleSurfaceIds.length) {
+          object.visibleSurfaceIds = [];
+          for (let j = 0; j < message.visibleSurfaceIds.length; ++j)
+            object.visibleSurfaceIds[j] = message.visibleSurfaceIds[j];
+        }
+        if (message.visibleVariableIds && message.visibleVariableIds.length) {
+          object.visibleVariableIds = [];
+          for (let j = 0; j < message.visibleVariableIds.length; ++j)
+            object.visibleVariableIds[j] = message.visibleVariableIds[j];
+        }
+        if (message.renderSurfaces && message.renderSurfaces.length) {
+          object.renderSurfaces = [];
+          for (let j = 0; j < message.renderSurfaces.length; ++j)
+            object.renderSurfaces[j] = $root.unframe.delivery.DeliveredRenderSurface.toObject(
+              message.renderSurfaces[j],
+              options,
+            );
+        }
+        if (message.semanticSurfaces && message.semanticSurfaces.length) {
+          object.semanticSurfaces = [];
+          for (let j = 0; j < message.semanticSurfaces.length; ++j)
+            object.semanticSurfaces[j] = $root.unframe.delivery.ProjectedSemanticSurface.toObject(
+              message.semanticSurfaces[j],
+              options,
+            );
+        }
+        if (message.localOverlays && message.localOverlays.length) {
+          object.localOverlays = [];
+          for (let j = 0; j < message.localOverlays.length; ++j)
+            object.localOverlays[j] = $root.unframe.delivery.LocalOverlayDefinition.toObject(
+              message.localOverlays[j],
+              options,
+            );
+        }
+        if (message.requiredRuntimeCapabilities && message.requiredRuntimeCapabilities.length) {
+          object.requiredRuntimeCapabilities = [];
+          for (let j = 0; j < message.requiredRuntimeCapabilities.length; ++j)
+            object.requiredRuntimeCapabilities[j] =
+              options.enums === $String
+                ? $root.unframe.presentation.RuntimeCapability[
+                    message.requiredRuntimeCapabilities[j]
+                  ] === $undefined
+                  ? message.requiredRuntimeCapabilities[j]
+                  : $root.unframe.presentation.RuntimeCapability[
+                      message.requiredRuntimeCapabilities[j]
+                    ]
+                : message.requiredRuntimeCapabilities[j];
+        }
+        if (message.runtimeCatalog != null && message.hasOwnProperty("runtimeCatalog"))
+          object.runtimeCatalog = $root.unframe.presentation.ProjectedRuntimeCatalog.toObject(
+            message.runtimeCatalog,
+            options,
+          );
+        if (message.textureResidency != null && message.hasOwnProperty("textureResidency"))
+          object.textureResidency = $root.unframe.delivery.TextureResidencyPlan.toObject(
+            message.textureResidency,
+            options,
+          );
+        return object;
+      };
+
+      /**
+       * Converts this LocalPreviewProjection to JSON.
+       * @function toJSON
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      LocalPreviewProjection.prototype.toJSON = function () {
+        return LocalPreviewProjection.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for LocalPreviewProjection
+       * @function getTypeUrl
+       * @memberof unframe.preview.LocalPreviewProjection
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      LocalPreviewProjection.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.preview.LocalPreviewProjection";
+      };
+
+      return LocalPreviewProjection;
+    })();
+
+    preview.LocalPreviewInitialState = (function () {
+      /**
+       * Properties of a LocalPreviewInitialState.
+       * @typedef {Object} unframe.preview.LocalPreviewInitialState.$Properties
+       * @property {Array.<unframe.realtime.NodeRuntimeState.$Properties>|null} [nodeStates] LocalPreviewInitialState nodeStates
+       * @property {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>|null} [surfaceStates] LocalPreviewInitialState surfaceStates
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a LocalPreviewInitialState.
+       * @memberof unframe.preview
+       * @interface ILocalPreviewInitialState
+       * @augments unframe.preview.LocalPreviewInitialState.$Properties
+       * @deprecated Use unframe.preview.LocalPreviewInitialState.$Properties instead.
+       */
+
+      /**
+       * Shape of a LocalPreviewInitialState.
+       * @typedef {unframe.preview.LocalPreviewInitialState.$Properties} unframe.preview.LocalPreviewInitialState.$Shape
+       */
+
+      /**
+       * Constructs a new LocalPreviewInitialState.
+       * @memberof unframe.preview
+       * @classdesc Represents a LocalPreviewInitialState.
+       * @constructor
+       * @param {unframe.preview.LocalPreviewInitialState.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const LocalPreviewInitialState = function LocalPreviewInitialState(properties) {
+        this.nodeStates = [];
+        this.surfaceStates = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * LocalPreviewInitialState nodeStates.
+       * @member {Array.<unframe.realtime.NodeRuntimeState.$Properties>} nodeStates
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @instance
+       */
+      LocalPreviewInitialState.prototype.nodeStates = $util.emptyArray;
+
+      /**
+       * LocalPreviewInitialState surfaceStates.
+       * @member {Array.<unframe.realtime.SurfaceRuntimeState.$Properties>} surfaceStates
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @instance
+       */
+      LocalPreviewInitialState.prototype.surfaceStates = $util.emptyArray;
+
+      /**
+       * Creates a new LocalPreviewInitialState instance using the specified properties.
+       * @function create
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {unframe.preview.LocalPreviewInitialState.$Properties=} [properties] Properties to set
+       * @returns {unframe.preview.LocalPreviewInitialState} LocalPreviewInitialState instance
+       * @type {{
+       *   (properties: unframe.preview.LocalPreviewInitialState.$Shape): unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape;
+       *   (properties?: unframe.preview.LocalPreviewInitialState.$Properties): unframe.preview.LocalPreviewInitialState;
+       * }}
+       */
+      LocalPreviewInitialState.create = function (properties) {
+        return new LocalPreviewInitialState(properties);
+      };
+
+      /**
+       * Encodes the specified LocalPreviewInitialState message. Does not implicitly {@link unframe.preview.LocalPreviewInitialState.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {unframe.preview.LocalPreviewInitialState.$Properties} message LocalPreviewInitialState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewInitialState.encode = function LocalPreviewInitialState$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.nodeStates != null && message.nodeStates.length)
+          for (let i = 0; i < message.nodeStates.length; ++i)
+            $root.unframe.realtime.NodeRuntimeState.encode(
+              message.nodeStates[i],
+              writer.uint32(/* id 1, wireType 2 =*/ 10).fork(),
+            ).ldelim();
+        if (message.surfaceStates != null && message.surfaceStates.length)
+          for (let i = 0; i < message.surfaceStates.length; ++i)
+            $root.unframe.realtime.SurfaceRuntimeState.encode(
+              message.surfaceStates[i],
+              writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+            ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified LocalPreviewInitialState message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewInitialState.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {unframe.preview.LocalPreviewInitialState.$Properties} message LocalPreviewInitialState message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewInitialState.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a LocalPreviewInitialState message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape} LocalPreviewInitialState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewInitialState.decode = function LocalPreviewInitialState$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              if (!(message.nodeStates && message.nodeStates.length)) message.nodeStates = [];
+              message.nodeStates.push(
+                $root.unframe.realtime.NodeRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 2: {
+              if (!(message.surfaceStates && message.surfaceStates.length))
+                message.surfaceStates = [];
+              message.surfaceStates.push(
+                $root.unframe.realtime.SurfaceRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a LocalPreviewInitialState message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape} LocalPreviewInitialState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewInitialState.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a LocalPreviewInitialState message.
+       * @function verify
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      LocalPreviewInitialState.verify = function LocalPreviewInitialState$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.nodeStates != null && message.hasOwnProperty("nodeStates")) {
+          if (!$Array.isArray(message.nodeStates)) return "nodeStates: array expected";
+          for (let i = 0; i < message.nodeStates.length; ++i) {
+            let error = $root.unframe.realtime.NodeRuntimeState.verify(
+              message.nodeStates[i],
+              long + 1,
+            );
+            if (error) return "nodeStates." + error;
+          }
+        }
+        if (message.surfaceStates != null && message.hasOwnProperty("surfaceStates")) {
+          if (!$Array.isArray(message.surfaceStates)) return "surfaceStates: array expected";
+          for (let i = 0; i < message.surfaceStates.length; ++i) {
+            let error = $root.unframe.realtime.SurfaceRuntimeState.verify(
+              message.surfaceStates[i],
+              long + 1,
+            );
+            if (error) return "surfaceStates." + error;
+          }
+        }
+        return null;
+      };
+
+      /**
+       * Creates a LocalPreviewInitialState message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.preview.LocalPreviewInitialState} LocalPreviewInitialState
+       */
+      LocalPreviewInitialState.fromObject = function LocalPreviewInitialState$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.nodeStates) {
+          if (!$Array.isArray(object.nodeStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewInitialState.nodeStates: array expected",
+            );
+          message.nodeStates = [];
+          for (let i = 0; i < object.nodeStates.length; ++i) {
+            if (typeof object.nodeStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewInitialState.nodeStates: object expected",
+              );
+            message.nodeStates[i] = $root.unframe.realtime.NodeRuntimeState.fromObject(
+              object.nodeStates[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.surfaceStates) {
+          if (!$Array.isArray(object.surfaceStates))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewInitialState.surfaceStates: array expected",
+            );
+          message.surfaceStates = [];
+          for (let i = 0; i < object.surfaceStates.length; ++i) {
+            if (typeof object.surfaceStates[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewInitialState.surfaceStates: object expected",
+              );
+            message.surfaceStates[i] = $root.unframe.realtime.SurfaceRuntimeState.fromObject(
+              object.surfaceStates[i],
+              long + 1,
+            );
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a LocalPreviewInitialState message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {unframe.preview.LocalPreviewInitialState} message LocalPreviewInitialState
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      LocalPreviewInitialState.toObject = function LocalPreviewInitialState$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) {
+          object.nodeStates = [];
+          object.surfaceStates = [];
+        }
+        if (message.nodeStates && message.nodeStates.length) {
+          object.nodeStates = [];
+          for (let j = 0; j < message.nodeStates.length; ++j)
+            object.nodeStates[j] = $root.unframe.realtime.NodeRuntimeState.toObject(
+              message.nodeStates[j],
+              options,
+            );
+        }
+        if (message.surfaceStates && message.surfaceStates.length) {
+          object.surfaceStates = [];
+          for (let j = 0; j < message.surfaceStates.length; ++j)
+            object.surfaceStates[j] = $root.unframe.realtime.SurfaceRuntimeState.toObject(
+              message.surfaceStates[j],
+              options,
+            );
+        }
+        return object;
+      };
+
+      /**
+       * Converts this LocalPreviewInitialState to JSON.
+       * @function toJSON
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      LocalPreviewInitialState.prototype.toJSON = function () {
+        return LocalPreviewInitialState.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for LocalPreviewInitialState
+       * @function getTypeUrl
+       * @memberof unframe.preview.LocalPreviewInitialState
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      LocalPreviewInitialState.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.preview.LocalPreviewInitialState";
+      };
+
+      return LocalPreviewInitialState;
+    })();
+
+    preview.LocalPreviewAsset = (function () {
+      /**
+       * Properties of a LocalPreviewAsset.
+       * @typedef {Object} unframe.preview.LocalPreviewAsset.$Properties
+       * @property {string|null} [assetId] LocalPreviewAsset assetId
+       * @property {string|null} [reference] LocalPreviewAsset reference
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a LocalPreviewAsset.
+       * @memberof unframe.preview
+       * @interface ILocalPreviewAsset
+       * @augments unframe.preview.LocalPreviewAsset.$Properties
+       * @deprecated Use unframe.preview.LocalPreviewAsset.$Properties instead.
+       */
+
+      /**
+       * Shape of a LocalPreviewAsset.
+       * @typedef {unframe.preview.LocalPreviewAsset.$Properties} unframe.preview.LocalPreviewAsset.$Shape
+       */
+
+      /**
+       * Constructs a new LocalPreviewAsset.
+       * @memberof unframe.preview
+       * @classdesc Represents a LocalPreviewAsset.
+       * @constructor
+       * @param {unframe.preview.LocalPreviewAsset.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const LocalPreviewAsset = function LocalPreviewAsset(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * LocalPreviewAsset assetId.
+       * @member {string} assetId
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @instance
+       */
+      LocalPreviewAsset.prototype.assetId = "";
+
+      /**
+       * LocalPreviewAsset reference.
+       * @member {string} reference
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @instance
+       */
+      LocalPreviewAsset.prototype.reference = "";
+
+      /**
+       * Creates a new LocalPreviewAsset instance using the specified properties.
+       * @function create
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {unframe.preview.LocalPreviewAsset.$Properties=} [properties] Properties to set
+       * @returns {unframe.preview.LocalPreviewAsset} LocalPreviewAsset instance
+       * @type {{
+       *   (properties: unframe.preview.LocalPreviewAsset.$Shape): unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape;
+       *   (properties?: unframe.preview.LocalPreviewAsset.$Properties): unframe.preview.LocalPreviewAsset;
+       * }}
+       */
+      LocalPreviewAsset.create = function (properties) {
+        return new LocalPreviewAsset(properties);
+      };
+
+      /**
+       * Encodes the specified LocalPreviewAsset message. Does not implicitly {@link unframe.preview.LocalPreviewAsset.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {unframe.preview.LocalPreviewAsset.$Properties} message LocalPreviewAsset message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewAsset.encode = function LocalPreviewAsset$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.assetId != null && $Object.hasOwnProperty.call(message, "assetId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.assetId);
+        if (message.reference != null && $Object.hasOwnProperty.call(message, "reference"))
+          writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.reference);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified LocalPreviewAsset message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewAsset.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {unframe.preview.LocalPreviewAsset.$Properties} message LocalPreviewAsset message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      LocalPreviewAsset.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a LocalPreviewAsset message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape} LocalPreviewAsset
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewAsset.decode = function LocalPreviewAsset$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.assetId = reader.string();
+              break;
+            }
+            case 2: {
+              message.reference = reader.string();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a LocalPreviewAsset message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape} LocalPreviewAsset
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      LocalPreviewAsset.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a LocalPreviewAsset message.
+       * @function verify
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      LocalPreviewAsset.verify = function LocalPreviewAsset$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.assetId != null && message.hasOwnProperty("assetId"))
+          if (!$util.isString(message.assetId)) return "assetId: string expected";
+        if (message.reference != null && message.hasOwnProperty("reference"))
+          if (!$util.isString(message.reference)) return "reference: string expected";
+        return null;
+      };
+
+      /**
+       * Creates a LocalPreviewAsset message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.preview.LocalPreviewAsset} LocalPreviewAsset
+       */
+      LocalPreviewAsset.fromObject = function LocalPreviewAsset$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.assetId != null) message.assetId = $String(object.assetId);
+        if (object.reference != null) message.reference = $String(object.reference);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a LocalPreviewAsset message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {unframe.preview.LocalPreviewAsset} message LocalPreviewAsset
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      LocalPreviewAsset.toObject = function LocalPreviewAsset$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.assetId = "";
+          object.reference = "";
+        }
+        if (message.assetId != null && message.hasOwnProperty("assetId"))
+          object.assetId = message.assetId;
+        if (message.reference != null && message.hasOwnProperty("reference"))
+          object.reference = message.reference;
+        return object;
+      };
+
+      /**
+       * Converts this LocalPreviewAsset to JSON.
+       * @function toJSON
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      LocalPreviewAsset.prototype.toJSON = function () {
+        return LocalPreviewAsset.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for LocalPreviewAsset
+       * @function getTypeUrl
+       * @memberof unframe.preview.LocalPreviewAsset
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      LocalPreviewAsset.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.preview.LocalPreviewAsset";
+      };
+
+      return LocalPreviewAsset;
+    })();
+
+    return preview;
+  })();
+
   return unframe;
 })());
 

@@ -45,6 +45,102 @@ afterEach(async () => {
 });
 
 describe("atomic artifact publication", () => {
+  it.each(["dev", "dist"] as const)(
+    "keeps the last %s generation on stale or cancelled updates",
+    async (channel) => {
+      const directory = await project();
+      const pointer = channel === "dev" ? ".unframe/preview/current" : "dist";
+      await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel,
+        artifacts: artifacts(),
+      });
+      const previous = await readlink(join(directory, pointer));
+      const stale = await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel,
+        artifacts: artifacts("stale"),
+        isCurrentRevision: async () => false,
+      });
+      expect(stale).toEqual({ ok: false, family: "io", code: "cli-output-stale" });
+      const controller = new AbortController();
+      const cancelled = await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel,
+        artifacts: artifacts("cancelled"),
+        signal: controller.signal,
+        testing: {
+          onPhase: (phase) => {
+            if (phase === "before-dist-replace") controller.abort();
+          },
+        },
+      });
+      expect(cancelled).toEqual({ ok: false, family: "cancel", code: "cli-output-cancel" });
+      expect(await readlink(join(directory, pointer))).toBe(previous);
+      expect(
+        await readdir(
+          join(
+            directory,
+            channel === "dev" ? ".unframe/preview/generations" : ".unframe/generations",
+          ),
+        ),
+      ).toHaveLength(1);
+    },
+  );
+
+  it.each(["../outside", ".unframe/generations/" + "a".repeat(32), "generations/not-an-id"])(
+    "refuses an unmanaged Dev pointer to %s",
+    async (target) => {
+      const directory = await project();
+      await mkdir(join(directory, ".unframe/preview"), { recursive: true });
+      await symlink(target, join(directory, ".unframe/preview/current"));
+      expect(
+        await publishAtomicArtifacts({
+          projectDirectory: directory,
+          channel: "dev",
+          artifacts: artifacts(),
+        }),
+      ).toMatchObject({ ok: false, family: "io" });
+      expect(await readlink(join(directory, ".unframe/preview/current"))).toBe(target);
+    },
+  );
+
+  it("refuses a symlinked Dev directory without writing outside the project", async () => {
+    const directory = await project();
+    const outside = await project();
+    await mkdir(join(directory, ".unframe"));
+    await symlink(outside, join(directory, ".unframe/preview"));
+    expect(
+      await publishAtomicArtifacts({
+        projectDirectory: directory,
+        channel: "dev",
+        artifacts: artifacts(),
+      }),
+    ).toMatchObject({ ok: false, family: "io" });
+    expect(await readdir(outside)).toEqual([]);
+  });
+
+  it("publishes Dev generations without changing the Dist pointer or bytes", async () => {
+    const directory = await project();
+    await publishAtomicArtifacts({ projectDirectory: directory, artifacts: artifacts("dist") });
+    const dist = await readlink(join(directory, "dist"));
+    const result = await publishAtomicArtifacts({
+      projectDirectory: directory,
+      channel: "dev",
+      artifacts: artifacts("dev"),
+      generationId: () => "a".repeat(32),
+    });
+    expect(result).toEqual({ ok: true, generationId: "a".repeat(32) });
+    expect(await readlink(join(directory, ".unframe/preview/current"))).toBe(
+      "generations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
+    expect(
+      await readFile(join(directory, ".unframe/preview/current/definition.json"), "utf8"),
+    ).toBe("definition-dev");
+    expect(await readlink(join(directory, "dist"))).toBe(dist);
+    expect(await readFile(join(directory, "dist/definition.json"), "utf8")).toBe("definition-dist");
+  });
+
   it("preserves JPEG asset bytes at the path consumed by publish", async () => {
     const directory = await project();
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);

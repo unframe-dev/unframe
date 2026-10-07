@@ -139,14 +139,14 @@ export function createPublicationRoutes(options: PublicationRouteOptions) {
       return context.body(null, 204);
     })
     .openapi(publishPresentationRoute, async (context) => {
-      const { buildId, expectedPublicationEpoch } = context.req.valid("json");
+      const { buildId, expectedPublicationFence } = context.req.valid("json");
       return context.json(
         await execute(context, (identity, service) =>
           service.publish(
             identity,
             context.req.valid("param").presentationId,
             buildId,
-            expectedPublicationEpoch,
+            expectedPublicationFence,
           ),
         ),
         201,

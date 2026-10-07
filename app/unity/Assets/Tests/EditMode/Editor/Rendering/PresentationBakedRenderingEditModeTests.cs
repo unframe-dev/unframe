@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Unframe.Delivery;
@@ -43,8 +44,9 @@ public sealed class PresentationBakedRenderingEditModeTests
         }
     }
 
-    [Test]
-    public void BakedOpacityUsesOneMaterialChannelForNodeStateAndTimeline()
+    [TestCase(false)]
+    [TestCase(true)]
+    public void BakedOpacityUsesOneMaterialChannelForNodeStateAndTimeline(bool independentView)
     {
         var store = new PresentationRuntimeDataStore();
         Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery").text,
@@ -53,7 +55,11 @@ public sealed class PresentationBakedRenderingEditModeTests
         Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text,
             out ControlServerItem snapshot, out error), Is.True, error);
         foreach (NodeRuntimeState node in snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates)
-            if (node.NodeId == "node:text-greeting") node.Opacity = 0.5;
+            if (node.NodeId == "node:text-greeting")
+            {
+                node.Opacity = 0.5;
+                node.Transform.Position = new Unframe.Presentation.Vector3 { X = 2, Y = 3, Z = 4 };
+            }
         Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
         Assert.That(store.TryGetSurface("semantic-surface:text-greeting", out ProjectedSurfaceDefinition surface), Is.True);
         surface.LogicalSize = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
@@ -67,20 +73,29 @@ public sealed class PresentationBakedRenderingEditModeTests
             LogicalBounds = new LogicalBounds { Width = 1, Height = 1 },
             StateBindings = { new DeliveredStateBinding { StateId = "state:text-greeting", Empty = new EmptyStateBinding() } },
         });
+        IPresentationRenderView view = independentView
+            ? (IPresentationRenderView)new StaticRenderView(store.Delivery.ProjectionProfile.RuntimeCatalog,
+                store.Delivery.ProjectionProfile.RenderSurfaces, store.Delivery.ProjectionProfile.SemanticSurfaces,
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.NodeStates,
+                snapshot.ConnectionSnapshot.Snapshot.RuntimeView.SurfaceStates)
+            : store;
         var root = new GameObject("opacity root");
         var hierarchy = new PresentationNodeHierarchy();
         var timelines = new PresentationTimelinePlayer();
         try
         {
-            Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+            Assert.That(hierarchy.TryReplace(view, root.transform, out error), Is.True, error);
             using (var renderer = new PresentationBakedSurfaceRenderer())
             using (var textures = new PresentationTextureResidency())
             {
-                Assert.That(renderer.TryBuild(store, hierarchy, out error), Is.True, error);
-                new PresentationNodeStateApplier().Apply(store, hierarchy);
-                Assert.That(renderer.TryRefresh(store, textures, 0, out error), Is.True, error);
+                Assert.That(renderer.TryBuild(view, hierarchy, out error), Is.True, error);
+                new PresentationNodeStateApplier().Apply(view, hierarchy);
+                Assert.That(renderer.TryRefresh(view, textures, 0, out error), Is.True, error);
                 Assert.That(hierarchy.Registry.TryGet("node:text-greeting", out GameObject host), Is.True);
+                Assert.That(host.transform.localPosition, Is.EqualTo(new UnityEngine.Vector3(2, 3, -4)));
                 MeshRenderer quad = host.transform.Find("render:opacity").GetComponent<MeshRenderer>();
+                Assert.That(quad.transform.localScale, Is.EqualTo(UnityEngine.Vector3.one));
+                Assert.That(quad.transform.localPosition, Is.EqualTo(UnityEngine.Vector3.zero));
                 Assert.That(quad.sharedMaterial.GetColor("_Color").a, Is.EqualTo(0.5f).Within(0.0001f));
                 Assert.That(quad.sharedMaterial.HasProperty("_Opacity"), Is.False, "baked shader must not multiply a second node opacity channel");
                 var timeline = new ProjectedTimelineDefinition
@@ -101,10 +116,10 @@ public sealed class PresentationBakedRenderingEditModeTests
                     },
                 };
                 Assert.That(timelines.TryStart(timeline, hierarchy, 0, out error), Is.True, error);
-                Assert.That(renderer.TryRefresh(store, textures, 500, out error), Is.True, error);
+                Assert.That(renderer.TryRefresh(view, textures, 500, out error), Is.True, error);
                 timelines.Update(0.5);
                 Assert.That(quad.sharedMaterial.GetColor("_Color").a, Is.EqualTo(0.25f).Within(0.0001f));
-                Assert.That(renderer.TryRefresh(store, textures, 1000, out error), Is.True, error);
+                Assert.That(renderer.TryRefresh(view, textures, 1000, out error), Is.True, error);
                 timelines.Update(1);
                 Assert.That(quad.sharedMaterial.GetColor("_Color").a, Is.Zero);
             }
@@ -125,4 +140,58 @@ public sealed class PresentationBakedRenderingEditModeTests
         clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
         Assert.That((double)sample.Invoke(null, new object[] { clock, 10d, 30d }), Is.EqualTo(1200d));
     }
+
+    private sealed class StaticRenderView : IPresentationRenderView
+    {
+        private readonly IEnumerable<NodeRuntimeState> nodes;
+        private readonly IEnumerable<SurfaceRuntimeState> surfaces;
+
+        public StaticRenderView(ProjectedRuntimeCatalog catalog, IEnumerable<DeliveredRenderSurface> renderSurfaces,
+            IEnumerable<ProjectedSemanticSurface> semanticSurfaces, IEnumerable<NodeRuntimeState> nodes,
+            IEnumerable<SurfaceRuntimeState> surfaces)
+        {
+            Catalog = catalog;
+            RenderSurfaces = renderSurfaces;
+            SemanticSurfaces = semanticSurfaces;
+            this.nodes = nodes;
+            this.surfaces = surfaces;
+        }
+
+        public ProjectedRuntimeCatalog Catalog { get; }
+        public IEnumerable<DeliveredRenderSurface> RenderSurfaces { get; }
+        public IEnumerable<ProjectedSemanticSurface> SemanticSurfaces { get; }
+        public Unframe.Presentation.Pose StageOrigin { get { return null; } }
+        public IEnumerable<RuntimeRunSnapshot> ActiveRuns { get { return System.Array.Empty<RuntimeRunSnapshot>(); } }
+
+        public bool TryGetSurface(string id, out ProjectedSurfaceDefinition value)
+        {
+            foreach (ProjectedSurfaceDefinition surface in Catalog.Surfaces)
+                if (surface.SurfaceId == id) { value = surface; return true; }
+            value = null;
+            return false;
+        }
+
+        public bool TryGetNodeState(string id, out NodeRuntimeState value)
+        {
+            foreach (NodeRuntimeState node in nodes)
+                if (node.NodeId == id) { value = node; return true; }
+            value = null;
+            return false;
+        }
+
+        public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value)
+        {
+            foreach (SurfaceRuntimeState surface in surfaces)
+                if (surface.SurfaceId == id) { value = surface; return true; }
+            value = null;
+            return false;
+        }
+
+        public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value)
+        {
+            value = null;
+            return false;
+        }
+    }
+
 }

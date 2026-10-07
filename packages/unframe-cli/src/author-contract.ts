@@ -8,3 +8,4 @@ export type {
   SavedCommand,
   Transform,
 } from "./author/contract.js";
+export type { LocalPreviewEnvelopeWire } from "@unframe/contracts/presentation";

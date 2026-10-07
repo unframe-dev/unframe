@@ -1,6 +1,6 @@
-# Local Editor: Unity Preview の設計と実装計画
+# Local Editor: Unity Preview の実装契約
 
-基本方針確定・実装未完了。[ADR-0025](../decisions/0025-local-editor-unity-preview.md) に従い、ローカル成果物の Unity 表示を先に通す。想定読者は CLI、Core、Web、Unity の実装担当者。
+[ADR-0025](../decisions/0025-local-editor-unity-preview.md) に基づく Source 編集、Dev／Dist generation、Unity Preview、表示済み Dist の公開経路の実装契約。想定読者は CLI、Core、Web、Unity の実装担当者。実ブラウザー・native Unity・実サービスの E2E は別途検証し、その成功を本書だけから判断しない。
 
 ## 1. 目標と初期範囲
 
@@ -8,7 +8,7 @@
 
 初期 Preview は Structured／Opaque Source から生成した canonical baked-web Surface、Stage／container 配下の配置、初期 Group／State の静止表示、カメラの視点操作を扱う。表示の初期値は Core の既存初期化規則から導出する。公開後の本番読み込み E2E は native Unity Editor で実 Realtime Snapshot を受け取る。Cue 発火、Timeline 再生、WebGL の本番 Realtime 接続、Quest 実機は後続の検証とする。初期 Preview の未対応描画入力である Model、video、native-ui、tracking anchor などは load error にする。
 
-Web UI は既存 Author の project 読み込み、Props／Transform の保存、診断表示を入口にする。Inspector 編集は既存 Author が扱える React scene に限る。編集用 metadata を得られない Source も Compiler の検証を通れば build・表示でき、UI は閲覧と診断を提供する。その他の Source は外部 editor で保存して Dev Preview に反映する。Unity 上の選択・Gizmo・Component 配置は拡張目標であり、初期の完了条件に含めない。
+Web UI は Local Host の project 読み込み、Props／Transform の保存、診断表示を扱う。Inspector 編集は対応する React scene に限る。編集用 metadata を得られない Source も Compiler の検証を通れば build・表示でき、UI は閲覧と診断を提供する。その他の Source は外部 editor で保存して Dev Preview に反映する。Unity 上の選択・Gizmo・Component 配置は拡張目標であり、初期の完了条件に含めない。
 
 ## 2. 所有権とデータ経路
 
@@ -38,31 +38,23 @@ Definition + RenderBundle + AssetSet + BuildManifest + assets
 | `app/unity/`             | Preview／Delivery 入力 Adapter、共通 hierarchy・描画・素材管理、WebGL／Quest platform Adapter                        |
 | Control Plane            | upload された build の公開整合性、認可、Delivery projection。Source や Dev generation は受け取らない                 |
 
-既存 `PresentationRuntimeDataStore` は Delivery／Snapshot の検証を所有している。描画に必要なデータ参照をそこから分離し、両 Adapter が同じ hierarchy・renderer を呼べるようにする。本番 Adapter の fence 検証を省略して共通化しない。
+`PresentationRuntimeDataStore` は Delivery／Snapshot の検証を所有する。描画参照は `IPresentationRenderView` を介し、Preview／Delivery Adapter が共通 hierarchy・renderer を使う。本番 Adapter の fence 検証は維持する。
 
 ### Web features の統合
 
-`features/editor/` をローカル編集の UI・状態・Local Author API 接続・Unity Preview の所有先にする。既存 `features/author/` の project 読み込み、対応 Props／Transform の Source 保存、診断、build 状態を統合の基盤とする。CLI の Local Author Host と API contract の所有権は変更しない。
+`app/web/src/features/editor/` が Source Inspector、保存・Undo／Redo、診断、Dev／Dist 選択、Unity lifecycle、公開 UI を所有する。`editor.html` から `dist-editor` を生成し、Local Host が同一 origin で配信する。旧 Author entry、Slide／Element 文書、localStorage 文書保存、React 3D viewport は編集経路から撤去した。
 
-| 既存機能                         | 統合方針                                                                                                                                                                                       |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `author/`                        | Editor へ統合し、保存・build・Dev／Dist・Unity lifecycle を一つの操作経路にする                                                                                                                |
-| `editor/ui/`                     | shell・panel の配置や共通 UI を再利用し、旧文書への依存を外す。viewport は Unity に置き換え、初期非対応の Gizmo・Model 編集操作は露出しない                                                    |
-| `editor/model/`・`editor/infra/` | 旧 Slide／Element／PresentationDocument、command／history／serializer／migration、localStorage 文書保存を置き換える。Editor 状態は Source 編集 buffer・保存 revision・選択・Preview 要求を扱う |
-| `presentations/`                 | project への入口を Editor のローカル project 読み込みへ接続する。mock 一覧・CP starter definition をローカル project の正本として使わない                                                      |
-| `auth/`・`device/`・`settings/`  | 公開先の認証・device authorization・account 設定として保持し、ローカル Editor の起動・保存・Preview から分離する                                                                               |
-
-ローカル Editor の対象は Host に指定した project とし、ブラウザーから任意 filesystem path を開く API は追加しない。旧 `/editor/$presentationId` の demo／localStorage loader と Editor 全体への `requireSession` を置き換える。Editor の Web entry・build 出力は一つに揃えて Local Author Host から配信し、旧 Editor と Author の二重入口を残さない。
+対象は CLI 起動時に指定した project であり、ブラウザーから任意 filesystem path を開く API はない。Web の `/editor/$presentationId` は Local Host 起動の案内を表示する。Home の mock 一覧はローカル project の正本ではない。認証・device 承認・account settings は Web application に保持し、ローカル Editor の起動・保存・Preview はログインなしで利用する。
 
 認証・device 承認・account settings は CP が信頼する設定済み `WEB_ORIGIN` で配信する。Local Host は設定済み CP と client ID に対して既存 device authorization を開始・poll し、公開用 bearer credential を取得する。Editor は同一 origin の Host API で認証状態と承認用 `user_code`・URLを扱い、CP へ cookie 付きで直接接続しない。CP credential と `device_code` は Host のメモリーだけに保持し、Web UI・localStorage・project・ログへ渡さない。Host 終了・認証期限切れ時は再認証する。CP の verification URI と承認画面の router path を揃え、Google login など承認画面の認証も信頼済み origin 内で完結させる。
 
 Local Host は既存の origin／token 検査と `connect-src 'self'` を維持する。Editor は verification URL を別タブで開き、Editor の同じ project・表示済み Dist を保持したまま Host API から認証状態を取得する。承認後の credential は Host の poll で取得し、Editor への cookie／credential redirect は行わない。認証完了後も実際の publish 受付で Dist を再照合し、認証中の成果物変更を取り込まない。認証の取消・失敗・期限切れはローカル編集・保存・Preview を妨げない。
 
-旧文書から Source への自動移行・互換保存は初期範囲に含めない。旧描画専用依存と旧 model 専用テストは import・利用箇所を確認して撤去し、Source 保存、外部変更、ログインなし Preview、保存／build／load 失敗、公開時認証の受け入れテストへ置き換える。Control Plane の現行 CRUD schemaVersion と退役済み Presentation wire contract は区別し、Web 統合だけを理由に server／device API を削除しない。
+旧文書から Source への自動移行・互換保存は初期範囲に含めない。Editor のテストは Source 保存、外部変更、ログインなし Preview、保存／build／load 失敗、公開時認証を扱う。Control Plane の現行 CRUD schemaVersion と退役済み Presentation wire contract は区別し、Web 統合だけを理由に server／device API を削除しない。
 
 Presentation ID は初回 build 前にローカルで生成し、Authoring Source の presentation identity として永続化する。公開時の認証後、Local Host が同じ ID を CP に登録する。CP は ID の形式・一意性と所有権を検証し、既存 ID は公開権限がある場合だけ利用できる。衝突・権限不足では拒否し、ID の暗黙変更や確認済み Dist の書き換えは行わない。
 
-登録 API はローカル ID と登録用 metadata を受け、旧 Definition を必須にしない契約へ整備する。現行登録契約からの変更と `starter-definition` の撤去を合わせて行う。登録・認証情報は成果物に混ぜず、CP へ Authoring Source を送る保存経路も追加しない。
+登録 API はローカル ID と登録用 metadata を受け、旧 Definition を必須にしない。登録・認証情報は成果物に混ぜず、CP へ Authoring Source を送る保存経路も追加しない。
 
 ## 3. 成果物と Preview 入力の契約
 
@@ -83,7 +75,7 @@ publish は固定 Dist の完全性を検証し、現在の Source／lock を読
 
 ### Core の共通描画選択
 
-`verifyBuildIntegrity` 済みの BuildArtifacts と、role／CapabilityProfile を受ける publication 非依存の処理へ、既存 selection・Runtime catalog 構築を切り出す。出力は visible IDs、選択済み Render Surface／State／artifact、Runtime catalog、asset closure／residency。既存の renderer 選択・参照・budget 規則を再実装しない。
+`verifyBuildIntegrity` 済みの BuildArtifacts と role／CapabilityProfile を受ける publication 非依存の処理で、selection・Runtime catalog を構築する。出力は visible IDs、選択済み Render Surface／State／artifact、Runtime catalog、asset closure／residency。既存の renderer 選択・参照・budget 規則を再実装しない。
 
 Delivery は従来どおり `verifyPublicationIntegrity` を通し、共通結果に PublicationFence、profile identity、projection instance、asset access を付加する。Local Preview は build identity を使い、publication／session／assignment を付加しない。
 
@@ -107,7 +99,7 @@ Preview の cross-application envelope は次の field を持つ。canonical sch
 | `initialState`               | Core が導出した初期 Node／Surface 状態。Session／assignment／replay の field を含めない |
 | `assets`                     | 選択 closure の Asset ID と opaque reference の対応。path や任意 URL は含めない         |
 
-Host のローカル HTTP API は CLI の Author contract が所有し、envelope の schema と C# consumer は同じ正本から生成・drift 検査する。schema の具体的な生成形式と生成コマンドは段階2で実装し、field の責務は上記に固定する。
+Host のローカル HTTP API は CLI の Author contract が所有し、envelope の schema と C# consumer は同じ正本から生成・drift 検査する。正本は `packages/contracts/proto/unframe/preview/preview.proto`。canonical JSON は文字列として保持し、projection／initial state は既存 Proto message を再利用する。Dist の `source_revision` は optional field の absence で表す。TypeScript wire descriptor／static binding／型は Contracts の `generate:wire-*` scripts、C# と Unity の Proto コピーは `nix run .#unity-proto` で生成する。対応する `check:wire-*` と `nix run .#unity-proto -- check` で drift を検査する。
 
 素材取得は、認証済み Local Author API と WebGL Asset Adapter を介す。reference は固定 generation の検証済み catalog だけを指し、任意の filesystem path／外部 URL を受け付けない。Asset Adapter が bytes を共通 Unity renderer へ渡し、renderer は HTTP、Bearer token、Source を知らない。全 PNG を一つの Base64 JSON に載せる方式は採用しない。
 
@@ -132,39 +124,23 @@ revision は config・Source・lock の bytes を含む。refresh は開始時�
 - Bridge は `prepare(requestId)` の成功通知後に Web UI が mode／最新要求を照合し、`commit(requestId)` または `discard(requestId)` を送る。Unity は現在の要求に一致する候補だけを commit する。mode 切り替え時は要求を無効化し、古い load 成功だけで scene を交換しない。
 - Unity は scene の交換完了後に `committed(requestId, buildIdentity)` を返す。Web UI は現在の mode／要求と一致する通知だけで表示成功を確定し、認証済み Host API に報告する。Host は発行済み Preview 要求の固定 generation・artifact hashes と結び付けて表示済み記録を持つ。publish はその requestId を指定し、Host が現在の Dist 表示記録と照合する。これは協調する Editor の操作条件であり、CP の認可を代替しない。
 - `prepare` 成功と `commit` 送信だけでは公開を許可しない。commit 失敗・完了通知の欠落・Unity instance の終了では表示未確定として公開を止める。新しい load または mode 切り替え時は Host の表示済み記録を無効化してから処理し、遅延した通知で復活させない。未確定時は再読み込みで確認し、旧 scene が残っていても公開可能とは扱わない。
-- scene 交換の admission は、旧 scene と候補を同時保持する GPU 使用量と serial asset load の CPU ピークも検査する。固定 Preview capability の上限を超える場合は候補を拒否して旧 scene を維持する。ADR-0012 の単一成果物の charge は変更しない。段階2で Unity 担当が固定 Preview capability の GPU／CPU 上限とピークの算定方法を定義し、上限ちょうど・上限超過の fixture で合否を固定する。同一 checksum の資源を共有する実装では同一資源を一度だけ計上し、load 後に不要な CPU readback copy を破棄する。
+- scene 交換の admission は、旧 scene と候補を同時保持する GPU 使用量と serial asset load の CPU ピークも検査する。固定 Preview capability の上限を超える場合は候補を拒否して旧 scene を維持する。ADR-0012 の単一成果物の charge は変更しない。`PresentationPreviewAdmission` は単一 scene GPU 64 MiB、旧 scene＋候補 GPU 96 MiB、serial load CPU peak 64 MiB を上限とする。GPU charge は RGBA8 の `width × height × 4`、各 texture の CPU peak は `encodedSizeBytes + 2 × decodedGpuBytes`。共有 checksum は descriptor が一致する場合だけ一度計上し、CPU peak は未共有 texture の最大値で検査する。同一 checksum の資源を共有する実装では同一資源を一度だけ計上し、load 後に不要な CPU readback copy を破棄する。
 - compile、asset、Unity load の失敗は診断を表示し、前の正常 scene を維持する。新候補の資源は破棄する。Source 保存は build／load 失敗によって巻き戻さない。
 - Dist 選択後は Dev の完了通知で表示を上書きしない。Unity instance はプレゼン更新ごとに再起動せず、終了時に scene・素材・Bridge の資源を解放する。
 - 初期は ADR-0013 と同様に過去の完成 generation を自動回収しない。Unity の旧 scene・素材の参照解放は表示交換時に行う。完成成果物の回収は cache 回収と分け、保持中の generation を保護する規則とともに後続で設計する。
 
-## 5. 実装順序と受け入れ条件
+## 5. 検証と残る実証
 
-前提として、最新 main にある Control Plane の Publication／Delivery API・migration、Session の publication 固定、Realtime v2、Unity の native 接続・描画を対象 checkout へ統合する。担当は各 server／Unity component とし、既存生成契約と関連テストを確認する。既存実装を基盤に、Local Preview に必要な分離、ローカル ID の登録契約、固定 Dist と期待 PublicationFence による公開条件へ変更する。実サービス接続の不足も確認する。
+| 境界                                         | 実装・検証入口                                                  |
+| -------------------------------------------- | --------------------------------------------------------------- |
+| generation・保存競合・固定 Dist 公開         | CLI の Local Preview／Publication 関連テスト、`author/` service |
+| 最新要求・commit acknowledgement・失敗時保持 | Web の `preview-session`／`unity-preview`／`editor-app` テスト  |
+| 共通描画・素材 integrity・交換時 budget      | Unity の Preview／Rendering EditMode テスト                     |
+| Proto drift                                  | Contracts の `check:wire-*`、`nix run .#unity-proto -- check`   |
+| 実ブラウザー・公開・native 読み込み          | `nix run .#local-editor-e2e`                                    |
 
-| 段階           | 実装                                                                                             | 完了条件                                                                                                                                                                                                                       |
-| -------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1. 境界定義    | 本書、ADR、次段階の public seam と fixture 方針の確定                                            | 所有権、出力 channel、共通描画選択の入出力、envelope field、Bridge prepare／commit／discard、下記 fixture の検証方針を文書で固定し、独立レビューを完了                                                                         |
-| 2. Dist 実表示 | 共通 Core 選択と Unity 入力、baked-web 描画、WebGL build／Bridge、固定 generation の読み込み     | Preview の交換時メモリ上限・算定方法・境界値 fixture を定義して検証。Structured／Opaque Source の Compiler 生成 `dist` の素材・配置・fit を実ブラウザーで確認。初回 load 失敗は診断を表示し、置換失敗は前の正常 scene を維持   |
-| 3. Dev 更新    | 出力 channel 分離、保存検知、ローカル lock refresh、latest request、候補 scene の交換            | 外部保存を含め自動更新。package 解決を変更せず、refresh 失敗・連続保存・取消で古い結果が勝たない。Dev 更新で `dist` の link／hash が変わらない                                                                                 |
-| 4. Editor 統合 | Author／旧 Editor の関連 UI と entry 統合、Source 保存・診断・revision 表示、Dev／Dist、視点操作 | ログインなしで project を開き、保存・開き直し・Preview ができる。旧文書／localStorage／React 3D 描画を編集経路から外す。Inspector の編集可否と build 可否を分離し、Dist は再 build せず表示、Dev 通知で上書きされない          |
-| 5. 公開 E2E    | 表示済み Dist の照合・publish、実 CP／Realtime／素材取得、native Unity 接続                      | 古い Dist 表示・Unity commit 前の upload を拒否し、受付後の `dist` 更新でも upload 元を固定。公開結果と成果物 hash が一致し、実 Delivery／素材／Snapshot から native Unity が描画する。Source／Dev generation の upload がない |
+`local-editor-e2e` は隔離したローカル D1／R2、Control Plane、Realtime、承認用 Web、Local Host を起動し、実 WebGL の Dist commit、device 承認、公開 hash、Delivery／素材取得、Snapshot／StateReady を経由する native Unity Editor 描画を検査する。素材と Realtime は実行ごとのローカル CA を用いる HTTPS 経路で接続する。fixture のアカウント／session は試験が準備する。クラウドへの deploy や本番 upload は行わない。
 
-段階2では Core の既存 Delivery selection／integrity と、Unity の既存 fixture テストを回帰検証する。座標・fit・partition・texture の fixture は Preview と Delivery Adapter の両方から共通 renderer に渡し、結果を比較する。複数 Group の初期 inactive と、旧 scene＋候補の residency 上限超過も検証する。TS Core と Go Runtime の宣言初期状態は同じ conformance fixture で比較する。段階3では filesystem channel と Host→Bridge の更新競合、refresh 後の revision と UI／build 入力の一致をテストする。commit 通知の欠落・遅延、mode 切り替え、再 load による表示記録の無効化も確認する。
+2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha、Transform 保存後の画素変化を確認した。証拠は `.unframe/actual-webgl-evidence/` の画像と `pixel-evidence.json`。復旧 Snapshot の進行状態保持と Publication／profile／assignment 不一致の拒否は実 Editor fixture で検証した。同日にローカル実 D1／R2・Control Plane・Realtime の E2E も成功し、device 承認、固定 Dist 公開、Delivery／HTTPS 素材、Snapshot／StateReady、native Unity の実画素まで確認した。結果は `.unframe/unity-preview/e2e/20261007T160533-371594/result.json`、native の画像は同 directory の `native.png`。Quest 実機、Cue／Timeline 再生、WebGL の本番 Realtime 接続、入力・性能の実機確認は別の検証対象。
 
-実 WebGL の描画、実サービスの公開・読み込み、Quest 実機の入力・性能は別の証拠として記録する。WebGL build や単体テストだけで段階2／5の E2E 完了としない。
-
-段階5はローカルの実 Control Plane・Realtime と素材保存を起動し、実際の認証・権限検査を通す。公開先 Presentation の作成・権限付与、BuildManifest の presentationId と公開先 ID の整合、Session／participant、runtime assignment／lease、Delivery／bootstrap credential の準備を検証手順に含める。公開した素材を取得・hash 検証し、本番 Delivery と実 Snapshot を適用して native Unity Editor で共通 Runtime が描画するところを完了点とする。既存接続の State handshake／StateReady も実際に通す。
-
-初期表示の比較には timer・自動 Cue のない fixture を使う。別 fixture で進行済み／復旧 Snapshot を宣言初期値へ戻さないこと、Publication／profile／assignment 不一致を拒否することを確認する。ローカル ID の初回登録と再利用、権限のない既存 ID の拒否、Source のみ更新しても表示済み Dist を公開できること、競合 publish の拒否を確認する。成果物 JSON／素材 bytes の改変、publish 受付後の `dist` 差し替えも検証する。架空の fence や mock response で実サービスの経路を代替しない。本番環境への deploy・upload、Cue／Timeline 再生、WebGL の本番 Realtime 接続、Quest 実機はこの受け入れ条件に含めない。
-
-公開時認証では設定済み origin の device 承認を実際に通し、同じ project・Dist 表示を保ったまま公開できることを確認する。認証中に `dist` が変わった場合は再読み込みを要求し、取消・期限切れでも保存と Preview は継続できること、CP credential がブラウザーへ返らないことを検証する。
-
-素材の保存先と取得 URL が同じ backend を指すことを実疎通で確認する。既存 R2 presigner の Cloudflare URL を local R2 binding にそのまま組み合わせない。完全ローカルの検証には native Unity から取得できる HTTPS 素材経路を整備する。開発用の実 R2 を使う場合は、クラウド素材保存を含む検証として記録し、完全ローカルの証拠と区別する。
-
-Unity の生成 transport 依存と WebGL の実行環境は段階2で検証する。段階3の Author build は Dev channel を指定し、通常の本番 build を呼んで `dist` を更新する接続を残さない。
-
-### 実装段階で確定する項目
-
-- 段階2の consumer 実装前に、Contracts 担当が Preview schema の形式・生成コマンド・drift 検査を確定する。
-- 段階2の実ブラウザー検証前に、Unity 担当が GPU／CPU 上限と交換時ピークの算定を確定する。各 scene が単独で収まっても同時保持で超過する場合は交換を拒否する。
-- 段階5の E2E 着手前に、server／Unity 担当が完全ローカル HTTPS または開発用 R2 の素材経路を選び、検証環境と必要な認証設定を記録する。
+実行前提・生成物・ログの位置は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照する。公開時認証の取り消し・期限切れでも保存と Preview は継続できる。Source のみ更新した後の固定 Dist 公開と、権限のない ID 再利用・古い PublicationFence の拒否も E2E の対象である。

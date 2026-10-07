@@ -4,6 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+
+	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"testing"
 
 	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
@@ -64,5 +69,34 @@ func TestV2CanonicalCatalogCoversInactiveGroupResources(t *testing.T) {
 	}
 	if err := protocolv2.ValidateSnapshot(snapshot, catalog, 1); err != nil {
 		t.Fatalf("snapshot closure: %v", err)
+	}
+}
+
+func TestV2InitialSnapshotMatchesSharedDeclarativeConformance(t *testing.T) {
+	raw, err := os.ReadFile("../../../../../packages/contracts/presentation/fixtures/initial-runtime-state.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Definition json.RawMessage `json:"definition"`
+		Expected   json.RawMessage `json:"expected"`
+	}
+	if err := json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := NewV2InitialSnapshot(fixture.Definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := &realtimev2.CanonicalRuntimeSnapshot{}
+	if err := protojson.Unmarshal(fixture.Expected, expected); err != nil {
+		t.Fatal(err)
+	}
+	actual := &realtimev2.CanonicalRuntimeSnapshot{
+		NodeStates:    snapshot.NodeStates,
+		SurfaceStates: snapshot.SurfaceStates,
+	}
+	if !proto.Equal(actual, expected) {
+		t.Fatalf("declarative initial state differs: actual %s expected %s", actual, expected)
 	}
 }

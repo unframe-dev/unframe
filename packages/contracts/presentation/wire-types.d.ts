@@ -778,6 +778,43 @@ export interface Vector3KeyframeValueWire {
   value?: Vector3Wire;
 }
 
+export interface LocalPreviewAssetWire {
+  assetId?: string;
+  reference?: string;
+}
+
+export interface LocalPreviewEnvelopeWireFields {
+  schemaVersion?: number;
+  requestId?: string;
+  buildManifest?: string;
+  assetSet?: string;
+  projection?: LocalPreviewProjectionWire;
+  initialState?: LocalPreviewInitialStateWire;
+  assets?: LocalPreviewAssetWire[];
+}
+export type LocalPreviewEnvelopeWire__sourceRevision =
+  | { sourceRevision: string }
+  | { sourceRevision?: never };
+export type LocalPreviewEnvelopeWire = LocalPreviewEnvelopeWireFields &
+  LocalPreviewEnvelopeWire__sourceRevision;
+
+export interface LocalPreviewInitialStateWire {
+  nodeStates?: NodeRuntimeStateWire[];
+  surfaceStates?: SurfaceRuntimeStateWire[];
+}
+
+export interface LocalPreviewProjectionWire {
+  visibleNodeIds?: string[];
+  visibleSurfaceIds?: string[];
+  visibleVariableIds?: string[];
+  renderSurfaces?: DeliveredRenderSurfaceWire[];
+  semanticSurfaces?: ProjectedSemanticSurfaceWire[];
+  localOverlays?: LocalOverlayDefinitionWire[];
+  requiredRuntimeCapabilities?: number[];
+  runtimeCatalog?: ProjectedRuntimeCatalogWire;
+  textureResidency?: TextureResidencyPlanWire;
+}
+
 export interface AnchorBindingUnavailableWire {}
 
 export interface ArmedTimerWire {

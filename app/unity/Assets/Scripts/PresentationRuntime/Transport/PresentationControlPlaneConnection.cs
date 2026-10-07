@@ -1,6 +1,9 @@
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using Cysharp.Net.Http;
+using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
 using System.Threading;
 using System.Threading.Tasks;
 using Unframe.Delivery;
@@ -36,6 +39,8 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly string sessionId;
         private readonly Func<CancellationToken, Task<string>> credentialProvider;
         private readonly PresentationRuntimeHost runtimeHost;
+        private readonly Func<HttpMessageHandler> httpHandlerFactory;
+        private readonly Func<YetAnotherHttpHandler> realtimeHandlerFactory;
         private readonly object runGate = new object();
         private CancellationTokenSource activeRun;
         private TaskCompletionSource<bool> runFinished;
@@ -43,7 +48,8 @@ namespace Unframe.Unity.PresentationRuntime
         private bool localCancellation;
 
         public PresentationControlPlaneConnection(Uri controlPlane, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
-            PresentationRuntimeHost runtimeHost = null)
+            PresentationRuntimeHost runtimeHost = null, Func<HttpMessageHandler> httpHandlerFactory = null,
+            Func<YetAnotherHttpHandler> realtimeHandlerFactory = null)
         {
             if (controlPlane == null || !controlPlane.IsAbsoluteUri || controlPlane.Scheme != "https"
                 || controlPlane.AbsolutePath != "/" || !string.IsNullOrEmpty(controlPlane.UserInfo)
@@ -54,6 +60,8 @@ namespace Unframe.Unity.PresentationRuntime
             this.sessionId = sessionId;
             this.credentialProvider = credentialProvider;
             this.runtimeHost = runtimeHost;
+            this.httpHandlerFactory = httpHandlerFactory;
+            this.realtimeHandlerFactory = realtimeHandlerFactory;
         }
 
         public async Task RunAsync(PresentationBakedRuntime runtime, CancellationToken token)
@@ -71,7 +79,7 @@ namespace Unframe.Unity.PresentationRuntime
                 }
                 try
                 {
-                    using (HttpClient client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) })
+                    using (HttpClient client = new HttpClient(httpHandlerFactory == null ? new HttpClientHandler { AllowAutoRedirect = false } : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
                     {
                         for (int attempt = 0; ; attempt++)
                         {
@@ -92,7 +100,7 @@ namespace Unframe.Unity.PresentationRuntime
                                         throw new PresentationDeliveryReloadRequiredException(ResyncReason.ProjectionChanged);
                                     return current.credential;
                                 }
-                                await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache);
+                                await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache, httpHandlerFactory, realtimeHandlerFactory);
                                 return;
                             }
                             catch (PresentationDeliveryReloadRequiredException) when (attempt < 5)
@@ -164,7 +172,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != "application/json")
                     throw new InvalidOperationException("Control Plane bootstrap request failed.");
                 byte[] bytes = await ReadBoundedAsync(response.Content, 64 * 1024, token);
-                Bootstrap result = JsonUtility.FromJson<Bootstrap>(System.Text.Encoding.UTF8.GetString(bytes));
+                Bootstrap result = ParseBootstrap(System.Text.Encoding.UTF8.GetString(bytes));
                 if (result == null || result.publicationFence == null || string.IsNullOrWhiteSpace(result.credential)
                     || string.IsNullOrWhiteSpace(result.runtimeId) || result.runtimeKind != "Cloud" && result.runtimeKind != "VenueEdge"
                     || !Uri.TryCreate(result.endpoint, UriKind.Absolute, out Uri endpoint) || endpoint.Scheme != "https" || !string.IsNullOrEmpty(endpoint.UserInfo)
@@ -180,6 +188,21 @@ namespace Unframe.Unity.PresentationRuntime
                     throw new PresentationDeliveryReloadRequiredException(ResyncReason.ProjectionChanged);
                 return result;
             }
+        }
+
+        private static Bootstrap ParseBootstrap(string json)
+        {
+            Bootstrap result = JsonUtility.FromJson<Bootstrap>(json);
+            Struct raw = JsonParser.Default.Parse<Struct>(json);
+            if (result == null || !raw.Fields.TryGetValue("fingerprint", out Value fingerprint)
+                || fingerprint.KindCase != Value.KindOneofCase.NullValue && fingerprint.KindCase != Value.KindOneofCase.StringValue)
+                throw new InvalidOperationException("Control Plane bootstrap descriptor is incompatible.");
+            // JsonUtility turns JSON null strings into empty strings; retain the wire null used by Cloud TLS.
+            result.fingerprint = fingerprint.KindCase == Value.KindOneofCase.NullValue ? null : fingerprint.StringValue;
+            if (result.fingerprint != null && !PresentationDeliveryCatalog.IsContentHash(result.fingerprint)
+                || result.runtimeKind == "VenueEdge" && result.fingerprint == null)
+                throw new InvalidOperationException("Control Plane bootstrap descriptor is incompatible.");
+            return result;
         }
 
         private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, string resource, CancellationToken token)

@@ -26,6 +26,8 @@ import {
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
+import { acquireBuildLock } from "../src/filesystem/build-lock.js";
 
 const referenceDirectory = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -200,6 +202,89 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
+  it("keeps the lock unchanged while another build owns the project", async () => {
+    const directory = await projectCopy();
+    const bytes = await readFile(join(directory, "unframe.lock"));
+    const acquired = await acquireBuildLock(directory);
+    assert(acquired.ok);
+    try {
+      expect(await refreshLocalProjectLock(directory)).toMatchObject({
+        ok: false,
+        code: "cli-build-lock-unavailable",
+      });
+      expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
+    } finally {
+      await acquired.value.release();
+    }
+  });
+  it("refreshes only local closures while preserving package snapshots and embedded assets", async () => {
+    const directory = await projectCopy();
+    const before = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
+    expect(before.assets.length).toBeGreaterThan(0);
+    const path = join(directory, "reference-surface.structure.tsx");
+    await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
+    const initial = await discoverPresentationProjectFiles(directory);
+    assert(initial.ok);
+    const refreshed = await refreshLocalProjectLock(directory, {
+      expectedRevision: initial.revision,
+    });
+    assert(refreshed.ok);
+    const after = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
+    expect(after.packages).toEqual(before.packages);
+    expect(after.rootDependencies).toEqual(before.rootDependencies);
+    expect(after.packageManagerLockHash).toBe(before.packageManagerLockHash);
+    expect(after.assets).toEqual(before.assets);
+    expect(after.componentLocks).not.toEqual(before.componentLocks);
+    expect(refreshed.revision).not.toBe(initial.revision);
+    const bytes = await readFile(join(directory, "unframe.lock"));
+    expect(
+      await refreshLocalProjectLock(directory, { expectedRevision: refreshed.revision }),
+    ).toEqual(refreshed);
+    expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
+    expect(
+      await refreshLocalProjectLock(directory, { expectedRevision: initial.revision }),
+    ).toMatchObject({ ok: false, code: "cli-output-stale" });
+    expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
+  }, 30000);
+
+  it("builds changed saved inputs into Dev without changing the frozen Dist generation", async () => {
+    const directory = await projectCopy();
+    const dist = await runPresentationCli({
+      args: ["build", directory],
+      host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
+    });
+    expect(dist.exitCode, dist.stderr).toBe(0);
+    const distLink = await readlink(join(directory, "dist"));
+    const distManifest = await readFile(join(directory, "dist", "build-manifest.json"));
+    const path = join(directory, "reference-surface.structure.tsx");
+    await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
+    const before = await discoverPresentationProjectFiles(directory);
+    assert(before.ok);
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(1);
+    const dev = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: {
+        channel: "dev",
+        expectedRevision: before.revision,
+        openFixedBrowser: async () => fakeBrowser().session,
+        buildContext,
+      },
+    });
+    expect(dev.exitCode, dev.stderr).toBe(0);
+    const refreshed = await discoverPresentationProjectFiles(directory);
+    assert(refreshed.ok);
+    expect(dev.sourceRevision).toBe(refreshed.revision);
+    expect(dev.sourceRevision).not.toBe(before.revision);
+    expect(JSON.parse(dev.stdout)).toMatchObject({
+      sourceRevision: refreshed.revision,
+      generationId: dev.generationId,
+    });
+    expect(await readlink(join(directory, "dist"))).toBe(distLink);
+    expect(await readFile(join(directory, "dist", "build-manifest.json"))).toEqual(distManifest);
+    expect(await readlink(join(directory, ".unframe", "preview", "current"))).toMatch(
+      /^generations\/[0-9a-f]{32}$/,
+    );
+  }, 30000);
   it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
     const { checked, source, loaded } = await checkedProject(directory);

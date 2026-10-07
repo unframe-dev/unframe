@@ -7,8 +7,9 @@ import type { PresentationDefinition } from "./schema";
 export type PresentationRecord = {
   id: string;
   ownerId: string;
+  name: string;
   revision: number;
-  definition: PresentationDefinition;
+  definition: PresentationDefinition | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -37,13 +38,27 @@ export class D1PresentationRepository implements PresentationRepository {
   }
 
   async create(record: PresentationRecord) {
-    await this.db.batch([
-      this.db.insert(presentations).values(record),
-      this.db.insert(presentationMembers).values({
-        presentationId: record.id,
-        userId: record.ownerId,
-        role: "owner",
-      }),
+    await this.database.batch([
+      this.database
+        .prepare(
+          "INSERT OR IGNORE INTO presentations (id, owner_id, name, revision, definition, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(
+          record.id,
+          record.ownerId,
+          record.name,
+          record.revision,
+          JSON.stringify(record.definition),
+          record.createdAt,
+          record.updatedAt,
+        ),
+      this.database
+        .prepare(
+          `INSERT OR IGNORE INTO presentation_members (presentation_id, user_id, role)
+         SELECT ?, ?, 'owner' WHERE EXISTS
+         (SELECT 1 FROM presentations WHERE id = ? AND owner_id = ?)`,
+        )
+        .bind(record.id, record.ownerId, record.id, record.ownerId),
     ]);
   }
 
@@ -52,6 +67,7 @@ export class D1PresentationRepository implements PresentationRepository {
       .select({
         id: presentations.id,
         ownerId: presentations.ownerId,
+        name: presentations.name,
         revision: presentations.revision,
         definition: presentations.definition,
         createdAt: presentations.createdAt,
@@ -113,7 +129,7 @@ export class D1PresentationRepository implements PresentationRepository {
       .prepare(
         `
           UPDATE presentations
-          SET definition = ?, revision = revision + 1, updated_at = ?
+          SET definition = ?, name = ?, revision = revision + 1, updated_at = ?
           WHERE id = ?
             AND revision = ?
             AND NOT EXISTS (
@@ -134,6 +150,7 @@ export class D1PresentationRepository implements PresentationRepository {
       )
       .bind(
         JSON.stringify(definition),
+        definition.metadata.title,
         updatedAt,
         id,
         expectedRevision,

@@ -206,8 +206,8 @@ namespace Unframe.ControlPlane.Client
                 return PresentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystem.UpAxisEnumToJsonValue(presentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystemUpAxisEnum);
             if (obj is PresentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystem.ForwardAxisEnum presentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystemForwardAxisEnum)
                 return PresentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystem.ForwardAxisEnumToJsonValue(presentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystemForwardAxisEnum);
-            if (obj is PresentationsPostRequest.SchemaVersionEnum presentationsPostRequestSchemaVersionEnum)
-                return PresentationsPostRequest.SchemaVersionEnumToJsonValue(presentationsPostRequestSchemaVersionEnum).ToString();
+            if (obj is PresentationsIdPutRequestDefinition.SchemaVersionEnum presentationsIdPutRequestDefinitionSchemaVersionEnum)
+                return PresentationsIdPutRequestDefinition.SchemaVersionEnumToJsonValue(presentationsIdPutRequestDefinitionSchemaVersionEnum).ToString();
             if (obj is PresentationsPresentationIdPublicationsPost201Response.SchemaVersionEnum presentationsPresentationIdPublicationsPost201ResponseSchemaVersionEnum)
                 return PresentationsPresentationIdPublicationsPost201Response.SchemaVersionEnumToJsonValue(presentationsPresentationIdPublicationsPost201ResponseSchemaVersionEnum).ToString();
             if (obj is PresentationsPresentationIdPublicationsPost201ResponseContractVersions.DefinitionEnum presentationsPresentationIdPublicationsPost201ResponseContractVersionsDefinitionEnum)

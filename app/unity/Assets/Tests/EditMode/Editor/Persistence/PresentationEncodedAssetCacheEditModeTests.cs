@@ -25,6 +25,39 @@ public sealed class PresentationEncodedAssetCacheEditModeTests
     }
 
     [Test]
+    public void UnixFileSystemInfoMatchesThe64BitLibcAbi()
+    {
+        var type = typeof(PresentationEncodedAssetCache).GetNestedType("UnixFileSystemInfo", System.Reflection.BindingFlags.NonPublic);
+        Assert.That(System.Runtime.InteropServices.Marshal.SizeOf(type), Is.EqualTo(112));
+        Assert.That(System.Runtime.InteropServices.Marshal.OffsetOf(type, "FragmentSize").ToInt64(), Is.EqualTo(8));
+        Assert.That(System.Runtime.InteropServices.Marshal.OffsetOf(type, "BlocksAvailable").ToInt64(), Is.EqualTo(32));
+        Assert.That(System.Runtime.InteropServices.Marshal.OffsetOf(type, "MaximumNameLength").ToInt64(), Is.EqualTo(80));
+    }
+
+    [TestCase("/tmp/cache", "/", true)]
+    [TestCase("/tmp/cache", "/tmp", true)]
+    [TestCase("/tmp", "/tmp", true)]
+    [TestCase("/tmp2/cache", "/tmp", false)]
+    [TestCase("/tmp/cache", "/tmp/cache/child", false)]
+    public void VolumeMatchingUsesDirectoryBoundaries(string path, string volume, bool expected)
+    {
+        if (Path.DirectorySeparatorChar != '/') Assert.Ignore("POSIX mount path cases require a POSIX filesystem.");
+        var match = typeof(PresentationEncodedAssetCache).GetMethod("IsPathOnVolume", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.That((bool)match.Invoke(null, new object[] { path, volume }), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void DefaultFreeSpaceProviderAdmitsBytesOnTheActualCacheVolume()
+    {
+        using (var cache = new PresentationEncodedAssetCache(directory, 1024, 0))
+        {
+            cache.RecoverSessions(Array.Empty<PresentationEncodedAssetCache.SessionSelection>());
+            Assert.That(cache.TryReserveSession("session:real-volume", new[] { Asset(new byte[] { 1 }) }, out var lease, out string error), Is.True, error);
+            lease.Dispose();
+        }
+    }
+
+    [Test]
     public async Task AdmissionRequiresCompleteHostRecoveryAndVerifiedBytesSurviveRestart()
     {
         byte[] bytes = { 1, 2, 3 };

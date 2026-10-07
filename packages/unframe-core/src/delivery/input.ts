@@ -1,21 +1,23 @@
 import { capabilityProfileSchema, type CapabilityProfile } from "@unframe/contracts/presentation";
 import {
   verifyPublicationIntegrity,
+  verifyBuildIntegrity,
+  type BuildArtifacts,
   type PublicationArtifacts,
   type PublicationIntegrityInput,
 } from "../publication/integrity.js";
 import { snapshotPlainJson } from "../publication/plain-json.js";
 import { validatePresentationArtifacts } from "../validation/artifacts.js";
 
+export type BuildSourceInput = BuildArtifacts & { capability: CapabilityProfile };
+
 export type DeliverySourceInput = PublicationArtifacts & {
   capability: CapabilityProfile;
 };
 
-export const parseDeliveryInputs = (
-  input: DeliverySourceInput,
-): PublicationArtifacts & {
-  capability: CapabilityProfile;
-} => {
+function parseInputs(input: BuildSourceInput, publication: false): BuildSourceInput;
+function parseInputs(input: DeliverySourceInput, publication: true): DeliverySourceInput;
+function parseInputs(input: BuildSourceInput | DeliverySourceInput, publication: boolean) {
   const frozen = snapshotPlainJson(input);
   if (
     !frozen.valid ||
@@ -30,7 +32,7 @@ export const parseDeliveryInputs = (
     "renderBundle",
     "assetSet",
     "buildManifest",
-    "publishedPresentation",
+    ...(publication ? ["publishedPresentation"] : []),
     "capability",
   ];
   if (
@@ -41,10 +43,12 @@ export const parseDeliveryInputs = (
       "Delivery input envelope must contain only required artifacts and CapabilityProfile.",
     );
   const { capability, ...artifacts } = source;
-  const integrity = verifyPublicationIntegrity(artifacts as PublicationIntegrityInput);
+  const integrity = publication
+    ? verifyPublicationIntegrity(artifacts as PublicationIntegrityInput)
+    : verifyBuildIntegrity(artifacts);
   if (!integrity.valid)
     throw new Error(
-      `Delivery publication is invalid: ${integrity.diagnostics.map((entry) => entry.message).join(" ")}`,
+      `Delivery ${publication ? "publication" : "build"} is invalid: ${integrity.diagnostics.map((entry) => entry.message).join(" ")}`,
     );
   const presentation = validatePresentationArtifacts(
     integrity.value.definition,
@@ -60,4 +64,10 @@ export const parseDeliveryInputs = (
     ...presentation.value,
     capability: capabilityProfileSchema.parse(capability),
   };
-};
+}
+
+export const parseDeliveryInputs = (input: DeliverySourceInput): DeliverySourceInput =>
+  parseInputs(input, true);
+
+export const parseBuildInputs = (input: BuildSourceInput): BuildSourceInput =>
+  parseInputs(input, false);

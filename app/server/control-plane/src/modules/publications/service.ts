@@ -6,8 +6,15 @@ import {
   validatePresentationArtifacts,
   type BuildArtifacts,
 } from "@unframe/unframe-core";
-import type { PublishedPresentation } from "@unframe/contracts/presentation";
+import {
+  publicationFenceSchema,
+  type PublishedPresentation,
+} from "@unframe/contracts/presentation";
+import type { z } from "zod";
+
 import type { Identity } from "../../presentation/service";
+
+export type PublicationFence = z.infer<typeof publicationFenceSchema>;
 
 export class PublicationError extends Error {
   constructor(
@@ -93,7 +100,8 @@ export class PublicationService {
         `INSERT OR IGNORE INTO presentation_builds
        (presentation_id, build_id, target_revision, artifacts, created_at)
        SELECT ?, ?, ?, ?, ? WHERE EXISTS
-       (SELECT 1 FROM presentations WHERE id = ? AND revision = ?)`,
+       (SELECT 1 FROM presentations WHERE id = ?)
+       AND (? = 'admin' OR EXISTS (SELECT 1 FROM presentation_members WHERE presentation_id = ? AND user_id = ?))`,
       )
       .bind(
         presentationId,
@@ -102,10 +110,26 @@ export class PublicationService {
         JSON.stringify(artifacts),
         this.now(),
         presentationId,
-        record.revision,
+        identity.globalRole,
+        presentationId,
+        identity.userId,
       )
       .run();
-    if (result.meta.changes !== 1) throw new PublicationError("conflict");
+    if (result.meta.changes !== 1) {
+      await this.authorize(identity, presentationId, true);
+      const existing = await this.db
+        .prepare(
+          "SELECT artifacts FROM presentation_builds WHERE presentation_id = ? AND build_id = ?",
+        )
+        .bind(presentationId, artifacts.buildManifest.buildId)
+        .first<{ artifacts: string }>();
+      if (
+        !existing ||
+        canonicalizeJsonPayload(JSON.parse(existing.artifacts)) !==
+          canonicalizeJsonPayload(artifacts)
+      )
+        throw new PublicationError("conflict");
+    }
     return {
       buildId: artifacts.buildManifest.buildId,
       assetIds: Object.keys(artifacts.assetSet.assets),
@@ -124,6 +148,51 @@ export class PublicationService {
     const parsed = verifyBuildIntegrity(JSON.parse(row.artifacts));
     if (!parsed.valid) throw new PublicationError("invalid_build");
     return parsed.value;
+  }
+
+  async downloadPublishedAsset(presentationId: string, buildId: string, assetId: string) {
+    const row = await this.db
+      .prepare(
+        `SELECT build.artifacts FROM presentation_builds AS build
+       WHERE build.presentation_id = ? AND build.build_id = ? AND EXISTS (
+         SELECT 1 FROM presentation_publications AS publication
+         WHERE publication.presentation_id = build.presentation_id
+           AND publication.build_id = build.build_id
+       )`,
+      )
+      .bind(presentationId, buildId)
+      .first<{ artifacts: string }>();
+    if (!row) throw new PublicationError("not_found");
+    let input: unknown;
+    try {
+      input = JSON.parse(row.artifacts);
+    } catch {
+      throw new PublicationError("conflict");
+    }
+    const verified = verifyBuildIntegrity(input);
+    if (
+      !verified.valid ||
+      verified.value.buildManifest.presentationId !== presentationId ||
+      verified.value.buildManifest.buildId !== buildId
+    )
+      throw new PublicationError("conflict");
+    const descriptor = verified.value.assetSet.assets[assetId];
+    if (!descriptor) throw new PublicationError("not_found");
+    const object = await this.bucket.get(assetKey(presentationId, buildId, assetId));
+    if (!object) throw new PublicationError("not_found");
+    if (
+      object.size !== descriptor.encodedSizeBytes ||
+      object.size > 256 * 1024 * 1024 ||
+      object.httpMetadata?.contentType !== descriptor.mediaType
+    )
+      throw new PublicationError("conflict");
+    const bytes = await object.arrayBuffer();
+    if (
+      bytes.byteLength !== descriptor.encodedSizeBytes ||
+      (await sha256(bytes)) !== descriptor.checksum
+    )
+      throw new PublicationError("conflict");
+    return { bytes, mediaType: descriptor.mediaType };
   }
 
   async expectedAsset(
@@ -165,17 +234,18 @@ export class PublicationService {
     identity: Identity,
     presentationId: string,
     buildId: string,
-    expectedPublicationEpoch: number,
+    expectedPublicationFence: PublicationFence | null,
   ) {
-    const record = await this.authorize(identity, presentationId, true);
+    await this.authorize(identity, presentationId, true);
+    if (
+      expectedPublicationFence !== null &&
+      (!publicationFenceSchema.safeParse(expectedPublicationFence).success ||
+        expectedPublicationFence.presentationId !== presentationId)
+    )
+      throw new PublicationError("conflict");
+    const nextEpoch = (expectedPublicationFence?.publicationEpoch ?? 0) + 1;
+    if (!Number.isSafeInteger(nextEpoch)) throw new PublicationError("conflict");
     const artifacts = await this.build(identity, presentationId, buildId, true);
-    const build = await this.db
-      .prepare(
-        "SELECT target_revision AS targetRevision FROM presentation_builds WHERE presentation_id = ? AND build_id = ?",
-      )
-      .bind(presentationId, buildId)
-      .first<{ targetRevision: number }>();
-    if (build?.targetRevision !== record.revision) throw new PublicationError("conflict");
     for (const [assetId, descriptor] of Object.entries(artifacts.assetSet.assets)) {
       const object = await this.bucket.get(assetKey(presentationId, buildId, assetId));
       if (
@@ -188,7 +258,7 @@ export class PublicationService {
     }
     const payload = {
       ...artifacts.buildManifest,
-      publicationEpoch: expectedPublicationEpoch + 1,
+      publicationEpoch: nextEpoch,
     };
     const manifest: PublishedPresentation = {
       ...payload,
@@ -201,9 +271,21 @@ export class PublicationService {
         `INSERT OR IGNORE INTO presentation_publications
        (presentation_id, epoch, build_id, manifest, published_at)
        SELECT ?, ?, ?, ?, ?
-       WHERE EXISTS (SELECT 1 FROM presentations WHERE id = ? AND revision = ?)
-         AND EXISTS (SELECT 1 FROM presentation_builds WHERE presentation_id = ? AND build_id = ? AND target_revision = ?)
-         AND (SELECT COALESCE(MAX(epoch), 0) FROM presentation_publications WHERE presentation_id = ?) = ?
+       WHERE EXISTS (SELECT 1 FROM presentations WHERE id = ?)
+         AND EXISTS (SELECT 1 FROM presentation_builds WHERE presentation_id = ? AND build_id = ?)
+         AND (? = 'admin' OR EXISTS (SELECT 1 FROM presentation_members WHERE presentation_id = ? AND user_id = ?))
+         AND (
+           (? = 1 AND NOT EXISTS (SELECT 1 FROM presentation_publications WHERE presentation_id = ?))
+           OR (? = 0 AND EXISTS (
+             SELECT 1 FROM (
+               SELECT epoch, manifest FROM presentation_publications
+               WHERE presentation_id = ? ORDER BY epoch DESC LIMIT 1
+             ) current
+             WHERE current.epoch = ?
+               AND json_extract(current.manifest, '$.presentationId') = ?
+               AND json_extract(current.manifest, '$.publicationManifestHash') = ?
+           ))
+         )
          AND NOT EXISTS (
            SELECT 1 FROM presentation_sessions
            WHERE presentation_id = ? AND state != 'Ended'
@@ -216,12 +298,18 @@ export class PublicationService {
         JSON.stringify(manifest),
         this.now(),
         presentationId,
-        record.revision,
         presentationId,
         buildId,
-        record.revision,
+        identity.globalRole,
         presentationId,
-        expectedPublicationEpoch,
+        identity.userId,
+        expectedPublicationFence === null ? 1 : 0,
+        presentationId,
+        expectedPublicationFence === null ? 1 : 0,
+        presentationId,
+        expectedPublicationFence?.publicationEpoch ?? 0,
+        expectedPublicationFence?.presentationId ?? "",
+        expectedPublicationFence?.publicationManifestHash ?? "",
         presentationId,
       )
       .run();

@@ -108,7 +108,9 @@ export type SavedCommand = {
 };
 export type BuildJob = {
   buildId: string;
+  channel: "dev" | "dist";
   revision: string;
+  generationId: string | null;
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "stale";
   diagnostics: AuthorDiagnostic[];
   artifacts: { assetId: string; mediaType: string; instanceId: string; stateId: string }[];
@@ -127,7 +129,7 @@ export class AuthorError extends Error {
 export type AuthorService = {
   project(): Promise<ProjectSnapshot>;
   patch(revision: string, request: PatchRequest): Promise<SavedCommand>;
-  build(revision: string, requestId: string): Promise<BuildJob>;
+  build(revision: string, requestId: string, channel?: "dev" | "dist"): Promise<BuildJob>;
   job(buildId: string): Promise<BuildJob>;
   cancel(buildId: string): Promise<BuildJob>;
   artifact(buildId: string, assetId: string): Promise<{ bytes: Uint8Array; mediaType: string }>;

@@ -2,6 +2,29 @@ import { describe, expect, it } from "vitest";
 import { watchPresentationProject } from "../src/application/watch-project.js";
 
 describe("watchPresentationProject", () => {
+  it("tracks a Dev refresh without rebuilding its own lock change and still observes external saves", async () => {
+    const controller = new AbortController();
+    const revisions = ["saved", "refreshed", "external"];
+    const built: (string | undefined)[] = [];
+    await watchPresentationProject({
+      directory: "/project",
+      channel: "dev",
+      signal: controller.signal,
+      intervalMs: 0,
+      snapshot: async () => revisions.shift() ?? "external",
+      build: async (_signal, revision) => {
+        built.push(revision);
+        if (revision === "external") controller.abort();
+        return {
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          sourceRevision: revision === "saved" ? "refreshed" : "external",
+        };
+      },
+    });
+    expect(built).toEqual(["saved", "external"]);
+  });
   it("builds each revision once and passes that revision to the checked build", async () => {
     const controller = new AbortController();
     const revisions = ["a", "a", "b"];

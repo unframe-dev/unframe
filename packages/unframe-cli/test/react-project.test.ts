@@ -11,6 +11,7 @@ import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
 import { loadUnframeLock } from "../src/filesystem/load-lock.js";
+import { refreshLocalProjectLock } from "../src/filesystem/refresh-local-lock.js";
 import {
   hashDependencyGraph,
   hashLockedPackageContent,
@@ -417,7 +418,7 @@ describe("React frozen CLI path", () => {
       ["hero.ttf", new Uint8Array([0, 1, 2, 4])],
     ] as const) {
       await writeFile(join(directory, path), bytes);
-      expect((await runPresentationCli({ args: ["lock", "refresh", directory] })).exitCode).toBe(0);
+      expect(await refreshLocalProjectLock(directory)).toMatchObject({ ok: true });
       const changed = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
       assert(changed.ok);
       const changedLock = changed.value.lock.componentLocks.find(
@@ -432,8 +433,8 @@ describe("React frozen CLI path", () => {
       join(directory, "hero.css"),
       '.hero { background: url("https://example.com/hero.png"); }',
     );
-    const failed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(failed.exitCode).toBe(1);
+    const failed = await refreshLocalProjectLock(directory);
+    expect(failed.ok).toBe(false);
     expect(await readFile(join(directory, "unframe.lock"))).toEqual(before);
     await writeFile(
       join(directory, "hero.css"),

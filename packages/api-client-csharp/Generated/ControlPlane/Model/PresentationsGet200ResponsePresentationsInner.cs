@@ -35,17 +35,19 @@ namespace Unframe.ControlPlane.Model
         /// </summary>
         /// <param name="id">id</param>
         /// <param name="revision">revision</param>
-        /// <param name="definition">definition</param>
+        /// <param name="name">name</param>
         /// <param name="createdAt">createdAt</param>
         /// <param name="updatedAt">updatedAt</param>
+        /// <param name="definition">definition</param>
         [JsonConstructor]
-        public PresentationsGet200ResponsePresentationsInner(string id, int revision, PresentationsGet200ResponsePresentationsInnerDefinition definition, string createdAt, string updatedAt)
+        public PresentationsGet200ResponsePresentationsInner(string id, int revision, string name, string createdAt, string updatedAt, PresentationsGet200ResponsePresentationsInnerDefinition? definition = default)
         {
             Id = id;
             Revision = revision;
-            Definition = definition;
+            Name = name;
             CreatedAt = createdAt;
             UpdatedAt = updatedAt;
+            Definition = definition;
             OnCreated();
         }
 
@@ -64,10 +66,10 @@ namespace Unframe.ControlPlane.Model
         public int Revision { get; set; }
 
         /// <summary>
-        /// Gets or Sets Definition
+        /// Gets or Sets Name
         /// </summary>
-        [JsonPropertyName("definition")]
-        public PresentationsGet200ResponsePresentationsInnerDefinition Definition { get; set; }
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
 
         /// <summary>
         /// Gets or Sets CreatedAt
@@ -82,6 +84,12 @@ namespace Unframe.ControlPlane.Model
         public string UpdatedAt { get; set; }
 
         /// <summary>
+        /// Gets or Sets Definition
+        /// </summary>
+        [JsonPropertyName("definition")]
+        public PresentationsGet200ResponsePresentationsInnerDefinition? Definition { get; set; }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -91,9 +99,10 @@ namespace Unframe.ControlPlane.Model
             sb.Append("class PresentationsGet200ResponsePresentationsInner {\n");
             sb.Append("  Id: ").Append(Id).Append("\n");
             sb.Append("  Revision: ").Append(Revision).Append("\n");
-            sb.Append("  Definition: ").Append(Definition).Append("\n");
+            sb.Append("  Name: ").Append(Name).Append("\n");
             sb.Append("  CreatedAt: ").Append(CreatedAt).Append("\n");
             sb.Append("  UpdatedAt: ").Append(UpdatedAt).Append("\n");
+            sb.Append("  Definition: ").Append(Definition).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -133,9 +142,10 @@ namespace Unframe.ControlPlane.Model
 
             Option<string?> id = default;
             Option<int?> revision = default;
-            Option<PresentationsGet200ResponsePresentationsInnerDefinition?> definition = default;
+            Option<string?> name = default;
             Option<string?> createdAt = default;
             Option<string?> updatedAt = default;
+            Option<PresentationsGet200ResponsePresentationsInnerDefinition?> definition = default;
 
             while (utf8JsonReader.Read())
             {
@@ -158,14 +168,17 @@ namespace Unframe.ControlPlane.Model
                         case "revision":
                             revision = new Option<int?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
                             break;
-                        case "definition":
-                            definition = new Option<PresentationsGet200ResponsePresentationsInnerDefinition?>(JsonSerializer.Deserialize<PresentationsGet200ResponsePresentationsInnerDefinition>(ref utf8JsonReader, jsonSerializerOptions)!);
+                        case "name":
+                            name = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
                         case "createdAt":
                             createdAt = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
                         case "updatedAt":
                             updatedAt = new Option<string?>(utf8JsonReader.GetString()!);
+                            break;
+                        case "definition":
+                            definition = new Option<PresentationsGet200ResponsePresentationsInnerDefinition?>(JsonSerializer.Deserialize<PresentationsGet200ResponsePresentationsInnerDefinition>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
                         default:
                             break;
@@ -179,8 +192,8 @@ namespace Unframe.ControlPlane.Model
             if (!revision.IsSet)
                 throw new ArgumentException("Property is required for class PresentationsGet200ResponsePresentationsInner.", nameof(revision));
 
-            if (!definition.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsGet200ResponsePresentationsInner.", nameof(definition));
+            if (!name.IsSet)
+                throw new ArgumentException("Property is required for class PresentationsGet200ResponsePresentationsInner.", nameof(name));
 
             if (!createdAt.IsSet)
                 throw new ArgumentException("Property is required for class PresentationsGet200ResponsePresentationsInner.", nameof(createdAt));
@@ -188,14 +201,17 @@ namespace Unframe.ControlPlane.Model
             if (!updatedAt.IsSet)
                 throw new ArgumentException("Property is required for class PresentationsGet200ResponsePresentationsInner.", nameof(updatedAt));
 
+            if (!definition.IsSet)
+                throw new ArgumentException("Property is required for class PresentationsGet200ResponsePresentationsInner.", nameof(definition));
+
             if (id.IsSet && id.Value == null)
                 throw new ArgumentNullException(nameof(id), "Property is not nullable for class PresentationsGet200ResponsePresentationsInner.");
 
             if (revision.IsSet && revision.Value == null)
                 throw new ArgumentNullException(nameof(revision), "Property is not nullable for class PresentationsGet200ResponsePresentationsInner.");
 
-            if (definition.IsSet && definition.Value == null)
-                throw new ArgumentNullException(nameof(definition), "Property is not nullable for class PresentationsGet200ResponsePresentationsInner.");
+            if (name.IsSet && name.Value == null)
+                throw new ArgumentNullException(nameof(name), "Property is not nullable for class PresentationsGet200ResponsePresentationsInner.");
 
             if (createdAt.IsSet && createdAt.Value == null)
                 throw new ArgumentNullException(nameof(createdAt), "Property is not nullable for class PresentationsGet200ResponsePresentationsInner.");
@@ -203,7 +219,7 @@ namespace Unframe.ControlPlane.Model
             if (updatedAt.IsSet && updatedAt.Value == null)
                 throw new ArgumentNullException(nameof(updatedAt), "Property is not nullable for class PresentationsGet200ResponsePresentationsInner.");
 
-            return new PresentationsGet200ResponsePresentationsInner(id.Value!, revision.Value!.Value!, definition.Value!, createdAt.Value!, updatedAt.Value!);
+            return new PresentationsGet200ResponsePresentationsInner(id.Value!, revision.Value!.Value!, name.Value!, createdAt.Value!, updatedAt.Value!, definition.Value!);
         }
 
         /// <summary>
@@ -233,8 +249,8 @@ namespace Unframe.ControlPlane.Model
             if (presentationsGet200ResponsePresentationsInner.Id == null)
                 throw new ArgumentNullException(nameof(presentationsGet200ResponsePresentationsInner.Id), "Property is required for class PresentationsGet200ResponsePresentationsInner.");
 
-            if (presentationsGet200ResponsePresentationsInner.Definition == null)
-                throw new ArgumentNullException(nameof(presentationsGet200ResponsePresentationsInner.Definition), "Property is required for class PresentationsGet200ResponsePresentationsInner.");
+            if (presentationsGet200ResponsePresentationsInner.Name == null)
+                throw new ArgumentNullException(nameof(presentationsGet200ResponsePresentationsInner.Name), "Property is required for class PresentationsGet200ResponsePresentationsInner.");
 
             if (presentationsGet200ResponsePresentationsInner.CreatedAt == null)
                 throw new ArgumentNullException(nameof(presentationsGet200ResponsePresentationsInner.CreatedAt), "Property is required for class PresentationsGet200ResponsePresentationsInner.");
@@ -246,11 +262,19 @@ namespace Unframe.ControlPlane.Model
 
             writer.WriteNumber("revision", presentationsGet200ResponsePresentationsInner.Revision);
 
-            writer.WritePropertyName("definition");
-            JsonSerializer.Serialize(writer, presentationsGet200ResponsePresentationsInner.Definition, jsonSerializerOptions);
+            writer.WriteString("name", presentationsGet200ResponsePresentationsInner.Name);
+
             writer.WriteString("createdAt", presentationsGet200ResponsePresentationsInner.CreatedAt);
 
             writer.WriteString("updatedAt", presentationsGet200ResponsePresentationsInner.UpdatedAt);
+
+            if (presentationsGet200ResponsePresentationsInner.Definition != null)
+            {
+                writer.WritePropertyName("definition");
+                JsonSerializer.Serialize(writer, presentationsGet200ResponsePresentationsInner.Definition, jsonSerializerOptions);
+            }
+            else
+                writer.WriteNull("definition");
         }
     }
 }

@@ -2,6 +2,7 @@ import { copyFile, lstat, mkdir, readdir, rmdir, readFile, writeFile } from "nod
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
+import { randomUUID } from "node:crypto";
 import { projectDirectory } from "./path-policy.js";
 
 const template = fileURLToPath(new URL("../../../../examples/presentation/", import.meta.url));
@@ -28,6 +29,12 @@ export const initPresentationProject = async (
       await copyFile(join(template, name), join(directory, name));
       copied.push(name);
     }
+    const entryPath = join(directory, "presentation.unframe.tsx");
+    const source = await readFile(entryPath, "utf8");
+    const identity = 'id: "reference-presentation"';
+    if (source.split(identity).length !== 2)
+      throw new Error("Template presentation identity is ambiguous.");
+    await writeFile(entryPath, source.replace(identity, `id: "presentation-${randomUUID()}"`));
     const lockPath = join(directory, "unframe.lock");
     const lock = JSON.parse(await readFile(lockPath, "utf8")) as Record<string, unknown>;
     lock["rendererPlugins"] = [

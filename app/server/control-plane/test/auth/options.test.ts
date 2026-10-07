@@ -558,12 +558,12 @@ describe("Better Auth device authorization", () => {
       verification_uri_complete: string;
     };
     expect(body).toMatchObject({
-      verification_uri: "https://un-fra.me/editor/device",
+      verification_uri: "https://un-fra.me/device",
       expires_in: 1800,
       interval: 3,
     });
     expect(body.verification_uri_complete).toBe(
-      `https://un-fra.me/editor/device?user_code=${encodeURIComponent(body.user_code)}`,
+      `https://un-fra.me/device?user_code=${encodeURIComponent(body.user_code)}`,
     );
   });
 

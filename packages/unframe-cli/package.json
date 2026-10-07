@@ -21,6 +21,7 @@
     "@opentui/core": "0.4.5",
     "@opentui/keymap": "0.4.5",
     "@opentui/solid": "0.4.5",
+    "@unframe/contracts": "workspace:*",
     "@unframe/unframe-compiler": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-web": "workspace:*",

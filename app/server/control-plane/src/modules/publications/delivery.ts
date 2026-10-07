@@ -9,6 +9,7 @@ import type { RuntimeConfig } from "../../config";
 import type { Identity } from "../../presentation/service";
 import { D1RuntimeAssignmentRepository } from "../runtime-assignments/repository";
 import { RuntimeAssignmentService } from "../runtime-assignments/service";
+import { PublicationAssetAccess } from "./asset-access";
 import { normalizedCapability } from "./capability";
 import { PublicationError, PublicationService } from "./service";
 
@@ -115,11 +116,22 @@ export class DeliveryService {
     const presigner = new R2Presigner(this.config, this.now);
     const assetAccess: Record<string, { url: string; expiresAtUnixMilliseconds: number }> = {};
     for (const asset of selection.assets) {
-      const access = await presigner.issueDownload({
-        objectKey: `publication-builds/${artifacts.buildManifest.presentationId}/${artifacts.buildManifest.buildId}/${asset.assetId}`,
-        expiresAt: new Date(expiresAt),
-      });
-      assetAccess[asset.assetId] = { url: access.url, expiresAtUnixMilliseconds: expiresAt };
+      const target = {
+        presentationId: artifacts.buildManifest.presentationId,
+        buildId: artifacts.buildManifest.buildId,
+        assetId: asset.assetId,
+      };
+      const url = this.config.PUBLICATION_ASSET_ORIGIN
+        ? await new PublicationAssetAccess(this.config.SERVICE_IDENTITY_SECRET, () =>
+            this.now().getTime(),
+          ).issue(this.config.PUBLICATION_ASSET_ORIGIN, target, expiresAt)
+        : (
+            await presigner.issueDownload({
+              objectKey: `publication-builds/${target.presentationId}/${target.buildId}/${target.assetId}`,
+              expiresAt: new Date(expiresAt),
+            })
+          ).url;
+      assetAccess[asset.assetId] = { url, expiresAtUnixMilliseconds: expiresAt };
     }
     let manifest;
     try {

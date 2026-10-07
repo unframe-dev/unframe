@@ -198,13 +198,19 @@ h1 { font-weight: 400; }`,
   return directory;
 };
 
-const distBytes = async (directory: string) => {
+const generationBytes = async (directory: string) => {
   const output = new Map<string, Uint8Array>();
   const visit = async (path: string): Promise<void> => {
-    for (const name of await readdir(join(directory, "dist", path), { withFileTypes: true })) {
+    for (const name of await readdir(join(directory, ".unframe", "preview", "current", path), {
+      withFileTypes: true,
+    })) {
       const relative = path ? `${path}/${name.name}` : name.name;
       if (name.isDirectory()) await visit(relative);
-      else output.set(relative, await readFile(join(directory, "dist", relative)));
+      else
+        output.set(
+          relative,
+          await readFile(join(directory, ".unframe", "preview", "current", relative)),
+        );
     }
   };
   await visit("");
@@ -212,7 +218,7 @@ const distBytes = async (directory: string) => {
 };
 
 const hashBytes = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-const distHashes = (files: [string, Uint8Array][]) =>
+const generationHashes = (files: [string, Uint8Array][]) =>
   files.map(([path, bytes]) => [path, hashBytes(bytes)]);
 const previewHashes = (pngs: Map<string, Uint8Array>) =>
   [...pngs].map(([instanceId, bytes]) => [instanceId, hashBytes(bytes)]);
@@ -272,7 +278,7 @@ const buildPngs = async (service: AuthorService, snapshot: ProjectSnapshot, requ
   return pngs;
 };
 
-it("edits React instances directly, keeps position-only captures identical, and preserves dist when capture fails", async () => {
+it("edits React instances directly, keeps position-only captures identical, and preserves the Dev generation when capture fails", async () => {
   const directory = await createProject();
   const service = await createAuthorService(directory);
   services.push(service);
@@ -324,7 +330,7 @@ it("edits React instances directly, keeps position-only captures identical, and 
   expect(hashBytes(editedPngs.get("hero-one")!)).not.toBe(hashBytes(originalPngs.get("hero-one")!));
   expect(hashBytes(editedPngs.get("hero-two")!)).toBe(hashBytes(originalPngs.get("hero-two")!));
 
-  const previousDist = await distBytes(directory);
+  const previousGeneration = await generationBytes(directory);
   await save(
     service,
     edited,
@@ -335,7 +341,9 @@ it("edits React instances directly, keeps position-only captures identical, and 
   const failed = await terminalJob(service, await service.build(failing.revision, "4".repeat(32)));
   expect(failed.status).toBe("failed");
   expect(failed.diagnostics.length).toBeGreaterThan(0);
-  expect(distHashes(await distBytes(directory))).toEqual(distHashes(previousDist));
+  expect(generationHashes(await generationBytes(directory))).toEqual(
+    generationHashes(previousGeneration),
+  );
 
   await save(
     service,
@@ -354,7 +362,9 @@ it("edits React instances directly, keeps position-only captures identical, and 
   const cancelled = await terminalJob(service, cancelling);
   expect(cancelled.status).toBe("cancelled");
   expect(cancelled.artifacts).toEqual([]);
-  expect(distHashes(await distBytes(directory))).toEqual(distHashes(previousDist));
+  expect(generationHashes(await generationBytes(directory))).toEqual(
+    generationHashes(previousGeneration),
+  );
 
   const current = await service.project();
   const staleBuild = await runningJob(
@@ -368,5 +378,7 @@ it("edits React instances directly, keeps position-only captures identical, and 
   const stale = await terminalJob(service, staleBuild);
   expect(stale.status, JSON.stringify(stale.diagnostics)).toBe("stale");
   expect(stale.artifacts).toEqual([]);
-  expect(distHashes(await distBytes(directory))).toEqual(distHashes(previousDist));
+  expect(generationHashes(await generationBytes(directory))).toEqual(
+    generationHashes(previousGeneration),
+  );
 }, 600_000);
