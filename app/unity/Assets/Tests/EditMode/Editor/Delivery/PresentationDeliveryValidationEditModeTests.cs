@@ -115,6 +115,44 @@ public sealed class PresentationDeliveryValidationEditModeTests
         AssertRejected(delivery, "native UI text");
     }
 
+    [TestCase("missing material")]
+    [TestCase("missing color")]
+    [TestCase("invalid color")]
+    [TestCase("shadows")]
+    public void Delivery_RejectsInvalidShapeMaterial(string failure)
+    {
+        DeliveryManifest delivery = CreateFixture();
+        ShapeNode shape = delivery.ProjectionProfile.RuntimeCatalog.Nodes[1].Shape;
+        shape.Material = new UnlitShapeMaterial
+        {
+            Color = new Unframe.Presentation.SrgbaColor
+            {
+                Red = 1,
+                Green = 1,
+                Blue = 1,
+                Alpha = 1
+            }
+        };
+        if (failure == "missing material") shape.Material = null;
+        else if (failure == "missing color") shape.Material.Color = null;
+        else if (failure == "invalid color") shape.Material.Color.Red = double.NaN;
+        else shape.Material.CastsShadows = true;
+        AssertRejected(delivery, "shape material");
+    }
+
+    [Test]
+    public void Delivery_RejectsInvalidNativeTextColor()
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.ProjectionProfile.RenderSurfaces[0].Artifacts[0].NativeUi.Nodes[0].Text.Color
+            = new Unframe.Delivery.SrgbaColor
+            {
+                Red = -0.1,
+                Alpha = 1
+            };
+        AssertRejected(delivery, "text color");
+    }
+
     private static DeliveryManifest CreateFixture()
     {
         TextAsset fixture = Resources.Load<TextAsset>("PresentationFixtures/LocalDelivery");

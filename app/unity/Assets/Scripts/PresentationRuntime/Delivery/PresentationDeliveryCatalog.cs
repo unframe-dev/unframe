@@ -129,6 +129,14 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     return Fail("delivery node is incomplete.", out error);
                 }
+                if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Shape)
+                {
+                    UnlitShapeMaterial material = node.Shape.Material;
+                    if (material == null || material.Color == null || material.CastsShadows || material.ReceivesShadows
+                        || !IsUnitInterval(material.Color.Red) || !IsUnitInterval(material.Color.Green)
+                        || !IsUnitInterval(material.Color.Blue) || !IsUnitInterval(material.Color.Alpha))
+                        return Fail("delivery shape material is invalid.", out error);
+                }
             }
 
             foreach (ProjectedNodeDefinition node in catalog.Nodes)
@@ -310,6 +318,10 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!IsId(id) || !nodeIds.Add(id)) return Fail("delivery native UI artifact node is invalid.", out error);
                 if (node.NodeCase == NativeUiNode.NodeOneofCase.Text)
                 {
+                    Unframe.Delivery.SrgbaColor color = node.Text.Color;
+                    if (color == null || !IsUnitInterval(color.Red) || !IsUnitInterval(color.Green)
+                        || !IsUnitInterval(color.Blue) || !IsUnitInterval(color.Alpha))
+                        return Fail("delivery native UI text color is invalid.", out error);
                     if (node.Text.Value == null || node.Text.Value.SourceCase != NativeTextValue.SourceOneofCase.Literal)
                         return Fail("delivery native UI text source is unsupported by the local renderer.", out error);
 
@@ -461,6 +473,8 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         internal static bool IsFinite(double value) { return !Double.IsNaN(value) && !Double.IsInfinity(value); }
+
+        private static bool IsUnitInterval(double value) => IsFinite(value) && value >= 0 && value <= 1;
 
         internal static bool IsCanonicalFinite(double value) { return IsFinite(value) && (value != 0 || BitConverter.DoubleToInt64Bits(value) == 0); }
 

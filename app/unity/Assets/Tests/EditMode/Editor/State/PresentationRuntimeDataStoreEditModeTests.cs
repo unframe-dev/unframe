@@ -2106,7 +2106,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             RendererKind = RendererKind.NativeUi,
             ArtifactContractVersion = 1,
             StateBindings = { new DeliveredStateBinding { StateId = "state:main", Artifact = new ArtifactStateBinding { ArtifactId = "artifact:main" } } },
-            Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact { ArtifactId = "artifact:main", ContractVersion = 1, RootNodeId = "ui:main", Nodes = { new NativeUiNode { Text = new NativeUiText { NodeId = "ui:main", Value = new NativeTextValue { Literal = new LiteralText { Value = "Main" } } } } } } } },
+            Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact { ArtifactId = "artifact:main", ContractVersion = 1, RootNodeId = "ui:main", Nodes = { new NativeUiNode { Text = new NativeUiText { NodeId = "ui:main", Color = new Unframe.Delivery.SrgbaColor { Red = 1, Green = 1, Blue = 1, Alpha = 1 }, Value = new NativeTextValue { Literal = new LiteralText { Value = "Main" } } } } } } } },
         });
         return delivery;
     }
