@@ -10,6 +10,7 @@
   - コンパイル後の構造・配信・Runtime: Presentation v2。Authoring / build host の実装設計は後続
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
+  - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
   - [Presentation Surface 描画方式の検証条件](./UI_RENDERING_COMPARISON.md)
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
