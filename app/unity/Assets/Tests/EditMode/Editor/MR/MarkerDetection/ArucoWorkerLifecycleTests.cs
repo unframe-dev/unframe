@@ -1,3 +1,4 @@
+#if UNFRAME_OPENCV_FOR_UNITY
 using System;
 using System.Collections;
 using System.Reflection;
@@ -150,3 +151,4 @@ public sealed class ArucoWorkerLifecycleTests
     }
 
 }
+#endif

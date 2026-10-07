@@ -1,5 +1,7 @@
 # 20cm ArUco マーカーによる原点合わせ
 
+検出を使用するには、OpenCV for Unity と `UNFRAME_OPENCV_FOR_UNITY` のセットアップが必要です。[Unity README の有効化手順](../README.md#aruco・カメラの実機検証)に従って Standalone と Android の両方へ設定してください。未設定の checkout では `DISABLED` が表示され、カメラ映像のみを確認できます。
+
 `PassthroughCameraDeviceTest` シーンで PCA 左カメラからマーカーを検出し、位置・向きを推定します。安定した観測からマーカー中心を原点として確定すると、カメラ取得・検出を停止し、Quest の位置追跡で立方体と XYZ 軸を表示します。Delivery fixtureをマーカー原点へ配置する検証は [原点接続シーン](aruco-presentation-origin.md) を参照してください。端末間通信、アプリ再起動をまたぐ原点保存は未実装です。
 
 ## 実機で確認する

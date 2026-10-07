@@ -1,9 +1,11 @@
-using System;
 using UnityEngine;
-using OpenCVForUnity.CoreModule;
-using OpenCVForUnity.ObjdetectModule;
+#if UNFRAME_OPENCV_FOR_UNITY
+using System;
 using System.Collections.Generic;
 using Stopwatch = System.Diagnostics.Stopwatch;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ObjdetectModule;
+#endif
 
 public sealed class ArucoMarkerDetectionFrame
 {
@@ -23,9 +25,13 @@ public sealed class ArucoMarkerDetectionFrame
     }
 }
 
-public sealed class ArucoMarkerDetector : IDisposable
+public sealed class ArucoMarkerDetector
+#if UNFRAME_OPENCV_FOR_UNITY
+    : IDisposable
+#endif
 {
     public const string DictionaryName = "DICT_4X4_50";
+#if UNFRAME_OPENCV_FOR_UNITY
     private readonly Dictionary dictionary = Objdetect.getPredefinedDictionary(Objdetect.DICT_4X4_50);
     private readonly DetectorParameters parameters = new DetectorParameters();
     private readonly ArucoDetector detector;
@@ -77,4 +83,5 @@ public sealed class ArucoMarkerDetector : IDisposable
         dictionary.Dispose();
         ids.Dispose();
     }
+#endif
 }

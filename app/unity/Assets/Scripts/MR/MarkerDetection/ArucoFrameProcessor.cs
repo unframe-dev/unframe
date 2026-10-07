@@ -1,12 +1,17 @@
 using System;
 using System.Diagnostics;
+#if UNFRAME_OPENCV_FOR_UNITY
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
+#endif
 
+#if UNFRAME_OPENCV_FOR_UNITY
 public interface IArucoFrameProcessor : IDisposable
 {
     ArucoFrameProcessingResult Process(Mat rgba, long timestamp, ArucoCameraGeometry geometry);
 }
+
+#endif
 
 public sealed class ArucoFrameProcessingResult
 {
@@ -25,6 +30,7 @@ public sealed class ArucoFrameProcessingResult
     }
 }
 
+#if UNFRAME_OPENCV_FOR_UNITY
 public sealed class ArucoFrameProcessor : IArucoFrameProcessor
 {
     private readonly ArucoMarkerDetector detector = new ArucoMarkerDetector();
@@ -66,3 +72,4 @@ public sealed class ArucoFrameProcessor : IArucoFrameProcessor
         gray.Dispose();
     }
 }
+#endif

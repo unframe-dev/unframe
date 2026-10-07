@@ -1,3 +1,4 @@
+#if UNFRAME_OPENCV_FOR_UNITY
 using System.Collections;
 using NUnit.Framework;
 using OpenCVForUnity.CoreModule;
@@ -53,3 +54,4 @@ public sealed class ArucoGpuReadbackTests
         }
     }
 }
+#endif

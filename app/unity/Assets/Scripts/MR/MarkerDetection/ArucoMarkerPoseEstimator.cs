@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+#if UNFRAME_OPENCV_FOR_UNITY
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.GeometryModule;
+#endif
 using UnityEngine;
 
 public sealed class ArucoMarkerPoseEstimate
@@ -44,6 +46,7 @@ public sealed class ArucoMarkerPoseEstimator
     public const double MarkerSizeMeters = 0.2;
     public const int TargetMarkerId = 0;
 
+#if UNFRAME_OPENCV_FOR_UNITY
     public ArucoMarkerPoseEstimate Estimate(float[] cornersPixels, int cornerOffset, double fx, double fy, double cx, double cy)
     {
         if (!Finite(fx) || !Finite(fy) || !Finite(cx) || !Finite(cy) || fx <= 0 || fy <= 0)
@@ -187,4 +190,5 @@ public sealed class ArucoMarkerPoseEstimator
             Error = error;
         }
     }
+#endif
 }

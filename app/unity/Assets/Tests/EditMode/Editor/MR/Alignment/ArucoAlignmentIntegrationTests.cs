@@ -1,14 +1,17 @@
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
+#if UNFRAME_OPENCV_FOR_UNITY
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ObjdetectModule;
 using OpenCVForUnity.UnityIntegration;
+#endif
 using UnityEngine;
 using UnityEngine.TestTools;
 
 public sealed class ArucoAlignmentIntegrationTests
 {
+#if UNFRAME_OPENCV_FOR_UNITY
     [UnityTest]
     public IEnumerator FullResolutionSnapshotProducesPoseAndDropsClearedWork()
     {
@@ -52,6 +55,8 @@ public sealed class ArucoAlignmentIntegrationTests
             Object.DestroyImmediate(texture);
         }
     }
+
+#endif
 
     [UnityTest]
     public IEnumerator ConfirmedOriginIsVisibleAndResetHidesIt()

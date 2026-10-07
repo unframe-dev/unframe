@@ -42,4 +42,8 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 
 Quest のカメラ映像表示は、専用の `Assets/Scenes/PassthroughCameraDeviceTest.unity` で検証します。Unity の `Unframe > PCA > Open Device Test Scene` で開き、`Build and Run on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
 
+ArUco 検出は任意の有償依存 OpenCV for Unity を使用します。通常の checkout は依存なしでコンパイル・EditMode テストを実行できます。この状態ではカメラ映像表示と Presentation Runtime を利用できますが、ArUco パネルには `DISABLED` とセットアップ要件が表示され、検出・姿勢推定・マーカーからの原点確定は開始しません。OpenCV に依存しない原点・座標・Runtime のテストは常に実行します。OpenCV を直接使う検出・GPU・worker のテストと印刷マーカー生成メニューは有効化時にのみコンパイルします。
+
+ArUco を実機で使用する開発環境では、ライセンスを持つ OpenCV for Unity を `Assets/OpenCVForUnity/` へ導入した後、Unity の `Project Settings > Player > Other Settings > Scripting Define Symbols` に `UNFRAME_OPENCV_FOR_UNITY` を追加します。Editor のテストに使う Standalone と実機 build に使う Android の両方へ追加し、再コンパイル後にテストと build を実行します。define の変更は各開発環境で設定し、`ProjectSettings/ProjectSettings.asset` のこの変更を commit しないでください。アドオンも Git の管理対象外です。アドオンを削除するときは先に define を外してください。define のみを設定してアドオンを導入していない環境はコンパイルエラーになります。
+
 同じシーンで OpenCV for Unity の ArUco 検出・姿勢推定を実行します。`DICT_4X4_50` の ID 0、黒い正方形の一辺20cmを使用します。安定した原点を確定すると立方体と XYZ 軸を表示し、PCA 取得・検出を停止します。B/Y で再測定できます。[印刷マーカーと原点合わせの実機手順](docs/aruco-marker-detection.md) を参照してください。

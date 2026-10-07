@@ -1,3 +1,4 @@
+#if UNFRAME_OPENCV_FOR_UNITY
 using System;
 using NUnit.Framework;
 using OpenCVForUnity.CoreModule;
@@ -69,3 +70,4 @@ public sealed class ArucoMarkerDetectorTests
         }
     }
 }
+#endif

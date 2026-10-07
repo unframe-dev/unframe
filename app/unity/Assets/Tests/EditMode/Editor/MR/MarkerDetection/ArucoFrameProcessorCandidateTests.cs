@@ -1,3 +1,4 @@
+#if UNFRAME_OPENCV_FOR_UNITY
 using NUnit.Framework;
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
@@ -28,3 +29,4 @@ public sealed class ArucoFrameProcessorCandidateTests
         }
     }
 }
+#endif

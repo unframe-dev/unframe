@@ -1,15 +1,20 @@
+using UnityEngine;
+#if UNFRAME_OPENCV_FOR_UNITY
 using System;
 using System.Threading;
 using Stopwatch = System.Diagnostics.Stopwatch;
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.Extensions;
-using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+#endif
 
 [RequireComponent(typeof(ArucoTrackingDiagnosticSession))]
 public sealed class ArucoCameraMarkerDetection : MonoBehaviour
 {
+    public static Vector2Int DetectionResolution(int width, int height) => new Vector2Int(width, height);
+
+#if UNFRAME_OPENCV_FOR_UNITY
     private readonly ArucoDetectionFrameGate gate = new ArucoDetectionFrameGate();
     private IArucoFrameProcessor processor;
     private Mat rgba;
@@ -44,8 +49,6 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
     }
 
     public ArucoPoseObservation CurrentObservation => CurrentFrame == null ? null : observation;
-
-    public static Vector2Int DetectionResolution(int width, int height) => new Vector2Int(width, height);
 
     public ArucoMarkerDetectionFrame CurrentFrame => feedAvailable && result != null
         && Time.realtimeSinceStartupAsDouble - requestedAt <= 0.5 ? result : null;
@@ -269,4 +272,18 @@ public sealed class ArucoCameraMarkerDetection : MonoBehaviour
         rgba?.Dispose();
         rgba = null;
     }
+#else
+    public int ProcessedFrames => 0;
+    public double ReadbackMilliseconds => 0;
+    public ArucoDetectionMetrics Metrics { get; } = new ArucoDetectionMetrics();
+    public ArucoDetectionPhase Phase => ArucoDetectionPhase.Idle;
+    public bool IsProcessing => false;
+    public ArucoPoseObservation CurrentObservation => null;
+    public ArucoMarkerDetectionFrame CurrentFrame => null;
+    public string Summary => "ArUco DISABLED: install OpenCV for Unity and enable UNFRAME_OPENCV_FOR_UNITY.";
+
+    public void SubmitFrame(Texture texture, long captureTimestampTicks, ArucoCameraGeometry geometry) { }
+    public void ClearFeed() { }
+    public void DrainReadbackBeforeCameraStops() { }
+#endif
 }

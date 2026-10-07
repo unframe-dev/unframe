@@ -1,3 +1,4 @@
+#if UNFRAME_OPENCV_FOR_UNITY
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -48,3 +49,4 @@ public static class ArucoTestMarkerEditor
         Debug.Log("[ArUco Detection] Printable markers: " + directory);
     }
 }
+#endif
