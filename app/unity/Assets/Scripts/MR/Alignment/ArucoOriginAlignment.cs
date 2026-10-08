@@ -36,6 +36,9 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
     public event Action ResetRequested;
     public event Action AlignmentInvalidated;
     public bool IsConfirmed => stability.IsConfirmed;
+    public float CalibrationProgress => IsConfirmed ? 1 : Mathf.Clamp01(Mathf.Min(
+        stability.SampleCount / (float)ArucoOriginStability.MinimumSamples,
+        (float)(stability.StableDurationSeconds / ArucoOriginStability.MinimumStableDurationSeconds)));
     public bool TrackingAvailable { get; private set; } = true;
     public Pose OriginPose => stability.Pose;
     public string Summary => IsConfirmed ? "ALIGNED | ID 0 / 20 cm | camera stopped | X red / Y green / Z blue"

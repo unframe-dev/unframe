@@ -24,10 +24,10 @@ public sealed class ArucoPresentationSceneTests
     }
 
     [Test]
-    public void DefaultBuildUsesTheLocalPresentationScene()
+    public void DefaultBuildUsesThePresentationUiScene()
     {
         Assert.That(EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path),
-            Is.EqualTo(new[] { ArucoPresentationTestEditor.ScenePath }));
+            Is.EqualTo(new[] { QuestPresentationUiSceneEditor.ScenePath }));
     }
 
     [Test]

@@ -9,7 +9,7 @@ using UnityEngine;
 
 public static class ArucoTestMarkerEditor
 {
-    [MenuItem("Unframe/ArUco/Generate Printable Test Markers")]
+    [MenuItem("Unframe/Tools/Generate Printable Markers")]
     public static void GenerateMarkers()
     {
         string directory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "docs", "aruco-markers"));

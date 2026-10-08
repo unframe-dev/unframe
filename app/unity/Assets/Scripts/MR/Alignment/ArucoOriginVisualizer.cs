@@ -5,6 +5,17 @@ using UnityEngine.Rendering;
 
 public sealed class ArucoOriginVisualizer : MonoBehaviour
 {
+    [SerializeField] private bool visible = true;
+    public bool Visible
+    {
+        get => visible;
+        set
+        {
+            visible = value;
+            if (!value) Hide();
+        }
+    }
+
     private readonly List<Material> materials = new List<Material>();
     private Transform origin;
     private Material cubeMaterial;
@@ -29,6 +40,7 @@ public sealed class ArucoOriginVisualizer : MonoBehaviour
 
     private void Show(Pose pose, bool isProvisional)
     {
+        if (!visible) return;
         if (origin == null) CreateOrigin();
         if (provisional != isProvisional)
         {
