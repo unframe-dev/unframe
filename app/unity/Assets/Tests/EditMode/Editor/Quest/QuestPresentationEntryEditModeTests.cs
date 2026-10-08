@@ -140,8 +140,39 @@ public sealed class QuestPresentationEntryEditModeTests
             Assert.That(entry.GetComponent<QuestBodyTrackingSource>(), Is.Not.Null);
             SerializedObject serialized = new SerializedObject(entry);
             Assert.That(serialized.FindProperty("runtime").objectReferenceValue, Is.SameAs(entry.GetComponent<PresentationBakedRuntime>()));
-            Assert.That(serialized.FindProperty("xrOrigin").objectReferenceValue, Is.Not.Null);
+            Assert.That(serialized.FindProperty("questTrackingOrigin").objectReferenceValue, Is.Not.Null);
             Assert.That(scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<LocalPresentationFixtureRunner>(true)), Is.Empty);
+        }
+        finally { EditorSceneManager.CloseScene(scene, true); }
+    }
+
+    [Test]
+    public void NetworkSceneHasOneCameraRigAndSharesMarkerCalibrationWithTheSession()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/QuestPresentationScene.unity", OpenSceneMode.Additive);
+        try
+        {
+            var roots = scene.GetRootGameObjects();
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Count(), Is.EqualTo(1));
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<Unity.XR.CoreUtils.XROrigin>(true)), Is.Empty);
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Count(), Is.EqualTo(1));
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<ArucoPresentationCalibration>(true)).Count(), Is.EqualTo(1));
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationStatusView>(true)).Count(), Is.EqualTo(1));
+            var rig = roots.SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();
+            var entry = roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationEntry>(true)).Single();
+            var source = roots.SelectMany(root => root.GetComponentsInChildren<ArucoPresentationCalibration>(true)).Single();
+            var session = roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationSession>(true)).Single();
+            Assert.That(entry.QuestTrackingOrigin, Is.SameAs(rig.trackingSpace));
+            Assert.That(source.QuestTrackingOrigin, Is.SameAs(rig.trackingSpace));
+            var sessionSettings = new SerializedObject(session);
+            Assert.That(sessionSettings.FindProperty("entry").objectReferenceValue, Is.SameAs(entry));
+            Assert.That(sessionSettings.FindProperty("calibrationSource").objectReferenceValue, Is.SameAs(source));
+            var view = roots.SelectMany(root => root.GetComponentsInChildren<QuestPresentationStatusView>(true)).Single();
+            var viewSettings = new SerializedObject(view);
+            Assert.That(viewSettings.FindProperty("head").objectReferenceValue, Is.SameAs(rig.centerEyeAnchor));
+            Assert.That(viewSettings.FindProperty("calibrationSource").objectReferenceValue, Is.SameAs(source));
+            Assert.That(roots.SelectMany(root => root.GetComponentsInChildren<UnityEngine.Canvas>(true)), Is.Empty, "Runtime UI must not be baked into the generated scene.");
+
         }
         finally { EditorSceneManager.CloseScene(scene, true); }
     }
@@ -156,6 +187,100 @@ public sealed class QuestPresentationEntryEditModeTests
     }
 
     [Test]
+    public async Task PauseAndDisableRequireExplicitRecalibrationWithoutLosingTheSessionState()
+    {
+        GameObject host = new GameObject("Quest calibration lifecycle");
+        try
+        {
+            var entry = host.AddComponent<QuestPresentationEntry>();
+            var settings = new SerializedObject(entry);
+            settings.FindProperty("questTrackingOrigin").objectReferenceValue = host.transform;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            var state = new PresentationCalibrationState();
+            async Task<string> WaitForCredential(CancellationToken token)
+            {
+                await Task.Delay(Timeout.Infinite, token);
+                return "never-used";
+            }
+            entry.Configure(new System.Uri("https://api.example.com/"), "session", WaitForCredential, state, null);
+            StringAssert.Contains("Calibration required", entry.Summary);
+            var pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
+            Assert.That(state.TrySet(pose, out _), Is.True);
+            Assert.That(entry.Calibration, Is.SameAs(state));
+            typeof(QuestPresentationEntry).GetMethod("OnApplicationPause", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(entry, new object[] { true });
+            Assert.That(state.IsValid, Is.False);
+            Assert.That(state.Reason, Is.EqualTo("application-paused"));
+            typeof(QuestPresentationEntry).GetMethod("OnApplicationPause", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(entry, new object[] { false });
+            Assert.That(state.IsValid, Is.False);
+            Assert.That(state.TrySet(pose, out _), Is.True);
+            entry.InvalidateCalibration("tracking-origin-changed");
+            Assert.That(state.IsValid, Is.False);
+            Assert.That(state.TrySet(pose, out _), Is.True);
+            typeof(QuestPresentationEntry).GetMethod("OnDisable", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(entry, null);
+            Assert.That(state.IsValid, Is.False);
+            Assert.That(state.Reason, Is.EqualTo("entry-disabled"));
+            await entry.StopAsync();
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); }
+    }
+
+    [Test]
+    public async Task HeadTrackingLossInvalidatesCalibrationAndCancelsQueuedInteractions()
+    {
+        await AssertTrackingNotificationInvalidates("OnTrackingLost", new UnityEngine.XR.XRNodeState
+        { nodeType = UnityEngine.XR.XRNode.Head }, "head-tracking-lost");
+    }
+
+    [Test]
+    public async Task TrackingOriginChangeInvalidatesCalibrationAndCancelsQueuedInteractions()
+    {
+        await AssertTrackingNotificationInvalidates("OnTrackingOriginUpdated", null, "tracking-origin-changed");
+    }
+
+    private static async Task AssertTrackingNotificationInvalidates(string method, object notification, string reason)
+    {
+        var host = new GameObject("Quest tracking notification");
+        QuestPresentationEntry entry = null;
+        try
+        {
+            entry = host.AddComponent<QuestPresentationEntry>();
+            var settings = new SerializedObject(entry);
+            settings.FindProperty("questTrackingOrigin").objectReferenceValue = host.transform;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            var calibration = new PresentationCalibrationState();
+            var pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
+            Assert.That(calibration.TrySet(pose, out _), Is.True);
+            async Task<string> WaitForCredential(CancellationToken token)
+            {
+                await Task.Delay(Timeout.Infinite, token);
+                return "never-used";
+            }
+            entry.Configure(new System.Uri("https://api.example.com/"), "session", WaitForCredential, calibration, null);
+            var field = typeof(QuestPresentationEntry).GetField("interactionLifetime", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            CancellationToken before = ((CancellationTokenSource)field.GetValue(entry)).Token;
+            Assert.That(before.IsCancellationRequested, Is.False);
+            typeof(QuestPresentationEntry).GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(entry, new[] { notification });
+            Assert.That(calibration.IsValid, Is.False);
+            Assert.That(calibration.Reason, Is.EqualTo(reason));
+            Assert.That(before.IsCancellationRequested, Is.True);
+            Assert.That(entry.GetComponent<PresentationBakedRuntime>().PresentationSpace.gameObject.activeSelf, Is.False);
+            Assert.That(calibration.TrySet(pose, out _), Is.True);
+            CancellationToken after = ((CancellationTokenSource)field.GetValue(entry)).Token;
+            Assert.That(after.IsCancellationRequested, Is.False);
+            Assert.That(after, Is.Not.EqualTo(before));
+        }
+        finally
+        {
+            if (entry != null) await entry.StopAsync();
+            UnityEngine.Object.DestroyImmediate(host);
+        }
+    }
+
+    [Test]
     public async Task StoppingCancelsTheCredentialWaitAndAllowsAnewRun()
     {
         GameObject host = new GameObject("Quest entry lifecycle");
@@ -163,8 +288,12 @@ public sealed class QuestPresentationEntryEditModeTests
         {
             host.AddComponent<PresentationBakedRuntime>();
             QuestPresentationEntry entry = host.AddComponent<QuestPresentationEntry>();
-            var calibration = new Pose
-            { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } };
+            var entrySettings = new SerializedObject(entry);
+            entrySettings.FindProperty("questTrackingOrigin").objectReferenceValue = host.transform;
+            entrySettings.ApplyModifiedPropertiesWithoutUndo();
+            var calibration = new PresentationCalibrationState();
+            Assert.That(calibration.TrySet(new Pose
+            { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } }, out _), Is.True);
             async Task<string> WaitForCredential(CancellationToken token)
             {
                 await Task.Delay(Timeout.Infinite, token);

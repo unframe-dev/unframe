@@ -56,7 +56,7 @@ public sealed class ArucoCameraPreviewView : IDisposable
         if (panelRoot == null) return;
         statusText.text = $"PCA CAMERA TEST | {status.State}\nPermission: {status.PermissionStatus}";
         statusText.color = status.State == "LIVE" || status.State == "ALIGNED" ? new Color(0.4f, 1f, 0.5f) : Color.white;
-        UpdatePanelLayout(status.AlignmentConfirmed, status.MeasurementPreviewEnabled);
+        UpdatePanelLayout(status.AlignmentConfirmed);
         detailsText.text = status.AlignmentConfirmed
             ? status.AlignmentSummary + "\nB/Y: align again | Move your head to check the cube stays in place"
             : $"{status.CameraPosition} camera | {status.Resolution.x} x {status.Resolution.y}"
@@ -79,8 +79,8 @@ public sealed class ArucoCameraPreviewView : IDisposable
         var panel = new GameObject("PCA Preview Panel", typeof(RectTransform), typeof(Canvas));
         panelRoot = panel.GetComponent<RectTransform>();
         panel.transform.SetParent(head, false);
-        panel.transform.localPosition = new Vector3(0, 0, 1.25f);
-        panel.transform.localScale = Vector3.one * 0.001f;
+        panel.transform.localPosition = new Vector3(0, 0.08f, 1.25f);
+        panel.transform.localScale = Vector3.one * 0.00075f;
         panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 1120);
         panel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
         panel.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
@@ -111,11 +111,10 @@ public sealed class ArucoCameraPreviewView : IDisposable
         detailsText = CreateText(panel.transform, "Diagnostics", new Vector2(0, -425), new Vector2(940, 240), 20);
     }
 
-    private void UpdatePanelLayout(bool compact, bool measurementPreviewEnabled)
+    private void UpdatePanelLayout(bool compact)
     {
         panelRoot.sizeDelta = compact ? new Vector2(1000, 160) : new Vector2(1000, 1120);
-        panelRoot.localPosition = compact ? new Vector3(0, 0.5f, 1.25f)
-            : new Vector3(measurementPreviewEnabled ? -0.75f : 0, 0, 1.25f);
+        panelRoot.localPosition = new Vector3(0, compact ? 0.28f : 0.08f, 1.25f);
         statusText.rectTransform.anchoredPosition = new Vector2(0, compact ? 45 : 510);
         statusText.rectTransform.sizeDelta = new Vector2(940, compact ? 60 : 90);
         detailsText.rectTransform.anchoredPosition = new Vector2(0, compact ? -30 : -425);

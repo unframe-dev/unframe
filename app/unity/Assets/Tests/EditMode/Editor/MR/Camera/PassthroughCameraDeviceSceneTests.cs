@@ -10,9 +10,9 @@ using UnityEngine;
 public sealed class PassthroughCameraDeviceSceneTests
 {
     [Test]
-    public void SavedDeviceSceneIncludesDetectionAndAlignmentComponents()
+    public void SavedLocalPresentationSceneIncludesDetectionAndAlignmentComponents()
     {
-        string serialized = File.ReadAllText(PassthroughCameraDeviceTestEditor.ScenePath);
+        string serialized = File.ReadAllText(ArucoPresentationTestEditor.ScenePath);
         foreach (string script in new[] { "MarkerDetection/ArucoCameraMarkerDetection", "Alignment/ArucoOriginAlignment", "Alignment/ArucoOriginVisualizer" })
         {
             string guid = AssetDatabase.AssetPathToGUID("Assets/Scripts/MR/" + script + ".cs");
@@ -22,9 +22,9 @@ public sealed class PassthroughCameraDeviceSceneTests
     }
 
     [Test]
-    public void DeviceSceneHasAPermissionGatedCameraAndTransparentXrBackground()
+    public void LocalPresentationSceneHasAPermissionGatedCameraAndTransparentXrBackground()
     {
-        var scene = EditorSceneManager.OpenScene(PassthroughCameraDeviceTestEditor.ScenePath, OpenSceneMode.Additive);
+        var scene = EditorSceneManager.OpenScene(ArucoPresentationTestEditor.ScenePath, OpenSceneMode.Additive);
         try
         {
             var roots = scene.GetRootGameObjects();
@@ -70,11 +70,14 @@ public sealed class PassthroughCameraDeviceSceneTests
     }
 
     [Test]
-    public void AndroidProjectUsesRepositoryIdentifierInsteadOfThePreviewBuildIdentifier()
+    public void DiagnosticBuildRestoresTheConfiguredApplicationIdentifier()
     {
         string applicationId = PlayerSettings.GetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android);
 
-        Assert.That(applicationId, Is.EqualTo("com.UnityTechnologies.com.unity.template.urpblank"));
-        Assert.That(applicationId, Is.Not.EqualTo(PassthroughCameraDeviceTestEditor.ApplicationId));
+        using (new PassthroughCameraDiagnosticBuildSettings("dev.unframe.test.scope"))
+            Assert.That(PlayerSettings.GetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android),
+                Is.EqualTo("dev.unframe.test.scope"));
+        Assert.That(PlayerSettings.GetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android),
+            Is.EqualTo(applicationId));
     }
 }

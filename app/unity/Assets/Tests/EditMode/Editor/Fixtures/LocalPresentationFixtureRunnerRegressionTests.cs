@@ -8,6 +8,29 @@ using UnityEngine;
 
 public sealed class LocalPresentationFixtureRunnerRegressionTests
 {
+    [TestCase("node:opening-panel", "node:text-greeting")]
+    [TestCase("node:normal-panel", "node:text-only")]
+    public void CentralBackgroundPanelStaysBehindItsText(string panelId, string textId)
+    {
+        var host = new GameObject("fixture-depth-test");
+        try
+        {
+            var runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(runner.TryLoad(out string error), Is.True, error);
+            Assert.That(runner.Hierarchy.Registry.TryGet(panelId, out GameObject panel), Is.True);
+            Assert.That(runner.Hierarchy.Registry.TryGet(textId, out GameObject textNode), Is.True);
+            var text = textNode.GetComponentInChildren<TextMesh>(true);
+            Assert.That(text, Is.Not.Null);
+            Assert.That(panel.GetComponentInChildren<Renderer>(true).bounds.min.z,
+                Is.GreaterThan(text.transform.position.z),
+                "The marker front is negative Unity Z; its background must be farther away than the text.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(host);
+        }
+    }
+
     [Test]
     public void ExplicitReliableEventFixturesKeepTheirConfiguredSequenceOrder()
     {

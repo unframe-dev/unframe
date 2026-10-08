@@ -175,13 +175,17 @@ namespace Unframe.Unity.PresentationRuntime
                                     fence = item.ConnectionSnapshot.Fence.Clone();
                                     snapshot = true;
                                     hasSnapshot = true;
-                                    awaitingKeyframe = true;
+                                    WaitForKeyframe();
                                 }
+                                ulong priorReliableSequence = store.LastReliableSequence;
+                                ulong priorOriginVersion = store.PresentationOrigin?.Version ?? 0;
                                 if (resuming && !snapshot)
                                 {
                                     if (!TryReceiveReplayBootstrap(item, out string replayError)) throw Failure(replayError);
                                 }
                                 else if (!store.TryReceiveNetworkControl(item, out string error)) throw Failure(error);
+                                if (store.LastReliableSequence != priorReliableSequence || (store.PresentationOrigin?.Version ?? 0) != priorOriginVersion)
+                                    WaitForKeyframe();
                                 if (fence != null && store.PresentationOrigin != null)
                                     fence.PresentationOriginVersion = store.PresentationOrigin.Version;
                                 RuntimeChanged?.Invoke();
@@ -243,8 +247,7 @@ namespace Unframe.Unity.PresentationRuntime
             replayBootstrap = false;
             replayMarkerPending = false;
             replayReadyCutAvailable = false;
-            awaitingKeyframe = true;
-            SessionReady = false;
+            WaitForKeyframe();
         }
 
         private static bool VerifyCertificate(string expectedHost, string serverName, ReadOnlySpan<byte> certificateDer, DateTimeOffset now, string fingerprint)
@@ -272,6 +275,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void BeginReplayBootstrap()
         {
             if (!store.TryGetLastConnectionSnapshot(out _)) throw Failure("realtime resume requires an accepted snapshot");
+            WaitForKeyframe();
             replayBootstrap = true;
             replayMarkerPending = false;
             replayReadyCutAvailable = false;
@@ -311,22 +315,30 @@ namespace Unframe.Unity.PresentationRuntime
             await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
             RequireResidency();
             BeginStateStream();
-            SessionReady = true;
-            while (await state.ResponseStream.MoveNext(token))
+            try
             {
-                RequireResidency();
-                if (!TryReceiveStateFrame(state.ResponseStream.Current, out bool applied, out string error)) throw Failure(error);
-                if (applied) RuntimeChanged?.Invoke();
+                while (await state.ResponseStream.MoveNext(token))
+                {
+                    RequireResidency();
+                    if (!TryReceiveStateFrame(state.ResponseStream.Current, out bool applied, out string error)) throw Failure(error);
+                    if (applied) RuntimeChanged?.Invoke();
+                }
+                throw new RpcException(new Status(StatusCode.Unavailable, "realtime state stream ended"));
             }
-            SessionReady = false;
-            throw new RpcException(new Status(StatusCode.Unavailable, "realtime state stream ended"));
+            finally { WaitForKeyframe(); }
         }
 
         private void BeginStateStream()
         {
             // State sequences and tracking samples belong to the stream, even when Control resumes.
             store.ResetStateStream();
+            WaitForKeyframe();
+        }
+
+        private void WaitForKeyframe()
+        {
             awaitingKeyframe = true;
+            SessionReady = false;
         }
 
         internal bool TryReceiveStateFrame(StateServerItem item, out bool applied, out string error)
@@ -336,29 +348,38 @@ namespace Unframe.Unity.PresentationRuntime
             if (item == null || item.ItemCase != StateServerItem.ItemOneofCase.StateFrame)
             {
                 error = "realtime.state.state_frame is required";
+                WaitForKeyframe();
                 return false;
             }
             ElementStateFrame frame = item.StateFrame;
             if (frame.Fence != null && store.PresentationOrigin != null
                 && frame.Fence.PresentationOriginVersion != store.PresentationOrigin.Version)
             {
-                awaitingKeyframe = true;
+                WaitForKeyframe();
                 return true;
             }
             if (frame.BaseReliableSequence != store.LastReliableSequence)
             {
-                awaitingKeyframe = true;
+                WaitForKeyframe();
                 return true;
             }
             if (frame.FrameSequence <= store.LastStateFrameSequence) return true;
             if (awaitingKeyframe && frame.Kind != StateFrameKind.Keyframe
                 || frame.Kind == StateFrameKind.Delta && (store.LastStateFrameSequence == 0 || frame.FrameSequence != store.LastStateFrameSequence + 1))
             {
-                awaitingKeyframe = true;
+                WaitForKeyframe();
                 return true;
             }
-            if (!store.TryValidateNetworkStateFrame(frame, out error) || !store.TryReceiveState(item, out error)) return false;
-            if (frame.Kind == StateFrameKind.Keyframe) awaitingKeyframe = false;
+            if (!store.TryValidateNetworkStateFrame(frame, out error) || !store.TryReceiveState(item, out error))
+            {
+                WaitForKeyframe();
+                return false;
+            }
+            if (frame.Kind == StateFrameKind.Keyframe)
+            {
+                awaitingKeyframe = false;
+                SessionReady = true;
+            }
             applied = true;
             return true;
         }
@@ -369,7 +390,21 @@ namespace Unframe.Unity.PresentationRuntime
             if (!SessionReady || command == null || command.ItemCase != ControlClientItem.ItemOneofCase.LogicalInput
                 && command.ItemCase != ControlClientItem.ItemOneofCase.SurfaceInteraction && command.ItemCase != ControlClientItem.ItemOneofCase.RuntimeControl)
                 throw new InvalidOperationException("Runtime input requires a ready connection and a command payload.");
-            return WriteAsync(command, token);
+            return WriteInputAsync(control, command.Clone(), token);
+        }
+
+        private async Task WriteInputAsync(AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem> expectedControl, ControlClientItem command, CancellationToken token)
+        {
+            await writes.WaitAsync(token);
+            try
+            {
+                RequireResidency();
+                if (!SessionReady || control != expectedControl || expectedControl == null)
+                    throw new InvalidOperationException("The runtime input connection is no longer ready.");
+                token.ThrowIfCancellationRequested();
+                await expectedControl.RequestStream.WriteAsync(command);
+            }
+            finally { writes.Release(); }
         }
 
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
