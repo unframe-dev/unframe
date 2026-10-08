@@ -123,6 +123,26 @@ public sealed class QuestLocalPresentationControlsTests
         Assert.That(controls.TryAdvance(out string error), Is.True, error);
     }
 
+    [Test]
+    public void InputGateBlocksButtonsWithoutInvalidatingCalibrationAndTracksHeldButtons()
+    {
+        ConfirmCalibration();
+        int initial = runner.AppliedEventCount;
+        controls.PresentationInputEnabled = false;
+        Assert.That(controls.CanAdvance, Is.False);
+        Assert.That(controls.TryAdvance(out _), Is.False);
+        controls.ProcessButtons(true, true, true);
+        Assert.That(runner.AppliedEventCount, Is.EqualTo(initial));
+        Assert.That(calibration.Calibration.IsValid, Is.True);
+        controls.PresentationInputEnabled = true;
+        controls.ProcessButtons(true, false, false);
+        Assert.That(runner.AppliedEventCount, Is.EqualTo(initial));
+        controls.ProcessButtons(false, false, false);
+        controls.ProcessButtons(true, false, false);
+        Assert.That(runner.AppliedEventCount, Is.EqualTo(initial + 1));
+        Assert.That(calibration.Calibration.IsValid, Is.True);
+    }
+
     private void Invoke(string name, params object[] args) => typeof(QuestLocalPresentationControls)
         .GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(controls, args);
 }

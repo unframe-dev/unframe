@@ -20,6 +20,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public PresentationRuntimeDataStore Store { get; } = new PresentationRuntimeDataStore();
         public PresentationNodeHierarchy Hierarchy { get; } = new PresentationNodeHierarchy();
+        public bool KeyboardAdvanceEnabled { get; set; } = true;
         public bool HasLoadedFixture { get; private set; }
         public int AppliedEventCount { get; private set; }
         public int ReliableEventCount { get { return ResolveReliableEventFixtures().Length; } }
@@ -291,12 +292,18 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 timelinePlayer.Update(Time.realtimeSinceStartupAsDouble);
                 Keyboard keyboard = Keyboard.current;
-                if (keyboard != null && (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) && CanAdvance)
+                ProcessKeyboardInput(keyboard != null
+                    && (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame));
+            }
+        }
+
+        private void ProcessKeyboardInput(bool advanceRequested)
+        {
+            if (KeyboardAdvanceEnabled && advanceRequested && CanAdvance)
+            {
+                if (!TryAdvance(out string error))
                 {
-                    if (!TryAdvance(out string error))
-                    {
-                        Debug.LogError("[Presentation] " + error, this);
-                    }
+                    Debug.LogError("[Presentation] " + error, this);
                 }
             }
         }

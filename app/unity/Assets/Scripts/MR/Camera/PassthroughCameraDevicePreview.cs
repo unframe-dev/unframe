@@ -12,6 +12,49 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     [SerializeField] private PassthroughCameraAccess cameraAccess;
     [SerializeField] private Transform head;
     [SerializeField] private bool handleRemeasurementInput = true;
+    [SerializeField] private bool diagnosticUiVisible = true;
+    [SerializeField] private bool diagnosticInputEnabled = true;
+
+    public bool DiagnosticUiVisible
+    {
+        get => diagnosticUiVisible;
+        set
+        {
+            diagnosticUiVisible = value;
+            view?.SetVisible(value && isActiveAndEnabled);
+        }
+    }
+    public bool DiagnosticInputEnabled
+    {
+        get => diagnosticInputEnabled;
+        set => diagnosticInputEnabled = value;
+    }
+
+    public void RetryCameraPermission() => RequestCameraPermission();
+
+    public string CalibrationMessage
+    {
+        get
+        {
+            if (alignment != null && alignment.IsConfirmed) return "Alignment complete";
+            if (alignment != null && !alignment.TrackingAvailable) return "Tracking lost. Look around to recover.";
+#if UNITY_EDITOR
+            return "Use Quest 3 to align with the marker.";
+#else
+            if (!sessionState.Supported) return "This device does not support camera alignment.";
+            if (requesting) return "Allow camera access to continue.";
+            if (!sessionState.PermissionGranted) return "Camera access required. Retry or allow it in app settings.";
+#if !UNFRAME_OPENCV_FOR_UNITY
+            return "Marker recognition is unavailable in this build.";
+#else
+            if (health.GetState(Time.realtimeSinceStartupAsDouble) == PassthroughCameraFeedState.Stalled)
+                return "Camera paused. Retry camera access.";
+            if (alignment != null && alignment.HasAverageMeasurementPose) return "Marker found. Hold still.";
+            return "Find the marker. Keep the full border visible.";
+#endif
+#endif
+        }
+    }
 
     private const string CameraPermission = OVRPermissionsRequester.PassthroughCameraAccessPermission;
     private readonly PassthroughCameraPreviewHealth health = new PassthroughCameraPreviewHealth();
@@ -47,6 +90,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
         cameraAccess.enabled = false;
         view = new ArucoCameraPreviewView(head);
+        view.SetVisible(diagnosticUiVisible && isActiveAndEnabled);
         GetComponent<ArucoOriginVisualizer>().SetPreviewHead(head);
         started = true;
         health.Reset(Time.realtimeSinceStartupAsDouble);
@@ -73,7 +117,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         double now = Time.realtimeSinceStartupAsDouble;
         SyncSessionState();
         if (lastAcquisitionAllowed != sessionState.ShouldRunCamera) ApplyCameraState();
-        if (OVRInput.GetDown(OVRInput.Button.One))
+        if (diagnosticInputEnabled && OVRInput.GetDown(OVRInput.Button.One))
         {
             RequestCameraPermission();
         }
@@ -234,7 +278,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 
     private void HandleRemeasurementInput(bool pressed)
     {
-        if (handleRemeasurementInput && pressed) RestartCamera();
+        if (diagnosticInputEnabled && handleRemeasurementInput && pressed) RestartCamera();
     }
 
     private void OnAlignmentReset()
@@ -353,7 +397,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     private void OnEnable()
     {
         if (!started) return;
-        view?.SetVisible(true);
+        view?.SetVisible(diagnosticUiVisible);
         ResetHealth();
         RefreshPermission();
         ApplyCameraState();

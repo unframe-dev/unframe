@@ -9,6 +9,18 @@ public sealed class ArucoPresentationOriginBinding : MonoBehaviour
     [SerializeField] private Transform presentationSpace;
     [SerializeField] private Transform stageRoot;
 
+    private bool presentationVisible = true;
+
+    public bool PresentationVisible
+    {
+        get => presentationVisible;
+        set
+        {
+            presentationVisible = value;
+            Refresh();
+        }
+    }
+
     public bool IsPresentationVisible => presentationSpace != null && presentationSpace.gameObject.activeSelf;
 
     public void Configure(ArucoPresentationCalibration source, LocalPresentationFixtureRunner presentation,
@@ -32,7 +44,7 @@ public sealed class ArucoPresentationOriginBinding : MonoBehaviour
         if (presentationSpace == null) return;
         if (calibrationSource != null) calibrationSource.Refresh();
         var origin = runner != null && runner.HasLoadedFixture ? runner.Store.PresentationOrigin : null;
-        bool available = isActiveAndEnabled && calibrationSource != null && calibrationSource.isActiveAndEnabled
+        bool available = presentationVisible && isActiveAndEnabled && calibrationSource != null && calibrationSource.isActiveAndEnabled
             && calibrationSource.Calibration.IsValid && stageRoot != null
             && presentationSpace.parent == null && stageRoot.parent == presentationSpace
             && !transform.IsChildOf(presentationSpace)

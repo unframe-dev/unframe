@@ -11,7 +11,7 @@ public static class QuestPresentationSceneEditor
 {
     public const string ScenePath = "Assets/Scenes/QuestPresentationScene.unity";
 
-    [MenuItem("Unframe/Open Quest Presentation Scene")]
+    [MenuItem("Unframe/Diagnostics/Network/Open Quest Presentation Scene")]
     public static void PrepareScene()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())

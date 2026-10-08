@@ -12,7 +12,7 @@ public static class ArucoPresentationTestEditor
     public const string ScenePath = "Assets/Scenes/ArucoPresentationTest.unity";
     public const string ApplicationId = "dev.unframe.pca.presentation";
 
-    [MenuItem("Unframe/ArUco/Open Presentation Test Scene")]
+    [MenuItem("Unframe/Diagnostics/ArUco/Open Presentation Test Scene")]
     public static void PrepareScene()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
@@ -60,14 +60,14 @@ public static class ArucoPresentationTestEditor
         if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not save the presentation test scene.");
     }
 
-    [MenuItem("Unframe/ArUco/Build Presentation Test APK")]
+    [MenuItem("Unframe/Diagnostics/ArUco/Build Presentation Test APK")]
     public static void BuildApk()
     {
         PrepareScene();
         QuestMrSceneBuild.BuildScene(ScenePath, ApplicationId, "unframe-aruco-presentation.apk", false);
     }
 
-    [MenuItem("Unframe/ArUco/Build and Run Presentation on Quest")]
+    [MenuItem("Unframe/Diagnostics/ArUco/Build and Run Presentation on Quest")]
     public static void BuildAndRun()
     {
         PrepareScene();

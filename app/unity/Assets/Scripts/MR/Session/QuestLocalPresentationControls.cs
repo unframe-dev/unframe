@@ -16,8 +16,10 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
     private bool applicationPaused;
     private string errorSummary;
 
+    public bool PresentationInputEnabled { get; set; } = true;
+
     public bool CanAdvance => CanInteract && runner.CanAdvance;
-    private bool CanInteract => isActiveAndEnabled && !applicationPaused && runner != null && runner.isActiveAndEnabled
+    private bool CanInteract => PresentationInputEnabled && isActiveAndEnabled && !applicationPaused && runner != null && runner.isActiveAndEnabled
         && calibrationSource != null && calibrationSource.isActiveAndEnabled && calibrationSource.Calibration.IsValid;
 
     public string Summary
@@ -80,7 +82,7 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
         advanceWasPressed = advance;
         restartWasPressed = restart;
         remeasureWasPressed = remeasure;
-        if (!isActiveAndEnabled) return;
+        if (!isActiveAndEnabled || !PresentationInputEnabled) return;
         if (shouldRemeasure) ResetCalibration();
         else if (CanInteract)
         {

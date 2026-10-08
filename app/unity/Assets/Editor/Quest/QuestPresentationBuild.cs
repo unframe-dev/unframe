@@ -7,7 +7,7 @@ using UnityEngine;
 
 public static class QuestPresentationBuild
 {
-    [MenuItem("Unframe/Build Quest Presentation")]
+    [MenuItem("Unframe/Diagnostics/Network/Build Quest Presentation")]
     public static void BuildAndroid()
     {
         QuestMrSceneBuild.ValidateAndroidMarkerDetection();

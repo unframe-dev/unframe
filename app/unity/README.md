@@ -1,10 +1,14 @@
 # Unity presentation preview
 
+通常の操作確認は `Unframe > UI > Open Presentation UI Preview` から開始します。標準BuildのScene一覧も `Assets/Scenes/QuestPresentationUiPreview.unity` のみに統一しています。Quest向けのAPK生成・起動は `Unframe > UI` の専用メニューを使用してください。詳細は [UIプレビュー手順](docs/presentation-ui-preview.md) を参照してください。
+
+`Unframe > Diagnostics` はArUco・通信接続の切り分け、`Unframe > Tools` は印刷マーカー生成とOpenCVサンプル管理に使用します。EditModeテストはAPKには含まれず、回帰検証用として維持します。
+
 `Assets/Scripts/PresentationRuntime/` は `Delivery`（配信検証）、`State`（受信状態）、`Transport`（接続）、`Persistence`（選択・cache）、`Rendering`（描画）、`Animation`、`Fixtures`、`Quest` に分けています。`PresentationBakedRuntime` はこれらを接続する入口で、`Generated` は生成専用です。EditMode テストは `Assets/Tests/EditMode/Editor/` 内で同じ責務ごとに分け、Quest の build hook は `Assets/Editor/Quest/`、Animation と Fixtures の Inspector は `Assets/Editor/PresentationRuntime/` の対応するディレクトリに置きます。
 
 `Assets/Scenes/ArucoPresentationTest.unity` は `LocalPresentationFixtureRunner` だけを表示経路として使用します。Play 開始時に `Resources/PresentationFixtures/LocalDelivery.json` と `LocalSnapshot.json` を読み込み、最初の Reliable Event を適用します。Editor では Space または Enter で後続イベントを進められます。
 
-通信なしのQuest検証には `Unframe > ArUco > Open Presentation Test Scene` を使用します。共有マーカー校正、各端末のローカル操作、休止・追跡喪失後の再測定を検証する手順は [ローカルMR検証](docs/local-mr-verification.md) を参照してください。
+通信なしで校正・座標を切り分けるQuest診断には `Unframe > Diagnostics > ArUco > Open Presentation Test Scene` を使用します。共有マーカー校正、各端末のローカル操作、休止・追跡喪失後の再測定を検証する手順は [ローカルMR検証](docs/local-mr-verification.md) を参照してください。
 
 現在の fixture はリポジトリに置いた protobuf JSON です。ローカル検証Sceneはサーバー接続を行わず、Questのコントローラー操作で進行します。表示も `LocalPresentationPlaceholderRenderer` による仮表示です。
 
@@ -20,9 +24,9 @@
 
 `PresentationBakedRuntime` はBaked Web PNGを検証して順番にRGBA32へuploadし、全selected textureのresidencyとControl / State同期が揃ってから入力を許可します。Surface crossfadeとTimelineはauthoritative Runtime clockで描画します。Native UI、Model、Video、Local Overlayはこの接続経路では受け付けません。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。
 
-`Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、ArUco校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Open Quest Presentation Scene` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName)` へHTTPS origin、Session ID、要求ごとに更新できるcredential provider、必要ならlogical event名を渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` から同じ入口を起動できます。校正JSONは不要です。Intentのcredentialは一時検証用で、期限をまたぐ更新は呼び出し元のproviderから行います。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
+`Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、ArUco校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Diagnostics/Network/Open Quest Presentation Scene` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName)` へHTTPS origin、Session ID、要求ごとに更新できるcredential provider、必要ならlogical event名を渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` から同じ入口を起動できます。校正JSONは不要です。Intentのcredentialは一時検証用で、期限をまたぐ更新は呼び出し元のproviderから行います。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
 
-Sceneは `QuestPresentationBuild.BuildAndroid`（Unityメニュー `Unframe/Build Quest Presentation` またはEditorの `-executeMethod`）で選択してAndroid APKを作ります。build helperはAndroid Build Support、IL2CPP、ARM64を確認し、`Builds/QuestPresentation.apk` を出力します。8 GiB制限下のbuildでは、Editor起動時に `BEE_BUILD_THREADS=1 IL2CPP_ADDITIONAL_ARGS='--jobs=1 --bee-jobs=1'` を指定してAndroid arm64 APKの生成まで確認済みです。生成APKにはARM64のIL2CPP・Unity・OpenXR library、`BODY_TRACKING` 権限、`required=false` のbody tracking用 `uses-feature` 2件が含まれます。Quest実機での起動・動作は未検証です。
+Sceneは `QuestPresentationBuild.BuildAndroid`（Unityメニュー `Unframe/Diagnostics/Network/Build Quest Presentation` またはEditorの `-executeMethod`）で選択してAndroid APKを作ります。build helperはAndroid Build Support、IL2CPP、ARM64を確認し、`Builds/QuestPresentation.apk` を出力します。8 GiB制限下のbuildでは、Editor起動時に `BEE_BUILD_THREADS=1 IL2CPP_ADDITIONAL_ARGS='--jobs=1 --bee-jobs=1'` を指定してAndroid arm64 APKの生成まで確認済みです。生成APKにはARM64のIL2CPP・Unity・OpenXR library、`BODY_TRACKING` 権限、`required=false` のbody tracking用 `uses-feature` 2件が含まれます。Quest実機での起動・動作は未検証です。
 
 Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、OpenXR `XR_FB_body_tracking` が有効な場合にHips jointのBodyを取得します。Head/HandはXRの追跡状態とposition・rotationの取得が揃ったときに利用可能とします。Bodyはnative runtimeがactiveでHipsのposition・orientation両方のVALID bitが立つときに利用可能とし、TRACKED bitは必須にしません。runtimeが推定した有効なHips Poseも受け入れますが、Unity側でheadをBodyとして代用しません。AndroidのOpenXR Body featureは有効化済みで、manifestにMetaのinstall-time `BODY_TRACKING` 権限とbody tracking用の2つの `uses-feature` を宣言します。`uses-feature` は既存のBaked Viewerがインストール対象から外れないよう `required=false` です。取得できないtargetはcanonical identity Poseとavailability=falseを同じTracking frameで送って、Runtimeのmotion/dwellを取り消します。校正は `PresentationCalibrationState` が保持し、描画・入力・Trackingで共有します。再校正は接続を維持したまま明示的に確定し直します。追跡喪失・recenter・アプリpauseでは校正を無効化し、再測定まで描画と操作を止めます。右controllerのprimary buttonは指定したlogical event、左右triggerの押下開始はcontroller rayが現在StateのHit Regionに当たった場合だけSurface interactionを送ります。どちらもSessionReadyとAsset residencyが揃ってから送信し、押しっぱなしでは再送しません。Anchor-bound Node は fresh binding を受信するまで描画を開始せず、500 ms を超えた binding は失効します。
 
@@ -38,11 +42,15 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 
 これらの実機確認は未実施です。端末用SceneとPose / 入力adapterはEditorでの配線・契約検証まで完了しており、端末上の動作・性能測定は未検証です。
 
+## プレゼンUI
+
+役割選択・参加／作成のプレビュー、マーカー校正、プレゼン操作、退出は `Unframe > UI > Open Presentation UI Preview` で確認できます。認証・オンラインルームは未接続です。操作と実装の境界は [UIプレビュー手順](docs/presentation-ui-preview.md) を参照してください。ローカルの場面別進行には [8種類の腕モーションプリセット](docs/arm-motion-presets.md) も使用できます。
+
 ## ArUco・カメラの実機検証
 
 `Assets/Scripts/MR/` は `Camera`（権限・映像取得・プレビュー）、`MarkerDetection`（マーカー検出・姿勢推定）、`Alignment`（原点確定・Presentation への接続）、`Diagnostics`（計測・ログ）に分けています。対応する EditMode テストは `Assets/Tests/EditMode/Editor/MR/` の同じ責務のディレクトリに置きます。MR の Editor 操作は `Assets/Editor/MR/` の `MarkerDetection`、`Alignment` に、共通Scene生成・ビルド設定・アセット除外処理は `Build` に置きます。座標契約から Unity への変換は `PresentationRuntime/Rendering/PresentationCoordinateAdapter.cs` が担います。
 
-Quest のカメラ映像表示とマーカー校正は `Assets/Scenes/ArucoPresentationTest.unity` に集約しています。Unity の `Unframe > ArUco > Open Presentation Test Scene` で開き、`Build and Run Presentation on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
+Quest のカメラ映像表示とマーカー校正は `Assets/Scenes/ArucoPresentationTest.unity` に集約しています。Unity の `Unframe > Diagnostics > ArUco > Open Presentation Test Scene` で開き、`Build and Run Presentation on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
 
 ArUco 検出は任意の有償依存 OpenCV for Unity を使用します。通常の checkout は依存なしでコンパイル・EditMode テストを実行できます。この状態ではカメラ映像表示と Presentation Runtime を利用できますが、ArUco パネルには `DISABLED` とセットアップ要件が表示され、検出・姿勢推定・マーカーからの原点確定は開始しません。OpenCV に依存しない原点・座標・Runtime のテストは常に実行します。OpenCV を直接使う検出・GPU・worker のテストと印刷マーカー生成メニューは有効化時にのみコンパイルします。
 

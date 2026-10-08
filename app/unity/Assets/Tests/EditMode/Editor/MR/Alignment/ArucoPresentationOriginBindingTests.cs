@@ -216,6 +216,25 @@ public sealed class ArucoPresentationOriginBindingTests
         host.transform.SetParent(null);
     }
 
+    [Test]
+    public void VisibilityGateImmediatelyHidesAndRestoresCalibratedPresentation()
+    {
+        Confirm(new Pose(Vector3.zero, Quaternion.identity));
+        Assert.That(runner.TryLoad(out string error), Is.True, error);
+        binding.Refresh();
+        Assert.That(binding.IsPresentationVisible, Is.True);
+        binding.PresentationVisible = false;
+        Assert.That(binding.IsPresentationVisible, Is.False);
+        Assert.That(calibration.Calibration.IsValid, Is.True);
+        Assert.That(runner.HasLoadedFixture, Is.True);
+        binding.PresentationVisible = true;
+        Assert.That(binding.IsPresentationVisible, Is.True);
+        alignment.ResetAlignment("test-tracking-loss");
+        binding.PresentationVisible = false;
+        binding.PresentationVisible = true;
+        Assert.That(binding.IsPresentationVisible, Is.False);
+    }
+
     private void Confirm(Pose pose)
     {
         for (int i = 0; i < 8; i++)
