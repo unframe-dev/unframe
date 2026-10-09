@@ -9,6 +9,7 @@
     "./tui": "./src/tui/run.tsx"
   },
   "scripts": {
+    "dev": "bun src/process/editor-dev.ts",
     "tui": "bun src/tui/main.tsx",
     "presentation": "bun src/process/main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
+    "dev:editor": "vp dev --config vite.editor.config.ts",
     "dev:e2e": "vp dev --mode e2e --host 127.0.0.1 --port 4173",
     "build": "vp build",
     "check": "tsc --noEmit",

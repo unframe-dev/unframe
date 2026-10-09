@@ -8,7 +8,7 @@ const hosts: Awaited<ReturnType<typeof startAuthorHost>>[] = [];
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map((host) => host.close()));
 });
-const setup = async () => {
+const setup = async (development = false) => {
   const service: AuthorService = {
     project: vi.fn(async () => ({
       revision: "rev",
@@ -29,6 +29,7 @@ const setup = async () => {
   const host = await startAuthorHost({
     service,
     previews,
+    ...(development ? { development: true } : {}),
     assets: new Map([["/", { bytes: new TextEncoder().encode("editor"), mediaType: "text/html" }]]),
   });
   hosts.push(host);
@@ -245,4 +246,36 @@ it("rejects a forged Host header before serving trusted assets", async () => {
     req.end();
   });
   expect(status).toBe(403);
+});
+
+it("accepts only the fixed Vite origin for development writes and still requires a bearer", async () => {
+  const { host } = await setup(true);
+  const headers = {
+    authorization: `Bearer ${host.token}`,
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:5174",
+  };
+  expect(host.origin).toBe("http://127.0.0.1:5175");
+  expect(
+    (await fetch(`${host.origin}/api/preview-display`, { method: "DELETE", headers, body: "{}" }))
+      .status,
+  ).toBe(204);
+  expect(
+    (
+      await fetch(`${host.origin}/api/preview-display`, {
+        method: "DELETE",
+        headers: { ...headers, origin: host.origin },
+        body: "{}",
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await fetch(`${host.origin}/api/preview-display`, {
+        method: "DELETE",
+        headers: { ...headers, authorization: "" },
+        body: "{}",
+      })
+    ).status,
+  ).toBe(401);
 });

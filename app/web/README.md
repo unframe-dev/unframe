@@ -1,20 +1,36 @@
 # Unframe Web Editor
 
-`app/web` はローカル Source を編集する React UI と、認証・Device Authorization・account settings の Web application を持ちます。ローカル Editor は CLI Host から配信し、Source と lock を正本に保存します。Dev／Dist Preview は共通 Unity renderer の WebGL build を使います。設計と公開条件は [Local Editor の実装契約](../../docs/packages/LOCAL_EDITOR_DESIGN.md) を参照してください。
+`app/web` はローカル Source を編集する React UI と、認証・Device Authorization・account settings の Web application を持ちます。ローカル Editor は開発時に Vite、ビルド済み UI は CLI Host から配信し、Source と lock を正本に保存します。Dev／Dist Preview は共通 Unity renderer の WebGL build を使います。設計と公開条件は [Local Editor の実装契約](../../docs/packages/LOCAL_EDITOR_DESIGN.md) を参照してください。
 
 ## Local Editor の起動
 
 Linux、project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は Unity Hub の標準配置を探します。
 
-リポジトリ root で UI と Preview player を生成し、絶対パスの project を開きます。
+初回にリポジトリ root で依存関係、固定 Browser、Unity Preview player を準備します。
 
 ```bash
 nix run .#setup
 nix develop --command scripts/dev/install-presentation-browser.sh
 nix run .#unity-preview
-nix develop --command pnpm --filter @unframe/web build:editor
-nix develop --command scripts/dev/opaque-capture-scope.sh pnpm --filter @unframe/unframe-cli presentation author /absolute/path/to/project
 ```
+
+開発時は2つのターミナルでそれぞれ `nix develop` に入り、リポジトリ root から次を実行します。
+
+```bash
+# ターミナル1: Editor UI (http://127.0.0.1:5174/editor.html)
+pnpm --filter @unframe/web dev:editor
+```
+
+```bash
+# ターミナル2: ローカル API / Unity player (http://127.0.0.1:5175)
+pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/local-editor-showcase"
+```
+
+CLI が認証付きの Editor URL をブラウザで開きます。Web は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と Opaque capture の cgroup 準備を行うため、wrapper の手動指定や `build:editor` は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
+
+Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dist Preview を順に確認します。WebGL Preview は初期 Group／State の静止表示が対象で、Step／Cue／Timeline の再生と本番 Realtime 接続は対象外です。
+
+ビルド済み UI を CLI から配信する場合は、`pnpm --filter @unframe/web build:editor` の後に `presentation author /absolute/path/to/project` を実行します。Opaque capture の環境準備は [scripts README](../../scripts/README.md) を参照してください。
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props と host Transform を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 

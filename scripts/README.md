@@ -65,6 +65,8 @@ nix develop --command scripts/ci/opaque-capture.sh
 
 ## Local Editor と Unity
 
+Local Editor の開発は、Web の `dev:editor` と CLI の `dev` を別ターミナルで起動します。CLI の起動入口が Opaque capture の cgroup と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Web README](../app/web/README.md#local-editor-の起動) を参照してください。
+
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"
 nix run .#unity-preview

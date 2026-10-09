@@ -54,12 +54,14 @@ export const startAuthorHost = async ({
   assets,
   auth = createPublicationAuth(),
   publication,
+  development = false,
 }: {
   service: AuthorService;
   previews: LocalPreviewService;
   assets: ReadonlyMap<string, Asset>;
   auth?: PublicationAuth;
   publication?: LocalPublicationService;
+  development?: boolean;
 }) => {
   const token = randomBytes(32).toString("hex");
   let origin = "";
@@ -98,7 +100,7 @@ export const startAuthorHost = async ({
       if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected))
         throw new AuthorError(401, "author-token-required", "A valid session token is required.");
       if (request.method !== "GET") {
-        if (request.headers.origin !== origin)
+        if (request.headers.origin !== (development ? "http://127.0.0.1:5174" : origin))
           throw new AuthorError(403, "author-origin-rejected", "Writes require the same origin.");
         if (request.headers["content-type"]?.split(";")[0]?.trim() !== "application/json")
           throw invalid();
@@ -298,7 +300,7 @@ export const startAuthorHost = async ({
   server.headersTimeout = 10_000;
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(development ? 5175 : 0, "127.0.0.1", () => {
       server.off("error", reject);
       resolve();
     });
