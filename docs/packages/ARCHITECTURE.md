@@ -6,13 +6,13 @@
 - **Maturity**:
   - Architecture baseline: adopted
   - Presentation Progression semantic model: v1 baseline
-  - Progression semantic wire contract: Accepted（v2 Protobuf 定義済み、consumer は未接続）
+  - Progression semantic wire contract: Accepted（v2 Protobuf。consumer の実装・検証範囲は [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md) と [Unity README](../../app/unity/README.md) を参照）
   - コンパイル後の構造・配信・Runtime: Presentation v2。Authoring / build host の実装設計は後続
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
   - [Presentation Surface 描画方式の検証条件](./UI_RENDERING_COMPARISON.md)
-  - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
-  - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
+  - [ADR-0005（アーカイブ）](../decisions/archived/0005-spatial-presentation-domain-model.md)
+  - [ADR-0006（アーカイブ）](../decisions/archived/0006-presentation-rendering-strategy.md)
   - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
   - [ADR-0015: Definition と素材集合の構造境界を定める](../decisions/0015-presentation-definition-artifact-boundaries.md)
   - [ADR-0016: モデル内蔵アニメーションの範囲を定める](../decisions/0016-model-animation-scope.md)
@@ -929,7 +929,7 @@ Code 上の入れ子表現は parse 時に `parent` へ正規化する。`node` 
 - Scale は無次元倍率とする。
 - Presentation Origin、Stage、Spatial Node、Body Anchor を親座標として扱う。
 
-基礎座標規約はADR-0005、Transformの`T * R * S`、parent-first matrix積、Hamilton Quaternionとcanonical sign、column-major matrix、Unity境界のZ reflectionは [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。Spatial treeはlocal TRSを正本とし、non-uniform scaleとrotationから生じ得るworld shearを含むderived world値はmatrixを正本としてTRSへ再分解しない。
+基礎座標規約、Transformの`T * R * S`、parent-first matrix積、Hamilton Quaternionとcanonical sign、column-major matrix、Unity境界のZ reflectionは [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md) を正本とする。Spatial treeはlocal TRSを正本とし、non-uniform scaleとrotationから生じ得るworld shearを含むderived world値はmatrixを正本としてTRSへ再分解しない。
 
 Shared Spatial Tree の Anchor owner は v1 では Session の Presenter だけとする。`ParticipantId` は Session 実行時の identity であり、PresentationDefinition、RenderBundle、PublishedPresentation へ埋め込まない。Viewer 自身の head / hand へ配置する UI は Shared Spatial Tree の node とせず、ProjectionProfileDescriptor の Local Overlay definition と Client-local State の `self` Anchor で表現する。
 
@@ -1432,7 +1432,7 @@ type RuntimeRunSnapshot =
     });
 ```
 
-`RuntimeStatusChanged` は lifecycle を `running`、pause reason を持つ `paused`、termination reason を持つ `terminating` として discriminated に送る。invariant violation、atomic commit failure、microstep overflow、recovery gap は Runtime fault であり、terminating ではなく `paused` の reason として区別する。Timeline / Runtime Run の semantic policy は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md)、transport / replay / recovery policy は [ADR-0008](../decisions/0008-runtime-transport-contract.md) を正本とする。
+`RuntimeStatusChanged` は lifecycle を `running`、pause reason を持つ `paused`、termination reason を持つ `terminating` として discriminated に送る。invariant violation、atomic commit failure、microstep overflow、recovery gap は Runtime fault であり、terminating ではなく `paused` の reason として区別する。Timeline / Runtime Run の意味規則と transport / replay / recovery は [Delivery / Runtime contract](./CONTRACT_RUNTIME.md) を正本とする。
 
 `runtimeTimeMilliseconds` は Session の pause-aware logical clock とし、`running` 中だけ割り当て済み Runtime Core の monotonic clock 差分で進め、`paused` と `terminating` では停止する。process 固有の monotonic timestamp、wall clock、`pausedAt`、累積 pause duration は Snapshot に保存しない。Runtime Resume では保存済み logical time を新しい monotonic clock の基準へ bind する。process recovery では保存時の lifecycle が `running` でも logical time を進めず、`paused / processRecovered` として復元する。
 
@@ -1442,7 +1442,7 @@ Surface transition、Timeline、Media は共通の **Runtime Run** として追�
 
 Surface transition の duration と easing は Run が正本とする。Timeline の duration と absolute track は Session が固定した PublishedPresentation の TimelineDefinition から解決し、開始時の client 描画値を保存しない。Media は logical runtime time 上の reference position、または明示的に pause した position を保持する。Global Pause は clock の停止で表現し、Run ごとの pause 補正値を持たない。
 
-`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成する session / assignment scoped value である。wire は `uint64 assignment_epoch` と `uint64 run_sequence` を持つ protobuf message とし、Snapshot は allocator の最終 sequence を保持する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement と corrective keyframe を completion source にしない。Timeline Run の lifecycle、停止理由、projection、compatibility は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) を正本とする。
+`RuntimeRunId` は assignment epoch と単調増加する run sequence から一意に生成する session / assignment scoped value である。wire は `uint64 assignment_epoch` と `uint64 run_sequence` を持つ protobuf message とし、Snapshot は allocator の最終 sequence を保持する。Run completion は `runId` と owner epoch が現在の active Run に一致する場合だけ適用し、Renderer acknowledgement と corrective keyframe を completion source にしない。Timeline Run の lifecycle、停止理由、projection、compatibility は [Delivery / Runtime contract](CONTRACT_RUNTIME.md) を正本とする。
 
 blocking Run は Progression Phase の `blockingRunIds` と一対一に対応する。completion ごとに active Run と blocking set から除去し、最後の blocking Run が完了した時だけ `pendingNext` を atomic に適用する。存在しない Run、完了済み Run、古い Group / Step epoch に対する completion は stale として状態を変更しない。
 
@@ -1824,7 +1824,7 @@ StepEntered
 PresentationEnded
 ```
 
-participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching、Snapshot / State keyframe、microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) を正本とし、この fence と identity を省略しない。
+participant へ送る projected Reliable Event の論理 envelope は次を持つ。具体的な Protobuf field number、retention、batching、Snapshot / State keyframe、microstep 上限は [Delivery / Runtime contract](CONTRACT_RUNTIME.md) を正本とし、この fence と identity を省略しない。
 
 ```ts
 type ProjectedReliableEvent<TPayload> = {
@@ -2677,8 +2677,8 @@ dist/
 
 ### Progression wire / Runtime contract の blocking follow-ups
 
-1. [x] Timeline の補間結果、停止理由、Run lifecycle の semantic wire contract は [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で Accepted とした（具体的な Protobuf は v2 に定義済み、consumer は未接続）。
-2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) で Accepted とした（v2 proto 定義済み、generated consumer は M5 で接続する）。
+1. [x] Timeline の補間結果、停止理由、Run lifecycle の semantic wire contract は [ADR-0007（アーカイブ）](../decisions/archived/0007-timeline-runtime-run-wire-contract.md) で Accepted とした。現行契約は [Delivery / Runtime contract](./CONTRACT_RUNTIME.md) に従う。
+2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限は [ADR-0008（アーカイブ）](../decisions/archived/0008-runtime-transport-contract.md) で Accepted とした。現行契約は [Delivery / Runtime contract](./CONTRACT_RUNTIME.md) に従う。
 3. Timeline audience、profile ごとの Definition / Run projection、role 限定 Timeline の non-blocking 規則を Zod と Delivery / Realtime Protobuf に追加する。
 4. Semantic Surface が artifact 選択から独立して media duration / playback / completion を所有する場合は、Zod、RenderBundle、Runtime wire の authority を同じ contract revision で変更する。
 
@@ -2695,7 +2695,7 @@ dist/
 
 ## 20. 次の設計対象
 
-blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。M1のproject assembly / reference Browser / CLIは実装済みである。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation v2](./DATA_MODEL.md) を正本とし、M3以降で Compiler と consumer を接続する。
+blockingなTimeline / transport / Semantic / coordinate / partition / texture budget contractはすべてAcceptedになった。コンパイル後の Model animation、Asset Set、Native UI / Video、Delivery / Runtime の具体契約は [Presentation v2](./DATA_MODEL.md) を正本とする。Compiler と consumer の実装範囲は各 component の文書に従い、契約の採用を全機能の接続・実機検証の完了とは扱わない。
 
 中心となる思想は次のとおりである。
 

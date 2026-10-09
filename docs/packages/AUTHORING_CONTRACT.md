@@ -33,7 +33,7 @@ Named Style の継承と、一つの Primitive への複数 Named Style 適用�
 
 ## TypeScript / JSX source
 
-Source は静的に解決し、module や builder 関数を実行しない。[ADR-0018](../decisions/0018-static-typescript-jsx-authoring.md) に従い、次の記法を同じ宣言モデルへ lower する。
+Source は静的に解決し、module や builder 関数を実行しない。次の記法を同じ宣言モデルへ lower する。
 
 - top-level `const` と、その値・宣言を共有する project-relative import
 - 静的な property / literal index 参照、object shorthand、object / array spread

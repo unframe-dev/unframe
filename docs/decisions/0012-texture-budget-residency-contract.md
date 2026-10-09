@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0006](0006-presentation-rendering-strategy.md), [ADR-0010](0010-spatial-surface-coordinate-contract.md), [ADR-0011](0011-surface-partition-contract.md), [Presentation Architecture](../packages/ARCHITECTURE.md)
+- **関連**: [ADR-0006（アーカイブ）](archived/0006-presentation-rendering-strategy.md), [ADR-0010](0010-spatial-surface-coordinate-contract.md), [ADR-0011](0011-surface-partition-contract.md), [Presentation Architecture](../packages/ARCHITECTURE.md)
 
 ## Context
 
@@ -153,7 +153,7 @@ v1はvisibleな全reachable Stateのselected textureをsession開始前にdownlo
 2. `residentReady`: 全selected textureがManifest metadataどおりGPU residentで、CPU readback copyが破棄済み。
 3. `sessionReady`: required Control / State connectionとfenceが揃い、`residentReady`である。
 
-participantは`sessionReady`前にSession開始条件のready集合へ数えない。Sessionが全participantを待つか必須roleだけを待つかは既存の明示start policyに従い、texture loaderがpolicyを変更しない。active session中はselected texture hashを全てpinし、State change / crossfade中にevictしない。したがって一つのSemantic Surfaceで同時に一transitionだけというADR-0007 / Architectureの規則に対し、old / new Stateの二重residencyは上記GPU sumへすでに含まれ、transition開始時の追加allocationを行わない。resident不足時にcrossfadeをcutへ変換したりcanonical stateをclientだけで戻したりしない。
+participantは`sessionReady`前にSession開始条件のready集合へ数えない。Sessionが全participantを待つか必須roleだけを待つかは既存の明示start policyに従い、texture loaderがpolicyを変更しない。active session中はselected texture hashを全てpinし、State change / crossfade中にevictしない。したがって一つのSemantic Surfaceで同時に一transitionだけという[Runtime contract](../packages/CONTRACT_RUNTIME.md#72-surface-transition)の規則に対し、old / new Stateの二重residencyは上記GPU sumへすでに含まれ、transition開始時の追加allocationを行わない。resident不足時にcrossfadeをcutへ変換したりcanonical stateをclientだけで戻したりしない。
 
 開始前のdownload / decode / upload失敗、metadata不一致、device allocation失敗はtyped resource failureとしてparticipant readinessをrejectする。別resolution、別renderer、別State artifactへ暗黙fallbackしない。開始後にdevice context lossなどでpinned residencyを失ったclientは描画とinput送信を停止し、Control / State connectionを`asset_residency_lost` reasonで閉じる。Runtimeは通常のparticipant disconnectとしてpresenceと既存Presenter lease policyを適用し、asset layerからcanonical progressionやSession pauseを直接変更しない。他participantのSessionは継続する。
 

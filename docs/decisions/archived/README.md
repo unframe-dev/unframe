@@ -1,15 +1,15 @@
-# アーカイブ済みADR
+# アーカイブ済み ADR
 
-このディレクトリには、後続の設計判断によって全面的に置き換えられたADRを保存しています。
+このディレクトリには、後続決定や現行契約と衝突する記述が残る旧 ADR を保存する。本文は判断の履歴であり、現在の設計・実装・API の規範には使用しない。継続する規則の参照先は以下に示す。
 
-これらは判断の履歴を確認するための資料であり、現在の設計、実装、API、開発手順の根拠として使用しないでください。現行構成は次を参照してください。
-
-- [`ARCHITECTURE.md`](../../../ARCHITECTURE.md)
-- [ADR-0004: モノレポレイアウトとNix toolchain](../0004-monorepo-layout-and-nix-toolchain.md)
-- [`packages/contracts/openapi.yaml`](../../../packages/contracts/openapi.yaml)
-
-## 文書
-
-- [ADR-0001](./0001-backend-mvp-design.md): 旧TypeScript / Hono Backend MVP
-- [ADR-0002](./0002-supabase-storage-and-db.md): 旧Supabase / Cloudflare Workers構成
-- [ADR-0003](./0003-full-renewal.md): Go backendへの全面刷新時点の構成
+| ADR                                                  | アーカイブ理由                                                                            | 現行の参照先                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0001](./0001-backend-mvp-design.md)                 | 旧 TypeScript / Hono Backend MVP                                                          | [Server Architecture](../../../app/server/ARCHITECTURE.md)                                                                                                                                                                                                                                                              |
+| [0002](./0002-supabase-storage-and-db.md)            | 旧 Supabase 構成                                                                          | [Server Architecture](../../../app/server/ARCHITECTURE.md)                                                                                                                                                                                                                                                              |
+| [0003](./0003-full-renewal.md)                       | 旧 Go HTTP backend と旧レイアウト                                                         | [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md)、[Server Architecture](../../../app/server/ARCHITECTURE.md)                                                                                                                                                                                                    |
+| [0005](./0005-spatial-presentation-domain-model.md)  | Unity の Trigger 判定、独立 audio、OpenAPI を Definition の正本とする方針が後続決定と衝突 | [Presentation Architecture](../../packages/ARCHITECTURE.md)、[ADR-0010](../0010-spatial-surface-coordinate-contract.md)、[ADR-0014](../0014-presentation-rendering-scope.md)、[ADR-0015](../0015-presentation-definition-artifact-boundaries.md)、[Contracts Architecture](../../../packages/contracts/ARCHITECTURE.md) |
+| [0006](./0006-presentation-rendering-strategy.md)    | v1 出力と全 Surface の content tree 所有を前提とする記述が旧式化                          | [Presentation Architecture](../../packages/ARCHITECTURE.md)、[Data model](../../packages/DATA_MODEL.md)、[ADR-0020](../0020-structured-and-opaque-surface-content.md)                                                                                                                                                   |
+| [0007](./0007-timeline-runtime-run-wire-contract.md) | 旧 `TIMELINE_RUN_V1` capability を必須とする互換条件                                      | [Delivery / Runtime contract](../../packages/CONTRACT_RUNTIME.md)、[Presentation Architecture](../../packages/ARCHITECTURE.md)                                                                                                                                                                                          |
+| [0008](./0008-runtime-transport-contract.md)         | `protocol_version="v1"` と旧 capability 名の transport 契約                               | [Delivery / Runtime contract](../../packages/CONTRACT_RUNTIME.md)、[Protobuf source](../../../packages/contracts/proto/unframe/)                                                                                                                                                                                        |
+| [0018](./0018-static-typescript-jsx-authoring.md)    | React capture の拒否と ADR-0019 の Proposed 維持が後続の Accepted と衝突                  | [Structured Authoring Contract](../../packages/AUTHORING_CONTRACT.md)、[ADR-0019](../0019-single-file-react-component-authoring.md)、[React 実行契約](../../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md)                                                                                                             |
+| [0023](./0023-m5-generated-consumer-boundaries.md)   | `/v2`・`.V2` 名の維持と旧 PresentationImport の温存が後続決定と衝突                       | [ADR-0024](../0024-canonical-presentation-contract-names.md)、[Contracts Architecture](../../../packages/contracts/ARCHITECTURE.md)、[Implementation Design](../../packages/DESIGN.md)                                                                                                                                  |

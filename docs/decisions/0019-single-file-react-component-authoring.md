@@ -2,7 +2,7 @@
 
 - **Status**: Accepted（Linux のローカル Authoring と baked-web PNG preview に限定）
 - **Date**: 2026-10-01
-- **Related**: [設計案と実装計画](../packages/REACT_COMPONENT_AUTHORING.md)、[実装 contract](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md)、[ADR-0018](./0018-static-typescript-jsx-authoring.md)、[ADR-0014](./0014-presentation-rendering-scope.md)、[ADR-0013](./0013-local-compiler-project-filesystem-contract.md)
+- **Related**: [設計案と実装計画](../packages/REACT_COMPONENT_AUTHORING.md)、[実装 contract](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md)、[ADR-0018（アーカイブ）](archived/0018-static-typescript-jsx-authoring.md)、[ADR-0014](./0014-presentation-rendering-scope.md)、[ADR-0013](./0013-local-compiler-project-filesystem-contract.md)
 
 ## Context
 

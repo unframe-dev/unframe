@@ -1,8 +1,10 @@
 # ADR-0018: 静的 TypeScript と JSX による Authoring
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Date**: 2026-09-20
-- **Related**: [Authoring contract](../packages/AUTHORING_CONTRACT.md), [ADR-0017](./0017-m3a-structured-authoring-contract.md)
+- **Related**: [Authoring contract](../../packages/AUTHORING_CONTRACT.md), [ADR-0017](../0017-m3a-structured-authoring-contract.md)
+
+> 本 ADR は判断の履歴として保存する。現在の規範は [Structured Authoring Contract](../../packages/AUTHORING_CONTRACT.md) を参照する。移管理由と後続決定は [アーカイブ一覧](./README.md) に記載する。
 
 ## Context
 
@@ -21,7 +23,7 @@ Authoring Source を実行しない境界を保ち、Compiler の静的な構文
 
 ## React Component 経路との境界
 
-A1 では `.component.tsx` の公開 Props・明示 semantics も非実行で抽出する。React render は別 virtual entry に切り出し、Structured JSX と別の TypeScript Program で検査する。上記の任意関数の禁止は静的契約側に適用し、render の関数 body は実行せず描画入力として保持する。capture は A2 まで明示拒否する。[実行契約](../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md) と ADR-0019 の Proposed 状態を維持する。
+A1 では `.component.tsx` の公開 Props・明示 semantics も非実行で抽出する。React render は別 virtual entry に切り出し、Structured JSX と別の TypeScript Program で検査する。上記の任意関数の禁止は静的契約側に適用し、render の関数 body は実行せず描画入力として保持する。capture は A2 まで明示拒否する。[実行契約](../../packages/REACT_COMPONENT_EXECUTION_CONTRACT.md) と ADR-0019 の Proposed 状態を維持する。
 
 ## Consequences
 
