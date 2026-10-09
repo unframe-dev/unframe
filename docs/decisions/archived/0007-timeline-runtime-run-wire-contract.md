@@ -1,13 +1,15 @@
 # ADR-0007: Timeline と Runtime Run の semantic wire contract を定義する
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../packages/ARCHITECTURE.md), [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md), [ADR-0006](./0006-presentation-rendering-strategy.md)
+- **関連**: [Presentation Architecture](../../packages/ARCHITECTURE.md), [Realtime Architecture](../../../app/server/realtime/ARCHITECTURE.md), [Contracts Architecture](../../../packages/contracts/ARCHITECTURE.md), [ADR-0006](0006-presentation-rendering-strategy.md)
+
+> 本 ADR は判断の履歴として保存する。現在の規範は [Delivery / Runtime contract](../../packages/CONTRACT_RUNTIME.md) を参照する。移管理由と後続決定は [アーカイブ一覧](./README.md) に記載する。
 
 ## Context
 
-Timeline の時間補間を全 client の State Stream へ毎 frame 配送すると、authority、replay、projection、帯域の責務が混在する。一方で client が Timeline 定義または Run lifecycle を知らなければ、pause-aware clock 上で同じ表示を補間できない。本 ADR は M2 item 1 の実装前 **semantic wire contract** を固定する。field number を含む transport contract は [ADR-0008](./0008-runtime-transport-contract.md) で固定し、現行 `realtime.proto` は foundation のままである。
+Timeline の時間補間を全 client の State Stream へ毎 frame 配送すると、authority、replay、projection、帯域の責務が混在する。一方で client が Timeline 定義または Run lifecycle を知らなければ、pause-aware clock 上で同じ表示を補間できない。本 ADR は M2 item 1 の実装前 **semantic wire contract** を固定する。field number を含む transport contract は [ADR-0008](0008-runtime-transport-contract.md) で固定し、現行 `realtime.proto` は foundation のままである。
 
 ## Decision
 
@@ -103,5 +105,5 @@ Delivery / handshake target contract は `progressionContractVersion = 1` と re
 
 ## Follow-ups
 
-- M2 item 2 の field number、Reliable Event envelope、retention / replay、runtime microstep 上限は [ADR-0008](./0008-runtime-transport-contract.md) で Accepted とした。
+- M2 item 2 の field number、Reliable Event envelope、retention / replay、runtime microstep 上限は [ADR-0008](0008-runtime-transport-contract.md) で Accepted とした。
 - canonical event-kind、stable target ID、Run ID 順の同一 logical time ordering と、`presentationEnded` が Timeline cancel を先に確定する順序は Presentation Architecture の既存規則を適用する。

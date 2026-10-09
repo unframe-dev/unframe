@@ -8,7 +8,7 @@
 - Realtime Backend / Venue Edge の内部設計: [`realtime/ARCHITECTURE.md`](./realtime/ARCHITECTURE.md)
 - 現行 Realtime 実装の起動・制約: [`realtime/README.md`](./realtime/README.md)
 - 外部 contract と生成経路: [`../../packages/contracts/README.md`](../../packages/contracts/README.md)
-- Presentation domain model: [`../../docs/decisions/0005-spatial-presentation-domain-model.md`](../../docs/decisions/0005-spatial-presentation-domain-model.md)
+- Presentation domain model: [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
 
 本書が所有するのは、component 間の authority handoff、通信方向、data ownership、end-to-end lifecycle、整合性規則、統合状況である。Component 固有の technology、module 構成、protocol field、queue、storage schema、deployment 手順、運用 parameter は各 component の文書が所有する。
 
@@ -56,15 +56,15 @@ Realtime の hot path は Control Plane、D1、R2 への同期問い合わせを
 
 ### 3.1 Ownership
 
-| Concern | Authority | Component 間の規則 |
-| --- | --- | --- |
-| User identity と application session | Control Plane | Realtime は client が送る identity field を信用せず、Control Plane が発行した credential を検証する |
-| Presentation Definition と membership | Control Plane | Realtime は session 用 projection を入力として受け取り、durable Definition を独自更新しない |
-| Asset metadata と access policy | Control Plane | Binary は R2 に置き、Realtime stream に埋め込まない |
-| Durable Session directory と participant role | Control Plane | Bootstrap 時に active runtime へ必要な identity / role を拘束する |
-| Active session の canonical runtime state | Realtime Backend | 高頻度 state を request ごとに Control Plane へ照会・保存しない |
-| Checkpoint と completion の durable record | Control Plane | Realtime から idempotent callback として受け取る |
-| Rendering、local tracking、calibration | Web / Unity client | Backend の共有 state と client-local state を混同しない |
+| Concern                                       | Authority          | Component 間の規則                                                                                  |
+| --------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
+| User identity と application session          | Control Plane      | Realtime は client が送る identity field を信用せず、Control Plane が発行した credential を検証する |
+| Presentation Definition と membership         | Control Plane      | Realtime は session 用 projection を入力として受け取り、durable Definition を独自更新しない         |
+| Asset metadata と access policy               | Control Plane      | Binary は R2 に置き、Realtime stream に埋め込まない                                                 |
+| Durable Session directory と participant role | Control Plane      | Bootstrap 時に active runtime へ必要な identity / role を拘束する                                   |
+| Active session の canonical runtime state     | Realtime Backend   | 高頻度 state を request ごとに Control Plane へ照会・保存しない                                     |
+| Checkpoint と completion の durable record    | Control Plane      | Realtime から idempotent callback として受け取る                                                    |
+| Rendering、local tracking、calibration        | Web / Unity client | Backend の共有 state と client-local state を混同しない                                             |
 
 同じ概念が両 component に現れる場合も、authority と projection を区別する。たとえば durable Session membership は Control Plane が所有し、接続中 participant の runtime state は Realtime Backend が所有する。
 
@@ -72,12 +72,12 @@ Realtime の hot path は Control Plane、D1、R2 への同期問い合わせを
 
 State は保存期間だけでなく、authority、delivery semantics、failure behavior で分類する。
 
-| Class | 例 | Authority / persistence rule |
-| --- | --- | --- |
-| Durable | Identity、Presentation Definition revision、Asset metadata、Session directory、participant membership、accepted checkpoint / completion | Control Plane が authority。D1 / R2 に永続化する |
-| Runtime reliable | Group / Step / Cue lifecycle、離散 command / event、sequence、runtime termination | Realtime Backend が authority。順序・重複・gapを管理し、必要な結果だけをcheckpointする |
-| Runtime ephemeral | Presenter tracking、Pose、pointer、補間途中のElement State | Realtime Backendのmemoryで扱う。latest-wins / coalescing / stale dropを許容し、D1へ逐次保存しない |
-| Client-local | Viewer tracking、render interpolation、device cache、participantごとのcalibration | Web / Unity clientが所有し、共有server stateとして扱わない |
+| Class             | 例                                                                                                                                      | Authority / persistence rule                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Durable           | Identity、Presentation Definition revision、Asset metadata、Session directory、participant membership、accepted checkpoint / completion | Control Plane が authority。D1 / R2 に永続化する                                                  |
+| Runtime reliable  | Group / Step / Cue lifecycle、離散 command / event、sequence、runtime termination                                                       | Realtime Backend が authority。順序・重複・gapを管理し、必要な結果だけをcheckpointする            |
+| Runtime ephemeral | Presenter tracking、Pose、pointer、補間途中のElement State                                                                              | Realtime Backendのmemoryで扱う。latest-wins / coalescing / stale dropを許容し、D1へ逐次保存しない |
+| Client-local      | Viewer tracking、render interpolation、device cache、participantごとのcalibration                                                       | Web / Unity clientが所有し、共有server stateとして扱わない                                        |
 
 Reliable / ephemeral の具体的なmessage、snapshot、replay規則はRealtime contractが所有する。Control Planeはそれらのwire typeをschemaへ複製しない。
 
@@ -223,20 +223,20 @@ Control PlaneはD1上の現行migrationとcontractをdurable authorityとし、R
 
 ## 10. Current integration status
 
-| Boundary | Status | Evidence / limitation |
-| --- | --- | --- |
-| Control Plane product API と generated OpenAPI / Hono RPC | Current | Component 内 drift check あり |
-| Realtime Protocol Buffers と Go generated code | Current | Component 内 drift check あり |
-| Control Plane の Session directory と Venue Edge bootstrap | Current | Active assignmentのendpoint、fingerprint、lease-bound JWTを発行 |
-| Realtime の初期 gRPC process と in-memory fan-out | Partial | JWT / assignment fencingはCurrent。full runtime stateとrecoveryは未実装 |
-| Control Plane-issued credential → authenticated Realtime connection | Partial | Producer / verifier contractは一致。Unity consumerとrepository-level E2Eは未実装 |
-| Realtime → Control Plane persistence callback | Partial | Control Plane受付とcompletion fencingはCurrent。sender / retryは未実装 |
-| Web / Unity → Control Plane resource flow | Partial | Device Authorization UI の一部以外は未接続 |
-| Presentation / Asset → Session delivery projection | Not implemented | Contract 未定義 |
-| Venue Edge provisioning / registration / assignment | Current | Control PlaneのD1 / route / OpenAPIに実装済み |
-| Realtime assignment同期 / Session終了伝播 | Not integrated | Current processは環境変数を使用し、Cloud Agentは未実装 |
-| Unity / C# generated HTTP・gRPC clients | Not implemented | 配置予定地と手書きmodelはあるが生成・consumer接続は未導入 |
-| Repository-level backend E2E | Not implemented | `app/server/integration/` は未作成 |
+| Boundary                                                            | Status          | Evidence / limitation                                                            |
+| ------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------- |
+| Control Plane product API と generated OpenAPI / Hono RPC           | Current         | Component 内 drift check あり                                                    |
+| Realtime Protocol Buffers と Go generated code                      | Current         | Component 内 drift check あり                                                    |
+| Control Plane の Session directory と Venue Edge bootstrap          | Current         | Active assignmentのendpoint、fingerprint、lease-bound JWTを発行                  |
+| Realtime の初期 gRPC process と in-memory fan-out                   | Partial         | JWT / assignment fencingはCurrent。full runtime stateとrecoveryは未実装          |
+| Control Plane-issued credential → authenticated Realtime connection | Partial         | Producer / verifier contractは一致。Unity consumerとrepository-level E2Eは未実装 |
+| Realtime → Control Plane persistence callback                       | Partial         | Control Plane受付とcompletion fencingはCurrent。sender / retryは未実装           |
+| Web / Unity → Control Plane resource flow                           | Partial         | Device Authorization UI の一部以外は未接続                                       |
+| Presentation / Asset → Session delivery projection                  | Not implemented | Contract 未定義                                                                  |
+| Venue Edge provisioning / registration / assignment                 | Current         | Control PlaneのD1 / route / OpenAPIに実装済み                                    |
+| Realtime assignment同期 / Session終了伝播                           | Not integrated  | Current processは環境変数を使用し、Cloud Agentは未実装                           |
+| Unity / C# generated HTTP・gRPC clients                             | Not implemented | 配置予定地と手書きmodelはあるが生成・consumer接続は未導入                        |
+| Repository-level backend E2E                                        | Not implemented | `app/server/integration/` は未作成                                               |
 
 実装状況は各 component の code と README で再確認する。本表は integration boundary の snapshot であり、component 内機能の完全な matrix ではない。
 

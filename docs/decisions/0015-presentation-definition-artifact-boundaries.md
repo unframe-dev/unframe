@@ -2,7 +2,7 @@
 
 - **Status**: Accepted（構造境界。具体契約は Presentation v2）
 - **Date**: 2026-09-15
-- **Related**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md), [ADR-0014](./0014-presentation-rendering-scope.md), [ADR-0016](./0016-model-animation-scope.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md)
+- **Related**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0007（アーカイブ）](archived/0007-timeline-runtime-run-wire-contract.md), [ADR-0014](./0014-presentation-rendering-scope.md), [ADR-0016](./0016-model-animation-scope.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md)
 
 ## Context
 
@@ -37,7 +37,7 @@ PresentationDefinition
 
 - `scene.nodes` は空間配置、owner、audience、初期 transform / 表示状態を持つ。`scene.surfaces` は内容ツリー、意味情報、State、Interaction、Render Intent を持つ。
 - SurfaceNode と Semantic Surface の 1:1 対応、ID と owner の規則を維持する。描画 partition と Artifact ID は RenderBundle に属する。
-- `flow.timelines` は Timeline ID をキーとする catalog とし、ADR-0007 の意味論を維持する。再生中の Run、開始時刻、現在値は Definition に入れない。
+- `flow.timelines` は Timeline ID をキーとする catalog とし、[Runtime contract](../packages/CONTRACT_RUNTIME.md#73-timeline) の意味論を維持する。再生中の Run、開始時刻、現在値は Definition に入れない。
 - Group / Step / Cue の構造と、Variable の型・初期値・owner は既存設計を維持する。現在の Group / Step と Variable の現在値は Runtime State に属する。
 - Component Instance、公開 Action / Output は compile 時に展開する。Theme の参照は必要な具体値へ解決し、編集用 Token catalog や Component package を Definition に残さない。描画に必要な内容ツリーと解決済み値は保持し、Theme の build provenance は RenderBundle に記録する。
 - 素材は使用箇所から `assetId` で参照する。現行の top-level `assets` descriptor 辞書は、下記 AssetSetManifest へ移す。

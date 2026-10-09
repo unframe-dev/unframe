@@ -7,7 +7,6 @@
 - **Architecture source**:
   - [Presentation Architecture](../packages/ARCHITECTURE.md)
   - [Presentation Implementation Design](../packages/DESIGN.md)
-  - [ADR-0006](../decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0014](../decisions/0014-presentation-rendering-scope.md)
   - [ADR-0017](../decisions/0017-m3a-structured-authoring-contract.md)
   - [M3A Structured Authoring Contract](../packages/AUTHORING_CONTRACT.md)
@@ -201,7 +200,7 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した（当時の実�
 - named import alias は元の locked package export provenance を保持する場合に限り許可する。
 - JSX-first authoring とより広い static expression は M1 より後へ延期する。
 
-その後 [ADR-0018](../decisions/0018-static-typescript-jsx-authoring.md) に従い、`const`、project import、object / array spread、内部構造と配置の JSX を実装した。任意の JavaScript 実行は引き続き許可しない。M1実装の独立Review / Fix loopでは、確認済みの未対応P1/P2がない状態まで収束した。
+その後 [ADR-0018（アーカイブ）](../decisions/archived/0018-static-typescript-jsx-authoring.md) に従い、`const`、project import、object / array spread、内部構造と配置の JSX を実装した。任意の JavaScript 実行は引き続き許可しない。M1実装の独立Review / Fix loopでは、確認済みの未対応P1/P2がない状態まで収束した。
 
 ### 完了条件
 
@@ -215,8 +214,8 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した（当時の実�
 
 実装前に、Presentation Architecture が指定する順序で次の contract を一つずつ確定する。
 
-1. [x] Timeline の補間、停止理由、Runtime Run lifecycle の semantic wire contract（[ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md)、transport protobuf schema は Draft・未実装）
-2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限（[ADR-0008](../decisions/0008-runtime-transport-contract.md)）
+1. [x] Timeline の補間、停止理由、Runtime Run lifecycle の semantic wire contract（[ADR-0007（アーカイブ）](../decisions/archived/0007-timeline-runtime-run-wire-contract.md)、transport protobuf schema は Draft・未実装）
+2. [x] Reliable Event / Snapshot / State Stream の transport schema、保持期間、runtime microstep 上限（[ADR-0008（アーカイブ）](../decisions/archived/0008-runtime-transport-contract.md)）
 3. [x] role 別 Semantic Tree / Hit Region schema（[ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md)）
 4. [x] Transform、Quaternion、matrix、Unity、Surface / UV の座標規約（[ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md)）
 5. [x] Surface Partition と author override（[ADR-0011](../decisions/0011-surface-partition-contract.md)）
@@ -228,9 +227,9 @@ Static DSL は 2026-08-29 に次の M1 contract で確定した（当時の実�
 
 2026-08-29 時点で、Timeline の補間式、easing、number / Vector3 / Quaternion、Pause / Resume、完了時 commit、`explicitStop` / `groupExit` / `presentationEnded` の停止規則、Runtime Core authority は Architecture に定義済みである。一方、現行 Presentation contract は Timeline catalog を持たず、Realtime Protobuf は Handshake / PageChange foundation だけであるため、wire contract は未実装である。
 
-Timeline catalog、local interpolation、State Stream の非 Timeline 限定、`RuntimeRunId`、lifecycle payload、reason、projection、capability policyは [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md) で semantic wire contract として Accepted とした。transport protobuf schema は Draft・未実装であり、現行 `realtime.proto` は foundation のままである。互換 downgrade fallback は追加しない。
+Timeline catalog、local interpolation、State Stream の非 Timeline 限定、`RuntimeRunId`、lifecycle payload、reason、projection、capability policyは [ADR-0007（アーカイブ）](../decisions/archived/0007-timeline-runtime-run-wire-contract.md) で semantic wire contract として Accepted とした。transport protobuf schema は Draft・未実装であり、現行 `realtime.proto` は foundation のままである。互換 downgrade fallback は追加しない。
 
-Reliable Event / Snapshot / State Stream の envelope、field number、replay / catch-up / idempotency window、State keyframe、runtime microstep 上限は [ADR-0008](../decisions/0008-runtime-transport-contract.md) で Accepted とした。M2 では設計だけを固定し、現行 foundation proto の置換、Go / C# generation、cross-language fixture は semantic payload が揃う M5 で一括実装する。
+Reliable Event / Snapshot / State Stream の envelope、field number、replay / catch-up / idempotency window、State keyframe、runtime microstep 上限は [ADR-0008（アーカイブ）](../decisions/archived/0008-runtime-transport-contract.md) で Accepted とした。M2 では設計だけを固定し、現行 foundation proto の置換、Go / C# generation、cross-language fixture は semantic payload が揃う M5 で一括実装する。
 
 Semantic roleごとのstrict union、Definition / Completed treeの分離、required owned structure、Stateごとのbutton enabled導出、normalized Hit Regionのbounds / priority / overlap / tie-breakは [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md) でAcceptedとした。v2 の構造 schema に加え、M3 Slice Bで意味検証、Authoring / Compiler / renderer 接続、fixture を同じ変更系列で完成させた。
 
@@ -371,9 +370,9 @@ M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface tr
 
 ### 9.3 Unity handoff
 
-- [ADR-0023](../decisions/0023-m5-generated-consumer-boundaries.md) に従い、既存の generated source 配置方式を使う。
+- [ADR-0024](../decisions/0024-canonical-presentation-contract-names.md) に従い、既存の generated source 配置方式を使う。
 - generated clientをUnity-owned adapterから利用する。
-- 既存 `PresentationImport/` はtransitional implementationとして維持し、一括置換しない。
+- 旧 `PresentationImport/` は廃止し、Unity-owned adapter へ接続する。
 
 ### 完了条件
 
@@ -407,7 +406,7 @@ M3D は Cue 実行器が扱う Surface / Node / Variable、Timeline / Surface tr
 - local authoring、check、build、previewが同じproject/config/lockを使用する。
 - local buildとpublish対象artifactのhashが一致する。
 - application integrationがpackage内部moduleへdeep importしない。
-- 実サービスのauthoritative execution、replay / resume、checkpoint / completionを検証する（[ADR-0024](../decisions/0024-m6-application-transport-boundaries.md)）。
+- 実サービスのauthoritative execution、replay / resume、checkpoint / completionを検証する（[ADR-0025](../decisions/0025-m6-application-transport-boundaries.md)）。
 - Quest実機でDeliveryとAsset取得、入力、texture residency、GPU / CPU・upload peakを検証する。端末用SceneとPose / 入力adapterは実装済み。端末上の接続と計測は未検証である。
 
 ## 11. 横断的な検証戦略

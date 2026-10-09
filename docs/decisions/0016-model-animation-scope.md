@@ -2,7 +2,7 @@
 
 - **Status**: Accepted（機能範囲と責務。詳細 schema / wire は Presentation v2）
 - **Date**: 2026-09-15
-- **Related**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0015](./0015-presentation-definition-artifact-boundaries.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md)
+- **Related**: [Presentation Architecture](../packages/ARCHITECTURE.md), [ADR-0015](./0015-presentation-definition-artifact-boundaries.md), [ADR-0007（アーカイブ）](archived/0007-timeline-runtime-run-wire-contract.md)
 
 ## Context
 

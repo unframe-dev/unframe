@@ -58,4 +58,4 @@ docs/          アーキテクチャ、設計判断、ドキュメント
 - [Realtime Backend アーキテクチャ](./app/server/realtime/ARCHITECTURE.md)
 - [開発・コントリビューションガイド](./CONTRIBUTING.md)
 - [設計判断（ADR）](./docs/decisions/)
-- [空間プレゼンテーションのドメインモデル（ADR-0005）](./docs/decisions/0005-spatial-presentation-domain-model.md)
+- [Presentation Architecture](docs/packages/ARCHITECTURE.md)

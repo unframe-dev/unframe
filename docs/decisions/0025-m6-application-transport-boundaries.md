@@ -1,4 +1,4 @@
-# ADR-0024: Publication HTTP境界とUnityのRuntime transport
+# ADR-0025: Publication HTTP境界とUnityのRuntime transport
 
 ## Status
 
