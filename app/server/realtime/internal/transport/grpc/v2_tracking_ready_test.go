@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -34,10 +36,18 @@ func (a *revocableV2TrackingAssignment) AllowCommand(assignment.AssignmentClaim)
 	return nil
 }
 
-func TestV2StateRejectsTrackingBeforeReady(t *testing.T)           { runV2TrackingGateTest(t, false) }
-func TestV2StateRejectsTrackingAfterAssignmentRevoke(t *testing.T) { runV2TrackingGateTest(t, true) }
+func TestV2StateRejectsTrackingBeforeReady(t *testing.T) { runV2TrackingGateTest(t, false, false) }
+func TestV2StateRejectsTrackingAfterAssignmentRevoke(t *testing.T) {
+	for _, receiveFirst := range []bool{false, true} {
+		name := "send-before-status"
+		if receiveFirst {
+			name = "send-after-status"
+		}
+		t.Run(name, func(t *testing.T) { runV2TrackingGateTest(t, true, receiveFirst) })
+	}
+}
 
-func runV2TrackingGateTest(t *testing.T, readyThenRevoke bool) {
+func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 	definition := json.RawMessage(`{"schemaVersion":2,"presentationId":"presentation-1","stage":{"zones":{"zone":{"id":"zone","owner":{"kind":"presentation"},"center":[0,0,0],"size":[2,2,2]}}},"scene":{"nodes":{},"surfaces":{}},"flow":{"initialGroupId":"intro","groups":{"intro":{"id":"intro","initialStepId":"start","steps":{"start":{"id":"start","cues":[{"id":"enter","priority":1,"order":0,"trigger":{"kind":"zoneEdge","subject":{"kind":"participant","owner":{"kind":"presenter"}},"zoneId":"zone","edge":"enter"},"firePolicy":{"kind":"repeatable"},"actions":[],"next":{"kind":"stay"}}]}}}},"variables":{},"timelines":{}}}`)
 	runtime, err := runtimecore.NewV2Session(definition)
 	if err != nil {
@@ -112,7 +122,7 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke bool) {
 	if readyThenRevoke {
 		outside := &presentationv2.Pose{Position: &presentationv2.Vector3{X: 2}, Rotation: &presentationv2.Quaternion{W: 1}}
 		seed := &realtimev2.TrackingFrame{FrameSequence: 1, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: outside, PositionAvailable: true, RotationAvailable: true}}}
-		if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: seed}}); err != nil {
+		if _, _, err := runtime.AcceptTracking(ctx, identity, seed, time.Now(), 1); err != nil {
 			t.Fatal(err)
 		}
 		guard.revoked.Store(true)
@@ -122,10 +132,19 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke bool) {
 		sequence = 2
 	}
 	frame := &realtimev2.TrackingFrame{FrameSequence: sequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
-	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: frame}}); err != nil {
+	if receiveFirst {
+		if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: frame}}); err != nil && !errors.Is(err, io.EOF) {
+			t.Fatal(err)
+		}
+		_, err = state.Recv()
+	}
+	// Send may observe stream closure before Recv exposes the final status.
+	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: frame}}); err != nil && !errors.Is(err, io.EOF) {
 		t.Fatal(err)
 	}
-	_, err = state.Recv()
+	if !receiveFirst {
+		_, err = state.Recv()
+	}
 	want := codes.InvalidArgument
 	if readyThenRevoke {
 		want = codes.FailedPrecondition
