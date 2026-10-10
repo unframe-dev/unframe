@@ -33,9 +33,9 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await expect(page.getByRole("heading", { name: "Create an account." })).toBeVisible();
   await page.goto("/home");
   const desktopMenu = page.getByRole("button", { name: "アカウントメニュー" });
-  const createButton = page.getByRole("button", { name: "新規作成" });
+  const projectGuide = page.getByRole("heading", { name: "ローカル project を開く" });
   await expect(desktopMenu).toBeVisible();
-  await expect(createButton).toBeVisible();
+  await expect(projectGuide).toBeVisible();
   const mainNavigation = page.getByRole("navigation", {
     name: "メインナビゲーション",
   });
@@ -67,19 +67,6 @@ test("public authentication routes and account menu are accessible", async ({ pa
   await page.reload();
   await expect(page.getByRole("button", { name: "サイドバーを展開" })).toBeVisible();
   await page.getByRole("button", { name: "サイドバーを展開" }).click();
-  const createButtonStyle = await createButton.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { animationName: style.animationName, borderRadius: style.borderRadius };
-  });
-  expect(createButtonStyle.animationName).toBe("none");
-  expect(Number.parseFloat(createButtonStyle.borderRadius)).toBeGreaterThanOrEqual(20);
-  await createButton.click();
-  const closeDialog = page.getByRole("button", { name: "閉じる" });
-  await expect(closeDialog).toBeVisible();
-  expect(
-    await closeDialog.evaluate((element) => getComputedStyle(element).transitionDuration),
-  ).not.toBe("0s");
-  await closeDialog.click();
   await expect(page.getByRole("menuitem", { name: "設定" })).toBeHidden();
   const pageWidthBeforeMenu = await page.evaluate(() => document.documentElement.clientWidth);
   await desktopMenu.click();

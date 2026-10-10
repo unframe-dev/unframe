@@ -19,7 +19,6 @@ export type PresentationRouteOptions = {
   identityProvider: IdentityProvider;
   repository?: PresentationRepository | undefined;
   now?: (() => string) | undefined;
-  id?: (() => string) | undefined;
 };
 
 const presentationError = {
@@ -49,7 +48,6 @@ export function createPresentationRoutes(options: PresentationRouteOptions) {
     new PresentationService(
       options.repository ?? new D1PresentationRepository(context.get("config").DB),
       options.now ?? (() => new Date().toISOString()),
-      options.id ?? crypto.randomUUID,
     );
   const execute = async <T>(
     context: AppContext,

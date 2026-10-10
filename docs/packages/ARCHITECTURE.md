@@ -10,6 +10,7 @@
   - コンパイル後の構造・配信・Runtime: Presentation v2。Authoring / build host の実装設計は後続
 - **Related**:
   - [Presentation Implementation Design](./DESIGN.md)
+  - [Local Editor: Unity Preview の設計と実装計画](./LOCAL_EDITOR_DESIGN.md)
   - [Presentation Surface 描画方式の検証条件](./UI_RENDERING_COMPARISON.md)
   - [ADR-0005: 空間プレゼンテーションのドメインモデルを定義する](../decisions/0005-spatial-presentation-domain-model.md)
   - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
@@ -307,7 +308,6 @@ Presentation は過去の公開版を選択可能な履歴として保持せず�
 
 ```ts
 type PublishedPresentation = PublicationFence & {
-  sourceDraftRevision: number;
   buildId: PresentationBuildId;
   definitionHash: ContentHash;
   renderBundleHash: ContentHash;
@@ -328,7 +328,9 @@ Session は `presentationId` を参照し、公開版を選択しない。Sessio
 
 `Waiting` は作成時に有限の `waitingExpiresAt` を持つ。Presentation owner または admin は、その Session の presenter でなくても `Waiting` Session を cancel して `Ended` にできる。publish の直列化処理は期限切れの `Waiting` Session を同じ永続化境界で `Ended / waitingExpired` にした後、残る active-use lock を判定する。通常の editor 操作、viewer join、接続切断だけで期限を延長せず、延長を許可する場合も認証済み presenter の明示操作と上限付き lease として定義する。`Presenting` は waiting lease では自動終了せず、通常の Session end または Runtime recovery timeout に従う。これにより editor が作成後に放置した Session が publish を無期限に妨げない。
 
-active-use lock 中も Draft 編集と build は許可する。publish は `expectedDraftRevision`、`buildId`、build の source revision、artifact hash、Asset readiness を検証し、すべて一致する場合だけ `publicationEpoch` を増やして現在の PublishedPresentation を atomic に置換する。Draft が build 後に更新されていれば conflict とし、暗黙に最新 Draft を取り込まない。
+active-use lock 中もローカル編集と build は許可する。[ADR-0025](../decisions/0025-local-editor-unity-preview.md) の公開対象は Unity で表示確認した固定 Dist とする。Local Host は表示済み成果物と現在の `dist` を照合して generation を固定し、現在の Source／lock の更新を公開へ取り込まない。CP は `buildId`、artifact hash、Asset readiness、認可、active-use lock と、要求に固定した期待 PublicationFence（初回は未公開）を検証する。現在の公開状態と一致する場合だけ `publicationEpoch` を増やして PublishedPresentation を atomic に置換し、競合時は拒否する。CP の Draft revision とローカル Source revision の一致は公開条件にしない。
+
+Presentation ID はローカルで初回 build 前に生成・保存し、公開時の認証後に同じ ID を CP へ登録する。CP は ID の形式・一意性・所有権を検証する。ローカル ID と登録用 metadata を受ける登録契約、および上記の公開条件への移行は ADR-0025 の実装範囲であり、現行 API が対応済みであることを意味しない。
 
 過去の PublishedPresentation を rollback や Session ごとの選択肢として保持しない。置換前 artifact は active Session から参照されないことを確認した後、Draft、Build cache、監査保持など別の参照がなければ GC できる。監査 log に epoch と hash を残すことは、過去の実行 artifact を製品機能として保持することを意味しない。
 

@@ -5013,6 +5013,131 @@
               }
             }
           }
+        },
+        "preview": {
+          "options": {
+            "go_package": "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/preview;preview"
+          },
+          "nested": {
+            "LocalPreviewEnvelope": {
+              "oneofs": {
+                "_sourceRevision": {
+                  "oneof": ["sourceRevision"]
+                }
+              },
+              "fields": {
+                "schemaVersion": {
+                  "type": "uint32",
+                  "id": 1
+                },
+                "requestId": {
+                  "type": "string",
+                  "id": 2
+                },
+                "sourceRevision": {
+                  "type": "string",
+                  "id": 3,
+                  "options": {
+                    "proto3_optional": true
+                  }
+                },
+                "buildManifest": {
+                  "type": "string",
+                  "id": 4
+                },
+                "assetSet": {
+                  "type": "string",
+                  "id": 5
+                },
+                "projection": {
+                  "type": "LocalPreviewProjection",
+                  "id": 6
+                },
+                "initialState": {
+                  "type": "LocalPreviewInitialState",
+                  "id": 7
+                },
+                "assets": {
+                  "rule": "repeated",
+                  "type": "LocalPreviewAsset",
+                  "id": 8
+                }
+              }
+            },
+            "LocalPreviewProjection": {
+              "fields": {
+                "visibleNodeIds": {
+                  "rule": "repeated",
+                  "type": "string",
+                  "id": 1
+                },
+                "visibleSurfaceIds": {
+                  "rule": "repeated",
+                  "type": "string",
+                  "id": 2
+                },
+                "visibleVariableIds": {
+                  "rule": "repeated",
+                  "type": "string",
+                  "id": 3
+                },
+                "renderSurfaces": {
+                  "rule": "repeated",
+                  "type": "unframe.delivery.DeliveredRenderSurface",
+                  "id": 4
+                },
+                "semanticSurfaces": {
+                  "rule": "repeated",
+                  "type": "unframe.delivery.ProjectedSemanticSurface",
+                  "id": 5
+                },
+                "localOverlays": {
+                  "rule": "repeated",
+                  "type": "unframe.delivery.LocalOverlayDefinition",
+                  "id": 6
+                },
+                "requiredRuntimeCapabilities": {
+                  "rule": "repeated",
+                  "type": "unframe.presentation.RuntimeCapability",
+                  "id": 7
+                },
+                "runtimeCatalog": {
+                  "type": "unframe.presentation.ProjectedRuntimeCatalog",
+                  "id": 8
+                },
+                "textureResidency": {
+                  "type": "unframe.delivery.TextureResidencyPlan",
+                  "id": 9
+                }
+              }
+            },
+            "LocalPreviewInitialState": {
+              "fields": {
+                "nodeStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.NodeRuntimeState",
+                  "id": 1
+                },
+                "surfaceStates": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.SurfaceRuntimeState",
+                  "id": 2
+                }
+              }
+            },
+            "LocalPreviewAsset": {
+              "fields": {
+                "assetId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "reference": {
+                  "type": "string",
+                  "id": 2
+                }
+              }
+            }
+          }
         }
       }
     }

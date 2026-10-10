@@ -21,6 +21,7 @@ protos=(
   unframe/presentation/runtime.proto
   unframe/delivery/delivery.proto
   unframe/realtime/realtime.proto
+  unframe/preview/preview.proto
 )
 mkdir -p "${temp}/go" "${temp}/csharp/proto"
 protoc --proto_path="${proto_root}" \
@@ -80,6 +81,7 @@ sync_tree() {
 }
 
 sync_tree "${temp}/go/internal/gen/presentation" "${REALTIME_SERVER_DIR}/internal/gen/presentation" 'Go Presentation'
+sync_tree "${temp}/go/internal/gen/preview" "${REALTIME_SERVER_DIR}/internal/gen/preview" 'Go Preview'
 sync_tree "${temp}/go/internal/gen/delivery" "${REALTIME_SERVER_DIR}/internal/gen/delivery" 'Go Delivery'
 sync_tree "${temp}/go/internal/gen/realtime" "${REALTIME_SERVER_DIR}/internal/gen/realtime" 'Go Realtime'
 sync_tree "${temp}/csharp/proto" "${REPO_ROOT}/packages/api-client-csharp/Generated/Proto" 'C# Protobuf'

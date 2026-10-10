@@ -34,15 +34,39 @@ const recoveryRequired = async (directory: string): Promise<boolean> => {
 };
 export const acquireSourceLock = async (
   directory: string,
-  options: { allowRecovery?: boolean } = {},
+  options: { allowRecovery?: boolean; waitTimeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<
   | { ok: true; value: BuildLock }
   | {
       ok: false;
-      code: "cli-source-lock-unavailable" | "cli-source-lock-io" | "cli-source-recovery-required";
+      code:
+        | "cli-source-lock-unavailable"
+        | "cli-source-lock-io"
+        | "cli-source-recovery-required"
+        | "cli-cancelled";
     }
 > => {
-  const lease = await acquireFileLease(directory, { lstat, open, unlink }, ".unframe-source.lock");
+  const deadline = Date.now() + (options.waitTimeoutMs ?? 0);
+  let lease;
+  while (true) {
+    if (options.signal?.aborted) return { ok: false, code: "cli-cancelled" };
+    lease = await acquireFileLease(directory, { lstat, open, unlink }, ".unframe-source.lock");
+    if (lease.ok || lease.code !== "cli-build-lock-unavailable" || Date.now() >= deadline) break;
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        options.signal?.removeEventListener("abort", done);
+        resolve();
+      };
+      const timer = setTimeout(done, Math.min(25, Math.max(0, deadline - Date.now())));
+      options.signal?.addEventListener("abort", done, { once: true });
+      if (options.signal?.aborted) done();
+    });
+  }
+  if (options.signal?.aborted) {
+    if (lease.ok) await lease.value.release();
+    return { ok: false, code: "cli-cancelled" };
+  }
   if (!lease.ok)
     return {
       ok: false,

@@ -1,10 +1,48 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { PresentationService } from "../../src/presentation/service";
 import { D1PresentationRepository } from "../../src/presentation/repository";
 import { definition } from "./schema.test";
 import type { PresentationDefinition } from "../../src/presentation/schema";
 
 describe("D1 presentation migration", () => {
+  it("registers null draft metadata atomically and does not grant access on a local ID collision", async () => {
+    const suffix = crypto.randomUUID();
+    const firstUser = `registration-first-${suffix}`;
+    const secondUser = `registration-second-${suffix}`;
+    for (const userId of [firstUser, secondUser])
+      await env.DB.prepare(
+        "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, 'Owner', ?, 1, '2026', '2026')",
+      )
+        .bind(userId, `${userId}@example.test`)
+        .run();
+    const repository = new D1PresentationRepository(env.DB);
+    const service = new PresentationService(repository, () => "2026");
+    const id = `local-${suffix}`;
+    const outcomes = await Promise.allSettled([
+      service.create({ userId: firstUser, globalRole: "user" }, { id, name: "First" }),
+      service.create({ userId: secondUser, globalRole: "user" }, { id, name: "Second" }),
+    ]);
+    expect(outcomes.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter((result) => result.status === "rejected")).toEqual([
+      expect.objectContaining({ reason: expect.objectContaining({ code: "forbidden" }) }),
+    ]);
+    const registered = await repository.findById(id);
+    expect(registered).toMatchObject({ id, revision: 1, definition: null });
+    const members = await env.DB.prepare(
+      "SELECT user_id FROM presentation_members WHERE presentation_id = ?",
+    )
+      .bind(id)
+      .all<{ user_id: string }>();
+    expect(members.results).toEqual([{ user_id: registered!.ownerId }]);
+    expect(
+      await service.create(
+        { userId: registered!.ownerId, globalRole: "user" },
+        { id, name: "Renamed" },
+      ),
+    ).toMatchObject({ name: registered!.name, definition: null });
+  });
+
   it("locks draft replacement and deletion while a session uses the presentation", async () => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-lock-${suffix}`;
@@ -20,6 +58,7 @@ describe("D1 presentation migration", () => {
       id: presentationId,
       ownerId,
       revision: 1,
+      name: value.metadata.title,
       definition: value,
       createdAt: "2026",
       updatedAt: "2026",
@@ -61,6 +100,7 @@ describe("D1 presentation migration", () => {
       id: "persisted",
       ownerId: "owner",
       revision: 1,
+      name: value.metadata.title,
       definition: value,
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -91,6 +131,7 @@ describe("D1 presentation migration", () => {
       id: `older-${suffix}`,
       ownerId,
       revision: 1,
+      name: value.metadata.title,
       definition: value,
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -99,6 +140,7 @@ describe("D1 presentation migration", () => {
       id: `newer-${suffix}`,
       ownerId,
       revision: 1,
+      name: value.metadata.title,
       definition: value,
       createdAt: "2026-01-02T00:00:00.000Z",
       updatedAt: "2026-01-02T00:00:00.000Z",
@@ -127,6 +169,7 @@ describe("D1 presentation migration", () => {
         id: `invalid-${crypto.randomUUID()}`,
         ownerId: "missing-user",
         revision: 1,
+        name: value.metadata.title,
         definition: value,
         createdAt: "2026-01-01",
         updatedAt: "2026-01-01",
@@ -150,6 +193,7 @@ describe("D1 presentation migration", () => {
       id: presentationId,
       ownerId,
       revision: 1,
+      name: empty.metadata.title,
       definition: empty,
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",
@@ -211,6 +255,7 @@ describe("D1 presentation migration", () => {
       id: presentationId,
       ownerId,
       revision: 1,
+      name: empty.metadata.title,
       definition: empty,
       createdAt: "2026-01-01",
       updatedAt: "2026-01-01",

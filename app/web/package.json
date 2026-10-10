@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
+    "dev:editor": "vp dev --config vite.editor.config.ts",
     "dev:e2e": "vp dev --mode e2e --host 127.0.0.1 --port 4173",
     "build": "vp build",
     "check": "tsc --noEmit",
@@ -15,14 +16,12 @@
     "cf:types": "wrangler types --include-runtime=false --env-interface CloudflareBindings",
     "cf:deploy": "wrangler deploy",
     "cf:deploy:dry-run": "wrangler deploy --dry-run",
-    "build:author": "vp build --config vite.author.config.ts && mv dist-author/author.html dist-author/index.html"
+    "build:editor": "vp build --config vite.editor.config.ts && mv dist-editor/editor.html dist-editor/index.html"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@hookform/resolvers": "5.9.1",
     "@phosphor-icons/react": "^2.1.10",
-    "@react-three/drei": "10.7.8",
-    "@react-three/fiber": "9.7.0",
     "@tanstack/react-query": "5.102.3",
     "@tanstack/react-router": "1.170.32",
     "@unframe/api-client-typescript": "workspace:*",
@@ -30,14 +29,11 @@
     "@unframe/unframe-core": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "immer": "11.1.18",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "7.86.0",
     "tailwind-merge": "^3.6.0",
-    "three": "0.185.1",
-    "zod": "4.4.3",
-    "zustand": "5.0.15"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.61.0",
@@ -50,7 +46,6 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.1",
     "jsdom": "30.1.1",
     "tailwindcss": "^4.3.2",

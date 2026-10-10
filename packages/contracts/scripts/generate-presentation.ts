@@ -102,6 +102,7 @@ try {
       "unframe/presentation/runtime.proto",
       "unframe/delivery/delivery.proto",
       "unframe/realtime/realtime.proto",
+      "unframe/preview/preview.proto",
     ],
     { cwd: resolve(root, "proto"), maxBuffer: 16 * 1024 * 1024 },
   );

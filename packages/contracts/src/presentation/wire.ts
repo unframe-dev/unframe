@@ -22,7 +22,7 @@ initializeStaticConstructors(unframe as unknown as Record<string, unknown>);
 
 interface StaticCodec {
   fromObject(value: object): unknown;
-  encode(value: unknown): { finish(): Uint8Array };
+  encode(value: unknown, writer?: protobuf.Writer): { finish(): Uint8Array };
   decode(bytes: Uint8Array): unknown;
   toObject(value: unknown, options: object): Record<string, unknown>;
 }
@@ -193,7 +193,8 @@ export function encodeWireMessage(typeName: string, value: object): Uint8Array {
   const snapshot = snapshotData(value) as Record<string, unknown>;
   validateObject(type, snapshot);
   const codec = staticCodec(typeName);
-  return codec.encode(codec.fromObject(snapshot)).finish();
+  // workerd's Buffer UTF-8 writer differs from Node when the remaining length is omitted.
+  return codec.encode(codec.fromObject(snapshot), new protobuf.Writer()).finish();
 }
 
 export function decodeWireMessage(typeName: string, bytes: Uint8Array): Record<string, unknown> {

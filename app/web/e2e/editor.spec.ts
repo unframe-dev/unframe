@@ -1,91 +1,103 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import type { BuildJob, ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
 
-const editorPath = "/editor/demo?panel=properties";
-
-test.beforeEach(async ({ page }) => {
-  await page.route("**/api/auth/get-session", (route) =>
+const token = "a".repeat(64);
+test("saves Source and reloads Dev and Dist through the Host with a Unity bridge fixture", async ({
+  page,
+}) => {
+  let current: ProjectSnapshot = {
+    revision: "r1",
+    sourceHash: "s1",
+    irHash: "i1",
+    definition: null,
+    diagnostics: [],
+    instances: [
+      {
+        instanceId: "hero",
+        surfaceId: "hero",
+        props: { title: { type: "string", value: "Original", editable: true } },
+        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        transformEditable: true,
+      },
+    ],
+  };
+  let builds = 0;
+  const loaded: string[] = [];
+  const jobs = new Map<string, BuildJob>();
+  await page.route("**/unity-preview/Build/UnframePreview.loader.js", (route) =>
     route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        user: {
-          id: "test-user",
-          name: "テストユーザー",
-          email: "test@example.com",
-          emailVerified: true,
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
-        session: {
-          id: "test-session",
-          userId: "test-user",
-          expiresAt: "2026-08-18T00:00:00.000Z",
-          token: "test-token",
-          createdAt: "2026-08-17T00:00:00.000Z",
-          updatedAt: "2026-08-17T00:00:00.000Z",
-        },
-      }),
+      contentType: "text/javascript",
+      body: `window.createUnityInstance = async () => ({
+      SendMessage: (_target, method, value) => {
+        if (method === 'Prepare') { const envelope = JSON.parse(value); window.dispatchEvent(new CustomEvent('unframe-preview', {detail: {kind:'prepared', requestId:envelope.requestId, buildIdentity:'fixture-build'}})); }
+        if (method === 'Commit') window.dispatchEvent(new CustomEvent('unframe-preview', {detail: {kind:'committed', requestId:value, buildIdentity:'fixture-build'}}));
+      }, Quit: async () => {}
+    });`,
     }),
   );
-});
-
-async function canvasCenter(page: Page) {
-  const canvas = page.getByRole("region", { name: "3Dプレゼンテーション" }).locator("canvas");
-  await expect(canvas).toBeVisible();
-  const bounds = await canvas.boundingBox();
-  if (!bounds) throw new Error("3D Canvas の表示領域を取得できません");
-  return {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2,
-  };
-}
-
-test("Canvas操作をcommandとして確定し、Undo / Redoを行う", async ({ page }) => {
-  await page.goto(editorPath);
-  await expect(page.getByRole("heading", { name: "Spatial story" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Unframe sculptureを選択" }).click();
-  await expect(page.getByRole("heading", { name: "Unframe sculpture のプロパティ" })).toBeVisible();
-
-  const center = await canvasCenter(page);
-
-  await page.getByRole("button", { name: "移動" }).click();
-  const xAxisHandle = { x: center.x, y: center.y + 10 };
-  await page.mouse.move(xAxisHandle.x, xAxisHandle.y);
-  await page.mouse.down();
-  await page.mouse.move(xAxisHandle.x + 80, xAxisHandle.y + 20, { steps: 8 });
-  await page.mouse.up();
-
-  await expect(page.getByText("Revision 1")).toBeVisible();
-
-  await page.getByRole("button", { name: "元に戻す" }).click();
-  await expect(page.getByText("Revision 2")).toBeVisible();
-
-  await page.getByRole("button", { name: "やり直す" }).click();
-  await expect(page.getByText("Revision 3")).toBeVisible();
-});
-
-test("GLB読込失敗時に再試行できるfallbackを表示する", async ({ page }) => {
-  await page.addInitScript(() => {
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = (input, init) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.startsWith("data:model/gltf-binary")) {
-        return Promise.reject(new TypeError("Injected GLB load failure"));
-      }
-      return originalFetch(input, init);
-    };
+  await page.route("**/api/**", async (route) => {
+    expect(route.request().headers()["authorization"]).toBe(`Bearer ${token}`);
+    const path = new URL(route.request().url()).pathname;
+    const method = route.request().method();
+    if (path === "/api/publication-auth")
+      return route.fulfill({ json: { status: "unconfigured" } });
+    if (path === "/api/project" && method === "PATCH") {
+      const request = route.request().postDataJSON();
+      current = structuredClone(current);
+      current.revision = `r${Number(current.revision.slice(1)) + 1}`;
+      current.irHash = current.revision;
+      current.instances[0]!.props["title"]!.value = request.command.value;
+      return route.fulfill({
+        json: {
+          revision: current.revision,
+          sourceHash: current.sourceHash,
+          irHash: current.irHash,
+          commandId: request.commandId,
+        },
+      });
+    }
+    if (path === "/api/project") return route.fulfill({ json: current });
+    if (path === "/api/builds") {
+      builds++;
+      const job: BuildJob = {
+        buildId: String(builds),
+        revision: current.revision,
+        channel: "dev",
+        generationId: "f".repeat(32),
+        status: "succeeded",
+        diagnostics: [],
+        artifacts: [],
+      };
+      jobs.set(job.buildId, job);
+      return route.fulfill({ json: job });
+    }
+    if (path === "/api/previews") {
+      const request = route.request().postDataJSON();
+      loaded.push(request.channel);
+      return route.fulfill({
+        json: {
+          requestId: request.requestId,
+          buildManifest: JSON.stringify({ buildId: "fixture-build" }),
+          ...(request.channel === "dev"
+            ? { sourceRevision: jobs.get(request.buildId)?.revision }
+            : {}),
+        },
+      });
+    }
+    if (path === "/api/preview-display") return route.fulfill({ status: 204 });
+    return route.abort();
   });
-  await page.goto(editorPath);
-
-  const fallback = page.getByRole("alert");
-  await expect(fallback).toContainText("Unframe sculptureを読み込めません");
-  await expect(page.getByRole("button", { name: "再試行" })).toBeVisible();
-});
-
-test("@webgl-fallback WebGLを利用できない場合に復旧案内を表示する", async ({ page }) => {
-  await page.goto(editorPath);
-
-  const fallback = page.getByRole("alert");
-  await expect(fallback).toContainText("WebGLを利用できません");
-  await expect(fallback).toContainText("ハードウェアアクセラレーション");
+  await page.goto(`/editor.html#token=${token}`);
+  await expect(page.getByText("表示 build identity: fixture-build")).toBeVisible();
+  await expect(page).not.toHaveURL(/token=/);
+  await page.getByRole("button", { name: "hero", exact: true }).click();
+  await page.getByLabel("title").fill("Saved");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByText("保存 revision: r2")).toBeVisible();
+  await expect(page.getByText("表示 mode: dev / 表示 revision: r2")).toBeVisible();
+  const beforeDist = builds;
+  await page.getByRole("button", { name: "Dist Preview", exact: true }).click();
+  await expect(page.getByText("表示 mode: dist / 表示 revision: Dist / なし")).toBeVisible();
+  expect(builds).toBe(beforeDist);
+  expect(loaded).toEqual(["dev", "dev", "dist"]);
 });

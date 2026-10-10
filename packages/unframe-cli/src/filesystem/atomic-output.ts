@@ -16,6 +16,9 @@ import { isAbsolute, join, parse } from "node:path";
 
 const GENERATION_ID = /^[0-9a-f]{32}$/;
 const MANAGED_DIST_TARGET = /^\.unframe\/generations\/([0-9a-f]{32})$/;
+const MANAGED_DEV_TARGET = /^generations\/([0-9a-f]{32})$/;
+
+export type OutputChannel = "dev" | "dist";
 
 export type AtomicOutputArtifacts = {
   readonly definition: Uint8Array;
@@ -44,6 +47,7 @@ export type AtomicOutputResult =
 
 export type PublishAtomicArtifactsInput = {
   readonly projectDirectory: string;
+  readonly channel?: OutputChannel;
   readonly artifacts: AtomicOutputArtifacts;
   readonly generationId?: () => string;
   readonly signal?: AbortSignal;
@@ -349,16 +353,17 @@ const snapshotArtifacts = (artifacts: AtomicOutputArtifacts): readonly FileArtif
 };
 
 const existingDistIsManaged = async (
-  root: string,
+  path: string,
   generations: DirectoryIdentity,
+  targetPattern: RegExp,
   readLstat: RawLstat = lstat,
 ): Promise<ManagedDist | AbsentDist | false> => {
-  const dist = join(root, "dist");
+  const dist = path;
   const stat = await optionalLstat(dist, readLstat);
   if (!stat) return { path: dist, absent: true };
   if (!stat.isSymbolicLink()) return false;
   const target = await readlink(dist).catch(() => undefined);
-  const match = target?.match(MANAGED_DIST_TARGET);
+  const match = target?.match(targetPattern);
   if (!match) return false;
   if (!(await sameDirectory(generations))) return false;
   if (!(await verifyDirectoryPath(join(generations.path, match[1]!)))) return false;
@@ -397,6 +402,7 @@ const closeDirectories = async (...directories: (DirectoryIdentity | undefined)[
 
 export const publishAtomicArtifacts = async ({
   projectDirectory,
+  channel = "dist",
   artifacts,
   generationId = () => randomBytes(16).toString("hex"),
   signal,
@@ -408,9 +414,11 @@ export const publishAtomicArtifacts = async ({
   let temporaryLink: LinkIdentity | undefined;
   let project: DirectoryIdentity | undefined;
   let unframe: DirectoryIdentity | undefined;
+  let preview: DirectoryIdentity | undefined;
   let generations: DirectoryIdentity | undefined;
   let assets: DirectoryIdentity | undefined;
   try {
+    if (channel !== "dev" && channel !== "dist") fail();
     if (cancelled(signal)) return { ok: false, family: "cancel", code: "cli-output-cancel" };
     project = await captureDirectory(projectDirectory);
     const id = generationId();
@@ -418,10 +426,20 @@ export const publishAtomicArtifacts = async ({
     const files = snapshotArtifacts(artifacts);
     stage = "prepare-output";
     unframe = await ensureDirectory(project, ".unframe");
-    generations = await ensureDirectory(unframe, "generations");
+    if (channel === "dev") preview = await ensureDirectory(unframe, "preview");
+    const outputParent = preview ?? project;
+    const pointerName = channel === "dev" ? "current" : "dist";
+    const pointerPath = join(outputParent.path, pointerName);
+    const targetPrefix = channel === "dev" ? "generations" : ".unframe/generations";
+    generations = await ensureDirectory(preview ?? unframe, "generations");
     stage = "inspect-dist";
     const readLstat = testing?.lstat ?? lstat;
-    const discoveredDist = await existingDistIsManaged(project.path, generations, readLstat);
+    const discoveredDist = await existingDistIsManaged(
+      pointerPath,
+      generations,
+      channel === "dev" ? MANAGED_DEV_TARGET : MANAGED_DIST_TARGET,
+      readLstat,
+    );
     if (discoveredDist === false) return fail();
     const previousDist: ManagedDist | AbsentDist = discoveredDist;
     if (cancelled(signal)) cancel();
@@ -465,9 +483,9 @@ export const publishAtomicArtifacts = async ({
       fail();
 
     stage = "create-dist-link";
-    const temporaryPath = join(project.path, `.dist-${id}`);
+    const temporaryPath = join(outputParent.path, `.${pointerName}-${id}`);
     if (await lstat(temporaryPath).catch(() => undefined)) fail();
-    await symlink(`.unframe/generations/${id}`, temporaryPath).catch(fail);
+    await symlink(`${targetPrefix}/${id}`, temporaryPath).catch(fail);
     const temporaryStat = await lstat(temporaryPath).catch(() => undefined);
     if (!temporaryStat || !temporaryStat.isSymbolicLink()) return fail();
     const createdTemporaryLink: LinkIdentity = {
@@ -482,6 +500,8 @@ export const publishAtomicArtifacts = async ({
     if (isCurrentRevision && !(await isCurrentRevision())) throw new PublicationStale();
     stage = "replace-dist";
     await requireSameDirectory(project);
+    await requireSameDirectory(unframe);
+    await requireSameDirectory(outputParent);
     await requireSameDirectory(generations);
     if (!(await unchangedDist(previousDist, readLstat))) fail();
     const currentTemporary = await lstat(createdTemporaryLink.path).catch(() => undefined);
@@ -492,7 +512,7 @@ export const publishAtomicArtifacts = async ({
     )
       fail();
     if (cancelled(signal)) cancel();
-    await rename(createdTemporaryLink.path, join(project.path, "dist")).catch(fail);
+    await rename(createdTemporaryLink.path, pointerPath).catch(fail);
     temporaryLink = undefined;
     return { ok: true, generationId: id };
   } catch (error) {
@@ -511,6 +531,6 @@ export const publishAtomicArtifacts = async ({
       detail: { stage, ...(code ? { code } : {}), ...(operation ? { operation } : {}) },
     };
   } finally {
-    await closeDirectories(assets, staging, generations, unframe, project);
+    await closeDirectories(assets, staging, generations, preview, unframe, project);
   }
 };

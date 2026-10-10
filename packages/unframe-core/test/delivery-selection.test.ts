@@ -15,6 +15,7 @@ import assetSetFixture from "../../contracts/presentation/fixtures/asset-set-man
 import capabilityFixture from "../../contracts/presentation/fixtures/capability-profile.json";
 import publicationFixture from "../../contracts/presentation/fixtures/published-presentation.json";
 import buildFixture from "../../contracts/presentation/fixtures/build-manifest.json";
+import { buildRuntimeProjection, selectBuildArtifacts } from "../src/index.js";
 import { selectDeliveryArtifacts } from "../src/delivery/selection.js";
 import { buildProjectionProfile } from "../src/delivery/profile.js";
 import { calculateProjectionProfileId } from "../src/delivery/profile-identity.js";
@@ -58,6 +59,24 @@ const baselineSource = (change?: (current: typeof source) => void) => {
 };
 
 describe("Delivery artifact selection and admission", () => {
+  it("builds the identical render and runtime projection without publication identity", () => {
+    const { publishedPresentation: _, ...input } = baselineSource();
+    const {
+      projectionProfileId: _id,
+      key: _key,
+      ...expected
+    } = buildProjectionProfile(baselineSource(), "presenter").profile;
+    const result = buildRuntimeProjection(input, "presenter");
+    expect(result.projection).toEqual(expected);
+    expect(result.selection).toEqual(selectBuildArtifacts(input, "presenter"));
+  });
+
+  it("selects unpublished build artifacts with the same admission rules as Delivery", () => {
+    const { publishedPresentation: _, ...input } = baselineSource();
+    expect(selectBuildArtifacts(input, "presenter")).toEqual(
+      selectDeliveryArtifacts(baselineSource(), "presenter"),
+    );
+  });
   it("rejects a hash-consistent publication whose compiled Surface size differs from its Definition", () => {
     const input = baselineSource((current) => {
       const surface = current.renderBundle.surfaces.baked;
@@ -68,6 +87,65 @@ describe("Delivery artifact selection and admission", () => {
     expect(() => selectDeliveryArtifacts(input, "presenter")).toThrow(
       "Compiled surface sizes must match the Definition.",
     );
+  });
+
+  it("keeps every Group in the catalog while admission remains role-specific", () => {
+    const source = baselineSource((current) => {
+      current.definition.flow.groups.later = {
+        id: "later",
+        initialStepId: "start",
+        steps: { start: { id: "start", cues: [] } },
+      };
+      current.definition.scene.nodes["node-baked"]!.owner = { kind: "group", groupId: "later" };
+      current.definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "presenter" };
+    });
+    const { publishedPresentation: _, ...input } = source;
+    expect(buildRuntimeProjection(input, "presenter").projection.runtimeCatalog?.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ nodeId: "node-baked", owner: { group: { groupId: "later" } } }),
+      ]),
+    );
+    expect(buildRuntimeProjection(input, "viewer").projection.visibleSurfaceIds).toEqual([]);
+  });
+
+  it("rejects invalid unpublished build hashes, renderer tiers and budgets", () => {
+    const { publishedPresentation: _, ...input } = baselineSource();
+    const tampered = structuredClone(input);
+    tampered.buildManifest.definitionHash = `sha256:${"0".repeat(64)}`;
+    expect(() => selectBuildArtifacts(tampered, "presenter")).toThrow("Delivery build is invalid");
+    const limited = structuredClone(input);
+    limited.capability.limits.texture.maxGpuBytes = 100;
+    expect(() => buildRuntimeProjection(limited, "presenter")).toThrow(
+      "Texture GPU bytes exceeds capability limit",
+    );
+    const { publishedPresentation: _publication, ...unsupported } = source;
+    expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow(
+      "delivery-artifact-unavailable",
+    );
+  });
+
+  it("rejects hash-consistent invalid Surface geometry for unpublished projection", () => {
+    const { publishedPresentation: _, ...input } = baselineSource((current) => {
+      current.renderBundle.surfaces.baked!.physicalSizeMeters = [3, 2];
+    });
+    expect(() => buildRuntimeProjection(input, "presenter")).toThrow(
+      "Compiled surface sizes must match the Definition",
+    );
+  });
+
+  it("rejects publication fields and accessor properties on the local build boundary", () => {
+    expect(() => selectBuildArtifacts(baselineSource(), "presenter")).toThrow("input envelope");
+    const { publishedPresentation: _, ...input } = baselineSource();
+    let reads = 0;
+    Object.defineProperty(input, "capability", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        return capability;
+      },
+    });
+    expect(() => selectBuildArtifacts(input, "presenter")).toThrow("plain JSON");
+    expect(reads).toBe(0);
   });
 
   it("selects the first compatible candidate and only its transitive Asset closure", () => {

@@ -12,6 +12,7 @@ import {
 } from "./path-policy.js";
 
 type ProjectFailureCode =
+  | "cli-cancelled"
   | "cli-source-lock-unavailable"
   | "cli-source-lock-io"
   | "cli-source-recovery-required"
@@ -174,7 +175,7 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
 
 export const discoverPresentationProjectFiles = async (
   directory: string,
-  options: { sourceLeaseHeld?: boolean } = {},
+  options: { sourceLeaseHeld?: boolean; waitTimeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<DiscoveredProjectFiles> => {
   if (options.sourceLeaseHeld) return discoverWithoutLease(directory);
   const root = await projectDirectory(directory);
@@ -183,7 +184,7 @@ export const discoverPresentationProjectFiles = async (
       "cli-project-discovery-invalid-directory",
       "Project directory must be an absolute non-symbolic-link directory.",
     );
-  const lease = await acquireSourceLock(root);
+  const lease = await acquireSourceLock(root, options);
   if (!lease.ok) return failure(lease.code, "Source is being saved or requires recovery.");
   try {
     return await discoverWithoutLease(root);
