@@ -184,16 +184,18 @@ const makeRenderer = (calls?: { count: number }): RendererPlugin => {
         },
         captures: Object.entries(input.plan.states)
           .filter(([, state]) => state.kind === "capture")
-          .map(([stateId]) => ({
-            id: `${stateId}:capture`,
-            stateId,
-            rgba: Uint8Array.from({ length: width * height * 4 }, (_, index) =>
-              index % 4 === 3 ? 255 : 0,
-            ),
-            pixelSize: [width, height] as [number, number],
-            colorSpace: "srgb" as const,
-            alphaMode: "opaque" as const,
-          })),
+          .map(([stateId]) => {
+            const rgba = new Uint8Array(width * height * 4);
+            for (let alpha = 3; alpha < rgba.length; alpha += 4) rgba[alpha] = 255;
+            return {
+              id: `${stateId}:capture`,
+              stateId,
+              rgba,
+              pixelSize: [width, height] as [number, number],
+              colorSpace: "srgb" as const,
+              alphaMode: "opaque" as const,
+            };
+          }),
         provenance: {
           ...identity,
           inputHash: input.context.inputHash,

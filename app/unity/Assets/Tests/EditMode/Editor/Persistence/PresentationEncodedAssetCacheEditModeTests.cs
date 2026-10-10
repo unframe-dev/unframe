@@ -269,7 +269,12 @@ public sealed class PresentationEncodedAssetCacheEditModeTests
             {
                 Assert.That(await currentLease.GetAsync(asset, (_, _) => Task.FromResult(bytes), CancellationToken.None), Is.EqualTo(bytes));
                 delayed.SetResult(bytes);
-                Assert.ThrowsAsync<OperationCanceledException>(async () => await staleDownload);
+                try
+                {
+                    await staleDownload;
+                    Assert.Fail("released reservation's download must not complete");
+                }
+                catch (OperationCanceledException) { }
                 Assert.That(File.Exists(Path.Combine(directory, asset.Checksum.Substring(7) + ".bin")), Is.True);
                 Assert.That(await currentLease.GetAsync(asset, (_, _) => throw new AssertionException("verified bytes must remain cached"), CancellationToken.None), Is.EqualTo(bytes));
                 Assert.That(cache.IsReady, Is.True);

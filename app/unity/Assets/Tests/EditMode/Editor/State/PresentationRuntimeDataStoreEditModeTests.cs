@@ -1770,6 +1770,256 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         }
     }
 
+    [Test]
+    public void PresentationOrigin_SnapshotAndGetterAreClonedAndDeliveryResetClearsOrigin()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithOrigin(delivery);
+        Assert.That(store.PresentationOrigin, Is.Not.Null);
+        Assert.That(store.PresentationOrigin.Version, Is.Zero);
+        PresentationOrigin read = store.PresentationOrigin;
+        read.Pose.Position.X = 100;
+        Assert.That(store.PresentationOrigin.Pose.Position.X, Is.Zero);
+        PresentationOrigin source = CreateOrigin(3);
+        source.Pose.Position.X = 2;
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = CreateOriginSnapshot(delivery, source) }, out string snapshotError), Is.True, snapshotError);
+        source.Version = 99;
+        source.Pose.Position.X = 100;
+        Assert.That(store.PresentationOrigin.Version, Is.EqualTo(3));
+        Assert.That(store.PresentationOrigin.Pose.Position.X, Is.EqualTo(2));
+        DeliveryManifest invalid = delivery.Clone();
+        invalid.ProjectionProfile.RuntimeCatalog.Nodes.Add(invalid.ProjectionProfile.RuntimeCatalog.Nodes[0].Clone());
+        Assert.That(store.TryReceiveDelivery(invalid, out _), Is.False);
+        Assert.That(store.PresentationOrigin, Is.Not.Null);
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        Assert.That(store.PresentationOrigin, Is.Null);
+    }
+
+    [TestCase("missing pose")]
+    [TestCase("missing position")]
+    [TestCase("missing rotation")]
+    [TestCase("nonfinite position")]
+    [TestCase("overflow position")]
+    [TestCase("nonunit rotation")]
+    [TestCase("negative sign")]
+    [TestCase("fence version")]
+    [TestCase("duplicate node")]
+    public void PresentationOrigin_InvalidSnapshotPreservesTheAcceptedCut(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithOrigin(delivery);
+        ConnectionSnapshotEnvelope snapshot = CreateOriginSnapshot(delivery, CreateOrigin(3));
+        switch (invalidCase)
+        {
+            case "missing pose": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose = null; break;
+            case "missing position": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose.Position = null; break;
+            case "missing rotation": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose.Rotation = null; break;
+            case "nonfinite position": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose.Position.X = double.NaN; break;
+            case "overflow position": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose.Position.X = double.MaxValue; break;
+            case "nonunit rotation": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose.Rotation.W = 1 + 2e-9; break;
+            case "negative sign": snapshot.Snapshot.RuntimeView.PresentationOrigin.Pose.Rotation.W = -1; break;
+            case "fence version": snapshot.Fence.PresentationOriginVersion = 2; break;
+            case "duplicate node": snapshot.Snapshot.RuntimeView.NodeStates.Add(snapshot.Snapshot.RuntimeView.NodeStates[0].Clone()); break;
+        }
+
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out _), Is.False, invalidCase);
+        Assert.That(store.PresentationOrigin.Version, Is.Zero);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState retained), Is.True);
+        Assert.That(retained.Opacity, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void PresentationOrigin_ChangeAdvancesTheFenceAndRejectsTheOldStateCut()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithOrigin(delivery);
+        Assert.That(store.TryReceiveState(new StateServerItem
+        {
+            StateFrame = CreateStateFrame(delivery, 5, StateFrameKind.Keyframe, new NodeStatePatch { Opacity = 0.75 }),
+        }, out string frameError), Is.True, frameError);
+        PresentationOrigin origin = CreateOrigin(1);
+        origin.Pose.Position.Z = 2;
+        ProjectedReliableEvent change = CreateOriginChange(delivery, origin);
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ReliableEvent = change }, out string error), Is.True, error);
+        origin.Pose.Position.Z = 20;
+        Assert.That(store.PresentationOrigin.Pose.Position.Z, Is.EqualTo(2));
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(5));
+        ProjectedReliableEvent oldEvent = new ProjectedReliableEvent
+        {
+            Sequence = 2,
+            Fence = CreateFence(delivery),
+            NodeStateCommitted = new NodeStateCommitted { State = new NodeRuntimeState { NodeId = "node:model", Active = true, Visible = true, Opacity = 0.1 } },
+        };
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ReliableEvent = oldEvent }, out _), Is.False);
+        Assert.That(store.LastReliableSequence, Is.EqualTo(1));
+        Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState retained), Is.True);
+        Assert.That(retained.Opacity, Is.EqualTo(0.75));
+        ElementStateFrame oldFrame = CreateStateFrame(delivery, 6, StateFrameKind.Keyframe, new NodeStatePatch { Opacity = 0.5 });
+        oldFrame.BaseReliableSequence = 1;
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = oldFrame }, out _), Is.False);
+        Assert.That(store.LastStateFrameSequence, Is.EqualTo(5));
+        oldFrame.Fence.PresentationOriginVersion = 1;
+        Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = oldFrame }, out error), Is.True, error);
+        ProjectionAdvance advance = new ProjectionAdvance { Fence = CreateFence(delivery), FromExclusive = 1, ThroughSequence = 2 };
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ProjectionAdvance = advance }, out _), Is.False);
+        advance.Fence.PresentationOriginVersion = 1;
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ProjectionAdvance = advance }, out error), Is.True, error);
+    }
+
+    [Test]
+    public void PresentationOrigin_ReliableEventsRequireAnAcceptedSnapshot()
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(new ControlServerItem
+        {
+            ReliableEvent = CreateOriginChange(delivery, CreateOrigin(1)),
+        }, out _), Is.False);
+        Assert.That(store.PresentationOrigin, Is.Null);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+    }
+
+    [TestCase("same version")]
+    [TestCase("old fence")]
+    [TestCase("invalid pose")]
+    [TestCase("sequence gap")]
+    public void PresentationOrigin_InvalidChangeDoesNotAdvanceTheCut(string invalidCase)
+    {
+        DeliveryManifest delivery = CreateDelivery();
+        PresentationRuntimeDataStore store = CreateStoreWithOrigin(delivery);
+        ProjectedReliableEvent change = CreateOriginChange(delivery, CreateOrigin(1));
+        switch (invalidCase)
+        {
+            case "same version": change.PresentationOriginChanged.Origin.Version = 0; change.Fence.PresentationOriginVersion = 0; break;
+            case "old fence": change.Fence.PresentationOriginVersion = 1; break;
+            case "invalid pose": change.PresentationOriginChanged.Origin.Pose.Rotation.W = -1; break;
+            case "sequence gap": change.Sequence = 2; break;
+        }
+
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ReliableEvent = change }, out _), Is.False);
+        Assert.That(store.PresentationOrigin.Version, Is.Zero);
+        Assert.That(store.LastReliableSequence, Is.Zero);
+    }
+
+    private static PresentationOrigin CreateOrigin(ulong version = 0)
+    {
+        return new PresentationOrigin
+        {
+            Version = version,
+            Pose = new Unframe.Presentation.Pose
+            {
+                Position = new Unframe.Presentation.Vector3(),
+                Rotation = new Unframe.Presentation.Quaternion { W = 1 },
+            },
+        };
+    }
+
+    private static ConnectionSnapshotEnvelope CreateOriginSnapshot(DeliveryManifest delivery, PresentationOrigin origin, ulong sequence = 4)
+    {
+        RuntimeProjectionFence fence = CreateFence(delivery);
+        fence.PresentationOriginVersion = origin.Version;
+        return new ConnectionSnapshotEnvelope
+        {
+            SchemaVersion = 2,
+            Fence = fence,
+            ProjectionInstance = delivery.ProjectionInstance.Clone(),
+            ReliableSequence = sequence,
+            Snapshot = new ProjectedRuntimeSnapshot
+            {
+                ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
+                AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
+                ReliableSequence = sequence,
+                RuntimeView = new ParticipantRuntimeView
+                {
+                    ProjectionProfileId = delivery.ProjectionProfile.ProjectionProfileId,
+                    AssignmentEpoch = delivery.ProjectionInstance.AssignmentEpoch,
+                    BaseReliableSequence = sequence,
+                    PresentationOrigin = origin,
+                    Clock = new RuntimeClockSnapshot { Running = new Running() },
+                    Progression = new ProgressionRuntimeState { CurrentGroupId = "group:main", GroupEntryEpoch = 1, CurrentStepId = "step:main", StepEntryEpoch = 1, Stable = new StableProgression() },
+                    NodeStates = { new NodeRuntimeState { NodeId = "node:model", Active = true, Visible = true, Opacity = 0.5, Transform = CreateValidTransform() } },
+                },
+            },
+        };
+    }
+
+    private static ProjectedReliableEvent CreateOriginChange(DeliveryManifest delivery, PresentationOrigin origin)
+    {
+        RuntimeProjectionFence fence = CreateFence(delivery);
+        fence.PresentationOriginVersion = origin.Version == 0 ? 0 : origin.Version - 1;
+        return new ProjectedReliableEvent
+        {
+            Sequence = 1,
+            Fence = fence,
+            PresentationOriginChanged = new PresentationOriginChanged { Origin = origin },
+        };
+    }
+
+    [Test]
+    public void TimelinePlayer_ReflectsPositionAndRotationWithoutReflectingScale()
+    {
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(CreateDelivery(), out string error), Is.True, error);
+        GameObject root = new GameObject("coordinate-timeline-root");
+        try
+        {
+            PresentationNodeHierarchy hierarchy = new PresentationNodeHierarchy();
+            Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+            Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject model), Is.True);
+            ProjectedTimelineDefinition timeline = new ProjectedTimelineDefinition { TimelineId = "timeline:coordinate", DurationMs = 1000 };
+            foreach (TimelineProperty property in new[] { TimelineProperty.TransformPosition, TimelineProperty.TransformScale, TimelineProperty.TransformRotation })
+            {
+                ProjectedTimelineTrack track = new ProjectedTimelineTrack { Target = new TimelineTrackTarget { NodeId = "node:model", Property = property } };
+                foreach (uint time in new uint[] { 0, 1000 })
+                {
+                    TimelineKeyframe keyframe = new TimelineKeyframe { TimeMs = time };
+                    if (property == TimelineProperty.TransformRotation)
+                    {
+                        double component = System.Math.Sqrt(0.5d);
+                        keyframe.Quaternion = new QuaternionKeyframeValue { Value = new Unframe.Presentation.Quaternion { X = component, W = component } };
+                    }
+                    else
+                    {
+                        keyframe.Vector3 = new Vector3KeyframeValue { Value = new Unframe.Presentation.Vector3 { X = 1, Y = 2, Z = 3 } };
+                    }
+                    track.Keyframes.Add(keyframe);
+                }
+                timeline.Tracks.Add(track);
+            }
+            PresentationTimelinePlayer player = new PresentationTimelinePlayer();
+            Assert.That(player.TryStart(timeline, hierarchy, 0, out error), Is.True, error);
+            player.Update(0.5d);
+            Assert.That(model.transform.localPosition, Is.EqualTo(new UnityEngine.Vector3(1, 2, -3)));
+            Assert.That(model.transform.localScale, Is.EqualTo(new UnityEngine.Vector3(1, 2, 3)));
+            Assert.That(model.transform.localRotation.x, Is.EqualTo(-System.Math.Sqrt(0.5d)).Within(1e-5));
+            timeline.Tracks[0].Keyframes[0].Vector3.Value.Z = double.MaxValue;
+            Assert.That(player.CanStart(timeline, hierarchy, out error), Is.False);
+            timeline.Tracks[0].Keyframes[0].Vector3.Value.Z = float.MaxValue;
+            timeline.Tracks[0].Keyframes[1].Vector3.Value.Z = -float.MaxValue;
+            PresentationTimelinePlayer extremePlayer = new PresentationTimelinePlayer();
+            Assert.That(extremePlayer.TryStart(timeline, hierarchy, 0, out error), Is.True, error);
+            extremePlayer.Update(0.5d);
+            Assert.That(model.transform.localPosition.z, Is.EqualTo(0f));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    private static PresentationRuntimeDataStore CreateStoreWithOrigin(DeliveryManifest delivery)
+    {
+        PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        ConnectionSnapshotEnvelope snapshot = CreateOriginSnapshot(delivery, CreateOrigin(), 0);
+        snapshot.Snapshot.RuntimeView.NodeStates[0].Opacity = 1;
+        Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out error), Is.True, error);
+        return store;
+    }
+
     private static DeliveryManifest CreateDelivery()
     {
         ProjectedRuntimeCatalog catalog = new ProjectedRuntimeCatalog { CatalogContractVersion = 2 };
@@ -1856,7 +2106,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             RendererKind = RendererKind.NativeUi,
             ArtifactContractVersion = 1,
             StateBindings = { new DeliveredStateBinding { StateId = "state:main", Artifact = new ArtifactStateBinding { ArtifactId = "artifact:main" } } },
-            Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact { ArtifactId = "artifact:main", ContractVersion = 1, RootNodeId = "ui:main", Nodes = { new NativeUiNode { Text = new NativeUiText { NodeId = "ui:main", Value = new NativeTextValue { Literal = new LiteralText { Value = "Main" } } } } } } } },
+            Artifacts = { new DeliveredArtifact { NativeUi = new NativeUiArtifact { ArtifactId = "artifact:main", ContractVersion = 1, RootNodeId = "ui:main", Nodes = { new NativeUiNode { Text = new NativeUiText { NodeId = "ui:main", Color = new Unframe.Delivery.SrgbaColor { Red = 1, Green = 1, Blue = 1, Alpha = 1 }, Value = new NativeTextValue { Literal = new LiteralText { Value = "Main" } } } } } } } },
         });
         return delivery;
     }

@@ -39,6 +39,15 @@ nix run .#unity-proto
 
 `nix run .#check` と Unity CI はこの drift check を含みます。
 
+Presentation 品質ゲートは一時ディレクトリを実パスへ正規化してから fixture を作成します。
+macOS の `/tmp` などの symlink を fixture の project root に持ち込まないためです。
+CLI の build cache と author transaction は Linux の `/proc/self/fd` に依存するため、
+これらを含む CLI 全テストの完走には Linux が必要です。
+
+Grpc.Tools 2.76.0 の macOS 向け plugin は x64 のみのため、Apple Silicon でも
+`scripts/lib/grpc-tools.sh` が x64 を選択します。Apple Silicon では Rosetta が必要です。
+platform 選択の回帰テストは `bash scripts/contracts/test-grpc-tools.sh` で単独実行できます。
+
 Fixed Browser の実機captureをローカルで試す前には、次を明示的に実行します。通常の package / repository check は browser binary を download / 起動せず、unit test だけを実行します。
 
 ```bash

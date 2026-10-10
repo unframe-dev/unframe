@@ -4,6 +4,7 @@ Shader "Unframe/Presentation/Unlit"
     {
         _BaseColor ("Base Color", Color) = (1, 1, 1, 1)
         _BaseMap ("Base Map", 2D) = "white" {}
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
 
     SubShader
@@ -20,7 +21,7 @@ Shader "Unframe/Presentation/Unlit"
             Name "Unlit"
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
-            Cull Back
+            Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex UnlitVertex

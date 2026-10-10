@@ -20,6 +20,27 @@ const main = async () => {
   const fixtureRoot = await mkdtemp(join(tmpdir(), "unframe-config-hook-"));
 
   try {
+    const messagePath = join(fixtureRoot, "message");
+    for (const [input, expected] of [
+      ["feat: add feature", "✨ add feature"],
+      ["fix(auth): bug", "🐛 auth: bug"],
+      ["gm feat: add feature", "feat: ✨ add feature"],
+      ["gm fix(auth): bug", "fix(auth): 🐛 bug"],
+      ["n feat: add feature", "feat: add feature"],
+      ["✨ add feature", "✨ add feature"],
+    ]) {
+      await writeFile(messagePath, `${input}\n\nDetailed body.\n`);
+      execFileSync(
+        "bash",
+        [
+          join(repositoryRoot, "packages/config/githooks/prepare-commit-msg"),
+          messagePath,
+          "message",
+        ],
+        { env: { ...process.env, PATH: "/usr/bin:/bin" } },
+      );
+      assert.equal(await readFile(messagePath, "utf8"), `${expected}\n\nDetailed body.\n`);
+    }
     run(fixtureRoot, "git", ["init", "--quiet"]);
     run(fixtureRoot, "git", ["config", "user.name", "fixture"]);
     run(fixtureRoot, "git", ["config", "user.email", "fixture@example.invalid"]);

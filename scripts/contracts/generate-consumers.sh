@@ -4,6 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/paths.sh
 source "${script_dir}/../lib/paths.sh"
+# shellcheck source=../lib/grpc-tools.sh
+source "${script_dir}/../lib/grpc-tools.sh"
 
 mode="${1:-generate}"
 case "${mode}" in generate|check) ;; *) echo "usage: generate-consumers.sh [generate|check]" >&2; exit 2 ;; esac
@@ -30,15 +32,12 @@ protoc --proto_path="${proto_root}" \
 protoc --proto_path="${proto_root}" --csharp_out="${temp}/csharp/proto" "${protos[@]}"
 dotnet restore "${REPO_ROOT}/packages/api-client-csharp/Proto/Unframe.Wire.csproj" --verbosity quiet
 nuget_root="$(dotnet nuget locals global-packages --list | sed 's/^global-packages: //')"
-case "$(uname -s)-$(uname -m)" in
-  Linux-x86_64) grpc_platform=linux_x64 ;;
-  Linux-aarch64) grpc_platform=linux_arm64 ;;
-  Darwin-x86_64) grpc_platform=macosx_x64 ;;
-  Darwin-arm64) grpc_platform=macosx_arm64 ;;
-  *) echo "unsupported Grpc.Tools platform" >&2; exit 1 ;;
-esac
+grpc_platform="$(grpc_tools_platform "$(uname -s)" "$(uname -m)")"
 grpc_plugin="${nuget_root}/grpc.tools/2.76.0/tools/${grpc_platform}/grpc_csharp_plugin"
-test -x "${grpc_plugin}"
+if [[ ! -x "${grpc_plugin}" ]]; then
+  echo "Grpc.Tools plugin is missing or not executable: ${grpc_plugin}" >&2
+  exit 1
+fi
 protoc --proto_path="${proto_root}" \
   "--plugin=protoc-gen-grpc=${grpc_plugin}" \
   --grpc_out="${temp}/csharp/proto" \

@@ -55,10 +55,13 @@ case "${mode}" in
       "${REPO_ROOT}"/packages/unframe-*
     ;;
   check)
+    TMPDIR="$(realpath -- "${TMPDIR:-/tmp}")"
+    export TMPDIR
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check
     log "presentation(check): generated Go/C# consumers and wire compatibility"
+    bash "${REPO_ROOT}/scripts/contracts/test-grpc-tools.sh"
     "${REPO_ROOT}/scripts/contracts/generate-consumers.sh" check
     "${REPO_ROOT}/scripts/contracts/check-breaking.sh" check
     "${REPO_ROOT}/scripts/contracts/test-breaking.sh"
