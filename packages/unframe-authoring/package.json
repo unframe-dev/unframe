@@ -17,7 +17,7 @@
   "dependencies": {
     "@types/react": "19.3.0",
     "@unframe/unframe-core": "workspace:*",
-    "zod": "4.4.3"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "typescript": "^7.0.0",
