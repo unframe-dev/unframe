@@ -1,3 +1,4 @@
+import { validateNodeTransformSnapshot } from "../styles/node-snapshot.js";
 import { createHash } from "node:crypto";
 import { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "@unframe/unframe-core";
 import type { DeclarationProjectAssemblyCarrier } from "@unframe/unframe-compiler";
@@ -88,6 +89,11 @@ const asset = strict({
   dataBase64: z.string(),
 });
 const root = strict({
+  styleTransform: z.unknown().optional(),
+  styleSourceIdentity: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
   schemaVersion: z.literal(2),
   packageSnapshotProfile: z.literal("pnpm-lock9-locator-v1"),
   resolutionProfile: z.literal("browser-import-production-types-v1"),
@@ -164,6 +170,20 @@ export const loadUnframeLock = (bytes: Uint8Array): LoadUnframeLockResult => {
       "unframe.lock must match the v2 serialized shape exactly.",
     );
   const lock = result.data as UnframeLock;
+  if ((lock.styleTransform === undefined) !== (lock.styleSourceIdentity === undefined))
+    return fail(
+      "cli-lock-style-snapshot-invalid",
+      "Style dependency and source identities must be paired.",
+    );
+  if (lock.styleTransform !== undefined) {
+    try {
+      validateNodeTransformSnapshot(lock.styleTransform);
+      if (lock.styleTransform.sourceFiles.length)
+        throw new Error("Lock must not embed project source bytes");
+    } catch {
+      return fail("cli-lock-style-snapshot-invalid", "Style dependency snapshot is invalid.");
+    }
+  }
   if (
     !orderedUnique(lock.rootDependencies, edgeKey) ||
     !orderedUnique(lock.packages, (item) => item.key) ||

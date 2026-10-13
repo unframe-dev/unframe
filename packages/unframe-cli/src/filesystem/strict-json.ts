@@ -17,7 +17,8 @@ export type StrictJsonParseResult =
   | { readonly ok: true; readonly value: StrictJsonValue }
   | { readonly ok: false; readonly code: StrictJsonFailureCode };
 
-const MAX_INPUT_BYTES = 64 * 1_024 * 1_024;
+// Native packages are embedded as base64 in the fixed Node dependency graph.
+const MAX_INPUT_BYTES = 128 * 1_024 * 1_024;
 const MAX_NESTING_DEPTH = 64;
 
 class ParseFailure extends Error {
@@ -135,27 +136,36 @@ class StrictJsonParser {
   }
 
   #string(): string {
-    this.#index += 1;
-    let value = "";
+    const start = ++this.#index;
+    // oxlint-disable-next-line no-control-regex -- JSON forbids unescaped U+0000-U+001F in strings.
+    const special = /["\\\u0000-\u001f\ud800-\udfff]/g;
+    let escaped = false;
     while (this.#index < this.source.length) {
-      const character = this.source[this.#index++]!;
-      if (character === '"') return value;
+      special.lastIndex = this.#index;
+      const match = special.exec(this.source);
+      if (!match) break;
+      this.#index = match.index + 1;
+      const character = match[0];
+      if (character === '"') {
+        // Decode only an already validated string token; object keys remain duplicate-checked.
+        return escaped
+          ? (JSON.parse(this.source.slice(start - 1, this.#index)) as string)
+          : this.source.slice(start, this.#index - 1);
+      }
       if (character === "\\") {
-        value += this.#escape();
+        escaped = true;
+        this.#escape();
         continue;
       }
       const code = character.charCodeAt(0);
       if (code < 0x20) fail("cli-lock-json-syntax");
-      if (code >= 0xd800 && code <= 0xdbff) {
-        const next = this.source[this.#index];
-        if (next === undefined || next.charCodeAt(0) < 0xdc00 || next.charCodeAt(0) > 0xdfff)
-          fail("cli-lock-json-lone-surrogate");
-        value += character + next;
+      if (code <= 0xdbff) {
+        const next = this.source.charCodeAt(this.#index);
+        if (!(next >= 0xdc00 && next <= 0xdfff)) fail("cli-lock-json-lone-surrogate");
         this.#index += 1;
         continue;
       }
-      if (code >= 0xdc00 && code <= 0xdfff) fail("cli-lock-json-lone-surrogate");
-      value += character;
+      fail("cli-lock-json-lone-surrogate");
     }
     return fail("cli-lock-json-syntax");
   }

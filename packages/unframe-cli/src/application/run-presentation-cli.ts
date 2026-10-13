@@ -1,3 +1,4 @@
+import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
 import {
   checkAuthoringProjectAssembly,
   compileAuthoringProject,
@@ -23,7 +24,6 @@ import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { updateProjectLock } from "../filesystem/update-lock.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
-import { lockedFile } from "../filesystem/package-snapshot.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
 import { initPresentationProject } from "../filesystem/init-project.js";
@@ -488,15 +488,24 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         ),
       ),
     );
-  const source = Object.freeze({
-    projectRoot: discovered.projectDirectory,
-    entryFile: discovered.entryFile,
-    files: discovered.files,
-    rawFiles: discovered.localFiles
-      .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
-      .map(({ path, bytes }) => lockedFile(path, bytes)),
-    ...lock.value.virtualSource,
-  });
+  let prepared: Awaited<ReturnType<typeof prepareProjectSource>>;
+  try {
+    prepared = await prepareProjectSource(
+      discovered,
+      lock.value.lock,
+      host.signal ? { signal: host.signal } : {},
+    );
+  } catch (error) {
+    const code = error instanceof StylePreparationError ? error.code : "cli-style-prepare-failed";
+    return output(code === "cli-cancelled" ? 130 : 1, command, format, [
+      diagnostic(
+        code === "cli-cancelled" ? "cancel" : "semantic",
+        code,
+        error instanceof Error ? error.message : "Style preparation failed.",
+      ),
+    ]);
+  }
+  const source = prepared.source;
   const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
   if (command === "check") return output(0, command, format, [], checked.value.warnings);

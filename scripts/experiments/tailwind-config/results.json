@@ -1,0 +1,179 @@
+{
+  "environment": {
+    "node": "v24.13.0",
+    "platform": "linux",
+    "arch": "x64",
+    "libc": "2.42",
+    "packageManager": "pnpm@11.14.0"
+  },
+  "dependencies": {
+    "@tailwindcss/forms": "0.5.11",
+    "@tailwindcss/postcss": "4.3.3",
+    "jiti": "2.7.0",
+    "postcss": "8.5.29",
+    "postcss-load-config": "6.0.1",
+    "tailwindcss": "4.3.3",
+    "tailwindcss-older": "npm:tailwindcss@4.2.1",
+    "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1"
+  },
+  "checks": [
+    {
+      "name": "project-owned CSS-first Tailwind runs the native scanner and optimizer",
+      "status": "passed"
+    },
+    {
+      "name": "standard postcss.config.mjs loads project plugins and TS helper transforms",
+      "status": "passed"
+    },
+    {
+      "name": "standard postcss.config.cjs loads project plugins and TS helper transforms",
+      "status": "passed"
+    },
+    {
+      "name": "standard postcss.config.ts loads project plugins and TS helper transforms",
+      "status": "passed"
+    },
+    {
+      "name": "function context and process environment are project-rooted across caller CWDs",
+      "status": "passed"
+    },
+    {
+      "name": "official @config loads tailwind.config.mjs without an Unframe config format",
+      "status": "passed"
+    },
+    {
+      "name": "official @config loads tailwind.config.cjs without an Unframe config format",
+      "status": "passed"
+    },
+    {
+      "name": "official @config loads tailwind.config.ts without an Unframe config format",
+      "status": "passed"
+    },
+    {
+      "name": "declared local plugins keep order and official @plugin runs forms",
+      "status": "passed"
+    },
+    {
+      "name": "missing config is bounded and neither parent config nor Tailwind is injected",
+      "status": "passed"
+    },
+    {
+      "name": "missing plugins, invalid CSS and thrown config errors retain diagnostic phases",
+      "status": "passed"
+    },
+    {
+      "name": "fresh processes reflect helper and arbitrary JSON reads absent from dependency messages",
+      "status": "passed"
+    },
+    {
+      "name": "fresh scans reflect class and source-file additions and deletions",
+      "status": "passed"
+    },
+    {
+      "name": "Tailwind config helper and JSON edits change output in fresh workers",
+      "status": "passed"
+    },
+    {
+      "name": "different installed Tailwind versions remain isolated in separate projects",
+      "status": "passed"
+    },
+    {
+      "name": "CSS and normalized maps match across temp roots and caller working directories",
+      "status": "passed"
+    },
+    {
+      "name": "nested entry preserves imported CSS asset URLs relative to the entry",
+      "status": "passed"
+    },
+    {
+      "name": "parser, syntax and stringifier options execute while owned from/to/map differ from plain PostCSS",
+      "status": "passed"
+    }
+  ],
+  "observations": {
+    "versions": {
+      "postcss": "8.5.29",
+      "tailwindcss": "4.3.3",
+      "@tailwindcss/postcss": "4.3.3"
+    },
+    "nativeLibraries": ["lightningcss.linux-x64-gnu.node", "tailwindcss-oxide.linux-x64-gnu.node"],
+    "dependencies": [
+      {
+        "type": "dependency",
+        "file": "<INSTALLED>/index.css"
+      },
+      {
+        "type": "dependency",
+        "file": "<PROJECT>/src/component.tsx"
+      },
+      {
+        "type": "dependency",
+        "file": "<PROJECT>/src/page.html"
+      },
+      {
+        "type": "dir-dependency",
+        "dir": "<PROJECT>/src",
+        "glob": "*"
+      }
+    ],
+    "optimization": {
+      "optimizedBytes": 4315,
+      "unoptimizedBytes": 4820
+    },
+    "mapProvenance": {
+      "optimizedIncludesOriginalInput": false,
+      "unoptimizedIncludesOriginalInput": true,
+      "optimizedSources": ["input.css"],
+      "unoptimizedSources": ["<no source>", "<INSTALLED>/index.css", "input.css"]
+    },
+    "tsHelper": {
+      "requiresEnumTransform": true,
+      "freshProcessReflectsEdit": true
+    },
+    "arbitraryReads": {
+      "helperChangeReflected": true,
+      "jsonChangeReflected": true,
+      "emittedDependencies": 0
+    },
+    "tailwindConfigReads": {
+      "helperEditReflected": true,
+      "jsonEditReflected": true,
+      "configEmitted": true,
+      "helperEmitted": true,
+      "arbitraryJsonEmitted": false
+    },
+    "olderVersions": {
+      "postcss": "8.5.29",
+      "tailwindcss": "4.2.1",
+      "@tailwindcss/postcss": "4.2.1"
+    },
+    "maps": {
+      "stableAcrossRoots": true,
+      "stableAcrossCallerCwd": true,
+      "sources": ["input.css"],
+      "optimizedSourcesContentContainsGeneratedRules": true,
+      "mapBodyAndContentsComparedWithoutNormalization": true
+    },
+    "assetUrls": {
+      "entry": "src/input.css",
+      "importedCss": "theme/part.css",
+      "rebasedUrl": "../theme/icon.svg",
+      "outputBase": "entry directory"
+    },
+    "processOptions": {
+      "honored": ["parser", "syntax", "stringifier"],
+      "overridden": ["from", "to", "map"],
+      "plainMapFalse": true,
+      "workerMapEmitted": true
+    }
+  },
+  "limitations": [
+    "Trusted executable configs only; no OS sandbox, filesystem/network confinement or resource limits.",
+    "Temporary projects share symlinked host package graphs; relocation proves project-root independence only, not independently materialized dependency graphs or Node-free snapshots.",
+    "ESM/CJS/TS coverage is representative, not every PostCSS search name, plugin, module mode or platform.",
+    "Workers override config from/to/map; parser/syntax/stringifier run but production map provenance policy is unresolved.",
+    "Fresh processes avoid module caches; no persistent-worker or cache invalidation implementation is tested.",
+    "Dependency messages cannot account for arbitrary config/plugin reads; full snapshot identity remains necessary.",
+    "Native binary execution was verified only on the recorded platform and libc."
+  ]
+}

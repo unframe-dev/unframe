@@ -48,3 +48,5 @@ export {
   type ReactSceneEditDiagnostic,
   type ReactSceneTransform,
 } from "./editing/react-scene-source.js";
+
+export type { PreparedStyles } from "./project/parse-authoring-project.js";

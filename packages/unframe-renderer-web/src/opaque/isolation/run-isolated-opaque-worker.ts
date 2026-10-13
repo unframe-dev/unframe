@@ -41,18 +41,20 @@ export type IsolatedOpaqueWorkerInput = {
 export type IsolatedOpaqueWorkerOptions = {
   readonly signal?: AbortSignal;
   readonly cgroupRoot?: string;
+  readonly nodePath?: string;
+  readonly runtimeEnvironment?: Readonly<Record<string, string>>;
   readonly deadlineMs?: number;
 };
 
 export const assertOpaqueIsolationAvailable = (
-  options: { readonly cgroupRoot?: string } = {},
+  options: { readonly cgroupRoot?: string; readonly nodePath?: string } = {},
 ): void => {
   if (process.platform !== "linux") throw unavailable("opaque capture requires Linux");
   delegatedRoot(options.cgroupRoot);
   for (const path of [
     process.env.UNFRAME_BWRAP_PATH,
     process.env.UNFRAME_BASH_PATH,
-    process.env.UNFRAME_OPAQUE_NODE,
+    options.nodePath ?? process.env.UNFRAME_OPAQUE_NODE,
     process.env.UNFRAME_NIX_LD_SHIM,
   ]) {
     if (!path || !existsSync(path))
@@ -140,8 +142,10 @@ const sandboxArguments = (
   browserDirectory: string,
   browserName: string,
   runtimePaths: readonly string[],
+  configuredNode?: string,
+  runtimeEnvironment?: Readonly<Record<string, string>>,
 ): string[] => {
-  const nodePath = realpathSync(process.env.UNFRAME_OPAQUE_NODE!);
+  const nodePath = realpathSync(configuredNode ?? process.env.UNFRAME_OPAQUE_NODE!);
   const storePaths = [
     ...new Set([
       runtimeRoot(nodePath),
@@ -183,8 +187,9 @@ const sandboxArguments = (
     "--dev",
     "/dev",
   ];
+  const environment = runtimeEnvironment ?? process.env;
   for (const name of ["NIX_LD", "NIX_LD_LIBRARY_PATH", "FONTCONFIG_FILE"] as const) {
-    const value = process.env[name];
+    const value = environment[name];
     if (value) args.push("--setenv", name, value);
   }
   for (const directory of directories) args.push("--dir", directory);
@@ -361,6 +366,8 @@ export const runIsolatedOpaqueWorker = async (
       browserDirectory,
       basename(input.browserPath),
       input.runtimePaths,
+      options.nodePath,
+      options.runtimeEnvironment,
     );
     child = spawn(
       bash,

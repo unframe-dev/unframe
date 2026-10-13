@@ -1,3 +1,4 @@
+import type { NodeTransformSnapshot } from "../styles/node-snapshot.js";
 import { hashCanonicalJsonPayload } from "@unframe/unframe-core";
 
 export type ContentHash = `sha256:${string}`;
@@ -44,6 +45,8 @@ export type ComponentLock = {
   | { mode: "opaque"; rendererInputHash: ContentHash }
 );
 export type UnframeLock = {
+  styleTransform?: NodeTransformSnapshot;
+  styleSourceIdentity?: string;
   schemaVersion: 2;
   packageSnapshotProfile: "pnpm-lock9-locator-v1";
   resolutionProfile: "browser-import-production-types-v1";
@@ -79,10 +82,21 @@ export const hashLockedPackageContent = (
 export const hashDependencyGraph = (
   lock: Pick<
     UnframeLock,
-    "rootDependencies" | "packages" | "resolutionProfile" | "packageSnapshotProfile"
+    | "rootDependencies"
+    | "packages"
+    | "resolutionProfile"
+    | "packageSnapshotProfile"
+    | "styleTransform"
+    | "styleSourceIdentity"
   >,
 ): ContentHash =>
   hashCanonicalJsonPayload({
+    ...(lock.styleTransform
+      ? {
+          styleTransform: lock.styleTransform.identity,
+          styleSourceIdentity: lock.styleSourceIdentity,
+        }
+      : {}),
     resolutionProfile: lock.resolutionProfile,
     packageSnapshotProfile: lock.packageSnapshotProfile,
     rootDependencies: lock.rootDependencies,

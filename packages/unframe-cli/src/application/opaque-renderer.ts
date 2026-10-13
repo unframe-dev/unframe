@@ -114,11 +114,13 @@ export const prepareOpaqueRenderer = async (
             key,
           ]),
         ),
-        assets: bundle.assets.map((asset) => ({
-          path: asset.fileName,
-          mediaType: mediaTypeFor(asset.fileName),
-          dataBase64: Buffer.from(asset.source).toString("base64"),
-        })),
+        assets: bundle.assets
+          .filter((asset) => !asset.fileName.endsWith(".css.map"))
+          .map((asset) => ({
+            path: asset.fileName,
+            mediaType: mediaTypeFor(asset.fileName),
+            dataBase64: Buffer.from(asset.source).toString("base64"),
+          })),
       });
     }
     return {

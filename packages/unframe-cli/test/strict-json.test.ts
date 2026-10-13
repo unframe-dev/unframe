@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { parseStrictJson } from "../src/filesystem/strict-json.js";
 
@@ -49,5 +49,45 @@ describe("strict JSON lock boundary", () => {
   it("rejects resource-limit input without exposing host errors", () => {
     const input = bytes(`[${"[".repeat(100)}${"0"}${"]".repeat(100)}]`);
     expect(parseStrictJson(input)).toEqual({ ok: false, code: "cli-lock-json-resource-limit" });
+  });
+  it("accepts native base64 lock strings larger than 64 MiB within the 128 MiB profile", () => {
+    const payloadBytes = 65 * 1_024 * 1_024;
+    const input = new Uint8Array(payloadBytes + 2);
+    input.fill(0x41);
+    input[0] = 0x22;
+    input[input.length - 1] = 0x22;
+
+    const result = parseStrictJson(input);
+
+    assert.isTrue(result.ok);
+    const value = result.value;
+    assert(typeof value === "string");
+    expect(value.length).toBe(payloadBytes);
+    expect(value.slice(0, 4)).toBe("AAAA");
+    expect(value.slice(-4)).toBe("AAAA");
+  });
+
+  it("rejects input exceeding the 128 MiB profile before decoding", () => {
+    const input = new Uint8Array(128 * 1_024 * 1_024 + 1);
+    expect(parseStrictJson(input)).toEqual({ ok: false, code: "cli-lock-json-resource-limit" });
+  });
+
+  it("decodes mixed escape sequences and adjacent literal surrogate pairs", () => {
+    const source = String.raw`"head\n\t\b\f\r\/\\\"\u0061\ud83d\ude00😀tail"`;
+    expect(parseStrictJson(bytes(source))).toEqual({
+      ok: true,
+      value: 'head\n\t\b\f\r/\\"a😀😀tail',
+    });
+  });
+
+  it.each([
+    String.raw`"\x"`,
+    String.raw`"\u123"`,
+    String.raw`"\udc00"`,
+    String.raw`"\ud800\u0041"`,
+    '"literal\ncontrol"',
+    '"unterminated',
+  ])("rejects malformed string token %s", (source) => {
+    expect(parseStrictJson(bytes(source)).ok).toBe(false);
   });
 });

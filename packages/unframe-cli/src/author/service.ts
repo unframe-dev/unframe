@@ -16,7 +16,7 @@ import { discoverPresentationProjectFiles } from "../filesystem/discover-project
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../filesystem/lock.js";
-import { lockedFile } from "../filesystem/package-snapshot.js";
+import { prepareProjectSource } from "../filesystem/prepare-project.js";
 import { readRegularFile } from "../filesystem/path-policy.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
@@ -110,19 +110,12 @@ type Discovery = Extract<
   { ok: true }
 >;
 type Loaded = Extract<ReturnType<typeof loadUnframeLock>, { ok: true }>;
-const sourceInput = (found: Discovery, loaded: Loaded, replacement?: string) => ({
-  projectRoot: found.projectDirectory,
-  entryFile: found.entryFile,
-  files: found.files.map((file) =>
-    file.fileName === found.entryFile && replacement !== undefined
-      ? { ...file, sourceText: replacement }
-      : file,
-  ),
-  rawFiles: found.localFiles
-    .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
-    .map(({ path, bytes }) => lockedFile(path, bytes)),
-  ...loaded.value.virtualSource,
-});
+const sourceInput = async (found: Discovery, loaded: Loaded, replacement?: string) =>
+  prepareProjectSource(
+    found,
+    loaded.value.lock,
+    replacement !== undefined ? { replacement, refresh: true } : {},
+  );
 const sourceRevision = async (found: Discovery, entryBytes: Uint8Array, lockBytes: Uint8Array) => {
   const config = await readRegularFile(join(found.projectDirectory, "unframe.config.ts"));
   if (!config) fail(500, "author-source-io", "Project config could not be read.");
@@ -154,7 +147,7 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
   const sourceText = found.files.find((file) => file.fileName === found.entryFile)?.sourceText;
   if (sourceText === undefined)
     fail(500, "author-source-missing", "Presentation source is missing.");
-  const source = sourceInput(found, loaded);
+  const { source } = await sourceInput(found, loaded);
   const fallbackHash = hashCanonicalJsonPayload(
     source.files.map(({ fileName, sourceText }) => [fileName, sourceText]),
   );
@@ -409,7 +402,8 @@ export const createAuthorService = async (
             patched.diagnostics[0]?.code ?? "author-edit-unsupported",
             patched.diagnostics[0]?.message ?? "Edit is unsupported.",
           );
-        const source = sourceInput(current.found, current.loaded, patched.value);
+        const prepared = await sourceInput(current.found, current.loaded, patched.value);
+        const source = prepared.source;
         const catalog = checkAuthoringProject(source);
         if (!catalog.valid)
           fail(
@@ -427,6 +421,12 @@ export const createAuthorService = async (
         const base = current.loaded.value.lock;
         const nextWithoutHash = {
           ...base,
+          ...(prepared.styleTransform
+            ? {
+                styleTransform: prepared.styleTransform,
+                styleSourceIdentity: prepared.styleSourceIdentity,
+              }
+            : {}),
           componentLocks: computed.value.componentLocks.map((item) => ({
             ...item,
           })) as UnframeLock["componentLocks"],

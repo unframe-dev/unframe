@@ -1,0 +1,32 @@
+{
+  "name": "@unframe/unframe-tailwind",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.mts",
+      "import": "./src/index.mjs"
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "lint": "vp check src test",
+    "typecheck": "tsc --noEmit --skipLibCheck --module nodenext --target es2023 src/index.d.mts",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "dependencies": {
+    "jiti": "2.7.0",
+    "postcss-load-config": "6.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "0.5.11",
+    "@tailwindcss/postcss": "4.3.3",
+    "postcss": "8.5.29",
+    "tailwindcss": "4.3.3",
+    "tailwindcss-older": "npm:tailwindcss@4.2.1",
+    "tailwindcss-postcss-older": "npm:@tailwindcss/postcss@4.2.1",
+    "typescript": "6.0.3",
+    "vite-plus": "catalog:"
+  }
+}

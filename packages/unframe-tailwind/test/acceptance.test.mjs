@@ -1,0 +1,410 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { rm, readFile } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { project, run, put } from "./harness.mjs";
+
+const check = test;
+async function fixture(t, options = {}) {
+  const value = await project(options);
+  t.after(value.cleanup);
+  return value;
+}
+async function config(root, name, content) {
+  await rm(path.join(root, "postcss.config.mjs"), { force: true });
+  await put(root, { [name]: content });
+}
+function success(result) {
+  assert.equal(result.ok, true, result.error ?? result.stderr);
+  assert.equal(result.code, 0);
+  return result;
+}
+const compact = (result) => result.css.replaceAll(/\s+/g, "");
+
+check("project-owned CSS-first Tailwind runs the native scanner and optimizer", async (t) => {
+  const { root } = await fixture(t);
+  const result = success(await run(root));
+  assert.match(result.css, /\.flex\{display:flex\}/);
+  assert.match(result.css, /\.bg-spike\{background-color:var\(--color-spike\)\}/);
+  assert.match(result.css, /\.spike-utility\{display:grid\}/);
+  assert.match(result.css, /\.italic\{font-style:italic\}/);
+  assert.ok(result.nativeLibraries.some((file) => /oxide.*\.node/.test(file)));
+  assert.ok(result.nativeLibraries.some((file) => /lightningcss.*\.node/.test(file)));
+  assert.ok(
+    result.messages.some(
+      (message) =>
+        message.type === "dependency" && message.file === path.join(root, "src/page.html"),
+    ),
+  );
+  assert.ok(
+    result.messages.some(
+      (message) => message.type === "dir-dependency" && message.dir === path.join(root, "src"),
+    ),
+  );
+  await config(
+    root,
+    "postcss.config.mjs",
+    'export default { plugins: { "@tailwindcss/postcss": { optimize: false } } };',
+  );
+  const unoptimized = success(await run(root));
+  assert.match(unoptimized.css, /\.flex\s*\{\s*display: flex;/);
+  assert.ok(result.css.length < unoptimized.css.length);
+  const originalInput = await readFile(path.join(root, "input.css"), "utf8");
+  assert.ok(unoptimized.map.sourcesContent.includes(originalInput));
+  assert.ok(!result.map.sourcesContent.includes(originalInput));
+});
+
+for (const [name, content] of [
+  [
+    "postcss.config.mjs",
+    'export default { plugins: { "@tailwindcss/postcss": { optimize: true } } };',
+  ],
+  [
+    "postcss.config.cjs",
+    'module.exports = { plugins: { "@tailwindcss/postcss": { optimize: true } } };',
+  ],
+  [
+    "postcss.config.ts",
+    'import { Mode } from "./helper.ts"; export default { plugins: { "@tailwindcss/postcss": { optimize: Mode.Enabled } } };',
+  ],
+]) {
+  check(`standard ${name} loads project plugins and TS helper transforms`, async (t) => {
+    const { root } = await fixture(t, {
+      files: { "helper.ts": "export enum Mode { Enabled = 1 }" },
+    });
+    await config(root, name, content);
+    const result = success(await run(root));
+    assert.match(result.css, /\.flex\{display:flex\}/);
+    assert.equal(path.basename(result.config), name);
+    if (name.endsWith(".ts")) {
+      await put(root, { "helper.ts": "export enum Mode { Enabled = 0 }" });
+      const changed = success(await run(root));
+      assert.match(changed.css, /\.flex\s*\{\s*display: flex;/);
+    }
+  });
+}
+
+check(
+  "function context and process environment are project-rooted across caller CWDs",
+  async (t) => {
+    const { root, parent } = await fixture(t, { files: { "input.css": '@import "tailwindcss";' } });
+    await config(
+      root,
+      "postcss.config.mjs",
+      `
+    import tailwind from '@tailwindcss/postcss';
+    export default ctx => {
+      if (ctx.cwd !== process.cwd()) throw new Error('cwd mismatch');
+      if (ctx.env !== process.env.NODE_ENV) throw new Error('env mismatch');
+      return { plugins: [tailwind({ optimize: true }), {
+        postcssPlugin: 'context', Once(root) { root.append({ selector: '.context', nodes: [{ prop: 'value', value: ctx.env }] }); }
+      }] };
+    };`,
+    );
+    const production = success(await run(root, { callerCwd: parent }));
+    const development = success(await run(root, { callerCwd: os.tmpdir(), env: "development" }));
+    assert.match(compact(production), /value:production/);
+    assert.match(compact(development), /value:production/);
+    assert.match(production.css, /\.flex\{display:flex\}/);
+    assert.match(development.css, /\.flex\{display:flex\}/);
+    const sameEnvironment = success(await run(root, { callerCwd: os.tmpdir() }));
+    assert.equal(production.css, sameEnvironment.css);
+    assert.deepEqual(production.map, sameEnvironment.map);
+  },
+);
+
+for (const [name, content] of [
+  [
+    "tailwind.config.mjs",
+    'export default { theme: { extend: { colors: { configured: "#abcdef" } } } };',
+  ],
+  [
+    "tailwind.config.cjs",
+    'module.exports = { theme: { extend: { colors: { configured: "#abcdef" } } } };',
+  ],
+  [
+    "tailwind.config.ts",
+    'import { Color } from "./color.ts"; export default { theme: { extend: { colors: { configured: Color.Configured } } } };',
+  ],
+]) {
+  check(`official @config loads ${name} without an Unframe config format`, async (t) => {
+    const { root } = await fixture(t, {
+      files: {
+        [name]: content,
+        "color.ts": 'export enum Color { Configured = "#abcdef" }',
+        "input.css": `@import "tailwindcss" source("./src");\n@config "./${name}";`,
+        "src/page.html": '<div class="bg-configured"></div>',
+      },
+    });
+    const result = success(await run(root));
+    assert.match(compact(result), /\.bg-configured\{background-color:#abcdef\}/);
+    assert.ok(
+      result.messages.some(
+        (message) => message.type === "dependency" && message.file === path.join(root, name),
+      ),
+    );
+  });
+}
+
+check("declared local plugins keep order and official @plugin runs forms", async (t) => {
+  const { root } = await fixture(t, {
+    files: {
+      "input.css": '@import "tailwindcss" source("./src");\n@plugin "@tailwindcss/forms";',
+      "src/page.html": '<input class="form-input flex" />',
+      "first.cjs": `module.exports = () => ({postcssPlugin: 'first', Once(root) { root.append({selector: '.order', nodes: [{prop:'value', value:'first'}]}); }}); module.exports.postcss = true;`,
+      "second.cjs": `module.exports = () => ({postcssPlugin: 'second', Once(root) { root.walkDecls('value', decl => { decl.value += '-second'; }); }}); module.exports.postcss = true;`,
+    },
+  });
+  await config(
+    root,
+    "postcss.config.mjs",
+    'export default { plugins: { "@tailwindcss/postcss": { optimize: true }, "./first.cjs": {}, "./second.cjs": {} } };',
+  );
+  const result = success(await run(root));
+  assert.match(result.css, /first-second/);
+  assert.match(result.css, /\.form-input/);
+  await config(
+    root,
+    "postcss.config.mjs",
+    'export default { plugins: { "@tailwindcss/postcss": { optimize: true }, "./second.cjs": {}, "./first.cjs": {} } };',
+  );
+  const reversed = success(await run(root));
+  assert.doesNotMatch(reversed.css, /first-second/);
+  assert.match(compact(reversed), /value:first/);
+});
+
+check("missing config is bounded and neither parent config nor Tailwind is injected", async (t) => {
+  const { root, parent } = await fixture(t);
+  await put(parent, { "postcss.config.cjs": 'throw new Error("PARENT LEAK")' });
+  await rm(path.join(root, "postcss.config.mjs"));
+  const missing = await run(root);
+  assert.equal(missing.ok, false);
+  assert.equal(missing.phase, "config");
+  assert.match(missing.error, /No PostCSS Config found/);
+  assert.doesNotMatch(missing.error, /PARENT LEAK/);
+  await config(root, "postcss.config.mjs", "export default { plugins: [] };");
+  const empty = success(await run(root));
+  assert.match(empty.css, /@import "tailwindcss"/);
+  assert.doesNotMatch(empty.css, /\.flex\s*\{/);
+  await put(root, { "tailwind.config.cjs": 'throw new Error("IMPLICIT CONFIG")' });
+  await config(
+    root,
+    "postcss.config.mjs",
+    'export default { plugins: { "@tailwindcss/postcss": {} } };',
+  );
+  success(await run(root));
+});
+
+check(
+  "missing plugins, invalid CSS and thrown config errors retain diagnostic phases",
+  async (t) => {
+    const { root } = await fixture(t);
+    await config(
+      root,
+      "postcss.config.mjs",
+      'export default { plugins: { "missing-spike-plugin": {} } };',
+    );
+    const plugin = await run(root);
+    assert.equal(plugin.ok, false);
+    assert.equal(plugin.phase, "config");
+    assert.match(plugin.error, /missing-spike-plugin/);
+    await config(root, "postcss.config.mjs", 'throw new Error("config failure sentinel");');
+    assert.match((await run(root)).error, /config failure sentinel/);
+    await config(
+      root,
+      "postcss.config.mjs",
+      'export default { plugins: { "@tailwindcss/postcss": {} } };',
+    );
+    await put(root, { "input.css": "a {" });
+    const invalid = await run(root);
+    assert.equal(invalid.ok, false);
+    assert.equal(invalid.phase, "transform");
+    assert.match(invalid.error, /Unclosed block/);
+    await put(root, { "input.css": '@import "tailwindcss"; @plugin "missing-official-plugin";' });
+    await config(
+      root,
+      "postcss.config.mjs",
+      'export default { plugins: { "@tailwindcss/postcss": {} } };',
+    );
+    const official = await run(root);
+    assert.equal(official.ok, false);
+    assert.equal(official.phase, "transform");
+    assert.match(official.error, /missing-official-plugin/);
+    await put(root, { "input.css": '@import "tailwindcss"; @config "./missing.config.ts";' });
+    const tailwind = await run(root);
+    assert.equal(tailwind.ok, false);
+    assert.equal(tailwind.phase, "transform");
+    assert.match(tailwind.error, /missing.config.ts/);
+  },
+);
+
+check(
+  "fresh processes reflect helper and arbitrary JSON reads absent from dependency messages",
+  async (t) => {
+    const { root } = await fixture(t, {
+      files: {
+        "input.css": ".read {}",
+        "helper.mjs": 'export const suffix = "first";',
+        "value.json": '{"value":"red"}',
+      },
+    });
+    await config(
+      root,
+      "postcss.config.mjs",
+      `
+    import { readFileSync } from 'node:fs';
+    import { suffix } from './helper.mjs';
+    const value = JSON.parse(readFileSync(new URL('./value.json', import.meta.url), 'utf8')).value;
+    export default { plugins: [{ postcssPlugin: 'reader', Once(root) { root.walkRules(rule => rule.append({prop: 'color', value: value + '-' + suffix})); } }] };`,
+    );
+    const before = success(await run(root));
+    assert.match(before.css, /red-first/);
+    await put(root, {
+      "helper.mjs": 'export const suffix = "second";',
+      "value.json": '{"value":"blue"}',
+    });
+    const after = success(await run(root));
+    assert.match(after.css, /blue-second/);
+    assert.equal(before.messages.length, 0);
+    assert.equal(after.messages.length, 0);
+  },
+);
+
+check("fresh scans reflect class and source-file additions and deletions", async (t) => {
+  const { root } = await fixture(t);
+  const before = success(await run(root));
+  assert.match(before.css, /\.flex\{/);
+  await put(root, { "src/page.html": '<div class="grid"></div>' });
+  const edited = success(await run(root));
+  assert.match(edited.css, /\.grid\{/);
+  assert.doesNotMatch(edited.css, /\.flex\{/);
+  await put(root, { "src/new.html": '<div class="underline"></div>' });
+  const added = success(await run(root));
+  assert.match(added.css, /\.underline\{/);
+  assert.ok(added.messages.some((message) => message.file === path.join(root, "src/new.html")));
+  await rm(path.join(root, "src/new.html"));
+  const removed = success(await run(root));
+  assert.doesNotMatch(removed.css, /\.underline\{/);
+  assert.ok(!removed.messages.some((message) => message.file === path.join(root, "src/new.html")));
+});
+
+check("Tailwind config helper and JSON edits change output in fresh workers", async (t) => {
+  const { root } = await fixture(t, {
+    files: {
+      "input.css": '@import "tailwindcss" source("./src"); @config "./tailwind.config.mjs";',
+      "src/page.html": '<div class="bg-configured"></div>',
+      "color-helper.mjs": 'export const prefix = "#ab";',
+      "color-value.json": '{"suffix":"cdef"}',
+      "tailwind.config.mjs": `import { prefix } from './color-helper.mjs';
+      import { readFileSync } from 'node:fs';
+      const { suffix } = JSON.parse(readFileSync(new URL('./color-value.json', import.meta.url), 'utf8'));
+      export default { theme: { extend: { colors: { configured: prefix + suffix } } } };`,
+    },
+  });
+  const first = success(await run(root));
+  assert.match(first.css, /background-color:#abcdef/);
+  await put(root, {
+    "color-helper.mjs": 'export const prefix = "#12";',
+    "color-value.json": '{"suffix":"3456"}',
+  });
+  const second = success(await run(root));
+  assert.match(second.css, /background-color:#123456/);
+  const files = second.messages
+    .filter((message) => message.type === "dependency")
+    .map((message) => message.file);
+  assert.ok(files.includes(path.join(root, "tailwind.config.mjs")));
+  assert.ok(!files.includes(path.join(root, "color-value.json")));
+});
+
+check("different installed Tailwind versions remain isolated in separate projects", async (t) => {
+  const current = await fixture(t);
+  const older = await fixture(t, { older: true });
+  const a = success(await run(current.root));
+  const b = success(await run(older.root));
+  const aAgain = success(await run(current.root));
+  assert.match(a.css, /tailwindcss v4\.3\.3/);
+  assert.match(b.css, /tailwindcss v4\.2\.1/);
+  assert.equal(b.versions.tailwindcss, "4.2.1");
+  assert.equal(b.versions["@tailwindcss/postcss"], "4.2.1");
+  assert.equal(a.css, aAgain.css);
+});
+
+check(
+  "CSS and normalized maps match across temp roots and caller working directories",
+  async (t) => {
+    const a = await fixture(t);
+    const b = await fixture(t);
+    const left = success(await run(a.root, { callerCwd: b.parent }));
+    const right = success(await run(b.root, { callerCwd: a.parent }));
+    assert.equal(left.css, right.css);
+    // Map bodies and source contents compare byte-for-byte; only path fields normalize.
+    const normalizeMap = (map, root) => ({
+      ...map,
+      file: map.file?.replaceAll(root, "<PROJECT>"),
+      sourceRoot: map.sourceRoot?.replaceAll(root, "<PROJECT>"),
+      sources: map.sources.map((source) => source.replaceAll(root, "<PROJECT>")),
+    });
+    assert.deepEqual(normalizeMap(left.map, a.root), normalizeMap(right.map, b.root));
+    assert.deepEqual(left.map.sources, ["input.css"]);
+    assert.match(left.map.sourcesContent[0], /\.flex\{display:flex\}/);
+    assert.doesNotMatch(
+      await readFile(path.join(a.root, "input.css"), "utf8"),
+      /\.flex\{display:flex\}/,
+    );
+  },
+);
+
+check("nested entry preserves imported CSS asset URLs relative to the entry", async (t) => {
+  const { root } = await fixture(t, {
+    files: {
+      "src/input.css": '@import "tailwindcss" source("./"); @import "../theme/part.css";',
+      "theme/part.css": '.asset { background-image: url("./icon.svg"); }',
+      "theme/icon.svg": '<svg xmlns="http://www.w3.org/2000/svg" />',
+    },
+  });
+  const result = success(await run(root, { input: "src/input.css" }));
+  const assetUrl = result.css.match(/url\(["']?([^"')]+icon\.svg)["']?\)/)?.[1];
+  assert.ok(assetUrl, result.css);
+  assert.equal(path.resolve(root, "src", assetUrl), path.join(root, "theme/icon.svg"));
+  assert.equal(
+    await readFile(path.resolve(root, "src", assetUrl), "utf8"),
+    '<svg xmlns="http://www.w3.org/2000/svg" />',
+  );
+});
+
+check(
+  "parser, syntax and stringifier options execute while owned from/to/map differ from plain PostCSS",
+  async (t) => {
+    const { root } = await fixture(t, {
+      files: {
+        "input.css": ".original { color: red; }",
+        "syntax.cjs": `const postcss = require('postcss'); module.exports = { parse(css, opts) { return postcss.parse(css.replace('.original', '.syntax'), opts); }, stringify: postcss.stringify };`,
+        "parser.cjs": `const postcss = require('postcss'); module.exports = (css, opts) => postcss.parse(css.replace('.original', '.parser'), opts);`,
+        "stringifier.cjs": `const postcss = require('postcss'); module.exports = (node, builder) => { postcss.stringify(node, builder); builder('/* stringifier */'); };`,
+      },
+    });
+    await config(
+      root,
+      "postcss.config.mjs",
+      `export default { plugins: [], syntax: './syntax.cjs', from: 'configured-input.css', to: 'configured-output.css', map: false };`,
+    );
+    const owned = await run(root);
+    assert.equal(owned.ok, false);
+    assert.match(owned.error, /from, to, map/);
+    await config(
+      root,
+      "postcss.config.mjs",
+      `export default { plugins: [], syntax: './syntax.cjs' };`,
+    );
+    assert.match(success(await run(root)).css, /\.syntax/);
+    await config(
+      root,
+      "postcss.config.mjs",
+      `export default { plugins: [], parser: './parser.cjs', stringifier: './stringifier.cjs' };`,
+    );
+    const custom = success(await run(root));
+    assert.match(custom.css, /\.parser/);
+    assert.match(custom.css, /\/\* stringifier \*\//);
+  },
+);
