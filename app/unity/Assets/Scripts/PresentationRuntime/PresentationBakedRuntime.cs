@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using Cysharp.Net.Http;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,9 +31,12 @@ namespace Unframe.Unity.PresentationRuntime
         public bool CanSendInput { get { return SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public bool CanSendTracking { get { return CanSendInput; } }
         public string LastError { get; private set; }
+        public DeliveryManifest Delivery { get { return store.Delivery?.Clone(); } }
+        public bool TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot) { return store.TryGetLastConnectionSnapshot(out snapshot); }
 
         public async Task RunAsync(DeliveryManifest manifest, Uri realtimeEndpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken,
-            string certFingerprint = null, PresentationEncodedAssetCache encodedCache = null)
+            string certFingerprint = null, PresentationEncodedAssetCache encodedCache = null,
+            Func<HttpMessageHandler> httpHandlerFactory = null, Func<YetAnotherHttpHandler> realtimeHandlerFactory = null)
         {
             if (lifetime != null) throw new InvalidOperationException("A presentation is already running.");
             LastError = null;
@@ -52,7 +56,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!(encodedCache ?? PresentationEncodedAssetCache.Shared).TryReserveSession(consumerToken, selectedAssets, out PresentationEncodedAssetCache.Lease lease, out error))
                     throw new InvalidOperationException(error);
                 using (lease)
-                using (HttpClient client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) })
+                using (HttpClient client = new HttpClient(httpHandlerFactory == null ? new HttpClientHandler { AllowAutoRedirect = false } : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
                 {
                     foreach (TextureResidencyBinding binding in store.Delivery.Residency.Textures.Textures)
                     {
@@ -70,7 +74,7 @@ namespace Unframe.Unity.PresentationRuntime
                 connection = new PresentationRealtimeConnection(store, textures);
                 connection.RuntimeChanged += Refresh;
                 connection.Disconnected += HandleDisconnected;
-                await connection.RunAsync(realtimeEndpoint, bearerProvider, lifetime.Token, certFingerprint);
+                await connection.RunAsync(realtimeEndpoint, bearerProvider, lifetime.Token, certFingerprint, realtimeHandlerFactory);
             }
             catch (Exception exception)
             {

@@ -35952,4 +35952,655 @@ export namespace unframe {
       };
     }
   }
+
+  /** Namespace preview. */
+  namespace preview {
+    /**
+     * Properties of a LocalPreviewEnvelope.
+     * @deprecated Use unframe.preview.LocalPreviewEnvelope.$Properties instead.
+     */
+    interface ILocalPreviewEnvelope extends unframe.preview.LocalPreviewEnvelope.$Properties {}
+
+    /** Represents a LocalPreviewEnvelope. */
+    class LocalPreviewEnvelope {
+      /**
+       * Constructs a new LocalPreviewEnvelope.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.preview.LocalPreviewEnvelope.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** LocalPreviewEnvelope schemaVersion. */
+      schemaVersion: number;
+
+      /** LocalPreviewEnvelope requestId. */
+      requestId: string;
+
+      /** LocalPreviewEnvelope sourceRevision. */
+      sourceRevision?: string | null;
+
+      /** LocalPreviewEnvelope buildManifest. */
+      buildManifest: string;
+
+      /** LocalPreviewEnvelope assetSet. */
+      assetSet: string;
+
+      /** LocalPreviewEnvelope projection. */
+      projection?: unframe.preview.LocalPreviewProjection.$Properties | null;
+
+      /** LocalPreviewEnvelope initialState. */
+      initialState?: unframe.preview.LocalPreviewInitialState.$Properties | null;
+
+      /** LocalPreviewEnvelope assets. */
+      assets: unframe.preview.LocalPreviewAsset.$Properties[];
+
+      /**
+       * Creates a new LocalPreviewEnvelope instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns LocalPreviewEnvelope instance
+       */
+      static create(
+        properties: unframe.preview.LocalPreviewEnvelope.$Shape,
+      ): unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape;
+      static create(
+        properties?: unframe.preview.LocalPreviewEnvelope.$Properties,
+      ): unframe.preview.LocalPreviewEnvelope;
+
+      /**
+       * Encodes the specified LocalPreviewEnvelope message. Does not implicitly {@link unframe.preview.LocalPreviewEnvelope.verify|verify} messages.
+       * @param message LocalPreviewEnvelope message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.preview.LocalPreviewEnvelope.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified LocalPreviewEnvelope message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewEnvelope.verify|verify} messages.
+       * @param message LocalPreviewEnvelope message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.preview.LocalPreviewEnvelope.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a LocalPreviewEnvelope message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape} LocalPreviewEnvelope
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape;
+
+      /**
+       * Decodes a LocalPreviewEnvelope message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape} LocalPreviewEnvelope
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.preview.LocalPreviewEnvelope & unframe.preview.LocalPreviewEnvelope.$Shape;
+
+      /**
+       * Verifies a LocalPreviewEnvelope message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a LocalPreviewEnvelope message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns LocalPreviewEnvelope
+       */
+      static fromObject(object: { [k: string]: any }): unframe.preview.LocalPreviewEnvelope;
+
+      /**
+       * Creates a plain object from a LocalPreviewEnvelope message. Also converts values to other types if specified.
+       * @param message LocalPreviewEnvelope
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.preview.LocalPreviewEnvelope,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this LocalPreviewEnvelope to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for LocalPreviewEnvelope
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace LocalPreviewEnvelope {
+      /** Properties of a LocalPreviewEnvelope. */
+      interface $Properties {
+        /** LocalPreviewEnvelope schemaVersion */
+        schemaVersion?: number | null;
+
+        /** LocalPreviewEnvelope requestId */
+        requestId?: string | null;
+
+        /** LocalPreviewEnvelope sourceRevision */
+        sourceRevision?: string | null;
+
+        /** LocalPreviewEnvelope buildManifest */
+        buildManifest?: string | null;
+
+        /** LocalPreviewEnvelope assetSet */
+        assetSet?: string | null;
+
+        /** LocalPreviewEnvelope projection */
+        projection?: unframe.preview.LocalPreviewProjection.$Properties | null;
+
+        /** LocalPreviewEnvelope initialState */
+        initialState?: unframe.preview.LocalPreviewInitialState.$Properties | null;
+
+        /** LocalPreviewEnvelope assets */
+        assets?: unframe.preview.LocalPreviewAsset.$Properties[] | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a LocalPreviewEnvelope. */
+      type $Shape = {
+        schemaVersion?: number | null;
+        requestId?: string | null;
+        sourceRevision?: string | null;
+        buildManifest?: string | null;
+        assetSet?: string | null;
+        projection?: unframe.preview.LocalPreviewProjection.$Shape | null;
+        initialState?: unframe.preview.LocalPreviewInitialState.$Shape | null;
+        assets?: unframe.preview.LocalPreviewAsset.$Shape[] | null;
+        $unknowns?: Uint8Array[];
+      };
+    }
+
+    /**
+     * Properties of a LocalPreviewProjection.
+     * @deprecated Use unframe.preview.LocalPreviewProjection.$Properties instead.
+     */
+    interface ILocalPreviewProjection extends unframe.preview.LocalPreviewProjection.$Properties {}
+
+    /** Represents a LocalPreviewProjection. */
+    class LocalPreviewProjection {
+      /**
+       * Constructs a new LocalPreviewProjection.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.preview.LocalPreviewProjection.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** LocalPreviewProjection visibleNodeIds. */
+      visibleNodeIds: string[];
+
+      /** LocalPreviewProjection visibleSurfaceIds. */
+      visibleSurfaceIds: string[];
+
+      /** LocalPreviewProjection visibleVariableIds. */
+      visibleVariableIds: string[];
+
+      /** LocalPreviewProjection renderSurfaces. */
+      renderSurfaces: unframe.delivery.DeliveredRenderSurface.$Properties[];
+
+      /** LocalPreviewProjection semanticSurfaces. */
+      semanticSurfaces: unframe.delivery.ProjectedSemanticSurface.$Properties[];
+
+      /** LocalPreviewProjection localOverlays. */
+      localOverlays: unframe.delivery.LocalOverlayDefinition.$Properties[];
+
+      /** LocalPreviewProjection requiredRuntimeCapabilities. */
+      requiredRuntimeCapabilities: unframe.presentation.RuntimeCapability[];
+
+      /** LocalPreviewProjection runtimeCatalog. */
+      runtimeCatalog?: unframe.presentation.ProjectedRuntimeCatalog.$Properties | null;
+
+      /** LocalPreviewProjection textureResidency. */
+      textureResidency?: unframe.delivery.TextureResidencyPlan.$Properties | null;
+
+      /**
+       * Creates a new LocalPreviewProjection instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns LocalPreviewProjection instance
+       */
+      static create(
+        properties: unframe.preview.LocalPreviewProjection.$Shape,
+      ): unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape;
+      static create(
+        properties?: unframe.preview.LocalPreviewProjection.$Properties,
+      ): unframe.preview.LocalPreviewProjection;
+
+      /**
+       * Encodes the specified LocalPreviewProjection message. Does not implicitly {@link unframe.preview.LocalPreviewProjection.verify|verify} messages.
+       * @param message LocalPreviewProjection message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.preview.LocalPreviewProjection.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified LocalPreviewProjection message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewProjection.verify|verify} messages.
+       * @param message LocalPreviewProjection message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.preview.LocalPreviewProjection.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a LocalPreviewProjection message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape} LocalPreviewProjection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape;
+
+      /**
+       * Decodes a LocalPreviewProjection message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape} LocalPreviewProjection
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.preview.LocalPreviewProjection & unframe.preview.LocalPreviewProjection.$Shape;
+
+      /**
+       * Verifies a LocalPreviewProjection message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a LocalPreviewProjection message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns LocalPreviewProjection
+       */
+      static fromObject(object: { [k: string]: any }): unframe.preview.LocalPreviewProjection;
+
+      /**
+       * Creates a plain object from a LocalPreviewProjection message. Also converts values to other types if specified.
+       * @param message LocalPreviewProjection
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.preview.LocalPreviewProjection,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this LocalPreviewProjection to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for LocalPreviewProjection
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace LocalPreviewProjection {
+      /** Properties of a LocalPreviewProjection. */
+      interface $Properties {
+        /** LocalPreviewProjection visibleNodeIds */
+        visibleNodeIds?: string[] | null;
+
+        /** LocalPreviewProjection visibleSurfaceIds */
+        visibleSurfaceIds?: string[] | null;
+
+        /** LocalPreviewProjection visibleVariableIds */
+        visibleVariableIds?: string[] | null;
+
+        /** LocalPreviewProjection renderSurfaces */
+        renderSurfaces?: unframe.delivery.DeliveredRenderSurface.$Properties[] | null;
+
+        /** LocalPreviewProjection semanticSurfaces */
+        semanticSurfaces?: unframe.delivery.ProjectedSemanticSurface.$Properties[] | null;
+
+        /** LocalPreviewProjection localOverlays */
+        localOverlays?: unframe.delivery.LocalOverlayDefinition.$Properties[] | null;
+
+        /** LocalPreviewProjection requiredRuntimeCapabilities */
+        requiredRuntimeCapabilities?: unframe.presentation.RuntimeCapability[] | null;
+
+        /** LocalPreviewProjection runtimeCatalog */
+        runtimeCatalog?: unframe.presentation.ProjectedRuntimeCatalog.$Properties | null;
+
+        /** LocalPreviewProjection textureResidency */
+        textureResidency?: unframe.delivery.TextureResidencyPlan.$Properties | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a LocalPreviewProjection. */
+      type $Shape = {
+        visibleNodeIds?: string[] | null;
+        visibleSurfaceIds?: string[] | null;
+        visibleVariableIds?: string[] | null;
+        renderSurfaces?: unframe.delivery.DeliveredRenderSurface.$Shape[] | null;
+        semanticSurfaces?: unframe.delivery.ProjectedSemanticSurface.$Shape[] | null;
+        localOverlays?: unframe.delivery.LocalOverlayDefinition.$Shape[] | null;
+        requiredRuntimeCapabilities?: unframe.presentation.RuntimeCapability[] | null;
+        runtimeCatalog?: unframe.presentation.ProjectedRuntimeCatalog.$Shape | null;
+        textureResidency?: unframe.delivery.TextureResidencyPlan.$Shape | null;
+        $unknowns?: Uint8Array[];
+      };
+    }
+
+    /**
+     * Properties of a LocalPreviewInitialState.
+     * @deprecated Use unframe.preview.LocalPreviewInitialState.$Properties instead.
+     */
+    interface ILocalPreviewInitialState
+      extends unframe.preview.LocalPreviewInitialState.$Properties {}
+
+    /** Represents a LocalPreviewInitialState. */
+    class LocalPreviewInitialState {
+      /**
+       * Constructs a new LocalPreviewInitialState.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.preview.LocalPreviewInitialState.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** LocalPreviewInitialState nodeStates. */
+      nodeStates: unframe.realtime.NodeRuntimeState.$Properties[];
+
+      /** LocalPreviewInitialState surfaceStates. */
+      surfaceStates: unframe.realtime.SurfaceRuntimeState.$Properties[];
+
+      /**
+       * Creates a new LocalPreviewInitialState instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns LocalPreviewInitialState instance
+       */
+      static create(
+        properties: unframe.preview.LocalPreviewInitialState.$Shape,
+      ): unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape;
+      static create(
+        properties?: unframe.preview.LocalPreviewInitialState.$Properties,
+      ): unframe.preview.LocalPreviewInitialState;
+
+      /**
+       * Encodes the specified LocalPreviewInitialState message. Does not implicitly {@link unframe.preview.LocalPreviewInitialState.verify|verify} messages.
+       * @param message LocalPreviewInitialState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.preview.LocalPreviewInitialState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified LocalPreviewInitialState message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewInitialState.verify|verify} messages.
+       * @param message LocalPreviewInitialState message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.preview.LocalPreviewInitialState.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a LocalPreviewInitialState message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape} LocalPreviewInitialState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape;
+
+      /**
+       * Decodes a LocalPreviewInitialState message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape} LocalPreviewInitialState
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.preview.LocalPreviewInitialState & unframe.preview.LocalPreviewInitialState.$Shape;
+
+      /**
+       * Verifies a LocalPreviewInitialState message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a LocalPreviewInitialState message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns LocalPreviewInitialState
+       */
+      static fromObject(object: { [k: string]: any }): unframe.preview.LocalPreviewInitialState;
+
+      /**
+       * Creates a plain object from a LocalPreviewInitialState message. Also converts values to other types if specified.
+       * @param message LocalPreviewInitialState
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.preview.LocalPreviewInitialState,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this LocalPreviewInitialState to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for LocalPreviewInitialState
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace LocalPreviewInitialState {
+      /** Properties of a LocalPreviewInitialState. */
+      interface $Properties {
+        /** LocalPreviewInitialState nodeStates */
+        nodeStates?: unframe.realtime.NodeRuntimeState.$Properties[] | null;
+
+        /** LocalPreviewInitialState surfaceStates */
+        surfaceStates?: unframe.realtime.SurfaceRuntimeState.$Properties[] | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a LocalPreviewInitialState. */
+      type $Shape = unframe.preview.LocalPreviewInitialState.$Properties;
+    }
+
+    /**
+     * Properties of a LocalPreviewAsset.
+     * @deprecated Use unframe.preview.LocalPreviewAsset.$Properties instead.
+     */
+    interface ILocalPreviewAsset extends unframe.preview.LocalPreviewAsset.$Properties {}
+
+    /** Represents a LocalPreviewAsset. */
+    class LocalPreviewAsset {
+      /**
+       * Constructs a new LocalPreviewAsset.
+       * @param [properties] Properties to set
+       */
+      constructor(properties?: unframe.preview.LocalPreviewAsset.$Properties);
+
+      /** Unknown fields preserved while decoding when enabled */
+      $unknowns?: Uint8Array[];
+
+      /** LocalPreviewAsset assetId. */
+      assetId: string;
+
+      /** LocalPreviewAsset reference. */
+      reference: string;
+
+      /**
+       * Creates a new LocalPreviewAsset instance using the specified properties.
+       * @param [properties] Properties to set
+       * @returns LocalPreviewAsset instance
+       */
+      static create(
+        properties: unframe.preview.LocalPreviewAsset.$Shape,
+      ): unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape;
+      static create(
+        properties?: unframe.preview.LocalPreviewAsset.$Properties,
+      ): unframe.preview.LocalPreviewAsset;
+
+      /**
+       * Encodes the specified LocalPreviewAsset message. Does not implicitly {@link unframe.preview.LocalPreviewAsset.verify|verify} messages.
+       * @param message LocalPreviewAsset message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encode(
+        message: unframe.preview.LocalPreviewAsset.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Encodes the specified LocalPreviewAsset message, length delimited. Does not implicitly {@link unframe.preview.LocalPreviewAsset.verify|verify} messages.
+       * @param message LocalPreviewAsset message or plain object to encode
+       * @param [writer] Writer to encode to
+       * @returns Writer
+       */
+      static encodeDelimited(
+        message: unframe.preview.LocalPreviewAsset.$Properties,
+        writer?: $protobuf.Writer,
+      ): $protobuf.Writer;
+
+      /**
+       * Decodes a LocalPreviewAsset message from the specified reader or buffer.
+       * @param reader Reader or buffer to decode from
+       * @param [length] Message length if known beforehand
+       * @returns {unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape} LocalPreviewAsset
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decode(
+        reader: $protobuf.Reader | Uint8Array,
+        length?: number,
+      ): unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape;
+
+      /**
+       * Decodes a LocalPreviewAsset message from the specified reader or buffer, length delimited.
+       * @param reader Reader or buffer to decode from
+       * @returns {unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape} LocalPreviewAsset
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      static decodeDelimited(
+        reader: $protobuf.Reader | Uint8Array,
+      ): unframe.preview.LocalPreviewAsset & unframe.preview.LocalPreviewAsset.$Shape;
+
+      /**
+       * Verifies a LocalPreviewAsset message.
+       * @param message Plain object to verify
+       * @returns `null` if valid, otherwise the reason why it is not
+       */
+      static verify(message: { [k: string]: any }): string | null;
+
+      /**
+       * Creates a LocalPreviewAsset message from a plain object. Also converts values to their respective internal types.
+       * @param object Plain object
+       * @returns LocalPreviewAsset
+       */
+      static fromObject(object: { [k: string]: any }): unframe.preview.LocalPreviewAsset;
+
+      /**
+       * Creates a plain object from a LocalPreviewAsset message. Also converts values to other types if specified.
+       * @param message LocalPreviewAsset
+       * @param [options] Conversion options
+       * @returns Plain object
+       */
+      static toObject(
+        message: unframe.preview.LocalPreviewAsset,
+        options?: $protobuf.IConversionOptions,
+      ): { [k: string]: any };
+
+      /**
+       * Converts this LocalPreviewAsset to JSON.
+       * @returns JSON object
+       */
+      toJSON(): { [k: string]: any };
+
+      /**
+       * Gets the type url for LocalPreviewAsset
+       * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns The type url
+       */
+      static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace LocalPreviewAsset {
+      /** Properties of a LocalPreviewAsset. */
+      interface $Properties {
+        /** LocalPreviewAsset assetId */
+        assetId?: string | null;
+
+        /** LocalPreviewAsset reference */
+        reference?: string | null;
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+      }
+
+      /** Shape of a LocalPreviewAsset. */
+      type $Shape = unframe.preview.LocalPreviewAsset.$Properties;
+    }
+  }
 }

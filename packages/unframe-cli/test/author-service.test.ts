@@ -3,9 +3,10 @@ import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "n
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { checkAuthoringProject } from "@unframe/unframe-compiler";
+import { acquireSourceLock } from "../src/filesystem/source-lock.js";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "../src/filesystem/discover-project.js";
@@ -99,6 +100,89 @@ const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) =
 });
 
 describe("author service with frozen React source", () => {
+  it("builds explicit Dist without refreshing saved local inputs", async () => {
+    const directory = await createProject();
+    let builtChannel: string | undefined;
+    const service = await createAuthorService(directory, {
+      run: async ({ host }) => {
+        builtChannel = host?.channel;
+        return { exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) };
+      },
+      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+    });
+    services.push(service);
+    const beforeLock = await readFile(join(directory, "unframe.lock"));
+    const snapshot = await service.project();
+    const job = await service.build(snapshot.revision, commandId("a"), "dist");
+    await expect.poll(async () => (await service.job(job.buildId)).status).toBe("succeeded");
+    expect(builtChannel).toBe("dist");
+    expect(job.revision).toBe(snapshot.revision);
+    expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
+  }, 30000);
+  it("builds compiler-valid source without Inspector metadata", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "unframe-author-readonly-"));
+    temporary.push(directory);
+    await cp(reference, directory, { recursive: true });
+    const service = await createAuthorService(directory, {
+      run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
+      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+    });
+    services.push(service);
+    const snapshot = await service.project();
+    expect(snapshot.instances).toEqual([]);
+    expect(snapshot.definition).not.toBeNull();
+    const job = await service.build(snapshot.revision, commandId("8"));
+    await expect.poll(async () => (await service.job(job.buildId)).status).toBe("succeeded");
+  }, 30000);
+
+  it("retains the prior lock and external Source when local refresh fails", async () => {
+    const directory = await createProject();
+    const beforeLock = await readFile(join(directory, "unframe.lock"));
+    const invalidSource = component.replace(
+      "props: {title: editableText({required: true})}",
+      "props: {title: missingSymbol}",
+    );
+    await writeFile(join(directory, "Hero.component.tsx"), invalidSource);
+    const service = await createAuthorService(directory);
+    services.push(service);
+    const snapshot = await service.project();
+    await expect(service.build(snapshot.revision, commandId("7"))).rejects.toMatchObject({
+      status: 422,
+    });
+    expect(await readFile(join(directory, "unframe.lock"))).toEqual(beforeLock);
+    expect(await readFile(join(directory, "Hero.component.tsx"), "utf8")).toBe(invalidSource);
+  }, 30000);
+  it("refreshes saved local inputs and builds the refreshed revision in the Dev channel", async () => {
+    const directory = await createProject();
+    const lockPath = join(directory, "unframe.lock");
+    const beforeLock = JSON.parse(await readFile(lockPath, "utf8"));
+    await writeFile(join(directory, "Hero.component.tsx"), component + "\n// external save\n");
+    let builtRevision: string | undefined;
+    let builtChannel: string | undefined;
+    const service = await createAuthorService(directory, {
+      run: async ({ host }) => {
+        builtRevision = host?.expectedRevision;
+        builtChannel = (host as { channel?: string })?.channel;
+        return { exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) };
+      },
+      readPublishedArtifacts: async () => ({ catalog: [], assets: new Map() }),
+    });
+    services.push(service);
+    const saved = await service.project();
+    const created = await service.build(saved.revision, commandId("9"));
+    await expect.poll(async () => (await service.job(created.buildId)).status).toBe("succeeded");
+    const refreshed = await discoverPresentationProjectFiles(directory);
+    assert(refreshed.ok);
+    expect(created.revision).toBe(refreshed.revision);
+    expect(created.revision).not.toBe(saved.revision);
+    expect(builtRevision).toBe(created.revision);
+    expect(builtChannel).toBe("dev");
+    const afterLock = JSON.parse(await readFile(lockPath, "utf8"));
+    expect(afterLock.packages).toEqual(beforeLock.packages);
+    expect(afterLock.rootDependencies).toEqual(beforeLock.rootDependencies);
+    expect(afterLock.assets).toEqual(beforeLock.assets);
+    expect(afterLock.componentLocks).not.toEqual(beforeLock.componentLocks);
+  }, 30000);
   it("returns editor metadata and structured build diagnostics", async () => {
     const directory = await createProject();
     const service = await createAuthorService(directory, {
@@ -385,7 +469,8 @@ describe("author service with frozen React source", () => {
     const service = await createAuthorService(directory, {
       run: async ({ host }) => {
         expect(host?.expectedRevision).toBe((await service.project()).revision);
-        const generation = join(directory, ".unframe", "generations", generationId);
+        expect(host?.channel).toBe("dev");
+        const generation = join(directory, ".unframe", "preview", "generations", generationId);
         await mkdir(join(generation, "assets"), { recursive: true });
         const surface = () => ({
           renderSurfaces: {
@@ -410,8 +495,11 @@ describe("author service with frozen React source", () => {
           }),
         );
         await writeFile(join(generation, "assets", assetId + ".png"), bytes);
-        await symlink(".unframe/generations/" + generationId, join(directory, "dist"));
-        return { exitCode: 0 as const, stdout: "", stderr: "" };
+        await symlink(
+          "generations/" + "e".repeat(32),
+          join(directory, ".unframe", "preview", "current"),
+        );
+        return { exitCode: 0 as const, stdout: "", stderr: "", generationId: "f".repeat(32) };
       },
     });
     services.push(service);
@@ -432,6 +520,7 @@ describe("author service with frozen React source", () => {
       job = await service.job(created.buildId);
     }
     expect(job.status, JSON.stringify(job.diagnostics)).toBe("succeeded");
+    expect(job.generationId).toBe(generationId);
     expect(job.artifacts.map(({ instanceId, stateId }) => [instanceId, stateId]).sort()).toEqual([
       ["hero-one", "default"],
       ["hero-two", "default"],
@@ -457,7 +546,12 @@ describe("author service with frozen React source", () => {
       finishPublication = resolve;
     });
     const service = await createAuthorService(directory, {
-      run: async () => ({ exitCode: 0 as const, stdout: "", stderr: "" }),
+      run: async () => ({
+        exitCode: 0 as const,
+        stdout: "",
+        stderr: "",
+        generationId: "f".repeat(32),
+      }),
       readPublishedArtifacts: async () => {
         publicationStarted();
         await finish;
@@ -485,4 +579,56 @@ describe("author service with frozen React source", () => {
     expect((await service.job(created.buildId)).artifacts).toEqual([]);
     await expect(service.artifact(created.buildId, "image")).rejects.toMatchObject({ status: 404 });
   }, 30000);
+  it("rejects a completed generation when Source changes while its artifacts are read", async () => {
+    const directory = await createProject();
+    const service = await createAuthorService(directory, {
+      run: async () => ({ exitCode: 0, stdout: "", stderr: "", generationId: "f".repeat(32) }),
+      readPublishedArtifacts: async () => {
+        const path = join(directory, "Hero.component.tsx");
+        await writeFile(path, component + "\n// newer external save\n");
+        return { catalog: [], assets: new Map() };
+      },
+    });
+    services.push(service);
+    const snapshot = await service.project();
+    const created = await service.build(snapshot.revision, commandId("5"));
+    await expect.poll(async () => (await service.job(created.buildId)).status).toBe("stale");
+    expect((await service.job(created.buildId)).generationId).toBeNull();
+  }, 30000);
 });
+it("waits for a short build lease before returning the polled project", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
+  temporary.push(directory);
+  await cp(reference, directory, { recursive: true });
+  const service = await createAuthorService(directory);
+  services.push(service);
+  const before = await service.project();
+  const lease = await acquireSourceLock(directory);
+  assert(lease.ok);
+  const pending = service.project();
+  void pending.catch(() => undefined);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  await lease.value.release();
+  expect(await pending).toMatchObject({ revision: before.revision });
+}, 30_000);
+it("does not register or start a build after closing while its source lease is pending", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "unframe-lease-fixture-"));
+  temporary.push(directory);
+  await cp(reference, directory, { recursive: true });
+  const run = vi.fn<typeof runPresentationCli>();
+  const service = await createAuthorService(directory, { run });
+  services.push(service);
+  const before = await service.project();
+  const lease = await acquireSourceLock(directory);
+  assert(lease.ok);
+  const pending = service.build(before.revision, "1".repeat(32));
+  void pending.catch(() => undefined);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  await service.close();
+  await lease.value.release();
+  await expect(pending).rejects.toMatchObject({ code: "author-service-closed" });
+  expect(run).not.toHaveBeenCalled();
+  const next = await acquireSourceLock(directory);
+  assert(next.ok);
+  await next.value.release();
+}, 30_000);

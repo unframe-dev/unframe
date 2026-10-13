@@ -5,10 +5,9 @@ import {
   createRouter,
   type RouterHistory,
 } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
 import { z } from "zod";
 import { requireSession } from "@/features/auth/require-session";
-import { loadPresentationSnapshot } from "@/features/editor/infra/document-runtime";
+import { LocalHostGuide } from "@/features/editor/local-host-guide";
 import { DeviceAuthorizationPage } from "@/features/device/device-authorization-page";
 import { HomePage } from "@/features/presentations/home-page";
 import { ApplicationShell } from "@/app/shell/application-shell";
@@ -19,11 +18,6 @@ import publicModuleStyles from "@/shared/layouts/public-pages.module.css";
 import routerModuleStyles from "./router.module.css";
 const publicStyles = { main: publicModuleStyles["main"]!, panel: publicModuleStyles["panel"]! };
 const styles = { skipLink: routerModuleStyles["skipLink"]! };
-const EditorPage = lazy(() =>
-  import("@/features/editor/ui/editor-page").then((module) => ({
-    default: module.EditorPage,
-  })),
-);
 function Root() {
   return (
     <>
@@ -119,21 +113,9 @@ const securityRoute = createRoute({
   component: SecurityPage,
 });
 const editorRoute = createRoute({
-  getParentRoute: () => applicationRoute,
-  path: "editor/$presentationId",
-  validateSearch: z.object({
-    panel: z.enum(["properties", "assets", "none"]).catch("properties"),
-  }),
-  loader: ({ params }) => loadPresentationSnapshot(params.presentationId),
-  component: () => {
-    const document = editorRoute.useLoaderData();
-    const { panel } = editorRoute.useSearch();
-    return (
-      <Suspense fallback={<main>準備中…</main>}>
-        <EditorPage document={document} panel={panel} />
-      </Suspense>
-    );
-  },
+  getParentRoute: () => rootRoute,
+  path: "editor",
+  component: LocalHostGuide,
 });
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -141,14 +123,8 @@ const routeTree = rootRoute.addChildren([
   recoverRoute,
   resetRoute,
   deviceRoute,
-  applicationRoute.addChildren([
-    homeRoute,
-    devicesRoute,
-    roomsRoute,
-    profileRoute,
-    securityRoute,
-    editorRoute,
-  ]),
+  editorRoute,
+  applicationRoute.addChildren([homeRoute, devicesRoute, roomsRoute, profileRoute, securityRoute]),
 ]);
 export function createAppRouter(history?: RouterHistory) {
   return createRouter({

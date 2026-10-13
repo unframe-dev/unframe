@@ -1,0 +1,16 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@unframe/unframe-authoring",
+    "paths": {
+      "@unframe/unframe-authoring": ["../../packages/unframe-authoring/src/index.ts"],
+      "@unframe/unframe-authoring/jsx-runtime": [
+        "../../packages/unframe-authoring/src/jsx-runtime.ts"
+      ]
+    },
+    "noPropertyAccessFromIndexSignature": false
+  },
+  "include": ["./**/*.ts", "./**/*.tsx"]
+}

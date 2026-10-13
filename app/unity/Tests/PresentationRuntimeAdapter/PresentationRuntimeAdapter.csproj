@@ -10,6 +10,7 @@
       <HintPath>../../Assets/Plugins/Google.Protobuf.dll</HintPath>
     </Reference>
     <Compile Include="Program.cs" />
+    <Compile Include="../../Assets/Tests/EditMode/Editor/Rendering/PresentationPreviewTestFixture.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Generated/*.cs" Exclude="../../Assets/Scripts/PresentationRuntime/Generated/RealtimeGrpc.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Fixtures/PresentationContractJsonFixtureLoader.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Animation/PresentationAnimationPresetIds.cs" />
@@ -18,6 +19,9 @@
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Delivery/PresentationBakedDeliveryValidation.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationRuntimeStateStore.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationRuntimeDataStore.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/State/IPresentationRenderView.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationPreviewAdmission.cs" />
+    <Compile Include="../../Assets/Scripts/PresentationRuntime/Preview/PresentationLocalPreviewAdapter.cs" />
     <Content Include="../../Assets/Resources/PresentationFixtures/LocalDelivery.json" CopyToOutputDirectory="PreserveNewest" Link="LocalDelivery.json" />
     <Content Include="../../Assets/Resources/PresentationFixtures/LocalSnapshot.json" CopyToOutputDirectory="PreserveNewest" Link="LocalSnapshot.json" />
   </ItemGroup>

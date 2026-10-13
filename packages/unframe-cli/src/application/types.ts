@@ -28,6 +28,8 @@ export type PresentationCliResult = Readonly<{
   exitCode: PresentationCliExitCode;
   stdout: string;
   stderr: string;
+  sourceRevision?: string;
+  generationId?: string;
 }>;
 
 export type PresentationCliBuildContext = Readonly<{
@@ -45,6 +47,7 @@ export type PresentationCliHost = Readonly<{
   signal?: AbortSignal;
   buildContext?: PresentationCliBuildContext;
   expectedRevision?: string;
+  channel?: "dev" | "dist";
 }>;
 
 export type RunPresentationCliInput = Readonly<{

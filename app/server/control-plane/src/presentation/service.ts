@@ -1,4 +1,4 @@
-import type { PresentationDefinition } from "./schema";
+import type { PresentationDefinition, PresentationRegistration } from "./schema";
 import type { PresentationRecord, PresentationRepository } from "./repository";
 
 export type Identity = { userId: string; globalRole: "admin" | "user" };
@@ -13,24 +13,25 @@ export class PresentationService {
   constructor(
     private readonly repository: PresentationRepository,
     private readonly now: () => string,
-    private readonly id: () => string,
   ) {}
 
   async create(
     identity: Identity,
-    definition: PresentationDefinition,
+    registration: PresentationRegistration,
   ): Promise<PresentationResource> {
+    const existing = await this.repository.findById(registration.id);
+    if (existing) return resource(await this.requireWrite(identity, registration.id));
     const timestamp = this.now();
-    const record: PresentationRecord = {
-      id: this.id(),
+    await this.repository.create({
+      id: registration.id,
+      name: registration.name,
       ownerId: identity.userId,
       revision: 1,
-      definition,
+      definition: null,
       createdAt: timestamp,
       updatedAt: timestamp,
-    };
-    await this.repository.create(record);
-    return resource(record);
+    });
+    return resource(await this.requireWrite(identity, registration.id));
   }
 
   async list(identity: Identity) {

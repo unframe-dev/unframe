@@ -4,6 +4,10 @@ import definition from "../../../../../../packages/contracts/presentation/fixtur
 import renderBundle from "../../../../../../packages/contracts/presentation/fixtures/render-bundle.json";
 import assetSet from "../../../../../../packages/contracts/presentation/fixtures/asset-set-manifest.json";
 import buildManifest from "../../../../../../packages/contracts/presentation/fixtures/build-manifest.json";
+import { PublicationAssetAccess } from "../../../src/modules/publications/asset-access";
+import { DeliveryService } from "../../../src/modules/publications/delivery";
+import { validateConfig } from "../../../src/config";
+import { decodeWireMessage, type DeliveryManifestWire } from "@unframe/contracts/presentation";
 import { normalizedCapability } from "../../../src/modules/publications/capability";
 import {
   buildProjectionProfile,
@@ -106,7 +110,12 @@ const seed = async () => {
 describe("publication service", () => {
   beforeAll(seed);
   beforeEach(async () => {
-    await env.DB.prepare("DELETE FROM presentation_builds WHERE presentation_id = 'demo'").run();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM presentation_sessions WHERE presentation_id = 'demo'"),
+      env.DB.prepare("DELETE FROM presentation_publications WHERE presentation_id = 'demo'"),
+      env.DB.prepare("DELETE FROM presentation_builds WHERE presentation_id = 'demo'"),
+      env.DB.prepare("UPDATE presentations SET revision = 1 WHERE id = 'demo'"),
+    ]);
   });
   it("accepts a canonical build through the bounded HTTP route", async () => {
     const response = await createApp({ identityProvider: async () => owner }).fetch(
@@ -182,6 +191,25 @@ describe("publication service", () => {
     ).rejects.toMatchObject({ code: "invalid_build" } satisfies Partial<PublicationError>);
   });
 
+  it("reuses exactly the same canonical immutable build and rejects same-ID changes", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    await service.createBuild(owner, "demo", upload(artifacts));
+    await env.DB.prepare(
+      "UPDATE presentations SET revision = revision + 1 WHERE id = 'demo'",
+    ).run();
+    await expect(service.createBuild(owner, "demo", upload(artifacts))).resolves.toMatchObject({
+      buildId: "build-1",
+    });
+    const changed = structuredClone(artifacts);
+    changed.buildManifest.sourceDraftRevision = 1;
+    await expect(service.createBuild(owner, "demo", upload(changed))).rejects.toMatchObject({
+      code: "conflict",
+    });
+    await expect(
+      service.createBuild({ userId: "stranger", globalRole: "user" }, "demo", upload(artifacts)),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+
   it("rejects asset bytes that do not match the build descriptor", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     await service.createBuild(owner, "demo", upload(artifacts));
@@ -195,7 +223,7 @@ describe("publication service", () => {
         "image/png",
       ),
     ).rejects.toMatchObject({ code: "invalid_asset" } satisfies Partial<PublicationError>);
-    await expect(service.publish(owner, "demo", "build-1", 0)).rejects.toMatchObject({
+    await expect(service.publish(owner, "demo", "build-1", null)).rejects.toMatchObject({
       code: "invalid_asset",
     } satisfies Partial<PublicationError>);
   });
@@ -229,6 +257,50 @@ describe("publication service", () => {
     expect(authorized.status).toBe(422);
     expect(read).toBe(true);
     expect(await env.ASSETS.get("publication-builds/demo/build-1/image")).toBeNull();
+  });
+
+  it("publishes a fixed Dist after draft edits and atomically compares the full publication fence", async () => {
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const { copy, bytes } = await publishable();
+    await service.createBuild(owner, "demo", upload(copy));
+    for (const [id, descriptor] of Object.entries(copy.assetSet.assets))
+      await service.uploadAsset(
+        owner,
+        "demo",
+        copy.buildManifest.buildId,
+        id,
+        bytes[id]!,
+        descriptor.mediaType,
+      );
+    await env.DB.prepare(
+      "UPDATE presentations SET revision = revision + 1 WHERE id = 'demo'",
+    ).run();
+    const first = await service.publish(owner, "demo", copy.buildManifest.buildId, null);
+    expect(first.publicationEpoch).toBe(1);
+    const fence = {
+      presentationId: first.presentationId,
+      publicationEpoch: first.publicationEpoch,
+      publicationManifestHash: first.publicationManifestHash,
+    };
+    await expect(
+      service.publish(owner, "demo", copy.buildManifest.buildId, null),
+    ).rejects.toMatchObject({ code: "conflict" });
+    for (const mismatch of [
+      { ...fence, presentationId: "other" },
+      { ...fence, publicationEpoch: 2 },
+      { ...fence, publicationManifestHash: `sha256:${"0".repeat(64)}` },
+    ])
+      await expect(
+        service.publish(owner, "demo", copy.buildManifest.buildId, mismatch),
+      ).rejects.toMatchObject({ code: "conflict" });
+    const results = await Promise.allSettled([
+      service.publish(owner, "demo", copy.buildManifest.buildId, fence),
+      service.publish(owner, "demo", copy.buildManifest.buildId, fence),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((result) => result.status === "rejected");
+    expect(rejected).toMatchObject({ status: "rejected", reason: { code: "conflict" } });
+    await expect(service.latest(owner, "demo")).resolves.toMatchObject({ publicationEpoch: 2 });
   });
 
   it("publishes verified R2 bytes atomically and refuses updates during active use", async () => {
@@ -269,17 +341,87 @@ describe("publication service", () => {
       .bind(owner.userId)
       .run();
     await expect(
-      service.publish(owner, "demo", copy.buildManifest.buildId, 0),
+      service.publish(owner, "demo", copy.buildManifest.buildId, null),
     ).rejects.toMatchObject({ code: "conflict" } satisfies Partial<PublicationError>);
     await env.DB.prepare(
       "UPDATE presentation_sessions SET state = 'Ended' WHERE id = 'publication-session'",
     ).run();
-    const manifest = await service.publish(owner, "demo", copy.buildManifest.buildId, 0);
+    const manifest = await service.publish(owner, "demo", copy.buildManifest.buildId, null);
     expect(manifest).toMatchObject({
       presentationId: "demo",
       publicationEpoch: 1,
       buildId: "build-publishable",
     });
+
+    const environment = {
+      ...runtimeEnvironment(),
+      PUBLICATION_ASSET_ORIGIN: "https://assets.example.test",
+    };
+    const signer = new PublicationAssetAccess(environment.SERVICE_IDENTITY_SECRET);
+    const servedAssetId = Object.keys(copy.assetSet.assets)[0]!;
+    const servedDescriptor = copy.assetSet.assets[servedAssetId]!;
+    const assetTarget = {
+      presentationId: "demo",
+      buildId: copy.buildManifest.buildId,
+      assetId: servedAssetId,
+    };
+    const signedUrl = await signer.issue(
+      environment.PUBLICATION_ASSET_ORIGIN,
+      assetTarget,
+      Date.now() + 300_000,
+    );
+    expect((await createApp().fetch(new Request(signedUrl), runtimeEnvironment())).status).toBe(
+      403,
+    );
+    const missingAssetUrl = await signer.issue(
+      environment.PUBLICATION_ASSET_ORIGIN,
+      { ...assetTarget, assetId: "missing" },
+      Date.now() + 300_000,
+    );
+    expect((await createApp().fetch(new Request(missingAssetUrl), environment)).status).toBe(404);
+    const served = await createApp().fetch(new Request(signedUrl), environment);
+    expect(served.status).toBe(200);
+    expect(served.headers.get("content-type")).toBe(servedDescriptor.mediaType);
+    expect(new Uint8Array(await served.arrayBuffer())).toEqual(
+      new Uint8Array(bytes[servedAssetId]!),
+    );
+    for (const modified of [
+      signedUrl.replace(`/${servedAssetId}?`, "/other?"),
+      signedUrl.replace(/signature=[a-f0-9]+/, `signature=${"0".repeat(64)}`),
+    ]) {
+      expect((await createApp().fetch(new Request(modified), environment)).status).toBe(403);
+    }
+    expect(
+      (await createApp().fetch(new Request(signedUrl.split("?")[0]!), environment)).status,
+    ).toBe(400);
+    const expiredUrl = await new PublicationAssetAccess(
+      environment.SERVICE_IDENTITY_SECRET,
+      () => Date.now() - 400_000,
+    ).issue(environment.PUBLICATION_ASSET_ORIGIN, assetTarget, Date.now() - 100_000);
+    expect((await createApp().fetch(new Request(expiredUrl), environment)).status).toBe(403);
+    const key = `publication-builds/demo/${copy.buildManifest.buildId}/${servedAssetId}`;
+    await env.ASSETS.put(key, bytes[servedAssetId]!, {
+      httpMetadata: { contentType: "application/octet-stream" },
+    });
+    expect((await createApp().fetch(new Request(signedUrl), environment)).status).toBe(409);
+    await env.ASSETS.put(key, new Uint8Array(1), {
+      httpMetadata: { contentType: servedDescriptor.mediaType },
+    });
+    expect((await createApp().fetch(new Request(signedUrl), environment)).status).toBe(409);
+    const corruptBytes = new Uint8Array(bytes[servedAssetId]!.slice(0));
+    corruptBytes[0] = corruptBytes[0]! ^ 255;
+    await env.ASSETS.put(key, corruptBytes, {
+      httpMetadata: { contentType: servedDescriptor.mediaType },
+    });
+    expect((await createApp().fetch(new Request(signedUrl), environment)).status).toBe(409);
+    await service.uploadAsset(
+      owner,
+      "demo",
+      copy.buildManifest.buildId,
+      servedAssetId,
+      bytes[servedAssetId]!,
+      servedDescriptor.mediaType,
+    );
     await expect(service.latest(owner, "demo")).resolves.toEqual(manifest);
     const fetched = await app.fetch(
       new Request("https://example.test/presentations/demo/publication"),
@@ -367,6 +509,33 @@ describe("publication service", () => {
     const currentProjection = await app.fetch(projectionRequest(), runtimeEnvironment());
     expect(currentProjection.status).toBe(200);
     await expect(currentProjection.json()).resolves.toMatchObject({ role: "presenter", profile });
+    const externalDelivery = decodeWireMessage(
+      "unframe.delivery.DeliveryManifest",
+      await new DeliveryService(validateConfig(runtimeEnvironment())).manifest(
+        owner,
+        "publication-runtime-session",
+        "quest-baked-web-v1",
+      ),
+    ) as DeliveryManifestWire;
+    expect(externalDelivery.assetAccess![0]!.url).toContain("r2.cloudflarestorage.com");
+    const encodedDelivery = await new DeliveryService(validateConfig(environment)).manifest(
+      owner,
+      "publication-runtime-session",
+      "quest-baked-web-v1",
+    );
+    const delivery = decodeWireMessage(
+      "unframe.delivery.DeliveryManifest",
+      encodedDelivery,
+    ) as DeliveryManifestWire;
+    expect(delivery.assetAccess!.length).toBeGreaterThan(0);
+    for (const deliveryAsset of delivery.assetAccess!) {
+      expect(deliveryAsset.url!).toMatch(/^https:\/\/assets\.example\.test\/publication-assets\//);
+      const fetchedAsset = await createApp().fetch(new Request(deliveryAsset.url!), environment);
+      expect(fetchedAsset.status).toBe(200);
+      expect(new Uint8Array(await fetchedAsset.arrayBuffer())).toEqual(
+        new Uint8Array(bytes[deliveryAsset.assetId!]!),
+      );
+    }
     const publishedArtifacts = PublicationService.prototype.publishedArtifacts;
     const artifactRead = vi
       .spyOn(PublicationService.prototype, "publishedArtifacts")
@@ -386,7 +555,7 @@ describe("publication service", () => {
       artifactRead.mockRestore();
     }
     await expect(
-      service.publish(owner, "demo", copy.buildManifest.buildId, 0),
+      service.publish(owner, "demo", copy.buildManifest.buildId, null),
     ).rejects.toMatchObject({ code: "conflict" } satisfies Partial<PublicationError>);
   });
 });

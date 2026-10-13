@@ -34,12 +34,12 @@ namespace Unframe.ControlPlane.Model
         /// Initializes a new instance of the <see cref="PresentationsPresentationIdPublicationsPostRequest" /> class.
         /// </summary>
         /// <param name="buildId">buildId</param>
-        /// <param name="expectedPublicationEpoch">expectedPublicationEpoch</param>
+        /// <param name="expectedPublicationFence">expectedPublicationFence</param>
         [JsonConstructor]
-        public PresentationsPresentationIdPublicationsPostRequest(string buildId, int expectedPublicationEpoch)
+        public PresentationsPresentationIdPublicationsPostRequest(string buildId, PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence? expectedPublicationFence = default)
         {
             BuildId = buildId;
-            ExpectedPublicationEpoch = expectedPublicationEpoch;
+            ExpectedPublicationFence = expectedPublicationFence;
             OnCreated();
         }
 
@@ -52,10 +52,10 @@ namespace Unframe.ControlPlane.Model
         public string BuildId { get; set; }
 
         /// <summary>
-        /// Gets or Sets ExpectedPublicationEpoch
+        /// Gets or Sets ExpectedPublicationFence
         /// </summary>
-        [JsonPropertyName("expectedPublicationEpoch")]
-        public int ExpectedPublicationEpoch { get; set; }
+        [JsonPropertyName("expectedPublicationFence")]
+        public PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence? ExpectedPublicationFence { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -66,7 +66,7 @@ namespace Unframe.ControlPlane.Model
             StringBuilder sb = new StringBuilder();
             sb.Append("class PresentationsPresentationIdPublicationsPostRequest {\n");
             sb.Append("  BuildId: ").Append(BuildId).Append("\n");
-            sb.Append("  ExpectedPublicationEpoch: ").Append(ExpectedPublicationEpoch).Append("\n");
+            sb.Append("  ExpectedPublicationFence: ").Append(ExpectedPublicationFence).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -86,12 +86,6 @@ namespace Unframe.ControlPlane.Model
                 {
                     yield return new System.ComponentModel.DataAnnotations.ValidationResult("Invalid value for BuildId, must match a pattern of " + regexBuildId, new [] { "BuildId" });
                 }
-            }
-
-            // ExpectedPublicationEpoch (int) minimum
-            if (this.ExpectedPublicationEpoch < (int)0)
-            {
-                yield return new ValidationResult("Invalid value for ExpectedPublicationEpoch, must be a value greater than or equal to 0.", new [] { "ExpectedPublicationEpoch" });
             }
 
             yield break;
@@ -121,7 +115,7 @@ namespace Unframe.ControlPlane.Model
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
             Option<string?> buildId = default;
-            Option<int?> expectedPublicationEpoch = default;
+            Option<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence?> expectedPublicationFence = default;
 
             while (utf8JsonReader.Read())
             {
@@ -141,8 +135,8 @@ namespace Unframe.ControlPlane.Model
                         case "buildId":
                             buildId = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
-                        case "expectedPublicationEpoch":
-                            expectedPublicationEpoch = new Option<int?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
+                        case "expectedPublicationFence":
+                            expectedPublicationFence = new Option<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence?>(JsonSerializer.Deserialize<PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFence>(ref utf8JsonReader, jsonSerializerOptions));
                             break;
                         default:
                             break;
@@ -153,16 +147,13 @@ namespace Unframe.ControlPlane.Model
             if (!buildId.IsSet)
                 throw new ArgumentException("Property is required for class PresentationsPresentationIdPublicationsPostRequest.", nameof(buildId));
 
-            if (!expectedPublicationEpoch.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPresentationIdPublicationsPostRequest.", nameof(expectedPublicationEpoch));
+            if (!expectedPublicationFence.IsSet)
+                throw new ArgumentException("Property is required for class PresentationsPresentationIdPublicationsPostRequest.", nameof(expectedPublicationFence));
 
             if (buildId.IsSet && buildId.Value == null)
                 throw new ArgumentNullException(nameof(buildId), "Property is not nullable for class PresentationsPresentationIdPublicationsPostRequest.");
 
-            if (expectedPublicationEpoch.IsSet && expectedPublicationEpoch.Value == null)
-                throw new ArgumentNullException(nameof(expectedPublicationEpoch), "Property is not nullable for class PresentationsPresentationIdPublicationsPostRequest.");
-
-            return new PresentationsPresentationIdPublicationsPostRequest(buildId.Value!, expectedPublicationEpoch.Value!.Value!);
+            return new PresentationsPresentationIdPublicationsPostRequest(buildId.Value!, expectedPublicationFence.Value!);
         }
 
         /// <summary>
@@ -194,7 +185,13 @@ namespace Unframe.ControlPlane.Model
 
             writer.WriteString("buildId", presentationsPresentationIdPublicationsPostRequest.BuildId);
 
-            writer.WriteNumber("expectedPublicationEpoch", presentationsPresentationIdPublicationsPostRequest.ExpectedPublicationEpoch);
+            if (presentationsPresentationIdPublicationsPostRequest.ExpectedPublicationFence != null)
+            {
+                writer.WritePropertyName("expectedPublicationFence");
+                JsonSerializer.Serialize(writer, presentationsPresentationIdPublicationsPostRequest.ExpectedPublicationFence, jsonSerializerOptions);
+            }
+            else
+                writer.WriteNull("expectedPublicationFence");
         }
     }
 }

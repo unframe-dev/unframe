@@ -408,7 +408,7 @@ Targetとして次のapplication moduleを追加する。
 
 Control PlaneはAuthoring Source、TSX、React、renderer implementationを実行しない。既存`src/presentation/`のDefinition CRUDは、Draft / Build / Publication migrationが決まるまで自動的に移動しない。
 
-`publications`はSession作成とpublishを同じ永続化境界で直列化する。Session作成は現在のPublicationFenceをコピーし、有限の`waitingExpiresAt`とともにSessionへ保存する。同じPresentationを参照する期限内の`Waiting` Session、または`Presenting` Sessionが存在する場合はpublishを拒否する。Presentation owner / adminは`Waiting` Sessionをcancelでき、publish判定は期限切れWaiting Sessionを同じ永続化境界で`Ended`にしてからactive-use lockを確認する。`Presenting`はwaiting expiryで終了しない。publishはexpected Draft revision、Buildのsource revision、artifact hash、Asset readinessを検証し、publicationEpochを増やして現在値をatomicに置き換える。過去のPublishedPresentationを選択可能な履歴として保持しない。
+`publications`はSession作成とpublishを同じ永続化境界で直列化する。Session作成は現在のPublicationFenceをコピーし、有限の`waitingExpiresAt`とともにSessionへ保存する。同じPresentationを参照する期限内の`Waiting` Session、または`Presenting` Sessionが存在する場合はpublishを拒否する。Presentation owner / adminは`Waiting` Sessionをcancelでき、publish判定は期限切れWaiting Sessionを同じ永続化境界で`Ended`にしてからactive-use lockを確認する。`Presenting`はwaiting expiryで終了しない。publishは [ADR-0025](../decisions/0025-local-editor-unity-preview.md) に従い、表示確認済みの固定 Dist のbuild identity、artifact hash、Asset readiness、認可と期待PublicationFence（初回は未公開）を検証する。公開先の現在値との一致を同じ永続化境界で確認してpublicationEpochを増やし、現在値をatomicに置き換える。CP Draft revisionと最新ローカルSource revisionの一致は要求しない。過去のPublishedPresentationを選択可能な履歴として保持しない。
 
 ### 6.3 `app/server/realtime`
 

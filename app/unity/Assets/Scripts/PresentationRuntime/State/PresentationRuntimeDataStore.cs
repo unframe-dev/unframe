@@ -11,7 +11,7 @@ namespace Unframe.Unity.PresentationRuntime
     /// Entry point combining the validated Delivery catalog with the latest projected Runtime state.
     /// It owns no Unity objects or rendering behaviour.
     /// </summary>
-    public sealed class PresentationRuntimeDataStore
+    public sealed class PresentationRuntimeDataStore : IPresentationRenderView
     {
         private readonly PresentationDeliveryCatalog delivery = new PresentationDeliveryCatalog();
         private readonly PresentationRuntimeStateStore runtime;
@@ -21,6 +21,10 @@ namespace Unframe.Unity.PresentationRuntime
             runtime = new PresentationRuntimeStateStore(delivery);
         }
 
+        public ProjectedRuntimeCatalog Catalog { get { return Delivery?.ProjectionProfile?.RuntimeCatalog; } }
+        public IEnumerable<DeliveredRenderSurface> RenderSurfaces { get { return Delivery?.ProjectionProfile?.RenderSurfaces ?? (IEnumerable<DeliveredRenderSurface>)Array.Empty<DeliveredRenderSurface>(); } }
+        public IEnumerable<ProjectedSemanticSurface> SemanticSurfaces { get { return Delivery?.ProjectionProfile?.SemanticSurfaces ?? (IEnumerable<ProjectedSemanticSurface>)Array.Empty<ProjectedSemanticSurface>(); } }
+        public Pose StageOrigin { get { return runtime.PresentationOrigin?.Pose; } }
         public DeliveryManifest Delivery { get { return delivery.Delivery; } }
         public ulong LastReliableSequence { get { return runtime.LastReliableSequence; } }
         public ulong LastStateFrameSequence { get { return runtime.LastStateFrameSequence; } }

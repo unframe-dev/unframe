@@ -7,6 +7,7 @@ import { identityFromSession } from "./auth/identity";
 import { createAuth } from "./auth/options";
 import { createPresentationRoutes, type PresentationRouteOptions } from "./presentation/routes";
 import { createPublicationRoutes } from "./modules/publications/routes";
+import { createPublicationAssetRoutes } from "./modules/publications/asset-routes";
 import { createRuntimePublicationRoutes } from "./modules/publications/runtime-routes";
 import { createAssetRoutes, type AssetRouteOptions } from "./modules/assets/routes";
 import { createPersistenceCallbackRoutes } from "./modules/persistence-callback/routes";
@@ -62,7 +63,6 @@ export function createProductApi(options: AppOptions = {}) {
     identityProvider,
     repository: options.repository,
     now: options.now,
-    id: options.id,
   });
   const assets = presentations.route(
     "/",
@@ -100,7 +100,8 @@ export function createProductApi(options: AppOptions = {}) {
   );
   const callbacks = venueEdges.route("/", createPersistenceCallbackRoutes());
   const publications = callbacks.route("/", createPublicationRoutes({ identityProvider }));
-  const runtimePublication = publications.route("/", createRuntimePublicationRoutes());
+  const publicationAssets = publications.route("/", createPublicationAssetRoutes());
+  const runtimePublication = publicationAssets.route("/", createRuntimePublicationRoutes());
   return runtimePublication.openapi(jwksRoute, async (context) => {
     const config = context.get("config");
     return context.json(

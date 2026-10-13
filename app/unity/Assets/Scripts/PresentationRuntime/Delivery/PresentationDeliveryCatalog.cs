@@ -184,7 +184,7 @@ namespace Unframe.Unity.PresentationRuntime
                 }
             }
 
-            if (!TryValidateRenderGraph(profile, capability, next.Surfaces, next.Assets, out error)) return false;
+            if (!TryValidateRenderGraph(profile.RenderSurfaces, profile.SemanticSurfaces, capability.Renderers, next.Surfaces, next.Assets, out error)) return false;
             if (!PresentationBakedDeliveryValidation.TryValidate(manifest, out error)) return false;
 
             foreach (ProjectedTimelineDefinition timeline in catalog.Timelines)
@@ -209,12 +209,13 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        private static bool TryValidateRenderGraph(ProjectionProfileDescriptor profile, CapabilityProfile capability,
+        internal static bool TryValidateRenderGraph(IEnumerable<DeliveredRenderSurface> renderDefinitions,
+            IEnumerable<ProjectedSemanticSurface> semanticDefinitions, RendererCapabilities renderers,
             Dictionary<string, ProjectedSurfaceDefinition> surfaces, Dictionary<string, AssetAccessBinding> assets, out string error)
         {
             Dictionary<string, DeliveredRenderSurface> renderSurfaces = new Dictionary<string, DeliveredRenderSurface>();
             Dictionary<string, ProjectedSemanticSurface> semanticSurfaces = new Dictionary<string, ProjectedSemanticSurface>();
-            foreach (ProjectedSemanticSurface semantic in profile.SemanticSurfaces)
+            foreach (ProjectedSemanticSurface semantic in semanticDefinitions)
             {
                 if (!TryAdd(semanticSurfaces, semantic == null ? null : semantic.SemanticSurfaceId, semantic, "semantic surface", out error)) return false;
                 if (!surfaces.TryGetValue(semantic.SemanticSurfaceId, out ProjectedSurfaceDefinition catalogSurface))
@@ -230,17 +231,17 @@ namespace Unframe.Unity.PresentationRuntime
                     return Fail("delivery semantic surface states are incomplete.", out error);
             }
 
-            foreach (DeliveredRenderSurface render in profile.RenderSurfaces)
+            foreach (DeliveredRenderSurface render in renderDefinitions)
             {
                 if (!TryAdd(renderSurfaces, render == null ? null : render.RenderSurfaceId, render, "render surface", out error)) return false;
                 if (!IsId(render.SemanticSurfaceId) || !semanticSurfaces.ContainsKey(render.SemanticSurfaceId))
                     return Fail("delivery render surface references an unknown semantic surface.", out error);
                 bool baked = render.RendererKind == RendererKind.BakedWeb;
-                if (render.ArtifactContractVersion == 0 || capability.Renderers == null
-                    || (baked ? capability.Renderers.BakedWeb == null || !capability.Renderers.BakedWeb.Supported
-                        || capability.Renderers.BakedWeb.ContractVersion != render.ArtifactContractVersion
-                        : render.RendererKind != RendererKind.NativeUi || capability.Renderers.NativeUi == null
-                            || !capability.Renderers.NativeUi.Supported || capability.Renderers.NativeUi.ContractVersion != render.ArtifactContractVersion))
+                if (render.ArtifactContractVersion == 0 || renderers == null
+                    || (baked ? renderers.BakedWeb == null || !renderers.BakedWeb.Supported
+                        || renderers.BakedWeb.ContractVersion != render.ArtifactContractVersion
+                        : render.RendererKind != RendererKind.NativeUi || renderers.NativeUi == null
+                            || !renderers.NativeUi.Supported || renderers.NativeUi.ContractVersion != render.ArtifactContractVersion))
                     return Fail("delivery renderer capability is unsupported.", out error);
 
                 ProjectedSurfaceDefinition catalogSurface = surfaces[render.SemanticSurfaceId];

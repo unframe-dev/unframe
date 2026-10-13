@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package unframe.preview;
+
+option go_package = "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/preview;preview";
+
+import "unframe/presentation/runtime.proto";
+import "unframe/delivery/delivery.proto";
+import "unframe/realtime/realtime.proto";
+
+// Canonical artifact JSON is transported verbatim, keeping its existing schema
+// and content identity rather than introducing a second artifact model.
+message LocalPreviewEnvelope {
+  uint32 schema_version = 1;
+  string request_id = 2;
+  // Absence denotes Dist, which has no relationship to the current Source.
+  optional string source_revision = 3;
+  string build_manifest = 4;
+  string asset_set = 5;
+  LocalPreviewProjection projection = 6;
+  LocalPreviewInitialState initial_state = 7;
+  repeated LocalPreviewAsset assets = 8;
+}
+
+message LocalPreviewProjection {
+  repeated string visible_node_ids = 1;
+  repeated string visible_surface_ids = 2;
+  repeated string visible_variable_ids = 3;
+  repeated unframe.delivery.DeliveredRenderSurface render_surfaces = 4;
+  repeated unframe.delivery.ProjectedSemanticSurface semantic_surfaces = 5;
+  repeated unframe.delivery.LocalOverlayDefinition local_overlays = 6;
+  repeated unframe.presentation.RuntimeCapability required_runtime_capabilities = 7;
+  unframe.presentation.ProjectedRuntimeCatalog runtime_catalog = 8;
+  unframe.delivery.TextureResidencyPlan texture_residency = 9;
+}
+
+message LocalPreviewInitialState {
+  repeated unframe.realtime.NodeRuntimeState node_states = 1;
+  repeated unframe.realtime.SurfaceRuntimeState surface_states = 2;
+}
+
+message LocalPreviewAsset {
+  string asset_id = 1;
+  string reference = 2;
+}

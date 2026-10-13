@@ -26,6 +26,12 @@ build/
 .vite/
 .vite-hooks/
 .pnpm/
+.unframe/
+/examples/local-editor-showcase/dist
+.unframe/unity-preview/
+.unframe/local-editor-e2e/
+.unframe/native-editor/
+app/web/dist-editor/
 app/server/control-plane/.generated/
 
 # テストカバレッジ (vitest --coverage の出力)
@@ -64,3 +70,6 @@ app/unity/*.unityproj
 app/unity/sysinfo.txt
 # Unity Licensing — Manual Activation File (機密性は低いが追跡不要)
 app/unity/*.alf
+
+.unframe/native-editor-regression/
+.unframe/actual-webgl-evidence/

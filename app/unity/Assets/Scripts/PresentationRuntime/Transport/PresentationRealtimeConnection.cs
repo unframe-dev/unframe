@@ -53,7 +53,7 @@ namespace Unframe.Unity.PresentationRuntime
             this.textures = textures ?? throw new ArgumentNullException(nameof(textures));
         }
 
-        public async Task RunAsync(Uri endpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken, string certFingerprint = null)
+        public async Task RunAsync(Uri endpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken, string certFingerprint = null, Func<YetAnotherHttpHandler> handlerFactory = null)
         {
             if (lifetime != null) throw new InvalidOperationException("A connection is already running.");
             if (endpoint == null || endpoint.Scheme != "https" && !(endpoint.Scheme == "http" && endpoint.IsLoopback))
@@ -71,7 +71,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (string.IsNullOrWhiteSpace(bearer)) throw new InvalidOperationException("A fresh realtime bearer credential is required.");
                     try
                     {
-                        await RunConnectionAsync(endpoint, bearer, certFingerprint, lifetime.Token);
+                        await RunConnectionAsync(endpoint, bearer, certFingerprint, lifetime.Token, handlerFactory);
                         throw new RpcException(new Status(StatusCode.Unavailable, "realtime stream ended"));
                     }
                     catch (RpcException exception) when (attempt < 5 && !lifetime.IsCancellationRequested && TryPrepareSnapshotRetry(exception))
@@ -102,9 +102,9 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private async Task RunConnectionAsync(Uri endpoint, string bearer, string certFingerprint, CancellationToken token)
+        private async Task RunConnectionAsync(Uri endpoint, string bearer, string certFingerprint, CancellationToken token, Func<YetAnotherHttpHandler> handlerFactory)
         {
-            using (YetAnotherHttpHandler handler = new YetAnotherHttpHandler { Http2Only = true })
+            using (YetAnotherHttpHandler handler = handlerFactory == null ? new YetAnotherHttpHandler { Http2Only = true } : handlerFactory())
             {
                 if (certFingerprint != null)
                     handler.OnVerifyServerCertificate = (serverName, certificateDer, now) => VerifyCertificate(endpoint.Host, serverName, certificateDer, now, certFingerprint);

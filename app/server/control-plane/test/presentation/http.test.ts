@@ -69,24 +69,49 @@ describe("presentation HTTP API", () => {
     const response = await request(createApp(), "/presentations");
     expect(response.status).toBe(401);
   });
+  it("registers a local immutable ID without a Definition and reuses it only with permission", async () => {
+    const repository = new Repository();
+    const identity = { userId: "owner", globalRole: "user" as const };
+    const app = createApp({ repository, identityProvider: async () => identity });
+    const registration = () => ({
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "local-id", name: "Local presentation" }),
+    });
+    const created = await request(app, "/presentations", registration());
+    expect(created.status).toBe(201);
+    await expect(created.json()).resolves.toMatchObject({
+      id: "local-id",
+      name: "Local presentation",
+      revision: 1,
+      definition: null,
+    });
+    expect((await request(app, "/presentations", registration())).status).toBe(201);
+    const stranger = createApp({
+      repository,
+      identityProvider: async () => ({ userId: "stranger", globalRole: "user" }),
+    });
+    expect((await request(stranger, "/presentations", registration())).status).toBe(403);
+    expect(repository.records.get("local-id")?.ownerId).toBe("owner");
+  });
   it("creates, reads, updates, and deletes a resource envelope", async () => {
     const repository = new Repository();
     const app = createApp({
       repository,
       identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
-      id: () => "presentation-1",
       now: () => "2026-01-01T00:00:00.000Z",
     });
     const create = await request(app, "/presentations", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(createDefinition),
+      body: JSON.stringify({ id: "presentation-1", name: "Demo" }),
     });
     expect(create.status).toBe(201);
     await expect(create.json()).resolves.toMatchObject({
       id: "presentation-1",
       revision: 1,
-      definition: createDefinition,
+      name: "Demo",
+      definition: null,
       createdAt: "2026-01-01T00:00:00.000Z",
     });
     expect((await request(app, "/presentations/presentation-1")).status).toBe(200);
@@ -139,7 +164,7 @@ describe("presentation HTTP API", () => {
     });
     const missingContentType = await request(app, "/presentations", {
       method: "POST",
-      body: JSON.stringify(createDefinition),
+      body: JSON.stringify({ id: "presentation-1", name: "Demo" }),
     });
     const unknownField = await request(app, "/presentations/presentation-1", {
       method: "DELETE",
@@ -150,7 +175,7 @@ describe("presentation HTTP API", () => {
     expect(missingContentType.status).toBe(400);
     expect(unknownField.status).toBe(400);
   });
-  it("requires an empty asset list when creating a presentation", async () => {
+  it("rejects Definition payloads at the metadata registration boundary", async () => {
     const app = createApp({
       repository: new Repository(),
       identityProvider: async () => ({ userId: "owner", globalRole: "user" }),
@@ -167,6 +192,7 @@ describe("presentation HTTP API", () => {
     repository.records.set("presentation-1", {
       id: "presentation-1",
       ownerId: "owner",
+      name: "Demo",
       revision: 1,
       definition: createDefinition,
       createdAt: "2026-01-01",

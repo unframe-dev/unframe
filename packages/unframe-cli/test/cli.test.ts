@@ -7,6 +7,14 @@ import { runPresentationCli } from "../src/index.js";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 
 describe("runPresentationCli", () => {
+  it("rejects arbitrary output paths at the Host channel boundary", async () => {
+    const result = await runPresentationCli({
+      args: ["build", "/project"],
+      host: { channel: "../other" },
+    });
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("cli-invalid-host");
+  });
   it("initializes a project that check can read and refuses to overwrite it", async () => {
     const parent = await mkdtemp(join(tmpdir(), "unframe-init-"));
     const directory = join(parent, "project");
@@ -16,6 +24,24 @@ describe("runPresentationCli", () => {
       const repeated = await runPresentationCli({ args: ["init", directory] });
       expect(repeated.exitCode).toBe(3);
       expect(repeated.stderr).toContain("cli-init-target-exists");
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+  it("persists a distinct local presentation identity in Source before any build", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "unframe-identities-"));
+    try {
+      const first = join(parent, "first");
+      const second = join(parent, "second");
+      expect((await runPresentationCli({ args: ["init", first] })).exitCode).toBe(0);
+      expect((await runPresentationCli({ args: ["init", second] })).exitCode).toBe(0);
+      const source = await readFile(join(first, "presentation.unframe.tsx"), "utf8");
+      const other = await readFile(join(second, "presentation.unframe.tsx"), "utf8");
+      const id = source.match(/id: "(presentation-[0-9a-f-]{36})"/u)?.[1];
+      expect(id).toBeTruthy();
+      expect(other).not.toContain(id!);
+      expect((await runPresentationCli({ args: ["check", first] })).exitCode).toBe(0);
+      expect(await readFile(join(first, "presentation.unframe.tsx"), "utf8")).toBe(source);
     } finally {
       await rm(parent, { recursive: true, force: true });
     }

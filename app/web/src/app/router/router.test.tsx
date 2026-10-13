@@ -16,10 +16,6 @@ vi.mock("@unframe/api-client-typescript", () => ({
   createControlPlaneAuthClient: vi.fn(() => auth),
 }));
 
-vi.mock("@/features/editor/ui/presentation-canvas", () => ({
-  PresentationCanvas: () => <div aria-label="3Dプレゼンテーション">3D viewport</div>,
-}));
-
 async function renderRoute(path: string) {
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
 
@@ -34,6 +30,7 @@ async function renderRoute(path: string) {
 describe("web editor routes", () => {
   beforeEach(() => {
     localStorage.clear();
+    auth.getSession.mockClear();
     auth.getSession.mockResolvedValue({ data: { user: { name: "テストユーザー" } }, error: null });
     auth.signIn.social.mockReset();
     auth.verifyDeviceAuthorization.mockReset();
@@ -47,12 +44,13 @@ describe("web editor routes", () => {
     });
   });
 
-  it("redirects an unauthenticated editor route to the root", async () => {
+  it("opens the Local Host guide without a login", async () => {
     auth.getSession.mockResolvedValue({ data: null, error: null });
-    const router = await renderRoute("/editor/demo?panel=properties");
-
-    await router.load();
-    expect(router.state.location.pathname).toBe("/");
+    await renderRoute("/editor");
+    expect(
+      await screen.findByRole("heading", { name: "ローカル project を開く" }),
+    ).toBeInTheDocument();
+    expect(auth.getSession).not.toHaveBeenCalled();
   });
 
   it("keeps the device URL and code in the Google sign-in callback", async () => {

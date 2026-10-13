@@ -25,6 +25,11 @@ type IsAny<T> = 0 extends 1 & T ? true : false;
 type AssertFalse<T extends false> = T;
 
 const presentation: CreatePresentationRequest = {
+  id: "presentation-1",
+  name: "Demo",
+};
+
+const definition: CreatePresentationResponse["definition"] = {
   schemaVersion: 1,
   metadata: { title: "Demo" },
   stage: {
@@ -78,6 +83,7 @@ describe("createControlPlaneClient", () => {
 
     expectTypeOf<RequestIsTyped>().toEqualTypeOf<false>();
     expectTypeOf<ResponseIsTyped>().toEqualTypeOf<false>();
+    expectTypeOf<CreatePresentationRequest>().toEqualTypeOf<{ id: string; name: string }>();
     expectTypeOf<CreatePresentationResponse["id"]>().toEqualTypeOf<string>();
     expectTypeOf<GetPresentationRequest>().toEqualTypeOf<{ param: { id: string } }>();
   });
@@ -87,7 +93,13 @@ describe("createControlPlaneClient", () => {
       .fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ id: "presentation-1", revision: 1, definition: presentation }),
+          JSON.stringify({
+            ...presentation,
+            revision: 1,
+            definition,
+            createdAt: "2026-10-08T00:00:00.000Z",
+            updatedAt: "2026-10-08T00:00:00.000Z",
+          } satisfies CreatePresentationResponse),
           { status: 201, headers: { "content-type": "application/json" } },
         ),
       )
@@ -128,7 +140,7 @@ describe("createControlPlaneClient", () => {
       url: "https://control-plane.example/presentations",
       method: "POST",
       credentials: "include",
-      body: presentation,
+      body: { id: "presentation-1", name: "Demo" },
       authorization: null,
     });
     expect({
@@ -155,6 +167,7 @@ describe("createControlPlaneClient", () => {
     const typedPresentation: CreatePresentationResponse = await createdPresentation.json();
     const typedAsset: InitAssetUploadResponse = await initializedUpload.json();
     expect(typedPresentation.id).toBe("presentation-1");
+    expect(typedPresentation.name).toBe("Demo");
     expect(typedAsset.asset.id).toBe("asset-1");
   });
 });

@@ -1,83 +1,75 @@
 # Unframe Web Editor
 
-`app/web` は、空間プレゼンテーションを管理・編集する React SPA です。Home の一覧と新規作成は現在、画面確認用の mock repository を使用しており、Control Plane の Presentation API には接続しません。現在の Editor は `demo` fixture を使う移行前の POC であり、永続モデルの正本ではありません。Device Authorization のブラウザ承認画面は Control Plane の Better Auth に接続しますが、Presentation の取得・保存、アップロードはまだ Editor に接続していません。目標境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を参照してください。
+`app/web` はローカル Source を編集する React UI と、認証・Device Authorization・account settings の Web application を持ちます。ローカル Editor は開発時に Vite、ビルド済み UI は CLI Host から配信し、Source と lock を正本に保存します。Dev／Dist Preview は共通 Unity renderer の WebGL build を使います。設計と公開条件は [Local Editor の実装契約](../../docs/packages/LOCAL_EDITOR_DESIGN.md) を参照してください。
 
-## 現在の実装
+## Local Editor の起動
 
-- React 19.2、Tailwind CSS v4、shadcn/ui（Base UI）、TanStack Router、Zustand、Zod、React Hook Form
-- React Three Fiber / Drei による GLB 表示、選択、移動、回転、拡縮
-- serializable command と revision に基づく Undo / Redo
-- TanStack Query と mock repository による Presentation 一覧・作成（Editor への遷移は未接続）
-- `/login`、`/signup`、`/recover` と `/recover/reset?token=` の Better Auth browser flow
-- `/settings/profile` の名前更新と、`/settings/security` の password / TOTP / session 操作
-- `/home`、`/devices`、`/rooms` の折り畳み可能なアプリケーションナビゲーションと、設定内ナビゲーション
-- root-based routing と Cloudflare Workers Static Assets の SPA fallback
-- `/device` の Device Authorization 検証・承認・拒否と Google ログインへの復帰 URL 保持
-- Vitest、Testing Library、Playwright Chromium による unit / component / E2E test
+Linux、project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は Unity Hub の標準配置を探します。
 
-次の機能は未実装です。
-
-- Presentation の取得・更新・削除と Editor のサーバー永続化
-- editor の認証、認可、共同編集、競合解決
-- asset upload、変換、R2 配信 URL の解決
-- 複数ブラウザや複数端末へのリアルタイム配信
-- Cloudflare への自動デプロイ workflow
-
-## セットアップと起動
-
-リポジトリ root で次を実行します。
+初回にリポジトリ root で依存関係、固定 Browser、Unity Preview player を準備します。
 
 ```bash
 nix run .#setup
+nix develop --command scripts/dev/install-presentation-browser.sh
+nix run .#unity-preview
+```
+
+開発時は2つのターミナルでそれぞれ `nix develop` に入り、リポジトリ root から次を実行します。
+
+```bash
+# ターミナル1: Editor UI (http://127.0.0.1:5174/editor.html)
+pnpm --filter @unframe/web dev:editor
+```
+
+```bash
+# ターミナル2: ローカル API / Unity player (http://127.0.0.1:5175)
+pnpm --filter @unframe/unframe-cli dev -- "$PWD/examples/local-editor-showcase"
+```
+
+CLI が認証付きの Editor URL をブラウザで開きます。Web は HMR で画面の変更を反映し、API と Unity player の要求を CLI に proxy します。CLI の `dev` が固定 Browser のパス設定と Opaque capture の cgroup 準備を行うため、wrapper の手動指定や `build:editor` は不要です。ページ全体を再読み込みした場合は、CLI のターミナルで `r` + Enter を入力して認証付き Editor を開き直します。停止は各ターミナルで `Ctrl+C` です。
+
+Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dist Preview を順に確認します。WebGL Preview は初期 Group／State の静止表示が対象で、Step／Cue／Timeline の再生と本番 Realtime 接続は対象外です。
+
+ビルド済み UI を CLI から配信する場合は、`pnpm --filter @unframe/web build:editor` の後に `presentation author /absolute/path/to/project` を実行します。Opaque capture の環境準備は [scripts README](../../scripts/README.md) を参照してください。
+
+CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props と host Transform を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
+
+Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
+
+公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity が commit を完了した Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。
+
+## Web application
+
+```bash
 pnpm --filter @unframe/web run dev
 ```
 
-開発 URL は `http://localhost:5173/` です。Web Editor は package の `dev` script から起動します。
+開発 URL は `http://localhost:5173/` です。Home の一覧・作成は mock repository を使います。`/editor/$presentationId` は Local Host 起動の案内を表示します。Presentation のサーバー永続化や共同編集はこの Web application に接続していません。
 
-利用できる fixture route は次のとおりです。
+`/login`、`/signup`、`/recover`、`/recover/reset?token=`、`/device` は Better Auth のブラウザー flow を扱います。`/settings/profile` と `/settings/security` は account settings、`/devices` と `/rooms` は管理の準備画面です。認証が必要な application route は未認証時に LP 所有の `/` へ遷移します。
 
-| URL                                         | 用途                                                               |
-| ------------------------------------------- | ------------------------------------------------------------------ |
-| `/home/`                                    | 認証必須の Presentation 一覧                                       |
-| `/devices/`、`/rooms/`                      | デバイス・Session 管理の準備画面。`/rooms/` は移行前の fixture URL |
-| `/editor/demo/?panel=properties`            | 認証必須の POC Editor                                              |
-| `/device/?user_code=ABCD-EFGH`              | Device Authorization のブラウザ承認                                |
-| `/login/`、`/signup/`、`/recover/`          | public authentication routes                                       |
-| `/settings/profile/`、`/settings/security/` | account settings                                                   |
+| 領域                                         | 責務                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------- |
+| `src/app/`                                   | router、provider、application shell                                  |
+| `src/features/editor/`                       | Source Inspector、保存・履歴、Local Host API、Unity Preview、公開 UI |
+| `src/features/auth/`・`device/`・`settings/` | 認証、device 承認、account settings                                  |
+| `src/features/presentations/`                | Home と mock repository                                              |
+| `src/shared/`                                | brand、layout、Base UI に基づく共通 primitives                       |
+| `worker/`                                    | root-based request を Static Assets へ渡す Worker                    |
 
-application route の `beforeLoad` は未認証を LP 所有の `/` へ外部遷移させます。
-
-## 構成
-
-| 領域                          | 責務                                                          |
-| ----------------------------- | ------------------------------------------------------------- |
-| `src/app/`                    | router、provider、application shell の composition            |
-| `src/features/auth/`          | Better Auth browser flow と認証 guard                         |
-| `src/features/device/`        | Device Authorization の承認画面                               |
-| `src/features/presentations/` | Home の一覧・作成と mock repository                           |
-| `src/features/settings/`      | プロフィールとセキュリティー設定                              |
-| `src/features/editor/`        | POC document model、browser persistence、3D canvas、Editor UI |
-| `src/shared/`                 | brand、layout、shadcn/ui primitives、共通 utility             |
-| `worker/`                     | root-based request を Static Assets へ渡す Worker             |
-
-保存対象は `PresentationDocument` だけです。選択状態や gizmo の drag 中 state は保存しません。GLB の runtime URL も document へ保存せず、`AssetResolver` が asset ID から解決します。
-
-`@base-ui/react` は `src/shared/ui/` の shadcn/ui primitives 内に閉じ込めます。feature は `Button`、`Input`、`Label`、`Select`、`Dialog`、`DropdownMenu` を同じ境界から利用します。
+`editor.html` を `build:editor` で `dist-editor` に生成し、CLI Host が配信します。Cloudflare 向け Web application は通常の `build` で生成します。
 
 ## 検証
-
-狭い検証から実行し、完了時は root の品質ゲートも実行します。
 
 ```bash
 pnpm --filter @unframe/web run check
 pnpm --filter @unframe/web run test
-pnpm --filter @unframe/web run build
+pnpm --filter @unframe/web run build:editor
 pnpm --filter @unframe/web run test:e2e
-nix run .#web
-nix run .#check
+nix run .#local-editor-e2e
 ```
 
-`nix run .#web` は typecheck、unit/component test、production build を担当します。Playwright E2E は別コマンドで実行し、Web CI では Chromium を準備した後に必須 gate として実行します。E2E は software WebGL を明示して GLB と gizmo を検証し、WebGL 無効 project では fallback を検証します。NixOS ではシステムの Google Chrome を自動利用し、それ以外では Playwright が管理する Chromium を利用します。必要なら `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で実行ファイルを指定できます。
+unit/component test は Source 保存、外部変更、最新 Preview 要求、commit 完了通知、公開認証を検査します。通常の Playwright E2E と Local Editor の実 WebGL／native Unity／実サービス E2E は別の検証です。後者の前提と生成物は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照してください。2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha と Transform 保存後の画素変化を確認しました。ローカル実 Control Plane／R2／Realtime と native Unity を通す公開 E2E も成功し、Snapshot／StateReady と実画素を確認しました。
 
 ## Cloudflare 配信
 

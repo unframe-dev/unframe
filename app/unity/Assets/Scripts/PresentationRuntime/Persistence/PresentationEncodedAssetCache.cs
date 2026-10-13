@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -153,7 +154,7 @@ namespace Unframe.Unity.PresentationRuntime
             this.metadataPath = Path.Combine(this.directory, "metadata.json");
             this.hardLimitBytes = hardLimitBytes;
             this.lowSpaceReserveBytes = lowSpaceReserveBytes;
-            this.freeBytes = freeBytes ?? (() => checked((ulong)new DriveInfo(Path.GetPathRoot(this.directory)).AvailableFreeSpace));
+            this.freeBytes = freeBytes ?? (() => AvailableFreeBytes(this.directory));
             Directory.CreateDirectory(this.directory);
             try
             {
@@ -164,6 +165,50 @@ namespace Unframe.Unity.PresentationRuntime
             }
             catch (IOException exception) { directoryLock?.Dispose(); throw new InvalidOperationException("asset-cache-not-ready", exception); }
             catch { directoryLock?.Dispose(); throw; }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct UnixFileSystemInfo
+        {
+            public ulong BlockSize, FragmentSize, Blocks, BlocksFree, BlocksAvailable;
+            public ulong Files, FilesFree, FilesAvailable, FileSystemId, Flags, MaximumNameLength;
+            public uint Spare0, Spare1, Spare2, Spare3, Spare4, Spare5;
+        }
+
+        [DllImport("libc", EntryPoint = "statvfs", SetLastError = true)]
+        private static extern int ReadUnixFileSystemInfo(string path, out UnixFileSystemInfo info);
+
+        private static ulong AvailableFreeBytes(string path)
+        {
+            if (Application.platform == RuntimePlatform.LinuxEditor || Application.platform == RuntimePlatform.LinuxPlayer
+                || Application.platform == RuntimePlatform.Android)
+            {
+                // libc's 64-bit statvfs uses the path's actual filesystem, including symlinks and bind mounts.
+                if (IntPtr.Size != 8) throw new PlatformNotSupportedException("asset-cache-free-space-requires-64-bit-unix");
+                if (ReadUnixFileSystemInfo(path, out UnixFileSystemInfo info) != 0)
+                    throw new IOException("asset-cache-free-space-unavailable");
+                return checked(info.BlocksAvailable * (info.FragmentSize == 0 ? info.BlockSize : info.FragmentSize));
+            }
+            DriveInfo selected = null;
+            int selectedLength = -1;
+            foreach (DriveInfo drive in DriveInfo.GetDrives())
+            {
+                string volume = Path.GetFullPath(drive.Name);
+                if (!IsPathOnVolume(path, volume) || volume.Length <= selectedLength) continue;
+                selected = drive;
+                selectedLength = volume.Length;
+            }
+            if (selected == null) throw new InvalidOperationException("asset-cache-free-space-unavailable");
+            return checked((ulong)selected.AvailableFreeSpace);
+        }
+
+        private static bool IsPathOnVolume(string path, string volume)
+        {
+            StringComparison comparison = Path.DirectorySeparatorChar == '\\' ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (string.Equals(path, volume, comparison)) return true;
+            string prefix = volume.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? volume : volume + Path.DirectorySeparatorChar;
+            return path.StartsWith(prefix, comparison);
         }
 
         public void RecoverSessions(IEnumerable<SessionSelection> completeActiveAndWaitingSessions)

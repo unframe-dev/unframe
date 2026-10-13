@@ -20,6 +20,7 @@ module="github.com/unframe-dev/unframe/app/server/realtime"
 proto_files=(
   "${proto_root}/unframe/presentation/runtime.proto"
   "${proto_root}/unframe/delivery/delivery.proto"
+  "${proto_root}/unframe/preview/preview.proto"
   "${proto_root}/unframe/realtime/realtime.proto"
 )
 service_proto_files=(
@@ -49,6 +50,7 @@ fi
 generated_files=(
   "internal/gen/presentation/runtime.pb.go"
   "internal/gen/delivery/delivery.pb.go"
+  "internal/gen/preview/preview.pb.go"
   "internal/gen/realtime/realtime.pb.go"
   "internal/gen/realtime/realtime_grpc.pb.go"
 )

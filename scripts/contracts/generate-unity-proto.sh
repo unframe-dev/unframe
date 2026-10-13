@@ -18,6 +18,7 @@ proto_files=(
   "unframe/presentation/runtime.proto"
   "unframe/delivery/delivery.proto"
   "unframe/realtime/realtime.proto"
+  "unframe/preview/preview.proto"
 )
 unity_proto_root="${REPO_ROOT}/app/unity/Assets/Contracts/Proto"
 unity_generated_root="${REPO_ROOT}/app/unity/Assets/Scripts/PresentationRuntime/Generated"

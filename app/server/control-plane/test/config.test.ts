@@ -35,6 +35,23 @@ describe("runtime configuration", () => {
     });
   });
 
+  it("accepts only an optional HTTPS publication asset origin", () => {
+    expect(
+      validateConfig({ ...config(), PUBLICATION_ASSET_ORIGIN: "https://assets.example.test" })
+        .PUBLICATION_ASSET_ORIGIN,
+    ).toBe("https://assets.example.test");
+    for (const origin of [
+      "http://assets.example.test",
+      "https://assets.example.test/path",
+      "https://user:pass@assets.example.test",
+      "https://assets.example.test?query=1",
+    ]) {
+      expect(() => validateConfig({ ...config(), PUBLICATION_ASSET_ORIGIN: origin })).toThrow(
+        ConfigurationError,
+      );
+    }
+  });
+
   it("reports only invalid field names", () => {
     expect(() =>
       validateConfig({

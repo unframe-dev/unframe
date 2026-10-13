@@ -26,6 +26,7 @@ export interface paths {
                             presentations: {
                                 id: string;
                                 revision: number;
+                                name: string;
                                 /** @description Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries. */
                                 definition: {
                                     /** @enum {number} */
@@ -255,7 +256,7 @@ export interface paths {
                                             }[];
                                         }[];
                                     }[];
-                                };
+                                } | null;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -289,237 +290,8 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        /** @enum {number} */
-                        schemaVersion: 1;
-                        metadata: {
-                            title: string;
-                            description?: string;
-                        };
-                        stage: {
-                            coordinateSystem: {
-                                /** @enum {string} */
-                                unit: "meter";
-                                /** @enum {string} */
-                                handedness: "right";
-                                /** @enum {string} */
-                                upAxis: "+Y";
-                                /** @enum {string} */
-                                forwardAxis: "-Z";
-                            };
-                            size: number[];
-                            zones: {
-                                id: string;
-                                bounds: {
-                                    min: number[];
-                                    max: number[];
-                                };
-                            }[];
-                        };
-                        assets: {
-                            assetId: string;
-                        }[];
-                        groups: {
-                            id: string;
-                            elements: ({
-                                id: string;
-                                /** @enum {string} */
-                                type: "text";
-                                content: {
-                                    text: string;
-                                };
-                                initialState: {
-                                    active: boolean;
-                                    visible: boolean;
-                                    opacity: number;
-                                    transform: {
-                                        position: number[];
-                                        /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                        rotation: number[];
-                                        scale: number[];
-                                    };
-                                };
-                            } | {
-                                id: string;
-                                /** @enum {string} */
-                                type: "shape";
-                                content: {
-                                    /** @enum {string} */
-                                    shape: "cube" | "sphere" | "plane";
-                                };
-                                initialState: {
-                                    active: boolean;
-                                    visible: boolean;
-                                    opacity: number;
-                                    transform: {
-                                        position: number[];
-                                        /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                        rotation: number[];
-                                        scale: number[];
-                                    };
-                                };
-                            } | {
-                                id: string;
-                                /** @enum {string} */
-                                type: "image";
-                                content: {
-                                    assetId: string;
-                                };
-                                initialState: {
-                                    active: boolean;
-                                    visible: boolean;
-                                    opacity: number;
-                                    transform: {
-                                        position: number[];
-                                        /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                        rotation: number[];
-                                        scale: number[];
-                                    };
-                                };
-                            } | {
-                                id: string;
-                                /** @enum {string} */
-                                type: "video";
-                                content: {
-                                    assetId: string;
-                                };
-                                initialState: {
-                                    active: boolean;
-                                    visible: boolean;
-                                    opacity: number;
-                                    transform: {
-                                        position: number[];
-                                        /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                        rotation: number[];
-                                        scale: number[];
-                                    };
-                                };
-                            } | {
-                                id: string;
-                                /** @enum {string} */
-                                type: "model";
-                                content: {
-                                    assetId: string;
-                                };
-                                initialState: {
-                                    active: boolean;
-                                    visible: boolean;
-                                    opacity: number;
-                                    transform: {
-                                        position: number[];
-                                        /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                        rotation: number[];
-                                        scale: number[];
-                                    };
-                                };
-                            } | {
-                                id: string;
-                                /** @enum {string} */
-                                type: "audio";
-                                content: {
-                                    assetId: string;
-                                };
-                                initialState: {
-                                    active: boolean;
-                                    visible: boolean;
-                                    opacity: number;
-                                    transform: {
-                                        position: number[];
-                                        /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                        rotation: number[];
-                                        scale: number[];
-                                    };
-                                };
-                            })[];
-                            anchoredElementGroups: {
-                                id: string;
-                                /** @enum {string} */
-                                anchor: "head" | "leftHand" | "rightHand" | "body";
-                                transform: {
-                                    position: number[];
-                                    /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                    rotation: number[];
-                                    scale: number[];
-                                };
-                                elementIds: string[];
-                            }[];
-                            steps: {
-                                id: string;
-                                cues: {
-                                    id: string;
-                                    trigger: {
-                                        /** @enum {string} */
-                                        kind: "button";
-                                        action: string;
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "enterZone";
-                                        zoneId: string;
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "motion";
-                                        minimumDistanceMeters: number;
-                                    };
-                                    actions: ({
-                                        /** @enum {string} */
-                                        kind: "setActive";
-                                        targetElementId: string;
-                                        active: boolean;
-                                        transition?: {
-                                            durationSeconds: number;
-                                            delaySeconds: number;
-                                        };
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "setVisible";
-                                        targetElementId: string;
-                                        visible: boolean;
-                                        transition?: {
-                                            durationSeconds: number;
-                                            delaySeconds: number;
-                                        };
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "setOpacity";
-                                        targetElementId: string;
-                                        opacity: number;
-                                        transition?: {
-                                            durationSeconds: number;
-                                            delaySeconds: number;
-                                        };
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "setTransform";
-                                        targetElementId: string;
-                                        transform: {
-                                            position: number[];
-                                            /** @description Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001. */
-                                            rotation: number[];
-                                            scale: number[];
-                                        };
-                                        transition?: {
-                                            durationSeconds: number;
-                                            delaySeconds: number;
-                                        };
-                                    })[];
-                                    next: {
-                                        /** @enum {string} */
-                                        kind: "step";
-                                        stepId: string;
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "group";
-                                        groupId: string;
-                                    } | {
-                                        /** @enum {string} */
-                                        kind: "end";
-                                    };
-                                }[];
-                            }[];
-                        }[];
-                    } & {
-                        assets: {
-                            assetId: string;
-                        }[];
+                        id: string;
+                        name: string;
                     };
                 };
             };
@@ -533,6 +305,7 @@ export interface paths {
                         "application/json": {
                             id: string;
                             revision: number;
+                            name: string;
                             /** @description Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries. */
                             definition: {
                                 /** @enum {number} */
@@ -762,13 +535,13 @@ export interface paths {
                                         }[];
                                     }[];
                                 }[];
-                            };
+                            } | null;
                             createdAt: string;
                             updatedAt: string;
                         };
                     };
                 };
-                /** @description Invalid definition */
+                /** @description Invalid presentation registration */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -784,6 +557,20 @@ export interface paths {
                 };
                 /** @description Unauthorized */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Presentation ID is not writable */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -831,6 +618,7 @@ export interface paths {
                         "application/json": {
                             id: string;
                             revision: number;
+                            name: string;
                             /** @description Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries. */
                             definition: {
                                 /** @enum {number} */
@@ -1060,7 +848,7 @@ export interface paths {
                                         }[];
                                     }[];
                                 }[];
-                            };
+                            } | null;
                             createdAt: string;
                             updatedAt: string;
                         };
@@ -1380,6 +1168,7 @@ export interface paths {
                         "application/json": {
                             id: string;
                             revision: number;
+                            name: string;
                             /** @description Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries. */
                             definition: {
                                 /** @enum {number} */
@@ -1609,7 +1398,7 @@ export interface paths {
                                         }[];
                                     }[];
                                 }[];
-                            };
+                            } | null;
                             createdAt: string;
                             updatedAt: string;
                         };
@@ -4392,7 +4181,11 @@ export interface paths {
                 content: {
                     "application/json": {
                         buildId: string;
-                        expectedPublicationEpoch: number;
+                        expectedPublicationFence: {
+                            presentationId: string;
+                            publicationEpoch: number;
+                            publicationManifestHash: string;
+                        } | null;
                     };
                 };
             };
@@ -4752,6 +4545,104 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/publication-assets/{presentationId}/{buildId}/{assetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    expires: string;
+                    signature: string;
+                };
+                header?: never;
+                path: {
+                    presentationId: string;
+                    buildId: string;
+                    assetId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Verified immutable publication asset */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": unknown;
+                    };
+                };
+                /** @description Invalid asset capability */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid or expired asset capability */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Published asset not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Published asset integrity mismatch */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { idSchema, publishedPresentationSchema } from "@unframe/contracts/presentation";
+import {
+  idSchema,
+  publicationFenceSchema,
+  publishedPresentationSchema,
+} from "@unframe/contracts/presentation";
 import { assetInitInputSchema, assetMediaTypeSchema } from "./modules/assets/schema";
 import {
   checkpointInputSchema,
@@ -7,7 +11,7 @@ import {
 } from "./modules/persistence-callback/schema";
 import { joinCodeSchema, sessionStateSchema } from "./modules/sessions/schema";
 import {
-  presentationCreateDefinitionSchema,
+  presentationRegistrationSchema,
   presentationDefinitionSchema,
 } from "./presentation/schema";
 
@@ -22,7 +26,8 @@ const serviceSecurity = [{ serviceBearer: [] }];
 const presentationResourceSchema = z.object({
   id: z.string(),
   revision: z.number().int(),
-  definition: presentationDefinitionSchema,
+  name: z.string(),
+  definition: presentationDefinitionSchema.nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -126,7 +131,7 @@ export const publicRoutes = [
     request: {
       body: {
         required: true,
-        content: { "application/json": { schema: presentationCreateDefinitionSchema } },
+        content: { "application/json": { schema: presentationRegistrationSchema } },
       },
     },
     responses: {
@@ -134,8 +139,9 @@ export const publicRoutes = [
         description: "Created",
         content: { "application/json": { schema: presentationResourceSchema } },
       },
-      400: errorResponse("Invalid definition"),
+      400: errorResponse("Invalid presentation registration"),
       401: errorResponse("Unauthorized"),
+      403: errorResponse("Presentation ID is not writable"),
     },
   }),
   createRoute({
@@ -818,7 +824,7 @@ export const publishPresentationRoute = createRoute({
         "application/json": {
           schema: z.strictObject({
             buildId: idSchema,
-            expectedPublicationEpoch: z.number().int().nonnegative(),
+            expectedPublicationFence: publicationFenceSchema.nullable(),
           }),
         },
       },
@@ -981,5 +987,30 @@ export const internalRuntimeProjectionRoute = createRoute({
     401: errorResponse("Unauthorized"),
     404: errorResponse("Participant not found"),
     409: errorResponse("Publication or capability conflict"),
+  },
+});
+
+export const downloadPublicationAssetRoute = createRoute({
+  method: "get",
+  path: "/publication-assets/{presentationId}/{buildId}/{assetId}",
+  security: [],
+  request: {
+    params: publicationAssetId,
+    query: z
+      .object({
+        expires: z.string().regex(/^[1-9][0-9]{0,15}$/),
+        signature: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict(),
+  },
+  responses: {
+    200: {
+      description: "Verified immutable publication asset",
+      content: { "application/octet-stream": { schema: z.any() } },
+    },
+    400: errorResponse("Invalid asset capability"),
+    403: errorResponse("Invalid or expired asset capability"),
+    404: errorResponse("Published asset not found"),
+    409: errorResponse("Published asset integrity mismatch"),
   },
 });

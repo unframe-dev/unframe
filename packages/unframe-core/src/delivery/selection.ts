@@ -5,7 +5,12 @@ import type {
   RenderBundle,
 } from "@unframe/contracts/presentation";
 import { createRuntimeVisibilitySelection } from "../runtime/projection.js";
-import { parseDeliveryInputs, type DeliverySourceInput } from "./input.js";
+import {
+  parseDeliveryInputs,
+  parseBuildInputs,
+  type DeliverySourceInput,
+  type BuildSourceInput,
+} from "./input.js";
 import { hashCanonicalJsonPayload } from "../canonicalization/payload.js";
 
 type Artifact = RenderBundle["surfaces"][string]["renderSurfaces"][string]["artifacts"][string];
@@ -121,7 +126,7 @@ const requiredCodePoints = (value: Artifact & { kind: "native-ui" }, maximumGlyp
   return points;
 };
 
-const selectDeliveryArtifactsParsed = (
+export const selectDeliveryArtifactsParsed = (
   definition: PresentationDefinition,
   bundle: RenderBundle,
   assetSet: AssetSetManifest,
@@ -514,6 +519,22 @@ export const selectDeliveryArtifacts = (
   if (role !== "presenter" && role !== "viewer")
     throw new TypeError("Delivery role must be presenter or viewer.");
   const parsed = parseDeliveryInputs(input);
+  return selectDeliveryArtifactsParsed(
+    parsed.definition,
+    parsed.renderBundle,
+    parsed.assetSet,
+    parsed.capability,
+    role,
+  );
+};
+
+export const selectBuildArtifacts = (
+  input: BuildSourceInput,
+  role: "presenter" | "viewer",
+): DeliverySelection => {
+  if (role !== "presenter" && role !== "viewer")
+    throw new TypeError("Delivery role must be presenter or viewer.");
+  const parsed = parseBuildInputs(input);
   return selectDeliveryArtifactsParsed(
     parsed.definition,
     parsed.renderBundle,
