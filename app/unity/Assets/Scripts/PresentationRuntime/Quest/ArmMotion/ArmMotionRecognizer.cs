@@ -38,21 +38,93 @@ namespace Unframe.Unity.PresentationRuntime
         }
     }
 
+    public enum ArmMotionPhase { WaitingTrigger, WaitingTracking, Ready, Moving, Matched, Failed }
+
+    public enum ArmMotionDiagnosticReason
+    {
+        Reset, None, HeadTrackingUnavailable, HandTrackingUnavailable, InvalidPose,
+        InvalidTimestamp, FrameGap, ClockNotIncreasing, TrackingChanged,
+        WindowExpired, WrongDirection, DistanceTooSmall, SpeedTooLow, OffAxis,
+        BothHandsMustMove
+    }
+
+    public readonly struct ArmMotionDiagnostics
+    {
+        public ArmMotionPhase Phase { get; }
+        public ArmMotionDiagnosticReason Reason { get; }
+        public bool HeadAvailable { get; }
+        public bool LeftAvailable { get; }
+        public bool RightAvailable { get; }
+        public float LeftFrameSpeedMetersPerSecond { get; }
+        public float RightFrameSpeedMetersPerSecond { get; }
+        public float MaximumOffAxisRatio { get; }
+        public float MinimumEachHandDistanceMeters { get; }
+        public double WindowElapsedSeconds { get; }
+        public double WindowSeconds { get; }
+        public float MinimumDistanceMeters { get; }
+        public float MinimumSpeedMetersPerSecond { get; }
+        public Vector3 LeftDisplacement { get; }
+        public Vector3 RightDisplacement { get; }
+        public float LeftDistanceMeters { get; }
+        public float RightDistanceMeters { get; }
+        public float LeftOffAxisMeters { get; }
+        public float RightOffAxisMeters { get; }
+        public float LeftSpeedMetersPerSecond { get; }
+        public float RightSpeedMetersPerSecond { get; }
+        public float InitialSpanMeters { get; }
+        public float CurrentSpanMeters { get; }
+        public float SpanDistanceMeters { get; }
+        public float LeftRadialDistanceMeters { get; }
+        public float RightRadialDistanceMeters { get; }
+
+        internal ArmMotionDiagnostics(ArmMotionPhase phase, ArmMotionDiagnosticReason reason,
+            ArmMotionFrame frame, double elapsed, double window,
+            float minimumDistance, float minimumSpeed, float leftFrameSpeed, float rightFrameSpeed, Vector3 left, Vector3 right, Vector3 direction,
+            float initialSpan, float currentSpan, float spanDistance, float leftRadial, float rightRadial)
+        {
+            Phase = phase;
+            Reason = reason;
+            HeadAvailable = frame.HeadAvailable;
+            LeftAvailable = frame.LeftAvailable;
+            RightAvailable = frame.RightAvailable;
+            LeftFrameSpeedMetersPerSecond = leftFrameSpeed;
+            RightFrameSpeedMetersPerSecond = rightFrameSpeed;
+            MaximumOffAxisRatio = ArmMotionRecognizer.OffAxisRatio;
+            MinimumEachHandDistanceMeters = ArmMotionRecognizer.EachHandDistance;
+            WindowElapsedSeconds = elapsed;
+            WindowSeconds = window;
+            MinimumDistanceMeters = minimumDistance;
+            MinimumSpeedMetersPerSecond = minimumSpeed;
+            LeftDisplacement = left;
+            RightDisplacement = right;
+            LeftDistanceMeters = Vector3.Dot(left, direction);
+            RightDistanceMeters = Vector3.Dot(right, direction);
+            LeftOffAxisMeters = (left - direction * LeftDistanceMeters).magnitude;
+            RightOffAxisMeters = (right - direction * RightDistanceMeters).magnitude;
+            LeftSpeedMetersPerSecond = elapsed > 0 ? (float)(LeftDistanceMeters / elapsed) : 0;
+            RightSpeedMetersPerSecond = elapsed > 0 ? (float)(RightDistanceMeters / elapsed) : 0;
+            InitialSpanMeters = initialSpan;
+            CurrentSpanMeters = currentSpan;
+            SpanDistanceMeters = spanDistance;
+            LeftRadialDistanceMeters = leftRadial;
+            RightRadialDistanceMeters = rightRadial;
+        }
+    }
+
     public sealed class ArmMotionRecognizer
     {
         private const float HandDistance = 0.28f;
-        private const float SeparationDistance = 0.30f;
-        private const float EachHandDistance = 0.10f;
+        private const float SeparationDistance = 0.20f;
+        internal const float EachHandDistance = 0.04f;
         private const float MinimumSpeed = 0.25f;
-        private const double RestDuration = 0.20;
-        private const double MotionWindow = 1.20;
+        private const float MinimumSeparationSpeed = 0.10f;
+        private double motionWindow = 1.20;
+        private float minimumDistance = HandDistance;
         private const double MaximumFrameGap = 0.50;
-        private const float RestSpeed = 0.12f;
+        internal const float OffAxisRatio = 0.65f;
         private bool initialized;
-        private bool armed;
-        private bool moving;
+        private bool finished;
         private double previousTime;
-        private double restSince;
         private double anchorTime;
         private ArmMotionFrame previousFrame;
         private Vector3 previousLeft;
@@ -60,75 +132,94 @@ namespace Unframe.Unity.PresentationRuntime
         private Vector3 anchorLeft;
         private Vector3 anchorRight;
         private Quaternion heading;
+        private float leftFrameSpeed;
+        private float rightFrameSpeed;
 
         public ArmMotionPreset SelectedPreset { get; private set; }
+        public ArmMotionDiagnostics Diagnostics { get; private set; }
 
-        public void Configure(ArmMotionPreset preset)
+        public void Configure(ArmMotionPreset preset) => Configure(preset,
+            preset == ArmMotionPreset.SpreadHands || preset == ArmMotionPreset.CloseHands
+                ? SeparationDistance : HandDistance,
+            preset == ArmMotionPreset.SpreadHands || preset == ArmMotionPreset.CloseHands ? 2.0 : 1.20);
+
+        public void Configure(ArmMotionPreset preset, float minimumDistanceMeters, double windowSeconds)
         {
             if (!Enum.IsDefined(typeof(ArmMotionPreset), preset))
                 throw new ArgumentOutOfRangeException(nameof(preset));
+            if (!Finite(minimumDistanceMeters) || minimumDistanceMeters <= 0)
+                throw new ArgumentOutOfRangeException(nameof(minimumDistanceMeters));
+            if (!Finite(windowSeconds) || windowSeconds <= 0)
+                throw new ArgumentOutOfRangeException(nameof(windowSeconds));
+            minimumDistance = minimumDistanceMeters;
+            motionWindow = windowSeconds;
             SelectedPreset = preset;
             Reset();
         }
 
-        public void Reset()
+        public void Reset(ArmMotionDiagnosticReason reason = ArmMotionDiagnosticReason.Reset)
         {
             initialized = false;
-            armed = false;
-            moving = false;
+            finished = false;
+            leftFrameSpeed = rightFrameSpeed = 0;
+            UpdateDiagnostics(ArmMotionPhase.WaitingTrigger, reason, default, 0);
         }
 
-        public bool Observe(double timestamp, ArmMotionFrame frame)
+        public bool Start(double timestamp, ArmMotionFrame frame)
         {
+            if (initialized || finished) return false;
             if (!Finite(timestamp) || !Valid(frame))
             {
-                Reset();
+                finished = true;
+                UpdateDiagnostics(ArmMotionPhase.WaitingTracking, InvalidReason(timestamp, frame), frame, 0);
                 return false;
             }
             Vector3 left = frame.LeftPosition - frame.HeadPosition;
             Vector3 right = frame.RightPosition - frame.HeadPosition;
-            if (!initialized)
+            initialized = true;
+            previousTime = timestamp;
+            previousFrame = frame;
+            previousLeft = left;
+            previousRight = right;
+            Anchor(timestamp, frame, left, right);
+            UpdateDiagnostics(ArmMotionPhase.Ready, ArmMotionDiagnosticReason.None, frame, 0);
+            return true;
+        }
+
+        public bool Observe(double timestamp, ArmMotionFrame frame)
+        {
+            if (!initialized || finished) return false;
+            if (!Finite(timestamp) || !Valid(frame))
             {
-                Begin(timestamp, frame, left, right);
+                finished = true;
+                UpdateDiagnostics(ArmMotionPhase.Failed, InvalidReason(timestamp, frame), frame,
+                    Finite(timestamp) ? Math.Max(0, timestamp - anchorTime) : 0);
                 return false;
             }
+            Vector3 left = frame.LeftPosition - frame.HeadPosition;
+            Vector3 right = frame.RightPosition - frame.HeadPosition;
             double delta = timestamp - previousTime;
             if (delta <= 0 || delta > MaximumFrameGap ||
                 frame.LeftAvailable != previousFrame.LeftAvailable ||
                 frame.RightAvailable != previousFrame.RightAvailable)
             {
-                Reset();
-                Begin(timestamp, frame, left, right);
+                ArmMotionDiagnosticReason reason = delta <= 0 ? ArmMotionDiagnosticReason.ClockNotIncreasing
+                    : delta > MaximumFrameGap ? ArmMotionDiagnosticReason.FrameGap : ArmMotionDiagnosticReason.TrackingChanged;
+                finished = true;
+                UpdateDiagnostics(ArmMotionPhase.Failed, reason, frame, Math.Max(0, timestamp - anchorTime));
                 return false;
             }
-            bool still = (!frame.LeftAvailable || (left - previousLeft).magnitude <= RestSpeed * delta) &&
-                (!frame.RightAvailable || (right - previousRight).magnitude <= RestSpeed * delta);
+            leftFrameSpeed = frame.LeftAvailable ? (float)((left - previousLeft).magnitude / delta) : 0;
+            rightFrameSpeed = frame.RightAvailable ? (float)((right - previousRight).magnitude / delta) : 0;
             previousTime = timestamp;
             previousFrame = frame;
             previousLeft = left;
             previousRight = right;
-            if (!armed)
-            {
-                if (!still) restSince = timestamp;
-                if (still && timestamp - restSince >= RestDuration)
-                {
-                    armed = true;
-                    Anchor(timestamp, frame, left, right);
-                }
-                return false;
-            }
-            if (!moving && still)
-            {
-                Anchor(timestamp, frame, left, right);
-                return false;
-            }
-            moving = true;
             double duration = timestamp - anchorTime;
-            if (duration > MotionWindow)
+            if (duration > motionWindow)
             {
-                armed = false;
-                moving = false;
-                restSince = timestamp;
+                finished = true;
+                UpdateDiagnostics(ArmMotionPhase.Failed, ArmMotionDiagnosticReason.WindowExpired, frame, duration);
                 return false;
             }
             Quaternion inverseHeading = Quaternion.Inverse(heading);
@@ -138,15 +229,25 @@ namespace Unframe.Unity.PresentationRuntime
                 ? MatchSeparation(left, right, duration)
                 : (frame.LeftAvailable && MatchDirection(leftDelta, duration)) ||
                     (frame.RightAvailable && MatchDirection(rightDelta, duration));
-            if (!matched) return false;
-            armed = false;
-            moving = false;
-            restSince = timestamp;
-            return true;
+            bool displaced = (frame.LeftAvailable && leftDelta.sqrMagnitude > 0) ||
+                (frame.RightAvailable && rightDelta.sqrMagnitude > 0);
+            UpdateDiagnostics(matched ? ArmMotionPhase.Matched : displaced ? ArmMotionPhase.Moving : ArmMotionPhase.Ready,
+                matched || !displaced ? ArmMotionDiagnosticReason.None
+                    : MotionShortfall(frame, leftDelta, rightDelta, left, right, duration), frame, duration);
+            finished = matched;
+            return matched;
         }
+
+        private ArmMotionDiagnosticReason InvalidReason(double timestamp, ArmMotionFrame frame) =>
+            !Finite(timestamp) ? ArmMotionDiagnosticReason.InvalidTimestamp
+                : !frame.HeadAvailable ? ArmMotionDiagnosticReason.HeadTrackingUnavailable
+                : (IsTwoHandPreset ? !frame.LeftAvailable || !frame.RightAvailable : !frame.LeftAvailable && !frame.RightAvailable)
+                    ? ArmMotionDiagnosticReason.HandTrackingUnavailable : ArmMotionDiagnosticReason.InvalidPose;
 
         private bool IsTwoHandPreset => SelectedPreset == ArmMotionPreset.SpreadHands ||
             SelectedPreset == ArmMotionPreset.CloseHands;
+
+        private float RequiredSpeed => IsTwoHandPreset ? MinimumSeparationSpeed : MinimumSpeed;
 
         private bool Valid(ArmMotionFrame frame)
         {
@@ -154,18 +255,6 @@ namespace Unframe.Unity.PresentationRuntime
                 (IsTwoHandPreset ? frame.LeftAvailable && frame.RightAvailable : frame.LeftAvailable || frame.RightAvailable) &&
                 (!frame.LeftAvailable || Finite(frame.LeftPosition)) &&
                 (!frame.RightAvailable || Finite(frame.RightPosition));
-        }
-
-        private void Begin(double timestamp, ArmMotionFrame frame, Vector3 left, Vector3 right)
-        {
-            initialized = true;
-            armed = false;
-            moving = false;
-            previousTime = timestamp;
-            restSince = timestamp;
-            previousFrame = frame;
-            previousLeft = left;
-            previousRight = right;
         }
 
         private void Anchor(double timestamp, ArmMotionFrame frame, Vector3 left, Vector3 right)
@@ -178,6 +267,66 @@ namespace Unframe.Unity.PresentationRuntime
             if (forward.sqrMagnitude < 0.001f)
                 forward = Vector3.Cross(frame.HeadRotation * Vector3.right, Vector3.up);
             heading = Quaternion.LookRotation(forward.normalized, Vector3.up);
+        }
+
+        private Vector3 Direction
+        {
+            get
+            {
+                switch (SelectedPreset)
+                {
+                    case ArmMotionPreset.SwipeLeft: return Vector3.left;
+                    case ArmMotionPreset.SwipeRight: return Vector3.right;
+                    case ArmMotionPreset.SwipeDown: return Vector3.down;
+                    case ArmMotionPreset.SwipeUp: return Vector3.up;
+                    case ArmMotionPreset.PushForward: return Vector3.forward;
+                    case ArmMotionPreset.PullBackward: return Vector3.back;
+                    default: return Vector3.zero;
+                }
+            }
+        }
+
+        private void UpdateDiagnostics(ArmMotionPhase phase, ArmMotionDiagnosticReason reason,
+            ArmMotionFrame frame, double elapsed)
+        {
+            bool hasAnchor = initialized;
+            Vector3 left = frame.LeftPosition - frame.HeadPosition;
+            Vector3 right = frame.RightPosition - frame.HeadPosition;
+            Quaternion inverseHeading = Quaternion.Inverse(heading);
+            Vector3 leftDelta = hasAnchor && frame.LeftAvailable ? inverseHeading * (left - anchorLeft) : Vector3.zero;
+            Vector3 rightDelta = hasAnchor && frame.RightAvailable ? inverseHeading * (right - anchorRight) : Vector3.zero;
+            float initialSpan = hasAnchor ? (anchorRight - anchorLeft).magnitude : 0;
+            float currentSpan = frame.LeftAvailable && frame.RightAvailable && Finite(left) && Finite(right)
+                ? (right - left).magnitude : 0;
+            float sign = SelectedPreset == ArmMotionPreset.CloseHands ? -1 : 1;
+            Vector3 midpoint = (anchorLeft + anchorRight) * 0.5f;
+            float leftRadial = hasAnchor && frame.LeftAvailable ? ((left - midpoint).magnitude - (anchorLeft - midpoint).magnitude) * sign : 0;
+            float rightRadial = hasAnchor && frame.RightAvailable ? ((right - midpoint).magnitude - (anchorRight - midpoint).magnitude) * sign : 0;
+            Diagnostics = new ArmMotionDiagnostics(phase, reason, frame, elapsed,
+                motionWindow, minimumDistance, RequiredSpeed, leftFrameSpeed, rightFrameSpeed, leftDelta, rightDelta, Direction, initialSpan, currentSpan,
+                hasAnchor ? (currentSpan - initialSpan) * sign : 0, leftRadial, rightRadial);
+        }
+
+        private ArmMotionDiagnosticReason MotionShortfall(ArmMotionFrame frame, Vector3 leftDelta,
+            Vector3 rightDelta, Vector3 left, Vector3 right, double duration)
+        {
+            if (!IsTwoHandPreset)
+            {
+                Vector3 displacement = !frame.LeftAvailable || (frame.RightAvailable &&
+                    Vector3.Dot(rightDelta, Direction) > Vector3.Dot(leftDelta, Direction)) ? rightDelta : leftDelta;
+                float distance = Vector3.Dot(displacement, Direction);
+                if (distance <= 0) return ArmMotionDiagnosticReason.WrongDirection;
+                if (distance < minimumDistance) return ArmMotionDiagnosticReason.DistanceTooSmall;
+                if (distance / duration < RequiredSpeed) return ArmMotionDiagnosticReason.SpeedTooLow;
+                return ArmMotionDiagnosticReason.OffAxis;
+            }
+            float initialSpan = (anchorRight - anchorLeft).magnitude;
+            float currentSpan = (right - left).magnitude;
+            bool spread = SelectedPreset == ArmMotionPreset.SpreadHands;
+            float distanceChange = (currentSpan - initialSpan) * (spread ? 1 : -1);
+            if (distanceChange < minimumDistance) return ArmMotionDiagnosticReason.DistanceTooSmall;
+            if (distanceChange / duration < RequiredSpeed) return ArmMotionDiagnosticReason.SpeedTooLow;
+            return ArmMotionDiagnosticReason.BothHandsMustMove;
         }
 
         private bool MatchDirection(Vector3 displacement, double duration)
@@ -195,8 +344,8 @@ namespace Unframe.Unity.PresentationRuntime
             }
             float distance = Vector3.Dot(displacement, direction);
             Vector3 offAxis = displacement - direction * distance;
-            return distance >= HandDistance && distance / duration >= MinimumSpeed &&
-                offAxis.magnitude <= distance * 0.65f;
+            return distance >= minimumDistance && distance / duration >= RequiredSpeed &&
+                offAxis.magnitude <= distance * OffAxisRatio;
         }
 
         private bool MatchSeparation(Vector3 left, Vector3 right, double duration)
@@ -204,8 +353,6 @@ namespace Unframe.Unity.PresentationRuntime
             Vector3 initialSeparation = anchorRight - anchorLeft;
             float finalSpan = (right - left).magnitude;
             bool spreading = SelectedPreset == ArmMotionPreset.SpreadHands;
-            if (spreading ? initialSeparation.magnitude > 0.50f || finalSpan < 0.60f
-                : initialSeparation.magnitude < 0.60f || finalSpan > 0.50f) return false;
             float sign = spreading ? 1 : -1;
             float distance = (finalSpan - initialSeparation.magnitude) * sign;
             Vector3 initialMidpoint = (anchorLeft + anchorRight) * 0.5f;
@@ -213,7 +360,7 @@ namespace Unframe.Unity.PresentationRuntime
                 (anchorLeft - initialMidpoint).magnitude) * sign;
             float rightDistance = ((right - initialMidpoint).magnitude -
                 (anchorRight - initialMidpoint).magnitude) * sign;
-            return distance >= SeparationDistance && distance / duration >= MinimumSpeed &&
+            return distance >= minimumDistance && distance / duration >= RequiredSpeed &&
                 leftDistance >= EachHandDistance && rightDistance >= EachHandDistance;
         }
 

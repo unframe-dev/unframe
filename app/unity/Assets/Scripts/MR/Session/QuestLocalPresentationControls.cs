@@ -19,8 +19,20 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
     public bool PresentationInputEnabled { get; set; } = true;
 
     public bool CanAdvance => CanInteract && runner.CanAdvance;
-    private bool CanInteract => PresentationInputEnabled && isActiveAndEnabled && !applicationPaused && runner != null && runner.isActiveAndEnabled
-        && calibrationSource != null && calibrationSource.isActiveAndEnabled && calibrationSource.Calibration.IsValid;
+    private bool CanInteract => InteractionBlockReason == null;
+    private string InteractionBlockReason => !isActiveAndEnabled ? "controls-disabled"
+        : !PresentationInputEnabled ? "presentation-input-disabled"
+        : applicationPaused ? "application-paused"
+        : runner == null ? "runner-missing"
+        : !runner.isActiveAndEnabled ? "runner-disabled"
+        : calibrationSource == null ? "calibration-missing"
+        : !calibrationSource.isActiveAndEnabled ? "calibration-disabled"
+        : !calibrationSource.Calibration.IsValid ? "calibration-required" : null;
+
+    public string AdvanceBlockReason => InteractionBlockReason
+        ?? (!runner.HasLoadedFixture ? "fixture-not-loaded"
+            : runner.IsAnimating ? "animation-running"
+            : !runner.CanAdvance ? "presentation-complete" : null);
 
     public string Summary
     {
@@ -56,6 +68,18 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
             return false;
         }
         bool advanced = runner.TryAdvance(out error);
+        errorSummary = advanced ? null : error;
+        return advanced;
+    }
+
+    public bool TryAdvanceMotion(string cueId, string timelineId, out string error)
+    {
+        if (!CanInteract)
+        {
+            error = "An active, calibrated local presentation is required.";
+            return false;
+        }
+        bool advanced = runner.TryAdvanceMotion(cueId, timelineId, out error);
         errorSummary = advanced ? null : error;
         return advanced;
     }

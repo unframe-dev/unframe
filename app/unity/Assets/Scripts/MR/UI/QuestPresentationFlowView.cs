@@ -173,8 +173,8 @@ namespace Unframe.Unity.PresentationRuntime
                     break;
                 case PresentationUiPage.RoomSetup:
                     Title("Set up your room", "Preview only. No online room is created.");
-                    AddButton("SamplePresentation", "Sample presentation", 0, 38, 620, 105, () => PresentationSelected?.Invoke("sample"));
-                    Text("Selection", string.IsNullOrEmpty(state.PresentationId) ? "Select a presentation to continue." : "Selected: Sample presentation", 0, -42, 620, 40, 23, Muted);
+                    AddButton("SamplePresentation", "Unframe rehearsal", 0, 38, 620, 105, () => PresentationSelected?.Invoke("sample"));
+                    Text("Selection", string.IsNullOrEmpty(state.PresentationId) ? "Select a presentation to continue." : "Selected: Arm motion tests", 0, -42, 620, 40, 23, Muted);
                     var create = AddButton("CreateRoom", "Create preview room", 0, -145, 620, 86, () => CreateRoomRequested?.Invoke(), true);
                     create.interactable = !string.IsNullOrEmpty(state.PresentationId);
                     AddBack();

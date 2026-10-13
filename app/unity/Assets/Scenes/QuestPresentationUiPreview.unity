@@ -214,7 +214,7 @@ MonoBehaviour:
   m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 549ac4b6bb0624fec8e054a83a7d94d4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassthroughCameraDevicePreview
   cameraAccess: {fileID: 2135378172}
   head: {fileID: 382092642}
@@ -231,7 +231,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9ebdb4e0d5e449a080704cf728bd0c6d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoTrackingDiagnosticSession
 --- !u!4 &169578529
 Transform:
@@ -258,7 +258,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5dda1e2d78664c659a8e402b7c6b5362, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoOriginAlignment
   measurementPreviewEnabled: 1
 --- !u!114 &169578531
@@ -271,7 +271,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f36ba04f15a5c4e209b603d1a2e15056, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoCameraMarkerDetection
 --- !u!114 &169578532
 MonoBehaviour:
@@ -283,7 +283,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a7c6e32bd6a4f4e9e946981f065d43c, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoOriginVisualizer
   visible: 0
 --- !u!4 &262977549 stripped
@@ -513,7 +513,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -557,7 +557,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -601,7 +601,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -694,7 +694,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 555725d48e9051a4bb6b8d45178c2fdd, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Oculus.VR::OVRPassthroughLayer
   hidden: 0
   overridePerLayerColorScaleAndOffset: 0
@@ -808,6 +808,7 @@ GameObject:
   - component: {fileID: 1046883117}
   - component: {fileID: 1046883116}
   - component: {fileID: 1046883118}
+  - component: {fileID: 1046883119}
   m_Layer: 0
   m_Name: Marker Presentation Controller
   m_TagString: Untagged
@@ -825,7 +826,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 142c32b4bac64ea7ab4e45d5fdb45cd5, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoPresentationOriginBinding
   calibrationSource: {fileID: 1046883113}
   runner: {fileID: 1046883111}
@@ -841,11 +842,36 @@ MonoBehaviour:
   m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 890796c9597ab42349225dcccf3a9951, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unframe.Unity.PresentationRuntime::Unframe.Unity.PresentationRuntime.LocalPresentationFixtureRunner
-  deliveryFixture: {fileID: 0}
-  snapshotFixture: {fileID: 0}
-  reliableEventFixtures: []
+  deliveryFixture: {fileID: 4900000, guid: 5a91c658e4c348e1962133a9964c62ff, type: 3}
+  snapshotFixture: {fileID: 4900000, guid: 2cdd7ca5a16e4981982ce9f363d1f2d8, type: 3}
+  reliableEventFixtures:
+  - {fileID: 4900000, guid: 4e50649d9e9474274b60c38531438ac8, type: 3}
+  - {fileID: 4900000, guid: 638d9dfd566da4caca576b6284fee7ef, type: 3}
+  - {fileID: 4900000, guid: a599febf1eeb84543bc5ac413a3fe131, type: 3}
+  - {fileID: 4900000, guid: b4d563fdc6c8a41ce95bc3a13f288c44, type: 3}
+  - {fileID: 4900000, guid: 4d9cb5ab1c05e4d5bb9280ac82921c18, type: 3}
+  - {fileID: 4900000, guid: cf01dd19e4f6746d5b0ce3676ee8b37c, type: 3}
+  - {fileID: 4900000, guid: 364883597c3244a32bc1d1b65c1840c9, type: 3}
+  - {fileID: 4900000, guid: a399047d9aef94eb9ba9eaf014d84ec2, type: 3}
+  - {fileID: 4900000, guid: 15db6c9235aaa487cb11e5e5b983958e, type: 3}
+  - {fileID: 4900000, guid: 72b216234560b43059024c2dfc102902, type: 3}
+  - {fileID: 4900000, guid: ae2234869edbe4276baf5a0391e3248f, type: 3}
+  - {fileID: 4900000, guid: 7be0f43a4f3e14ab7946cdc4f8c72faf, type: 3}
+  - {fileID: 4900000, guid: f41d7f947f81f4bb6ad56f83f01996ac, type: 3}
+  - {fileID: 4900000, guid: 41a35d7c506ef4fd384ebd7c70e30f33, type: 3}
+  - {fileID: 4900000, guid: 9a410d77b60f144a9ad33b7cc271b4fc, type: 3}
+  - {fileID: 4900000, guid: 310e4b67a65304f3bb6c268e53a52aa2, type: 3}
+  - {fileID: 4900000, guid: 9f02361a7a1ac44cf8d5ab924deff26f, type: 3}
+  - {fileID: 4900000, guid: 17a688781e66e468796f40cfc9b4021b, type: 3}
+  - {fileID: 4900000, guid: 78606814fa63a4265a38a6a01f96e25f, type: 3}
+  - {fileID: 4900000, guid: edffe96ee7f704173b20f542b01bb1bb, type: 3}
+  - {fileID: 4900000, guid: 787d864bbdadb474291fa490e563cdc9, type: 3}
+  - {fileID: 4900000, guid: bcd2f889768534e068cc167266cf9013, type: 3}
+  - {fileID: 4900000, guid: 53c09f6d7595345de8e5ab4a46c14b10, type: 3}
+  - {fileID: 4900000, guid: 51e4b63615688481296638d350ce116c, type: 3}
+  - {fileID: 4900000, guid: 21f015ce2094747499d0e15bd3f8eabd, type: 3}
   hierarchyRoot: {fileID: 1513387502}
   animationPresetLibrary: {fileID: 0}
   startOnPlay: 0
@@ -874,7 +900,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c0b9c7eb2b840818d6785aab79033f6, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoPresentationCalibration
   alignment: {fileID: 169578530}
   questTrackingOrigin: {fileID: 382092643}
@@ -888,7 +914,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef967567126345528f42a768ed006499, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestLocalPresentationControls
   calibrationSource: {fileID: 1046883113}
   runner: {fileID: 1046883111}
@@ -902,7 +928,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e6123d87c6c24b5689f8e26c6e0438fa, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unframe.Unity.PresentationRuntime.QuestPresentationFlowView
 --- !u!114 &1046883117
 MonoBehaviour:
@@ -914,7 +940,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1ef67b5bb0474e829eb75362b495c5d6, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestPresentationUiController
   head: {fileID: 382092642}
   rightController: {fileID: 262977549}
@@ -934,79 +960,51 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2cac6565fb7b4b4e84b52993dd6fb966, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestLocalArmMotionControls
   controls: {fileID: 1046883115}
   runner: {fileID: 1046883111}
   cues:
-  - eventNumber: 2
-    preset: 0
-  - eventNumber: 3
-    preset: 1
-  - eventNumber: 4
-    preset: 2
-  - eventNumber: 5
-    preset: 3
-  - eventNumber: 6
-    preset: 4
-  - eventNumber: 7
-    preset: 5
-  - eventNumber: 8
-    preset: 6
-  - eventNumber: 9
-    preset: 7
   - eventNumber: 10
-    preset: 0
-  - eventNumber: 11
-    preset: 1
-  - eventNumber: 12
     preset: 2
-  - eventNumber: 13
-    preset: 3
-  - eventNumber: 14
-    preset: 4
+    cueId: cue:scene-10
+    timelineId: timeline:scene-10
+    minimumDistanceMeters: 0.28
+    windowMilliseconds: 1200
   - eventNumber: 15
-    preset: 5
+    preset: 2
+    cueId: cue:scene-14
+    timelineId: timeline:scene-14
+    minimumDistanceMeters: 0.28
+    windowMilliseconds: 1200
   - eventNumber: 16
-    preset: 6
+    preset: 1
+    cueId: cue:scene-15
+    timelineId: timeline:scene-15
+    minimumDistanceMeters: 0.28
+    windowMilliseconds: 1200
   - eventNumber: 17
-    preset: 7
-  - eventNumber: 18
-    preset: 0
-  - eventNumber: 19
-    preset: 1
-  - eventNumber: 20
-    preset: 2
-  - eventNumber: 21
-    preset: 3
-  - eventNumber: 22
-    preset: 4
-  - eventNumber: 23
-    preset: 5
-  - eventNumber: 24
     preset: 6
-  - eventNumber: 25
-    preset: 7
-  - eventNumber: 26
-    preset: 0
-  - eventNumber: 27
-    preset: 1
-  - eventNumber: 28
-    preset: 2
-  - eventNumber: 29
-    preset: 3
-  - eventNumber: 30
-    preset: 4
-  - eventNumber: 31
-    preset: 5
-  - eventNumber: 32
-    preset: 6
-  - eventNumber: 33
-    preset: 7
-  - eventNumber: 34
-    preset: 0
-  - eventNumber: 35
-    preset: 1
+    cueId: cue:scene-16
+    timelineId: timeline:scene-16
+    minimumDistanceMeters: 0.2
+    windowMilliseconds: 2000
+--- !u!114 &1046883119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1046883109}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a1befedc94e46cea37a308f32d2c232, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestArmMotionDebugView
+  head: {fileID: 382092642}
+  flow: {fileID: 1046883117}
+  motion: {fileID: 1046883118}
+  diagnosticVisible: 0
 --- !u!1 &1513387501
 GameObject:
   m_ObjectHideFlags: 0
@@ -1127,13 +1125,13 @@ MonoBehaviour:
   m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef9a7893e57c04c0db4114c70954b915, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: meta.xr.mrutilitykit::Meta.XR.PassthroughCameraAccess
   CameraPosition: 0
   RequestedResolution: {x: 1280, y: 960}
   _maxFramerate: 30
   TargetMaterial: {fileID: 0}
-  _texturePropertyName:
+  _texturePropertyName: 
 --- !u!4 &2135378173
 Transform:
   m_ObjectHideFlags: 0

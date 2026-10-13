@@ -1,0 +1,11 @@
+{
+  "extends": "../../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "typeRoots": ["../../../packages/unframe-core/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

@@ -44,15 +44,19 @@ public static class QuestPresentationUiSceneEditor
         var controls = runner.GetComponent<QuestLocalPresentationControls>();
         if (controls == null) controls = runner.gameObject.AddComponent<QuestLocalPresentationControls>();
         controls.Configure(calibration, runner);
+        var delivery = Resources.Load<TextAsset>("MotionPresentation/LocalDelivery");
+        var snapshot = Resources.Load<TextAsset>("MotionPresentation/LocalSnapshot");
+        var events = Resources.LoadAll<TextAsset>("MotionPresentation/Control");
+        var plan = Resources.Load<TextAsset>("MotionPresentation/LocalMotionPlan");
+        if (delivery == null || snapshot == null || events.Length != 25 || plan == null)
+            throw new InvalidOperationException("The generated rehearsal presentation fixtures are required.");
+        Array.Sort(events, (left, right) => String.CompareOrdinal(left.name, right.name));
+        runner.SetDeliveryFixture(delivery);
+        runner.SetSnapshotFixture(snapshot);
+        runner.SetReliableEventFixtures(events);
         var motion = runner.GetComponent<QuestLocalArmMotionControls>();
-        if (motion == null)
-        {
-            motion = runner.gameObject.AddComponent<QuestLocalArmMotionControls>();
-            var presets = (ArmMotionPreset[])Enum.GetValues(typeof(ArmMotionPreset));
-            var cues = Enumerable.Range(2, runner.ReliableEventCount - 1)
-                .Select(number => new ArmMotionCue(number, presets[(number - 2) % presets.Length])).ToArray();
-            motion.Configure(controls, runner, cues);
-        }
+        if (motion == null) motion = runner.gameObject.AddComponent<QuestLocalArmMotionControls>();
+        motion.ConfigurePlan(controls, runner, plan);
         foreach (var status in components.SelectMany(root => root.GetComponentsInChildren<QuestLocalPresentationStatusView>(true)))
             UnityEngine.Object.DestroyImmediate(status);
         preview.DiagnosticUiVisible = false;
@@ -72,6 +76,12 @@ public static class QuestPresentationUiSceneEditor
         if (view == null) view = runner.gameObject.AddComponent<QuestPresentationFlowView>();
         controller.Configure(rig.centerEyeAnchor, rig.rightControllerAnchor, preview, alignment,
             calibration, runner, controls, binding);
+        var motionDebug = runner.GetComponent<QuestArmMotionDebugView>();
+        if (motionDebug == null) motionDebug = runner.gameObject.AddComponent<QuestArmMotionDebugView>();
+        motionDebug.Configure(rig.centerEyeAnchor, controller, motion);
+        var debugSettings = new SerializedObject(motionDebug);
+        debugSettings.FindProperty("diagnosticVisible").boolValue = false;
+        debugSettings.ApplyModifiedPropertiesWithoutUndo();
         EditorSceneManager.MarkSceneDirty(scene);
         if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not save UI preview scene.");
     }

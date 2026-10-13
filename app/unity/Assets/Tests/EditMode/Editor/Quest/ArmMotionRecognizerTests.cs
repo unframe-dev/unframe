@@ -15,9 +15,69 @@ public sealed class ArmMotionRecognizerTests
     {
         var recognizer = new ArmMotionRecognizer();
         recognizer.Configure(preset);
-        recognizer.Observe(0, Frame(left, right));
-        recognizer.Observe(0.25, Frame(left, right));
+        Assert.That(recognizer.Start(0.25, Frame(left, right)), Is.True);
         return recognizer;
+    }
+
+    [Test]
+    public void StartRequiresTrackingAndPinsTheInitialPosition()
+    {
+        var recognizer = new ArmMotionRecognizer();
+        recognizer.Configure(ArmMotionPreset.SwipeRight);
+        Assert.That(recognizer.Observe(0, Frame(Vector3.zero, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Diagnostics.Phase, Is.EqualTo(ArmMotionPhase.WaitingTrigger));
+        Assert.That(recognizer.Start(0.1, new ArmMotionFrame(Vector3.zero, Quaternion.identity, false,
+            Vector3.zero, true, Vector3.zero, true)), Is.False);
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.HeadTrackingUnavailable));
+        recognizer.Reset();
+        Assert.That(recognizer.Start(0.35, Frame(Vector3.right, Vector3.zero)), Is.True);
+        Assert.That(recognizer.Diagnostics.Phase, Is.EqualTo(ArmMotionPhase.Ready));
+        recognizer.Observe(0.45, Frame(Vector3.right, Vector3.zero));
+        Assert.That(recognizer.Start(0.5, Frame(Vector3.right * 1.1f, Vector3.zero)), Is.False);
+        recognizer.Observe(0.55, Frame(new Vector3(1.1f, 0.02f, 0), Vector3.zero));
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.DistanceTooSmall));
+        Assert.That(recognizer.Diagnostics.LeftDistanceMeters, Is.EqualTo(0.1f).Within(0.001));
+        Assert.That(recognizer.Diagnostics.LeftOffAxisMeters, Is.EqualTo(0.02f).Within(0.001));
+        Assert.That(recognizer.Diagnostics.LeftSpeedMetersPerSecond, Is.EqualTo(0.5f).Within(0.001));
+        Assert.That(recognizer.Observe(0.65, Frame(Vector3.right * 1.32f, Vector3.zero)), Is.True);
+        Assert.That(recognizer.Diagnostics.Phase, Is.EqualTo(ArmMotionPhase.Matched));
+    }
+
+    [Test]
+    public void DiagnosticsExposeResetReasonAndBothHandDistances()
+    {
+        var recognizer = Armed(ArmMotionPreset.SpreadHands, Vector3.left * 0.1f, Vector3.right * 0.1f);
+        recognizer.Observe(0.55, Frame(Vector3.left * 0.3f, Vector3.right * 0.3f));
+        Assert.That(recognizer.Diagnostics.InitialSpanMeters, Is.EqualTo(0.2f).Within(0.001));
+        Assert.That(recognizer.Diagnostics.CurrentSpanMeters, Is.EqualTo(0.6f).Within(0.001));
+        Assert.That(recognizer.Diagnostics.LeftRadialDistanceMeters, Is.EqualTo(0.2f).Within(0.001));
+        Assert.That(recognizer.Diagnostics.RightRadialDistanceMeters, Is.EqualTo(0.2f).Within(0.001));
+        recognizer.Reset();
+        recognizer.Start(0.6, Frame(Vector3.left * 0.1f, Vector3.right * 0.1f));
+        recognizer.Observe(1.2, Frame(Vector3.left * 0.3f, Vector3.right * 0.3f));
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.FrameGap));
+        recognizer.Reset();
+        recognizer.Start(double.NaN, Frame(Vector3.zero, Vector3.zero));
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.InvalidTimestamp));
+    }
+
+    [Test]
+    public void DiagnosticsKeepGestureHeadingAndExposeWindowExpiry()
+    {
+        var recognizer = new ArmMotionRecognizer();
+        recognizer.Configure(ArmMotionPreset.PushForward, 0.5f, 0.4);
+        var heading = Quaternion.Euler(0, 90, 0);
+        recognizer.Start(0.25, Frame(Vector3.zero, Vector3.zero, rotation: heading));
+        recognizer.Observe(0.55, Frame(Vector3.right * 0.32f, Vector3.zero));
+        Assert.That(recognizer.Diagnostics.LeftDisplacement.z, Is.EqualTo(0.32f).Within(0.001));
+        Assert.That(recognizer.Diagnostics.LeftFrameSpeedMetersPerSecond, Is.EqualTo(0.32f / 0.3f).Within(0.001));
+        recognizer.Observe(0.75, Frame(Vector3.right * 0.6f, Vector3.zero));
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.WindowExpired));
+        Assert.That(recognizer.Start(0.8, Frame(Vector3.zero, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Observe(0.9, Frame(Vector3.right, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Diagnostics.WindowElapsedSeconds, Is.EqualTo(0.5).Within(0.001));
+        Assert.That(recognizer.Diagnostics.MinimumDistanceMeters, Is.EqualTo(0.5f));
+        Assert.That(recognizer.Diagnostics.WindowSeconds, Is.EqualTo(0.4));
     }
 
     [TestCase(ArmMotionPreset.SwipeLeft, -1, 0, 0)]
@@ -62,12 +122,79 @@ public sealed class ArmMotionRecognizerTests
             Frame(spread ? wideLeft : closeLeft, spread ? wideRight : closeRight)), Is.True);
     }
 
-    [TestCase(ArmMotionPreset.SpreadHands, 0.4f, 0.6f)]
-    [TestCase(ArmMotionPreset.CloseHands, 0.25f, 0.05f)]
-    public void SeparationGestureMustCrossBetweenCloseAndWide(ArmMotionPreset preset, float from, float to)
+    [TestCase(ArmMotionPreset.SpreadHands, 0.30f, 0.41f)]
+    [TestCase(ArmMotionPreset.CloseHands, 0.25f, 0.14f)]
+    public void SeparationGestureUsesRelativeDistanceAtAnyStartingWidth(ArmMotionPreset preset, float from, float to)
     {
-        Assert.That(Armed(preset, Vector3.left * from, Vector3.right * from).Observe(0.55,
-            Frame(Vector3.left * to, Vector3.right * to)), Is.False);
+        var recognizer = Armed(preset, Vector3.left * from, Vector3.right * from);
+        Assert.That(recognizer.Observe(0.55, Frame(Vector3.left * to, Vector3.right * to)), Is.True);
+        Assert.That(recognizer.Diagnostics.MinimumDistanceMeters, Is.EqualTo(0.20f));
+        Assert.That(recognizer.Diagnostics.MinimumEachHandDistanceMeters, Is.EqualTo(0.04f));
+        Assert.That(recognizer.Diagnostics.MinimumSpeedMetersPerSecond, Is.EqualTo(0.10f));
+        Assert.That(recognizer.Diagnostics.WindowSeconds, Is.EqualTo(2.0));
+    }
+
+    [TestCase(ArmMotionPreset.SpreadHands, 1)]
+    [TestCase(ArmMotionPreset.CloseHands, -1)]
+    public void BothHandsMayMoveUnequalDistances(ArmMotionPreset preset, int sign)
+    {
+        var left = Vector3.left * 0.30f;
+        var right = Vector3.right * 0.30f;
+        Assert.That(Armed(preset, left, right).Observe(0.55,
+            Frame(left + Vector3.left * (0.05f * sign), right + Vector3.right * (0.17f * sign))), Is.True);
+    }
+
+    [TestCase(ArmMotionPreset.SpreadHands, 1)]
+    [TestCase(ArmMotionPreset.CloseHands, -1)]
+    public void RelaxedSeparationStillRejectsOneHandJitterAndOppositeDirection(ArmMotionPreset preset, int sign)
+    {
+        var left = Vector3.left * 0.30f;
+        var right = Vector3.right * 0.30f;
+        Assert.That(Armed(preset, left, right).Observe(0.55,
+            Frame(left + Vector3.left * (0.25f * sign), right)), Is.False);
+        Assert.That(Armed(preset, left, right).Observe(0.55,
+            Frame(left + Vector3.left * (0.22f * sign), right + Vector3.right * (0.02f * sign))), Is.False);
+        Assert.That(Armed(preset, left, right).Observe(0.55,
+            Frame(left - Vector3.left * (0.11f * sign), right - Vector3.right * (0.11f * sign))), Is.False);
+    }
+
+    [TestCase(ArmMotionPreset.SpreadHands, 1)]
+    [TestCase(ArmMotionPreset.CloseHands, -1)]
+    public void SeparationCanCompleteSlowlyWithinTwoSeconds(ArmMotionPreset preset, int sign)
+    {
+        var recognizer = Armed(preset, Vector3.left * 0.30f, Vector3.right * 0.30f);
+        for (int sample = 1; sample <= 6; sample++)
+        {
+            float width = 0.30f + sign * 0.11f * sample / 6;
+            Assert.That(recognizer.Observe(0.25 + sample * 0.30,
+                Frame(Vector3.left * width, Vector3.right * width)), Is.EqualTo(sample == 6));
+        }
+    }
+
+    [Test]
+    public void SingleArmKeepsItsExistingSpeedAndWindow()
+    {
+        var recognizer = Armed(ArmMotionPreset.SwipeRight);
+        Assert.That(recognizer.Diagnostics.MinimumSpeedMetersPerSecond, Is.EqualTo(0.25f));
+        Assert.That(recognizer.Diagnostics.WindowSeconds, Is.EqualTo(1.20));
+        recognizer.Observe(0.65, Frame(Vector3.right * 0.10f, Vector3.zero));
+        recognizer.Observe(1.05, Frame(Vector3.right * 0.20f, Vector3.zero));
+        Assert.That(recognizer.Observe(1.40, Frame(Vector3.right * 0.28f, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.SpeedTooLow));
+    }
+
+    [Test]
+    public void ConfiguredDistanceAndWindowGovernRecognition()
+    {
+        var recognizer = new ArmMotionRecognizer();
+        recognizer.Configure(ArmMotionPreset.SwipeRight, 0.5f, 0.4);
+        recognizer.Start(0.25, Frame(Vector3.zero, Vector3.zero));
+        Assert.That(recognizer.Observe(0.55, Frame(Vector3.right * 0.32f, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Observe(0.75, Frame(Vector3.right * 0.6f, Vector3.zero)), Is.False);
+        recognizer.Configure(ArmMotionPreset.SpreadHands, 0.5f, 1.2);
+        recognizer.Start(1.25, Frame(Vector3.left * 0.1f, Vector3.right * 0.1f));
+        Assert.That(recognizer.Observe(1.55, Frame(Vector3.left * 0.3f, Vector3.right * 0.3f)), Is.False);
+        Assert.That(recognizer.Observe(1.65, Frame(Vector3.left * 0.4f, Vector3.right * 0.4f)), Is.True);
     }
 
     [Test]
@@ -86,14 +213,13 @@ public sealed class ArmMotionRecognizerTests
     {
         var recognizer = new ArmMotionRecognizer();
         recognizer.Configure(ArmMotionPreset.SwipeRight);
-        recognizer.Observe(0, Frame(Vector3.zero, Vector3.zero, leftAvailable: false));
-        recognizer.Observe(0.25, Frame(Vector3.zero, Vector3.zero, leftAvailable: false));
+        recognizer.Start(0.25, Frame(Vector3.zero, Vector3.zero, leftAvailable: false));
         Assert.That(recognizer.Observe(0.55,
             Frame(Vector3.zero, Vector3.right * 0.32f, leftAvailable: false)), Is.True);
     }
 
     [Test]
-    public void ASlowMovementAndMovementWithoutInitialRestDoNotTrigger()
+    public void ASlowMovementAndMovementWithoutStartDoNotTrigger()
     {
         var recognizer = Armed(ArmMotionPreset.SwipeRight);
         recognizer.Observe(0.6, Frame(Vector3.right * 0.1f, Vector3.zero));
@@ -123,21 +249,52 @@ public sealed class ArmMotionRecognizerTests
         var recognizer = new ArmMotionRecognizer();
         recognizer.Configure(ArmMotionPreset.PushForward);
         var heading = Quaternion.Euler(0, 90, 0);
-        recognizer.Observe(0, Frame(Vector3.zero, Vector3.zero, rotation: heading));
-        recognizer.Observe(0.25, Frame(Vector3.zero, Vector3.zero, rotation: heading));
+        recognizer.Start(0.25, Frame(Vector3.zero, Vector3.zero, rotation: heading));
         Assert.That(recognizer.Observe(0.55, Frame(Vector3.right * 0.32f, Vector3.zero,
             rotation: Quaternion.identity)), Is.True);
     }
 
     [Test]
-    public void HoldingAfterOneGestureDoesNotRepeatAndRestAllowsAnotherGesture()
+    public void HoldingAfterOneGestureCannotRestartUntilReset()
     {
         var recognizer = Armed(ArmMotionPreset.SwipeRight);
         Vector3 position = Vector3.right * 0.32f;
         Assert.That(recognizer.Observe(0.55, Frame(position, Vector3.zero)), Is.True);
         Assert.That(recognizer.Observe(0.6, Frame(position, Vector3.zero)), Is.False);
         Assert.That(recognizer.Observe(0.85, Frame(position, Vector3.zero)), Is.False);
-        Assert.That(recognizer.Observe(1.1, Frame(position * 2, Vector3.zero)), Is.True);
+        Assert.That(recognizer.Observe(1.1, Frame(position * 2, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Start(1.2, Frame(position, Vector3.zero)), Is.False);
+        recognizer.Reset();
+        Assert.That(recognizer.Start(1.25, Frame(position, Vector3.zero)), Is.True);
+        Assert.That(recognizer.Observe(1.55, Frame(position * 2, Vector3.zero)), Is.True);
+    }
+
+    [Test]
+    public void WindowStartsAtPressAndDoesNotRefreshWhileStationary()
+    {
+        var recognizer = new ArmMotionRecognizer();
+        recognizer.Configure(ArmMotionPreset.SwipeRight, 0.28f, 0.4);
+        Assert.That(recognizer.Start(1, Frame(Vector3.zero, Vector3.zero)), Is.True);
+        Assert.That(recognizer.Observe(1.3, Frame(Vector3.zero, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Observe(1.45, Frame(Vector3.right * 0.32f, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.WindowExpired));
+        Assert.That(recognizer.Observe(1.5, Frame(Vector3.zero, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Start(1.6, Frame(Vector3.zero, Vector3.zero)), Is.False);
+        recognizer.Reset();
+        Assert.That(recognizer.Start(1.7, Frame(Vector3.zero, Vector3.zero)), Is.True);
+        Assert.That(recognizer.Observe(1.9, Frame(Vector3.right * 0.32f, Vector3.zero)), Is.True);
+    }
+
+    [Test]
+    public void TrackingRecoveryCannotRestartTheHeldGesture()
+    {
+        var recognizer = Armed(ArmMotionPreset.SwipeRight);
+        recognizer.Observe(0.4, new ArmMotionFrame(Vector3.zero, Quaternion.identity, false,
+            Vector3.zero, true, Vector3.zero, true));
+        Assert.That(recognizer.Diagnostics.Phase, Is.EqualTo(ArmMotionPhase.Failed));
+        Assert.That(recognizer.Start(0.5, Frame(Vector3.zero, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Observe(0.6, Frame(Vector3.right * 0.32f, Vector3.zero)), Is.False);
+        Assert.That(recognizer.Diagnostics.Reason, Is.EqualTo(ArmMotionDiagnosticReason.HeadTrackingUnavailable));
     }
 
     [Test]
@@ -153,7 +310,7 @@ public sealed class ArmMotionRecognizerTests
     }
 
     [Test]
-    public void NonFiniteTrackingAndPresetChangeRequireFreshRest()
+    public void NonFiniteTrackingAndPresetChangeRequireFreshStart()
     {
         var recognizer = Armed(ArmMotionPreset.SwipeRight);
         recognizer.Observe(0.4, Frame(new Vector3(float.NaN, 0, 0), Vector3.zero));

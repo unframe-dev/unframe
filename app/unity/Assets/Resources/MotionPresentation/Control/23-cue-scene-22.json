@@ -1,0 +1,37 @@
+{
+  "reliableEvent": {
+    "sequence": "23",
+    "eventId": "event:motion-23",
+    "occurredAtRuntimeTimeMs": "19400",
+    "fence": {
+      "sessionId": "session:local",
+      "publication": {
+        "presentationId": "presentation:unframe-rehearsal",
+        "publicationEpoch": "1",
+        "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "assignmentEpoch": "1",
+      "projectionProfileId": "profile:local"
+    },
+    "timelineStarted": {
+      "runId": {
+        "assignmentEpoch": "1",
+        "runSequence": "23"
+      },
+      "timelineId": "timeline:scene-22",
+      "owner": {
+        "presentation": {}
+      },
+      "cause": {
+        "cueId": "cue:scene-22",
+        "causeEventId": "event:motion-23",
+        "groupId": "group:rehearsal",
+        "groupEntryEpoch": "1",
+        "stepId": "step:scene-22",
+        "stepEntryEpoch": "23"
+      },
+      "completion": "RUN_COMPLETION_BLOCKING",
+      "startedAtRuntimeTimeMs": "19400"
+    }
+  }
+}

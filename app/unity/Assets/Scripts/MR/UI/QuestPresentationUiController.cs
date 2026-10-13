@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.XR;
 using CommonUsages = UnityEngine.XR.CommonUsages;
 
+[DefaultExecutionOrder(-100)]
 public sealed class QuestPresentationUiController : MonoBehaviour
 {
     [SerializeField] private Transform head;
@@ -22,6 +23,7 @@ public sealed class QuestPresentationUiController : MonoBehaviour
     private string loadError;
 
     public PresentationUiFlow Flow { get; } = new PresentationUiFlow();
+    public bool MotionTriggerConsumed { get; private set; }
 
     public void Configure(Transform eye, Transform controller, PassthroughCameraDevicePreview preview,
         ArucoOriginAlignment marker, ArucoPresentationCalibration source, LocalPresentationFixtureRunner presentation,
@@ -155,21 +157,32 @@ public sealed class QuestPresentationUiController : MonoBehaviour
     {
         var device = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
         bool tracked = device.TryGetFeatureValue(CommonUsages.isTracked, out bool value) && value;
-        bool pressed = tracked && device.TryGetFeatureValue(CommonUsages.triggerButton, out bool trigger) && trigger;
+        bool pressed = device.TryGetFeatureValue(CommonUsages.triggerButton, out bool trigger) && trigger;
         if (tracked && rightController != null)
         {
             var ray = new Ray(rightController.position, rightController.forward);
             ShowPointer(ray);
-            if (pressed && !triggerWasPressed) view.TryPress(ray);
+            ProcessPointer(pressed, ray);
         }
-        else if (pointer != null) pointer.enabled = false;
-        triggerWasPressed = pressed;
+        else
+        {
+            if (pointer != null) pointer.enabled = false;
+            ProcessPointer(pressed, null);
+        }
 #if UNITY_EDITOR
         var mouse = Mouse.current;
         var camera = head != null ? head.GetComponent<Camera>() : Camera.main;
         if (mouse != null && camera != null && mouse.leftButton.wasPressedThisFrame)
             view.TryPress(camera.ScreenPointToRay(mouse.position.ReadValue()));
 #endif
+    }
+
+    public void ProcessPointer(bool triggerPressed, Ray? ray)
+    {
+        if (!triggerPressed) MotionTriggerConsumed = false;
+        else if (!triggerWasPressed && ray.HasValue && view != null && view.TryPress(ray.Value))
+            MotionTriggerConsumed = true;
+        triggerWasPressed = triggerPressed;
     }
 
     private void ShowPointer(Ray ray)

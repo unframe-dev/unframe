@@ -1,6 +1,6 @@
 # QuestのプレゼンUIプレビュー
 
-`QuestPresentationUiPreview` は、サーバー未接続で開始から退出までの操作を確認する専用シーンです。既存のDelivery / Snapshot / Reliable Event fixtureとマーカー校正を使用します。認証・ルーム参加・作成は画面のプレビューであり、アカウントやオンラインルームを作成しません。端末間の進行は同期しません。
+`QuestPresentationUiPreview` は、サーバー未接続で開始から退出までの操作を確認する専用シーンです。24場面の発表リハーサルとTimelineを試すプレゼンを表示します。`MotionPresentation` の共有v2定義から生成したDelivery / Snapshot / Reliable Event fixtureとマーカー校正を使用します。認証・ルーム参加・作成は画面のプレビューであり、アカウントやオンラインルームを作成しません。端末間の進行は同期しません。
 
 ## 開く・ビルドする
 

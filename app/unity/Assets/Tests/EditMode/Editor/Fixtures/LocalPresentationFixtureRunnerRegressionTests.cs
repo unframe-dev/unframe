@@ -10,6 +10,28 @@ using UnityEngine;
 public sealed class LocalPresentationFixtureRunnerRegressionTests
 {
     [Test]
+    public void MotionMustMatchTheUpcomingCueAndTimelineBeforeConsumingItsEvent()
+    {
+        var host = new GameObject("fixture-motion-cue-guard");
+        try
+        {
+            var runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(runner.TryLoad(out string error), Is.True, error);
+            Assert.That(runner.TryAdvanceMotion("cue:wrong", "timeline:story-01", out error), Is.False);
+            Assert.That(runner.TryAdvanceMotion("cue:local-story-01", "timeline:wrong", out error), Is.False);
+            Assert.That(runner.TryAdvanceMotion("", "timeline:story-01", out error), Is.False);
+            Assert.That(runner.AppliedEventCount, Is.Zero);
+            Assert.That(runner.Store.LastReliableSequence, Is.Zero);
+            Assert.That(runner.TryAdvanceMotion("cue:local-story-01", "timeline:story-01", out error), Is.True, error);
+            Assert.That(runner.AppliedEventCount, Is.EqualTo(1));
+            Assert.That(runner.Store.LastReliableSequence, Is.EqualTo(1));
+            Assert.That(runner.TryAdvanceMotion("cue:local-story-01", "timeline:story-01", out error), Is.False);
+            Assert.That(runner.AppliedEventCount, Is.EqualTo(1));
+        }
+        finally { Object.DestroyImmediate(host); }
+    }
+
+    [Test]
     public void KeyboardGateBlocksKeyboardWithoutBlockingExplicitAdvance()
     {
         var host = new GameObject("fixture-keyboard-gate");

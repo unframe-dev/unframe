@@ -180,6 +180,29 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
+        public bool TryAdvanceMotion(string cueId, string timelineId, out string error)
+        {
+            if (!CanAdvance || String.IsNullOrEmpty(cueId) || String.IsNullOrEmpty(timelineId))
+            {
+                error = "An available motion Cue and Timeline are required.";
+                return false;
+            }
+
+            TextAsset fixture = ResolveReliableEventFixtures()[AppliedEventCount];
+            if (!PresentationContractJsonFixtureLoader.TryParseControlItem(fixture.text, out ControlServerItem item, out error))
+                return false;
+            if (item.ItemCase != ControlServerItem.ItemOneofCase.ReliableEvent
+                || item.ReliableEvent.PayloadCase != ProjectedReliableEvent.PayloadOneofCase.TimelineStarted
+                || item.ReliableEvent.TimelineStarted.Cause?.CueId != cueId
+                || item.ReliableEvent.TimelineStarted.TimelineId != timelineId)
+            {
+                error = "The motion Cue does not match the upcoming Timeline event.";
+                return false;
+            }
+
+            return TryAdvance(out error);
+        }
+
         private void ApplyControlToVisuals(ControlServerItem item)
         {
             if (item.ItemCase != ControlServerItem.ItemOneofCase.ReliableEvent)
