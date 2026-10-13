@@ -245,7 +245,7 @@ Presentation ──→ Instance / host Spatial / Surface ──→ isolated Brow
 ```
 
 - 最初は `*.component.tsx` 一ファイルに一つの named export `defineComponent` を認める。Presentation からの import は静的な Component 参照に解決し、関数 object を plain-data Declaration Graph に格納しない。
-- 静的 field は ADR-0018 の const / import / spread / literal と許可 builder の規則を使う。関数実行、描画値への依存、循環、計算された公開 ID を拒否する。
+- 静的 field は [Authoring Contract](./AUTHORING_CONTRACT.md#typescript--jsx-source) の const / import / spread / literal と許可 builder の規則を使う。関数実行、描画値への依存、循環、計算された公開 ID を拒否する。
 - 元 module を import / evaluate して `render` を取得しない。render 関数と参照する描画 helper / import を別 virtual module へ抽出し、公開契約の initializer は含めない。静的な共有値は検証済みの値として渡す。Component 自身や Presentation、契約 builder の実行時参照は拒否する。
 - 描画 helper と依存 package の初期化は Browser の隔離領域だけで実行する。関数・条件分岐・map は描画内部で利用できる。静的側からそれらの値を読めない。未分類の実行可能な top-level statement は拒否する。
 - React 用 JSX 型環境と Structured SDK 用 JSX 型環境を明示的に分ける。型検査と抽出後の guard の両方で公開契約を検証する。

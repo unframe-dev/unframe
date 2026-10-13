@@ -1,9 +1,11 @@
 # ADR-0008: Runtime transport、replay、Snapshot の v1 contract を定義する
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [Presentation Architecture](../packages/ARCHITECTURE.md), [Realtime Architecture](../../app/server/realtime/ARCHITECTURE.md), [Contracts Architecture](../../packages/contracts/ARCHITECTURE.md), [ADR-0007](./0007-timeline-runtime-run-wire-contract.md)
+- **関連**: [Presentation Architecture](../../packages/ARCHITECTURE.md), [Realtime Architecture](../../../app/server/realtime/ARCHITECTURE.md), [Contracts Architecture](../../../packages/contracts/ARCHITECTURE.md), [ADR-0007](0007-timeline-runtime-run-wire-contract.md)
+
+> 本 ADR は判断の履歴として保存する。現在の規範は [Delivery / Runtime contract](../../packages/CONTRACT_RUNTIME.md) を参照する。移管理由と後続決定は [アーカイブ一覧](./README.md) に記載する。
 
 ## Context
 

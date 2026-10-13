@@ -6,7 +6,6 @@
 - **Related**:
   - [Presentation Architecture](./ARCHITECTURE.md)
   - [Repository Architecture](../../ARCHITECTURE.md)
-  - [ADR-0006: プレゼンテーションアーキテクチャを定義する](../decisions/0006-presentation-rendering-strategy.md)
   - [ADR-0014: Presentation の描画方式を限定する](../decisions/0014-presentation-rendering-scope.md)
   - [M3A Structured Authoring Contract](./AUTHORING_CONTRACT.md)
 

@@ -2,7 +2,7 @@
 
 - **Status**: Normative target contract
 - **Wire source**: `packages/contracts/proto/unframe/{presentation,delivery,realtime}/`
-- **Related**: [Architecture](./ARCHITECTURE.md), [Data model](./DATA_MODEL.md), [ADR-0007](../decisions/0007-timeline-runtime-run-wire-contract.md), [ADR-0008](../decisions/0008-runtime-transport-contract.md), [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md), [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md), [ADR-0011](../decisions/0011-surface-partition-contract.md), [ADR-0012](../decisions/0012-texture-budget-residency-contract.md), [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md), [ADR-0016](../decisions/0016-model-animation-scope.md)
+- **Related**: [Architecture](./ARCHITECTURE.md), [Data model](./DATA_MODEL.md), [ADR-0007（アーカイブ）](../decisions/archived/0007-timeline-runtime-run-wire-contract.md), [ADR-0008（アーカイブ）](../decisions/archived/0008-runtime-transport-contract.md), [ADR-0009](../decisions/0009-semantic-tree-hit-region-contract.md), [ADR-0010](../decisions/0010-spatial-surface-coordinate-contract.md), [ADR-0011](../decisions/0011-surface-partition-contract.md), [ADR-0012](../decisions/0012-texture-budget-residency-contract.md), [ADR-0015](../decisions/0015-presentation-definition-artifact-boundaries.md), [ADR-0016](../decisions/0016-model-animation-scope.md)
 
 この文書は Delivery と Runtime の v2 wire を実装する際の required presence、検証、状態遷移、失敗結果を固定する。`realtime.v1` は廃止済みであり、v2 への互換 adapter、fallback、downgrade は持たない。
 
@@ -159,7 +159,7 @@ Accepted outcomeはcanonical input eventの受理だけを表し、その`canoni
 
 Reliable sequenceはsession-globalで正に単調増加する。Event IDはSession内で一意、cause IDは既存のcanonical eventを参照する。payload variant、fence、required IDが未知または不整合ならeventを適用せずConnection Resumeを開始する。
 
-SurfaceTransitionStarted、Mediaの開始・pause・resume・seek、Model clipの開始・pause・resume・crossfade開始・完了は、event適用後の完全な`RuntimeRunSnapshot`を持つ。event内に同じtarget、Run ID、playback、durationを重複するfieldがある場合はsnapshotとbyte-exactまたは数値exactに一致しなければならない。client reducerはこのsnapshotでactive Run entryを置換でき、DeliveryされたFlow/Cue全体を必要としない。TimelineStartedはADR-0007で固定済みのowner、cause、completion、started timeから同じcomplete entryを構築する。
+SurfaceTransitionStarted、Mediaの開始・pause・resume・seek、Model clipの開始・pause・resume・crossfade開始・完了は、event適用後の完全な`RuntimeRunSnapshot`を持つ。event内に同じtarget、Run ID、playback、durationを重複するfieldがある場合はsnapshotとbyte-exactまたは数値exactに一致しなければならない。client reducerはこのsnapshotでactive Run entryを置換でき、DeliveryされたFlow/Cue全体を必要としない。TimelineStartedは[Realtime Protobuf](../../packages/contracts/proto/unframe/realtime/realtime.proto)のowner、cause、completion、started timeから同じcomplete entryを構築する。
 
 不可視eventはpayloadを送らず、次の可視event直前に一件の`ProjectionAdvance`へ集約する。`from_exclusive`はclient cursorと一致し、`through_sequence > from_exclusive`でなければならない。不可視eventしか増えていない間はmarkerを単独送信しない。
 
@@ -221,7 +221,7 @@ CutはRunを作らずStateをatomicに変更する。同じStateへのcutはeven
 
 ### 7.3 Timeline
 
-Timeline local timeは`t = clamp(runtimeTime - startedAt, 0, duration)`。easing、Vector、Quaternion補間はADR-0007の式をexactに用いる。completionでは全track終値をNode stateへ一transactionでcommitしてRunを除去する。explicit stopとGroup exitは停止時`t`の値をcommitする。Presentation endは値をcommitせずcancelする。inactive stopはeventなしの成功no-opである。
+Timeline local timeは`t = clamp(runtimeTime - startedAt, 0, duration)`。easing、Vector、Quaternion補間は[Architecture §12.8](./ARCHITECTURE.md#128-timeline)の式をexactに用いる。completionでは全track終値をNode stateへ一transactionでcommitしてRunを除去する。explicit stopとGroup exitは停止時`t`の値をcommitする。Presentation endは値をcommitせずcancelする。inactive stopはeventなしの成功no-opである。
 
 ### 7.4 Video media
 

@@ -2,18 +2,20 @@
 
 ## Status
 
-Accepted
+Superseded
+
+> 本 ADR は判断の履歴として保存する。現在の規範は [ADR-0024](../0024-canonical-presentation-contract-names.md) を参照する。移管理由と後続決定は [アーカイブ一覧](./README.md) に記載する。
 
 ## Context
 
-Delivery / Runtime の正本は [v2 Protobuf](../../packages/contracts/proto/unframe/) と [配信・実行契約](../packages/CONTRACT_RUNTIME.md) である。Unity は既に v2 message source を使用する一方、Go の生成対象は v1、`api-client-csharp` は placeholder だった。生成先とアプリケーションの責務を揃え、同じ wire を三言語で検証する必要がある。
+Delivery / Runtime の正本は [v2 Protobuf](../../../packages/contracts/proto/unframe) と [配信・実行契約](../../packages/CONTRACT_RUNTIME.md) である。Unity は既に v2 message source を使用する一方、Go の生成対象は v1、`api-client-csharp` は placeholder だった。生成先とアプリケーションの責務を揃え、同じ wire を三言語で検証する必要がある。
 
 ## Decision
 
 - `packages/contracts` を wire の正本、`packages/api-client-csharp` を独立した C# 生成 artifact / compile / conformance 境界とする。Go source は Realtime の `internal/gen/{presentation,delivery,realtime}/v2` に生成する。生成 directory を手編集しない。
 - Nix lock の toolchain と generator の exact version を検査し、OpenAPI の C# client / model、Protobuf message / service artifact を生成する。source hash と generator version を provenance に記録し、生成 output 全体と file set の drift を検査する。
 - Protobuf namespace は既存の `Unframe.{Presentation,Delivery,Realtime}.V2` を維持する。OpenAPI は `Unframe.ControlPlane` とする。Unity は既存の generated source 配置方式を使い、コピーした Proto source と C# message source も drift check の対象とする。standalone .NET assembly を Unity にそのまま持ち込まない。
-- TypeScript は生成済み静的 codec と型を使い、descriptor を構造検査に使う。runtime の filesystem / `protoc` / 動的コード生成に依存しない。profile identity は [規範 mapping](../packages/CONTRACT_RUNTIME.md#31-projection-profile) を使い、標準 Protobuf JSON と区別する。JSON 数値へ渡す `uint64` は安全整数範囲を検査する。
+- TypeScript は生成済み静的 codec と型を使い、descriptor を構造検査に使う。runtime の filesystem / `protoc` / 動的コード生成に依存しない。profile identity は [規範 mapping](../../packages/CONTRACT_RUNTIME.md#31-projection-profile) を使い、標準 Protobuf JSON と区別する。JSON 数値へ渡す `uint64` は安全整数範囲を検査する。
 - Core は Delivery projection / admission と canonical snapshot の意味検証を所有する。Go の `internal/protocol/v2` は generated message の受信検査、信頼済み fence / catalog との照合、checkpoint bytes、replay cursor / State sequence の境界を所有する。Flow / Cue の authoritative evaluation を wire mapper に入れない。
 - Unity-owned adapter は generated fence、projection、asset descriptor を保持して利用する。既存 `PresentationImport` は別経路として維持する。実装していない Reliable payload を sequence だけ進めて成功扱いしない。
 

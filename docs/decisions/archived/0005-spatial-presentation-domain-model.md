@@ -1,9 +1,11 @@
 # ADR-0005: 空間プレゼンテーションのドメインモデルを定義する
 
-- **Status**: Accepted
+- **Status**: Superseded
 - **Date**: 2026-08-09
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0001（アーカイブ）](./archived/0001-backend-mvp-design.md), [ADR-0003（アーカイブ）](./archived/0003-full-renewal.md), [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- **関連**: [ADR-0001（アーカイブ）](0001-backend-mvp-design.md), [ADR-0003（アーカイブ）](0003-full-renewal.md), [`ARCHITECTURE.md`](../../../ARCHITECTURE.md)
+
+> 本 ADR は判断の履歴として保存する。現在の規範は [Presentation Architecture](../../packages/ARCHITECTURE.md) を参照する。移管理由と後続決定は [アーカイブ一覧](./README.md) に記載する。
 
 ## Context
 
@@ -73,7 +75,7 @@ Control Plane OpenAPIはこのADRを採用し、Presentation Resourceの`definit
 
 PresentationとAssetのResource IDはserver生成UUIDとするが、外部契約ではopaqueな文字列として扱う。clientはUUIDの構造へ依存せず、Group、Step、Cue、ElementなどDefinition内部の安定IDとResource IDを区別する。UUIDの推測困難性を認可の代わりにはしない。
 
-Presentation取得、Asset URL解決、一括delivery APIの実装状況と目標境界は、[`app/server/control-plane/ARCHITECTURE.md`](../../app/server/control-plane/ARCHITECTURE.md)の「Presentation delivery」に記載する。
+Presentation取得、Asset URL解決、一括delivery APIの実装状況と目標境界は、[`app/server/control-plane/ARCHITECTURE.md`](../../../app/server/control-plane/ARCHITECTURE.md)の「Presentation delivery」に記載する。
 
 ## Alternatives Considered
 
