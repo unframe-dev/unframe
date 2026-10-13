@@ -130,6 +130,86 @@ describe("publication service", () => {
     await expect(response.json()).resolves.toMatchObject({ buildId: "build-1" });
   });
   it.each([
+    "swipeLeft",
+    "swipeRight",
+    "swipeDown",
+    "swipeUp",
+    "pushForward",
+    "pullBackward",
+    "spreadHands",
+    "closeHands",
+  ])("stores a %s motion Cue with its existing fade Timeline action", async (preset) => {
+    const copy = structuredClone(artifacts);
+    const motionCue = {
+      id: "gesture-reveal",
+      priority: 0,
+      order: 0,
+      trigger: {
+        kind: "motion",
+        actor: { kind: "system", source: "tracking" },
+        subject: {
+          kind: "anchor",
+          owner: { kind: "presenter" },
+          target: ["spreadHands", "closeHands"].includes(preset) ? "bothHands" : "eitherHand",
+        },
+        preset,
+        minimumDistanceMeters: 0.28,
+        windowMilliseconds: 1200,
+      },
+      firePolicy: { kind: "oncePerStepEntry" },
+      actions: [
+        {
+          kind: "timeline.play",
+          timelineId: "reveal",
+          completion: "blocking",
+          conflict: "reject",
+        },
+      ],
+      next: { kind: "stay" },
+    };
+    const definitionWithMotion = {
+      ...copy.definition,
+      flow: {
+        ...copy.definition.flow,
+        groups: {
+          ...copy.definition.flow.groups,
+          intro: {
+            ...copy.definition.flow.groups.intro,
+            steps: { start: { id: "start", cues: [motionCue] } },
+          },
+        },
+        timelines: {
+          reveal: {
+            id: "reveal",
+            owner: { kind: "group", groupId: "intro" },
+            durationMilliseconds: 1000,
+            tracks: [
+              {
+                target: { nodeId: "node-baked", property: "opacity" },
+                keyframes: [
+                  { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+                  { timeMilliseconds: 1000, value: 1 },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    };
+    copy.renderBundle.definitionHash = hashCanonicalJsonPayload(definitionWithMotion);
+    copy.buildManifest.definitionHash = copy.renderBundle.definitionHash;
+    copy.buildManifest.renderBundleHash = hashCanonicalJsonPayload(copy.renderBundle);
+    const service = new PublicationService(env.DB, env.ASSETS);
+    await service.createBuild(owner, "demo", upload({ ...copy, definition: definitionWithMotion }));
+    const stored = await env.DB.prepare(
+      "SELECT artifacts FROM presentation_builds WHERE presentation_id = 'demo' AND build_id = 'build-1'",
+    ).first<{ artifacts: string }>();
+    expect(stored).not.toBeNull();
+    expect(JSON.parse(stored!.artifacts).definition.flow.groups.intro.steps.start.cues).toEqual([
+      motionCue,
+    ]);
+  });
+  it.each([
     [undefined, 401],
     [{ userId: "stranger", globalRole: "user" as const }, 403],
   ] as const)(

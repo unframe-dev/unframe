@@ -27,6 +27,8 @@ type v2TrackingCue struct {
 	ID                    string
 	Kind                  string
 	SubjectKind           string
+	Preset                string
+	HandTarget            string
 	Target                realtimev2.TrackedTarget
 	ZoneID                string
 	Edge                  string
@@ -51,6 +53,7 @@ type v2TrackingPoint struct {
 }
 
 type v2TrackingCueState struct {
+	gesture       v2TrackingGestureState
 	seeded        bool
 	inside        bool
 	pending       bool
@@ -107,6 +110,16 @@ func (e *v2TrackingEvaluator) Clone() v2TrackingEvaluator {
 }
 
 func (e *v2TrackingEvaluator) Accept(frame *realtimev2.TrackingFrame, receivedAt time.Time, observedAtMs uint64, definition v2TrackingDefinition, originVersion uint64) ([]v2PresentedTrackingSample, []string, error) {
+	accepted := false
+	defer func() {
+		if e != nil && !accepted {
+			// Rejected tracking cannot bridge two halves of an arm gesture.
+			for id, state := range e.states {
+				state.gesture = v2TrackingGestureState{}
+				e.states[id] = state
+			}
+		}
+	}()
 	if e == nil || frame == nil || receivedAt.IsZero() || frame.FrameSequence == 0 || frame.FrameSequence <= e.lastFrameSequence || len(frame.Samples) > 4 || frame.PresentationFromQuestLocal == nil || protocolv2.ValidateMessage(frame.PresentationFromQuestLocal) != nil {
 		return nil, nil, errV2TrackingFrame
 	}
@@ -144,6 +157,14 @@ func (e *v2TrackingEvaluator) Accept(frame *realtimev2.TrackingFrame, receivedAt
 	}
 	fired := make([]string, 0)
 	for _, cue := range definition.Cues {
+		if cue.Preset != "" {
+			state := e.states[cue.ID]
+			if v2TrackingPreset(&state.gesture, cue, samples, observedAtMs) {
+				fired = append(fired, cue.ID)
+			}
+			e.states[cue.ID] = state
+			continue
+		}
 		target := cue.Target
 		if cue.SubjectKind == "participant" {
 			target = realtimev2.TrackedTarget_TRACKED_TARGET_BODY
@@ -180,13 +201,18 @@ func (e *v2TrackingEvaluator) Accept(frame *realtimev2.TrackingFrame, receivedAt
 	e.lastReceivedAt = receivedAt
 	e.lastObservedAtMs = observedAtMs
 	e.scope = scope
+	accepted = true
 	return samples, fired, nil
 }
 
 func v2TrackingValidateDefinition(definition v2TrackingDefinition) error {
 	seen := make(map[string]struct{}, len(definition.Cues))
 	for _, cue := range definition.Cues {
-		if cue.ID == "" || cue.SubjectKind != "participant" && cue.SubjectKind != "anchor" || cue.SubjectKind == "participant" && cue.Target != realtimev2.TrackedTarget_TRACKED_TARGET_UNSPECIFIED || cue.SubjectKind == "anchor" && (cue.Target < realtimev2.TrackedTarget_TRACKED_TARGET_HEAD || cue.Target > realtimev2.TrackedTarget_TRACKED_TARGET_BODY) {
+		if cue.Preset != "" {
+			if !v2TrackingValidPreset(cue) {
+				return errV2TrackingFrame
+			}
+		} else if cue.ID == "" || cue.SubjectKind != "participant" && cue.SubjectKind != "anchor" || cue.SubjectKind == "participant" && cue.Target != realtimev2.TrackedTarget_TRACKED_TARGET_UNSPECIFIED || cue.SubjectKind == "anchor" && (cue.Target < realtimev2.TrackedTarget_TRACKED_TARGET_HEAD || cue.Target > realtimev2.TrackedTarget_TRACKED_TARGET_BODY) {
 			return errV2TrackingFrame
 		}
 		if _, exists := seen[cue.ID]; exists {

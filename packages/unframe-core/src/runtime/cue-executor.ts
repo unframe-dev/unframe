@@ -85,9 +85,15 @@ export type CueInput = CueInputBase &
     | { kind: "logicalInput"; action: string }
     | { kind: "semanticEvent"; event: string }
     | { kind: "surfaceInteraction"; surfaceId: string; interactionId: string }
-    | { kind: "zoneEdge"; zoneId: string; edge: "enter" | "exit"; subject: CueInputSubject }
+    | {
+        kind: "zoneEdge";
+        zoneId: string;
+        edge: "enter" | "exit";
+        subject: Extract<Cue["trigger"], { kind: "zoneEdge" }>["subject"];
+      }
     | {
         kind: "motion";
+        preset?: Extract<Cue["trigger"], { kind: "motion"; preset: string }>["preset"];
         subject: CueInputSubject;
         distanceMeters: number;
         windowMilliseconds: number;
@@ -249,6 +255,7 @@ const triggerMatches = (cue: Cue, input: CueInput) => {
     case "motion":
       return (
         trigger.kind === "motion" &&
+        ("preset" in trigger ? trigger.preset === input.preset : input.preset === undefined) &&
         input.actor.kind === "system" &&
         input.actor.source === "tracking" &&
         subjectMatches(trigger.subject, input.subject) &&
@@ -282,7 +289,11 @@ const subjectMatches = (
 ) =>
   selector.kind === subject?.kind &&
   selector.owner.kind === subject.owner.kind &&
-  (selector.kind !== "anchor" || (subject.kind === "anchor" && selector.target === subject.target));
+  (selector.kind !== "anchor" ||
+    (subject.kind === "anchor" &&
+      (selector.target === subject.target ||
+        (selector.target === "eitherHand" &&
+          (subject.target === "leftHand" || subject.target === "rightHand")))));
 
 const reference = (
   ref: { kind: string; variableId?: string; field?: string; surfaceId?: string; nodeId?: string },

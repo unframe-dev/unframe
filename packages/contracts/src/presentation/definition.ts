@@ -300,7 +300,19 @@ const trackedSubjectSchema = z.discriminatedUnion("kind", [
     target: z.enum(["head", "leftHand", "rightHand", "body"]),
   }),
 ]);
-const triggerSchema = z.discriminatedUnion("kind", [
+const motionTriggerFields = {
+  kind: z.literal("motion"),
+  actor: z.strictObject({ kind: z.literal("system"), source: z.literal("tracking") }),
+  minimumDistanceMeters: positiveFiniteNumberSchema,
+  windowMilliseconds: positiveSafeUIntSchema,
+};
+const motionHandSubject = <T extends z.ZodType>(target: T) =>
+  z.strictObject({
+    kind: z.literal("anchor"),
+    owner: z.strictObject({ kind: z.literal("presenter") }),
+    target,
+  });
+const triggerSchema = z.union([
   z.strictObject({
     kind: z.literal("logicalInput"),
     action: idSchema,
@@ -326,12 +338,23 @@ const triggerSchema = z.discriminatedUnion("kind", [
     dwellMilliseconds: safeUIntSchema.optional(),
     hysteresisMeters: nonNegativeFiniteNumberSchema.optional(),
   }),
+  z.strictObject({ ...motionTriggerFields, subject: trackedSubjectSchema }),
   z.strictObject({
-    kind: z.literal("motion"),
-    actor: z.strictObject({ kind: z.literal("system"), source: z.literal("tracking") }),
-    subject: trackedSubjectSchema,
-    minimumDistanceMeters: positiveFiniteNumberSchema,
-    windowMilliseconds: positiveSafeUIntSchema,
+    ...motionTriggerFields,
+    preset: z.enum([
+      "swipeLeft",
+      "swipeRight",
+      "swipeDown",
+      "swipeUp",
+      "pushForward",
+      "pullBackward",
+    ]),
+    subject: motionHandSubject(z.enum(["eitherHand", "leftHand", "rightHand"])),
+  }),
+  z.strictObject({
+    ...motionTriggerFields,
+    preset: z.enum(["spreadHands", "closeHands"]),
+    subject: motionHandSubject(z.literal("bothHands")),
   }),
   z.strictObject({ kind: z.literal("timer"), afterMilliseconds: positiveSafeUIntSchema }),
   z.strictObject({ kind: z.literal("timelineCompleted"), timelineId: idSchema }),
