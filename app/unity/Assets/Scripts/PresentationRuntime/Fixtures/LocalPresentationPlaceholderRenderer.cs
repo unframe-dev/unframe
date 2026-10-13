@@ -84,9 +84,9 @@ namespace Unframe.Unity.PresentationRuntime
 
                 surface.TextObjects.Clear();
                 int index = 0;
-                foreach (NativeUiText text in ResolveLiteralText(store, surface.SemanticSurfaceId))
+                foreach (TextLayout layout in ResolveLiteralText(store, surface.SemanticSurfaceId))
                 {
-                    GameObject textObject = CreateText(surface.Root, text, index++);
+                    GameObject textObject = CreateText(surface.Root, layout.Text, layout.SurfaceBounds, index++);
                     textObject.GetComponent<Renderer>().enabled = visible;
                     PresentationVisualOpacity.Apply(textObject, opacity);
                     surface.TextObjects.Add(textObject);
@@ -123,13 +123,25 @@ namespace Unframe.Unity.PresentationRuntime
             SurfacePlaceholder surface = new SurfacePlaceholder { SemanticSurfaceId = semanticSurfaceId, Root = root.transform };
             surfaces.Add(nodeId, surface);
             int index = 0;
-            foreach (NativeUiText text in ResolveLiteralText(store, semanticSurfaceId))
+            foreach (TextLayout layout in ResolveLiteralText(store, semanticSurfaceId))
             {
-                surface.TextObjects.Add(CreateText(root.transform, text, index++));
+                surface.TextObjects.Add(CreateText(root.transform, layout.Text, layout.SurfaceBounds, index++));
             }
         }
 
-        private static IEnumerable<NativeUiText> ResolveLiteralText(PresentationRuntimeDataStore store, string semanticSurfaceId)
+        private readonly struct TextLayout
+        {
+            public TextLayout(NativeUiText text, LogicalBounds surfaceBounds)
+            {
+                Text = text;
+                SurfaceBounds = surfaceBounds;
+            }
+
+            public NativeUiText Text { get; }
+            public LogicalBounds SurfaceBounds { get; }
+        }
+
+        private static IEnumerable<TextLayout> ResolveLiteralText(PresentationRuntimeDataStore store, string semanticSurfaceId)
         {
             foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces)
             {
@@ -153,7 +165,7 @@ namespace Unframe.Unity.PresentationRuntime
                             && node.Text.Value != null
                             && node.Text.Value.SourceCase == NativeTextValue.SourceOneofCase.Literal)
                         {
-                            yield return node.Text;
+                            yield return new TextLayout(node.Text, surface.LogicalBounds);
                         }
                     }
                 }
@@ -225,7 +237,7 @@ namespace Unframe.Unity.PresentationRuntime
                 doubleSided: material != null && material.DoubleSided);
         }
 
-        private static GameObject CreateText(UnityEngine.Transform parent, NativeUiText value, int index)
+        private static GameObject CreateText(UnityEngine.Transform parent, NativeUiText value, LogicalBounds surfaceBounds, int index)
         {
             GameObject textObject = new GameObject("Text " + index);
             textObject.transform.SetParent(parent, false);
@@ -234,12 +246,85 @@ namespace Unframe.Unity.PresentationRuntime
             text.text = value.Value.Literal.Value;
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 64;
-            text.characterSize = 0.07f;
+            text.characterSize = 0.07f * (value.FontSize > 0 ? (float)value.FontSize / 20f : 1f);
+            text.lineSpacing = value.FontSize > 0 && value.LineHeight > 0
+                ? (float)(value.LineHeight / value.FontSize) : 1f;
             text.anchor = TextAnchor.MiddleCenter;
-            text.alignment = TextAlignment.Center;
+            text.alignment = value.Align == NativeTextAlign.Start ? TextAlignment.Left
+                : value.Align == NativeTextAlign.End ? TextAlignment.Right : TextAlignment.Center;
+            FitText(text, value.Bounds, surfaceBounds);
             Color color = PresentationUnlitMaterial.FromSrgba(value.Color.Red, value.Color.Green, value.Color.Blue, value.Color.Alpha);
-            PresentationUnlitMaterial.Assign(text.GetComponent<Renderer>(), color, text.font.material.mainTexture, doubleSided: true);
+            Renderer renderer = text.GetComponent<Renderer>();
+            PresentationUnlitMaterial.Assign(renderer, color, text.font.material.mainTexture, doubleSided: true, alphaMask: true);
+            // Transparent panels otherwise cover lower text when their centers sort closer to the viewer.
+            renderer.sortingOrder = 1;
             return textObject;
+        }
+
+        private static void FitText(TextMesh text, LogicalBounds bounds, LogicalBounds surfaceBounds)
+        {
+            if (bounds == null || surfaceBounds == null || bounds.Width <= 0 || bounds.Height <= 0
+                || surfaceBounds.Width <= 0 || surfaceBounds.Height <= 0)
+            {
+                return;
+            }
+
+            float left = (float)Math.Max(bounds.X, surfaceBounds.X);
+            float top = (float)Math.Max(bounds.Y, surfaceBounds.Y);
+            float right = (float)Math.Min(bounds.X + bounds.Width, surfaceBounds.X + surfaceBounds.Width);
+            float bottom = (float)Math.Min(bounds.Y + bounds.Height, surfaceBounds.Y + surfaceBounds.Height);
+            float width = right - left;
+            float height = bottom - top;
+            if (width <= 0f || height <= 0f)
+            {
+                text.text = string.Empty;
+                return;
+            }
+
+            Renderer renderer = text.GetComponent<Renderer>();
+            string original = text.text;
+            var lines = new List<string>();
+            foreach (string paragraph in original.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                string line = string.Empty;
+                System.Globalization.TextElementEnumerator elements = System.Globalization.StringInfo.GetTextElementEnumerator(paragraph);
+                while (elements.MoveNext())
+                {
+                    string element = elements.GetTextElement();
+                    text.text = line + element;
+                    if (line.Length > 0 && renderer.localBounds.size.x > width)
+                    {
+                        lines.Add(line);
+                        line = element;
+                    }
+                    else
+                    {
+                        line += element;
+                    }
+                }
+                lines.Add(line);
+            }
+
+            text.text = string.Join("\n", lines);
+            Bounds measured = renderer.localBounds;
+            float scale = Mathf.Min(1f, width / Mathf.Max(measured.size.x, 0.0001f),
+                height / Mathf.Max(measured.size.y, 0.0001f));
+            text.transform.localScale = UnityEngine.Vector3.one * scale;
+            UnityEngine.Vector3 center = new UnityEngine.Vector3(
+                (left + right) * 0.5f - (float)(surfaceBounds.X + surfaceBounds.Width * 0.5),
+                (float)(surfaceBounds.Y + surfaceBounds.Height * 0.5) - (top + bottom) * 0.5f,
+                -0.06f);
+            UnityEngine.Vector3 position = center - measured.center * scale;
+            float canvasCenterX = (float)(surfaceBounds.X + surfaceBounds.Width * 0.5);
+            if (text.alignment == TextAlignment.Left)
+            {
+                position.x = left - canvasCenterX - measured.min.x * scale;
+            }
+            else if (text.alignment == TextAlignment.Right)
+            {
+                position.x = right - canvasCenterX - measured.max.x * scale;
+            }
+            text.transform.localPosition = position;
         }
 
         private GameObject CreateRoot(UnityEngine.Transform parent, string name)

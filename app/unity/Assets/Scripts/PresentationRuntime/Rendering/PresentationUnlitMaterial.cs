@@ -15,7 +15,7 @@ namespace Unframe.Unity.PresentationRuntime
             return QualitySettings.activeColorSpace == ColorSpace.Linear ? color.linear : color;
         }
 
-        internal static void Assign(Renderer renderer, Color color, Texture texture = null, bool doubleSided = false)
+        internal static void Assign(Renderer renderer, Color color, Texture texture = null, bool doubleSided = false, bool alphaMask = false)
         {
             Shader shader = Resources.Load<Shader>("PresentationMaterials/PresentationUnlit");
             if (shader == null || !shader.isSupported)
@@ -24,6 +24,7 @@ namespace Unframe.Unity.PresentationRuntime
             var owner = renderer.gameObject.AddComponent<PresentationUnlitMaterial>();
             owner.ownedMaterial = new Material(shader) { name = "Presentation Unlit" };
             owner.ownedMaterial.SetColor("_BaseColor", color);
+            owner.ownedMaterial.SetFloat("_AlphaMask", alphaMask ? 1f : 0f);
             if (texture != null) owner.ownedMaterial.SetTexture("_BaseMap", texture);
             owner.ownedMaterial.SetFloat("_Cull", (float)(doubleSided ? CullMode.Off : CullMode.Back));
             renderer.sharedMaterial = owner.ownedMaterial;
