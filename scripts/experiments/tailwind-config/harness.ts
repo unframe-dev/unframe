@@ -5,13 +5,18 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { z } from "zod";
+import { requestSchema, responseSchema, type Response, type Json } from "./schemas.ts";
+
 const hostRequire = createRequire(import.meta.url);
-const worker = fileURLToPath(new URL("./worker.mjs", import.meta.url));
+export type RunResult = Response & { code: number | null; stderr: string };
+
+const worker = fileURLToPath(new URL("./worker.ts", import.meta.url));
 export const loaderUrl = pathToFileURL(hostRequire.resolve("postcss-load-config")).href;
 export const css =
   '@import "tailwindcss" source("./src");\n@theme { --color-spike: #123456; }\n@utility spike-utility { display: grid; }\n';
 
-export async function packageRoot(name) {
+export async function packageRoot(name: string) {
   let directory = path.dirname(hostRequire.resolve(name));
   for (;;) {
     try {
@@ -25,7 +30,7 @@ export async function packageRoot(name) {
   }
 }
 
-export async function put(root, files) {
+export async function put(root: string, files: Record<string, string>) {
   for (const [name, content] of Object.entries(files)) {
     const target = path.join(root, name);
     await mkdir(path.dirname(target), { recursive: true });
@@ -33,7 +38,10 @@ export async function put(root, files) {
   }
 }
 
-export async function project({ files = {}, older = false } = {}) {
+export async function project({
+  files = {},
+  older = false,
+}: { files?: Record<string, string>; older?: boolean } = {}) {
   const parent = await mkdtemp(path.join(os.tmpdir(), "unframe-tailwind-spike-"));
   const root = path.join(parent, "project");
   await put(root, {
@@ -60,9 +68,14 @@ export async function project({ files = {}, older = false } = {}) {
 }
 
 export async function run(
-  root,
-  { callerCwd = root, env = "production", input, plainOptions = false } = {},
-) {
+  root: string,
+  {
+    callerCwd = root,
+    env = "production",
+    input,
+    plainOptions = false,
+  }: { callerCwd?: string; env?: string; input?: string; plainOptions?: boolean } = {},
+): Promise<RunResult> {
   // The caller can live anywhere; the plugin's CWD-dependent defaults see the project.
   const child = spawn(process.execPath, [worker], {
     cwd: callerCwd,
@@ -83,18 +96,20 @@ export async function run(
   child.stderr.on("data", (data) => {
     stderr += data;
   });
-  child.stdin.end(JSON.stringify({ root, loaderUrl, input, plainOptions }));
-  const code = await new Promise((resolve, reject) => {
+  child.stdin.end(JSON.stringify(requestSchema.parse({ root, loaderUrl, input, plainOptions })));
+  const code = await new Promise<number | null>((resolve, reject) => {
     child.on("error", reject);
     child.on("close", resolve);
   });
   try {
-    return { ...JSON.parse(stdout), code, stderr };
-  } catch {
-    throw new Error(`Worker did not return JSON (${code}): ${stderr}\n${stdout}`);
+    return { ...responseSchema.parse(JSON.parse(stdout)), code, stderr };
+  } catch (error) {
+    throw new Error(`Worker did not return a valid response (${code}): ${stderr}\n${stdout}`, {
+      cause: error,
+    });
   }
 }
 
-export function normalize(value, root) {
-  return JSON.parse(JSON.stringify(value).replaceAll(root, "<PROJECT>"));
+export function normalize(value: Json, root: string): Json {
+  return z.json().parse(JSON.parse(JSON.stringify(value).replaceAll(root, "<PROJECT>")));
 }

@@ -10,10 +10,11 @@
 
 ```bash
 pnpm --dir scripts/experiments/tailwind-config install --frozen-lockfile
+pnpm --dir scripts/experiments/tailwind-config typecheck
 pnpm --dir scripts/experiments/tailwind-config test
 ```
 
-テストは一時プロジェクトを作り、各実行で新しい Node process を起動して後始末する。[results.json](./results.json) に環境、固定依存、各テストケースの成否、観測結果を出力する。2026-10-14 の実行では 18 件すべて成功した。実験は repository-wide CI の対象に追加していない。
+実験コードは strict TypeScript として型検証し、Node 24 のネイティブ TypeScript 実行を使用する。テストは一時プロジェクトを作り、各実行で新しい Node process を起動して後始末する。[results.json](./results.json) に環境、固定依存、互換性検証 18 件の成否、観測結果を出力する。別途、schema と root 境界のテスト 3 件も実行する。2026-10-14 の実行では 18 件すべて成功した。実験は repository-wide CI の対象に追加していない。
 
 未知の API の挙動を観測してから assertion にした探索検証であり、本体機能の Red / Green を実施したものではない。Node 標準 test runner から実パッケージを呼び、変換処理を mock していない。
 

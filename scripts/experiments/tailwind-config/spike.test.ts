@@ -1,38 +1,51 @@
 import assert from "node:assert/strict";
-import test, { after } from "node:test";
+import test, { after, type TestContext } from "node:test";
 import { rm, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { project, run, put, normalize } from "./harness.mjs";
+import { project, run, put, normalize, type RunResult } from "./harness.ts";
 
-const checks = [];
-const observations = {};
-function check(name, callback) {
+import {
+  checkSchema,
+  manifestSchema,
+  reportSchema,
+  type Check,
+  type Json,
+  type SourceMap,
+} from "./schemas.ts";
+
+const checks: Check[] = [];
+const observations: Record<string, Json> = {};
+function check(name: string, callback: (t: TestContext) => Promise<void>) {
   test(name, async (t) => {
     try {
       await callback(t);
       checks.push({ name, status: "passed" });
     } catch (error) {
-      checks.push({ name, status: "failed", error: error.message });
+      checks.push({
+        name,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   });
 }
-async function fixture(t, options = {}) {
+async function fixture(t: TestContext, options: Parameters<typeof project>[0] = {}) {
   const value = await project(options);
   t.after(value.cleanup);
   return value;
 }
-async function config(root, name, content) {
+async function config(root: string, name: string, content: string) {
   await rm(path.join(root, "postcss.config.mjs"), { force: true });
   await put(root, { [name]: content });
 }
-function success(result) {
-  assert.equal(result.ok, true, result.error ?? result.stderr);
+function success(result: RunResult) {
+  assert.equal(result.ok, true, result.ok ? result.stderr : result.error);
   assert.equal(result.code, 0);
   return result;
 }
-const compact = (result) => result.css.replaceAll(/\s+/g, "");
+const compact = (result: Extract<RunResult, { ok: true }>) => result.css.replaceAll(/\s+/g, "");
 
 check("project-owned CSS-first Tailwind runs the native scanner and optimizer", async (t) => {
   const { root } = await fixture(t);
@@ -45,15 +58,21 @@ check("project-owned CSS-first Tailwind runs the native scanner and optimizer", 
   assert.ok(result.nativeLibraries.some((file) => /lightningcss.*\.node/.test(file)));
   observations.versions = result.versions;
   observations.nativeLibraries = result.nativeLibraries.map((file) => path.basename(file)).sort();
-  observations.dependencies = normalize(
+  const dependencies = normalize(
     result.messages.map(({ type, file, dir, glob }) => ({
       type,
-      file: file?.includes("/node_modules/") ? `<INSTALLED>/${path.basename(file)}` : file,
-      dir,
-      glob,
+      ...(file === undefined
+        ? {}
+        : { file: file.includes("/node_modules/") ? `<INSTALLED>/${path.basename(file)}` : file }),
+      ...(dir === undefined ? {} : { dir }),
+      ...(glob === undefined ? {} : { glob }),
     })),
     root,
-  ).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), "en"));
+  );
+  assert.ok(Array.isArray(dependencies));
+  observations.dependencies = dependencies.sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b), "en"),
+  );
   assert.ok(
     result.messages.some(
       (message) =>
@@ -78,6 +97,8 @@ check("project-owned CSS-first Tailwind runs the native scanner and optimizer", 
     unoptimizedBytes: unoptimized.css.length,
   };
   const originalInput = await readFile(path.join(root, "input.css"), "utf8");
+  assert.ok(unoptimized.map);
+  assert.ok(result.map);
   assert.ok(unoptimized.map.sourcesContent.includes(originalInput));
   assert.ok(!result.map.sourcesContent.includes(originalInput));
   observations.mapProvenance = {
@@ -103,7 +124,7 @@ for (const [name, content] of [
     "postcss.config.ts",
     'import { Mode } from "./helper.ts"; export default { plugins: { "@tailwindcss/postcss": { optimize: Mode.Enabled } } };',
   ],
-]) {
+] as const) {
   check(`standard ${name} loads project plugins and TS helper transforms`, async (t) => {
     const { root } = await fixture(t, {
       files: { "helper.ts": "export enum Mode { Enabled = 1 }" },
@@ -163,7 +184,7 @@ for (const [name, content] of [
     "tailwind.config.ts",
     'import { Color } from "./color.ts"; export default { theme: { extend: { colors: { configured: Color.Configured } } } };',
   ],
-]) {
+] as const) {
   check(`official @config loads ${name} without an Unframe config format`, async (t) => {
     const { root } = await fixture(t, {
       files: {
@@ -246,7 +267,9 @@ check(
     assert.equal(plugin.phase, "config");
     assert.match(plugin.error, /missing-spike-plugin/);
     await config(root, "postcss.config.mjs", 'throw new Error("config failure sentinel");');
-    assert.match((await run(root)).error, /config failure sentinel/);
+    const thrown = await run(root);
+    assert.equal(thrown.ok, false);
+    assert.match(thrown.error, /config failure sentinel/);
     await config(
       root,
       "postcss.config.mjs",
@@ -385,8 +408,10 @@ check(
     const left = success(await run(a.root, { callerCwd: b.parent }));
     const right = success(await run(b.root, { callerCwd: a.parent }));
     assert.equal(left.css, right.css);
+    assert.ok(left.map);
+    assert.ok(right.map);
     // Map bodies and source contents compare byte-for-byte; only path fields normalize.
-    const normalizeMap = (map, root) => ({
+    const normalizeMap = (map: SourceMap, root: string) => ({
       ...map,
       file: map.file?.replaceAll(root, "<PROJECT>"),
       sourceRoot: map.sourceRoot?.replaceAll(root, "<PROJECT>"),
@@ -394,6 +419,7 @@ check(
     });
     assert.deepEqual(normalizeMap(left.map, a.root), normalizeMap(right.map, b.root));
     assert.deepEqual(left.map.sources, ["input.css"]);
+    assert.ok(left.map.sourcesContent[0]);
     assert.match(left.map.sourcesContent[0], /\.flex\{display:flex\}/);
     assert.doesNotMatch(
       await readFile(path.join(a.root, "input.css"), "utf8"),
@@ -478,8 +504,8 @@ check(
 );
 
 after(async () => {
-  const packageJson = JSON.parse(
-    await readFile(new URL("./package.json", import.meta.url), "utf8"),
+  const packageJson = manifestSchema.parse(
+    JSON.parse(await readFile(new URL("./package.json", import.meta.url), "utf8")),
   );
   await writeFile(
     new URL("./results.json", import.meta.url),
@@ -489,11 +515,13 @@ after(async () => {
           node: process.version,
           platform: process.platform,
           arch: process.arch,
-          libc: process.report.getReport().header.glibcVersionRuntime ?? "non-glibc",
+          libc:
+            reportSchema.parse(process.report.getReport()).header.glibcVersionRuntime ??
+            "non-glibc",
           packageManager: packageJson.packageManager,
         },
         dependencies: packageJson.dependencies,
-        checks,
+        checks: checks.map((value) => checkSchema.parse(value)),
         observations,
         limitations: [
           "Trusted executable configs only; no OS sandbox, filesystem/network confinement or resource limits.",
