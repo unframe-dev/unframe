@@ -16,6 +16,7 @@ import {
   computeFrozenComponentInputs,
 } from "@unframe/unframe-compiler";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
+import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
 import { parseStrictJson } from "./strict-json.js";
@@ -32,7 +33,10 @@ export const updateProjectLock = async (
   operation: "refresh" | "update",
   recreate: boolean,
   signal?: AbortSignal,
-): Promise<{ ok: true } | { ok: false; code: string; message: string }> => {
+): Promise<
+  | { ok: true }
+  | { ok: false; code: string; message: string; diagnostics?: readonly StyleDiagnostic[] }
+> => {
   const failure = (code: string, message: string) => ({ ok: false as const, code, message });
   let discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok) return discovered;
@@ -200,8 +204,13 @@ export const updateProjectLock = async (
     }
     return { ok: true };
   } catch (error) {
+    if (error instanceof StylePreparationError)
+      return {
+        ...failure(error.code, error.message),
+        diagnostics: error.diagnostics,
+      };
     return failure(
-      error instanceof StylePreparationError ? error.code : "cli-lock-update-failed",
+      "cli-lock-update-failed",
       error instanceof Error ? error.message : "Lock update failed.",
     );
   } finally {

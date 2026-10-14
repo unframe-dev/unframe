@@ -389,13 +389,20 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
     return result.ok
       ? output(0, command, format)
-      : output(result.code === "cli-cancelled" ? 130 : 1, command, format, [
-          diagnostic(
-            result.code === "cli-cancelled" ? "cancel" : "semantic",
-            result.code,
-            result.message,
-          ),
-        ]);
+      : output(
+          result.code === "cli-cancelled" ? 130 : 1,
+          command,
+          format,
+          result.diagnostics?.length
+            ? styleDiagnostics(result.diagnostics, result.code)
+            : [
+                diagnostic(
+                  result.code === "cli-cancelled" ? "cancel" : "semantic",
+                  result.code,
+                  result.message,
+                ),
+              ],
+        );
   }
   const sourceWait = {
     waitTimeoutMs: host.channel ? 5000 : 0,
