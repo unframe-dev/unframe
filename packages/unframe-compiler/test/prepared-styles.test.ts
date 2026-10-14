@@ -134,3 +134,22 @@ it("canonicalizes prepared input ordering while retaining the original CSS hash"
     ]),
   });
 });
+
+it.each(["!", "Zg=", "Zh=="])("reports invalid base64 %s as a raw-file diagnostic", (data) => {
+  const input = project();
+  input.rawFiles.push({
+    path: "image.png",
+    mediaType: "image/png",
+    encoding: "base64",
+    data,
+    hash: hash("f"),
+  });
+  input.preparedStyles.inputs.push({ path: "image.png", hash: hash("f") });
+
+  expect(parseAuthoringProject(input)).toMatchObject({
+    ok: false,
+    diagnostics: [
+      expect.objectContaining({ code: "compiler-invalid-input", fileName: "image.png" }),
+    ],
+  });
+});

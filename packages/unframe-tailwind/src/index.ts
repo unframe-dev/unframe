@@ -3,17 +3,41 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import loadConfig from "postcss-load-config";
+import type postcssType from "postcss";
+import isPathInside from "path-is-inside";
+import semver from "semver";
+import ErrorStackParser from "error-stack-parser";
+import {
+  compileStylesRequestSchema,
+  compileStylesResultSchema,
+  dependencyMessageSchema,
+  errorDiagnosticSchema,
+  packageManifestSchema,
+  sourceMapSchema,
+  styleDiagnosticSchema,
+  type CompileStylesRequest,
+  type CompileStylesResult,
+  type StyleDiagnostic,
+  type ObservedDependency,
+} from "./schemas.js";
+export {
+  compileStylesRequestSchema,
+  compileStylesResultSchema,
+  styleDiagnosticSchema,
+  observedDependencySchema,
+} from "./schemas.js";
+export type {
+  CompileStylesRequest,
+  CompileStylesResult,
+  StyleDiagnostic,
+  ObservedDependency,
+} from "./schemas.js";
 
-function inside(root, file) {
-  const relative = path.relative(root, file);
-  return (
-    relative === "" ||
-    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
-  );
+function inside(root: string, file: string) {
+  return isPathInside(file, root);
 }
 
-function logicalPath(root, value, base = root) {
-  if (typeof value !== "string") return undefined;
+function logicalPath(root: string, value: string, base = root): string {
   if (value.startsWith("file:")) value = fileURLToPath(value);
   else if (/^[a-z][a-z\d+.-]*:/i.test(value)) return value;
   const absolute = path.resolve(base, value);
@@ -29,7 +53,7 @@ function logicalPath(root, value, base = root) {
   throw new Error("File reference is outside the project and dependency graph");
 }
 
-function diagnosticMessage(root, value) {
+function diagnosticMessage(root: string, value: unknown) {
   return String(value).replace(
     /(^|[\s("'=])((?:file:\/\/)?\/[^\s"'<>),;]+)/g,
     (_match, prefix, location) => {
@@ -44,8 +68,8 @@ function diagnosticMessage(root, value) {
   );
 }
 
-function sourceMap(root, from, map) {
-  const result = map.toJSON();
+function sourceMap(root: string, from: string, map: { toJSON(): unknown }) {
+  const result = sourceMapSchema.parse(map.toJSON());
   const base = path.dirname(from);
   if (result.file) result.file = logicalPath(root, result.file, base);
   if (
@@ -66,22 +90,19 @@ function sourceMap(root, from, map) {
 }
 
 /** Configs execute arbitrary Node code; invoke once inside a fresh, isolated worker. */
-export async function compileStyles(request) {
-  let root;
-  let phase = "resolve";
-  let currentFile;
+export async function compileStyles(request: CompileStylesRequest): Promise<CompileStylesResult> {
+  let root: string | undefined;
+  let phase: StyleDiagnostic["phase"] = "resolve";
+  let currentFile: string | undefined;
   const cwd = process.cwd();
-  const environment = process.env.NODE_ENV;
+  const environment = process.env["NODE_ENV"];
   try {
-    if (!request || typeof request.projectRoot !== "string" || !Array.isArray(request.entries))
-      throw new Error("Expected projectRoot and CSS entries");
-    root = await realpath(request.projectRoot);
+    const input = compileStylesRequestSchema.parse(request);
+    root = await realpath(input.projectRoot);
     process.chdir(root);
-    process.env.NODE_ENV = "production";
+    process.env["NODE_ENV"] = "production";
     const entries = [];
-    for (const entry of request.entries) {
-      if (typeof entry !== "string" || !entry || path.isAbsolute(entry))
-        throw new Error("CSS entry must be project-root-relative");
+    for (const entry of input.entries) {
       const from = path.resolve(root, entry);
       if (!inside(root, from) || !inside(root, await realpath(from)))
         throw new Error("CSS entry escapes project root");
@@ -103,24 +124,29 @@ export async function compileStyles(request) {
     const projectPostcss = await realpath(path.join(root, "node_modules/postcss"));
     if (!inside(projectPostcss, await realpath(resolved)))
       throw new Error("PostCSS must be installed in the project");
-    const postcssManifest = JSON.parse(
-      await readFile(path.join(projectPostcss, "package.json"), "utf8"),
+    const postcssManifest = packageManifestSchema.parse(
+      JSON.parse(await readFile(path.join(projectPostcss, "package.json"), "utf8")),
     );
-    if (!postcssManifest.version.startsWith("8."))
+    if (!semver.satisfies(postcssManifest.version, "8.x", { includePrerelease: true }))
       throw new Error(`PostCSS 8 is required; found ${postcssManifest.version}`);
-    if (config.plugins.some((plugin) => plugin.postcssPlugin === "@tailwindcss/postcss")) {
+    if (
+      config.plugins.some(
+        (plugin) => "postcssPlugin" in plugin && plugin.postcssPlugin === "@tailwindcss/postcss",
+      )
+    ) {
       for (const name of ["tailwindcss", "@tailwindcss/postcss"]) {
-        const manifest = JSON.parse(
-          await readFile(path.join(root, "node_modules", name, "package.json"), "utf8"),
+        const manifest = packageManifestSchema.parse(
+          JSON.parse(await readFile(path.join(root, "node_modules", name, "package.json"), "utf8")),
         );
-        if (!manifest.version.startsWith("4."))
+        if (!semver.satisfies(manifest.version, "4.x", { includePrerelease: true }))
           throw new Error(`Tailwind 4 is required; found ${name}@${manifest.version}`);
       }
     }
-    const { default: postcss } = await import(pathToFileURL(resolved).href);
-    const stylesheets = [];
-    const dependencies = new Map();
-    const diagnostics = [];
+    const module: { default: typeof postcssType } = await import(pathToFileURL(resolved).href);
+    const postcss = module.default;
+    const stylesheets: Extract<CompileStylesResult, { ok: true }>["stylesheets"] = [];
+    const dependencies = new Map<string, ObservedDependency>();
+    const diagnostics: StyleDiagnostic[] = [];
     phase = "transform";
     for (const { entry, from } of entries) {
       currentFile = entry;
@@ -136,12 +162,17 @@ export async function compileStyles(request) {
         css: result.css,
         ...(result.map ? { sourceMap: sourceMap(root, from, result.map) } : {}),
       });
-      for (const message of result.messages) {
-        if (message.type === "dependency" && typeof message.file === "string") {
-          const dependency = { kind: "file", path: logicalPath(root, message.file) };
+      for (const rawMessage of result.messages) {
+        if (!["dependency", "dir-dependency", "warning"].includes(rawMessage.type)) continue;
+        const message = dependencyMessageSchema.parse(rawMessage);
+        if (message.type === "dependency") {
+          const dependency: ObservedDependency = {
+            kind: "file",
+            path: logicalPath(root, message.file),
+          };
           dependencies.set(JSON.stringify(dependency), dependency);
-        } else if (message.type === "dir-dependency" && typeof message.dir === "string") {
-          const dependency = {
+        } else if (message.type === "dir-dependency") {
+          const dependency: ObservedDependency = {
             kind: "directory",
             path: logicalPath(root, message.dir),
             ...(typeof message.glob === "string" ? { glob: message.glob } : {}),
@@ -162,38 +193,45 @@ export async function compileStyles(request) {
         }
       }
     }
-    return {
+    return compileStylesResultSchema.parse({
       ok: true,
       configFile: logicalPath(root, config.file),
       stylesheets,
       observedDependencies: [...dependencies.values()],
       diagnostics,
-    };
+    });
   } catch (caught) {
-    const error = caught && typeof caught === "object" ? caught : { message: String(caught) };
+    const parsedError = errorDiagnosticSchema.safeParse(caught);
+    const error = parsedError.success ? parsedError.data : { message: String(caught) };
     let file = currentFile;
     if (root && phase === "config" && !file) {
-      for (const match of String(error.stack).matchAll(/(?:file:\/\/)?(\/[^\s():]+):\d+:\d+/g)) {
-        try {
-          const location = pathToFileURL(match[1].split("?")[0]);
-          const candidate = fileURLToPath(location);
+      try {
+        for (const frame of ErrorStackParser.parse({
+          stack: error.stack ?? "",
+          message: error.message ?? "",
+          name: "Error",
+        })) {
+          if (!frame.fileName) continue;
+          const candidate = frame.fileName.startsWith("file:")
+            ? fileURLToPath(frame.fileName)
+            : frame.fileName.split("?")[0]!;
           if (inside(root, candidate)) {
             file = logicalPath(root, candidate);
             break;
           }
-        } catch {
-          /* Stack entries are not necessarily file URLs. */
         }
+      } catch {
+        /* A thrown value need not have a parseable stack. */
       }
     }
     if (root && typeof error.file === "string") {
       try {
-        file = logicalPath(root, error.file);
+        file = styleDiagnosticSchema.shape.file.unwrap().parse(logicalPath(root, error.file));
       } catch {
         /* Keep the entry when a plugin reports an inaccessible file. */
       }
     }
-    return {
+    return compileStylesResultSchema.parse({
       ok: false,
       diagnostics: [
         {
@@ -208,10 +246,10 @@ export async function compileStyles(request) {
           ...(error.plugin ? { plugin: error.plugin } : {}),
         },
       ],
-    };
+    });
   } finally {
     process.chdir(cwd);
-    if (environment === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = environment;
+    if (environment === undefined) delete process.env["NODE_ENV"];
+    else process.env["NODE_ENV"] = environment;
   }
 }

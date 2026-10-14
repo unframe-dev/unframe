@@ -1,26 +1,26 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { project, run, put } from "./harness.mjs";
+import { project, run, put, type ProjectOptions, type WorkerOutput } from "./harness.ts";
 
 const check = test;
-async function fixture(t, options = {}) {
+async function fixture(t: TestContext, options: ProjectOptions = {}) {
   const value = await project(options);
   t.after(value.cleanup);
   return value;
 }
-async function config(root, name, content) {
+async function config(root: string, name: string, content: string) {
   await rm(path.join(root, "postcss.config.mjs"), { force: true });
   await put(root, { [name]: content });
 }
-function success(result) {
+function success(result: WorkerOutput) {
   assert.equal(result.ok, true, result.error ?? result.stderr);
   assert.equal(result.code, 0);
   return result;
 }
-const compact = (result) => result.css.replaceAll(/\s+/g, "");
+const compact = (result: WorkerOutput) => result.css.replaceAll(/\s+/g, "");
 
 check("project-owned CSS-first Tailwind runs the native scanner and optimizer", async (t) => {
   const { root } = await fixture(t);
@@ -51,8 +51,8 @@ check("project-owned CSS-first Tailwind runs the native scanner and optimizer", 
   assert.match(unoptimized.css, /\.flex\s*\{\s*display: flex;/);
   assert.ok(result.css.length < unoptimized.css.length);
   const originalInput = await readFile(path.join(root, "input.css"), "utf8");
-  assert.ok(unoptimized.map.sourcesContent.includes(originalInput));
-  assert.ok(!result.map.sourcesContent.includes(originalInput));
+  assert.ok(unoptimized.map.sourcesContent!.includes(originalInput));
+  assert.ok(!result.map.sourcesContent!.includes(originalInput));
 });
 
 for (const [name, content] of [
@@ -68,7 +68,7 @@ for (const [name, content] of [
     "postcss.config.ts",
     'import { Mode } from "./helper.ts"; export default { plugins: { "@tailwindcss/postcss": { optimize: Mode.Enabled } } };',
   ],
-]) {
+] as const) {
   check(`standard ${name} loads project plugins and TS helper transforms`, async (t) => {
     const { root } = await fixture(t, {
       files: { "helper.ts": "export enum Mode { Enabled = 1 }" },
@@ -127,7 +127,7 @@ for (const [name, content] of [
     "tailwind.config.ts",
     'import { Color } from "./color.ts"; export default { theme: { extend: { colors: { configured: Color.Configured } } } };',
   ],
-]) {
+] as const) {
   check(`official @config loads ${name} without an Unframe config format`, async (t) => {
     const { root } = await fixture(t, {
       files: {
@@ -325,7 +325,7 @@ check("different installed Tailwind versions remain isolated in separate project
   const aAgain = success(await run(current.root));
   assert.match(a.css, /tailwindcss v4\.3\.3/);
   assert.match(b.css, /tailwindcss v4\.2\.1/);
-  assert.equal(b.versions.tailwindcss, "4.2.1");
+  assert.equal(b.versions["tailwindcss"], "4.2.1");
   assert.equal(b.versions["@tailwindcss/postcss"], "4.2.1");
   assert.equal(a.css, aAgain.css);
 });
@@ -339,7 +339,7 @@ check(
     const right = success(await run(b.root, { callerCwd: a.parent }));
     assert.equal(left.css, right.css);
     // Map bodies and source contents compare byte-for-byte; only path fields normalize.
-    const normalizeMap = (map, root) => ({
+    const normalizeMap = (map: WorkerOutput["map"], root: string) => ({
       ...map,
       file: map.file?.replaceAll(root, "<PROJECT>"),
       sourceRoot: map.sourceRoot?.replaceAll(root, "<PROJECT>"),
@@ -347,7 +347,7 @@ check(
     });
     assert.deepEqual(normalizeMap(left.map, a.root), normalizeMap(right.map, b.root));
     assert.deepEqual(left.map.sources, ["input.css"]);
-    assert.match(left.map.sourcesContent[0], /\.flex\{display:flex\}/);
+    assert.match(left.map.sourcesContent![0] ?? "", /\.flex\{display:flex\}/);
     assert.doesNotMatch(
       await readFile(path.join(a.root, "input.css"), "utf8"),
       /\.flex\{display:flex\}/,

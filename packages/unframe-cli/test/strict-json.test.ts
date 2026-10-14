@@ -46,6 +46,71 @@ describe("strict JSON lock boundary", () => {
     });
   });
 
+  it.each(["null", "true", "false", "-0", "1.25e-3", '"text"', "[]", "{}"])(
+    "accepts a complete JSON value %s",
+    (source) => {
+      expect(parseStrictJson(bytes(source))).toEqual({ ok: true, value: JSON.parse(source) });
+    },
+  );
+
+  it.each([
+    "",
+    " ",
+    "01",
+    "+1",
+    "1.",
+    "1e",
+    "1e+",
+    "[1,]",
+    "[,]",
+    "[1,,2]",
+    '{"a" 1}',
+    '{"a":}',
+    "true false",
+    "{}[]",
+    "/* comment */{}",
+    "\u00a0{}",
+  ])("rejects non-JSON syntax %s", (source) => {
+    expect(parseStrictJson(bytes(source))).toEqual({ ok: false, code: "cli-lock-json-syntax" });
+  });
+
+  it("allows the same property name in distinct nested records", () => {
+    const result = parseStrictJson(bytes('{"a":{"a":1},"b":{"a":2}}'));
+
+    assert.isTrue(result.ok);
+    expect(result.value).toEqual({ a: { a: 1 }, b: { a: 2 } });
+    const record = result.value as Record<string, unknown>;
+    expect(Object.getPrototypeOf(record.a)).toBe(null);
+    expect(Object.getPrototypeOf(record.b)).toBe(null);
+  });
+
+  it("rejects duplicate properties whose first value is null", () => {
+    expect(parseStrictJson(bytes('{"a":null,"a":1}'))).toEqual({
+      ok: false,
+      code: "cli-lock-json-duplicate-key",
+    });
+  });
+
+  it("rejects lone surrogates in property names", () => {
+    expect(parseStrictJson(bytes(String.raw`{"\udc00":1}`))).toEqual({
+      ok: false,
+      code: "cli-lock-json-lone-surrogate",
+    });
+  });
+
+  it("accepts 64 levels of mixed containers", () => {
+    const source = `${'{"a":['.repeat(32)}0${"]}".repeat(32)}`;
+    expect(parseStrictJson(bytes(source)).ok).toBe(true);
+  });
+
+  it("rejects the 65th container before visiting its children", () => {
+    const source = `${'{"a":['.repeat(32)}{}${"]}".repeat(32)}`;
+    expect(parseStrictJson(bytes(source))).toEqual({
+      ok: false,
+      code: "cli-lock-json-resource-limit",
+    });
+  });
+
   it("rejects resource-limit input without exposing host errors", () => {
     const input = bytes(`[${"[".repeat(100)}${"0"}${"]".repeat(100)}]`);
     expect(parseStrictJson(input)).toEqual({ ok: false, code: "cli-lock-json-resource-limit" });

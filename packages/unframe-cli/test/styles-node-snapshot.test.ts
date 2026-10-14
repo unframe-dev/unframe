@@ -210,3 +210,92 @@ it("preserves executable dependency files and hashes permission changes", async 
   expect((await stat(relocated)).mode & 0o777).toBe(0o555);
   expect(execFileSync(relocated, { encoding: "utf8" })).toBe("native-ready");
 });
+
+it("rejects numeric pnpm dependency versions instead of coercing lock input", async () => {
+  const root = await temporary();
+  await mkdir(join(root, "node_modules", "tool"), { recursive: true });
+  await writeFile(join(root, "package.json"), "{}");
+  await writeFile(
+    join(root, "node_modules", "tool", "package.json"),
+    JSON.stringify({ name: "tool", version: "1" }),
+  );
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: { ".": { dependencies: { tool: { version: 1 } } } },
+      packages: { "tool@1": { resolution: { integrity: "sha512-YWJj" } } },
+      snapshots: { "tool@1": {} },
+    }),
+  );
+  await expect(snapshotNodeTransformInputs(root)).rejects.toThrow();
+});
+
+it("preserves the existing canonical identity byte format", () => {
+  const snapshot = withNodeTransformSources(
+    {
+      version: 1,
+      identity: "0".repeat(64),
+      sourceIdentity: "0".repeat(64),
+      runtime: {
+        nodePath: "/trusted/node",
+        nodeHash: "0".repeat(64),
+        version: "v24.0.0",
+        platform: "linux",
+        arch: "x64",
+        libc: "2.40",
+        mode: "production",
+        closure: [],
+        environment: {},
+      },
+      sourceFiles: [],
+      rootDependencies: {},
+      packages: [],
+    },
+    [{ path: "input.css", bytes: "" }],
+  );
+  expect(snapshot.identity).toBe(
+    "15dfae56a78bd390500eef7e6419a4ba97be92c331374f3dfc7f46ee36a8cfec",
+  );
+  expect(snapshot.sourceIdentity).toBe(
+    "80d0395956f0f64160a62c864ad7066d0554dadb4ed5479130115f13b8cbca5e",
+  );
+});
+
+it.each([
+  ["array", ["./index.cjs", "./fallback.cjs"]],
+  ["null", null],
+])("snapshots transitive packages with %s exports", async (_kind, exports) => {
+  const root = await temporary();
+  await writeFile(join(root, "package.json"), "{}");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({
+      lockfileVersion: "9.0",
+      importers: { ".": { dependencies: { tool: { version: "1.0.0" } } } },
+      packages: {
+        "tool@1.0.0": { resolution: { integrity: "sha512-YWJj" } },
+        "leaf@1.0.0": { resolution: { integrity: "sha512-YWJj" } },
+      },
+      snapshots: {
+        "tool@1.0.0": { dependencies: { leaf: "1.0.0" } },
+        "leaf@1.0.0": {},
+      },
+    }),
+  );
+  for (const name of ["tool", "leaf"]) {
+    const directory = join(root, "node_modules", name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "package.json"),
+      JSON.stringify({
+        name,
+        version: "1.0.0",
+        ...(name === "leaf" ? { exports } : {}),
+      }),
+    );
+  }
+  const snapshot = await snapshotNodeTransformInputs(root);
+  expect(snapshot.packages.map((pkg) => pkg.locator)).toEqual(["tool@1.0.0", "leaf@1.0.0"]);
+  expect(validateNodeTransformSnapshot(snapshot)).toEqual(snapshot);
+});
