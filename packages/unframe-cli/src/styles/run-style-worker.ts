@@ -1,8 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { satisfies } from "semver";
+import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { mkdtemp, readFile, rm, writeFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { probeNodeRuntime } from "./runtime.js";
 import {
   runIsolatedOpaqueWorker,
   OpaqueIsolationError,
@@ -33,23 +35,14 @@ export const runStyleWorker = async (
     .digest("hex");
   if (nodePath !== snapshot.runtime.nodePath || nodeHash !== snapshot.runtime.nodeHash)
     throw new Error("Style worker runtime differs from locked runtime; update the lock");
-  const current = JSON.parse(
-    execFileSync(
-      nodePath,
-      [
-        "-e",
-        "const h=process.report.getReport().header; process.stdout.write(JSON.stringify({version:process.version,platform:process.platform,arch:process.arch,libc:h.glibcVersionRuntime || 'non-glibc'}))",
-      ],
-      { env: {}, maxBuffer: 1024 * 1024 },
-    ).toString(),
-  ) as Record<string, string>;
+  const current = probeNodeRuntime(nodePath);
   if (
-    ["version", "platform", "arch", "libc"].some(
-      (key) => current[key] !== snapshot.runtime[key as "version" | "platform" | "arch" | "libc"],
+    (["version", "platform", "arch", "libc"] as const).some(
+      (key) => current[key] !== snapshot.runtime[key],
     )
   )
     throw new Error("Style worker runtime differs from locked runtime; update the lock");
-  if (!snapshot.runtime.version.startsWith("v24."))
+  if (!satisfies(snapshot.runtime.version, "24.x"))
     throw new Error("Style worker requires Node 24");
   for (const entry of options.entries)
     if (!snapshot.sourceFiles.some((file) => file.path === entry) || !/\.css$/i.test(entry))
@@ -59,17 +52,13 @@ export const runStyleWorker = async (
     const placed = await materializeNodeTransformSnapshot(snapshot, directory);
     if (!placed.adapterPath) throw new Error("Style adapter is missing from locked snapshot");
     const adapterPath = `/worker/${relative(directory, placed.adapterPath).split("\\").join("/")}`;
-    const worker = `import {createInterface} from 'node:readline';
-process.env.NODE_ENV='production'; process.env.TZ='UTC'; process.env.LANG='C.UTF-8'; delete process.env.UNFRAME_BROWSER_EXECUTABLE; process.chdir('/worker/project');
-const lines=createInterface({input:process.stdin});
-const send=value=>process.stdout.write(JSON.stringify(value)+'\\n');
-send({type:'bootstrap'});
-for await(const line of lines) { const message=JSON.parse(line);
-if(message.type==='launch') send({type:'ready'});
-else if(message.type==='capture') { try {const {compileStyles}=await import(${JSON.stringify(adapterPath)}); const value=await compileStyles({projectRoot:'/worker/project',entries:message.input.entries});send({type:'result',value});}catch {send({type:'error',code:'style-transform-failed'});} break; }
-} lines.close();`;
     const workerPath = join(directory, "worker.mjs");
-    await writeFile(workerPath, worker, { mode: 0o444 });
+    const workerSource = await readFile(new URL("./style-worker.ts", import.meta.url), "utf8");
+    const worker = transpileModule(workerSource, {
+      compilerOptions: { module: ModuleKind.ESNext, target: ScriptTarget.ES2022 },
+      fileName: "style-worker.ts",
+    });
+    await writeFile(workerPath, worker.outputText, { mode: 0o444 });
     const runtimePaths =
       options.runtimePaths ??
       (process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
@@ -81,7 +70,12 @@ else if(message.type==='capture') { try {const {compileStyles}=await import(${JS
     if (JSON.stringify([...runtimePaths].sort()) !== JSON.stringify(snapshot.runtime.closure))
       throw new Error("Style worker runtime closure differs from locked runtime; update the lock");
     return await runIsolatedOpaqueWorker(
-      { workerPath, browserPath: workerPath, runtimePaths, input: { entries: options.entries } },
+      {
+        workerPath,
+        browserPath: workerPath,
+        runtimePaths,
+        input: { entries: options.entries, adapterPath },
+      },
       {
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.deadlineMs !== undefined ? { deadlineMs: options.deadlineMs } : {}),

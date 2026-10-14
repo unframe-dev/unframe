@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { rm } from "node:fs/promises";
 import path from "node:path";
-import { project, run, put } from "./harness.mjs";
+import { project, run, put } from "./harness.ts";
 
-async function fixture(t, files) {
+async function fixture(t: TestContext, files: Record<string, string>) {
   const value = await project({ files });
   t.after(value.cleanup);
   return value;
@@ -30,9 +30,9 @@ test("reports CSS locations and plugin warnings through logical paths", async (t
   });
   const result = await run(root);
   assert.equal(result.ok, true);
-  assert.equal(result.diagnostics[0].severity, "warning");
-  assert.equal(result.diagnostics[0].file, "input.css");
-  assert.equal(result.diagnostics[0].plugin, "warning-plugin");
+  assert.equal(result.diagnostics[0]!.severity, "warning");
+  assert.equal(result.diagnostics[0]!.file, "input.css");
+  assert.equal(result.diagnostics[0]!.plugin, "warning-plugin");
 });
 
 test("config failures identify the originating file without temporary paths", async (t) => {
@@ -40,7 +40,7 @@ test("config failures identify the originating file without temporary paths", as
     "postcss.config.mjs": 'throw new Error("config sentinel");',
   });
   const result = await run(root);
-  assert.equal(result.diagnostics[0].file, "postcss.config.mjs");
+  assert.equal(result.diagnostics[0]!.file, "postcss.config.mjs");
   await rm(path.join(root, "postcss.config.mjs"));
   const missing = await run(root);
   assert.equal(missing.ok, false);
@@ -57,7 +57,7 @@ test("source maps normalize path fields while preserving source contents", async
   assert.equal(result.ok, true);
   assert.deepEqual(result.map.sources, ["src/input.css"]);
   assert.equal(result.map.file, "src/input.css");
-  assert.match(result.map.sourcesContent[0], new RegExp(root));
+  assert.match(result.map.sourcesContent![0] ?? "", new RegExp(root));
   assert.match(result.css, new RegExp(root));
 });
 
@@ -66,7 +66,7 @@ test("project PostCSS is required even when a parent provides it", async (t) => 
   await rm(path.join(root, "node_modules/postcss"));
   const result = await run(root);
   assert.equal(result.ok, false);
-  assert.equal(result.diagnostics[0].phase, "resolve");
+  assert.equal(result.diagnostics[0]!.phase, "resolve");
 });
 
 test("entries cannot escape the project", async (t) => {
@@ -74,7 +74,7 @@ test("entries cannot escape the project", async (t) => {
   await put(parent, { "outside.css": "a {}" });
   const result = await run(root, { input: "../outside.css" });
   assert.equal(result.ok, false);
-  assert.match(result.diagnostics[0].message, /escapes/);
+  assert.match(result.diagnostics[0]!.message, /escapes/);
 });
 
 test("CommonJS config failures retain original file locations", async (t) => {
@@ -82,7 +82,7 @@ test("CommonJS config failures retain original file locations", async (t) => {
   await rm(path.join(root, "postcss.config.mjs"));
   await put(root, { "postcss.config.cjs": 'throw new Error("CJS sentinel");' });
   const result = await run(root);
-  assert.equal(result.diagnostics[0].file, "postcss.config.cjs");
+  assert.equal(result.diagnostics[0]!.file, "postcss.config.cjs");
 });
 
 test("dependency paths retain relocated package IDs in warnings and observations", async (t) => {
@@ -97,7 +97,7 @@ test("dependency paths retain relocated package IDs in warnings and observations
   assert.deepEqual(result.observedDependencies, [
     { kind: "file", path: "node_modules/.unframe/p7/theme.css" },
   ]);
-  assert.equal(result.diagnostics[0].message, "Dependency node_modules/.unframe/p7/theme.css");
+  assert.equal(result.diagnostics[0]!.message, "Dependency node_modules/.unframe/p7/theme.css");
 });
 
 test("previous source maps with file URL source roots retain logical original sources", async (t) => {
@@ -142,4 +142,39 @@ test("unsupported project PostCSS and configured Tailwind majors are diagnosed",
   const oldTailwind = await run(tailwind.root);
   assert.equal(oldTailwind.ok, false);
   assert.match(oldTailwind.error, /Tailwind 4.*3.4.0/);
+});
+
+test("untrusted error file fields cannot prevent a failure diagnostic", async (t) => {
+  const { root } = await fixture(t, {
+    "input.css": "a {}",
+    "postcss.config.mjs": `export default { plugins: [{ postcssPlugin: 'bad-location', Once() { throw Object.assign(new Error('sentinel'), { file: 'https://example.com/' }); } }] };`,
+  });
+  const result = await run(root);
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostics[0]!.message, "sentinel");
+  assert.equal(result.diagnostics[0]!.file, "input.css");
+});
+
+test("malformed PostCSS versions are rejected before module execution", async (t) => {
+  const { root } = await fixture(t, { "postcss.config.mjs": "export default { plugins: [] };" });
+  await rm(path.join(root, "node_modules/postcss"));
+  await put(root, {
+    "node_modules/postcss/package.json":
+      '{"name":"postcss","version":"8.invalid","main":"index.cjs"}',
+    "node_modules/postcss/index.cjs": 'throw new Error("unsupported code executed");',
+  });
+  const result = await run(root);
+  assert.equal(result.ok, false);
+  assert.match(result.error, /PostCSS 8.*8.invalid/);
+});
+
+test("malformed dependency notifications produce transform diagnostics", async (t) => {
+  const { root } = await fixture(t, {
+    "input.css": "a {}",
+    "postcss.config.mjs": `export default { plugins: [{ postcssPlugin: 'bad-message', Once(root, { result }) { result.messages.push({ type: 'dependency', file: 42 }); } }] };`,
+  });
+  const result = await run(root);
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostics[0]!.phase, "transform");
+  assert.match(result.error, /file/);
 });

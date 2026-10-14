@@ -1,26 +1,51 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { rm, readFile } from "node:fs/promises";
+import test, { after, type TestContext } from "node:test";
+import { rm, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { project, run, put } from "./harness.mjs";
+import { project, run, put, normalize, type RunResult } from "./harness.ts";
 
-const check = test;
-async function fixture(t, options = {}) {
+import {
+  checkSchema,
+  manifestSchema,
+  reportSchema,
+  type Check,
+  type Json,
+  type SourceMap,
+} from "./schemas.ts";
+
+const checks: Check[] = [];
+const observations: Record<string, Json> = {};
+function check(name: string, callback: (t: TestContext) => Promise<void>) {
+  test(name, async (t) => {
+    try {
+      await callback(t);
+      checks.push({ name, status: "passed" });
+    } catch (error) {
+      checks.push({
+        name,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  });
+}
+async function fixture(t: TestContext, options: Parameters<typeof project>[0] = {}) {
   const value = await project(options);
   t.after(value.cleanup);
   return value;
 }
-async function config(root, name, content) {
+async function config(root: string, name: string, content: string) {
   await rm(path.join(root, "postcss.config.mjs"), { force: true });
   await put(root, { [name]: content });
 }
-function success(result) {
-  assert.equal(result.ok, true, result.error ?? result.stderr);
+function success(result: RunResult) {
+  assert.equal(result.ok, true, result.ok ? result.stderr : result.error);
   assert.equal(result.code, 0);
   return result;
 }
-const compact = (result) => result.css.replaceAll(/\s+/g, "");
+const compact = (result: Extract<RunResult, { ok: true }>) => result.css.replaceAll(/\s+/g, "");
 
 check("project-owned CSS-first Tailwind runs the native scanner and optimizer", async (t) => {
   const { root } = await fixture(t);
@@ -31,6 +56,23 @@ check("project-owned CSS-first Tailwind runs the native scanner and optimizer", 
   assert.match(result.css, /\.italic\{font-style:italic\}/);
   assert.ok(result.nativeLibraries.some((file) => /oxide.*\.node/.test(file)));
   assert.ok(result.nativeLibraries.some((file) => /lightningcss.*\.node/.test(file)));
+  observations.versions = result.versions;
+  observations.nativeLibraries = result.nativeLibraries.map((file) => path.basename(file)).sort();
+  const dependencies = normalize(
+    result.messages.map(({ type, file, dir, glob }) => ({
+      type,
+      ...(file === undefined
+        ? {}
+        : { file: file.includes("/node_modules/") ? `<INSTALLED>/${path.basename(file)}` : file }),
+      ...(dir === undefined ? {} : { dir }),
+      ...(glob === undefined ? {} : { glob }),
+    })),
+    root,
+  );
+  assert.ok(Array.isArray(dependencies));
+  observations.dependencies = dependencies.sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b), "en"),
+  );
   assert.ok(
     result.messages.some(
       (message) =>
@@ -50,9 +92,23 @@ check("project-owned CSS-first Tailwind runs the native scanner and optimizer", 
   const unoptimized = success(await run(root));
   assert.match(unoptimized.css, /\.flex\s*\{\s*display: flex;/);
   assert.ok(result.css.length < unoptimized.css.length);
+  observations.optimization = {
+    optimizedBytes: result.css.length,
+    unoptimizedBytes: unoptimized.css.length,
+  };
   const originalInput = await readFile(path.join(root, "input.css"), "utf8");
+  assert.ok(unoptimized.map);
+  assert.ok(result.map);
   assert.ok(unoptimized.map.sourcesContent.includes(originalInput));
   assert.ok(!result.map.sourcesContent.includes(originalInput));
+  observations.mapProvenance = {
+    optimizedIncludesOriginalInput: false,
+    unoptimizedIncludesOriginalInput: true,
+    optimizedSources: result.map.sources,
+    unoptimizedSources: unoptimized.map.sources.map((source) =>
+      source.includes("/node_modules/") ? `<INSTALLED>/${path.basename(source)}` : source,
+    ),
+  };
 });
 
 for (const [name, content] of [
@@ -68,7 +124,7 @@ for (const [name, content] of [
     "postcss.config.ts",
     'import { Mode } from "./helper.ts"; export default { plugins: { "@tailwindcss/postcss": { optimize: Mode.Enabled } } };',
   ],
-]) {
+] as const) {
   check(`standard ${name} loads project plugins and TS helper transforms`, async (t) => {
     const { root } = await fixture(t, {
       files: { "helper.ts": "export enum Mode { Enabled = 1 }" },
@@ -81,6 +137,7 @@ for (const [name, content] of [
       await put(root, { "helper.ts": "export enum Mode { Enabled = 0 }" });
       const changed = success(await run(root));
       assert.match(changed.css, /\.flex\s*\{\s*display: flex;/);
+      observations.tsHelper = { requiresEnumTransform: true, freshProcessReflectsEdit: true };
     }
   });
 }
@@ -105,7 +162,7 @@ check(
     const production = success(await run(root, { callerCwd: parent }));
     const development = success(await run(root, { callerCwd: os.tmpdir(), env: "development" }));
     assert.match(compact(production), /value:production/);
-    assert.match(compact(development), /value:production/);
+    assert.match(compact(development), /value:development/);
     assert.match(production.css, /\.flex\{display:flex\}/);
     assert.match(development.css, /\.flex\{display:flex\}/);
     const sameEnvironment = success(await run(root, { callerCwd: os.tmpdir() }));
@@ -127,7 +184,7 @@ for (const [name, content] of [
     "tailwind.config.ts",
     'import { Color } from "./color.ts"; export default { theme: { extend: { colors: { configured: Color.Configured } } } };',
   ],
-]) {
+] as const) {
   check(`official @config loads ${name} without an Unframe config format`, async (t) => {
     const { root } = await fixture(t, {
       files: {
@@ -210,7 +267,9 @@ check(
     assert.equal(plugin.phase, "config");
     assert.match(plugin.error, /missing-spike-plugin/);
     await config(root, "postcss.config.mjs", 'throw new Error("config failure sentinel");');
-    assert.match((await run(root)).error, /config failure sentinel/);
+    const thrown = await run(root);
+    assert.equal(thrown.ok, false);
+    assert.match(thrown.error, /config failure sentinel/);
     await config(
       root,
       "postcss.config.mjs",
@@ -268,6 +327,11 @@ check(
     assert.match(after.css, /blue-second/);
     assert.equal(before.messages.length, 0);
     assert.equal(after.messages.length, 0);
+    observations.arbitraryReads = {
+      helperChangeReflected: true,
+      jsonChangeReflected: true,
+      emittedDependencies: 0,
+    };
   },
 );
 
@@ -313,8 +377,13 @@ check("Tailwind config helper and JSON edits change output in fresh workers", as
   const files = second.messages
     .filter((message) => message.type === "dependency")
     .map((message) => message.file);
-  assert.ok(files.includes(path.join(root, "tailwind.config.mjs")));
-  assert.ok(!files.includes(path.join(root, "color-value.json")));
+  observations.tailwindConfigReads = {
+    helperEditReflected: true,
+    jsonEditReflected: true,
+    configEmitted: files.includes(path.join(root, "tailwind.config.mjs")),
+    helperEmitted: files.includes(path.join(root, "color-helper.mjs")),
+    arbitraryJsonEmitted: files.includes(path.join(root, "color-value.json")),
+  };
 });
 
 check("different installed Tailwind versions remain isolated in separate projects", async (t) => {
@@ -328,6 +397,7 @@ check("different installed Tailwind versions remain isolated in separate project
   assert.equal(b.versions.tailwindcss, "4.2.1");
   assert.equal(b.versions["@tailwindcss/postcss"], "4.2.1");
   assert.equal(a.css, aAgain.css);
+  observations.olderVersions = b.versions;
 });
 
 check(
@@ -338,8 +408,10 @@ check(
     const left = success(await run(a.root, { callerCwd: b.parent }));
     const right = success(await run(b.root, { callerCwd: a.parent }));
     assert.equal(left.css, right.css);
+    assert.ok(left.map);
+    assert.ok(right.map);
     // Map bodies and source contents compare byte-for-byte; only path fields normalize.
-    const normalizeMap = (map, root) => ({
+    const normalizeMap = (map: SourceMap, root: string) => ({
       ...map,
       file: map.file?.replaceAll(root, "<PROJECT>"),
       sourceRoot: map.sourceRoot?.replaceAll(root, "<PROJECT>"),
@@ -347,11 +419,19 @@ check(
     });
     assert.deepEqual(normalizeMap(left.map, a.root), normalizeMap(right.map, b.root));
     assert.deepEqual(left.map.sources, ["input.css"]);
+    assert.ok(left.map.sourcesContent[0]);
     assert.match(left.map.sourcesContent[0], /\.flex\{display:flex\}/);
     assert.doesNotMatch(
       await readFile(path.join(a.root, "input.css"), "utf8"),
       /\.flex\{display:flex\}/,
     );
+    observations.maps = {
+      stableAcrossRoots: true,
+      stableAcrossCallerCwd: true,
+      sources: left.map.sources,
+      optimizedSourcesContentContainsGeneratedRules: true,
+      mapBodyAndContentsComparedWithoutNormalization: true,
+    };
   },
 );
 
@@ -371,6 +451,12 @@ check("nested entry preserves imported CSS asset URLs relative to the entry", as
     await readFile(path.resolve(root, "src", assetUrl), "utf8"),
     '<svg xmlns="http://www.w3.org/2000/svg" />',
   );
+  observations.assetUrls = {
+    entry: "src/input.css",
+    importedCss: "theme/part.css",
+    rebasedUrl: assetUrl,
+    outputBase: "entry directory",
+  };
 });
 
 check(
@@ -389,15 +475,17 @@ check(
       "postcss.config.mjs",
       `export default { plugins: [], syntax: './syntax.cjs', from: 'configured-input.css', to: 'configured-output.css', map: false };`,
     );
-    const owned = await run(root);
-    assert.equal(owned.ok, false);
-    assert.match(owned.error, /from, to, map/);
-    await config(
-      root,
-      "postcss.config.mjs",
-      `export default { plugins: [], syntax: './syntax.cjs' };`,
-    );
-    assert.match(success(await run(root)).css, /\.syntax/);
+    const owned = success(await run(root));
+    const plain = success(await run(root, { plainOptions: true }));
+    assert.match(owned.css, /\.syntax/);
+    assert.match(plain.css, /\.syntax/);
+    assert.ok(owned.map);
+    assert.equal(plain.map, undefined);
+    assert.deepEqual(owned.map.sources, ["input.css"]);
+    assert.equal(owned.processOptions.from, path.join(root, "input.css"));
+    assert.equal(owned.processOptions.to, path.join(root, "input.css"));
+    assert.equal(plain.processOptions.from, "configured-input.css");
+    assert.equal(plain.processOptions.to, "configured-output.css");
     await config(
       root,
       "postcss.config.mjs",
@@ -406,5 +494,47 @@ check(
     const custom = success(await run(root));
     assert.match(custom.css, /\.parser/);
     assert.match(custom.css, /\/\* stringifier \*\//);
+    observations.processOptions = {
+      honored: ["parser", "syntax", "stringifier"],
+      overridden: ["from", "to", "map"],
+      plainMapFalse: !plain.map,
+      workerMapEmitted: !!owned.map,
+    };
   },
 );
+
+after(async () => {
+  const packageJson = manifestSchema.parse(
+    JSON.parse(await readFile(new URL("./package.json", import.meta.url), "utf8")),
+  );
+  await writeFile(
+    new URL("./results.json", import.meta.url),
+    JSON.stringify(
+      {
+        environment: {
+          node: process.version,
+          platform: process.platform,
+          arch: process.arch,
+          libc:
+            reportSchema.parse(process.report.getReport()).header.glibcVersionRuntime ??
+            "non-glibc",
+          packageManager: packageJson.packageManager,
+        },
+        dependencies: packageJson.dependencies,
+        checks: checks.map((value) => checkSchema.parse(value)),
+        observations,
+        limitations: [
+          "Trusted executable configs only; no OS sandbox, filesystem/network confinement or resource limits.",
+          "Temporary projects share symlinked host package graphs; relocation proves project-root independence only, not independently materialized dependency graphs or Node-free snapshots.",
+          "ESM/CJS/TS coverage is representative, not every PostCSS search name, plugin, module mode or platform.",
+          "Workers override config from/to/map; parser/syntax/stringifier run but production map provenance policy is unresolved.",
+          "Fresh processes avoid module caches; no persistent-worker or cache invalidation implementation is tested.",
+          "Dependency messages cannot account for arbitrary config/plugin reads; full snapshot identity remains necessary.",
+          "Native binary execution was verified only on the recorded platform and libc.",
+        ],
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+});

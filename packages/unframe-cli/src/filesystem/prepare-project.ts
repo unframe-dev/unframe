@@ -2,7 +2,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import { z } from "zod";
-import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
+import { compileStylesResultSchema, type StyleDiagnostic } from "@unframe/unframe-tailwind";
 import type { DiscoveredProjectFiles } from "./discover-project.js";
 import type { UnframeLock } from "./lock.js";
 import { digestBytes, lockedFile } from "./package-snapshot.js";
@@ -21,7 +21,9 @@ export const hasPostcssConfig = (found: Pick<Discovery, "localFiles">): boolean 
   const manifest = found.localFiles.find(({ path }) => path === "package.json");
   if (!manifest) return false;
   try {
-    return Object.hasOwn(JSON.parse(new TextDecoder().decode(manifest.bytes)), "postcss");
+    return z
+      .object({ postcss: z.unknown() })
+      .safeParse(JSON.parse(new TextDecoder().decode(manifest.bytes))).success;
   } catch {
     return false;
   }
@@ -118,40 +120,11 @@ export const authoringPackageRoots = (
   visit(found.entryFile);
   return [...roots].sort();
 };
-const diagnosticSchema = z
-  .object({
-    phase: z.enum(["config", "resolve", "transform"]),
-    severity: z.enum(["warning", "error"]),
-    message: z.string(),
-    file: z.string().optional(),
-    line: z.number().optional(),
-    column: z.number().optional(),
-    plugin: z.string().optional(),
-  })
-  .transform(({ file, line, column, plugin, ...required }): StyleDiagnostic => ({
-    ...required,
-    ...(file !== undefined ? { file } : {}),
-    ...(line !== undefined ? { line } : {}),
-    ...(column !== undefined ? { column } : {}),
-    ...(plugin !== undefined ? { plugin } : {}),
-  }));
-const resultSchema = z.discriminatedUnion("ok", [
-  z.object({ ok: z.literal(false), diagnostics: z.array(diagnosticSchema) }),
-  z.object({
-    ok: z.literal(true),
-    configFile: z.string(),
-    diagnostics: z.array(diagnosticSchema),
-    stylesheets: z.array(
-      z.object({ entry: z.string(), css: z.string(), sourceMap: z.string().optional() }),
-    ),
-    observedDependencies: z.array(z.unknown()),
-  }),
-]);
 export class StylePreparationError extends Error {
   constructor(
     readonly code: string,
     message: string,
-    readonly diagnostics: readonly z.infer<typeof diagnosticSchema>[] = [],
+    readonly diagnostics: readonly StyleDiagnostic[] = [],
   ) {
     super(message);
   }
@@ -211,7 +184,7 @@ export const prepareProjectSource = async (
       );
   }
   try {
-    const result = resultSchema.parse(
+    const result = compileStylesResultSchema.parse(
       await runStyleWorker(snapshot, {
         entries: localFiles.filter(({ path }) => /\.css$/i.test(path)).map(({ path }) => path),
         ...(options.signal ? { signal: options.signal } : {}),

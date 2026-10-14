@@ -32,23 +32,48 @@ export type ParsedAuthoringProjectValue = {
   readonly preparedStyles?: PreparedStyles;
 };
 
-export type PreparedStyles = {
-  readonly identity: string;
-  readonly inputs: readonly { readonly path: string; readonly hash: string }[];
-  readonly stylesheets: readonly {
-    readonly entry: string;
-    readonly css: string;
-    readonly sourceMap?: string | undefined;
-  }[];
-};
+const hashSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+const preparedStylesSchema = z.strictObject({
+  identity: hashSchema,
+  inputs: z.array(z.strictObject({ path: z.string(), hash: hashSchema })).readonly(),
+  stylesheets: z
+    .array(z.strictObject({ entry: z.string(), css: z.string(), sourceMap: z.string().optional() }))
+    .readonly(),
+});
+const rawFileSchema = z.strictObject({
+  path: z.string(),
+  mediaType: z.string(),
+  hash: z.string(),
+  encoding: z.enum(["utf8", "base64"]),
+  data: z.string(),
+});
+const canonicalBase64Schema = z
+  .base64()
+  .pipe(z.string().refine((data) => btoa(atob(data)) === data));
+const rawFileContentSchema = rawFileSchema
+  .extend({
+    mediaType: z.string().min(1),
+    hash: hashSchema,
+  })
+  .superRefine((file, ctx) => {
+    if (file.encoding === "base64" && !canonicalBase64Schema.safeParse(file.data).success) {
+      ctx.addIssue({ code: "custom", path: ["data"], message: "Invalid canonical base64" });
+      return;
+    }
+    const bytes =
+      file.encoding === "utf8"
+        ? new TextEncoder().encode(file.data)
+        : Uint8Array.from(atob(file.data), (character) => character.charCodeAt(0));
+    if (file.hash !== `sha256:${bytesToHex(sha256(bytes))}`)
+      ctx.addIssue({
+        code: "custom",
+        path: ["hash"],
+        message: "Raw file hash does not match its bytes",
+      });
+  });
 
-export type RawProjectFile = {
-  readonly path: string;
-  readonly mediaType: string;
-  readonly hash: string;
-  readonly encoding: "utf8" | "base64";
-  readonly data: string;
-};
+export type PreparedStyles = Readonly<z.infer<typeof preparedStylesSchema>>;
+export type RawProjectFile = Readonly<z.infer<typeof rawFileSchema>>;
 
 export type ParsedAuthoringProject =
   | {
@@ -65,28 +90,8 @@ const inputSchema = z
     files: z.array(z.object({ fileName: z.string(), sourceText: z.string() }).strict()),
     rootDependencies: z.array(z.unknown()),
     packages: z.array(z.unknown()),
-    preparedStyles: z
-      .strictObject({
-        identity: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-        inputs: z.array(
-          z.strictObject({ path: z.string(), hash: z.string().regex(/^sha256:[0-9a-f]{64}$/) }),
-        ),
-        stylesheets: z.array(
-          z.strictObject({ entry: z.string(), css: z.string(), sourceMap: z.string().optional() }),
-        ),
-      })
-      .optional(),
-    rawFiles: z
-      .array(
-        z.strictObject({
-          path: z.string(),
-          mediaType: z.string(),
-          hash: z.string(),
-          encoding: z.enum(["utf8", "base64"]),
-          data: z.string(),
-        }),
-      )
-      .optional(),
+    preparedStyles: preparedStylesSchema.optional(),
+    rawFiles: z.array(rawFileSchema).optional(),
   })
   .strict();
 
@@ -286,26 +291,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         ),
       );
     else {
-      let decoded = "";
-      try {
-        if (file.encoding === "base64") decoded = atob(file.data);
-      } catch {
-        decoded = "\ufffd";
-      }
-      const canonicalBase64 =
-        file.encoding === "utf8" ||
-        (/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.data) &&
-          btoa(decoded) === file.data);
-      const bytes =
-        file.encoding === "utf8"
-          ? new TextEncoder().encode(file.data)
-          : Uint8Array.from(decoded, (character) => character.charCodeAt(0));
-      if (
-        !canonicalBase64 ||
-        !/^sha256:[0-9a-f]{64}$/.test(file.hash) ||
-        file.hash !== `sha256:${bytesToHex(sha256(bytes))}` ||
-        file.mediaType.length === 0
-      )
+      if (!rawFileContentSchema.safeParse(file).success)
         diagnostics.push(
           projectDiagnostic(
             "compiler-invalid-input",

@@ -5,23 +5,32 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.d.mts",
-      "import": "./src/index.mjs"
+      "types": "./src/index.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "pnpm build && node --test test/*.test.ts",
     "lint": "vp check src test",
-    "typecheck": "tsc --noEmit --skipLibCheck --module nodenext --target es2023 src/index.d.mts",
-    "check": "pnpm typecheck && pnpm lint && pnpm test"
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "prepare": "pnpm build"
   },
   "dependencies": {
+    "error-stack-parser": "2.1.4",
     "jiti": "2.7.0",
-    "postcss-load-config": "6.0.1"
+    "path-is-inside": "1.0.2",
+    "postcss-load-config": "6.0.1",
+    "semver": "7.8.5",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/forms": "0.5.11",
     "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.0",
+    "@types/path-is-inside": "1.0.2",
+    "@types/semver": "7.7.1",
     "postcss": "8.5.29",
     "tailwindcss": "4.3.3",
     "tailwindcss-older": "npm:tailwindcss@4.2.1",

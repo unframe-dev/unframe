@@ -29,6 +29,8 @@ source map は保持するが、作者の元 CSS へのエラー位置変換は�
 
 lock の最大サイズは、native binary を含む依存のため128 MiB。
 
+`compileStylesResultSchema` と API の型は同じ Zod スキーマから公開する。Node worker が読み込む JavaScript は `pnpm --filter @unframe/unframe-tailwind build` で `dist/` に生成する。通常の依存インストールでは `prepare` がビルドする。
+
 パッケージの設定互換性テストは `pnpm --filter @unframe/unframe-tailwind test`。隔離・実描画テストは CLI の `styles-worker.integration.test.ts` と `tailwind-project.integration.test.ts` を使う。CSS Modules、SVGR、WOFF2、import alias は対象外。
 
 実 Browser を使う統合テストでは、導入済みの固定 Chromium に `PLAYWRIGHT_BROWSERS_PATH` を合わせる。CI はリポジトリの `.cache/playwright` を使用する。

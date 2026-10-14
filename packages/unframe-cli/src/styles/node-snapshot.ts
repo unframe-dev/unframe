@@ -1,73 +1,35 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { parseAllDocuments } from "yaml";
 
-export type NodeSnapshotFile = {
-  readonly path: string;
-  readonly bytes: string;
-  readonly executable?: boolean;
-};
-export type NodeTransformSnapshot = {
-  readonly version: 1;
-  readonly identity: string;
-  readonly sourceIdentity: string;
-  readonly runtime: {
-    readonly nodePath: string;
-    readonly nodeHash: string;
-    readonly version: string;
-    readonly platform: string;
-    readonly arch: string;
-    readonly libc: string;
-    readonly mode: "production";
-    readonly closure: readonly string[];
-    readonly environment: Readonly<Record<string, string>>;
-  };
-  readonly sourceFiles: readonly NodeSnapshotFile[];
-  readonly rootDependencies: Readonly<Record<string, string>>;
-  readonly packages: readonly {
-    readonly id: string;
-    readonly locator: string;
-    readonly integrity: string;
-    readonly files: readonly NodeSnapshotFile[];
-    readonly dependencies: Readonly<Record<string, string>>;
-  }[];
-  readonly adapter?: { readonly packageId: string; readonly entry: string };
-};
+import canonicalize from "canonicalize";
+import {
+  nodeSnapshotFileSchema,
+  nodeTransformSnapshotSchema,
+  pnpmLockSchema,
+  pnpmLocatorSchema,
+  packageManifestSchema,
+  adapterManifestSchema,
+  importerEntrySchema,
+  adapterEntrySchema,
+  supportsPlatform,
+  type NodeSnapshotFile,
+  type NodeTransformSnapshot,
+} from "./snapshot-schema.js";
+import { probeNodeRuntime } from "./runtime.js";
+export type { NodeSnapshotFile, NodeTransformSnapshot } from "./snapshot-schema.js";
 const canonical = (value: unknown): string => {
-  if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
-  if (value !== null && typeof value === "object")
-    return (
-      "{" +
-      Object.entries(value)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, item]) => JSON.stringify(key) + ":" + canonical(item))
-        .join(",") +
-      "}"
-    );
-  return JSON.stringify(value);
+  const serialized = canonicalize(value);
+  if (serialized === undefined) throw new Error("Invalid Node snapshot JSON");
+  return serialized;
 };
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
-const safePath = (path: string) =>
-  path.length > 0 &&
-  !isAbsolute(path) &&
-  !path.includes("\\") &&
-  path.split("/").every((part) => part !== "" && part !== "." && part !== "..");
-const safeName = (name: string) =>
-  /^(?:@[a-zA-Z0-9._-]+\/)?[a-zA-Z0-9._-]+$/.test(name) &&
-  !name.split("/").some((part) => part === "." || part === "..");
 const canonicalFiles = (files: readonly NodeSnapshotFile[]) => {
   const sorted = files
     .map((file) => {
-      if (
-        !safePath(file.path) ||
-        file.path.split("/").includes("node_modules") ||
-        (file.executable !== undefined && typeof file.executable !== "boolean") ||
-        typeof file.bytes !== "string" ||
-        Buffer.from(file.bytes, "base64").toString("base64") !== file.bytes
-      )
-        throw new Error("Invalid Node snapshot file");
+      const parsed = nodeSnapshotFileSchema.safeParse(file);
+      if (!parsed.success) throw new Error("Invalid Node snapshot file", { cause: parsed.error });
       return {
         path: file.path,
         bytes: file.bytes,
@@ -95,7 +57,7 @@ export const withNodeTransformSources = (
   files: readonly NodeSnapshotFile[],
 ): NodeTransformSnapshot => {
   const { identity: _identity, sourceIdentity: _sourceIdentity, ...value } = snapshot;
-  return identify({ ...value, sourceFiles: files });
+  return identify({ ...value, sourceFiles: [...files] });
 };
 const contained = (root: string, path: string) => {
   const rel = relative(root, path);
@@ -128,11 +90,6 @@ const collectFiles = async (root: string): Promise<NodeSnapshotFile[]> => {
   await walk(root);
   return files;
 };
-const object = (value: unknown): Record<string, unknown> => {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Invalid pnpm lock object");
-  return value as Record<string, unknown>;
-};
 const readLock = async (directory: string, workspace: boolean) => {
   let root = await realpath(directory);
   for (;;) {
@@ -143,12 +100,9 @@ const readLock = async (directory: string, workspace: boolean) => {
       const document = documents.at(-1);
       if (!document || documents.some((item) => item.errors.length))
         throw new Error("Invalid pnpm lock YAML");
-      const lock = object(document.toJS({ maxAliasCount: 100 }));
-      if (String(lock.lockfileVersion) !== "9.0")
-        throw new Error("Node transforms require pnpm lockfileVersion 9.0");
-      const importer = object(
-        object(lock.importers)[relative(root, directory).split(sep).join("/") || "."],
-      );
+      const lock = pnpmLockSchema.parse(document.toJS({ maxAliasCount: 100 }));
+      const importer = lock.importers[relative(root, directory).split(sep).join("/") || "."];
+      if (!importer) throw new Error("Node adapter pnpm importer is missing");
       return { root, lock, importer };
     } catch (error) {
       if (!workspace || (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -170,16 +124,7 @@ export const snapshotNodeTransformInputs = async (
   const nodePath = await realpath(
     options.nodePath ?? process.env.UNFRAME_STYLE_NODE ?? process.execPath,
   );
-  const runtimeData = JSON.parse(
-    execFileSync(
-      nodePath,
-      [
-        "-e",
-        "const h=process.report.getReport().header; process.stdout.write(JSON.stringify({version:process.version,platform:process.platform,arch:process.arch,libc:h.glibcVersionRuntime || 'non-glibc'}))",
-      ],
-      { env: {}, maxBuffer: 1024 * 1024 },
-    ).toString(),
-  ) as { version: string; platform: string; arch: string; libc: string };
+  const runtimeData = probeNodeRuntime(nodePath);
   const packages: {
     id: string;
     locator: string;
@@ -195,16 +140,10 @@ export const snapshotNodeTransformInputs = async (
     context: Awaited<ReturnType<typeof readLock>>,
     optional = false,
   ): Promise<string | undefined> => {
-    if (!safeName(name) || typeof version !== "string")
-      throw new Error("Invalid pnpm Node dependency");
-    const snapshots = object(context.lock.snapshots ?? {});
+    const snapshots = context.lock.snapshots;
     const locator = Object.hasOwn(snapshots, `${name}@${version}`) ? `${name}@${version}` : version;
-    if (
-      !Object.hasOwn(snapshots, locator) ||
-      locator.includes("link:") ||
-      locator.startsWith("/") ||
-      /file:(?:\/|[A-Za-z]:|.*(?:^|\/)\.\.(?:\/|$))/.test(locator)
-    )
+    pnpmLocatorSchema.parse(locator);
+    if (!Object.hasOwn(snapshots, locator))
       throw new Error("Node dependency must have a fixed pnpm snapshot locator");
     let current = from;
     let packageRoot: string | undefined;
@@ -227,43 +166,33 @@ export const snapshotNodeTransformInputs = async (
     }
     if (!contained(join(context.root, "node_modules"), packageRoot))
       throw new Error("Node dependency escapes installed graph");
-    const manifest = object(JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")));
-    const nameVersion = `${String(manifest.name)}@${String(manifest.version)}`;
+    const manifest = packageManifestSchema.parse(
+      JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")),
+    );
+    const nameVersion = `${manifest.name}@${manifest.version}`;
     const baseLocator = locator.split("(")[0]!;
-    const packageRecord = object(object(context.lock.packages ?? {})[baseLocator]);
+    const packageRecord = context.lock.packages[baseLocator];
+    if (!packageRecord) throw new Error("Node package is missing from pnpm lock");
     if (
       baseLocator !== nameVersion &&
       !(
-        baseLocator.startsWith(`${String(manifest.name)}@file:`) &&
+        baseLocator.startsWith(`${manifest.name}@file:`) &&
         packageRecord.version === manifest.version
       )
     )
       throw new Error(`Installed package does not match pnpm locator: ${locator}`);
-    const supports = (input: unknown, target: string) => {
-      if (input === undefined) return true;
-      if (!Array.isArray(input) || !input.every((item) => typeof item === "string"))
-        throw new Error("Invalid Node platform metadata");
-      const allowed = input as string[];
-      return (
-        !allowed.includes(`!${target}`) &&
-        (allowed.every((item) => item.startsWith("!")) ||
-          allowed.includes(target) ||
-          allowed.includes("any"))
-      );
-    };
     const compatible = [manifest, packageRecord].every(
       (metadata) =>
-        supports(metadata.os, runtimeData.platform) &&
-        supports(metadata.cpu, runtimeData.arch) &&
-        supports(metadata.libc, runtimeData.libc === "non-glibc" ? "musl" : "glibc"),
+        supportsPlatform(metadata.os, runtimeData.platform) &&
+        supportsPlatform(metadata.cpu, runtimeData.arch) &&
+        supportsPlatform(metadata.libc, runtimeData.libc === "non-glibc" ? "musl" : "glibc"),
     );
     if (!compatible) {
       if (optional) return undefined;
       throw new Error(`Node dependency does not support the locked platform: ${locator}`);
     }
-    const integrity = object(packageRecord.resolution).integrity;
-    if (typeof integrity !== "string" || !/^sha(?:256|384|512)-[A-Za-z0-9+/=]+$/.test(integrity))
-      throw new Error("Node package archive integrity is missing");
+    const integrity = packageRecord.resolution.integrity;
+    if (!integrity) throw new Error("Node package archive integrity is missing");
     const key = `${context.root}\0${locator}\0${packageRoot}`;
     const previous = seen.get(key);
     if (previous) return previous;
@@ -277,18 +206,18 @@ export const snapshotNodeTransformInputs = async (
       dependencies: Object.create(null) as Record<string, string>,
     };
     packages.push(item);
-    const locked = object(snapshots[locator]);
+    const locked = snapshots[locator]!;
     const edges = {
-      ...object(locked.dependencies ?? {}),
-      ...object(locked.optionalDependencies ?? {}),
+      ...locked.dependencies,
+      ...locked.optionalDependencies,
     };
     for (const dependency of Object.keys(edges).sort()) {
       const child = await visit(
         dependency,
-        String(edges[dependency]),
+        edges[dependency]!,
         packageRoot,
         context,
-        Object.hasOwn(object(locked.optionalDependencies ?? {}), dependency),
+        Object.hasOwn(locked.optionalDependencies, dependency),
       );
       if (child) item.dependencies[dependency] = child;
     }
@@ -297,17 +226,17 @@ export const snapshotNodeTransformInputs = async (
   const context = await readLock(root, false);
   const rootDependencies: Record<string, string> = Object.create(null) as Record<string, string>;
   const rootEdges = {
-    ...object(context.importer.dependencies ?? {}),
-    ...object(context.importer.devDependencies ?? {}),
-    ...object(context.importer.optionalDependencies ?? {}),
+    ...context.importer.dependencies,
+    ...context.importer.devDependencies,
+    ...context.importer.optionalDependencies,
   };
   for (const name of Object.keys(rootEdges).sort()) {
     const id = await visit(
       name,
-      String(object(rootEdges[name]).version),
+      rootEdges[name]!.version,
       root,
       context,
-      Object.hasOwn(object(context.importer.optionalDependencies ?? {}), name),
+      Object.hasOwn(context.importer.optionalDependencies, name),
     );
     if (id) rootDependencies[name] = id;
   }
@@ -315,36 +244,36 @@ export const snapshotNodeTransformInputs = async (
   if (options.adapterRoot) {
     const adapterRoot = await realpath(options.adapterRoot);
     const toolContext = await readLock(adapterRoot, true);
-    const adapterManifest = object(
+    const adapterManifest = adapterManifestSchema.parse(
       JSON.parse(await readFile(join(adapterRoot, "package.json"), "utf8")),
     );
     const exported =
       typeof adapterManifest.exports === "string"
         ? adapterManifest.exports
-        : object(adapterManifest.exports ?? {})["."];
-    const entry =
-      typeof exported === "string"
-        ? exported
-        : typeof exported === "object" && exported !== null
-          ? object(exported).import
-          : (adapterManifest.main ?? "src/index.ts");
-    if (typeof entry !== "string") throw new Error("Node adapter import entry is missing");
+        : adapterManifest.exports?.["."];
+    const entryValue =
+      exported === undefined
+        ? (adapterManifest.main ?? "src/index.ts")
+        : importerEntrySchema.parse(exported);
+    const entry = adapterEntrySchema.parse(
+      (typeof entryValue === "string" ? entryValue : entryValue.import).replace(/^\.\//, ""),
+    );
     const packageId = `p${packages.length}`;
     const item = {
       id: packageId,
-      locator: `tool:${String(adapterManifest.name)}@${String(adapterManifest.version)}`,
+      locator: `tool:${adapterManifest.name}@${adapterManifest.version}`,
       integrity: "tool-content",
       files: await collectFiles(adapterRoot),
       dependencies: Object.create(null) as Record<string, string>,
     };
     packages.push(item);
-    for (const [name, value] of Object.entries(
-      object(toolContext.importer.dependencies ?? {}),
-    ).sort(([a], [b]) => a.localeCompare(b, "en"))) {
-      const dependency = await visit(name, String(object(value).version), adapterRoot, toolContext);
+    for (const [name, value] of Object.entries(toolContext.importer.dependencies).sort(([a], [b]) =>
+      a.localeCompare(b, "en"),
+    )) {
+      const dependency = await visit(name, value.version, adapterRoot, toolContext);
       if (dependency) item.dependencies[name] = dependency;
     }
-    adapter = { packageId, entry: entry.replace(/^\.\//, "") };
+    adapter = { packageId, entry };
   }
   const closure = process.env.UNFRAME_STYLE_RUNTIME_CLOSURE
     ? (await readFile(process.env.UNFRAME_STYLE_RUNTIME_CLOSURE, "utf8")).trim().split(/\s+/).sort()
@@ -362,57 +291,14 @@ export const snapshotNodeTransformInputs = async (
         NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
       },
     },
-    sourceFiles: options.sourceFiles ?? (await collectFiles(root)),
+    sourceFiles: [...(options.sourceFiles ?? (await collectFiles(root)))],
     rootDependencies,
     packages,
     ...(adapter ? { adapter } : {}),
   });
 };
 export const validateNodeTransformSnapshot = (input: unknown): NodeTransformSnapshot => {
-  if (!input || typeof input !== "object") throw new Error("Invalid Node snapshot");
-  const value = input as NodeTransformSnapshot;
-  if (
-    value.version !== 1 ||
-    !Array.isArray(value.sourceFiles) ||
-    !Array.isArray(value.packages) ||
-    !value.runtime ||
-    value.runtime.mode !== "production" ||
-    !isAbsolute(value.runtime.nodePath) ||
-    !/^[a-f0-9]{64}$/.test(value.runtime.nodeHash) ||
-    !value.runtime.environment ||
-    Object.entries(value.runtime.environment).some(
-      ([key, val]) => !["NIX_LD", "NIX_LD_LIBRARY_PATH"].includes(key) || typeof val !== "string",
-    ) ||
-    !Array.isArray(value.runtime.closure) ||
-    !value.runtime.closure.every(
-      (path) => typeof path === "string" && /^\/nix\/store\/[^/]+$/.test(path),
-    ) ||
-    !["version", "platform", "arch", "libc"].every(
-      (key) => typeof value.runtime[key as keyof typeof value.runtime] === "string",
-    )
-  )
-    throw new Error("Invalid Node snapshot");
-  const ids = new Set(value.packages.map((pkg) => pkg.id));
-  if (ids.size !== value.packages.length) throw new Error("Duplicate Node package");
-  const validateEdges = (edges: Readonly<Record<string, string>>) => {
-    if (!edges || typeof edges !== "object" || Array.isArray(edges))
-      throw new Error("Invalid Node edges");
-    for (const [name, id] of Object.entries(edges))
-      if (!safeName(name) || !ids.has(id)) throw new Error("Invalid Node edge");
-  };
-  validateEdges(value.rootDependencies);
-  for (const pkg of value.packages) {
-    if (
-      !/^p\d+$/.test(pkg.id) ||
-      typeof pkg.locator !== "string" ||
-      typeof pkg.integrity !== "string"
-    )
-      throw new Error("Invalid Node package id");
-    canonicalFiles(pkg.files);
-    validateEdges(pkg.dependencies);
-  }
-  if (value.adapter && (!ids.has(value.adapter.packageId) || !safePath(value.adapter.entry)))
-    throw new Error("Invalid Node adapter");
+  const value = nodeTransformSnapshotSchema.parse(input);
   const { identity, sourceIdentity, ...body } = value;
   const identified = identify(body);
   if (identity !== identified.identity || sourceIdentity !== identified.sourceIdentity)
