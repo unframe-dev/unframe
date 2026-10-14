@@ -28,7 +28,7 @@ const pngHashes = async (root: string, output = "dist") =>
       .map(async (name) => digest(await readFile(join(root, output, "assets", name)))),
   );
 
-it("locks project-owned Tailwind, captures reproducibly, invalidates all inputs, and preserves Dist on failure", async () => {
+it("locks project-owned Tailwind with an uppercase CSS entry, captures reproducibly, invalidates all inputs, and preserves Dist on failure", async () => {
   const directory = await mkdtemp(join(tmpdir(), "unframe-tailwind-project-"));
   const staging = await mkdtemp(join(tmpdir(), "unframe-sdk-package-"));
   try {
@@ -125,7 +125,7 @@ export default definePresentation({...base,scene:[{id:"hero",component:Hero,prop
     await writeFile(
       join(directory, "Hero.component.tsx"),
       `import {defineComponent,editableText,prop} from "@unframe/unframe-authoring";
-import "./src/style.css";
+import "./src/style.CSS";
 export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText({required:true})},surface:{logicalSize:[800,450]},semantics:{rootNodeIds:["title"],nodes:{title:{role:"heading",level:1,parentId:null,order:0,text:prop("title")}}},render:({texts,bindings}:{texts:{title:string};bindings:{title:{"data-unframe-binding":string}}})=><main className="w-[800px] h-[450px] bg-brand p-8"><h1 className="text-white text-5xl" {...bindings.title}>{texts.title}</h1></main>});`,
     );
     await mkdir(join(directory, "src"));
@@ -136,7 +136,7 @@ export const Hero=defineComponent({id:"hero",version:1,props:{title:editableText
       join(directory, "theme/fixture.ttf"),
     );
     await writeFile(
-      join(directory, "src/style.css"),
+      join(directory, "src/style.CSS"),
       '@import "tailwindcss" source("../");\n@import "../theme/part.css";\n@config "../tailwind.config.ts";',
     );
     await writeFile(

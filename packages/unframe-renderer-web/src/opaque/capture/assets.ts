@@ -11,7 +11,7 @@ export const validateOpaqueAsset = (asset: OpaqueCaptureRequest["assets"][number
     bytes.toString("base64") !== asset.dataBase64
   )
     return false;
-  if (asset.mediaType === "text/css") return asset.path.endsWith(".css");
+  if (asset.mediaType === "text/css") return asset.path.toLowerCase().endsWith(".css");
   if (asset.mediaType === "font/ttf" || asset.mediaType === "font/otf") {
     if (!asset.path.endsWith(asset.mediaType === "font/ttf" ? ".ttf" : ".otf")) return false;
     const result = decodeFontAsset(asset.path, {

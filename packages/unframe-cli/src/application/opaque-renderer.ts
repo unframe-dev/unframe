@@ -115,7 +115,7 @@ export const prepareOpaqueRenderer = async (
           ]),
         ),
         assets: bundle.assets
-          .filter((asset) => !asset.fileName.endsWith(".css.map"))
+          .filter((asset) => !asset.fileName.toLowerCase().endsWith(".css.map"))
           .map((asset) => ({
             path: asset.fileName,
             mediaType: mediaTypeFor(asset.fileName),
