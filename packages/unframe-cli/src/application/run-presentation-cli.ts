@@ -1,4 +1,5 @@
 import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
+import { styleDiagnostics } from "./style-diagnostics.js";
 import {
   checkAuthoringProjectAssembly,
   compileAuthoringProject,
@@ -144,7 +145,7 @@ const output = (
   command: Command["command"] | undefined,
   format: Command["format"],
   diagnostics: readonly PresentationCliDiagnostic[] = [],
-  warnings: readonly CompilerWarning[] = [],
+  warnings: readonly (CompilerWarning | PresentationCliDiagnostic)[] = [],
   build?: Readonly<{ sourceRevision: string; generationId: string }>,
 ): PresentationCliResult => {
   const list = ordered(diagnostics);
@@ -162,6 +163,8 @@ const output = (
         format === "text" && warningList.length
           ? warningList
               .map((warning) => {
+                if (!("componentInstanceId" in warning))
+                  return `${pathText(warning.path)}: warning/${warning.family}/${warning.code}: ${warning.message}`;
                 const subject =
                   "propName" in warning
                     ? `prop=${JSON.stringify(warning.propName)}`
@@ -497,18 +500,32 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
   } catch (error) {
     const code = error instanceof StylePreparationError ? error.code : "cli-style-prepare-failed";
-    return output(code === "cli-cancelled" ? 130 : 1, command, format, [
-      diagnostic(
-        code === "cli-cancelled" ? "cancel" : "semantic",
-        code,
-        error instanceof Error ? error.message : "Style preparation failed.",
-      ),
-    ]);
+    return output(
+      code === "cli-cancelled" ? 130 : 1,
+      command,
+      format,
+      error instanceof StylePreparationError && error.diagnostics.length
+        ? styleDiagnostics(error.diagnostics, code)
+        : [
+            diagnostic(
+              code === "cli-cancelled" ? "cancel" : "semantic",
+              code,
+              error instanceof Error ? error.message : "Style preparation failed.",
+            ),
+          ],
+    );
   }
   const source = prepared.source;
   const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
-  if (command === "check") return output(0, command, format, [], checked.value.warnings);
+  if (command === "check")
+    return output(
+      0,
+      command,
+      format,
+      [],
+      [...checked.value.warnings, ...styleDiagnostics(prepared.diagnostics)],
+    );
   const opaque = Object.values(checked.value.definition.scene.surfaces).find(
     (surface) => surface.content.kind === "opaque",
   );
@@ -704,10 +721,17 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
                   : "Build artifacts could not be published.",
           ),
         ]);
-      return output(0, command, format, [], compiled.value.warnings, {
-        sourceRevision: discovered.revision,
-        generationId: published.generationId,
-      });
+      return output(
+        0,
+        command,
+        format,
+        [],
+        [...compiled.value.warnings, ...styleDiagnostics(prepared.diagnostics)],
+        {
+          sourceRevision: discovered.revision,
+          generationId: published.generationId,
+        },
+      );
     } catch (error) {
       if (error instanceof OpaquePreparationFailure && !host.signal?.aborted)
         return output(

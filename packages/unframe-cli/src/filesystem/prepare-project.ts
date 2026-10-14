@@ -2,6 +2,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import { z } from "zod";
+import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 import type { DiscoveredProjectFiles } from "./discover-project.js";
 import type { UnframeLock } from "./lock.js";
 import { digestBytes, lockedFile } from "./package-snapshot.js";
@@ -103,15 +104,23 @@ export const authoringPackageRoots = (
   visit(found.entryFile);
   return [...roots].sort();
 };
-const diagnosticSchema = z.object({
-  phase: z.enum(["config", "resolve", "transform"]),
-  severity: z.enum(["warning", "error"]),
-  message: z.string(),
-  file: z.string().optional(),
-  line: z.number().optional(),
-  column: z.number().optional(),
-  plugin: z.string().optional(),
-});
+const diagnosticSchema = z
+  .object({
+    phase: z.enum(["config", "resolve", "transform"]),
+    severity: z.enum(["warning", "error"]),
+    message: z.string(),
+    file: z.string().optional(),
+    line: z.number().optional(),
+    column: z.number().optional(),
+    plugin: z.string().optional(),
+  })
+  .transform(({ file, line, column, plugin, ...required }): StyleDiagnostic => ({
+    ...required,
+    ...(file !== undefined ? { file } : {}),
+    ...(line !== undefined ? { line } : {}),
+    ...(column !== undefined ? { column } : {}),
+    ...(plugin !== undefined ? { plugin } : {}),
+  }));
 const resultSchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(false), diagnostics: z.array(diagnosticSchema) }),
   z.object({
@@ -160,7 +169,8 @@ export const prepareProjectSource = async (
     rootDependencies: graph.rootDependencies,
     packages: graph.packages,
   };
-  if (!hasPostcssConfig({ localFiles }) && !graph.styleTransform) return { source };
+  if (!hasPostcssConfig({ localFiles }) && !graph.styleTransform)
+    return { source, diagnostics: [] };
   const files = localFiles.map(({ path, bytes }) => ({
     path,
     bytes: Buffer.from(bytes).toString("base64"),
@@ -189,7 +199,7 @@ export const prepareProjectSource = async (
   try {
     const result = resultSchema.parse(
       await runStyleWorker(snapshot, {
-        entries: localFiles.filter(({ path }) => path.endsWith(".css")).map(({ path }) => path),
+        entries: localFiles.filter(({ path }) => /\.css$/i.test(path)).map(({ path }) => path),
         ...(options.signal ? { signal: options.signal } : {}),
       }),
     );
@@ -200,6 +210,7 @@ export const prepareProjectSource = async (
         result.diagnostics,
       );
     return {
+      diagnostics: result.diagnostics,
       source: {
         ...source,
         preparedStyles: {

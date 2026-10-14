@@ -1,4 +1,5 @@
 import type { FixedBrowserSession, WebRendererConfig } from "@unframe/unframe-renderer-web";
+import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 
 export type PresentationCliExitCode = 0 | 1 | 2 | 3 | 130;
 export type PresentationDiagnosticFamily =
@@ -10,19 +11,21 @@ export type PresentationDiagnosticFamily =
   | "io"
   | "cancel";
 
-export type PresentationCliDiagnostic = Readonly<{
-  family: PresentationDiagnosticFamily;
-  code: string;
-  message: string;
-  path: readonly (string | number)[];
-  location?: Readonly<{
-    fileName: string;
-    start: number;
-    end: number;
-    line: number;
-    column: number;
-  }>;
-}>;
+export type PresentationCliDiagnostic = Readonly<
+  Partial<StyleDiagnostic> & {
+    family: PresentationDiagnosticFamily;
+    code: string;
+    message: string;
+    path: readonly (string | number)[];
+    location?: Readonly<{
+      fileName: string;
+      start: number;
+      end: number;
+      line: number;
+      column: number;
+    }>;
+  }
+>;
 
 export type PresentationCliResult = Readonly<{
   exitCode: PresentationCliExitCode;

@@ -75,6 +75,25 @@ const fixture = async (config: string) =>
         : file,
     ),
   );
+it.each(["CSS", "Css"])(
+  "transforms a %s entry in the isolated worker",
+  async (extension) => {
+    const snapshot = await fixture(
+      "export default {plugins:[{postcssPlugin:'case-entry',Once(root){root.append({selector:'main',nodes:[{prop:'color',value:'red'}]})}}]};",
+    );
+    const input = withNodeTransformSources(
+      snapshot,
+      snapshot.sourceFiles.map((file) =>
+        file.path === "input.css" ? { ...file, path: `input.${extension}` } : file,
+      ),
+    );
+    expect(await runStyleWorker(input, { entries: [`input.${extension}`] })).toMatchObject({
+      ok: true,
+      stylesheets: [{ entry: `input.${extension}`, css: expect.stringContaining("color: red") }],
+    });
+  },
+  60_000,
+);
 it("executes relocated real Tailwind native dependencies with a stable production cwd", async () => {
   const snapshot = await fixture(
     `if(process.cwd()!=='/worker/project'||process.env.NODE_ENV!=='production') throw Error('environment'); export default {plugins:{'@tailwindcss/postcss':{optimize:true}}};`,

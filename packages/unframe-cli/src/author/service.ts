@@ -16,7 +16,8 @@ import { discoverPresentationProjectFiles } from "../filesystem/discover-project
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "../filesystem/lock.js";
-import { prepareProjectSource } from "../filesystem/prepare-project.js";
+import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
+import { styleDiagnostics } from "../application/style-diagnostics.js";
 import { readRegularFile } from "../filesystem/path-policy.js";
 import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
@@ -52,30 +53,54 @@ const locationSchema = z.object({
   line: z.number().int().positive(),
   column: z.number().int().positive(),
 });
-const buildDiagnosticSchema = z.object({
-  family: z.enum(["syntax", "type", "semantic", "renderer", "io", "cancel", "usage"]),
-  code: z.string(),
-  message: z.string(),
-  path: z.array(z.union([z.string(), z.number()])),
-  location: locationSchema.optional(),
-});
+const buildDiagnosticSchema = z
+  .object({
+    family: z.enum(["syntax", "type", "semantic", "renderer", "io", "cancel", "usage"]),
+    code: z.string(),
+    message: z.string(),
+    path: z.array(z.union([z.string(), z.number()])),
+    location: locationSchema.optional(),
+    severity: z.enum(["warning", "error"]).optional(),
+    phase: z.enum(["config", "resolve", "transform"]).optional(),
+    file: z.string().optional(),
+    line: z.number().optional(),
+    column: z.number().optional(),
+    plugin: z.string().optional(),
+  })
+  .transform(
+    ({ location, severity, phase, file, line, column, plugin, ...required }): AuthorDiagnostic => ({
+      ...required,
+      ...(location !== undefined ? { location } : {}),
+      ...(severity !== undefined ? { severity } : {}),
+      ...(phase !== undefined ? { phase } : {}),
+      ...(file !== undefined ? { file } : {}),
+      ...(line !== undefined ? { line } : {}),
+      ...(column !== undefined ? { column } : {}),
+      ...(plugin !== undefined ? { plugin } : {}),
+    }),
+  );
 const buildDiagnostics = (stderr: string): AuthorDiagnostic[] => {
   try {
     const output = z
       .object({ diagnostics: z.array(buildDiagnosticSchema).min(1) })
       .safeParse(JSON.parse(stderr));
-    if (output.success)
-      return output.data.diagnostics.map((item) => ({
-        family: item.family,
-        code: item.code,
-        message: item.message,
-        path: item.path,
-        ...(item.location ? { location: item.location } : {}),
-      }));
+    if (output.success) return output.data.diagnostics;
   } catch {
     /* CLI output may be plain text after an unexpected failure. */
   }
   return [diagnostic("author-build-failed", stderr.trim() || "Build failed.")];
+};
+const buildWarnings = (stdout: string): AuthorDiagnostic[] => {
+  try {
+    const output = z
+      .object({ warnings: z.array(buildDiagnosticSchema) })
+      .safeParse(JSON.parse(stdout));
+    if (output.success)
+      return output.data.warnings.map((item) => ({ ...item, severity: "warning" }));
+  } catch {
+    /* A custom build host may return no structured warning output. */
+  }
+  return [];
 };
 const sourceDiagnostic = (item: {
   code: string;
@@ -111,11 +136,10 @@ type Discovery = Extract<
 >;
 type Loaded = Extract<ReturnType<typeof loadUnframeLock>, { ok: true }>;
 const sourceInput = async (found: Discovery, loaded: Loaded, replacement?: string) =>
-  prepareProjectSource(
-    found,
-    loaded.value.lock,
-    replacement !== undefined ? { replacement, refresh: true } : {},
-  );
+  prepareProjectSource(found, loaded.value.lock, {
+    refresh: true,
+    ...(replacement !== undefined ? { replacement } : {}),
+  });
 const sourceRevision = async (found: Discovery, entryBytes: Uint8Array, lockBytes: Uint8Array) => {
   const config = await readRegularFile(join(found.projectDirectory, "unframe.config.ts"));
   if (!config) fail(500, "author-source-io", "Project config could not be read.");
@@ -147,7 +171,30 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
   const sourceText = found.files.find((file) => file.fileName === found.entryFile)?.sourceText;
   if (sourceText === undefined)
     fail(500, "author-source-missing", "Presentation source is missing.");
-  const { source } = await sourceInput(found, loaded);
+  let prepared: Awaited<ReturnType<typeof sourceInput>>;
+  try {
+    prepared = await sourceInput(found, loaded);
+  } catch (error) {
+    if (!(error instanceof StylePreparationError)) throw error;
+    return {
+      found,
+      loaded,
+      sourceText,
+      snapshot: {
+        revision: found.revision,
+        sourceHash: hashCanonicalJsonPayload(
+          found.files.map(({ fileName, sourceText }) => [fileName, sourceText]),
+        ),
+        irHash: null,
+        definition: null,
+        instances: [],
+        diagnostics: error.diagnostics.length
+          ? styleDiagnostics(error.diagnostics, error.code)
+          : [{ ...diagnostic(error.code, error.message), severity: "error" }],
+      },
+    };
+  }
+  const { source } = prepared;
   const fallbackHash = hashCanonicalJsonPayload(
     source.files.map(({ fileName, sourceText }) => [fileName, sourceText]),
   );
@@ -161,6 +208,7 @@ const readState = async (directory: string, captured?: Discovery): Promise<Proje
       ? checkAuthoringProjectAssembly(source, loaded.value.assemblyCarrier)
       : undefined;
   const diagnostics: AuthorDiagnostic[] = [
+    ...styleDiagnostics(prepared.diagnostics),
     ...frozen.map((item) =>
       diagnostic(item.code, "Source differs from its frozen lock.", [item.path]),
     ),
@@ -618,6 +666,7 @@ export const createAuthorService = async (
                   return;
                 }
                 job.artifacts = published.catalog;
+                job.diagnostics = buildWarnings(result.stdout);
                 job.generationId = result.generationId;
                 record.assets = published.assets;
                 job.status = "succeeded";

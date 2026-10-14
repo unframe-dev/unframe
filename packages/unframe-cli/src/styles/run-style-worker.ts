@@ -52,7 +52,7 @@ export const runStyleWorker = async (
   if (!snapshot.runtime.version.startsWith("v24."))
     throw new Error("Style worker requires Node 24");
   for (const entry of options.entries)
-    if (!snapshot.sourceFiles.some((file) => file.path === entry) || !entry.endsWith(".css"))
+    if (!snapshot.sourceFiles.some((file) => file.path === entry) || !/\.css$/i.test(entry))
       throw new Error("Style entry is outside the source snapshot");
   const directory = await mkdtemp(join(tmpdir(), "unframe-style-worker-"));
   try {

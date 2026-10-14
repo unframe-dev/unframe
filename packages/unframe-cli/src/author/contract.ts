@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PresentationDefinition } from "@unframe/unframe-core/domain/model";
+import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 
 const vector3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 export const transformSchema = z
@@ -66,7 +67,7 @@ export const buildRequestSchema = z.object({ requestId: randomIdSchema }).strict
 export type EditCommand = z.infer<typeof editCommandSchema>;
 export type PatchRequest = z.infer<typeof patchRequestSchema>;
 export type Transform = z.infer<typeof transformSchema>;
-export type AuthorDiagnostic = {
+export type AuthorDiagnostic = Partial<StyleDiagnostic> & {
   family?: "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel" | "usage";
   code: string;
   message: string;
