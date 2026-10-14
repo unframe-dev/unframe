@@ -66,8 +66,10 @@ namespace Unframe.Unity.PresentationRuntime
         }
         public bool DownloadReady { get; private set; }
         public bool ResidentReady { get { return textures != null && store.Delivery != null && store.Delivery.Residency.Textures != null && textures.IsReady(store.Delivery.Residency.Textures.Textures); } }
+        public bool ControlReady { get { return DownloadReady && ResidentReady && connection != null && connection.ControlReady; } }
         public bool SessionReady { get { return DownloadReady && ResidentReady && connection != null && connection.SessionReady; } }
-        public ulong PresentationOriginVersion { get { return SessionReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
+        public ulong PresentationOriginVersion { get { return ControlReady ? store.PresentationOrigin?.Version ?? 0 : 0; } }
+        public bool CanSendRuntimeControl { get { return ControlReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public bool CanSendInput { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
         public bool CanSendTracking { get { return CanSendInput; } }
         public string LastError { get; private set; }
@@ -244,7 +246,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public Task SendAsync(ControlClientItem command, CancellationToken token)
         {
-            if (!CanSendInput) throw new InvalidOperationException("Runtime input requires a ready Presenter session.");
+            if (command == null || !(command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl ? CanSendRuntimeControl : CanSendInput))
+                throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
             return connection.SendAsync(command, token);
         }
 

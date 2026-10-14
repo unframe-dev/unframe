@@ -57,25 +57,11 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         }
     }
 
-    [Test]
-    public async Task SendingStateReadyDoesNotPermitInputOrTrackingBeforeFirstKeyframe()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task StateReadyPermitsRuntimeControlButNotInputOrTrackingBeforeFirstKeyframe(bool paused)
     {
-        var store = new PresentationRuntimeDataStore();
-        var delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
-        var catalog = delivery.ProjectionProfile.RuntimeCatalog;
-        foreach (var node in catalog.Nodes) node.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
-        foreach (var surface in catalog.Surfaces) surface.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
-        foreach (var variable in catalog.Variables)
-        {
-            variable.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
-            variable.Type = Unframe.Presentation.ScalarType.String;
-        }
-        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
-        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
-        foreach (var variable in catalog.Variables)
-            snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new Unframe.Realtime.VariableState { VariableId = variable.VariableId, Value = new Unframe.Presentation.ScalarValue { StringValue = "value" } });
-        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
-        Assert.That(store.TryValidateRuntimeOwnership(out error), Is.True, error);
+        var store = CreateOwnedStore(paused);
         using (var textures = new PresentationTextureResidency())
         using (var connection = new PresentationRealtimeConnection(store, textures))
         using (var cancellation = new CancellationTokenSource())
@@ -95,15 +81,133 @@ public sealed class PresentationRealtimeConnectionEditModeTests
                 Assert.That(commands.Items.Count, Is.EqualTo(1));
                 Assert.That(commands.Items[0].ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.StateReady));
                 Assert.That(connection.SessionReady, Is.False, "A local StateReady write is not server acknowledgement.");
+                Assert.That(connection.ControlReady, Is.True);
                 Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
+                Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { SurfaceInteraction = new SurfaceInteractionCommand { ClientEventId = "event:surface" } }, CancellationToken.None));
                 Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
                 Assert.That(tracking.Items, Is.Empty);
                 Assert.That(commands.Items.Count, Is.EqualTo(1));
+                foreach (RuntimeControlKind kind in new[] { RuntimeControlKind.Resume, RuntimeControlKind.End })
+                {
+                    await connection.SendAsync(new ControlClientItem
+                    {
+                        RuntimeControl = new RuntimeControlCommand
+                        {
+                            ClientEventId = "event:" + kind,
+                            Kind = kind,
+                            PresentationOriginVersion = store.PresentationOrigin.Version
+                        }
+                    }, CancellationToken.None);
+                }
+                Assert.That(commands.Items.Count, Is.EqualTo(3));
+                Assert.That(connection.SessionReady, Is.False);
             }
             finally
             {
                 cancellation.Cancel();
                 try { await run; } catch (OperationCanceledException) { }
+                Assert.That(connection.ControlReady, Is.False);
+            }
+        }
+    }
+
+    private static PresentationRuntimeDataStore CreateOwnedStore(bool paused = false)
+    {
+        var store = new PresentationRuntimeDataStore();
+        var delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+        var catalog = delivery.ProjectionProfile.RuntimeCatalog;
+        foreach (var node in catalog.Nodes) node.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
+        foreach (var surface in catalog.Surfaces) surface.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
+        foreach (var variable in catalog.Variables)
+        {
+            variable.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
+            variable.Type = Unframe.Presentation.ScalarType.String;
+        }
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        var snapshot = Google.Protobuf.JsonParser.Default.Parse<ControlServerItem>(Resources.Load<TextAsset>("PresentationFixtures/LocalSnapshot").text);
+        if (paused) snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Clock.Paused = new Unframe.Realtime.Paused { Reason = PauseReason.ExplicitPause };
+        foreach (var variable in catalog.Variables)
+            snapshot.ConnectionSnapshot.Snapshot.RuntimeView.Variables.Add(new Unframe.Realtime.VariableState { VariableId = variable.VariableId, Value = new Unframe.Presentation.ScalarValue { StringValue = "value" } });
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        Assert.That(store.TryValidateRuntimeOwnership(out error), Is.True, error);
+        return store;
+    }
+
+    [TestCase("cancel")]
+    [TestCase("dispose")]
+    [TestCase("replace")]
+    public async Task InterruptedStateReadyDoesNotReopenControl(string interrupted)
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            LoadTrackingTextures(store, textures);
+            var commands = new ControlWriter { FirstWriteRelease = new TaskCompletionSource<bool>() };
+            var controlCall = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(commands, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            var stateCall = new AsyncDuplexStreamingCall<StateClientItem, StateServerItem>(new TrackingWriter(), new ConnectedStateReader(), Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, controlCall);
+            typeof(PresentationRealtimeConnection).GetField("state", flags).SetValue(connection, stateCall);
+            typeof(PresentationRealtimeConnection).GetField("connectionId", flags).SetValue(connection, "ready-test");
+            Task run = (Task)typeof(PresentationRealtimeConnection).GetMethod("RunStateAsync", flags).Invoke(connection, new object[] { cancellation.Token });
+            Assert.That(commands.Items.Count, Is.EqualTo(1));
+            Assert.That(connection.ControlReady, Is.False);
+            if (interrupted == "cancel") cancellation.Cancel();
+            if (interrupted == "dispose") connection.Dispose();
+            if (interrupted == "replace") typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, null);
+            commands.FirstWriteRelease.SetResult(true);
+            Exception failure = null;
+            try { await run; } catch (Exception exception) { failure = exception; }
+            Assert.That(failure, interrupted == "cancel" ? Is.InstanceOf<OperationCanceledException>() : Is.InstanceOf<InvalidOperationException>());
+            Assert.That(connection.ControlReady || connection.SessionReady, Is.False);
+        }
+    }
+
+    [TestCase("keyframe")]
+    [TestCase("not-ready")]
+    [TestCase("replace")]
+    [TestCase("cancel")]
+    [TestCase("dispose")]
+    [TestCase("resync")]
+    public async Task QueuedRuntimeControlKeepsItsControlConnectionBoundary(string changed)
+    {
+        var store = CreateOwnedStore(true);
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            LoadTrackingTextures(store, textures);
+            var writer = new ControlWriter { FirstWriteRelease = new TaskCompletionSource<bool>() };
+            var call = new AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem>(writer, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, call);
+            typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, true);
+            var command = new ControlClientItem { RuntimeControl = new RuntimeControlCommand { ClientEventId = "event:resume", Kind = RuntimeControlKind.Resume, PresentationOriginVersion = store.PresentationOrigin.Version } };
+            Task first = connection.SendAsync(command, CancellationToken.None);
+            Task queued = connection.SendAsync(command, cancellation.Token);
+            Assert.That(writer.Items.Count, Is.EqualTo(1));
+            Assert.That(queued.IsCompleted, Is.False);
+            if (changed == "keyframe") typeof(PresentationRealtimeConnection).GetMethod("WaitForKeyframe", flags).Invoke(connection, null);
+            if (changed == "not-ready") typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, false);
+            if (changed == "replace") typeof(PresentationRealtimeConnection).GetField("control", flags).SetValue(connection, null);
+            if (changed == "cancel") cancellation.Cancel();
+            if (changed == "dispose") connection.Dispose();
+            if (changed == "resync") typeof(PresentationRealtimeConnection).GetMethod("ResetSnapshotBootstrap", flags).Invoke(connection, null);
+            writer.FirstWriteRelease.SetResult(true);
+            await first;
+            Exception failure = null;
+            try { await queued; } catch (Exception exception) { failure = exception; }
+            if (changed == "keyframe")
+            {
+                Assert.That(failure, Is.Null);
+                Assert.That(writer.Items.Count, Is.EqualTo(2));
+            }
+            else
+            {
+                Assert.That(failure, changed == "cancel" ? Is.InstanceOf<OperationCanceledException>() : Is.InstanceOf<InvalidOperationException>());
+                Assert.That(writer.Items.Count, Is.EqualTo(1));
             }
         }
     }

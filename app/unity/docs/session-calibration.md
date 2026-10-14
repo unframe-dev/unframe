@@ -43,6 +43,8 @@ session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogica
 
 ## 検証
 
+RealtimeのControl接続はState handshakeとStateReady送信が完了するとRuntimeControlを送信できます。Pause中はサーバーがState keyframeを送らないため、PresenterのResume／Endは校正やkeyframeの受信を必要としません。LogicalInput・SurfaceInteraction・Trackingは引き続き校正と現行keyframeを必要とします。Control接続が失効した場合はRuntimeControlも停止します。
+
 EditModeで非identityのtracking frame・marker姿勢、逆変換、生成階層のOriginとの合成、共有Stateのclone・原子更新、reset・pause・source停止・frame変更、再確定、keyframe待機と再同期を検証します。ArUcoを利用する実機ではOpenCVの有効化が必要です。
 
 2026-10-07の検証では通常構成436件、OpenCV有効構成461件のEditModeテストと、ビルド設定除外・復元の8件が通過しました。OpenCV有効・ARM64 IL2CPPで通信SceneのAPK生成に成功し、カメラ権限とOpenCV / OpenXR / IL2CPPのARM64 library、ローカル設定の復元を確認しました。

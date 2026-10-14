@@ -43,6 +43,8 @@ namespace Unframe.Unity.PresentationRuntime
         private ulong replayReadyCut;
         private ulong replayOriginVersion;
         private bool awaitingKeyframe = true;
+        private bool disposed;
+        public bool ControlReady { get; private set; }
         public bool SessionReady { get; private set; }
         public event Action RuntimeChanged;
         public event Action Disconnected;
@@ -55,6 +57,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task RunAsync(Uri endpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken, string certFingerprint = null)
         {
+            if (disposed) throw new ObjectDisposedException(nameof(PresentationRealtimeConnection));
             if (lifetime != null) throw new InvalidOperationException("A connection is already running.");
             if (endpoint == null || endpoint.Scheme != "https" && !(endpoint.Scheme == "http" && endpoint.IsLoopback))
                 throw new ArgumentException("A TLS endpoint or local development loopback endpoint is required.", nameof(endpoint));
@@ -95,6 +98,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
             finally
             {
+                ControlReady = false;
                 SessionReady = false;
                 Disconnected?.Invoke();
                 lifetime.Dispose();
@@ -104,6 +108,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private async Task RunConnectionAsync(Uri endpoint, string bearer, string certFingerprint, CancellationToken token)
         {
+            ControlReady = false;
             using (YetAnotherHttpHandler handler = new YetAnotherHttpHandler { Http2Only = true })
             {
                 if (certFingerprint != null)
@@ -194,6 +199,7 @@ namespace Unframe.Unity.PresentationRuntime
                         }
                         finally
                         {
+                            ControlReady = false;
                             SessionReady = false;
                             Disconnected?.Invoke();
                             state?.Dispose();
@@ -241,6 +247,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void ResetSnapshotBootstrap()
         {
+            ControlReady = false;
             connectionId = null;
             fence = null;
             hasSnapshot = false;
@@ -275,6 +282,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void BeginReplayBootstrap()
         {
             if (!store.TryGetLastConnectionSnapshot(out _)) throw Failure("realtime resume requires an accepted snapshot");
+            ControlReady = false;
             WaitForKeyframe();
             replayBootstrap = true;
             replayMarkerPending = false;
@@ -309,23 +317,30 @@ namespace Unframe.Unity.PresentationRuntime
 
         private async Task RunStateAsync(CancellationToken token)
         {
-            if (!await state.ResponseStream.MoveNext(token) || state.ResponseStream.Current.ItemCase != StateServerItem.ItemOneofCase.Connected
-                || state.ResponseStream.Current.Connected.ConnectionId != connectionId) throw Failure("realtime state connection mismatch");
-            if (!store.TryValidateRuntimeOwnership(out string ownershipError)) throw Failure(ownershipError);
-            await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
-            RequireResidency();
-            BeginStateStream();
+            var expectedControl = control;
+            var expectedState = state;
             try
             {
-                while (await state.ResponseStream.MoveNext(token))
+                if (!await expectedState.ResponseStream.MoveNext(token) || expectedState.ResponseStream.Current.ItemCase != StateServerItem.ItemOneofCase.Connected
+                    || expectedState.ResponseStream.Current.Connected.ConnectionId != connectionId) throw Failure("realtime state connection mismatch");
+                if (!store.TryValidateRuntimeOwnership(out string ownershipError)) throw Failure(ownershipError);
+                await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
+                token.ThrowIfCancellationRequested();
+                if (disposed || control != expectedControl || state != expectedState)
+                    throw new InvalidOperationException("The Control connection changed before State readiness.");
+                RequireResidency();
+                BeginStateStream();
+                // Paused runtimes emit no State frames, so Resume must not depend on a keyframe.
+                ControlReady = true;
+                while (await expectedState.ResponseStream.MoveNext(token))
                 {
                     RequireResidency();
-                    if (!TryReceiveStateFrame(state.ResponseStream.Current, out bool applied, out string error)) throw Failure(error);
+                    if (!TryReceiveStateFrame(expectedState.ResponseStream.Current, out bool applied, out string error)) throw Failure(error);
                     if (applied) RuntimeChanged?.Invoke();
                 }
                 throw new RpcException(new Status(StatusCode.Unavailable, "realtime state stream ended"));
             }
-            finally { WaitForKeyframe(); }
+            finally { ControlReady = false; WaitForKeyframe(); }
         }
 
         private void BeginStateStream()
@@ -387,10 +402,18 @@ namespace Unframe.Unity.PresentationRuntime
         public Task SendAsync(ControlClientItem command, CancellationToken token)
         {
             RequireResidency();
-            if (!SessionReady || command == null || command.ItemCase != ControlClientItem.ItemOneofCase.LogicalInput
-                && command.ItemCase != ControlClientItem.ItemOneofCase.SurfaceInteraction && command.ItemCase != ControlClientItem.ItemOneofCase.RuntimeControl)
+            if (!IsCommandReady(command))
                 throw new InvalidOperationException("Runtime input requires a ready connection and a command payload.");
             return WriteInputAsync(control, command.Clone(), token);
+        }
+
+        private bool IsCommandReady(ControlClientItem command)
+        {
+            if (disposed || command == null) return false;
+            if (command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl)
+                return ControlReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter;
+            return SessionReady && (command.ItemCase == ControlClientItem.ItemOneofCase.LogicalInput
+                || command.ItemCase == ControlClientItem.ItemOneofCase.SurfaceInteraction);
         }
 
         private async Task WriteInputAsync(AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem> expectedControl, ControlClientItem command, CancellationToken token)
@@ -399,7 +422,7 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 RequireResidency();
-                if (!SessionReady || control != expectedControl || expectedControl == null)
+                if (!IsCommandReady(command) || control != expectedControl || expectedControl == null)
                     throw new InvalidOperationException("The runtime input connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 await expectedControl.RequestStream.WriteAsync(command);
@@ -459,6 +482,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(store.Delivery.Residency.Textures.Textures))
             {
+                ControlReady = false;
                 SessionReady = false;
                 lifetime?.Cancel();
                 throw Failure("asset_residency_lost");
@@ -469,6 +493,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Dispose()
         {
+            disposed = true;
+            ControlReady = false;
             SessionReady = false;
             lifetime?.Cancel();
             control?.Dispose();
