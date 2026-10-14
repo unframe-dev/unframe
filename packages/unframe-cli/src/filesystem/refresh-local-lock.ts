@@ -11,12 +11,20 @@ import { canonicalizeJsonPayload } from "@unframe/unframe-core";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
 import { hashDependencyGraph, type UnframeLock } from "./lock.js";
-import { digestBytes, lockedFile } from "./package-snapshot.js";
+import { digestBytes } from "./package-snapshot.js";
 import { projectDirectory, readDirectoryNames, readRegularFile } from "./path-policy.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
+import { prepareProjectSource, StylePreparationError } from "./prepare-project.js";
 
-type RefreshResult = { ok: true; revision: string } | { ok: false; code: string; message: string };
+type RefreshResult =
+  | { ok: true; revision: string }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+      diagnostics?: StylePreparationError["diagnostics"];
+    };
 
 /** Refresh local closure hashes without installing or replacing the locked package snapshot. */
 export const refreshLocalProjectLock = async (
@@ -51,15 +59,11 @@ export const refreshLocalProjectLock = async (
     if (!config) return failure("cli-lock-refresh-failed", "Project config could not be read.");
     const loaded = loadUnframeLock(found.lockBytes);
     if (!loaded.ok) return failure(loaded.diagnostic.code, loaded.diagnostic.message);
-    const source = {
-      projectRoot: found.projectDirectory,
-      entryFile: found.entryFile,
-      files: found.files,
-      rawFiles: found.localFiles
-        .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
-        .map(({ path, bytes }) => lockedFile(path, bytes)),
-      ...loaded.value.virtualSource,
-    };
+    const prepared = await prepareProjectSource(found, loaded.value.lock, {
+      refresh: true,
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
+    const { source } = prepared;
     const catalog = checkAuthoringProject(source);
     if (!catalog.valid)
       return failure(
@@ -76,6 +80,12 @@ export const refreshLocalProjectLock = async (
       ...loaded.value.lock,
       componentLocks: computed.value.componentLocks,
       themeHashes: computed.value.themeHashes,
+      ...(prepared.styleTransform
+        ? {
+            styleTransform: prepared.styleTransform,
+            styleSourceIdentity: prepared.styleSourceIdentity,
+          }
+        : {}),
     } as UnframeLock;
     next.dependencyGraphHash = hashDependencyGraph(next);
     const bytes = new TextEncoder().encode(canonicalizeJsonPayload(next) + "\n");
@@ -144,7 +154,14 @@ export const refreshLocalProjectLock = async (
     if (refreshed.revision !== expected)
       return failure("cli-output-stale", "Project inputs changed after lock refresh.");
     return { ok: true, revision: refreshed.revision };
-  } catch {
+  } catch (error) {
+    if (error instanceof StylePreparationError)
+      return {
+        ok: false,
+        code: error.code,
+        message: error.message,
+        diagnostics: error.diagnostics,
+      };
     return failure("cli-lock-refresh-failed", "Local lock refresh could not be completed.");
   } finally {
     if (temporary) await unlink(temporary).catch(() => undefined);

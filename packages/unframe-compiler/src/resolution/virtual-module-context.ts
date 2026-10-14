@@ -115,7 +115,8 @@ export class VirtualModuleContext {
     };
     for (const [fileName, sourceFile] of Object.entries(project.files)) {
       this.sourceFiles.set(sourceFile.fileName, sourceFile);
-      this.projectRootFiles.push(sourceFile.fileName);
+      if (!project.preparedStyles || fileName === project.entryFile)
+        this.projectRootFiles.push(sourceFile.fileName);
       this.#owners.set(sourceFile.fileName, projectOwner);
       this.#relativeNames.set(sourceFile.fileName, fileName);
     }

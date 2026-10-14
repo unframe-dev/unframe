@@ -30,7 +30,12 @@ const runtime = [
 ];
 const closed = (input: {
   entry: string;
-  modules: readonly { path: string; source: string | Uint8Array; moduleType: string }[];
+  modules: readonly {
+    path: string;
+    source: string | Uint8Array;
+    moduleType: string;
+    sourceMap?: string;
+  }[];
   [key: string]: unknown;
 }) =>
   bundleOpaqueRenderer({
@@ -417,3 +422,45 @@ describe("bundleOpaqueRenderer", () => {
     });
   });
 });
+
+it("preserves prepared CSS order, entry-relative asset URLs, fragments, and source maps", async () => {
+  const css = '.hero {background: url("../images/logo.png"); filter: url(#shadow)}';
+  const result = await closed({
+    entry: "entry.ts",
+    modules: [
+      module("entry.ts", 'import "./styles/second.css"; import "./styles/first.css";'),
+      {
+        ...module("styles/second.css", css, "css"),
+        sourceMap: '{"version":3,"sources":["original.css"]}',
+      },
+      module("styles/first.css", ".hero {color: red}", "css"),
+      {
+        path: "images/logo.png",
+        moduleType: "asset",
+        source: Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10),
+      },
+    ],
+  });
+  expect(result.ok ? [] : result.diagnostics).toEqual([]);
+  if (!result.ok) return;
+  expect(result.stylesheets).toEqual(["assets/styles/second.css", "assets/styles/first.css"]);
+  expect(result.assets).toContainEqual({ fileName: "assets/styles/second.css", source: css });
+  expect(result.assets).toContainEqual({
+    fileName: "assets/styles/second.css.map",
+    source: '{"version":3,"sources":["original.css"]}',
+  });
+});
+
+it.each(["file:///etc/passwd", "https://example.test/image.png", "//example.test/image.png"])(
+  "denies CSS URL %s without treating it as a local path",
+  async (url) => {
+    const result = await closed({
+      entry: "entry.ts",
+      modules: [
+        module("entry.ts", 'import "./style.css";'),
+        module("style.css", `.hero {background: url("${url}")}`, "css"),
+      ],
+    });
+    expect(result).toMatchObject({ ok: false, diagnostics: [{ code: "opaque-import-denied" }] });
+  },
+);

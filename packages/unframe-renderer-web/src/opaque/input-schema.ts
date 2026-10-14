@@ -68,9 +68,16 @@ const sourceModuleSchema = z
   .strictObject({
     path: modulePathSchema,
     source: z.string(),
+    sourceMap: z.string().optional(),
     moduleType: z.enum(["css", "js", "jsx", "json", "ts", "tsx"]),
   })
   .superRefine((module, context) => {
+    if (module.sourceMap !== undefined && module.moduleType !== "css")
+      context.addIssue({
+        code: "custom",
+        path: ["sourceMap"],
+        message: "Source maps are only supported for CSS modules.",
+      });
     if (!sourceTypeExtensions[module.moduleType].has(extensionOf(module.path)))
       context.addIssue({
         code: "custom",

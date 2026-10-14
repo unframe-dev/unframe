@@ -16,6 +16,7 @@ export type LockedOpaqueBundleInput = {
     readonly path: string;
     readonly moduleType: ModuleType;
     readonly source: string | Uint8Array;
+    readonly sourceMap?: string;
   }[];
   readonly resolutions: readonly {
     readonly importerPath: string;
@@ -257,8 +258,12 @@ export const prepareLockedOpaqueBundleInput = (
           : `project/${logicalPath}`;
       if (modules.has(path)) return path;
       const raw = owner ? owner.rawFiles[logicalPath] : source.rawFiles[logicalPath];
+      const prepared = !owner
+        ? source.preparedStyles?.stylesheets.find((sheet) => sheet.entry === logicalPath)
+        : undefined;
       const text =
         sourceOverride ??
+        prepared?.css ??
         (owner ? owner.files[logicalPath]?.text : source.files[logicalPath]?.text) ??
         (raw?.encoding === "utf8" ? raw.data : undefined);
       const kind = moduleType(logicalPath);
@@ -269,10 +274,16 @@ export const prepareLockedOpaqueBundleInput = (
       if (kind === "css" && raw?.mediaType !== "text/css")
         throw new Error(`Locked CSS media type is invalid: ${logicalPath}`);
       const bytes = kind === "asset" ? decode(raw!.encoding, raw!.data) : text!;
-      modules.set(path, { path, moduleType: kind, source: bytes });
+      modules.set(path, {
+        path,
+        moduleType: kind,
+        source: bytes,
+        ...(prepared?.sourceMap === undefined ? {} : { sourceMap: prepared.sourceMap }),
+      });
       const dependencies =
         kind === "css" ? cssImports(text!) : kind === "asset" ? [] : imports(logicalPath, text!);
       for (const dependency of dependencies) {
+        if (kind === "css" && dependency.specifier.startsWith("#")) continue;
         const specifier = dependency.specifier;
         const key = `${path}\0${specifier}\0${dependency.kind}`;
         if (resolutions.has(key)) continue;

@@ -26,6 +26,7 @@
     "@unframe/unframe-compiler": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-web": "workspace:*",
+    "@unframe/unframe-tailwind": "workspace:*",
     "solid-js": "1.9.12",
     "typescript": "5.9.3",
     "web-tree-sitter": "0.25.10",

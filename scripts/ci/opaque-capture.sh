@@ -32,4 +32,5 @@ pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test ru
   test/playwright-fixed-browser.integration.test.ts
 pnpm --dir "${repo_root}" --filter @unframe/unframe-cli exec vp test run --maxWorkers=1 \
   test/opaque-project.integration.test.ts test/author-capture.integration.test.ts \
-  test/author-source-diagnostics.integration.test.ts
+  test/author-source-diagnostics.integration.test.ts \
+  test/styles-worker.integration.test.ts test/tailwind-project.integration.test.ts

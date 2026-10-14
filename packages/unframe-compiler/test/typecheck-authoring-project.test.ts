@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 
 import { parseAuthoringProject } from "../src/project/parse-authoring-project.js";
 import { typecheckAuthoringProject } from "../src/resolution/typecheck-authoring-project.js";
@@ -189,4 +191,32 @@ describe("typecheckAuthoringProject", () => {
     if (!result.ok)
       expect(result.diagnostics.map((item) => item.code)).toEqual(["compiler-module-unresolved"]);
   });
+});
+
+it("checks only prepared authoring entry dependencies and ignores unrelated config helpers", () => {
+  const files = [
+    { fileName: "presentation.unframe.ts", sourceText: 'export const title: string = "Hello";' },
+    {
+      fileName: "theme-helper.ts",
+      sourceText: 'import fs from "node:fs"; export default fs.readFileSync("theme.json");',
+    },
+  ];
+  const parsed = parseAuthoringProject({
+    projectRoot: "/virtual/presentation",
+    entryFile: "presentation.unframe.ts",
+    files,
+    rootDependencies: [],
+    packages: [],
+    preparedStyles: {
+      identity: `sha256:${"a".repeat(64)}`,
+      inputs: files.map((file) => ({
+        path: file.fileName,
+        hash: `sha256:${bytesToHex(sha256(new TextEncoder().encode(file.sourceText)))}`,
+      })),
+      stylesheets: [],
+    },
+  });
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  expect(typecheckAuthoringProject(parsed.value)).toEqual({ ok: true, diagnostics: [] });
 });

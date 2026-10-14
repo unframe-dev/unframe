@@ -58,7 +58,7 @@ const imports = (file: ts.SourceFile, runtimeOnly: boolean): string[] => {
   return result;
 };
 const fileClosure = (
-  source: Pick<ParsedAuthoringProjectValue, "files" | "rawFiles">,
+  source: Pick<ParsedAuthoringProjectValue, "files" | "rawFiles" | "preparedStyles">,
   roots: readonly string[],
   runtimeOnly = false,
 ) => {
@@ -97,12 +97,14 @@ const fileClosure = (
         ? imports(ts.createSourceFile(path, raw.data, ts.ScriptTarget.ES2022, true), runtimeOnly)
         : raw?.mediaType === "text/css" && raw.encoding === "utf8"
           ? [
-              ...raw.data.matchAll(
-                /(?:@import\s+["']([^"']+)["']|url\(\s*["']?([^"')\s]+)["']?\s*\))/g,
-              ),
+              ...(
+                source.preparedStyles?.stylesheets.find((sheet) => sheet.entry === path)?.css ??
+                raw.data
+              ).matchAll(/(?:@import\s+["']([^"']+)["']|url\(\s*["']?([^"')\s]+)["']?\s*\))/g),
             ].map((match) => match[1] ?? match[2]!)
           : [];
     for (const specifier of references) {
+      if (raw?.mediaType === "text/css" && specifier.startsWith("#")) continue;
       if (specifier.startsWith(".")) visit(resolve(path, specifier));
       else if (raw?.mediaType === "text/css") {
         if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(specifier))
@@ -222,11 +224,12 @@ export const computeFrozenComponentInputs = (
               source,
               structured ? [entryFile, component.structure.fileName] : [entryFile],
             );
+            const files = source.preparedStyles ? source.preparedStyles.inputs : closure.files;
             return {
               kind: "local" as const,
               entryFile,
-              files: closure.files,
-              sourceHash: hashCanonicalJsonPayload({ entryFile, files: closure.files }),
+              files,
+              sourceHash: hashCanonicalJsonPayload({ entryFile, files }),
             };
           })();
         const originPackage =
@@ -269,6 +272,7 @@ export const computeFrozenComponentInputs = (
           : fileClosure(source, renderer.localDependencies, true);
         const rendererInputHash = hashCanonicalJsonPayload({
           extractionProfile: "react-component-v1",
+          ...(source.preparedStyles ? { preparedStyles: source.preparedStyles } : {}),
           rendererAst: renderer.entrySource,
           localFiles: renderClosure.files,
           originPackageIntegrity: originPackage?.contentIntegrity ?? null,

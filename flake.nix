@@ -88,6 +88,15 @@
           ]
           ++ chromiumRuntime;
         };
+        styleRuntimeClosure = pkgs.closureInfo {
+          rootPaths = [
+            pkgs.nodejs_24
+            pkgs.bash
+            pkgs.nix-ld
+            pkgs.glibc
+            pkgs.stdenv.cc.cc
+          ];
+        };
         nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
           NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
@@ -100,6 +109,8 @@
           FONTCONFIG_FILE = presentationFontconfig;
           UNFRAME_BWRAP_PATH = "${pkgs.bubblewrap}/bin/bwrap";
           UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
+          UNFRAME_STYLE_NODE = "${pkgs.nodejs_24}/bin/node";
+          UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
           UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_NIX_LD_SHIM = "${pkgs.nix-ld}/bin/nix-ld";
           UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";

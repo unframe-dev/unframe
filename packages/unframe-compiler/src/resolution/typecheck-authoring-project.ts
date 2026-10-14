@@ -85,6 +85,10 @@ export const analyzeAuthoringProject = (
   }
   if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
 
+  for (const [name, file] of context.sourceFiles)
+    if (context.ownerFor(file)?.kind === "project" && !visited.has(name))
+      context.sourceFiles.delete(name);
+
   const options = {
     jsx: ts.JsxEmit.ReactJSX,
     module: ts.ModuleKind.ESNext,
@@ -140,6 +144,9 @@ export const analyzeAuthoringProject = (
         ),
       })),
     });
+    for (const [name, file] of reactContext.sourceFiles)
+      if (reactContext.ownerFor(file)?.kind === "project" && !visited.has(name))
+        reactContext.sourceFiles.delete(name);
     const reactOptions = {
       ...options,
       baseUrl: project.projectRoot,

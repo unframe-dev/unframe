@@ -97,7 +97,9 @@ const snapshotInputUnchecked = (
   if (!moduleValues) return { ok: false, path: ["modules"] };
   const safeModules: Record<string, unknown>[] = [];
   for (const [index, value] of moduleValues.entries()) {
-    const item = snapshotStrictRecord(value, ["moduleType", "path", "source"]);
+    const item =
+      snapshotStrictRecord(value, ["moduleType", "path", "source"]) ??
+      snapshotStrictRecord(value, ["moduleType", "path", "source", "sourceMap"]);
     if (!item) return { ok: false, path: ["modules", String(index)] };
     const source = typeof item.source === "string" ? item.source : copyUint8Array(item.source);
     if (source === undefined) return { ok: false, path: ["modules", String(index), "source"] };
@@ -200,6 +202,13 @@ const invalidCssReference = (snapshot: {
   for (const item of snapshot.modules.values()) {
     if (item.moduleType !== "css") continue;
     for (const specifier of cssReferences(item.source)) {
+      if (specifier.startsWith("#")) continue;
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(specifier))
+        return {
+          code: "opaque-import-denied",
+          path: [item.path, specifier],
+          message: `CSS reference is outside the locked package: ${specifier}`,
+        };
       const relativePath = resolveRelativePath(
         item.path,
         specifier.startsWith(".") ? specifier : `./${specifier}`,
@@ -316,13 +325,20 @@ export const bundleOpaqueRenderer = async (input: unknown): Promise<OpaqueRender
         {
           name: "unframe-opaque-modules",
           buildStart() {
-            for (const item of snapshot.modules.values())
+            for (const item of snapshot.modules.values()) {
               if (item.moduleType === "asset" || item.moduleType === "css")
                 this.emitFile({
                   type: "asset",
                   fileName: `assets/${item.path}`,
                   source: item.source,
                 });
+              if (item.moduleType === "css" && item.sourceMap !== undefined)
+                this.emitFile({
+                  type: "asset",
+                  fileName: `assets/${item.path}.map`,
+                  source: item.sourceMap,
+                });
+            }
           },
           resolveId(specifier, importer, options) {
             if (specifier === entryId && importer === undefined) return entryId;
