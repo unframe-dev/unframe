@@ -18,6 +18,17 @@ export default defineConfig({
       // vitest-pool-workers 0.20.3 bundles Miniflare with support through 2026-08-01.
       miniflare: {
         compatibilityDate: "2026-08-01",
+        outboundService(request) {
+          if (
+            request.method === "POST" &&
+            request.url === "https://dash.better-auth.com/events/track"
+          ) {
+            return Response.json({ success: true });
+          }
+          throw new Error(
+            `Unmocked outbound request: ${request.method} ${new URL(request.url).hostname}`,
+          );
+        },
         bindings: {
           WEB_ORIGIN: "https://un-fra.me",
           BETTER_AUTH_SECRET: "test-secret-with-at-least-thirty-two-characters",
