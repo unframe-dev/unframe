@@ -75,7 +75,7 @@ it("includes renderer bootstrap dependencies for package-owned components", () =
   );
 });
 
-it.each(["js", "mjs", "cjs"])(
+it.each(["js", "jsx", "mjs", "cjs"])(
   "keeps package imports reached through a raw %s helper",
   (extension) => {
     const roots = authoringPackageRoots({
@@ -96,3 +96,45 @@ it.each(["js", "mjs", "cjs"])(
     expect(roots).not.toContain("node-only-plugin");
   },
 );
+
+it.each([
+  ["./helper.jsx", "helper.jsx"],
+  ["./helper", "helper.jsx"],
+  ["./helper", "helper/index.jsx"],
+  ["./helper", "helper.js"],
+  ["./helper", "helper/index.js"],
+])("keeps browser dependencies reached through %s at %s", (specifier, path) => {
+  const roots = authoringPackageRoots({
+    entryFile: "deck.tsx",
+    files: [{ fileName: "deck.tsx", sourceText: `import "${specifier}";` }],
+    localFiles: [
+      {
+        path,
+        bytes: new TextEncoder().encode('import "jsx-only-library";'),
+      },
+    ],
+  });
+  expect(roots).toContain("jsx-only-library");
+});
+
+it.each([
+  ["helper.d.ts", "helper.jsx"],
+  ["helper/index.d.ts", "helper/index.jsx"],
+])("keeps type and runtime dependencies when %s accompanies %s", (declaration, implementation) => {
+  const roots = authoringPackageRoots({
+    entryFile: "deck.tsx",
+    files: [
+      { fileName: "deck.tsx", sourceText: 'import {Helper} from "./helper";' },
+      { fileName: declaration, sourceText: 'export type Helper = import("helper-types").Helper;' },
+    ],
+    localFiles: [
+      {
+        path: implementation,
+        bytes: new TextEncoder().encode(
+          'import {value} from "runtime-library"; export const Helper = () => <div>{value}</div>;',
+        ),
+      },
+    ],
+  });
+  expect(roots).toEqual(expect.arrayContaining(["helper-types", "runtime-library"]));
+});

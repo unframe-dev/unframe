@@ -35,7 +35,7 @@ export const authoringPackageRoots = (
     found.files.map((file) => [file.fileName, file.sourceText]),
   );
   for (const file of found.localFiles ?? [])
-    if (/\.[cm]?js$/.test(file.path)) files.set(file.path, file.bytes);
+    if (/\.(?:[cm]?js|jsx)$/.test(file.path)) files.set(file.path, file.bytes);
   const visited = new Set<string>();
   const roots = new Set(["react", "react-dom", "@types/react", "@types/react-dom"]);
   const visit = (name: string): void => {
@@ -87,18 +87,32 @@ export const authoringPackageRoots = (
         else if (part !== ".") segments.push(part);
       }
       const path = segments.join("/");
-      const target = [
+      const candidates = [
         path,
         `${path}.ts`,
         `${path}.tsx`,
         `${path}.d.ts`,
+        `${path}.js`,
+        `${path}.jsx`,
+        `${path}.mjs`,
+        `${path}.cjs`,
         `${path}/index.ts`,
         `${path}/index.tsx`,
         `${path}/index.d.ts`,
+        `${path}/index.js`,
+        `${path}/index.jsx`,
+        `${path}/index.mjs`,
+        `${path}/index.cjs`,
         path.replace(/\.js$/, ".ts"),
         path.replace(/\.js$/, ".tsx"),
-      ].find((candidate) => files.has(candidate));
-      if (target) visit(target);
+      ];
+      // Declarations and runtime modules can import different packages.
+      const typeTarget = candidates.find((candidate) => files.has(candidate));
+      const runtimeTarget = candidates.find(
+        (candidate) => !candidate.endsWith(".d.ts") && files.has(candidate),
+      );
+      if (typeTarget) visit(typeTarget);
+      if (runtimeTarget) visit(runtimeTarget);
     }
   };
   visit(found.entryFile);
