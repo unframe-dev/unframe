@@ -27,7 +27,7 @@ export const runStyleWorker = async (
   const snapshot = validateNodeTransformSnapshot(input);
   if (options.signal?.aborted)
     throw new OpaqueIsolationError("opaque-capture-cancelled", "Style worker cancelled");
-  const nodePath = await realpath(process.env.UNFRAME_STYLE_NODE ?? snapshot.runtime.nodePath);
+  const nodePath = await realpath(process.env.UNFRAME_STYLE_NODE ?? process.execPath);
   const nodeHash = createHash("sha256")
     .update(await readFile(nodePath))
     .digest("hex");
