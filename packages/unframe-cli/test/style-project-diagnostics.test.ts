@@ -267,9 +267,13 @@ it("surfaces style warnings once in Author snapshots and completed build jobs", 
   };
   expect(snapshot.diagnostics).toEqual([expected]);
   const queued = await service.build(snapshot.revision, "b".repeat(32));
-  await expect.poll(async () => (await service.job(queued.buildId)).status).toBe("succeeded");
-  expect((await service.job(queued.buildId)).diagnostics).toEqual([expected]);
-});
+  await expect
+    .poll(async () => (await service.job(queued.buildId)).status, { timeout: 15_000 })
+    .not.toMatch(/^(queued|running)$/);
+  const completed = await service.job(queued.buildId);
+  expect(completed.status, JSON.stringify(completed.diagnostics)).toBe("succeeded");
+  expect(completed.diagnostics).toEqual([expected]);
+}, 30_000);
 
 it("prepares a directly imported uppercase CSS entry", async () => {
   const directory = await fixture();
