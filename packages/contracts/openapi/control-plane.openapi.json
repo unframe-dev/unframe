@@ -43,1291 +43,25 @@
           "content": {
             "application/json": {
               "schema": {
-                "allOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "schemaVersion": {
-                        "type": "number",
-                        "enum": [
-                          1
-                        ]
-                      },
-                      "metadata": {
-                        "type": "object",
-                        "properties": {
-                          "title": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 256
-                          },
-                          "description": {
-                            "type": "string",
-                            "maxLength": 4000
-                          }
-                        },
-                        "required": [
-                          "title"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "stage": {
-                        "type": "object",
-                        "properties": {
-                          "coordinateSystem": {
-                            "type": "object",
-                            "properties": {
-                              "unit": {
-                                "type": "string",
-                                "enum": [
-                                  "meter"
-                                ]
-                              },
-                              "handedness": {
-                                "type": "string",
-                                "enum": [
-                                  "right"
-                                ]
-                              },
-                              "upAxis": {
-                                "type": "string",
-                                "enum": [
-                                  "+Y"
-                                ]
-                              },
-                              "forwardAxis": {
-                                "type": "string",
-                                "enum": [
-                                  "-Z"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "unit",
-                              "handedness",
-                              "upAxis",
-                              "forwardAxis"
-                            ],
-                            "additionalProperties": false
-                          },
-                          "size": {
-                            "type": "array",
-                            "items": {
-                              "type": "number"
-                            },
-                            "minItems": 3,
-                            "maxItems": 3
-                          },
-                          "zones": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 128,
-                                  "pattern": "^[A-Za-z0-9_-]+$"
-                                },
-                                "bounds": {
-                                  "type": "object",
-                                  "properties": {
-                                    "min": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "number"
-                                      },
-                                      "minItems": 3,
-                                      "maxItems": 3
-                                    },
-                                    "max": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "number"
-                                      },
-                                      "minItems": 3,
-                                      "maxItems": 3
-                                    }
-                                  },
-                                  "required": [
-                                    "min",
-                                    "max"
-                                  ],
-                                  "additionalProperties": false
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "bounds"
-                              ],
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "coordinateSystem",
-                          "size",
-                          "zones"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "assets": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "assetId": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 128,
-                              "pattern": "^[A-Za-z0-9_-]+$"
-                            }
-                          },
-                          "required": [
-                            "assetId"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "groups": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 128,
-                              "pattern": "^[A-Za-z0-9_-]+$"
-                            },
-                            "elements": {
-                              "type": "array",
-                              "items": {
-                                "oneOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 128,
-                                        "pattern": "^[A-Za-z0-9_-]+$"
-                                      },
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "text"
-                                        ]
-                                      },
-                                      "content": {
-                                        "type": "object",
-                                        "properties": {
-                                          "text": {
-                                            "type": "string"
-                                          }
-                                        },
-                                        "required": [
-                                          "text"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      "initialState": {
-                                        "type": "object",
-                                        "properties": {
-                                          "active": {
-                                            "type": "boolean"
-                                          },
-                                          "visible": {
-                                            "type": "boolean"
-                                          },
-                                          "opacity": {
-                                            "type": "number",
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "transform": {
-                                            "type": "object",
-                                            "properties": {
-                                              "position": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              },
-                                              "rotation": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 4,
-                                                "maxItems": 4,
-                                                "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                              },
-                                              "scale": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              }
-                                            },
-                                            "required": [
-                                              "position",
-                                              "rotation",
-                                              "scale"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": [
-                                          "active",
-                                          "visible",
-                                          "opacity",
-                                          "transform"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "content",
-                                      "initialState"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 128,
-                                        "pattern": "^[A-Za-z0-9_-]+$"
-                                      },
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "shape"
-                                        ]
-                                      },
-                                      "content": {
-                                        "type": "object",
-                                        "properties": {
-                                          "shape": {
-                                            "type": "string",
-                                            "enum": [
-                                              "cube",
-                                              "sphere",
-                                              "plane"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "shape"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      "initialState": {
-                                        "type": "object",
-                                        "properties": {
-                                          "active": {
-                                            "type": "boolean"
-                                          },
-                                          "visible": {
-                                            "type": "boolean"
-                                          },
-                                          "opacity": {
-                                            "type": "number",
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "transform": {
-                                            "type": "object",
-                                            "properties": {
-                                              "position": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              },
-                                              "rotation": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 4,
-                                                "maxItems": 4,
-                                                "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                              },
-                                              "scale": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              }
-                                            },
-                                            "required": [
-                                              "position",
-                                              "rotation",
-                                              "scale"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": [
-                                          "active",
-                                          "visible",
-                                          "opacity",
-                                          "transform"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "content",
-                                      "initialState"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 128,
-                                        "pattern": "^[A-Za-z0-9_-]+$"
-                                      },
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "image"
-                                        ]
-                                      },
-                                      "content": {
-                                        "type": "object",
-                                        "properties": {
-                                          "assetId": {
-                                            "type": "string",
-                                            "minLength": 1,
-                                            "maxLength": 128,
-                                            "pattern": "^[A-Za-z0-9_-]+$"
-                                          }
-                                        },
-                                        "required": [
-                                          "assetId"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      "initialState": {
-                                        "type": "object",
-                                        "properties": {
-                                          "active": {
-                                            "type": "boolean"
-                                          },
-                                          "visible": {
-                                            "type": "boolean"
-                                          },
-                                          "opacity": {
-                                            "type": "number",
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "transform": {
-                                            "type": "object",
-                                            "properties": {
-                                              "position": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              },
-                                              "rotation": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 4,
-                                                "maxItems": 4,
-                                                "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                              },
-                                              "scale": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              }
-                                            },
-                                            "required": [
-                                              "position",
-                                              "rotation",
-                                              "scale"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": [
-                                          "active",
-                                          "visible",
-                                          "opacity",
-                                          "transform"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "content",
-                                      "initialState"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 128,
-                                        "pattern": "^[A-Za-z0-9_-]+$"
-                                      },
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "video"
-                                        ]
-                                      },
-                                      "content": {
-                                        "type": "object",
-                                        "properties": {
-                                          "assetId": {
-                                            "type": "string",
-                                            "minLength": 1,
-                                            "maxLength": 128,
-                                            "pattern": "^[A-Za-z0-9_-]+$"
-                                          }
-                                        },
-                                        "required": [
-                                          "assetId"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      "initialState": {
-                                        "type": "object",
-                                        "properties": {
-                                          "active": {
-                                            "type": "boolean"
-                                          },
-                                          "visible": {
-                                            "type": "boolean"
-                                          },
-                                          "opacity": {
-                                            "type": "number",
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "transform": {
-                                            "type": "object",
-                                            "properties": {
-                                              "position": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              },
-                                              "rotation": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 4,
-                                                "maxItems": 4,
-                                                "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                              },
-                                              "scale": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              }
-                                            },
-                                            "required": [
-                                              "position",
-                                              "rotation",
-                                              "scale"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": [
-                                          "active",
-                                          "visible",
-                                          "opacity",
-                                          "transform"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "content",
-                                      "initialState"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 128,
-                                        "pattern": "^[A-Za-z0-9_-]+$"
-                                      },
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "model"
-                                        ]
-                                      },
-                                      "content": {
-                                        "type": "object",
-                                        "properties": {
-                                          "assetId": {
-                                            "type": "string",
-                                            "minLength": 1,
-                                            "maxLength": 128,
-                                            "pattern": "^[A-Za-z0-9_-]+$"
-                                          }
-                                        },
-                                        "required": [
-                                          "assetId"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      "initialState": {
-                                        "type": "object",
-                                        "properties": {
-                                          "active": {
-                                            "type": "boolean"
-                                          },
-                                          "visible": {
-                                            "type": "boolean"
-                                          },
-                                          "opacity": {
-                                            "type": "number",
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "transform": {
-                                            "type": "object",
-                                            "properties": {
-                                              "position": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              },
-                                              "rotation": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 4,
-                                                "maxItems": 4,
-                                                "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                              },
-                                              "scale": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              }
-                                            },
-                                            "required": [
-                                              "position",
-                                              "rotation",
-                                              "scale"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": [
-                                          "active",
-                                          "visible",
-                                          "opacity",
-                                          "transform"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "content",
-                                      "initialState"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 128,
-                                        "pattern": "^[A-Za-z0-9_-]+$"
-                                      },
-                                      "type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "audio"
-                                        ]
-                                      },
-                                      "content": {
-                                        "type": "object",
-                                        "properties": {
-                                          "assetId": {
-                                            "type": "string",
-                                            "minLength": 1,
-                                            "maxLength": 128,
-                                            "pattern": "^[A-Za-z0-9_-]+$"
-                                          }
-                                        },
-                                        "required": [
-                                          "assetId"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      "initialState": {
-                                        "type": "object",
-                                        "properties": {
-                                          "active": {
-                                            "type": "boolean"
-                                          },
-                                          "visible": {
-                                            "type": "boolean"
-                                          },
-                                          "opacity": {
-                                            "type": "number",
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "transform": {
-                                            "type": "object",
-                                            "properties": {
-                                              "position": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              },
-                                              "rotation": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number"
-                                                },
-                                                "minItems": 4,
-                                                "maxItems": 4,
-                                                "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                              },
-                                              "scale": {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                },
-                                                "minItems": 3,
-                                                "maxItems": 3
-                                              }
-                                            },
-                                            "required": [
-                                              "position",
-                                              "rotation",
-                                              "scale"
-                                            ],
-                                            "additionalProperties": false
-                                          }
-                                        },
-                                        "required": [
-                                          "active",
-                                          "visible",
-                                          "opacity",
-                                          "transform"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "type",
-                                      "content",
-                                      "initialState"
-                                    ],
-                                    "additionalProperties": false
-                                  }
-                                ]
-                              }
-                            },
-                            "anchoredElementGroups": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 128,
-                                    "pattern": "^[A-Za-z0-9_-]+$"
-                                  },
-                                  "anchor": {
-                                    "type": "string",
-                                    "enum": [
-                                      "head",
-                                      "leftHand",
-                                      "rightHand",
-                                      "body"
-                                    ]
-                                  },
-                                  "transform": {
-                                    "type": "object",
-                                    "properties": {
-                                      "position": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "number"
-                                        },
-                                        "minItems": 3,
-                                        "maxItems": 3
-                                      },
-                                      "rotation": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "number"
-                                        },
-                                        "minItems": 4,
-                                        "maxItems": 4,
-                                        "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                      },
-                                      "scale": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "exclusiveMinimum": true
-                                        },
-                                        "minItems": 3,
-                                        "maxItems": 3
-                                      }
-                                    },
-                                    "required": [
-                                      "position",
-                                      "rotation",
-                                      "scale"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  "elementIds": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string",
-                                      "minLength": 1,
-                                      "maxLength": 128,
-                                      "pattern": "^[A-Za-z0-9_-]+$"
-                                    },
-                                    "minItems": 1
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "anchor",
-                                  "transform",
-                                  "elementIds"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "steps": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string",
-                                    "minLength": 1,
-                                    "maxLength": 128,
-                                    "pattern": "^[A-Za-z0-9_-]+$"
-                                  },
-                                  "cues": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "id": {
-                                          "type": "string",
-                                          "minLength": 1,
-                                          "maxLength": 128,
-                                          "pattern": "^[A-Za-z0-9_-]+$"
-                                        },
-                                        "trigger": {
-                                          "oneOf": [
-                                            {
-                                              "type": "object",
-                                              "properties": {
-                                                "kind": {
-                                                  "type": "string",
-                                                  "enum": [
-                                                    "button"
-                                                  ]
-                                                },
-                                                "action": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 128
-                                                }
-                                              },
-                                              "required": [
-                                                "kind",
-                                                "action"
-                                              ],
-                                              "additionalProperties": false
-                                            },
-                                            {
-                                              "type": "object",
-                                              "properties": {
-                                                "kind": {
-                                                  "type": "string",
-                                                  "enum": [
-                                                    "enterZone"
-                                                  ]
-                                                },
-                                                "zoneId": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 128,
-                                                  "pattern": "^[A-Za-z0-9_-]+$"
-                                                }
-                                              },
-                                              "required": [
-                                                "kind",
-                                                "zoneId"
-                                              ],
-                                              "additionalProperties": false
-                                            },
-                                            {
-                                              "type": "object",
-                                              "properties": {
-                                                "kind": {
-                                                  "type": "string",
-                                                  "enum": [
-                                                    "motion"
-                                                  ]
-                                                },
-                                                "minimumDistanceMeters": {
-                                                  "type": "number",
-                                                  "minimum": 0,
-                                                  "exclusiveMinimum": true
-                                                }
-                                              },
-                                              "required": [
-                                                "kind",
-                                                "minimumDistanceMeters"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          ]
-                                        },
-                                        "actions": {
-                                          "type": "array",
-                                          "items": {
-                                            "oneOf": [
-                                              {
-                                                "type": "object",
-                                                "properties": {
-                                                  "kind": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "setActive"
-                                                    ]
-                                                  },
-                                                  "targetElementId": {
-                                                    "type": "string",
-                                                    "minLength": 1,
-                                                    "maxLength": 128,
-                                                    "pattern": "^[A-Za-z0-9_-]+$"
-                                                  },
-                                                  "active": {
-                                                    "type": "boolean"
-                                                  },
-                                                  "transition": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "durationSeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      },
-                                                      "delaySeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      }
-                                                    },
-                                                    "required": [
-                                                      "durationSeconds",
-                                                      "delaySeconds"
-                                                    ],
-                                                    "additionalProperties": false
-                                                  }
-                                                },
-                                                "required": [
-                                                  "kind",
-                                                  "targetElementId",
-                                                  "active"
-                                                ],
-                                                "additionalProperties": false
-                                              },
-                                              {
-                                                "type": "object",
-                                                "properties": {
-                                                  "kind": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "setVisible"
-                                                    ]
-                                                  },
-                                                  "targetElementId": {
-                                                    "type": "string",
-                                                    "minLength": 1,
-                                                    "maxLength": 128,
-                                                    "pattern": "^[A-Za-z0-9_-]+$"
-                                                  },
-                                                  "visible": {
-                                                    "type": "boolean"
-                                                  },
-                                                  "transition": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "durationSeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      },
-                                                      "delaySeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      }
-                                                    },
-                                                    "required": [
-                                                      "durationSeconds",
-                                                      "delaySeconds"
-                                                    ],
-                                                    "additionalProperties": false
-                                                  }
-                                                },
-                                                "required": [
-                                                  "kind",
-                                                  "targetElementId",
-                                                  "visible"
-                                                ],
-                                                "additionalProperties": false
-                                              },
-                                              {
-                                                "type": "object",
-                                                "properties": {
-                                                  "kind": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "setOpacity"
-                                                    ]
-                                                  },
-                                                  "targetElementId": {
-                                                    "type": "string",
-                                                    "minLength": 1,
-                                                    "maxLength": 128,
-                                                    "pattern": "^[A-Za-z0-9_-]+$"
-                                                  },
-                                                  "opacity": {
-                                                    "type": "number",
-                                                    "minimum": 0,
-                                                    "maximum": 1
-                                                  },
-                                                  "transition": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "durationSeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      },
-                                                      "delaySeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      }
-                                                    },
-                                                    "required": [
-                                                      "durationSeconds",
-                                                      "delaySeconds"
-                                                    ],
-                                                    "additionalProperties": false
-                                                  }
-                                                },
-                                                "required": [
-                                                  "kind",
-                                                  "targetElementId",
-                                                  "opacity"
-                                                ],
-                                                "additionalProperties": false
-                                              },
-                                              {
-                                                "type": "object",
-                                                "properties": {
-                                                  "kind": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "setTransform"
-                                                    ]
-                                                  },
-                                                  "targetElementId": {
-                                                    "type": "string",
-                                                    "minLength": 1,
-                                                    "maxLength": 128,
-                                                    "pattern": "^[A-Za-z0-9_-]+$"
-                                                  },
-                                                  "transform": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "position": {
-                                                        "type": "array",
-                                                        "items": {
-                                                          "type": "number"
-                                                        },
-                                                        "minItems": 3,
-                                                        "maxItems": 3
-                                                      },
-                                                      "rotation": {
-                                                        "type": "array",
-                                                        "items": {
-                                                          "type": "number"
-                                                        },
-                                                        "minItems": 4,
-                                                        "maxItems": 4,
-                                                        "description": "Normalized [x, y, z, w] quaternion; the server accepts a norm tolerance of 0.0001."
-                                                      },
-                                                      "scale": {
-                                                        "type": "array",
-                                                        "items": {
-                                                          "type": "number",
-                                                          "minimum": 0,
-                                                          "exclusiveMinimum": true
-                                                        },
-                                                        "minItems": 3,
-                                                        "maxItems": 3
-                                                      }
-                                                    },
-                                                    "required": [
-                                                      "position",
-                                                      "rotation",
-                                                      "scale"
-                                                    ],
-                                                    "additionalProperties": false
-                                                  },
-                                                  "transition": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "durationSeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      },
-                                                      "delaySeconds": {
-                                                        "type": "number",
-                                                        "minimum": 0
-                                                      }
-                                                    },
-                                                    "required": [
-                                                      "durationSeconds",
-                                                      "delaySeconds"
-                                                    ],
-                                                    "additionalProperties": false
-                                                  }
-                                                },
-                                                "required": [
-                                                  "kind",
-                                                  "targetElementId",
-                                                  "transform"
-                                                ],
-                                                "additionalProperties": false
-                                              }
-                                            ]
-                                          },
-                                          "minItems": 1
-                                        },
-                                        "next": {
-                                          "oneOf": [
-                                            {
-                                              "type": "object",
-                                              "properties": {
-                                                "kind": {
-                                                  "type": "string",
-                                                  "enum": [
-                                                    "step"
-                                                  ]
-                                                },
-                                                "stepId": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 128,
-                                                  "pattern": "^[A-Za-z0-9_-]+$"
-                                                }
-                                              },
-                                              "required": [
-                                                "kind",
-                                                "stepId"
-                                              ],
-                                              "additionalProperties": false
-                                            },
-                                            {
-                                              "type": "object",
-                                              "properties": {
-                                                "kind": {
-                                                  "type": "string",
-                                                  "enum": [
-                                                    "group"
-                                                  ]
-                                                },
-                                                "groupId": {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 128,
-                                                  "pattern": "^[A-Za-z0-9_-]+$"
-                                                }
-                                              },
-                                              "required": [
-                                                "kind",
-                                                "groupId"
-                                              ],
-                                              "additionalProperties": false
-                                            },
-                                            {
-                                              "type": "object",
-                                              "properties": {
-                                                "kind": {
-                                                  "type": "string",
-                                                  "enum": [
-                                                    "end"
-                                                  ]
-                                                }
-                                              },
-                                              "required": [
-                                                "kind"
-                                              ],
-                                              "additionalProperties": false
-                                            }
-                                          ]
-                                        }
-                                      },
-                                      "required": [
-                                        "id",
-                                        "trigger",
-                                        "actions",
-                                        "next"
-                                      ],
-                                      "additionalProperties": false
-                                    },
-                                    "minItems": 1
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "cues"
-                                ],
-                                "additionalProperties": false
-                              },
-                              "minItems": 1
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "elements",
-                            "anchoredElementGroups",
-                            "steps"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "minItems": 1
-                      }
-                    },
-                    "required": [
-                      "schemaVersion",
-                      "metadata",
-                      "stage",
-                      "assets",
-                      "groups"
-                    ],
-                    "additionalProperties": false,
-                    "description": "Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries."
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_-]+$"
                   },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "assets": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "assetId": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 128,
-                              "pattern": "^[A-Za-z0-9_-]+$"
-                            }
-                          },
-                          "required": [
-                            "assetId"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "maxItems": 0
-                      }
-                    },
-                    "required": [
-                      "assets"
-                    ]
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
                   }
-                ]
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -1346,8 +80,12 @@
                     "revision": {
                       "type": "integer"
                     },
+                    "name": {
+                      "type": "string"
+                    },
                     "definition": {
                       "type": "object",
+                      "nullable": true,
                       "properties": {
                         "schemaVersion": {
                           "type": "number",
@@ -2612,6 +1350,7 @@
                   "required": [
                     "id",
                     "revision",
+                    "name",
                     "definition",
                     "createdAt",
                     "updatedAt"
@@ -2621,7 +1360,7 @@
             }
           },
           "400": {
-            "description": "Invalid definition",
+            "description": "Invalid presentation registration",
             "content": {
               "application/json": {
                 "schema": {
@@ -2652,6 +1391,36 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Presentation ID is not writable",
             "content": {
               "application/json": {
                 "schema": {
@@ -2710,8 +1479,12 @@
                           "revision": {
                             "type": "integer"
                           },
+                          "name": {
+                            "type": "string"
+                          },
                           "definition": {
                             "type": "object",
+                            "nullable": true,
                             "properties": {
                               "schemaVersion": {
                                 "type": "number",
@@ -3976,6 +2749,7 @@
                         "required": [
                           "id",
                           "revision",
+                          "name",
                           "definition",
                           "createdAt",
                           "updatedAt"
@@ -4060,8 +2834,12 @@
                     "revision": {
                       "type": "integer"
                     },
+                    "name": {
+                      "type": "string"
+                    },
                     "definition": {
                       "type": "object",
+                      "nullable": true,
                       "properties": {
                         "schemaVersion": {
                           "type": "number",
@@ -5326,6 +4104,7 @@
                   "required": [
                     "id",
                     "revision",
+                    "name",
                     "definition",
                     "createdAt",
                     "updatedAt"
@@ -6770,8 +5549,12 @@
                     "revision": {
                       "type": "integer"
                     },
+                    "name": {
+                      "type": "string"
+                    },
                     "definition": {
                       "type": "object",
+                      "nullable": true,
                       "properties": {
                         "schemaVersion": {
                           "type": "number",
@@ -8036,6 +6819,7 @@
                   "required": [
                     "id",
                     "revision",
+                    "name",
                     "definition",
                     "createdAt",
                     "updatedAt"
@@ -13696,14 +12480,35 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
                   },
-                  "expectedPublicationEpoch": {
-                    "type": "integer",
-                    "minimum": 0
+                  "expectedPublicationFence": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "presentationId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "publicationEpoch": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "publicationManifestHash": {
+                        "type": "string",
+                        "pattern": "^sha256:[0-9a-f]{64}$"
+                      }
+                    },
+                    "required": [
+                      "presentationId",
+                      "publicationEpoch",
+                      "publicationManifestHash"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
                   "buildId",
-                  "expectedPublicationEpoch"
+                  "expectedPublicationFence"
                 ],
                 "additionalProperties": false
               }
@@ -14464,6 +13269,192 @@
           },
           "422": {
             "description": "Unsupported capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publication-assets/{presentationId}/{buildId}/{assetId}": {
+      "get": {
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "required": true,
+            "name": "presentationId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+            },
+            "required": true,
+            "name": "buildId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,15}$"
+            },
+            "required": true,
+            "name": "expires",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "required": true,
+            "name": "signature",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified immutable publication asset",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid asset capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid or expired asset capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Published asset not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Published asset integrity mismatch",
             "content": {
               "application/json": {
                 "schema": {

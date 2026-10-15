@@ -1,6 +1,6 @@
 # ADR-0003: Unframe モノレポを Go backend と分離フロントエンドへ全面刷新する
 
-- **Status**: Accepted（レイアウト命名は [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md) で置換）
+- **Status**: Superseded（レイアウト命名は [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md)、Backend 構成は [Server Architecture](../../../app/server/ARCHITECTURE.md) を参照）
 - **Date**: 2026-07-13
 - **Deciders**: Unframe 開発チーム
 - **関連**: [ADR-0001（アーカイブ）](./0001-backend-mvp-design.md), [ADR-0002（アーカイブ）](./0002-supabase-storage-and-db.md), [ADR-0004](../0004-monorepo-layout-and-nix-toolchain.md)

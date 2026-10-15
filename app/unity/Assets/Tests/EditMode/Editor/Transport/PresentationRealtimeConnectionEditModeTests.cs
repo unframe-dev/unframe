@@ -57,6 +57,34 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         }
     }
 
+    [Test]
+    public async Task NewConnectionClearsControlReadinessBeforeCreatingCustomHandler()
+    {
+        var store = CreateOwnedStore();
+        using (var textures = new PresentationTextureResidency())
+        using (var connection = new PresentationRealtimeConnection(store, textures))
+        {
+            typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(connection, true);
+            bool factoryCalled = false;
+            bool readyAtFactory = true;
+            var failure = new InvalidOperationException("handler creation failed");
+            Func<YetAnotherHttpHandler> factory = () =>
+            {
+                factoryCalled = true;
+                readyAtFactory = connection.ControlReady;
+                throw failure;
+            };
+            var method = typeof(PresentationRealtimeConnection).GetMethod("RunConnectionAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+            var run = (Task)method.Invoke(connection, new object[] { new Uri("http://localhost:12345"), "test-bearer", null, CancellationToken.None, factory });
+            Exception observed = null;
+            try { await run; } catch (Exception exception) { observed = exception; }
+            Assert.That(factoryCalled, Is.True);
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(readyAtFactory, Is.False);
+            Assert.That(connection.ControlReady, Is.False);
+        }
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public async Task StateReadyPermitsRuntimeControlButNotInputOrTrackingBeforeFirstKeyframe(bool paused)

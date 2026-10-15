@@ -5,9 +5,9 @@ import type {
   ProjectedRuntimeCatalogWire,
 } from "@unframe/contracts/presentation";
 import { calculateProjectionProfileId } from "./profile-identity.js";
-import { selectDeliveryArtifacts, type DeliverySelection } from "./selection.js";
-import { parseDeliveryInputs } from "./input.js";
-import type { DeliverySourceInput } from "./input.js";
+import { selectDeliveryArtifactsParsed, type DeliverySelection } from "./selection.js";
+import { parseDeliveryInputs, parseBuildInputs } from "./input.js";
+import type { DeliverySourceInput, BuildSourceInput } from "./input.js";
 
 const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const pairs = <T>(record: Record<string, T>) =>
@@ -366,18 +366,24 @@ const runtimeCatalog = (
   return { catalogContractVersion: 2, nodes, surfaces, variables, timelines, modelClips };
 };
 
-export const buildProjectionProfile = (
-  input: DeliverySourceInput,
+export type RuntimeProjection = Omit<
+  ProjectionProfileDescriptorWire,
+  "projectionProfileId" | "key"
+>;
+
+const buildProjection = (
+  parsed: BuildSourceInput,
   role: "presenter" | "viewer",
-) => {
-  if (role !== "presenter" && role !== "viewer")
-    throw new TypeError("Delivery role must be presenter or viewer.");
-  const parsed = parseDeliveryInputs(input);
+): { projection: RuntimeProjection; selection: DeliverySelection } => {
   const definition = parsed.definition;
   const bundle = parsed.renderBundle;
-  const publication = parsed.publishedPresentation;
-  const capability = parsed.capability;
-  const selection = selectDeliveryArtifacts(input, role);
+  const selection = selectDeliveryArtifactsParsed(
+    definition,
+    bundle,
+    parsed.assetSet,
+    parsed.capability,
+    role,
+  );
   const renderSurfaces = [...selection.renderSurfaces]
     .sort((a, b) => byId(a.semanticSurfaceId, b.semanticSurfaceId) || a.layer - b.layer)
     .map((render) => {
@@ -456,6 +462,40 @@ export const buildProjectionProfile = (
   if (catalog.surfaces.some((surface) => surface.hasVideo)) capabilities.push(4);
   if (catalog.modelClips.length) capabilities.push(5);
   if (catalog.nodes.some((node) => "presenterAnchor" in node.parent)) capabilities.push(6);
+  const projection: RuntimeProjection = {
+    visibleNodeIds: selection.visibleNodeIds,
+    visibleSurfaceIds: selection.visibleSurfaceIds,
+    visibleVariableIds: selection.visibleVariableIds,
+    renderSurfaces,
+    semanticSurfaces,
+    localOverlays: [],
+    requiredRuntimeCapabilities: capabilities,
+    runtimeCatalog: catalog as unknown as ProjectedRuntimeCatalogWire,
+  };
+  return { projection, selection };
+};
+
+const requireRole = (role: "presenter" | "viewer") => {
+  if (role !== "presenter" && role !== "viewer")
+    throw new TypeError("Delivery role must be presenter or viewer.");
+};
+
+export const buildRuntimeProjection = (
+  input: BuildSourceInput,
+  role: "presenter" | "viewer",
+): { projection: RuntimeProjection; selection: DeliverySelection } => {
+  requireRole(role);
+  return buildProjection(parseBuildInputs(input), role);
+};
+
+export const buildProjectionProfile = (
+  input: DeliverySourceInput,
+  role: "presenter" | "viewer",
+) => {
+  requireRole(role);
+  const parsed = parseDeliveryInputs(input);
+  const { projection, selection } = buildProjection(parsed, role);
+  const publication = parsed.publishedPresentation;
   const profile: ProjectionProfileDescriptorWire = {
     projectionProfileId: "",
     key: {
@@ -466,16 +506,9 @@ export const buildProjectionProfile = (
       },
       projectionContractVersion: 1,
       role: roleNumber[role],
-      capabilityProfileId: capability.capabilityProfileId,
+      capabilityProfileId: parsed.capability.capabilityProfileId,
     },
-    visibleNodeIds: selection.visibleNodeIds,
-    visibleSurfaceIds: selection.visibleSurfaceIds,
-    visibleVariableIds: selection.visibleVariableIds,
-    renderSurfaces,
-    semanticSurfaces,
-    localOverlays: [],
-    requiredRuntimeCapabilities: capabilities,
-    runtimeCatalog: catalog as unknown as ProjectedRuntimeCatalogWire,
+    ...projection,
   };
   profile.projectionProfileId = calculateProjectionProfileId(profile);
   return {

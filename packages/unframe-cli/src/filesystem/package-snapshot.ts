@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { parseDocument } from "yaml";
 import { parseStrictJson } from "./strict-json.js";
 import { readDirectoryNames, readRegularFile } from "./path-policy.js";
@@ -35,19 +35,23 @@ const conditions = {
   runtimeRequire: new Set(["browser", "require", "production", "default"]),
   types: new Set(["types", "import", "default"]),
 };
-const target = (value: unknown, active: Set<string>): string | null | undefined => {
+const target = (
+  value: unknown,
+  active: Set<string>,
+  resolve: (path: string) => string | undefined = (path) => path,
+): string | null | undefined => {
   if (value === null || value === undefined) return value;
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return resolve(value);
   if (Array.isArray(value)) {
     for (const item of value) {
-      const result = target(item, active);
+      const result = target(item, active, resolve);
       if (result !== undefined) return result;
     }
     return undefined;
   }
   for (const [condition, branch] of Object.entries(record(value))) {
     if (active.has(condition)) {
-      const result = target(branch, active);
+      const result = target(branch, active, resolve);
       if (result !== undefined) return result;
     }
   }
@@ -68,7 +72,25 @@ const pathTarget = (value: string | null | undefined, files: readonly string[]):
 export const resolvePackageExportTargets = (
   manifest: Record<string, unknown>,
   files: readonly string[],
+  nestedManifests: Readonly<Record<string, Record<string, unknown>>> = {},
 ): PackageSnapshot["exports"] => {
+  const typeTarget = (path: string): string | undefined => {
+    const extensions = path.endsWith(".mjs")
+      ? [".mts", ".d.mts"]
+      : path.endsWith(".cjs")
+        ? [".cts", ".d.cts"]
+        : path.endsWith(".js")
+          ? [".ts", ".tsx", ".d.ts"]
+          : undefined;
+    if (!extensions) return path;
+    const stem = path.replace(/\.[mc]?js$/u, "");
+    return extensions
+      .map((extension) => `${stem}${extension}`)
+      .find((candidate) => {
+        const relative = candidate.startsWith("./") ? candidate.slice(2) : candidate;
+        return files.includes(relative);
+      });
+  };
   const browserMap =
     manifest.browser && typeof manifest.browser === "object" ? record(manifest.browser) : undefined;
   const browserTarget = (path: string | null) => {
@@ -117,7 +139,70 @@ export const resolvePackageExportTargets = (
     };
     if (!row.runtimeImport && !row.runtimeRequire && !row.types)
       throw new Error("Package has no explicit root entry.");
-    return [row];
+    const nestedRows = Object.entries(nestedManifests).flatMap(([directory, nested]) => {
+      const normalize = (value: unknown) => {
+        if (typeof value !== "string") return value;
+        if (value.startsWith("/") || value.includes("\\"))
+          throw new Error("Nested package entry must remain inside its owning package.");
+        const path = posix.join(directory, value);
+        if (path === ".." || path.startsWith("../"))
+          throw new Error("Nested package entry must remain inside its owning package.");
+        return `./${path}`;
+      };
+      const entry: Record<string, unknown> = {};
+      for (const field of ["main", "module", "types", "typings"])
+        if (nested[field] !== undefined) entry[field] = normalize(nested[field]);
+      if (typeof nested.browser === "string") entry.browser = normalize(nested.browser);
+      else if (nested.browser && typeof nested.browser === "object")
+        entry.browser = Object.fromEntries(
+          Object.entries(record(nested.browser)).map(([from, to]) => [
+            normalize(from),
+            normalize(to),
+          ]),
+        );
+      if (!entry.main && files.includes(`${directory}/index.js`))
+        entry.main = `./${directory}/index.js`;
+      if (!entry.types && !entry.typings) {
+        const runtime = entry.module ?? entry.main;
+        entry.types = typeof runtime === "string" ? typeTarget(runtime) : undefined;
+      }
+      if (
+        ![entry.main, entry.module, entry.types, entry.typings, entry.browser].some(
+          (value) => typeof value === "string",
+        )
+      )
+        return [];
+      const nestedBrowser =
+        entry.browser && typeof entry.browser === "object" ? record(entry.browser) : undefined;
+      for (const [from, to] of Object.entries(nestedBrowser ?? {})) {
+        pathTarget(from, files);
+        if (to !== false) pathTarget(text(to), files);
+      }
+      const remap = (path: string | null) => {
+        const mapped = path === null ? undefined : nestedBrowser?.[`./${path}`];
+        return browserTarget(
+          mapped === false ? null : mapped === undefined ? path : pathTarget(text(mapped), files),
+        );
+      };
+      return [
+        {
+          subpath: `./${directory}`,
+          runtimeImport: remap(
+            pathTarget(first(entry.browser, entry.module, entry.main) ?? null, files),
+          ),
+          runtimeRequire: remap(pathTarget(first(entry.main) ?? null, files)),
+          types: pathTarget(
+            first(
+              entry.types,
+              entry.typings,
+              files.includes(`${directory}/index.d.ts`) ? `./${directory}/index.d.ts` : undefined,
+            ) ?? null,
+            files,
+          ),
+        },
+      ];
+    });
+    return [row, ...nestedRows].sort((a, b) => compare(a.subpath, b.subpath));
   }
   const exports = manifest.exports;
   const entries =
@@ -189,11 +274,14 @@ export const resolvePackageExportTargets = (
       const concreteSubpath = subpath.replace("*", replacement);
       const resolve = (template: string | null | undefined) =>
         pathTarget(template?.replace("*", replacement) ?? null, files);
+      const types = target(value, conditions.types, (path) =>
+        typeTarget(path.replace("*", replacement)),
+      );
       const row = {
         subpath: concreteSubpath,
         runtimeImport: browserTarget(resolve(templates.runtimeImport)),
         runtimeRequire: browserTarget(resolve(templates.runtimeRequire)),
-        types: resolve(templates.types),
+        types: types === undefined ? resolve(templates.types) : pathTarget(types, files),
       };
       const previous = rows.get(concreteSubpath);
       const prefix = wildcardCount === 0 ? Infinity : subpath.indexOf("*");
@@ -288,6 +376,7 @@ const packageFiles = async (root: string): Promise<LockedFile[]> => {
 /** Reads only an explicitly installed pnpm graph; never evaluates package or lifecycle code. */
 export const snapshotInstalledPackages = async (
   root: string,
+  options: { rootSpecifiers?: readonly string[] } = {},
 ): Promise<{
   packageManagerLockHash: ContentHash;
   rootDependencies: LockedDependency[];
@@ -354,9 +443,18 @@ export const snapshotInstalledPackages = async (
       );
     let exports: PackageSnapshot["exports"];
     try {
+      const nestedManifests: Record<string, Record<string, unknown>> = {};
+      if (manifest.exports === undefined)
+        for (const file of files) {
+          if (!file.path.endsWith("/package.json") || file.encoding !== "utf8") continue;
+          const nested = parseStrictJson(new TextEncoder().encode(file.data));
+          if (!nested.ok) throw new Error(`Invalid nested package manifest JSON: ${file.path}`);
+          nestedManifests[file.path.slice(0, -"/package.json".length)] = record(nested.value);
+        }
       exports = resolvePackageExportTargets(
         manifest,
         files.map((f) => f.path),
+        nestedManifests,
       );
     } catch (error) {
       throw new Error(
@@ -396,6 +494,7 @@ export const snapshotInstalledPackages = async (
     ...record(importer.optionalDependencies ?? {}),
   };
   for (const [specifier, input] of Object.entries(roots)) {
+    if (options.rootSpecifiers && !options.rootSpecifiers.includes(specifier)) continue;
     rootDependencies.push({
       specifier: typeSpecifier(specifier),
       usage: specifier.startsWith("@types/") ? "types" : "runtime",

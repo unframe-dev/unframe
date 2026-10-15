@@ -30,15 +30,11 @@ const main = async () => {
       ["✨ add feature", "✨ add feature"],
     ]) {
       await writeFile(messagePath, `${input}\n\nDetailed body.\n`);
-      execFileSync(
-        "bash",
-        [
-          join(repositoryRoot, "packages/config/githooks/prepare-commit-msg"),
-          messagePath,
-          "message",
-        ],
-        { env: { ...process.env, PATH: "/usr/bin:/bin" } },
-      );
+      execFileSync("bash", [
+        join(repositoryRoot, "packages/config/githooks/prepare-commit-msg"),
+        messagePath,
+        "message",
+      ]);
       assert.equal(await readFile(messagePath, "utf8"), `${expected}\n\nDetailed body.\n`);
     }
     run(fixtureRoot, "git", ["init", "--quiet"]);

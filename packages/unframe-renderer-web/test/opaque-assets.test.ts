@@ -34,3 +34,27 @@ it("rejects animated WebP before browser decoding", () => {
     }),
   ).toBe(false);
 });
+it.each(["theme.css", "theme.CSS", "theme.CsS"])(
+  "accepts CSS capture asset %s without changing its path",
+  (path) => {
+    expect(
+      validateOpaqueAsset({
+        path,
+        mediaType: "text/css",
+        dataBase64: Buffer.from("main { color: red; }").toString("base64"),
+      }),
+    ).toBe(true);
+  },
+);
+it.each(["theme.CSS.map", "theme.CSS.MAP", "theme.css.js"])(
+  "rejects non-stylesheet capture asset %s declared as CSS",
+  (path) => {
+    expect(
+      validateOpaqueAsset({
+        path,
+        mediaType: "text/css",
+        dataBase64: Buffer.from("{}").toString("base64"),
+      }),
+    ).toBe(false);
+  },
+);

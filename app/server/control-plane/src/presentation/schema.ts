@@ -286,8 +286,12 @@ export const presentationDefinitionSchema = z
     "Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries.",
   );
 
-export const presentationCreateDefinitionSchema = presentationDefinitionSchema.and(
-  z.object({ assets: z.array(z.object({ assetId: id }).strict()).max(0) }),
-);
+export const presentationRegistrationSchema = z
+  .object({
+    id,
+    name: z.string().trim().min(1).max(256),
+  })
+  .strict();
+export type PresentationRegistration = z.infer<typeof presentationRegistrationSchema>;
 
 export type PresentationDefinition = z.infer<typeof presentationDefinitionSchema>;

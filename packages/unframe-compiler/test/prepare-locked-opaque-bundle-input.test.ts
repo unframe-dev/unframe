@@ -312,3 +312,86 @@ it("lists only JavaScript-imported stylesheets in source order", () => {
     "project/second.css",
   ]);
 });
+
+it("bundles prepared CSS at its original entry and preserves its map", () => {
+  const data = '@import "tailwindcss";';
+  const rawFiles = [
+    { path: "style.css", mediaType: "text/css", encoding: "utf8", data, hash: digest(data) },
+  ];
+  const preparedStyles = {
+    identity: key("d"),
+    inputs: [
+      ...source.files.map((file) => ({ path: file.fileName, hash: digest(file.sourceText) })),
+      ...rawFiles.map(({ path, hash }) => ({ path, hash })),
+    ],
+    stylesheets: [{ entry: "style.css", css: ".hero { color: red }", sourceMap: '{"version":3}' }],
+  };
+  const result = prepareLockedOpaqueBundleInput({ ...source, rawFiles, preparedStyles }, {
+    ...component,
+    rendererSource: 'import "./style.css"; export const render = () => null;',
+  } as never);
+  expect(
+    result.valid
+      ? result.value.modules.find((item) => item.path === "project/style.css")
+      : result.diagnostics,
+  ).toEqual({
+    path: "project/style.css",
+    moduleType: "css",
+    source: ".hero { color: red }",
+    sourceMap: '{"version":3}',
+  });
+});
+
+it("resolves transformed imported CSS asset URLs from the output entry directory", () => {
+  const png = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
+  const rawFiles = [
+    {
+      path: "styles/main.css",
+      mediaType: "text/css",
+      encoding: "utf8",
+      data: '@import "../nested/imported.css";',
+      hash: digest('@import "../nested/imported.css";'),
+    },
+    {
+      path: "nested/imported.css",
+      mediaType: "text/css",
+      encoding: "utf8",
+      data: '.hero {background: url("./logo.png")}',
+      hash: digest('.hero {background: url("./logo.png")}'),
+    },
+    {
+      path: "nested/logo.png",
+      mediaType: "image/png",
+      encoding: "base64",
+      data: btoa(String.fromCharCode(...png)),
+      hash: `sha256:${bytesToHex(sha256(png))}`,
+    },
+  ];
+  const result = prepareLockedOpaqueBundleInput(
+    {
+      ...source,
+      rawFiles,
+      preparedStyles: {
+        identity: key("d"),
+        inputs: [
+          ...source.files.map((file) => ({ path: file.fileName, hash: digest(file.sourceText) })),
+          ...rawFiles.map(({ path, hash }) => ({ path, hash })),
+        ],
+        stylesheets: [
+          { entry: "styles/main.css", css: '.hero {background: url("../nested/logo.png")}' },
+        ],
+      },
+    },
+    {
+      ...component,
+      rendererSource: 'import "./styles/main.css"; export const render = () => null;',
+    } as never,
+  );
+  expect(result.valid ? [] : result.diagnostics).toEqual([]);
+  if (!result.valid) return;
+  expect(result.value.modules.map((item) => item.path)).toContain("project/nested/logo.png");
+  expect(result.value.modules.map((item) => item.path)).not.toContain(
+    "project/nested/imported.css",
+  );
+  expect(result.value.stylesheets).toEqual(["project/styles/main.css"]);
+});

@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Unframe.Unity.PresentationRuntime
 {
     /// <summary>
-    /// Owns the generated hierarchy for one Delivery and atomically replaces it after a successful rebuild.
+    /// Owns the generated hierarchy for one projected catalog and atomically replaces it after a successful rebuild.
     /// </summary>
     public sealed class PresentationNodeHierarchy
     {
@@ -12,12 +12,12 @@ namespace Unframe.Unity.PresentationRuntime
 
         public PresentationNodeRegistry Registry { get; private set; }
 
-        public bool TryReplace(PresentationRuntimeDataStore store, Transform root, out string error)
+        public bool TryReplace(IPresentationRenderView view, Transform root, out string error)
         {
             Transform nextRoot = new GameObject("Presentation Nodes").transform;
             nextRoot.SetParent(root, false);
             nextRoot.gameObject.SetActive(false);
-            if (!factory.TryBuild(store, nextRoot, out PresentationNodeRegistry next, out error))
+            if (!factory.TryBuild(view, nextRoot, out PresentationNodeRegistry next, out error))
             {
                 DestroyRoot(nextRoot);
                 return false;
@@ -30,11 +30,11 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        public void ApplyOrigin(Unframe.Realtime.PresentationOrigin origin)
+        public void ApplyOrigin(Unframe.Presentation.Pose origin)
         {
-            if (generatedRoot == null || origin?.Pose == null) return;
-            generatedRoot.localPosition = PresentationUnityCoordinates.Position(origin.Pose.Position);
-            generatedRoot.localRotation = PresentationUnityCoordinates.Rotation(origin.Pose.Rotation);
+            if (generatedRoot == null || origin == null) return;
+            generatedRoot.localPosition = PresentationUnityCoordinates.Position(origin.Position);
+            generatedRoot.localRotation = PresentationUnityCoordinates.Rotation(origin.Rotation);
         }
 
         public void Clear()

@@ -48,9 +48,12 @@ test("static TypeScript codec matches the Go/C# binary fixtures without Function
   try {
     for (const fixture of fixtures) {
       const expected = Buffer.from(fixture.hex, "hex");
-      assert.deepEqual(encodeWireMessage(fixture.typeName, fixture.value), expected);
+      assert.deepEqual(
+        encodeWireMessage(fixture.typeName, fixture.value),
+        new Uint8Array(expected),
+      );
       const decoded = decodeWireMessage(fixture.typeName, expected);
-      assert.deepEqual(encodeWireMessage(fixture.typeName, decoded), expected);
+      assert.deepEqual(encodeWireMessage(fixture.typeName, decoded), new Uint8Array(expected));
       decodeWireMessage(
         fixture.typeName,
         Buffer.concat([expected, Buffer.from([0x98, 0x06, 0x01])]),
@@ -58,6 +61,26 @@ test("static TypeScript codec matches the Go/C# binary fixtures without Function
     }
   } finally {
     globalThis.Function = original;
+  }
+});
+test("encodes long UTF-8 strings without relying on Node-only Buffer UTF-8 write semantics", () => {
+  const prototype = Buffer.prototype as unknown as { utf8Write: (...args: unknown[]) => unknown };
+  const original = prototype.utf8Write;
+  prototype.utf8Write = () => {
+    throw new RangeError("workerd Buffer cannot omit the remaining length");
+  };
+  try {
+    const value = {
+      schemaVersion: 1,
+      requestId: "a".repeat(32),
+      buildManifest: "日本語の契約".repeat(100),
+      assetSet: "{}",
+    };
+    const bytes = encodeWireMessage("unframe.preview.LocalPreviewEnvelope", value);
+    const decoded = decodeWireMessage("unframe.preview.LocalPreviewEnvelope", bytes);
+    assert.equal(decoded["buildManifest"], value.buildManifest);
+  } finally {
+    prototype.utf8Write = original;
   }
 });
 

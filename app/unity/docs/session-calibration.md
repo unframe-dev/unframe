@@ -47,6 +47,8 @@ RealtimeのControl接続はState handshakeとStateReady送信が完了するとR
 
 EditModeで非identityのtracking frame・marker姿勢、逆変換、生成階層のOriginとの合成、共有Stateのclone・原子更新、reset・pause・source停止・frame変更、再確定、keyframe待機と再同期を検証します。ArUcoを利用する実機ではOpenCVの有効化が必要です。
 
+Native EditorのサービスE2EとShowcaseは、テスト用の共有校正を明示的に設定し、描画・カメラの対象に独立した`PresentationSpace`を使用します。テスト用校正はtracking frameからworld原点への変換を計算するため、Runtimeのhostが非identityでも従来のカメラ配置を維持します。隔離プロジェクトを作る`test-native-editor.sh`も、校正・trackingの共通コードとXR組込みモジュールを含めます。これは実機のマーカー測定を代替するものではありません。
+
 2026-10-07の検証では通常構成436件、OpenCV有効構成461件のEditModeテストと、ビルド設定除外・復元の8件が通過しました。OpenCV有効・ARM64 IL2CPPで通信SceneのAPK生成に成功し、カメラ権限とOpenCV / OpenXR / IL2CPPのARM64 library、ローカル設定の復元を確認しました。
 
 Questの両眼表示、tracking/recenter通知、2〜3台の同位置表示、Android transport、実メモリ使用量は実機で別途確認します。Editorテストを実機受け入れの代わりにはしません。

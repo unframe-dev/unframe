@@ -33,105 +33,29 @@ namespace Unframe.ControlPlane.Model
         /// <summary>
         /// Initializes a new instance of the <see cref="PresentationsPostRequest" /> class.
         /// </summary>
-        /// <param name="schemaVersion">schemaVersion</param>
-        /// <param name="metadata">metadata</param>
-        /// <param name="stage">stage</param>
-        /// <param name="assets">assets</param>
-        /// <param name="groups">groups</param>
+        /// <param name="id">id</param>
+        /// <param name="name">name</param>
         [JsonConstructor]
-        public PresentationsPostRequest(SchemaVersionEnum schemaVersion, PresentationsGet200ResponsePresentationsInnerDefinitionMetadata metadata, PresentationsGet200ResponsePresentationsInnerDefinitionStage stage, List<PresentationsGet200ResponsePresentationsInnerDefinitionAssetsInner> assets, List<PresentationsGet200ResponsePresentationsInnerDefinitionGroupsInner> groups)
+        public PresentationsPostRequest(string id, string name)
         {
-            SchemaVersion = schemaVersion;
-            Metadata = metadata;
-            Stage = stage;
-            Assets = assets;
-            Groups = groups;
+            Id = id;
+            Name = name;
             OnCreated();
         }
 
         partial void OnCreated();
 
         /// <summary>
-        /// Defines SchemaVersion
+        /// Gets or Sets Id
         /// </summary>
-        public enum SchemaVersionEnum
-        {
-            /// <summary>
-            /// Enum _1 for value: 1
-            /// </summary>
-            _1 = 1
-        }
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
 
         /// <summary>
-        /// Returns a <see cref="SchemaVersionEnum"/>
+        /// Gets or Sets Name
         /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public static SchemaVersionEnum SchemaVersionEnumFromString(string value)
-        {
-            if (value.Equals("1"))
-                return SchemaVersionEnum._1;
-
-            throw new NotImplementedException($"Could not convert value to type SchemaVersionEnum: '{value}'");
-        }
-
-        /// <summary>
-        /// Returns a <see cref="SchemaVersionEnum"/>
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public static SchemaVersionEnum? SchemaVersionEnumFromStringOrDefault(string value)
-        {
-            if (value.Equals("1"))
-                return SchemaVersionEnum._1;
-
-            return null;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="SchemaVersionEnum"/> to the json value
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public static int SchemaVersionEnumToJsonValue(SchemaVersionEnum value)
-        {
-            if (value == SchemaVersionEnum._1)
-                return 1;
-
-            throw new NotImplementedException($"Value could not be handled: '{value}'");
-        }
-
-        /// <summary>
-        /// Gets or Sets SchemaVersion
-        /// </summary>
-        [JsonPropertyName("schemaVersion")]
-        public SchemaVersionEnum SchemaVersion { get; set; }
-
-        /// <summary>
-        /// Gets or Sets Metadata
-        /// </summary>
-        [JsonPropertyName("metadata")]
-        public PresentationsGet200ResponsePresentationsInnerDefinitionMetadata Metadata { get; set; }
-
-        /// <summary>
-        /// Gets or Sets Stage
-        /// </summary>
-        [JsonPropertyName("stage")]
-        public PresentationsGet200ResponsePresentationsInnerDefinitionStage Stage { get; set; }
-
-        /// <summary>
-        /// Gets or Sets Assets
-        /// </summary>
-        [JsonPropertyName("assets")]
-        public List<PresentationsGet200ResponsePresentationsInnerDefinitionAssetsInner> Assets { get; set; }
-
-        /// <summary>
-        /// Gets or Sets Groups
-        /// </summary>
-        [JsonPropertyName("groups")]
-        public List<PresentationsGet200ResponsePresentationsInnerDefinitionGroupsInner> Groups { get; set; }
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -141,11 +65,8 @@ namespace Unframe.ControlPlane.Model
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("class PresentationsPostRequest {\n");
-            sb.Append("  SchemaVersion: ").Append(SchemaVersion).Append("\n");
-            sb.Append("  Metadata: ").Append(Metadata).Append("\n");
-            sb.Append("  Stage: ").Append(Stage).Append("\n");
-            sb.Append("  Assets: ").Append(Assets).Append("\n");
-            sb.Append("  Groups: ").Append(Groups).Append("\n");
+            sb.Append("  Id: ").Append(Id).Append("\n");
+            sb.Append("  Name: ").Append(Name).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -157,6 +78,40 @@ namespace Unframe.ControlPlane.Model
         /// <returns>Validation Result</returns>
         IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
         {
+            // Id (string) maxLength
+            if (this.Id != null && this.Id.Length > 128)
+            {
+                yield return new ValidationResult("Invalid value for Id, length must be less than 128.", new [] { "Id" });
+            }
+
+            // Id (string) minLength
+            if (this.Id != null && this.Id.Length < 1)
+            {
+                yield return new ValidationResult("Invalid value for Id, length must be greater than 1.", new [] { "Id" });
+            }
+
+            if (this.Id != null) {
+                // Id (string) pattern
+                Regex regexId = new Regex(@"^[A-Za-z0-9_-]+$", RegexOptions.CultureInvariant);
+
+                if (!regexId.Match(this.Id).Success)
+                {
+                    yield return new System.ComponentModel.DataAnnotations.ValidationResult("Invalid value for Id, must match a pattern of " + regexId, new [] { "Id" });
+                }
+            }
+
+            // Name (string) maxLength
+            if (this.Name != null && this.Name.Length > 256)
+            {
+                yield return new ValidationResult("Invalid value for Name, length must be less than 256.", new [] { "Name" });
+            }
+
+            // Name (string) minLength
+            if (this.Name != null && this.Name.Length < 1)
+            {
+                yield return new ValidationResult("Invalid value for Name, length must be greater than 1.", new [] { "Name" });
+            }
+
             yield break;
         }
     }
@@ -183,11 +138,8 @@ namespace Unframe.ControlPlane.Model
 
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
-            Option<PresentationsPostRequest.SchemaVersionEnum?> schemaVersion = default;
-            Option<PresentationsGet200ResponsePresentationsInnerDefinitionMetadata?> metadata = default;
-            Option<PresentationsGet200ResponsePresentationsInnerDefinitionStage?> stage = default;
-            Option<List<PresentationsGet200ResponsePresentationsInnerDefinitionAssetsInner>?> assets = default;
-            Option<List<PresentationsGet200ResponsePresentationsInnerDefinitionGroupsInner>?> groups = default;
+            Option<string?> id = default;
+            Option<string?> name = default;
 
             while (utf8JsonReader.Read())
             {
@@ -204,20 +156,11 @@ namespace Unframe.ControlPlane.Model
 
                     switch (localVarJsonPropertyName)
                     {
-                        case "schemaVersion":
-                            schemaVersion = new Option<PresentationsPostRequest.SchemaVersionEnum?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (PresentationsPostRequest.SchemaVersionEnum?)null : (PresentationsPostRequest.SchemaVersionEnum)utf8JsonReader.GetInt32());
+                        case "id":
+                            id = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
-                        case "metadata":
-                            metadata = new Option<PresentationsGet200ResponsePresentationsInnerDefinitionMetadata?>(JsonSerializer.Deserialize<PresentationsGet200ResponsePresentationsInnerDefinitionMetadata>(ref utf8JsonReader, jsonSerializerOptions)!);
-                            break;
-                        case "stage":
-                            stage = new Option<PresentationsGet200ResponsePresentationsInnerDefinitionStage?>(JsonSerializer.Deserialize<PresentationsGet200ResponsePresentationsInnerDefinitionStage>(ref utf8JsonReader, jsonSerializerOptions)!);
-                            break;
-                        case "assets":
-                            assets = new Option<List<PresentationsGet200ResponsePresentationsInnerDefinitionAssetsInner>?>(JsonSerializer.Deserialize<List<PresentationsGet200ResponsePresentationsInnerDefinitionAssetsInner>>(ref utf8JsonReader, jsonSerializerOptions)!);
-                            break;
-                        case "groups":
-                            groups = new Option<List<PresentationsGet200ResponsePresentationsInnerDefinitionGroupsInner>?>(JsonSerializer.Deserialize<List<PresentationsGet200ResponsePresentationsInnerDefinitionGroupsInner>>(ref utf8JsonReader, jsonSerializerOptions)!);
+                        case "name":
+                            name = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
                         default:
                             break;
@@ -225,37 +168,19 @@ namespace Unframe.ControlPlane.Model
                 }
             }
 
-            if (!schemaVersion.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(schemaVersion));
+            if (!id.IsSet)
+                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(id));
 
-            if (!metadata.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(metadata));
+            if (!name.IsSet)
+                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(name));
 
-            if (!stage.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(stage));
+            if (id.IsSet && id.Value == null)
+                throw new ArgumentNullException(nameof(id), "Property is not nullable for class PresentationsPostRequest.");
 
-            if (!assets.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(assets));
+            if (name.IsSet && name.Value == null)
+                throw new ArgumentNullException(nameof(name), "Property is not nullable for class PresentationsPostRequest.");
 
-            if (!groups.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(groups));
-
-            if (schemaVersion.IsSet && schemaVersion.Value == null)
-                throw new ArgumentNullException(nameof(schemaVersion), "Property is not nullable for class PresentationsPostRequest.");
-
-            if (metadata.IsSet && metadata.Value == null)
-                throw new ArgumentNullException(nameof(metadata), "Property is not nullable for class PresentationsPostRequest.");
-
-            if (stage.IsSet && stage.Value == null)
-                throw new ArgumentNullException(nameof(stage), "Property is not nullable for class PresentationsPostRequest.");
-
-            if (assets.IsSet && assets.Value == null)
-                throw new ArgumentNullException(nameof(assets), "Property is not nullable for class PresentationsPostRequest.");
-
-            if (groups.IsSet && groups.Value == null)
-                throw new ArgumentNullException(nameof(groups), "Property is not nullable for class PresentationsPostRequest.");
-
-            return new PresentationsPostRequest(schemaVersion.Value!.Value!, metadata.Value!, stage.Value!, assets.Value!, groups.Value!);
+            return new PresentationsPostRequest(id.Value!, name.Value!);
         }
 
         /// <summary>
@@ -282,28 +207,15 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public void WriteProperties(Utf8JsonWriter writer, PresentationsPostRequest presentationsPostRequest, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (presentationsPostRequest.Metadata == null)
-                throw new ArgumentNullException(nameof(presentationsPostRequest.Metadata), "Property is required for class PresentationsPostRequest.");
+            if (presentationsPostRequest.Id == null)
+                throw new ArgumentNullException(nameof(presentationsPostRequest.Id), "Property is required for class PresentationsPostRequest.");
 
-            if (presentationsPostRequest.Stage == null)
-                throw new ArgumentNullException(nameof(presentationsPostRequest.Stage), "Property is required for class PresentationsPostRequest.");
+            if (presentationsPostRequest.Name == null)
+                throw new ArgumentNullException(nameof(presentationsPostRequest.Name), "Property is required for class PresentationsPostRequest.");
 
-            if (presentationsPostRequest.Assets == null)
-                throw new ArgumentNullException(nameof(presentationsPostRequest.Assets), "Property is required for class PresentationsPostRequest.");
+            writer.WriteString("id", presentationsPostRequest.Id);
 
-            if (presentationsPostRequest.Groups == null)
-                throw new ArgumentNullException(nameof(presentationsPostRequest.Groups), "Property is required for class PresentationsPostRequest.");
-
-            writer.WriteNumber("schemaVersion", PresentationsPostRequest.SchemaVersionEnumToJsonValue(presentationsPostRequest.SchemaVersion));
-
-            writer.WritePropertyName("metadata");
-            JsonSerializer.Serialize(writer, presentationsPostRequest.Metadata, jsonSerializerOptions);
-            writer.WritePropertyName("stage");
-            JsonSerializer.Serialize(writer, presentationsPostRequest.Stage, jsonSerializerOptions);
-            writer.WritePropertyName("assets");
-            JsonSerializer.Serialize(writer, presentationsPostRequest.Assets, jsonSerializerOptions);
-            writer.WritePropertyName("groups");
-            JsonSerializer.Serialize(writer, presentationsPostRequest.Groups, jsonSerializerOptions);
+            writer.WriteString("name", presentationsPostRequest.Name);
         }
     }
 }

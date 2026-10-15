@@ -10,6 +10,7 @@ const files = [
   "unframe/presentation/runtime.proto",
   "unframe/delivery/delivery.proto",
   "unframe/realtime/realtime.proto",
+  "unframe/preview/preview.proto",
 ];
 const descriptor = new protobuf.Root();
 descriptor.resolvePath = (_origin, target) => resolve(protoRoot, target);

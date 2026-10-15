@@ -19,7 +19,7 @@ touch "${generated_root}/RealtimeGrpc.cs" "${generated_root}/RealtimeGrpc.cs.met
 "${script_dir}/generate-unity-proto.sh"
 test -s "${generated_root}/RealtimeGrpc.cs"
 test -e "${generated_root}/RealtimeGrpc.cs.meta"
-for message_file in Runtime Delivery Realtime; do
+for message_file in Runtime Delivery Realtime Preview; do
   test -s "${generated_root}/${message_file}.cs"
 done
 "${script_dir}/generate-unity-proto.sh" check

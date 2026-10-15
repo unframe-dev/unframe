@@ -1,4 +1,4 @@
-import type * as ts from "typescript";
+import * as ts from "typescript";
 import { z } from "zod";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -29,15 +29,51 @@ export type ParsedAuthoringProjectValue = {
   readonly rootDependencies: readonly LockedDependency[];
   readonly packages: readonly ParsedLockedPackage[];
   readonly rawFiles: Readonly<Record<string, RawProjectFile>>;
+  readonly preparedStyles?: PreparedStyles;
 };
 
-export type RawProjectFile = {
-  readonly path: string;
-  readonly mediaType: string;
-  readonly hash: string;
-  readonly encoding: "utf8" | "base64";
-  readonly data: string;
-};
+const hashSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+const preparedStylesSchema = z.strictObject({
+  identity: hashSchema,
+  inputs: z.array(z.strictObject({ path: z.string(), hash: hashSchema })).readonly(),
+  stylesheets: z
+    .array(z.strictObject({ entry: z.string(), css: z.string(), sourceMap: z.string().optional() }))
+    .readonly(),
+});
+const rawFileSchema = z.strictObject({
+  path: z.string(),
+  mediaType: z.string(),
+  hash: z.string(),
+  encoding: z.enum(["utf8", "base64"]),
+  data: z.string(),
+});
+const canonicalBase64Schema = z
+  .base64()
+  .pipe(z.string().refine((data) => btoa(atob(data)) === data));
+const rawFileContentSchema = rawFileSchema
+  .extend({
+    mediaType: z.string().min(1),
+    hash: hashSchema,
+  })
+  .superRefine((file, ctx) => {
+    if (file.encoding === "base64" && !canonicalBase64Schema.safeParse(file.data).success) {
+      ctx.addIssue({ code: "custom", path: ["data"], message: "Invalid canonical base64" });
+      return;
+    }
+    const bytes =
+      file.encoding === "utf8"
+        ? new TextEncoder().encode(file.data)
+        : Uint8Array.from(atob(file.data), (character) => character.charCodeAt(0));
+    if (file.hash !== `sha256:${bytesToHex(sha256(bytes))}`)
+      ctx.addIssue({
+        code: "custom",
+        path: ["hash"],
+        message: "Raw file hash does not match its bytes",
+      });
+  });
+
+export type PreparedStyles = Readonly<z.infer<typeof preparedStylesSchema>>;
+export type RawProjectFile = Readonly<z.infer<typeof rawFileSchema>>;
 
 export type ParsedAuthoringProject =
   | {
@@ -54,17 +90,8 @@ const inputSchema = z
     files: z.array(z.object({ fileName: z.string(), sourceText: z.string() }).strict()),
     rootDependencies: z.array(z.unknown()),
     packages: z.array(z.unknown()),
-    rawFiles: z
-      .array(
-        z.strictObject({
-          path: z.string(),
-          mediaType: z.string(),
-          hash: z.string(),
-          encoding: z.enum(["utf8", "base64"]),
-          data: z.string(),
-        }),
-      )
-      .optional(),
+    preparedStyles: preparedStylesSchema.optional(),
+    rawFiles: z.array(rawFileSchema).optional(),
   })
   .strict();
 
@@ -76,22 +103,24 @@ const hasExactOwnKeys = (value: unknown, expected: readonly string[]) =>
   Object.keys(value).every((key) => expected.includes(key));
 
 const hasProjectEnvelopeShape = (value: unknown) => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
   if (
-    !hasExactOwnKeys(value, [
-      "projectRoot",
-      "entryFile",
-      "files",
-      "rootDependencies",
-      "packages",
-    ]) &&
-    !hasExactOwnKeys(value, [
-      "projectRoot",
-      "entryFile",
-      "files",
-      "rootDependencies",
-      "packages",
-      "rawFiles",
-    ])
+    !["projectRoot", "entryFile", "files", "rootDependencies", "packages"].every((key) =>
+      keys.includes(key),
+    ) ||
+    keys.some(
+      (key) =>
+        ![
+          "projectRoot",
+          "entryFile",
+          "files",
+          "rootDependencies",
+          "packages",
+          "rawFiles",
+          "preparedStyles",
+        ].includes(key),
+    )
   )
     return false;
   const { files, rootDependencies, packages, rawFiles } = value as Record<string, unknown>;
@@ -175,7 +204,22 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
       ],
     };
 
-  const { projectRoot, entryFile, files, rawFiles = [] } = parsed.data;
+  const {
+    projectRoot,
+    entryFile,
+    files,
+    rawFiles = [],
+    preparedStyles: suppliedStyles,
+  } = parsed.data;
+  const preparedStyles = suppliedStyles && {
+    ...suppliedStyles,
+    inputs: [...suppliedStyles.inputs].sort((a, b) =>
+      a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+    ),
+    stylesheets: [...suppliedStyles.stylesheets].sort((a, b) =>
+      a.entry < b.entry ? -1 : a.entry > b.entry ? 1 : 0,
+    ),
+  };
   const lockedPackages = parseLockedPackages(snapshot.value as Record<string, unknown>);
   if (!lockedPackages.valid)
     return { ok: false, diagnostics: [...lockedPackages.diagnostics].sort(compareDiagnostics) };
@@ -247,26 +291,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
         ),
       );
     else {
-      let decoded = "";
-      try {
-        if (file.encoding === "base64") decoded = atob(file.data);
-      } catch {
-        decoded = "\ufffd";
-      }
-      const canonicalBase64 =
-        file.encoding === "utf8" ||
-        (/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(file.data) &&
-          btoa(decoded) === file.data);
-      const bytes =
-        file.encoding === "utf8"
-          ? new TextEncoder().encode(file.data)
-          : Uint8Array.from(decoded, (character) => character.charCodeAt(0));
-      if (
-        !canonicalBase64 ||
-        !/^sha256:[0-9a-f]{64}$/.test(file.hash) ||
-        file.hash !== `sha256:${bytesToHex(sha256(bytes))}` ||
-        file.mediaType.length === 0
-      )
+      if (!rawFileContentSchema.safeParse(file).success)
         diagnostics.push(
           projectDiagnostic(
             "compiler-invalid-input",
@@ -275,6 +300,51 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           ),
         );
       else rawMap[file.path] = file;
+    }
+  }
+  if (preparedStyles) {
+    const expected = new Map([
+      ...files.map(
+        (file) =>
+          [
+            file.fileName,
+            `sha256:${bytesToHex(sha256(new TextEncoder().encode(file.sourceText)))}`,
+          ] as const,
+      ),
+      ...rawFiles.map((file) => [file.path, file.hash] as const),
+    ]);
+    const inputs = new Set<string>();
+    for (const item of preparedStyles.inputs) {
+      if (inputs.has(item.path) || expected.get(item.path) !== item.hash)
+        diagnostics.push(
+          projectDiagnostic(
+            "compiler-prepared-styles-invalid",
+            item.path,
+            "Prepared style input must match the complete source snapshot.",
+          ),
+        );
+      inputs.add(item.path);
+    }
+    if (inputs.size !== expected.size)
+      diagnostics.push(
+        projectDiagnostic(
+          "compiler-prepared-styles-invalid",
+          "",
+          "Prepared styles must include every source snapshot input.",
+        ),
+      );
+    const entries = new Set<string>();
+    for (const sheet of preparedStyles.stylesheets) {
+      const raw = rawMap[sheet.entry];
+      if (entries.has(sheet.entry) || raw?.mediaType !== "text/css" || raw.encoding !== "utf8")
+        diagnostics.push(
+          projectDiagnostic(
+            "compiler-prepared-styles-invalid",
+            sheet.entry,
+            "Prepared stylesheet must name a unique original UTF-8 CSS entry.",
+          ),
+        );
+      entries.add(sheet.entry);
     }
   }
   if (isRootRelativePath(entryFile) && !seen.has(entryFile))
@@ -288,10 +358,46 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
   if (diagnostics.length > 0)
     return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
 
+  const reachable = new Set<string>();
+  const texts = new Map(files.map((file) => [file.fileName, file.sourceText]));
+  const visit = (path: string): void => {
+    if (reachable.has(path) || !texts.has(path)) return;
+    reachable.add(path);
+    for (const ref of ts.preProcessFile(texts.get(path)!, true, true).importedFiles) {
+      if (!ref.fileName.startsWith(".")) continue;
+      const segments = path.split("/").slice(0, -1);
+      for (const part of ref.fileName.split("/")) {
+        if (part === "..") segments.pop();
+        else if (part !== ".") segments.push(part);
+      }
+      const base = segments.join("/");
+      const target = [
+        base,
+        `${base}.ts`,
+        `${base}.tsx`,
+        `${base}.d.ts`,
+        `${base}/index.ts`,
+        `${base}/index.tsx`,
+        `${base}/index.d.ts`,
+        ...(base.endsWith(".js") ? [base.slice(0, -3) + ".ts", base.slice(0, -3) + ".tsx"] : []),
+      ].find((candidate) => texts.has(candidate));
+      if (target) visit(target);
+    }
+  };
+  visit(entryFile);
   const parsedFiles: Record<string, ts.SourceFile> = {};
   for (const file of [...files].sort((left, right) =>
     left.fileName < right.fileName ? -1 : left.fileName > right.fileName ? 1 : 0,
   )) {
+    if (preparedStyles && !reachable.has(file.fileName)) {
+      parsedFiles[file.fileName] = ts.createSourceFile(
+        `${projectRoot === "/" ? "" : projectRoot}/${file.fileName}`,
+        file.sourceText,
+        ts.ScriptTarget.ES2022,
+        true,
+      );
+      continue;
+    }
     const result = parseAuthoringSource({
       fileName: `${projectRoot === "/" ? "" : projectRoot}/${file.fileName}`,
       sourceText: file.sourceText,
@@ -324,6 +430,7 @@ export const parseAuthoringProject = (input: unknown): ParsedAuthoringProject =>
           rootDependencies: lockedPackages.rootDependencies,
           packages: lockedPackages.packages,
           rawFiles: rawMap,
+          ...(preparedStyles ? { preparedStyles } : {}),
         },
         diagnostics: [],
       };

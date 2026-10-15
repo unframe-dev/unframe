@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-08-29
 - **Deciders**: Unframe 開発チーム
-- **関連**: [ADR-0005](0005-spatial-presentation-domain-model.md), [ADR-0006](0006-presentation-rendering-strategy.md), [Presentation Architecture](../packages/ARCHITECTURE.md), [Unity coordinate system](https://docs.unity3d.com/Manual/QuaternionAndEulerRotationsInUnity.html), [Unity Matrix4x4](https://docs.unity3d.com/ScriptReference/Matrix4x4.html), [Unity Mesh UV](https://docs.unity3d.com/ScriptReference/Mesh-uv.html)
+- **関連**: [ADR-0005（アーカイブ）](archived/0005-spatial-presentation-domain-model.md), [ADR-0006（アーカイブ）](archived/0006-presentation-rendering-strategy.md), [Presentation Architecture](../packages/ARCHITECTURE.md), [Unity coordinate system](https://docs.unity3d.com/Manual/QuaternionAndEulerRotationsInUnity.html), [Unity Matrix4x4](https://docs.unity3d.com/ScriptReference/Matrix4x4.html), [Unity Mesh UV](https://docs.unity3d.com/ScriptReference/Mesh-uv.html)
 
 ## Context
 
@@ -23,7 +23,7 @@ Canonical Spatial coordinateは次を満たす。
 - QuaternionはHamilton product、成分順`[x, y, z, w]`、active rotationとし、vectorは`q * [v, 0] * inverse(q)`で回転する
 - Euler angleはportable contract、artifact、fixtureに使用しない
 
-Quaternionは有限かつ非ゼロでなければならない。Compilerの明示的なcanonicalizerはauthoring inputをunit lengthへ正規化し、同じrotationを表す`q`と`-q`から一つを選ぶ。`w > 0`を優先し、`w === 0`では`x`、`y`、`z`の順で最初のnon-zero成分が正になるよう必要なら全成分を反転する。canonical outputでは`-0`を`0`にする。Contractsのruntime schemaはtuple shapeとfinite numberだけを検証し、Presentation Coreと各wire mapperが`abs(norm - 1) <= 1e-9`とcanonical signをsemantic validationする。Compilerより外側のconsumerは不一致を拒否し、黙ってnormalize / sign flipしない。Timeline interpolationはADR-0007のshortest-path規則で補間した後、Runtime Coreの明示的なcanonicalizerで同じ処理を行ってからportable projectionを生成する。現行Control Plane / Webの`1e-4`とCoreのnorm-only検証はtarget contractとのdriftであり、consumer接続sliceで`1e-9`とsign検証へ統一する。
+Quaternionは有限かつ非ゼロでなければならない。Compilerの明示的なcanonicalizerはauthoring inputをunit lengthへ正規化し、同じrotationを表す`q`と`-q`から一つを選ぶ。`w > 0`を優先し、`w === 0`では`x`、`y`、`z`の順で最初のnon-zero成分が正になるよう必要なら全成分を反転する。canonical outputでは`-0`を`0`にする。Contractsのruntime schemaはtuple shapeとfinite numberだけを検証し、Presentation Coreと各wire mapperが`abs(norm - 1) <= 1e-9`とcanonical signをsemantic validationする。Compilerより外側のconsumerは不一致を拒否し、黙ってnormalize / sign flipしない。Timeline interpolationは[Architecture §12.8](../packages/ARCHITECTURE.md#128-timeline)のshortest-path規則で補間した後、Runtime Coreの明示的なcanonicalizerで同じ処理を行ってからportable projectionを生成する。現行Control Plane / Webの`1e-4`とCoreのnorm-only検証はtarget contractとのdriftであり、consumer接続sliceで`1e-9`とsign検証へ統一する。
 
 ### TRS、親子合成、matrix layout
 
@@ -143,7 +143,7 @@ clip の authority は一方向にする。Compiler は Render Surface に依存
 
 Unityのauthoritative hit-testはPhysics / Colliderが返したfloat hit pointを直接authorityにしない。sampled Quest-local ray origin / directionをcurrent `ParticipantCalibration.presentationFromQuestLocal`でCanonical Presentation Spaceへ変換してbinary64へ昇格する。Surfaceのworld matrixは、一つにfreezeしたState Frame / Control cutとlogical timeに属する`ParticipantRuntimeView.nodeStates`、active Timeline Runのeffective local Transform、Projected Runtime SnapshotのPresentation Origin、Spatial parent chain、State Streamのfresh Anchor sampleからbinary64で再構築する。このinverse world matrix、plane intersection、inverse fit、normalized boundsの順に評価する。
 
-State Frameは`frameSequence`、logicalな`producedAtRuntimeTime`、transport用`producedAtRuntimeMonotonic`、`baseReliableSequence`、`presentationOriginVersion`とAnchor binding patchをatomicに運ぶ。patchはraw pose catalogではなくvisibleなAnchor-bound Node IDをkeyにし、そのNodeの`followPosition` / `followRotation`が要求する成分だけを持つ。追従しないpositionはzero translation、追従しないrotationはidentityとしてparent matrixを構成する。sampleは元`trackingFrameSequence`、Runtime受理時の同じmonotonic domainの`observedAt`、Presentation Space parent poseを持ち、ADR-0008の`anchorSampleMaxAgeMilliseconds = 500`を超えるとRuntime / client双方でunavailableにする。Connection Resume後はProjected Runtime SnapshotからOrigin pose / versionを得た後、State Streamの初回keyframeまたは後続fresh sampleがbindingを確定するまで該当Nodeを描画もhit-testもしない。`presentationOriginVersion` / assignment epoch / cutが不一致、calibrationまたはbindingがunavailable / stale、nodeがinactive / invisibleの場合はno-hitとし、新しいprojection / stateを要求する。Unity Colliderはcandidate Surfaceのbroad phaseにだけ使用できる。比較はADR-0009と本ADRのhalf-open式をexactに適用し、epsilonを足さない。これにより同じquantized input ray、runtime sample、Delivery artifactに対する分類を固定する。
+State Frameは`frameSequence`、logicalな`producedAtRuntimeTime`、transport用`producedAtRuntimeMonotonic`、`baseReliableSequence`、`presentationOriginVersion`とAnchor binding patchをatomicに運ぶ。patchはraw pose catalogではなくvisibleなAnchor-bound Node IDをkeyにし、そのNodeの`followPosition` / `followRotation`が要求する成分だけを持つ。追従しないpositionはzero translation、追従しないrotationはidentityとしてparent matrixを構成する。sampleは元`trackingFrameSequence`、Runtime受理時の同じmonotonic domainの`observedAt`、Presentation Space parent poseを持ち、[Runtime contract の Protocol limits](../packages/CONTRACT_RUNTIME.md#41-protocol-limits)の`anchorSampleMaxAgeMilliseconds = 500`を超えるとRuntime / client双方でunavailableにする。Connection Resume後はProjected Runtime SnapshotからOrigin pose / versionを得た後、State Streamの初回keyframeまたは後続fresh sampleがbindingを確定するまで該当Nodeを描画もhit-testもしない。`presentationOriginVersion` / assignment epoch / cutが不一致、calibrationまたはbindingがunavailable / stale、nodeがinactive / invisibleの場合はno-hitとし、新しいprojection / stateを要求する。Unity Colliderはcandidate Surfaceのbroad phaseにだけ使用できる。比較はADR-0009と本ADRのhalf-open式をexactに適用し、epsilonを足さない。これにより同じquantized input ray、runtime sample、Delivery artifactに対する分類を固定する。
 
 Cross-language fixtureは少なくともidentity、nested translation / rotation / non-uniform scale、Quaternion `q / -q`、Z reflection、contain letterbox、cover crop、stretch、Render Surface offset、UV Y flip、edge-exclusive hitを含む。各domain / region境界についてexact boundary、隣接する直前値、直後値を含める。TypeScriptのderived matrix / coordinateはexpected binary64に対してabsolute error `1e-9`以下、Unityのvisual Transform float結果は同じfixtureのexpected値に対してabsolute error `1e-5`以下で比較する。domain / hitの内外判定とUnity authoritative hit-testはbinary64のexact comparisonを使い、この許容差を使用しない。
 
@@ -169,7 +169,7 @@ Cross-language fixtureは少なくともidentity、nested translation / rotation
 
 ### Canonical coordinateをUnity left-handedへ合わせる
 
-既にAcceptedのADR-0005と外部contractを破り、Web /標準的なright-handed toolchainとの境界を曖昧にするため採用しない。
+本 ADR の基礎座標規約と外部contractを破り、Web /標準的なright-handed toolchainとの境界を曖昧にするため採用しない。
 
 ### Unity importerごとにaxis変換を選ぶ
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PresentationDefinition } from "@unframe/unframe-core/domain/model";
+import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 
 const vector3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 export const transformSchema = z
@@ -66,7 +67,7 @@ export const buildRequestSchema = z.object({ requestId: randomIdSchema }).strict
 export type EditCommand = z.infer<typeof editCommandSchema>;
 export type PatchRequest = z.infer<typeof patchRequestSchema>;
 export type Transform = z.infer<typeof transformSchema>;
-export type AuthorDiagnostic = {
+export type AuthorDiagnostic = Partial<StyleDiagnostic> & {
   family?: "syntax" | "type" | "semantic" | "renderer" | "io" | "cancel" | "usage";
   code: string;
   message: string;
@@ -108,7 +109,9 @@ export type SavedCommand = {
 };
 export type BuildJob = {
   buildId: string;
+  channel: "dev" | "dist";
   revision: string;
+  generationId: string | null;
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "stale";
   diagnostics: AuthorDiagnostic[];
   artifacts: { assetId: string; mediaType: string; instanceId: string; stateId: string }[];
@@ -127,7 +130,7 @@ export class AuthorError extends Error {
 export type AuthorService = {
   project(): Promise<ProjectSnapshot>;
   patch(revision: string, request: PatchRequest): Promise<SavedCommand>;
-  build(revision: string, requestId: string): Promise<BuildJob>;
+  build(revision: string, requestId: string, channel?: "dev" | "dist"): Promise<BuildJob>;
   job(buildId: string): Promise<BuildJob>;
   cancel(buildId: string): Promise<BuildJob>;
   artifact(buildId: string, assetId: string): Promise<{ bytes: Uint8Array; mediaType: string }>;

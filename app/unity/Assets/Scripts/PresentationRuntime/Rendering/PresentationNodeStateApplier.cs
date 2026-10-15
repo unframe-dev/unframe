@@ -8,28 +8,28 @@ namespace Unframe.Unity.PresentationRuntime
     /// </summary>
     public sealed class PresentationNodeStateApplier
     {
-        public void Apply(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy)
+        public void Apply(IPresentationRenderView view, PresentationNodeHierarchy hierarchy)
         {
-            if (store == null || hierarchy == null || hierarchy.Registry == null)
+            if (view == null || hierarchy == null || hierarchy.Registry == null)
             {
                 return;
             }
 
-            hierarchy.ApplyOrigin(store.PresentationOrigin);
-            ApplyAnchors(store, hierarchy);
-            foreach (ProjectedNodeDefinition definition in store.Nodes)
+            hierarchy.ApplyOrigin(view.StageOrigin);
+            ApplyAnchors(view, hierarchy);
+            foreach (ProjectedNodeDefinition definition in view.Catalog.Nodes)
             {
-                ApplyNodeState(store, hierarchy, definition.NodeId);
+                ApplyNodeState(view, hierarchy, definition.NodeId);
             }
         }
 
-        public void ApplyAnchors(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy)
+        public void ApplyAnchors(IPresentationRenderView view, PresentationNodeHierarchy hierarchy)
         {
-            if (store == null || hierarchy?.Registry == null) return;
+            if (view == null || hierarchy?.Registry == null) return;
             foreach (var entry in hierarchy.Registry.AnchorParents)
             {
                 GameObject parent = entry.Value;
-                if (!store.TryGetAnchorSample(entry.Key, out Unframe.Realtime.ProjectedAnchorBindingSample sample))
+                if (!view.TryGetAnchorSample(entry.Key, out Unframe.Realtime.ProjectedAnchorBindingSample sample))
                 {
                     parent.SetActive(false);
                     continue;
@@ -42,15 +42,15 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        public void ApplyNodeState(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy, string nodeId)
+        public void ApplyNodeState(IPresentationRenderView view, PresentationNodeHierarchy hierarchy, string nodeId)
         {
-            if (store == null || hierarchy == null || hierarchy.Registry == null
+            if (view == null || hierarchy == null || hierarchy.Registry == null
                 || !hierarchy.Registry.TryGet(nodeId, out GameObject nodeObject))
             {
                 return;
             }
 
-            if (!store.TryGetNodeState(nodeId, out Unframe.Realtime.NodeRuntimeState state))
+            if (!view.TryGetNodeState(nodeId, out Unframe.Realtime.NodeRuntimeState state))
             {
                 nodeObject.SetActive(false);
                 return;

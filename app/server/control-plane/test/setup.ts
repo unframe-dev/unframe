@@ -11,6 +11,8 @@ import runtimeAssignmentsMigration from "../migrations/0009_runtime_assignments.
 import authAccountIssuerMigration from "../migrations/0010_better_auth_account_issuer.sql?raw";
 import publicationMigration from "../migrations/0011_publications.sql?raw";
 
+import registrationMigration from "../migrations/0012_local_presentation_registration.sql?raw";
+
 const [assetTables, ...assetTriggers] = assetMigration.split("CREATE TRIGGER");
 
 const foundationMigrations = [
@@ -116,6 +118,13 @@ await applyD1Migrations(env.DB, [
   {
     name: "0011_publications.sql",
     queries: publicationMigration
+      .split(";")
+      .map((query: string) => query.trim())
+      .filter(Boolean),
+  },
+  {
+    name: "0012_local_presentation_registration.sql",
+    queries: registrationMigration
       .split(";")
       .map((query: string) => query.trim())
       .filter(Boolean),

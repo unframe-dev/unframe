@@ -91,15 +91,15 @@ public sealed class QuestPresentationEntryEditModeTests
         try
         {
             LogicalBounds partition = new LogicalBounds { X = 50, Y = 0, Width = 50, Height = 100 };
-            Assert.That(QuestPresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, -1), Vector3.forward),
-                quad.transform, partition, 100, 100, out QuestNormalizedPoint point, out _), Is.True);
+            Assert.That(PresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, -1), Vector3.forward),
+                quad.transform, partition, 100, 100, out PresentationNormalizedPoint point, out _), Is.True);
             Assert.That(point.X, Is.EqualTo(0.75));
             Assert.That(point.Y, Is.EqualTo(0.5));
-            Assert.That(QuestPresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, 1), Vector3.back),
+            Assert.That(PresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, 1), Vector3.back),
                 quad.transform, partition, 100, 100, out _, out _), Is.False);
-            Assert.That(QuestPresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, -20), Vector3.forward),
+            Assert.That(PresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, -20), Vector3.forward),
                 quad.transform, partition, 100, 100, out _, out _), Is.True);
-            Assert.That(QuestPresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, -1), Vector3.forward),
+            Assert.That(PresentationSurfacePicking.TryIntersect(new Ray(new Vector3(0, 0, -1), Vector3.forward),
                 quad.transform, partition, double.NaN, 100, out _, out _), Is.False);
 
             var surface = new ProjectedSemanticSurface { SemanticSurfaceId = "surface" };
@@ -119,11 +119,11 @@ public sealed class QuestPresentationEntryEditModeTests
                 NormalizedBounds = new LogicalBounds { X = 0.5, Y = 0.25, Width = 0.5, Height = 0.5 },
             });
             surface.States.Add(state);
-            Assert.That(QuestPresentationSurfacePicking.TryResolve(surface, "open", point, out string interaction), Is.True);
+            Assert.That(PresentationSurfacePicking.TryResolve(surface, "open", point, out string interaction), Is.True);
             Assert.That(interaction, Is.EqualTo("higher"));
-            Assert.That(QuestPresentationSurfacePicking.TryResolve(surface, "closed", point, out _), Is.False);
-            Assert.That(QuestPresentationSurfacePicking.TryResolve(surface, "open", new QuestNormalizedPoint(1, 0.5), out _), Is.False);
-            Assert.That(QuestPresentationSurfacePicking.TryResolve(surface, "open", new QuestNormalizedPoint(double.NaN, 0.5), out _), Is.False);
+            Assert.That(PresentationSurfacePicking.TryResolve(surface, "closed", point, out _), Is.False);
+            Assert.That(PresentationSurfacePicking.TryResolve(surface, "open", new PresentationNormalizedPoint(1, 0.5), out _), Is.False);
+            Assert.That(PresentationSurfacePicking.TryResolve(surface, "open", new PresentationNormalizedPoint(double.NaN, 0.5), out _), Is.False);
         }
         finally { UnityEngine.Object.DestroyImmediate(quad); }
     }

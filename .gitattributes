@@ -3,3 +3,34 @@ app/unity/Assets/font/** filter=lfs diff=lfs merge=lfs -text
 app/unity/Assets/font/**/*.meta -filter -diff -merge text
 app/unity/Assets/font/SawarabiGothic-Regular[[:space:]]SDF.asset filter=lfs diff=lfs merge=lfs -text
 app/unity/Assets/Plugins/*.LICENSE.txt -text whitespace=cr-at-eol
+
+# C# generated clients
+packages/api-client-csharp/Generated/** linguist-generated=true
+
+# Generated Go protobuf
+app/server/realtime/internal/gen/** linguist-generated=true
+
+# Generated Unity protobuf bindings and synchronized inputs
+app/unity/Assets/Scripts/PresentationRuntime/Generated/*.cs linguist-generated=true
+app/unity/Assets/Contracts/Proto/**/*.proto linguist-generated=true
+
+# Generated Cloudflare bindings
+app/server/control-plane/src/worker-configuration.d.ts linguist-generated=true
+app/web/worker-configuration.d.ts linguist-generated=true
+
+# Generated OpenAPI contract and types
+packages/contracts/openapi/control-plane.openapi.json linguist-generated=true
+packages/contracts/src/control-plane.openapi.ts linguist-generated=true
+
+# Generated presentation contracts
+packages/contracts/presentation/*.schema.json linguist-generated=true
+packages/contracts/presentation/contract.pb linguist-generated=true
+packages/contracts/presentation/wire-descriptor.json linguist-generated=true
+packages/contracts/presentation/wire-static.js linguist-generated=true
+packages/contracts/presentation/wire-static.d.ts linguist-generated=true
+packages/contracts/presentation/wire-types.d.ts linguist-generated=true
+packages/contracts/presentation/breaking-report.json linguist-generated=true
+
+# Generated wire fixtures
+packages/contracts/presentation/fixtures/wire/conformance.json linguist-generated=true
+packages/contracts/presentation/fixtures/wire/valid-delivery.json linguist-generated=true

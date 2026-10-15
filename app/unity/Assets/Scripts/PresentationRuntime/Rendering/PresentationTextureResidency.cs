@@ -25,6 +25,27 @@ namespace Unframe.Unity.PresentationRuntime
             return textures.TryGetValue(checksum, out texture) && texture != null && !texture.isReadable;
         }
 
+        public bool TryRetain(TextureResidencyBinding binding, out string error)
+        {
+            error = "asset-texture-residency-failed";
+            if (binding == null || binding.PixelSize == null || !SharedTextures.TryGetValue(binding.Checksum, out SharedTexture shared)
+                || shared.Texture == null || shared.Texture.isReadable
+                || !shared.Descriptor.PixelSize.Equals(binding.PixelSize)
+                || shared.Descriptor.DecodedGpuBytes != binding.DecodedGpuBytes
+                || shared.Descriptor.PeakLoadCpuBytes != binding.PeakLoadCpuBytes) return false;
+            if (descriptors.ContainsKey(binding.Checksum))
+            {
+                error = null;
+                return TryGet(binding.Checksum, out _);
+            }
+            shared.Owners = checked(shared.Owners + 1);
+            descriptors.Add(binding.Checksum, binding.Clone());
+            textures.Add(binding.Checksum, shared.Texture);
+            ResidentGpuBytes = checked(ResidentGpuBytes + binding.DecodedGpuBytes);
+            error = null;
+            return true;
+        }
+
         public bool IsReady(IEnumerable<TextureResidencyBinding> selected)
         {
             foreach (TextureResidencyBinding binding in selected)

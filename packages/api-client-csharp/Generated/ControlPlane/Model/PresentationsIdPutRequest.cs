@@ -36,7 +36,7 @@ namespace Unframe.ControlPlane.Model
         /// <param name="expectedRevision">expectedRevision</param>
         /// <param name="definition">definition</param>
         [JsonConstructor]
-        public PresentationsIdPutRequest(long expectedRevision, PresentationsGet200ResponsePresentationsInnerDefinition definition)
+        public PresentationsIdPutRequest(long expectedRevision, PresentationsIdPutRequestDefinition definition)
         {
             ExpectedRevision = expectedRevision;
             Definition = definition;
@@ -55,7 +55,7 @@ namespace Unframe.ControlPlane.Model
         /// Gets or Sets Definition
         /// </summary>
         [JsonPropertyName("definition")]
-        public PresentationsGet200ResponsePresentationsInnerDefinition Definition { get; set; }
+        public PresentationsIdPutRequestDefinition Definition { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -111,7 +111,7 @@ namespace Unframe.ControlPlane.Model
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
             Option<long?> expectedRevision = default;
-            Option<PresentationsGet200ResponsePresentationsInnerDefinition?> definition = default;
+            Option<PresentationsIdPutRequestDefinition?> definition = default;
 
             while (utf8JsonReader.Read())
             {
@@ -132,7 +132,7 @@ namespace Unframe.ControlPlane.Model
                             expectedRevision = new Option<long?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
                             break;
                         case "definition":
-                            definition = new Option<PresentationsGet200ResponsePresentationsInnerDefinition?>(JsonSerializer.Deserialize<PresentationsGet200ResponsePresentationsInnerDefinition>(ref utf8JsonReader, jsonSerializerOptions)!);
+                            definition = new Option<PresentationsIdPutRequestDefinition?>(JsonSerializer.Deserialize<PresentationsIdPutRequestDefinition>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         default:
                             break;

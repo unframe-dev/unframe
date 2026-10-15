@@ -9,6 +9,7 @@
     "./tui": "./src/tui/run.tsx"
   },
   "scripts": {
+    "dev": "bun src/process/editor-dev.ts",
     "tui": "bun src/tui/main.tsx",
     "presentation": "bun src/process/main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -21,16 +22,26 @@
     "@opentui/core": "0.4.5",
     "@opentui/keymap": "0.4.5",
     "@opentui/solid": "0.4.5",
+    "@unframe/contracts": "workspace:*",
     "@unframe/unframe-compiler": "workspace:*",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-web": "workspace:*",
+    "@unframe/unframe-tailwind": "workspace:*",
+    "canonicalize": "3.0.0",
+    "jsonc-parser": "3.3.1",
+    "semver": "7.8.5",
     "solid-js": "1.9.12",
+    "ssri": "14.0.0",
     "typescript": "5.9.3",
+    "validate-npm-package-name": "8.0.0",
     "web-tree-sitter": "0.25.10",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/semver": "7.7.1",
+    "@types/ssri": "7.1.5",
+    "@types/validate-npm-package-name": "4.0.2",
     "@unframe/unframe-components": "workspace:*",
     "vite-plus": "catalog:",
     "vitest": "catalog:"

@@ -47,6 +47,12 @@ const runtimeConfigSchema = z.object({
   RESEND_API_KEY: requiredString("RESEND_API_KEY"),
   AUTH_EMAIL_FROM: requiredString("AUTH_EMAIL_FROM").email("AUTH_EMAIL_FROM must be an email"),
   WEB_ORIGIN: originUrl("WEB_ORIGIN"),
+  PUBLICATION_ASSET_ORIGIN: originUrl("PUBLICATION_ASSET_ORIGIN")
+    .refine(
+      (value) => new URL(value).protocol === "https:",
+      "PUBLICATION_ASSET_ORIGIN must use HTTPS",
+    )
+    .optional(),
   R2_ACCOUNT_ID: requiredString("R2_ACCOUNT_ID").refine(
     (value) => value !== "replace-with-r2-account-id",
     "R2_ACCOUNT_ID must not use the configured placeholder",

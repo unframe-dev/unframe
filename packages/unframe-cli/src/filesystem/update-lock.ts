@@ -1,3 +1,9 @@
+import {
+  authoringPackageRoots,
+  hasPostcssConfig,
+  prepareProjectSource,
+  StylePreparationError,
+} from "./prepare-project.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -10,13 +16,14 @@ import {
   computeFrozenComponentInputs,
 } from "@unframe/unframe-compiler";
 import { canonicalizeJsonPayload } from "@unframe/unframe-core";
+import type { StyleDiagnostic } from "@unframe/unframe-tailwind";
 import { discoverPresentationProjectFiles } from "./discover-project.js";
 import { loadUnframeLock } from "./load-lock.js";
 import { parseStrictJson } from "./strict-json.js";
 import { acquireSourceLock } from "./source-lock.js";
 import { acquireBuildLock } from "./build-lock.js";
 import { readRegularFile } from "./path-policy.js";
-import { digestBytes, lockedFile, snapshotInstalledPackages } from "./package-snapshot.js";
+import { digestBytes, snapshotInstalledPackages } from "./package-snapshot.js";
 import { hashDependencyGraph, type UnframeLock } from "./lock.js";
 
 const execute = promisify(execFile);
@@ -26,7 +33,10 @@ export const updateProjectLock = async (
   operation: "refresh" | "update",
   recreate: boolean,
   signal?: AbortSignal,
-): Promise<{ ok: true } | { ok: false; code: string; message: string }> => {
+): Promise<
+  | { ok: true }
+  | { ok: false; code: string; message: string; diagnostics?: readonly StyleDiagnostic[] }
+> => {
   const failure = (code: string, message: string) => ({ ok: false as const, code, message });
   let discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok) return discovered;
@@ -96,19 +106,23 @@ export const updateProjectLock = async (
         },
       );
     }
-    const graph = operation === "update" ? await snapshotInstalledPackages(directory) : previous;
+    const graph =
+      operation === "update"
+        ? await snapshotInstalledPackages(
+            directory,
+            hasPostcssConfig(discovered)
+              ? { rootSpecifiers: authoringPackageRoots(discovered) }
+              : {},
+          )
+        : previous;
     if (!graph)
       return failure("cli-lock-update-required", "A valid v2 lock is required for refresh.");
-    const source = {
-      projectRoot: discovered.projectDirectory,
-      entryFile: discovered.entryFile,
-      files: discovered.files,
-      rawFiles: discovered.localFiles
-        .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
-        .map(({ path, bytes }) => lockedFile(path, bytes)),
-      rootDependencies: graph.rootDependencies,
-      packages: graph.packages,
-    };
+    const prepared = await prepareProjectSource(discovered, graph, {
+      update: operation === "update",
+      refresh: true,
+      ...(signal ? { signal } : {}),
+    });
+    const source = prepared.source;
     const catalog = checkAuthoringProject(source);
     if (!catalog.valid)
       return failure(
@@ -122,6 +136,12 @@ export const updateProjectLock = async (
         computed.diagnostics.map((d) => `${d.code}: ${d.message}`).join("\n"),
       );
     const next = {
+      ...(prepared.styleTransform
+        ? {
+            styleTransform: prepared.styleTransform,
+            styleSourceIdentity: prepared.styleSourceIdentity,
+          }
+        : {}),
       schemaVersion: 2,
       packageSnapshotProfile: "pnpm-lock9-locator-v1",
       resolutionProfile: "browser-import-production-types-v1",
@@ -148,6 +168,9 @@ export const updateProjectLock = async (
         checked.diagnostics.map((d) => `${d.code}: ${d.message}`).join("\n"),
       );
     if (signal?.aborted) return failure("cli-cancelled", "Lock update was cancelled.");
+    const current = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+    if (!current.ok || current.revision !== discovered.revision)
+      return failure("cli-lock-source-changed", "Source changed during lock update.");
     for (const file of discovered.localFiles) {
       const current = await readRegularFile(join(directory, file.path));
       if (!current || digestBytes(current) !== digestBytes(file.bytes))
@@ -181,6 +204,11 @@ export const updateProjectLock = async (
     }
     return { ok: true };
   } catch (error) {
+    if (error instanceof StylePreparationError)
+      return {
+        ...failure(error.code, error.message),
+        diagnostics: error.diagnostics,
+      };
     return failure(
       "cli-lock-update-failed",
       error instanceof Error ? error.message : "Lock update failed.",

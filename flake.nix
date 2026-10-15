@@ -38,7 +38,8 @@
           pkgs.git-lfs
           pkgs.coreutils
           pkgs.bash
-        ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+        ]
+        ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
           pkgs.systemd
         ];
@@ -84,17 +85,32 @@
             pkgs.nix-ld
             pkgs.glibc
             presentationFontconfig
-          ] ++ chromiumRuntime;
+          ]
+          ++ chromiumRuntime;
+        };
+        styleRuntimeClosure = pkgs.closureInfo {
+          rootPaths = [
+            pkgs.nodejs_24
+            pkgs.bash
+            pkgs.nix-ld
+            pkgs.glibc
+            pkgs.stdenv.cc.cc
+          ];
         };
         nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
-          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath ([
-            pkgs.glibc
-            pkgs.stdenv.cc.cc
-          ] ++ chromiumRuntime);
+          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+            [
+              pkgs.glibc
+              pkgs.stdenv.cc.cc
+            ]
+            ++ chromiumRuntime
+          );
           FONTCONFIG_FILE = presentationFontconfig;
           UNFRAME_BWRAP_PATH = "${pkgs.bubblewrap}/bin/bwrap";
           UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
+          UNFRAME_STYLE_NODE = "${pkgs.nodejs_24}/bin/node";
+          UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
           UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_NIX_LD_SHIM = "${pkgs.nix-ld}/bin/nix-ld";
           UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
@@ -103,11 +119,15 @@
         # scripts/ の実処理を flake app としてラップする。
         # flake.nix は依存・公開名・接続のみを持ち、ロジックは scripts/ 側にある。
         mkApp =
-          { name, script }:
+          {
+            name,
+            script,
+            extraRuntimeInputs ? [ ],
+          }:
           let
             wrapper = pkgs.writeShellApplication {
               name = "unframe-${name}";
-              runtimeInputs = toolchain;
+              runtimeInputs = toolchain ++ extraRuntimeInputs;
               text = ''
                 ${pkgs.lib.concatStringsSep "\n" (
                   pkgs.lib.mapAttrsToList (
@@ -123,6 +143,37 @@
             type = "app";
             program = "${wrapper}/bin/unframe-${name}";
           };
+        unityRuntime = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          unity-editor =
+            let
+              runtime =
+                (pkgs.steam.override {
+                  extraPkgs = p: [
+                    p.gtk3
+                    p.atk
+                    p.at-spi2-atk
+                    p.pango
+                    p.cairo
+                    p.gdk-pixbuf
+                  ];
+                }).run;
+              wrapper = pkgs.writeShellApplication {
+                name = "unframe-unity-editor";
+                runtimeInputs = [
+                  runtime
+                  pkgs.git
+                ];
+                text = ''
+                  root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+                  exec steam-run "''${root}/scripts/unity/editor.sh" "$@"
+                '';
+              };
+            in
+            {
+              type = "app";
+              program = "${wrapper}/bin/unframe-unity-editor";
+            };
+        };
       in
       {
         devShells.default = pkgs.mkShell (
@@ -157,6 +208,18 @@
             name = "unity-proto";
             script = "contracts/generate-unity-proto.sh";
           };
+          unity-preview = mkApp {
+            name = "unity-preview";
+            script = "unity/build-preview.sh";
+          };
+          local-editor-e2e = mkApp {
+            name = "local-editor-e2e";
+            script = "local-editor/e2e.sh";
+            extraRuntimeInputs = [
+              pkgs.openssl
+              pkgs.caddy
+            ];
+          };
           contracts-consumers = mkApp {
             name = "contracts-consumers";
             script = "contracts/generate-consumers.sh";
@@ -181,7 +244,8 @@
             name = "notion-sync";
             script = "docs/notion-sync.sh";
           };
-        };
+        }
+        // unityRuntime;
 
         formatter = pkgs.nixfmt-rfc-style;
       }

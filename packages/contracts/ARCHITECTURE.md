@@ -5,9 +5,7 @@
 - **Related**:
   - [Presentation Architecture](../../docs/packages/ARCHITECTURE.md)
   - [Presentation Implementation Design](../../docs/packages/DESIGN.md)
-  - [ADR-0006](../../docs/decisions/0006-presentation-rendering-strategy.md)
-  - [ADR-0007](../../docs/decisions/0007-timeline-runtime-run-wire-contract.md)
-  - [ADR-0008](../../docs/decisions/0008-runtime-transport-contract.md)
+  - [Delivery / Runtime contract](../../docs/packages/CONTRACT_RUNTIME.md)
   - [ADR-0009](../../docs/decisions/0009-semantic-tree-hit-region-contract.md)
   - [ADR-0010](../../docs/decisions/0010-spatial-surface-coordinate-contract.md)
   - [ADR-0011](../../docs/decisions/0011-surface-partition-contract.md)
@@ -49,7 +47,7 @@ Presentation v1 の公開 export、schema、fixture、生成経路と Realtime v
 
 M3D の `m3dCueRuntimeSnapshotSchema`、`runtimeVisibilitySelectionSchema`、`m3dCueParticipantRuntimeViewSchema` は、現行 Cue 実行器が扱う subset を固定する。完全な構造は `canonicalRuntimeSnapshotSchema` と `participantRuntimeViewSchema` が扱い、Media / Model を含む。意味検証と role projection は Core が所有する。
 
-v2 Proto から TypeScript の descriptor / 静的 codec / 型、Go、C# の message / service source を生成する。TypeScript の公開 wire codec は decimal string の `uint64` を使い、動的コード生成を必要としない。生成 consumer の配置と検証境界は [ADR-0023](../../docs/decisions/0023-m5-generated-consumer-boundaries.md) に従う。Realtime の通信契約は v2 に限定する。生成物と authoritative Runtime の実装・検証を区別する。
+v2 Proto から TypeScript の descriptor / 静的 codec / 型、Go、C# の message / service source を生成する。TypeScript の公開 wire codec は decimal string の `uint64` を使い、動的コード生成を必要としない。生成 consumer の配置と検証境界は [ADR-0024](../../docs/decisions/0024-canonical-presentation-contract-names.md) に従う。Realtime の通信契約は v2 に限定する。生成物と authoritative Runtime の実装・検証を区別する。
 
 ## 3. Ownership split
 

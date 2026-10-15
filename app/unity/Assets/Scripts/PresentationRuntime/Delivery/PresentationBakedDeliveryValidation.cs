@@ -4,21 +4,30 @@ using Unframe.Delivery;
 
 namespace Unframe.Unity.PresentationRuntime
 {
-    internal static class PresentationBakedDeliveryValidation
+    public static class PresentationBakedDeliveryValidation
     {
         internal static bool TryValidate(DeliveryManifest manifest, out string error)
+        {
+            return TryValidate(manifest.ProjectionProfile.RenderSurfaces, manifest.Residency.Textures,
+                manifest.CapabilityProfile.Renderers?.BakedWeb, manifest.CapabilityProfile.Limits?.Texture,
+                manifest.AssetAccess, out error);
+        }
+
+        public static bool TryValidate(IEnumerable<DeliveredRenderSurface> renderSurfaces, TextureResidencyPlan plan,
+            TextureCapability capability, TextureLimits profileLimits, IEnumerable<AssetAccessBinding> assetAccess, out string error)
         {
             error = "delivery texture residency or artifact metadata is inconsistent.";
             Dictionary<string, TextureArtifact> selected = new Dictionary<string, TextureArtifact>();
             Dictionary<string, AssetAccessBinding> assets = new Dictionary<string, AssetAccessBinding>();
-            foreach (AssetAccessBinding asset in manifest.AssetAccess) assets.Add(asset.AssetId, asset);
+            foreach (AssetAccessBinding asset in assetAccess)
+                if (asset == null || assets.ContainsKey(asset.AssetId)) return false;
+                else assets.Add(asset.AssetId, asset);
             ulong bindingCount = 0;
-            foreach (DeliveredRenderSurface surface in manifest.ProjectionProfile.RenderSurfaces)
+            foreach (DeliveredRenderSurface surface in renderSurfaces)
             {
                 if (surface.RendererKind != RendererKind.BakedWeb) continue;
-                TextureCapability capability = manifest.CapabilityProfile.Renderers.BakedWeb;
-                TextureLimits limits = manifest.CapabilityProfile.Limits == null ? null : manifest.CapabilityProfile.Limits.Texture;
-                if (limits == null || surface.LogicalBounds == null || !ValidBounds(surface.LogicalBounds)) return false;
+                TextureLimits limits = profileLimits;
+                if (capability == null || limits == null || surface.LogicalBounds == null || !ValidBounds(surface.LogicalBounds)) return false;
                 Dictionary<string, BakedWebArtifact> artifacts = new Dictionary<string, BakedWebArtifact>();
                 foreach (DeliveredArtifact delivered in surface.Artifacts)
                 {
@@ -63,9 +72,12 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!present) return false;
                 }
             }
-            TextureResidencyPlan plan = manifest.Residency.Textures;
-            if (selected.Count == 0) { error = null; return plan == null || plan.Textures.Count == 0 && plan.TotalDecodedGpuBytes == 0 && plan.MaximumPeakLoadCpuBytes == 0; }
-            TextureLimits profileLimits = manifest.CapabilityProfile.Limits.Texture;
+            if (selected.Count == 0)
+            {
+                if (plan != null && (plan.Textures.Count != 0 || plan.TotalDecodedGpuBytes != 0 || plan.MaximumPeakLoadCpuBytes != 0)) return false;
+                error = null;
+                return true;
+            }
             if (plan == null || plan.BudgetTierId != profileLimits.TierId || bindingCount > profileLimits.MaxTextureBindings
                 || plan.Textures.Count != selected.Count) return false;
             HashSet<string> seen = new HashSet<string>();

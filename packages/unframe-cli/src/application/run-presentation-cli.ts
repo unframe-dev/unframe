@@ -1,3 +1,5 @@
+import { prepareProjectSource, StylePreparationError } from "../filesystem/prepare-project.js";
+import { styleDiagnostics } from "./style-diagnostics.js";
 import {
   checkAuthoringProjectAssembly,
   compileAuthoringProject,
@@ -22,7 +24,7 @@ import { acquireSourceLock } from "../filesystem/source-lock.js";
 import { acquireBuildLock, type BuildLock } from "../filesystem/build-lock.js";
 import { discoverPresentationProjectFiles } from "../filesystem/discover-project.js";
 import { updateProjectLock } from "../filesystem/update-lock.js";
-import { lockedFile } from "../filesystem/package-snapshot.js";
+import { refreshLocalProjectLock } from "../filesystem/refresh-local-lock.js";
 import { verifyFrozenLocalFiles } from "../filesystem/frozen-local-files.js";
 import { loadUnframeLock } from "../filesystem/load-lock.js";
 import { initPresentationProject } from "../filesystem/init-project.js";
@@ -143,7 +145,8 @@ const output = (
   command: Command["command"] | undefined,
   format: Command["format"],
   diagnostics: readonly PresentationCliDiagnostic[] = [],
-  warnings: readonly CompilerWarning[] = [],
+  warnings: readonly (CompilerWarning | PresentationCliDiagnostic)[] = [],
+  build?: Readonly<{ sourceRevision: string; generationId: string }>,
 ): PresentationCliResult => {
   const list = ordered(diagnostics);
   const warningList = ordered(
@@ -154,12 +157,14 @@ const output = (
       exitCode,
       stdout:
         format === "json"
-          ? `${JSON.stringify({ ok: true, command, diagnostics: [], warnings: warningList })}\n`
+          ? `${JSON.stringify({ ok: true, command, diagnostics: [], warnings: warningList, ...build })}\n`
           : `${command}: ok\n`,
       stderr:
         format === "text" && warningList.length
           ? warningList
               .map((warning) => {
+                if (!("componentInstanceId" in warning))
+                  return `${pathText(warning.path)}: warning/${warning.family}/${warning.code}: ${warning.message}`;
                 const subject =
                   "propName" in warning
                     ? `prop=${JSON.stringify(warning.propName)}`
@@ -173,6 +178,7 @@ const output = (
               })
               .join("\n") + "\n"
           : "",
+      ...build,
     };
   const stderr =
     format === "json"
@@ -358,6 +364,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       diagnostic("usage", "cli-invalid-host", "CLI host is invalid."),
     ]);
   const host = hostRecord as PresentationCliHost;
+  if (host.channel !== undefined && host.channel !== "dev" && host.channel !== "dist")
+    return output(2, command, format, [
+      diagnostic("usage", "cli-invalid-host", "CLI output channel is invalid."),
+    ]);
   if (host.signal?.aborted)
     return output(130, command, format, [
       diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
@@ -379,25 +389,71 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     );
     return result.ok
       ? output(0, command, format)
-      : output(result.code === "cli-cancelled" ? 130 : 1, command, format, [
-          diagnostic(
-            result.code === "cli-cancelled" ? "cancel" : "semantic",
-            result.code,
-            result.message,
-          ),
-        ]);
+      : output(
+          result.code === "cli-cancelled" ? 130 : 1,
+          command,
+          format,
+          result.diagnostics?.length
+            ? styleDiagnostics(result.diagnostics, result.code)
+            : [
+                diagnostic(
+                  result.code === "cli-cancelled" ? "cancel" : "semantic",
+                  result.code,
+                  result.message,
+                ),
+              ],
+        );
   }
-  const discovered = await discoverPresentationProjectFiles(directory);
+  const sourceWait = {
+    waitTimeoutMs: host.channel ? 5000 : 0,
+    ...(host.signal ? { signal: host.signal } : {}),
+  };
+  let expectedRevision = host.expectedRevision;
+  if (command !== "check" && host.channel === "dev") {
+    const refreshed = await refreshLocalProjectLock(directory, {
+      ...sourceWait,
+      ...(expectedRevision !== undefined ? { expectedRevision } : {}),
+      ...(host.signal ? { signal: host.signal } : {}),
+    });
+    if (!refreshed.ok)
+      return output(
+        refreshed.code === "cli-cancelled" ? 130 : refreshed.code === "cli-output-stale" ? 3 : 1,
+        command,
+        format,
+        [
+          diagnostic(
+            refreshed.code === "cli-cancelled"
+              ? "cancel"
+              : refreshed.code === "cli-output-stale"
+                ? "io"
+                : "semantic",
+            refreshed.code,
+            refreshed.message,
+          ),
+        ],
+      );
+    expectedRevision = refreshed.revision;
+  }
+  const discovered = await discoverPresentationProjectFiles(directory, sourceWait);
   if (!discovered.ok)
-    return output(discovered.code === "cli-config-invalid" ? 1 : 3, command, format, [
-      diagnostic(
-        discovered.code === "cli-config-invalid" ? "syntax" : "io",
-        discovered.code,
-        discovered.message,
-        [directory],
-      ),
-    ]);
-  if (host.expectedRevision !== undefined && discovered.revision !== host.expectedRevision)
+    return output(
+      discovered.code === "cli-cancelled" ? 130 : discovered.code === "cli-config-invalid" ? 1 : 3,
+      command,
+      format,
+      [
+        diagnostic(
+          discovered.code === "cli-cancelled"
+            ? "cancel"
+            : discovered.code === "cli-config-invalid"
+              ? "syntax"
+              : "io",
+          discovered.code,
+          discovered.message,
+          [directory],
+        ),
+      ],
+    );
+  if (expectedRevision !== undefined && discovered.revision !== expectedRevision)
     return output(3, command, format, [
       diagnostic("io", "cli-output-stale", "Project inputs changed after the build was requested."),
     ]);
@@ -442,18 +498,41 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         ),
       ),
     );
-  const source = Object.freeze({
-    projectRoot: discovered.projectDirectory,
-    entryFile: discovered.entryFile,
-    files: discovered.files,
-    rawFiles: discovered.localFiles
-      .filter(({ path }) => /\.(js|mjs|cjs|css|png|jpe?g|webp|ttf|otf)$/i.test(path))
-      .map(({ path, bytes }) => lockedFile(path, bytes)),
-    ...lock.value.virtualSource,
-  });
+  let prepared: Awaited<ReturnType<typeof prepareProjectSource>>;
+  try {
+    prepared = await prepareProjectSource(
+      discovered,
+      lock.value.lock,
+      host.signal ? { signal: host.signal } : {},
+    );
+  } catch (error) {
+    const code = error instanceof StylePreparationError ? error.code : "cli-style-prepare-failed";
+    return output(
+      code === "cli-cancelled" ? 130 : 1,
+      command,
+      format,
+      error instanceof StylePreparationError && error.diagnostics.length
+        ? styleDiagnostics(error.diagnostics, code)
+        : [
+            diagnostic(
+              code === "cli-cancelled" ? "cancel" : "semantic",
+              code,
+              error instanceof Error ? error.message : "Style preparation failed.",
+            ),
+          ],
+    );
+  }
+  const source = prepared.source;
   const checked = checkAuthoringProjectAssembly(source, lock.value.assemblyCarrier);
   if (!checked.valid) return output(1, command, format, compilerDiagnostics(checked));
-  if (command === "check") return output(0, command, format, [], checked.value.warnings);
+  if (command === "check")
+    return output(
+      0,
+      command,
+      format,
+      [],
+      [...checked.value.warnings, ...styleDiagnostics(prepared.diagnostics)],
+    );
   const opaque = Object.values(checked.value.definition.scene.surfaces).find(
     (surface) => surface.content.kind === "opaque",
   );
@@ -608,14 +687,19 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         return output(130, command, format, [
           diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
         ]);
-      const sourceLease = await acquireSourceLock(discovered.projectDirectory);
+      const sourceLease = await acquireSourceLock(discovered.projectDirectory, sourceWait);
       if (!sourceLease.ok)
-        return output(3, command, format, [
-          diagnostic("io", sourceLease.code, "Source is being saved or requires recovery."),
+        return output(sourceLease.code === "cli-cancelled" ? 130 : 3, command, format, [
+          diagnostic(
+            sourceLease.code === "cli-cancelled" ? "cancel" : "io",
+            sourceLease.code,
+            "Source is being saved or requires recovery.",
+          ),
         ]);
       const published = await (async () => {
         try {
           return await publishAtomicArtifacts({
+            ...(host.channel ? { channel: host.channel } : {}),
             projectDirectory: discovered.projectDirectory,
             artifacts: artifacts(compiled.value),
             isCurrentRevision: async () => {
@@ -644,7 +728,17 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
                   : "Build artifacts could not be published.",
           ),
         ]);
-      return output(0, command, format, [], compiled.value.warnings);
+      return output(
+        0,
+        command,
+        format,
+        [],
+        [...compiled.value.warnings, ...styleDiagnostics(prepared.diagnostics)],
+        {
+          sourceRevision: discovered.revision,
+          generationId: published.generationId,
+        },
+      );
     } catch (error) {
       if (error instanceof OpaquePreparationFailure && !host.signal?.aborted)
         return output(

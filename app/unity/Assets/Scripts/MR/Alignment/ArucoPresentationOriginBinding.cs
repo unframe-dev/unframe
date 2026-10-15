@@ -55,7 +55,7 @@ public sealed class ArucoPresentationOriginBinding : MonoBehaviour
         presentationSpace.localScale = Vector3.one;
         stageRoot.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
         stageRoot.localScale = Vector3.one;
-        runner.Hierarchy.ApplyOrigin(origin);
+        runner.Hierarchy.ApplyOrigin(origin.Pose);
         presentationSpace.gameObject.SetActive(true);
     }
 

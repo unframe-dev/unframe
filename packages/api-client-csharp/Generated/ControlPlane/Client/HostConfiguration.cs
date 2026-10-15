@@ -102,12 +102,14 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new PresentationsGet401ResponseErrorJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsIdDeleteRequestJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsIdPutRequestJsonConverter());
+            _jsonOptions.Converters.Add(new PresentationsIdPutRequestDefinitionJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdBuildsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdBuildsPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseContractVersionsJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPostRequestJsonConverter());
+            _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPostRequestExpectedPublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdBootstrapPost200ResponseJsonConverter());
             _jsonOptions.Converters.Add(new SessionsIdBootstrapPost200ResponsePublicationFenceJsonConverter());
             _jsonOptions.Converters.Add(new SessionsJoinPostRequestJsonConverter());

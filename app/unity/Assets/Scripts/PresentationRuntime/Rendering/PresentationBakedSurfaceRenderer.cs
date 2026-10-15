@@ -27,14 +27,14 @@ namespace Unframe.Unity.PresentationRuntime
             material = new Material(shader);
         }
 
-        public bool TryBuild(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy, out string error)
+        public bool TryBuild(IPresentationRenderView view, PresentationNodeHierarchy hierarchy, out string error)
         {
             Clear();
-            error = "delivery baked surface cannot be rendered.";
-            if (store == null || store.Delivery == null || hierarchy == null || hierarchy.Registry == null) return false;
-            foreach (DeliveredRenderSurface surface in store.Delivery.ProjectionProfile.RenderSurfaces)
+            error = "baked surface cannot be rendered.";
+            if (view == null || view.Catalog == null || hierarchy == null || hierarchy.Registry == null) return false;
+            foreach (DeliveredRenderSurface surface in view.RenderSurfaces)
             {
-                if (surface.RendererKind != RendererKind.BakedWeb || !store.TryGetSurface(surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
+                if (surface.RendererKind != RendererKind.BakedWeb || !view.TryGetSurface(surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
                     || semantic.PhysicalSizeMeters == null || semantic.LogicalSize == null || semantic.PhysicalSizeMeters.X <= 0 || semantic.PhysicalSizeMeters.Y <= 0
                     || semantic.LogicalSize.X <= 0 || semantic.LogicalSize.Y <= 0
                     || !hierarchy.Registry.TryGet(semantic.HostNodeId, out GameObject host)) { Clear(); return false; }
@@ -59,13 +59,13 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        public bool TryRefresh(PresentationRuntimeDataStore store, PresentationTextureResidency textures, double runtimeTimeMs, out string error)
+        public bool TryRefresh(IPresentationRenderView view, PresentationTextureResidency textures, double runtimeTimeMs, out string error)
         {
             error = "asset_residency_lost";
             foreach (Partition partition in partitions)
             {
-                if (!store.TryGetSurfaceState(partition.Surface.SemanticSurfaceId, out SurfaceRuntimeState state)
-                    || !store.TryGetNodeState(partition.HostNodeId, out NodeRuntimeState node))
+                if (!view.TryGetSurfaceState(partition.Surface.SemanticSurfaceId, out SurfaceRuntimeState state)
+                    || !view.TryGetNodeState(partition.HostNodeId, out NodeRuntimeState node))
                 {
                     partition.Renderer.enabled = false;
                     continue;
@@ -75,7 +75,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (state.TransitionRunId != null)
                 {
                     RuntimeRunSnapshot transition = null;
-                    foreach (RuntimeRunSnapshot run in store.ActiveRuns)
+                    foreach (RuntimeRunSnapshot run in view.ActiveRuns)
                         if (run.RunCase == RuntimeRunSnapshot.RunOneofCase.SurfaceTransition && run.RunId.Equals(state.TransitionRunId)) { transition = run; break; }
                     if (transition == null || transition.SurfaceTransition.SurfaceId != partition.Surface.SemanticSurfaceId
                         || transition.SurfaceTransition.ToStateId != state.StateId || transition.SurfaceTransition.DurationMs == 0) { Disable(); return false; }
@@ -98,24 +98,24 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        public bool TryPickInteraction(Ray ray, PresentationRuntimeDataStore store, PresentationTextureResidency textures,
+        public bool TryPickInteraction(Ray ray, IPresentationRenderView view, PresentationTextureResidency textures,
             out string surfaceId, out string interactionId)
         {
             surfaceId = null;
             interactionId = null;
             Partition nearest = null;
-            QuestNormalizedPoint point = default;
+            PresentationNormalizedPoint point = default;
             float nearestDistance = float.PositiveInfinity;
             foreach (Partition partition in partitions)
             {
                 if (!partition.Renderer.enabled || !partition.Object.activeInHierarchy
-                    || !store.TryGetSurfaceState(partition.Surface.SemanticSurfaceId, out SurfaceRuntimeState state)
-                    || !store.TryGetNodeState(partition.HostNodeId, out NodeRuntimeState node)
+                    || !view.TryGetSurfaceState(partition.Surface.SemanticSurfaceId, out SurfaceRuntimeState state)
+                    || !view.TryGetNodeState(partition.HostNodeId, out NodeRuntimeState node)
                     || !node.Active || !node.Visible
                     || !TryTexture(partition.Surface, state.StateId, textures, out _, out bool visible) || !visible
-                    || !store.TryGetSurface(partition.Surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
-                    || !QuestPresentationSurfacePicking.TryIntersect(ray, partition.Object.transform, partition.Surface.LogicalBounds,
-                        semantic.LogicalSize.X, semantic.LogicalSize.Y, out QuestNormalizedPoint candidatePoint, out float distance)
+                    || !view.TryGetSurface(partition.Surface.SemanticSurfaceId, out ProjectedSurfaceDefinition semantic)
+                    || !PresentationSurfacePicking.TryIntersect(ray, partition.Object.transform, partition.Surface.LogicalBounds,
+                        semantic.LogicalSize.X, semantic.LogicalSize.Y, out PresentationNormalizedPoint candidatePoint, out float distance)
                     || distance > nearestDistance
                     || distance == nearestDistance && nearest != null
                         && StringComparer.Ordinal.Compare(partition.Surface.SemanticSurfaceId, nearest.Surface.SemanticSurfaceId) >= 0) continue;
@@ -124,11 +124,11 @@ namespace Unframe.Unity.PresentationRuntime
                 nearestDistance = distance;
             }
             if (nearest == null) return false;
-            foreach (ProjectedSemanticSurface semantic in store.Delivery.ProjectionProfile.SemanticSurfaces)
+            foreach (ProjectedSemanticSurface semantic in view.SemanticSurfaces)
             {
                 if (semantic.SemanticSurfaceId != nearest.Surface.SemanticSurfaceId) continue;
-                if (!store.TryGetSurfaceState(semantic.SemanticSurfaceId, out SurfaceRuntimeState state)
-                    || !QuestPresentationSurfacePicking.TryResolve(semantic, state.StateId, point, out interactionId)) return false;
+                if (!view.TryGetSurfaceState(semantic.SemanticSurfaceId, out SurfaceRuntimeState state)
+                    || !PresentationSurfacePicking.TryResolve(semantic, state.StateId, point, out interactionId)) return false;
                 surfaceId = semantic.SemanticSurfaceId;
                 return true;
             }

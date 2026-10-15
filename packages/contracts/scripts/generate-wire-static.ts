@@ -9,6 +9,7 @@ const names = [
   "unframe/presentation/runtime.proto",
   "unframe/delivery/delivery.proto",
   "unframe/realtime/realtime.proto",
+  "unframe/preview/preview.proto",
 ];
 const temporary = await mkdtemp(resolve(tmpdir(), "unframe-wire-static-"));
 try {

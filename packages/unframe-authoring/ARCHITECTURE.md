@@ -61,7 +61,7 @@ Presentation Orchestrator、Theme、Manifest、Structure は静的解析可能�
 
 `Surface`、`Frame`、`Text`、`Slot`、`ComponentInstance` を JSX tag として提供する。`jsxImportSource` は `@unframe/unframe-authoring` とし、内部構造と Presentation の配置を同じ canonical declaration に変換する。JSX の opaque Element 型は入力だけに使い、definition builder の戻り値は canonical declaration 型を保つ。
 
-Compiler は locked SDK の export provenance を確認し、Source module と builder function を実行せず AST を lower する。任意関数、loop / branch、dynamic import、builder 関数自身の local alias は拒否する。builder の戻り値を `const` で共有することは許可する。許可構文と JSX の children 規則は [Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) と [ADR-0018](../../docs/decisions/0018-static-typescript-jsx-authoring.md) を参照する。
+Compiler は locked SDK の export provenance を確認し、Source module と builder function を実行せず AST を lower する。任意関数、loop / branch、dynamic import、builder 関数自身の local alias は拒否する。builder の戻り値を `const` で共有することは許可する。許可構文と JSX の children 規則は [Authoring Contract](../../docs/packages/AUTHORING_CONTRACT.md) を参照する。
 
 ## 5. Invariants
 
