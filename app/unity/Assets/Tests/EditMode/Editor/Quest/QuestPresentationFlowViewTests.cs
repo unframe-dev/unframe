@@ -44,6 +44,118 @@ public sealed class QuestPresentationFlowViewTests
     }
 
     [Test]
+    public void PanelAndActionsUseRoundedSlicedShapes()
+    {
+        view.Render(flow.State);
+        var background = view.Panel.GetComponent<Image>();
+        Assert.That(background.sprite, Is.Not.Null);
+        Assert.That(background.type, Is.EqualTo(Image.Type.Sliced));
+        Assert.That(background.sprite.border.x, Is.GreaterThan(0));
+        Assert.That(background.sprite.texture.GetPixel(0, 0).a, Is.Zero);
+        foreach (var button in view.Panel.GetComponentsInChildren<Button>())
+        {
+            Assert.That(button.image.sprite, Is.EqualTo(background.sprite));
+            Assert.That(button.image.type, Is.EqualTo(Image.Type.Sliced));
+        }
+    }
+
+    [Test]
+    public void RoleActionsHaveLargeReadableLabels()
+    {
+        view.Render(flow.State);
+        foreach (var name in new[] { "Audience", "Presenter" })
+        {
+            var label = view.FindButton(name).GetComponentInChildren<Text>();
+            Assert.That(label.fontSize, Is.GreaterThanOrEqualTo(36));
+            Assert.That(label.preferredHeight, Is.LessThanOrEqualTo(label.rectTransform.rect.height));
+        }
+    }
+
+    [TestCase(PresentationUiPage.RoleSelection, false)]
+    [TestCase(PresentationUiPage.RoomCode, false)]
+    [TestCase(PresentationUiPage.AuthenticationPreview, false)]
+    [TestCase(PresentationUiPage.RoomSetup, false)]
+    [TestCase(PresentationUiPage.Calibration, false)]
+    [TestCase(PresentationUiPage.Calibration, true)]
+    [TestCase(PresentationUiPage.Presenting, true)]
+    [TestCase(PresentationUiPage.ExitConfirmation, true)]
+    public void EveryScreenKeepsReadableTextInsideThePanel(PresentationUiPage page, bool aligned)
+    {
+        OpenPage(page, aligned);
+        view.Render(flow.State, "Hold still", 0.5f, 9, 25);
+        if (page == PresentationUiPage.Presenting)
+            view.SetGuidance(PresentationProgressGuidance.Create(flow.State, 9, 25, true, false,
+                ArmMotionPreset.SpreadHands, ArmMotionPhase.WaitingTrigger, false));
+        Canvas.ForceUpdateCanvases();
+        var panel = view.Panel.GetComponent<RectTransform>();
+        var corners = new Vector3[4];
+        foreach (var label in view.Panel.GetComponentsInChildren<Text>())
+        {
+            Assert.That(label.preferredHeight, Is.LessThanOrEqualTo(label.rectTransform.rect.height + 1), label.name + " clips text");
+            label.rectTransform.GetWorldCorners(corners);
+            foreach (var corner in corners)
+            {
+                var position = panel.InverseTransformPoint(corner);
+                Assert.That(Mathf.Abs(position.x), Is.LessThanOrEqualTo(panel.rect.width * 0.5f + 1), label.name);
+                Assert.That(Mathf.Abs(position.y), Is.LessThanOrEqualTo(panel.rect.height * 0.5f + 1), label.name);
+            }
+        }
+    }
+
+    [Test]
+    public void GuidanceShowsTheNextMotionAndUpdatesWithoutRebuildingThePanel()
+    {
+        OpenPage(PresentationUiPage.Presenting, true);
+        view.Render(flow.State, eventNumber: 9, totalEvents: 25);
+        var panel = view.Panel;
+        view.SetGuidance(PresentationProgressGuidance.Create(flow.State, 9, 25, true, false,
+            ArmMotionPreset.SwipeDown, ArmMotionPhase.WaitingTrigger, false));
+        var title = panel.transform.Find("Next action/Guidance Title").GetComponent<Text>();
+        var instruction = panel.transform.Find("Next action/Guidance Instruction").GetComponent<Text>();
+        Assert.That(title.text, Is.EqualTo("Swipe down"));
+        Assert.That(panel.transform.Find("Brand").GetComponent<Text>().text, Is.EqualTo("UP NEXT"));
+        Assert.That(title.fontSize, Is.GreaterThanOrEqualTo(36));
+        Assert.That(instruction.text, Does.Contain("trigger"));
+        Assert.That(panel.transform.Find("Event").GetComponent<Text>().text, Is.EqualTo("STEP 9 / 25"));
+        view.SetGuidance(PresentationProgressGuidance.Create(flow.State, 9, 25, true, false,
+            ArmMotionPreset.SwipeDown, ArmMotionPhase.Failed, true));
+        Assert.That(title.text, Is.EqualTo("Release trigger"));
+        Assert.That(panel.transform.Find("Brand").GetComponent<Text>().text, Is.EqualTo("STATUS"));
+        Assert.That(view.Panel, Is.SameAs(panel));
+    }
+
+    [Test]
+    public void DisabledViewStaysHiddenAcrossScreenRebuild()
+    {
+        view.Render(flow.State);
+        view.enabled = false;
+        typeof(QuestPresentationFlowView).GetMethod("OnDisable", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+        flow.SelectRole(PresentationUiRole.Audience);
+        view.Render(flow.State);
+        Assert.That(view.Panel.activeSelf, Is.False);
+    }
+
+    private void OpenPage(PresentationUiPage page, bool aligned)
+    {
+        if (page == PresentationUiPage.RoleSelection) return;
+        if (page == PresentationUiPage.RoomCode)
+        {
+            flow.SelectRole(PresentationUiRole.Audience);
+            return;
+        }
+        flow.SelectRole(PresentationUiRole.Presenter);
+        if (page == PresentationUiPage.AuthenticationPreview) return;
+        flow.ContinueAuthenticationPreview();
+        if (page == PresentationUiPage.RoomSetup) return;
+        flow.SelectPresentation("sample");
+        flow.CreatePreviewRoom();
+        if (aligned) flow.MarkCalibrationComplete();
+        if (page == PresentationUiPage.Calibration) return;
+        flow.EnterPresentation();
+        if (page == PresentationUiPage.ExitConfirmation) flow.RequestExit();
+    }
+
+    [Test]
     public void AudienceRoomCodeRequiresSixDigitsAndSupportsDelete()
     {
         flow.SelectRole(PresentationUiRole.Audience);
@@ -89,7 +201,7 @@ public sealed class QuestPresentationFlowViewTests
         Assert.That(view.Panel.GetComponentsInChildren<InputField>(), Is.Empty);
         Assert.That(view.FindButton("ContinuePreview"), Is.Not.Null);
         var notice = view.Panel.transform.Find("AuthNotice").GetComponent<Text>().text;
-        Assert.That(notice, Does.Contain("No credentials"));
+        Assert.That(notice, Is.EqualTo("No sign-in needed."));
     }
 
     [Test]
@@ -101,7 +213,7 @@ public sealed class QuestPresentationFlowViewTests
         Assert.That(view.FindButton("Start"), Is.Null);
         flow.MarkCalibrationComplete();
         view.Render(flow.State);
-        Assert.That(view.Panel.transform.Find("MarkerStatus").GetComponent<Text>().text, Is.EqualTo("Alignment complete"));
+        Assert.That(view.Panel.transform.Find("MarkerStatus").GetComponent<Text>().text, Is.EqualTo("Aligned"));
         Assert.That(view.FindButton("Start"), Is.Not.Null);
     }
 

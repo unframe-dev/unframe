@@ -60,6 +60,7 @@ public sealed class QuestLocalArmMotionControls : MonoBehaviour
     public string LastResult { get; private set; } = "no-match-yet";
     public string LastAdvanceError { get; private set; }
     public string UpcomingCueId => FindCue()?.cueId;
+    public ArmMotionPreset? UpcomingPreset => FindCue()?.preset;
     public int UpcomingEvent => runner != null ? runner.AppliedEventCount + 1 : 0;
     public bool UpcomingCueNeedsBothHands => FindCue()?.preset == ArmMotionPreset.SpreadHands
         || FindCue()?.preset == ArmMotionPreset.CloseHands;

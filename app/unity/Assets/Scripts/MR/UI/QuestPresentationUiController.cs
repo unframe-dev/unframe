@@ -143,12 +143,14 @@ public sealed class QuestPresentationUiController : MonoBehaviour
         if (view == null) return;
         var message = loadError ?? (cameraPreview != null ? cameraPreview.CalibrationMessage : "Look at the marker and hold still.");
         view.Render(Flow.State, message, alignment != null ? alignment.CalibrationProgress : 0,
-            runner != null ? runner.AppliedEventCount : 0);
+            runner != null ? runner.AppliedEventCount : 0, runner != null ? runner.ReliableEventCount : 0);
         var motion = runner != null ? runner.GetComponent<QuestLocalArmMotionControls>() : null;
-        if (motion != null) view.SetProgressionHint(!Flow.State.CanControlPresentation
-            ? "Audience: watch the presentation"
-            : controls != null && controls.CanAdvance ? motion.ProgressionHint
-            : runner.IsAnimating ? "Wait for the animation" : "Presentation complete");
+        view.SetGuidance(PresentationProgressGuidance.Create(Flow.State,
+            runner != null ? runner.AppliedEventCount : 0, runner != null ? runner.ReliableEventCount : 0,
+            controls != null && controls.CanAdvance, runner != null && runner.IsAnimating,
+            motion != null ? motion.UpcomingPreset : null,
+            motion != null ? motion.RecognitionDiagnostics.Phase : ArmMotionPhase.WaitingTrigger,
+            motion != null && motion.WaitingForRelease));
         var next = view.FindButton("Next");
         if (next != null) next.interactable = Flow.State.CanControlPresentation && controls != null && controls.CanAdvance;
     }
