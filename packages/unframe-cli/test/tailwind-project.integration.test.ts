@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, expect, it } from "vitest";
@@ -29,8 +29,8 @@ const pngHashes = async (root: string, output = "dist") =>
   );
 
 it("locks project-owned Tailwind with an uppercase CSS entry, captures reproducibly, invalidates all inputs, and preserves Dist on failure", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-tailwind-project-"));
-  const staging = await mkdtemp(join(tmpdir(), "unframe-sdk-package-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-tailwind-project-"));
+  const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-package-"));
   try {
     await cp(join(repository, "examples/presentation"), directory, { recursive: true });
     const found = await discoverPresentationProjectFiles(directory);

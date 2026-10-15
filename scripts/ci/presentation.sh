@@ -42,7 +42,7 @@ reference_acceptance() {
   second_manifest="$(manifest "${temp}")"
   test "${first_manifest}" = "${second_manifest}"
   log "presentation(check): compiled Delivery wire fixture"
-  bun "${REPO_ROOT}/scripts/contracts/generate-valid-delivery.ts" check "${temp}/dist"
+  bun "${REPO_ROOT}/scripts/contracts/generate-valid-delivery.ts" validate "${temp}/dist"
   trap - RETURN
   rm -rf "${temp}"
 }
@@ -55,6 +55,7 @@ case "${mode}" in
       "${REPO_ROOT}"/packages/unframe-*
     ;;
   check)
+    node --test "${REPO_ROOT}/scripts/dev/native-host.test.mjs"
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check

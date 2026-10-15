@@ -25,8 +25,8 @@ import { formatGenerated } from "../../packages/contracts/scripts/format-generat
 
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const [mode, dist] = process.argv.slice(2);
-if ((mode !== "generate" && mode !== "check") || !dist) {
-  throw new Error("usage: generate-valid-delivery.ts <generate|check> <compiler-dist>");
+if ((mode !== "generate" && mode !== "check" && mode !== "validate") || !dist) {
+  throw new Error("usage: generate-valid-delivery.ts <generate|check|validate> <compiler-dist>");
 }
 
 const readArtifact = <T>(name: string): T =>
@@ -160,6 +160,6 @@ const fixture = formatGenerated(
 );
 if (mode === "check") {
   assert.equal(readFileSync(target, "utf8"), fixture, "Compiler Delivery fixture has drifted");
-} else {
+} else if (mode === "generate") {
   writeFileSync(target, fixture);
 }

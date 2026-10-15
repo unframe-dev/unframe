@@ -503,6 +503,7 @@ describe("baked web renderer", () => {
 
   it("作成時の Browser environment と frozen receiver を capture に渡す", async () => {
     const mutableEnvironment = {
+      platform: { os: "linux" as const, arch: "x64" as const, fingerprint: "sha256:test-runtime" },
       browser: { id: "test-browser", version: "1", fontFingerprint: "sha256:fonts" },
       locale: "ja-JP",
       timezone: "Asia/Tokyo",

@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
@@ -95,7 +95,7 @@ const installFrozenGraph = async (directory: string) => {
 };
 
 const createProject = async (mixed = false) => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-integration-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-opaque-integration-"));
   temporary.push(directory);
   await cp(reference, directory, { recursive: true });
   const { loaded, presentation: initial } = await fromReference(directory);

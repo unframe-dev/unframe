@@ -135,6 +135,7 @@ const driver = (probeValue = 0) => {
     close: vi.fn(async () => undefined),
   };
   const value: BrowserDriver = {
+    platform: { os: "linux", arch: "x64", fingerprint: "sha256:test-runtime" },
     launch: vi.fn(async () => browser),
     decodePng: vi.fn((bytes) => {
       const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -360,6 +361,51 @@ describe("Playwright Fixed Browser", () => {
       expect.objectContaining({ viewport: { width: 4096, height: 4096 } }),
     );
     await session.close();
+  });
+
+  it("platform identity differences invalidate adapter and normalized environment identity", async () => {
+    const firstDriver = driver();
+
+    const secondDriver = driver();
+    const secondPlatform = {
+      os: "darwin",
+      arch: "arm64",
+      fingerprint: "sha256:runtime-two",
+    } as const;
+    const first = await createPlaywrightFixedBrowserFactory(firstDriver.value)();
+    const second = await createPlaywrightFixedBrowserFactory({
+      ...secondDriver.value,
+      platform: secondPlatform,
+    })();
+    expect(first.environment.platform).toEqual(firstDriver.value.platform);
+    expect(second.environment.platform).toEqual(secondPlatform);
+    expect(first.identity.implementationHash).not.toBe(second.identity.implementationHash);
+    await expect(
+      first.capture({ ...captureRequest(first), environment: second.environment }),
+    ).rejects.toThrow("fixed Browser environment");
+    await Promise.all([first.close(), second.close()]);
+  });
+
+  it("embeds pinned font bytes in the probe and includes bytes even when pixels match", async () => {
+    const firstDriver = driver();
+    const secondDriver = driver();
+    const first = await createPlaywrightFixedBrowserFactory({
+      ...firstDriver.value,
+      probeFont: Uint8Array.of(1),
+    })();
+    const second = await createPlaywrightFixedBrowserFactory({
+      ...secondDriver.value,
+      probeFont: Uint8Array.of(2),
+    })();
+    expect(firstDriver.page.setContent).toHaveBeenCalledWith(
+      expect.stringContaining("src:url(data:font/otf;base64,AQ==)"),
+      { waitUntil: "load" },
+    );
+    expect(firstDriver.page.evaluate).toHaveBeenCalledWith(1);
+    expect(first.environment.browser.fontFingerprint).not.toBe(
+      second.environment.browser.fontFingerprint,
+    );
+    await Promise.all([first.close(), second.close()]);
   });
 
   it("font probeの異なるactual bytesは異なるfingerprintになる", async () => {

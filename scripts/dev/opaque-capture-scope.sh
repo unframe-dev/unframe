@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=../lib/native-host.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/native-host.sh"
+host="$(native_host)"
+if [ "$#" -eq 0 ]; then
+  echo "usage: $0 command [arguments...]" >&2
+  exit 2
+fi
+if [ "$host" = darwin ]; then
+  exec "$@"
+fi
+
 if [ "${UNFRAME_OPAQUE_INSIDE_SCOPE:-}" != "1" ]; then
-  if [ "$#" -eq 0 ]; then
-    echo "usage: $0 command [arguments...]" >&2
-    exit 2
-  fi
   exec systemd-run --user --scope --quiet -p Delegate=yes \
     --setenv=UNFRAME_OPAQUE_INSIDE_SCOPE=1 "$0" "$@"
 fi

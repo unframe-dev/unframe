@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -20,7 +20,7 @@ afterEach(async () => {
 it.each(["unset", "explicit"])(
   "rejects a lock-selected executable without executing it when the host runtime is %s",
   async (selection) => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-runtime-trust-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-runtime-trust-"));
     directories.push(directory);
     await writeFile(join(directory, "package.json"), "{}");
     await writeFile(

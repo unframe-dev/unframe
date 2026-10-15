@@ -1,5 +1,5 @@
 import { mkdtemp, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -14,7 +14,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 const fixture = async () => {
-  const root = await mkdtemp(join(tmpdir(), "unframe-author-save-"));
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-author-save-"));
   roots.push(root);
   await mkdir(join(root, ".unframe"));
   await writeFile(

@@ -1,5 +1,5 @@
 import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vitest";
@@ -8,7 +8,7 @@ import { discoverPresentationProjectFiles } from "../src/filesystem/discover-pro
 
 const directories: string[] = [];
 const copyProject = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-revision-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-revision-"));
   directories.push(directory);
   await cp(fileURLToPath(new URL("../../../examples/presentation/", import.meta.url)), directory, {
     recursive: true,

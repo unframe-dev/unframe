@@ -1,12 +1,12 @@
 import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { readBoundedRegularFile } from "../src/filesystem/path-policy.js";
 
 describe("readBoundedRegularFile", () => {
   it("rejects sparse regular files above the limit without allocating their declared size", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-bounded-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-bounded-"));
     try {
       const path = join(directory, "large.bin");
       const file = await open(path, "w");
@@ -22,7 +22,7 @@ describe("readBoundedRegularFile", () => {
   });
 
   it("accepts exact bytes and rejects a descriptor size mismatch", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-bounded-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-bounded-"));
     try {
       const path = join(directory, "asset.bin");
       await writeFile(path, "asset");

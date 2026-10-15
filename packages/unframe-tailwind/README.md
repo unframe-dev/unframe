@@ -19,7 +19,9 @@ export default { plugins: { "@tailwindcss/postcss": {} } };
 
 React component から CSS を import し、依存追加後は `unframe-cli lock update <absolute-project-directory>`、ソースや設定変更後は `unframe-cli lock refresh <absolute-project-directory>` を実行する。`check` / `build` / Preview は固定した依存を使い、ホストの `node_modules` を再解決しない。
 
-CLI は Linux の bubblewrap と委任済み cgroup v2 で、ビルドごとに新しい Node 24 worker を起動する。リポジトリでは `nix develop` 内から `scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使用する。変換失敗時は既存 Dist を公開済みのまま維持する。
+style lock は Node executable、OS / CPU、native dependency と runtime closure も固定する。Linux / macOS を切り替えた場合は移行先で `lock update` が必要であり、`lock refresh` では runtime を切り替えない。通常の check / build は不一致を拒否し、暗黙更新しない。
+
+CLI はビルドごとに新しい Node 24 worker を native isolation adapter で起動する。Linux は bubblewrap と委任済み cgroup v2、macOS arm64 は Seatbelt と process group 監視を使う。保証差と実機検証状態は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。リポジトリでは `nix develop` 内から `scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使用し、OS 別の起動経路を選択する。変換失敗時は既存 Dist を公開済みのまま維持する。
 
 `compileStyles({ projectRoot, entries })` の `entries` は project root 相対パス。API 自体は隔離を提供しない。CLI が固定した source / Node graph の配置先で呼び出す。返却値は CSS、source map、診断、観測した依存。依存通知は完全な読み取り一覧ではないため、CLI は config/helper/JSON/候補ファイルを含む全ソースの変更・追加・削除を identity に含める。ソース bytes は一時的な変換用配置に使い、`unframe.lock` の style snapshot には依存と入力 identity を保存する。ソース bytes は lock に埋め込まない。`.git`、`node_modules`、`.unframe`、Dist、CLI の制御ファイルは変換対象外。
 

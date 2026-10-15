@@ -92,6 +92,8 @@ network availability と registry の mutable state が同一入力の再現性�
 
 ## Follow-ups
 
+macOS arm64 と APFS の実 filesystem による名前同一性の検証は [ADR-0026](./0026-native-linux-macos-host-adapters.md) で拡張する。入力 symlink 拒否と atomic publication の規則は維持する。
+
 - [ ] M3 以降で package distribution、migration metadata、より広い authoring DSL を contract と実装で接続する。
 - [ ] M4 以降で renderer cache、opaque module resolution、resource budget を接続する。
 - [ ] M6 以降で watch、preview、plugin discovery、cross-platform filesystem support を設計する。

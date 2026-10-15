@@ -12,7 +12,7 @@
       nixpkgs,
       flake-utils,
     }:
-    flake-utils.lib.eachDefaultSystem (
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-darwin" ] (
       system:
       let
         pkgs = import nixpkgs {
@@ -37,11 +37,16 @@
           pkgs.git
           pkgs.git-lfs
           pkgs.coreutils
+          pkgs.findutils
+          pkgs.gnugrep
+          pkgs.gnused
           pkgs.bash
+          pkgs.python3
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
           pkgs.systemd
+          pkgs.xdg-utils
         ];
 
         # Vite+ の管理ランタイムは NixOS 用にパッチされていないため、
@@ -71,20 +76,35 @@
           pkgs.fontconfig
           pkgs.noto-fonts-cjk-sans
         ];
+        presentationFonts =
+          pkgs.runCommand "unframe-presentation-fonts"
+            {
+              nativeBuildInputs = [ (pkgs.python3.withPackages (python: [ python.fonttools ])) ];
+            }
+            ''
+              mkdir -p "$out/share/fonts/opentype/unframe"
+              python ${./scripts/dev/extract-presentation-font.py} \
+                ${
+                  (pkgs.noto-fonts-cjk-sans.override { static = true; })
+                }/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc \
+                "$out/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf"
+            '';
         presentationFontconfig = pkgs.writeText "unframe-presentation-fontconfig.conf" ''
           <?xml version="1.0"?>
           <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
           <fontconfig>
-            <dir>${pkgs.noto-fonts-cjk-sans}/share/fonts</dir>
+            <dir>${presentationFonts}/share/fonts</dir>
           </fontconfig>
         '';
         opaqueRuntimeClosure = pkgs.closureInfo {
           rootPaths = [
             pkgs.nodejs_22
             pkgs.bash
+            presentationFontconfig
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
             pkgs.nix-ld
             pkgs.glibc
-            presentationFontconfig
           ]
           ++ chromiumRuntime;
         };
@@ -92,12 +112,25 @@
           rootPaths = [
             pkgs.nodejs_24
             pkgs.bash
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
             pkgs.nix-ld
             pkgs.glibc
             pkgs.stdenv.cc.cc
           ];
         };
-        nixLdEnvironment = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+        runtimeEnvironment = {
+          FONTCONFIG_FILE = presentationFontconfig;
+          UNFRAME_PRESENTATION_FONT_DIRECTORY = "${presentationFonts}/share/fonts";
+          UNFRAME_PRESENTATION_FONT = "${presentationFonts}/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf";
+          UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
+          UNFRAME_STYLE_NODE = "${pkgs.nodejs_24}/bin/node";
+          UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
+          UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
+          UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
+          UNFRAME_POSIX_PYTHON = "${pkgs.python3}/bin/python3";
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
           NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
             [
@@ -106,14 +139,8 @@
             ]
             ++ chromiumRuntime
           );
-          FONTCONFIG_FILE = presentationFontconfig;
           UNFRAME_BWRAP_PATH = "${pkgs.bubblewrap}/bin/bwrap";
-          UNFRAME_BASH_PATH = "${pkgs.bash}/bin/bash";
-          UNFRAME_STYLE_NODE = "${pkgs.nodejs_24}/bin/node";
-          UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
-          UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_NIX_LD_SHIM = "${pkgs.nix-ld}/bin/nix-ld";
-          UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
         };
 
         # scripts/ の実処理を flake app としてラップする。
@@ -132,10 +159,10 @@
                 ${pkgs.lib.concatStringsSep "\n" (
                   pkgs.lib.mapAttrsToList (
                     variable: value: "export ${variable}=${pkgs.lib.escapeShellArg value}"
-                  ) nixLdEnvironment
+                  ) runtimeEnvironment
                 )}
                 root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
-                exec "''${root}/scripts/${script}" "$@"
+                exec "''${root}/scripts/dev/native-env.sh" "''${root}/scripts/${script}" "$@"
               '';
             };
           in
@@ -143,37 +170,46 @@
             type = "app";
             program = "${wrapper}/bin/unframe-${name}";
           };
-        unityRuntime = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-          unity-editor =
-            let
-              runtime =
-                (pkgs.steam.override {
-                  extraPkgs = p: [
-                    p.gtk3
-                    p.atk
-                    p.at-spi2-atk
-                    p.pango
-                    p.cairo
-                    p.gdk-pixbuf
-                  ];
-                }).run;
-              wrapper = pkgs.writeShellApplication {
-                name = "unframe-unity-editor";
-                runtimeInputs = [
-                  runtime
-                  pkgs.git
-                ];
-                text = ''
-                  root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
-                  exec steam-run "''${root}/scripts/unity/editor.sh" "$@"
-                '';
-              };
-            in
+        unityRuntime =
+          if pkgs.stdenv.isDarwin then
             {
-              type = "app";
-              program = "${wrapper}/bin/unframe-unity-editor";
+              unity-editor = mkApp {
+                name = "unity-editor";
+                script = "unity/editor.sh";
+              };
+            }
+          else
+            {
+              unity-editor =
+                let
+                  runtime =
+                    (pkgs.steam.override {
+                      extraPkgs = p: [
+                        p.gtk3
+                        p.atk
+                        p.at-spi2-atk
+                        p.pango
+                        p.cairo
+                        p.gdk-pixbuf
+                      ];
+                    }).run;
+                  wrapper = pkgs.writeShellApplication {
+                    name = "unframe-unity-editor";
+                    runtimeInputs = [
+                      runtime
+                      pkgs.git
+                    ];
+                    text = ''
+                      root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+                      exec steam-run "''${root}/scripts/unity/editor.sh" "$@"
+                    '';
+                  };
+                in
+                {
+                  type = "app";
+                  program = "${wrapper}/bin/unframe-unity-editor";
+                };
             };
-        };
       in
       {
         devShells.default = pkgs.mkShell (
@@ -185,9 +221,13 @@
               if [ -n "''${root}" ] && [ -x "''${root}/scripts/dev/install-hooks.sh" ]; then
                 "''${root}/scripts/dev/install-hooks.sh" || true
               fi
+              if [ -n "''${root}" ] && [ -f "''${root}/scripts/lib/native-host.sh" ]; then
+                source "''${root}/scripts/lib/native-host.sh"
+                configure_native_environment
+              fi
             '';
           }
-          // nixLdEnvironment
+          // runtimeEnvironment
         );
 
         # 手動で叩く操作。実体は scripts/ にある。
