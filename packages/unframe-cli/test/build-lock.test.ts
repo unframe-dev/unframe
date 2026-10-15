@@ -1,5 +1,5 @@
 import { lstat, mkdtemp, open, rm, unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -7,7 +7,7 @@ import { acquireBuildLock, buildLockFileName } from "../src/filesystem/build-loc
 
 const directories: string[] = [];
 const project = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-build-lock-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-build-lock-"));
   directories.push(directory);
   return directory;
 };

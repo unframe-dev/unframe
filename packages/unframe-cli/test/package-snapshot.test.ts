@@ -1,5 +1,5 @@
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import {
@@ -276,7 +276,7 @@ afterEach(async () => {
 });
 
 it("snapshots nested legacy package entries relative to their directory", async () => {
-  const root = await mkdtemp(join(tmpdir(), "unframe-legacy-entries-"));
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-legacy-entries-"));
   directories.push(root);
   const packageRoot = join(root, "node_modules/legacy");
   await mkdir(join(packageRoot, "constants"), { recursive: true });
@@ -317,7 +317,7 @@ snapshots:
   ]);
 });
 it.each(["", "/"])("snapshots pnpm sibling dependencies with root suffix %s", async (suffix) => {
-  const root = await mkdtemp(join(tmpdir(), "unframe-pnpm-"));
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-pnpm-"));
   directories.push(root);
   const firstModules = join(root, "node_modules/.pnpm/first@1.0.0/node_modules");
   const secondModules = join(root, "node_modules/.pnpm/second@1.0.0/node_modules");
@@ -360,7 +360,7 @@ snapshots:
 });
 
 it("snapshots only authoring roots without inspecting Node-only tool dependencies", async () => {
-  const root = await mkdtemp(join(tmpdir(), "unframe-browser-roots-"));
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-browser-roots-"));
   directories.push(root);
   await mkdir(join(root, "node_modules/first"), { recursive: true });
   await writeFile(

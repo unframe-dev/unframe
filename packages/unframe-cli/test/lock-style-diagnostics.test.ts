@@ -1,5 +1,5 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it, vi } from "vitest";
@@ -27,8 +27,8 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 const fixture = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "unframe-lock-style-diagnostics-"));
-  const adapter = await mkdtemp(join(tmpdir(), "unframe-lock-style-adapter-"));
+  const directory = await mkdtemp(join(temporaryDirectory(), "unframe-lock-style-diagnostics-"));
+  const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-lock-style-adapter-"));
   directories.push(directory, adapter);
   await cp(fileURLToPath(new URL("../../../examples/presentation", import.meta.url)), directory, {
     recursive: true,

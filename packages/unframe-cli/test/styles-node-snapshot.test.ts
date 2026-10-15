@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile, mkdir, symlink, readFile, chmod, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 import { stringify } from "yaml";
@@ -16,7 +16,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 const temporary = async () => {
-  const root = await mkdtemp(join(tmpdir(), "unframe-style-test-"));
+  const root = await mkdtemp(join(temporaryDirectory(), "unframe-style-test-"));
   roots.push(root);
   return root;
 };
@@ -298,4 +298,28 @@ it.each([
   const snapshot = await snapshotNodeTransformInputs(root);
   expect(snapshot.packages.map((pkg) => pkg.locator)).toEqual(["tool@1.0.0", "leaf@1.0.0"]);
   expect(validateNodeTransformSnapshot(snapshot)).toEqual(snapshot);
+});
+
+it.each([
+  ["A", "a"],
+  ["\u00e9", "e\u0301"],
+])("rejects directory aliases %s/%s on filesystems that alias them", async (first, second) => {
+  const root = await temporary();
+  await mkdir(join(root, first));
+  const aliases = await stat(join(root, second)).then(
+    () => true,
+    () => false,
+  );
+  await writeFile(join(root, "package.json"), "{}");
+  await writeFile(
+    join(root, "pnpm-lock.yaml"),
+    stringify({ lockfileVersion: "9.0", importers: { ".": {} } }),
+  );
+  const snapshot = withNodeTransformSources(await snapshotNodeTransformInputs(root), [
+    { path: `${first}/one.css`, bytes: "" },
+    { path: `${second}/two.css`, bytes: "" },
+  ]);
+  const materialized = materializeNodeTransformSnapshot(snapshot, await temporary());
+  if (aliases) await expect(materialized).rejects.toThrow("alias");
+  else await expect(materialized).resolves.toHaveProperty("projectRoot");
 });

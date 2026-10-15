@@ -9,8 +9,10 @@ import * as z from "zod";
 import {
   runIsolatedOpaqueWorker,
   assertOpaqueIsolationAvailable,
+  getOpaqueIsolationIdentity,
 } from "../isolation/run-isolated-opaque-worker.js";
 import { snapshotOpaqueRuntimeDirectory } from "./runtime-snapshot.js";
+import { managedHeadlessShell, nativeBrowserPlatform } from "../../browser/runtime-environment.js";
 import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
 
@@ -106,20 +108,17 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
     }
     const workerPath = join(workerDirectory, "worker.mjs");
     await writeFile(workerPath, code, { mode: 0o400 });
-    const originalBrowserPath = await realpath(
-      chromium
-        .executablePath()
-        .replace(
-          /chromium-(\d+)\/chrome-linux(?:64)?\/chrome$/,
-          "chromium_headless_shell-$1/chrome-headless-shell-linux64/chrome-headless-shell",
-        ),
-    );
+    const managedBrowser = managedHeadlessShell(chromium.executablePath());
     const browserDirectory = join(directory, "browser");
     const browserHash = await snapshotOpaqueRuntimeDirectory(
-      dirname(originalBrowserPath),
+      await realpath(managedBrowser.directory),
       browserDirectory,
     );
-    const browserPath = join(browserDirectory, "chrome-headless-shell");
+    const browserPath = join(
+      browserDirectory,
+      managedBrowser.executablePath.slice(managedBrowser.directory.length + 1),
+    );
+    const platform = await nativeBrowserPlatform(browserDirectory);
 
     const capture = async (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
       if (options.signal?.aborted || controller.signal.aborted)
@@ -152,7 +151,14 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
       return validated.data;
     };
     return {
-      fingerprint: hash({ worker: code, browserHash, packageHashes, runtimePaths }),
+      fingerprint: hash({
+        worker: code,
+        browserHash,
+        packageHashes,
+        runtimePaths,
+        platform,
+        isolation: getOpaqueIsolationIdentity(),
+      }),
       capture: (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
         const work = capture(input);
         active.add(work);

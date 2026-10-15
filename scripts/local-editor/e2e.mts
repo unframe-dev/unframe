@@ -19,6 +19,7 @@ import { createLocalPreviewService } from "../../packages/unframe-cli/src/author
 import { createPublicationAuth } from "../../packages/unframe-cli/src/author/publication-auth.js";
 import { createLocalPublicationService } from "../../packages/unframe-cli/src/author/publication.js";
 import { startAuthorHost } from "../../packages/unframe-cli/src/author/http.js";
+import { managedHeadlessShell } from "../../packages/unframe-renderer-web/src/browser/runtime-environment.js";
 import {
   loadAuthorAssets,
   loadUnityPreviewAssets,
@@ -332,8 +333,7 @@ ${web} {
     .digest("base64");
   browser = await chromium.launch({
     executablePath:
-      process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] ??
-      "/etc/profiles/per-user/t4ko/bin/google-chrome",
+      process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] ?? managedHeadlessShell().executablePath,
     args: [
       "--enable-unsafe-swiftshader",
       "--use-angle=swiftshader-webgl",

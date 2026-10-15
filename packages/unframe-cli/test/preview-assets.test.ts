@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, open, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadPreviewImageAssets } from "../src/process/preview.js";
@@ -10,7 +10,7 @@ const checksum = (bytes: Uint8Array) =>
 
 describe("loadPreviewImageAssets", () => {
   it("loads only the verified asset closure and checks exact encoded bytes", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-preview-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-preview-"));
     try {
       const assets = join(directory, "assets");
       await mkdir(assets);
@@ -35,7 +35,7 @@ describe("loadPreviewImageAssets", () => {
   });
 
   it("rejects oversized sparse PNG before materializing it", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "unframe-preview-"));
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-preview-"));
     try {
       const assets = join(directory, "assets");
       await mkdir(assets);

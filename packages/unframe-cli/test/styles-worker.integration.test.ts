@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, stringify } from "yaml";
@@ -17,7 +17,7 @@ const roots: string[] = [];
 let installed: string;
 let base: NodeTransformSnapshot;
 beforeAll(async () => {
-  installed = await mkdtemp(join(tmpdir(), "unframe-style-installed-"));
+  installed = await mkdtemp(join(temporaryDirectory(), "unframe-style-installed-"));
   const repository = fileURLToPath(new URL("../../../", import.meta.url));
   const adapterRoot = fileURLToPath(new URL("../../unframe-tailwind/", import.meta.url));
   const lock = parseAllDocuments(await readFile(join(repository, "pnpm-lock.yaml"), "utf8"))
@@ -107,7 +107,7 @@ it("executes relocated real Tailwind native dependencies with a stable productio
   expect(await runStyleWorker(snapshot, { entries: ["input.css"] })).toEqual(first);
 }, 60_000);
 it("denies host filesystem, source writes, host secrets and network connections", async () => {
-  const host = await mkdtemp(join(tmpdir(), "unframe-style-secret-"));
+  const host = await mkdtemp(join(temporaryDirectory(), "unframe-style-secret-"));
   roots.push(host);
   await writeFile(join(host, "secret"), "host secret");
   vi.stubEnv("STYLE_HOST_SECRET", "must-not-leak");

@@ -185,7 +185,8 @@ export const snapshotNodeTransformInputs = async (
       (metadata) =>
         supportsPlatform(metadata.os, runtimeData.platform) &&
         supportsPlatform(metadata.cpu, runtimeData.arch) &&
-        supportsPlatform(metadata.libc, runtimeData.libc === "non-glibc" ? "musl" : "glibc"),
+        (runtimeData.platform !== "linux" ||
+          supportsPlatform(metadata.libc, runtimeData.libc === "non-glibc" ? "musl" : "glibc")),
     );
     if (!compatible) {
       if (optional) return undefined;
@@ -286,10 +287,13 @@ export const snapshotNodeTransformInputs = async (
       ...runtimeData,
       mode: "production",
       closure,
-      environment: {
-        ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
-        NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
-      },
+      environment:
+        runtimeData.platform === "linux"
+          ? {
+              ...(process.env.NIX_LD ? { NIX_LD: await realpath(process.env.NIX_LD) } : {}),
+              NIX_LD_LIBRARY_PATH: closure.map((path) => `${path}/lib`).join(":"),
+            }
+          : {},
     },
     sourceFiles: [...(options.sourceFiles ?? (await collectFiles(root)))],
     rootDependencies,
@@ -313,11 +317,30 @@ export const materializeNodeTransformSnapshot = async (
   const root = resolve(destination);
   await mkdir(root, { recursive: true });
   if ((await readdir(root)).length) throw new Error("Node snapshot destination must be empty");
+  const directories = new Map<string, string>();
+  const ensureDirectory = async (directory: string) => {
+    const components = relative(root, directory).split(sep).filter(Boolean);
+    let current = root;
+    for (const component of components) {
+      current = join(current, component);
+      await mkdir(current).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      });
+      const info = await lstat(current);
+      if (!info.isDirectory() || info.isSymbolicLink())
+        throw new Error("Invalid snapshot directory");
+      const identity = `${info.dev}:${info.ino}`;
+      const previous = directories.get(identity);
+      if (previous !== undefined && previous !== current)
+        throw new Error("Node snapshot directory alias");
+      directories.set(identity, current);
+    }
+  };
   const place = async (directory: string, files: readonly NodeSnapshotFile[]) => {
-    await mkdir(directory, { recursive: true });
+    await ensureDirectory(directory);
     for (const file of files) {
       const path = join(directory, file.path);
-      await mkdir(dirname(path), { recursive: true });
+      await ensureDirectory(dirname(path));
       await writeFile(path, Buffer.from(file.bytes, "base64"), {
         mode: file.executable ? 0o555 : 0o444,
         flag: "wx",
@@ -327,7 +350,7 @@ export const materializeNodeTransformSnapshot = async (
   const links = async (directory: string, edges: Readonly<Record<string, string>>) => {
     for (const [name, id] of Object.entries(edges)) {
       const path = join(directory, "node_modules", name);
-      await mkdir(dirname(path), { recursive: true });
+      await ensureDirectory(dirname(path));
       await symlink(relative(dirname(path), join(root, "node_modules", ".unframe", id)), path);
     }
   };

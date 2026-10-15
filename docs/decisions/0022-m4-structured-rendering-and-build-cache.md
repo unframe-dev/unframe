@@ -26,4 +26,6 @@ M4 は M3A の absolute Frame / Text を generic Structured graph へ拡張し�
 
 ## Adoption and Exceptions
 
+Linux 専用 cache の macOS arm64 への拡張と、OS ごとの描画環境 identity は [ADR-0026](./0026-native-linux-macos-host-adapters.md) に従う。FD 相対操作と symlink 拒否の保証は維持する。
+
 Core layout / Compiler partition / Renderer fixture を同じ変更で検証する。固定 Browser の exact RGBA baseline、cache hit と入力・renderer・font・locale・config 変更時の miss、checksum 改ざん、失敗・cancel cleanup をテストする。新しい Primitive、layout、codec、Renderer contract version は Authoring contract と関連 ADR・conformance fixture を更新して追加する。

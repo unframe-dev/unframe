@@ -1,3 +1,4 @@
+import { nativeHost } from "../platform/host.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
@@ -58,8 +59,8 @@ export const runAuthorProcess = async (
   signal: AbortSignal,
   development = false,
 ): Promise<void> => {
-  if (process.platform !== "linux" || !directory.startsWith("/"))
-    throw new Error("Author requires Linux and an absolute project directory.");
+  const hostPlatform = nativeHost();
+  if (!directory.startsWith("/")) throw new Error("Author requires an absolute project directory.");
   if (development) {
     try {
       const response = await fetch("http://127.0.0.1:5174/editor.html", {
@@ -121,7 +122,10 @@ export const runAuthorProcess = async (
     : `${host.origin}/#token=${host.token}`;
   const open = async () => {
     try {
-      await promisify(execFile)("xdg-open", [browserUrl], { timeout: 10_000, signal });
+      await promisify(execFile)(hostPlatform.browserCommand, [browserUrl], {
+        timeout: 10_000,
+        signal,
+      });
     } catch {
       if (!signal.aborted)
         process.stderr.write(
