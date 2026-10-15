@@ -1,6 +1,6 @@
 # Unity presentation preview
 
-`Assets/Scripts/PresentationRuntime/` は `Delivery`（配信検証）、`State`（受信状態）、`Transport`（接続）、`Persistence`（選択・cache）、`Rendering`（描画）、`Animation`、`Fixtures`、`Quest` に分けています。`PresentationBakedRuntime` はこれらを接続する入口で、`Generated` は生成専用です。EditMode テストは `Assets/Tests/EditMode/Editor/` 内で同じ責務ごとに分け、Quest の build hook は `Assets/Editor/Quest/` に置きます。
+`Assets/Scripts/PresentationRuntime/` は `Delivery`（配信検証）、`State`（受信状態）、`Transport`（接続）、`Persistence`（選択・cache）、`Rendering`（描画）、`Animation`、`Fixtures`、`Quest` に分けています。`PresentationBakedRuntime` はこれらを接続する入口で、`Generated` は生成専用です。EditMode テストは `Assets/Tests/EditMode/Editor/` 内で同じ責務ごとに分け、Quest の build hook は `Assets/Editor/Quest/`、Animation と Fixtures の Inspector は `Assets/Editor/PresentationRuntime/` の対応するディレクトリに置きます。
 
 `Assets/Scenes/SampleScene.unity` は `LocalPresentationFixtureRunner` だけを表示経路として使用します。Play 開始時に `Resources/PresentationFixtures/LocalDelivery.json` と `LocalSnapshot.json` を読み込み、最初の Reliable Event を適用します。Editor では Space または Enter で後続イベントを進められます。
 
@@ -36,8 +36,14 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 
 これらの実機確認は未実施です。端末用SceneとPose / 入力adapterはEditorでの配線・契約検証まで完了しており、端末上の動作・性能測定は未検証です。
 
-## PCA・ArUco の実機検証
+## ArUco・カメラの実機検証
+
+`Assets/Scripts/MR/` は `Camera`（権限・映像取得・プレビュー）、`MarkerDetection`（マーカー検出・姿勢推定）、`Alignment`（原点確定・Presentation への接続）、`Diagnostics`（計測・ログ）に分けています。対応する EditMode テストは `Assets/Tests/EditMode/Editor/MR/` の同じ責務のディレクトリに置きます。MR の Editor 操作は `Assets/Editor/MR/` の `Camera`、`MarkerDetection`、`Alignment` に、ビルド設定・アセット除外処理は `Build` に置きます。座標契約から Unity への変換は `PresentationRuntime/Rendering/PresentationCoordinateAdapter.cs` が担います。
 
 Quest のカメラ映像表示は、専用の `Assets/Scenes/PassthroughCameraDeviceTest.unity` で検証します。Unity の `Unframe > PCA > Open Device Test Scene` で開き、`Build and Run on Quest` で Android 実機へ起動できます。接続条件、カメラ権限、操作、ログ回収は [PCA 実機プレビュー手順](docs/pca-device-preview.md) を参照してください。
+
+ArUco 検出は任意の有償依存 OpenCV for Unity を使用します。通常の checkout は依存なしでコンパイル・EditMode テストを実行できます。この状態ではカメラ映像表示と Presentation Runtime を利用できますが、ArUco パネルには `DISABLED` とセットアップ要件が表示され、検出・姿勢推定・マーカーからの原点確定は開始しません。OpenCV に依存しない原点・座標・Runtime のテストは常に実行します。OpenCV を直接使う検出・GPU・worker のテストと印刷マーカー生成メニューは有効化時にのみコンパイルします。
+
+ArUco を実機で使用する開発環境では、ライセンスを持つ OpenCV for Unity を `Assets/OpenCVForUnity/` へ導入した後、Unity の `Project Settings > Player > Other Settings > Scripting Define Symbols` に `UNFRAME_OPENCV_FOR_UNITY` を追加します。Editor のテストに使う Standalone と実機 build に使う Android の両方へ追加し、再コンパイル後にテストと build を実行します。define の変更は各開発環境で設定し、`ProjectSettings/ProjectSettings.asset` のこの変更を commit しないでください。アドオンも Git の管理対象外です。アドオンを削除するときは先に define を外してください。define のみを設定してアドオンを導入していない環境はコンパイルエラーになります。
 
 同じシーンで OpenCV for Unity の ArUco 検出・姿勢推定を実行します。`DICT_4X4_50` の ID 0、黒い正方形の一辺20cmを使用します。安定した原点を確定すると立方体と XYZ 軸を表示し、PCA 取得・検出を停止します。B/Y で再測定できます。[印刷マーカーと原点合わせの実機手順](docs/aruco-marker-detection.md) を参照してください。

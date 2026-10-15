@@ -16,6 +16,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly List<ColorBinding> bindings = new List<ColorBinding>();
         private readonly List<Material> ownedMaterials = new List<Material>();
         private bool initialized;
+        internal float Opacity { get; private set; } = 1f;
 
         public static void Apply(GameObject root, float opacity)
         {
@@ -35,6 +36,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             Initialize();
             float clampedOpacity = Mathf.Clamp01(opacity);
+            Opacity = clampedOpacity;
             foreach (ColorBinding binding in bindings)
             {
                 Color color = binding.Original;

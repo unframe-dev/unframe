@@ -71,25 +71,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static void ApplyTransform(UnityEngine.Transform target, Unframe.Presentation.Transform source)
         {
-            if (source == null)
+            if (!PresentationCoordinateAdapter.TryToUnityTransform(source, out UnityEngine.Vector3 position, out UnityEngine.Quaternion rotation, out UnityEngine.Vector3 scale))
             {
                 return;
             }
 
-            if (source.Position != null)
-            {
-                target.localPosition = PresentationUnityCoordinates.Position(source.Position);
-            }
-
-            if (source.Rotation != null)
-            {
-                target.localRotation = PresentationUnityCoordinates.Rotation(source.Rotation);
-            }
-
-            if (source.Scale != null)
-            {
-                target.localScale = PresentationUnityCoordinates.Scale(source.Scale);
-            }
+            target.localPosition = position;
+            target.localRotation = rotation;
+            target.localScale = scale;
         }
     }
 }

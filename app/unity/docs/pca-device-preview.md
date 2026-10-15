@@ -65,3 +65,23 @@ adb logcat -d -s Unity > ./pca-diagnostics/unity-logcat.txt
 画面が黒い場合は、`LIVE` とフレーム数の増加があるかを先に確認します。`WAITING` / `STALLED` の場合は映像取得、`CAMERA PERMISSION REQUIRED` の場合は権限、`LIVE` で映像だけ黒い場合はレンダリングを調べます。
 
 参考: [Meta PCA 導入ガイド](https://developers.meta.com/horizon/documentation/unity/unity-pca-documentation/)、[Meta の公式サンプル](https://github.com/oculus-samples/Unity-PassthroughCameraApiSamples)。
+
+## 診断ビルドの軽量化
+
+OpenCV for Unity の導入後は、一度 `Unframe > PCA > Prepare Fast Builds (Exclude OpenCV Samples)` を実行し、スクリプトのコンパイルが終わるのを待ちます。Examples のコード・Resources とサンプル StreamingAssets を、`Assets` 外の `LocalOnly/OpenCVForUnitySamples/` へ移します。OpenCV の本体と必要な native plugin は維持します。この保存先も Git 対象外で、有料アセットを配布しません。
+
+元のサンプルを使うときは `Restore OpenCV Samples` で戻せます。元の場所と保存先の両方にファイルがある場合は上書きせず停止します。再インポートしたサンプルと保存済みサンプルを確認してから準備をやり直してください。PCA と ArUco プレゼンの専用 builder は、サンプルが `Assets` 内に残っている間は案内付きでビルドを拒否します。
+
+CLIではEditorを閉じ、以下を実行してから専用APKをビルドします。
+
+```sh
+Unity -batchmode -quit -projectPath app/unity -buildTarget Android \
+  -executeMethod OpenCvSampleBuildPreparation.PrepareSamples \
+  -logFile /tmp/unframe-fast-build-prepare.log
+```
+
+専用ビルド中だけ IL2CPP code generation を `OptimizeSize`（コードサイズとビルド時間を優先）に設定し、終了時はアプリID・製品名・APK/AAB設定とともに復元します。C++ compiler configuration は変更しません。設定を切り替える初回はC++の再生成が必要なので、最初の一回は短縮しない場合があります。このモードではgenericコードの実行性能が変わる可能性があり、製品の最終性能評価には通常設定も使用してください。
+
+Presentation Runtime と生成契約コードは `Unframe.Unity.PresentationRuntime` アセンブリへ分離しています。PCA側の変更で生成契約コードのC#コンパイルまでやり直す範囲を減らします。この分離は、プレゼン機能を専用ビルドから必ず除外するものではありません。
+
+`Library/Bee` は増分ビルドのキャッシュです。毎回削除したり、Clean Buildを繰り返したりせず、同じ設定での2回目以降を比較してください。サンプル除外後の実際の短縮時間はAPKビルドで計測が必要です。

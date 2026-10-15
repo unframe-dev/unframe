@@ -23,7 +23,7 @@ export type PublishInput = Readonly<{
   controlPlaneUrl: string;
   bearerToken: string;
   signal?: AbortSignal;
-  fetch?: typeof globalThis.fetch;
+  fetch?: (input: URL, init: RequestInit) => Promise<Response>;
 }>;
 export type PublishResult =
   | Readonly<{ ok: true; buildId: string; publicationEpoch: number }>
