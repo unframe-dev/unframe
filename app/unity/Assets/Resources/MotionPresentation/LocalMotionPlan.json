@@ -1,0 +1,36 @@
+{
+  "cues": [
+    {
+      "eventNumber": 10,
+      "preset": "swipeDown",
+      "cueId": "cue:scene-10",
+      "timelineId": "timeline:scene-10",
+      "minimumDistanceMeters": 0.28,
+      "windowMilliseconds": 1200
+    },
+    {
+      "eventNumber": 15,
+      "preset": "swipeDown",
+      "cueId": "cue:scene-14",
+      "timelineId": "timeline:scene-14",
+      "minimumDistanceMeters": 0.28,
+      "windowMilliseconds": 1200
+    },
+    {
+      "eventNumber": 16,
+      "preset": "swipeRight",
+      "cueId": "cue:scene-15",
+      "timelineId": "timeline:scene-15",
+      "minimumDistanceMeters": 0.28,
+      "windowMilliseconds": 1200
+    },
+    {
+      "eventNumber": 17,
+      "preset": "spreadHands",
+      "cueId": "cue:scene-16",
+      "timelineId": "timeline:scene-16",
+      "minimumDistanceMeters": 0.2,
+      "windowMilliseconds": 2000
+    }
+  ]
+}

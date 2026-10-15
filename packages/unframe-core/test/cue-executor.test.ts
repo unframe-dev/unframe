@@ -331,4 +331,60 @@ describe("pure Cue executor", () => {
     ).toEqual({ kind: "none" });
     expect(executeCueEvent(definition, state, event).state.variables.count).toBe(1);
   });
+
+  it("matches motion presets, either hand, distance and window before executing the Cue once", () => {
+    const definition = setup();
+    definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "swipe",
+        priority: 0,
+        order: 0,
+        trigger: {
+          kind: "motion",
+          preset: "swipeUp",
+          actor: { kind: "system", source: "tracking" },
+          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
+          minimumDistanceMeters: 0.28,
+          windowMilliseconds: 1200,
+        },
+        firePolicy: { kind: "oncePerStepEntry" },
+        actions: [
+          { kind: "variable.set", variableId: "count", value: { kind: "literal", value: 1 } },
+        ],
+        next: { kind: "stay" },
+      },
+    ];
+    const state = createCueState(definition, 1);
+    const event = {
+      kind: "motion" as const,
+      preset: "swipeUp" as const,
+      subject: {
+        kind: "anchor" as const,
+        owner: { kind: "presenter" as const },
+        target: "leftHand" as const,
+      },
+      actor: { kind: "system" as const, source: "tracking" as const },
+      distanceMeters: 0.3,
+      windowMilliseconds: 800,
+      payload: {},
+      causeEventId: "swipe-1",
+    };
+    const { preset: _preset, ...withoutPreset } = event;
+    for (const invalid of [
+      { ...event, preset: "swipeDown" as const },
+      withoutPreset,
+      { ...event, distanceMeters: 0.2 },
+      { ...event, windowMilliseconds: 1300 },
+      { ...event, subject: { ...event.subject, target: "head" as const } },
+    ])
+      expect(executeCueEvent(definition, state, invalid).outcome).toEqual({ kind: "none" });
+    for (const target of ["leftHand", "rightHand"] as const) {
+      const result = executeCueEvent(definition, state, {
+        ...event,
+        subject: { ...event.subject, target },
+      });
+      expect(result.state.variables.count).toBe(1);
+      expect(executeCueEvent(definition, result.state, event).outcome).toEqual({ kind: "none" });
+    }
+  });
 });

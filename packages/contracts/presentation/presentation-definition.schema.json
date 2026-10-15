@@ -6266,7 +6266,7 @@
                             "maximum": 4294967295
                           },
                           "trigger": {
-                            "oneOf": [
+                            "anyOf": [
                               {
                                 "type": "object",
                                 "properties": {
@@ -6541,6 +6541,15 @@
                                     "required": ["kind", "source"],
                                     "additionalProperties": false
                                   },
+                                  "minimumDistanceMeters": {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "windowMilliseconds": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
+                                  },
                                   "subject": {
                                     "oneOf": [
                                       {
@@ -6592,6 +6601,38 @@
                                         "additionalProperties": false
                                       }
                                     ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "actor",
+                                  "minimumDistanceMeters",
+                                  "windowMilliseconds",
+                                  "subject"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "motion"
+                                  },
+                                  "actor": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "system"
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                        "const": "tracking"
+                                      }
+                                    },
+                                    "required": ["kind", "source"],
+                                    "additionalProperties": false
                                   },
                                   "minimumDistanceMeters": {
                                     "type": "number",
@@ -6601,14 +6642,124 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 9007199254740991
+                                  },
+                                  "preset": {
+                                    "type": "string",
+                                    "enum": [
+                                      "swipeLeft",
+                                      "swipeRight",
+                                      "swipeDown",
+                                      "swipeUp",
+                                      "pushForward",
+                                      "pullBackward"
+                                    ]
+                                  },
+                                  "subject": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "anchor"
+                                      },
+                                      "owner": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "const": "presenter"
+                                          }
+                                        },
+                                        "required": ["kind"],
+                                        "additionalProperties": false
+                                      },
+                                      "target": {
+                                        "type": "string",
+                                        "enum": ["eitherHand", "leftHand", "rightHand"]
+                                      }
+                                    },
+                                    "required": ["kind", "owner", "target"],
+                                    "additionalProperties": false
                                   }
                                 },
                                 "required": [
                                   "kind",
                                   "actor",
-                                  "subject",
                                   "minimumDistanceMeters",
-                                  "windowMilliseconds"
+                                  "windowMilliseconds",
+                                  "preset",
+                                  "subject"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "motion"
+                                  },
+                                  "actor": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "system"
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                        "const": "tracking"
+                                      }
+                                    },
+                                    "required": ["kind", "source"],
+                                    "additionalProperties": false
+                                  },
+                                  "minimumDistanceMeters": {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "windowMilliseconds": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "preset": {
+                                    "type": "string",
+                                    "enum": ["spreadHands", "closeHands"]
+                                  },
+                                  "subject": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "anchor"
+                                      },
+                                      "owner": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "const": "presenter"
+                                          }
+                                        },
+                                        "required": ["kind"],
+                                        "additionalProperties": false
+                                      },
+                                      "target": {
+                                        "type": "string",
+                                        "const": "bothHands"
+                                      }
+                                    },
+                                    "required": ["kind", "owner", "target"],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "actor",
+                                  "minimumDistanceMeters",
+                                  "windowMilliseconds",
+                                  "preset",
+                                  "subject"
                                 ],
                                 "additionalProperties": false
                               },

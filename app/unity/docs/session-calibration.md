@@ -39,7 +39,7 @@ session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogica
 
 `QuestPresentationEntry.Summary` は校正待ち、素材ロード、同期中、Readyのrole、停止状態を提供します。`QuestPresentationStatusView` はheadの右上に状態と再測定案内を表示し、B/Yの押下開始で共有校正を無効化します。UIはcredential、Session ID、endpoint、RPC詳細を表示しません。カメラpreviewは既存のA/X権限確認とB/Y再測定を提供します。
 
-`Unframe/Open Quest Presentation Scene` は単一OVRCameraRig、PCA source、ArUco校正、Session入口、状態UIを配線します。通信SceneにはXROrigin、TrackedPoseDriver、AR Sessionを重ねません。Meta SDKのPCA撮影姿勢とHead/Handのtracking座標を同じrigへ揃えます。使用中のMRUKはnativeのtracking-space getterへOVRCameraRigを登録します。`PassthroughCameraAccess.GetCameraPose()` は撮影時刻のworld Poseを返すため、取得後にtrackingSpaceの変換を重ねません。配線済みのSceneは再生成せず開き、編集内容を保持します。生成Sceneは既存の `QuestPresentationBuild.BuildAndroid` でビルドします。通信APKでもローカルMeta DevAgent設定を除外し、正常・失敗の両方でasset、meta、preloaded assetsを復元します。OpenCVサンプルがimport済みならビルドを拒否するため、既存の `Unframe/PCA/Prepare Fast Builds (Exclude OpenCV Samples)` で除外します。
+`Unframe/Diagnostics/Network/Open Quest Presentation Scene` は単一OVRCameraRig、PCA source、ArUco校正、Session入口、状態UIを配線します。通信SceneにはXROrigin、TrackedPoseDriver、AR Sessionを重ねません。Meta SDKのPCA撮影姿勢とHead/Handのtracking座標を同じrigへ揃えます。使用中のMRUKはnativeのtracking-space getterへOVRCameraRigを登録します。`PassthroughCameraAccess.GetCameraPose()` は撮影時刻のworld Poseを返すため、取得後にtrackingSpaceの変換を重ねません。配線済みのSceneは再生成せず開き、編集内容を保持します。生成Sceneは既存の `QuestPresentationBuild.BuildAndroid` でビルドします。通信APKでもローカルMeta DevAgent設定を除外し、正常・失敗の両方でasset、meta、preloaded assetsを復元します。OpenCVサンプルがimport済みならビルドを拒否するため、既存の `Unframe/Tools/OpenCV/Prepare Fast Builds (Exclude OpenCV Samples)` で除外します。
 
 ## 検証
 

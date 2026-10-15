@@ -1,0 +1,1343 @@
+{
+  "connectionSnapshot": {
+    "schemaVersion": 2,
+    "connectionId": "connection:local",
+    "fence": {
+      "sessionId": "session:local",
+      "publication": {
+        "presentationId": "presentation:unframe-rehearsal",
+        "publicationEpoch": "1",
+        "publicationManifestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "assignmentEpoch": "1",
+      "projectionProfileId": "profile:local"
+    },
+    "projectionInstance": {
+      "projectionProfileId": "profile:local",
+      "participantId": "participant:local",
+      "assignmentEpoch": "1"
+    },
+    "reliableSequence": "0",
+    "snapshot": {
+      "projectionProfileId": "profile:local",
+      "assignmentEpoch": "1",
+      "reliableSequence": "0",
+      "runtimeView": {
+        "projectionProfileId": "profile:local",
+        "assignmentEpoch": "1",
+        "baseReliableSequence": "0",
+        "presentationOrigin": {
+          "version": "0",
+          "pose": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            }
+          }
+        },
+        "clock": {
+          "runtimeTimeMs": "0",
+          "running": {}
+        },
+        "progression": {
+          "currentGroupId": "group:rehearsal",
+          "groupEntryEpoch": "1",
+          "currentStepId": "step:opening",
+          "stepEntryEpoch": "1",
+          "stable": {}
+        },
+        "nodeStates": [
+          {
+            "nodeId": "node:rehearsal-root",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0.35,
+                "z": 0
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.5,
+                "y": 0.5,
+                "z": 0.5
+              }
+            }
+          },
+          {
+            "nodeId": "node:main-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.025
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-01",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-02",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-03",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-04",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-05",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-06",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-07",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-10",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-12",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 1.7,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-14",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 1.7,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-15",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 1.7,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-16",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 1.7,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-17",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-18",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-19",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-20-group",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-20-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.025
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-20",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-21-group",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-21-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.025
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-21",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-22-group",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-22-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.025
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-22",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-23-group",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-23-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.025
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-23",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-24-group",
+            "active": true,
+            "visible": true,
+            "opacity": 1,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 2
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-24-panel",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.025
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:scene-24",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0.08
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-panel-1",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -6.5778483455013586,
+                "y": 0,
+                "z": 2.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0.573576436351046,
+                "z": 0,
+                "w": 0.8191520442889918
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-text-1",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -6.512069862046345,
+                "y": 0,
+                "z": 2.123941410032797
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0.573576436351046,
+                "z": 0,
+                "w": 0.8191520442889918
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-panel-2",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -4.683914244512008,
+                "y": 0,
+                "z": 1.4
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0.35836794954530027,
+                "z": 0,
+                "w": 0.9335804264972017
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-text-2",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -4.637075102066888,
+                "y": 0,
+                "z": 1.4520201377834177
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0.35836794954530027,
+                "z": 0,
+                "w": 0.9335804264972017
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-panel-3",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -1.693453269197674,
+                "y": 0,
+                "z": 0.6
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0.12186934340514748,
+                "z": 0,
+                "w": 0.992546151641322
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-text-3",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -1.6765187365056973,
+                "y": 0,
+                "z": 0.6679207008393195
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0.12186934340514748,
+                "z": 0,
+                "w": 0.992546151641322
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-panel-4",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 1.693453269197674,
+                "y": 0,
+                "z": 0.6
+              },
+              "rotation": {
+                "x": 0,
+                "y": -0.12186934340514748,
+                "z": 0,
+                "w": 0.992546151641322
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-text-4",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 1.6765187365056973,
+                "y": 0,
+                "z": 0.6679207008393195
+              },
+              "rotation": {
+                "x": 0,
+                "y": -0.12186934340514748,
+                "z": 0,
+                "w": 0.992546151641322
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-panel-5",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 4.683914244512008,
+                "y": 0,
+                "z": 1.4
+              },
+              "rotation": {
+                "x": 0,
+                "y": -0.35836794954530027,
+                "z": 0,
+                "w": 0.9335804264972017
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-text-5",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 4.637075102066888,
+                "y": 0,
+                "z": 1.4520201377834177
+              },
+              "rotation": {
+                "x": 0,
+                "y": -0.35836794954530027,
+                "z": 0,
+                "w": 0.9335804264972017
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-panel-6",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 6.5778483455013586,
+                "y": 0,
+                "z": 2.1
+              },
+              "rotation": {
+                "x": 0,
+                "y": -0.573576436351046,
+                "z": 0,
+                "w": 0.8191520442889918
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:arc-text-6",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 6.512069862046345,
+                "y": 0,
+                "z": 2.123941410032797
+              },
+              "rotation": {
+                "x": 0,
+                "y": -0.573576436351046,
+                "z": 0,
+                "w": 0.8191520442889918
+              },
+              "scale": {
+                "x": 0.45,
+                "y": 0.45,
+                "z": 0.45
+              }
+            }
+          },
+          {
+            "nodeId": "node:model-1",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -2.5,
+                "y": -0.6,
+                "z": 0.65
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:model-2",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 2.5,
+                "y": -1,
+                "z": 0.65
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:model-3",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 2.6,
+                "y": 1.1,
+                "z": 0.7
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:model-4",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": -1.5,
+                "y": 1.6,
+                "z": 0.65
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          },
+          {
+            "nodeId": "node:model-5",
+            "active": true,
+            "visible": true,
+            "opacity": 0,
+            "transform": {
+              "position": {
+                "x": 0,
+                "y": -1.5,
+                "z": 0.65
+              },
+              "rotation": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "w": 1
+              },
+              "scale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+              }
+            }
+          }
+        ],
+        "surfaceStates": [
+          {
+            "surfaceId": "surface:scene-01",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-02",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-03",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-04",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-05",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-06",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-07",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-10",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-12",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-14",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-15",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-16",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-17",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-18",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-19",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-20",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-21",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-22",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-23",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:scene-24",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:arc-text-1",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:arc-text-2",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:arc-text-3",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:arc-text-4",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:arc-text-5",
+            "stateId": "default"
+          },
+          {
+            "surfaceId": "surface:arc-text-6",
+            "stateId": "default"
+          }
+        ]
+      }
+    }
+  }
+}

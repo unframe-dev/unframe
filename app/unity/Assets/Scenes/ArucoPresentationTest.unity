@@ -214,7 +214,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 549ac4b6bb0624fec8e054a83a7d94d4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassthroughCameraDevicePreview
   cameraAccess: {fileID: 2135378172}
   head: {fileID: 382092642}
@@ -229,7 +229,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9ebdb4e0d5e449a080704cf728bd0c6d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoTrackingDiagnosticSession
 --- !u!4 &169578529
 Transform:
@@ -256,7 +256,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5dda1e2d78664c659a8e402b7c6b5362, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoOriginAlignment
   measurementPreviewEnabled: 1
 --- !u!114 &169578531
@@ -269,7 +269,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f36ba04f15a5c4e209b603d1a2e15056, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoCameraMarkerDetection
 --- !u!114 &169578532
 MonoBehaviour:
@@ -281,7 +281,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0a7c6e32bd6a4f4e9e946981f065d43c, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoOriginVisualizer
 --- !u!1 &370998384
 GameObject:
@@ -505,7 +505,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -549,7 +549,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -593,7 +593,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -686,7 +686,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 555725d48e9051a4bb6b8d45178c2fdd, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Oculus.VR::OVRPassthroughLayer
   hidden: 0
   overridePerLayerColorScaleAndOffset: 0
@@ -815,7 +815,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 142c32b4bac64ea7ab4e45d5fdb45cd5, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoPresentationOriginBinding
   calibrationSource: {fileID: 1046883113}
   runner: {fileID: 1046883111}
@@ -831,7 +831,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 890796c9597ab42349225dcccf3a9951, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unframe.Unity.PresentationRuntime::Unframe.Unity.PresentationRuntime.LocalPresentationFixtureRunner
   deliveryFixture: {fileID: 0}
   snapshotFixture: {fileID: 0}
@@ -864,7 +864,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c0b9c7eb2b840818d6785aab79033f6, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArucoPresentationCalibration
   alignment: {fileID: 169578530}
   questTrackingOrigin: {fileID: 382092643}
@@ -878,7 +878,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935c013dd36486497aaf1591ee5bb90, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unframe.Unity.PresentationRuntime.QuestLocalPresentationStatusView
   controls: {fileID: 1046883115}
   head: {fileID: 382092642}
@@ -892,7 +892,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef967567126345528f42a768ed006499, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestLocalPresentationControls
   calibrationSource: {fileID: 1046883113}
   runner: {fileID: 1046883111}
@@ -1016,13 +1016,13 @@ MonoBehaviour:
   m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef9a7893e57c04c0db4114c70954b915, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: meta.xr.mrutilitykit::Meta.XR.PassthroughCameraAccess
   CameraPosition: 0
   RequestedResolution: {x: 1280, y: 960}
   _maxFramerate: 30
   TargetMaterial: {fileID: 0}
-  _texturePropertyName:
+  _texturePropertyName: 
 --- !u!4 &2135378173
 Transform:
   m_ObjectHideFlags: 0

@@ -68,13 +68,13 @@ public static class OpenCvSampleBuildPreparation
     {
         foreach (string path in SamplePaths)
             if (Exists(Path.Combine(projectRoot, path)))
-                throw new BuildFailedException("OpenCV samples are still imported. Run Unframe > PCA > Prepare Fast Builds (Exclude OpenCV Samples), wait for compilation, then build again.");
+                throw new BuildFailedException("OpenCV samples are still imported. Run Unframe > Tools > OpenCV > Prepare Fast Builds (Exclude OpenCV Samples), wait for compilation, then build again.");
     }
 
-    [MenuItem("Unframe/PCA/Prepare Fast Builds (Exclude OpenCV Samples)")]
+    [MenuItem("Unframe/Tools/OpenCV/Prepare Fast Builds (Exclude OpenCV Samples)")]
     public static void PrepareSamples() => Prepare(true);
 
-    [MenuItem("Unframe/PCA/Restore OpenCV Samples")]
+    [MenuItem("Unframe/Tools/OpenCV/Restore OpenCV Samples")]
     public static void RestoreSamples() => Prepare(false);
 
     private static void Prepare(bool exclude)

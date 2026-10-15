@@ -13,7 +13,7 @@ import (
 
 func v2TrackingCueFromDefinition(cue v2Cue) (v2TrackingCue, error) {
 	trigger := cue.Trigger
-	tracked := v2TrackingCue{ID: cue.ID, Kind: trigger.Kind, SubjectKind: trigger.Subject.Kind, ZoneID: trigger.ZoneID, Edge: trigger.Edge, DwellMilliseconds: trigger.DwellMilliseconds, HysteresisMeters: trigger.HysteresisMeters, MinimumDistanceMeters: trigger.MinimumDistanceMeters, WindowMilliseconds: trigger.WindowMilliseconds}
+	tracked := v2TrackingCue{Preset: trigger.Preset, HandTarget: trigger.Subject.Target, ID: cue.ID, Kind: trigger.Kind, SubjectKind: trigger.Subject.Kind, ZoneID: trigger.ZoneID, Edge: trigger.Edge, DwellMilliseconds: trigger.DwellMilliseconds, HysteresisMeters: trigger.HysteresisMeters, MinimumDistanceMeters: trigger.MinimumDistanceMeters, WindowMilliseconds: trigger.WindowMilliseconds}
 	if trigger.Subject.Kind == "anchor" {
 		switch trigger.Subject.Target {
 		case "head":
@@ -22,6 +22,10 @@ func v2TrackingCueFromDefinition(cue v2Cue) (v2TrackingCue, error) {
 			tracked.Target = realtimev2.TrackedTarget_TRACKED_TARGET_LEFT_HAND
 		case "rightHand":
 			tracked.Target = realtimev2.TrackedTarget_TRACKED_TARGET_RIGHT_HAND
+		case "eitherHand", "bothHands":
+			if trigger.Preset == "" {
+				return tracked, ErrV2RuntimeDefinition
+			}
 		case "body":
 			tracked.Target = realtimev2.TrackedTarget_TRACKED_TARGET_BODY
 		default:
@@ -31,6 +35,9 @@ func v2TrackingCueFromDefinition(cue v2Cue) (v2TrackingCue, error) {
 		return tracked, ErrV2RuntimeDefinition
 	}
 	if trigger.Kind != "zoneEdge" && trigger.Kind != "motion" {
+		return tracked, ErrV2RuntimeDefinition
+	}
+	if trigger.Preset != "" && !v2TrackingValidPreset(tracked) {
 		return tracked, ErrV2RuntimeDefinition
 	}
 	return tracked, nil

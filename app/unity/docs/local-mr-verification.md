@@ -9,7 +9,7 @@
 - Quest 3 / 3Sを1〜3台と、コントローラーを用意する。
 - [OpenCVとPassthrough Cameraの設定](../README.md)を行う。カメラを利用するため、実機ではカメラ権限を許可する。
 - ArUco `DICT_4X4_50` のID 0マーカーを、黒枠の外寸20cmで印刷する。すべての端末で同じ物理マーカーを利用する。
-- Unityで `Unframe > ArUco > Open Presentation Test Scene` を実行し、`Build Presentation Test APK` または `Build and Run Presentation on Quest` を実行する。
+- Unityで `Unframe > Diagnostics > ArUco > Open Presentation Test Scene` を実行し、`Build Presentation Test APK` または `Build and Run Presentation on Quest` を実行する。
 
 マーカー検出にはAndroidの `UNFRAME_OPENCV_FOR_UNITY` が必要です。専用builderはOpenCV本体またはdefineが不足している場合にビルドを中断します。カメラ映像が見えても検出が無効なら校正は進みません。
 
@@ -41,6 +41,6 @@ EditorのSpace/Enter入力はfixtureの診断用です。実機の校正とコ�
 
 2026-10-07にOpenCV有効構成のEditModeテスト483件と、ローカルSceneのARM64 IL2CPP APKビルドが成功しました。変更したC#のフォーマット、`.meta`整合性、GUID重複、Runtime managed依存も確認済みです。
 
-Quest 3の1台で1280×960のカメラ映像、ID 0の検出・姿勢推定・校正確定、プレゼン表示とEvent 1/35から4/35への進行を確認しました。背景パネルが文字を遮る配置を確認し、中央の背景を文字の奥へ修正しています。B/Y再測定入力はプレゼン操作側だけが処理するようにしています。複数台の位置一致は未検証です。
+Quest 3の1台で1280×960のカメラ映像、ID 0の検出・姿勢推定・校正確定、プレゼン表示とEvent 1/35から4/35への進行を確認しました。背景パネルが文字を遮る配置を確認し、中央の背景を文字の奥へ修正しています。B/Y再測定入力はプレゼン操作側だけが処理するようにしています。複数台の位置合わせはユーザーから検証済みとの報告を受けています。端末数・誤差の測定値は記録されていません。
 
-背景と入力所有を修正したAPKについても、同日にユーザーがQuest実機で動作を確認し、異常な挙動はなかったと報告しています。複数台の位置一致は引き続き未検証です。
+背景と入力所有を修正したAPKについても、同日にユーザーがQuest実機で動作を確認し、異常な挙動はなかったと報告しています。複数台の位置合わせについても、その後ユーザーから検証済みとの報告を受けています。

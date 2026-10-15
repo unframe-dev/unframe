@@ -16,9 +16,23 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
     private bool applicationPaused;
     private string errorSummary;
 
+    public bool PresentationInputEnabled { get; set; } = true;
+
     public bool CanAdvance => CanInteract && runner.CanAdvance;
-    private bool CanInteract => isActiveAndEnabled && !applicationPaused && runner != null && runner.isActiveAndEnabled
-        && calibrationSource != null && calibrationSource.isActiveAndEnabled && calibrationSource.Calibration.IsValid;
+    private bool CanInteract => InteractionBlockReason == null;
+    private string InteractionBlockReason => !isActiveAndEnabled ? "controls-disabled"
+        : !PresentationInputEnabled ? "presentation-input-disabled"
+        : applicationPaused ? "application-paused"
+        : runner == null ? "runner-missing"
+        : !runner.isActiveAndEnabled ? "runner-disabled"
+        : calibrationSource == null ? "calibration-missing"
+        : !calibrationSource.isActiveAndEnabled ? "calibration-disabled"
+        : !calibrationSource.Calibration.IsValid ? "calibration-required" : null;
+
+    public string AdvanceBlockReason => InteractionBlockReason
+        ?? (!runner.HasLoadedFixture ? "fixture-not-loaded"
+            : runner.IsAnimating ? "animation-running"
+            : !runner.CanAdvance ? "presentation-complete" : null);
 
     public string Summary
     {
@@ -58,6 +72,18 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
         return advanced;
     }
 
+    public bool TryAdvanceMotion(string cueId, string timelineId, out string error)
+    {
+        if (!CanInteract)
+        {
+            error = "An active, calibrated local presentation is required.";
+            return false;
+        }
+        bool advanced = runner.TryAdvanceMotion(cueId, timelineId, out error);
+        errorSummary = advanced ? null : error;
+        return advanced;
+    }
+
     public bool ResetPresentation(out string error)
     {
         if (!isActiveAndEnabled || applicationPaused || runner == null || !runner.isActiveAndEnabled)
@@ -80,7 +106,7 @@ public sealed class QuestLocalPresentationControls : MonoBehaviour
         advanceWasPressed = advance;
         restartWasPressed = restart;
         remeasureWasPressed = remeasure;
-        if (!isActiveAndEnabled) return;
+        if (!isActiveAndEnabled || !PresentationInputEnabled) return;
         if (shouldRemeasure) ResetCalibration();
         else if (CanInteract)
         {

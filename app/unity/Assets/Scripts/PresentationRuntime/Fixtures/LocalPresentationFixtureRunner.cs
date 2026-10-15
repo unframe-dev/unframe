@@ -20,6 +20,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public PresentationRuntimeDataStore Store { get; } = new PresentationRuntimeDataStore();
         public PresentationNodeHierarchy Hierarchy { get; } = new PresentationNodeHierarchy();
+        public bool KeyboardAdvanceEnabled { get; set; } = true;
         public bool HasLoadedFixture { get; private set; }
         public int AppliedEventCount { get; private set; }
         public int ReliableEventCount { get { return ResolveReliableEventFixtures().Length; } }
@@ -179,6 +180,29 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
+        public bool TryAdvanceMotion(string cueId, string timelineId, out string error)
+        {
+            if (!CanAdvance || String.IsNullOrEmpty(cueId) || String.IsNullOrEmpty(timelineId))
+            {
+                error = "An available motion Cue and Timeline are required.";
+                return false;
+            }
+
+            TextAsset fixture = ResolveReliableEventFixtures()[AppliedEventCount];
+            if (!PresentationContractJsonFixtureLoader.TryParseControlItem(fixture.text, out ControlServerItem item, out error))
+                return false;
+            if (item.ItemCase != ControlServerItem.ItemOneofCase.ReliableEvent
+                || item.ReliableEvent.PayloadCase != ProjectedReliableEvent.PayloadOneofCase.TimelineStarted
+                || item.ReliableEvent.TimelineStarted.Cause?.CueId != cueId
+                || item.ReliableEvent.TimelineStarted.TimelineId != timelineId)
+            {
+                error = "The motion Cue does not match the upcoming Timeline event.";
+                return false;
+            }
+
+            return TryAdvance(out error);
+        }
+
         private void ApplyControlToVisuals(ControlServerItem item)
         {
             if (item.ItemCase != ControlServerItem.ItemOneofCase.ReliableEvent)
@@ -291,12 +315,18 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 timelinePlayer.Update(Time.realtimeSinceStartupAsDouble);
                 Keyboard keyboard = Keyboard.current;
-                if (keyboard != null && (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame) && CanAdvance)
+                ProcessKeyboardInput(keyboard != null
+                    && (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame));
+            }
+        }
+
+        private void ProcessKeyboardInput(bool advanceRequested)
+        {
+            if (KeyboardAdvanceEnabled && advanceRequested && CanAdvance)
+            {
+                if (!TryAdvance(out string error))
                 {
-                    if (!TryAdvance(out string error))
-                    {
-                        Debug.LogError("[Presentation] " + error, this);
-                    }
+                    Debug.LogError("[Presentation] " + error, this);
                 }
             }
         }

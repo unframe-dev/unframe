@@ -1,3 +1,4 @@
+using System.Reflection;
 using Google.Protobuf;
 using NUnit.Framework;
 using Unframe.Delivery;
@@ -8,6 +9,53 @@ using UnityEngine;
 
 public sealed class LocalPresentationFixtureRunnerRegressionTests
 {
+    [Test]
+    public void MotionMustMatchTheUpcomingCueAndTimelineBeforeConsumingItsEvent()
+    {
+        var host = new GameObject("fixture-motion-cue-guard");
+        try
+        {
+            var runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(runner.TryLoad(out string error), Is.True, error);
+            Assert.That(runner.TryAdvanceMotion("cue:wrong", "timeline:story-01", out error), Is.False);
+            Assert.That(runner.TryAdvanceMotion("cue:local-story-01", "timeline:wrong", out error), Is.False);
+            Assert.That(runner.TryAdvanceMotion("", "timeline:story-01", out error), Is.False);
+            Assert.That(runner.AppliedEventCount, Is.Zero);
+            Assert.That(runner.Store.LastReliableSequence, Is.Zero);
+            Assert.That(runner.TryAdvanceMotion("cue:local-story-01", "timeline:story-01", out error), Is.True, error);
+            Assert.That(runner.AppliedEventCount, Is.EqualTo(1));
+            Assert.That(runner.Store.LastReliableSequence, Is.EqualTo(1));
+            Assert.That(runner.TryAdvanceMotion("cue:local-story-01", "timeline:story-01", out error), Is.False);
+            Assert.That(runner.AppliedEventCount, Is.EqualTo(1));
+        }
+        finally { Object.DestroyImmediate(host); }
+    }
+
+    [Test]
+    public void KeyboardGateBlocksKeyboardWithoutBlockingExplicitAdvance()
+    {
+        var host = new GameObject("fixture-keyboard-gate");
+        try
+        {
+            var runner = host.AddComponent<LocalPresentationFixtureRunner>();
+            Assert.That(runner.TryLoad(out string error), Is.True, error);
+            runner.KeyboardAdvanceEnabled = false;
+            typeof(LocalPresentationFixtureRunner).GetMethod("ProcessKeyboardInput",
+                BindingFlags.Instance | BindingFlags.NonPublic).Invoke(runner, new object[] { true });
+            Assert.That(runner.AppliedEventCount, Is.Zero);
+            Assert.That(runner.TryAdvance(out error), Is.True, error);
+            runner.KeyboardAdvanceEnabled = true;
+            Assert.That(runner.CanAdvance, Is.True);
+            typeof(LocalPresentationFixtureRunner).GetMethod("ProcessKeyboardInput",
+                BindingFlags.Instance | BindingFlags.NonPublic).Invoke(runner, new object[] { true });
+            Assert.That(runner.AppliedEventCount, Is.EqualTo(2));
+        }
+        finally
+        {
+            Object.DestroyImmediate(host);
+        }
+    }
+
     [TestCase("node:opening-panel", "node:text-greeting")]
     [TestCase("node:normal-panel", "node:text-only")]
     public void CentralBackgroundPanelStaysBehindItsText(string panelId, string textId)

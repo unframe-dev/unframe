@@ -78,6 +78,59 @@ describe("canonical Timeline Run", () => {
     expect(completed.state.phase).toEqual({ kind: "stable" });
   });
 
+  it.each([
+    "swipeLeft",
+    "swipeRight",
+    "swipeDown",
+    "swipeUp",
+    "pushForward",
+    "pullBackward",
+    "spreadHands",
+    "closeHands",
+  ] as const)("plays the existing fade Timeline from motion preset %s", (preset) => {
+    const definition = setup();
+    const cue = definition.flow.groups.intro!.steps.start!.cues[0]!;
+    const paired = preset === "spreadHands" || preset === "closeHands";
+    cue.trigger = paired
+      ? {
+          kind: "motion",
+          preset,
+          actor: { kind: "system", source: "tracking" },
+          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "bothHands" },
+          minimumDistanceMeters: 0.28,
+          windowMilliseconds: 1200,
+        }
+      : {
+          kind: "motion",
+          preset,
+          actor: { kind: "system", source: "tracking" },
+          subject: { kind: "anchor", owner: { kind: "presenter" }, target: "eitherHand" },
+          minimumDistanceMeters: 0.28,
+          windowMilliseconds: 1200,
+        };
+    expect(validatePresentationDefinition(definition).valid).toBe(true);
+    const started = executeCueEvent(definition, createCueState(definition, 7), {
+      kind: "motion",
+      preset,
+      actor: { kind: "system", source: "tracking" },
+      subject: {
+        kind: "anchor",
+        owner: { kind: "presenter" },
+        target: paired ? "bothHands" : "rightHand",
+      },
+      distanceMeters: 0.3,
+      windowMilliseconds: 500,
+      payload: {},
+      causeEventId: "gesture-1",
+    });
+    expect(started.outcome).toEqual({ kind: "accepted", cueId: "play" });
+    expect(started.state.activeRuns).toMatchObject([{ timelineId: "fade" }]);
+    expect(started.state.currentStepId).toBe("start");
+    const completed = advanceCueClock(definition, started.state, 100);
+    expect(completed.state.nodes["node-baked"]?.opacity).toBe(1);
+    expect(completed.state.currentStepId).toBe("next");
+  });
+
   it("rejects an active property conflict atomically", () => {
     const definition = setup();
     definition.flow.groups.intro!.steps.start!.cues[0]!.actions.push({
