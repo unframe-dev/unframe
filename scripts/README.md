@@ -70,7 +70,7 @@ Opaque React capture は Linux の user namespace と、memory / pids controller
 nix develop --command scripts/ci/opaque-capture.sh
 ```
 
-通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。この wrapper は一時的な delegated scope を作成し、終了時に worker を回収します。Opaque integration は通常の package unit test から分離しています。GitHub Actions の AppArmor 許可も、この専用 step で使用する executable path に限定します。
+通常の CLI 実行を同じ profile に入れる場合は、`nix develop` 内で `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" scripts/dev/opaque-capture-scope.sh <command> [arguments...]` を使います。この wrapper は一時的な delegated scope を作成し、終了時に worker を回収します。Opaque integration は通常の package unit test から分離しています。GitHub Actionsでも通常の品質チェック（上限30分）とOpaque受入テスト（上限45分）は独立したjobで並列実行し、両方の成功を集約CIで必須とします。GitHub Actions の AppArmor 許可も、この専用 step で使用する executable path に限定します。
 
 ## Local Editor と Unity
 

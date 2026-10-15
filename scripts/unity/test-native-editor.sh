@@ -15,6 +15,10 @@ for directory in Animation Delivery Fixtures Generated Persistence Rendering Sta
 done
 rm -f "$assets/Unframe/Scripts/Fixtures/LocalPresentationFixtureRunner.cs" "$assets/Unframe/Scripts/Fixtures/LocalPresentationFixtureRunner.cs.meta"
 cp "$runtime/PresentationBakedRuntime.cs" "$assets/Unframe/Scripts/"
+mkdir -p "$assets/Unframe/Scripts/Quest"
+for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking; do
+  cp "$runtime/Quest/$file.cs" "$assets/Unframe/Scripts/Quest/"
+done
 find "$root/app/unity/Assets/Plugins" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.dll.meta' \) -exec cp {} "$assets/Unframe/Plugins/" \;
 cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$assets/Unframe/Resources/"
 cp -R "$root/app/unity/Assets/Resources/PresentationFixtures" "$assets/Unframe/Resources/"
@@ -42,6 +46,7 @@ dependencies = {
   'com.unity.modules.animation': '1.0.0',
   'com.unity.modules.imageconversion': '1.0.0',
   'com.unity.modules.physics': '1.0.0',
+  'com.unity.modules.xr': '1.0.0',
   'com.unity.modules.unitywebrequest': '1.0.0',
 }
 (project / 'Packages/manifest.json').write_text(json.dumps({'dependencies': dependencies}, indent=2))
@@ -54,10 +59,10 @@ plugins = [p.name for p in (project / 'Assets/Unframe/Plugins').glob('*.dll')]
 PY
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"
 if [[ "$mode" == unit ]]; then
-  filter='PresentationNativeHandlerFactoryEditModeTests|PresentationBakedRuntimeDownloadEditModeTests'
+  filter='PresentationNativeRuntimeFixtureEditModeTests|PresentationNativeHandlerFactoryEditModeTests|PresentationBakedRuntimeDownloadEditModeTests'
   graphics=(-nographics)
 elif [[ "$mode" == regression ]]; then
-  filter='PresentationRuntimeEnvelopeEditModeTests|PresentationNativeRecoveredSnapshotEditModeTests|PresentationBakedRenderingEditModeTests|DefaultFreeSpaceProviderAdmitsBytesOnTheActualCacheVolume|UnixFileSystemInfoMatchesThe64BitLibcAbi|VolumeMatchingUsesDirectoryBoundaries|LowSpaceReserveRejectsAdmissionWithoutPartialReservation|ASecondOwnerCannotOpenTheSameDirectoryUntilTheFirstReleasesIt|RecoveryFailureCanRetryWithoutRetainingHalfVerifiedMetadata|FailedMetadataCommitLeavesCacheNotReadyAndReturnsNoLease|PresentationNativeBootstrapCodecEditModeTests|PresentationNativeDomainReloadEditModeTests'
+  filter='PresentationNativeRuntimeFixtureEditModeTests|PresentationRuntimeEnvelopeEditModeTests|PresentationNativeRecoveredSnapshotEditModeTests|PresentationBakedRenderingEditModeTests|DefaultFreeSpaceProviderAdmitsBytesOnTheActualCacheVolume|UnixFileSystemInfoMatchesThe64BitLibcAbi|VolumeMatchingUsesDirectoryBoundaries|LowSpaceReserveRejectsAdmissionWithoutPartialReservation|ASecondOwnerCannotOpenTheSameDirectoryUntilTheFirstReleasesIt|RecoveryFailureCanRetryWithoutRetainingHalfVerifiedMetadata|FailedMetadataCommitLeavesCacheNotReadyAndReturnsNoLease|PresentationNativeBootstrapCodecEditModeTests|PresentationNativeDomainReloadEditModeTests'
   graphics=(-nographics)
 else
   for variable in UNFRAME_E2E_CONTROL_PLANE_ORIGIN UNFRAME_E2E_SESSION_ID UNFRAME_E2E_BEARER UNFRAME_E2E_CA_FILE UNFRAME_E2E_RESULT_PATH UNFRAME_E2E_EXPECTED_PUBLICATION_HASH UNFRAME_E2E_EXPECTED_DEFINITION_HASH UNFRAME_E2E_EXPECTED_RENDER_BUNDLE_HASH UNFRAME_E2E_EXPECTED_ASSET_SET_HASH; do

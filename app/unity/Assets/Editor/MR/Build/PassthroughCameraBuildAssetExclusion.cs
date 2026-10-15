@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -9,6 +10,42 @@ public sealed class PassthroughCameraBuildAssetExclusion : IPreprocessBuildWithR
 {
     internal const string SettingsPath = "Assets/Resources/DevAgentSettings.asset";
     internal static AssetFileExclusion ActiveExclusion;
+
+    internal static BuildReport BuildWithoutLocalSettings(Func<BuildReport> build)
+    {
+        if (build == null) throw new ArgumentNullException(nameof(build));
+        if (ActiveExclusion != null) throw new InvalidOperationException("A scoped build exclusion is already active.");
+        var preloaded = PlayerSettings.GetPreloadedAssets();
+        var preloadedPaths = preloaded.Select(AssetDatabase.GetAssetPath).ToArray();
+        var preloadedIds = preloaded.Select(GlobalObjectId.GetGlobalObjectIdSlow).ToArray();
+        var exclusion = new AssetFileExclusion(SettingsPath,
+            Path.Combine("Library", "PcaBuildBackup", Guid.NewGuid().ToString("N")));
+        try
+        {
+            ActiveExclusion = exclusion;
+            PlayerSettings.SetPreloadedAssets(preloaded.Where((asset, index) => preloadedPaths[index] != SettingsPath).ToArray());
+            return build();
+        }
+        finally
+        {
+            ActiveExclusion = null;
+            try
+            {
+                exclusion.Dispose();
+            }
+            finally
+            {
+                try
+                {
+                    AssetDatabase.Refresh();
+                }
+                finally
+                {
+                    PlayerSettings.SetPreloadedAssets(preloadedIds.Select(GlobalObjectId.GlobalObjectIdentifierToObjectSlow).ToArray());
+                }
+            }
+        }
+    }
 
     internal static void ValidateBuildPolicy(BuildTarget target, bool settingsExist, bool exclusionActive)
     {

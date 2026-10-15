@@ -19,10 +19,7 @@ public static class ArucoPresentationTestEditor
             throw new OperationCanceledException("Presentation scene preparation was cancelled.");
         if (!File.Exists(ScenePath))
         {
-            PassthroughCameraDeviceTestEditor.PrepareScene();
-            var cameraScene = SceneManager.GetActiveScene();
-            if (!EditorSceneManager.SaveScene(cameraScene, ScenePath, true))
-                throw new IOException("Could not copy the PCA scene for the presentation test.");
+            QuestMrSceneBuild.CreateCalibrationScene(ScenePath);
         }
         var scene = EditorSceneManager.OpenScene(ScenePath);
         var alignment = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<ArucoOriginAlignment>(true)).Single();
@@ -35,9 +32,27 @@ public static class ArucoPresentationTestEditor
             space.SetActive(false);
             var stage = new GameObject("Stage (Runtime origin)");
             stage.transform.SetParent(space.transform, false);
-            var binding = controller.AddComponent<ArucoPresentationOriginBinding>();
-            binding.Configure(alignment, runner, space.transform, stage.transform);
+            controller.AddComponent<ArucoPresentationOriginBinding>();
         }
+        var binding = runner.GetComponent<ArucoPresentationOriginBinding>();
+        if (binding == null) binding = runner.gameObject.AddComponent<ArucoPresentationOriginBinding>();
+        var calibration = runner.GetComponent<ArucoPresentationCalibration>();
+        if (calibration == null) calibration = runner.gameObject.AddComponent<ArucoPresentationCalibration>();
+        var rig = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).Single();
+        calibration.Configure(alignment, rig.trackingSpace);
+        var presentationSpace = scene.GetRootGameObjects().Single(root => root.name == "Presentation Space (device calibration)");
+        var stageRoot = presentationSpace.transform.GetChild(0);
+        binding.Configure(calibration, runner, presentationSpace.transform, stageRoot);
+        var controls = runner.GetComponent<QuestLocalPresentationControls>();
+        if (controls == null) controls = runner.gameObject.AddComponent<QuestLocalPresentationControls>();
+        controls.Configure(calibration, runner);
+        var preview = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<PassthroughCameraDevicePreview>(true)).Single();
+        var previewSettings = new SerializedObject(preview);
+        previewSettings.FindProperty("handleRemeasurementInput").boolValue = false;
+        previewSettings.ApplyModifiedPropertiesWithoutUndo();
+        var statusView = runner.GetComponent<QuestLocalPresentationStatusView>();
+        if (statusView == null) statusView = runner.gameObject.AddComponent<QuestLocalPresentationStatusView>();
+        statusView.Configure(controls, rig.centerEyeAnchor);
         var settings = new SerializedObject(runner);
         settings.FindProperty("startOnPlay").boolValue = true;
         settings.ApplyModifiedPropertiesWithoutUndo();
@@ -49,13 +64,13 @@ public static class ArucoPresentationTestEditor
     public static void BuildApk()
     {
         PrepareScene();
-        PassthroughCameraDeviceTestEditor.BuildScene(ScenePath, ApplicationId, "unframe-aruco-presentation.apk", false);
+        QuestMrSceneBuild.BuildScene(ScenePath, ApplicationId, "unframe-aruco-presentation.apk", false);
     }
 
     [MenuItem("Unframe/ArUco/Build and Run Presentation on Quest")]
     public static void BuildAndRun()
     {
         PrepareScene();
-        PassthroughCameraDeviceTestEditor.BuildScene(ScenePath, ApplicationId, "unframe-aruco-presentation.apk", true);
+        QuestMrSceneBuild.BuildScene(ScenePath, ApplicationId, "unframe-aruco-presentation.apk", true);
     }
 }

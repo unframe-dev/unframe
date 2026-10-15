@@ -2,12 +2,12 @@
 
 検出を使用するには、OpenCV for Unity と `UNFRAME_OPENCV_FOR_UNITY` のセットアップが必要です。[Unity README の有効化手順](../README.md#aruco・カメラの実機検証)に従って Standalone と Android の両方へ設定してください。未設定の checkout では `DISABLED` が表示され、カメラ映像のみを確認できます。
 
-`PassthroughCameraDeviceTest` シーンで PCA 左カメラからマーカーを検出し、位置・向きを推定します。安定した観測からマーカー中心を原点として確定すると、カメラ取得・検出を停止し、Quest の位置追跡で立方体と XYZ 軸を表示します。Delivery fixtureをマーカー原点へ配置する検証は [原点接続シーン](aruco-presentation-origin.md) を参照してください。端末間通信、アプリ再起動をまたぐ原点保存は未実装です。
+`ArucoPresentationTest` シーンで PCA 左カメラからマーカーを検出し、位置・向きを推定します。安定した観測からマーカー中心を原点として確定すると、カメラ取得・検出を停止し、Quest の位置追跡で立方体と XYZ 軸を表示します。Delivery fixtureをマーカー原点へ配置する検証は [原点接続シーン](aruco-presentation-origin.md) を参照してください。端末間通信、アプリ再起動をまたぐ原点保存は未実装です。
 
 ## 実機で確認する
 
 1. [ID 0 の印刷マーカー](aruco-markers/4x4-50-id-0.svg) を印刷する。辞書は `DICT_4X4_50`、**黒い正方形の一辺は200mm**、白い余白は寸法に含めない。SVG全体は240×260mmなのでA3用紙などへ倍率100%で印刷し、黒い部分を定規で実測する。用紙に合わせた自動縮小は使わない。平らな板へ貼り、白い余白を残す。
-2. Quest を USB 接続し、Android Run Device に選ぶ。`Unframe > PCA > Open Device Test Scene`、`Build and Run on Quest` を実行する。接続と権限の詳細は [PCA 手順](pca-device-preview.md) を参照する。
+2. Quest を USB 接続し、Android Run Device に選ぶ。`Unframe > ArUco > Open Presentation Test Scene`、`Build and Run Presentation on Quest` を実行する。接続と権限の詳細は [PCA 手順](pca-device-preview.md) を参照する。
 3. マーカー全体を映す。検出中は緑の枠と ID が表示される。位置合わせ対象は **ID 0のみ**。ID 23 は検出できても原点には採用しない。
 4. マーカーと頭をなるべく静止させる。8回以上かつ1秒以上の有効な観測で、位置2cm・向き3度以内の安定性が確認できると `ALIGNED` になる。有効な観測の間隔が0.5秒以内なら、一時的な未検出・`ambiguous pose` があっても観測を保持する。無効な姿勢は平均や観測数に含めず、0.5秒を超えて有効な姿勢が得られなければ最初から測り直す。最大5Hzなので最低約1.4秒かかる。これらは初期の判定値で、実機の精度保証ではない。
 5. 黄色い立方体が中心の表側に、赤・緑・青の軸が中心から表示される。映像パネルは小さな状態表示へ切り替わる。マーカーを隠し、頭を動かしても立方体が元の場所に残ることを確認する。

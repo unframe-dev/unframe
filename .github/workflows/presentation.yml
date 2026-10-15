@@ -30,6 +30,25 @@ jobs:
       - name: shared config / typecheck / lint / test
         run: nix run .#presentation
 
+  opaque-capture:
+    name: presentation / opaque-capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: DeterminateSystems/nix-installer-action@2cb76beab460be7e44442c7ebdcbc30b638416df # main
+      - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
+
+      - name: Install JS dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Install Fixed Browser
+        run: nix develop --command scripts/dev/install-presentation-browser.sh
+
+      - name: Allow Fixed Browser user namespace
+        run: bash scripts/ci/allow-presentation-browser-userns.sh
+
       - name: Prepare isolated Opaque capture host
         run: nix develop --command bash scripts/ci/setup-opaque-host.sh
 

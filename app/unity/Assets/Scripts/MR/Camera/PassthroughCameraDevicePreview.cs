@@ -11,6 +11,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
 {
     [SerializeField] private PassthroughCameraAccess cameraAccess;
     [SerializeField] private Transform head;
+    [SerializeField] private bool handleRemeasurementInput = true;
 
     private const string CameraPermission = OVRPermissionsRequester.PassthroughCameraAccessPermission;
     private readonly PassthroughCameraPreviewHealth health = new PassthroughCameraPreviewHealth();
@@ -76,10 +77,7 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         {
             RequestCameraPermission();
         }
-        if (OVRInput.GetDown(OVRInput.Button.Two))
-        {
-            RestartCamera();
-        }
+        HandleRemeasurementInput(OVRInput.GetDown(OVRInput.Button.Two));
 
         if (requesting && now - requestedAt >= 30)
         {
@@ -232,6 +230,11 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
         if (!sessionState.CanStartAlignment) return;
         alignment.ResetAlignment("Show ID 0 (20 cm) to align again", false);
         ApplyCameraState(true);
+    }
+
+    private void HandleRemeasurementInput(bool pressed)
+    {
+        if (handleRemeasurementInput && pressed) RestartCamera();
     }
 
     private void OnAlignmentReset()

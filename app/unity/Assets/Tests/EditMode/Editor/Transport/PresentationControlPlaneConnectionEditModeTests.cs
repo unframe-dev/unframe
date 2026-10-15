@@ -70,7 +70,7 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
             {
                 Assert.That(request.Method, Is.EqualTo(HttpMethod.Post));
                 Assert.That(request.RequestUri.AbsolutePath, Does.EndWith("/bootstrap"));
-                string json = "{\"endpoint\":\"https://runtime.example.com/\",\"runtimeId\":\"runtime\",\"runtimeKind\":\"Cloud\",\"credential\":\"test-only\",\"expiresAt\":\"2099-01-01T00:00:00Z\",\"publicationFence\":{\"presentationId\":\"different\",\"publicationEpoch\":1,\"publicationManifestHash\":\"different\"}}";
+                string json = "{\"endpoint\":\"https://runtime.example.com/\",\"runtimeId\":\"runtime\",\"runtimeKind\":\"Cloud\",\"fingerprint\":null,\"credential\":\"test-only\",\"expiresAt\":\"2099-01-01T00:00:00Z\",\"publicationFence\":{\"presentationId\":\"different\",\"publicationEpoch\":1,\"publicationManifestHash\":\"different\"}}";
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
             }
         };

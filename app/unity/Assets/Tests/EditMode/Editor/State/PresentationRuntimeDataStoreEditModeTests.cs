@@ -1412,25 +1412,6 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
-    public void LocalFixtureSource_LoadsAHandwrittenDeliveryTextAsset()
-    {
-        GameObject host = new GameObject("fixture-source");
-        try
-        {
-            LocalPresentationFixtureSource source = host.AddComponent<LocalPresentationFixtureSource>();
-            source.SetDeliveryFixture(new TextAsset(JsonFormatter.Default.Format(CreateDelivery())));
-            PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
-
-            Assert.That(source.TryLoadDelivery(store, out string error), Is.True, error);
-            Assert.That(store.TryGetNode("node:model", out _), Is.True);
-        }
-        finally
-        {
-            Object.DestroyImmediate(host);
-        }
-    }
-
-    [Test]
     public void LocalFixtureRunner_LoadsDeliveryAndBuildsTheNodeHierarchy()
     {
         GameObject host = new GameObject("fixture-runner");

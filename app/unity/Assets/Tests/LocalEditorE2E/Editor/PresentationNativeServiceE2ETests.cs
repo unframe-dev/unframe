@@ -100,6 +100,7 @@ namespace Unframe.Tests.LocalEditorE2E
             var host = activeHost = new PresentationRuntimeHost(Path.Combine(directory, "sessions.json"), cache);
             var runtimeObject = new GameObject("Native E2E Runtime");
             var runtime = runtimeObject.AddComponent<PresentationBakedRuntime>();
+            Transform presentation = PresentationNativeRuntimeFixture.Configure(runtime);
             var connection = new PresentationControlPlaneConnection(new Uri(origin), session,
                 _ => Task.FromResult(bearer), host,
                 () => new YetAnotherHttpHandler { RootCertificates = ca, Http2Only = false },
@@ -135,8 +136,8 @@ namespace Unframe.Tests.LocalEditorE2E
                 var state = snapshot.Snapshot.RuntimeView;
                 Assert.That(state.NodeStates.Count, Is.GreaterThan(0));
                 result.stage = "hierarchy";
-                var nodes = runtimeObject.GetComponentsInChildren<PresentationNodeMetadata>(true);
-                var generatedRoot = runtimeObject.transform.Find("Presentation Nodes");
+                var nodes = presentation.GetComponentsInChildren<PresentationNodeMetadata>(true);
+                var generatedRoot = presentation.Find("Presentation Nodes");
                 var stagePosition = state.PresentationOrigin.Pose.Position;
                 Assert.That(Vector3.Distance(generatedRoot.localPosition,
                     new Vector3((float)stagePosition.X, (float)stagePosition.Y, -(float)stagePosition.Z)), Is.LessThan(0.0001f));
@@ -163,12 +164,12 @@ namespace Unframe.Tests.LocalEditorE2E
                     Assert.That(Vector3.Distance(node.transform.localScale,
                         new Vector3((float)scale.X, (float)scale.Y, (float)scale.Z)), Is.LessThan(0.0001f));
                 }
-                var renderers = runtimeObject.GetComponentsInChildren<MeshRenderer>().Where(r => r.enabled).ToArray();
+                var renderers = presentation.GetComponentsInChildren<MeshRenderer>().Where(r => r.enabled).ToArray();
                 Assert.That(renderers.Length, Is.GreaterThan(0));
                 foreach (var surface in delivery.ProjectionProfile.RenderSurfaces)
                 {
                     var semantic = delivery.ProjectionProfile.RuntimeCatalog.Surfaces.Single(s => s.SurfaceId == surface.SemanticSurfaceId);
-                    var quad = runtimeObject.GetComponentsInChildren<MeshRenderer>(true).Single(r => r.name == surface.RenderSurfaceId);
+                    var quad = presentation.GetComponentsInChildren<MeshRenderer>(true).Single(r => r.name == surface.RenderSurfaceId);
                     double fitX = semantic.PhysicalSizeMeters.X / semantic.LogicalSize.X;
                     double fitY = semantic.PhysicalSizeMeters.Y / semantic.LogicalSize.Y;
                     if (semantic.Fit == Unframe.Presentation.SurfaceFit.Contain) fitX = fitY = Math.Min(fitX, fitY);
@@ -204,7 +205,7 @@ namespace Unframe.Tests.LocalEditorE2E
                 camera.backgroundColor = Color.black;
                 camera.nearClipPlane = 0.01f;
                 camera.farClipPlane = 20000;
-                cameraObject.AddComponent<PresentationPreviewCamera>().Frame(runtimeObject.transform);
+                cameraObject.AddComponent<PresentationPreviewCamera>().Frame(presentation);
                 target = new RenderTexture(256, 256, 24, RenderTextureFormat.ARGB32);
                 target.Create();
                 yield return null;

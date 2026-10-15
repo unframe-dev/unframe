@@ -34,6 +34,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
     private double loggedAt = double.NegativeInfinity;
     private string reason = "Show ID 0 (20 cm); hold still or tilt the marker slightly";
     public event Action ResetRequested;
+    public event Action AlignmentInvalidated;
     public bool IsConfirmed => stability.IsConfirmed;
     public bool TrackingAvailable { get; private set; } = true;
     public Pose OriginPose => stability.Pose;
@@ -162,6 +163,7 @@ public sealed class ArucoOriginAlignment : MonoBehaviour
         reason = message;
         if (visualizer != null) visualizer.Hide();
         Record("alignment_reset", null, Pose.identity);
+        AlignmentInvalidated?.Invoke();
         if (notify) ResetRequested?.Invoke();
     }
 
