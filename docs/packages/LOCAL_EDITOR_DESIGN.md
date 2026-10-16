@@ -2,6 +2,8 @@
 
 [ADR-0025](../decisions/0025-local-editor-unity-preview.md) に基づく Source 編集、Dev／Dist generation、Unity Preview、表示済み Dist の公開経路の実装契約。想定読者は CLI、Core、Web、Unity の実装担当者。実ブラウザー・native Unity・実サービスの E2E は別途検証し、その成功を本書だけから判断しない。
 
+Step・Cue・アニメーションの読み取り専用表示は、[タイムライン初期仕様](./LOCAL_EDITOR_TIMELINE_SPEC.md)（Draft・未実装）を参照。
+
 ## 1. 目標と初期範囲
 
 保存済みのローカル project を Dev Preview で確認し、明示 build で生成した同じ `dist` を Dist Preview・Control Plane 公開・本番読み込みに使用する。
