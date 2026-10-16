@@ -2,7 +2,7 @@
   "reliableEvent": {
     "sequence": "9",
     "eventId": "event:motion-9",
-    "occurredAtRuntimeTimeMs": "5600",
+    "occurredAtRuntimeTimeMs": "8280",
     "fence": {
       "sessionId": "session:local",
       "publication": {
@@ -31,7 +31,7 @@
         "stepEntryEpoch": "9"
       },
       "completion": "RUN_COMPLETION_BLOCKING",
-      "startedAtRuntimeTimeMs": "5600"
+      "startedAtRuntimeTimeMs": "8280"
     }
   }
 }
