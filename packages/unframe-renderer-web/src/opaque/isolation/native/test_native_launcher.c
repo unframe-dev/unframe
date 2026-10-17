@@ -154,16 +154,49 @@ int main(int argc, char **argv) {
     decode_registry(s);
     return 1;
   }
-  if (!strcmp(test, "close-high-fd")) {
+  if (!strcmp(test, "close-high-fd") ||
+      !strcmp(test, "close-high-fd-limited")) {
     struct rlimit limit;
-    if (getrlimit(RLIMIT_NOFILE, &limit))
+    if (getrlimit(RLIMIT_NOFILE, &limit)) {
+      perror("getrlimit(RLIMIT_NOFILE)");
       return 2;
-    limit.rlim_cur = 20000;
-    if (setrlimit(RLIMIT_NOFILE, &limit))
+    }
+    if (!strcmp(test, "close-high-fd-limited")) {
+      if (limit.rlim_max > 10240)
+        limit.rlim_max = 10240;
+      if (limit.rlim_cur > limit.rlim_max)
+        limit.rlim_cur = limit.rlim_max;
+      if (setrlimit(RLIMIT_NOFILE, &limit)) {
+        perror("setrlimit(RLIMIT_NOFILE, limited hard limit)");
+        return 2;
+      }
+    }
+    limit.rlim_cur = limit.rlim_max < 20000 ? limit.rlim_max : 20000;
+    if (setrlimit(RLIMIT_NOFILE, &limit)) {
+      perror("setrlimit(RLIMIT_NOFILE, descriptor allocation)");
       return 2;
-    int fd = open("/dev/null", O_RDONLY), high = fcntl(fd, F_DUPFD, 15000);
-    if (fd < 0 || high < 0)
+    }
+    if (limit.rlim_cur < 4) {
+      fprintf(stderr, "RLIMIT_NOFILE must allow a descriptor above stderr\n");
       return 2;
+    }
+    int fd = open("/dev/null", O_RDONLY);
+    if (fd < 0) {
+      perror("open(/dev/null)");
+      return 2;
+    }
+    int minimum = limit.rlim_cur > 15000 ? 15000 : (int)limit.rlim_cur - 1;
+    int high = fcntl(fd, F_DUPFD, minimum);
+    if (high < 0) {
+      perror("fcntl(F_DUPFD)");
+      return 2;
+    }
+    // Existing descriptors above a lowered soft limit must still be closed.
+    limit.rlim_cur = high > 64 ? 64 : (rlim_t)high;
+    if (setrlimit(RLIMIT_NOFILE, &limit)) {
+      perror("setrlimit(RLIMIT_NOFILE, below allocated descriptor)");
+      return 2;
+    }
     const int keep[] = {0, 1, 2};
     close_except(keep, ARRAY_COUNT(keep));
     return fcntl(high, F_GETFD) != -1 || errno != EBADF;

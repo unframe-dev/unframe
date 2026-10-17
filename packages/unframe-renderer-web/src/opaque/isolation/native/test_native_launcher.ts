@@ -39,6 +39,7 @@ test("native launcher boundary harness", { skip: process.platform !== "darwin" }
       "root-valid",
       "network-valid",
       "close-high-fd",
+      "close-high-fd-limited",
       "upstream-duplicate",
       "time-negative",
       "handle-size-max",
