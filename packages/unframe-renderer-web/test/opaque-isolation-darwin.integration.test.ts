@@ -77,9 +77,15 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
 
     it("requires Chromium to start with its own sandbox enabled", async () => {
       const input = fixture(`
-      const browser=spawn(process.env.UNFRAME_BROWSER_EXECUTABLE,['--headless','--disable-gpu','--no-first-run','--dump-dom','data:text/html,hello'],{stdio:'ignore'});
+      const browser=spawn(process.env.UNFRAME_BROWSER_EXECUTABLE,['--headless','--disable-gpu','--no-first-run','--dump-dom','about:blank'],{stdio:['ignore','ignore','pipe']});
+      let diagnostic=''; browser.stderr.on('data',chunk=>{
+        if(diagnostic.length<8192) diagnostic+=chunk.toString();
+        if(chunk.toString().includes('unframe-darwin-opaque:')) console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable: '+diagnostic}));
+      });
+      const launchTimer=setTimeout(()=>browser.kill('SIGKILL'),10000);
       const code=await new Promise((resolve,reject)=>{browser.once('error',reject);browser.once('exit',resolve)});
-      if(code!==0) { console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable'})); break; }
+      clearTimeout(launchTimer);
+      if(code!==0) { console.log(JSON.stringify({type:'error',code:'chromium-sandbox-unavailable: '+diagnostic})); break; }
       console.log(JSON.stringify({type:'ready'}));
     `);
       try {

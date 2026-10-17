@@ -47,7 +47,7 @@ export const getOpaqueIsolationIdentity = () => {
   if (process.platform === "darwin" && process.arch === "arm64")
     return {
       backend: "seatbelt-process-group-monitor",
-      policyVersion: 3,
+      policyVersion: 4,
       resources: darwinResourceContract,
     } as const;
   throw unavailable("opaque capture requires Linux or macOS Apple Silicon");

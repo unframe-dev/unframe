@@ -141,7 +141,7 @@ build lease と一時 dist link は revision に含めない。これは外部�
 
 `build` は Compiler の検証済みキャッシュ境界を `.unframe/cache/builds-v1` に接続する。key は Source / Asset bytes、Compiler / Renderer / Browser / font identity と build context / encode policy を含む。hit でも全成果物と binary checksum を Compiler が再検証し、cache failure / corruption は再 capture へ戻す。Browser identity を現在環境から取得するため、hit でも Browser session は開閉する。
 
-Linux の directory FD と macOS の trusted Python dirfd backend に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
+Linux の directory FD と macOS の C 製 dirfd helper に保存先を固定し、symlink を拒否する。entry は staging と atomic rename で公開し、失敗・cancel の staging は回収する。binary は checksum 名、完成 entry は既定16件で古いものを回収する。cache は dist / Release / Delivery の一部ではない。保存規則は [ADR-0022](../../docs/decisions/0022-m4-structured-rendering-and-build-cache.md)、OS 別の境界は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) に従う。
 
 ## 7. Deferred
 

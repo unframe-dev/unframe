@@ -30,9 +30,13 @@ describe("opaque worker protocol", () => {
             verified.push(phase);
           },
           { secret: "after-ready" },
+          undefined,
+          () => {
+            verified.push("registered");
+          },
         ),
       ).resolves.toEqual({ secret: "after-ready" });
-      expect(verified).toEqual(["ready", "result"]);
+      expect(verified).toEqual(["registered", "ready", "result"]);
     } finally {
       child.kill("SIGKILL");
     }

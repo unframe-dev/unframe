@@ -1,9 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompiledDeclarationProject } from "@unframe/unframe-compiler";
 import { createFilesystemBuildCache as createCache } from "../src/filesystem/build-cache.js";
 
@@ -31,13 +30,6 @@ const fixture = () => {
 describe.each(process.platform === "linux" ? (["linux", "posix"] as const) : (["posix"] as const))(
   "%s cache backend",
   (backend) => {
-    beforeEach(() => {
-      if (backend === "posix")
-        vi.stubEnv(
-          "UNFRAME_POSIX_PYTHON",
-          execFileSync("which", ["python3"], { encoding: "utf8" }).trim(),
-        );
-    });
     const createFilesystemBuildCache = (
       root: string,
       options: Parameters<typeof createCache>[1] = {},
@@ -136,10 +128,6 @@ describe.each(process.platform === "linux" ? (["linux", "posix"] as const) : (["
     });
 
     it("POSIX dirfd backend publishes bytes and rejects a symlinked cache root", async () => {
-      vi.stubEnv(
-        "UNFRAME_POSIX_PYTHON",
-        execFileSync("which", ["python3"], { encoding: "utf8" }).trim(),
-      );
       const root = await temporary();
       const errors: unknown[] = [];
       const cache = createFilesystemBuildCache(root, {
@@ -175,14 +163,14 @@ describe.each(process.platform === "linux" ? (["linux", "posix"] as const) : (["
       expect(await readdir(`${base}-moved`)).toEqual([key.slice(7)]);
     });
     it("reports a missing trusted POSIX helper instead of silently disabling the cache", async () => {
-      vi.stubEnv("UNFRAME_POSIX_PYTHON", "/does-not-exist/python3");
+      vi.stubEnv("UNFRAME_POSIX_HELPER", "/does-not-exist/helper");
       const root = await temporary();
       await expect(createFilesystemBuildCache(root, { backend: "posix" }).get(key)).rejects.toThrow(
         "POSIX cache helper",
       );
     });
     it("does not start the POSIX helper for an invalid project root", async () => {
-      vi.stubEnv("UNFRAME_POSIX_PYTHON", undefined);
+      vi.stubEnv("UNFRAME_POSIX_HELPER", undefined);
       await expect(
         createFilesystemBuildCache("/does-not-exist/project", { backend: "posix" }).get(key),
       ).resolves.toBeUndefined();

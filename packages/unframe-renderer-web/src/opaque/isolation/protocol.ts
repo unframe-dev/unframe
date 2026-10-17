@@ -6,6 +6,7 @@ export const workerProtocol = (
   verify: (phase: "ready" | "result") => void,
   input: unknown,
   signal?: AbortSignal,
+  beforeLaunch?: () => void,
 ): Promise<unknown> =>
   new Promise((resolveResult, rejectResult) => {
     let pendingChunks: Buffer[] = [];
@@ -58,6 +59,7 @@ export const workerProtocol = (
         }
         try {
           if (phase === "bootstrap" && message.type === "bootstrap") {
+            beforeLaunch?.();
             phase = "ready";
             send({ type: "launch" });
           } else if (phase === "ready" && message.type === "ready") {

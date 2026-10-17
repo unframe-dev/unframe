@@ -4,7 +4,7 @@
 
 ## Local Editor の起動
 
-対象 host は Linux x86_64 と macOS arm64 です。macOS の Opaque capture は native 隔離の受け入れ未達です。保証差と検証結果は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は OS ごとの Unity Hub 標準配置を探します。
+対象 host は Linux x86_64 と macOS arm64 です。native 隔離の保証差と実機検証結果は [ADR-0026](../../docs/decisions/0026-native-linux-macos-host-adapters.md) を参照してください。project 指定、固定 Browser の provision、利用可能な Unity Editor の WebGL module と license が必要です。`UNITY_EDITOR` は `ProjectVersion.txt` に対応する実行ファイルを指定できます。未指定時は OS ごとの Unity Hub 標準配置を探します。
 
 初回にリポジトリ root で依存関係、固定 Browser、Unity Preview player を準備します。
 

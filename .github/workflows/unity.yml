@@ -35,7 +35,9 @@ jobs:
         run: nix run .#unity-proto -- check
 
       - name: Unity managed runtime dependency checksums
-        run: python3 app/unity/scripts/sync-runtime-dependencies.py check
+        run: |
+          nix develop --command node --test app/unity/scripts/sync-runtime-dependencies.test.mjs
+          nix develop --command node app/unity/scripts/sync-runtime-dependencies.mjs check
 
   csharp-format:
     name: MR / csharp-format
@@ -82,7 +84,13 @@ jobs:
             Write-Host 'No .ps1 files under app/unity/scripts/. Skipping.'
             exit 0
           }
-          $results = $targets | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings }
+          $results = $targets | ForEach-Object {
+            if (Test-Path $settings) {
+              Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings
+            } else {
+              Invoke-ScriptAnalyzer -Path $_.FullName
+            }
+          }
           if ($results) {
             $results | Format-Table -AutoSize | Out-String | Write-Host
             Write-Host ("PSScriptAnalyzer found {0} issue(s)." -f $results.Count)

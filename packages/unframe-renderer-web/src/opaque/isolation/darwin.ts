@@ -11,6 +11,7 @@ import {
   type IsolatedOpaqueWorkerOptions,
 } from "./common.js";
 import { workerProtocol } from "./protocol.js";
+import { prepareDarwinBrowser, type DarwinBrowserBootstrap } from "./darwin-browser.js";
 
 const SANDBOX = "/usr/bin/sandbox-exec";
 const MEMORY_MAX = 1024 * 1024 * 1024;
@@ -31,7 +32,11 @@ export const darwinResourceContract = {
   ],
 } as const;
 
-export const darwinSandboxProfile = (readPaths: readonly string[], scratch: string): string => {
+export const darwinSandboxProfile = (
+  readPaths: readonly string[],
+  scratch: string,
+  browserHelper?: string,
+): string => {
   const literal = (path: string) => JSON.stringify(path);
   const ancestors = new Set<string>();
   for (const path of [...readPaths, scratch]) {
@@ -47,7 +52,12 @@ export const darwinSandboxProfile = (readPaths: readonly string[], scratch: stri
     // Node resolves each ancestor with lstat before loading the worker entry point.
     ...[...ancestors].map((path) => `(allow file-read-metadata (literal ${literal(path)}))`),
     "(allow process-fork)",
-    ...readPaths.map((path) => `(allow process-exec (subpath ${literal(path)}))`),
+    ...(browserHelper
+      ? [`(allow process-exec (literal ${literal(browserHelper)}) (with no-sandbox))`]
+      : []),
+    ...readPaths
+      .filter((path) => !browserHelper?.startsWith(`${path}/`))
+      .map((path) => `(allow process-exec (subpath ${literal(path)}))`),
     ...readPaths.map((path) => `(allow file-read* (subpath ${literal(path)}))`),
     '(allow file-read* (subpath "/System/Library") (subpath "/usr/lib") (literal "/dev/null") (literal "/dev/urandom") (literal "/dev/random"))',
     '(allow file-write* (literal "/dev/null"))',
@@ -260,6 +270,7 @@ export const runDarwinOpaqueWorker = async (
   let result: unknown;
   let failure: unknown;
   let cleanupFailed = false;
+  let browserBootstrap: DarwinBrowserBootstrap | undefined;
   try {
     writeFileSync(deniedFile, "must-not-read");
     const roots = [
@@ -270,12 +281,13 @@ export const runDarwinOpaqueWorker = async (
         dirname(browser),
       ]),
     ];
-    const profile = darwinSandboxProfile(roots, scratch);
+    if (browser !== worker) browserBootstrap = prepareDarwinBrowser(roots, scratch, browser);
+    const profile = darwinSandboxProfile(roots, scratch, browserBootstrap?.helper);
     probePolicy(profile, node, deniedFile, scratch);
     const env: Record<string, string> = {
       HOME: scratch,
       TMPDIR: scratch,
-      UNFRAME_BROWSER_EXECUTABLE: browser,
+      UNFRAME_BROWSER_EXECUTABLE: browserBootstrap?.helper ?? browser,
     };
     const fontconfig = options.runtimeEnvironment?.FONTCONFIG_FILE;
     if (fontconfig) env.FONTCONFIG_FILE = fontconfig;
@@ -314,7 +326,10 @@ export const runDarwinOpaqueWorker = async (
         );
     });
     result = await Promise.race([
-      workerProtocol(running, check, input.input, options.signal),
+      workerProtocol(running, check, input.input, options.signal, () => {
+        if (!running.pid) throw unavailable("sandbox worker did not start");
+        browserBootstrap?.registerWorker(running.pid);
+      }),
       supervision,
     ]);
   } catch (error) {
@@ -359,6 +374,11 @@ export const runDarwinOpaqueWorker = async (
         // Yield so Node can reap the root and deliver close before the next ps sample.
         await new Promise((done) => setTimeout(done, 20));
       }
+    }
+    try {
+      browserBootstrap?.cleanup();
+    } catch {
+      cleanupFailed = true;
     }
     for (const path of [scratch, probeRoot]) {
       try {

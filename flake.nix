@@ -41,7 +41,6 @@
           pkgs.gnugrep
           pkgs.gnused
           pkgs.bash
-          pkgs.python3
         ]
         ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
           pkgs.bubblewrap
@@ -79,11 +78,14 @@
         presentationFonts =
           pkgs.runCommand "unframe-presentation-fonts"
             {
-              nativeBuildInputs = [ (pkgs.python3.withPackages (python: [ python.fonttools ])) ];
+              nativeBuildInputs = [ pkgs.nodejs_22 ];
             }
             ''
+              cp ${./scripts/dev/extract-presentation-font.mjs} ./extract-presentation-font.mjs
+              cp ${./scripts/dev/extract-presentation-font.test.mjs} ./extract-presentation-font.test.mjs
+              node --test ./extract-presentation-font.test.mjs
               mkdir -p "$out/share/fonts/opentype/unframe"
-              python ${./scripts/dev/extract-presentation-font.py} \
+              node ./extract-presentation-font.mjs \
                 ${
                   (pkgs.noto-fonts-cjk-sans.override { static = true; })
                 }/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc \
@@ -96,6 +98,39 @@
             <dir>${presentationFonts}/share/fonts</dir>
           </fontconfig>
         '';
+        posixCacheHelper = pkgs.stdenv.mkDerivation {
+          pname = "unframe-posix-cache-helper";
+          version = "1";
+          src = ./packages/unframe-cli/src/filesystem/posix-cache-helper.c;
+          dontUnpack = true;
+          buildPhase = ''
+            $CC -std=c11 -O2 -Wall -Wextra -Werror "$src" -o unframe-posix-cache-helper
+          '';
+          installPhase = ''
+            mkdir -p "$out/bin"
+            cp unframe-posix-cache-helper "$out/bin/"
+          '';
+        };
+        darwinOpaqueLauncher = pkgs.stdenv.mkDerivation {
+          pname = "unframe-darwin-opaque";
+          version = "4";
+          src = ./packages/unframe-renderer-web/src/opaque/isolation/native;
+          nativeBuildInputs = [ pkgs.nodejs_22 ];
+          dontFixup = true;
+          buildPhase = ''
+            node compile-policy.ts package --out policies --header darwin-policy-hashes.h
+            $CC -std=c11 -O2 -Wall -Wextra darwin-launcher.c -o unframe-darwin-opaque -lsandbox
+          '';
+          installPhase = ''
+            mkdir -p "$out/bin" "$out/share/unframe-darwin-opaque"
+            cp unframe-darwin-opaque "$out/bin/"
+            cp compile-policy.ts "$out/share/unframe-darwin-opaque/"
+            cp -R chromium "$out/share/unframe-darwin-opaque/"
+            cp policies/*.sb "$out/share/unframe-darwin-opaque/"
+            /usr/bin/codesign --force --sign - --options runtime,library,restrict "$out/bin/unframe-darwin-opaque"
+            /usr/bin/codesign --verify --strict "$out/bin/unframe-darwin-opaque"
+          '';
+        };
         opaqueRuntimeClosure = pkgs.closureInfo {
           rootPaths = [
             pkgs.nodejs_22
@@ -106,7 +141,8 @@
             pkgs.nix-ld
             pkgs.glibc
           ]
-          ++ chromiumRuntime;
+          ++ chromiumRuntime
+          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ darwinOpaqueLauncher ];
         };
         styleRuntimeClosure = pkgs.closureInfo {
           rootPaths = [
@@ -128,7 +164,11 @@
           UNFRAME_STYLE_RUNTIME_CLOSURE = "${styleRuntimeClosure}/store-paths";
           UNFRAME_OPAQUE_NODE = "${pkgs.nodejs_22}/bin/node";
           UNFRAME_OPAQUE_RUNTIME_CLOSURE = "${opaqueRuntimeClosure}/store-paths";
-          UNFRAME_POSIX_PYTHON = "${pkgs.python3}/bin/python3";
+          UNFRAME_DARWIN_POLICY_NODE = "${pkgs.nodejs_22}/bin/node";
+          UNFRAME_POSIX_HELPER = "${posixCacheHelper}/bin/unframe-posix-cache-helper";
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          UNFRAME_DARWIN_OPAQUE_LAUNCHER = "${darwinOpaqueLauncher}/bin/unframe-darwin-opaque";
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
           NIX_LD = pkgs.stdenv.cc.bintools.dynamicLinker;
