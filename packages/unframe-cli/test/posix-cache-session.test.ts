@@ -86,6 +86,18 @@ it("native operations retain anchored ownership and do not follow symlinks", asy
     const directory = await session.directory(root);
     expect(await directory.stat()).toMatchObject({ uid: process.getuid!() });
     const base = `/fd/${directory.fd}`;
+    for (const id of [
+      "0",
+      "01",
+      "+1",
+      "-1",
+      " 1",
+      "1 ",
+      "1x",
+      "4294967296",
+      "18446744073709551616",
+    ])
+      await expect(session.mkdir(`/fd/${id}/invalid`)).rejects.toMatchObject({ code: "EINVAL" });
     await session.mkdir(`${base}/日本語`, { mode: 0o700 });
     const nested = await session.directory(`${base}/日本語`);
     const path = `/fd/${nested.fd}/asset`;

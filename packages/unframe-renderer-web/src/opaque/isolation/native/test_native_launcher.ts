@@ -25,6 +25,8 @@ test("native launcher boundary harness", { skip: process.platform !== "darwin" }
         root,
         join(native, "test_native_launcher.c"),
         "-lsandbox",
+        "-framework",
+        "CoreFoundation",
         "-o",
         binary,
       ],
@@ -44,6 +46,12 @@ test("native launcher boundary harness", { skip: process.platform !== "darwin" }
       "network-muted",
     ];
     const rejected = [
+      "decimal-empty",
+      "decimal-plus",
+      "decimal-whitespace",
+      "decimal-trailing",
+      "decimal-above-limit",
+      "decimal-hex",
       "decimal-leading-zero",
       "decimal-overflow",
       "decimal-sign",
@@ -77,7 +85,7 @@ test("native launcher boundary harness", { skip: process.platform !== "darwin" }
     for (const [cases, expected] of [
       [valid, 0],
       [rejected, 78],
-    ])
+    ] as const)
       for (const name of cases)
         await t.test(name, () => {
           const run = spawnSync(binary, [name], { encoding: "utf8", timeout: 5000 });

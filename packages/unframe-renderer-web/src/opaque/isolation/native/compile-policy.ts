@@ -410,23 +410,25 @@ function rootProfile(config: Config): string {
   ];
   return forms.map(render).join("\n") + "\n";
 }
-export function prepare(value: unknown): Record<string, string | number | Record<string, string>> {
+export function prepare(value: unknown) {
   const config = checkedConfig(value),
     fixed = sources();
-  const result: Record<string, string | number | Record<string, string>> = {
+  const profile = (role: "renderer" | "gpu" | "network") => {
+    const output = parse(fixed.common! + fixed[role]!).map((form) => transform(form, config));
+    // libignition opens root while resolving dyld; this never grants descendants.
+    output.push(["allow", "file-read*", "file-test-existence", literal("/")]);
+    return output.map(render).join("\n") + "\n";
+  };
+  return {
     version: 4,
     root: rootProfile(config),
     sourceHashes: Object.fromEntries(
       Object.entries(fixed).map(([name, source]) => [name, hash(canonical(source))]),
     ),
+    renderer: profile("renderer"),
+    gpu: profile("gpu"),
+    network: profile("network"),
   };
-  for (const role of ["renderer", "gpu", "network"]) {
-    const output = parse(fixed.common! + fixed[role]!).map((form) => transform(form, config));
-    // libignition opens root while resolving dyld; this never grants descendants.
-    output.push(["allow", "file-read*", "file-test-existence", literal("/")]);
-    result[role] = output.map(render).join("\n") + "\n";
-  }
-  return result;
 }
 export function packagePolicies(destination: string, header: string) {
   const fixed = sources();

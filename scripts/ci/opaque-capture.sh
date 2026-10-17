@@ -33,7 +33,8 @@ fi
 
 pnpm --dir "${repo_root}" --filter @unframe/unframe-tailwind run build
 
-node --test "${repo_root}"/packages/unframe-renderer-web/src/opaque/isolation/native/test_*.mjs
+pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web run typecheck
+node --test "${repo_root}"/packages/unframe-renderer-web/src/opaque/isolation/native/test_*.ts
 
 pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run --maxWorkers=1 --testTimeout=60000 \
   test/opaque-isolation.integration.test.ts test/opaque-isolation-darwin.integration.test.ts \

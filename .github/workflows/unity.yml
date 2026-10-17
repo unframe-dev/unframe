@@ -5,8 +5,7 @@ name: Unity CI (static)
 # Personal では実行不可能。本 workflow はライセンス不要な静的チェックのみ:
 #
 #   - csharp-format : dotnet format whitespace で Editor / ランタイム C# の整形チェック
-#   - protobuf      : shared contract からの C# generation / copied source drift check
-#   - powershell    : PSScriptAnalyzer で app/unity/scripts/*.ps1 を lint
+#   - protobuf      : C# generation / copied source drift と managed dependency scripts の型・テスト・checksum 検証
 #   - meta-check    : Unity プロジェクト初期化後のみ実行する .meta 整合性チェック
 #
 # Editor 起動を伴うテスト/ビルドはローカルの Unity Editor で実行する。
@@ -36,8 +35,10 @@ jobs:
 
       - name: Unity managed runtime dependency checksums
         run: |
-          nix develop --command node --test app/unity/scripts/sync-runtime-dependencies.test.mjs
-          nix develop --command node app/unity/scripts/sync-runtime-dependencies.mjs check
+          nix develop --command pnpm install --frozen-lockfile
+          nix develop --command pnpm --filter @unframe/unity-scripts check
+          nix develop --command pnpm --filter @unframe/unity-scripts test
+          nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime check
 
   csharp-format:
     name: MR / csharp-format
@@ -58,45 +59,6 @@ jobs:
           else
             echo "No C# sources under app/unity/Assets/. Skipping."
           fi
-
-  powershell:
-    name: MR / powershell
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install PSScriptAnalyzer
-        shell: pwsh
-        run: |
-          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name PSScriptAnalyzer -RequiredVersion 1.22.0 -Force -Scope CurrentUser
-
-      - name: Invoke-ScriptAnalyzer
-        shell: pwsh
-        run: |
-          if (-not (Test-Path 'app/unity/scripts')) {
-            Write-Host 'No app/unity/scripts/. Skipping.'
-            exit 0
-          }
-          $settings = 'app/unity/scripts/PSScriptAnalyzerSettings.psd1'
-          $targets = Get-ChildItem -Path app/unity/scripts -Filter '*.ps1' -Recurse
-          if (-not $targets) {
-            Write-Host 'No .ps1 files under app/unity/scripts/. Skipping.'
-            exit 0
-          }
-          $results = $targets | ForEach-Object {
-            if (Test-Path $settings) {
-              Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings
-            } else {
-              Invoke-ScriptAnalyzer -Path $_.FullName
-            }
-          }
-          if ($results) {
-            $results | Format-Table -AutoSize | Out-String | Write-Host
-            Write-Host ("PSScriptAnalyzer found {0} issue(s)." -f $results.Count)
-            exit 1
-          }
-          Write-Host 'PSScriptAnalyzer: clean.'
 
   meta-check:
     name: MR / meta-integrity

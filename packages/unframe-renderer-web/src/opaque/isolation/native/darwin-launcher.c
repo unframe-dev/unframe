@@ -1,6 +1,7 @@
 #define _DARWIN_C_SOURCE
 #include "darwin-policy-hashes.h"
 #include <CommonCrypto/CommonDigest.h>
+#include <CoreFoundation/CFString.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -89,15 +90,12 @@ static int64_t now_ms(void) {
   return (int64_t)t.tv_sec * 1000 + t.tv_nsec / 1000000;
 }
 static uint64_t decimal(const char *s, uint64_t maximum) {
-  if (!*s || (s[0] == '0' && s[1]))
+  if (!*s || (s[0] == '0' && s[1]) || s[strspn(s, "0123456789")])
     fail("noncanonical number");
-  uint64_t n = 0;
-  for (; *s; ++s) {
-    if (*s < '0' || *s > '9' || (unsigned)(*s - '0') > maximum ||
-        n > (maximum - (unsigned)(*s - '0')) / 10)
-      fail("number range");
-    n = n * 10 + (unsigned)(*s - '0');
-  }
+  errno = 0;
+  uint64_t n = strtoull(s, NULL, 10);
+  if (errno || n > maximum)
+    fail("number range");
   return n;
 }
 static void signed_decimal(const char *value) {
@@ -130,39 +128,13 @@ static int transfer(int fd, uint8_t *p, size_t n, int writing,
   return 0;
 }
 static int utf8(const uint8_t *p, size_t n) {
-  for (size_t i = 0; i < n;) {
-    uint32_t c = p[i++];
-    if (!c)
-      return 0;
-    if (c < 128)
-      continue;
-    unsigned more;
-    uint32_t minimum;
-    if (c >= 0xc2 && c <= 0xdf) {
-      more = 1;
-      minimum = 128;
-      c &= 31;
-    } else if (c >= 0xe0 && c <= 0xef) {
-      more = 2;
-      minimum = 2048;
-      c &= 15;
-    } else if (c >= 0xf0 && c <= 0xf4) {
-      more = 3;
-      minimum = 65536;
-      c &= 7;
-    } else
-      return 0;
-    if (more > n - i)
-      return 0;
-    while (more--) {
-      unsigned b = p[i++];
-      if ((b & 192) != 128)
-        return 0;
-      c = (c << 6) | (b & 63);
-    }
-    if (c < minimum || c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff))
-      return 0;
-  }
+  if (n > LONG_MAX || memchr(p, 0, n))
+    return 0;
+  CFStringRef string = CFStringCreateWithBytes(
+      kCFAllocatorDefault, p, (CFIndex)n, kCFStringEncodingUTF8, false);
+  if (!string)
+    return 0;
+  CFRelease(string);
   return 1;
 }
 static uint32_t little32(Slice *s) {

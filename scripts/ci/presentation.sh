@@ -55,7 +55,7 @@ case "${mode}" in
       "${REPO_ROOT}"/packages/unframe-*
     ;;
   check)
-    node --test "${REPO_ROOT}/scripts/dev/native-host.test.mjs"
+    pnpm --dir "${REPO_ROOT}" --filter @unframe/dev-scripts run check
     log "presentation(check): shared config / package checks"
     pnpm --config.verify-deps-before-run=false --filter "${CONFIG_FILTER}" run check
     pnpm --config.verify-deps-before-run=false --filter @unframe/contracts run check

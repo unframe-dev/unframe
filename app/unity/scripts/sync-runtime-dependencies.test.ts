@@ -3,11 +3,11 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
-import { syncRuntimeDependencies } from "./sync-runtime-dependencies.mjs";
+import { test, type TestContext } from "node:test";
+import { readPackageEntry, syncRuntimeDependencies } from "./sync-runtime-dependencies.ts";
 
-const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-async function fixture(t) {
+const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+async function fixture(t: TestContext) {
   const root = await mkdtemp(join(tmpdir(), "unframe-runtime-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const dependency = {
@@ -37,7 +37,7 @@ test("check verifies pinned assemblies and licenses without downloading", async 
 for (const [name, error] of [
   ["Test.dll", /assembly drift/],
   ["LICENSE.txt", /license drift/],
-]) {
+] as const) {
   test(`check rejects tampered ${name}`, async (t) => {
     const root = await fixture(t);
     await writeFile(join(root, name), "changed");
@@ -97,3 +97,62 @@ for (const tamperLicense of [false, true]) {
     },
   );
 }
+
+for (const [field, value] of [
+  ["id", "../Test"],
+  ["framework", "../../outside"],
+  ["licenseFile", "../LICENSE.txt"],
+  ["sha256", "invalid"],
+  ["licenseUrl", "file:///etc/passwd"],
+]) {
+  test(`rejects invalid manifest ${field} before downloading or writing`, async (t) => {
+    const root = await fixture(t);
+    const manifest = JSON.parse(await readFile(join(root, "runtime-dependencies.json"), "utf8"));
+    manifest[0][field] = value;
+    await writeFile(join(root, "runtime-dependencies.json"), JSON.stringify(manifest));
+    let downloads = 0;
+    await assert.rejects(
+      syncRuntimeDependencies(root, "generate", async () => {
+        downloads++;
+        return new Response("unexpected");
+      }),
+    );
+    assert.equal(downloads, 0);
+    assert.equal(await readFile(join(root, "Test.dll"), "utf8"), "assembly");
+  });
+}
+
+test("ZIP reader rejects a missing entry", async () => {
+  await assert.rejects(
+    readPackageEntry(packageBytes, "missing.dll", 1024),
+    /Package entry missing/,
+  );
+});
+
+test("ZIP reader rejects a selected entry over the expansion limit", async () => {
+  await assert.rejects(readPackageEntry(packageBytes, "LICENSE.TXT", 3), /Package entry exceeds/);
+});
+
+test("ZIP reader rejects invalid archives", async () => {
+  await assert.rejects(readPackageEntry(Buffer.from("invalid zip"), "LICENSE.TXT", 1024));
+});
+
+test("ZIP reader stops when extraction times out", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const pending = readPackageEntry(packageBytes, "LICENSE.TXT", 1024);
+  t.mock.timers.tick(30_000);
+  await assert.rejects(pending, /extraction timed out/);
+});
+
+test("download uses an abort signal with a timeout", async (t) => {
+  const root = await fixture(t);
+  let signal: AbortSignal | null | undefined;
+  await assert.rejects(
+    syncRuntimeDependencies(root, "generate", async (_url, options) => {
+      signal = options?.signal;
+      return new Response("invalid");
+    }),
+    /NuGet package checksum mismatch/,
+  );
+  assert.ok(signal instanceof AbortSignal);
+});

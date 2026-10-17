@@ -134,16 +134,10 @@ static int address(char *path, char **name) {
     errno = EINVAL;
     return -1;
   }
-  uint64_t id = 0;
-  while (*p >= '0' && *p <= '9') {
-    id = id * 10 + (unsigned)(*p++ - '0');
-    if (id > UINT32_MAX) {
-      errno = EINVAL;
-      return -1;
-    }
-  }
-  if (*p++ != '/' || !*p || strchr(p, '/') || !strcmp(p, ".") ||
-      !strcmp(p, "..")) {
+  errno = 0;
+  unsigned long id = strtoul(p, &p, 10);
+  if (errno || id > UINT32_MAX || *p++ != '/' || !*p || strchr(p, '/') ||
+      !strcmp(p, ".") || !strcmp(p, "..")) {
     errno = EINVAL;
     return -1;
   }

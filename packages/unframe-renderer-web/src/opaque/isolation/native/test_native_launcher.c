@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (!strcmp(test, "decimal-valid"))
-    return decimal("123", 123) != 123;
+    return decimal("123", 123) != 123 || decimal("0", 0) != 0 ||
+           decimal("18446744073709551615", UINT64_MAX) != UINT64_MAX;
   if (!strcmp(test, "decimal-leading-zero")) {
     decimal("01", 100);
     return 1;
@@ -67,15 +68,45 @@ int main(int argc, char **argv) {
     decimal("-1", UINT64_MAX);
     return 1;
   }
+  const struct {
+    const char *name, *value;
+    uint64_t maximum;
+  } decimals[] = {{"decimal-empty", "", UINT64_MAX},
+                  {"decimal-plus", "+1", UINT64_MAX},
+                  {"decimal-whitespace", " 1", UINT64_MAX},
+                  {"decimal-trailing", "1 ", UINT64_MAX},
+                  {"decimal-above-limit", "124", 123},
+                  {"decimal-hex", "0x10", UINT64_MAX}};
+  for (size_t i = 0; i < ARRAY_COUNT(decimals); ++i)
+    if (!strcmp(test, decimals[i].name)) {
+      decimal(decimals[i].value, decimals[i].maximum);
+      return 1;
+    }
   if (!strcmp(test, "handle-empty")) {
     handle("1,,r,2,3,4");
     return 1;
   }
   if (!strcmp(test, "utf8")) {
-    const uint8_t valid[] = {0xf0, 0x9f, 0x98, 0x80};
-    const uint8_t overlong[] = {0xc0, 0xaf}, surrogate[] = {0xed, 0xa0, 0x80};
-    return !utf8(valid, sizeof(valid)) || utf8(overlong, sizeof(overlong)) ||
-           utf8(surrogate, sizeof(surrogate));
+    const uint8_t valid[][4] = {
+        {0x01}, {0x7f}, {0xc2, 0x80}, {0xdf, 0xbf},
+        {0xe0, 0xa0, 0x80}, {0xed, 0x9f, 0xbf}, {0xee, 0x80, 0x80},
+        {0xef, 0xbf, 0xbf}, {0xf0, 0x90, 0x80, 0x80},
+        {0xf0, 0x9f, 0x98, 0x80}, {0xf4, 0x8f, 0xbf, 0xbf}};
+    const size_t valid_sizes[] = {1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4};
+    const uint8_t invalid[][4] = {
+        {0}, {0x61, 0, 0x62}, {0x80}, {0xc0, 0xaf}, {0xc1, 0xbf},
+        {0xc2}, {0xc2, 0x7f}, {0xe0, 0x9f, 0xbf}, {0xed, 0xa0, 0x80},
+        {0xed, 0xbf, 0xbf}, {0xe2, 0x82}, {0xf0, 0x8f, 0xbf, 0xbf},
+        {0xf4, 0x90, 0x80, 0x80}, {0xf0, 0x9f, 0x98}, {0xf5, 0x80, 0x80, 0x80},
+        {0xff}};
+    const size_t invalid_sizes[] = {1, 3, 1, 2, 2, 1, 2, 3, 3, 3, 2, 4, 4, 3, 4, 1};
+    for (size_t i = 0; i < ARRAY_COUNT(valid); ++i)
+      if (!utf8(valid[i], valid_sizes[i]))
+        return 1;
+    for (size_t i = 0; i < ARRAY_COUNT(invalid); ++i)
+      if (utf8(invalid[i], invalid_sizes[i]))
+        return 1;
+    return !utf8(valid[0], 0);
   }
   if (!strcmp(test, "varint-overlong")) {
     uint8_t bytes[] = {0x80, 0};

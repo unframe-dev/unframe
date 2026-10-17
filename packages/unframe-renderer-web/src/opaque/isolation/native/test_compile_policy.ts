@@ -15,7 +15,7 @@ const config = () => ({
   browser: "/snapshot/browser/chrome",
   helper: "/nix/store/helper/bin/launcher",
 });
-const temporary = (run) => {
+const temporary = <T>(run: (root: string) => T): T => {
   const root = mkdtempSync(join(tmpdir(), "unframe-policy-"));
   try {
     return run(root);
@@ -23,7 +23,7 @@ const temporary = (run) => {
     rmSync(root, { recursive: true, force: true });
   }
 };
-const cli = (input) =>
+const cli = (input: string | Buffer) =>
   spawnSync(process.execPath, [join(native, "compile-policy.ts"), "prepare"], {
     input,
     encoding: "utf8",
@@ -63,7 +63,7 @@ test("input boundary", () => {
     ["browser", "/Users/chrome"],
     ["scratch", "/bad\ud800path"],
     ["readRoots", Array(513).fill("/snapshot/worker")],
-  ])
+  ] satisfies [string, unknown][])
     assert.throws(() => compiler.prepare({ ...config(), [key]: value }));
   assert.throws(() => compiler.prepare({ ...config(), rawPolicy: "(allow default)" }));
 });
@@ -82,16 +82,21 @@ test("intersection keeps implicit OR and operation tokens", () => {
   const original = compiler.parse(
     '(allow file-read-data file-read-xattr (literal "/a") (literal "/b"))',
   )[0];
+  assert.ok(original);
   const result = compiler.transform(original, compiler.checkedConfig(config()));
+  assert.ok(Array.isArray(result));
   assert.equal(result[0], "begin");
   ["file-read-data", "file-read-xattr"].forEach((operation, index) => {
     const form = result[index + 1];
+    assert.ok(Array.isArray(form));
     assert.equal(form[1], operation);
+    assert.ok(Array.isArray(form[2]));
     assert.equal(form[2][0], "require-all");
     assert.deepEqual(form[2][1], ["require-any", ["literal", '"/a"'], ["literal", '"/b"']]);
   });
 });
-const find = (forms, name) =>
+type Form = ReturnType<typeof compiler.parse>[number];
+const find = (forms: Form, name: string): Form[][] =>
   !Array.isArray(forms)
     ? []
     : forms[0] === name
@@ -99,22 +104,30 @@ const find = (forms, name) =>
       : forms.flatMap((child) => find(child, name));
 test("original denials and control flow preserved", () => {
   const source = compiler.sources();
-  for (const role of ["renderer", "gpu", "network"]) {
-    const forms = compiler.parse(source.common + source[role]),
+  for (const role of ["renderer", "gpu", "network"] as const) {
+    const forms = compiler.parse(source.common! + source[role]!),
       converted = forms.map((form) => compiler.transform(form, compiler.checkedConfig(config())));
     assert.deepEqual(find(forms, "deny"), find(converted, "deny"));
     forms.forEach((form, index) => {
-      if (["if", "define", "let", "when"].includes(form[0]))
-        assert.equal(form[0], converted[index][0]);
+      if (
+        Array.isArray(form) &&
+        typeof form[0] === "string" &&
+        ["if", "define", "let", "when"].includes(form[0])
+      ) {
+        const output = converted[index];
+        assert.ok(Array.isArray(output));
+        assert.equal(form[0], output[0]);
+      }
     });
   }
 });
 test("preparation includes all roles and no child escape modifier", () => {
   const result = compiler.prepare(config());
   assert.equal(result.version, 4);
-  for (const role of ["renderer", "gpu", "network"]) {
+  for (const role of ["renderer", "gpu", "network"] as const) {
     assert.ok(!result[role].includes("(with no-sandbox)"));
-    for (const form of find(compiler.parse(result[role]), "allow"))
+    for (const form of find(compiler.parse(result[role]), "allow")) {
+      assert.equal(typeof form[1], "string");
       assert.ok(
         ![
           "network-outbound",
@@ -124,8 +137,9 @@ test("preparation includes all roles and no child escape modifier", () => {
           "file-issue-extension",
           "sysctl-write",
           "user-preference-read",
-        ].includes(form[1]),
+        ].includes(form[1] as string),
       );
+    }
     assert.ok(result[role].includes('(allow file-read* file-test-existence (literal "/"))'));
   }
   assert.ok(result.root.includes("(with no-sandbox)"));
@@ -192,7 +206,8 @@ test("native profiles compile and deny host files", { skip: process.platform !==
     const version = spawnSync("/usr/bin/sw_vers", ["-productVersion"], { encoding: "utf8" });
     assert.equal(version.status, 0, version.stderr);
     const [major, minor = 0] = version.stdout.trim().split(".").map(Number);
-    const osVersion = major * 100 + minor;
+    assert.notEqual(major, undefined);
+    const osVersion = major! * 100 + minor;
     const params = {
       BROWSER_PID: "1",
       UNFRAME_BROWSER_PID: "1",
@@ -231,7 +246,7 @@ test("native profiles compile and deny host files", { skip: process.platform !==
     );
     assert.equal(build.status, 0, build.stderr);
     const result = compiler.prepare(config());
-    for (const role of ["root", "renderer", "gpu", "network"]) {
+    for (const role of ["root", "renderer", "gpu", "network"] as const) {
       const source = join(root, role + ".sb");
       writeFileSync(source, result[role]);
       const run = spawnSync(binary, [source, ...Object.entries(params).sort().flat()], {

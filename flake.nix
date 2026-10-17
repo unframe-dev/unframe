@@ -33,7 +33,6 @@
           pkgs.dotnet-sdk_8
           pkgs.openapi-generator-cli
           pkgs.buf
-          pkgs.powershell
           pkgs.git
           pkgs.git-lfs
           pkgs.coreutils
@@ -78,18 +77,20 @@
         presentationFonts =
           pkgs.runCommand "unframe-presentation-fonts"
             {
-              nativeBuildInputs = [ pkgs.nodejs_22 ];
+              font = pkgs.fetchurl {
+                url = "https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf";
+                sha256 = "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5";
+              };
+              license = pkgs.fetchurl {
+                url = "https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/LICENSE";
+                sha256 = "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2";
+              };
             }
             ''
-              cp ${./scripts/dev/extract-presentation-font.mjs} ./extract-presentation-font.mjs
-              cp ${./scripts/dev/extract-presentation-font.test.mjs} ./extract-presentation-font.test.mjs
-              node --test ./extract-presentation-font.test.mjs
               mkdir -p "$out/share/fonts/opentype/unframe"
-              node ./extract-presentation-font.mjs \
-                ${
-                  (pkgs.noto-fonts-cjk-sans.override { static = true; })
-                }/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc \
-                "$out/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf"
+              cp "$font" "$out/share/fonts/opentype/unframe/NotoSansCJKjp-Regular.otf"
+              mkdir -p "$out/share/licenses/unframe-presentation-fonts"
+              cp "$license" "$out/share/licenses/unframe-presentation-fonts/LICENSE"
             '';
         presentationFontconfig = pkgs.writeText "unframe-presentation-fontconfig.conf" ''
           <?xml version="1.0"?>
@@ -119,7 +120,7 @@
           dontFixup = true;
           buildPhase = ''
             node compile-policy.ts package --out policies --header darwin-policy-hashes.h
-            $CC -std=c11 -O2 -Wall -Wextra darwin-launcher.c -o unframe-darwin-opaque -lsandbox
+            $CC -std=c11 -O2 -Wall -Wextra darwin-launcher.c -o unframe-darwin-opaque -lsandbox -framework CoreFoundation
           '';
           installPhase = ''
             mkdir -p "$out/bin" "$out/share/unframe-darwin-opaque"

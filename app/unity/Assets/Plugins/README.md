@@ -8,11 +8,12 @@ Unity Package Manager at the commit pinned in `Packages/manifest.json`.
 version, target framework, package checksum, DLL checksum and license checksum. Unsafe 6.0.0 is
 shared by Protobuf and the transport. Licenses are included beside the DLLs.
 Verify the checked-in assemblies or reproduce them from the pinned NuGet packages.
-Generation uses the existing PowerShell toolchain to read individual ZIP entries:
+Generation uses the Unity scripts workspace's ZIP library to read only selected
+entries into memory, with download and expansion limits and checksum verification:
 
 ```sh
-nix develop --command node app/unity/scripts/sync-runtime-dependencies.mjs check
-nix develop --command node app/unity/scripts/sync-runtime-dependencies.mjs generate
+nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime check
+nix develop --command pnpm --filter @unframe/unity-scripts sync-runtime generate
 ```
 
 The HTTP/2 handler supports Android arm64 and provides a Linux x64 build. Editor

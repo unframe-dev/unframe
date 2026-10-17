@@ -8,12 +8,12 @@ import { afterEach, test } from "node:test";
 
 const scope = fileURLToPath(new URL("./opaque-capture-scope.sh", import.meta.url));
 const environment = fileURLToPath(new URL("./native-env.sh", import.meta.url));
-const directories = [];
+const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0))
     rmSync(directory, { recursive: true, force: true });
 });
-const host = (os, arch) => {
+const host = (os: string, arch: string) => {
   const root = mkdtempSync(join(tmpdir(), "unframe-native-host-"));
   directories.push(root);
   const bin = join(root, "bin");
@@ -24,7 +24,7 @@ const host = (os, arch) => {
     { mode: 0o700 },
   );
   writeFileSync(join(bin, "systemd-run"), "#!/bin/sh\nprintf '%s\\n' \"$@\"\n", { mode: 0o700 });
-  return { ...process.env, PATH: `${bin}:${process.env.PATH}`, UNFRAME_OPAQUE_INSIDE_SCOPE: "" };
+  return { ...process.env, PATH: `${bin}:${process.env["PATH"]}`, UNFRAME_OPAQUE_INSIDE_SCOPE: "" };
 };
 
 test("macOS arm64 runs the native command without a Linux cgroup wrapper", () => {
