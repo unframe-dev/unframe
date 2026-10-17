@@ -34,6 +34,8 @@ Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dis
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props と host Transform を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
+Timelines パネルは保存済み Source の Timeline 定義を読み取り専用で表示します。Timeline を選ぶと、対象 Node／property ごとのトラックとキーフレームを時間軸上で確認でき、各キーフレームの時刻・値・easing も参照できます。外部 editor で保存した変更は定義の再取得時に反映されます。Timeline の編集・再生・シークは未対応です。
+
 Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
 
 公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity が commit を完了した Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。

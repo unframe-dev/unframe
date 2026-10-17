@@ -1,0 +1,132 @@
+.editor-timeline {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: #e6edf5;
+}
+.editor-timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+.editor-timeline h3 {
+  overflow-wrap: anywhere;
+}
+.editor-timeline-scroll {
+  overflow-x: auto;
+  background: #0c1721;
+  border: 1px solid #5a7590;
+  border-radius: 6px;
+}
+.editor-timeline-chart {
+  min-width: 900px;
+}
+.editor-timeline-row {
+  display: grid;
+  grid-template-columns: 240px minmax(660px, 1fr);
+  align-items: center;
+  border-bottom: 1px solid #304154;
+}
+.editor-timeline-row:last-child {
+  border-bottom: 0;
+}
+.editor-timeline-row > :first-child {
+  padding: 0.65rem 0.9rem;
+}
+.editor-timeline-target {
+  display: grid;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.editor-timeline-target > :last-child {
+  color: #b4c5d6;
+}
+.editor-timeline-row svg {
+  display: block;
+  width: 100%;
+  height: 40px;
+}
+.editor-timeline-row line {
+  stroke: #304154;
+}
+.editor-timeline-ruler {
+  font-size: 0.85rem;
+  background: #142331;
+}
+.editor-timeline-ruler text {
+  fill: #e6edf5;
+  font-size: 16px;
+}
+.editor-timeline-ruler line {
+  stroke: #5a7590;
+}
+.editor-timeline-row polygon {
+  fill: #8fd1e3;
+  stroke: #0c1721;
+  stroke-width: 1.5;
+}
+.editor-timeline :focus-visible {
+  outline: 2px solid #8fd1e3;
+  outline-offset: 3px;
+}
+.editor-timeline-note {
+  color: #b4c5d6;
+  font-size: 0.85rem;
+}
+.editor-timeline-details details {
+  border-top: 1px solid #304154;
+  padding: 0.65rem 0;
+}
+.editor-timeline-details summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.editor-timeline-table-scroll {
+  overflow-x: auto;
+}
+.editor-timeline-details table {
+  width: 100%;
+  margin-top: 0.65rem;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+.editor-timeline-details th,
+.editor-timeline-details td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #304154;
+  white-space: nowrap;
+}
+.editor-timeline-details th {
+  color: #b4c5d6;
+  font-weight: 500;
+}
+.editor-timeline-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  color: #b4c5d6;
+  font-size: 0.85rem;
+}
+.editor-timeline-selection label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  min-width: 0;
+}
+.editor-timeline-selection select {
+  min-width: 0;
+  max-width: 100%;
+  width: 20rem;
+  background: #0c1721;
+  border: 1px solid #5a7590;
+  border-radius: 4px;
+  color: #e6edf5;
+  padding: 0.4rem;
+  font: inherit;
+}
