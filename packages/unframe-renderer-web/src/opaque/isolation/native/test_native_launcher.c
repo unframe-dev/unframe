@@ -3,6 +3,7 @@
 #include "darwin-launcher.c"
 #undef proc_pidinfo
 #include <sys/resource.h>
+#include <limits.h>
 
 static int enumeration_failure;
 
@@ -155,7 +156,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (!strcmp(test, "close-high-fd") ||
-      !strcmp(test, "close-high-fd-limited")) {
+      !strcmp(test, "close-high-fd-limited") ||
+      !strcmp(test, "close-high-fd-kernel-limited")) {
     struct rlimit limit;
     if (getrlimit(RLIMIT_NOFILE, &limit)) {
       perror("getrlimit(RLIMIT_NOFILE)");
@@ -171,13 +173,18 @@ int main(int argc, char **argv) {
         return 2;
       }
     }
-    limit.rlim_cur = limit.rlim_max < 20000 ? limit.rlim_max : 20000;
+    rlim_t requested = !strcmp(test, "close-high-fd-kernel-limited")
+                           ? (rlim_t)INT_MAX
+                           : 20000;
+    limit.rlim_cur = limit.rlim_max < requested ? limit.rlim_max : requested;
     if (setrlimit(RLIMIT_NOFILE, &limit)) {
       perror("setrlimit(RLIMIT_NOFILE, descriptor allocation)");
       return 2;
     }
-    if (limit.rlim_cur < 4) {
-      fprintf(stderr, "RLIMIT_NOFILE must allow a descriptor above stderr\n");
+    int descriptor_limit = getdtablesize();
+    if (descriptor_limit < 5) {
+      fprintf(stderr, "getdtablesize() must allow two descriptors above stderr (got %d)\n",
+              descriptor_limit);
       return 2;
     }
     int fd = open("/dev/null", O_RDONLY);
@@ -185,7 +192,7 @@ int main(int argc, char **argv) {
       perror("open(/dev/null)");
       return 2;
     }
-    int minimum = limit.rlim_cur > 15000 ? 15000 : (int)limit.rlim_cur - 1;
+    int minimum = descriptor_limit - 1;
     int high = fcntl(fd, F_DUPFD, minimum);
     if (high < 0) {
       perror("fcntl(F_DUPFD)");
