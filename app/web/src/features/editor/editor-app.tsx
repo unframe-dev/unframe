@@ -18,6 +18,7 @@ import {
 } from "./model/preview-session";
 import { createPreviewPlayback } from "./model/preview-playback";
 import { PublicationPanel, type DisplayReceipt } from "./publication-panel";
+import { TimelinePanel } from "./timeline-panel";
 
 type HistoryEntry = { forward: EditCommand; inverse: EditCommand; revision: string };
 type HistoryAction =
@@ -617,6 +618,7 @@ export function EditorApp({
         <canvas id="unity-preview-canvas" ref={canvas} aria-label="Unity Preview" tabIndex={0} />
         {job && <p>build: {job.status}</p>}
       </section>
+      <TimelinePanel definition={project?.definition ?? null} revision={project?.revision} />
       <PublicationPanel api={api} receipt={mode === "dist" ? receipt : null} />
       <aside aria-label="Diagnostics">
         <h2>Diagnostics</h2>

@@ -36,6 +36,8 @@ Dev Preview の表示、Source 保存後の反映、「本番 build」後の Dis
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props と host Transform を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
+Timelines パネルは保存済み Source の進行構造を読み取り専用で表示します。Group を選んで Step 遷移図を確認し、Step → Cue の順に選ぶと trigger、guard、actions と遷移先を参照できます。Cue が開始する複数 Timeline は共通の Cue 発火基準で表示し、ズームとキーフレーム選択で値・easing を確認できます。外部保存の更新では同じ ID の選択を維持し、削除された項目は選択を解除します。表示対象の保存 revision と Unity Preview の表示 revision は別です。編集・再生・シークは対象外です。詳細は [読み取り専用 Timeline 仕様](../../docs/packages/LOCAL_EDITOR_TIMELINE_SPEC.md) を参照してください。
+
 Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
 
 公開には `UNFRAME_CONTROL_PLANE_URL`、`UNFRAME_WEB_ORIGIN`、`UNFRAME_DEVICE_CLIENT_ID` を Host 起動時にすべて設定します。origin は HTTPS、または loopback HTTP を指定します。承認画面は設定済み Web origin の `/device` で開き、bearer と `device_code` は Host のメモリーだけに保持します。公開は Unity が commit を完了した Dist と現在の `dist` が一致する場合だけ開始し、受付後は upload 元を固定します。

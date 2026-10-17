@@ -93,7 +93,7 @@ test("saves Source and reloads Dev and Dist through the Host with a Unity bridge
   await page.getByRole("button", { name: "hero", exact: true }).click();
   await page.getByLabel("title").fill("Saved");
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(page.getByText("保存 revision: r2")).toBeVisible();
+  await expect(page.getByText("保存 revision: r2", { exact: true })).toBeVisible();
   await expect(page.getByText("表示 mode: dev / 表示 revision: r2")).toBeVisible();
   const beforeDist = builds;
   await page.getByRole("button", { name: "Dist Preview", exact: true }).click();

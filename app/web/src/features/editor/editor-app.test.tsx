@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
 import { EditorApp } from "./editor-app";
 import { EditorApiError, type EditorApi } from "./api";
+import definitionFixture from "../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 
 const snapshot = (): ProjectSnapshot => ({
   revision: "r1",
@@ -54,6 +55,61 @@ const createDriver = () => ({
 afterEach(() => vi.restoreAllMocks());
 
 describe("Source Editor", () => {
+  it("shows saved Timeline definitions without an Instance selection and refreshes them", async () => {
+    const definition = structuredClone(definitionFixture) as unknown as NonNullable<
+      ProjectSnapshot["definition"]
+    >;
+    definition.flow.timelines = {
+      entrance: {
+        id: "entrance",
+        owner: { kind: "group", groupId: "intro" },
+        durationMilliseconds: 1200,
+        tracks: [
+          {
+            target: { nodeId: "node-baked", property: "opacity" },
+            keyframes: [
+              { timeMilliseconds: 0, value: 0, easingToNext: "cubicOut" },
+              { timeMilliseconds: 1200, value: 1 },
+            ],
+          },
+        ],
+      },
+    };
+    definition.flow.groups.intro!.steps.start!.cues[0]!.actions.push({
+      kind: "timeline.play",
+      timelineId: "entrance",
+      completion: "nonBlocking",
+      conflict: "reject",
+    });
+    const project = { ...snapshot(), definition };
+    const api = apiFor(project);
+    const user = userEvent.setup();
+    render(<EditorApp api={api} createDriver={createDriver} />);
+    const panel = await screen.findByRole("region", { name: "Timelines" });
+    await waitFor(() => expect(panel).toHaveTextContent("保存 revision: r1"));
+    await user.click(await within(panel).findByRole("button", { name: "Step start" }));
+    await user.click(within(panel).getByRole("button", { name: "Cue wave" }));
+    expect(panel).toHaveTextContent("entrance");
+    expect(panel).toHaveTextContent("opacity");
+    vi.mocked(api.project).mockResolvedValue({
+      ...project,
+      revision: "r2",
+      definition: null,
+      diagnostics: [{ code: "invalid-flow", message: "Flow is invalid" }],
+    });
+    await user.click(screen.getByRole("button", { name: "再読込" }));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Timelines" })).not.toHaveTextContent("entrance"),
+    );
+    expect(panel).toHaveTextContent("保存 revision: r2");
+    expect(
+      within(screen.getByRole("complementary", { name: "Diagnostics" })).getByText(
+        /Flow is invalid/,
+      ),
+    ).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
   it("defers external Dev changes while an explicit Dist build owns the Host", async () => {
     let current = snapshot();
     const api = apiFor(current);
