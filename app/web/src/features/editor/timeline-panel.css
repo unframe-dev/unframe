@@ -10,62 +10,9 @@
   margin-bottom: 1rem;
   overflow-wrap: anywhere;
 }
-.editor-timeline h3 {
+.editor-timeline h3,
+.editor-timeline h4 {
   overflow-wrap: anywhere;
-}
-.editor-timeline-scroll {
-  overflow-x: auto;
-  background: #0c1721;
-  border: 1px solid #5a7590;
-  border-radius: 6px;
-}
-.editor-timeline-chart {
-  min-width: 900px;
-}
-.editor-timeline-row {
-  display: grid;
-  grid-template-columns: 240px minmax(660px, 1fr);
-  align-items: center;
-  border-bottom: 1px solid #304154;
-}
-.editor-timeline-row:last-child {
-  border-bottom: 0;
-}
-.editor-timeline-row > :first-child {
-  padding: 0.65rem 0.9rem;
-}
-.editor-timeline-target {
-  display: grid;
-  gap: 0.2rem;
-  overflow-wrap: anywhere;
-  font-size: 0.85rem;
-}
-.editor-timeline-target > :last-child {
-  color: #b4c5d6;
-}
-.editor-timeline-row svg {
-  display: block;
-  width: 100%;
-  height: 40px;
-}
-.editor-timeline-row line {
-  stroke: #304154;
-}
-.editor-timeline-ruler {
-  font-size: 0.85rem;
-  background: #142331;
-}
-.editor-timeline-ruler text {
-  fill: #e6edf5;
-  font-size: 16px;
-}
-.editor-timeline-ruler line {
-  stroke: #5a7590;
-}
-.editor-timeline-row polygon {
-  fill: #8fd1e3;
-  stroke: #0c1721;
-  stroke-width: 1.5;
 }
 .editor-timeline :focus-visible {
   outline: 2px solid #8fd1e3;
@@ -74,50 +21,15 @@
 .editor-timeline-note {
   color: #b4c5d6;
   font-size: 0.85rem;
-}
-.editor-timeline-details details {
-  border-top: 1px solid #304154;
-  padding: 0.65rem 0;
-}
-.editor-timeline-details summary {
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-.editor-timeline-table-scroll {
-  overflow-x: auto;
-}
-.editor-timeline-details table {
-  width: 100%;
-  margin-top: 0.65rem;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.85rem;
-}
-.editor-timeline-details th,
-.editor-timeline-details td {
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #304154;
-  white-space: nowrap;
-}
-.editor-timeline-details th {
-  color: #b4c5d6;
-  font-weight: 500;
+  line-height: 1.6;
 }
 .editor-timeline-selection {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem 1.5rem;
+  gap: 0.5rem;
   color: #b4c5d6;
   font-size: 0.85rem;
-}
-.editor-timeline-selection label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 100%;
-  min-width: 0;
 }
 .editor-timeline-selection select {
   min-width: 0;
@@ -129,4 +41,93 @@
   color: #e6edf5;
   padding: 0.4rem;
   font: inherit;
+}
+.editor-flow-graph {
+  overflow: auto;
+  border: 1px solid #5a7590;
+  border-radius: 6px;
+  background: #0c1721;
+  max-height: 42rem;
+}
+.editor-flow-graph svg {
+  display: block;
+}
+.editor-flow-node,
+.editor-cue-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  border: 1px solid #5a7590;
+  border-radius: 6px;
+  background: #142331;
+  color: #e6edf5;
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.editor-flow-node {
+  width: 100%;
+  min-height: 65px;
+}
+.editor-flow-node span,
+.editor-cue-list span {
+  color: #b4c5d6;
+  font-size: 0.8rem;
+}
+.editor-flow-node[aria-pressed="true"],
+.editor-cue-list button[aria-pressed="true"] {
+  border-color: #8fd1e3;
+  background: #234253;
+}
+.editor-flow-destination {
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.editor-flow-edges {
+  font-size: 0.85rem;
+  color: #b4c5d6;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.editor-cue-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+.editor-cue-details {
+  border-top: 1px solid #304154;
+  margin-top: 1rem;
+}
+.editor-cue-details dl {
+  display: grid;
+  grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+}
+.editor-cue-details dt {
+  color: #b4c5d6;
+}
+.editor-cue-details dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.editor-cue-details dd p {
+  margin-top: 0;
+}
+.editor-cue-details pre {
+  padding: 0.75rem;
+  margin: 0.25rem 0;
+  border-radius: 4px;
+  background: #0c1721;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+.editor-cue-details li {
+  margin-bottom: 1rem;
 }

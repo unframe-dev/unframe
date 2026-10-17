@@ -1,157 +1,188 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { assert, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
-import definitionFixture from "../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
+import fixture from "../../../../../packages/contracts/presentation/fixtures/presentation-definition.json";
 import { TimelinePanel } from "./timeline-panel";
 
 type Definition = NonNullable<ProjectSnapshot["definition"]>;
-const definition = () => structuredClone(definitionFixture) as unknown as Definition;
+const definition = () => structuredClone(fixture) as unknown as Definition;
 
-it("distinguishes an unavailable definition from an empty Timeline catalog", () => {
-  const view = render(<TimelinePanel definition={null} />);
-  expect(
-    screen.getByText("定義を取得できていません。読み込み状態と診断を確認してください。"),
-  ).toBeInTheDocument();
-  view.rerender(<TimelinePanel definition={definition()} />);
-  expect(screen.getByText("Timeline は定義されていません。")).toBeInTheDocument();
-});
-
-const revealDefinition = () => {
+it("opens the initial Group with keyboard-selectable Steps and Cues and exposes all action details", async () => {
   const project = definition();
-  project.flow.timelines.reveal = {
-    id: "reveal",
-    owner: { kind: "group", groupId: "intro" },
-    durationMilliseconds: 1000,
-    tracks: [
-      {
-        target: { nodeId: "node-baked", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "cubicIn" },
-          { timeMilliseconds: 250, value: 0.5, easingToNext: "cubicOut" },
-          { timeMilliseconds: 251, value: 0.6, easingToNext: "linear" },
-          { timeMilliseconds: 1000, value: 1 },
-        ],
-      },
-      {
-        target: { nodeId: "node-baked", property: "transform.position" },
-        keyframes: [
-          { timeMilliseconds: 0, value: [0, 1, 2], easingToNext: "linear" },
-          { timeMilliseconds: 1000, value: [3, 4, 5] },
-        ],
-      },
-      {
-        target: { nodeId: "node-baked", property: "transform.rotation" },
-        keyframes: [
-          { timeMilliseconds: 0, value: [0, 0, 0, 1], easingToNext: "linear" },
-          { timeMilliseconds: 1000, value: [0, 1, 0, 0] },
-        ],
-      },
-    ],
+  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
+  cue.guard = {
+    kind: "compare",
+    left: { kind: "variable", variableId: "counter" },
+    operator: "gte",
+    right: 2,
   };
-  return project;
-};
-
-it("shows a shared duration ruler and places every track's markers at proportional times", () => {
-  render(<TimelinePanel definition={revealDefinition()} />);
-  expect(screen.getByText("所有: group / intro")).toBeInTheDocument();
-  expect(screen.getByText("長さ: 1000 ms")).toBeInTheDocument();
-  expect(screen.getByRole("img", { name: "時間目盛 0–1000 ms" })).toBeInTheDocument();
-  const lane = screen.getByRole("img", { name: "node-baked / opacity のキー位置" });
-  expect(lane.querySelectorAll("polygon")).toHaveLength(4);
-  expect(lane.querySelector('[data-time-ms="0"]')).toHaveAttribute("transform", "translate(20 20)");
-  expect(lane.querySelector('[data-time-ms="250"]')).toHaveAttribute(
-    "transform",
-    "translate(260 20)",
-  );
-  const closeMarker = lane.querySelector('[data-time-ms="251"]');
-  const closePosition = closeMarker?.getAttribute("transform")?.match(/^translate\(([\d.]+)/)?.[1];
-  expect(Number(closePosition)).toBeCloseTo(260.96);
-  expect(lane.querySelector('[data-time-ms="1000"]')).toHaveAttribute(
-    "transform",
-    "translate(980 20)",
-  );
-  expect(screen.getAllByRole("img", { name: /のキー位置/ })).toHaveLength(3);
-});
-
-it("exposes exact scalar, vector and quaternion values and outgoing easing in keyboard-accessible details", async () => {
-  const user = userEvent.setup();
-  render(<TimelinePanel definition={revealDefinition()} />);
-  const summary = screen.getByText("node-baked / opacity のキーフレーム (4)");
-  summary.focus();
-  await user.keyboard("{Enter}");
-  const table = screen.getByRole("table", { name: "node-baked / opacity のキーフレーム" });
-  expect(within(table).getByRole("row", { name: "250 ms 0.5 cubicOut" })).toBeInTheDocument();
-  expect(
-    within(table).getByRole("row", { name: "1000 ms 1 なし（最終キー）" }),
-  ).toBeInTheDocument();
-  await user.click(screen.getByText("node-baked / transform.position のキーフレーム (2)"));
-  expect(screen.getByRole("cell", { name: "[0, 1, 2]" })).toBeInTheDocument();
-  await user.click(screen.getByText("node-baked / transform.rotation のキーフレーム (2)"));
-  expect(screen.getByRole("cell", { name: "[0, 0, 0, 1]" })).toBeInTheDocument();
-});
-
-it("selects a Timeline and reflects replacement definitions without retaining old tracks", async () => {
-  const project = revealDefinition();
-  const reveal = project.flow.timelines.reveal;
-  assert.isDefined(reveal);
-  project.flow.timelines.exit = {
-    ...structuredClone(reveal),
-    id: "exit",
-    owner: { kind: "presentation" },
-    durationMilliseconds: 2000,
-  };
-  for (const track of project.flow.timelines.exit.tracks) {
-    const finalKeyframe = track.keyframes.at(-1);
-    assert.isDefined(finalKeyframe);
-    finalKeyframe.timeMilliseconds = 2000;
-  }
-  const view = render(<TimelinePanel definition={project} />);
-  await userEvent
-    .setup()
-    .selectOptions(screen.getByRole("combobox", { name: "Timeline を選択" }), "exit");
-  expect(screen.getByRole("heading", { name: "exit" })).toBeInTheDocument();
-  expect(screen.getByText("所有: presentation")).toBeInTheDocument();
-  expect(screen.getByText("長さ: 2000 ms")).toBeInTheDocument();
-  const next = structuredClone(project);
-  const exit = next.flow.timelines.exit;
-  assert.isDefined(exit);
-  exit.durationMilliseconds = 3000;
-  exit.tracks = [
-    {
-      target: { nodeId: "node-native", property: "transform.scale" },
-      keyframes: [
-        { timeMilliseconds: 0, value: [1, 1, 1], easingToNext: "linear" },
-        { timeMilliseconds: 3000, value: [2, 2, 2] },
-      ],
+  cue.trigger = { kind: "timer", afterMilliseconds: 500 };
+  cue.actions.push({
+    kind: "surface.setState",
+    surfaceId: "baked",
+    stateId: "default",
+    transition: {
+      kind: "crossfade",
+      durationMilliseconds: 700,
+      easing: "cubicOut",
+      completion: "blocking",
     },
-  ];
-  view.rerender(<TimelinePanel definition={next} />);
-  expect(screen.getByRole("combobox")).toHaveValue("exit");
-  expect(screen.getByRole("img", { name: "時間目盛 0–3000 ms" })).toBeInTheDocument();
-  expect(
-    screen.queryByRole("img", { name: "node-baked / opacity のキー位置" }),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.getByRole("img", { name: "node-native / transform.scale のキー位置" }),
-  ).toBeInTheDocument();
+  });
+  render(<TimelinePanel definition={project} revision="saved-42" />);
+  expect(screen.getByText("定義の保存 revision: saved-42")).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Cue wave" })).not.toBeInTheDocument();
+  const user = userEvent.setup();
+  screen.getByRole("button", { name: "Step start" }).focus();
+  await user.keyboard("{Enter}");
+  screen.getByRole("button", { name: "Cue wave" }).focus();
+  await user.keyboard(" ");
+  expect(screen.getByRole("heading", { name: "Cue wave" })).toBeInTheDocument();
+  expect(screen.getByText("Step 開始から 500 ms")).toBeInTheDocument();
+  expect(screen.getByText("条件付き（成立は未確定）")).toBeInTheDocument();
+  const actions = screen.getByRole("list", { name: "Actions" });
+  expect(within(actions).getByText("modelClip.play")).toBeInTheDocument();
+  expect(within(actions).getByText("surface.setState")).toBeInTheDocument();
+  expect(within(actions).getByText(/"durationMilliseconds": 700/)).toBeInTheDocument();
+  expect(screen.getByText("この Cue に timeline.play はありません。")).toBeInTheDocument();
 });
 
-it("falls back when the selected Timeline disappears and clears unavailable or empty catalogs", async () => {
-  const project = revealDefinition();
-  const reveal = project.flow.timelines.reveal;
-  assert.isDefined(reveal);
-  project.flow.timelines.exit = { ...structuredClone(reveal), id: "exit" };
-  const view = render(<TimelinePanel definition={project} />);
-  await userEvent.setup().selectOptions(screen.getByRole("combobox"), "exit");
-  view.rerender(<TimelinePanel definition={revealDefinition()} />);
-  expect(screen.getByRole("combobox")).toHaveValue("reveal");
-  expect(screen.queryByRole("heading", { name: "exit" })).not.toBeInTheDocument();
-  view.rerender(<TimelinePanel definition={null} />);
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
-  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-  view.rerender(<TimelinePanel definition={definition()} />);
-  expect(screen.getByText("Timeline は定義されていません。")).toBeInTheDocument();
+it("preserves selected IDs on saved updates and clears deleted Cues, Steps, Groups and unavailable definitions", async () => {
+  const project = definition();
+  const extra = structuredClone(project.flow.groups.intro!);
+  extra.id = "other";
+  project.flow.groups.other = extra;
+  const user = userEvent.setup();
+  const view = render(<TimelinePanel definition={project} revision="r1" />);
+  await user.click(screen.getByRole("button", { name: "Step start" }));
+  await user.click(screen.getByRole("button", { name: "Cue wave" }));
+  const next = structuredClone(project);
+  next.flow.groups.intro!.steps.start!.cues[0]!.priority = 12;
+  view.rerender(<TimelinePanel definition={next} revision="r2" />);
+  expect(screen.getByRole("button", { name: "Step start" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.getByRole("button", { name: "Cue wave" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText("定義の保存 revision: r2")).toBeInTheDocument();
+  expect(screen.getByText("12")).toBeInTheDocument();
+  const noCue = structuredClone(next);
+  noCue.flow.groups.intro!.steps.start!.cues = [
+    { ...next.flow.groups.intro!.steps.start!.cues[0]!, id: "replacement" },
+  ];
+  view.rerender(<TimelinePanel definition={noCue} />);
+  expect(screen.queryByRole("heading", { name: "Cue wave" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Cue replacement" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  view.rerender(<TimelinePanel definition={next} />);
+  expect(screen.getByRole("button", { name: "Cue wave" })).toHaveAttribute("aria-pressed", "false");
+  const noStep = structuredClone(next);
+  noStep.flow.groups.intro!.initialStepId = "replacement";
+  noStep.flow.groups.intro!.steps = { replacement: { id: "replacement", cues: [] } };
+  view.rerender(<TimelinePanel definition={noStep} />);
+  expect(screen.getByRole("button", { name: "Step replacement" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  view.rerender(<TimelinePanel definition={next} />);
+  expect(screen.getByRole("button", { name: "Step start" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  const noGroup = structuredClone(next);
+  delete noGroup.flow.groups.intro;
+  noGroup.flow.initialGroupId = "other";
+  view.rerender(<TimelinePanel definition={noGroup} />);
+  expect(screen.getByRole("combobox", { name: "Group" })).toHaveValue("");
+  view.rerender(<TimelinePanel definition={next} />);
+  expect(screen.getByRole("combobox", { name: "Group" })).toHaveValue("");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Group" }), "intro");
+  await user.click(screen.getByRole("button", { name: "Step start" }));
+  await user.click(screen.getByRole("button", { name: "Cue wave" }));
+  view.rerender(<TimelinePanel definition={null} revision="invalid" />);
+  expect(
+    screen.getByText("定義を検証できません。既存の Diagnostics を確認してください。"),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Cue wave" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "intro の Step と遷移" })).not.toBeInTheDocument();
+  view.rerender(<TimelinePanel definition={next} />);
+  expect(screen.getByRole("combobox", { name: "Group" })).toHaveValue("");
+});
+
+it("allows first load after null and treats Groups and Cue-less Steps as normal empty states", async () => {
+  const view = render(<TimelinePanel definition={null} />);
+  const project = definition();
+  project.flow.groups.intro!.steps.start!.cues = [];
   view.rerender(<TimelinePanel definition={project} />);
-  expect(screen.getByRole("combobox")).toHaveValue("reveal");
+  expect(screen.getByRole("combobox", { name: "Group" })).toHaveValue("intro");
+  await userEvent.setup().click(screen.getByRole("button", { name: "Step start" }));
+  expect(screen.getByText("この Step に Cue はありません。")).toBeInTheDocument();
+  project.flow.groups = {};
+  view.rerender(<TimelinePanel definition={structuredClone(project)} />);
+  expect(screen.getByText("Group は定義されていません。")).toBeInTheDocument();
+});
+
+it("shows every transition including Group initial Steps, cycles, stay and end without hiding unreachable nodes", () => {
+  const project = definition();
+  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
+  project.flow.groups.intro!.steps.start!.cues = [
+    { ...cue, id: "branch", next: { kind: "step", stepId: "branch" } },
+    { ...cue, id: "leave", next: { kind: "group", groupId: "other" } },
+    { ...cue, id: "stay", next: { kind: "stay" } },
+    { ...cue, id: "end", next: { kind: "end" } },
+  ];
+  project.flow.groups.intro!.steps.branch = {
+    id: "branch",
+    cues: [{ ...cue, id: "back", next: { kind: "step", stepId: "start" } }],
+  };
+  project.flow.groups.intro!.steps.isolated = { id: "isolated", cues: [] };
+  project.flow.groups.other = {
+    id: "other",
+    initialStepId: "entry",
+    steps: { entry: { id: "entry", cues: [] } },
+  };
+  render(<TimelinePanel definition={project} />);
+  expect(screen.getByRole("button", { name: "Step start" })).toHaveAccessibleDescription(
+    "初期 Step",
+  );
+  expect(screen.getByRole("button", { name: "Step isolated" })).toHaveAccessibleDescription(
+    "初期 Step から到達不可",
+  );
+  const transitions = screen.getByRole("list", { name: "Cue の遷移" });
+  expect(
+    within(transitions).getByText("start → Group other / 初期 Step entry / Cue leave"),
+  ).toBeInTheDocument();
+  expect(
+    within(transitions).getByText("start → stay / Step start に留まる / Cue stay"),
+  ).toBeInTheDocument();
+  expect(within(transitions).getByText("start → end / 終了 / Cue end")).toBeInTheDocument();
+  expect(within(transitions).getByText("branch → Step start / Cue back")).toBeInTheDocument();
+  expect(
+    screen
+      .getByRole("group", { name: "intro の Step と遷移" })
+      .querySelectorAll("path[marker-end]"),
+  ).toHaveLength(5);
+});
+
+it("shows sorted candidate Cues without selecting one automatically", async () => {
+  const project = definition();
+  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
+  project.flow.groups.intro!.steps.start!.cues = [
+    { ...cue, id: "z", priority: 1, order: 1 },
+    { ...cue, id: "a", priority: 1, order: 1 },
+    { ...cue, id: "last", priority: 0, order: 0 },
+    { ...cue, id: "first", priority: 1, order: 0 },
+  ];
+  render(<TimelinePanel definition={project} />);
+  await userEvent.setup().click(screen.getByRole("button", { name: "Step start" }));
+  const cues = within(screen.getByRole("region", { name: "Cue 一覧" })).getAllByRole("button");
+  expect(cues.map((button) => button.getAttribute("aria-label"))).toEqual([
+    "Cue first",
+    "Cue a",
+    "Cue z",
+    "Cue last",
+  ]);
+  expect(cues.every((button) => button.getAttribute("aria-pressed") === "false")).toBe(true);
 });
