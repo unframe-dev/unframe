@@ -8,6 +8,40 @@ import { TimelinePanel } from "./timeline-panel";
 type Definition = NonNullable<ProjectSnapshot["definition"]>;
 const definition = () => structuredClone(fixture) as unknown as Definition;
 
+it("connects a Timeline action to its track without carrying focus into another Cue", async () => {
+  const project = definition();
+  const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
+  cue.actions = [
+    { kind: "timeline.play", timelineId: "focus", completion: "nonBlocking", conflict: "reject" },
+  ];
+  project.flow.timelines.focus = {
+    id: "focus",
+    owner: { kind: "presentation" },
+    durationMilliseconds: 600,
+    tracks: [
+      {
+        target: { nodeId: "title", property: "opacity" },
+        keyframes: [
+          { timeMilliseconds: 0, value: 0.72, easingToNext: "cubicOut" },
+          { timeMilliseconds: 600, value: 1 },
+        ],
+      },
+    ],
+  };
+  project.flow.groups.intro!.steps.start!.cues.push({ ...cue, id: "other" });
+  const user = userEvent.setup();
+  render(<TimelinePanel definition={project} />);
+  await user.click(screen.getByRole("button", { name: "Step start" }));
+  await user.click(screen.getByRole("button", { name: "Cue wave" }));
+  await user.click(screen.getByRole("button", { name: "Timeline focus を時間軸で表示" }));
+  expect(screen.getByRole("group", { name: "Timeline focus" })).toHaveFocus();
+  await user.click(screen.getByRole("button", { name: "Cue 発火から 0 ms" }));
+  await user.click(screen.getByRole("button", { name: "Timeline focus を時間軸で表示" }));
+  expect(screen.getByRole("group", { name: "Timeline focus" })).toHaveFocus();
+  await user.click(screen.getByRole("button", { name: "Cue other" }));
+  expect(screen.getByRole("group", { name: "Timeline focus" })).not.toHaveFocus();
+});
+
 it("opens the initial Group with keyboard-selectable Steps and Cues and exposes all action details", async () => {
   const project = definition();
   const cue = project.flow.groups.intro!.steps.start!.cues[0]!;
@@ -43,7 +77,7 @@ it("opens the initial Group with keyboard-selectable Steps and Cues and exposes 
   const actions = screen.getByRole("list", { name: "Actions" });
   expect(within(actions).getByText("modelClip.play")).toBeInTheDocument();
   expect(within(actions).getByText("surface.setState")).toBeInTheDocument();
-  expect(within(actions).getByText(/"durationMilliseconds": 700/)).toBeInTheDocument();
+  expect(within(actions).getByText("700 ms")).toBeInTheDocument();
   expect(screen.getByText("この Cue に timeline.play はありません。")).toBeInTheDocument();
 });
 

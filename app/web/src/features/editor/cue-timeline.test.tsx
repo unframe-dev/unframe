@@ -147,7 +147,9 @@ it("shows exact vector values for the selected keyframe", async () => {
   );
   await userEvent.setup().click(screen.getByRole("button", { name: "Cue 発火から 0 ms" }));
   expect(screen.getAllByRole("button", { pressed: true })).toHaveLength(1);
-  expect(screen.getByText("[0, 1, 2]")).toBeInTheDocument();
+  expect(
+    within(screen.getByRole("region", { name: "選択したキーフレーム" })).getByText("[0, 1, 2]"),
+  ).toBeInTheDocument();
 });
 
 it("shows a normal empty state when the Cue has no timeline.play actions", () => {
@@ -165,7 +167,7 @@ it("zooms the shared chart using keyboard controls without changing source data"
   await userEvent.setup().selectOptions(zoom, "2");
   expect(zoom).toHaveValue("2");
   const scroll = screen.getByLabelText("アニメーション時間軸の横スクロール");
-  expect(scroll.firstElementChild).toHaveStyle({ minWidth: "1560px" });
+  expect(scroll.firstElementChild).toHaveStyle({ width: "1880px" });
   expect(timeline).toEqual(before);
 });
 
@@ -200,6 +202,12 @@ it("aligns multiple Timeline tracks to Cue firing with one maximum duration rule
   expect(screen.getByText("duration: 1200 ms")).toBeInTheDocument();
   expect(screen.getByText("nonBlocking: 完了を待たずに遷移")).toBeInTheDocument();
   expect(screen.getByText("blocking: 開始した Run の完了まで遷移を待機")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "focus のクリップ: Cue 発火から 0–600 ms" })).toHaveStyle({
+    width: "50%",
+  });
+  expect(
+    screen.getByRole("img", { name: "movement のクリップ: Cue 発火から 0–1200 ms" }),
+  ).toHaveStyle({ width: "100%" });
   const focusLane = screen.getByRole("group", { name: "focus / title / opacity" });
   expect(within(focusLane).getByRole("button", { name: "Cue 発火から 600 ms" })).toHaveStyle({
     left: "50%",
@@ -211,4 +219,69 @@ it("aligns multiple Timeline tracks to Cue firing with one maximum duration rule
   expect(within(movementLane).getByRole("button", { name: "Cue 発火から 1200 ms" })).toHaveStyle({
     left: "100%",
   });
+});
+
+it("focuses the linked Timeline group and clears highlighting when the link is cleared or removed", () => {
+  const entry = { timeline: focus(), completion: "blocking" as const, actionIndex: 0 };
+  const view = render(<CueTimeline timelines={[entry]} />);
+  const group = screen.getByRole("group", { name: "Timeline focus" });
+  expect(group).toHaveAttribute("data-focused", "false");
+  view.rerender(<CueTimeline timelines={[entry]} focusedTimelineId="focus" />);
+  expect(group).toHaveFocus();
+  expect(group).toHaveAttribute("data-focused", "true");
+  view.rerender(<CueTimeline timelines={[entry]} focusedTimelineId={null} />);
+  expect(group).toHaveAttribute("data-focused", "false");
+  view.rerender(<CueTimeline timelines={[]} focusedTimelineId="focus" />);
+  expect(screen.queryByRole("group", { name: "Timeline focus" })).not.toBeInTheDocument();
+});
+
+it("marks the selected key time explicitly without changing selection when zooming out", async () => {
+  const user = userEvent.setup();
+  const timeline = focus();
+  const before = structuredClone(timeline);
+  render(<CueTimeline timelines={[{ timeline, completion: "blocking", actionIndex: 0 }]} />);
+  expect(screen.queryByText("選択キー")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Cue 発火から 600 ms" }));
+  expect(screen.getByText("選択キー")).toBeInTheDocument();
+  expect(screen.getByText("選択キー: Cue + 600 ms")).toBeInTheDocument();
+  await user.selectOptions(screen.getByRole("combobox", { name: "時間軸のズーム" }), "0.5");
+  const scroll = screen.getByLabelText("アニメーション時間軸の横スクロール");
+  expect(scroll.firstElementChild).toHaveStyle({ width: "680px" });
+  expect(screen.getByRole("button", { pressed: true })).toHaveAccessibleName("Cue 発火から 600 ms");
+  expect(timeline).toEqual(before);
+});
+
+it.each([50, 60_000])(
+  "keeps the initial ruler readable for a %s ms Timeline",
+  (durationMilliseconds) => {
+    render(
+      <CueTimeline
+        timelines={[
+          {
+            timeline: { ...focus(), durationMilliseconds, tracks: [] },
+            completion: "nonBlocking",
+            actionIndex: 0,
+          },
+        ]}
+      />,
+    );
+    const scroll = screen.getByLabelText("アニメーション時間軸の横スクロール");
+    expect(scroll.firstElementChild).toHaveStyle({ width: "1080px" });
+    expect(
+      screen.getByRole("img", { name: `Cue 発火から 0–${durationMilliseconds} ms` }),
+    ).toBeInTheDocument();
+  },
+);
+
+it("returns focus to the same Timeline when a new focus request arrives", () => {
+  const entry = { timeline: focus(), completion: "blocking" as const, actionIndex: 0 };
+  const view = render(
+    <CueTimeline timelines={[entry]} focusedTimelineId="focus" focusRequestId={1} />,
+  );
+  const group = screen.getByRole("group", { name: "Timeline focus" });
+  expect(group).toHaveFocus();
+  screen.getByRole("combobox", { name: "時間軸のズーム" }).focus();
+  expect(group).not.toHaveFocus();
+  view.rerender(<CueTimeline timelines={[entry]} focusedTimelineId="focus" focusRequestId={2} />);
+  expect(group).toHaveFocus();
 });

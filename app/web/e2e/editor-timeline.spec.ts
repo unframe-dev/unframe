@@ -86,7 +86,16 @@ test("inspects the compiled showcase flow without changing Source, builds or Pre
   await expect(timeline).toContainText("showcase:focus");
   await expect(timeline).toContainText("nonBlocking: 完了を待たずに遷移");
   await expect(timeline).toContainText("opacity");
-  await expect(timeline.getByRole("img")).toHaveAccessibleName("Cue 発火から 0–600 ms");
+  await expect(
+    timeline.getByRole("img", { name: "Cue 発火から 0–600 ms", exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByRole("region", { name: "Cue 詳細", exact: true }).locator("pre"),
+  ).toHaveCount(0);
+  await actions.getByRole("button", { name: "Timeline showcase:focus を時間軸で表示" }).click();
+  await expect(
+    timeline.getByRole("group", { name: "Timeline showcase:focus", exact: true }),
+  ).toBeFocused();
   const firstKey = timeline.getByRole("button", { name: "Cue 発火から 0 ms", exact: true });
   await firstKey.focus();
   await page.keyboard.press("Enter");
@@ -98,6 +107,10 @@ test("inspects the compiled showcase flow without changing Source, builds or Pre
   await expect(details.locator("dd").nth(1)).toHaveText("1");
   await timeline.getByLabel("時間軸のズーム").selectOption("1");
   await firstKey.click();
+  await actions.getByRole("button", { name: "Timeline showcase:focus を時間軸で表示" }).click();
+  await expect(
+    timeline.getByRole("group", { name: "Timeline showcase:focus", exact: true }),
+  ).toBeFocused();
   await panel.screenshot({ path: testInfo.outputPath("showcase-timeline.png") });
   expect(writes).toEqual(beforeWrites);
   expect(await page.evaluate(() => Reflect.get(window, "timelinePreviewMessages"))).toEqual(

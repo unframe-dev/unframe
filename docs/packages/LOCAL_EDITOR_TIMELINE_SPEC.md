@@ -28,7 +28,9 @@ Status: 実装スコープ確定。読み取り専用の構造・時間関係の
 
 時間軸の初期対象は `flow.timelines` のトラックとする。Surface の crossfade、Model clip、Media の操作は指定された transition・completion などを Cue 詳細に表示し、時間軸には展開しない。crossfade を即時の State 更新として扱わない。即時の State／Variable／Node 更新は Cue 詳細に表示する。
 
-時間軸は横スクロールとズームに対応し、keyframe 選択で値を表示する。Step／Cue／keyframe の選択はキーボードでも操作できるようにする。
+Cue 詳細は Trigger → Guard → Actions → 遷移先のカードで関係を示す。各値は名前付きの項目として表示し、Timeline 再生 Action から該当トラックへ移動できる。Actions の分岐表示は実行の時間順序を表さない。
+
+時間軸は Node／プロパティの固定見出し、duration を表すクリップ、keyframe のマーカーで構成する。横スクロールとズームに対応し、keyframe 選択で時刻・値・easing を右側の詳細欄に表示する。選択位置の縦線は再生位置ではない。Step／Cue／keyframe の選択はキーボードでも操作できるようにする。
 
 ## 時間・実行意味の扱い
 

@@ -1,12 +1,57 @@
 import { useEffect, useRef, useState } from "react";
 import type { ProjectSnapshot } from "@unframe/unframe-cli/author-contract";
-import { createTimelineView, cueDestination, cueTimelines } from "./model/timeline-view";
+import {
+  createTimelineView,
+  cueDestination,
+  cueTimelines,
+  type FlowCue,
+  type TimelineDefinition,
+} from "./model/timeline-view";
 import { StepTransitionGraph } from "./step-transition-graph";
 import { CueDetails } from "./cue-details";
 import { CueTimeline } from "./cue-timeline";
 import "./timeline-panel.css";
 
 type Selection = { groupId: string | null; stepId: string | null; cueId: string | null };
+
+function CueWorkspace({
+  definition,
+  stepId,
+  cue,
+}: {
+  definition: TimelineDefinition;
+  stepId: string;
+  cue: FlowCue;
+}) {
+  const [focusRequest, setFocusRequest] = useState({
+    timelineId: null as string | null,
+    requestId: 0,
+  });
+  const timelines = cueTimelines(definition, cue);
+  const focusedExists = timelines.some(({ timeline }) => timeline.id === focusRequest.timelineId);
+  useEffect(() => {
+    if (!focusedExists)
+      setFocusRequest((current) =>
+        current.timelineId === null ? current : { ...current, timelineId: null },
+      );
+  }, [focusedExists]);
+  return (
+    <div className="editor-cue-workspace">
+      <CueDetails
+        cue={cue}
+        destination={cueDestination(definition, stepId, cue)}
+        onSelectTimeline={(timelineId) =>
+          setFocusRequest((current) => ({ timelineId, requestId: current.requestId + 1 }))
+        }
+      />
+      <CueTimeline
+        timelines={timelines}
+        focusedTimelineId={focusedExists ? focusRequest.timelineId : null}
+        focusRequestId={focusRequest.requestId}
+      />
+    </div>
+  );
+}
 export function TimelinePanel({
   definition,
   revision,
@@ -111,13 +156,12 @@ export function TimelinePanel({
                 </section>
               )}
               {step && cue && (
-                <>
-                  <CueDetails cue={cue} destination={cueDestination(definition, step.id, cue)} />
-                  <CueTimeline
-                    key={group.id + ":" + step.id + ":" + cue.id}
-                    timelines={cueTimelines(definition, cue)}
-                  />
-                </>
+                <CueWorkspace
+                  key={JSON.stringify([group.id, step.id, cue.id])}
+                  definition={definition}
+                  stepId={step.id}
+                  cue={cue}
+                />
               )}
             </>
           )}
