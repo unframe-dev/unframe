@@ -10,7 +10,7 @@ import { runIsolatedOpaqueWorker } from "../src/opaque/isolation/run-isolated-op
 describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
   "Darwin native isolation",
   () => {
-    const fixture = (body: string) => {
+    const fixture = (body: string, captured = "message.input") => {
       const root = mkdtempSync(join(tmpdir(), "unframe-darwin-test-"));
       const directory = join(root, "worker");
       mkdirSync(directory);
@@ -20,11 +20,12 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
         `
       import {createInterface} from 'node:readline';
       import {spawn} from 'node:child_process';
+      let descendant;
       console.log(JSON.stringify({type:'bootstrap'}));
       for await (const line of createInterface({input:process.stdin})) {
         const message=JSON.parse(line);
         if(message.type==='launch') { ${body} }
-        if(message.type==='capture') { console.log(JSON.stringify({type:'result',value:message.input})); process.stdin.destroy(); break; }
+        if(message.type==='capture') { console.log(JSON.stringify({type:'result',value:${captured}})); process.stdin.destroy(); break; }
       }
     `,
       );
@@ -38,13 +39,38 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
       };
     };
 
-    it("runs the deny probe and crosses both protocol barriers", async () => {
+    it.each([1, 2, 3])("runs the deny probe and crosses both protocol barriers (%i)", async () => {
       const input = fixture(`console.log(JSON.stringify({type:'ready'}));`);
       try {
         await expect(
           runIsolatedOpaqueWorker({ ...input, input: { native: true } }),
         ).resolves.toEqual({ native: true });
       } finally {
+        rmSync(input.root, { recursive: true, force: true });
+      }
+    });
+
+    it("accounts for and cleans up a detached native descendant", async () => {
+      const input = fixture(
+        `
+        descendant=spawn(process.execPath,["-e","setTimeout(()=>{},10000)"],{detached:true,stdio:"ignore"});
+        await new Promise((resolve,reject)=>{descendant.once("spawn",resolve);descendant.once("error",reject)});
+        console.log(JSON.stringify({type:"ready"}));
+      `,
+        "{pid:descendant.pid}",
+      );
+      let pid: number | undefined;
+      try {
+        const result = (await runIsolatedOpaqueWorker({ ...input, input: {} })) as { pid: number };
+        pid = result.pid;
+        expect(Number.isSafeInteger(pid)).toBe(true);
+        expect(() => process.kill(pid!, 0)).toThrow();
+      } finally {
+        if (pid) {
+          try {
+            process.kill(-pid, "SIGKILL");
+          } catch {}
+        }
         rmSync(input.root, { recursive: true, force: true });
       }
     });

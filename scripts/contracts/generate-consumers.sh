@@ -35,7 +35,8 @@ case "$(uname -s)-$(uname -m)" in
   Linux-x86_64) grpc_platform=linux_x64 ;;
   Linux-aarch64) grpc_platform=linux_arm64 ;;
   Darwin-x86_64) grpc_platform=macosx_x64 ;;
-  Darwin-arm64) grpc_platform=macosx_arm64 ;;
+  # Grpc.Tools 2.76.0 ships only an x64 macOS plugin; Apple Silicon requires Rosetta.
+  Darwin-arm64) grpc_platform=macosx_x64 ;;
   *) echo "unsupported Grpc.Tools platform" >&2; exit 1 ;;
 esac
 grpc_plugin="${nuget_root}/grpc.tools/2.76.0/tools/${grpc_platform}/grpc_csharp_plugin"

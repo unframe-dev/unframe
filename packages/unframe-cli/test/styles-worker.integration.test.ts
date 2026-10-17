@@ -96,10 +96,10 @@ it.each(["CSS", "Css"])(
 );
 it("executes relocated real Tailwind native dependencies with a stable production cwd", async () => {
   const snapshot = await fixture(
-    `if(process.cwd()!=='/worker/project'||process.env.NODE_ENV!=='production') throw Error('environment'); export default {plugins:{'@tailwindcss/postcss':{optimize:true}}};`,
+    `import {dirname} from 'node:path'; import {fileURLToPath} from 'node:url'; if(process.cwd()!==dirname(fileURLToPath(import.meta.url))||process.env.NODE_ENV!=='production') throw Error('environment'); export default {plugins:{'@tailwindcss/postcss':{optimize:true}}};`,
   );
   const first = await runStyleWorker(snapshot, { entries: ["input.css"] });
-  expect(first).toMatchObject({
+  expect(first, JSON.stringify(first)).toMatchObject({
     ok: true,
     stylesheets: [{ entry: "input.css", css: expect.stringContaining("display:flex") }],
   });

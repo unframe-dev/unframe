@@ -213,6 +213,7 @@ describe("React frozen CLI path", () => {
     expect(checked.stderr).toBe("");
     expect(checked.stdout).toBe("check: ok\n");
     vi.stubEnv("UNFRAME_BWRAP_PATH", "");
+    vi.stubEnv("UNFRAME_OPAQUE_NODE", "");
     let opened = false;
     const built = await runPresentationCli({
       args: ["build", directory],

@@ -3,6 +3,14 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { isAbsolute } from "node:path";
 
+export type PosixFileStat = {
+  mtimeMs: number;
+  dev: number;
+  ino: number;
+  uid: number;
+  mode: number;
+};
+
 export class PosixCacheUnavailableError extends Error {
   override readonly name = "PosixCacheUnavailableError";
 }
@@ -60,10 +68,13 @@ export const createPosixCacheSession = () => {
         fd: id,
         close: () => call({ op: "close", id }),
         sync: () => call({ op: "sync", id }),
-        stat: async () => (await call({ op: "stat", id })) as { mtimeMs: number },
+        stat: async () => (await call({ op: "stat", id })) as PosixFileStat,
       };
     },
-    mkdir: (path: string) => call({ op: "mkdir", path }),
+    mkdir: (path: string, options?: { mode?: number }) =>
+      call({ op: "mkdir", path, mode: options?.mode ?? 0o700 }),
+    lstat: async (path: string) => (await call({ op: "lstat", path })) as PosixFileStat,
+    unlink: (path: string) => call({ op: "unlink", path }),
     rename: (path: string, target: string) => call({ op: "rename", path, target }),
     rm: (path: string) => call({ op: "remove", path }),
     async readdir(path: string) {
@@ -75,8 +86,8 @@ export const createPosixCacheSession = () => {
     },
     read: async (path: string, limit: number) =>
       new Uint8Array(Buffer.from((await call({ op: "read", path, limit })) as string, "base64")),
-    write: (path: string, bytes: Uint8Array) =>
-      call({ op: "write", path, bytes: Buffer.from(bytes).toString("base64") }),
+    write: (path: string, bytes: Uint8Array, mode = 0o600) =>
+      call({ op: "write", path, bytes: Buffer.from(bytes).toString("base64"), mode }),
     async close() {
       fail(new Error("POSIX cache session closed"));
       child.stdin.end();

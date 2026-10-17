@@ -1,4 +1,14 @@
-import { mkdtemp, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  chmod,
+  symlink,
+  readFile,
+  readdir,
+  rm,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,6 +16,7 @@ import {
   AuthorTransactionConflict,
   commitAuthorPair,
   readAuthorReceipt,
+  prepareAuthorStorage,
   recoverAuthorTransactions,
 } from "../src/author/save-transaction.js";
 
@@ -43,6 +54,22 @@ const input = (root: string) => ({
 });
 
 describe("author source transaction", () => {
+  it("rejects a symlink in the author storage ancestry", async () => {
+    const root = await fixture();
+    await mkdir(join(root, "outside"), { mode: 0o700 });
+    await symlink(join(root, "outside"), join(root, ".unframe", "authoring"));
+    await expect(prepareAuthorStorage(root)).rejects.toThrow("unsafe");
+    expect(await readdir(join(root, "outside"))).toEqual([]);
+  });
+
+  it("rejects author storage with public permissions", async () => {
+    const root = await fixture();
+    await prepareAuthorStorage(root);
+    await chmod(join(root, ".unframe", "authoring"), 0o755);
+    await expect(commitAuthorPair(input(root))).rejects.toThrow("permissions are unsafe");
+    expect(await readFile(join(root, "presentation.unframe.tsx"), "utf8")).toBe("before source");
+  });
+
   it("persists the pair and a durable receipt", async () => {
     const root = await fixture();
     await commitAuthorPair(input(root));

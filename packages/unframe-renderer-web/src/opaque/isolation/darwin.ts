@@ -18,23 +18,34 @@ const PIDS_MAX = 128;
 const SAMPLE_MS = 50;
 
 export const darwinResourceContract = {
-  mechanism: "seatbelt-process-group-monitor",
+  mechanism: "seatbelt-descendant-process-group-monitor",
   memoryBytes: MEMORY_MAX,
   processes: PIDS_MAX,
   samplingIntervalMs: SAMPLE_MS,
   hardSubtreeLimits: false,
   limitations: [
     "RSS sampling can miss transient allocations and forks; scheduling and ps latency delay enforcement",
-    "processes that leave the process group cannot be accounted for or recovered by group kill",
+    "descendants that leave known groups and become reparented between samples can escape accounting and group cleanup",
+    "PID/PGID reuse and process-group changes between inspection and signaling are not atomically fenced",
     "sandbox-exec is deprecated; policy and Chromium compatibility require native validation",
   ],
 } as const;
 
 export const darwinSandboxProfile = (readPaths: readonly string[], scratch: string): string => {
   const literal = (path: string) => JSON.stringify(path);
+  const ancestors = new Set<string>();
+  for (const path of [...readPaths, scratch]) {
+    for (let parent = dirname(path); parent !== "/" && parent !== "."; parent = dirname(parent)) {
+      ancestors.add(parent);
+    }
+  }
   return [
     "(version 1)",
     "(deny default)",
+    // Node initialization reads the filesystem root; descendants remain denied.
+    '(allow file-read* (literal "/"))',
+    // Node resolves each ancestor with lstat before loading the worker entry point.
+    ...[...ancestors].map((path) => `(allow file-read-metadata (literal ${literal(path)}))`),
     "(allow process-fork)",
     ...readPaths.map((path) => `(allow process-exec (subpath ${literal(path)}))`),
     ...readPaths.map((path) => `(allow file-read* (subpath ${literal(path)}))`),
@@ -48,24 +59,108 @@ export const darwinSandboxProfile = (readPaths: readonly string[], scratch: stri
   ].join("\n");
 };
 
+export type DarwinProcessTracking = {
+  rootActive: boolean;
+  retiredGroups: Set<number>;
+  supervisorPid: number;
+};
+
 export const parseProcessGroup = (
   output: string,
-  group: number,
+  rootPid: number,
+  groups = new Set([rootPid]),
+  state: DarwinProcessTracking = {
+    rootActive: groups.has(rootPid),
+    retiredGroups: new Set(),
+    supervisorPid: process.pid,
+  },
 ): { pids: number[]; rssBytes: number } => {
-  const pids: number[] = [];
-  let rssBytes = 0;
+  const rows: { pid: number; ppid: number; pgid: number; rss: number }[] = [];
   for (const line of output.trim().split("\n")) {
     if (!line.trim()) continue;
     const values = line.trim().split(/\s+/).map(Number);
-    if (values.length !== 3 || values.some((value) => !Number.isSafeInteger(value) || value < 0))
+    if (values.length !== 4 || values.some((value) => !Number.isSafeInteger(value) || value < 0))
       throw unavailable("process group accounting is unavailable");
-    const [pid, pgid, rss] = values as [number, number, number];
-    if (pgid === group) {
-      pids.push(pid);
-      rssBytes += rss * 1024;
+    const [pid, ppid, pgid, rss] = values as [number, number, number, number];
+    if (!pid || !pgid) throw unavailable("process group accounting is unavailable");
+    rows.push({ pid, ppid, pgid, rss });
+  }
+  const supervisorGroup = rows.find((row) => row.pid === state.supervisorPid)?.pgid;
+  const root = rows.find((row) => row.pid === rootPid);
+  const rootChangedGroup = state.rootActive && root && root.pgid !== rootPid;
+  let unsafeKnownGroup = false;
+  // Invalid samples may shrink signal authority, but cannot grant authority over a new group.
+  for (const group of groups) {
+    const unsafe = group <= 1 || group === supervisorGroup || state.retiredGroups.has(group);
+    const present = rows.some(
+      (row) => row.pgid === group && (row.pid !== rootPid || state.rootActive),
+    );
+    if (unsafe || !present) {
+      groups.delete(group);
+      state.retiredGroups.add(group);
+    }
+    if (unsafe) unsafeKnownGroup = true;
+  }
+  if (!root || rootChangedGroup || !groups.has(rootPid)) state.rootActive = false;
+  if (rootChangedGroup || unsafeKnownGroup) throw unavailable("unsafe process group");
+  const selected = new Set(
+    rows
+      .filter((row) => groups.has(row.pgid) && (row.pid !== rootPid || state.rootActive))
+      .map((row) => row.pid),
+  );
+  const nextGroups = new Set<number>();
+  let expanded = true;
+  while (expanded) {
+    // Resolve ancestry before validating group leaders so ps row order has no authority.
+    let descendantsExpanded = true;
+    while (descendantsExpanded) {
+      descendantsExpanded = false;
+      for (const row of rows) {
+        if (selected.has(row.pid) || (row.pid === rootPid && !state.rootActive)) continue;
+        if (selected.has(row.ppid)) {
+          selected.add(row.pid);
+          descendantsExpanded = true;
+        }
+      }
+    }
+    for (const row of rows.filter((item) => selected.has(item.pid))) {
+      if (
+        row.pgid <= 1 ||
+        row.pgid === supervisorGroup ||
+        state.retiredGroups.has(row.pgid) ||
+        (!groups.has(row.pgid) &&
+          !rows.some(
+            (leader) =>
+              selected.has(leader.pid) && leader.pid === row.pgid && leader.pgid === row.pgid,
+          ))
+      )
+        throw unavailable("unsafe process group");
+      nextGroups.add(row.pgid);
+    }
+    expanded = false;
+    for (const row of rows) {
+      if (
+        !selected.has(row.pid) &&
+        nextGroups.has(row.pgid) &&
+        (row.pid !== rootPid || state.rootActive)
+      ) {
+        selected.add(row.pid);
+        expanded = true;
+      }
     }
   }
-  return { pids, rssBytes };
+  const tracked = rows.filter((row) => selected.has(row.pid));
+  // Grant new group authority only after every candidate is validated.
+  for (const group of groups) {
+    if (!nextGroups.has(group)) state.retiredGroups.add(group);
+  }
+  groups.clear();
+  for (const group of nextGroups) groups.add(group);
+  if (!root || !selected.has(rootPid)) state.rootActive = false;
+  return {
+    pids: tracked.map((row) => row.pid),
+    rssBytes: tracked.reduce((total, row) => total + row.rss * 1024, 0),
+  };
 };
 
 export const verifyDarwinGroupSample = (
@@ -82,14 +177,14 @@ export const verifyDarwinGroupSample = (
     );
 };
 
-const groupUsage = (pid: number) => {
-  const result = spawnSync("/bin/ps", ["-axo", "pid=,pgid=,rss="], {
+const groupUsage = (pid: number, groups: Set<number>, state: DarwinProcessTracking) => {
+  const result = spawnSync("/bin/ps", ["-axo", "pid=,ppid=,pgid=,rss="], {
     encoding: "utf8",
     timeout: 1000,
     env: {},
   });
   if (result.error || result.status !== 0) throw unavailable("process group accounting failed");
-  return parseProcessGroup(result.stdout, pid);
+  return parseProcessGroup(result.stdout, pid, groups, state);
 };
 
 const pinnedRoot = (path: string): string => {
@@ -153,7 +248,13 @@ export const runDarwinOpaqueWorker = async (
   const probeRoot = realpathSync(mkdtempSync(join(tmpdir(), "unframe-opaque-deny-")));
   const deniedFile = join(probeRoot, "secret");
   let child: ChildProcess | undefined;
-  let closed: Promise<void> | undefined;
+  let didClose = false;
+  const groups = new Set<number>();
+  const tracking: DarwinProcessTracking = {
+    rootActive: true,
+    retiredGroups: new Set(),
+    supervisorPid: process.pid,
+  };
   let timer: ReturnType<typeof setTimeout> | undefined;
   let monitor: ReturnType<typeof setInterval> | undefined;
   let result: unknown;
@@ -185,10 +286,14 @@ export const runDarwinOpaqueWorker = async (
       stdio: ["pipe", "pipe", "pipe"],
     });
     const running = child;
-    closed = new Promise((done) => running.once("close", done));
+    running.once("close", () => {
+      didClose = true;
+      tracking.rootActive = false;
+    });
+    if (running.pid) groups.add(running.pid);
     const check = (phase: "ready" | "result" | "monitor" = "monitor") => {
       if (!running.pid) throw unavailable("sandbox worker did not start");
-      verifyDarwinGroupSample(groupUsage(running.pid), running.pid, phase);
+      verifyDarwinGroupSample(groupUsage(running.pid, groups, tracking), running.pid, phase);
     };
     const supervision = new Promise<never>((_, reject) => {
       timer = setTimeout(
@@ -212,36 +317,47 @@ export const runDarwinOpaqueWorker = async (
       workerProtocol(running, check, input.input, options.signal),
       supervision,
     ]);
-    running.stdin?.end();
   } catch (error) {
     failure = error;
   } finally {
     if (timer) clearTimeout(timer);
     if (monitor) clearInterval(monitor);
     if (child?.pid) {
+      const rootPid = child.pid;
+      const killGroups = () => {
+        for (const group of groups) {
+          try {
+            process.kill(-group, "SIGKILL");
+          } catch (error) {
+            // Darwin can return EPERM for an exiting group; the following ps/close check is authoritative.
+            if (!["ESRCH", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? ""))
+              cleanupFailed = true;
+          }
+        }
+      };
+      // Sample before ending stdin or killing the root so detached children still have ancestry.
       try {
-        process.kill(-child.pid, "SIGKILL");
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ESRCH") cleanupFailed = true;
-      }
-      const deadline = Date.now() + CLOSE_GRACE_MS;
-      try {
-        while (groupUsage(child.pid).pids.length && Date.now() < deadline)
-          await new Promise((done) => setTimeout(done, 20));
-        if (groupUsage(child.pid).pids.length) cleanupFailed = true;
+        groupUsage(rootPid, groups, tracking);
       } catch {
         cleanupFailed = true;
       }
-      if (closed) {
-        let closeTimer: ReturnType<typeof setTimeout> | undefined;
-        const didClose = await Promise.race([
-          closed.then(() => true),
-          new Promise<false>((done) => {
-            closeTimer = setTimeout(() => done(false), CLOSE_GRACE_MS);
-          }),
-        ]);
-        if (closeTimer) clearTimeout(closeTimer);
-        if (!didClose) cleanupFailed = true;
+      killGroups();
+      const deadline = Date.now() + CLOSE_GRACE_MS;
+      while (true) {
+        let empty = false;
+        try {
+          empty = groupUsage(rootPid, groups, tracking).pids.length === 0;
+        } catch {
+          cleanupFailed = true;
+        }
+        killGroups();
+        if (empty && didClose) break;
+        if (Date.now() >= deadline) {
+          cleanupFailed = true;
+          break;
+        }
+        // Yield so Node can reap the root and deliver close before the next ps sample.
+        await new Promise((done) => setTimeout(done, 20));
       }
     }
     for (const path of [scratch, probeRoot]) {

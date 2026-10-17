@@ -35,6 +35,10 @@ def remove(parent, name):
     os.rmdir(name, dir_fd=parent)
 
 
+def stat_info(value):
+    return {"mtimeMs": value.st_mtime_ns / 1000000, "dev": value.st_dev, "ino": value.st_ino, "uid": value.st_uid, "mode": value.st_mode}
+
+
 def execute(request):
     global next_id
     op = request['op']
@@ -52,14 +56,18 @@ def execute(request):
         elif op == 'sync':
             os.fsync(fd)
         else:
-            return {'mtimeMs': os.fstat(fd).st_mtime_ns / 1000000}
+            return stat_info(os.fstat(fd))
         return None
     if op == 'list':
         fd = handles[request['id']]
         return [{'name': name, 'directory': stat.S_ISDIR(os.stat(name, dir_fd=fd, follow_symlinks=False).st_mode)} for name in os.listdir(fd)]
     parent, name = address(request['path'])
     if op == 'mkdir':
-        os.mkdir(name, 0o700, dir_fd=parent)
+        os.mkdir(name, request.get('mode', 0o700), dir_fd=parent)
+    elif op == 'lstat':
+        return stat_info(os.stat(name, dir_fd=parent, follow_symlinks=False))
+    elif op == 'unlink':
+        os.unlink(name, dir_fd=parent)
     elif op == 'remove':
         remove(parent, name)
     elif op == 'rename':
@@ -85,7 +93,7 @@ def execute(request):
         finally:
             os.close(fd)
     elif op == 'write':
-        fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent)
+        fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, request.get('mode', 0o600), dir_fd=parent)
         try:
             data = memoryview(base64.b64decode(request['bytes'], validate=True))
             while data:
