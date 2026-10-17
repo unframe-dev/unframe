@@ -73,7 +73,9 @@ pnpm --filter @unframe/web run test:e2e
 nix run .#local-editor-e2e
 ```
 
-unit/component test は Source 保存、外部変更、最新 Preview 要求、commit 完了通知、公開認証を検査します。通常の Playwright E2E と Local Editor の実 WebGL／native Unity／実サービス E2E は別の検証です。後者の前提と生成物は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照してください。2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha と Transform 保存後の画素変化を確認しました。ローカル実 Control Plane／R2／Realtime と native Unity を通す公開 E2E も成功し、Snapshot／StateReady と実画素を確認しました。
+テストの粒度は [CONTRIBUTING のテスト方針](../../CONTRIBUTING.md#テストと品質ゲート) に従います。既存 model の変換と Preview 制御は `.test.ts`、主要操作の配線は Playwright E2E で確認します。component 内に状態を持つ Source 保存・再試行・undo、更新に伴う選択や公開可否などは、React の回帰テストとして必要な `.test.tsx` を残します。
+
+通常の Playwright E2E と Local Editor の実 WebGL／native Unity／実サービス E2E は別の検証です。後者の前提と生成物は [scripts README](../../scripts/README.md#local-editor-と-unity) を参照してください。2026-10-07 に実 WebGL の Structured／Opaque Dev・Dist 描画、contain／alpha と Transform 保存後の画素変化を確認しました。ローカル実 Control Plane／R2／Realtime と native Unity を通す公開 E2E も成功し、Snapshot／StateReady と実画素を確認しました。
 
 ## Cloudflare 配信
 
