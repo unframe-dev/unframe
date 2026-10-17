@@ -1,3 +1,4 @@
+import { withNativeFilesystem } from "./native-filesystem.js";
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
 import { lstat, readlink } from "node:fs/promises";
@@ -173,7 +174,7 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
   };
 };
 
-export const discoverPresentationProjectFiles = async (
+const discoverPresentationProjectFilesWithinScope = async (
   directory: string,
   options: { sourceLeaseHeld?: boolean; waitTimeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<DiscoveredProjectFiles> => {
@@ -192,3 +193,6 @@ export const discoverPresentationProjectFiles = async (
     await lease.value.release();
   }
 };
+
+export const discoverPresentationProjectFiles: typeof discoverPresentationProjectFilesWithinScope =
+  (...args) => withNativeFilesystem(() => discoverPresentationProjectFilesWithinScope(...args));

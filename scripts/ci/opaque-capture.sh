@@ -26,6 +26,8 @@ if [ -z "${UNFRAME_OPAQUE_CGROUP_ROOT:-}" ]; then
   exec "${repo_root}/scripts/dev/opaque-capture-scope.sh" "${repo_root}/scripts/ci/opaque-capture.sh"
 fi
 
+bash "${repo_root}/scripts/build-cli-filesystem.sh"
+
 pnpm --dir "${repo_root}" --filter @unframe/unframe-tailwind run build
 
 pnpm --dir "${repo_root}" --filter @unframe/unframe-renderer-web exec vp test run --maxWorkers=1 \

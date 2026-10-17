@@ -33,6 +33,18 @@ const createBuild = async () => {
   return directory;
 };
 describe("fixed build generation", () => {
+  it.each([
+    ["checksum", new Uint8Array(64)],
+    ["encoded size", new Uint8Array(63)],
+  ] as const)("rejects an asset with mismatched %s", async (_kind, bytes) => {
+    const directory = await createBuild();
+    const fixed = await readBuildGeneration(directory, { channel: "dist" });
+    await writeFile(
+      join(directory, ".unframe/generations", fixed.generationId, "assets/texture.png"),
+      bytes,
+    );
+    await expect(fixed.readAsset("texture")).rejects.toThrow(/asset/);
+  });
   it("pins verified artifacts even after the current pointer changes", async () => {
     const directory = await createBuild();
     const fixed = await readBuildGeneration(directory, { channel: "dist" });

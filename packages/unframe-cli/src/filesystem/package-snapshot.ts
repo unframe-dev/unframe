@@ -1,3 +1,4 @@
+import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { join, posix } from "node:path";
@@ -374,7 +375,7 @@ const packageFiles = async (root: string): Promise<LockedFile[]> => {
 };
 
 /** Reads only an explicitly installed pnpm graph; never evaluates package or lifecycle code. */
-export const snapshotInstalledPackages = async (
+const snapshotInstalledPackagesWithinScope = async (
   root: string,
   options: { rootSpecifiers?: readonly string[] } = {},
 ): Promise<{
@@ -514,3 +515,6 @@ export const snapshotInstalledPackages = async (
     packages: [...packages.values()].sort((a, b) => compare(a.key, b.key)),
   };
 };
+
+export const snapshotInstalledPackages: typeof snapshotInstalledPackagesWithinScope = (...args) =>
+  withNativeFilesystem(() => snapshotInstalledPackagesWithinScope(...args));

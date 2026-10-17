@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./isolation": "./src/opaque/isolation/run-isolated-opaque-worker.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -18,6 +17,7 @@
     "@noble/hashes": "2.3.0",
     "@unframe/unframe-core": "workspace:*",
     "@unframe/unframe-renderer-api": "workspace:*",
+    "@unframe/unframe-worker-host": "workspace:*",
     "playwright-core": "1.62.1",
     "pngjs": "7.0.0",
     "rolldown": "1.1.5",

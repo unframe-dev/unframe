@@ -2,6 +2,7 @@
 set -euo pipefail
 umask 077
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+bash "$root/scripts/build-cli-filesystem.sh"
 state="$root/.unframe/unity-preview/e2e/$(date +%Y%m%dT%H%M%S)-$$"
 mkdir -p "$state"
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -keyout "$state/ca-key.pem" \

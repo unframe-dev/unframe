@@ -16,6 +16,7 @@ import {
 } from "@unframe/unframe-core";
 import {
   declarationProjectEnvelopeSchema,
+  structuredSceneEnvelopeSchema,
   declarationProjectFieldKeysSchema,
 } from "../validation/project-schemas.js";
 import { safePlainClone } from "../validation/safe-plain-clone.js";
@@ -62,6 +63,11 @@ const checkDeclarationProjectUnchecked = (
 ): ValidationResult<CheckedDeclarationProject> => {
   const cloned = safePlainClone(input);
   if (!cloned.valid) return cloned;
+  if (cloned.value === null || typeof cloned.value !== "object" || Array.isArray(cloned.value))
+    return {
+      valid: false,
+      diagnostics: [diagnostic("compiler-invalid-input", [], "Project must be a plain object.")],
+    };
   if (
     !declarationProjectFieldKeysSchema.safeParse(Object.keys(cloned.value as UnknownRecord)).success
   )
@@ -89,6 +95,18 @@ const checkDeclarationProjectUnchecked = (
       project as Parameters<typeof resolveOpaqueProject>[0],
       cloned.value,
     );
+  const sceneEnvelope = structuredSceneEnvelopeSchema.safeParse(project.presentation.scene);
+  if (!sceneEnvelope.success)
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic(
+          "compiler-invalid-declaration",
+          ["presentation"],
+          "Declaration failed Authoring SDK validation.",
+        ),
+      ],
+    };
   const mixedScene = project.presentation.scene as PresentationDeclaration["scene"];
   const reactItems = (mixedScene.components as readonly unknown[]).filter(
     (item): item is StaticReactSceneItem =>
@@ -107,6 +125,22 @@ const checkDeclarationProjectUnchecked = (
             "compiler-duplicate-component-instance-id",
             ["presentation", "scene", "components"],
             "Component Instance IDs must be unique across Structured and React Components.",
+          ),
+        ],
+      };
+    if (
+      !isPresentationDeclaration({
+        ...project.presentation,
+        scene: { ...mixedScene, components: structuredItems },
+      })
+    )
+      return {
+        valid: false,
+        diagnostics: [
+          diagnostic(
+            "compiler-invalid-declaration",
+            ["presentation"],
+            "Declaration failed Authoring SDK validation.",
           ),
         ],
       };
@@ -1152,15 +1186,4 @@ const checkDeclarationProjectUnchecked = (
 
 export const checkDeclarationProject = (
   input: unknown,
-): ValidationResult<CheckedDeclarationProject> => {
-  try {
-    return checkDeclarationProjectUnchecked(input);
-  } catch {
-    return {
-      valid: false,
-      diagnostics: [
-        diagnostic("compiler-invalid-input", [], "Project input could not be inspected safely."),
-      ],
-    };
-  }
-};
+): ValidationResult<CheckedDeclarationProject> => checkDeclarationProjectUnchecked(input);

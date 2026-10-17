@@ -1,4 +1,6 @@
 import * as ts from "typescript";
+import { cssDependencies } from "../syntax/css-dependencies.js";
+import { localCssDependency } from "./css-url-policy.js";
 import type { ValidationResult } from "@unframe/unframe-core";
 import type { CompilerDeclarationProject } from "../api/types.js";
 import { parseAuthoringProject } from "../project/parse-authoring-project.js";
@@ -124,12 +126,6 @@ const imports = (path: string, source: string) => {
   if (jsx) found.push({ specifier: "react/jsx-runtime", kind: "import" });
   return found;
 };
-const cssImports = (source: string) =>
-  [
-    ...source.matchAll(
-      /(?:@import\s+(?:url\(\s*)?["']([^"']+)["']|url\(\s*["']?([^"')\s]+)["']?\s*\))/g,
-    ),
-  ].map((match) => ({ specifier: match[1] ?? match[2]!, kind: "import" as const }));
 
 export const prepareLockedOpaqueBundleInput = (
   sourceInput: unknown,
@@ -281,10 +277,15 @@ export const prepareLockedOpaqueBundleInput = (
         ...(prepared?.sourceMap === undefined ? {} : { sourceMap: prepared.sourceMap }),
       });
       const dependencies =
-        kind === "css" ? cssImports(text!) : kind === "asset" ? [] : imports(logicalPath, text!);
+        kind === "css"
+          ? cssDependencies(text!)
+          : kind === "asset"
+            ? []
+            : imports(logicalPath, text!);
       for (const dependency of dependencies) {
-        if (kind === "css" && dependency.specifier.startsWith("#")) continue;
-        const specifier = dependency.specifier;
+        const specifier =
+          kind === "css" ? localCssDependency(dependency.specifier) : dependency.specifier;
+        if (specifier === undefined) continue;
         const key = `${path}\0${specifier}\0${dependency.kind}`;
         if (resolutions.has(key)) continue;
         let targetPath: string;

@@ -1,3 +1,4 @@
+import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
 import { lstat, readlink } from "node:fs/promises";
 import { join } from "node:path";
@@ -23,7 +24,7 @@ const extensions: Readonly<Record<string, string>> = {
   "model/gltf-binary": "glb",
 };
 
-export const readBuildGeneration = async (
+const readBuildGenerationWithinScope = async (
   directory: string,
   input: { channel: OutputChannel; generationId?: string },
 ): Promise<FixedBuildGeneration> => {
@@ -94,3 +95,6 @@ export const readBuildGeneration = async (
     },
   };
 };
+
+export const readBuildGeneration: typeof readBuildGenerationWithinScope = (...args) =>
+  withNativeFilesystem(() => readBuildGenerationWithinScope(...args));

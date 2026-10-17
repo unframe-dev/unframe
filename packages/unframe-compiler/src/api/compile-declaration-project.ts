@@ -1,3 +1,4 @@
+import { CompilerInternalError, type CompilerStage } from "./compiler-internal-error.js";
 import { PNG_ENCODER_IDENTITY, encodeRgbaToPng } from "@unframe/unframe-assets";
 import {
   canonicalizeJsonPayload,
@@ -139,13 +140,15 @@ const planOpaqueSurface = (
 const compileUnchecked = async (
   input: unknown,
   options: unknown,
-  checkedOverride?: CheckedDeclarationProject,
-  cache?: CompilerBuildCache,
+  checkedOverride: CheckedDeclarationProject | undefined,
+  cache: CompilerBuildCache | undefined,
+  context: { stage: CompilerStage },
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
   const checked = checkedOverride
     ? { valid: true as const, value: checkedOverride, diagnostics: [] as const }
     : checkDeclarationProject(input);
   if (!checked.valid) return checked;
+  context.stage = "input";
   const optionsSnapshot = safeBuildOptionsSnapshot(options);
   if (!optionsSnapshot.valid) return optionsSnapshot;
   const parsedOptions = compilerBuildOptionsSchema.safeParse(optionsSnapshot.value);
@@ -176,6 +179,7 @@ const compileUnchecked = async (
     ? (themeId as string)
     : resourceId("theme", themeId ?? "opaque-no-theme");
 
+  context.stage = "renderer-validation";
   const rendererDiagnostics: Diagnostic[] = [];
   for (const [index, candidate] of buildOptions.renderers.entries())
     for (const item of validateRendererPlugin(candidate))
@@ -217,6 +221,7 @@ const compileUnchecked = async (
     pngEncoder: PNG_ENCODER_IDENTITY,
     rendererFingerprint,
   });
+  context.stage = "cache";
   const cacheKey = cache
     ? hashCanonicalJsonPayload({
         cacheVersion: 1,
@@ -253,6 +258,7 @@ const compileUnchecked = async (
     if (cached) return { valid: true, value: cached, diagnostics: [] };
   }
 
+  context.stage = "planning";
   const assets: Record<string, Uint8Array> = {};
   const fontAssets: Record<
     string,
@@ -444,6 +450,7 @@ const compileUnchecked = async (
     const partitions = surfacePlan.partitions;
     const renderSurfaces: RenderBundle["surfaces"][string]["renderSurfaces"] = {};
     for (const { plan, pixelTarget } of partitions) {
+      context.stage = "planning";
       const renderSurfaceId = plan.id;
       const opaqueRendererHash = opaqueRendererHashes.get(surfaceId);
       const inputHash = hashCanonicalJsonPayload({
@@ -469,6 +476,7 @@ const compileUnchecked = async (
         themeId: bundleThemeId,
         timezone: buildOptions.timezone,
       });
+      context.stage = "rendering";
       const rendered = await executeRendererPlugin(renderer, {
         surface,
         sourceIntent: surface.renderIntent,
@@ -542,6 +550,7 @@ const compileUnchecked = async (
             surfaceId,
             capture.stateId,
           ]);
+        context.stage = "encoding";
         const encoded = encodeRgbaToPng({
           sourceId: `${surfaceId}:${capture.id}`,
           rgba: capture.rgba,
@@ -633,6 +642,7 @@ const compileUnchecked = async (
     };
   }
 
+  context.stage = "artifacts";
   const bundle: RenderBundle = {
     schemaVersion: 2,
     bundleId: `b:${hashCanonicalJsonPayload({ sourceHash: checked.value.sourceHash, definitionHash: checked.value.definitionHash, environmentHash, locale: buildOptions.locale, timezone: buildOptions.timezone, colorScheme: buildOptions.colorScheme, themeId: bundleThemeId, themeHash, rendererConfigHash: buildOptions.rendererConfigHash, textureBuildPolicy: POLICY }).slice(7)}`,
@@ -710,20 +720,29 @@ const compileUnchecked = async (
   };
 };
 
+const compileWithErrors = async (
+  input: unknown,
+  options: unknown,
+  checked: CheckedDeclarationProject | undefined,
+  cache: CompilerBuildCache | undefined,
+): Promise<ValidationResult<CompiledDeclarationProject>> => {
+  const context: { stage: CompilerStage } = { stage: "check" };
+  try {
+    return await compileUnchecked(input, options, checked, cache, context);
+  } catch (cause) {
+    throw new CompilerInternalError(context.stage, cause);
+  }
+};
+
 export const compileCheckedDeclarationProject = (
   project: CompilerDeclarationProject,
   checked: CheckedDeclarationProject,
   options: unknown,
   cache?: CompilerBuildCache,
-) => compileUnchecked(project, options, checked, cache);
-export const compileDeclarationProject = async (
+) => compileWithErrors(project, options, checked, cache);
+export const compileDeclarationProject = (
   input: unknown,
   options: unknown,
   cache?: CompilerBuildCache,
-): Promise<ValidationResult<CompiledDeclarationProject>> => {
-  try {
-    return await compileUnchecked(input, options, undefined, cache);
-  } catch {
-    return failure("compiler-invalid-input", [], "Compiler input could not be inspected safely.");
-  }
-};
+): Promise<ValidationResult<CompiledDeclarationProject>> =>
+  compileWithErrors(input, options, undefined, cache);

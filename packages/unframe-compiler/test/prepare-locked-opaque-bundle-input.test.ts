@@ -395,3 +395,114 @@ it("resolves transformed imported CSS asset URLs from the output entry directory
   );
   expect(result.value.stylesheets).toEqual(["project/styles/main.css"]);
 });
+
+it("ignores CSS comments and content strings while resolving escaped mixed-case dependencies", () => {
+  const css = String.raw`/* @import "./missing.css"; url(./absent.png) */
+    @\69mport "./base.css";
+    .hero { content: 'url(./content.png)'; background: U\52L("./lo\67 o.png"); }`;
+  const png = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
+  const rawFiles = [
+    { path: "style.css", mediaType: "text/css", encoding: "utf8", data: css, hash: digest(css) },
+    { path: "base.css", mediaType: "text/css", encoding: "utf8", data: "", hash: digest("") },
+    {
+      path: "logo.png",
+      mediaType: "image/png",
+      encoding: "base64",
+      data: btoa(String.fromCharCode(...png)),
+      hash: `sha256:${bytesToHex(sha256(png))}`,
+    },
+  ];
+  const result = prepareLockedOpaqueBundleInput({ ...source, rawFiles }, {
+    ...component,
+    rendererSource: 'import "./style.css"; export const render = () => null;',
+  } as never);
+  expect(result.valid ? result.value.resolutions : result.diagnostics).toEqual(
+    expect.arrayContaining([
+      {
+        importerPath: "project/style.css",
+        specifier: "./base.css",
+        kind: "import",
+        targetPath: "project/base.css",
+      },
+      {
+        importerPath: "project/style.css",
+        specifier: "./logo.png",
+        kind: "import",
+        targetPath: "project/logo.png",
+      },
+    ]),
+  );
+});
+
+it.each([
+  "https://example.test/image.png",
+  "//example.test/image.png",
+  "/image.png",
+  "data:image/png,bytes",
+  "image.png?version=1",
+])("rejects a CSS dependency outside the locked relative URL policy: %s", (url) => {
+  const css = `.hero { background: url("${url}") }`;
+  const result = prepareLockedOpaqueBundleInput(
+    {
+      ...source,
+      rawFiles: [
+        {
+          path: "style.css",
+          mediaType: "text/css",
+          encoding: "utf8",
+          data: css,
+          hash: digest(css),
+        },
+      ],
+    },
+    {
+      ...component,
+      rendererSource: 'import "./style.css"; export const render = () => null;',
+    } as never,
+  );
+  expect(result).toMatchObject({
+    valid: false,
+    diagnostics: [{ code: "compiler-opaque-bundle-input-invalid" }],
+  });
+});
+
+it("resolves URLs inside grouped supports without interpreting the condition grammar", () => {
+  const css = `@IMPORT URL("./base.css") layer(base) supports(background: url("./condition.png"));
+    @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or (-moz-orient: inline) {
+      @media (width >= 1px) {
+        .hero { background: url("./logo.png"); mask-image: URL(./logo.png); content: 'url(./missing.png)'; }
+      }
+    }`;
+  const png = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
+  const rawFiles = [
+    { path: "style.css", mediaType: "text/css", encoding: "utf8", data: css, hash: digest(css) },
+    { path: "base.css", mediaType: "text/css", encoding: "utf8", data: "", hash: digest("") },
+    {
+      path: "logo.png",
+      mediaType: "image/png",
+      encoding: "base64",
+      data: btoa(String.fromCharCode(...png)),
+      hash: `sha256:${bytesToHex(sha256(png))}`,
+    },
+  ];
+  const result = prepareLockedOpaqueBundleInput({ ...source, rawFiles }, {
+    ...component,
+    rendererSource: 'import "./style.css"; export const render = () => null;',
+  } as never);
+  expect(result.valid ? result.value.resolutions : result.diagnostics).toEqual(
+    expect.arrayContaining([
+      {
+        importerPath: "project/style.css",
+        specifier: "./base.css",
+        kind: "import",
+        targetPath: "project/base.css",
+      },
+      {
+        importerPath: "project/style.css",
+        specifier: "./logo.png",
+        kind: "import",
+        targetPath: "project/logo.png",
+      },
+    ]),
+  );
+});

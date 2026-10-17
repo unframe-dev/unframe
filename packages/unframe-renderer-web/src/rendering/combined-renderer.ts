@@ -1,5 +1,6 @@
 import {
   createRendererFingerprint,
+  prepareRendererPlugin,
   executeRendererPlugin,
   prepareRendererBuildInput,
   type RendererPlugin,
@@ -11,6 +12,13 @@ export const combineBakedWebRenderers = (
   structured: RendererPlugin,
   opaque: RendererPlugin,
 ): RendererPlugin => {
+  const prepareChild = (child: RendererPlugin) => {
+    const prepared = prepareRendererPlugin(child);
+    if (!prepared.valid) throw new TypeError("Invalid child renderer plugin.");
+    return prepared.value;
+  };
+  structured = prepareChild(structured);
+  opaque = prepareChild(opaque);
   const identity = {
     id: "baked-web",
     version: "4",

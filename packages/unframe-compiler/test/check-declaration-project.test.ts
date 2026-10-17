@@ -16,6 +16,7 @@ import {
   canonicalizePresentationDefinition,
   validatePresentationDefinition,
 } from "@unframe/unframe-core";
+import { compileCheckedDeclarationProject } from "../src/api/compile-declaration-project.js";
 import { compileDeclarationProject, checkDeclarationProject } from "../src/index.js";
 import type { CompilerDeclarationProject, CompilerSourceAsset } from "../src/index.js";
 type StructuredProject = Omit<CompilerDeclarationProject, "presentation" | "components"> & {
@@ -143,6 +144,38 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
+  it.each(["\ud800", "\udc00"])(
+    "rejects a lone surrogate in lock metadata as input: %j",
+    (text) => {
+      const input = project();
+      input.components[0]!.lock.origin.sourceHash = text;
+      expect(checkDeclarationProject(input)).toMatchObject({
+        valid: false,
+        diagnostics: [
+          {
+            code: "compiler-invalid-input",
+            path: ["components", 0, "lock", "origin", "sourceHash"],
+          },
+        ],
+      });
+    },
+  );
+
+  it.each(["\ud800", "\udc00"])("rejects a lone surrogate object key as input: %j", (key) => {
+    const input = project();
+    Object.defineProperty(input.presentation.metadata, key, { value: "value", enumerable: true });
+    expect(checkDeclarationProject(input)).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "compiler-invalid-input", path: ["presentation", "metadata"] }],
+    });
+  });
+
+  it("accepts a well-formed surrogate pair in lock metadata", () => {
+    const input = project();
+    input.components[0]!.lock.origin.sourceHash = "\ud83d\ude00";
+    expect(checkDeclarationProject(input).valid).toBe(true);
+  });
+
   it("resolves Grid placement into partition bounds", () => {
     const input = project() as StructuredProject & {
       components: StructuredProject["components"][number][];
@@ -2352,6 +2385,18 @@ describe("checkDeclarationProject", () => {
 });
 
 describe("compileDeclarationProject", () => {
+  it.each(["\ud800", "\udc00"])(
+    "keeps lone-surrogate metadata on the input diagnostic boundary: %j",
+    async (text) => {
+      const input = project();
+      input.components[0]!.lock.origin.sourceHash = text;
+      await expect(compileDeclarationProject(input, {})).resolves.toMatchObject({
+        valid: false,
+        diagnostics: [{ code: "compiler-invalid-input" }],
+      });
+    },
+  );
+
   const renderer: RendererPlugin = {
     identity: {
       id: "baked-web",
@@ -3473,6 +3518,44 @@ describe("compileDeclarationProject", () => {
       );
   });
 
+  it("exposes internal failure stage and cause without including private data in the message", async () => {
+    const checked = checkDeclarationProject(project());
+    expect(checked.valid).toBe(true);
+    if (!checked.valid) return;
+    const cause = new Error("private source content");
+    const broken = Object.defineProperty({ ...checked.value }, "definition", {
+      get: () => {
+        throw cause;
+      },
+    });
+    await expect(
+      compileCheckedDeclarationProject(project(), broken, options()),
+    ).rejects.toMatchObject({
+      name: "CompilerInternalError",
+      code: "compiler-internal-error",
+      stage: "planning",
+      cause,
+      message: "Compiler failed during planning.",
+    });
+  });
+
+  it("rejects accessor cache metadata without evaluating it", async () => {
+    let reads = 0;
+    const entry = Object.defineProperty({}, "sourceHash", {
+      enumerable: true,
+      get: () => {
+        reads++;
+        return "private-source";
+      },
+    });
+    const result = await compileDeclarationProject(project(), options(), {
+      get: () => entry,
+      set: () => {},
+    });
+    expect(result.valid).toBe(true);
+    expect(reads).toBe(0);
+  });
+
   it("reuses valid cached builds and invalidates changed build context", async () => {
     const entries = new Map<string, unknown>();
     const cache = {
@@ -3494,6 +3577,18 @@ describe("compileDeclarationProject", () => {
       { ...options(), renderers: [counting] },
       cache,
     );
+    let bytePropertyReads = 0;
+    for (const entry of entries.values()) {
+      const assets = (entry as { assets: Record<string, Uint8Array> }).assets;
+      for (const bytes of Object.values(assets))
+        Object.defineProperty(bytes, "buffer", {
+          enumerable: true,
+          get: () => {
+            bytePropertyReads++;
+            throw new Error("must not read caller byte properties");
+          },
+        });
+    }
     const repeated = await compileDeclarationProject(
       project(),
       { ...options(), renderers: [counting] },
@@ -3506,6 +3601,7 @@ describe("compileDeclarationProject", () => {
     );
     expect(first.valid && repeated.valid && changed.valid).toBe(true);
     expect(builds).toBe(2);
+    expect(bytePropertyReads).toBe(0);
   });
 
   it("includes the complete renderer registry in cache identity independent of order", async () => {

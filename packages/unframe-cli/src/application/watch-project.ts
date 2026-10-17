@@ -44,6 +44,7 @@ export const watchPresentationProject = async ({
   let attempted = false;
   while (!signal.aborted) {
     const revision = await snapshot();
+    if (signal.aborted) break;
     if (!attempted || revision !== lastRevision) {
       attempted = true;
       lastRevision = revision;

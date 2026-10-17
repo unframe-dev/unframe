@@ -153,3 +153,106 @@ it.each(["!", "Zg=", "Zh=="])("reports invalid base64 %s as a raw-file diagnosti
     ],
   });
 });
+
+it("exposes a missing extracted renderer as an internal invariant failure", () => {
+  const missingRenderer = structuredClone(catalog) as { components: { renderer?: unknown }[] };
+  delete missingRenderer.components[0]!.renderer;
+  expect(() => computeFrozenComponentInputs(project(), missingRenderer as never)).toThrow(
+    expect.objectContaining({
+      code: "compiler-internal-error",
+      stage: "frozen-input",
+      message: "Compiler failed during frozen-input.",
+      cause: expect.any(Error),
+    }),
+  );
+});
+
+it.each([
+  [
+    'import "./missing-helper";',
+    "Local import must resolve exactly once: Hero.component.tsx: ./missing-helper",
+  ],
+  ['import("./helper");', "Component input graph must use static imports."],
+  ['import "../outside";', "Local import escapes project root."],
+])("keeps an expected frozen graph failure as an input diagnostic: %s", (sourceText, message) => {
+  const input = {
+    projectRoot: "/virtual",
+    entryFile: "Hero.component.tsx",
+    files: [{ fileName: "Hero.component.tsx", sourceText }],
+    rawFiles: [],
+    rootDependencies: [],
+    packages: [],
+  };
+  expect(computeFrozenComponentInputs(input, catalog)).toMatchObject({
+    valid: false,
+    diagnostics: [{ code: "compiler-frozen-input-invalid", message }],
+  });
+});
+
+it("ignores comments and content strings while computing the frozen CSS closure", () => {
+  const css = '.hero { content: "url(./missing.png)" } /* url(./missing.png) */';
+  expect(computeFrozenComponentInputs(project(css), catalog).valid).toBe(true);
+});
+
+it.each([
+  [String.raw`.hero { background: U\52L("./lo\67 o.png"); }`, "logo.png"],
+  [String.raw`@\69mport U\52L("./ba\73 e.css");`, "base.css"],
+])("resolves escaped mixed-case CSS dependencies in the frozen closure: %s", (css, fileName) => {
+  const input = project(css);
+  expect(computeFrozenComponentInputs(input, catalog)).toMatchObject({
+    valid: false,
+    diagnostics: [
+      {
+        code: "compiler-frozen-input-invalid",
+        message: `Local import must resolve exactly once: styles/entry.css: ./${fileName}`,
+      },
+    ],
+  });
+  const path = `styles/${fileName}`;
+  const data = fileName === "base.css" ? ".base { color: red }" : "fixture bytes";
+  input.rawFiles.push({
+    path,
+    mediaType: fileName === "base.css" ? "text/css" : "application/octet-stream",
+    encoding: "utf8",
+    data,
+    hash: hash(data),
+  });
+  input.preparedStyles.inputs.push({ path, hash: hash(data) });
+  expect(computeFrozenComponentInputs(input, catalog).valid).toBe(true);
+});
+
+it("ignores content strings and comments in untransformed raw CSS", () => {
+  const css =
+    '.hero { content: "url(./missing.png)"; filter: url(#shadow) } /* url(./missing.png) */';
+  const input = {
+    projectRoot: "/virtual",
+    entryFile: "Hero.component.tsx",
+    files: [
+      {
+        fileName: "Hero.component.tsx",
+        sourceText: 'import "./styles/entry.css"; export const render = () => null;',
+      },
+    ],
+    rawFiles: [
+      {
+        path: "styles/entry.css",
+        mediaType: "text/css",
+        encoding: "utf8",
+        data: css,
+        hash: hash(css),
+      },
+    ],
+    rootDependencies: [],
+    packages: [],
+  };
+  expect(computeFrozenComponentInputs(input, catalog).valid).toBe(true);
+});
+
+it("reports a CSS syntax failure as frozen input without exposing parser contents", () => {
+  expect(computeFrozenComponentInputs(project(".hero { private-source }"), catalog)).toMatchObject({
+    valid: false,
+    diagnostics: [
+      { code: "compiler-frozen-input-invalid", message: "CSS dependencies could not be parsed." },
+    ],
+  });
+});

@@ -585,3 +585,33 @@ describe("Opaque Baked Web RendererPlugin adapter", () => {
     expect(result.value.captures.map(({ alphaMode }) => alphaMode)).toEqual(["opaque"]);
   });
 });
+
+it("retains factory programs, config and capture after caller mutation", async () => {
+  const program = {
+    entryId: "opaque-entry",
+    moduleHash: "sha256:module",
+    javascript: "original",
+    stylesheets: ["theme.css"],
+    assets: [],
+    props: { title: "original" },
+  };
+  const mutableConfig = {};
+  const options = {
+    programs: [program],
+    config: mutableConfig,
+    runtimeFingerprint: "sha256:runtime",
+    capture: async (request: OpaqueCaptureRequest) => {
+      expect(request.javascript).toBe("original");
+      expect(request.stylesheets).toEqual(["theme.css"]);
+      expect(request.props).toEqual({ title: "original" });
+      return validCapture(request);
+    },
+  };
+  const renderer = createOpaqueBakedWebRenderer(options);
+  program.javascript = "changed";
+  program.stylesheets.push("changed.css");
+  program.props.title = "changed";
+  Object.assign(mutableConfig, { extra: true });
+  options.capture = async () => ({ ok: false, code: "changed-capture" });
+  expect(await renderer.build(inputForRenderer(renderer))).toMatchObject({ ok: true });
+});
